@@ -3250,41 +3250,26 @@ This requirement does not mean the human must already have a WideCast account.
 Use this order:
 
 1. If a native tool or MCP tool such as `widecast_get_writing_skill` is available, call it with the needed format: `video`, `blog`, or `social`.
-2. If MCP is not available, call the key-free public writing-skill API directly if the agent has web/HTTP access:
-   - `https://widecast.ai/app/dashboard2/v1/skills/writing?format=video`
-   - `https://widecast.ai/app/dashboard2/v1/skills/writing?format=blog`
-   - `https://widecast.ai/app/dashboard2/v1/skills/writing?format=social`
-3. If the public API is unavailable, download the matching static skill zip from the origin download host:
-   - `https://origin.widecast.ai/skills/video-script-writing.zip`
-   - `https://origin.widecast.ai/skills/blog-writing.zip`
-   - `https://origin.widecast.ai/skills/social-post-writing.zip`
-4. Extract the zip, read `SKILL.md`, and apply the method fully. If the zip contains referenced helper files, read the referenced files needed by `SKILL.md`.
-5. Cache the loaded method locally so future runs can continue even if the network is unavailable.
-6. If all methods fail, write the draft using best judgment, clearly mark that the WideCast writing method could not be loaded, and continue the daily report instead of blocking the human.
+2. If MCP/account tools are not available, download the matching static skill zip from the Solo Agency GitHub repo:
+   - `https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/video-script-writing.zip`
+   - `https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/blog-writing.zip`
+   - `https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/social-post-writing.zip`
+3. Extract the zip, read `SKILL.md`, and apply the method fully. If the zip contains referenced helper files, read the referenced files needed by `SKILL.md`.
+4. Cache the loaded method locally so future runs can continue even if the network is unavailable.
+5. If the repo was cloned locally, prefer the local files under `solo-agency-collector/skills/` instead of downloading the same zip again.
+6. If all methods fail, write the draft using best judgment, clearly mark that the writing method could not be loaded, and continue the daily report instead of blocking the human.
 
-The key-free public writing-skill API returns a JSON object with these important fields:
-
-- `object: "skill"`
-- `name`
-- `format`
-- `note_to_model`
-- `must_apply_now`
-- `method_format: "markdown"`
-- `method`, containing the full writing method markdown
-- `next_action`
-- `meta`
-
-When the agent receives the JSON response, it must treat `must_apply_now` as the required checklist and `method` as the full writing guide.
+The Solo Agency GitHub repo must be treated as the account-free setup source for writing skills. Do not require a WideCast account, API key, MCP setup, or external vendor-hosted download merely to write video scripts, blog drafts, social captions, idea lists, or reports.
 
 Recommended local cache paths:
 
 ```text
-daily-content-pipeline/widecast_skills/video/SKILL.md
-daily-content-pipeline/widecast_skills/video/skill_response.json
-daily-content-pipeline/widecast_skills/blog/SKILL.md
-daily-content-pipeline/widecast_skills/blog/skill_response.json
-daily-content-pipeline/widecast_skills/social/SKILL.md
-daily-content-pipeline/widecast_skills/social/skill_response.json
+daily-content-pipeline/writing_skills/video/SKILL.md
+daily-content-pipeline/writing_skills/video/source_meta.json
+daily-content-pipeline/writing_skills/blog/SKILL.md
+daily-content-pipeline/writing_skills/blog/source_meta.json
+daily-content-pipeline/writing_skills/social/SKILL.md
+daily-content-pipeline/writing_skills/social/source_meta.json
 ```
 
 The cache metadata should include:
@@ -3293,8 +3278,8 @@ The cache metadata should include:
 - format
 - downloaded_at or loaded_at
 - method_format
-- WideCast version if provided
-- whether the source was MCP, public API, static zip, or local cache
+- skill version if provided
+- whether the source was MCP, GitHub static zip, repo-local file, or local cache
 
 The agent must not ask the human to register at WideCast merely to write scripts, blog drafts, social captions, idea lists, or reports.
 
@@ -3550,23 +3535,39 @@ The collector layer separates private data collection from reasoning:
 - The AI agent reads local files and performs filtering, lead detection, competitor detection, idea generation, script writing, reporting, and WideCast actions.
 - No private data should be uploaded to a third-party server unless the human explicitly enables such export.
 
-### Temporary WideCast-Hosted Collector Distribution
+### Solo Agency GitHub Collector Distribution
 
-Until the project is published on GitHub and the Chrome extension is available through Chrome Web Store, the AI agent must use the temporary WideCast-hosted collector distribution.
+For setup, the AI agent must use the Solo Agency GitHub repository as the primary collector distribution source.
 
-Current temporary distribution base:
-
-```text
-https://origin.widecast.ai/media-agency-collector/
-```
-
-Current artifacts:
+Repository:
 
 ```text
-https://origin.widecast.ai/media-agency-collector/dist/collector-bridge-binaries-0.1.0.zip
-https://origin.widecast.ai/media-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
-https://origin.widecast.ai/media-agency-collector/dist/SHA256SUMS
+https://github.com/soloagency/solo-agency
 ```
+
+Raw download base:
+
+```text
+https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/
+```
+
+Current collector artifacts:
+
+```text
+https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/collector-bridge-binaries-0.1.0.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/SHA256SUMS
+```
+
+Current writing-skill artifacts:
+
+```text
+https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/video-script-writing.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/blog-writing.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/social-post-writing.zip
+```
+
+If the agent is already running inside a cloned copy of `https://github.com/soloagency/solo-agency`, it must prefer local repo files under `solo-agency-collector/dist/` and `solo-agency-collector/skills/` before downloading the same files from raw GitHub URLs.
 
 The AI agent should install the collector locally as much as its environment allows.
 
@@ -3581,9 +3582,9 @@ daily-content-pipeline/collector/chrome-extension/
 Install flow:
 
 1. Detect the user's OS and CPU architecture.
-2. Download `SHA256SUMS`.
-3. Download `collector-bridge-binaries-0.1.0.zip`.
-4. Download `chrome-extension-collector-root-0.1.0.zip`.
+2. Check whether `solo-agency-collector/dist/` already exists locally from a cloned repo.
+3. If local artifacts exist, copy `SHA256SUMS`, `collector-bridge-binaries-0.1.0.zip`, and `chrome-extension-collector-root-0.1.0.zip` from the local repo.
+4. If local artifacts do not exist, download them from the raw GitHub URLs above.
 5. Verify checksums when the environment has checksum tools available.
 6. Extract bridge binaries into the absolute local path for `daily-content-pipeline/collector/bin/`.
 7. Extract the Chrome extension zip into the absolute local path for `daily-content-pipeline/collector/chrome-extension/`.
@@ -3684,7 +3685,7 @@ set -euo pipefail
 
 PIPELINE_ROOT="/ABSOLUTE/PATH/TO/daily-content-pipeline"
 COLLECTOR_ROOT="$PIPELINE_ROOT/collector"
-BASE_URL="https://origin.widecast.ai/media-agency-collector"
+BASE_URL="https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector"
 BRIDGE_ZIP_URL="$BASE_URL/dist/collector-bridge-binaries-0.1.0.zip"
 EXTENSION_ZIP_URL="$BASE_URL/dist/chrome-extension-collector-root-0.1.0.zip"
 PORT="17321"
@@ -3854,7 +3855,7 @@ PowerShell setup script content, with `PipelineRoot` replaced by the real absolu
 $ErrorActionPreference = "Stop"
 $PipelineRoot = "C:\ABSOLUTE\PATH\TO\daily-content-pipeline"
 $CollectorRoot = Join-Path $PipelineRoot "collector"
-$BaseUrl = "https://origin.widecast.ai/media-agency-collector"
+$BaseUrl = "https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector"
 $BridgeZipUrl = "$BaseUrl/dist/collector-bridge-binaries-0.1.0.zip"
 $ExtensionZipUrl = "$BaseUrl/dist/chrome-extension-collector-root-0.1.0.zip"
 $Port = 17321
@@ -4031,7 +4032,7 @@ After setup, you can start the Local Collector app later by double-clicking:
 
 Future update rule:
 
-- When the project moves to GitHub releases, replace the WideCast-hosted artifact URLs with GitHub release URLs.
+- When the project moves from raw GitHub files to GitHub Releases, replace the raw artifact URLs with GitHub release URLs.
 - When the extension is published to Chrome Web Store, replace the developer-mode `Load unpacked` flow with the Chrome Web Store install flow.
 - Until then, the AI agent should handle download, extraction, binary selection, on-demand bridge start/stop, or persistent startup-service setup automatically, while the human performs only the one-time Chrome extension installation approval.
 

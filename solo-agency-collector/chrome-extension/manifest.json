@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Solo Agency Local Collector",
+  "version": "0.1.0",
+  "description": "Collects visible, authorized private-source signals locally for Solo Agency workflows.",
+  "permissions": [
+    "alarms",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Solo Agency Local Collector"
+  }
+}

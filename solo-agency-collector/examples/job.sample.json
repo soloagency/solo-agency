@@ -1,0 +1,43 @@
+{
+  "run_id": "2026-06-20_demo-client",
+  "client_slug": "demo-client",
+  "business_slug": "dui-law",
+  "location_slug": "los-angeles",
+  "language": "en",
+  "pacing": {
+    "min_delay_seconds": 5,
+    "max_delay_seconds": 5,
+    "max_sources": 20,
+    "scroll_steps": 5,
+    "max_text_chars": 12000
+  },
+  "collector_policy": {
+    "read_only": true,
+    "do_not_message": true,
+    "do_not_comment": true,
+    "do_not_react": true,
+    "do_not_scrape_contact_details": true
+  },
+  "sources": [
+    {
+      "name": "Example Facebook Group",
+      "url": "https://www.facebook.com/groups/example",
+      "source_type": "private",
+      "platform": "facebook",
+      "priority": "high",
+      "scan_cadence": "daily",
+      "purpose": "lead_scan",
+      "location_relevance": "Los Angeles"
+    },
+    {
+      "name": "Example Competitor Page",
+      "url": "https://www.facebook.com/examplecompetitor",
+      "source_type": "private",
+      "platform": "facebook",
+      "priority": "high",
+      "scan_cadence": "daily",
+      "purpose": "competitor_monitoring",
+      "location_relevance": "Los Angeles"
+    }
+  ]
+}
