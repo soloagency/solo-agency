@@ -1,0 +1,6 @@
+4f53ab502013dcebb0c9757f8496cd829f2455b3069c1e95da74e4d2f35f8067  daily-content-pipeline/collector/bin/collector-bridge-darwin-amd64
+9fb04a464c35e7ce60bcc1a3ce5feec9a1c2e892d7f62dc5d93da3439f6ed793  daily-content-pipeline/collector/bin/collector-bridge-darwin-arm64
+7a21e2e72cad6a30537d007ec93ebcdddebf1147891b06a71e542903101903a6  daily-content-pipeline/collector/bin/collector-bridge-linux-amd64
+d44a185dbed0c1b4429c085133b7f78c1cc89825a6d6e05021c51017164dee37  daily-content-pipeline/collector/bin/collector-bridge-windows-amd64.exe
+41455eb77dc094fd7691325f4e2f0f0a73836de05bc71257afb77f7d47f1e129  media-agency-collector/dist/collector-bridge-binaries-0.1.0.zip
+982577d43f3351d6bf31370adba34ea8f8b18ef6af305582891039a514b3f6a1  media-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
