@@ -32,6 +32,11 @@ The agent must follow these principles at all times:
 - Ask for `target_location` only if the business is location-dependent and the location cannot be inferred.
 - Ask the human to provide private data sources they want monitored, such as competitor profiles, fanpages, groups, communities, or social accounts.
 - Ask the human whether they want to include Facebook groups where they are already a member as monitored private data sources; explain that the agent will filter those groups based on whether they contain discussions relevant to the client's primary industry, related industries, audience, location, and pain points.
+- Ask the human whether they want to discover private sources from their broader private interest graph: groups/communities they joined, pages/profiles/KOLs they follow, channels they subscribe to, and platform feeds that recommend content based on their interests. Explain that this discovery is optional, requires consent, uses the Solo Agency Local Collector, and must be filtered before anything becomes an active private source.
+- During private-source setup, repeatedly reassure the human in simple language:
+  - They are setting up a professional agency-scale system, so the first setup takes patience but normally happens only once.
+  - Private data is saved locally on their own computer and must not be sent outside their computer unless they explicitly approve an export.
+  - Once activated, the system can scan daily so important market signals, leads, competitor moves, and content ideas are less likely to be missed.
 - When researching public sources, use Google Search or an available equivalent search tool to try primary-industry, related-industry, sub-industry, audience-pain, local, and news-related keywords. Rotate keywords daily or per attempt until the results produce useful data points.
 - When scanning private or logged-in sources, use conservative pacing: do not scan aggressively, do not run many private-source browser checks in parallel, and leave a 5 second delay between private-source scroll/read actions so platform feeds have time to load.
 - Warn the human not to add too many private sources for one client. As a practical default, keep the daily private-source monitoring list around 20 sources or fewer per client. If the human provides more, prioritize the most relevant sources and rotate lower-priority sources across different days.
@@ -1255,30 +1260,42 @@ Required setup sequence:
    - how each content pillar maps to pain points and the business offer
    - which content pillars are `primary_industry` vs `related_industry`
    - the planned content mix rule, normally 80% primary industry and 20% related industries
-6. If the human has not already provided private data sources, ask whether the human wants to provide private data sources, including competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities, niche forums, and Facebook groups where they are already a member.
+6. If the human has not already provided private data sources, ask whether the human wants to provide private data sources, including competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities, niche forums, and manually known Facebook groups.
    - If the human already provided private sources in an earlier message, do not ask again before setup. Process the provided sources.
    - Do not label the collector by platform. Even if the provided sources are all Facebook, call it the Solo Agency Local Collector extension and Local Collector app.
-7. After the answer, infer and show:
+7. Separately ask whether the human wants Private Interest Graph Discovery:
+   - groups/communities they joined
+   - pages/profiles/KOLs/creators/companies/channels they follow or subscribe to
+   - platform feeds/recommendations that surface topics they care about
+   - Explain the three reassurance points: professional one-time agency setup, local-only data safety, and daily scanning after activation.
+8. If the human approves Facebook member-groups discovery, scan the joined-groups discovery page through the Solo Agency Local Collector:
+   - `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added`
+   - If the human agrees, this requires Local Collector activation before the joined-groups discovery scan.
+   - If the human declines or postpones, do not inspect that page.
+9. If the human approves other platform discovery categories, use the `Private Interest Graph Discovery` platform starting URL registry and mark each approved category as `pending_private_activation` until the Local Collector is active and healthy.
+10. After the answer, infer and show:
    - which private sources are likely useful
    - which sources should be skipped or treated as optional
    - how the private sources map to content pillars
    - whether the private-source list should be kept as `daily`, `weekly`, or `optional` based on relevance and safe monitoring volume
-8. Show the complete setup summary and ask the human to correct only what is wrong.
-9. Save the Client Intelligence Profile file only after the human has had a chance to correct the setup summary.
-10. Run the first trial immediately after the profile is ready, using public sources and any already available local data.
+11. Show the complete setup summary and ask the human to correct only what is wrong.
+12. Save the Client Intelligence Profile file only after the human has had a chance to correct the setup summary.
+13. Run the first trial immediately after the profile is ready, using public sources and any already available local data.
    - Do not wait for Local Collector installation.
    - If private sources were provided, list them as `pending_private_activation`.
+   - If the human agreed to Private Interest Graph Discovery but Local Collector is not active yet, list each approved discovery category as `pending_private_activation`.
    - Explain that private-source monitoring requires a one-time Solo Agency Local Collector extension and Local Collector app setup.
-11. Produce the first trial report as a small win.
-12. After showing the first report, the chat message must include:
+14. Produce the first trial report as a small win.
+15. After showing the first report, the chat message must include:
    - the best idea and a short useful summary;
    - the mobile-friendly HTML report path/link;
    - a clear note that the run used public sources only if private sources are not active;
    - the number and names/URLs of pending private sources, if any;
-   - the direct activation question: `Private sources are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?`
-13. If the human says yes, install or initiate setup for the Solo Agency Local Collector extension and Local Collector app.
-14. After collector setup succeeds, run a private-source activation scan or second trial enrichment when possible.
-15. Only after the human has seen the first trial report and has decided whether to activate private sources, ask about the recurring schedule.
+   - whether Private Interest Graph Discovery categories are pending, approved, declined, or not asked yet;
+   - the direct activation question: `Private sources and Private Interest Graph Discovery require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?`
+16. If the human says yes, install or initiate setup for the Solo Agency Local Collector extension and Local Collector app.
+17. After collector setup succeeds, run a private-source activation scan or second trial enrichment when possible. If Private Interest Graph Discovery was approved, scan the approved discovery URLs first, filter candidate sources, show the recommendations to the human, and ask for approval before adding them to active `private_data_sources`.
+18. Only after the human has seen the first trial report and has decided whether to activate private sources, ask about the recurring schedule.
 
 Every follow-up question must include a short `What I inferred from your last answer` section before the next question.
 
@@ -1384,11 +1401,15 @@ Examples of private data sources:
 - Competitor TikTok profiles.
 - Competitor LinkedIn profiles.
 - Competitor YouTube channels where logged-in access is useful.
+- KOL, creator, expert, or influencer profiles the human follows.
+- Subscribed YouTube channels.
+- Followed TikTok, Instagram, X, LinkedIn, or Facebook profiles/pages.
 - Facebook groups.
 - LinkedIn groups.
 - Reddit communities.
 - Niche forums.
 - Local community groups.
+- Platform recommendation feeds, used only as discovery surfaces with explicit consent.
 - Private newsletters.
 - Slack or Discord communities.
 - Client-owned dashboards.
@@ -1400,6 +1421,8 @@ The agent must say:
 ### Facebook Member Groups Review
 
 The agent must specifically ask whether the human wants to include Facebook groups where the human is already a member.
+
+This is a separate discovery path from asking the human to paste private-source URLs manually. Many non-technical humans do not remember all useful groups they have already joined. The agent must offer to discover candidate groups from the human's joined-groups page, with explicit permission, then filter the list for relevance.
 
 The agent must explain that it will not treat every group as useful by default. It will review and filter the available groups based on whether they contain discussions relevant to:
 
@@ -1414,15 +1437,50 @@ The agent must explain that it will not treat every group as useful by default. 
 
 The agent should say:
 
-`Do you want me to include Facebook groups where you are already a member as possible private data sources? I will review and filter them based on whether they contain discussions related to this client's primary industry, related industries, target audience, location, and pain points. I will not ask for credentials; if login is required, please log in manually through the browser session. For account safety, I will keep the active daily private-source list conservative, around 20 sources or fewer per client by default, and rotate lower-priority groups when needed.`
+`Do you want me to review the Facebook groups you are already a member of and select only the groups that look useful for this client? If you say yes, I will use your logged-in Chrome session through the Solo Agency Local Collector, open your joined-groups page, and filter groups based on the client's primary industry, related industries, audience, location, and pain points. I will not ask for credentials, cookies, passwords, or tokens. For account safety, I will keep the active daily private-source list conservative, around 20 sources or fewer per client by default, and rotate lower-priority groups when needed.`
 
 If the human agrees:
 
-- Use the already logged-in Facebook session if available.
-- Review visible group names, descriptions, posts, questions, and discussions.
-- Select only groups that are relevant to the client pipeline.
-- Add selected groups to `private_data_sources`.
-- Log skipped groups as not relevant when appropriate.
+1. Treat the following URL as the Facebook joined-groups discovery source:
+
+```text
+https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
+```
+
+2. If the Solo Agency Local Collector extension and Local Collector app are not installed and healthy, activate/setup them before attempting this scan.
+3. Do not use Claude Chrome Extension for this discovery scan.
+4. Do not ask the human to paste Facebook cookies, passwords, tokens, or credentials.
+5. Use the human's already logged-in Chrome session. If Facebook is logged out, mark `facebook_session_expired` and ask the human to log in manually.
+6. Create a manual `run_now` job for the Local Collector to scan the joined-groups discovery URL.
+7. Use conservative scan settings:
+   - `max_scrolls_per_source`: default 5, max 10.
+   - `scroll_delay_seconds`: 5.
+   - Read visible text and current URLs only.
+8. Review visible group names, group URLs, descriptions, category hints, membership/context hints, and any visible preview text.
+9. Select only groups that are relevant to the client pipeline.
+10. Classify candidate groups as:
+    - `recommended_daily`
+    - `recommended_weekly`
+    - `optional`
+    - `skip_not_relevant`
+    - `skip_too_broad`
+    - `skip_sensitive_or_risky`
+11. Show the human a short `Facebook Member Groups Review` result before saving:
+    - recommended groups
+    - why each group is relevant
+    - proposed scan cadence
+    - skipped groups count and examples
+    - account-safety note
+12. Ask the human to approve the recommended groups before adding them as active `private_data_sources`.
+13. After approval, add selected groups to `private_data_sources`.
+14. Log skipped groups as not relevant when appropriate.
+15. Save the discovery output under:
+
+```text
+daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/facebook_member_groups_review_YYYY-MM-DD.md
+```
+
+16. Also add selected or newly discovered group candidates to `New Private Sources Detected` in the next report.
 
 If the human declines:
 
@@ -1441,6 +1499,196 @@ If a private session expires:
 - Log the issue in `history/YYYY-MM/data_sources_log.md`.
 - Tell the human which source needs manual login.
 - Never ask for credentials.
+
+### Private Interest Graph Discovery
+
+Private sources are not limited to URLs pasted by the human. Many useful sources are already inside the human's social interest graph:
+
+- Groups, communities, or forums the human has already joined.
+- Pages, profiles, KOLs, creators, experts, competitors, or industry voices the human follows.
+- YouTube/TikTok/Instagram/X/LinkedIn accounts the human subscribes to or frequently sees.
+- Home/news/for-you feeds where the platform recommends topics based on the human's existing interests.
+
+This is often the best source discovery layer because busy humans may follow good sources but not remember all of them, and platform feeds often surface what the human's market is already discussing.
+
+The agent must treat this as an optional, consent-based discovery workflow, not as automatic surveillance.
+
+Before using this workflow, the agent must reassure the human:
+
+```text
+You are setting up a professional agency-scale system. The first setup takes a little patience, but it is normally a one-time setup.
+
+The data stays on your own computer. I will not ask for passwords, cookies, or tokens, and private data must not be sent outside your computer unless you explicitly approve an export.
+
+Once this is activated, the system can scan every day so you do not miss useful market signals, leads, competitor moves, and content ideas.
+```
+
+The agent must ask for explicit consent for each discovery category:
+
+1. `membership_sources`
+   - Groups, communities, subreddits, forums, and memberships the human has already joined.
+2. `following_sources`
+   - Pages, profiles, KOLs, creators, competitors, experts, channels, and companies the human follows or subscribes to.
+3. `recommendation_feed_sources`
+   - Home feed, news feed, for-you feed, subscriptions feed, groups feed, or other platform-recommended surfaces.
+
+Recommended human-facing question:
+
+```text
+Do you want me to discover useful private sources from accounts and communities you already follow or joined?
+
+I can review groups you are already a member of, people/pages/KOLs you follow, channels you subscribe to, and feed recommendations that platforms are already showing you. I will only keep sources related to this client's industry, related industries, target audience, location, pain points, and content pillars. I will not ask for passwords or cookies, and the data stays local on your computer.
+```
+
+The human may approve all categories, approve only some, decline, or postpone.
+
+#### Platform Starting URL Registry
+
+These URLs are starting points for the Solo Agency Local Collector to open inside the human's already logged-in browser profile. They are not permanent APIs. Platforms may change paths, redirect, hide surfaces, require login, or A/B test layouts.
+
+If a URL does not work, the agent must mark `platform_url_changed` or `login_required`, continue with other sources, and avoid asking for credentials.
+
+| Platform | Discovery Type | Starting URL | Notes |
+|---|---|---|---|
+| Facebook | Joined groups | `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added` | Use for groups the human has joined. |
+| Facebook | Groups feed | `https://www.facebook.com/groups/feed/` | Use for posts from joined groups and group recommendations. |
+| Facebook | Home/news feed | `https://www.facebook.com/` | Use only with explicit feed discovery consent. |
+| Facebook | Liked/followed pages candidate | `https://www.facebook.com/pages/?category=liked` | Treat as candidate URL; verify in logged-in browser. |
+| YouTube | Subscriptions feed | `https://www.youtube.com/feed/subscriptions` | Good for channels the human follows. |
+| YouTube | Subscribed channels candidate | `https://www.youtube.com/feed/channels` | Treat as candidate URL; verify in logged-in browser. |
+| YouTube | Home recommendations | `https://www.youtube.com/` | Use only with explicit feed discovery consent. |
+| X | Home feed | `https://x.com/home` | Use only with explicit feed discovery consent. |
+| X | Following list | `https://x.com/{username}/following` | Replace `{username}` only if known or visible; otherwise use profile navigation if available. |
+| X | Lists | `https://x.com/i/lists` | Lists may reveal curated sources. |
+| X | Communities | `https://x.com/i/communities` | Treat as candidate URL; verify in logged-in browser. |
+| LinkedIn | Feed | `https://www.linkedin.com/feed/` | Use only with explicit feed discovery consent. |
+| LinkedIn | Following feed candidate | `https://www.linkedin.com/feed/following/` | Treat as candidate URL; verify in logged-in browser. |
+| LinkedIn | My Network | `https://www.linkedin.com/mynetwork/` | May surface followed people/pages and recommendations. |
+| LinkedIn | Groups candidate | `https://www.linkedin.com/groups/` | Treat as candidate URL; verify in logged-in browser. |
+| Instagram | Home feed | `https://www.instagram.com/` | Use only with explicit feed discovery consent. |
+| Instagram | Explore | `https://www.instagram.com/explore/` | Use as trend/source discovery, not an active source by itself. |
+| Instagram | Following candidate | `https://www.instagram.com/{username}/following/` | Replace `{username}` only if known; may require manual profile navigation. |
+| TikTok | Following feed candidate | `https://www.tiktok.com/following` | Treat as candidate URL; verify in logged-in browser. |
+| TikTok | For You/home | `https://www.tiktok.com/` | Use only with explicit feed discovery consent. |
+| Reddit | Joined subreddits | `https://www.reddit.com/subreddits/mine/` | Use for communities the human joined when visible. |
+| Reddit | Home feed | `https://www.reddit.com/` | Use only with explicit feed discovery consent. |
+
+#### Discovery Behavior Rules
+
+The agent must use the Solo Agency Local Collector extension plus the Local Collector app for private interest graph discovery.
+
+The agent must not use Claude Chrome Extension for this workflow.
+
+The agent must not ask for credentials, passwords, OTPs, cookies, raw tokens, or exported browser sessions.
+
+The agent must never open or collect:
+
+- DMs.
+- Messenger/chat inboxes.
+- Email inboxes.
+- Notification centers.
+- Payment, account, billing, medical, legal-client, or private dashboard pages unless the human explicitly provides that source for a specific business purpose.
+- Anything that requires bypassing access controls.
+
+For interest graph discovery, the collector should capture only:
+
+- Visible text.
+- Source name.
+- Source URL.
+- Current URL.
+- Platform.
+- Discovery URL used.
+- Visible engagement hints when available.
+- Visible author/page/profile/channel candidates.
+- Timestamp.
+
+Default pacing:
+
+- `max_scrolls_per_source`: 3 to 5 for broad feed discovery.
+- `max_scrolls_per_source`: 5 for joined groups/following/subscriptions discovery.
+- Absolute maximum: 10.
+- `scroll_delay_seconds`: 5.
+- Avoid parallel private-source scans.
+
+The agent must treat feeds as discovery surfaces, not permanent sources by themselves.
+
+For example:
+
+- Do not save `https://www.facebook.com/` as a daily private source.
+- Instead, use the feed to discover relevant groups, pages, profiles, competitors, KOLs, recurring topics, and lead signals.
+- Then propose specific sources for human approval.
+
+#### Source Filtering Rules
+
+The agent must not add everything it finds.
+
+For every candidate source, evaluate:
+
+- Relevance to primary industry.
+- Relevance to related industries, only if the bridge back to the offer is logical.
+- Relevance to target audience.
+- Relevance to target location.
+- Pain point match.
+- Content pillar match.
+- Lead signal potential.
+- Competitor intelligence value.
+- KOL/trend authority value.
+- Posting/activity frequency.
+- Noise level.
+- Sensitivity/risk level.
+- Whether scanning it daily would be platform-respectful.
+
+Classify each candidate source:
+
+- `recommended_daily`
+- `recommended_weekly`
+- `optional`
+- `watch_once`
+- `skip_not_relevant`
+- `skip_too_broad`
+- `skip_too_noisy`
+- `skip_sensitive_or_risky`
+- `skip_platform_unavailable`
+
+The agent must show the filtered result to the human before adding newly discovered sources to active `private_data_sources`.
+
+#### Discovery Data Model
+
+Use this shape in logs and reports:
+
+```yaml
+source_type: joined_group | followed_profile | followed_page | subscribed_channel | followed_company | subreddit | community | recommendation_feed_author | recommendation_feed_topic
+platform:
+source_name:
+source_url:
+discovery_category: membership_sources | following_sources | recommendation_feed_sources
+discovery_url:
+current_url:
+captured_at:
+why_relevant:
+matched_pain_points:
+matched_content_pillars:
+industry_scope: primary_industry | related_industry
+related_industry:
+bridge_back_to_primary_offer:
+recommended_cadence: daily | weekly | optional | watch_once
+risk_level: low | medium | high
+approval_status: pending_human_approval | approved | rejected
+```
+
+Save discovery outputs under:
+
+```text
+daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/private_interest_graph_discovery_YYYY-MM-DD.md
+```
+
+When useful, also update:
+
+```text
+daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/new_private_sources_log.md
+```
+
+The next HTML report must include a `Private Interest Graph Discovery` section when this workflow runs or is pending.
 
 ---
 
@@ -1892,6 +2140,44 @@ human_decision:
 collector_setup_status_file:
 notes:
 
+## private_interest_discovery
+
+status: not_asked | declined | partially_approved | approved | pending_private_activation | active | blocked
+reassurance_shown:
+  professional_setup_once: true | false
+  local_data_only: true | false
+  daily_scan_prevents_missed_signals: true | false
+categories:
+  membership_sources:
+    status: not_asked | declined | approved | pending_private_activation | active | blocked
+    platforms:
+    - platform:
+      discovery_urls:
+      - url:
+        status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
+        last_scanned_at:
+  following_sources:
+    status: not_asked | declined | approved | pending_private_activation | active | blocked
+    platforms:
+    - platform:
+      discovery_urls:
+      - url:
+        status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
+        last_scanned_at:
+  recommendation_feed_sources:
+    status: not_asked | declined | approved | pending_private_activation | active | blocked
+    platforms:
+    - platform:
+      discovery_urls:
+      - url:
+        status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
+        last_scanned_at:
+candidate_source_review_policy:
+  require_human_approval_before_activating: true
+  max_daily_sources_default: 20
+  feed_surfaces_are_discovery_only: true
+last_discovery_report:
+
 ## private_data_sources
 
 items:
@@ -1899,6 +2185,10 @@ items:
   url:
   type: private
   platform:
+  source_type: manually_provided | joined_group | followed_profile | followed_page | subscribed_channel | followed_company | subreddit | community | discovered_from_feed
+  discovery_category: manually_provided | membership_sources | following_sources | recommendation_feed_sources
+  discovery_url:
+  approval_status: pending_human_approval | approved | rejected
   priority: high | medium | low
   scan_cadence: daily | weekly | optional
   location_relevance:
@@ -2250,6 +2540,44 @@ Use this section when private sources were provided but the Solo Agency Local Co
     - URL:
     - Platform:
     - Why it matters:
+
+## Private Interest Graph Discovery
+
+Use this section when the human approved, declined, postponed, or has not yet been asked about discovering private sources from joined groups, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds.
+
+- Status: not_asked | declined | approved_pending_activation | active | blocked | completed
+- Reassurance shown:
+  - Professional agency-scale setup, normally one-time:
+  - Local-only data safety:
+  - Daily scanning reduces missed signals:
+- Approved discovery categories:
+  - membership_sources:
+  - following_sources:
+  - recommendation_feed_sources:
+- Discovery URLs used or pending:
+  - Platform:
+  - Discovery type:
+  - URL:
+  - Status: pending_private_activation | scanned | login_required | platform_url_changed | failed
+- Candidate sources found:
+  - Source name:
+  - Source URL:
+  - Platform:
+  - Discovery category:
+  - Why relevant:
+  - Matched pain points:
+  - Matched content pillars:
+  - Industry scope: primary_industry | related_industry
+  - Recommended cadence: daily | weekly | optional | watch_once
+  - Classification: recommended_daily | recommended_weekly | optional | watch_once | skip_not_relevant | skip_too_broad | skip_too_noisy | skip_sensitive_or_risky | skip_platform_unavailable
+  - Approval status: pending_human_approval | approved | rejected
+- Feed signals detected:
+  - Topic/signal:
+  - Source/current URL:
+  - Why it matters:
+  - Suggested action:
+- Human approval needed:
+  - Which candidate sources should be approved before activation:
 
 ## Sources Checked
 
@@ -2640,6 +2968,7 @@ The HTML report must include:
 - Clients processed.
 - Client status.
 - Private collector health: bridge status, extension last check time, extension status, and private-source blockers.
+- Private Interest Graph Discovery status when asked, approved, pending, blocked, or completed.
 - Top ideas.
 - Best idea.
 - Mapped content pillar.
@@ -2654,6 +2983,149 @@ The HTML report must include:
 - `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section when WideCast account tools, Telegram notification, publishing, or video creation are not connected yet.
 - Approval options.
 - Next actions.
+
+### Agency-Grade HTML Report Standard
+
+The HTML report is not a data dump. It is a professional agency decision report. A busy client or agency owner should be able to open it on a phone, understand the opportunity, verify the evidence, approve a draft, and know the next action within 60 seconds.
+
+The report must feel like it came from a capable media strategist, not from a crawler. It should combine research, judgment, prioritization, production readiness, and clear client communication.
+
+Required report hierarchy:
+
+1. `Executive Snapshot`
+   - Client name.
+   - Run date and agent identity.
+   - Source coverage status: public-only, public + private, private pending, private failed, or mixed.
+   - Best idea of the day in one sentence.
+   - Why it matters today.
+   - Content asset status: draft ready, needs human detail, needs visual assets, or blocked.
+   - Lead count: hot, warm, and not scanned/pending if applicable.
+   - Competitor signal count.
+   - One recommended next action.
+
+2. `Today's Recommendation`
+   - The single best idea.
+   - Target audience segment.
+   - Pain point or desire it hits.
+   - Content pillar.
+   - Primary industry or related industry label.
+   - If related industry, explain the business logic bridge back to the client's offer.
+   - Why this won over the other ideas.
+   - Confidence level: high, medium, or low.
+   - Main reference URLs.
+
+3. `Evidence Ledger`
+   - Every important factual claim, number, date, law/regulation point, price, platform policy, market signal, or news claim used in the report must appear in a claim-level evidence table.
+   - Required columns: `Claim`, `Source URL`, `Source type`, `Captured at`, `Confidence`, `Used in`.
+   - If a claim is inferred rather than directly stated by a source, label it `inference` and explain the logic.
+   - Do not use unsupported numeric claims in the final recommendation or script.
+   - If a useful claim cannot be verified, either remove it or mark it as low confidence and keep it out of the main hook.
+
+4. `Source Coverage And Data Quality`
+   - Public search keywords used today.
+   - Public sources scanned.
+   - Private sources scanned, pending, skipped, failed, or session-expired.
+   - New private sources detected.
+   - Known blind spots for this run.
+   - Data confidence summary.
+   - If private sources were provided but not activated yet, state that clearly and do not imply lead coverage is complete.
+
+5. `Private Interest Graph Discovery`
+   - Discovery categories approved, declined, pending, or not asked yet.
+   - Platforms and discovery URLs used.
+   - Whether the Solo Agency Local Collector is active, pending, or blocked.
+   - Candidate groups, profiles, pages, KOLs, channels, communities, and feed-surfaced sources found.
+   - Which candidates are recommended for daily, weekly, optional, or watch-once monitoring.
+   - Which candidates were skipped as irrelevant, too broad, too noisy, sensitive/risky, or unavailable.
+   - Feed signals detected, with current URL and source when visible.
+   - Sources requiring human approval before being activated.
+   - Reassurance summary: professional one-time setup, local-only data safety, and daily scanning to avoid missed signals.
+
+6. `Idea Portfolio`
+   - Keep the three-section idea structure:
+     - Hot / Trend / News
+     - Evergreen / Foundation
+     - Lead-Gen / Conversion
+   - Include both global and local angles when they matter.
+   - For every idea, show:
+     - Title.
+     - Global or local label.
+     - Primary industry or related industry label.
+     - Pain point or content pillar.
+     - Reference URL(s).
+     - Short rationale.
+   - Score or qualitative rating for heat, relevance, lead potential, novelty, and confidence.
+   - Empty weak slots are allowed. Do not fill a matrix slot with filler just to make the report look complete.
+
+7. `Decision Scorecard`
+   - Compare the top candidate ideas before choosing the best one.
+   - Score at least: trend heat, audience pain intensity, business relevance, lead potential, novelty/history risk, evidence strength, and production effort.
+   - Briefly explain why the selected idea won and why the other strong candidates did not win today.
+
+8. `Leads Detected`
+   - Separate `Hot leads`, `Warm leads`, and `Not scanned / pending`.
+   - Each lead must include profile URL and post/current URL when available.
+   - Include source, captured_at, need signal, why hot/warm, suggested next step, and safety note.
+   - If no leads were found, say whether that means `no leads found after scanning` or `lead sources not activated yet`.
+
+9. `Competitor Intelligence`
+   - Separate direct competitors, adjacent competitors, and audience competitors.
+   - Each competitor item must include profile URL and post/current URL when available.
+   - Include positioning, repeated content theme, engagement signal, threat level, and opportunity.
+   - If competitor data is inferred without a captured URL, label it as market hypothesis, not detected competitor evidence.
+
+10. `Production-Ready Drafts`
+   - Use complete version names:
+     - `Version 1: VE — Value Explainer`
+     - `Version 2: QA — Client Q&A`
+     - `Version 3: MB — Myth Buster`
+     - `Version 4: MP — Mistake Prevention`
+     - `Version 5: LG — Lead-Gen CTA`
+   - Each version should be a usable draft, not only a one-line angle, unless the report explicitly labels it as an angle preview.
+   - For each version, include hook/opening, body, CTA, tone, estimated length, source references, and production notes.
+   - If visual/media URLs are required for immediate video creation but are missing, label the draft as `script-ready, media-pending`.
+   - If the draft is ready for WideCast video/blog/social creation, label it `production-ready`.
+
+11. `Compliance And Brand Safety`
+   - Include short risk notes for legal, financial, insurance, medical, regulated, or sensitive industries.
+   - Avoid guarantees, misleading claims, unsafe outreach, or pretending the client has performed services they have not performed.
+   - If a CTA needs license number, phone number, disclaimer, location, or offer approval, list it under `Needs human detail`.
+
+12. `Next Action`
+   - End with exactly one primary next action.
+   - Secondary actions may be listed below, but they must not compete with the primary next action.
+   - For public-first reports with pending private sources, the primary next action should usually be activating the Solo Agency Local Collector, not scheduling.
+   - Ask about recurring schedule only after the first report exists and private-source activation has been accepted, declined, or documented as pending.
+
+Professional presentation rules:
+
+- Keep the top of the report concise. Details belong below the executive snapshot.
+- Use plain business language in the human's language.
+- Avoid unexplained abbreviations.
+- Avoid emoji-heavy, gimmicky, or dashboard-toy styling. A small number of status symbols is acceptable, but the report should feel client-ready.
+- Use tables only when they make comparison or verification easier.
+- Put reference links beside the claim, idea, lead, competitor, or draft they support. Do not hide all references in one generic source list.
+- Label missing data honestly: `not scanned`, `pending activation`, `session expired`, `not detected`, or `low confidence`.
+- Do not pretend public-only research has private lead coverage.
+
+Recommended HTML section order:
+
+```text
+1. Executive Snapshot
+2. Today's Recommendation
+3. Evidence Ledger
+4. Source Coverage And Data Quality
+5. Private Interest Graph Discovery
+6. Idea Portfolio
+7. Decision Scorecard
+8. Leads Detected
+9. Competitor Intelligence
+10. Production-Ready Drafts
+11. Compliance And Brand Safety
+12. Unlock Production & Distribution & Measure-Learning Loop With WideCast, when applicable
+13. Next Action
+14. Appendix / Raw References, optional
+```
 
 Static HTML reports are not application UIs. The agent must not create buttons that imply an action will happen when the human taps them unless the button is backed by a real working URL or app action. For approval, revision, choosing another idea, creating a WideCast video, or replying to leads, the report should say what to tell the AI agent or where to open WideCast.
 
@@ -2807,6 +3279,7 @@ In First Client Setup Mode, ask only for the minimum information required to cre
 - Product/service, profession, expertise, or business description.
 - Target location only if location matters and cannot be inferred.
 - Optional private data sources to monitor.
+- Optional permission for Private Interest Graph Discovery: joined groups/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
 
 Do not create fake client pipelines. If the client name or business description is missing, ask for that missing information and keep the root pipeline ready.
 
@@ -2826,6 +3299,7 @@ In Add Client Mode, ask only for missing critical information:
 - Product/service, profession, expertise, or business description.
 - Target location only if location matters and cannot be inferred.
 - Optional private data sources to monitor.
+- Optional permission for Private Interest Graph Discovery: joined groups/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
 
 The agent must infer:
 
@@ -2852,10 +3326,11 @@ Then the agent must:
 6. Create the client's outputs folder.
 7. Add the client to `clients_index.md`.
 8. Run the first trial report immediately using public sources and any already available local data.
-9. If private sources exist, show them in the report as `pending_private_activation`, then ask whether the human wants to activate private-source monitoring now.
+9. If private sources exist, or if Private Interest Graph Discovery was approved, show them in the report as `pending_private_activation`, then ask whether the human wants to activate private-source monitoring/discovery now.
 10. If the human agrees, install or initiate the Solo Agency Local Collector extension and Local Collector app setup.
-11. After the first trial report is shown and private-source activation has been accepted, declined, or documented as pending, ask the human whether and how to configure the recurring schedule/routine.
-12. Only after schedule confirmation, add or update the recurring schedule/routine and confirm whether future scheduled runs include public sources only or both public and activated private sources.
+11. If Private Interest Graph Discovery was approved, scan approved discovery URLs from the platform starting URL registry, filter candidate sources, show recommendations, and ask approval before adding sources to active private sources.
+12. After the first trial report is shown and private-source activation has been accepted, declined, or documented as pending, ask the human whether and how to configure the recurring schedule/routine.
+13. Only after schedule confirmation, add or update the recurring schedule/routine and confirm whether future scheduled runs include public sources only or both public and activated private sources.
 
 Example:
 
@@ -2898,9 +3373,10 @@ The correct order is fixed:
 1. Finish setup and save the Client Intelligence Profile.
 2. Run the first trial report immediately using public sources and any already available local data.
 3. Show the first report to the human as a small win.
-4. If private sources were provided, explain that private-source monitoring is still pending and ask whether to activate it now.
+4. If private sources were provided, or if the human agreed to Private Interest Graph Discovery, explain that private-source monitoring/discovery is still pending and ask whether to activate it now.
 5. If the human agrees, install or initiate setup for the Solo Agency Local Collector extension and Local Collector app.
-6. Ask about recurring schedule only after the first report exists and private-source activation has been accepted, declined, or documented as pending.
+6. If Private Interest Graph Discovery was approved, run approved discovery scans using the platform starting URL registry, filter candidate sources, and ask the human to approve recommended sources before adding them as active private sources.
+7. Ask about recurring schedule only after the first report exists and private-source activation has been accepted, declined, or documented as pending.
 
 Public-first first trial rule:
 
@@ -2908,11 +3384,12 @@ Public-first first trial rule:
 - The first trial must not be blocked by Chrome extension installation, local binary permissions, sandbox limits, or private-source login state.
 - The first trial should use public sources, public search, client context, inferred pain points, inferred content pillars, related industries, and any previously collected local data.
 - If private sources were provided, the first trial report must include a section called `Private Sources Pending Activation`.
+- If Private Interest Graph Discovery was approved but not yet run, the first trial report must include `Private Interest Graph Discovery Pending Activation`.
 - That section must list the private source URLs, explain that they were not scanned yet, and say that activation requires the Solo Agency Local Collector extension plus Local Collector app.
 - The first trial report must ask a clear next-step question after delivering the useful output:
 
 ```md
-Private sources are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?
+Private sources and Private Interest Graph Discovery are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?
 ```
 
 The agent must ask this question directly in the chat message or notification where it announces the first trial result. It must not hide the question or setup steps inside a Markdown file.
@@ -5372,6 +5849,7 @@ Before replying to the human, verify:
 - [ ] Did I avoid jumping to schedule before the first trial/private collector decision?
 - [ ] Did I avoid asking for credentials, cookies, passwords, OTPs, or tokens?
 - [ ] Did I avoid calling the collector a Facebook collector?
+- [ ] If I discussed private-source setup, Local Collector activation, or Private Interest Graph Discovery, did I reassure the human about one-time professional setup patience, local-only data safety, and daily scanning coverage?
 - [ ] Did I mention blockers clearly, with the next action if any?
 
 ### Client Setup Self-Audit Checklist
@@ -5387,7 +5865,14 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I infer related industries?
 - [ ] Did I show the 80% primary industry / 20% related industries rule?
 - [ ] Did I ask whether the human wants to provide private sources?
+- [ ] Did I ask whether the human wants Private Interest Graph Discovery for joined groups/communities, followed profiles/pages/KOLs/channels, and platform recommendation feeds?
+- [ ] Did I reassure the human that this is a professional agency-scale setup that normally takes patience only once?
+- [ ] Did I reassure the human that private data stays local on their computer and must not be sent outside without explicit approval?
+- [ ] Did I reassure the human that daily scanning helps avoid missing market signals, leads, competitor moves, and content ideas?
 - [ ] Did I ask about Facebook groups where the human is already a member?
+- [ ] If the human agreed to Facebook member-groups discovery, did I use `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added` as the discovery source through the Solo Agency Local Collector?
+- [ ] If Facebook member-groups discovery was approved but Local Collector was not active yet, did I mark it as `pending_private_activation` instead of silently skipping it?
+- [ ] Did I avoid adding all joined Facebook groups automatically and instead filter by client relevance before asking the human to approve recommended groups?
 - [ ] Did I show which private sources are daily, weekly, or optional?
 - [ ] Did I show public data sources and public search keyword ideas?
 - [ ] Did I let the human correct only what is wrong?
@@ -5419,6 +5904,12 @@ Before claiming private sources were collected, verify:
 - [ ] Did I avoid Claude Chrome Extension for automated private collection?
 - [ ] If the bridge failed with `address already in use` or `/status` showed stale/wrong config, did I restart the Local Collector app by stopping the old `collector-bridge` process on port `17321` before starting the newest executable?
 - [ ] For manual run, did I use `/jobs/run_now` or `run_now_request.json`?
+- [ ] For Facebook joined-groups discovery, did I use a manual `run_now` job for `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added` instead of pretending the joined groups were manually provided?
+- [ ] After Facebook joined-groups discovery, did I filter groups by client relevance and ask the human to approve recommended groups before adding them to active `private_data_sources`?
+- [ ] For Private Interest Graph Discovery, did I use only approved discovery categories and platform starting URLs?
+- [ ] Did I treat feeds such as Facebook Home, YouTube Home, X Home, LinkedIn Feed, Instagram Explore, TikTok For You, and Reddit Home as discovery surfaces rather than permanent private sources?
+- [ ] Did I avoid collecting DMs, inboxes, notifications, payment/account pages, or unrelated personal data?
+- [ ] Did I ask the human to approve discovered sources before adding them to active `private_data_sources`?
 - [ ] Did I avoid faking manual run by editing schedule windows?
 - [ ] Did I respect max scrolls: default 5, maximum 10?
 - [ ] Did I wait 5 seconds between scrolls?
@@ -5501,6 +5992,19 @@ Before saying the run is complete, verify:
 
 - [ ] Did I save Markdown as the canonical internal record?
 - [ ] Did I generate a polished mobile-friendly HTML report as the only human-facing report?
+- [ ] Did the HTML report follow the Agency-Grade HTML Report Standard, not merely list raw ideas?
+- [ ] Did the top of the report include an Executive Snapshot with source coverage status, best idea, lead/competitor counts, content readiness, blockers, and one recommended next action?
+- [ ] If Private Interest Graph Discovery was asked, approved, pending, blocked, or completed, did the HTML report include a clear `Private Interest Graph Discovery` section?
+- [ ] Did that section show discovery categories, platforms/URLs used or pending, candidate sources found, skipped/noisy sources, feed signals, approval needs, and the three reassurance points?
+- [ ] Did I include a claim-level Evidence Ledger for important facts, numbers, dates, laws, prices, platform policy claims, and market signals?
+- [ ] Did I remove or down-rank unsupported numeric/date/regulatory claims instead of using them in the main hook?
+- [ ] Did every important idea include its own reference URL(s), not only a generic source list elsewhere?
+- [ ] Did I include Source Coverage And Data Quality, including public keywords used, private-source status, blind spots, and confidence?
+- [ ] Did I include a Decision Scorecard comparing top candidate ideas before selecting the winner?
+- [ ] Did I clearly distinguish `not detected` from `not scanned`, `pending activation`, or `session expired` for leads and competitors?
+- [ ] If competitor data was only a hypothesis without profile/post URLs, did I label it as a hypothesis rather than detected competitor evidence?
+- [ ] Did the report include a Production Readiness status for each draft, such as `production-ready`, `script-ready, media-pending`, or `needs human detail`?
+- [ ] Did the report end with exactly one primary next action, with secondary actions clearly de-emphasized?
 - [ ] Is the HTML factually aligned with the internal Markdown report?
 - [ ] Is the HTML standalone and portable?
 - [ ] Did I avoid making the HTML depend on `fetch("./report.md")`, remote scripts, remote CSS, or a neighboring Markdown file?
