@@ -111,20 +111,7 @@
     <button id="checkNow" class="secondary">Check now</button>
   </div>
 
-  <hr style="border:0;border-top:1px solid #d8dee4;margin:16px 0 4px">
-  <h1 style="font-size:14px;margin:8px 0 0">Audit: manual capture</h1>
-  <p class="hint">Open a target page, click <b>Capture now</b>, scroll, capture again. Each capture merges with the previous ones (same URL) so you can verify boilerplate removal, the <code>text(url)</code> link format, and tag stripping.</p>
-
-  <div class="row">
-    <button id="capture">Capture now</button>
-    <button id="showResult" class="secondary">Show result</button>
-  </div>
-  <div class="row">
-    <button id="resetAudit" class="secondary">Reset captures</button>
-  </div>
-  <div id="auditInfo" class="hint"></div>
-
-  <p class="hint">This extension only reads visible pages and sends results to your local bridge. It does not ask for passwords and does not upload data to cloud services.</p>
+  <p class="hint">This extension only reads visible pages from configured jobs and sends results to your local bridge. It does not ask for passwords and does not upload data to cloud services.</p>
 
   <script src="popup.js"></script>
 </body>
