@@ -31,6 +31,30 @@ Daily Content Monitoring Mode keeps the conservative default: 5 scrolls, max 10,
 
 Do not apply the daily 5-scroll default to source discovery.
 
+## Scan Depth Disclosure Rule
+
+Whenever the agent announces that it will scan groups, communities, fanpages, social profiles, or other private/logged-in sources, it must disclose the scan depth in plain language.
+
+For daily content monitoring, say:
+
+```text
+I will go through each approved group/source one by one and scroll {N} times per source. I will read {N} from the Local Collector configuration when available; otherwise I will use the safe default of 5 scrolls, max 10, with about 5 seconds between scrolls.
+```
+
+To resolve `{N}`, use this order:
+
+1. Read `daily-content-pipeline/collector/collector_config.json`.
+2. If the Local Collector app is running, call `GET http://127.0.0.1:17321/status` and/or `GET /config` when available.
+3. Fall back to `5` only when config cannot be read.
+
+For source discovery, disclose the different rule:
+
+```text
+This is source discovery, not daily monitoring. I will scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+```
+
+Do not let the human think "scan groups" is unbounded or vague.
+
 ---
 
 ### Preferred Private Data Collector Architecture

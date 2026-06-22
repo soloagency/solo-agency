@@ -135,10 +135,12 @@ Required setup sequence:
 15. After showing the first report, the chat message must include:
    - the best idea and a short useful summary;
    - the mobile-friendly HTML report path/link;
+   - a visible `Solo Agency onetime setup` progress block with completed/current/remaining steps;
    - a clear note that the run used public sources only if private sources are not active;
    - the number and names/URLs of pending private sources, if any;
    - whether Private Interest Graph Discovery categories are pending, approved, declined, or not asked yet;
    - the direct activation question: `Private sources and Private Interest Graph Discovery require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?`
+   - the direct activation question must be the final line of the message when private-source activation is the next required decision.
 16. If the human says yes, install or initiate setup for the Solo Agency Local Collector extension and Local Collector app.
 17. After collector setup succeeds, run a private-source activation scan or second trial enrichment when possible. If Private Interest Graph Discovery was approved, scan the approved discovery URLs first, filter candidate sources, show the recommendations to the human, and ask for approval before adding them to active `private_data_sources`.
 18. After any private scan or approved source-discovery scan, analyze the collected private data and update the report. This means extracting data points, detecting leads, detecting competitors, listing new private sources, updating the idea matrix, re-scoring the best idea, updating drafts if needed, regenerating the HTML report, and showing the updated report to the human.
@@ -412,6 +414,28 @@ Private sources and Private Interest Graph Discovery are not activated yet becau
 
 The agent must ask this question directly in the chat message or notification where it announces the first trial result. It must not hide the question or setup steps inside a Markdown file.
 
+The same chat message must show the updated `Solo Agency onetime setup` progress checklist or a compact progress summary. It must show that public-first research/report generation is complete and that private-source activation, production/provider setup, scheduling, and measurement are still pending when applicable.
+
+If private-source activation is pending, the final line must be:
+
+```md
+Private sources and Private Interest Graph Discovery are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?
+```
+
+If there are no private sources and discovery was declined or not requested, the final line must ask the next required decision, usually:
+
+```md
+Do you want to create a video/blog/social asset from today's recommended idea now?
+```
+
+or, if production was already declined:
+
+```md
+Do you want daily, multiple-times-daily, weekly, or manual-only runs?
+```
+
+Do not end the report handoff with only a report link, a summary, or "let me know."
+
 Good first-trial chat pattern:
 
 ```md
@@ -419,6 +443,20 @@ The first trial report is ready.
 
 Best idea today: {best idea}
 Report for mobile: {absolute HTML path or URL}
+
+Solo Agency onetime setup
+[x] 1. Ask product/service, profession, expertise, or business description
+[x] 2. Infer industry, sub-industry, related industries, audience, and offer
+[x] 3. Infer pain points and content pillars
+[x] 4. Select public sources and public search keywords
+[x] 5. Run public-first research
+[x] 6. Generate public-first HTML report
+[ ] 7. Ask whether the human wants production/video/blog setup now
+[ ] 8. Ask whether the human wants to provide manual private sources
+[ ] 9. Ask whether the human wants Private Interest Graph Discovery
+[ ] 10. Activate/setup Local Collector if private sources/discovery are approved
+[ ] 15. Configure schedule/routine
+[ ] 16. Run measurement and learning loop for published content
 
 The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
 
@@ -435,6 +473,16 @@ Bad first-trial chat pattern:
 Private sources were not scanned. Instructions are in collector/collector_setup_status.md.
 Now choose a schedule.
 ```
+
+Also bad:
+
+```md
+The first trial report is ready.
+Report: {html path}
+Let me know what you want to do next.
+```
+
+This is bad because it does not show progress and does not end with a concrete next-step question.
 
 Private-source activation rule:
 

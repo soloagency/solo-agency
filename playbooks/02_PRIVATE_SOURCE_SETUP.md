@@ -32,6 +32,30 @@ For Daily Content Monitoring Mode, keep the conservative default: 5 scrolls per 
 
 If any older copied section appears to use the daily 5-scroll default for source discovery, this latest delta override wins.
 
+## Group Scan Communication Rule
+
+Every time the agent tells the human it will scan or monitor groups, communities, fanpages, or logged-in social sources, it must state the actual scan depth and where that value comes from.
+
+For daily content monitoring, the agent must say the human-facing equivalent of:
+
+```text
+I will go through each approved group/source one by one and scroll {N} times per source, using the value from the Local Collector configuration. The default is 5 scrolls per source, the maximum is 10, and I will wait about 5 seconds between scrolls.
+```
+
+The agent must determine `{N}` from the best available source:
+
+1. Read `daily-content-pipeline/collector/collector_config.json` if it exists.
+2. If the Local Collector app is running, check `GET http://127.0.0.1:17321/status` and/or `GET /config` when available.
+3. If neither source is available, use the documented default: `5` scrolls per source, max `10`, 5-second delay.
+
+For source discovery, do not say "5 scrolls" unless the configured discovery mode explicitly says that. Source Discovery Mode uses the deep-scroll rule: continue until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+
+If the agent cannot read the actual config, it must be honest:
+
+```text
+I cannot read the Local Collector config right now, so I will use the safe default: 5 scrolls per approved source, max 10, with about 5 seconds between scrolls.
+```
+
 ---
 
 ## 6. Private Data Source Rule
