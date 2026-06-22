@@ -10,6 +10,8 @@ Load when private sources, manual private URLs, joined groups, followed profiles
 
 - Manual private sources and optional source discovery are independent.
 - Ask explicitly whether the human wants to scan Facebook groups they are already a member of.
+- Explain private sources in plain language before asking for them.
+- Explain Local Collector in plain language before asking the human to install or activate it.
 - Use the Facebook joined-groups URL only with explicit consent.
 - Do not use automated approval-gated browser extension flows for unattended collection.
 - Collector success alone is not completion; analyze data and regenerate the report.
@@ -62,6 +64,12 @@ I cannot read the Local Collector config right now, so I will use the safe defau
 
 The agent must ask the human to provide private data sources they want monitored.
 
+Plain-language definition for humans:
+
+- Private sources are logged-in/social/community places the human may want monitored later, such as groups, profiles, pages, channels, forums, communities, newsletters, or dashboards that may require the human's account or membership.
+- They are different from public sources. Public sources are websites, search engines, public articles, public forums, public docs, or public pages the agent can access without logging into the human's account.
+- Private-source collection requires explicit permission and the Solo Agency Local Collector. The Local Collector is a local app plus Chrome extension running on the human's computer; it uses the human's already logged-in Chrome session, reads only approved visible pages, and keeps data local by default.
+
 Examples of private data sources:
 
 - Competitor Facebook fanpages.
@@ -84,7 +92,7 @@ Examples of private data sources:
 
 The agent must say:
 
-`Please provide any private or logged-in sources you want monitored, such as competitor profiles, fanpages, groups, communities, or forums. I will prioritize sources related to the client's primary industry, target audience, location, pain points, and carefully selected related industries. If login is required, please log in manually through the available browser session. Do not share credentials. For account safety and platform-respectful monitoring, please avoid adding too many private sources for one client; around 20 sources or fewer is a good daily default. If you provide more, I will prioritize the most relevant sources and rotate the rest.`
+`Do you want to provide any private sources for this client? Private sources means logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require your account or membership. These are different from public sources such as websites, Google/search results, public articles, and public pages I can access without your login. If you provide private sources, I will only activate collection with your permission, using the Solo Agency Local Collector local app/extension on your computer. It uses your already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. Do not share credentials, cookies, passwords, OTPs, or tokens. For account safety and platform-respectful monitoring, around 20 private sources or fewer per client is a good daily default; if you provide more, I will prioritize and rotate them.`
 
 ### Facebook Member Groups Review
 
@@ -105,7 +113,7 @@ The agent must explain that it will not treat every group as useful by default. 
 
 The agent should say:
 
-`Do you want me to review the Facebook groups you are already a member of and select only the groups that look useful for this client? If you say yes, I will use your logged-in Chrome session through the Solo Agency Local Collector, open your joined-groups page, and filter groups based on the client's primary industry, related industries, audience, location, and pain points. I will not ask for credentials, cookies, passwords, or tokens. For account safety, I will keep the active daily private-source list conservative, around 20 sources or fewer per client by default, and rotate lower-priority groups when needed.`
+`Do you want me to review the Facebook groups you are already a member of and select only the groups that look useful for this client? These are private sources because they require your logged-in Facebook account or group membership. If you say yes, I will use your logged-in Chrome session through the Solo Agency Local Collector local app/extension on your computer, open your joined-groups page, and filter groups based on the client's main industry, related industries, audience, location, and pain points/customer problems. I will not ask for credentials, cookies, passwords, OTPs, or tokens. For account safety, I will keep the active daily private-source list conservative, around 20 sources or fewer per client by default, and rotate lower-priority groups when needed.`
 
 If the human agrees:
 
@@ -205,7 +213,7 @@ Recommended human-facing question:
 ```text
 Do you want me to discover useful private sources from accounts and communities you already follow or joined?
 
-I can review groups you are already a member of, people/pages/KOLs you follow, channels you subscribe to, and feed recommendations that platforms are already showing you. I will only keep sources related to this client's industry, related industries, target audience, location, pain points, and content pillars. I will not ask for passwords or cookies, and the data stays local on your computer.
+Private sources means logged-in/social/community places such as groups, profiles, pages, channels, forums, or feeds that may require your account or membership. I can review groups you are already a member of, people/pages/KOLs you follow, channels you subscribe to, and feed recommendations that platforms are already showing you. I will only keep sources related to this client's industry, related industries, target audience, location, pain points/customer problems, and content pillars/main content themes. I will not ask for passwords, cookies, OTPs, or tokens, and the data stays local on your computer by default.
 ```
 
 The human may approve all categories, approve only some, decline, or postpone.

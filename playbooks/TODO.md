@@ -155,7 +155,7 @@ Track for each agent:
 - whether it loads the root playbook and child playbooks correctly;
 - whether it preserves the 16-step setup checklist without skipping;
 - whether it obeys progress display and next-question rules;
-- whether it handles Production & Distribution & Notification & Analytics setup neutrally;
+- whether it handles PDNA setup neutrally and explains it as Production, Distribution, Notification, and Analytics;
 - whether it can install/run/use the Local Collector in that environment;
 - whether scheduled runs reload playbooks instead of relying on memory;
 - whether it produces HTML reports and notifications correctly;
@@ -195,7 +195,7 @@ First priority is not adding these advanced layers. First priority is validating
 - Does it avoid asking for industry/sub-industry?
 - Does it resolve private-source status before configuring the first routine?
 - Does it configure schedule/routine before asking to run the first agency run now?
-- Does it ask Production & Distribution & Notification & Analytics only after the small-win report/draft exists?
+- Does it ask PDNA - Production, Distribution, Notification, and Analytics - only after the small-win report/draft exists?
 - Does it load Stage 2/8 before private-source work?
 - Does it load Stage 3 before production/provider work?
 - Does it load Stage 5 after publishing?
