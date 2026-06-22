@@ -1,5 +1,7 @@
 # Solo Agency Local Collector
 
+This folder is not the Solo Agency setup entrypoint. AI agents must read `../SOLO_AGENCY_PLAYBOOK.md` first and install/start the Local Collector only when the main playbook reaches the private-source stage and the human approves collector activation.
+
 This package contains the local private-source collector prototype for `SOLO_AGENCY_PLAYBOOK.md`.
 
 It has two parts:
