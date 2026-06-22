@@ -31,6 +31,7 @@ Paste this playbook into your AI agent today. Tomorrow, wake up to ready-to-appr
 - A global/local idea matrix across Hot / Trend / News, Evergreen / Foundation, and Lead-Gen / Conversion.
 - Related-industry angles clearly labeled and connected back to the client's offer.
 - 5 production-ready draft angles: Value Explainer, Client Q&A, Myth Buster, Mistake Prevention, and Lead-Gen CTA.
+- When approved and connected, the agent can turn those drafts into actual video, blog, and social assets through production tools.
 - Hot/warm lead signals with source, profile URL when visible, post/current URL when visible, and why the lead matters.
 - Competitor intelligence across direct, adjacent, and audience competitors, including hooks, offers, positioning, and source URLs.
 - New source opportunities, such as groups, pages, creators, communities, or competitor profiles worth monitoring.
@@ -61,6 +62,7 @@ Paste this playbook into your AI agent today. Tomorrow, wake up to ready-to-appr
 ## Production, Distribution, And Learning
 
 - Turns approved ideas or scripts into videos through connected production tools.
+- Creates approved video, blog, and social assets when the production provider is configured and the human has approved the action.
 - Supports faceless, face-clone, and teleprompter-style production when configured.
 - Repurposes one approved idea into video, blog, and social formats.
 - Publishes approved content to connected channels when authorized by the human.
@@ -94,3 +96,11 @@ Here are optional private sources to monitor: [URLs].
 You may also ask me whether to discover sources from my joined groups, followed profiles/KOLs, subscriptions, and feeds.
 Run the setup and first public-source report.
 ```
+
+## Agent Compatibility
+
+Tested with Claude Desktop, Codex, Hermes, and OpenClaw.
+
+Community testing on other AI agents is welcome, especially around playbook loading, local collector setup, scheduled runs, progress display, and HTML report delivery.
+
+No vision model is required. Solo Agency is designed to run with an LLM-only agent.
