@@ -1,6 +1,6 @@
 # Solo Agency
 
-Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" and make it work like a real marketing team every morning: research, leads, videos, blogs, distribution, analytics, and improvements, ready for your approval.
+Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" to turn it into a real marketing team that works every morning: research, leads, videos, blogs, distribution, analytics, and improvements, ready for your approval.
 
 ## The Point
 
