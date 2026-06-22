@@ -39,11 +39,11 @@ https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collec
 
 The agent should:
 
-1. Resolve the absolute `daily-content-pipeline` root for the human's machine.
-2. Download the files into the absolute `daily-content-pipeline/collector/downloads/` folder.
+1. Resolve the absolute agency root that contains both `daily-content-pipeline/` and `solo-agency-local-collector/`.
+2. Download the runtime files into the absolute `solo-agency-local-collector/downloads/` folder.
 3. Verify checksums when tools are available.
-4. Extract bridge binaries into the absolute `daily-content-pipeline/collector/bin/` folder.
-5. Extract the Chrome extension into the absolute `daily-content-pipeline/collector/chrome-extension/` folder.
+4. Extract bridge binaries into the absolute `solo-agency-local-collector/bin/` folder.
+5. Extract the Chrome extension into the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
 6. Select the correct bridge binary for the user's OS/CPU.
 7. Ask for one-time human approval if the current AI environment requires permission before running a downloaded executable.
 8. Prefer persistent scheduler mode for unattended private-source collection.
@@ -54,12 +54,16 @@ The user still needs to install the Chrome extension once using Chrome Developer
 ## Runtime Folder
 
 ```text
+solo-agency-local-collector/
+  downloads/
+  bin/
+  LOAD_THIS_EXTENSION_IN_CHROME/
+  setup_collector.sh
+  collector.pid
+  collector.log
 daily-content-pipeline/collector/
   collector_setup_status.md
   collector_config.json
-  downloads/
-  bin/
-  chrome-extension/
   jobs/
   inbox/
 ```
@@ -85,7 +89,7 @@ If the binary is missing:
 
 ## Chrome Extension One-Time Install
 
-If `daily-content-pipeline/collector/chrome-extension/manifest.json` does not exist, download and extract:
+If `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/manifest.json` does not exist, download and extract:
 
 ```text
 https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
@@ -101,7 +105,9 @@ Please install the local collector extension once:
 3. Turn on `Developer mode`.
 4. Click `Load unpacked`.
 5. Select this folder:
-   `/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/chrome-extension/`
+   `/ABSOLUTE/PATH/TO/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`
+
+Important: if you also see `/ABSOLUTE/PATH/TO/solo-agency/solo-agency-collector/chrome-extension/`, do not select it. That is the toolkit/source copy. The only folder to load for the running agency is the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder above.
 
 After this one-time setup, keep Chrome open and logged in to the private sources you want monitored. The local bridge will run in persistent scheduler mode or I will start it during collection runs when this AI environment allows.
 ```
@@ -109,7 +115,7 @@ After this one-time setup, keep Chrome open and logged in to the private sources
 If the AI agent cannot run the bridge binary because it is sandboxed, create a ready-to-run setup file such as:
 
 ```text
-/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/setup_collector.sh
+/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh
 ```
 
 The generated setup file must be named `setup_collector.sh`. Do not invent alternative names. Every run must check and clear the collector port before starting the newest Local Collector app executable.
@@ -117,7 +123,7 @@ The generated setup file must be named `setup_collector.sh`. Do not invent alter
 Then give the user exactly one short command:
 
 ```bash
-bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/setup_collector.sh"
+bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"
 ```
 
 The setup file must be idempotent:
@@ -136,7 +142,7 @@ The setup file must be idempotent:
   4. Kill only processes whose command line contains `collector-bridge`; if a non-collector process owns the port, stop and tell the human exactly what is blocking it.
   5. Start the newest Local Collector app executable in background/detached mode.
   6. Write the new PID to `collector.pid` and logs to `collector.log`.
-- Keep a PID file such as `daily-content-pipeline/collector/collector.pid` when possible.
+- Keep PID/log files under `solo-agency-local-collector/`, for example `solo-agency-local-collector/collector.pid` and `solo-agency-local-collector/collector.log`.
 - Start the Local Collector app in background/detached mode, write PID/log files, then return control to the user. Do not require the user to keep Terminal or PowerShell open during normal operation.
 - Do not show the user a long multi-line script as the main instruction.
 
@@ -199,7 +205,7 @@ If Claude cannot run the binary from its sandbox, provide the user with a one-ti
 Use this mode for Claude, scheduled agents, or any environment where the human will not be present during collection.
 
 ```sh
-daily-content-pipeline/collector/bin/collector-bridge-darwin-arm64 \
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
   --host 127.0.0.1 \
   --port 17321 \
   --config-file daily-content-pipeline/collector/collector_config.json \
@@ -258,7 +264,7 @@ Config reload behavior:
 Use this mode only when the agent can start a short-lived bridge for one collection run.
 
 ```sh
-daily-content-pipeline/collector/bin/collector-bridge-darwin-arm64 \
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
   --host 127.0.0.1 \
   --port 17321 \
   --run-id 2026-06-20_demo-client \

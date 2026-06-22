@@ -32,34 +32,40 @@ For multi-client slugged folders, a slugged profile filename may still be used w
 
 ## 7. Folder Structure
 
-Use one root folder:
+Use one agency root folder:
 
 ```text
-daily-content-pipeline/
+{agency_root}/
 ```
 
 Use one folder per client/business/location:
 
 ```text
-daily-content-pipeline/
+{agency_root}/
+  solo-agency/                         # downloaded toolkit/source repo, no client data
+  solo-agency-local-collector/         # runtime app + Chrome extension only
+    downloads/
+      collector-bridge-binaries-0.1.0.zip
+      chrome-extension-collector-root-0.1.0.zip
+      SHA256SUMS
+    bin/
+      collector-bridge-{os}-{arch}
+    LOAD_THIS_EXTENSION_IN_CHROME/
+      manifest.json
+      background.js
+      popup.html
+      popup.js
+    setup_collector.sh
+    collector.pid
+    collector.log
+  daily-content-pipeline/              # data/config/output only
   clients_index.md
   schedule.md
   notifications/
     notification_log.md
   collector/
-    downloads/
-      collector-bridge-binaries-0.1.0.zip
-      chrome-extension-collector-root-0.1.0.zip
-      SHA256SUMS
     collector_setup_status.md
     collector_config.json
-    bin/
-      collector-bridge-{os}-{arch}
-    chrome-extension/
-      manifest.json
-      background.js
-      popup.html
-      popup.js
     jobs/
       YYYY-MM/
         YYYY-MM-DD_client_slug.json
@@ -287,7 +293,7 @@ Format:
 
 | Date | Agent | Status | Chrome Extension Folder | Local Collector App | Health Endpoint | Last Health Check | Blocker | Required Human Action |
 |---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude | needs_user_action | /ABSOLUTE/PATH/daily-content-pipeline/collector/chrome-extension | /ABSOLUTE/PATH/daily-content-pipeline/collector/bin/collector-bridge-darwin-arm64 | http://127.0.0.1:17321/status | unavailable | Extension not loaded in Chrome yet | Open Chrome -> chrome://extensions -> Load unpacked -> select absolute extension folder |
+| 2026-06-20 | Claude | needs_user_action | /ABSOLUTE/PATH/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME | /ABSOLUTE/PATH/solo-agency-local-collector/bin/collector-bridge-darwin-arm64 | http://127.0.0.1:17321/status | unavailable | Extension not loaded in Chrome yet | Open Chrome -> chrome://extensions -> Load unpacked -> select only the absolute runtime extension folder |
 ```
 
 Allowed status:

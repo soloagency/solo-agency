@@ -499,6 +499,7 @@ Private-source activation rule:
 - If the AI environment can run local commands, the agent must download/update the collector, create/update the setup script, start/restart the Local Collector app, and check `GET http://127.0.0.1:17321/status`.
 - If the AI environment cannot run local commands, the agent must still create the setup script/launcher file and give the human exactly one short command or double-clickable file path.
 - If the Solo Agency Local Collector extension is not loaded, the agent must show the absolute extension folder path and the exact Chrome `Load unpacked` steps.
+- The extension path shown to the human must be the runtime workspace path under `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`, not any toolkit/source path under `solo-agency/solo-agency-collector/chrome-extension/`.
 - After collector setup succeeds, the agent should run a private-source activation scan or second trial enrichment when possible.
 - The agent must not claim private-source monitoring is active until collector health confirms the Local Collector app and Solo Agency Local Collector extension are working.
 - The agent must not configure a recurring schedule that promises private-source collection until collector setup is either `installed_and_running` or explicitly documented as pending/blocked with a human action.
@@ -686,7 +687,12 @@ Exact schedule contract:
 - The Local Collector app must run in persistent mode for unattended scheduled collection:
 
 ```text
-collector-bridge --host 127.0.0.1 --port 17321 --config-file daily-content-pipeline/collector/collector_config.json --output-dir daily-content-pipeline/collector/inbox --persistent
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
+  --host 127.0.0.1 \
+  --port 17321 \
+  --config-file daily-content-pipeline/collector/collector_config.json \
+  --output-dir daily-content-pipeline/collector/inbox \
+  --persistent
 ```
 
 - The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.

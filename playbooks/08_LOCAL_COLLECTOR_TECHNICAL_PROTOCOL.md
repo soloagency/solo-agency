@@ -150,13 +150,34 @@ If the agent is already running inside a cloned copy of `https://github.com/solo
 
 The AI agent should install the collector locally as much as its environment allows.
 
-Required local paths:
+Canonical local layout:
 
 ```text
-daily-content-pipeline/collector/downloads/
-daily-content-pipeline/collector/bin/
-daily-content-pipeline/collector/chrome-extension/
+{agency_root}/
+  solo-agency/                         # downloaded toolkit/source repo
+  solo-agency-local-collector/         # runtime app + Chrome extension only
+    downloads/
+    bin/
+    LOAD_THIS_EXTENSION_IN_CHROME/
+    setup_collector.sh
+    collector.pid
+    collector.log
+  daily-content-pipeline/              # data/config/output only
+    collector/
+      collector_setup_status.md
+      collector_config.json
+      jobs/
+      inbox/
 ```
+
+Chrome extension folder disambiguation:
+
+- There may be another `chrome-extension/` folder inside the downloaded toolkit/repo, such as `solo-agency/solo-agency-collector/chrome-extension/`.
+- That toolkit folder is source/developer material. It is not the human-facing Chrome `Load unpacked` folder during agency setup.
+- The only folder the agent may tell a normal human to load in Chrome is the runtime folder under `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
+- If both folders exist, the agent must explicitly warn: `Do not load the extension folder inside solo-agency/solo-agency-collector. Load only the solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME folder shown below.`
+- The generated setup instructions, setup status file, and chat message must show only one Chrome extension path: the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` path.
+- Do not put app binaries, downloaded zips, the unpacked extension, PID files, or collector logs inside `daily-content-pipeline/`. That folder should remain data/config/output only.
 
 Install flow:
 
@@ -165,8 +186,8 @@ Install flow:
 3. If local artifacts exist, copy `SHA256SUMS`, `collector-bridge-binaries-0.1.0.zip`, and `chrome-extension-collector-root-0.1.0.zip` from the local repo.
 4. If local artifacts do not exist, download them from the raw GitHub URLs above.
 5. Verify checksums when the environment has checksum tools available.
-6. Extract bridge binaries into the absolute local path for `daily-content-pipeline/collector/bin/`.
-7. Extract the Chrome extension zip into the absolute local path for `daily-content-pipeline/collector/chrome-extension/`.
+6. Extract bridge binaries into the absolute runtime path for `solo-agency-local-collector/bin/`.
+7. Extract the Chrome extension zip into the absolute runtime path for `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
 8. Select the correct bridge binary for the current machine.
 9. On macOS/Linux, ensure the selected binary is executable.
 10. Ask for one-time human approval if the AI environment requires permission before running a downloaded executable.
@@ -177,11 +198,13 @@ Absolute path rule:
 
 - The AI agent must never tell the human to load the Chrome extension from a relative path.
 - The AI agent must resolve and show the absolute folder path.
+- The AI agent must never show `daily-content-pipeline/collector/chrome-extension/` or `solo-agency/solo-agency-collector/chrome-extension/` as the folder for a normal human to load in Chrome. The first path belongs to the old mixed data/runtime layout; the second path is for source/development only.
 - Correct examples:
-  - macOS/Linux: `/Users/alex/daily-content-pipeline/collector/chrome-extension/`
-  - Windows: `C:\Users\Alex\daily-content-pipeline\collector\chrome-extension\`
-- Incorrect example:
+  - macOS/Linux: `/Users/alex/oneman_agency/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`
+  - Windows: `C:\Users\Alex\oneman_agency\solo-agency-local-collector\LOAD_THIS_EXTENSION_IN_CHROME\`
+- Incorrect examples:
   - `daily-content-pipeline/collector/chrome-extension/`
+  - `solo-agency/solo-agency-collector/chrome-extension/`
 
 Binary selection:
 
@@ -199,7 +222,7 @@ Chrome extension installation flow:
 1. The agent downloads and extracts the extension into an absolute path, for example:
 
 ```text
-/Users/alex/daily-content-pipeline/collector/chrome-extension/
+/Users/alex/oneman_agency/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/
 ```
 
 2. The agent tells the human directly in chat, Telegram, or another human-facing channel:
@@ -212,7 +235,9 @@ Please install the Solo Agency Local Collector extension once:
 3. Turn on `Developer mode`.
 4. Click `Load unpacked`.
 5. Select this folder:
-   `/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/chrome-extension/`
+   `/ABSOLUTE/PATH/TO/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`
+
+Important: if you also see a folder named `solo-agency/solo-agency-collector/chrome-extension`, do not select that one. That is the toolkit/source copy. Select only the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME` folder above.
 
 After this one-time setup, you may close this instruction tab whenever you want. For private-source collection to work at scheduled times, Chrome should be open and logged in to the private sources, and the Local Collector app should be running or configured to auto-start.
 ```
@@ -240,7 +265,7 @@ Idempotent setup/update rule:
 - The setup script must ensure the Local Collector app is restarted so the newest executable is used.
 - The setup script should start the Local Collector app in the background/detached mode, write PID/log files, and then return control to the human. It should not require the human to keep Terminal or PowerShell open for normal operation.
 - Foreground mode is allowed only for explicit troubleshooting/debugging.
-- The setup script should keep a PID file such as `daily-content-pipeline/collector/collector.pid` when possible.
+- The setup script should keep PID/log files under `solo-agency-local-collector/`, for example `solo-agency-local-collector/collector.pid` and `solo-agency-local-collector/collector.log`.
 - Before starting the Local Collector app, the setup script must detect and restart any previous Local Collector app process for port `17321` when it can do so safely.
 - Re-running the setup script must not leave an older Local Collector app holding port `17321`. If an old collector keeps the port, the Chrome extension may keep talking to stale config and report `no job` even after the AI agent wrote new client sources.
 - The restart order must be: call `POST /shutdown` when possible, stop the PID in `collector.pid` if alive, inspect the process holding port `17321`, kill only collector processes such as `collector-bridge`, then start the newest executable and write a fresh PID/log. If a non-collector process owns the port, stop and show the human the blocking command instead of killing unrelated software.
@@ -253,7 +278,7 @@ macOS/Linux:
 The AI agent must create this file with the real absolute path filled in:
 
 ```text
-/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/setup_collector.sh
+/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh
 ```
 
 The file content should be the following. This is an internal implementation template for the AI agent; do not show this long file content to the human as the primary setup instruction.
@@ -262,36 +287,39 @@ The file content should be the following. This is an internal implementation tem
 #!/usr/bin/env bash
 set -euo pipefail
 
-PIPELINE_ROOT="/ABSOLUTE/PATH/TO/daily-content-pipeline"
-COLLECTOR_ROOT="$PIPELINE_ROOT/collector"
+AGENCY_ROOT="/ABSOLUTE/PATH/TO"
+PIPELINE_ROOT="$AGENCY_ROOT/daily-content-pipeline"
+COLLECTOR_RUNTIME_ROOT="$AGENCY_ROOT/solo-agency-local-collector"
+COLLECTOR_DATA_ROOT="$PIPELINE_ROOT/collector"
+EXTENSION_DIR="$COLLECTOR_RUNTIME_ROOT/LOAD_THIS_EXTENSION_IN_CHROME"
 BASE_URL="https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector"
 BRIDGE_ZIP_URL="$BASE_URL/dist/collector-bridge-binaries-0.1.0.zip"
 EXTENSION_ZIP_URL="$BASE_URL/dist/chrome-extension-collector-root-0.1.0.zip"
 PORT="17321"
-CONFIG_FILE="$COLLECTOR_ROOT/collector_config.json"
-PID_FILE="$COLLECTOR_ROOT/collector.pid"
-LOG_FILE="$COLLECTOR_ROOT/collector.log"
+CONFIG_FILE="$COLLECTOR_DATA_ROOT/collector_config.json"
+PID_FILE="$COLLECTOR_RUNTIME_ROOT/collector.pid"
+LOG_FILE="$COLLECTOR_RUNTIME_ROOT/collector.log"
 
-mkdir -p "$COLLECTOR_ROOT/downloads" "$COLLECTOR_ROOT/bin" "$COLLECTOR_ROOT/chrome-extension" "$COLLECTOR_ROOT/inbox"
+mkdir -p "$COLLECTOR_RUNTIME_ROOT/downloads" "$COLLECTOR_RUNTIME_ROOT/bin" "$EXTENSION_DIR" "$COLLECTOR_DATA_ROOT/inbox" "$COLLECTOR_DATA_ROOT/jobs"
 
 echo "Downloading or updating the Local Collector app file..."
-BRIDGE_ZIP="$COLLECTOR_ROOT/downloads/collector-bridge-binaries-0.1.0.zip"
+BRIDGE_ZIP="$COLLECTOR_RUNTIME_ROOT/downloads/collector-bridge-binaries-0.1.0.zip"
 BRIDGE_ZIP_TMP="$BRIDGE_ZIP.tmp"
 curl -L -o "$BRIDGE_ZIP_TMP" "$BRIDGE_ZIP_URL"
-if [ ! -f "$BRIDGE_ZIP" ] || ! cmp -s "$BRIDGE_ZIP_TMP" "$BRIDGE_ZIP" || ! ls "$COLLECTOR_ROOT/bin"/collector-bridge-* >/dev/null 2>&1; then
+if [ ! -f "$BRIDGE_ZIP" ] || ! cmp -s "$BRIDGE_ZIP_TMP" "$BRIDGE_ZIP" || ! ls "$COLLECTOR_RUNTIME_ROOT/bin"/collector-bridge-* >/dev/null 2>&1; then
   echo "Installing updated Local Collector app executable files..."
   mv "$BRIDGE_ZIP_TMP" "$BRIDGE_ZIP"
-  unzip -o "$BRIDGE_ZIP" -d "$COLLECTOR_ROOT/bin"
+  unzip -o "$BRIDGE_ZIP" -d "$COLLECTOR_RUNTIME_ROOT/bin"
 else
   echo "Local Collector app executable files are already up to date."
   rm -f "$BRIDGE_ZIP_TMP"
 fi
 
-if [ ! -f "$COLLECTOR_ROOT/chrome-extension/manifest.json" ]; then
+if [ ! -f "$EXTENSION_DIR/manifest.json" ]; then
   echo "Installing Solo Agency Local Collector extension files..."
-  curl -L -o "$COLLECTOR_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip.tmp" "$EXTENSION_ZIP_URL"
-  mv "$COLLECTOR_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip.tmp" "$COLLECTOR_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip"
-  unzip -o "$COLLECTOR_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip" -d "$COLLECTOR_ROOT/chrome-extension"
+  curl -L -o "$COLLECTOR_RUNTIME_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip.tmp" "$EXTENSION_ZIP_URL"
+  mv "$COLLECTOR_RUNTIME_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip.tmp" "$COLLECTOR_RUNTIME_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip"
+  unzip -o "$COLLECTOR_RUNTIME_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip" -d "$EXTENSION_DIR"
 else
   echo "Keeping existing Solo Agency Local Collector extension folder unchanged."
 fi
@@ -334,9 +362,9 @@ fi
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 case "$OS/$ARCH" in
-  Darwin/arm64) BRIDGE="$COLLECTOR_ROOT/bin/collector-bridge-darwin-arm64" ;;
-  Darwin/x86_64) BRIDGE="$COLLECTOR_ROOT/bin/collector-bridge-darwin-amd64" ;;
-  Linux/x86_64) BRIDGE="$COLLECTOR_ROOT/bin/collector-bridge-linux-amd64" ;;
+  Darwin/arm64) BRIDGE="$COLLECTOR_RUNTIME_ROOT/bin/collector-bridge-darwin-arm64" ;;
+  Darwin/x86_64) BRIDGE="$COLLECTOR_RUNTIME_ROOT/bin/collector-bridge-darwin-amd64" ;;
+  Linux/x86_64) BRIDGE="$COLLECTOR_RUNTIME_ROOT/bin/collector-bridge-linux-amd64" ;;
   *) echo "Unsupported OS/CPU: $OS/$ARCH"; exit 1 ;;
 esac
 chmod +x "$BRIDGE"
@@ -384,10 +412,11 @@ stop_existing_bridge() {
 
 stop_existing_bridge
 
-echo "Install the Chrome extension from this absolute folder:"
-echo "$COLLECTOR_ROOT/chrome-extension"
+echo "Install the Chrome extension from this ONE absolute folder:"
+echo "$EXTENSION_DIR"
+echo "Do NOT load any chrome-extension folder under solo-agency/solo-agency-collector; that is the toolkit/source copy."
 echo "Starting the Local Collector app in the background with the newest executable."
-nohup "$BRIDGE" --host 127.0.0.1 --port "$PORT" --config-file "$CONFIG_FILE" --output-dir "$COLLECTOR_ROOT/inbox" --persistent >> "$LOG_FILE" 2>&1 &
+nohup "$BRIDGE" --host 127.0.0.1 --port "$PORT" --config-file "$CONFIG_FILE" --output-dir "$COLLECTOR_DATA_ROOT/inbox" --persistent >> "$LOG_FILE" 2>&1 &
 BRIDGE_PID="$!"
 echo "$BRIDGE_PID" > "$PID_FILE"
 echo "Local Collector app started. PID: $BRIDGE_PID"
@@ -398,7 +427,7 @@ echo "You can close this Terminal window now."
 Then tell the human only this one-line command, with the real absolute path:
 
 ```bash
-bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/setup_collector.sh"
+bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"
 ```
 
 Human-facing wording:
@@ -406,7 +435,7 @@ Human-facing wording:
 ```md
 I created a setup file for you. Please open Terminal, paste this one line, and press Enter:
 
-`bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/setup_collector.sh"`
+`bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
 
 After it starts, you can close this instruction tab and Terminal window. The Local Collector app runs in the background. If you need troubleshooting later, I will check the local status endpoint and the collector log file.
 ```
@@ -425,35 +454,39 @@ Important Windows note:
 PowerShell setup script file path:
 
 ```text
-C:\ABSOLUTE\PATH\TO\daily-content-pipeline\collector\setup_local_collector.ps1
+C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\setup_local_collector.ps1
 ```
 
-PowerShell setup script content, with `PipelineRoot` replaced by the real absolute path, for example `C:\Users\Alex\daily-content-pipeline`. This is an internal implementation template for the AI agent; do not show this long file content to the human as the primary setup instruction:
+PowerShell setup script content, with `AgencyRoot` replaced by the real absolute parent path that contains both `daily-content-pipeline` and `solo-agency-local-collector`, for example `C:\Users\Alex\oneman_agency`. This is an internal implementation template for the AI agent; do not show this long file content to the human as the primary setup instruction:
 
 ```powershell
 $ErrorActionPreference = "Stop"
-$PipelineRoot = "C:\ABSOLUTE\PATH\TO\daily-content-pipeline"
-$CollectorRoot = Join-Path $PipelineRoot "collector"
+$AgencyRoot = "C:\ABSOLUTE\PATH\TO"
+$PipelineRoot = Join-Path $AgencyRoot "daily-content-pipeline"
+$CollectorRuntimeRoot = Join-Path $AgencyRoot "solo-agency-local-collector"
+$CollectorDataRoot = Join-Path $PipelineRoot "collector"
+$ExtensionDir = Join-Path $CollectorRuntimeRoot "LOAD_THIS_EXTENSION_IN_CHROME"
 $BaseUrl = "https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector"
 $BridgeZipUrl = "$BaseUrl/dist/collector-bridge-binaries-0.1.0.zip"
 $ExtensionZipUrl = "$BaseUrl/dist/chrome-extension-collector-root-0.1.0.zip"
 $Port = 17321
-$ConfigPath = Join-Path $CollectorRoot "collector_config.json"
-$PidPath = Join-Path $CollectorRoot "collector.pid"
-$LogPath = Join-Path $CollectorRoot "collector.out.log"
-$ErrLogPath = Join-Path $CollectorRoot "collector.err.log"
+$ConfigPath = Join-Path $CollectorDataRoot "collector_config.json"
+$PidPath = Join-Path $CollectorRuntimeRoot "collector.pid"
+$LogPath = Join-Path $CollectorRuntimeRoot "collector.out.log"
+$ErrLogPath = Join-Path $CollectorRuntimeRoot "collector.err.log"
 
 New-Item -ItemType Directory -Force -Path `
-  (Join-Path $CollectorRoot "downloads"), `
-  (Join-Path $CollectorRoot "bin"), `
-  (Join-Path $CollectorRoot "chrome-extension"), `
-  (Join-Path $CollectorRoot "inbox") | Out-Null
+  (Join-Path $CollectorRuntimeRoot "downloads"), `
+  (Join-Path $CollectorRuntimeRoot "bin"), `
+  $ExtensionDir, `
+  (Join-Path $CollectorDataRoot "inbox"), `
+  (Join-Path $CollectorDataRoot "jobs") | Out-Null
 
 Write-Host "Downloading or updating the Local Collector app file..."
-$BridgeZipTmp = Join-Path $CollectorRoot "downloads\collector-bridge-binaries-0.1.0.zip.tmp"
-$BridgeZip = Join-Path $CollectorRoot "downloads\collector-bridge-binaries-0.1.0.zip"
+$BridgeZipTmp = Join-Path $CollectorRuntimeRoot "downloads\collector-bridge-binaries-0.1.0.zip.tmp"
+$BridgeZip = Join-Path $CollectorRuntimeRoot "downloads\collector-bridge-binaries-0.1.0.zip"
 Invoke-WebRequest -Uri $BridgeZipUrl -OutFile $BridgeZipTmp
-$ExistingBridgeFiles = Get-ChildItem -Path (Join-Path $CollectorRoot "bin") -Filter "collector-bridge-*" -ErrorAction SilentlyContinue
+$ExistingBridgeFiles = Get-ChildItem -Path (Join-Path $CollectorRuntimeRoot "bin") -Filter "collector-bridge-*" -ErrorAction SilentlyContinue
 $BridgeNeedsInstall = (-not (Test-Path $BridgeZip)) -or (-not $ExistingBridgeFiles)
 if (-not $BridgeNeedsInstall) {
   $OldHash = (Get-FileHash $BridgeZip -Algorithm SHA256).Hash
@@ -463,20 +496,20 @@ if (-not $BridgeNeedsInstall) {
 if ($BridgeNeedsInstall) {
   Write-Host "Installing updated Local Collector app executable files..."
   Move-Item -Force $BridgeZipTmp $BridgeZip
-  Expand-Archive -Force $BridgeZip (Join-Path $CollectorRoot "bin")
+  Expand-Archive -Force $BridgeZip (Join-Path $CollectorRuntimeRoot "bin")
 } else {
   Write-Host "Local Collector app executable files are already up to date."
   Remove-Item $BridgeZipTmp -Force -ErrorAction SilentlyContinue
 }
 
-$ExtensionManifest = Join-Path $CollectorRoot "chrome-extension\manifest.json"
+$ExtensionManifest = Join-Path $ExtensionDir "manifest.json"
 if (-not (Test-Path $ExtensionManifest)) {
   Write-Host "Installing Solo Agency Local Collector extension files..."
-  $ExtensionZipTmp = Join-Path $CollectorRoot "downloads\chrome-extension-collector-root-0.1.0.zip.tmp"
-  $ExtensionZip = Join-Path $CollectorRoot "downloads\chrome-extension-collector-root-0.1.0.zip"
+  $ExtensionZipTmp = Join-Path $CollectorRuntimeRoot "downloads\chrome-extension-collector-root-0.1.0.zip.tmp"
+  $ExtensionZip = Join-Path $CollectorRuntimeRoot "downloads\chrome-extension-collector-root-0.1.0.zip"
   Invoke-WebRequest -Uri $ExtensionZipUrl -OutFile $ExtensionZipTmp
   Move-Item -Force $ExtensionZipTmp $ExtensionZip
-  Expand-Archive -Force $ExtensionZip (Join-Path $CollectorRoot "chrome-extension")
+  Expand-Archive -Force $ExtensionZip $ExtensionDir
 } else {
   Write-Host "Keeping existing Solo Agency Local Collector extension folder unchanged."
 }
@@ -515,7 +548,7 @@ if (-not (Test-Path $ConfigPath)) {
   Write-Host "Keeping existing collector_config.json unchanged."
 }
 
-$Bridge = Join-Path $CollectorRoot "bin\collector-bridge-windows-amd64.exe"
+$Bridge = Join-Path $CollectorRuntimeRoot "bin\collector-bridge-windows-amd64.exe"
 
 try {
   Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$Port/shutdown" -TimeoutSec 2 | Out-Null
@@ -557,13 +590,14 @@ try {
 }
 
 Write-Host "Install the Solo Agency Local Collector extension from this folder:"
-Write-Host (Join-Path $CollectorRoot "chrome-extension")
+Write-Host $ExtensionDir
+Write-Host "Do NOT load any chrome-extension folder under solo-agency\solo-agency-collector; that is the toolkit/source copy."
 Write-Host "Starting the Local Collector app in the background with the newest executable."
 $Args = @(
   "--host", "127.0.0.1",
   "--port", "$Port",
   "--config-file", $ConfigPath,
-  "--output-dir", (Join-Path $CollectorRoot "inbox"),
+  "--output-dir", (Join-Path $CollectorDataRoot "inbox"),
   "--persistent"
 )
 $Proc = Start-Process -FilePath $Bridge -ArgumentList $Args -RedirectStandardOutput $LogPath -RedirectStandardError $ErrLogPath -WindowStyle Hidden -PassThru
@@ -576,26 +610,29 @@ Write-Host "You can close this PowerShell window now."
 Then tell the human one short PowerShell command:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "C:\ABSOLUTE\PATH\TO\daily-content-pipeline\collector\setup_local_collector.ps1"
+powershell -ExecutionPolicy Bypass -File "C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\setup_local_collector.ps1"
 ```
 
 Windows `.cmd` launcher file path:
 
 ```text
-C:\ABSOLUTE\PATH\TO\daily-content-pipeline\collector\Start Local Collector.cmd
+C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\Start Local Collector.cmd
 ```
 
 Windows `.cmd` launcher content. This is an internal implementation template for the AI agent; do not show this long file content to the human as the primary setup instruction:
 
 ```bat
 @echo off
-set "COLLECTOR_ROOT=C:\ABSOLUTE\PATH\TO\daily-content-pipeline\collector"
-set "PID_FILE=%COLLECTOR_ROOT%\collector.pid"
-set "LOG_FILE=%COLLECTOR_ROOT%\collector.out.log"
-set "ERR_LOG_FILE=%COLLECTOR_ROOT%\collector.err.log"
+set "AGENCY_ROOT=C:\ABSOLUTE\PATH\TO"
+set "PIPELINE_ROOT=%AGENCY_ROOT%\daily-content-pipeline"
+set "COLLECTOR_RUNTIME_ROOT=%AGENCY_ROOT%\solo-agency-local-collector"
+set "COLLECTOR_DATA_ROOT=%PIPELINE_ROOT%\collector"
+set "PID_FILE=%COLLECTOR_RUNTIME_ROOT%\collector.pid"
+set "LOG_FILE=%COLLECTOR_RUNTIME_ROOT%\collector.out.log"
+set "ERR_LOG_FILE=%COLLECTOR_RUNTIME_ROOT%\collector.err.log"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:17321/shutdown' -TimeoutSec 2 | Out-Null } catch {}; if (Test-Path '%PID_FILE%') { $p = Get-Content '%PID_FILE%' -ErrorAction SilentlyContinue | Select-Object -First 1; if ($p) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }; Remove-Item '%PID_FILE%' -Force -ErrorAction SilentlyContinue }; try { Get-NetTCPConnection -LocalPort 17321 -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { $proc = Get-Process -Id $_ -ErrorAction SilentlyContinue; $path = ''; try { $path = $proc.Path } catch {}; if ($proc -and (($proc.ProcessName -like '*collector-bridge*') -or ($path -like '*collector-bridge*'))) { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } else { Write-Host ('Port 17321 is used by a non-collector process: ' + $proc.ProcessName + ' ' + $path); exit 1 } } } catch {}"
 if errorlevel 1 exit /b 1
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath '%COLLECTOR_ROOT%\bin\collector-bridge-windows-amd64.exe' -ArgumentList @('--host','127.0.0.1','--port','17321','--config-file','%COLLECTOR_ROOT%\collector_config.json','--output-dir','%COLLECTOR_ROOT%\inbox','--persistent') -RedirectStandardOutput '%LOG_FILE%' -RedirectStandardError '%ERR_LOG_FILE%' -WindowStyle Hidden -PassThru; Set-Content -Encoding ASCII -Path '%PID_FILE%' -Value $p.Id; Write-Host ('Local Collector app started. PID: ' + $p.Id); Write-Host 'You can close this window now.'"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath '%COLLECTOR_RUNTIME_ROOT%\bin\collector-bridge-windows-amd64.exe' -ArgumentList @('--host','127.0.0.1','--port','17321','--config-file','%COLLECTOR_DATA_ROOT%\collector_config.json','--output-dir','%COLLECTOR_DATA_ROOT%\inbox','--persistent') -RedirectStandardOutput '%LOG_FILE%' -RedirectStandardError '%ERR_LOG_FILE%' -WindowStyle Hidden -PassThru; Set-Content -Encoding ASCII -Path '%PID_FILE%' -Value $p.Id; Write-Host ('Local Collector app started. PID: ' + $p.Id); Write-Host 'You can close this window now.'"
 ```
 
 Human-facing Windows wording:
@@ -603,10 +640,10 @@ Human-facing Windows wording:
 ```md
 I created a setup file for you. Please open PowerShell, paste this one line, and press Enter:
 
-`powershell -ExecutionPolicy Bypass -File "C:\ABSOLUTE\PATH\TO\daily-content-pipeline\collector\setup_local_collector.ps1"`
+`powershell -ExecutionPolicy Bypass -File "C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\setup_local_collector.ps1"`
 
 After setup, you can start the Local Collector app later by double-clicking:
-`C:\ABSOLUTE\PATH\TO\daily-content-pipeline\collector\Start Local Collector.cmd`
+`C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\Start Local Collector.cmd`
 ```
 
 Future update rule:
@@ -781,7 +818,12 @@ Recommended startup methods:
 The startup service should run the selected bridge binary with a persistent scheduler config, for example:
 
 ```text
-collector-bridge --host 127.0.0.1 --port 17321 --config-file daily-content-pipeline/collector/collector_config.json --output-dir daily-content-pipeline/collector/inbox --persistent
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
+  --host 127.0.0.1 \
+  --port 17321 \
+  --config-file daily-content-pipeline/collector/collector_config.json \
+  --output-dir daily-content-pipeline/collector/inbox \
+  --persistent
 ```
 
 If the bridge is not installed as a startup service, the human must start it manually after reboot or the AI agent must start it when the environment allows local command execution.
@@ -801,10 +843,10 @@ Preferred implementation:
   - `collector-bridge-darwin-amd64`
   - `collector-bridge-windows-amd64.exe`
   - `collector-bridge-linux-amd64`
-- Store binaries under:
+- Store binaries under the collector runtime folder, not the data workspace:
 
 ```text
-daily-content-pipeline/collector/bin/
+solo-agency-local-collector/bin/
 ```
 
 The bridge must:
@@ -828,7 +870,7 @@ When `run_mode` is `persistent_bridge_scheduler`, the bridge should start at use
 Typical run:
 
 1. Agent detects the operating system and CPU architecture.
-2. Agent selects the matching bridge binary from `daily-content-pipeline/collector/bin/`.
+2. Agent selects the matching bridge binary from `solo-agency-local-collector/bin/`.
 3. Agent creates a collection job file.
 4. Agent starts the bridge on `127.0.0.1` with a short TTL.
 5. Solo Agency Local Collector extension detects the bridge by polling localhost.
@@ -840,7 +882,13 @@ Typical run:
 Example bridge command shape:
 
 ```text
-collector-bridge --host 127.0.0.1 --port 17321 --run-id YYYY-MM-DD_client_slug --job-file collector/jobs/YYYY-MM/YYYY-MM-DD_client_slug.json --output-dir collector/inbox/YYYY-MM/YYYY-MM-DD_client_slug --ttl-minutes 30
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
+  --host 127.0.0.1 \
+  --port 17321 \
+  --run-id YYYY-MM-DD_client_slug \
+  --job-file daily-content-pipeline/collector/jobs/YYYY-MM-DD_client_slug.json \
+  --output-dir daily-content-pipeline/collector/inbox/YYYY-MM/YYYY-MM-DD_client_slug \
+  --ttl-minutes 30
 ```
 
 The exact command may differ by implementation, but the behavior must remain the same.
@@ -1387,7 +1435,12 @@ Exact schedule contract:
 - The Local Collector app must run in persistent mode for unattended scheduled collection:
 
 ```text
-collector-bridge --host 127.0.0.1 --port 17321 --config-file daily-content-pipeline/collector/collector_config.json --output-dir daily-content-pipeline/collector/inbox --persistent
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
+  --host 127.0.0.1 \
+  --port 17321 \
+  --config-file daily-content-pipeline/collector/collector_config.json \
+  --output-dir daily-content-pipeline/collector/inbox \
+  --persistent
 ```
 
 - The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.

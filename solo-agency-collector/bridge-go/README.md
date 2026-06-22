@@ -82,7 +82,7 @@ daily-content-pipeline/collector/inbox/bridge_health.json
 ## Build
 
 ```sh
-go build -o ../../daily-content-pipeline/collector/bin/collector-bridge ./...
+go build -o ../../solo-agency-local-collector/bin/collector-bridge ./...
 ```
 
 For releases, cross-compile and publish OS-specific binaries. The AI agent should run those binaries directly instead of asking the user to install Go.

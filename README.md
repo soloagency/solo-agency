@@ -103,4 +103,4 @@ Tested with Claude Desktop, Codex, Hermes, and OpenClaw.
 
 Community testing on other AI agents is welcome, especially around playbook loading, local collector setup, scheduled runs, progress display, and HTML report delivery.
 
-No vision model is required. Solo Agency is designed to run with an LLM-only agent.
+No vision model is required. Solo Agency is designed to run with an LLM-only agent. 
