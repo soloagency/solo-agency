@@ -142,7 +142,7 @@ Use this section when private sources were provided but the Solo Agency Local Co
 - Why private sources were not scanned today:
 - What is needed to activate them:
 - Suggested next question:
-  - `Private sources are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?`
+  - `Private sources (logged-in/social/community sources such as groups, profiles, pages, channels, forums, or communities) are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app on your computer. Do you want me to set that up now?`
 - Sources waiting for activation:
   - Source:
     - URL:
@@ -707,7 +707,7 @@ Required report hierarchy:
    - Secondary actions may be listed below, but they must not compete with the primary next action.
    - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
    - After schedule/routine is configured but the first agency run has not happened, the primary next action should be asking whether to run the first agency run now.
-   - After the first agency run small win exists and Production & Distribution & Notification & Analytics setup has not been completed/declined/blocked, the primary next action should usually be that setup gate.
+   - After the first agency run small win exists and PDNA setup - Production, Distribution, Notification, and Analytics - has not been completed/declined/blocked, the primary next action should usually be that setup gate.
    - For reports where production setup is completed/declined/blocked and private sources are pending, the primary next action should usually be activating the Solo Agency Local Collector or marking private sources pending, not starting a video branch.
    - Do not ask "make a video now?" as the primary next action immediately after the small win; production/provider setup comes first.
 
