@@ -193,8 +193,9 @@ First priority is not adding these advanced layers. First priority is validating
 
 - Does the agent load Stage 0 + Stage 1 before setup?
 - Does it avoid asking for industry/sub-industry?
-- Does it run the first public report before private collector setup?
-- Does it ask private source and production questions at the right time?
+- Does it resolve private-source status before configuring the first routine?
+- Does it configure schedule/routine before asking to run the first agency run now?
+- Does it ask Production & Distribution & Notification & Analytics only after the small-win report/draft exists?
 - Does it load Stage 2/8 before private-source work?
 - Does it load Stage 3 before production/provider work?
 - Does it load Stage 5 after publishing?

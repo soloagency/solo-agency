@@ -4,16 +4,17 @@ Stage: `01`
 
 ## Load Rule
 
-Load during first setup, add-client flow, setup repair, and first public report generation. This stage must be loaded together with Stage 0 before the first setup question.
+Load during first setup, add-client flow, setup repair, and first agency run/report generation. This stage must be loaded together with Stage 0 before the first setup question.
 
 ## Hard Gates For This Stage
 
 - First question asks only for product/service, profession, expertise, or business description.
 - Do not ask for industry or sub-industry.
 - Show inference before asking the next question.
-- Run the first public report immediately after profile setup.
-- Do not ask whether the human wants the first trial.
-- After the public report, ask production and private-source activation questions.
+- Ask for optional manual private sources before the first agency run.
+- Configure schedule/routine once the basic source plan is known, then ask whether to run the first agency run immediately.
+- The first agency run creates the small win: HTML report plus idea matrix, leads, competitors, and draft script/blog/caption.
+- After the small win, ask Production & Distribution & Notification & Analytics setup; do not ask "make a video now?"
 
 ## Source Preservation Rule
 
@@ -109,16 +110,12 @@ Required setup sequence:
 6. If the human has not already provided private data sources, ask whether the human wants to provide private data sources, including competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities, niche forums, and manually known Facebook groups.
    - If the human already provided private sources in an earlier message, do not ask again before setup. Process the provided sources.
    - Do not label the collector by platform. Even if the provided sources are all Facebook, call it the Solo Agency Local Collector extension and Local Collector app.
-7. Separately ask whether the human wants Private Interest Graph Discovery:
-   - groups/communities they joined
-   - pages/profiles/KOLs/creators/companies/channels they follow or subscribe to
-   - platform feeds/recommendations that surface topics they care about
-   - Explain the three reassurance points: professional one-time agency setup, local-only data safety, and daily scanning after activation.
+7. Do not ask a separate interest-graph discovery question. If the human wants help finding more private sources, offer it plainly as optional source discovery and explain that the agent will ask for approval before adding discovered sources.
 8. If the human approves Facebook member-groups discovery, scan the joined-groups discovery page through the Solo Agency Local Collector:
    - `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added`
    - If the human agrees, this requires Local Collector activation before the joined-groups discovery scan.
    - If the human declines or postpones, do not inspect that page.
-9. If the human approves other platform discovery categories, use the `Private Interest Graph Discovery` platform starting URL registry and mark each approved category as `pending_private_activation` until the Local Collector is active and healthy.
+9. If the human approves other platform discovery categories, use the private source discovery platform starting URL registry and mark each approved category as `pending_private_activation` until the Local Collector is active and healthy.
 10. After the answer, infer and show:
    - which private sources are likely useful
    - which sources should be skipped or treated as optional
@@ -126,25 +123,25 @@ Required setup sequence:
    - whether the private-source list should be kept as `daily`, `weekly`, or `optional` based on relevance and safe monitoring volume
 11. Show the complete setup summary and ask the human to correct only what is wrong.
 12. Save the Client Intelligence Profile file only after the human has had a chance to correct the setup summary.
-13. Run the first trial immediately after the profile is ready, using public sources and any already available local data.
-   - Do not wait for Local Collector installation.
-   - If private sources were provided, list them as `pending_private_activation`.
-   - If the human agreed to Private Interest Graph Discovery but Local Collector is not active yet, list each approved discovery category as `pending_private_activation`.
+13. Configure the schedule/routine before the first agency run, using the best scheduling mechanism available in the environment. Do not promise private-source collection in the schedule unless Local Collector setup is healthy or clearly marked pending/blocked.
+14. After schedule/routine is configured, ask whether the human wants to run the first agency run immediately. The likely default is yes, but the human should still approve starting the run now.
+15. Run the first agency run using public sources and any already approved/available private data.
+   - If Local Collector setup is not healthy, run public sources and list private sources as `pending_private_activation`.
+   - If approved source-discovery categories exist but Local Collector is not active yet, list each category as `pending_private_activation`.
    - Explain that private-source monitoring requires a one-time Solo Agency Local Collector extension and Local Collector app setup.
-14. Produce the first trial report as a small win.
-15. After showing the first report, the chat message must include:
+16. Produce the first agency report and first draft script/blog/caption as the small win.
+17. After showing the first report, the chat message must include:
    - the best idea and a short useful summary;
    - the mobile-friendly HTML report path/link;
    - a visible `Solo Agency onetime setup` progress block with completed/current/remaining steps;
    - a clear note that the run used public sources only if private sources are not active;
    - the number and names/URLs of pending private sources, if any;
-   - whether Private Interest Graph Discovery categories are pending, approved, declined, or not asked yet;
-   - the direct activation question: `Private sources and Private Interest Graph Discovery require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?`
-   - the direct activation question must be the final line of the message when private-source activation is the next required decision.
-16. If the human says yes, install or initiate setup for the Solo Agency Local Collector extension and Local Collector app.
-17. After collector setup succeeds, run a private-source activation scan or second trial enrichment when possible. If Private Interest Graph Discovery was approved, scan the approved discovery URLs first, filter candidate sources, show the recommendations to the human, and ask for approval before adding them to active `private_data_sources`.
-18. After any private scan or approved source-discovery scan, analyze the collected private data and update the report. This means extracting data points, detecting leads, detecting competitors, listing new private sources, updating the idea matrix, re-scoring the best idea, updating drafts if needed, regenerating the HTML report, and showing the updated report to the human.
-19. Only after the human has seen the first trial report and has decided whether to activate private sources, ask about the recurring schedule.
+   - whether optional source discovery categories are pending, approved, declined, or not requested;
+   - the first draft script/blog/caption or a clear link/section where it appears in the HTML report;
+   - the direct setup question for step 8: `Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?`
+18. The agent must not end the small-win handoff with `Do you want me to make a video now?` or start scene editing/rendering. Production setup comes first.
+19. If the human says yes to step 8, load Stage 3 and complete the provider/capability setup gate.
+20. After any private scan or approved source-discovery scan, analyze the collected private data and update the report. This means extracting data points, detecting leads, detecting competitors, listing new private sources, updating the idea matrix, re-scoring the best idea, updating drafts if needed, regenerating the HTML report, and showing the updated report to the human.
 
 Every follow-up question must include a short `What I inferred from your last answer` section before the next question.
 
@@ -298,7 +295,7 @@ In First Client Setup Mode, ask only for the minimum information required to cre
 - Product/service, profession, expertise, or business description.
 - Target location only if location matters and cannot be inferred.
 - Optional private data sources to monitor.
-- Optional permission for Private Interest Graph Discovery: joined groups/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
+- Optional permission for source discovery from joined groups/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
 
 Do not create fake client pipelines. If the client name or business description is missing, ask for that missing information and keep the root pipeline ready.
 
@@ -318,7 +315,7 @@ In Add Client Mode, ask only for missing critical information:
 - Product/service, profession, expertise, or business description.
 - Target location only if location matters and cannot be inferred.
 - Optional private data sources to monitor.
-- Optional permission for Private Interest Graph Discovery: joined groups/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
+- Optional permission for source discovery from joined groups/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
 
 The agent must infer:
 
@@ -344,17 +341,16 @@ Then the agent must:
 5. Create the client's history folder.
 6. Create the client's outputs folder.
 7. Add the client to `clients_index.md`.
-8. Run the first trial report immediately using public sources and any already available local data.
-9. Ask whether the human wants Production & Distribution & Notification & Analytics setup now for video/blog/social, publishing, notifications, analytics, and the build-measure-learn loop.
-10. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate before asking schedule.
-11. If private sources exist, or if Private Interest Graph Discovery was approved, show them in the report as `pending_private_activation`, then ask whether the human wants to activate private-source monitoring/discovery after the production setup gate is completed, declined, or blocked.
-12. If the human agrees, install or initiate the Solo Agency Local Collector extension and Local Collector app setup.
-13. If Private Interest Graph Discovery was approved, scan approved discovery URLs from the platform starting URL registry, filter candidate sources, show recommendations, and ask approval before adding sources to active private sources.
-14. If any private scan or approved source-discovery scan runs, analyze the collected private data and regenerate the report, idea matrix, best idea, leads, competitors, and drafts if needed before claiming the private-source step is complete.
-15. If published URL history exists, load `playbooks/05_MEASURE_LEARN_IMPROVE.md` and scan analytics/signals for the last 7 days before updating the final recommendation. If no published URL history exists, mark this as not available yet instead of pretending measurement ran.
-16. Update the report, idea matrix, best idea for today, leads, competitors, and drafts with private data and, from the second run onward, analytics/statistics from published URLs.
-17. After the first trial report is shown, the production setup gate is completed/declined/blocked, private-source activation has been accepted/declined/documented as pending, and the published-URL analytics step is completed or honestly marked unavailable, ask the human whether and how to configure the recurring schedule/routine.
-18. Only after schedule confirmation, add or update the recurring schedule/routine and confirm whether future scheduled runs include public sources only or both public and activated private sources.
+8. Resolve the private-source question: record provided sources, decline/no sources, or pending Local Collector activation/source discovery.
+9. If the human agrees to private-source activation or source discovery, install or initiate the Solo Agency Local Collector extension and Local Collector app setup, then ask for approval before adding any discovered sources to active private sources.
+10. Configure the recurring schedule/routine once the basic source plan is known. Confirm whether future scheduled runs include public sources only, public plus activated private sources, or public plus pending private sources once the blocker is resolved.
+11. Ask whether the human wants to run the first agency run immediately.
+12. Run the first agency run using public sources and any approved/available private data.
+13. Generate the small-win package: mobile HTML report, idea matrix, best idea for today, leads, competitors, and at least one draft script/blog/caption.
+14. If published URL history exists, load `playbooks/05_MEASURE_LEARN_IMPROVE.md` and scan analytics/signals for the last 7 days before updating the final recommendation. If no published URL history exists, mark this as not available yet instead of pretending measurement ran.
+15. After the small-win package is shown, ask whether the human wants Production & Distribution & Notification & Analytics setup for video/blog/social assets, publishing, notifications, analytics, and the build-measure-learn loop.
+16. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
+17. Update the report, idea matrix, best idea for today, leads, competitors, and drafts with private data and, from the second run onward, analytics/statistics from published URLs.
 
 Example:
 
@@ -378,95 +374,92 @@ daily-content-pipeline/
         outputs/
 ```
 
-The agent must run Nguyen Law's first trial report immediately after setup. Only after the trial report is shown, the production/provider gate is completed/declined/blocked, private-source status is resolved or marked pending, and published-URL analytics is run or marked `no published URLs yet`, should the agent ask how to configure recurring scheduled runs.
+The agent must configure the routine, then run Nguyen Law's first agency report when the human approves the first run. Only after the small-win package is shown should the agent ask whether to set up Production & Distribution & Notification & Analytics.
 
 ---
 
-## 14. Mandatory First Trial Run Protocol
+## 14. Mandatory First Agency Run Protocol
 
 This protocol applies after the first client setup, after adding a new client, and after repairing an incomplete Client Intelligence Profile.
 
 The setup flow is not a menu of optional next steps. The agent must not ask the human to choose between:
 
-- running the first trial,
-- installing the collector,
-- configuring the schedule.
+- providing private sources,
+- configuring the schedule,
+- running the first agency run,
+- creating a video.
 
 The correct order is fixed:
 
 1. Finish setup and save the Client Intelligence Profile.
-2. Run the first trial report immediately using public sources and any already available local data.
-3. Show the first report to the human as a small win.
-4. Ask whether the human wants Production & Distribution & Notification & Analytics setup now.
-5. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate before moving on.
-6. If private sources were provided, or if the human agreed to Private Interest Graph Discovery, explain that private-source monitoring/discovery is still pending and ask whether to activate it after the production setup gate is completed, declined, or blocked.
-7. If the human agrees to private sources, install or initiate setup for the Solo Agency Local Collector extension and Local Collector app.
-8. If Private Interest Graph Discovery was approved, run approved discovery scans using the platform starting URL registry, filter candidate sources, and ask the human to approve recommended sources before adding them as active private sources.
-9. Ask about recurring schedule only after the first report exists, the Production & Distribution & Notification & Analytics setup gate has been completed/declined/blocked, and private-source activation has been accepted, declined, or documented as pending.
+2. Resolve optional manual private sources and Local Collector activation status.
+3. Configure the schedule/routine once the basic source plan is known.
+4. Ask whether the human wants to run the first agency run immediately.
+5. Run the first agency run using public sources and any already approved/available private data.
+6. Show the first report and first draft script/blog/caption to the human as the small win.
+7. Ask whether the human wants Production & Distribution & Notification & Analytics setup now that the small win exists.
+8. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
+9. If private sources were provided but Local Collector is not active yet, keep private-source monitoring as `pending_private_activation` and avoid promising private scheduled collection until the blocker is resolved.
 
-Public-first first trial rule:
+First agency run rule:
 
-- The first trial should happen before Local Collector setup unless the Local Collector app is already installed and running.
-- The first trial must not be blocked by Chrome extension installation, local binary permissions, sandbox limits, or private-source login state.
-- The first trial should use public sources, public search, client context, inferred pain points, inferred content pillars, related industries, and any previously collected local data.
-- If private sources were provided, the first trial report must include a section called `Private Sources Pending Activation`.
-- If Private Interest Graph Discovery was approved but not yet run, the first trial report must include `Private Interest Graph Discovery Pending Activation`.
-- That section must list the private source URLs, explain that they were not scanned yet, and say that activation requires the Solo Agency Local Collector extension plus Local Collector app.
-- The first trial report must ask a clear next-step question after delivering the useful output. Unless Production & Distribution & Notification & Analytics setup was already completed or explicitly declined, the first next-step question must be:
+- The first agency run happens after routine setup and explicit human approval to run now.
+- The first agency run must not be blocked by Chrome extension installation, local binary permissions, sandbox limits, or private-source login state.
+- The first agency run should use public sources, public search, client context, inferred pain points, inferred content pillars, related industries, and any previously collected local data.
+- If private sources were provided, the first agency report must include a section called `Private Sources Pending Activation`.
+- If source discovery was approved but not yet run, the first agency report must include `Private Source Discovery Pending Activation`.
+- That section must list the private source URLs or discovery categories, explain that they were not scanned yet, and say that activation requires the Solo Agency Local Collector extension plus Local Collector app.
+- The first agency report must include at least one draft script/blog/caption or a clear report section containing the draft.
+- The first agency report must ask a clear next-step question after delivering the useful output. Unless Production & Distribution & Notification & Analytics setup was already completed or explicitly declined, the next-step question must be:
 
 ```md
-Do you want Production & Distribution & Notification & Analytics setup now for video/blog/social, publishing, Telegram/report notifications, analytics, and the learning loop?
+Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?
 ```
 
-The agent must ask this question directly in the chat message or notification where it announces the first trial result. It must not hide the question or setup steps inside a Markdown file.
+The agent must ask this question directly in the chat message or notification where it announces the first agency run result. It must not hide the question or setup steps inside a Markdown file.
 
-The same chat message must show the updated `Solo Agency onetime setup` progress checklist or a compact progress summary. It must show that public-first research/report generation is complete and that production/provider setup, private-source activation, published-URL analytics status, report/recommendation update status, and final schedule setup are still pending, completed, declined, blocked, or not applicable.
+The same chat message must show the updated `Solo Agency onetime setup` progress checklist or a compact progress summary. It must show that first agency run/report generation is complete and that production/provider setup, private-source activation, published-URL analytics status, and report/recommendation update status are still pending, completed, declined, blocked, or not applicable.
 
 If Production & Distribution & Notification & Analytics setup is already completed, declined, or blocked and private-source activation is pending, the final line must be:
 
 ```md
-Private sources and Private Interest Graph Discovery are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?
+Private sources are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?
 ```
 
 If there are no private sources and discovery was declined or not requested, the final line must ask the next required decision, usually:
 
 ```md
-Do you want Production & Distribution & Notification & Analytics setup now for video/blog/social, publishing, Telegram/report notifications, analytics, and the learning loop?
+Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?
 ```
 
 or, if production was already declined:
 
 ```md
-Do you want daily, multiple-times-daily, weekly, or manual-only runs?
+Do you want me to keep the saved routine as-is for tomorrow's automatic run?
 ```
 
 Do not end the report handoff with only a report link, a summary, or "let me know."
 
-Good first-trial chat pattern:
+Good first-run chat pattern:
 
 ```md
-The first trial report is ready.
+The first agency run is ready.
 
 Best idea today: {best idea}
 Report for mobile: {absolute HTML path or URL}
+First draft: {script/blog/caption title}
 
 Solo Agency onetime setup
-[x] 1. Bạn cung cấp thông tin sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
+[x] 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
 [x] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer
 [x] 3. Tôi tự suy luận pain points và content pillars
-[x] 4. Tôi tự tìm và chọn nguồn công khai và từ khóa tìm kiếm
-[x] 5. Tôi tự chạy nghiên cứu public-first
-[x] 6. Tôi tạo báo cáo HTML public-first
-[ ] 7. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn
-[ ] 8. Tôi tự cấu hình luồng sản xuất/đăng/thông báo/phân tích
-[ ] 9. Bạn cung cấp nguồn riêng tư (private) thủ công nếu muốn
-[ ] 10. Bạn cho phép chạy Private Interest Graph Discovery nếu muốn
-[ ] 11. Tôi kích hoạt Local Collector nếu bạn cho phép quét dữ liệu nguồn riêng
-[ ] 12. Tôi chạy source discovery và xin bạn duyệt nguồn đề xuất
-[ ] 13. Tôi chạy lần quét riêng đầu tiên
-[-] 14. Tôi quét analytics các URL đã đăng trong 7 ngày gần nhất (chưa có URL đã đăng)
-[ ] 15. Tôi cập nhật báo cáo, ma trận ý tưởng, ý tưởng tốt nhất hôm nay, lead, đối thủ, bản nháp. Từ lần chạy thứ hai trở đi, tôi thêm analytics và statistics từ bước 14.
-[ ] 16. Tôi cấu hình lịch chạy tự động (chỉ setup 1 lần)
+[x] 4. Tôi tự tìm/chọn nguồn công khai và từ khóa tìm kiếm
+[x] 5. Bạn cung cấp nguồn riêng tư thủ công nếu muốn; tôi kích hoạt Local Collector nếu cần
+[x] 6. Tôi cấu hình lịch/routine tự động, rồi hỏi bạn có muốn chạy lần đầu ngay không
+[x] 7. Tôi chạy lần đầu: quét public/private, tạo HTML report, idea matrix, lead, competitor, và draft script/blog/caption đầu tiên
+[ ] 8. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn biến draft thành tài sản thật và tự động phân phối/đo lường
+[-] 9. Từ lần chạy thứ hai, nếu đã setup Production & Distribution & Notification & Analytics - PDNA, tôi quét analytics các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
+[ ] 10. Tôi cập nhật report, idea matrix, best idea, leads, competitors, drafts, analytics/statistics, và learning loop
 
 The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
 
@@ -474,10 +467,10 @@ This run used public sources only. I have {N} private sources waiting, including
 - {source name or URL}
 - {source name or URL}
 
-Do you want Production & Distribution & Notification & Analytics setup now for video/blog/social, publishing, Telegram/report notifications, analytics, and the learning loop?
+Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?
 ```
 
-Bad first-trial chat pattern:
+Bad first-run chat pattern:
 
 ```md
 Private sources were not scanned. Instructions are in collector/collector_setup_status.md.
@@ -487,7 +480,7 @@ Now choose a schedule.
 Also bad:
 
 ```md
-The first trial report is ready.
+The first agency run is ready.
 Report: {html path}
 Let me know what you want to do next.
 ```
@@ -510,14 +503,14 @@ Private-source activation rule:
 - The agent must not claim private-source monitoring is active until collector health confirms the Local Collector app and Solo Agency Local Collector extension are working.
 - The agent must not configure a recurring schedule that promises private-source collection until collector setup is either `installed_and_running` or explicitly documented as pending/blocked with a human action.
 
-First trial rule:
+First agency run-now rule:
 
-- The agent must not ask `Do you want me to run the first trial?`
-- The first trial must not depend on a recurring schedule window.
-- If the Local Collector app is already installed, running, and healthy, the agent may include private sources in the first trial by creating a run-now job.
-- If the Local Collector app is not already installed/running/healthy, run the public-first trial and list private sources as pending activation.
-- The first trial output must include a mobile-friendly HTML report and a concise summary.
-- If WideCast account tools are not connected, the first trial HTML report must include `Unlock Production & Distribution & Measure-Learning Loop With WideCast` so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup.
+- After schedule/routine setup, the agent should ask whether to run the first agency run immediately.
+- The first agency run must use `/jobs/run_now` or the equivalent manual run path; it must not wait for a recurring schedule window.
+- If the Local Collector app is already installed, running, and healthy, the agent may include private sources in the first agency run by creating a run-now job.
+- If the Local Collector app is not already installed/running/healthy, run public sources and list private sources as pending activation.
+- The first agency run output must include a mobile-friendly HTML report, a concise summary, and at least one useful draft script/blog/caption.
+- If WideCast account tools are not connected, the first agency HTML report must include `Unlock Production & Distribution & Measure-Learning Loop With WideCast` so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup.
 
 Manual run / run-now rule:
 
@@ -632,9 +625,10 @@ bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/run_private_now.sh"
 
 Schedule rule:
 
-- Do not ask schedule questions before the first trial report.
-- After the first report, ask the human whether they want daily, multiple-times-daily, weekly, manual-only, or another cadence.
+- Ask schedule/routine questions after the profile and source plan are known and before the first agency run.
+- Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, or another cadence.
 - Then write or update `schedule.md` and the relevant automation/config files.
+- After schedule/routine setup, ask whether to run the first agency run immediately.
 
 Exact schedule contract:
 

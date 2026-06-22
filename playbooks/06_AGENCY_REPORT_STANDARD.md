@@ -149,9 +149,9 @@ Use this section when private sources were provided but the Solo Agency Local Co
     - Platform:
     - Why it matters:
 
-## Private Interest Graph Discovery
+## Private Source Discovery
 
-Use this section when the human approved, declined, postponed, or has not yet been asked about discovering private sources from joined groups, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds.
+Use this section when the human approved, declined, postponed, or has not yet been asked about optional source discovery from joined groups, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds.
 
 - Status: not_asked | declined | approved_pending_activation | active | blocked | completed
 - Reassurance shown:
@@ -576,7 +576,7 @@ The HTML report must include:
 - Clients processed.
 - Client status.
 - Private collector health: bridge status, extension last check time, extension status, and private-source blockers.
-- Private Interest Graph Discovery status when asked, approved, pending, blocked, or completed.
+- Private Source Discovery status when asked, approved, pending, blocked, or completed.
 - Top ideas.
 - Best idea.
 - Mapped content pillar.
@@ -639,8 +639,8 @@ Required report hierarchy:
    - Data confidence summary.
    - If private sources were provided but not activated yet, state that clearly and do not imply lead coverage is complete.
 
-5. `Private Interest Graph Discovery`
-   - Discovery categories approved, declined, pending, or not asked yet.
+5. `Private Source Discovery`
+   - Discovery categories approved, declined, pending, or not requested.
    - Platforms and discovery URLs used.
    - Whether the Solo Agency Local Collector is active, pending, or blocked.
    - Candidate groups, profiles, pages, KOLs, channels, communities, and feed-surfaced sources found.
@@ -705,9 +705,11 @@ Required report hierarchy:
 12. `Next Action`
    - End with exactly one primary next action.
    - Secondary actions may be listed below, but they must not compete with the primary next action.
-   - For public-first reports where Production & Distribution & Notification & Analytics setup has not been completed/declined/blocked, the primary next action should usually be that setup gate, not scheduling.
-   - For reports where production setup is completed/declined/blocked and private sources are pending, the primary next action should usually be activating the Solo Agency Local Collector, not scheduling.
-   - Ask about recurring schedule only after the first report exists, the production/provider setup gate has been completed/declined/blocked, private-source activation has been accepted/declined/documented as pending, and published-URL analytics has run or been marked `no published URLs yet`.
+   - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
+   - After schedule/routine is configured but the first agency run has not happened, the primary next action should be asking whether to run the first agency run now.
+   - After the first agency run small win exists and Production & Distribution & Notification & Analytics setup has not been completed/declined/blocked, the primary next action should usually be that setup gate.
+   - For reports where production setup is completed/declined/blocked and private sources are pending, the primary next action should usually be activating the Solo Agency Local Collector or marking private sources pending, not starting a video branch.
+   - Do not ask "make a video now?" as the primary next action immediately after the small win; production/provider setup comes first.
 
 ### Report Handoff Chat Rule
 
@@ -720,6 +722,14 @@ When the agent announces a report in chat, Telegram, email, or another human-fac
 3. A visible progress block for the active workflow.
 4. The one required next decision.
 5. A final line that is exactly one concrete next-step question.
+
+Report-ready notification validity rule:
+
+- A report-ready notification without an HTML report URL/path is invalid.
+- If WideCast notification/Telegram is available, the agent must try to deliver the report through WideCast notification.
+- If a WideCast HTML-capable report/file/asset upload tool is available, upload the `.html` report first and send the uploaded WideCast report URL.
+- If WideCast report upload is unavailable or fails, the agent must log the blocker and still include the best available local/hosted `.html` report path/link in the notification.
+- If the agent accidentally sends a notification without a report URL/path, it must immediately send a correction notification containing the HTML report URL/path and log the correction.
 
 Do not end a report handoff with:
 
@@ -763,7 +773,7 @@ Recommended HTML section order:
 2. Today's Recommendation
 3. Evidence Ledger
 4. Source Coverage And Data Quality
-5. Private Interest Graph Discovery
+5. Private Source Discovery
 6. Idea Portfolio
 7. Decision Scorecard
 8. Leads Detected
@@ -848,9 +858,10 @@ Notification fallback rule:
 
 - WideCast MCP notification/Telegram is the preferred scheduled-run notification channel.
 - If WideCast notification tools are available, call the WideCast notification tool even if the human has not connected Telegram yet. WideCast should handle fallback email delivery when Telegram is not connected.
-- If WideCast Telegram is connected and WideCast exposes an HTML-capable report/file/asset upload API, upload the `.html` report to WideCast first and send the uploaded URL through WideCast Telegram.
+- If WideCast notification tools are available and WideCast exposes an HTML-capable report/file/asset upload API, upload the `.html` report to WideCast first and send the uploaded URL through WideCast Telegram/email fallback.
 - Do not send only a local file path when an uploaded WideCast report URL is available.
 - If the current WideCast wrapper cannot upload `.html` files, log `widecast_report_upload_unavailable`, send the best available HTML path/link, and state the upload blocker clearly.
+- Never send a report-ready notification that contains only a status summary. The notification must include an `HTML report` URL/path field.
 - The agent should not switch to Gmail/email merely because Telegram is not connected in WideCast.
 - Use Gmail/email only when WideCast notification tools are unavailable or blocked.
 - If Gmail/email is available and WideCast notification tools are unavailable, send the HTML report or a link/path to the HTML report by email to the human, using the same language the human uses.

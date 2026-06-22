@@ -4,11 +4,11 @@ Stage: `02`
 
 ## Load Rule
 
-Load when private sources, manual private URLs, joined groups, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, or Private Interest Graph Discovery are requested, approved, pending, or blocked.
+Load when private sources, manual private URLs, joined groups, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, source discovery, or Local Collector activation are requested, approved, pending, or blocked.
 
 ## Hard Gates For This Stage
 
-- Manual private sources and Private Interest Graph Discovery are independent.
+- Manual private sources and optional source discovery are independent.
 - Ask explicitly whether the human wants to scan Facebook groups they are already a member of.
 - Use the Facebook joined-groups URL only with explicit consent.
 - Do not use automated approval-gated browser extension flows for unattended collection.
@@ -168,9 +168,9 @@ If a private session expires:
 - Tell the human which source needs manual login.
 - Never ask for credentials.
 
-### Private Interest Graph Discovery
+### Optional Private Source Discovery
 
-Private sources are not limited to URLs pasted by the human. Many useful sources are already inside the human's social interest graph:
+Private sources are not limited to URLs pasted by the human. Many useful sources are already inside accounts, communities, and feeds the human already uses:
 
 - Groups, communities, or forums the human has already joined.
 - Pages, profiles, KOLs, creators, experts, competitors, or industry voices the human follows.
@@ -179,7 +179,7 @@ Private sources are not limited to URLs pasted by the human. Many useful sources
 
 This is often the best source discovery layer because busy humans may follow good sources but not remember all of them, and platform feeds often surface what the human's market is already discussing.
 
-The agent must treat this as an optional, consent-based discovery workflow, not as automatic surveillance.
+The agent must treat this as an optional, consent-based source discovery workflow, not as automatic surveillance. It must not appear as a separate top-level setup step.
 
 Before using this workflow, the agent must reassure the human:
 
@@ -243,7 +243,7 @@ If a URL does not work, the agent must mark `platform_url_changed` or `login_req
 
 #### Discovery Behavior Rules
 
-The agent must use the Solo Agency Local Collector extension plus the Local Collector app for private interest graph discovery.
+The agent must use the Solo Agency Local Collector extension plus the Local Collector app for private source discovery.
 
 The agent must not use Claude Chrome Extension for this workflow.
 
@@ -258,7 +258,7 @@ The agent must never open or collect:
 - Payment, account, billing, medical, legal-client, or private dashboard pages unless the human explicitly provides that source for a specific business purpose.
 - Anything that requires bypassing access controls.
 
-For interest graph discovery, the collector should capture only:
+For private source discovery, the collector should capture only:
 
 - Visible text.
 - Source name.
@@ -355,7 +355,7 @@ approval_status: pending_human_approval | approved | rejected
 Save discovery outputs under:
 
 ```text
-daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/private_interest_graph_discovery_YYYY-MM-DD.md
+daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/private_source_discovery_YYYY-MM-DD.md
 ```
 
 When useful, also update:
@@ -364,7 +364,7 @@ When useful, also update:
 daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/new_private_sources_log.md
 ```
 
-The next HTML report must include a `Private Interest Graph Discovery` section when this workflow runs or is pending.
+The next HTML report must include a `Private Source Discovery` section when this workflow runs or is pending.
 
 ---
 
