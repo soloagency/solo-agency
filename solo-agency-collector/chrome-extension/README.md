@@ -29,13 +29,25 @@ The user installs it once in the Chrome profile that is already logged in to Fac
 - It does not collect if Chrome is closed, the browser profile is not running, or the extension is disabled/removed.
 - It does not guarantee a permanently awake background worker in all browser/OS power states.
 
-## Install For Development
+## Runtime Install
+
+This folder is the source/developer copy of the Chrome extension.
+
+For a normal Solo Agency runtime setup, do not load this folder in Chrome. Load the generated runtime copy instead:
+
+```text
+solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/
+```
+
+The setup agent must show the absolute path to that runtime folder.
 
 1. Open Chrome.
 2. Go to `chrome://extensions`.
 3. Enable Developer Mode.
 4. Click `Load unpacked`.
-5. Select `solo-agency-collector/chrome-extension`.
+5. Select the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime folder.
+
+Maintainers who are actively developing the extension may load this source folder in a separate development Chrome profile, but a normal agency setup must not use this folder.
 
 For public release, publish the extension through Chrome Web Store or provide a signed/internal extension package.
 
