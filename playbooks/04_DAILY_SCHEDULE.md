@@ -4,14 +4,16 @@ Stage: `04`
 
 ## Load Rule
 
-Load only after the first report exists and private-source status has been accepted, declined, blocked, or documented as pending.
+Load only after the first report exists; the Production & Distribution & Notification & Analytics setup gate has been completed, declined, blocked, or honestly marked pending; private-source status has been accepted, declined, blocked, or documented as pending; and published-URL analytics has either run or been marked `no published URLs yet`.
 
 ## Hard Gates For This Stage
 
 - Do not ask schedule questions before the first public report.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
 - Scheduled runs must run research, private scans if active, analysis, drafts, HTML report, and notification.
+- Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, mark measurement as `no published URLs yet` instead of pretending it ran.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
+- Every scheduled-run human-facing reply, notification, or report handoff must include an updated progress block. If the agent sends multiple progress updates during the scheduled run, each update must show the current completed/current/remaining state.
 - If private collection is blocked, continue public sources and notify the human.
 - Store schedule config and notification channel.
 
@@ -46,7 +48,27 @@ The difference between first setup and scheduled runs:
 - Scheduled runs must not re-ask industry, sub-industry, audience, pain points, content pillars, or private-source setup questions if those fields are already present.
 - Scheduled runs may ask the human only when an approval gate, blocker, missing critical field, expired private session, production/render/publish/credit decision, or lead outreach decision requires human input.
 
-Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, data analysis, idea matrix, best idea, drafts, HTML report, notification, and measurement/learning when published content exists.
+Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, published-URL analytics when published content exists, data analysis, idea matrix, best idea, drafts, HTML report, notification, and measurement/learning when measurement data exists.
+
+## Scheduled Run Progress Display Contract
+
+Scheduled runs are meant to be automatic, but the human still needs visible state whenever the agent speaks.
+
+Every scheduled-run reply, notification, or report handoff must include:
+
+- completed steps;
+- current active step;
+- remaining steps;
+- blockers or human decisions required;
+- whether published-URL analytics was run or skipped because no published URLs/metrics exist yet.
+
+Use this title:
+
+```text
+Solo Agency daily run progress
+```
+
+The agent may use a compact form in notifications, but it must not send only a report link or summary while steps remain.
 
 ---
 

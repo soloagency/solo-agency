@@ -14,13 +14,15 @@ Run the scheduled Solo Agency daily run now.
 3. Do not rely on memory from setup. Load the required child playbooks again at run time.
 4. Process every active client in daily-content-pipeline/clients_index.md.
 5. Do not ask setup questions when the saved Client Intelligence Profile is complete.
-6. Run public research, private scans if active, analysis, idea matrix, best idea selection, drafts, HTML report generation, published-content measurement, learning updates, and notification.
+6. Run public research, private scans if active, published-URL analytics only when published URLs/metrics exist, analysis, idea matrix, best idea selection, drafts, HTML report generation, learning updates, and notification.
 7. If private sources are active, read the Local Collector config before announcing scan depth. If config is unavailable, use the safe default: 5 scrolls per approved source, max 10, about 5 seconds between scrolls.
 8. If published content exists, retrieve yesterday's and last-7-day published URLs, inspect each URL when authorized, record metrics/comment signals/learnings, and mark unavailable metrics honestly.
-9. Human-facing reports must be HTML only. Markdown is internal.
-10. If WideCast notification/Telegram is connected and WideCast report/file upload is available, upload each HTML report to WideCast first, then send the uploaded WideCast report URL through WideCast Telegram. Do not send only a local file path when an uploaded URL is available.
-11. If report upload fails, log the blocker, notify the human with the best available HTML path/link, and say that WideCast report upload failed.
-12. Load playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md before claiming the scheduled run is complete.
+9. If no published URLs/metrics exist yet, mark measurement as `no published URLs yet`; do not pretend the measurement-learning loop ran.
+10. Every human-facing reply, notification, or report handoff must include `Solo Agency daily run progress` with completed/current/remaining steps and blockers. If sending multiple updates, show updated progress each time.
+11. Human-facing reports must be HTML only. Markdown is internal.
+12. If WideCast notification/Telegram is connected and WideCast report/file upload is available, upload each HTML report to WideCast first, then send the uploaded WideCast report URL through WideCast Telegram. Do not send only a local file path when an uploaded URL is available.
+13. If report upload fails, log the blocker, notify the human with the best available HTML path/link, and say that WideCast report upload failed.
+14. Load playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md before claiming the scheduled run is complete.
 ```
 
 ## Required Runtime Loads

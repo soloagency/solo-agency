@@ -73,6 +73,14 @@ Do not invent metrics. Mark unavailable metrics clearly.
 
 During every scheduled run, after the normal research and draft workflow, the agent must check whether there is published content that still needs measurement.
 
+If this is the first setup/run and no content has been published yet, the agent must not run or simulate measurement. It must record:
+
+```text
+measurement_status: no_published_urls_yet
+```
+
+Then continue with report generation, recommendations, and schedule setup if applicable.
+
 The agent must:
 
 1. Load the published content ledger, publishing logs, provider history, or connected provider account data.
