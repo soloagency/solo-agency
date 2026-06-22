@@ -69,6 +69,31 @@ For each published content item, the agent must:
 
 Do not invent metrics. Mark unavailable metrics clearly.
 
+### Scheduled Published URL Measurement Contract
+
+During every scheduled run, after the normal research and draft workflow, the agent must check whether there is published content that still needs measurement.
+
+The agent must:
+
+1. Load the published content ledger, publishing logs, provider history, or connected provider account data.
+2. Retrieve the list of videos/posts published yesterday.
+3. Retrieve the list of videos/posts published in the last 7 days.
+4. Extract every available published URL, platform, title, caption/description, hashtags, publish date, topic/video/content ID, and source output/script path.
+5. For every published URL still inside its 7-day measurement window, open or inspect that URL using the best authorized source:
+   - connected provider analytics first;
+   - platform/account analytics if available;
+   - Solo Agency Local Collector for visible URL/page/comment metrics when useful and authorized;
+   - public visible page data if logged-in access is unavailable.
+6. Visit or inspect each URL one by one. Do not summarize account-level analytics as a substitute for URL-level measurement when URL-level data is available.
+7. Capture visible views, likes/reactions, comments, shares, saves, reposts, follower/subscriber count when relevant, audience questions, objections, and lead signals in comments.
+8. Store unavailable metrics explicitly as `unavailable` with the reason.
+9. Write normalized metrics to `analytics/metrics_log.md`.
+10. Write useful questions, objections, and lead/comment signals to `analytics/comment_signal_log.md`.
+11. Write strategic learnings to `analytics/learning_log.md`.
+12. Feed the learning back into future source priority, content pillars, hooks, CTAs, idea scoring, lead-gen angles, and scripts/blogs.
+
+If the agent cannot access provider tools or published URLs, it must log the blocker and continue the rest of the scheduled run. It must not claim the measurement loop is complete.
+
 ### 23.8 Analytics And Reporting
 
 The agent should maintain:

@@ -11,6 +11,7 @@ Load only after the first report exists and private-source status has been accep
 - Do not ask schedule questions before the first public report.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
 - Scheduled runs must run research, private scans if active, analysis, drafts, HTML report, and notification.
+- Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
 - If private collection is blocked, continue public sources and notify the human.
 - Store schedule config and notification channel.
 
@@ -19,6 +20,33 @@ Load only after the first report exists and private-source status has been accep
 This file is detailed source material moved from the original monolithic `SOLO_AGENCY_PLAYBOOK.md`.
 
 Do not summarize away requirements, examples, checklists, schemas, protocols, URLs, edge cases, warnings, approval gates, or completion gates. If a downstream agent needs to shorten its response to the human, it may summarize the response, but it must still obey the full requirements in this file.
+
+---
+
+## Scheduled Run Playbook Loading Contract
+
+A scheduled run is not a shortcut around the playbook. It is the same agency workflow executed with saved context instead of asking the human setup questions again.
+
+At the start of every scheduled run, the agent must load or re-load the relevant stage files for the work it is about to do:
+
+1. Always load Stage 0: `00_CORE_CONTEXT_REQUIREMENTS.md`.
+2. Always load Stage 7: `07_STORAGE_SCHEMA_AND_HISTORY.md` to read profiles, logs, ledgers, and history.
+3. Always load Stage 4: `04_DAILY_SCHEDULE.md` for the scheduled daily-run contract.
+4. Load Stage 1 only if a profile is missing, incomplete, stale, or needs setup repair. Do not ask setup questions when the saved profile is complete.
+5. Load Stage 2 and Stage 8 when private sources are active, pending, blocked, or being scanned.
+6. Load Stage 3 when drafts, production, publishing, provider setup, or notification provider actions are needed.
+7. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
+8. Load Stage 6 whenever generating the human-facing HTML report.
+9. Load Stage 9 before claiming the scheduled run is complete.
+
+The difference between first setup and scheduled runs:
+
+- First setup asks only the minimum setup questions because the profile does not exist yet.
+- Scheduled runs read the saved Client Intelligence Profile, source lists, collector config, content history, publishing ledger, and analytics logs, then continue automatically.
+- Scheduled runs must not re-ask industry, sub-industry, audience, pain points, content pillars, or private-source setup questions if those fields are already present.
+- Scheduled runs may ask the human only when an approval gate, blocker, missing critical field, expired private session, production/render/publish/credit decision, or lead outreach decision requires human input.
+
+Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, data analysis, idea matrix, best idea, drafts, HTML report, notification, and measurement/learning when published content exists.
 
 ---
 
@@ -116,7 +144,7 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If WideCast MCP notification/Telegram capability is available, send a notification to the human that includes the agent identity, run status, HTML report path/link, clients processed, blockers, lead/competitor counts, and required actions.
+9. If WideCast MCP notification/Telegram capability is available, upload the HTML report to WideCast first when an HTML-capable report/file/asset upload API is available, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
 9. If another authorized channel can send the HTML file or link more conveniently, use it.
 10. Log the notification attempt in `notifications/notification_log.md`.
 
@@ -125,6 +153,8 @@ The daily run is complete only when every active client is processed or explicit
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
 Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast MCP / Telegram.
+
+If WideCast Telegram is connected and WideCast report upload supports HTML, the notification link should be the uploaded WideCast report URL, not only a local file path. If upload fails or the current wrapper does not support HTML upload, log the blocker and send the best available HTML path/link.
 
 ---
 

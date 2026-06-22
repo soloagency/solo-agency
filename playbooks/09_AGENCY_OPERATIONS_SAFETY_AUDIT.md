@@ -481,7 +481,7 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If WideCast MCP notification/Telegram capability is available, send a notification to the human that includes the agent identity, run status, HTML report path/link, clients processed, blockers, lead/competitor counts, and required actions.
+9. If WideCast MCP notification/Telegram capability is available, upload the HTML report to WideCast first when an HTML-capable report/file/asset upload API is available, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
 9. If another authorized channel can send the HTML file or link more conveniently, use it.
 10. Log the notification attempt in `notifications/notification_log.md`.
 
@@ -1265,9 +1265,12 @@ Before replying to the human, verify:
 - [ ] Did I avoid asking for information I can infer, research, or discover myself?
 - [ ] If I asked a question, did I first show what I inferred from the previous answer?
 - [ ] Did I show setup or research assumptions clearly instead of hiding them in files?
+- [ ] If the setup, daily run, private-source setup, production setup, scheduling, publishing, or measurement workflow is not complete, did I show an updated progress block in this reply?
+- [ ] If I am handing control back to the human while required steps remain, is the final line exactly one concrete next-step question?
 - [ ] If human action is needed, did I show the exact action directly in chat or notification?
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I mentioned a report, did I provide only the HTML path/link for human review and avoid showing the Markdown report path?
+- [ ] If I mentioned a report and any workflow step remains, did I include both the progress block and the required next-step question in chat instead of relying on the report's `Next Action` section?
 - [ ] Did I avoid jumping to schedule before the first trial/private collector decision?
 - [ ] Did I avoid asking for credentials, cookies, passwords, OTPs, or tokens?
 - [ ] Did I avoid calling the collector a Facebook collector?
@@ -1427,6 +1430,8 @@ Before saying the run is complete, verify:
 - [ ] If competitor data was only a hypothesis without profile/post URLs, did I label it as a hypothesis rather than detected competitor evidence?
 - [ ] Did the report include a Production Readiness status for each draft, such as `production-ready`, `script-ready, media-pending`, or `needs human detail`?
 - [ ] Did the report end with exactly one primary next action, with secondary actions clearly de-emphasized?
+- [ ] Did the chat or notification that announces the report show an updated progress block when required steps remain?
+- [ ] Did that chat or notification end with exactly one concrete next-step question when the human needs to choose the next step?
 - [ ] Is the HTML factually aligned with the internal Markdown report?
 - [ ] Is the HTML standalone and portable?
 - [ ] Did I avoid making the HTML depend on `fetch("./report.md")`, remote scripts, remote CSS, or a neighboring Markdown file?
@@ -1441,6 +1446,8 @@ Before saying the run is complete, verify:
 - [ ] Did I avoid fake interactive buttons in static HTML, except real local copy buttons for editable draft review?
 - [ ] Did I include references/URLs in the report?
 - [ ] Did I notify the human through WideCast notification/Telegram tooling if available, relying on WideCast's email fallback if Telegram is not connected?
+- [ ] If WideCast Telegram was connected and an HTML-capable WideCast report/file/asset upload API was available, did I upload the `.html` report to WideCast first and send the uploaded report URL instead of only a local path?
+- [ ] If WideCast report upload was unavailable or failed, did I log `widecast_report_upload_unavailable` or the exact upload blocker and send the best available HTML path/link?
 - [ ] If WideCast notification tooling was unavailable, did I try Gmail/email MCP or connector if available?
 - [ ] If neither WideCast notification nor Gmail/email was connected, did I suggest connecting WideCast notification/Telegram first, or Gmail/email as a secondary fallback?
 - [ ] Did the notification include agent identity, status, HTML report path/link, blockers, and next action?

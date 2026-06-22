@@ -705,6 +705,42 @@ Required report hierarchy:
    - For public-first reports with pending private sources, the primary next action should usually be activating the Solo Agency Local Collector, not scheduling.
    - Ask about recurring schedule only after the first report exists and private-source activation has been accepted, declined, or documented as pending.
 
+### Report Handoff Chat Rule
+
+The HTML report's `Next Action` section is not enough by itself.
+
+When the agent announces a report in chat, Telegram, email, or another human-facing channel, and any required workflow step remains unfinished, the handoff message must include:
+
+1. A short useful summary.
+2. The HTML report path/link only.
+3. A visible progress block for the active workflow.
+4. The one required next decision.
+5. A final line that is exactly one concrete next-step question.
+
+Do not end a report handoff with:
+
+- only the report link;
+- only a summary;
+- "let me know";
+- "see next steps in the report";
+- multiple competing questions.
+
+Examples of correct final questions:
+
+```text
+Do you want me to activate private sources now?
+```
+
+```text
+Do you want to create the video from Version 1 now?
+```
+
+```text
+Do you want daily, multiple-times-daily, weekly, or manual-only runs?
+```
+
+If the report is the final output of a fully completed requested workflow and no human decision remains, the agent may end with a completion statement instead of a question. Otherwise, progress plus one final question is mandatory.
+
 Professional presentation rules:
 
 - Keep the top of the report concise. Details belong below the executive snapshot.
@@ -797,7 +833,7 @@ When the result is long, the agent should send or surface the HTML report instea
 
 The agent must deliver the HTML report to the human by the most convenient available channel:
 
-- WideCast MCP notification/Telegram tool with the HTML file/link if supported. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
+- WideCast MCP notification/Telegram tool with the uploaded WideCast HTML report URL when report upload is available. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
 - If the WideCast notification tool itself is unavailable, use a connected Gmail/email MCP, connector, or tool to email the HTML report or HTML report link to the human if available and authorized.
 - Agent chat file attachment if supported.
 - Local file path in the automation/thread output.
@@ -808,6 +844,9 @@ Notification fallback rule:
 
 - WideCast MCP notification/Telegram is the preferred scheduled-run notification channel.
 - If WideCast notification tools are available, call the WideCast notification tool even if the human has not connected Telegram yet. WideCast should handle fallback email delivery when Telegram is not connected.
+- If WideCast Telegram is connected and WideCast exposes an HTML-capable report/file/asset upload API, upload the `.html` report to WideCast first and send the uploaded URL through WideCast Telegram.
+- Do not send only a local file path when an uploaded WideCast report URL is available.
+- If the current WideCast wrapper cannot upload `.html` files, log `widecast_report_upload_unavailable`, send the best available HTML path/link, and state the upload blocker clearly.
 - The agent should not switch to Gmail/email merely because Telegram is not connected in WideCast.
 - Use Gmail/email only when WideCast notification tools are unavailable or blocked.
 - If Gmail/email is available and WideCast notification tools are unavailable, send the HTML report or a link/path to the HTML report by email to the human, using the same language the human uses.

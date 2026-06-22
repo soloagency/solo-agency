@@ -61,6 +61,7 @@ Load only the stage needed for the current action, plus any dependency named by 
 | 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Load whenever creating files, updating profile/history/logs, adding clients, or reading prior context. |
 | 8 | `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` | Load when installing, running, checking, scheduling, or troubleshooting the Local Collector. |
 | 9 | `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` | Load before claiming setup, daily run, private scan, production, measurement, or schedule completion. |
+| Scheduled Entrypoint | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | Use as the scheduler prompt for unattended daily runs. |
 | TODO | `playbooks/TODO.md` | Backlog for future improvements. Do not treat TODO items as daily questions to the human. |
 
 ## Mandatory Setup Flow
@@ -87,7 +88,7 @@ The setup flow is fixed:
 Show and update this checklist during setup:
 
 ```text
-Solo Agency setup
+Solo Agency onetime setup
 [ ] 1. Ask product/service, profession, expertise, or business description
 [ ] 2. Infer industry, sub-industry, related industries, audience, and offer
 [ ] 3. Infer pain points and content pillars
@@ -105,6 +106,64 @@ Solo Agency setup
 [ ] 15. Configure schedule/routine
 [ ] 16. Run measurement and learning loop for published content
 ```
+
+## Progress And Next-Step Question Rule
+
+While setup, daily run, private-source activation, production setup, publishing, scheduling, or measurement is still incomplete, every human-facing reply that hands control back to the human must include a compact progress block.
+
+The progress block must show:
+
+- completed steps;
+- the current active step;
+- remaining required steps;
+- any blocker or human decision needed.
+
+For setup, use the exact title:
+
+```text
+Solo Agency onetime setup
+```
+
+For other flows, use a specific progress title such as:
+
+```text
+Solo Agency daily run progress
+Solo Agency production progress
+Solo Agency private-source progress
+Solo Agency measurement progress
+```
+
+If any required step remains and the agent is waiting for the human, the final line of the message must be exactly one clear next-step question. Do not end with a passive summary, a report link, or a vague statement such as "let me know what you think."
+
+Good final lines:
+
+```text
+Do you want me to activate private sources now?
+```
+
+```text
+Do you want to create the video from Version 1 now?
+```
+
+```text
+Do you want daily, multiple-times-daily, weekly, or manual-only runs?
+```
+
+Bad final lines:
+
+```text
+Here is the report.
+```
+
+```text
+Let me know if you need anything else.
+```
+
+```text
+Next steps are in the report.
+```
+
+The agent may omit the next-step question only when the entire requested workflow is complete and no human decision is required.
 
 ## Non-Negotiable Summary
 
@@ -125,6 +184,7 @@ Solo Agency setup
 - Do not publish, render/export, spend credits, use face/voice clone, or contact leads without explicit human approval.
 - Do not invent metrics. Mark unavailable metrics clearly.
 - Communicate with the human in the human's language.
+- If a workflow is not complete and the agent is handing control back to the human, show progress and end with exactly one next-step question.
 
 ## Completion Gates
 
@@ -167,6 +227,7 @@ Daily run is not complete until:
 - Sources, keywords, data quality, leads, competitors, ideas, best idea, drafts, and blockers were recorded.
 - A mobile-friendly HTML report exists.
 - The human received the HTML report path/link or notification.
+- If WideCast Telegram is connected and WideCast HTML report upload is available, the HTML report was uploaded to WideCast and the human received the uploaded WideCast report URL.
 - Stage 9 self-audit passes or misses are reported honestly.
 
 ## Jump-Prevention Rules
@@ -176,6 +237,7 @@ Daily run is not complete until:
 - If the agent is about to install or run collector tooling but Stage 8 is not loaded, load it first.
 - If the agent is about to create, render, publish, or notify through a production provider but Stage 3 is not loaded, load it first.
 - If the agent is about to schedule recurring work before the first report and private-source decision, stop and load Stage 4.
+- If the agent is running from a schedule, it must still load the needed stage playbooks again at run time; schedule execution is the same workflow with saved context, not a memory-only shortcut.
 - If the agent is about to claim completion, load Stage 9 and run the relevant checklist.
 
 ## Self-Audit Summary
