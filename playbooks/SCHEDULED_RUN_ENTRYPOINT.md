@@ -20,9 +20,11 @@ Run the scheduled Solo Agency daily run now.
 9. If no published URLs/metrics exist yet, mark measurement as `no published URLs yet`; do not pretend the measurement-learning loop ran.
 10. Every human-facing reply, notification, or report handoff must include `Solo Agency daily run progress` with completed/current/remaining steps and blockers. If sending multiple updates, show updated progress each time.
 11. Human-facing reports must be HTML only. Markdown is internal.
-12. If WideCast notification/Telegram is connected and WideCast report/file upload is available, upload each HTML report to WideCast first, then send the uploaded WideCast report URL through WideCast Telegram. Do not send only a local file path when an uploaded URL is available.
-13. If report upload fails, log the blocker, notify the human with the best available HTML path/link, and say that WideCast report upload failed.
-14. Load playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md before claiming the scheduled run is complete.
+12. Prepare a report-delivery record for every HTML report: local `.html` path, WideCast upload attempted true/false, uploaded URL if available, upload blocker if any, notification channel, and final notification report link.
+13. If WideCast notification/Telegram is connected and WideCast report/file upload is available, upload each HTML report to WideCast first, then send the uploaded WideCast report URL through WideCast Telegram/email fallback. Do not send only a local file path when an uploaded URL is available.
+14. If report upload fails or no HTML-capable upload API exists, log the blocker, notify the human with the best available HTML path/link, and say that WideCast report upload failed or is unavailable.
+15. Never send a report-ready notification without an HTML report URL/path. If that happens by mistake, immediately send a correction notification with the HTML report URL/path and log the correction.
+16. Load playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md before claiming the scheduled run is complete.
 ```
 
 ## Required Runtime Loads
@@ -54,9 +56,11 @@ Scheduled runs should not ask those questions again. They should read saved stat
 If WideCast Telegram is connected:
 
 1. Generate the local `.html` report.
-2. Upload the `.html` report to WideCast using the available report/file/asset upload API that supports HTML.
-3. Capture the returned public or reviewable report URL.
-4. Send that uploaded URL through WideCast Telegram with the run summary, blockers, lead/competitor counts, and next action.
-5. Log the upload and notification in `daily-content-pipeline/notifications/notification_log.md`.
+2. Inspect available WideCast tools/capabilities for a report/file/asset upload API that supports HTML.
+3. Upload the `.html` report to WideCast when an HTML-capable upload API exists.
+4. Capture the returned public or reviewable report URL.
+5. Send that uploaded URL through WideCast Telegram with the run summary, blockers, lead/competitor counts, and next action.
+6. If upload is unavailable or fails, send the best available local/hosted `.html` report path/link through WideCast notification and clearly state the upload blocker.
+7. Log the upload attempt and notification in `daily-content-pipeline/notifications/notification_log.md`.
 
 If the current WideCast wrapper does not expose an HTML-capable upload API, do not pretend upload succeeded. Log `widecast_report_upload_unavailable`, send the best available HTML path/link, and tell the human how to enable report upload.
