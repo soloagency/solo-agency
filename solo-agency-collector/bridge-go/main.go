@@ -72,6 +72,7 @@ type bridge struct {
 type extensionTelemetry struct {
 	lastCheckAt time.Time
 	lastOrigin  string
+	lastVersion string
 	checkCount  int
 }
 
@@ -514,7 +515,7 @@ func (b *bridge) allowOrigin(w http.ResponseWriter, r *http.Request) bool {
 	w.Header().Set("Access-Control-Allow-Origin", origin)
 	w.Header().Set("Vary", "Origin")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Collector-Token, X-Collector-Extension, Authorization")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Collector-Token, X-Collector-Extension, X-Collector-Extension-Version, Authorization")
 	w.Header().Set("Access-Control-Max-Age", "300")
 	return true
 }
@@ -522,6 +523,7 @@ func (b *bridge) allowOrigin(w http.ResponseWriter, r *http.Request) bool {
 func (b *bridge) recordExtensionCheck(r *http.Request) {
 	origin := r.Header.Get("Origin")
 	header := r.Header.Get("X-Collector-Extension")
+	version := r.Header.Get("X-Collector-Extension-Version")
 	if !strings.HasPrefix(origin, "chrome-extension://") && header != "media-agency-local-collector" {
 		return
 	}
@@ -532,6 +534,7 @@ func (b *bridge) recordExtensionCheck(r *http.Request) {
 	b.mu.Lock()
 	b.extension.lastCheckAt = now
 	b.extension.lastOrigin = origin
+	b.extension.lastVersion = version
 	b.extension.checkCount++
 	b.mu.Unlock()
 	_ = b.writeHealthFile()
@@ -1013,9 +1016,14 @@ func (b *bridge) appendRecord(w http.ResponseWriter, r *http.Request, kind, file
 		return
 	}
 	record = sanitizeMap(record)
+	activeRunID, err := b.activeWriteRunID(record)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
 	record["object"] = "collector_" + kind
 	record["record_type"] = kind
-	record["run_id"] = b.cfg.runID
+	record["run_id"] = activeRunID
 	record["received_at"] = time.Now().UTC().Format(time.RFC3339)
 	record["bridge_runtime"] = runtime.GOOS + "/" + runtime.GOARCH
 
@@ -1050,16 +1058,21 @@ func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing html", http.StatusBadRequest)
 		return
 	}
+	meta := sanitizeMap(record)
+	activeRunID, err := b.activeWriteRunID(meta)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
 	path := filepath.Join(b.cfg.outputDir, "snapshots", name)
 	if err := os.WriteFile(path, []byte(html), 0o600); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	meta := sanitizeMap(record)
 	delete(meta, "html")
 	meta["snapshot_path"] = path
 	meta["record_type"] = "snapshot"
-	meta["run_id"] = b.cfg.runID
+	meta["run_id"] = activeRunID
 	meta["received_at"] = time.Now().UTC().Format(time.RFC3339)
 	if err := b.writeJSONL("source_status.jsonl", meta); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1067,6 +1080,34 @@ func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 	b.increment("snapshots")
 	writeJSON(w, map[string]any{"ok": true, "snapshot_path": path})
+}
+
+func (b *bridge) activeWriteRunID(record map[string]any) (string, error) {
+	incomingRunID := getString(record, "run_id", "")
+	b.mu.Lock()
+	persistent := b.cfg.persistent
+	cfgRunID := b.cfg.runID
+	completed := b.completed
+	b.mu.Unlock()
+
+	if !persistent {
+		if completed {
+			return cfgRunID, errors.New("collector run is already completed")
+		}
+		if incomingRunID != "" && incomingRunID != cfgRunID {
+			return cfgRunID, fmt.Errorf("stale collector run %q; active run is %q", incomingRunID, cfgRunID)
+		}
+		return cfgRunID, nil
+	}
+
+	_, available, activeRunID := b.currentPersistentJob(time.Now())
+	if !available || activeRunID == "" {
+		return activeRunID, errors.New("no active collector job")
+	}
+	if incomingRunID != "" && incomingRunID != activeRunID {
+		return activeRunID, fmt.Errorf("stale collector run %q; active run is %q", incomingRunID, activeRunID)
+	}
+	return activeRunID, nil
 }
 
 func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
@@ -1191,6 +1232,7 @@ func (b *bridge) extensionStatusLocked(now time.Time) map[string]any {
 		"seconds_since_last_check":       nil,
 		"extension_check_count":          b.extension.checkCount,
 		"last_extension_origin":          b.extension.lastOrigin,
+		"extension_version":              b.extension.lastVersion,
 		"expected_poll_seconds":          pollSeconds,
 		"stale_after_seconds":            staleAfter,
 		"possible_missing_reasons":       []string{"Chrome is closed", "extension is not installed", "extension is disabled or removed", "bridge URL/port mismatch", "Chrome service worker is sleeping"},
