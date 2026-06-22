@@ -469,8 +469,15 @@ For each daily run:
    3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
    4. Prepare the current month folder key `YYYY-MM`.
    5. Check public sources.
-   6. Use Google Search or an available equivalent search tool with one or more rotating keywords from `public_search_keywords`. Include both primary-industry keywords and a smaller rotation of related-industry keywords. If results are weak, try a different keyword cluster before giving up.
-      - Record every keyword used, keyword type, result quality, useful URLs, and final keyword status.
+   6. Use Google Search or an available equivalent search tool with rotating keywords from `public_search_keywords`.
+      - Do not use only generic industry keywords.
+      - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
+      - Use keywords in the target audience's likely search/comment language. Do not translate the keyword bank into the human's chat/report language unless the audience uses that language.
+      - Include at least one broad primary-industry keyword for context, at least one pain-point/problem keyword, at least one need/goal or buying-intent keyword, and local/location keywords when location matters.
+      - Use a smaller rotation of related-industry keywords only when the bridge back to the client's offer is clear.
+      - If results are weak, try a different pain-point/problem/need cluster before giving up.
+      - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
+      - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
    7. If private sources are configured but not yet activated, do not attempt private collection during this run. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public sources.
@@ -1294,6 +1301,7 @@ Before replying to the human, verify:
 
 - [ ] Did I answer in the same language the human used?
 - [ ] Did I explain marketing/tech terms in plain language when they appear in human-facing text, especially public sources, private sources, Local Collector, offer, pain points, content pillars, lead, competitor, idea matrix, HTML report, draft, PDNA, analytics, and learning loop?
+- [ ] Did I separate human/report language from target-audience keyword/content language when they differ?
 - [ ] Did I avoid asking for information I can infer, research, or discover myself?
 - [ ] If I asked a question, did I first show what I inferred from the previous answer?
 - [ ] Did I show setup or research assumptions clearly instead of hiding them in files?
@@ -1323,6 +1331,10 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I show the 80% primary industry / 20% related industries rule?
 - [ ] Did I explain that public sources are websites/search/public pages I can access without the human's login?
 - [ ] Did I ask whether the human wants to provide private sources, and did I explain that private sources are logged-in/social/community sources such as groups, profiles, pages, channels, forums, or communities?
+- [ ] Did I build a public keyword bank from pain points, problems, needs, objections, buying triggers, and local context, not only generic industry terms?
+- [ ] Did I choose keyword language based on the target audience's likely search/comment language, not automatically the human's chat language?
+- [ ] If the audience is multilingual, did I label keyword languages and include useful variants?
+- [ ] Did I show only a compact pain-point keyword sample to the human and save the full keyword bank in the client profile/source notes?
 - [ ] Did I avoid asking a separate interest-graph discovery question and instead keep optional source discovery inside the private-source step?
 - [ ] Did I reassure the human that this is a professional agency-scale setup that normally takes patience only once?
 - [ ] Did I reassure the human that private data stays local on their computer and must not be sent outside without explicit approval?
@@ -1342,12 +1354,16 @@ Before completing public research, verify:
 
 - [ ] Did I load `public_search_keywords` from the client profile?
 - [ ] Did I use Google Search or an available equivalent search tool?
+- [ ] Did I use keywords in the target audience's likely search/comment language?
 - [ ] Did I use at least one primary-industry keyword?
 - [ ] Did I use at least one local/location keyword if location matters?
-- [ ] Did I use at least one pain-point keyword?
+- [ ] Did I use at least one pain-point/problem keyword?
+- [ ] Did I use at least one need/goal or buying-intent keyword?
 - [ ] Did I optionally use one related-industry keyword if useful?
 - [ ] Did I rotate keywords instead of reusing only old queries?
 - [ ] Did I record each keyword as `used`, `useful`, `weak`, or `retry_later`?
+- [ ] Did I extract new keyword candidates from useful search results, public discussions, private scans, competitor hooks, comments, analytics, or human feedback?
+- [ ] Did I add non-duplicate useful new keywords to the saved keyword bank with source/reason, related pain point, and content pillar?
 - [ ] Did I save useful URLs as references?
 - [ ] Did I show search keywords used in the report?
 - [ ] If I forgot to show search keywords, did I update the current report instead of only promising to show them next time?

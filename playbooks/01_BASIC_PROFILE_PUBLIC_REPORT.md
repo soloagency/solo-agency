@@ -86,6 +86,10 @@ The agent must follow this loop:
 
 The agent must not collect all setup answers first and only show reasoning at the end. The human should see the agent's reasoning evolve after every answer.
 
+When showing initial public search keywords, do not show only broad industry terms and do not dump the full keyword bank into chat. The agent must generate and save a broad `public_search_keywords` bank, then show only a compact `Pain-Point Keyword Sample` with 5-12 keywords from pain-point/problem/need groups plus a line such as `+200 more saved in the keyword bank for daily rotation`.
+
+Keyword language must follow the target audience's likely search/comment language, not automatically the human's chat language. The human-facing explanation may be in the human's language while the actual keyword strings remain in the audience language. If the audience is multilingual, create and label multilingual keyword variants.
+
 Required setup sequence:
 
 1. Ask for the client's product/service, profession, expertise, or business description.
@@ -95,6 +99,7 @@ Required setup sequence:
    - `related_industries`
    - `business_offer`
    - likely `target_audience`
+   - likely `target_audience_language`, `keyword_language`, and `content_output_language`
    - whether the business is location-dependent
 3. If the target location is required and cannot be inferred, ask only for `target_location`.
 4. After the answer, infer and show:
@@ -108,6 +113,7 @@ Required setup sequence:
    - how each content pillar maps to pain points and the business offer
    - which content pillars are `primary_industry` vs `related_industry`
    - the planned content mix rule, normally 80% primary industry and 20% related industries
+   - a compact `Pain-Point Keyword Sample`, not a generic industry keyword list. The full keyword bank must still be saved to the client profile/source notes for long-term rotation.
 6. If the human has not already provided private data sources, ask whether the human wants to provide private data sources. Explain plainly that private sources mean logged-in/social/community places the human may want monitored later, such as competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities, niche forums, and manually known Facebook groups.
    - If the human already provided private sources in an earlier message, do not ask again before setup. Process the provided sources.
    - Do not label the collector by platform. Even if the provided sources are all Facebook, call it the Solo Agency Local Collector extension and Local Collector app.
@@ -328,7 +334,7 @@ The agent must infer:
 - `business_offer`
 - `public_data_sources`
 - `brand_voice`
-- `language`
+- `language`, including `human_report_language`, `target_audience_language`, `keyword_language`, and `content_output_language`
 - `platforms`
 - `compliance_notes`
 - `negative_topics`
@@ -714,8 +720,15 @@ For each daily run:
    3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
    4. Prepare the current month folder key `YYYY-MM`.
    5. Check public sources.
-   6. Use Google Search or an available equivalent search tool with one or more rotating keywords from `public_search_keywords`. Include both primary-industry keywords and a smaller rotation of related-industry keywords. If results are weak, try a different keyword cluster before giving up.
-      - Record every keyword used, keyword type, result quality, useful URLs, and final keyword status.
+   6. Use Google Search or an available equivalent search tool with rotating keywords from `public_search_keywords`.
+      - Do not use only generic industry keywords.
+      - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
+      - Use keywords in the target audience's likely search/comment language. Do not translate the keyword bank into the human's chat/report language unless the audience uses that language.
+      - Include at least one broad primary-industry keyword for context, at least one pain-point/problem keyword, at least one need/goal or buying-intent keyword, and local/location keywords when location matters.
+      - Use a smaller rotation of related-industry keywords only when the bridge back to the client's offer is clear.
+      - If results are weak, try a different pain-point/problem/need cluster before giving up.
+      - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
+      - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
    7. If private sources are configured but not yet activated, do not attempt private collection during this run. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public sources.

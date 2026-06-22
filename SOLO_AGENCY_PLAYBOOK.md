@@ -117,7 +117,7 @@ The setup flow is fixed:
 3. Infer industry, sub-industry, related industries, target audience, offer, location dependency, pain points, and content pillars.
 4. Show inference before asking the next question.
 5. Ask target location only if location matters and cannot be inferred.
-6. Select public sources and public search keywords.
+6. Select public sources and build a public search keyword bank. The keyword bank must include broad industry keywords, but it must be driven primarily by the target audience's pain points, problems, objections, questions, needs, buying triggers, and local context.
 7. Ask whether the human wants to provide manual private sources. Do not ask a separate interest-graph discovery question.
 8. If private sources or group/source discovery are requested, load Stage 2 and Stage 8, activate/setup the Local Collector only as needed, and ask for human approval before adding discovered sources.
 9. Configure the recurring schedule/routine once the basic source plan is known, then ask whether to run the first agency run immediately.
@@ -286,6 +286,7 @@ The agent may omit the next-step question only when the entire requested workflo
 - Do not publish, render/export, spend credits, use face/voice clone, or contact leads without explicit human approval.
 - Do not invent metrics. Mark unavailable metrics clearly.
 - Communicate with the human in the human's language.
+- Keyword language must follow the target audience's likely search/comment language, not automatically the human's chat language. If the human chats in Vietnamese but the client targets Orange County homeowners, the main keyword bank should be English unless the target audience is Vietnamese-speaking homeowners.
 - If a workflow is not complete and the agent is handing control back to the human, show progress and end with exactly one next-step question.
 
 ## Completion Gates
@@ -296,6 +297,7 @@ Setup is not complete until:
 - The first question followed the minimal-input rule.
 - Inference was shown to the human.
 - Public sources and keyword strategy were selected.
+- The public keyword bank includes pain-point/problem/need keywords, not only generic industry keywords, uses the target audience's search language, and the full bank was saved for rotation.
 - Optional private-source status was resolved before the first agency run.
 - Schedule/routine was configured before the first agency run.
 - The first agency run generated a mobile-friendly HTML report and at least one useful draft script/blog/caption.

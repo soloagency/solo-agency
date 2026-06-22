@@ -632,6 +632,7 @@ Required report hierarchy:
 
 4. `Source Coverage And Data Quality`
    - Public search keywords used today.
+   - Pain-point/problem/need keyword sample used or added today, with the rest saved in the keyword bank for rotation. Do not dump the full keyword bank into the human-facing report.
    - Public sources scanned.
    - Private sources scanned, pending, skipped, failed, or session-expired.
    - New private sources detected.
