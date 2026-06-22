@@ -14,6 +14,11 @@ const DEFAULT_SETTINGS = {
 const STATE_KEY = "collector_state";
 const SETTINGS_KEY = "collector_settings";
 const COMPLETED_RUNS_KEY = "collector_completed_runs";
+const ACTIVE_RUN_KEY = "collector_active_run";
+const ACTIVE_RUN_LOCK_MINUTES = 120;
+const EXTENSION_BUILD = "0.1.1-run-lock";
+
+const inMemoryActiveRuns = new Set();
 
 chrome.runtime.onInstalled.addListener(async () => {
   const settings = await getSettings();
@@ -100,7 +105,8 @@ async function pollBridge(reason) {
     status = await fetchJSON(`${bridgeBaseUrl}/status`, {
       method: "GET",
       headers: {
-        "X-Collector-Extension": "media-agency-local-collector"
+        "X-Collector-Extension": "media-agency-local-collector",
+        "X-Collector-Extension-Version": EXTENSION_BUILD
       }
     }, 6000);
   } catch (error) {
@@ -149,16 +155,37 @@ async function pollBridge(reason) {
     return { status: "already_completed", runId };
   }
 
+  const runLock = await acquireRunLock(runId, job, status, reason);
+  if (!runLock.acquired) {
+    await setState({
+      status: "already_running",
+      message: `Run ${runId} is already being collected. Ignoring ${reason} poll.`,
+      runId,
+      lockReason: runLock.reason,
+      activeLock: runLock.lock || null,
+      bridgeStatus: status,
+      lastBridgeContactAt: bridgeContactAt,
+      reason,
+      updatedAt: new Date().toISOString()
+    });
+    return { status: "already_running", runId, reason: runLock.reason };
+  }
+
   const token = session.write_token;
   if (!token) {
+    await releaseRunLock(runId, runLock.owner);
     await setState({ status: "invalid_job", message: "Collector job missing write token.", runId, reason });
     return { status: "invalid_job" };
   }
 
-  await runJob({ job, token, bridgeBaseUrl, settings, reason });
-  completedRuns[runId] = new Date().toISOString();
-  await chrome.storage.local.set({ [COMPLETED_RUNS_KEY]: trimCompletedRuns(completedRuns) });
-  return { status: "completed", runId };
+  try {
+    await runJob({ job, token, bridgeBaseUrl, settings, reason });
+    completedRuns[runId] = new Date().toISOString();
+    await chrome.storage.local.set({ [COMPLETED_RUNS_KEY]: trimCompletedRuns(completedRuns) });
+    return { status: "completed", runId };
+  } finally {
+    await releaseRunLock(runId, runLock.owner);
+  }
 }
 
 async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
@@ -423,7 +450,8 @@ async function postToBridge(baseUrl, token, path, payload) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Collector-Token": token
+      "X-Collector-Token": token,
+      "X-Collector-Extension-Version": EXTENSION_BUILD
     },
     body: JSON.stringify(payload || {})
   }, 12000);
@@ -688,9 +716,21 @@ function buildSnapshotHTML({ source, job, page, capturedAt }) {
 
 function normalizeSources(sources) {
   if (!Array.isArray(sources)) return [];
-  return sources
-    .filter((source) => source && typeof source === "object" && source.url)
-    .map((source) => ({ ...source, platform: source.platform || inferPlatform(source.url) }));
+  const seen = new Set();
+  const normalized = [];
+  for (const source of sources) {
+    if (!source || typeof source !== "object" || !source.url) continue;
+    const sourceUrl = String(source.url || "").trim();
+    const key = canonicalSourceKey(sourceUrl);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({
+      ...source,
+      url: sourceUrl,
+      platform: source.platform || inferPlatform(sourceUrl)
+    });
+  }
+  return normalized;
 }
 
 function normalizeSettings(input) {
@@ -734,9 +774,97 @@ async function getCompletedRuns() {
   return data[COMPLETED_RUNS_KEY] || {};
 }
 
+async function acquireRunLock(runId, job, bridgeStatus, reason) {
+  const now = Date.now();
+  if (inMemoryActiveRuns.size > 0) {
+    return { acquired: false, reason: "in_memory_active_run" };
+  }
+
+  const lockData = await chrome.storage.local.get(ACTIVE_RUN_KEY);
+  if (inMemoryActiveRuns.size > 0) {
+    return { acquired: false, reason: "in_memory_active_run" };
+  }
+
+  const currentLock = lockData[ACTIVE_RUN_KEY] || null;
+  const lockExpiresAt = currentLock && Date.parse(currentLock.expiresAt || "");
+  if (currentLock && Number.isFinite(lockExpiresAt) && lockExpiresAt > now) {
+    return { acquired: false, reason: "storage_active_run", lock: currentLock };
+  }
+
+  const owner = `${runId}-${now}-${Math.random().toString(36).slice(2)}`;
+  const lock = {
+    runId,
+    owner,
+    reason,
+    bridgeRunId: String(bridgeStatus?.run_id || ""),
+    acquiredAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + activeRunLockMs(job)).toISOString()
+  };
+
+  inMemoryActiveRuns.add(runId);
+  await chrome.storage.local.set({ [ACTIVE_RUN_KEY]: lock });
+
+  const verifyData = await chrome.storage.local.get(ACTIVE_RUN_KEY);
+  const verified = verifyData[ACTIVE_RUN_KEY] || {};
+  if (verified.owner !== owner) {
+    inMemoryActiveRuns.delete(runId);
+    return { acquired: false, reason: "storage_lock_lost", lock: verified };
+  }
+
+  return { acquired: true, owner, lock };
+}
+
+async function releaseRunLock(runId, owner) {
+  inMemoryActiveRuns.delete(runId);
+  const lockData = await chrome.storage.local.get(ACTIVE_RUN_KEY);
+  const currentLock = lockData[ACTIVE_RUN_KEY] || null;
+  if (currentLock && currentLock.runId === runId && currentLock.owner === owner) {
+    await chrome.storage.local.remove(ACTIVE_RUN_KEY);
+  }
+}
+
 function trimCompletedRuns(runs) {
   const entries = Object.entries(runs).slice(-100);
   return Object.fromEntries(entries);
+}
+
+function activeRunLockMs(job) {
+  const pacing = job?.pacing || {};
+  const sources = normalizeSources(job?.sources || []);
+  const maxSources = Math.min(
+    Number(pacing.max_sources || DEFAULT_SETTINGS.maxSourcesPerRun || 20),
+    sources.length || Number(pacing.max_sources || DEFAULT_SETTINGS.maxSourcesPerRun || 20)
+  );
+  const scrollSteps = clampNumber(pacing.scroll_steps, 0, 10, DEFAULT_SETTINGS.scrollSteps);
+  const maxDelaySeconds = clampNumber(pacing.max_delay_seconds, 5, 30, DEFAULT_SETTINGS.maxDelaySeconds);
+  const estimatedMs = maxSources * ((scrollSteps + 2) * maxDelaySeconds * 1000 + 45000);
+  const fallbackMs = ACTIVE_RUN_LOCK_MINUTES * 60 * 1000;
+  return Math.max(30 * 60 * 1000, Math.min(fallbackMs, estimatedMs || fallbackMs));
+}
+
+function canonicalSourceKey(url) {
+  try {
+    const parsed = new URL(String(url || "").trim());
+    parsed.hash = "";
+    for (const param of [
+      "__cft__",
+      "__tn__",
+      "mibextid",
+      "ref",
+      "refsrc",
+      "tracking",
+      "utm_campaign",
+      "utm_content",
+      "utm_medium",
+      "utm_source",
+      "utm_term"
+    ]) {
+      parsed.searchParams.delete(param);
+    }
+    return parsed.toString().replace(/\/+$/, "").toLowerCase();
+  } catch (error) {
+    return String(url || "").trim().replace(/\/+$/, "").toLowerCase();
+  }
 }
 
 function trimSlash(value) {
