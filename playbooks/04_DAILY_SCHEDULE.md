@@ -10,7 +10,7 @@ Load only after the first report exists; the Production & Distribution & Notific
 
 - Do not ask schedule questions before the first public report.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
-- Scheduled runs must run research, private scans if active, analysis, drafts, HTML report, and notification.
+- Scheduled runs must run research, private scans if active, analysis, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification.
 - Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, mark measurement as `no published URLs yet` instead of pretending it ran.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
 - Every scheduled-run human-facing reply, notification, or report handoff must include an updated progress block. If the agent sends multiple progress updates during the scheduled run, each update must show the current completed/current/remaining state.
@@ -48,7 +48,7 @@ The difference between first setup and scheduled runs:
 - Scheduled runs must not re-ask industry, sub-industry, audience, pain points, content pillars, or private-source setup questions if those fields are already present.
 - Scheduled runs may ask the human only when an approval gate, blocker, missing critical field, expired private session, production/render/publish/credit decision, or lead outreach decision requires human input.
 
-Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, published-URL analytics when published content exists, data analysis, idea matrix, best idea, drafts, HTML report, notification, and measurement/learning when measurement data exists.
+Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, published-URL analytics when published content exists, data analysis, idea matrix, best idea, production-ready drafts, approved video/blog/social production when authorized, HTML report, notification, and measurement/learning when measurement data exists.
 
 ## Scheduled Run Progress Display Contract
 
@@ -153,14 +153,15 @@ For each daily run:
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
    22. Select the best idea of the day.
    23. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
-   24. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
-   25. Generate `outputs/YYYY-MM/YYYY-MM-DD.html` as a polished standalone human-facing report. It must be factually aligned with the Markdown report, mobile-friendly, and include editable draft review blocks when drafts exist.
-   26. Update or copy `outputs/latest.md`.
-   27. Update or copy `outputs/latest.html`.
-   28. Update `history/YYYY-MM/content_log.md`.
-   29. Update `history/YYYY-MM/data_sources_log.md`.
-   30. Update `history/YYYY-MM/lead_log.md`.
-   31. Update `history/YYYY-MM/competitor_log.md`.
+   24. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, load Stage 3 and create the approved video/blog/social asset according to provider approval gates. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`.
+   25. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
+   26. Generate `outputs/YYYY-MM/YYYY-MM-DD.html` as a polished standalone human-facing report. It must be factually aligned with the Markdown report, mobile-friendly, and include editable draft review blocks when drafts exist.
+   27. Update or copy `outputs/latest.md`.
+   28. Update or copy `outputs/latest.html`.
+   29. Update `history/YYYY-MM/content_log.md`.
+   30. Update `history/YYYY-MM/data_sources_log.md`.
+   31. Update `history/YYYY-MM/lead_log.md`.
+   32. Update `history/YYYY-MM/competitor_log.md`.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.

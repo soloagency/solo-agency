@@ -588,6 +588,7 @@ The HTML report must include:
 - Data source issues.
 - Private sessions needing login.
 - WideCast-writing-skill draft: video script, blog/article, social caption, or configured combination.
+- Production/provider status: draft only, approval required, provider setup required, video/blog/social asset created, ready to publish, published, or blocked.
 - `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section when WideCast account tools, Telegram notification, publishing, or video creation are not connected yet.
 - Approval options.
 - Next actions.
@@ -606,7 +607,7 @@ Required report hierarchy:
    - Source coverage status: public-only, public + private, private pending, private failed, or mixed.
    - Best idea of the day in one sentence.
    - Why it matters today.
-   - Content asset status: draft ready, needs human detail, needs visual assets, or blocked.
+   - Content asset status: draft ready, approval required, provider setup required, video/blog/social asset created, ready to publish, published, needs human detail, needs visual assets, or blocked.
    - Lead count: hot, warm, and not scanned/pending if applicable.
    - Competitor signal count.
    - One recommended next action.
@@ -693,6 +694,8 @@ Required report hierarchy:
    - For each version, include hook/opening, body, CTA, tone, estimated length, source references, and production notes.
    - If visual/media URLs are required for immediate video creation but are missing, label the draft as `script-ready, media-pending`.
    - If the draft is ready for WideCast video/blog/social creation, label it `production-ready`.
+   - If a connected provider has already created an approved video/blog/social asset, include the produced asset URL/status and label it `asset-created`, `ready-to-publish`, or `published`.
+   - If provider setup or human approval is still needed before creating the asset, say that clearly. Do not describe draft writing as if production has already happened.
 
 11. `Compliance And Brand Safety`
    - Include short risk notes for legal, financial, insurance, medical, regulated, or sensitive industries.
@@ -702,8 +705,9 @@ Required report hierarchy:
 12. `Next Action`
    - End with exactly one primary next action.
    - Secondary actions may be listed below, but they must not compete with the primary next action.
-   - For public-first reports with pending private sources, the primary next action should usually be activating the Solo Agency Local Collector, not scheduling.
-   - Ask about recurring schedule only after the first report exists and private-source activation has been accepted, declined, or documented as pending.
+   - For public-first reports where Production & Distribution & Notification & Analytics setup has not been completed/declined/blocked, the primary next action should usually be that setup gate, not scheduling.
+   - For reports where production setup is completed/declined/blocked and private sources are pending, the primary next action should usually be activating the Solo Agency Local Collector, not scheduling.
+   - Ask about recurring schedule only after the first report exists, the production/provider setup gate has been completed/declined/blocked, private-source activation has been accepted/declined/documented as pending, and published-URL analytics has run or been marked `no published URLs yet`.
 
 ### Report Handoff Chat Rule
 
