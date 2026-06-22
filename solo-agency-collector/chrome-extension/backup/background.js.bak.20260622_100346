@@ -15,8 +15,6 @@ const STATE_KEY = "collector_state";
 const SETTINGS_KEY = "collector_settings";
 const COMPLETED_RUNS_KEY = "collector_completed_runs";
 const ACTIVE_RUN_KEY = "collector_active_run";
-const AUDIT_KEY = "collector_audit";
-const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
 const EXTENSION_BUILD = "0.1.1-run-lock";
 
@@ -72,19 +70,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message && message.type === "check_now") {
       const result = await pollBridge("manual");
       sendResponse({ ok: true, result, state: await getState() });
-      return;
-    }
-    if (message && message.type === "manual_capture") {
-      sendResponse(await manualCapture());
-      return;
-    }
-    if (message && message.type === "get_audit") {
-      sendResponse({ ok: true, audit: await getAudit() });
-      return;
-    }
-    if (message && message.type === "reset_audit") {
-      await chrome.storage.local.remove(AUDIT_KEY);
-      sendResponse({ ok: true });
       return;
     }
     sendResponse({ ok: false, error: "unknown message" });
@@ -362,36 +347,20 @@ async function collectSource(source, job, settings) {
   try {
     await waitForTabLoad(tab.id, 25000);
     await delay(randomDelayMs(settings, job.pacing || {}));
-    // Inject the cleaning pipeline (filtering.js + helpers), then run the
-    // scroll/capture orchestrator. Same data_point envelope as before; the text
-    // fields now carry the cleaned extraction instead of the raw innerText blob.
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: CAPTURE_FILES });
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: collectCleanPage,
-      args: [{
+      func: collectVisiblePage,
+      args: [source, job, {
         scrollSteps: Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
         minDelaySeconds: Number(job.pacing?.min_delay_seconds || settings.minDelaySeconds || 5),
-        maxDelaySeconds: Number(job.pacing?.max_delay_seconds || settings.maxDelaySeconds || 5)
+        maxDelaySeconds: Number(job.pacing?.max_delay_seconds || settings.maxDelaySeconds || 5),
+        maxTextChars: Number(job.pacing?.max_text_chars || settings.maxTextChars || 12000)
       }]
     });
 
-    const cap = result && result.result ? result.result : {};
+    const page = result && result.result ? result.result : {};
     const now = new Date().toISOString();
     const runId = String(job.run_id || "");
-    const maxChars = Number(job.pacing?.max_text_chars || settings.maxTextChars || 12000);
-    const text = String(cap.mergedDisplay || cap.merged || "");
-    const excerpt = text.slice(0, maxChars);
-    const accountUrls = Array.isArray(cap.accountUrls) ? cap.accountUrls : [];
-    const postUrls = Array.isArray(cap.postUrls) ? cap.postUrls : [];
-    const entityItems = Array.isArray(cap.entityItems) ? cap.entityItems : [];
-    const pageLike = {
-      current_url: cap.url || "",
-      title: cap.title || "",
-      profile_candidates: accountUrls,
-      post_candidates: postUrls,
-      raw_visible_text_excerpt: excerpt
-    };
     const snapshotFilename = `${safeSlug(runId || "run")}_${safeSlug(source.name || source.platform || "source")}_${Date.now()}.html`;
 
     return {
@@ -407,52 +376,48 @@ async function collectSource(source, job, settings) {
         priority: source.priority || "",
         scan_cadence: source.scan_cadence || "",
         purpose: source.purpose || "",
-        current_url: cap.url || "",
-        post_url: postUrls[0] || cap.url || "",
-        profile_url: accountUrls[0] || "",
-        profile_candidates: accountUrls,
-        post_candidates: postUrls,
-        title: cap.title || "",
-        visible_text_summary: excerpt.slice(0, 1200),
-        raw_visible_text_excerpt: excerpt,
-        engagement_hint: extractEngagementHint(text),
+        current_url: page.current_url || "",
+        post_url: page.post_url || page.current_url || "",
+        profile_url: page.profile_url || "",
+        profile_candidates: page.profile_candidates || [],
+        post_candidates: page.post_candidates || [],
+        title: page.title || "",
+        visible_text_summary: page.visible_text_summary || "",
+        raw_visible_text_excerpt: page.raw_visible_text_excerpt || "",
+        engagement_hint: page.engagement_hint || "",
         captured_at: now,
-        source_login_status: detectLoginHint(text),
+        source_login_status: page.login_hint || "unknown",
         collector_identity: "chrome-extension-local-collector",
-        confidence: text ? "medium" : "low",
-        scroll_count: cap.scrollStepsUsed || 0,
-        max_scrolls: cap.scrollStepsUsed || 0,
-        extraction_engine: cap.engine || "",
+        confidence: page.visible_text_summary ? "medium" : "low",
+        scroll_count: page.scroll_count || 0,
+        max_scrolls: page.max_scrolls || 0,
         read_only: true
       },
-      newPrivateSources: entityItems
-        .filter((it) => it && /group|community|page|channel/i.test(String(it.type || "")))
-        .slice(0, 20)
-        .map((it) => ({
-          run_id: runId,
-          client_slug: job.client_slug || "",
-          platform: source.platform || inferPlatform(source.url),
-          source_type: String(it.type || "group"),
-          source_name: it.name || it.url || "",
-          profile_or_group_url: it.url || "unavailable",
-          current_recommendation_url: cap.url || "unavailable",
-          detected_while_scanning: source.name || source.url || "",
-          why_relevant: "Visible platform recommendation collected for human review.",
-          related_content_pillar: "",
-          estimated_priority: "medium",
-          suggested_scan_cadence: "weekly",
-          status: "needs_human_review",
-          captured_at: now,
-          collector_identity: "chrome-extension-local-collector"
-        })),
+      newPrivateSources: (page.new_private_source_candidates || []).map((candidate) => ({
+        run_id: runId,
+        client_slug: job.client_slug || "",
+        platform: source.platform || inferPlatform(source.url),
+        source_type: candidate.source_type || "group",
+        source_name: candidate.text || candidate.href || "",
+        profile_or_group_url: candidate.href || "unavailable",
+        current_recommendation_url: page.current_url || "unavailable",
+        detected_while_scanning: source.name || source.url || "",
+        why_relevant: "Visible platform recommendation collected for human review.",
+        related_content_pillar: "",
+        estimated_priority: "medium",
+        suggested_scan_cadence: "weekly",
+        status: "needs_human_review",
+        captured_at: now,
+        collector_identity: "chrome-extension-local-collector"
+      })),
       snapshot: {
         run_id: runId,
         filename: snapshotFilename,
         source_name: source.name || "",
         source_url: source.url || "",
-        current_url: cap.url || "",
+        current_url: page.current_url || "",
         captured_at: now,
-        html: buildSnapshotHTML({ source, job, page: pageLike, capturedAt: now })
+        html: buildSnapshotHTML({ source, job, page, capturedAt: now })
       }
     };
   } finally {
@@ -565,46 +530,6 @@ function waitForTabLoad(tabId, timeoutMs) {
     }
     chrome.tabs.onUpdated.addListener(listener);
   });
-}
-
-// Injected orchestrator for the AUTOMATED collector. Requires CAPTURE_FILES to
-// already be injected (defines window.__collectorCapture). Scrolls scrollSteps
-// times, accumulating the cleaned capture across scrolls, returns the final result.
-async function collectCleanPage(opts) {
-  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const steps = clamp(Number(opts.scrollSteps) || 5, 0, 10);
-  const minD = clamp(Number(opts.minDelaySeconds) || 5, 1, 30);
-  const maxD = clamp(Number(opts.maxDelaySeconds) || 5, minD, 60);
-  const delayMs = () => Math.floor((minD + Math.random() * (maxD - minD)) * 1000);
-
-  let prev = "";
-  let last = null;
-  for (let i = 0; i <= steps; i += 1) {
-    try {
-      last = (typeof window.__collectorCapture === "function") ? window.__collectorCapture(prev, {}) : last;
-    } catch (error) {
-      last = { error: String(error && error.message ? error.message : error) };
-    }
-    if (last && last.merged) prev = last.merged;
-    if (i < steps) {
-      window.scrollBy({ top: Math.max(300, Math.floor(window.innerHeight * 0.75)), left: 0 });
-      await wait(delayMs());
-    }
-  }
-  if (last) last.scrollStepsUsed = steps;
-  return last || {};
-}
-
-function extractEngagementHint(text) {
-  const m = String(text || "").match(/[0-9][0-9.,KM]*\s*(reactions?|likes?|comments?|shares?|views?|replies|reply|reposts?|retweets?|answers?)/gi);
-  return m ? Array.from(new Set(m)).slice(0, 12).join("; ") : "";
-}
-
-function detectLoginHint(text) {
-  const lower = String(text || "").toLowerCase();
-  if (lower.includes("log in") || lower.includes("sign in") || lower.includes("login")) return "maybe_logged_out";
-  return text ? "available" : "unknown";
 }
 
 function collectVisiblePage(source, job, options) {
@@ -833,81 +758,6 @@ async function getState() {
   return data[STATE_KEY] || { status: "idle", message: "Collector idle." };
 }
 
-async function getAudit() {
-  const data = await chrome.storage.local.get(AUDIT_KEY);
-  return data[AUDIT_KEY] || null;
-}
-
-// Manual single-scroll capture for the audit panel. The operator opens a page,
-// clicks Capture, scrolls, clicks Capture again -- each call injects the
-// capture modules into the active tab, serializes the current DOM (feed vs
-// website routed by platform), and merges with the text accumulated so far for
-// the same URL. This mirrors what the automated collector does per scroll step.
-async function manualCapture() {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  const tab = tabs && tabs[0];
-  if (!tab || !tab.id) return { ok: false, error: "No active tab." };
-
-  const tabUrl = tab.url || "";
-  if (!/^https?:\/\//i.test(tabUrl)) {
-    return { ok: false, error: "Active tab is not an http(s) page." };
-  }
-
-  try {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: CAPTURE_FILES });
-  } catch (error) {
-    return { ok: false, error: "Inject failed: " + (error && error.message ? error.message : error) };
-  }
-
-  const audit = await getAudit();
-  const samePage = audit && audit.url === tabUrl;
-  const prevText = samePage ? (audit.text || "") : "";
-
-  let out;
-  try {
-    const [res] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: (prev) => window.__collectorCapture(prev, {}),
-      args: [prevText]
-    });
-    out = res && res.result ? res.result : null;
-  } catch (error) {
-    return { ok: false, error: "Capture failed: " + (error && error.message ? error.message : error) };
-  }
-
-  if (!out) return { ok: false, error: "No capture result." };
-  if (out.error) return { ok: false, error: "Capture error: " + out.error };
-
-  const prevCount = samePage ? (audit.count || 0) : 0;
-  const prevCaptures = samePage ? (audit.captures || []) : [];
-  const nextAudit = {
-    url: tabUrl,
-    title: out.title || tab.title || "",
-    platform: out.platform,
-    branch: out.branch,
-    engine: out.engine || "",
-    count: prevCount + 1,
-    text: out.merged,                 // absolute-URL accumulator (next prevText)
-    displayText: out.mergedDisplay || out.merged, // shortened, LLM-facing / audit view
-    lastCaptureText: out.captureText,
-    captures: prevCaptures.concat([{
-      n: prevCount + 1,
-      engine: out.engine || "",
-      scrollY: out.scrollY,
-      captureChars: out.captureChars,
-      captureUrls: out.captureUrls,
-      mergedChars: out.mergedChars,
-      mergedUrls: out.mergedUrls,
-      droppedUnits: out.droppedUnits || 0,
-      keptUnits: out.keptUnits || 0,
-      capturedAt: new Date().toISOString()
-    }]),
-    updatedAt: new Date().toISOString()
-  };
-  await chrome.storage.local.set({ [AUDIT_KEY]: nextAudit });
-  return { ok: true, audit: nextAudit };
-}
-
 async function setState(patch) {
   const current = await getState();
   await chrome.storage.local.set({
@@ -1044,7 +894,6 @@ function inferPlatform(url) {
   if (lower.includes("instagram.com")) return "instagram";
   if (lower.includes("tiktok.com")) return "tiktok";
   if (lower.includes("reddit.com")) return "reddit";
-  if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "youtube";
   if (lower.includes("x.com") || lower.includes("twitter.com")) return "x";
   return "web";
 }

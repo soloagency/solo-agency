@@ -14,9 +14,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   await refresh();
   document.getElementById("save").addEventListener("click", save);
   document.getElementById("checkNow").addEventListener("click", checkNow);
-  document.getElementById("capture").addEventListener("click", capture);
-  document.getElementById("showResult").addEventListener("click", showResult);
-  document.getElementById("resetAudit").addEventListener("click", resetAudit);
 });
 
 async function refresh() {
@@ -27,43 +24,6 @@ async function refresh() {
   }
   fillSettings(response.settings || {});
   renderState(response.state || {});
-  const audit = await sendMessage({ type: "get_audit" });
-  if (audit && audit.ok) renderAudit(audit.audit);
-}
-
-async function capture() {
-  setStatus("Capturing active tab...");
-  const response = await sendMessage({ type: "manual_capture" });
-  if (!response.ok) {
-    setStatus(`Capture failed: ${response.error || "unknown error"}`);
-    return;
-  }
-  renderAudit(response.audit);
-  setStatus(`Captured #${response.audit.count} (${response.audit.branch}/${response.audit.platform}).`);
-}
-
-function showResult() {
-  chrome.tabs.create({ url: chrome.runtime.getURL("audit.html") });
-}
-
-async function resetAudit() {
-  await sendMessage({ type: "reset_audit" });
-  renderAudit(null);
-  setStatus("Captures reset.");
-}
-
-function renderAudit(audit) {
-  const el = document.getElementById("auditInfo");
-  if (!el) return;
-  if (!audit || !audit.count) {
-    el.textContent = "No captures yet.";
-    return;
-  }
-  const shown = audit.displayText || audit.text || "";
-  const chars = shown.length;
-  const urls = (shown.match(/https?:\/\/[^\s)]+/g) || []).length;
-  const eng = audit.engine ? ` • engine:${audit.engine}` : "";
-  el.textContent = `Captures: ${audit.count} • ${audit.branch}/${audit.platform}${eng} • ${chars} chars • ${urls} urls — click "Show result" to audit.`;
 }
 
 async function save() {
