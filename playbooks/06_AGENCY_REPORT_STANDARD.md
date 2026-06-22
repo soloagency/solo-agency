@@ -142,7 +142,7 @@ Use this section when private sources were provided but the Solo Agency Local Co
 - Why private sources were not scanned today:
 - What is needed to activate them:
 - Suggested next question:
-  - `Private sources (logged-in/social/community sources such as groups, profiles, pages, channels, forums, or communities) are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app on your computer. Do you want me to set that up now?`
+  - `Private sources (logged-in/social/community sources such as groups, profiles, pages, channels, forums, or communities) are not activated yet because they require the Local Collector app and Chrome extension on your computer. Do you want me to prepare the setup files and then give you the two required local steps: run one Terminal/PowerShell command yourself and load the Chrome extension from the folder I show you?`
 - Sources waiting for activation:
   - Source:
     - URL:
@@ -634,6 +634,7 @@ Required report hierarchy:
    - Public search keywords used today.
    - Pain-point/problem/need keyword sample used or added today, with the rest saved in the keyword bank for rotation. Do not dump the full keyword bank into the human-facing report.
    - Public sources scanned.
+   - New public sources discovered/promoted/demoted today, with a compact summary. Do not dump the full public source list.
    - Private sources scanned, pending, skipped, failed, or session-expired.
    - New private sources detected.
    - Known blind spots for this run.
@@ -743,7 +744,7 @@ Do not end a report handoff with:
 Examples of correct final questions:
 
 ```text
-Do you want me to activate private sources now?
+Bạn đã cung cấp nguồn riêng tư nhưng Local Collector chưa bật. Bạn muốn tôi hướng dẫn bật Local Collector ngay để lần chạy đầu có dữ liệu nguồn riêng tư, hay chạy public-only trước và giữ nguồn riêng tư ở trạng thái pending?
 ```
 
 ```text

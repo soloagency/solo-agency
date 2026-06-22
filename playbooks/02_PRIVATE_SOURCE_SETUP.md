@@ -123,7 +123,7 @@ If the human agrees:
 https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
 ```
 
-2. If the Solo Agency Local Collector extension and Local Collector app are not installed and healthy, activate/setup them before attempting this scan.
+2. If the Solo Agency Local Collector extension and Local Collector app are not installed and healthy, activate/setup them before attempting this scan. One-time activation requires a human-run setup handoff: the agent prepares files, then the human runs the Local Collector app setup/start command in Terminal/PowerShell outside the AI sandbox and loads the Chrome extension from the absolute runtime folder.
 3. Do not use Claude Chrome Extension for this discovery scan.
 4. Do not ask the human to paste Facebook cookies, passwords, tokens, or credentials.
 5. Use the human's already logged-in Chrome session. If Facebook is logged out, mark `facebook_session_expired` and ask the human to log in manually.

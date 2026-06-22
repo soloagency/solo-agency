@@ -130,13 +130,14 @@ Then the agent must:
 8. Resolve the private-source question: record provided sources, decline/no sources, or pending Local Collector activation/source discovery.
 9. If the human agrees to private-source activation or source discovery, install or initiate the Solo Agency Local Collector extension and Local Collector app setup, then ask for approval before adding any discovered sources to active private sources.
 10. Configure the recurring schedule/routine once the basic source plan is known.
-11. Ask whether the human wants to run the first agency run immediately.
-12. Run the first agency run using public sources and any approved/available private data.
-13. Generate the small-win package: mobile HTML report, idea matrix, best idea for today, leads, competitors, and at least one draft script/blog/caption.
-14. If published URL history exists, load `playbooks/05_MEASURE_LEARN_IMPROVE.md` and scan analytics/signals for the last 7 days before updating the final recommendation. If no published URL history exists, mark this as not available yet instead of pretending measurement ran.
-15. After the small-win package is shown, ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - for video/blog/social assets, publishing, notifications, performance measurement, and the build-measure-learn loop.
-16. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
-17. Update the report, idea matrix, best idea for today, leads, competitors, and drafts with private data and, from the second run onward, analytics/statistics from published URLs.
+11. If private sources exist and Local Collector is not installed/running/healthy, handle checklist step 7A: guide Local Collector setup now, or ask whether to run public-only first while keeping private sources pending.
+12. Ask whether the human wants to run the first agency run immediately. If 7A is pending/postponed, state that this first run will be public-only.
+13. Run the first agency run using public sources and any approved/available private data.
+14. Generate the small-win package: mobile HTML report, idea matrix, best idea for today, leads, competitors, and at least one draft script/blog/caption.
+15. If published URL history exists, load `playbooks/05_MEASURE_LEARN_IMPROVE.md` and scan analytics/signals for the last 7 days before updating the final recommendation. If no published URL history exists, mark this as not available yet instead of pretending measurement ran.
+16. After the small-win package is shown, ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - for video/blog/social assets, publishing, notifications, performance measurement, and the build-measure-learn loop.
+17. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
+18. Update the report, idea matrix, best idea for today, leads, competitors, and drafts with private data and, from the second run onward, analytics/statistics from published URLs.
 
 Example:
 
@@ -160,7 +161,7 @@ daily-content-pipeline/
         outputs/
 ```
 
-The agent must configure the routine, then run Nguyen Law's first agency report when the human approves the first run. Only after the small-win package is shown should the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
+The agent must configure the routine, resolve 7A if private sources are pending, then run Nguyen Law's first agency report when the human approves the first run. Only after the small-win package is shown should the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
 
 ---
 
@@ -175,22 +176,26 @@ The setup flow is not a menu of optional next steps. The agent must not ask the 
 - running the first agency run,
 - creating a video.
 
+The one allowed 7A choice is operational, not a new menu: if private sources exist and Local Collector is pending, ask whether to activate Local Collector now so the first run can include private data, or run public-only first while keeping private sources pending.
+
 The correct order is fixed:
 
 1. Finish setup and save the Client Intelligence Profile.
 2. Resolve optional manual private sources and Local Collector activation status.
 3. Configure the schedule/routine once the basic source plan is known.
-4. Ask whether the human wants to run the first agency run immediately.
-5. Run the first agency run using public sources and any already approved/available private data.
-6. Show the first report and first draft script/blog/caption to the human as the small win.
-7. Ask whether the human wants PDNA setup now that the small win exists. Explain that PDNA means Production, Distribution, Notification, and Analytics.
-8. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
-9. If private sources were provided but Local Collector is not active yet, keep private-source monitoring as `pending_private_activation` and avoid promising private scheduled collection until the blocker is resolved.
+4. If private sources exist and Local Collector is not installed/running/healthy, handle checklist step 7A: guide Local Collector setup now, or ask whether to run public-only first while keeping private sources pending.
+5. Ask whether the human wants to run the first agency run immediately. If 7A is pending/postponed, state that this first run will be public-only.
+6. Run the first agency run using public sources and any already approved/available private data.
+7. Show the first report and first draft script/blog/caption to the human as the small win.
+8. Ask whether the human wants PDNA setup now that the small win exists. Explain that PDNA means Production, Distribution, Notification, and Analytics.
+9. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
+10. If private sources were provided but Local Collector is not active yet, keep private-source monitoring as `pending_private_activation` and avoid promising private scheduled collection until the blocker is resolved.
 
 First agency run rule:
 
 - The first agency run happens after routine setup and explicit human approval to run now.
 - The first agency run must not be blocked by Chrome extension installation, local binary permissions, sandbox limits, or private-source login state.
+- If private sources were provided/approved and Local Collector is not installed/running/healthy, the agent must handle the 7A checkpoint before asking the generic run-now question: guide Local Collector setup now, or explicitly ask whether to run public-only first while keeping private sources pending.
 - The first agency run should use public sources, public search, client context, inferred pain points, inferred content pillars, related industries, and any previously collected local data.
 - If private sources were provided, the first agency report must include a section called `Private Sources Pending Activation`.
 - If source discovery was approved but not yet run, the first agency report must include `Private Source Discovery Pending Activation`.
@@ -204,7 +209,7 @@ Do you want me to set up PDNA - Production (create real video/blog/social assets
 
 The agent must ask this question directly in the chat message or notification where it announces the first agency run result. It must not hide the question or setup steps inside a Markdown file.
 
-The same chat message must show the full `Solo Agency onetime setup` progress checklist with all 10 numbered items. The agent must not hide steps 5-10.
+The same chat message must show the full `Solo Agency onetime setup` progress checklist with all 10 numbered items, including both 7A and 7B. The agent must not hide steps 5-10.
 
 Good first-run chat pattern:
 
@@ -221,8 +226,9 @@ Solo Agency onetime setup
 [x] 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
 [x] 4. Tôi tự tìm/chọn nguồn công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
 [x] 5. Bạn cung cấp nguồn riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
-[x] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy), rồi hỏi bạn có muốn chạy lần đầu ngay không
-[x] 7. Tôi chạy lần đầu: quét nguồn công khai/nguồn riêng tư đã được phép, tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
+[x] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
+[-] 7A. Nếu bạn đã cung cấp nguồn riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn riêng tư ở trạng thái pending (bạn chọn chạy public-only trước)
+[x] 7B. Tôi chạy lần đầu: quét nguồn công khai và nguồn riêng tư đã kích hoạt (hoặc public-only nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
 [ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
 [-] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
 [ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
@@ -246,14 +252,15 @@ Now choose a schedule.
 Private-source activation rule:
 
 - If the human agrees to activate private sources, collector setup becomes mandatory at that point.
-- The agent should proceed automatically as far as its environment allows.
-- The agent may ask the human only for required local actions, such as loading the Chrome extension from an absolute path, approving a local command, running a generated macOS/Linux command, or running a generated Windows PowerShell/`.cmd` launcher.
-- If a local command is required, the agent must create the script/launcher file first and give the human exactly one short command or one double-clickable file path, not a long multi-line script.
+- The agent should proceed automatically as far as file preparation allows, but it must not run the one-time Local Collector setup/start command itself.
+- During one-time setup/update/repair, the agent must never execute `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI agent, even if shell permissions are available. Agent-run setup can be trapped in a sandbox/session and killed after the turn.
+- The agent must create the script/launcher file first and give the human exactly one short Terminal/PowerShell command or one double-clickable file path to run outside the AI sandbox, not a long multi-line script.
+- The same setup handoff must include the Chrome extension install steps and the one absolute runtime extension folder path under `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
 - The exact human action must be shown directly in chat. The agent may also save it in `collector_setup_status.md`, but the saved file is only the agent's record and must not be the only place where the human receives the instruction.
 - The agent must not label the collector by the current platform, such as `Facebook collector`.
 - The agent must create or update `daily-content-pipeline/collector/collector_setup_status.md` when private-source activation begins.
-- If the AI environment can run local commands, the agent must download/update the collector, create/update the setup script, start/restart the Local Collector app, and check `GET http://127.0.0.1:17321/status`.
-- If the AI environment cannot run local commands, the agent must still create the setup script/launcher file and give the human exactly one short command or double-clickable file path.
+- If the AI environment can write local files, the agent should download/update/extract the collector artifacts and create/update the setup script/launcher, but it must not run that setup script or start/restart the Local Collector app from inside the AI sandbox during one-time setup.
+- After the human confirms they ran the setup/start command and loaded the Chrome extension, the agent may check `GET http://127.0.0.1:17321/status`.
 - If the Solo Agency Local Collector extension is not loaded, the agent must show the absolute extension folder path and the exact Chrome `Load unpacked` steps.
 - The extension path shown to the human must be the runtime workspace path under `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`, not any toolkit/source path under `solo-agency/solo-agency-collector/chrome-extension/`.
 - After collector setup succeeds, the agent should run a private-source activation scan or second trial enrichment when possible.
@@ -262,7 +269,7 @@ Private-source activation rule:
 
 First agency run-now rule:
 
-- After schedule/routine setup, the agent should ask whether to run the first agency run immediately.
+- After schedule/routine setup, if private sources exist and Local Collector is pending, first handle 7A: guide Local Collector setup or ask whether to run public-only now while keeping private sources pending. If no private-source activation is pending, ask whether to run the first agency run immediately.
 - The first agency run must use `/jobs/run_now` or the equivalent manual run path; it must not wait for a recurring schedule window.
 - If the Local Collector app is already installed, running, and healthy, the agent may include private sources in the first agency run by creating a run-now job.
 - If the Local Collector app is not already installed/running/healthy, run public sources and list private sources as pending activation.
@@ -285,13 +292,13 @@ Manual run / run-now rule:
 - To run again, the agent should create a new unique `run_id` instead of forcing the same run id repeatedly.
 - The run-now job must expire automatically if it is not completed, so the extension cannot keep seeing the same manual job all day.
 - The Solo Agency Local Collector extension should see `job_available: true` on the next `/status` poll and run immediately.
-- If the Local Collector app is not reachable, the agent should start it if possible. If the agent cannot start it, provide the one-line Local Collector app start command, then retry the run-now job after the app is reachable.
+- If the Local Collector app is not reachable, the agent must not try to start it from inside the AI sandbox during setup/repair. Provide the one-line Local Collector app setup/start command for the human to run outside the sandbox, then retry the run-now job only after the app is reachable.
 - Recurring schedule windows are only for unattended scheduled runs. They must not block manual runs.
 - Do not simulate a manual run by editing `scheduled_windows` or creating a temporary schedule window. Manual runs must use `/jobs/run_now`.
 - If the agent cannot call `http://127.0.0.1:17321` from its own sandbox but can write local files, it must write the same run-now payload to `daily-content-pipeline/collector/run_now_request.json`. The Local Collector app must check this file on `/status`, load it as a run-now job, write `run_now_request_status.json`, and move the request aside as consumed. This avoids asking the human to run another command.
 - If the agent cannot call HTTP and cannot write the local request file, only then create a local run-now helper script or launcher and give the human exactly one short command/path to run it. The helper script must POST `/jobs/run_now` with the correct payload, then optionally poll `/status`.
 - Do not ask the human to restart the Local Collector app merely to make a manually edited schedule file take effect. Restarting is only appropriate for updating the Local Collector app itself, recovering a stuck/offline process, or applying an intentional recurring schedule change when both `/config` and file auto-reload are unavailable.
-- If a legacy collector without `/jobs/run_now` forces a temporary schedule fallback, the agent must clearly label it as a fallback, back up the original config, create a short unique temporary window, restart or reload only if required, restore the original config immediately after completion/timeout, and report that fallback to the human. This fallback must not be used when `/jobs/run_now` exists.
+- If a legacy collector without `/jobs/run_now` forces a temporary schedule fallback, the agent must clearly label it as a fallback, back up the original config, create a short unique temporary window, restart or reload only through an already-running service or a human-run setup/start command when required, restore the original config immediately after completion/timeout, and report that fallback to the human. This fallback must not be used when `/jobs/run_now` exists.
 
 Exact manual run-now contract:
 
@@ -385,7 +392,7 @@ Schedule rule:
 - Ask schedule/routine questions after the profile and source plan are known and before the first agency run.
 - Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, or another cadence.
 - Then write or update `schedule.md` and the relevant automation/config files.
-- After schedule/routine setup, ask whether to run the first agency run immediately.
+- After schedule/routine setup, if private sources exist and Local Collector is pending, first handle 7A: guide Local Collector setup or ask whether to run public-only now while keeping private sources pending. If no private-source activation is pending, ask whether to run the first agency run immediately.
 
 Exact schedule contract:
 
@@ -468,7 +475,10 @@ For each daily run:
    2. Validate required fields.
    3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
    4. Prepare the current month folder key `YYYY-MM`.
-   5. Check public sources.
+   5. Load saved `public_data_sources` and visit/check active due public sources before or alongside keyword search.
+      - Visit sources where `visit_in_scheduled_runs: true` and cadence is due today.
+      - Prioritize `active_public_source` daily sources, then due `weekly_public_source` sources, then relevant `occasional_public_source` sources when the topic/event matches.
+      - Record source status, useful URLs, useful signals, weak/noisy results, and whether the source should stay active, be promoted, or be demoted.
    6. Use Google Search or an available equivalent search tool with rotating keywords from `public_search_keywords`.
       - Do not use only generic industry keywords.
       - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
@@ -478,13 +488,14 @@ For each daily run:
       - If results are weak, try a different pain-point/problem/need cluster before giving up.
       - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
       - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
+      - Detect useful recurring public sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
    7. If private sources are configured but not yet activated, do not attempt private collection during this run. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public sources.
-   8. If private sources are activated, start or connect to the localhost collector bridge according to `collector_config.run_mode`.
+   8. If private sources are activated, connect to the already-running Local Collector app according to `collector_config.run_mode`.
    9. If private sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
    10. Check private collector health through `GET http://127.0.0.1:17321/status` when the Local Collector app is expected to be running.
-      - If the bridge is offline, try to start it if allowed, otherwise prepare an absolute-path user command and mark private collection as unavailable for this run.
+      - If the bridge is offline, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark private collection as unavailable for this run, and continue with public sources.
       - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
       - If `extension_health.status` is `recent`, continue private collection.
    11. Prepare the private-source queue if private sources are available and collector health is acceptable:
@@ -1213,7 +1224,7 @@ If the human says they have no clients yet, or if the first run discovers that `
 
 If the human gives a new client, the agent should enter Add Client Mode.
 
-After Add Client Mode or First Client Setup Mode, the agent must follow the fixed order: setup context, resolve private-source status, configure schedule/routine, ask whether to run the first agency run immediately, show the small-win report and draft, then ask whether to set up PDNA - Production, Distribution, Notification, and Analytics. The agent must not jump from the small win into video creation.
+After Add Client Mode or First Client Setup Mode, the agent must follow the fixed order: setup context, resolve private-source status, configure schedule/routine, handle the 7A Local Collector checkpoint if private sources are pending, ask whether to run the first agency run immediately, show the small-win report and draft, then ask whether to set up PDNA - Production, Distribution, Notification, and Analytics. The agent must not jump from the small win into video creation.
 
 The agent must summarize the first report and any required next action directly in chat. It must provide the HTML report path/link only. It must not make the human open a Markdown file to review the report, activate private sources, run setup, fix a blocker, or choose the next step.
 
@@ -1311,9 +1322,11 @@ Before replying to the human, verify:
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I mentioned a report, did I provide only the HTML path/link for human review and avoid showing the Markdown report path?
 - [ ] If I mentioned a report and any workflow step remains, did I include both the progress block and the required next-step question in chat instead of relying on the report's `Next Action` section?
-- [ ] Did I avoid jumping to the first agency run before private-source status and schedule/routine were resolved?
+- [ ] Did I avoid jumping to the first agency run before private-source status, the 7A Local Collector checkpoint, and schedule/routine were resolved?
 - [ ] Did I avoid asking for credentials, cookies, passwords, OTPs, or tokens?
 - [ ] Did I avoid calling the collector a Facebook collector?
+- [ ] If this was one-time Local Collector setup/update/repair, did I avoid running `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI sandbox?
+- [ ] If this was one-time Local Collector setup/update/repair, did I give the human both required local actions in chat: run the one-line Terminal/PowerShell setup/start command outside the AI sandbox and load the Chrome extension from the absolute runtime folder?
 - [ ] If I discussed private-source setup, Local Collector activation, or source discovery, did I reassure the human about one-time professional setup patience, local-only data safety, and daily scanning coverage?
 - [ ] Did I mention blockers clearly, with the next action if any?
 
@@ -1335,6 +1348,7 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I choose keyword language based on the target audience's likely search/comment language, not automatically the human's chat language?
 - [ ] If the audience is multilingual, did I label keyword languages and include useful variants?
 - [ ] Did I show only a compact pain-point keyword sample to the human and save the full keyword bank in the client profile/source notes?
+- [ ] Did I save useful recurring public sources to `public_data_sources` with status, cadence, language, related pain point, and `visit_in_scheduled_runs`?
 - [ ] Did I avoid asking a separate interest-graph discovery question and instead keep optional source discovery inside the private-source step?
 - [ ] Did I reassure the human that this is a professional agency-scale setup that normally takes patience only once?
 - [ ] Did I reassure the human that private data stays local on their computer and must not be sent outside without explicit approval?
@@ -1353,6 +1367,7 @@ Before saving a Client Intelligence Profile as stable, verify:
 Before completing public research, verify:
 
 - [ ] Did I load `public_search_keywords` from the client profile?
+- [ ] Did I load saved `public_data_sources` and visit/check active due sources?
 - [ ] Did I use Google Search or an available equivalent search tool?
 - [ ] Did I use keywords in the target audience's likely search/comment language?
 - [ ] Did I use at least one primary-industry keyword?
@@ -1364,6 +1379,7 @@ Before completing public research, verify:
 - [ ] Did I record each keyword as `used`, `useful`, `weak`, or `retry_later`?
 - [ ] Did I extract new keyword candidates from useful search results, public discussions, private scans, competitor hooks, comments, analytics, or human feedback?
 - [ ] Did I add non-duplicate useful new keywords to the saved keyword bank with source/reason, related pain point, and content pillar?
+- [ ] Did I detect useful recurring public sources and promote/demote them in `public_data_sources` for future scheduled visits?
 - [ ] Did I save useful URLs as references?
 - [ ] Did I show search keywords used in the report?
 - [ ] If I forgot to show search keywords, did I update the current report instead of only promising to show them next time?
@@ -1376,7 +1392,8 @@ Before claiming private sources were collected, verify:
 - [ ] Is the Local Collector app running?
 - [ ] Is the Solo Agency Local Collector extension recent, not stale?
 - [ ] Did I avoid Claude Chrome Extension for automated private collection?
-- [ ] If the bridge failed with `address already in use` or `/status` showed stale/wrong config, did I restart the Local Collector app by stopping the old `collector-bridge` process on port `17321` before starting the newest executable?
+- [ ] If this is one-time setup/update/repair, did I avoid starting/restarting the Local Collector app from inside the AI sandbox and instead provide the human-run setup/start command?
+- [ ] If the bridge failed with `address already in use` or `/status` showed stale/wrong config, did the setup/start script or an explicit human-approved troubleshooting path handle the restart by stopping only old `collector-bridge` processes on port `17321` before starting the newest executable?
 - [ ] For manual run, did I use `/jobs/run_now` or `run_now_request.json`?
 - [ ] For Facebook joined-groups discovery, did I use a manual `run_now` job for `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added` instead of pretending the joined groups were manually provided?
 - [ ] After Facebook joined-groups discovery, did I filter groups by client relevance and ask the human to approve recommended groups before adding them to active `private_data_sources`?

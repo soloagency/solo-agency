@@ -125,7 +125,10 @@ For each daily run:
    2. Validate required fields.
    3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
    4. Prepare the current month folder key `YYYY-MM`.
-   5. Check public sources.
+   5. Load saved `public_data_sources` and visit/check active due public sources before or alongside keyword search.
+      - Visit sources where `visit_in_scheduled_runs: true` and cadence is due today.
+      - Prioritize `active_public_source` daily sources, then due `weekly_public_source` sources, then relevant `occasional_public_source` sources when the topic/event matches.
+      - Record source status, useful URLs, useful signals, weak/noisy results, and whether the source should stay active, be promoted, or be demoted.
    6. Use Google Search or an available equivalent search tool with rotating keywords from `public_search_keywords`.
       - Do not use only generic industry keywords.
       - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
@@ -135,13 +138,14 @@ For each daily run:
       - If results are weak, try a different pain-point/problem/need cluster before giving up.
       - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
       - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
+      - Detect useful recurring public sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
    7. If private sources are configured but not yet activated, do not attempt private collection during this run. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public sources.
-   8. If private sources are activated, start or connect to the localhost collector bridge according to `collector_config.run_mode`.
+   8. If private sources are activated, connect to the already-running Local Collector app according to `collector_config.run_mode`.
    9. If private sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
    10. Check private collector health through `GET http://127.0.0.1:17321/status` when the Local Collector app is expected to be running.
-      - If the bridge is offline, try to start it if allowed, otherwise prepare an absolute-path user command and mark private collection as unavailable for this run.
+      - If the bridge is offline, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark private collection as unavailable for this run, and continue with public sources.
       - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
       - If `extension_health.status` is `recent`, continue private collection.
    11. Prepare the private-source queue if private sources are available and collector health is acceptable:
@@ -393,8 +397,8 @@ Health check sequence:
    - browser profile is not the one where the extension was installed.
 6. If `/status` fails:
    - record `bridge_status: offline`,
-   - try to start the bridge if the AI environment has permission,
-   - otherwise provide the human with the absolute-path Local Collector app start command,
+   - do not try to start the bridge from inside the AI agent sandbox during setup/repair,
+   - provide the human with the absolute-path Local Collector app setup/start command,
    - continue with public sources and previously collected private data.
 6. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public sources, log the private-source blocker, and notify the human.
 7. If the extension is recent but a private source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
@@ -414,7 +418,7 @@ Action: Open Chrome with the Solo Agency Local Collector extension enabled, stay
 
 ### OS Startup For Persistent Bridge
 
-If the AI agent can run local commands, it should install or document an OS startup service for the bridge when the human wants unattended collection after reboot.
+If the human wants unattended collection after reboot, the AI agent should prepare or document an OS startup service for the bridge, but the human must approve/run the setup outside the AI sandbox. Do not install or start the service from the AI agent during one-time setup unless the user has explicitly moved beyond setup and asked for OS service automation with full awareness of the local action.
 
 Claude-specific rule:
 
@@ -440,4 +444,4 @@ solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
   --persistent
 ```
 
-If the bridge is not installed as a startup service, the human must start it manually after reboot or the AI agent must start it when the environment allows local command execution.
+If the bridge is not installed as a startup service, the human must start it manually after reboot by running the prepared setup/start command outside the AI sandbox. The AI agent should not start it from inside the AI sandbox during setup or repair.

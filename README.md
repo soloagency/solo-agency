@@ -117,5 +117,6 @@ If you are an AI agent setting up this repo, start here:
 2. Follow the checklist in that file in order.
 3. Do not install, start, or configure `solo-agency-collector/` first.
 4. The Local Collector is activated only later if the playbook reaches the private-source stage and the human approves it.
+5. During Local Collector activation, do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent. Prepare the files, then give the human the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension `Load unpacked` folder path.
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
