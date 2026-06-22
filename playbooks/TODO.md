@@ -124,6 +124,45 @@ Store reusable owner-specific assets:
 
 Use approved assets before inventing new creative directions.
 
+### Local Collector Data Cleaning And Community Parsers
+
+Optimize the Local Collector so it cleans noisy platform text before saving data points.
+
+Current issue:
+
+- raw visible text from platforms often includes navigation, buttons, repeated UI labels, ads, reactions, accessibility text, unrelated recommendations, duplicated comments, and other noise;
+- different platforms expose useful content differently, so one generic raw-text cleaner will not be enough;
+- the collector should preserve evidence and source URLs, but should save cleaner structured text for downstream idea, lead, competitor, and analytics extraction.
+
+Future direction:
+
+- add a pre-save cleaning pipeline before writing collector output;
+- keep raw snapshots available for audit/debug when needed;
+- save a cleaned `content_text`, `author_or_page`, `post_url`, `timestamp`, `engagement_text`, `comment_text`, and `noise_removed_reason` when detectable;
+- create platform-specific cleaners/parsers for Facebook groups/pages, TikTok, YouTube, Instagram, LinkedIn, X, Reddit, forums, and other sources;
+- allow per-platform and per-source custom rules because platform layouts and language/UI variants change often;
+- add regression fixtures from real noisy captures so parser changes can be tested safely;
+- invite community contributions for platform readers, cleaner rules, and fixtures.
+
+Important: this must improve automatic data quality without asking the human to manually clean daily captures.
+
+### Cross-Agent Compatibility Testing
+
+Test the modular playbook and Local Collector workflow on OpenClaw and other AI agents.
+
+Track for each agent:
+
+- whether it loads the root playbook and child playbooks correctly;
+- whether it preserves the 16-step setup checklist without skipping;
+- whether it obeys progress display and next-question rules;
+- whether it handles Production & Distribution & Notification & Analytics setup neutrally;
+- whether it can install/run/use the Local Collector in that environment;
+- whether scheduled runs reload playbooks instead of relying on memory;
+- whether it produces HTML reports and notifications correctly;
+- where tool permissions, browser automation, filesystem access, or scheduling differ from Codex.
+
+Use these tests to add agent-specific compatibility notes only where necessary, without weakening the core playbook.
+
 ## Testing And Optimization Loop
 
 After each test run with an AI agent:

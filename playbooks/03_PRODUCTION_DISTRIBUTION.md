@@ -34,6 +34,31 @@ When the human asks for production, video creation, publishing, notifications, a
 
 The agent must show that there are two valid paths:
 
+### Onetime Setup Item 8 Completion Contract
+
+When this stage is loaded because the human answered `Yes` to setup item 7, the active setup item is:
+
+```text
+[ ] 8. If yes, load Stage 3 and configure the production/distribution/notification/analytics provider path
+```
+
+This item is not complete until the agent has covered all four capability groups:
+
+1. Production: video/blog/social creation path.
+2. Distribution: publishing or upload/posting path.
+3. Notification: report-ready and blocker notification path.
+4. Analytics: published-content measurement path for yesterday and the last 7 days.
+
+The agent must explicitly record one of these statuses before moving to private-source setup or scheduling:
+
+- `connected`: provider or providers are available and authorized;
+- `selected_pending_connection`: human selected a path but must finish an account/API/OAuth/setup step;
+- `declined`: human does not want production/distribution/notification/analytics setup now;
+- `blocked`: environment lacks connector/tool/API access, with the exact blocker logged;
+- `manual_only`: human wants drafts and reports only, with no automated production/distribution/notification/analytics yet.
+
+If the human answers yes to production setup, the agent must not skip directly to Local Collector setup, private scans, or schedule configuration. It must first present the provider choice below, then proceed according to the human's selected path.
+
 ### Option A: Connect Specialist Tools Separately
 
 The human may connect separate tools for each production capability group:
