@@ -66,28 +66,53 @@ If the `playbooks/` folder is not available, the agent must download the needed 
 https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/
 ```
 
+### Canonical User-Facing Description Rule
+
+When explaining what Solo Agency does, the agent must not describe it as only researching, finding ideas, writing drafts, and publishing.
+
+The explanation must include production explicitly:
+
+- researches the market every day;
+- finds source-backed content ideas, hot/warm leads, and competitors;
+- writes approval-ready scripts/blogs/captions;
+- after human approval and provider setup, creates video/blog/social assets through connected production tools;
+- can publish approved content to 10+ connected platforms when authorized;
+- measures results and feeds the learning into the next run.
+
+In Vietnamese, a good concise explanation is:
+
+```text
+Mỗi ngày hệ thống tự nghiên cứu thị trường, tìm ý tưởng nội dung có dẫn nguồn, phát hiện lead nóng/ấm và đối thủ, viết sẵn kịch bản/blog/caption để bạn duyệt; sau khi bạn duyệt và đã kết nối provider, nó có thể tự sản xuất video/blog/social assets, đăng nội dung đã duyệt lên 10+ nền tảng, đo lường kết quả, rồi dùng dữ liệu đó để cải thiện vòng sau.
+```
+
+Do not imply that production is only a manual copy/paste step. Also do not imply that rendering, publishing, spending credits, face clone, voice clone, or outreach happens without explicit human approval.
+
 ### Required Visible Setup Checklist
 
-The agent must show and update this checklist during setup so the human can catch missed steps:
+The agent must show and update this checklist during setup so the human can catch missed steps.
+
+This is a human-facing progress checklist, not an internal agent instruction list. Use the human's language. Use `You`/`Bạn` for the actions the human must provide or approve, and `I`/`Tôi` for the actions the agent performs. Do not display internal verbs such as "Ask", "Infer", "Select", or "Run" as if the human were reading agent instructions.
+
+For Vietnamese humans, use this wording:
 
 ```text
 Solo Agency onetime setup
-[ ] 1. Ask product/service, profession, expertise, or business description
-[ ] 2. Infer industry, sub-industry, related industries, audience, and offer
-[ ] 3. Infer pain points and content pillars
-[ ] 4. Select public sources and public search keywords
-[ ] 5. Run public-first research
-[ ] 6. Generate public-first HTML report
-[ ] 7. Ask whether the human wants Production & Distribution & Notification & Analytics setup now
-[ ] 8. If yes, load Stage 3 and configure the production/distribution/notification/analytics provider path
-[ ] 9. Ask whether the human wants to provide manual private sources
-[ ] 10. Ask whether the human wants Private Interest Graph Discovery
-[ ] 11. Activate/setup Local Collector if private sources/discovery are approved
-[ ] 12. Run source discovery and ask human to approve recommended sources
-[ ] 13. Run first private scan
-[ ] 14. Run analytics and scan all published URLs from the last 7 days for measurement-learning data (only from the second run onward, when published URLs/metrics exist)
-[ ] 15. Update report, idea matrix, best idea for today, leads, competitors, and drafts with private data. From the second run onward, include analytics and statistics from step 14.
-[ ] 16. Configure schedule/routine (set up only once, and only after the earlier setup gates are completed, declined, blocked, or honestly marked pending)
+[ ] 1. Bạn cung cấp thông tin sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
+[ ] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer
+[ ] 3. Tôi tự suy luận pain points và content pillars
+[ ] 4. Tôi tự tìm và chọn nguồn công khai và từ khóa tìm kiếm
+[ ] 5. Tôi tự chạy nghiên cứu public-first
+[ ] 6. Tôi tạo báo cáo HTML public-first
+[ ] 7. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn
+[ ] 8. Tôi tự cấu hình luồng sản xuất/đăng/thông báo/phân tích
+[ ] 9. Bạn cung cấp nguồn riêng tư (private) thủ công nếu muốn
+[ ] 10. Bạn cho phép chạy Private Interest Graph Discovery nếu muốn
+[ ] 11. Tôi kích hoạt Local Collector nếu bạn cho phép quét dữ liệu nguồn riêng
+[ ] 12. Tôi chạy source discovery và xin bạn duyệt nguồn đề xuất
+[ ] 13. Tôi chạy lần quét riêng đầu tiên
+[ ] 14. Tôi quét analytics các URL đã đăng trong 7 ngày gần nhất (chỉ từ lần chạy thứ hai hoặc khi đã có URL/metrics)
+[ ] 15. Tôi cập nhật báo cáo, ma trận ý tưởng, ý tưởng tốt nhất hôm nay, lead, đối thủ, bản nháp. Từ lần chạy thứ hai trở đi, tôi thêm analytics và statistics từ bước 14.
+[ ] 16. Tôi cấu hình lịch chạy tự động (chỉ setup 1 lần)
 ```
 
 Checklist integrity rule:

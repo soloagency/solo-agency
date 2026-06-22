@@ -214,22 +214,22 @@ Best idea today: {best idea}
 Report for mobile: {absolute HTML path or URL}
 
 Solo Agency onetime setup
-[x] 1. Ask product/service, profession, expertise, or business description
-[x] 2. Infer industry, sub-industry, related industries, audience, and offer
-[x] 3. Infer pain points and content pillars
-[x] 4. Select public sources and public search keywords
-[x] 5. Run public-first research
-[x] 6. Generate public-first HTML report
-[ ] 7. Ask whether the human wants Production & Distribution & Notification & Analytics setup now
-[ ] 8. If yes, load Stage 3 and configure the production/distribution/notification/analytics provider path
-[ ] 9. Ask whether the human wants to provide manual private sources
-[ ] 10. Ask whether the human wants Private Interest Graph Discovery
-[ ] 11. Activate/setup Local Collector if private sources/discovery are approved
-[ ] 12. Run source discovery and ask human to approve recommended sources
-[ ] 13. Run first private scan
-[-] 14. Run analytics and scan all published URLs from the last 7 days for measurement-learning data (no published URLs yet)
-[ ] 15. Update report, idea matrix, best idea for today, leads, competitors, and drafts with private data. From the second run onward, include analytics and statistics from step 14.
-[ ] 16. Configure schedule/routine (set up only once, and only after the earlier setup gates are completed, declined, blocked, or honestly marked pending)
+[x] 1. Bạn cung cấp thông tin sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
+[x] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer
+[x] 3. Tôi tự suy luận pain points và content pillars
+[x] 4. Tôi tự tìm và chọn nguồn công khai và từ khóa tìm kiếm
+[x] 5. Tôi tự chạy nghiên cứu public-first
+[x] 6. Tôi tạo báo cáo HTML public-first
+[ ] 7. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn
+[ ] 8. Tôi tự cấu hình luồng sản xuất/đăng/thông báo/phân tích
+[ ] 9. Bạn cung cấp nguồn riêng tư (private) thủ công nếu muốn
+[ ] 10. Bạn cho phép chạy Private Interest Graph Discovery nếu muốn
+[ ] 11. Tôi kích hoạt Local Collector nếu bạn cho phép quét dữ liệu nguồn riêng
+[ ] 12. Tôi chạy source discovery và xin bạn duyệt nguồn đề xuất
+[ ] 13. Tôi chạy lần quét riêng đầu tiên
+[-] 14. Tôi quét analytics các URL đã đăng trong 7 ngày gần nhất (chưa có URL đã đăng)
+[ ] 15. Tôi cập nhật báo cáo, ma trận ý tưởng, ý tưởng tốt nhất hôm nay, lead, đối thủ, bản nháp. Từ lần chạy thứ hai trở đi, tôi thêm analytics và statistics từ bước 14.
+[ ] 16. Tôi cấu hình lịch chạy tự động (chỉ setup 1 lần)
 
 The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
 
@@ -778,7 +778,7 @@ Reactivate Austin Home Group and include it in future daily runs.
 
 ## 24. Media Agency Operating Layer
 
-The daily idea-and-script workflow is the core production engine, but a media agency needs more than daily ideas. The agent must support an agency operating layer around strategy, planning, production, approval, publishing, performance, and client communication.
+The daily idea/script workflow plus approved asset creation is the core production engine, but a media agency needs more than daily ideas. The agent must support an agency operating layer around strategy, planning, video/blog/social asset production, approval, publishing, performance, and client communication.
 
 This layer should be added gradually. Do not block the first daily run just because every agency file is not perfect yet. Infer first, show the human, then save and improve over time.
 
@@ -1435,6 +1435,7 @@ Before presenting the content draft, verify:
 - [ ] If this is a video script, did I include visual notes?
 - [ ] Did I include CTA?
 - [ ] Did I ask for approval before creating/rendering/publishing video?
+- [ ] If explaining the system's capabilities, did I explicitly mention that approved drafts can become produced video/blog/social assets through connected providers, not only scripts/blogs/captions waiting for manual production?
 - [ ] Did I avoid spending credits without explicit confirmation?
 
 ### Output And Delivery Checklist

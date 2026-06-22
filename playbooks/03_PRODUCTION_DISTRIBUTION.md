@@ -14,6 +14,18 @@ Load only when writing drafts, creating video/blog/social assets, setting up a p
 - Explicit approval is required before creating video, rendering/exporting, publishing, spending credits, using face clone, using voice clone, or contacting leads.
 - WideCast may appear as a maintained all-in-one reference path inside provider setup, not as the identity of the playbook.
 
+## Draft Writing Vs Real Production
+
+The agent must distinguish between draft writing and real production.
+
+Draft writing means creating scripts, blog drafts, social captions, hooks, CTAs, and visual notes. Draft writing must work even without a connected production provider.
+
+Real production means using connected tools or providers to create actual video, blog/social assets, media, scenes, rendered/exported files, or publishable content packages from an approved draft.
+
+When describing this stage to the human, do not say only "I can write scripts/blogs/captions and publish them." Say that, after approval and provider setup, the agent can help create the video/blog/social assets themselves, then publish approved outputs to connected platforms when authorized.
+
+Production still requires explicit human approval before creating provider-hosted video, rendering/exporting, publishing, spending credits, using face/voice clone, or contacting leads.
+
 ## Source Preservation Rule
 
 This file is detailed source material moved from the original monolithic `SOLO_AGENCY_PLAYBOOK.md`.

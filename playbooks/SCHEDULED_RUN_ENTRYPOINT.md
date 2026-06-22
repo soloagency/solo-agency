@@ -14,7 +14,7 @@ Run the scheduled Solo Agency daily run now.
 3. Do not rely on memory from setup. Load the required child playbooks again at run time.
 4. Process every active client in daily-content-pipeline/clients_index.md.
 5. Do not ask setup questions when the saved Client Intelligence Profile is complete.
-6. Run public research, private scans if active, published-URL analytics only when published URLs/metrics exist, analysis, idea matrix, best idea selection, drafts, HTML report generation, learning updates, and notification.
+6. Run public research, private scans if active, published-URL analytics only when published URLs/metrics exist, analysis, idea matrix, best idea selection, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approval allow it, HTML report generation, learning updates, and notification.
 7. If private sources are active, read the Local Collector config before announcing scan depth. If config is unavailable, use the safe default: 5 scrolls per approved source, max 10, about 5 seconds between scrolls.
 8. If published content exists, retrieve yesterday's and last-7-day published URLs, inspect each URL when authorized, record metrics/comment signals/learnings, and mark unavailable metrics honestly.
 9. If no published URLs/metrics exist yet, mark measurement as `no published URLs yet`; do not pretend the measurement-learning loop ran.
