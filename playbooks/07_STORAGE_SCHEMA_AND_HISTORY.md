@@ -464,15 +464,43 @@ items:
 
 ## public_search_keywords
 
+summary:
+  total_keywords:
+  hidden_keywords_saved:
+  primary_keyword_language:
+  secondary_keyword_languages:
+  needs_expansion: true | false
+  last_expanded_date:
+  expansion_sources:
+    - setup_inference
+    - public_search_results
+    - private_source_scan
+    - competitor_hooks
+    - report_comments
+    - analytics_learning
+    - human_feedback
+
 items:
 - keyword:
+  language:
   status: unused | used | useful | weak | retry_later
+  keyword_group: industry_general | pain_point | need_or_goal | buying_intent | local_context | related_industry | trend_news | objection | comparison | question | problem_issue
   scope: global | local
   industry_scope: primary_industry | related_industry
   related_industry:
   related_content_pillar:
+  related_pain_point:
+  related_customer_need:
+  source_or_reason_added:
+  discovered_from:
+  first_added_date:
   last_used_date:
+  use_count:
+  useful_count:
+  weak_count:
   result_quality:
+  promoted: true | false
+  demoted: true | false
   notes:
 
 ## private_monitoring_activation
@@ -575,7 +603,11 @@ rationale:
 
 ## language
 
-value:
+human_report_language:
+target_audience_language:
+keyword_language:
+secondary_keyword_languages:
+content_output_language:
 status:
 rationale:
 

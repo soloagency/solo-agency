@@ -126,8 +126,15 @@ For each daily run:
    3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
    4. Prepare the current month folder key `YYYY-MM`.
    5. Check public sources.
-   6. Use Google Search or an available equivalent search tool with one or more rotating keywords from `public_search_keywords`. Include both primary-industry keywords and a smaller rotation of related-industry keywords. If results are weak, try a different keyword cluster before giving up.
-      - Record every keyword used, keyword type, result quality, useful URLs, and final keyword status.
+   6. Use Google Search or an available equivalent search tool with rotating keywords from `public_search_keywords`.
+      - Do not use only generic industry keywords.
+      - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
+      - Use keywords in the target audience's likely search/comment language. Do not translate the keyword bank into the human's chat/report language unless the audience uses that language.
+      - Include at least one broad primary-industry keyword for context, at least one pain-point/problem keyword, at least one need/goal or buying-intent keyword, and local/location keywords when location matters.
+      - Use a smaller rotation of related-industry keywords only when the bridge back to the client's offer is clear.
+      - If results are weak, try a different pain-point/problem/need cluster before giving up.
+      - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
+      - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
    7. If private sources are configured but not yet activated, do not attempt private collection during this run. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public sources.
