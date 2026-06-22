@@ -1,6 +1,6 @@
 # Solo Agency
 
-Paste this playbook into your AI agent today. Tomorrow, wake up to ready-to-approve videos and blogs, lead signals, market insights, and a one-click path to 10+ platforms for every client.
+Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" and make it work like a real marketing team every morning: research, leads, videos, blogs, distribution, analytics, and improvements, ready for your approval.
 
 ## The Point
 
@@ -52,6 +52,8 @@ Paste this playbook into your AI agent today. Tomorrow, wake up to ready-to-appr
 
 ## Private Source Intelligence
 
+Important: the Local Collector is not the setup entrypoint. It is a private-source module used only after the main playbook reaches the private-source stage and the human approves collector activation.
+
 - Monitors logged-in private sources such as FB groups/pages, IG profiles, YT channels/comments, TT accounts, X accounts, LinkedIn pages, Reddit communities, competitor pages, fanpages, and niche forums.
 - Auto-discovers private data sources from the user's social interest graph: joined groups, followed KOLs, creator profiles, subscribed channels, and recommendation feeds.
 - Lets the user provide private sources manually, approve AI-discovered sources, or do both.
@@ -81,7 +83,7 @@ WideCast can be used as one maintained all-in-one path for writing, video produc
 ## Best First Prompt
 
 ```text
-Setup SOLO_AGENCY_PLAYBOOK.md now.
+Setup https://github.com/soloagency/solo-agency now.
 ```
 
 The main playbook tells the agent which detailed stage playbook to load next. If the `playbooks/` folder is not local, the agent can fetch the needed stage file from this GitHub repo.
@@ -104,3 +106,14 @@ Tested with Claude Desktop, Codex, Hermes, and OpenClaw.
 Community testing on other AI agents is welcome, especially around playbook loading, local collector setup, scheduled runs, progress display, and HTML report delivery.
 
 No vision model is required. Solo Agency is designed to run with an LLM-only agent. 
+
+## Agent Entry Point
+
+If you are an AI agent setting up this repo, start here:
+
+1. Read `SOLO_AGENCY_PLAYBOOK.md` first.
+2. Follow the checklist in that file in order.
+3. Do not install, start, or configure `solo-agency-collector/` first.
+4. The Local Collector is activated only later if the playbook reaches the private-source stage and the human approves it.
+
+The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
