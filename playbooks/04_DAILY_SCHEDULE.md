@@ -245,7 +245,12 @@ Exact schedule contract:
 - The Local Collector app must run in persistent mode for unattended scheduled collection:
 
 ```text
-collector-bridge --host 127.0.0.1 --port 17321 --config-file daily-content-pipeline/collector/collector_config.json --output-dir daily-content-pipeline/collector/inbox --persistent
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
+  --host 127.0.0.1 \
+  --port 17321 \
+  --config-file daily-content-pipeline/collector/collector_config.json \
+  --output-dir daily-content-pipeline/collector/inbox \
+  --persistent
 ```
 
 - The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.
@@ -420,7 +425,12 @@ Recommended startup methods:
 The startup service should run the selected bridge binary with a persistent scheduler config, for example:
 
 ```text
-collector-bridge --host 127.0.0.1 --port 17321 --config-file daily-content-pipeline/collector/collector_config.json --output-dir daily-content-pipeline/collector/inbox --persistent
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
+  --host 127.0.0.1 \
+  --port 17321 \
+  --config-file daily-content-pipeline/collector/collector_config.json \
+  --output-dir daily-content-pipeline/collector/inbox \
+  --persistent
 ```
 
 If the bridge is not installed as a startup service, the human must start it manually after reboot or the AI agent must start it when the environment allows local command execution.

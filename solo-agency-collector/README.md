@@ -34,7 +34,7 @@ https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collec
 The package ships prebuilt bridge binaries through the artifact bundle:
 
 ```text
-daily-content-pipeline/collector/bin/
+solo-agency-local-collector/bin/
   collector-bridge-darwin-arm64
   collector-bridge-darwin-amd64
   collector-bridge-windows-amd64.exe
@@ -101,7 +101,9 @@ The Chrome extension is installed manually once for now:
 2. Go to `chrome://extensions`.
 3. Turn on Developer Mode.
 4. Click `Load unpacked`.
-5. Select the extracted absolute folder path, for example `/Users/alex/daily-content-pipeline/collector/chrome-extension/`.
+5. Select the extracted absolute folder path, for example `/Users/alex/oneman_agency/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
+
+Do not load the source folder from a cloned toolkit, such as `solo-agency/solo-agency-collector/chrome-extension/`, for a normal agency setup. The toolkit folder is for development. The running agency should load only the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime copy.
 
 ## Developer Model
 
@@ -109,16 +111,16 @@ Maintainers build the bridge from source:
 
 ```sh
 cd solo-agency-collector/bridge-go
-go build -o ../../daily-content-pipeline/collector/bin/collector-bridge ./...
+go build -o ../../solo-agency-local-collector/bin/collector-bridge ./...
 ```
 
 Cross-compile examples:
 
 ```sh
-GOOS=darwin GOARCH=arm64 go build -o ../../daily-content-pipeline/collector/bin/collector-bridge-darwin-arm64 ./...
-GOOS=darwin GOARCH=amd64 go build -o ../../daily-content-pipeline/collector/bin/collector-bridge-darwin-amd64 ./...
-GOOS=windows GOARCH=amd64 go build -o ../../daily-content-pipeline/collector/bin/collector-bridge-windows-amd64.exe ./...
-GOOS=linux GOARCH=amd64 go build -o ../../daily-content-pipeline/collector/bin/collector-bridge-linux-amd64 ./...
+GOOS=darwin GOARCH=arm64 go build -o ../../solo-agency-local-collector/bin/collector-bridge-darwin-arm64 ./...
+GOOS=darwin GOARCH=amd64 go build -o ../../solo-agency-local-collector/bin/collector-bridge-darwin-amd64 ./...
+GOOS=windows GOARCH=amd64 go build -o ../../solo-agency-local-collector/bin/collector-bridge-windows-amd64.exe ./...
+GOOS=linux GOARCH=amd64 go build -o ../../solo-agency-local-collector/bin/collector-bridge-linux-amd64 ./...
 ```
 
 ## Local-Only Design
@@ -134,7 +136,7 @@ GOOS=linux GOARCH=amd64 go build -o ../../daily-content-pipeline/collector/bin/c
 When using the generated `setup_collector.sh` / PowerShell setup file, running it again should restart the Local Collector app instead of launching a second copy. The script should call `/shutdown` when available, stop the PID in `collector.pid`, then inspect port `17321` and stop only old `collector-bridge` processes before starting the newest executable. This prevents Chrome from talking to a stale bridge instance that has old config and returns "no job".
 
 ```sh
-daily-content-pipeline/collector/bin/collector-bridge-darwin-arm64 \
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
   --host 127.0.0.1 \
   --port 17321 \
   --config-file daily-content-pipeline/collector/collector_config.json \
@@ -145,7 +147,7 @@ daily-content-pipeline/collector/bin/collector-bridge-darwin-arm64 \
 ## On-Demand Example Run
 
 ```sh
-daily-content-pipeline/collector/bin/collector-bridge-darwin-arm64 \
+solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
   --host 127.0.0.1 \
   --port 17321 \
   --run-id 2026-06-20_demo-client \
