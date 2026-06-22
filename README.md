@@ -9,7 +9,8 @@ Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" to tur
 - Production without distribution is invisible.
 - Distribution without measurement is gambling.
 - Measurement without learning is busywork.
-- This playbook connects the full agency loop: research, ideas, leads, scripts, production, distribution, measurement, learning, and improvement.
+
+This playbook connects the full agency loop: research, ideas, leads, scripts, production, distribution, measurement, learning, and improvement.
 
 ## What This Is
 
