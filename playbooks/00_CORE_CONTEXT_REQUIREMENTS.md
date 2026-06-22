@@ -71,7 +71,7 @@ https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/
 The agent must show and update this checklist during setup so the human can catch missed steps:
 
 ```text
-Solo Agency setup
+Solo Agency onetime setup
 [ ] 1. Ask product/service, profession, expertise, or business description
 [ ] 2. Infer industry, sub-industry, related industries, audience, and offer
 [ ] 3. Infer pain points and content pillars
@@ -89,6 +89,66 @@ Solo Agency setup
 [ ] 15. Configure schedule/routine
 [ ] 16. Run measurement and learning loop for published content
 ```
+
+### Progress And Next-Step Question Rule
+
+While setup, daily run, private-source activation, production setup, publishing, scheduling, or measurement is still incomplete, every human-facing reply that hands control back to the human must include a compact progress block.
+
+The progress block must show:
+
+- completed steps;
+- the current active step;
+- remaining required steps;
+- any blocker or human decision needed.
+
+For setup, use the exact title:
+
+```text
+Solo Agency onetime setup
+```
+
+For other flows, use a specific progress title such as:
+
+```text
+Solo Agency daily run progress
+Solo Agency production progress
+Solo Agency private-source progress
+Solo Agency measurement progress
+```
+
+If any required step remains and the agent is waiting for the human, the final line of the message must be exactly one clear next-step question.
+
+Do not end with a passive summary, a report link, or a vague statement such as "let me know what you think."
+
+Good final lines:
+
+```text
+Do you want me to activate private sources now?
+```
+
+```text
+Do you want to create the video from Version 1 now?
+```
+
+```text
+Do you want daily, multiple-times-daily, weekly, or manual-only runs?
+```
+
+Bad final lines:
+
+```text
+Here is the report.
+```
+
+```text
+Let me know if you need anything else.
+```
+
+```text
+Next steps are in the report.
+```
+
+The agent may omit the next-step question only when the entire requested workflow is complete and no human decision is required.
 
 ### Manual Private Sources And Discovery Are Independent
 
