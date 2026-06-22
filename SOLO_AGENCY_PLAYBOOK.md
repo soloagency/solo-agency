@@ -117,15 +117,16 @@ The setup flow is fixed:
 3. Infer industry, sub-industry, related industries, target audience, offer, location dependency, pain points, and content pillars.
 4. Show inference before asking the next question.
 5. Ask target location only if location matters and cannot be inferred.
-6. Select public sources and build a public search keyword bank. The keyword bank must include broad industry keywords, but it must be driven primarily by the target audience's pain points, problems, objections, questions, needs, buying triggers, and local context.
+6. Select public sources and build a public search keyword bank. The keyword bank must include broad industry keywords, but it must be driven primarily by the target audience's pain points, problems, objections, questions, needs, buying triggers, and local context. The public source list is not fixed: after each run, useful recurring public sources discovered through search or reading must be saved/promoted so future scheduled runs can visit them automatically.
 7. Ask whether the human wants to provide manual private sources. Do not ask a separate interest-graph discovery question.
-8. If private sources or group/source discovery are requested, load Stage 2 and Stage 8, activate/setup the Local Collector only as needed, and ask for human approval before adding discovered sources.
-9. Configure the recurring schedule/routine once the basic source plan is known, then ask whether to run the first agency run immediately.
-10. Run the first agency run: scan public sources and approved/available private sources, generate the HTML report, idea matrix, best idea, leads, competitors, and draft script/blog/caption as the small win.
-11. After the first run small win, do not ask "do you want to make a video now?" Instead ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - to turn approved drafts into real assets, distribute approved outputs, send reports/blockers, and measure results.
-12. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 and complete the PDNA provider path: Production, Distribution, Notification, and Analytics. Notification setup stays inside this stage.
-13. If published URL history exists, load Stage 5 and scan analytics/signals for the last 7 days. If no published URL history exists, mark analytics as not available yet.
-14. Update the report, idea matrix, best idea, leads, competitors, drafts, and learning loop with private data and, from the second run onward, analytics/statistics from published URLs.
+8. If private sources or group/source discovery are requested, load Stage 2 and Stage 8, record/triage the sources, mark them as approved, declined, optional, or `pending_private_activation`, and ask for human approval before adding discovered sources. Do not claim private-source monitoring is active until the Local Collector is healthy.
+9. Configure the recurring schedule/routine once the basic source plan is known. If private sources exist but Local Collector is not active, configure the schedule as public-only for now and keep private sources as `pending_private_activation`.
+10. Before asking to run the first agency run, resolve step 7A: if private sources exist and the Local Collector is not installed/running/healthy, guide the human through Local Collector setup now, or explicitly ask whether to run the first agency run public-only first while keeping private sources pending.
+11. Run the first agency run: scan public sources and approved/available private sources, or public-only if step 7A was declined/postponed, then generate the HTML report, idea matrix, best idea, leads, competitors, and draft script/blog/caption as the small win.
+12. After the first run small win, do not ask "do you want to make a video now?" Instead ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - to turn approved drafts into real assets, distribute approved outputs, send reports/blockers, and measure results.
+13. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 and complete the PDNA provider path: Production, Distribution, Notification, and Analytics. Notification setup stays inside this stage.
+14. If published URL history exists, load Stage 5 and scan analytics/signals for the last 7 days. If no published URL history exists, mark analytics as not available yet.
+15. Update the report, idea matrix, best idea, leads, competitors, drafts, and learning loop with private data and, from the second run onward, analytics/statistics from published URLs.
 
 ## Visible Setup Checklist
 
@@ -142,8 +143,9 @@ Solo Agency onetime setup
 [ ] 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
 [ ] 4. Tôi tự tìm/chọn nguồn công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
 [ ] 5. Bạn cung cấp nguồn riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
-[ ] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy), rồi hỏi bạn có muốn chạy lần đầu ngay không
-[ ] 7. Tôi chạy lần đầu: quét nguồn công khai/nguồn riêng tư đã được phép, tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
+[ ] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
+[ ] 7A. Nếu bạn đã cung cấp nguồn riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn riêng tư ở trạng thái pending
+[ ] 7B. Tôi chạy lần đầu: quét nguồn công khai và nguồn riêng tư đã kích hoạt (hoặc public-only nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
 [ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
 [ ] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất
 [ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
@@ -151,12 +153,14 @@ Solo Agency onetime setup
 
 Checklist integrity rule:
 
-- Every setup progress block must show all 10 numbered items in order.
+- Every setup progress block must show all 10 numbered items in order, including both substeps 7A and 7B.
 - Never hide steps 5-10 because they are pending, declined, blocked, or not applicable yet.
 - Use `[ ]` for pending items, `[x]` for completed items, and `[-]` only after the human has explicitly declined or the item has been logged as blocked/not applicable.
 - Do not ask source discovery as a separate checklist item or gate. If extra private-source discovery is useful, describe it plainly as optional source discovery and ask for approval only when needed.
 - Step 6 is the one-time schedule/routine setup. It should happen before the first full agency run so future automation is already defined.
-- Step 7 is the small win: report plus useful drafts. After step 7, the agent must not ask `làm video luôn không?` or start video editing. The next setup question is step 8.
+- Step 7A is the private-source activation checkpoint. If private sources were provided/approved and Local Collector is not installed, running, and healthy, 7A becomes the next required question after step 6. The agent must either guide Local Collector setup or ask whether the human wants to run public-only first while keeping private sources pending.
+- Step 7A may be marked `[-]` only when no private sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public-only first run. The reason must be shown in plain language.
+- Step 7B is the small win: report plus useful drafts. It must state whether the run will use public-only data or public plus activated private sources. After step 7B, the agent must not ask `làm video luôn không?` or start video editing. The next setup question is step 8.
 - Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while onetime setup is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
 - Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `[-]` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
 - Step 10 is the final onetime setup item and the daily learning-loop outcome. On the first run it uses report/draft/private-source data; from the second run onward it also includes analytics/statistics from step 9.
@@ -240,7 +244,7 @@ If any required step remains and the agent is waiting for the human, the final l
 Good final lines:
 
 ```text
-Do you want me to activate private sources now?
+Bạn đã cung cấp nguồn riêng tư nhưng Local Collector chưa bật. Bạn muốn tôi hướng dẫn bật Local Collector ngay để lần chạy đầu có dữ liệu nguồn riêng tư, hay chạy public-only trước và giữ nguồn riêng tư ở trạng thái pending?
 ```
 
 ```text
@@ -274,12 +278,13 @@ The agent may omit the next-step question only when the entire requested workflo
 - Ask the first setup question only for product/service, profession, expertise, or business description.
 - Do not ask the human to define industry or sub-industry.
 - Show inference before asking the next question.
-- Configure schedule/routine before the first agency run, then ask whether to run immediately.
+- Configure schedule/routine before the first agency run; if private sources exist and Local Collector is not active, handle step 7A before asking a generic run-now question.
 - User-facing reports are HTML only. Markdown is internal.
 - Private data stays local unless the human explicitly approves export.
 - Never ask for passwords, OTPs, cookies, tokens, or raw credentials.
 - Do not use approval-gated browser extensions for unattended private collection.
 - Use the Solo Agency Local Collector extension and Local Collector app for automated private-source collection.
+- During one-time Local Collector setup/update/repair, never run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI agent, even if shell permissions are available. Create/prepare the setup files, then instruct the human to run the one-line command in their own Terminal/PowerShell and load the Chrome extension from the absolute runtime folder. Later scheduled runs use the already-running Local Collector app and do not require repeating setup.
 - Never call the collector a platform-specific collector.
 - Manual private sources and optional source discovery are independent options. Do not ask interest-graph discovery as a separate user-facing step.
 - Collector success alone is not completion; collected data must be analyzed and the report updated.
@@ -298,7 +303,8 @@ Setup is not complete until:
 - Inference was shown to the human.
 - Public sources and keyword strategy were selected.
 - The public keyword bank includes pain-point/problem/need keywords, not only generic industry keywords, uses the target audience's search language, and the full bank was saved for rotation.
-- Optional private-source status was resolved before the first agency run.
+- Useful recurring public sources discovered during runs were saved/promoted into `public_data_sources` with cadence so later scheduled runs can revisit them.
+- Optional private-source status was resolved before the first agency run, including the 7A Local Collector checkpoint when private sources exist.
 - Schedule/routine was configured before the first agency run.
 - The first agency run generated a mobile-friendly HTML report and at least one useful draft script/blog/caption.
 - The human was asked about PDNA - Production, Distribution, Notification, and Analytics - only after seeing the small-win report/draft.
@@ -342,7 +348,7 @@ Daily run is not complete until:
 - If the agent is about to discuss private sources but Stage 2 is not loaded, load it first.
 - If the agent is about to install or run collector tooling but Stage 8 is not loaded, load it first.
 - If the agent is about to create, render, publish, or notify through a production provider but Stage 3 is not loaded, load it first.
-- If the agent is about to run the first agency run before private-source status and schedule/routine are resolved, stop and load the needed setup stage.
+- If the agent is about to run the first agency run before private-source status, the 7A Local Collector checkpoint, and schedule/routine are resolved, stop and load the needed setup stage.
 - If the agent is running from a schedule, it must still load the needed stage playbooks again at run time; schedule execution is the same workflow with saved context, not a memory-only shortcut.
 - If the agent is about to claim completion, load Stage 9 and run the relevant checklist.
 
@@ -353,7 +359,7 @@ Before every reply, the agent must check:
 - Did I answer in the human's language?
 - Did I avoid asking for things I can infer or research?
 - Did I load the required stage files for the action I am taking?
-- Did I avoid jumping past private-source status, schedule/routine setup, first agency run, approval gates, or measurement gates?
+- Did I avoid jumping past private-source status, the 7A Local Collector checkpoint, schedule/routine setup, first agency run, approval gates, or measurement gates?
 - Did I give the human a short approval-ready decision instead of a long questionnaire?
 - Did I avoid presenting Markdown as the human-facing report?
 - Did I preserve safety, credentials, private-data, and approval rules?

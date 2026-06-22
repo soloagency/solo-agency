@@ -291,15 +291,18 @@ Format:
 ```md
 # Collector Setup Status
 
-| Date | Agent | Status | Chrome Extension Folder | Local Collector App | Health Endpoint | Last Health Check | Blocker | Required Human Action |
-|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude | needs_user_action | /ABSOLUTE/PATH/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME | /ABSOLUTE/PATH/solo-agency-local-collector/bin/collector-bridge-darwin-arm64 | http://127.0.0.1:17321/status | unavailable | Extension not loaded in Chrome yet | Open Chrome -> chrome://extensions -> Load unpacked -> select only the absolute runtime extension folder |
+| Date | Agent | Status | Setup Command Given | Human Ran Setup Command | Chrome Extension Folder | Human Loaded Extension | Local Collector App | Health Endpoint | Last Health Check | Blocker | Required Human Action |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-06-20 | Claude | needs_user_action | bash "/ABSOLUTE/PATH/solo-agency-local-collector/setup_collector.sh" | no | /ABSOLUTE/PATH/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME | no | /ABSOLUTE/PATH/solo-agency-local-collector/bin/collector-bridge-darwin-arm64 | http://127.0.0.1:17321/status | unavailable | Extension not loaded in Chrome yet | Run the setup command in Terminal/PowerShell outside the AI sandbox, then Chrome -> chrome://extensions -> Load unpacked -> select only the absolute runtime extension folder |
 ```
 
 Allowed status:
 
 - `not_needed_no_private_sources`
 - `pending_private_activation`
+- `setup_files_prepared_waiting_for_human_command`
+- `setup_command_given_waiting_for_human_run`
+- `setup_command_ran_waiting_for_extension`
 - `activation_declined_for_now`
 - `installed_and_running`
 - `installed_not_running`
@@ -457,8 +460,25 @@ items:
   url:
   type: public
   platform:
+  source_status: candidate_public_source | active_public_source | weekly_public_source | occasional_public_source | weak_public_source | blocked_or_unreliable
+  source_kind: official | regulator | government | news | specialist_blog | public_forum | public_social | public_video_channel | competitor_public | data_dashboard | newsletter_archive | association | local_community | search_result | other
+  language:
+  scan_cadence: daily | weekly | occasional | event_based | paused
+  visit_in_scheduled_runs: true | false
   location_relevance:
+  related_pain_points:
+  related_content_pillars:
+  related_keywords:
   why_this_source_matters:
+  source_or_reason_added:
+  discovered_from:
+  first_discovered_date:
+  last_checked_date:
+  useful_count:
+  weak_count:
+  usefulness_score:
+  promoted_date:
+  demoted_date:
   access_method:
   collection_notes:
 
@@ -505,7 +525,7 @@ items:
 
 ## private_monitoring_activation
 
-status: not_provided | pending_private_activation | activation_declined_for_now | activation_requested | installed_and_running | blocked
+status: not_provided | pending_private_activation | activation_declined_for_now | activation_requested | setup_files_prepared_waiting_for_human_command | setup_command_given_waiting_for_human_run | setup_command_ran_waiting_for_extension | installed_and_running | blocked
 first_trial_policy: public_first_small_win
 last_prompted_date:
 human_decision:
