@@ -413,6 +413,8 @@ The agent must follow these principles at all times:
 - Communicate with the human in the same language the human uses.
 - Store internal operational field names and schemas in English unless the human explicitly asks otherwise.
 - Write human-facing reports, daily digests, HTML reports, summaries, notifications, approval requests, and client-facing explanations in the language the human uses.
+- Search keyword language must follow the target audience's likely search/comment language, not automatically the human's chat language. If the human uses Vietnamese but the target audience is English-speaking homeowners in Orange County, the keyword bank should be primarily English. If the target audience is Vietnamese-speaking homeowners in Orange County, include Vietnamese and English keyword variants and label each keyword's language.
+- Content output language should follow the target audience and intended publishing audience unless the human explicitly chooses another language. Reports and setup chat may stay in the human's language even when keywords and content drafts are in the audience language.
 - User-facing reports must be HTML. Do not show, send, link, or ask the human to open `.md` reports as the report experience. Markdown files are internal source-of-truth records for the agent, audit trail, history, and future learning.
 - Do not make the human open Markdown files to learn what to do next. Human-facing setup guidance, blockers, commands, and next actions must be shown directly in the current chat message, Telegram notification, HTML report, or another human-facing channel.
 - When a human action is required, provide a short `Action needed` block directly in chat: one clear purpose, one exact next step, and either one copy-paste command or one absolute folder/file path. Do not say only "see the report", "see the .md file", or "instructions are in collector_setup_status.md".
@@ -801,11 +803,15 @@ Healthcare:
 - Medical association pages
 - Public education pages
 
-#### Public Search Keyword Rotation
+#### Public Search Keyword Bank And Rotation
 
 During public-source research, the agent must use Google Search or an available equivalent search tool to discover relevant public data sources and current discussions.
 
-The agent should generate a keyword queue from:
+The agent must not rely only on generic industry keywords.
+
+Generic industry keywords are useful for broad context, but the main keyword bank must come from the target audience's real problems, worries, questions, needs, objections, buying triggers, comparison behavior, and local context.
+
+The agent should generate a large keyword bank from:
 
 - `industry`
 - `sub_industry`
@@ -814,37 +820,79 @@ The agent should generate a keyword queue from:
 - `pain_points`
 - `content_pillars`
 - client offer
+- customer problems and issues
+- urgent questions
+- buying-intent phrases
+- objection phrases
+- comparison phrases
+- cost, risk, delay, deadline, mistake, coverage-gap, eligibility, renewal, non-renewal, cancellation, denied-claim, price-increase, safety, compliance, legal/process, or "what to do" phrases when relevant
 - seasonal events
 - current news context
-- buying-intent phrases
 - local terms, neighborhoods, courts, agencies, regulations, or communities where relevant
+
+Keyword language rule:
+
+- Each keyword must have a `language`.
+- Choose keyword language based on the target audience's likely search/comment language.
+- If the target audience is multilingual, create separate keyword variants per useful language and label them, for example `en`, `vi`, or `es`.
+- Do not translate all keywords into the human's chat language by default.
+- Human-facing explanations can be in the human's language while the actual keyword strings remain in the audience/search language.
+- If content will be published in one language and research signals are stronger in another, keep both when useful: `keyword_language` for research and `content_output_language` for drafts.
+
+Required keyword groups:
+
+- `industry_general`: broad industry/sub-industry context keywords.
+- `pain_point`: direct customer pain, fear, problem, objection, or urgent-question keywords. This must be one of the largest groups.
+- `need_or_goal`: customer need, desired outcome, prevention, savings, safety, protection, approval, eligibility, or confidence keywords.
+- `buying_intent`: phrases that indicate the person may be comparing, choosing, hiring, buying, renewing, switching, or seeking help.
+- `local_context`: location, neighborhood, county, state, agency, regulation, court, weather, risk, community, or local-market keywords when location matters.
+- `related_industry`: adjacent-industry keywords only when the bridge back to the client's offer and audience is clear.
+- `trend_news`: current event, seasonal, regulation, market change, or deadline keywords.
+
+Initial setup requirement:
+
+- Build a broad keyword bank, not just a short search list.
+- Aim for 200+ saved keyword candidates over time per active client.
+- On initial setup, generate as many useful keyword candidates as the context allows. If the agent can reasonably generate 100-200 high-quality candidates, do so and save them. If context is still thin, seed the bank with the best available candidates and mark `needs_expansion: true`.
+- The bank must contain many pain-point/problem/need keywords. A bank made mostly of generic industry terms is incomplete.
+- Store the full bank in the Client Intelligence Profile or source notes; do not show the full bank in chat.
+- In chat, show only a compact sample, usually 5-12 keywords from the pain-point/problem/need groups, then say how many more are saved for rotation, for example: `+200 more saved in the keyword bank for daily rotation`.
 
 Examples:
 
+- Homeowners insurance in Orange County:
+  - Generic industry keyword: `Orange County homeowners insurance California renewal`
+  - Pain-point keyword: `home insurance non renewal what can I do California`
+  - Problem keyword: `insurance company dropped my home policy wildfire risk`
+  - Need keyword: `how to avoid FAIR Plan California homeowners`
+  - Coverage-gap keyword: `home insurance coverage gaps California wildfire`
+  - Buying-intent keyword: `best homeowners insurance for fire risk Orange County`
 - Real estate in Austin:
-  - `Austin housing inventory buyers 2026`
-  - `Austin property tax homebuyers`
-  - `Austin zoning update housing supply`
-  - `mortgage rates Austin buyers`
+  - Generic industry keyword: `Austin housing inventory buyers 2026`
+  - Pain-point keyword: `worried about overpaying for a house Austin`
+  - Problem keyword: `property tax shock after buying home Austin`
+  - Need keyword: `how much cash do I need before making an offer Austin`
 - DUI lawyer in Los Angeles:
-  - `Los Angeles DUI checkpoint weekend`
-  - `California DMV license suspension DUI`
-  - `Los Angeles traffic court DUI process`
-  - `what happens after DUI arrest California`
-- Life insurance in Florida:
-  - `Florida families life insurance claim natural disaster`
-  - `life insurance exclusion accidental death disaster`
-  - `hurricane season financial protection families`
+  - Generic industry keyword: `Los Angeles DUI checkpoint weekend`
+  - Pain-point keyword: `will I lose my license after DUI California`
+  - Problem keyword: `what happens after DUI arrest California first offense`
+  - Need keyword: `how fast do I need a DUI lawyer after arrest`
 
 Daily rule:
 
-- Try a different keyword or keyword cluster each day or each failed attempt.
+- Try a different keyword or keyword cluster each day or each failed attempt. Prioritize pain-point/problem/need clusters before generic industry clusters.
 - Keep a `public_search_keywords` queue in the Client Intelligence Profile or source notes.
 - Mark keywords as `used`, `useful`, `weak`, or `retry_later`.
 - If a keyword returns weak or irrelevant results, revise it by adding local terms, audience pain terms, or buying-intent terms.
+- When the agent discovers new phrases in search results, public comments, FAQs, forum posts, private-source scans, competitor hooks, report comments, analytics comments, or human feedback, extract new keyword candidates and add them to the bank if they are not already present.
+- Deduplicate and normalize near-duplicates. Keep the human's wording when it reveals a real pain point.
+- Record why each new keyword was added, which pain point/content pillar it maps to, and which source or run discovered it.
+- Promote keywords that produce useful leads, strong ideas, relevant competitors, or measurable content performance.
+- Demote keywords that repeatedly produce weak/noisy results.
 - Continue until the agent finds credible results or reasonably concludes that no useful public signal exists for that slot today.
 - Do not fabricate trends or news if search results are weak.
 - The daily report must include a visible section called `Public Search Keywords Used Today`. Do not hide search queries only in internal logs.
+- The setup summary should include a compact section called `Pain-Point Keyword Sample`, not the full keyword bank. Show 5-12 pain-point/problem/need keywords and a line such as `+{N} more saved for rotation`.
 - If the agent realizes after generating a report that search keywords were not shown, it must update or append the current report before claiming the run is complete. Do not merely promise to show keywords "from next time."
 
 #### C2. Private Data Sources

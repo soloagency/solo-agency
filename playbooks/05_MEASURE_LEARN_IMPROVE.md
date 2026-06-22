@@ -13,7 +13,7 @@ Load once content has been published, during daily published-content checks, and
 - Use connected provider analytics first when available.
 - Reuse the Local Collector for visible published URL measurement when useful and authorized.
 - Do not invent metrics; mark unavailable metrics clearly.
-- Feed learnings back into source priority, content pillars, hooks, CTAs, lead-gen angles, and future ideas.
+- Feed learnings back into source priority, content pillars, hooks, CTAs, lead-gen angles, future ideas, and the public search keyword bank.
 
 ## Source Preservation Rule
 
@@ -65,7 +65,8 @@ For each published content item, the agent must:
    - CTA selection;
    - idea scoring;
    - lead-gen angles;
-   - future scripts/blogs.
+   - future scripts/blogs;
+   - public search keywords, especially phrases copied from real audience questions, objections, needs, and comments.
 
 Do not invent metrics. Mark unavailable metrics clearly.
 
@@ -98,7 +99,8 @@ The agent must:
 9. Write normalized metrics to `analytics/metrics_log.md`.
 10. Write useful questions, objections, and lead/comment signals to `analytics/comment_signal_log.md`.
 11. Write strategic learnings to `analytics/learning_log.md`.
-12. Feed the learning back into future source priority, content pillars, hooks, CTAs, idea scoring, lead-gen angles, and scripts/blogs.
+12. Feed the learning back into future source priority, content pillars, hooks, CTAs, idea scoring, lead-gen angles, scripts/blogs, and the saved public search keyword bank.
+13. Extract new keyword candidates from audience questions, objections, comments, lead signals, high-performing hooks, captions, and hashtags. Add non-duplicate useful candidates to `public_search_keywords` with keyword group, related pain point, related content pillar, source/reason, and first-added date.
 
 If the agent cannot access provider tools or published URLs, it must log the blocker and continue the rest of the scheduled run. It must not claim the measurement loop is complete.
 
@@ -170,7 +172,8 @@ For each published content item from the last 7 days, the agent should measure i
 6. Store all results in `analytics/metrics_log.md`.
 7. Store audience questions, objections, and useful comment signals in `analytics/comment_signal_log.md`.
 8. Store strategic learnings in `analytics/learning_log.md`.
-9. Use the results to update reports, content pillar scoring, hook learnings, CTA learnings, source priority, lead-gen angles, and future idea selection.
+9. Use the results to update reports, content pillar scoring, hook learnings, CTA learnings, source priority, lead-gen angles, future idea selection, and the public search keyword bank.
+10. Extract new keyword candidates from high-signal comments, audience questions, objections, captions, hashtags, and winning hooks. Add non-duplicate candidates to `public_search_keywords` so future public research searches the way the audience actually talks.
 
 ### Published URL Measurement Via Local Collector
 
@@ -223,9 +226,9 @@ Suggested `analytics/comment_signal_log.md` format:
 Suggested `analytics/learning_log.md` format:
 
 ```md
-| Date | Client | Evidence | Learning | Affected Pillar | Hook/CTA Impact | Future Action |
-|---|---|---|---|---|---|---|
-| 2026-06-20 | Smith Law | DUI deadline video got high comment rate | License-suspension anxiety drives comments | Emergency first steps | Use deadline hooks more often | Prioritize DMV-deadline Q&A ideas next week |
+| Date | Client | Evidence | Learning | Affected Pillar | Hook/CTA Impact | New Keyword Candidates | Future Action |
+|---|---|---|---|---|---|---|---|
+| 2026-06-20 | Smith Law | DUI deadline video got high comment rate | License-suspension anxiety drives comments | Emergency first steps | Use deadline hooks more often | `will I lose my license after DUI`, `DMV deadline after DUI arrest` | Prioritize DMV-deadline Q&A ideas next week |
 ```
 
 The agent should generate weekly or monthly reports when asked or scheduled:
@@ -272,6 +275,7 @@ Before claiming a weekly/monthly performance review or learning loop is complete
 - [ ] Did I reuse the Solo Agency Local Collector extension plus Local Collector app to capture visible metrics from published URLs when possible?
 - [ ] Did I store normalized metrics in `analytics/metrics_log.md`?
 - [ ] Did I mark hidden or unavailable metrics as `unavailable` instead of inventing numbers?
-- [ ] Did I use the measurements to update content pillar scoring, hook learnings, CTA learnings, source priority, and future idea selection?
+- [ ] Did I use the measurements to update content pillar scoring, hook learnings, CTA learnings, source priority, future idea selection, and the public search keyword bank?
+- [ ] Did I extract new keyword candidates from comments, objections, questions, high-performing hooks, captions, hashtags, or lead signals?
 
 ### Final Hard Gate
