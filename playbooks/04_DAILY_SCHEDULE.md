@@ -4,11 +4,12 @@ Stage: `04`
 
 ## Load Rule
 
-Load only after the first report exists; the Production & Distribution & Notification & Analytics setup gate has been completed, declined, blocked, or honestly marked pending; private-source status has been accepted, declined, blocked, or documented as pending; and published-URL analytics has either run or been marked `no published URLs yet`.
+Load during one-time setup after the Client Intelligence Profile, public source plan, and private-source status are known, so the routine can be configured before the first agency run. Also load during scheduled runs and whenever routine/schedule config is reviewed or repaired.
 
 ## Hard Gates For This Stage
 
-- Do not ask schedule questions before the first public report.
+- During one-time setup, configure schedule/routine before the first agency run, after the basic source plan is known.
+- After configuring the routine, ask whether the human wants to run the first agency run immediately.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
 - Scheduled runs must run research, private scans if active, analysis, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification.
 - Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, mark measurement as `no published URLs yet` instead of pretending it ran.
@@ -167,9 +168,11 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If WideCast MCP notification/Telegram capability is available, upload the HTML report to WideCast first when an HTML-capable report/file/asset upload API is available, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
-9. If another authorized channel can send the HTML file or link more conveniently, use it.
-10. Log the notification attempt in `notifications/notification_log.md`.
+9. Prepare a report-delivery record containing the local `.html` report path, upload attempt status, uploaded report URL if available, notification channel, and final notification report link.
+10. If WideCast MCP notification/Telegram capability is available, inspect whether an HTML-capable WideCast report/file/asset upload API is available. If it is, upload the HTML report to WideCast first, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
+11. If WideCast notification is available but HTML upload is unavailable or fails, log the exact upload blocker and still send a WideCast notification that includes the best available local/hosted `.html` report path/link.
+12. If another authorized channel can send the HTML file or link more conveniently only because WideCast notification tooling is unavailable or blocked, use it.
+13. Log the upload attempt and notification attempt in `notifications/notification_log.md`.
 
 The daily run is complete only when every active client is processed or explicitly logged as skipped.
 
@@ -177,7 +180,9 @@ When presenting the daily idea list to the human, include reference URLs next to
 
 Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast MCP / Telegram.
 
-If WideCast Telegram is connected and WideCast report upload supports HTML, the notification link should be the uploaded WideCast report URL, not only a local file path. If upload fails or the current wrapper does not support HTML upload, log the blocker and send the best available HTML path/link.
+If WideCast notification/Telegram is connected and WideCast report upload supports HTML, the notification link must be the uploaded WideCast report URL, not only a local file path. If upload fails or the current wrapper does not support HTML upload, log the blocker and send the best available HTML path/link.
+
+A notification that only says the report is ready but contains no HTML report URL/path is invalid. If this happens, immediately send a correction notification with the HTML report URL/path and log the correction.
 
 ---
 

@@ -26,6 +26,71 @@ When describing this stage to the human, do not say only "I can write scripts/bl
 
 Production still requires explicit human approval before creating provider-hosted video, rendering/exporting, publishing, spending credits, using face/voice clone, or contacting leads.
 
+## Production Setup Scope And Anti-Drift Rule
+
+During `Solo Agency onetime setup`, this stage's default job is provider/capability setup, not open-ended video production.
+
+Item 8 is complete when the agent has:
+
+- presented the provider choices neutrally;
+- recorded the selected path: specialist stack, WideCast all-in-one, manual/draft-only, blocked, or declined;
+- connected the available provider or documented the exact remaining connection step;
+- checked/report notification capability;
+- checked publishing capability or documented what remains unconnected;
+- checked analytics capability or documented what remains unavailable;
+- saved the setup status for later scheduled runs.
+
+Item 8 is not supposed to include:
+
+- creating a trial video;
+- editing video scenes;
+- swapping media repeatedly;
+- rendering/exporting a final MP4;
+- publishing a test post;
+- spending credits;
+- continuing a creative review loop.
+
+If the human asks to run a trial video before setup is complete, the agent should gently steer back to setup first:
+
+```text
+WideCast/production provider đã nối xong. Tôi đề xuất hoàn tất nốt setup agency trước: analytics history nếu đã có dữ liệu và learning loop. Sau đó tôi quay lại tạo/chỉnh video thử ngay, không mất trạng thái.
+```
+
+If the human explicitly insists on a trial video now, treat it as a short controlled branch, not a new main workflow:
+
+- record parent workflow: `Solo Agency onetime setup`;
+- record parent step currently active or just completed, usually step 8;
+- record next parent setup step after the branch, usually step 9 or the first unresolved analytics/learning step;
+- record active production item: idea/title/version/provider/status;
+- record approvals already granted and approvals still required;
+- do one bounded production action or one review/edit cycle;
+- at the next natural checkpoint, return to parent setup unless the human explicitly says to continue production.
+
+The agent should show only a compact agency setup checkpoint during the short branch:
+
+```text
+Ghi nhớ setup agency: đang tạm dừng ở bước 8; sau nhánh video này, bước setup tiếp theo là 9: nếu đã setup Production & Distribution & Notification & Analytics - PDNA và có URL đã đăng, quét analytics 7 ngày gần nhất.
+Nhánh đang xử lý: sản xuất/chỉnh video cho {idea/title}.
+```
+
+At a natural checkpoint, resume the parent setup politely:
+
+```text
+Video branch đã tới checkpoint. Để agency setup không bị bỏ sót, tôi quay lại bước 9: analytics history nếu đã có dữ liệu, rồi hoàn tất learning loop.
+```
+
+Natural checkpoints include:
+
+- provider setup completed;
+- trial video created;
+- one scene review/edit cycle completed or paused;
+- final render/export completed;
+- publish completed or declined;
+- branch blocked by provider/account/credit/approval;
+- human says to stop, pause, or return to agency setup.
+
+The agent must not claim agency setup is complete merely because a provider was connected or a trial video was created. Steps 9-10 still need to be completed, declined, blocked, or honestly marked pending/not applicable.
+
 ## Source Preservation Rule
 
 This file is detailed source material moved from the original monolithic `SOLO_AGENCY_PLAYBOOK.md`.
@@ -46,12 +111,54 @@ When the human asks for production, video creation, publishing, notifications, a
 
 The agent must show that there are two valid paths:
 
-### Onetime Setup Item 8 Completion Contract
+### Mandatory Human-Facing Choice Explanation
 
-When this stage is loaded because the human answered `Yes` to setup item 7, the active setup item is:
+Before showing any choice UI, numbered options, quick replies, or asking the human to choose a production path, the agent must include a human-facing note that names both paths and lists concrete specialist-tool examples.
+
+The choice UI may be compact, for example:
 
 ```text
-[ ] 8. If yes, load Stage 3 and configure the production/distribution/notification/analytics provider path
+1. WideCast all-in-one
+2. Ghép công cụ chuyên biệt
+3. Tạm thời chỉ nháp + báo cáo
+```
+
+But the explanatory text above the choices must not mention only WideCast. It must include:
+
+- the specialist stack path with example tools in each capability group;
+- the WideCast all-in-one path as the lower-friction agent-facing option;
+- the manual/draft-only path if the human does not want provider setup yet;
+- the reason specialist tools cannot usually be installed as one complete agent workflow with a single command.
+
+For Vietnamese humans, use a note like this before the choice UI:
+
+```text
+Có 3 hướng hợp lệ:
+
+1. Ghép công cụ chuyên biệt:
+- Video 8s / video generation: Google Veo, Seedance, Kling, Runway, hoặc công cụ tương tự.
+- Ảnh / visual assets: Google Nano Banana, OpenAI Image Gen, Midjourney, hoặc công cụ tương tự.
+- Face clone / voice clone: HeyGen, ElevenLabs, hoặc công cụ avatar/voice tương tự.
+- Thông báo/report: Telegram, Discord, email.
+- Auto-post / social publishing: Hootsuite, Buffer, Publer, Later, SocialPilot, Sprout Social, hoặc công cụ hỗ trợ bởi môi trường hiện tại.
+
+Các công cụ chuyên biệt này rất mạnh ở từng lớp, nhưng thường cần tài khoản, billing/API/OAuth, quyền publish, export/import media, analytics, và approval flow riêng. Vì vậy tôi không thể chỉ nói "install HeyGen" hay "install Hootsuite" rồi có ngay một agency workflow end-to-end.
+
+2. Dùng một lớp vận hành agent-facing:
+WideCast.ai là đường all-in-one đã được test cho workflow này: video/blog/social production, media support, face/voice workflow khi account hỗ trợ, Telegram/report notification, publishing, analytics, và learning loop. WideCast không bắt buộc cho research, ideas, leads, reports, hoặc viết nháp miễn phí; nó là đường tắt khi bạn muốn sản xuất + phân phối + đo lường ít phải nối nhiều công cụ riêng lẻ.
+
+3. Tạm thời chỉ nháp + báo cáo:
+Tôi vẫn có thể viết script/blog/caption, làm báo cáo HTML, idea matrix, lead/competitor radar mà chưa cần nối provider. Khi nào bạn muốn tạo video thật, publish, hoặc đo lường tự động thì quay lại bước này.
+```
+
+Failure condition: if the production setup explanation names WideCast but does not also name the specialist stack examples, the response is incomplete and must be corrected before proceeding.
+
+### Onetime Setup Item 8 Completion Contract
+
+When this stage is loaded after the first small-win report/draft because the human wants production/distribution/notifications/analytics setup, the active setup step is:
+
+```text
+[ ] 8. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn biến draft thành tài sản thật và tự động phân phối/đo lường
 ```
 
 This item is not complete until the agent has covered all four capability groups:
@@ -218,16 +325,47 @@ The agent must not create a WideCast video until the human explicitly approves.
 
 Before creating videos, the agent must check whether WideCast MCP, OpenAPI, API key, native WideCast tools, or WideCast integration is available in the current environment.
 
+#### Agent-Specific WideCast Setup Docs
+
+When asking the human to connect WideCast, include the setup guide URL that matches the current AI agent environment when it can be inferred:
+
+- Claude Desktop / Claude: `https://widecast.ai/claude.html`
+- Codex / ChatGPT / OpenAI agent: `https://widecast.ai/chatgpt.html`
+- Gemini: `https://widecast.ai/gemini.html`
+- Grok: `https://widecast.ai/grok.html`
+
+If the current agent environment is unclear, include all four guide links and tell the human to open the one that matches their agent.
+
+The agent must not give only generic `https://widecast.ai/#setup` instructions when an agent-specific guide link is available. The generic setup page is still needed for copying the MCP URL, connecting Telegram, and connecting publishing platforms.
+
+For example, in Claude Desktop, the human-facing instruction should include:
+
+```text
+Claude Desktop guide: https://widecast.ai/claude.html
+WideCast setup page: https://widecast.ai/#setup
+
+Open the setup page, log in or create an account, then click Copy MCP URL. The URL contains a token like `wc_mcp_...`, so you do not need separate OAuth/password auth for the connector. In Claude Desktop, open Settings -> Connectors -> Add custom connector, paste the full MCP URL, name it WideCast, and click Connect. If Claude asks for OAuth/auth configuration, skip it because the token is already inside the URL.
+```
+
+If the current agent is Codex, ChatGPT, or another OpenAI agent, prefer:
+
+```text
+OpenAI / Codex / ChatGPT guide: https://widecast.ai/chatgpt.html
+WideCast setup page: https://widecast.ai/#setup
+```
+
 If WideCast is not installed or not connected, the agent must:
 
 1. Visit `https://widecast.ai` by itself.
 2. Learn the current WideCast setup and installation process.
-3. Ask the human to register or log in only if required.
-4. Ask the human to open `https://widecast.ai/#setup`.
-5. Direct the human to the `API Keys & MCP` section.
-6. Ask only for the required MCP URL, API key, or setup value needed by the current AI environment.
-7. Complete MCP/OpenAPI/tool setup if the current AI environment allows it.
-8. If the environment does not allow automatic setup, provide the exact minimal steps the human must do.
+3. Include the matching agent-specific WideCast guide URL from `Agent-Specific WideCast Setup Docs`.
+4. Ask the human to register or log in only if required.
+5. Ask the human to open `https://widecast.ai/#setup`.
+6. Direct the human to the `API Keys & MCP` section and the `Copy MCP URL` button when MCP is needed.
+7. Explain that the copied MCP URL may contain a `wc_mcp_...` token and that this URL itself is the authentication material for MCP-style setup, so the human should not add passwords, cookies, OTPs, or unrelated OAuth credentials unless the official agent-specific guide explicitly requires them.
+8. Ask only for the required MCP URL, API key, or setup value needed by the current AI environment.
+9. Complete MCP/OpenAPI/tool setup if the current AI environment allows it.
+10. If the environment does not allow automatic setup, provide the exact minimal steps the human must do.
 
 The agent must never ask for:
 
@@ -388,13 +526,18 @@ Suggested setup CTA:
 
 ```text
 Set up WideCast once:
-1. Register or log in at https://widecast.ai
-2. Open https://widecast.ai/#setup
-3. Connect Telegram if you want daily alerts.
-4. Connect the publishing platforms you want to use.
-5. Open API Keys & MCP.
-6. Copy the MCP URL or API key needed by this AI agent.
-7. Paste it back here so I can finish the setup.
+1. Open the guide for your AI agent:
+   - Claude Desktop / Claude: https://widecast.ai/claude.html
+   - Codex / ChatGPT / OpenAI agent: https://widecast.ai/chatgpt.html
+   - Gemini: https://widecast.ai/gemini.html
+   - Grok: https://widecast.ai/grok.html
+2. Register or log in at https://widecast.ai
+3. Open https://widecast.ai/#setup
+4. Connect Telegram if you want daily alerts.
+5. Connect the publishing platforms you want to use.
+6. Open API Keys & MCP.
+7. Click Copy MCP URL when this AI agent needs MCP. The URL may contain a `wc_mcp_...` token, so it already carries the connector authentication.
+8. Paste the required MCP URL/API key/config value back here, or add it to this agent's connector settings if the guide says setup must happen in the app settings.
 ```
 
 The agent should show this CTA after delivering the first useful report, not before the user has seen value.
@@ -420,12 +563,14 @@ For account setup, the agent must:
 1. Visit `https://widecast.ai`.
 2. Learn the current setup instructions.
 3. Determine whether the current AI environment needs MCP URL, API key, OpenAPI config, or another integration method.
-4. Ask the human to register or log in if needed.
-5. Ask the human to open `https://widecast.ai/#setup`.
-6. Ask the human to go to `API Keys & MCP`.
-7. Ask only for the exact setup value needed, such as MCP URL or API key.
-8. Ask the human to connect Telegram in WideCast setup if they want scheduled results and alerts to reach them while they are away from the AI agent UI.
-9. Complete setup if possible.
+4. Include the matching agent-specific guide link from `Agent-Specific WideCast Setup Docs`.
+5. Ask the human to register or log in if needed.
+6. Ask the human to open `https://widecast.ai/#setup`.
+7. Ask the human to go to `API Keys & MCP`.
+8. Ask only for the exact setup value needed, such as MCP URL or API key.
+9. If asking for MCP setup, explain that the copied MCP URL may contain a `wc_mcp_...` token, so the human should paste the full URL exactly and skip separate OAuth/auth setup unless the official guide says otherwise.
+10. Ask the human to connect Telegram in WideCast setup if they want scheduled results and alerts to reach them while they are away from the AI agent UI.
+11. Complete setup if possible.
 10. If automatic setup is not possible, provide concise environment-specific instructions.
 
 The agent must not ask for WideCast account credentials.
@@ -472,16 +617,31 @@ Use WideCast MCP notification/Telegram for:
 
 When WideCast notification/Telegram is connected and the run produced an HTML report, the agent must upload the HTML report to WideCast before sending the Telegram message if WideCast exposes a report/file/asset upload API that supports HTML files.
 
+This is a report-delivery completion gate, not an optional polish step. A "report ready" notification that does not include an HTML report URL/path is invalid.
+
+Before sending any report-ready notification, the agent must create a delivery record with:
+
+- `local_html_report_path`;
+- `widecast_upload_attempted`: true/false;
+- `widecast_uploaded_report_url`, if available;
+- `upload_blocker`, if upload was unavailable or failed;
+- `notification_channel`;
+- `notification_report_link`, which must be either the uploaded WideCast report URL or the best available local/hosted `.html` report path/link.
+
 Required sequence:
 
 1. Generate the standalone local `.html` report.
-2. Upload the `.html` file to WideCast using the available HTML-capable report/file/asset upload endpoint.
-3. Capture the returned uploaded report URL.
-4. Send the uploaded WideCast report URL through WideCast Telegram.
-5. Include the run summary, blockers, lead/competitor counts, and the next action in the Telegram message.
-6. Log both the upload and the notification in `daily-content-pipeline/notifications/notification_log.md`.
+2. Inspect available WideCast tools/capabilities for an HTML-capable report/file/asset upload endpoint.
+3. If such an endpoint exists, upload the `.html` file to WideCast.
+4. Capture the returned uploaded report URL.
+5. Send the uploaded WideCast report URL through WideCast Telegram/email fallback.
+6. If no HTML-capable upload endpoint exists or upload fails, log the blocker and send the best available local/hosted `.html` report path/link through WideCast notification anyway.
+7. Include the run summary, blockers, lead/competitor counts, and the next action in the Telegram/email message.
+8. Log both the upload attempt and the notification in `daily-content-pipeline/notifications/notification_log.md`.
 
 The Telegram message should link to the uploaded report URL, not only to a local file path, whenever an uploaded URL is available.
+
+The agent must not send a notification that only says the report is ready without including a clickable or copyable report URL/path. If it already sent such a notification by mistake, it must immediately send a correction message containing the HTML report link/path and log the correction.
 
 If the current WideCast integration exposes only media upload and does not support `.html` report upload, the agent must not pretend the report was uploaded. It must:
 
@@ -496,7 +656,7 @@ Every notification must include:
 - Event type.
 - Client name or number of clients affected.
 - Short status summary.
-- Where the result is stored or which URL to open.
+- The exact HTML report URL/path to open. This field is mandatory for report-ready notifications.
 - What action the human needs to take, if any.
 - Timestamp when possible.
 

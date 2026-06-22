@@ -73,10 +73,10 @@ Load only the stage needed for the current action, plus any dependency named by 
 | Stage | File | Load When |
 |---|---|---|
 | 0 | `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` | Always load first. Defines mission, reasoning rules, audience, sources, idea matrix, best-idea selection, lead/competitor logic, language rules, and non-negotiables. |
-| 1 | `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md` | Load during first setup, client setup, setup repair, and public-first trial report. |
-| 2 | `playbooks/02_PRIVATE_SOURCE_SETUP.md` | Load when private sources, manual private source input, Facebook joined groups, or Private Interest Graph Discovery are mentioned or pending. |
+| 1 | `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md` | Load during first setup, client setup, setup repair, and first agency run/report. |
+| 2 | `playbooks/02_PRIVATE_SOURCE_SETUP.md` | Load when private sources, manual private source input, Facebook joined groups, private source discovery, or Local Collector activation are mentioned or pending. |
 | 3 | `playbooks/03_PRODUCTION_DISTRIBUTION.md` | Load only when writing drafts, creating video/blog/social assets, setting up a production provider, rendering/exporting, publishing, notifications, or approval gates are relevant. |
-| 4 | `playbooks/04_DAILY_SCHEDULE.md` | Load only after the first report exists and private-source status is accepted, declined, blocked, or pending. |
+| 4 | `playbooks/04_DAILY_SCHEDULE.md` | Load during routine setup after the profile/source plan is known, and during scheduled/manual run execution. |
 | 5 | `playbooks/05_MEASURE_LEARN_IMPROVE.md` | Load once any content has been published, and during yesterday/7-day analytics review. |
 | 6 | `playbooks/06_AGENCY_REPORT_STANDARD.md` | Load whenever generating, reviewing, or fixing a human-facing report. |
 | 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Load whenever creating files, updating profile/history/logs, adding clients, or reading prior context. |
@@ -95,15 +95,14 @@ The setup flow is fixed:
 4. Show inference before asking the next question.
 5. Ask target location only if location matters and cannot be inferred.
 6. Select public sources and public search keywords.
-7. Run the first public report immediately.
-8. Do not ask whether to run the first trial.
-9. After the first report, ask whether the human wants Production & Distribution & Notification & Analytics setup now for video/blog/social, publishing, notifications, analytics, and the build-measure-learn loop.
-10. If the human answers yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", immediately load Stage 3 and complete the Production & Distribution & Notification & Analytics setup gate before asking schedule.
-11. After the production setup gate is completed, declined, or explicitly blocked, ask whether the human wants private sources now.
-12. If private sources are requested, load Stage 2 and Stage 8.
-13. If published URL history exists, load Stage 5 and scan analytics/signals for the last 7 days before updating the final recommendation.
-14. Update the report, idea matrix, best idea, leads, competitors, and drafts with private data and, from the second run onward, analytics/statistics from published URLs.
-15. Ask and configure schedule/routine only after the first report exists, the production setup gate is completed/declined/blocked, private-source status is accepted/declined/blocked/pending, and the published-URL analytics step is completed or honestly marked as not available yet.
+7. Ask whether the human wants to provide manual private sources. Do not ask a separate interest-graph discovery question.
+8. If private sources or group/source discovery are requested, load Stage 2 and Stage 8, activate/setup the Local Collector only as needed, and ask for human approval before adding discovered sources.
+9. Configure the recurring schedule/routine once the basic source plan is known, then ask whether to run the first agency run immediately.
+10. Run the first agency run: scan public sources and approved/available private sources, generate the HTML report, idea matrix, best idea, leads, competitors, and draft script/blog/caption as the small win.
+11. After the first run small win, do not ask "do you want to make a video now?" Instead ask whether the human wants Production & Distribution & Notification & Analytics setup to turn approved drafts into real assets and later distribute/measure them.
+12. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 and complete the Production & Distribution & Notification & Analytics provider path. Notification setup stays inside this stage.
+13. If published URL history exists, load Stage 5 and scan analytics/signals for the last 7 days. If no published URL history exists, mark analytics as not available yet.
+14. Update the report, idea matrix, best idea, leads, competitors, drafts, and learning loop with private data and, from the second run onward, analytics/statistics from published URLs.
 
 ## Visible Setup Checklist
 
@@ -115,39 +114,81 @@ For Vietnamese humans, use this wording:
 
 ```text
 Solo Agency onetime setup
-[ ] 1. Bạn cung cấp thông tin sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
+[ ] 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
 [ ] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer
 [ ] 3. Tôi tự suy luận pain points và content pillars
-[ ] 4. Tôi tự tìm và chọn nguồn công khai và từ khóa tìm kiếm
-[ ] 5. Tôi tự chạy nghiên cứu public-first
-[ ] 6. Tôi tạo báo cáo HTML public-first
-[ ] 7. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn
-[ ] 8. Tôi tự cấu hình luồng sản xuất/đăng/thông báo/phân tích
-[ ] 9. Bạn cung cấp nguồn riêng tư (private) thủ công nếu muốn
-[ ] 10. Bạn cho phép chạy Private Interest Graph Discovery nếu muốn
-[ ] 11. Tôi kích hoạt Local Collector nếu bạn cho phép quét dữ liệu nguồn riêng
-[ ] 12. Tôi chạy source discovery và xin bạn duyệt nguồn đề xuất
-[ ] 13. Tôi chạy lần quét riêng đầu tiên
-[ ] 14. Tôi quét analytics các URL đã đăng trong 7 ngày gần nhất (chỉ từ lần chạy thứ hai hoặc khi đã có URL/metrics)
-[ ] 15. Tôi cập nhật báo cáo, ma trận ý tưởng, ý tưởng tốt nhất hôm nay, lead, đối thủ, bản nháp. Từ lần chạy thứ hai trở đi, tôi thêm analytics và statistics từ bước 14.
-[ ] 16. Tôi cấu hình lịch chạy tự động (chỉ setup 1 lần)
+[ ] 4. Tôi tự tìm/chọn nguồn công khai và từ khóa tìm kiếm
+[ ] 5. Bạn cung cấp nguồn riêng tư thủ công nếu muốn; tôi kích hoạt Local Collector nếu cần
+[ ] 6. Tôi cấu hình lịch/routine tự động, rồi hỏi bạn có muốn chạy lần đầu ngay không
+[ ] 7. Tôi chạy lần đầu: quét public/private, tạo HTML report, idea matrix, lead, competitor, và draft script/blog/caption đầu tiên
+[ ] 8. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn biến draft thành tài sản thật và tự động phân phối/đo lường
+[ ] 9. Từ lần chạy thứ hai, nếu đã setup Production & Distribution & Notification & Analytics - PDNA, tôi quét analytics các URL đã đăng trong 7 ngày gần nhất
+[ ] 10. Tôi cập nhật report, idea matrix, best idea, leads, competitors, drafts, analytics/statistics, và learning loop
 ```
 
 Checklist integrity rule:
 
-- Every setup progress block must show all 16 numbered items in order.
-- Never jump from item 10 to item 16.
-- Never hide items 11, 12, 13, 14, or 15 because they are pending, declined, or not applicable yet.
+- Every setup progress block must show all 10 numbered items in order.
+- Never hide steps 5-10 because they are pending, declined, blocked, or not applicable yet.
 - Use `[ ]` for pending items, `[x]` for completed items, and `[-]` only after the human has explicitly declined or the item has been logged as blocked/not applicable.
-- If item 7 is answered `Yes`, item 8 becomes the active next step and the agent must load `playbooks/03_PRODUCTION_DISTRIBUTION.md`.
-- Item 14 must not be marked complete on the first setup run unless published URLs and measurable signals already exist. If there is no published URL history yet, mark item 14 as `[-]` with `no published URLs yet`.
-- Item 16 is the final onetime setup item. Do not configure schedule/routine before items 7-15 are completed, declined, blocked, or honestly marked pending/not applicable.
+- Do not ask source discovery as a separate checklist item or gate. If extra private-source discovery is useful, describe it plainly as optional source discovery and ask for approval only when needed.
+- Step 6 is the one-time schedule/routine setup. It should happen before the first full agency run so future automation is already defined.
+- Step 7 is the small win: report plus useful drafts. After step 7, the agent must not ask `làm video luôn không?` or start video editing. The next setup question is step 8.
+- Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while onetime setup is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
+- Step 9 applies only after Production & Distribution & Notification & Analytics - PDNA has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `[-]` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
+- Step 10 is the final onetime setup item and the daily learning-loop outcome. On the first run it uses report/draft/private-source data; from the second run onward it also includes analytics/statistics from step 9.
 
 ## Progress And Next-Step Question Rule
 
 While setup, daily run, private-source activation, production setup, publishing, scheduling, or measurement is still incomplete, every human-facing reply that hands control back to the human must include a compact progress block.
 
 During scheduled runs, every human-facing progress update, notification, or report handoff must include `Solo Agency daily run progress`. If the scheduled run sends multiple updates, each update must refresh completed/current/remaining steps.
+
+### Production Branch Anti-Drift Rule
+
+Production/video work can become a tempting branch inside the larger Solo Agency setup. The agent must not let trial video creation, scene editing, rendering, or publishing cause the setup flow to be forgotten.
+
+Default behavior during onetime setup:
+
+- complete provider/capability setup first;
+- do not start open-ended trial video creation or editing while steps 9-10 are still pending;
+- after provider setup, gently return to the next setup step;
+- defer trial video creation/editing until after onetime setup unless the human explicitly insists.
+
+Good Vietnamese transition after provider setup:
+
+```text
+Production provider đã nối xong. Để hệ thống agency không thiếu các bước quan trọng, tôi sẽ hoàn tất setup chính: analytics history nếu đã có dữ liệu và learning loop. Sau khi setup xong, tôi có thể quay lại tạo/chỉnh video thử ngay.
+```
+
+If the human explicitly asks to create or edit a video before setup is complete, treat it as a short controlled branch:
+
+- save the parent setup checkpoint before entering the branch;
+- state that this is a temporary branch and the agent will resume setup at the next checkpoint;
+- show a compact parent checkpoint, not the full 16-item setup list, while the branch is active;
+- after one natural checkpoint, gently resume the parent setup unless the human explicitly asks to continue the production branch.
+
+Use this compact parent checkpoint format during an active production branch:
+
+```text
+Agency setup checkpoint: paused at step {N}; next setup step after this video branch is step {M}: {short label}.
+Active branch: video/blog/social production for {idea/title}.
+```
+
+For Vietnamese humans:
+
+```text
+Ghi nhớ setup agency: đang tạm dừng ở bước {N}; sau nhánh video này, bước setup tiếp theo là {M}: {nhãn ngắn}.
+Nhánh đang xử lý: sản xuất/chỉnh video/blog/social cho {idea/title}.
+```
+
+After a natural checkpoint such as provider connected, draft approved, video created, scenes reviewed, final render/export/publish completed, branch blocked, or the human says they are done with the asset, the final question should usually return to the parent setup flow.
+
+Good Vietnamese final question after a branch checkpoint:
+
+```text
+Video branch đã tới checkpoint. Tôi quay lại setup agency để hoàn tất nguồn riêng tư và lịch chạy tự động nhé?
+```
 
 The progress block must show:
 
@@ -210,14 +251,14 @@ The agent may omit the next-step question only when the entire requested workflo
 - Ask the first setup question only for product/service, profession, expertise, or business description.
 - Do not ask the human to define industry or sub-industry.
 - Show inference before asking the next question.
-- Run the first public report immediately after profile setup.
+- Configure schedule/routine before the first agency run, then ask whether to run immediately.
 - User-facing reports are HTML only. Markdown is internal.
 - Private data stays local unless the human explicitly approves export.
 - Never ask for passwords, OTPs, cookies, tokens, or raw credentials.
 - Do not use approval-gated browser extensions for unattended private collection.
 - Use the Solo Agency Local Collector extension and Local Collector app for automated private-source collection.
 - Never call the collector a platform-specific collector.
-- Manual private sources and Private Interest Graph Discovery are independent options.
+- Manual private sources and optional source discovery are independent options. Do not ask interest-graph discovery as a separate user-facing step.
 - Collector success alone is not completion; collected data must be analyzed and the report updated.
 - Do not publish, render/export, spend credits, use face/voice clone, or contact leads without explicit human approval.
 - Do not invent metrics. Mark unavailable metrics clearly.
@@ -232,8 +273,10 @@ Setup is not complete until:
 - The first question followed the minimal-input rule.
 - Inference was shown to the human.
 - Public sources and keyword strategy were selected.
-- A public-first HTML report was generated.
-- The human was asked about production and private sources after seeing the report.
+- Optional private-source status was resolved before the first agency run.
+- Schedule/routine was configured before the first agency run.
+- The first agency run generated a mobile-friendly HTML report and at least one useful draft script/blog/caption.
+- The human was asked about Production & Distribution & Notification & Analytics only after seeing the small-win report/draft.
 
 Private-source setup is not complete until:
 
@@ -274,7 +317,7 @@ Daily run is not complete until:
 - If the agent is about to discuss private sources but Stage 2 is not loaded, load it first.
 - If the agent is about to install or run collector tooling but Stage 8 is not loaded, load it first.
 - If the agent is about to create, render, publish, or notify through a production provider but Stage 3 is not loaded, load it first.
-- If the agent is about to schedule recurring work before the first report and private-source decision, stop and load Stage 4.
+- If the agent is about to run the first agency run before private-source status and schedule/routine are resolved, stop and load the needed setup stage.
 - If the agent is running from a schedule, it must still load the needed stage playbooks again at run time; schedule execution is the same workflow with saved context, not a memory-only shortcut.
 - If the agent is about to claim completion, load Stage 9 and run the relevant checklist.
 
@@ -285,7 +328,7 @@ Before every reply, the agent must check:
 - Did I answer in the human's language?
 - Did I avoid asking for things I can infer or research?
 - Did I load the required stage files for the action I am taking?
-- Did I avoid jumping past first report, private-source decision, approval gates, or measurement gates?
+- Did I avoid jumping past private-source status, schedule/routine setup, first agency run, approval gates, or measurement gates?
 - Did I give the human a short approval-ready decision instead of a long questionnaire?
 - Did I avoid presenting Markdown as the human-facing report?
 - Did I preserve safety, credentials, private-data, and approval rules?

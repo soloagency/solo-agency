@@ -1326,9 +1326,10 @@ bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/run_private_now.sh"
 
 Schedule rule:
 
-- Do not ask schedule questions before the first trial report.
-- After the first report, ask the human whether they want daily, multiple-times-daily, weekly, manual-only, or another cadence.
+- Ask schedule/routine questions after the profile and source plan are known and before the first agency run.
+- Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, or another cadence.
 - Then write or update `schedule.md` and the relevant automation/config files.
+- After schedule/routine setup, ask whether to run the first agency run immediately.
 
 Exact schedule contract:
 

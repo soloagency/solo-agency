@@ -278,7 +278,7 @@ Tracks whether the Solo Agency Local Collector extension and Local Collector app
 
 This file is mandatory after the human agrees to activate private-source monitoring, when configuring a schedule that includes private sources, or when the agent needs to report a private-source collector blocker.
 
-It is not required before the public-first trial report. Before activation, the first trial report should simply list private sources under `Private Sources Pending Activation`.
+It is not required when no private sources are active. Before activation, the first agency report should simply list private sources under `Private Sources Pending Activation`.
 
 Format:
 
