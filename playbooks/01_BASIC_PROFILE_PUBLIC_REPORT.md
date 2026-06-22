@@ -11,10 +11,11 @@ Load during first setup, add-client flow, setup repair, and first agency run/rep
 - First question asks only for product/service, profession, expertise, or business description.
 - Do not ask for industry or sub-industry.
 - Show inference before asking the next question.
+- Explain any marketing/tech term in plain language when asking the human for input.
 - Ask for optional manual private sources before the first agency run.
 - Configure schedule/routine once the basic source plan is known, then ask whether to run the first agency run immediately.
 - The first agency run creates the small win: HTML report plus idea matrix, leads, competitors, and draft script/blog/caption.
-- After the small win, ask Production & Distribution & Notification & Analytics setup; do not ask "make a video now?"
+- After the small win, ask PDNA setup - Production, Distribution, Notification, and Analytics; do not ask "make a video now?"
 
 ## Source Preservation Rule
 
@@ -52,11 +53,11 @@ The agent must infer these first.
 
 Good first setup question:
 
-`What product/service, profession, expertise, or business description should this pipeline focus on? If you already know the target location or private sources to monitor, include them too.`
+`What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. Optional: if you already know logged-in/social/community sources you may want monitored later, such as Facebook groups, X/LinkedIn/GitHub pages, Discord/Slack communities, or competitor profiles, include them too; I will ask permission before activating any private-source collection.`
 
 Good add-client question:
 
-`Please provide the new client's name and product/service, profession, expertise, or business description. Include target location if known, and any private sources such as competitor pages or groups you want monitored.`
+`Please provide the new client's name and product/service, profession, expertise, or business description. Include target location if known. Optional: include any logged-in/social/community sources you may want monitored later, such as competitor pages, Facebook groups, X/LinkedIn/GitHub pages, Discord/Slack communities, or private forums. I will explain the Local Collector and ask permission before activating private-source collection.`
 
 Bad setup questions:
 
@@ -107,7 +108,7 @@ Required setup sequence:
    - how each content pillar maps to pain points and the business offer
    - which content pillars are `primary_industry` vs `related_industry`
    - the planned content mix rule, normally 80% primary industry and 20% related industries
-6. If the human has not already provided private data sources, ask whether the human wants to provide private data sources, including competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities, niche forums, and manually known Facebook groups.
+6. If the human has not already provided private data sources, ask whether the human wants to provide private data sources. Explain plainly that private sources mean logged-in/social/community places the human may want monitored later, such as competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities, niche forums, and manually known Facebook groups.
    - If the human already provided private sources in an earlier message, do not ask again before setup. Process the provided sources.
    - Do not label the collector by platform. Even if the provided sources are all Facebook, call it the Solo Agency Local Collector extension and Local Collector app.
 7. Do not ask a separate interest-graph discovery question. If the human wants help finding more private sources, offer it plainly as optional source discovery and explain that the agent will ask for approval before adding discovered sources.
@@ -128,7 +129,7 @@ Required setup sequence:
 15. Run the first agency run using public sources and any already approved/available private data.
    - If Local Collector setup is not healthy, run public sources and list private sources as `pending_private_activation`.
    - If approved source-discovery categories exist but Local Collector is not active yet, list each category as `pending_private_activation`.
-   - Explain that private-source monitoring requires a one-time Solo Agency Local Collector extension and Local Collector app setup.
+   - Explain that private-source monitoring requires a one-time Solo Agency Local Collector extension and Local Collector app setup. Say plainly that the Local Collector is a local app plus Chrome extension on the human's computer that uses the already logged-in browser session, reads approved visible pages only, and keeps private data local by default.
 16. Produce the first agency report and first draft script/blog/caption as the small win.
 17. After showing the first report, the chat message must include:
    - the best idea and a short useful summary;
@@ -138,7 +139,7 @@ Required setup sequence:
    - the number and names/URLs of pending private sources, if any;
    - whether optional source discovery categories are pending, approved, declined, or not requested;
    - the first draft script/blog/caption or a clear link/section where it appears in the HTML report;
-   - the direct setup question for step 8: `Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?`
+   - the direct setup question for step 8: `Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?`
 18. The agent must not end the small-win handoff with `Do you want me to make a video now?` or start scene editing/rendering. Production setup comes first.
 19. If the human says yes to step 8, load Stage 3 and complete the provider/capability setup gate.
 20. After any private scan or approved source-discovery scan, analyze the collected private data and update the report. This means extracting data points, detecting leads, detecting competitors, listing new private sources, updating the idea matrix, re-scoring the best idea, updating drafts if needed, regenerating the HTML report, and showing the updated report to the human.
@@ -163,7 +164,7 @@ What I inferred from your last answer:
   - Lead-gen angle: why early legal guidance preserves options
 
 Next question:
-Do you want to provide competitor pages, Facebook groups, or other private sources to monitor for this client? For account safety and platform-respectful monitoring, please avoid adding too many private sources; around 20 or fewer per client is a good daily default. If you provide more, I will prioritize and rotate them.
+Do you want to provide competitor pages, Facebook groups, or other private sources to monitor for this client? Private sources means logged-in/social/community places such as profiles, groups, pages, channels, forums, or communities that may require your account. I will only activate private-source collection with your permission, using the Local Collector local app/extension so approved visible data stays on your computer by default. For account safety and platform-respectful monitoring, please avoid adding too many private sources; around 20 or fewer per client is a good daily default. If you provide more, I will prioritize and rotate them.
 ```
 
 ---
@@ -348,7 +349,7 @@ Then the agent must:
 12. Run the first agency run using public sources and any approved/available private data.
 13. Generate the small-win package: mobile HTML report, idea matrix, best idea for today, leads, competitors, and at least one draft script/blog/caption.
 14. If published URL history exists, load `playbooks/05_MEASURE_LEARN_IMPROVE.md` and scan analytics/signals for the last 7 days before updating the final recommendation. If no published URL history exists, mark this as not available yet instead of pretending measurement ran.
-15. After the small-win package is shown, ask whether the human wants Production & Distribution & Notification & Analytics setup for video/blog/social assets, publishing, notifications, analytics, and the build-measure-learn loop.
+15. After the small-win package is shown, ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - for video/blog/social assets, publishing, notifications, performance measurement, and the build-measure-learn loop.
 16. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
 17. Update the report, idea matrix, best idea for today, leads, competitors, and drafts with private data and, from the second run onward, analytics/statistics from published URLs.
 
@@ -374,7 +375,7 @@ daily-content-pipeline/
         outputs/
 ```
 
-The agent must configure the routine, then run Nguyen Law's first agency report when the human approves the first run. Only after the small-win package is shown should the agent ask whether to set up Production & Distribution & Notification & Analytics.
+The agent must configure the routine, then run Nguyen Law's first agency report when the human approves the first run. Only after the small-win package is shown should the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
 
 ---
 
@@ -397,7 +398,7 @@ The correct order is fixed:
 4. Ask whether the human wants to run the first agency run immediately.
 5. Run the first agency run using public sources and any already approved/available private data.
 6. Show the first report and first draft script/blog/caption to the human as the small win.
-7. Ask whether the human wants Production & Distribution & Notification & Analytics setup now that the small win exists.
+7. Ask whether the human wants PDNA setup now that the small win exists. Explain PDNA in plain language: Production creates real video/blog/social assets, Distribution publishes approved content, Notification sends reports/blockers, and Analytics measures results.
 8. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
 9. If private sources were provided but Local Collector is not active yet, keep private-source monitoring as `pending_private_activation` and avoid promising private scheduled collection until the blocker is resolved.
 
@@ -410,26 +411,26 @@ First agency run rule:
 - If source discovery was approved but not yet run, the first agency report must include `Private Source Discovery Pending Activation`.
 - That section must list the private source URLs or discovery categories, explain that they were not scanned yet, and say that activation requires the Solo Agency Local Collector extension plus Local Collector app.
 - The first agency report must include at least one draft script/blog/caption or a clear report section containing the draft.
-- The first agency report must ask a clear next-step question after delivering the useful output. Unless Production & Distribution & Notification & Analytics setup was already completed or explicitly declined, the next-step question must be:
+- The first agency report must ask a clear next-step question after delivering the useful output. Unless PDNA setup - Production, Distribution, Notification, and Analytics - was already completed or explicitly declined, the next-step question must be:
 
 ```md
-Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?
+Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
 ```
 
 The agent must ask this question directly in the chat message or notification where it announces the first agency run result. It must not hide the question or setup steps inside a Markdown file.
 
 The same chat message must show the updated `Solo Agency onetime setup` progress checklist or a compact progress summary. It must show that first agency run/report generation is complete and that production/provider setup, private-source activation, published-URL analytics status, and report/recommendation update status are still pending, completed, declined, blocked, or not applicable.
 
-If Production & Distribution & Notification & Analytics setup is already completed, declined, or blocked and private-source activation is pending, the final line must be:
+If PDNA setup - Production, Distribution, Notification, and Analytics - is already completed, declined, or blocked and private-source activation is pending, the final line must be:
 
 ```md
-Private sources are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app. Do you want me to set that up now?
+Private sources (logged-in/social/community sources such as groups, profiles, pages, channels, or forums) are not activated yet because they require the Solo Agency Local Collector extension and Local Collector app on your computer. Do you want me to set that up now?
 ```
 
 If there are no private sources and discovery was declined or not requested, the final line must ask the next required decision, usually:
 
 ```md
-Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?
+Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
 ```
 
 or, if production was already declined:
@@ -451,15 +452,15 @@ First draft: {script/blog/caption title}
 
 Solo Agency onetime setup
 [x] 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
-[x] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer
-[x] 3. Tôi tự suy luận pain points và content pillars
-[x] 4. Tôi tự tìm/chọn nguồn công khai và từ khóa tìm kiếm
-[x] 5. Bạn cung cấp nguồn riêng tư thủ công nếu muốn; tôi kích hoạt Local Collector nếu cần
-[x] 6. Tôi cấu hình lịch/routine tự động, rồi hỏi bạn có muốn chạy lần đầu ngay không
-[x] 7. Tôi chạy lần đầu: quét public/private, tạo HTML report, idea matrix, lead, competitor, và draft script/blog/caption đầu tiên
-[ ] 8. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn biến draft thành tài sản thật và tự động phân phối/đo lường
-[-] 9. Từ lần chạy thứ hai, nếu đã setup Production & Distribution & Notification & Analytics - PDNA, tôi quét analytics các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
-[ ] 10. Tôi cập nhật report, idea matrix, best idea, leads, competitors, drafts, analytics/statistics, và learning loop
+[x] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
+[x] 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
+[x] 4. Tôi tự tìm/chọn nguồn công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
+[x] 5. Bạn cung cấp nguồn riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
+[x] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy), rồi hỏi bạn có muốn chạy lần đầu ngay không
+[x] 7. Tôi chạy lần đầu: quét nguồn công khai/nguồn riêng tư đã được phép, tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
+[ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
+[-] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
+[ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
 
 The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
 
@@ -467,7 +468,7 @@ This run used public sources only. I have {N} private sources waiting, including
 - {source name or URL}
 - {source name or URL}
 
-Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?
+Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
 ```
 
 Bad first-run chat pattern:

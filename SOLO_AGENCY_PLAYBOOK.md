@@ -20,10 +20,33 @@ Only after those two files are loaded may the agent ask the first setup question
 Ask only:
 
 ```text
-What product/service, profession, expertise, or business description should this pipeline focus on? If you already know the target location or private sources to monitor, include them too.
+What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. Optional: if you already know logged-in/social/community sources you may want monitored later, such as Facebook groups, X/LinkedIn/GitHub pages, Discord/Slack communities, or competitor profiles, include them too; I will ask permission before activating any private-source collection.
 ```
 
 Do not ask for industry, sub-industry, target audience, pain points, content pillars, idea categories, or public sources. Infer those first.
+
+## Plain-Language Human Communication Rule
+
+The human may not know marketing, analytics, or technical terms. In every human-facing setup question, progress checklist, report handoff, notification, and next-step question, explain specialist terms in plain language the first time they appear. Prefer short parenthetical explanations over long footnotes.
+
+Required plain-language meanings:
+
+- `public sources` / `nguồn công khai`: websites, search engines, public news/articles, public forums, public docs, or public pages the agent can access without logging into the human's account.
+- `private sources` / `nguồn riêng tư`: logged-in or membership-based sources the human allows the agent to monitor later, such as Facebook groups/pages, X, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require access, Discord/Slack communities, competitor profiles, newsletters, or private forums.
+- `Local Collector`: a local app plus Chrome extension running on the human's computer. It uses the human's already logged-in browser session to read only approved visible pages and writes data locally by default. It must not ask for passwords, cookies, OTPs, or tokens.
+- `offer`: the business promise, package, service, or reason someone would buy.
+- `pain points`: customer problems, worries, objections, or urgent questions.
+- `content pillars`: repeatable main content themes.
+- `lead`: a potential customer or buying-signal, not a person to contact automatically.
+- `hot/warm lead`: a stronger/weaker potential-customer signal based on urgency and fit.
+- `competitor`: a direct competitor, alternative solution, adjacent option, or account whose positioning/hooks are useful to learn from.
+- `idea matrix`: a simple table that organizes content ideas by type and business purpose.
+- `HTML report`: a browser/mobile-friendly report file or link for the human to review.
+- `draft`: a proposed script, blog, or caption waiting for human review, not published content.
+- `Production & Distribution & Notification & Analytics` / `PDNA`: production creates real assets such as video/blog/social outputs, distribution posts or sends approved outputs, notification sends reports/blockers, and analytics measures performance.
+- `analytics/statistics`: visible performance numbers such as views, likes, comments, shares, saves, clicks, followers, and unavailable metrics when a platform hides them.
+- `learning loop`: using yesterday and 7-day results to improve the next ideas, hooks, CTAs, sources, and content choices.
+- `schedule/routine`: when and how often the agent runs automatically.
 
 ## Mission
 
@@ -99,8 +122,8 @@ The setup flow is fixed:
 8. If private sources or group/source discovery are requested, load Stage 2 and Stage 8, activate/setup the Local Collector only as needed, and ask for human approval before adding discovered sources.
 9. Configure the recurring schedule/routine once the basic source plan is known, then ask whether to run the first agency run immediately.
 10. Run the first agency run: scan public sources and approved/available private sources, generate the HTML report, idea matrix, best idea, leads, competitors, and draft script/blog/caption as the small win.
-11. After the first run small win, do not ask "do you want to make a video now?" Instead ask whether the human wants Production & Distribution & Notification & Analytics setup to turn approved drafts into real assets and later distribute/measure them.
-12. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 and complete the Production & Distribution & Notification & Analytics provider path. Notification setup stays inside this stage.
+11. After the first run small win, do not ask "do you want to make a video now?" Instead ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - to turn approved drafts into real assets, distribute approved outputs, send reports/blockers, and measure results.
+12. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 and complete the PDNA provider path: Production, Distribution, Notification, and Analytics. Notification setup stays inside this stage.
 13. If published URL history exists, load Stage 5 and scan analytics/signals for the last 7 days. If no published URL history exists, mark analytics as not available yet.
 14. Update the report, idea matrix, best idea, leads, competitors, drafts, and learning loop with private data and, from the second run onward, analytics/statistics from published URLs.
 
@@ -115,15 +138,15 @@ For Vietnamese humans, use this wording:
 ```text
 Solo Agency onetime setup
 [ ] 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
-[ ] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer
-[ ] 3. Tôi tự suy luận pain points và content pillars
-[ ] 4. Tôi tự tìm/chọn nguồn công khai và từ khóa tìm kiếm
-[ ] 5. Bạn cung cấp nguồn riêng tư thủ công nếu muốn; tôi kích hoạt Local Collector nếu cần
-[ ] 6. Tôi cấu hình lịch/routine tự động, rồi hỏi bạn có muốn chạy lần đầu ngay không
-[ ] 7. Tôi chạy lần đầu: quét public/private, tạo HTML report, idea matrix, lead, competitor, và draft script/blog/caption đầu tiên
-[ ] 8. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn biến draft thành tài sản thật và tự động phân phối/đo lường
-[ ] 9. Từ lần chạy thứ hai, nếu đã setup Production & Distribution & Notification & Analytics - PDNA, tôi quét analytics các URL đã đăng trong 7 ngày gần nhất
-[ ] 10. Tôi cập nhật report, idea matrix, best idea, leads, competitors, drafts, analytics/statistics, và learning loop
+[ ] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
+[ ] 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
+[ ] 4. Tôi tự tìm/chọn nguồn công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
+[ ] 5. Bạn cung cấp nguồn riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
+[ ] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy), rồi hỏi bạn có muốn chạy lần đầu ngay không
+[ ] 7. Tôi chạy lần đầu: quét nguồn công khai/nguồn riêng tư đã được phép, tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
+[ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
+[ ] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất
+[ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
 ```
 
 Checklist integrity rule:
@@ -135,7 +158,7 @@ Checklist integrity rule:
 - Step 6 is the one-time schedule/routine setup. It should happen before the first full agency run so future automation is already defined.
 - Step 7 is the small win: report plus useful drafts. After step 7, the agent must not ask `làm video luôn không?` or start video editing. The next setup question is step 8.
 - Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while onetime setup is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
-- Step 9 applies only after Production & Distribution & Notification & Analytics - PDNA has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `[-]` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
+- Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `[-]` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
 - Step 10 is the final onetime setup item and the daily learning-loop outcome. On the first run it uses report/draft/private-source data; from the second run onward it also includes analytics/statistics from step 9.
 
 ## Progress And Next-Step Question Rule
@@ -276,7 +299,7 @@ Setup is not complete until:
 - Optional private-source status was resolved before the first agency run.
 - Schedule/routine was configured before the first agency run.
 - The first agency run generated a mobile-friendly HTML report and at least one useful draft script/blog/caption.
-- The human was asked about Production & Distribution & Notification & Analytics only after seeing the small-win report/draft.
+- The human was asked about PDNA - Production, Distribution, Notification, and Analytics - only after seeing the small-win report/draft.
 
 Private-source setup is not complete until:
 

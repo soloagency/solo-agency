@@ -134,7 +134,7 @@ Then the agent must:
 12. Run the first agency run using public sources and any approved/available private data.
 13. Generate the small-win package: mobile HTML report, idea matrix, best idea for today, leads, competitors, and at least one draft script/blog/caption.
 14. If published URL history exists, load `playbooks/05_MEASURE_LEARN_IMPROVE.md` and scan analytics/signals for the last 7 days before updating the final recommendation. If no published URL history exists, mark this as not available yet instead of pretending measurement ran.
-15. After the small-win package is shown, ask whether the human wants Production & Distribution & Notification & Analytics setup for video/blog/social assets, publishing, notifications, analytics, and the build-measure-learn loop.
+15. After the small-win package is shown, ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - for video/blog/social assets, publishing, notifications, performance measurement, and the build-measure-learn loop.
 16. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
 17. Update the report, idea matrix, best idea for today, leads, competitors, and drafts with private data and, from the second run onward, analytics/statistics from published URLs.
 
@@ -160,7 +160,7 @@ daily-content-pipeline/
         outputs/
 ```
 
-The agent must configure the routine, then run Nguyen Law's first agency report when the human approves the first run. Only after the small-win package is shown should the agent ask whether to set up Production & Distribution & Notification & Analytics.
+The agent must configure the routine, then run Nguyen Law's first agency report when the human approves the first run. Only after the small-win package is shown should the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
 
 ---
 
@@ -183,7 +183,7 @@ The correct order is fixed:
 4. Ask whether the human wants to run the first agency run immediately.
 5. Run the first agency run using public sources and any already approved/available private data.
 6. Show the first report and first draft script/blog/caption to the human as the small win.
-7. Ask whether the human wants Production & Distribution & Notification & Analytics setup now that the small win exists.
+7. Ask whether the human wants PDNA setup now that the small win exists. Explain that PDNA means Production, Distribution, Notification, and Analytics.
 8. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load `playbooks/03_PRODUCTION_DISTRIBUTION.md` and complete the provider setup gate.
 9. If private sources were provided but Local Collector is not active yet, keep private-source monitoring as `pending_private_activation` and avoid promising private scheduled collection until the blocker is resolved.
 
@@ -196,10 +196,10 @@ First agency run rule:
 - If source discovery was approved but not yet run, the first agency report must include `Private Source Discovery Pending Activation`.
 - That section must list the private source URLs or discovery categories, explain that they were not scanned yet, and say that activation requires the Solo Agency Local Collector extension plus Local Collector app.
 - The first agency report must include at least one draft script/blog/caption or a clear report section containing the draft.
-- The first agency report must ask a clear next-step question after delivering the useful output. Unless Production & Distribution & Notification & Analytics setup was already completed or explicitly declined, the next-step question must be:
+- The first agency report must ask a clear next-step question after delivering the useful output. Unless PDNA setup - Production, Distribution, Notification, and Analytics - was already completed or explicitly declined, the next-step question must be:
 
 ```md
-Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?
+Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
 ```
 
 The agent must ask this question directly in the chat message or notification where it announces the first agency run result. It must not hide the question or setup steps inside a Markdown file.
@@ -217,15 +217,15 @@ First draft: {script/blog/caption title}
 
 Solo Agency onetime setup
 [x] 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
-[x] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer
-[x] 3. Tôi tự suy luận pain points và content pillars
-[x] 4. Tôi tự tìm/chọn nguồn công khai và từ khóa tìm kiếm
-[x] 5. Bạn cung cấp nguồn riêng tư thủ công nếu muốn; tôi kích hoạt Local Collector nếu cần
-[x] 6. Tôi cấu hình lịch/routine tự động, rồi hỏi bạn có muốn chạy lần đầu ngay không
-[x] 7. Tôi chạy lần đầu: quét public/private, tạo HTML report, idea matrix, lead, competitor, và draft script/blog/caption đầu tiên
-[ ] 8. Tôi trợ giúp bạn thiết lập Production & Distribution & Notification & Analytics nếu bạn muốn biến draft thành tài sản thật và tự động phân phối/đo lường
-[-] 9. Từ lần chạy thứ hai, nếu đã setup Production & Distribution & Notification & Analytics - PDNA, tôi quét analytics các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
-[ ] 10. Tôi cập nhật report, idea matrix, best idea, leads, competitors, drafts, analytics/statistics, và learning loop
+[x] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
+[x] 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
+[x] 4. Tôi tự tìm/chọn nguồn công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
+[x] 5. Bạn cung cấp nguồn riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
+[x] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy), rồi hỏi bạn có muốn chạy lần đầu ngay không
+[x] 7. Tôi chạy lần đầu: quét nguồn công khai/nguồn riêng tư đã được phép, tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
+[ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
+[-] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
+[ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
 
 The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
 
@@ -233,7 +233,7 @@ This run used public sources only. I have {N} private sources waiting, including
 - {source name or URL}
 - {source name or URL}
 
-Do you want me to set up Production & Distribution & Notification & Analytics so I can turn approved drafts into real video/blog/social assets, deliver report notifications, publish approved content, and measure results later?
+Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
 ```
 
 Bad first-run chat pattern:
@@ -1197,7 +1197,7 @@ Read and follow SOLO_AGENCY_PLAYBOOK.md exactly. Start by asking me only for the
 The correct first response from the agent should be similar to:
 
 ```md
-What product/service, profession, expertise, or business description should this pipeline focus on? If you already know the target location or private sources to monitor, include them too. I will infer industry, sub-industry, related industries, audience, pain points, and public sources, then show you the setup summary before saving anything as stable context.
+What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. Optional: if you already know logged-in/social/community sources you may want monitored later, such as Facebook groups, X/LinkedIn/GitHub pages, Discord/Slack communities, or competitor profiles, include them too; I will ask permission before activating any private-source collection. I will infer industry, audience, pain points/customer problems, content pillars/main content themes, and public sources/web-search sources I can access without your login, then show you the setup summary before saving anything as stable context.
 ```
 
 If space allows, the first response should mention that the agent will also infer related industries and keep content focused around an 80% primary / 20% related-industry mix.
@@ -1206,7 +1206,7 @@ If the human says they have no clients yet, or if the first run discovers that `
 
 If the human gives a new client, the agent should enter Add Client Mode.
 
-After Add Client Mode or First Client Setup Mode, the agent must follow the fixed order: setup context, resolve private-source status, configure schedule/routine, ask whether to run the first agency run immediately, show the small-win report and draft, then ask whether to set up Production & Distribution & Notification & Analytics. The agent must not jump from the small win into video creation.
+After Add Client Mode or First Client Setup Mode, the agent must follow the fixed order: setup context, resolve private-source status, configure schedule/routine, ask whether to run the first agency run immediately, show the small-win report and draft, then ask whether to set up PDNA - Production, Distribution, Notification, and Analytics. The agent must not jump from the small win into video creation.
 
 The agent must summarize the first report and any required next action directly in chat. It must provide the HTML report path/link only. It must not make the human open a Markdown file to review the report, activate private sources, run setup, fix a blocker, or choose the next step.
 
@@ -1235,7 +1235,7 @@ Initial setup and first agency run are complete when:
 15. If WideCast account tools are not connected, the first agency HTML report includes `Unlock Production & Distribution & Measure-Learning Loop With WideCast`.
 16. If the human agrees to activate private sources, `daily-content-pipeline/collector/collector_setup_status.md` exists and shows either `installed_and_running` or a precise blocked status with the required human action.
 17. Any required human action is also shown directly in the current chat message with one clear command, one double-clickable launcher path, or one absolute extension folder path. Markdown-only setup instructions are a failure.
-18. Only after the first agency report and draft are shown does the agent ask whether to set up Production & Distribution & Notification & Analytics.
+18. Only after the first agency report and draft are shown does the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
 
 Recurring schedule setup is complete when:
 
@@ -1293,6 +1293,7 @@ This checklist exists because the playbook is intentionally comprehensive. Long 
 Before replying to the human, verify:
 
 - [ ] Did I answer in the same language the human used?
+- [ ] Did I explain marketing/tech terms in plain language when they appear in human-facing text, especially public sources, private sources, Local Collector, offer, pain points, content pillars, lead, competitor, idea matrix, HTML report, draft, PDNA, analytics, and learning loop?
 - [ ] Did I avoid asking for information I can infer, research, or discover myself?
 - [ ] If I asked a question, did I first show what I inferred from the previous answer?
 - [ ] Did I show setup or research assumptions clearly instead of hiding them in files?
@@ -1320,7 +1321,8 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I infer content pillars and content angles?
 - [ ] Did I infer related industries?
 - [ ] Did I show the 80% primary industry / 20% related industries rule?
-- [ ] Did I ask whether the human wants to provide private sources?
+- [ ] Did I explain that public sources are websites/search/public pages I can access without the human's login?
+- [ ] Did I ask whether the human wants to provide private sources, and did I explain that private sources are logged-in/social/community sources such as groups, profiles, pages, channels, forums, or communities?
 - [ ] Did I avoid asking a separate interest-graph discovery question and instead keep optional source discovery inside the private-source step?
 - [ ] Did I reassure the human that this is a professional agency-scale setup that normally takes patience only once?
 - [ ] Did I reassure the human that private data stays local on their computer and must not be sent outside without explicit approval?
@@ -1445,7 +1447,7 @@ Before presenting the content draft, verify:
 
 ### Production Provider Choice Checklist
 
-Before presenting production setup choices or claiming the Production & Distribution & Notification & Analytics setup gate is complete, verify:
+Before presenting production setup choices or claiming the PDNA setup gate is complete, verify that PDNA was explained as Production, Distribution, Notification, and Analytics:
 
 - [ ] Did the human-facing explanation name the specialist stack path before or alongside WideCast?
 - [ ] Did I list concrete specialist examples for video generation, such as Google Veo, Seedance, Kling, and Runway?
