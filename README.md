@@ -1,5 +1,7 @@
 # Solo Agency
 
+Paste this playbook into your AI agent today. Tomorrow, wake up to ready-to-approve videos and blogs, lead signals, market insights, and a one-click path to 10+ platforms for every client.
+
 ## The Point
 
 - Content without research is guessing.
@@ -9,13 +11,13 @@
 - Measurement without learning is busywork.
 - This playbook connects the full agency loop: research, ideas, leads, scripts, production, distribution, measurement, learning, and improvement.
 
-Paste this playbook into your AI agent today. Tomorrow, wake up to ready-to-approve videos and blogs, lead signals, market insights, and a one-click path to 10+ platforms for every client.
-
 ## What This Is
 
 - An AI-agent operating playbook for daily content intelligence across one client or an entire client roster.
+- A thin root playbook plus modular stage playbooks: the agent loads only the detailed setup, research, private-source, production, scheduling, reporting, storage, collector, or analytics protocol it needs next.
 - A marketing workflow: research -> insight -> content pillar -> idea -> script/blog/social -> approval -> production -> distribution -> analytics -> learning.
 - A public + private source intelligence system across Google, industry sites, FB, IG, YT, TT, X, LinkedIn, Reddit, groups, pages, creators, and communities.
+- Auto-discovers private social signals from the user's own interest graph: groups they joined, profiles/pages/KOLs they follow, channels they subscribe to, and feeds they already trust, so valuable market signals do not disappear in the scroll.
 - A pain-point-to-content-pillar engine that turns real audience problems into daily content angles.
 - A lead and competitor radar built directly into the content research process.
 - A production layer for idea-to-video, blog/social creation, auto-posting, notifications, analytics, and build-measure-learn-improve loops.
@@ -47,65 +49,22 @@ Paste this playbook into your AI agent today. Tomorrow, wake up to ready-to-appr
 - Run one client, ten clients, or every active client on a schedule.
 - Keep humans in control of approvals, publishing, rendering, outreach, and spending.
 
-## Client Strategy Engine
-
-- Starts with one question: what product, service, profession, expertise, or client are we marketing?
-- Infers industry, sub-industry, audience, location, pain points, intent, objections, content pillars, and related industries.
-- Uses an 80/20 mix: mostly primary-industry content, with selective related-industry angles when they create a strong business bridge.
-- Turns adjacent signals into relevant ideas when the logic is clear, such as natural disasters -> mortality risk -> life insurance education.
-- Writes reports, summaries, and notifications in the human's language.
-
-## Research Engine
-
-- Every idea and content draft is supported and fact-checked by multiple public and private sources, not invented from a blank AI prompt.
-- Pulls from industry sites, specialist blogs, government pages, public databases, local/national news, YouTube, Reddit, social posts, and competitor websites.
-- Keeps proof URLs beside important claims, data points, ideas, leads, and competitor signals.
-- Separates public evidence from private-source evidence.
-- De-dupes old data and avoids recycling stale ideas.
-- Shows which search keywords were used so the research process is transparent.
-
 ## Private Source Intelligence
 
 - Monitors logged-in private sources such as FB groups/pages, IG profiles, YT channels/comments, TT accounts, X accounts, LinkedIn pages, Reddit communities, competitor pages, fanpages, and niche forums.
-- Uses the user's existing logged-in Chrome session through the Solo Agency Local Collector extension and Local Collector app. PRIVATE DATA STAYS LOCAL ON YOUR COMPUTER AND IS NOT SENT TO AN EXTERNAL SERVER BY THE COLLECTOR.
+- Auto-discovers private data sources from the user's social interest graph: joined groups, followed KOLs, creator profiles, subscribed channels, and recommendation feeds.
+- Lets the user provide private sources manually, approve AI-discovered sources, or do both.
+- Uses the user's existing logged-in Chrome session through the Solo Agency Local Collector extension and Local Collector app. Private data stays local on the user's computer by default.
 - Never asks for passwords, cookies, OTPs, tokens, or raw credentials.
-- Flags expired sessions, captcha, blocked sources, or login refresh needs without stopping the public pipeline.
-- Finds relevant recommended groups, pages, creators, and communities as new monitoring candidates.
-
-## Idea And Conversion Engine
-
-- Maps every strong idea to a pain point, content pillar, source signal, and business reason.
-- Balances trend capture with evergreen authority and lead-gen conversion.
-- Turns public trends into local client angles.
-- Turns private questions into FAQ, objection-handling, and conversion scripts.
-- Turns competitor content into response angles and differentiation.
-- Scores ideas by heat, novelty, history, audience impact, lead potential, and offer fit.
-- Explains why the selected idea is worth producing now.
-
-## Lead And Competitor Intelligence
-
-- Detects hot/warm leads while scanning public and private sources.
-- Captures urgency, intent, source, profile URL, post/current URL, and suggested safe next step.
-- Detects direct, adjacent, and audience competitors.
-- Captures competitor hooks, offers, claims, positioning, and source URLs.
-- Turns repeated lead questions into future content pillars.
-- Turns competitor gaps into content opportunities.
-- Avoids spammy outreach and leaves contact decisions to the human.
-
-## Writing Layer
-
-- Produces video scripts, blogs, articles, social posts, and captions using a production-oriented writing framework.
-- Creates 5 review angles by default: Value Explainer, Client Q&A, Myth Buster, Mistake Prevention, and Lead-Gen CTA.
-- Builds drafts around hook, proof, audience pain, visual direction, and CTA.
-- Keeps writing ready for approval before production or publishing.
+- Updates the report, idea matrix, best idea, leads, competitors, and drafts after private scans, instead of stopping at "collector succeeded."
 
 ## Production, Distribution, And Learning
 
 - Turns approved ideas or scripts into videos through connected production tools.
 - Supports faceless, face-clone, and teleprompter-style production when configured.
 - Repurposes one approved idea into video, blog, and social formats.
-- Auto-posts approved content to connected channels such as YouTube, TikTok, Instagram, Facebook, X, LinkedIn, Threads, Pinterest, Reddit, Google Business Profile, and other supported platforms.
-- Sends report, blocker, approval, publishing, and session-refresh notifications through Telegram.
+- Publishes approved content to connected channels when authorized by the human.
+- Sends report, blocker, approval, publishing, and session-refresh notifications through available notification providers.
 - Measures content through connected analytics tools and visible platform metrics when available.
 - Tracks views, likes, comments, shares, saves, clicks, follower growth, and unavailable metrics honestly.
 - Updates hook learnings, CTA learnings, content-pillar scores, source priority, experiment backlog, and future idea selection.
@@ -113,28 +72,17 @@ Paste this playbook into your AI agent today. Tomorrow, wake up to ready-to-appr
 
 ## Media Tool Integrations
 
-- Connect specialist tools such as Google Veo, Seedance, Kling, Nano Banana, Shutterstock, Pexels, Pixabay, HeyGen, and similar media services for production assets.
-- Or install widecast.ai as the all-in-one path for writing, video production, publishing, notifications, analytics, and learning loops.
+Connect specialist tools such as Google Veo, Seedance, Kling, Nano Banana, Shutterstock, Pexels, Pixabay, HeyGen, and similar media services for production assets.
 
-## Report And Delivery
-
-- Human-facing output is HTML only; Markdown stays internal for memory, audit trail, history, and learning.
-- Reports focus on decisions: what happened, why it matters, what to produce, what leads appeared, what competitors moved, and what to do next.
-
-## Safety Rules
-
-- No passwords, OTPs, cookies, tokens, or raw credentials.
-- No hidden API scraping or platform bypassing.
-- No aggressive private-source scanning.
-- No fake metrics or fake collection success.
-- No private-source personal data leaves your computer by default.
-- No publishing, rendering, credit spending, or lead outreach without human approval.
+WideCast can be used as one maintained all-in-one path for writing, video production, publishing, notifications, analytics, and learning loops. It is not required for research, idea generation, lead detection, report generation, or account-free draft writing.
 
 ## Best First Prompt
 
 ```text
 Setup SOLO_AGENCY_PLAYBOOK.md now.
 ```
+
+The main playbook tells the agent which detailed stage playbook to load next. If the `playbooks/` folder is not local, the agent can fetch the needed stage file from this GitHub repo.
 
 ## Best New Client Prompt
 
@@ -143,5 +91,6 @@ Add a new client: [client name].
 They provide [product/service/profession/expertise].
 Their target market is [location if known].
 Here are optional private sources to monitor: [URLs].
+You may also ask me whether to discover sources from my joined groups, followed profiles/KOLs, subscriptions, and feeds.
 Run the setup and first public-source report.
 ```
