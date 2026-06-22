@@ -76,12 +76,13 @@ The setup flow is fixed:
 6. Select public sources and public search keywords.
 7. Run the first public report immediately.
 8. Do not ask whether to run the first trial.
-9. After the first report, ask whether the human wants production/video/blog/social now.
-10. After the first report, ask whether the human wants private sources now.
-11. If production is requested, load Stage 3.
+9. After the first report, ask whether the human wants Production & Distribution & Notification & Analytics setup now for video/blog/social, publishing, notifications, analytics, and the build-measure-learn loop.
+10. If the human answers yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", immediately load Stage 3 and complete the Production & Distribution & Notification & Analytics setup gate before asking schedule.
+11. After the production setup gate is completed, declined, or explicitly blocked, ask whether the human wants private sources now.
 12. If private sources are requested, load Stage 2 and Stage 8.
-13. Ask schedule only after first report exists and private-source status is accepted, declined, blocked, or pending.
-14. Once content is published, load Stage 5 for measurement and learning.
+13. If published URL history exists, load Stage 5 and scan analytics/signals for the last 7 days before updating the final recommendation.
+14. Update the report, idea matrix, best idea, leads, competitors, and drafts with private data and, from the second run onward, analytics/statistics from published URLs.
+15. Ask and configure schedule/routine only after the first report exists, the production setup gate is completed/declined/blocked, private-source status is accepted/declined/blocked/pending, and the published-URL analytics step is completed or honestly marked as not available yet.
 
 ## Visible Setup Checklist
 
@@ -95,21 +96,33 @@ Solo Agency onetime setup
 [ ] 4. Select public sources and public search keywords
 [ ] 5. Run public-first research
 [ ] 6. Generate public-first HTML report
-[ ] 7. Ask whether the human wants production/video/blog setup now
-[ ] 8. Ask whether the human wants to provide manual private sources
-[ ] 9. Ask whether the human wants Private Interest Graph Discovery
-[ ] 10. Activate/setup Local Collector if private sources/discovery are approved
-[ ] 11. Run source discovery and ask human to approve recommended sources
-[ ] 12. Run first private scan
-[ ] 13. Update report, idea matrix, best idea, leads, competitors, and drafts with private data
-[ ] 14. If the human wants video/blog/publishing/notifications/analytics, check/setup production provider MCP/API
-[ ] 15. Configure schedule/routine
-[ ] 16. Run measurement and learning loop for published content
+[ ] 7. Ask whether the human wants Production & Distribution & Notification & Analytics setup now
+[ ] 8. If yes, load Stage 3 and configure the production/distribution/notification/analytics provider path
+[ ] 9. Ask whether the human wants to provide manual private sources
+[ ] 10. Ask whether the human wants Private Interest Graph Discovery
+[ ] 11. Activate/setup Local Collector if private sources/discovery are approved
+[ ] 12. Run source discovery and ask human to approve recommended sources
+[ ] 13. Run first private scan
+[ ] 14. Run analytics and scan all published URLs from the last 7 days for measurement-learning data (only from the second run onward, when published URLs/metrics exist)
+[ ] 15. Update report, idea matrix, best idea for today, leads, competitors, and drafts with private data. From the second run onward, include analytics and statistics from step 14.
+[ ] 16. Configure schedule/routine (set up only once, and only after the earlier setup gates are completed, declined, blocked, or honestly marked pending)
 ```
+
+Checklist integrity rule:
+
+- Every setup progress block must show all 16 numbered items in order.
+- Never jump from item 10 to item 16.
+- Never hide items 11, 12, 13, 14, or 15 because they are pending, declined, or not applicable yet.
+- Use `[ ]` for pending items, `[x]` for completed items, and `[-]` only after the human has explicitly declined or the item has been logged as blocked/not applicable.
+- If item 7 is answered `Yes`, item 8 becomes the active next step and the agent must load `playbooks/03_PRODUCTION_DISTRIBUTION.md`.
+- Item 14 must not be marked complete on the first setup run unless published URLs and measurable signals already exist. If there is no published URL history yet, mark item 14 as `[-]` with `no published URLs yet`.
+- Item 16 is the final onetime setup item. Do not configure schedule/routine before items 7-15 are completed, declined, blocked, or honestly marked pending/not applicable.
 
 ## Progress And Next-Step Question Rule
 
 While setup, daily run, private-source activation, production setup, publishing, scheduling, or measurement is still incomplete, every human-facing reply that hands control back to the human must include a compact progress block.
+
+During scheduled runs, every human-facing progress update, notification, or report handoff must include `Solo Agency daily run progress`. If the scheduled run sends multiple updates, each update must refresh completed/current/remaining steps.
 
 The progress block must show:
 
