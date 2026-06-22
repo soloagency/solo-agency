@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -112,5 +115,54 @@ func TestRunNowRequestFileLoadsAndMovesAside(t *testing.T) {
 	}
 	if got := getBool(status, "consumed", false); !got {
 		t.Fatalf("status consumed = %v, want true", got)
+	}
+}
+
+func TestRejectsStaleWritesAfterRunNowComplete(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(root, "collector_config.json")
+	outputDir := filepath.Join(root, "inbox")
+	if err := os.WriteFile(configPath, []byte(`{"version":"0.1.0","scheduled_windows":[],"clients":[]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b, err := newBridge(config{
+		host:       defaultHost,
+		port:       defaultPort,
+		configFile: configPath,
+		outputDir:  outputDir,
+		persistent: true,
+		ttl:        defaultTTL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.activateRunNowJob(map[string]any{
+		"run_id": "manual_deep_scan",
+		"sources": []any{
+			map[string]any{"name": "Example", "url": "https://www.facebook.com/groups/example"},
+		},
+	}, time.Now(), "test"); err != nil {
+		t.Fatal(err)
+	}
+
+	activeReq := httptest.NewRequest(http.MethodPost, "/collect/data_point", bytes.NewBufferString(`{"run_id":"manual_deep_scan","source_name":"Example"}`))
+	activeRec := httptest.NewRecorder()
+	b.handleDataPoint(activeRec, activeReq)
+	if activeRec.Code != http.StatusOK {
+		t.Fatalf("active write status = %d, want %d; body=%s", activeRec.Code, http.StatusOK, activeRec.Body.String())
+	}
+
+	completeReq := httptest.NewRequest(http.MethodPost, "/complete", nil)
+	completeRec := httptest.NewRecorder()
+	b.handleComplete(completeRec, completeReq)
+	if completeRec.Code != http.StatusOK {
+		t.Fatalf("complete status = %d, want %d; body=%s", completeRec.Code, http.StatusOK, completeRec.Body.String())
+	}
+
+	staleReq := httptest.NewRequest(http.MethodPost, "/collect/data_point", bytes.NewBufferString(`{"run_id":"manual_deep_scan","source_name":"Example"}`))
+	staleRec := httptest.NewRecorder()
+	b.handleDataPoint(staleRec, staleReq)
+	if staleRec.Code != http.StatusConflict {
+		t.Fatalf("stale write status = %d, want %d; body=%s", staleRec.Code, http.StatusConflict, staleRec.Body.String())
 	}
 }
