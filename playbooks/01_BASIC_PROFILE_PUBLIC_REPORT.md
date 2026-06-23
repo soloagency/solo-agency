@@ -750,13 +750,10 @@ For each daily run:
       - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
-   7. If private data sources are configured but not yet activated, do not attempt private collection during this run. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public data sources.
-   8. If private data sources are activated, connect to the already-running Local Collector app according to `collector_config.run_mode`.
-   9. If private data sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
-   10. Check private collector health through `GET http://127.0.0.1:17321/status` when the Local Collector app is expected to be running.
-      - If the bridge is offline, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark private collection as unavailable for this run, and continue with public data sources.
-      - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
-      - If `extension_health.status` is `recent`, continue private collection.
+   7. Before deciding whether to skip private data sources, follow Stage 4 and Stage 8 Collector Runtime Verification. Do not trust saved labels such as `pending_private_activation`, `public_data_sources_only`, or `private sources postponed` alone. If `/status` is unreachable from the AI sandbox, read local collector health/status files before claiming the Local Collector is inactive.
+   8. If private data sources remain unavailable after Collector Runtime Verification, mark the exact blocker, include the activation/repair CTA in the report, and continue with public data sources and previously collected private data when available.
+   9. If private data sources are available, connect to the already-running Local Collector app according to `collector_config.run_mode` or use the Stage 8 file-based run-now path when localhost is isolated but local health files prove a recent current-workspace collector.
+   10. Check private collector health according to Stage 4/Stage 8 before collection and before claiming private data sources were skipped.
    11. Prepare the private data source queue if private data sources are available and collector health is acceptable:
       - keep the active daily queue around 20 sources or fewer per client by default;
       - prioritize sources most relevant to the client, target audience, target location, pain points, and content pillars;

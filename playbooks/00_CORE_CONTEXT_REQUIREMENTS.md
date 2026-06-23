@@ -438,7 +438,7 @@ The agent must follow these principles at all times:
 - If the current AI connector/tool surface does not expose WideCast upload or Telegram/notification tools, say it as a tool-surface blocker. Do not claim WideCast itself lacks the API/capability unless verified from WideCast account/API status.
 - If the agent accidentally sends a report-ready notification without a report URL/path, it must immediately send a correction notification containing the HTML report URL/path and log the correction.
 - Show all inferred and researched setup context to the human before treating it as stable.
-- Continue with public data sources if private data sources are missing, not yet activated, or unavailable. If private data sources were provided but Local Collector has not been installed yet, label them as `pending_private_activation`, not as silently skipped.
+- Continue with public data sources if private data sources are missing, not yet activated, or unavailable after the required Collector Runtime Verification. If private data sources were provided but Local Collector has not been installed yet, label them as `pending_private_activation`, not as silently skipped.
 - If a logged-in private session expires, skip that private data source, log it, and ask the human to log in again manually.
 - Do not publish, post, comment, message, render, create a provider-hosted video, export a video, or spend credits without explicit human confirmation.
 - Communicate with the human in the same language the human uses.

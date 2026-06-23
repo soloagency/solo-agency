@@ -56,7 +56,7 @@ Human's logged-in Chrome
   -> AI agent reads local output and analyzes it
 ```
 
-If the Local Collector app or extension is unavailable, do not fall back to Claude in Chrome, Codex browser, Playwright, or another agent-controlled browser. Continue work with public data sources only and mark private data sources as `pending_private_activation` or `collector_unavailable`.
+If the Local Collector app or extension is unavailable after Collector Runtime Verification, do not fall back to Claude in Chrome, Codex browser, Playwright, or another agent-controlled browser. Continue work with public data sources only and mark private data sources as `pending_private_activation`, `collector_status_unverified`, or `collector_unavailable` with the exact blocker.
 
 ## Human-Facing Preflight Roadmap
 
