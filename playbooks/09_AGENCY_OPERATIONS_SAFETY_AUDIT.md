@@ -226,12 +226,12 @@ The setup flow is not a menu of optional next steps. The agent must not ask the 
 - running the first agency run,
 - creating a video.
 
-The one allowed 7A choice is operational, not a new menu: if private data sources exist and Local Collector is pending, ask whether to activate Local Collector now so the first run can include private data, or run public data sources only first while keeping private data sources pending.
+The one allowed 7A choice is operational, not a new menu: if private data sources exist and Local Collector is pending, ask whether to activate Local Collector now so the first run can include data from private data sources, or run public data sources only first while keeping private data sources pending.
 
 The correct order is fixed:
 
 1. Finish setup and save the Client Intelligence Profile.
-2. Resolve optional manual private data sources and Local Collector activation status.
+2. Resolve the step 5 private data source preference, then resolve 7A private data source intake/discovery/approval and Local Collector activation when applicable.
 3. Configure the schedule/routine once the basic source plan is known.
 4. If private data sources exist and Local Collector is not installed/running/healthy, handle checklist step 7A: guide Local Collector setup now, or ask whether to run public data sources only first while keeping private data sources pending.
 5. Ask whether the human wants to run the first agency run immediately. If 7A is pending/postponed, state that this first run will be public data sources only.
@@ -277,7 +277,7 @@ This is the planned setup process I am working through. You only need to reply w
 ✓ 2. I inferred the industry, sub-industry, related industries, audience, and offer
 ✓ 3. I inferred pain points and content pillars
 ✓ 4. I selected public data sources and search keywords
-✓ 5. You provided or skipped private data sources; I activate the Local Collector only if you approve it
+✓ 5. You chose whether to include private data sources later
 ✓ 6. I configured the automatic schedule/routine
 – 7A. Local Collector activation is pending or postponed; this first run uses public data sources only
 ✓ 7B. I ran the first agency run and created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft
@@ -1269,12 +1269,12 @@ Read and follow SOLO_AGENCY_PLAYBOOK.md exactly. Start by asking me only for the
 The correct first response from the agent should be similar to:
 
 ```md
-What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. Optional: if you already know private data sources (logged-in/social/community places) you may want monitored later, such as Facebook groups, subreddits, X/LinkedIn/GitHub pages, Discord/Slack communities, or competitor profiles, include them too. If you do not know which private data sources are useful yet, that is normal; later I can suggest a one-time discovery pass from groups, subreddits, communities, pages, profiles, channels, or feeds you approve, then you choose what to monitor. I will infer industry, audience, pain points/customer problems, content pillars/main content themes, and public data sources/web-search sources I can access without your login, then show you the setup summary before saving anything as stable context.
+What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. I will infer industry, audience, pain points/customer problems, content pillars/main content themes, and public data sources/web-search sources I can access without your login, then show you the setup summary before saving anything as stable context.
 ```
 
 If space allows, the first response should mention that the agent will also infer related industries and keep content focused around an 80% primary / 20% related-industry mix.
 
-If the human says they have no clients yet, or if the first run discovers that `clients_index.md` has no real client rows, the agent should create or verify the root structure and immediately enter First Client Setup Mode. It should ask only for the first client's name and product/service, profession, expertise, or business description, plus target location only if location matters and cannot be inferred, and optional private data sources. If the human has no private data source list, the agent must offer optional private data source discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds before treating private data source status as resolved.
+If the human says they have no clients yet, or if the first run discovers that `clients_index.md` has no real client rows, the agent should create or verify the root structure and immediately enter First Client Setup Mode. It should ask only for the first client's name and product/service, profession, expertise, or business description, plus target location only if location matters and cannot be inferred. It must not mention private data sources in the first client setup question. Step 5 may ask only a lightweight preference question about whether to include private data sources later. Step 7A is where the agent may ask for actual private data source URLs/lists, offer optional discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds, get approval, and handle Local Collector activation if needed.
 
 If the human gives a new client, the agent should enter Add Client Mode.
 
@@ -1396,6 +1396,7 @@ Before replying to the human, verify:
 Before saving a Client Intelligence Profile as stable, verify:
 
 - [ ] Did I ask first only for product/service, profession, expertise, or business description?
+- [ ] Did I avoid mentioning private data sources in the first setup or first add-client question?
 - [ ] Did I infer industry and sub-industry myself?
 - [ ] Did I infer target audience?
 - [ ] Did I infer target location, or ask only if location matters and is missing?
