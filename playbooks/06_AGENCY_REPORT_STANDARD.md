@@ -248,7 +248,33 @@ Use this section when the human approved, declined, postponed, or has not yet be
   - Confidence: high | medium | low
   - Relevance:
 
+## Lead & Competitor Opportunities
+
+Use this section title exactly for English reports, or translate it naturally into the human/report language.
+
+- Opportunity:
+  - Opportunity type: lead | competitor | both
+  - Classification: hot_lead | warm_lead | watch_lead | direct_competitor | indirect_competitor | adjacent_solution | attention_competitor | authority_or_kol_competing_for_trust
+  - Source:
+  - Platform:
+  - Source type: public | private
+  - Profile URL:
+  - Post/current URL:
+  - Captured at:
+  - Safe context summary:
+  - Why this matters:
+  - Related offer:
+  - Related pain point:
+  - Confidence: high | medium | low
+  - Suggested human action:
+  - Copy-ready comment:
+  - Comment language:
+  - Comment style note:
+  - Outreach/compliance note:
+
 ## Leads Detected
+
+This may be kept as a detailed subsection, but the human-facing HTML should prioritize the unified `Lead & Competitor Opportunities` section.
 
 ### Hot Leads
 
@@ -263,6 +289,7 @@ Use this section when the human approved, declined, postponed, or has not yet be
   - Related offer:
   - Related pain point:
   - Suggested next action:
+  - Copy-ready suggested comment:
   - Outreach/compliance note:
 
 ### Warm Leads
@@ -278,12 +305,15 @@ Use this section when the human approved, declined, postponed, or has not yet be
   - Related offer:
   - Related pain point:
   - Suggested next action:
+  - Copy-ready suggested comment:
   - Outreach/compliance note:
 
 ## Competitors Detected
 
+This may be kept as a detailed subsection, but the human-facing HTML should prioritize the unified `Lead & Competitor Opportunities` section.
+
 - Competitor:
-  - Competitor type: direct | adjacent | audience
+  - Competitor type: direct | indirect | adjacent | attention | authority_or_kol
   - Platform:
   - Profile URL:
   - Post/current URL:
@@ -295,6 +325,7 @@ Use this section when the human approved, declined, postponed, or has not yet be
   - Threat level: high | medium | low
   - Opportunity:
   - Recommended monitoring action:
+  - Copy-ready suggested comment:
 
 ## Idea Matrix
 
@@ -565,6 +596,7 @@ The HTML report must be mobile-first:
 - Tap-friendly links.
 - Do not render fake interactive buttons in static HTML reports. If the report is a static file, approval options and next actions must be plain text instructions or links only.
 - Exception: script/blog/social draft review blocks may include a real local `Copy` button that copies the edited draft text to the clipboard. This button must not imply approval, publishing, rendering, messaging, or any server-side action.
+- Exception: `Lead & Competitor Opportunities` cards may include a real local `Copy comment` button that copies only the suggested comment text. This button must not imply auto-commenting, messaging, outreach, approval, publishing, rendering, or any server-side action.
 - Short section summaries before long details.
 - Collapsible sections when the report is long, if the environment can generate them.
 - Clear color/status labels for hot leads, warm leads, high-threat competitors, approval-needed items, and session-expired blockers.
@@ -581,10 +613,10 @@ The HTML report must include:
 - Best idea.
 - Mapped content pillar.
 - Reference URLs.
-- Leads detected.
-- Lead profile URLs and post/current URLs.
-- Competitors detected.
-- Competitor profile URLs and post/current URLs.
+- Lead & Competitor Opportunities.
+- Lead profile URLs and post/current URLs when available.
+- Competitor profile URLs and post/current URLs when available.
+- Suggested value-first comments with real local copy buttons for every displayed lead/competitor opportunity.
 - Data source issues.
 - Private sessions needing login.
 - WideCast-writing-skill draft: video script, blog/article, social caption, or configured combination.
@@ -673,19 +705,20 @@ Required report hierarchy:
    - Score at least: trend heat, audience pain intensity, business relevance, lead potential, novelty/history risk, evidence strength, and production effort.
    - Briefly explain why the selected idea won and why the other strong candidates did not win today.
 
-8. `Leads Detected`
-   - Separate `Hot leads`, `Warm leads`, and `Not scanned / pending`.
-   - Each lead must include profile URL and post/current URL when available.
-   - Include source, captured_at, need signal, why hot/warm, suggested next step, and safety note.
-   - If no leads were found, say whether that means `no leads found after scanning` or `lead sources not activated yet`.
-
-9. `Competitor Intelligence`
-   - Separate direct competitors, adjacent competitors, and audience competitors.
-   - Each competitor item must include profile URL and post/current URL when available.
-   - Include positioning, repeated content theme, engagement signal, threat level, and opportunity.
+8. `Lead & Competitor Opportunities`
+   - Use this exact title for English reports, or a natural same-language title for the human/report language.
+   - Load Stage 10 before generating this section.
+   - Separate hot leads, warm leads, watch leads, direct competitors, indirect competitors, adjacent solutions, attention competitors, and authority/KOL competitors when relevant.
+   - Every displayed opportunity must include post/current URL when available. Include profile URL only when visible and safe.
+   - Include source, captured_at, context, need or audience-overlap signal, why it matters, confidence, suggested human action, and safety note.
+   - Every displayed opportunity must include one copy-ready suggested comment based on the specific post context.
+   - The suggested comment must use the same language as the post, provide value, avoid direct advertising, avoid `DM me`, avoid attacking competitors, and sound natural rather than AI-polished.
+   - The suggested comment may include one or two tiny natural imperfections or typos when appropriate, but must remain clear and trustworthy.
+   - Each suggested comment must have a real local `Copy comment` button that copies the comment text only. It must not imply the comment will be posted automatically.
+   - If no leads/competitors were found, say whether that means `none found after scanning`, `public-only coverage`, `private sources pending Local Collector activation`, `session expired`, or `source unavailable`.
    - If competitor data is inferred without a captured URL, label it as market hypothesis, not detected competitor evidence.
 
-10. `Production-Ready Drafts`
+9. `Production-Ready Drafts`
    - Use complete version names:
      - `Version 1: VE — Value Explainer`
      - `Version 2: QA — Client Q&A`
@@ -699,12 +732,12 @@ Required report hierarchy:
    - If a connected provider has already created an approved video/blog/social asset, include the produced asset URL/status and label it `asset-created`, `ready-to-publish`, or `published`.
    - If provider setup or human approval is still needed before creating the asset, say that clearly. Do not describe draft writing as if production has already happened.
 
-11. `Compliance And Brand Safety`
+10. `Compliance And Brand Safety`
    - Include short risk notes for legal, financial, insurance, medical, regulated, or sensitive industries.
    - Avoid guarantees, misleading claims, unsafe outreach, or pretending the client has performed services they have not performed.
    - If a CTA needs license number, phone number, disclaimer, location, or offer approval, list it under `Needs human detail`.
 
-12. `Next Action`
+11. `Next Action`
    - End with exactly one primary next action.
    - Secondary actions may be listed below, but they must not compete with the primary next action.
    - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
@@ -778,16 +811,15 @@ Recommended HTML section order:
 5. Private Source Discovery
 6. Idea Portfolio
 7. Decision Scorecard
-8. Leads Detected
-9. Competitor Intelligence
-10. Production-Ready Drafts
-11. Compliance And Brand Safety
-12. Unlock Production & Distribution & Measure-Learning Loop With WideCast, when applicable
-13. Next Action
-14. Appendix / Raw References, optional
+8. Lead & Competitor Opportunities
+9. Production-Ready Drafts
+10. Compliance And Brand Safety
+11. Unlock Production & Distribution & Measure-Learning Loop With WideCast, when applicable
+12. Next Action
+13. Appendix / Raw References, optional
 ```
 
-Static HTML reports are not application UIs. The agent must not create buttons that imply an action will happen when the human taps them unless the button is backed by a real working URL or app action. For approval, revision, choosing another idea, creating a WideCast video, or replying to leads, the report should say what to tell the AI agent or where to open WideCast.
+Static HTML reports are not application UIs. The agent must not create buttons that imply an action will happen when the human taps them unless the button is backed by a real working URL or local browser action. For approval, revision, choosing another idea, creating a WideCast video, publishing, or outreach, the report should say what to tell the AI agent or where to open WideCast. For lead/competitor comments, a local `Copy comment` button is allowed only if it copies the suggested comment text and does not imply auto-posting.
 
 ### Editable Draft Review Blocks In HTML
 
