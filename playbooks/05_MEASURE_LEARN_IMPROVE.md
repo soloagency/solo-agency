@@ -177,7 +177,7 @@ For each published content item from the last 7 days, the agent should measure i
 
 ### Published URL Measurement Via Local Collector
 
-The Local Collector is not only for private-source idea discovery. It should also be reused for published URL measurement when possible.
+The Local Collector is not only for private data source idea discovery. It should also be reused for published URL measurement when possible.
 
 Reason:
 

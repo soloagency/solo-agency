@@ -137,10 +137,15 @@ Current issue:
 Future direction:
 
 - add a pre-save cleaning pipeline before writing collector output;
+- add a deterministic local preprocessor that turns noisy captures into compact `clean_records.jsonl` before the main agent reads them;
 - keep raw snapshots available for audit/debug when needed;
 - save a cleaned `content_text`, `author_or_page`, `post_url`, `timestamp`, `engagement_text`, `comment_text`, and `noise_removed_reason` when detectable;
 - create platform-specific cleaners/parsers for Facebook groups/pages, TikTok, YouTube, Instagram, LinkedIn, X, Reddit, forums, and other sources;
 - allow per-platform and per-source custom rules because platform layouts and language/UI variants change often;
+- optionally use a low-cost classifier/sub-agent after deterministic cleaning to label records as `lead_candidate`, `competitor_candidate`, `idea_signal`, `source_candidate`, `analytics_signal`, `noise`, or `irrelevant`;
+- make the low-cost classifier/sub-agent optional, not required, because many AI agents cannot reliably spawn sub-agents, select cheaper models, or run complex orchestration during scheduled runs;
+- require a fallback path where the main agent reads the deterministic `clean_records.jsonl` chunks directly when cheap sub-agent preprocessing is unavailable;
+- keep classifier output strict JSON so the main agent spends tokens on strategy, lead/competitor reasoning, draft quality, and report decisions rather than raw text cleanup;
 - add regression fixtures from real noisy captures so parser changes can be tested safely;
 - invite community contributions for platform readers, cleaner rules, and fixtures.
 
@@ -193,10 +198,10 @@ First priority is not adding these advanced layers. First priority is validating
 
 - Does the agent load Stage 0 + Stage 1 before setup?
 - Does it avoid asking for industry/sub-industry?
-- Does it resolve private-source status before configuring the first routine?
+- Does it resolve private data source status before configuring the first routine?
 - Does it configure schedule/routine before asking to run the first agency run now?
 - Does it ask PDNA - Production, Distribution, Notification, and Analytics - only after the small-win report/draft exists?
-- Does it load Stage 2/8 before private-source work?
+- Does it load Stage 2/8 before private data source work?
 - Does it load Stage 3 before production/provider work?
 - Does it load Stage 5 after publishing?
 - Does it pass Stage 9 self-audit before claiming completion?

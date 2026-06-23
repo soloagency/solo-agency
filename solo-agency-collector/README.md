@@ -1,8 +1,8 @@
 # Solo Agency Local Collector
 
-This folder is not the Solo Agency setup entrypoint. AI agents must read `../SOLO_AGENCY_PLAYBOOK.md` first and install/start the Local Collector only when the main playbook reaches the private-source stage and the human approves collector activation.
+This folder is not the Solo Agency setup entrypoint. AI agents must read `../SOLO_AGENCY_PLAYBOOK.md` first and install/start the Local Collector only when the main playbook reaches the private data source stage and the human approves collector activation.
 
-This package contains the local private-source collector prototype for `SOLO_AGENCY_PLAYBOOK.md`.
+This package contains the local private data source collector prototype for `SOLO_AGENCY_PLAYBOOK.md`.
 
 It has two parts:
 
@@ -93,7 +93,7 @@ Default collection behavior:
 
 - one run per day
 - bridge poll interval: 5 seconds while Chrome is active
-- 5 scrolls per private source
+- 5 scrolls per private data source
 - 5 seconds between scrolls
 - maximum user-configurable scrolls: 10
 

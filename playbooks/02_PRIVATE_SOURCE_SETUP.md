@@ -1,26 +1,27 @@
-# Private Source Setup
+# Private Data Source Setup
 
 Stage: `02`
 
 ## Load Rule
 
-Load when private sources, manual private URLs, joined groups, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, source discovery, or Local Collector activation are requested, approved, pending, or blocked.
+Load when private data sources, manual private URLs, joined groups, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, private data source discovery, or Local Collector activation are requested, approved, pending, or blocked.
 
 If this stage was triggered by a human request to scan, monitor, collect, review, or open a private/logged-in source after any amount of conversation drift, first reload `playbooks/PRIVATE_SOURCE_GATE.md`, then reload Stage 8 and Stage 9 before taking action.
 
 ## Hard Gates For This Stage
 
-- Manual private sources and optional source discovery are independent.
-- Ask explicitly whether the human wants to scan Facebook groups they are already a member of.
-- Explain private sources in plain language before asking for them.
+- Manual private data sources and optional private data source discovery are independent.
+- If the human has no private data source list, says they do not know what to add, skips the question, or leaves it blank, offer one optional private data source discovery pass before marking the private data source step resolved.
+- Ask explicitly whether the human wants to discover candidate private data sources from joined/member communities and followed/subscribed sources, such as Facebook groups, subreddits, Discord/Slack communities, LinkedIn groups/pages, YouTube channels, X lists/communities, and followed KOLs/pages.
+- Explain private data sources in plain language before asking for them.
 - Explain Local Collector in plain language before asking the human to install or activate it.
 - Use the Facebook joined-groups URL only with explicit consent.
 - Do not use automated approval-gated browser extension flows for unattended collection.
-- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for logged-in/private-source collection.
-- Private-source collection must go through the Solo Agency Local Collector extension plus the Local Collector app only.
-- Before any private-source scan, show or internally verify the `Private-source gate` preflight from `playbooks/PRIVATE_SOURCE_GATE.md`.
+- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for logged-in/private data source collection.
+- Private data source collection must go through the Solo Agency Local Collector extension plus the Local Collector app only.
+- Before any private data source scan, show or internally verify the `Private data source gate` preflight from `playbooks/PRIVATE_SOURCE_GATE.md`.
 - Collector success alone is not completion; analyze data and regenerate the report.
-- Load Stage 10 before analyzing or reporting lead/competitor opportunities from private-source data.
+- Load Stage 10 before analyzing or reporting lead/competitor opportunities from private data sources.
 
 ## Source Preservation Rule
 
@@ -36,9 +37,9 @@ Source Discovery Mode and Daily Content Monitoring Mode are different.
 
 For Source Discovery Mode, including joined groups, followed sources, subscribed channels, KOLs, communities, and recommendation surfaces, scroll deeply until no new source names or URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
 
-For Daily Content Monitoring Mode, keep the conservative default: 5 scrolls per source, maximum 10, 5 seconds between scrolls, and around 20 daily private sources or fewer per client.
+For Daily Content Monitoring Mode, keep the conservative default: 5 scrolls per source, maximum 10, 5 seconds between scrolls, and around 20 daily private data sources or fewer per client.
 
-For the first lead/competitor pass for a client/source set, Stage 10 overrides the daily default: use 10 scrolls per approved private source when Local Collector is active and account-safety settings allow it. Recurring daily runs return to the 5-scroll default unless configuration says otherwise.
+For the first lead/competitor pass for a client/source set, Stage 10 overrides the daily default: use 10 scrolls per approved private data source when Local Collector is active and account-safety settings allow it. Recurring daily runs return to the 5-scroll default unless configuration says otherwise.
 
 If any older copied section appears to use the daily 5-scroll default for source discovery, this latest delta override wins.
 
@@ -87,9 +88,9 @@ The agent must ask the human to provide private data sources they want monitored
 
 Plain-language definition for humans:
 
-- Private sources are logged-in/social/community places the human may want monitored later, such as groups, profiles, pages, channels, forums, communities, newsletters, or dashboards that may require the human's account or membership.
-- They are different from public sources. Public sources are websites, search engines, public articles, public forums, public docs, or public pages the agent can access without logging into the human's account.
-- Private-source collection requires explicit permission and the Solo Agency Local Collector. The Local Collector is a local app plus Chrome extension running on the human's computer; it uses the human's already logged-in Chrome session, reads only approved visible pages, and keeps data local by default.
+- Private data sources are logged-in/social/community places the human may want monitored later, such as groups, profiles, pages, channels, forums, communities, newsletters, or dashboards that may require the human's account or membership.
+- They are different from public data sources. Public data sources are websites, search engines, public articles, public forums, public docs, or public pages the agent can access without logging into the human's account.
+- Private data source collection requires explicit permission and the Solo Agency Local Collector. The Local Collector is a local app plus Chrome extension running on the human's computer; it uses the human's already logged-in Chrome session, reads only approved visible pages, and keeps data local by default.
 
 Examples of private data sources:
 
@@ -113,13 +114,91 @@ Examples of private data sources:
 
 The agent must say:
 
-`Do you want to provide any private sources for this client? Private sources means logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require your account or membership. These are different from public sources such as websites, Google/search results, public articles, and public pages I can access without your login. If you provide private sources, I will only activate collection with your permission, using the Solo Agency Local Collector local app/extension on your computer. It uses your already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. Do not share credentials, cookies, passwords, OTPs, or tokens. For account safety and platform-respectful monitoring, around 20 private sources or fewer per client is a good daily default; if you provide more, I will prioritize and rotate them.`
+`Do you want to provide any private data sources for this client? Private data sources are logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require your account or membership. These are different from public data sources such as websites, Google/search results, public articles, and public pages I can access without your login. If you provide private data sources, I will only activate collection with your permission, using the Solo Agency Local Collector local app/extension on your computer. It uses your already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. Do not share credentials, cookies, passwords, OTPs, or tokens. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if you provide more, I will prioritize and rotate them.`
+
+### Private Data Source Discovery When The Human Has No List
+
+Most humans do not remember which groups, subreddits, communities, pages, profiles, or channels are worth monitoring at setup time. The agent must treat this as normal.
+
+If the human provides no private data sources, says "I do not know", skips the question, or only gives a vague answer, the agent must not simply mark private data sources as `not_provided` and move on. It must first offer a concise discovery option:
+
+```text
+No problem if you do not know which private data sources to add yet. A lot of the best idea, lead, and competitor signals usually live in groups, subreddits, communities, pages, profiles, channels, and feeds you already follow or joined. Do you want me to discover candidate private data sources from the approved places you already belong to or follow, then filter the list and ask you before monitoring anything?
+```
+
+The agent must explain that discovery is optional, consent-based, and local:
+
+- It uses only approved logged-in surfaces.
+- It requires the Solo Agency Local Collector extension and Local Collector app.
+- It does not ask for passwords, cookies, OTPs, tokens, or credentials.
+- It does not add every discovered source automatically.
+- It filters candidates first, then asks the human to approve, remove, or add sources.
+- If the human declines or postpones discovery, the agent can still run public data source research, but the report must note that lead/competitor/community coverage is limited.
+
+Discovery surfaces to offer when relevant:
+
+- Facebook joined groups and groups feed.
+- Reddit joined/subscribed subreddits and home feed when approved.
+- LinkedIn groups, followed pages, followed people, company pages, and feed when approved.
+- YouTube subscriptions and subscribed channels.
+- X lists, communities, following list, and home feed when approved.
+- Instagram/TikTok followed creators and recommendation feeds when approved.
+- Discord/Slack/community forums only when the human explicitly provides/approves the community surface and Local Collector support exists.
+
+The agent should ask one compact approval question, not a long questionnaire:
+
+```text
+Do you want me to run private data source discovery from places you already joined or follow, such as Facebook groups, subreddits, followed pages/KOLs, subscribed channels, and community feeds? I will use the Local Collector only, filter candidates, and ask you to approve the shortlist before anything becomes a daily monitored source.
+```
+
+If the human says yes:
+
+1. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 8, and Stage 9 before any scan.
+2. Activate/setup the Local Collector if it is not installed and healthy. The agent must prepare files and give the human the one-line Terminal/PowerShell command and Chrome extension `Load unpacked` folder path; it must not run setup/start scripts itself.
+3. Ask which broad discovery surfaces are approved if not already clear. Keep the question short and default to the most likely safe set for the client, for example Facebook joined groups and Reddit joined/subscribed communities for community-heavy businesses.
+4. Run only approved discovery URLs/surfaces.
+5. Use Source Discovery Mode: scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+6. Extract candidate source names, URLs, platform, visible description/context, activity hints, topic hints, audience fit, location fit, and risk/noise signals.
+7. Filter and classify candidates:
+   - `recommended_daily`
+   - `recommended_weekly`
+   - `optional`
+   - `watch_once`
+   - `skip_not_relevant`
+   - `skip_too_broad`
+   - `skip_too_noisy`
+   - `skip_sensitive_or_risky`
+   - `skip_platform_unavailable`
+8. Show a compact approval list:
+   - `Recommended daily`
+   - `Recommended weekly`
+   - `Optional`
+   - `Skip`
+9. For each recommended source, include:
+   - source name;
+   - source URL when visible;
+   - platform;
+   - why it matters;
+   - matched pain point or content pillar;
+   - lead potential;
+   - competitor intelligence value;
+   - proposed cadence;
+   - risk/noise note.
+10. Ask the human to approve, remove, or add sources before anything is saved as active.
+11. Save approved sources to `private_data_sources`.
+12. Save unapproved candidates to the discovery log as `pending_human_approval`, `rejected`, or `skipped`.
+
+If the human says no or not now:
+
+- Mark discovery as `discovery_declined_or_postponed`.
+- Continue with public data sources and any manually provided private data sources.
+- Include a report note that private community/lead/competitor coverage is limited until private data source discovery or manually provided private data sources are approved.
 
 ### Facebook Member Groups Review
 
-The agent must specifically ask whether the human wants to include Facebook groups where the human is already a member.
+Facebook member groups are one high-value discovery surface inside the broader private data source discovery workflow.
 
-This is a separate discovery path from asking the human to paste private-source URLs manually. Many non-technical humans do not remember all useful groups they have already joined. The agent must offer to discover candidate groups from the human's joined-groups page, with explicit permission, then filter the list for relevance.
+This is a separate discovery path from asking the human to paste private data source URLs manually. Many non-technical humans do not remember all useful groups they have already joined. The agent must offer to discover candidate groups from the human's joined-groups page when private data source discovery is useful and relevant, with explicit permission, then filter the list for relevance.
 
 The agent must explain that it will not treat every group as useful by default. It will review and filter the available groups based on whether they contain discussions relevant to:
 
@@ -134,7 +213,7 @@ The agent must explain that it will not treat every group as useful by default. 
 
 The agent should say:
 
-`Do you want me to review the Facebook groups you are already a member of and select only the groups that look useful for this client? These are private sources because they require your logged-in Facebook account or group membership. If you say yes, I will use your logged-in Chrome session through the Solo Agency Local Collector local app/extension on your computer, open your joined-groups page, and filter groups based on the client's main industry, related industries, audience, location, and pain points/customer problems. I will not ask for credentials, cookies, passwords, OTPs, or tokens. For account safety, I will keep the active daily private-source list conservative, around 20 sources or fewer per client by default, and rotate lower-priority groups when needed.`
+`Do you want me to review the Facebook groups you are already a member of and select only the groups that look useful for this client? These are private data sources because they require your logged-in Facebook account or group membership. If you say yes, I will use your logged-in Chrome session through the Solo Agency Local Collector local app/extension on your computer, open your joined-groups page, and filter groups based on the client's main industry, related industries, audience, location, and pain points/customer problems. I will not ask for credentials, cookies, passwords, OTPs, or tokens. For account safety, I will keep the active daily private data source list conservative, around 20 sources or fewer per client by default, and rotate lower-priority groups when needed.`
 
 If the human agrees:
 
@@ -149,10 +228,11 @@ https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
 4. Do not ask the human to paste Facebook cookies, passwords, tokens, or credentials.
 5. Use the human's already logged-in Chrome session. If Facebook is logged out, mark `facebook_session_expired` and ask the human to log in manually.
 6. Create a manual `run_now` job for the Local Collector to scan the joined-groups discovery URL.
-7. Use conservative scan settings:
-   - `max_scrolls_per_source`: default 5, max 10.
-   - `scroll_delay_seconds`: 5.
-   - Read visible text and current URLs only.
+7. Use Source Discovery Mode, not Daily Content Monitoring Mode:
+   - scroll until no new group names/URLs appear for 3 consecutive scrolls;
+   - use a hard safety cap such as 80 scrolls;
+   - use `scroll_delay_seconds`: 5;
+   - read visible text and current URLs only.
 8. Review visible group names, group URLs, descriptions, category hints, membership/context hints, and any visible preview text.
 9. Select only groups that are relevant to the client pipeline.
 10. Classify candidate groups as:
@@ -177,18 +257,19 @@ https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
 daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/facebook_member_groups_review_YYYY-MM-DD.md
 ```
 
-16. Also add selected or newly discovered group candidates to `New Private Sources Detected` in the next report.
+16. Also add selected or newly discovered group candidates to `New Private Data Sources Detected` in the next report.
 
 If the human declines:
 
 - Do not inspect Facebook groups.
-- Continue with other public and private sources.
+- Continue with other public and private data sources.
 
-If the human provides no private sources:
+If the human provides no private data sources:
 
-- Continue with public sources only.
-- Mark private monitoring as unavailable or not provided.
-- Do not block the daily pipeline.
+- Offer the broader private data source discovery workflow once before continuing public-only.
+- If the human declines or postpones discovery, continue with public data sources only.
+- Mark private monitoring as `not_provided` or `discovery_declined_or_postponed`.
+- Do not block the daily pipeline, but note that community, lead, and competitor coverage is limited.
 
 If a private session expires:
 
@@ -197,18 +278,18 @@ If a private session expires:
 - Tell the human which source needs manual login.
 - Never ask for credentials.
 
-### Optional Private Source Discovery
+### Optional Private Data Source Discovery
 
-Private sources are not limited to URLs pasted by the human. Many useful sources are already inside accounts, communities, and feeds the human already uses:
+Private data sources are not limited to URLs pasted by the human. Many useful sources are already inside accounts, communities, and feeds the human already uses:
 
 - Groups, communities, or forums the human has already joined.
 - Pages, profiles, KOLs, creators, experts, competitors, or industry voices the human follows.
 - YouTube/TikTok/Instagram/X/LinkedIn accounts the human subscribes to or frequently sees.
 - Home/news/for-you feeds where the platform recommends topics based on the human's existing interests.
 
-This is often the best source discovery layer because busy humans may follow good sources but not remember all of them, and platform feeds often surface what the human's market is already discussing.
+This is often the best private data source discovery layer because busy humans may follow good sources but not remember all of them, and platform feeds often surface what the human's market is already discussing.
 
-The agent must treat this as an optional, consent-based source discovery workflow, not as automatic surveillance. It must not appear as a separate top-level setup step.
+The agent must treat this as an optional, consent-based private data source discovery workflow, not as automatic surveillance. It must not appear as a separate top-level setup step.
 
 Before using this workflow, the agent must reassure the human:
 
@@ -232,9 +313,9 @@ The agent must ask for explicit consent for each discovery category:
 Recommended human-facing question:
 
 ```text
-Do you want me to discover useful private sources from accounts and communities you already follow or joined?
+Do you want me to discover useful private data sources from accounts and communities you already follow or joined?
 
-Private sources means logged-in/social/community places such as groups, profiles, pages, channels, forums, or feeds that may require your account or membership. I can review groups you are already a member of, people/pages/KOLs you follow, channels you subscribe to, and feed recommendations that platforms are already showing you. I will only keep sources related to this client's industry, related industries, target audience, location, pain points/customer problems, and content pillars/main content themes. I will not ask for passwords, cookies, OTPs, or tokens, and the data stays local on your computer by default.
+Private data sources are logged-in/social/community places such as groups, profiles, pages, channels, forums, or feeds that may require your account or membership. I can review groups you are already a member of, people/pages/KOLs you follow, channels you subscribe to, and feed recommendations that platforms are already showing you. I will only keep sources related to this client's industry, related industries, target audience, location, pain points/customer problems, and content pillars/main content themes. I will not ask for passwords, cookies, OTPs, or tokens, and the data stays local on your computer by default.
 ```
 
 The human may approve all categories, approve only some, decline, or postpone.
@@ -272,7 +353,7 @@ If a URL does not work, the agent must mark `platform_url_changed` or `login_req
 
 #### Discovery Behavior Rules
 
-The agent must use the Solo Agency Local Collector extension plus the Local Collector app for private source discovery.
+The agent must use the Solo Agency Local Collector extension plus the Local Collector app for private data source discovery.
 
 The agent must not use Claude Chrome Extension for this workflow.
 
@@ -287,7 +368,7 @@ The agent must never open or collect:
 - Payment, account, billing, medical, legal-client, or private dashboard pages unless the human explicitly provides that source for a specific business purpose.
 - Anything that requires bypassing access controls.
 
-For private source discovery, the collector should capture only:
+For private data source discovery, the collector should capture only:
 
 - Visible text.
 - Source name.
@@ -305,7 +386,7 @@ Source discovery pacing:
 - For joined groups, followed profiles/pages/KOLs, subscribed channels, communities, and similar source lists, the collector must scroll deeply until no new source names/URLs appear for 3 consecutive scrolls.
 - Use a hard safety cap, for example 80 scrolls, to avoid infinite scrolling.
 - Use `scroll_delay_seconds`: 5.
-- Avoid parallel private-source scans.
+- Avoid parallel private data source scans.
 - Do not stop source discovery at the daily default of 5 scrolls, because that can miss many groups or followed sources lower in the list.
 
 Daily content monitoring pacing after sources are approved:
@@ -313,13 +394,13 @@ Daily content monitoring pacing after sources are approved:
 - Default `max_scrolls_per_source`: 5.
 - Absolute maximum `max_scrolls_per_source`: 10.
 - `scroll_delay_seconds`: 5.
-- Avoid parallel private-source scans.
+- Avoid parallel private data source scans.
 
 The agent must treat feeds as discovery surfaces, not permanent sources by themselves.
 
 For example:
 
-- Do not save `https://www.facebook.com/` as a daily private source.
+- Do not save `https://www.facebook.com/` as a daily private data source.
 - Instead, use the feed to discover relevant groups, pages, profiles, competitors, KOLs, recurring topics, and lead signals.
 - Then propose specific sources for human approval.
 
@@ -393,13 +474,13 @@ When useful, also update:
 daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/new_private_sources_log.md
 ```
 
-The next HTML report must include a `Private Source Discovery` section when this workflow runs or is pending.
+The next HTML report must include a `Private Data Source Discovery` section when this workflow runs or is pending.
 
 ---
 
-## 19. Private Source Access And Failure Protocol
+## 19. Private Data Source Access And Failure Protocol
 
-For private sources:
+For private data sources:
 
 - Use only the human's already logged-in Chrome session as accessed through the Solo Agency Local Collector extension plus Local Collector app.
 - Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or any agent-controlled browser.

@@ -4,7 +4,7 @@ Stage: `04`
 
 ## Load Rule
 
-Load during one-time setup after the Client Intelligence Profile, public source plan, and private-source status are known, so the routine can be configured before the first agency run. Also load during scheduled runs and whenever routine/schedule config is reviewed or repaired.
+Load during one-time setup after the Client Intelligence Profile, public data source plan, and private data source status are known, so the routine can be configured before the first agency run. Also load during scheduled runs and whenever routine/schedule config is reviewed or repaired.
 
 ## Hard Gates For This Stage
 
@@ -16,7 +16,7 @@ Load during one-time setup after the Client Intelligence Profile, public source 
 - Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, mark measurement as `no published URLs yet` instead of pretending it ran.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
 - Every scheduled-run human-facing reply, notification, or report handoff must include an updated progress block. If the agent sends multiple progress updates during the scheduled run, each update must show the current completed/current/remaining state.
-- If private collection is blocked, continue public sources and notify the human. Do not fall back to Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser for logged-in/private sources.
+- If private collection is blocked, continue public data sources and notify the human. Do not fall back to Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser for logged-in/private data sources.
 - Store schedule config and notification channel.
 
 ## Source Preservation Rule
@@ -37,7 +37,7 @@ At the start of every scheduled run, the agent must load or re-load the relevant
 2. Always load Stage 7: `07_STORAGE_SCHEMA_AND_HISTORY.md` to read profiles, logs, ledgers, and history.
 3. Always load Stage 4: `04_DAILY_SCHEDULE.md` for the scheduled daily-run contract.
 4. Load Stage 1 only if a profile is missing, incomplete, stale, or needs setup repair. Do not ask setup questions when the saved profile is complete.
-5. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private sources are active, pending, blocked, or being scanned.
+5. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private data sources are active, pending, blocked, or being scanned.
 6. Load Stage 3 when drafts, production, publishing, provider setup, or notification provider actions are needed.
 7. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
 8. Load Stage 6 whenever generating the human-facing HTML report.
@@ -48,7 +48,7 @@ The difference between first setup and scheduled runs:
 
 - First setup asks only the minimum setup questions because the profile does not exist yet.
 - Scheduled runs read the saved Client Intelligence Profile, source lists, collector config, content history, publishing ledger, and analytics logs, then continue automatically.
-- Scheduled runs must not re-ask industry, sub-industry, audience, pain points, content pillars, or private-source setup questions if those fields are already present.
+- Scheduled runs must not re-ask industry, sub-industry, audience, pain points, content pillars, or private data source setup questions if those fields are already present.
 - Scheduled runs may ask the human only when an approval gate, blocker, missing critical field, expired private session, production/render/publish/credit decision, or lead outreach decision requires human input.
 
 Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, published-URL analytics when published content exists, data analysis, Lead & Competitor Opportunities, idea matrix, best idea, production-ready drafts, approved video/blog/social production when authorized, HTML report, notification, and measurement/learning when measurement data exists.
@@ -127,7 +127,7 @@ For each daily run:
    2. Validate required fields.
    3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
    4. Prepare the current month folder key `YYYY-MM`.
-   5. Load saved `public_data_sources` and visit/check active due public sources before or alongside keyword search.
+   5. Load saved `public_data_sources` and visit/check active due public data sources before or alongside keyword search.
       - Visit sources where `visit_in_scheduled_runs: true` and cadence is due today.
       - Prioritize `active_public_source` daily sources, then due `weekly_public_source` sources, then relevant `occasional_public_source` sources when the topic/event matches.
       - Record source status, useful URLs, useful signals, weak/noisy results, and whether the source should stay active, be promoted, or be demoted.
@@ -140,28 +140,29 @@ For each daily run:
       - If results are weak, try a different pain-point/problem/need cluster before giving up.
       - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
       - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
-      - Detect useful recurring public sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
+      - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
-   7. If private sources are configured but not yet activated, do not attempt private collection during this run. Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser as a fallback. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public sources.
-   8. If private sources are activated, connect to the already-running Local Collector app according to `collector_config.run_mode`.
-   9. If private sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
+   7. If private data sources are configured but not yet activated, do not attempt private collection during this run. Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser as a fallback. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public data sources.
+   7a. If no private data sources are configured, and discovery was never offered or was postponed, do not block the scheduled run. Continue with public data sources, but include `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed` in the report/notification. Explain that public-only runs can still produce useful ideas but may miss community, lead, and competitor signals from logged-in/member spaces.
+   8. If private data sources are activated, connect to the already-running Local Collector app according to `collector_config.run_mode`.
+   9. If private data sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
    10. Check private collector health through `GET http://127.0.0.1:17321/status` when the Local Collector app is expected to be running.
-      - If the bridge is offline, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark private collection as unavailable for this run, and continue with public sources.
+      - If the bridge is offline, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark private collection as unavailable for this run, and continue with public data sources.
       - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
       - If `extension_health.status` is `recent`, continue private collection.
-   11. Prepare the private-source queue if private sources are available and collector health is acceptable:
+   11. Prepare the private data source queue if private data sources are available and collector health is acceptable:
       - keep the active daily queue around 20 sources or fewer per client by default;
       - prioritize sources most relevant to the client, target audience, target location, pain points, and content pillars;
       - classify extra sources as `weekly` or `optional` and rotate them across future runs;
-      - do not run aggressive or parallel private-source scans for the same logged-in account.
-   12. Check private sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
+      - do not run aggressive or parallel private data source scans for the same logged-in account.
+   12. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
    13. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
-   14. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, or unavailable private sources.
+   14. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, or unavailable private data sources.
    15. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
    16. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
-   17. Add newly recommended private groups/pages/profiles/communities to `New Private Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
-   18. Load Stage 10 and detect hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors during the same research/private-scan pass. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private source when safe; normal daily runs use 5 scrolls per approved private source by default.
+   17. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
+   18. Load Stage 10 and detect hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors during the same research/private-scan pass. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private data source when safe; normal daily runs use 5 scrolls per approved private data source by default.
    19. For every useful lead or competitor opportunity, preserve profile URLs and post/current URLs when available, safe context summaries, reasoning, suggested human action, and a copy-ready value-first comment in the same language as the post.
    20. Generate the 3x2 idea matrix, labeling each idea as `primary_industry` or `related_industry`.
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
@@ -254,8 +255,8 @@ Exact schedule contract:
 
 - For multiple scheduled runs per day, add multiple enabled items to `scheduled_windows`, for example `morning`, `midday`, and `afternoon`.
 - For manual-only mode, set all `scheduled_windows[].enabled` values to `false` and rely only on `/jobs/run_now`.
-- If the human has not activated private-source monitoring yet, configure the recurring schedule as public-only and clearly mark private sources as `pending_private_activation`.
-- Only configure scheduled private-source collection after Local Collector activation is accepted and collector health is confirmed or explicitly documented as pending/blocker.
+- If the human has not activated private data source monitoring yet, configure the recurring schedule as public data sources only and clearly mark private data sources as `pending_private_activation`.
+- Only configure scheduled private data source collection after Local Collector activation is accepted and collector health is confirmed or explicitly documented as pending/blocker.
 - The Local Collector app must run in persistent mode for unattended scheduled collection:
 
 ```text
@@ -267,9 +268,9 @@ solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
   --persistent
 ```
 
-- The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.
+- The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private data sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.
 - Scheduled run IDs are generated by the Local Collector app, usually using `YYYY-MM-DD_schedule-name`.
-- The agent must still write a human-readable `schedule.md` explaining the cadence, clients included, private-source limits, and notification behavior.
+- The agent must still write a human-readable `schedule.md` explaining the cadence, clients included, private data source limits, and notification behavior.
 
 ---
 
@@ -354,7 +355,7 @@ Default behavior:
 - One daily collection window.
 - 5 second extension bridge check interval when Chrome is active and the bridge is running.
 - About 60-75 second practical fallback window when Chrome has suspended the extension service worker.
-- 5 scrolls per private source.
+- 5 scrolls per private data source.
 - 5 seconds between scrolls.
 - Maximum configurable scrolls: 10.
 
@@ -369,7 +370,7 @@ Panel visibility rule:
   - data points collected,
   - leads detected,
   - competitors detected,
-  - new private sources detected,
+  - new private data sources detected,
   - last bridge contact time,
   - last error or blocker.
 
@@ -402,11 +403,11 @@ Health check sequence:
    - record `bridge_status: offline`,
    - do not try to start the bridge from inside the AI agent sandbox during setup/repair,
    - provide the human with the absolute-path Local Collector app setup/start command,
-   - continue with public sources and previously collected private data.
-6. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public sources, log the private-source blocker, and notify the human.
-7. If the extension is recent but a private source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
+   - continue with public data sources and previously collected private data.
+6. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public data sources, log the private data source blocker, and notify the human.
+7. If the extension is recent but a private data source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
 
-The AI agent must surface this health information transparently in the daily report and in Telegram notifications when private sources are unavailable.
+The AI agent must surface this health information transparently in the daily report and in Telegram notifications when private data sources are unavailable.
 
 Example notification:
 
@@ -415,7 +416,7 @@ Agent: Claude Schedule
 Collector status: bridge_running, extension_stale
 Last extension check: 2026-06-20 08:52 local time
 Likely cause: Chrome is closed or the extension is disabled.
-Impact: Private Facebook/LinkedIn sources were skipped today. Public sources still ran.
+Impact: Private Facebook/LinkedIn sources were skipped today. Public data sources still ran.
 Action: Open Chrome with the Solo Agency Local Collector extension enabled, stay logged in, or run the Local Collector app start command again if needed.
 ```
 

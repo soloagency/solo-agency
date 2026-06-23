@@ -1,6 +1,6 @@
 # Agent Runbook: Local Collector
 
-Use this runbook when an AI agent needs to collect private-source data through the Solo Agency Local Collector extension and localhost bridge.
+Use this runbook when an AI agent needs to collect data from private data sources through the Solo Agency Local Collector extension and localhost bridge.
 
 ## Key Rule
 
@@ -8,11 +8,11 @@ Do not ask the user to install Go.
 
 Go is only used by maintainers or CI to build precompiled bridge binaries. In normal operation, the agent runs the correct prebuilt bridge binary for the user's OS/CPU.
 
-If any client has private sources, the first trial may still run public-first to give the human a quick useful result. The report must list those private sources as pending activation and ask whether the human wants to activate private-source monitoring now.
+If any client has private data sources, the first trial may still run public-first to give the human a quick useful result. The report must list those private data sources as pending activation and ask whether the human wants to activate private data source monitoring now.
 
-Collector setup becomes a hard gate only after the human agrees to activate private sources, or before any scheduled/manual run that promises private-source collection. The agent must not claim private-source monitoring is active if the collector is not installed and healthy.
+Collector setup becomes a hard gate only after the human agrees to activate private data sources, or before any scheduled/manual run that promises private data source collection. The agent must not claim private data source monitoring is active if the collector is not installed and healthy.
 
-When private-source activation begins, or before any schedule/manual run that promises private-source collection, the agent must create or update:
+When private data source activation begins, or before any schedule/manual run that promises private data source collection, the agent must create or update:
 
 ```text
 daily-content-pipeline/collector/collector_setup_status.md
@@ -46,7 +46,7 @@ The agent should:
 5. Extract the Chrome extension into the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
 6. Select the correct bridge binary for the user's OS/CPU.
 7. Ask for one-time human approval if the current AI environment requires permission before running a downloaded executable.
-8. Prefer persistent scheduler mode for unattended private-source collection.
+8. Prefer persistent scheduler mode for unattended private data source collection.
 9. Use on-demand mode only when the AI agent can safely start the bridge for a single run.
 
 The user still needs to install the Chrome extension once using Chrome Developer Mode until the extension is available in Chrome Web Store.
@@ -84,7 +84,7 @@ If the binary is missing:
 1. Do not ask the user to install Go.
 2. If network/download is available and authorized, download the prebuilt binary bundle from `https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/collector-bridge-binaries-0.1.0.zip`.
 3. If download is unavailable, log `collector_unavailable`.
-4. Continue with public sources and any previously collected private data.
+4. Continue with public data sources and any previously collected private data.
 5. Notify the user that the local collector binary is missing.
 
 ## Chrome Extension One-Time Install
@@ -109,7 +109,7 @@ Please install the local collector extension once:
 
 Important: if you also see `/ABSOLUTE/PATH/TO/solo-agency/solo-agency-collector/chrome-extension/`, do not select it. That is the toolkit/source copy. The only folder to load for the running agency is the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder above.
 
-After this one-time setup, keep Chrome open and logged in to the private sources you want monitored. The local bridge will run in persistent scheduler mode or I will start it during collection runs when this AI environment allows.
+After this one-time setup, keep Chrome open and logged in to the private data sources you want monitored. The local bridge will run in persistent scheduler mode or I will start it during collection runs when this AI environment allows.
 ```
 
 If the AI agent cannot run the bridge binary because it is sandboxed, create a ready-to-run setup file such as:
@@ -171,7 +171,7 @@ Minimum job:
   },
   "sources": [
     {
-      "name": "Example private source",
+      "name": "Example private data source",
       "url": "https://www.facebook.com/groups/example",
       "source_type": "private",
       "platform": "facebook",
@@ -312,7 +312,7 @@ Use the response to explain the collector state:
 
 After starting or restarting the bridge, wait and re-check `/status` for up to 75 seconds before reporting `no_extension_check_yet`, because Chrome's Manifest V3 service worker may be asleep until the next alarm.
 
-If the bridge is offline and the agent can run commands, start the bridge. If the agent is sandboxed, provide the human with the absolute-path command. If the extension is stale or missing, continue with public sources, skip private sources for this run, and notify the human through WideCast MCP / Telegram when available.
+If the bridge is offline and the agent can run commands, start the bridge. If the agent is sandboxed, provide the human with the absolute-path command. If the extension is stale or missing, continue with public data sources, skip private data sources for this run, and notify the human through WideCast MCP / Telegram when available.
 
 ## Expected Extension Behavior
 
@@ -332,20 +332,20 @@ Chrome Manifest V3 cannot guarantee the background service worker stays awake fo
 If the bridge cannot start:
 
 - Log `collector_unavailable`.
-- Continue with public sources.
+- Continue with public data sources.
 - Notify the user.
 
 If the extension is not installed or does not respond:
 
 - Log `extension_unavailable`.
-- Continue with public sources.
+- Continue with public data sources.
 - Notify the user to install or enable the extension.
 
 If Chrome is closed:
 
 - Log `chrome_not_running`.
-- Continue with public sources.
-- Notify the user to keep Chrome open for private-source collection.
+- Continue with public data sources.
+- Notify the user to keep Chrome open for private data source collection.
 
 If a platform warning, checkpoint, rate limit, or unusual activity prompt appears:
 

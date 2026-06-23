@@ -10,7 +10,7 @@ Also load during:
 
 - first agency run;
 - scheduled daily run;
-- private-source scan analysis;
+- private data source scan analysis;
 - public research analysis when lead or competitor signals are possible;
 - HTML report generation or repair;
 - any human request about leads, competitors, comments, replies, opportunities, outreach, or competitor monitoring.
@@ -19,8 +19,8 @@ Also load during:
 
 - Lead and competitor detection is not a light report appendix. Treat it as a core agency function.
 - Detect leads and competitors during the same public/private data collection pass used for ideas and market research. Do not add a separate extra scan unless the human explicitly asks.
-- For the first lead and competitor pass for a client/source set, use 10 scrolls per approved private source when Local Collector is active and safe.
-- For recurring daily scheduled runs, use 5 scrolls per approved private source by default, unless the saved Local Collector configuration is lower or the human explicitly configured a safer lower value.
+- For the first lead and competitor pass for a client/source set, use 10 scrolls per approved private data source when Local Collector is active and safe.
+- For recurring daily scheduled runs, use 5 scrolls per approved private data source by default, unless the saved Local Collector configuration is lower or the human explicitly configured a safer lower value.
 - Source discovery mode is different: it may scroll deeper under Stage 8 rules. Do not confuse source discovery with daily lead/competitor monitoring.
 - For private/logged-in sources, use only the Solo Agency Local Collector extension plus Local Collector app. Never use Claude in Chrome, Codex built-in browser, Playwright, Puppeteer, Selenium, or any agent-controlled browser for private/logged-in collection.
 - Every detected lead or competitor opportunity shown in the HTML report must include the post/current URL when available, context, classification, why it matters, and a copy-ready suggested comment.
@@ -85,7 +85,7 @@ Do not run a second scan just for lead/competitor detection unless:
 - the first scan failed or produced too little usable data;
 - a saved schedule or config says a deeper first pass is allowed.
 
-Private-source depth:
+Private data source depth:
 
 - First lead/competitor pass for a client/source set: 10 scrolls per approved source.
 - Recurring daily run: 5 scrolls per approved source.
@@ -280,9 +280,9 @@ document.querySelectorAll('.copy-comment').forEach(function (button) {
 If no opportunities were found, the report must distinguish:
 
 - no leads/competitors found after scanning;
-- not scanned because private sources are pending Local Collector activation;
+- not scanned because private data sources are pending Local Collector activation;
 - not scanned because source/session was unavailable;
-- public-only run with limited private lead coverage.
+- public data sources only run with limited private lead coverage.
 
 ## Storage Contract
 
@@ -331,8 +331,8 @@ Before claiming lead/competitor work is complete, verify:
 - Stage 10 was loaded.
 - Leads include direct and indirect need signals, not only explicit "I need a provider" posts.
 - Competitors include direct, indirect, adjacent, attention, or authority competitors when relevant.
-- The first lead/competitor pass used 10 scrolls per approved private source when safe, or documented why it could not.
-- Recurring daily runs used 5 scrolls per approved private source by default, or documented the configured value.
+- The first lead/competitor pass used 10 scrolls per approved private data source when safe, or documented why it could not.
+- Recurring daily runs used 5 scrolls per approved private data source by default, or documented the configured value.
 - Detection happened during the same data collection pass unless a human-approved deeper pass was requested.
 - Every report opportunity has a post/current URL when available.
 - Every report opportunity has a context-aware copy-ready comment.

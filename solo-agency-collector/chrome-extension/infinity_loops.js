@@ -186,7 +186,7 @@
     var seen = new Set();
     var out = [];
     blocks.forEach(function (b) {
-      var norm = b.replace(/^Post\s+\d+\s*/i, "").replace(/\s+/g, " ").trim().toLowerCase();
+      var norm = b.replace(/^(?:Post|Item)\s+\d+\s*/i, "").replace(/\s+/g, " ").trim().toLowerCase();
       if (!norm || seen.has(norm)) return;
       seen.add(norm);
       out.push(b.trim());
