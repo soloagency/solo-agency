@@ -1155,6 +1155,21 @@ The bridge should also write a local health file:
 daily-content-pipeline/collector/inbox/bridge_health.json
 ```
 
+AI agents must read local health/status files when `GET http://127.0.0.1:17321/status` fails from an AI sandbox. A failed localhost request does not always mean the Local Collector app is inactive; in some scheduled-task or hosted-agent environments, the agent's `127.0.0.1` is isolated from the human computer's localhost.
+
+Runtime verification fallback files:
+
+```text
+daily-content-pipeline/collector/inbox/bridge_health.json
+daily-content-pipeline/collector/inbox/collector_status.json
+daily-content-pipeline/collector/collector_setup_status.md
+daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json
+daily-content-pipeline/collector/run_now_request_status.json
+daily-content-pipeline/collector/run_now_request*.consumed.json
+```
+
+If these files show a recent current-workspace bridge, current-workspace output/config paths, and a recent extension check, the agent should use the file-based run-now request path (`daily-content-pipeline/collector/run_now_request.json`) and wait for collector output instead of asking the human to restart the collector. If the files are missing, stale, or point to another setup folder, the agent must log the exact blocker (`collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, or `extension_status_unknown`) and continue with public data sources and previously collected private data when available.
+
 Every time the extension checks `/status`, the bridge should update the last extension check timestamp. This lets the AI agent distinguish between:
 
 - bridge not running,

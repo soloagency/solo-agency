@@ -216,42 +216,54 @@ For each daily run:
       - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
-   7. If private data sources are configured but not yet activated, do not attempt private collection during this run. Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser as a fallback. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public data sources.
-   7a. If no private data sources are configured, and discovery was never offered or was postponed, do not block the scheduled run. Continue with public data sources, but include `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed` in the report/notification. Explain that public-only runs can still produce useful ideas but may miss community, lead, and competitor signals from logged-in/member spaces.
-   8. If private data sources are activated, connect to the already-running Local Collector app according to `collector_config.run_mode`.
-   9. If private data sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
-   10. Check private collector health through `GET http://127.0.0.1:17321/status` when the Local Collector app is expected to be running.
-      - If the bridge is offline, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark private collection as unavailable for this run, and continue with public data sources.
+   7. Before deciding whether to skip private data sources, perform Collector Runtime Verification whenever any of these are true:
+      - private data sources are active, pending, requested, approved, present in the Client Intelligence Profile, or listed in any source approval/history file;
+      - schedule/config says `public_data_sources_only`, `private sources postponed`, or `pending_private_activation`, but the workspace contains Local Collector files;
+      - `daily-content-pipeline/collector/inbox/bridge_health.json`, `daily-content-pipeline/collector/inbox/collector_status.json`, `daily-content-pipeline/collector/collector_setup_status.md`, or recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json` exists.
+      Do not treat saved labels such as `pending_private_activation` or `public_data_sources_only` as final without this runtime check; those labels may be stale after a human later installed, repaired, or reconnected the Local Collector.
+   8. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before any Collector Runtime Verification involving private data sources. Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser as a fallback.
+   9. Try to check private collector health through `GET http://127.0.0.1:17321/status`.
+      - If the request succeeds, record `bridge_status: running`, check `status.persistent`, `status.job_available`, `status.output_dir`, `status.counts`, and `status.extension_health`.
       - If the bridge is online but `/status.config_file`, `/status.output_dir`, or `/status.run_now_request_file` points outside the current setup's `daily-content-pipeline/collector/` tree, mark `wrong_workspace_bridge`, do not run private collection, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
       - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
       - If the workspace identity check passes and `extension_health.status` is `recent`, continue private collection.
-   11. Prepare the private data source queue if private data sources are available and collector health is acceptable:
+   10. If `GET http://127.0.0.1:17321/status` fails, do not immediately conclude the Local Collector is inactive. In some scheduled-task environments, the AI sandbox's `127.0.0.1` is not the human computer's Local Collector localhost.
+      - Read `daily-content-pipeline/collector/inbox/bridge_health.json` when present.
+      - Read `daily-content-pipeline/collector/inbox/collector_status.json` when present.
+      - Read `daily-content-pipeline/collector/collector_setup_status.md` when present.
+      - Inspect recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json` files.
+      - Inspect recent consumed run-now status files such as `run_now_request_status.json`, `run_now_request.consumed.json`, or timestamped `run_now_request*.consumed.json` files when present.
+      - If those local status files show a recent current-workspace bridge and recent extension check, use the Stage 8 file-based run-now path by writing `daily-content-pipeline/collector/run_now_request.json` and waiting for collector output. Do not ask the human to restart the Local Collector just because the API was unreachable from the AI sandbox.
+      - If the files are missing, stale, point to another workspace, or do not prove a recent extension check, mark the precise blocker: `collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, or `extension_status_unknown`.
+   11. If no private data sources are configured, and discovery was never offered or was postponed, do not block the scheduled run. Continue with public data sources, but include `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed` in the report/notification. Explain that public-only runs can still produce useful ideas but may miss community, lead, and competitor signals from logged-in/member spaces.
+   12. If private data sources remain unavailable after Collector Runtime Verification, continue with public data sources and previously collected private data when available. Log the exact verification outcome in the report and notification; do not merely say the config was public-only.
+   13. Prepare the private data source queue if private data sources are available and collector health is acceptable:
       - keep the active daily queue around 20 sources or fewer per client by default;
       - prioritize sources most relevant to the client, target audience, target location, pain points, and content pillars;
       - classify extra sources as `weekly` or `optional` and rotate them across future runs;
       - do not run aggressive or parallel private data source scans for the same logged-in account.
-   12. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
-   13. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
-   14. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, or unavailable private data sources.
-   15. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
-   16. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
-   17. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
-   18. Load Stage 10 and detect hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors during the same research/private-scan pass. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private data source when safe; normal daily runs use 5 scrolls per approved private data source by default.
-   19. For every useful lead or competitor opportunity, preserve profile URLs and post/current URLs when available, safe context summaries, reasoning, suggested human action, and a copy-ready value-first comment in the same language as the post.
-   20. Generate the 3x2 idea matrix, labeling each idea as `primary_industry` or `related_industry`.
-   21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
-   22. Select the best idea of the day.
-   23. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
-   24. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, load Stage 3 and create the approved video/blog/social asset according to provider approval gates. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`.
-   25. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
-   26. Generate `outputs/YYYY-MM/YYYY-MM-DD.html` as a polished standalone human-facing report. It must be factually aligned with the Markdown report, mobile-friendly, and include editable draft review blocks when drafts exist.
-   27. Update or copy `outputs/latest.md`.
-   28. Update or copy `outputs/latest.html`.
-   29. Update `history/YYYY-MM/content_log.md`.
-   30. Update `history/YYYY-MM/data_sources_log.md`.
-   31. Update `history/YYYY-MM/lead_log.md`.
-   32. Update `history/YYYY-MM/competitor_log.md`.
-   33. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
+   14. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
+   15. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
+   16. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, collector-status-unverified, wrong-workspace, or unavailable private data sources.
+   17. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
+   18. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
+   19. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
+   20. Load Stage 10 and detect hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors during the same research/private-scan pass. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private data source when safe; normal daily runs use 5 scrolls per approved private data source by default.
+   21. For every useful lead or competitor opportunity, preserve profile URLs and post/current URLs when available, safe context summaries, reasoning, suggested human action, and a copy-ready value-first comment in the same language as the post.
+   22. Generate the 3x2 idea matrix, labeling each idea as `primary_industry` or `related_industry`.
+   23. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
+   24. Select the best idea of the day.
+   25. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
+   26. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, load Stage 3 and create the approved video/blog/social asset according to provider approval gates. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`.
+   27. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
+   28. Generate `outputs/YYYY-MM/YYYY-MM-DD.html` as a polished standalone human-facing report. It must be factually aligned with the Markdown report, mobile-friendly, and include editable draft review blocks when drafts exist.
+   29. Update or copy `outputs/latest.md`.
+   30. Update or copy `outputs/latest.html`.
+   31. Update `history/YYYY-MM/content_log.md`.
+   32. Update `history/YYYY-MM/data_sources_log.md`.
+   33. Update `history/YYYY-MM/lead_log.md`.
+   34. Update `history/YYYY-MM/competitor_log.md`.
+   35. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
@@ -461,30 +473,39 @@ Before every scheduled run, after every scheduled run, and whenever private data
 
 Health check sequence:
 
-1. Try `GET http://127.0.0.1:17321/status`.
-2. If the request succeeds:
+1. Do not decide from saved config alone. If private data sources exist in any state, or if collector health/output files exist in the workspace, perform this runtime verification before saying private data sources were skipped.
+2. Try `GET http://127.0.0.1:17321/status`.
+3. If the request succeeds:
    - record `bridge_status: running`,
    - record `status.persistent`,
    - record `status.job_available`,
    - record `status.output_dir`,
    - record `status.counts`,
    - inspect `status.extension_health`.
-3. If `extension_health.status` is `recent`, private collection infrastructure is currently healthy.
-4. If `extension_health.status` is `no_extension_check_yet` immediately after extension install, bridge restart, or settings save, wait and re-check for up to 75 seconds before declaring private collection unavailable.
-5. If `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second grace window, treat private collection as unavailable for now and identify likely causes:
+4. If `extension_health.status` is `recent`, private collection infrastructure is currently healthy.
+5. If `extension_health.status` is `no_extension_check_yet` immediately after extension install, bridge restart, or settings save, wait and re-check for up to 75 seconds before declaring private collection unavailable.
+6. If `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second grace window, treat private collection as unavailable for now and identify likely causes:
    - Chrome is closed,
    - extension is not installed,
    - extension is disabled or removed,
    - Solo Agency Local Collector extension and Local Collector app URL/port mismatch,
    - Chrome service worker is asleep and has not woken recently,
    - browser profile is not the one where the extension was installed.
-6. If `/status` fails:
-   - record `bridge_status: offline`,
-   - do not try to start the bridge from inside the AI agent sandbox during setup/repair,
-   - provide the human with the absolute-path Local Collector app setup/start command,
-   - continue with public data sources and previously collected private data.
-6. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public data sources, log the private data source blocker, and notify the human.
-7. If the extension is recent but a private data source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
+7. If `/status` fails:
+   - do not immediately record `bridge_status: offline` as the final truth;
+   - first consider AI sandbox localhost isolation, where the agent's `127.0.0.1` is not the human machine's Local Collector localhost;
+   - read local collector status files before deciding:
+     - `daily-content-pipeline/collector/inbox/bridge_health.json`,
+     - `daily-content-pipeline/collector/inbox/collector_status.json`,
+     - `daily-content-pipeline/collector/collector_setup_status.md`,
+     - recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json`,
+     - recent `run_now_request_status.json` or `run_now_request*.consumed.json` files.
+   - if those files show a recent current-workspace bridge and recent extension check, use the file-based run-now path from Stage 8 rather than asking the human to restart the collector;
+   - if the files are missing, stale, or point to another workspace, record the exact blocker such as `collector_status_unverified`, `collector_offline_or_unreachable`, or `wrong_workspace_bridge`;
+   - do not try to start the bridge from inside the AI agent sandbox during setup/repair;
+   - continue with public data sources and previously collected private data if live private collection remains unavailable.
+8. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public data sources, log the private data source blocker, and notify the human.
+9. If the extension is recent but a private data source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
 
 The AI agent must surface this health information transparently in the daily report and in Telegram notifications when private data sources are unavailable.
 
