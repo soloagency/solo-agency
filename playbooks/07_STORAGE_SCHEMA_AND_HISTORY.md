@@ -116,6 +116,7 @@ Use one folder per client/business/location:
             data_sources_log.md
             lead_log.md
             competitor_log.md
+            lead_competitor_opportunities.jsonl
             new_private_sources_log.md
         outputs/
           YYYY-MM/
@@ -174,6 +175,7 @@ daily-content-pipeline/
             data_sources_log.md
             lead_log.md
             competitor_log.md
+            lead_competitor_opportunities.jsonl
         outputs/
           2026-06/
             2026-06-19.md
@@ -742,9 +744,9 @@ Format:
 ```md
 # Lead Log
 
-| Date | Lead Level | Source | Source Type | Profile URL | Post/Current URL | Safe Lead Summary | Related Offer | Related Pain Point | Suggested Next Action | Status | Notes |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | hot | Facebook Group | private | https://www.facebook.com/profile.php?id=... | https://www.facebook.com/groups/.../posts/... | Person asked for a DUI lawyer in Los Angeles | DUI legal consultation | Fear of license/court consequences | Human should review and decide whether to respond | needs_review | Do not contact automatically |
+| Date | Lead Level | Source | Source Type | Profile URL | Post/Current URL | Safe Lead Summary | Related Offer | Related Pain Point | Suggested Next Action | Copy-Ready Suggested Comment | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-06-20 | hot | Facebook Group | private | https://www.facebook.com/profile.php?id=... | https://www.facebook.com/groups/.../posts/... | Person asked for a DUI lawyer in Los Angeles | DUI legal consultation | Fear of license/court consequences | Human should review and decide whether to respond | Short value-first comment in the post language | needs_review | Do not contact automatically |
 ```
 
 Allowed status:
@@ -770,9 +772,9 @@ Format:
 ```md
 # Competitor Log
 
-| Date | Competitor Type | Name/Page | Platform | Profile URL | Post/Current URL | Location Relevance | Audience Overlap | Offer/Positioning | Content Themes | Engagement Signal | Threat Level | Opportunity | Status |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | direct | Example DUI Law Firm | Facebook | https://www.facebook.com/exampleduilaw | https://www.facebook.com/exampleduilaw/posts/... | Los Angeles | Drivers facing DUI/legal issues | Free consultation for DUI cases | License suspension, court mistakes | Repeated comments asking for help | medium | Create clearer local process education | monitoring |
+| Date | Competitor Type | Name/Page | Platform | Profile URL | Post/Current URL | Location Relevance | Audience Overlap | Offer/Positioning | Content Themes | Engagement Signal | Threat Level | Opportunity | Copy-Ready Suggested Comment | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-06-20 | direct | Example DUI Law Firm | Facebook | https://www.facebook.com/exampleduilaw | https://www.facebook.com/exampleduilaw/posts/... | Los Angeles | Drivers facing DUI/legal issues | Free consultation for DUI cases | License suspension, court mistakes | Repeated comments asking for help | medium | Create clearer local process education | Short respectful value-first comment in the post language | monitoring |
 ```
 
 Allowed status:
@@ -781,6 +783,90 @@ Allowed status:
 - `high_priority`
 - `not_relevant`
 - `archived`
+
+### `history/YYYY-MM/lead_competitor_opportunities.jsonl`
+
+Purpose:
+
+- Store every report-ready lead and competitor opportunity in one machine-readable ledger.
+- Preserve the post/current URL, safe context, classification, suggested human action, and copy-ready comment.
+- Support future learning about which sources, pain points, competitor posts, and comment styles create the best opportunities.
+- Keep lead and competitor opportunity analysis separate from raw private collector text.
+
+Use this ledger in addition to `lead_log.md` and `competitor_log.md` when the environment can write JSONL.
+
+Format:
+
+```json
+{
+  "date": "2026-06-20",
+  "client_slug": "example-client",
+  "opportunity_type": "lead",
+  "classification": "hot_lead",
+  "source": "Facebook Group",
+  "source_type": "private",
+  "platform": "facebook",
+  "profile_url": "https://www.facebook.com/profile.php?id=...",
+  "post_url": "https://www.facebook.com/groups/.../posts/...",
+  "captured_at": "2026-06-20T09:00:00-07:00",
+  "safe_context_summary": "Person asked what to do after receiving an insurance non-renewal notice.",
+  "evidence_snippet": "Short visible snippet when safe",
+  "why_it_matters": "This is a direct need signal tied to the client's offer.",
+  "related_offer": "Home insurance review",
+  "related_pain_point": "Confusion after non-renewal notice",
+  "confidence": "high",
+  "suggested_action": "Human reviews the post and decides whether to leave the suggested value-first comment.",
+  "suggested_comment": "Short natural comment in the same language as the post",
+  "comment_language": "en",
+  "comment_style_notes": "natural, short, no direct pitch",
+  "status": "needs_review"
+}
+```
+
+Allowed `opportunity_type`:
+
+- `lead`
+- `competitor`
+- `both`
+
+Allowed lead classifications:
+
+- `hot_lead`
+- `warm_lead`
+- `watch_lead`
+- `direct_need`
+- `indirect_need`
+- `pain_signal`
+- `buying_trigger`
+- `objection`
+- `comparison`
+- `complaint`
+- `adjacent_need`
+
+Allowed competitor classifications:
+
+- `direct_competitor`
+- `indirect_competitor`
+- `adjacent_solution`
+- `attention_competitor`
+- `authority_or_kol_competing_for_trust`
+- `market_hypothesis`
+
+Allowed status:
+
+- `needs_review`
+- `copied_by_human`
+- `approved_for_comment`
+- `commented_by_human`
+- `not_relevant`
+- `monitoring`
+- `archived`
+
+Privacy rule:
+
+- Do not store unnecessary personal data.
+- Prefer safe summaries, source URLs, and short evidence snippets.
+- Do not store scraped contact details, DMs, hidden account data, or raw private personal data.
 
 ### `history/YYYY-MM/new_private_sources_log.md`
 

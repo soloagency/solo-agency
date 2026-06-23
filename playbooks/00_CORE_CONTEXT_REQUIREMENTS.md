@@ -11,6 +11,7 @@ Load first for every setup or run. This stage contains the core reasoning model,
 - The agent must infer before asking.
 - The agent must preserve related-industry 80/20 logic.
 - The agent must detect leads and competitors while researching.
+- The agent must load Stage 10 before presenting lead/competitor opportunities, report comments, or lead/competitor logs.
 - The agent must keep user-facing language aligned with the human's language.
 - The agent must never treat public-only research as private-source coverage.
 - The agent must explain marketing, analytics, and technical terms in plain language when speaking to a non-technical/non-marketing human.
@@ -52,6 +53,7 @@ Recommended child playbooks:
 
 - `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`: full A-H workflow, examples, reasoning rules, lead/competitor rules, related-industry rule, language/report rules.
 - `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`: setup interview, inference-first profile, public research, keyword rotation, first agency run and HTML report.
+- `playbooks/PRIVATE_SOURCE_GATE.md`: short anti-drift gate for any private/logged-in group/feed/profile/community scan request.
 - `playbooks/02_PRIVATE_SOURCE_SETUP.md`: manual private sources, optional private source discovery, Local Collector activation, source discovery, first private scan, private-enhanced report update.
 - `playbooks/03_PRODUCTION_DISTRIBUTION.md`: writing drafts, production provider setup, video/blog/social creation, publishing, notifications. Do not name this file after any specific vendor.
 - `playbooks/04_DAILY_SCHEDULE.md`: manual/daily/weekly routine and schedule.
@@ -60,6 +62,7 @@ Recommended child playbooks:
 - `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`: folder structure, client profile schema, logs, ledgers, history.
 - `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`: Solo Agency Local Collector app, Chrome extension, localhost API, health, run-now, source discovery, schedule config.
 - `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`: multi-client ops, approvals, safety, regulated industries, self-audit, completion gates.
+- `playbooks/10_LEAD_COMPETITOR_DETECTION.md`: deep lead and competitor opportunity detection, scan depth rules, post-link preservation, value-first copy-ready comments, and report/storage requirements.
 
 If the `playbooks/` folder is not available, the agent must download the needed child playbook from:
 
@@ -103,6 +106,7 @@ The checklist must not assume the human understands marketing or technical terms
 - `pain points`: customer problems, worries, objections, or urgent questions.
 - `content pillars`: repeatable main content themes.
 - `lead`: potential-customer or buying-signal.
+- `Lead & Competitor Opportunities`: report section where lead/competitor signals become reviewable opportunities with source links, context, and a suggested value-first comment the human can copy.
 - `PDNA`: Production creates real assets, Distribution posts/sends approved outputs, Notification sends reports/blockers, Analytics measures performance.
 - `learning loop`: using results to improve the next run.
 
@@ -117,10 +121,10 @@ Solo Agency onetime setup
 [ ] 5. Bạn cung cấp nguồn riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
 [ ] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
 [ ] 7A. Nếu bạn đã cung cấp nguồn riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn riêng tư ở trạng thái pending
-[ ] 7B. Tôi chạy lần đầu: quét nguồn công khai và nguồn riêng tư đã kích hoạt (hoặc public-only nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
+[ ] 7B. Tôi chạy lần đầu: quét nguồn công khai và nguồn riêng tư đã kích hoạt (hoặc public-only nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, cơ hội lead/khách hàng tiềm năng và đối thủ kèm link bài viết + comment gợi ý để bạn copy khi phù hợp, và bản nháp kịch bản/blog/caption đầu tiên
 [ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
 [ ] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất
-[ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
+[ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, cơ hội lead/khách hàng tiềm năng và đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
 ```
 
 Checklist integrity rule:
@@ -391,6 +395,8 @@ The agent must follow these principles at all times:
 - When scanning private or logged-in sources, use conservative pacing: do not scan aggressively, do not run many private-source browser checks in parallel, and leave a 5 second delay between private-source scroll/read actions so platform feeds have time to load.
 - Warn the human not to add too many private sources for one client. As a practical default, keep the daily private-source monitoring list around 20 sources or fewer per client. If the human provides more, prioritize the most relevant sources and rotate lower-priority sources across different days.
 - Do not use Claude Chrome Extension for automated private-source collection. It can require repeated human permission clicks and can trap the human in an approval-gated flow. For Claude, use the Solo Agency Local Collector extension plus the Local Collector app, a user-started Local Collector command, or an OS startup service.
+- If the conversation drifts and later returns to private-source work, the agent must treat that as a fresh private-source turn. Before scanning, opening, monitoring, or collecting any logged-in/private group, feed, profile, page, community, or source, reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9.
+- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for logged-in/private-source collection. Use only the Solo Agency Local Collector extension plus Local Collector app.
 - If an AI environment cannot browse private sources reliably, cannot show a headed browser UI, cannot run downloaded executables, or requires per-run browser approvals, use the Solo Agency Local Collector extension plus the Local Collector app as the preferred private data collection layer instead of trying to bypass permission prompts.
 - During one-time Local Collector setup/update/repair, the AI agent must not run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if local shell permissions are available. Agent-run setup can happen inside a sandbox/session and be killed after the turn. The agent must prepare the files, then give the human the exact one-line Terminal/PowerShell command to run outside the AI sandbox.
 - Local Collector activation requires two human actions in the same setup handoff: run the Local Collector app setup/start command, then load the Solo Agency Local Collector Chrome extension from the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime folder. Do not mark private-source monitoring active until both are done and health checks pass.
@@ -1034,12 +1040,18 @@ For public sources, the agent may use:
 
 For private sources, the agent must use:
 
-- Solo Agency Local Collector extension plus the Local Collector app, preferred when available.
-- Already logged-in browser sessions.
-- Browser profiles where the human has already logged in.
-- AI browser tools that can access logged-in sessions.
-- Codex browser, if available.
-- Hermes, OpenClaw, or other agents using logged-in browser contexts.
+- Solo Agency Local Collector extension plus the Local Collector app.
+- The human's already logged-in Chrome session as accessed by the Solo Agency Local Collector extension.
+- Local Collector output files, localhost status, and run-now/scheduled jobs.
+
+For private sources, the agent must not use:
+
+- Claude in Chrome or Claude Chrome Extension.
+- Codex browser, Codex in-app browser, or browser tools controlled directly by Codex.
+- ChatGPT/Gemini/Grok browser surfaces.
+- Playwright/Puppeteer/Selenium controlled directly by the AI agent.
+- Fresh agent-opened browser profiles, exported browser profiles, storage state, cookies, tokens, passwords, or OTPs.
+- Hermes, OpenClaw, or other agents using logged-in browser contexts directly.
 
 The agent must not ask for credentials.
 
@@ -1118,7 +1130,9 @@ This means the pipeline is both:
 - an idea engine, and
 - a lead discovery engine.
 
-The agent should classify detected leads into two levels:
+Before presenting or storing lead opportunities, load Stage 10: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`.
+
+The agent should classify detected leads into hot, warm, and watch opportunities. Hot and warm are the main daily report levels:
 
 #### Hot Leads
 
@@ -1144,11 +1158,11 @@ Examples:
 - A local business owner describes a repetitive manual workflow that an automation agency could solve.
 - A family discusses financial risk after a natural disaster, even if they do not mention life insurance directly.
 
-The agent must list detected leads in a `Leads Detected` section of the daily output.
+The agent must list detected leads inside the `Lead & Competitor Opportunities` section of the daily output, or a natural same-language title for the report language.
 
 For each lead, include:
 
-- Lead level: hot | warm.
+- Lead level: hot | warm | watch.
 - Source.
 - Profile URL: the person, account, page, group member profile, business profile, or organization profile URL when visible and appropriate to store.
 - Post/current URL: the exact post, comment thread, group post, search result, page, or current browser URL where the lead signal was captured.
@@ -1159,6 +1173,7 @@ For each lead, include:
 - Related client service/offer.
 - Related pain point.
 - Suggested next action.
+- Copy-ready suggested comment in the same language as the post, written to add value without directly advertising the user's service.
 - Outreach risk/compliance note.
 
 The agent must not expose unnecessary private personal data. Summarize safely. Do not copy sensitive personal details unless they are essential and the human is authorized to see them.
@@ -1167,21 +1182,25 @@ If a profile URL is not visible, not available, or unsafe to store, write `unava
 
 The agent must not contact, message, comment, reply, scrape contact info, or engage the lead unless the human explicitly approves that action. Lead detection is allowed; lead outreach requires separate approval.
 
-Detected leads should be stored in `history/YYYY-MM/lead_log.md`.
+Detected leads should be stored in `history/YYYY-MM/lead_log.md` and, when possible, `history/YYYY-MM/lead_competitor_opportunities.jsonl`.
 
 ### Competitor Detection Rule
 
 While scanning public and private sources, the agent must also detect competitors and competitor-like accounts, not only content ideas and leads.
 
+Before presenting or storing competitor opportunities, load Stage 10: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`.
+
 Competitor detection includes:
 
 - Direct competitors offering the same product/service in the same target location.
-- Adjacent competitors solving the same audience pain point with a different offer.
+- Indirect competitors solving the same problem with a different product, service, method, or tool.
+- Adjacent competitors or adjacent solutions solving the same audience pain point before or after the client's offer.
 - Influencers or creators capturing the same audience's attention.
+- Authority/KOL accounts competing for the same audience's trust.
 - Local businesses, agencies, professionals, or pages repeatedly recommended by the community.
 - Pages or profiles whose content is getting strong engagement from the client's target audience.
 
-The agent should classify competitors into three levels:
+The agent should classify competitors into these levels:
 
 #### Direct Competitor
 
@@ -1214,9 +1233,28 @@ Examples:
 - A TikTok creator explaining traffic tickets in the same state.
 - A community admin whose posts shape buyer or legal-service decisions.
 
+#### Indirect Competitor
+
+An indirect competitor solves the same problem in a different way.
+
+Examples:
+
+- A self-serve legal document service competing with a lawyer for simple legal needs.
+- A comparison site competing with an insurance advisor for homeowner attention.
+- A DIY automation tool competing with an automation agency.
+
+#### Authority Or KOL Competitor
+
+An authority or KOL competitor wins trust and shapes decisions even when they do not sell the same service.
+
+Examples:
+
+- A local creator whose posts influence homeowner, buyer, legal, financial, or business-service decisions.
+- A niche newsletter or community admin whose recommendations drive the audience's next action.
+
 For each detected competitor, include:
 
-- Competitor type: direct | adjacent | audience.
+- Competitor type: direct | indirect | adjacent | audience | authority_or_kol.
 - Source.
 - Profile URL: the competitor's profile, page, company page, creator profile, business website, or account URL.
 - Post/current URL: the exact post, thread, content page, recommendation thread, search result, or current browser URL where the competitor signal was captured.
@@ -1230,6 +1268,7 @@ For each detected competitor, include:
 - Why they matter.
 - Threat level: high | medium | low.
 - Opportunity: what the client can learn, counter-position, or improve.
+- Copy-ready suggested comment in the same language as the post, written to add value without attacking the competitor or directly advertising the user's service.
 
 Competitor detection must be used for learning and positioning, not copying.
 
@@ -1237,7 +1276,7 @@ The agent must not plagiarize competitor content. It may analyze patterns, gaps,
 
 If the competitor is discovered from a community recommendation or indirect mention, still store both URLs when possible: the competitor profile URL if visible, and the post/current URL where the recommendation or signal appeared. If one URL is unavailable, write `unavailable` and explain the reason in notes.
 
-Detected competitors should be stored in `history/YYYY-MM/competitor_log.md`.
+Detected competitors should be stored in `history/YYYY-MM/competitor_log.md` and, when possible, `history/YYYY-MM/lead_competitor_opportunities.jsonl`.
 
 ### Adjacent Signal Reasoning Rule
 

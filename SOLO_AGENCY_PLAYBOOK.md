@@ -97,6 +97,7 @@ Load only the stage needed for the current action, plus any dependency named by 
 |---|---|---|
 | 0 | `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` | Always load first. Defines mission, reasoning rules, audience, sources, idea matrix, best-idea selection, lead/competitor logic, language rules, and non-negotiables. |
 | 1 | `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md` | Load during first setup, client setup, setup repair, and first agency run/report. |
+| Private Source Gate | `playbooks/PRIVATE_SOURCE_GATE.md` | Load immediately when any private/logged-in source scan, group scan, joined-groups review, social/community source, or feed/profile requiring account context is mentioned, even if the conversation drifted through unrelated topics. |
 | 2 | `playbooks/02_PRIVATE_SOURCE_SETUP.md` | Load when private sources, manual private source input, Facebook joined groups, private source discovery, or Local Collector activation are mentioned or pending. |
 | 3 | `playbooks/03_PRODUCTION_DISTRIBUTION.md` | Load only when writing drafts, creating video/blog/social assets, setting up a production provider, rendering/exporting, publishing, notifications, or approval gates are relevant. |
 | 4 | `playbooks/04_DAILY_SCHEDULE.md` | Load during routine setup after the profile/source plan is known, and during scheduled/manual run execution. |
@@ -105,6 +106,7 @@ Load only the stage needed for the current action, plus any dependency named by 
 | 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Load whenever creating files, updating profile/history/logs, adding clients, or reading prior context. |
 | 8 | `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` | Load when installing, running, checking, scheduling, or troubleshooting the Local Collector. |
 | 9 | `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` | Load before claiming setup, daily run, private scan, production, measurement, or schedule completion. |
+| 10 | `playbooks/10_LEAD_COMPETITOR_DETECTION.md` | Load whenever detecting, scoring, reporting, storing, or improving lead and competitor opportunities, including first runs and scheduled runs. |
 | Scheduled Entrypoint | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | Use as the scheduler prompt for unattended daily runs. |
 | TODO | `playbooks/TODO.md` | Backlog for future improvements. Do not treat TODO items as daily questions to the human. |
 
@@ -119,10 +121,10 @@ The setup flow is fixed:
 5. Ask target location only if location matters and cannot be inferred.
 6. Select public sources and build a public search keyword bank. The keyword bank must include broad industry keywords, but it must be driven primarily by the target audience's pain points, problems, objections, questions, needs, buying triggers, and local context. The public source list is not fixed: after each run, useful recurring public sources discovered through search or reading must be saved/promoted so future scheduled runs can visit them automatically.
 7. Ask whether the human wants to provide manual private sources. Do not ask a separate interest-graph discovery question.
-8. If private sources or group/source discovery are requested, load Stage 2 and Stage 8, record/triage the sources, mark them as approved, declined, optional, or `pending_private_activation`, and ask for human approval before adding discovered sources. Do not claim private-source monitoring is active until the Local Collector is healthy.
+8. If private sources or group/source discovery are requested, load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before opening any browser or private URL. Record/triage the sources, mark them as approved, declined, optional, or `pending_private_activation`, and ask for human approval before adding discovered sources. Do not claim private-source monitoring is active until the Local Collector is healthy.
 9. Configure the recurring schedule/routine once the basic source plan is known. If private sources exist but Local Collector is not active, configure the schedule as public-only for now and keep private sources as `pending_private_activation`.
 10. Before asking to run the first agency run, resolve step 7A: if private sources exist and the Local Collector is not installed/running/healthy, guide the human through Local Collector setup now, or explicitly ask whether to run the first agency run public-only first while keeping private sources pending.
-11. Run the first agency run: scan public sources and approved/available private sources, or public-only if step 7A was declined/postponed, then generate the HTML report, idea matrix, best idea, leads, competitors, and draft script/blog/caption as the small win.
+11. Run the first agency run: scan public sources and approved/available private sources, or public-only if step 7A was declined/postponed, then load Stage 10 and generate the HTML report, idea matrix, best idea, Lead & Competitor Opportunities, and draft script/blog/caption as the small win.
 12. After the first run small win, do not ask "do you want to make a video now?" Instead ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - to turn approved drafts into real assets, distribute approved outputs, send reports/blockers, and measure results.
 13. If the human says yes to production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 and complete the PDNA provider path: Production, Distribution, Notification, and Analytics. Notification setup stays inside this stage.
 14. If published URL history exists, load Stage 5 and scan analytics/signals for the last 7 days. If no published URL history exists, mark analytics as not available yet.
@@ -145,10 +147,10 @@ Solo Agency onetime setup
 [ ] 5. Bạn cung cấp nguồn riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
 [ ] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
 [ ] 7A. Nếu bạn đã cung cấp nguồn riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn riêng tư ở trạng thái pending
-[ ] 7B. Tôi chạy lần đầu: quét nguồn công khai và nguồn riêng tư đã kích hoạt (hoặc public-only nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
+[ ] 7B. Tôi chạy lần đầu: quét nguồn công khai và nguồn riêng tư đã kích hoạt (hoặc public-only nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, cơ hội lead/khách hàng tiềm năng và đối thủ kèm link bài viết + comment gợi ý để bạn copy khi phù hợp, và bản nháp kịch bản/blog/caption đầu tiên
 [ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
 [ ] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất
-[ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
+[ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, cơ hội lead/khách hàng tiềm năng và đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
 ```
 
 Checklist integrity rule:
@@ -284,6 +286,8 @@ The agent may omit the next-step question only when the entire requested workflo
 - Never ask for passwords, OTPs, cookies, tokens, or raw credentials.
 - Do not use approval-gated browser extensions for unattended private collection.
 - Use the Solo Agency Local Collector extension and Local Collector app for automated private-source collection.
+- When a human asks to scan or monitor private/logged-in groups, feeds, profiles, communities, or sources after any amount of conversation drift, reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before taking action.
+- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in browser, Codex in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or a remote-debugging browser controlled by the AI agent for logged-in/private-source collection. Those tools are allowed for public pages or setup instructions only.
 - During one-time Local Collector setup/update/repair, never run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI agent, even if shell permissions are available. Create/prepare the setup files, then instruct the human to run the one-line command in their own Terminal/PowerShell and load the Chrome extension from the absolute runtime folder. Later scheduled runs use the already-running Local Collector app and do not require repeating setup.
 - Never call the collector a platform-specific collector.
 - Manual private sources and optional source discovery are independent options. Do not ask interest-graph discovery as a separate user-facing step.
@@ -306,7 +310,7 @@ Setup is not complete until:
 - Useful recurring public sources discovered during runs were saved/promoted into `public_data_sources` with cadence so later scheduled runs can revisit them.
 - Optional private-source status was resolved before the first agency run, including the 7A Local Collector checkpoint when private sources exist.
 - Schedule/routine was configured before the first agency run.
-- The first agency run generated a mobile-friendly HTML report and at least one useful draft script/blog/caption.
+- The first agency run loaded Stage 10, generated a mobile-friendly HTML report, included Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, and created at least one useful draft script/blog/caption.
 - The human was asked about PDNA - Production, Distribution, Notification, and Analytics - only after seeing the small-win report/draft.
 
 Private-source setup is not complete until:
@@ -316,6 +320,7 @@ Private-source setup is not complete until:
 - Any approved discovery scan was filtered before activation.
 - The Local Collector status was checked or the blocker was documented.
 - Collected data was analyzed for data points, leads, competitors, new sources, idea matrix, best idea, and drafts.
+- Stage 10 was loaded before presenting lead and competitor opportunities.
 - The HTML report was regenerated.
 
 Production/distribution is not complete until:
@@ -337,6 +342,7 @@ Daily run is not complete until:
 
 - Every active client was processed or explicitly skipped.
 - Sources, keywords, data quality, leads, competitors, ideas, best idea, drafts, and blockers were recorded.
+- Stage 10 was loaded and Lead & Competitor Opportunities were detected, skipped with a clear reason, or marked pending/private-source-unavailable.
 - A mobile-friendly HTML report exists.
 - The human received the HTML report path/link or notification.
 - If WideCast Telegram is connected and WideCast HTML report upload is available, the HTML report was uploaded to WideCast and the human received the uploaded WideCast report URL.
@@ -345,8 +351,10 @@ Daily run is not complete until:
 ## Jump-Prevention Rules
 
 - If the agent is about to ask setup questions but Stage 0 or Stage 1 is not loaded, load them first.
-- If the agent is about to discuss private sources but Stage 2 is not loaded, load it first.
+- If the agent is about to discuss private sources but the private-source gate and Stage 2 are not loaded, load `playbooks/PRIVATE_SOURCE_GATE.md` and Stage 2 first.
+- If the agent is about to scan, open, monitor, or collect from a private/logged-in source, stop and reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before opening any browser or URL.
 - If the agent is about to install or run collector tooling but Stage 8 is not loaded, load it first.
+- If the agent is about to detect, score, report, store, or improve leads or competitors, load Stage 10 first.
 - If the agent is about to create, render, publish, or notify through a production provider but Stage 3 is not loaded, load it first.
 - If the agent is about to run the first agency run before private-source status, the 7A Local Collector checkpoint, and schedule/routine are resolved, stop and load the needed setup stage.
 - If the agent is running from a schedule, it must still load the needed stage playbooks again at run time; schedule execution is the same workflow with saved context, not a memory-only shortcut.

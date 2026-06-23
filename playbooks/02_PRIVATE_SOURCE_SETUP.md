@@ -6,6 +6,8 @@ Stage: `02`
 
 Load when private sources, manual private URLs, joined groups, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, source discovery, or Local Collector activation are requested, approved, pending, or blocked.
 
+If this stage was triggered by a human request to scan, monitor, collect, review, or open a private/logged-in source after any amount of conversation drift, first reload `playbooks/PRIVATE_SOURCE_GATE.md`, then reload Stage 8 and Stage 9 before taking action.
+
 ## Hard Gates For This Stage
 
 - Manual private sources and optional source discovery are independent.
@@ -14,7 +16,11 @@ Load when private sources, manual private URLs, joined groups, followed profiles
 - Explain Local Collector in plain language before asking the human to install or activate it.
 - Use the Facebook joined-groups URL only with explicit consent.
 - Do not use automated approval-gated browser extension flows for unattended collection.
+- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for logged-in/private-source collection.
+- Private-source collection must go through the Solo Agency Local Collector extension plus the Local Collector app only.
+- Before any private-source scan, show or internally verify the `Private-source gate` preflight from `playbooks/PRIVATE_SOURCE_GATE.md`.
 - Collector success alone is not completion; analyze data and regenerate the report.
+- Load Stage 10 before analyzing or reporting lead/competitor opportunities from private-source data.
 
 ## Source Preservation Rule
 
@@ -32,16 +38,31 @@ For Source Discovery Mode, including joined groups, followed sources, subscribed
 
 For Daily Content Monitoring Mode, keep the conservative default: 5 scrolls per source, maximum 10, 5 seconds between scrolls, and around 20 daily private sources or fewer per client.
 
+For the first lead/competitor pass for a client/source set, Stage 10 overrides the daily default: use 10 scrolls per approved private source when Local Collector is active and account-safety settings allow it. Recurring daily runs return to the 5-scroll default unless configuration says otherwise.
+
 If any older copied section appears to use the daily 5-scroll default for source discovery, this latest delta override wins.
 
 ## Group Scan Communication Rule
 
 Every time the agent tells the human it will scan or monitor groups, communities, fanpages, or logged-in social sources, it must state the actual scan depth and where that value comes from.
 
+The same message must include this reminder:
+
+```text
+Private collection method: Solo Agency Local Collector only.
+I will not use Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser for logged-in sources.
+```
+
 For daily content monitoring, the agent must say the human-facing equivalent of:
 
 ```text
 I will go through each approved group/source one by one and scroll {N} times per source, using the value from the Local Collector configuration. The default is 5 scrolls per source, the maximum is 10, and I will wait about 5 seconds between scrolls.
+```
+
+For the first lead/competitor pass, the agent must say the human-facing equivalent of:
+
+```text
+I will go through each approved group/source one by one and scroll 10 times per source for the first lead/competitor pass, if the Local Collector configuration and account-safety limits allow it. Future daily runs usually use 5 scrolls per source.
 ```
 
 The agent must determine `{N}` from the best available source:
@@ -380,7 +401,8 @@ The next HTML report must include a `Private Source Discovery` section when this
 
 For private sources:
 
-- Use already logged-in browser sessions only.
+- Use only the human's already logged-in Chrome session as accessed through the Solo Agency Local Collector extension plus Local Collector app.
+- Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or any agent-controlled browser.
 - Do not request credentials.
 - Do not request cookies.
 - Do not request OTP.

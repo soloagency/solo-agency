@@ -12,10 +12,11 @@ Load during one-time setup after the Client Intelligence Profile, public source 
 - After configuring the routine, ask whether the human wants to run the first agency run immediately.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
 - Scheduled runs must run research, private scans if active, analysis, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification.
+- Scheduled runs must load Stage 10 and produce Lead & Competitor Opportunities, or explicitly mark them as not found, not scanned, pending activation, or unavailable.
 - Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, mark measurement as `no published URLs yet` instead of pretending it ran.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
 - Every scheduled-run human-facing reply, notification, or report handoff must include an updated progress block. If the agent sends multiple progress updates during the scheduled run, each update must show the current completed/current/remaining state.
-- If private collection is blocked, continue public sources and notify the human.
+- If private collection is blocked, continue public sources and notify the human. Do not fall back to Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser for logged-in/private sources.
 - Store schedule config and notification channel.
 
 ## Source Preservation Rule
@@ -36,11 +37,12 @@ At the start of every scheduled run, the agent must load or re-load the relevant
 2. Always load Stage 7: `07_STORAGE_SCHEMA_AND_HISTORY.md` to read profiles, logs, ledgers, and history.
 3. Always load Stage 4: `04_DAILY_SCHEDULE.md` for the scheduled daily-run contract.
 4. Load Stage 1 only if a profile is missing, incomplete, stale, or needs setup repair. Do not ask setup questions when the saved profile is complete.
-5. Load Stage 2 and Stage 8 when private sources are active, pending, blocked, or being scanned.
+5. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private sources are active, pending, blocked, or being scanned.
 6. Load Stage 3 when drafts, production, publishing, provider setup, or notification provider actions are needed.
 7. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
 8. Load Stage 6 whenever generating the human-facing HTML report.
-9. Load Stage 9 before claiming the scheduled run is complete.
+9. Load Stage 10 whenever lead/competitor opportunities, comments, opportunity logs, or competitor monitoring are part of the run. This is normally every first run and every scheduled daily run.
+10. Load Stage 9 before claiming the scheduled run is complete.
 
 The difference between first setup and scheduled runs:
 
@@ -49,7 +51,7 @@ The difference between first setup and scheduled runs:
 - Scheduled runs must not re-ask industry, sub-industry, audience, pain points, content pillars, or private-source setup questions if those fields are already present.
 - Scheduled runs may ask the human only when an approval gate, blocker, missing critical field, expired private session, production/render/publish/credit decision, or lead outreach decision requires human input.
 
-Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, published-URL analytics when published content exists, data analysis, idea matrix, best idea, production-ready drafts, approved video/blog/social production when authorized, HTML report, notification, and measurement/learning when measurement data exists.
+Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, published-URL analytics when published content exists, data analysis, Lead & Competitor Opportunities, idea matrix, best idea, production-ready drafts, approved video/blog/social production when authorized, HTML report, notification, and measurement/learning when measurement data exists.
 
 ## Scheduled Run Progress Display Contract
 
@@ -141,7 +143,7 @@ For each daily run:
       - Detect useful recurring public sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
-   7. If private sources are configured but not yet activated, do not attempt private collection during this run. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public sources.
+   7. If private sources are configured but not yet activated, do not attempt private collection during this run. Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser as a fallback. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public sources.
    8. If private sources are activated, connect to the already-running Local Collector app according to `collector_config.run_mode`.
    9. If private sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
    10. Check private collector health through `GET http://127.0.0.1:17321/status` when the Local Collector app is expected to be running.
@@ -159,8 +161,8 @@ For each daily run:
    15. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
    16. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
    17. Add newly recommended private groups/pages/profiles/communities to `New Private Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
-   18. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
-   19. Detect direct, adjacent, and audience competitors, including profile URLs, post/current URLs, and positioning notes.
+   18. Load Stage 10 and detect hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors during the same research/private-scan pass. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private source when safe; normal daily runs use 5 scrolls per approved private source by default.
+   19. For every useful lead or competitor opportunity, preserve profile URLs and post/current URLs when available, safe context summaries, reasoning, suggested human action, and a copy-ready value-first comment in the same language as the post.
    20. Generate the 3x2 idea matrix, labeling each idea as `primary_industry` or `related_industry`.
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
    22. Select the best idea of the day.
@@ -174,6 +176,7 @@ For each daily run:
    30. Update `history/YYYY-MM/data_sources_log.md`.
    31. Update `history/YYYY-MM/lead_log.md`.
    32. Update `history/YYYY-MM/competitor_log.md`.
+   33. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.

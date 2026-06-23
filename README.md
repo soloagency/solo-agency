@@ -1,6 +1,6 @@
 # Solo Agency
 
-Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" to turn it into a real marketing team that works every morning: research, leads, videos, blogs, distribution, analytics, and improvements, ready for your approval.
+Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" to turn it into a real marketing team that works every morning: research, lead and competitor opportunities, videos, blogs, distribution, analytics, and improvements, ready for your approval.
 
 ## The Point
 
@@ -11,7 +11,7 @@ Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" to tur
 - Measurement without learning is busywork.
 - Learning without improvement is entertainment.
 
-This playbook connects the full agency loop: research, ideas, leads, scripts, production, distribution, measurement, learning, and improvement.
+This playbook connects the full agency loop: research, ideas, lead and competitor opportunities, scripts, production, distribution, measurement, learning, and improvement.
 
 ## What This Is
 
@@ -21,7 +21,7 @@ This playbook connects the full agency loop: research, ideas, leads, scripts, pr
 - A public + private source intelligence system across Google, industry sites, FB, IG, YT, TT, X, LinkedIn, Reddit, groups, pages, creators, and communities.
 - Auto-discovers private social signals from the user's own interest graph: groups they joined, profiles/pages/KOLs they follow, channels they subscribe to, and feeds they already trust, so valuable market signals do not disappear in the scroll.
 - A pain-point-to-content-pillar engine that turns real audience problems into daily content angles.
-- A lead and competitor radar built directly into the content research process.
+- A lead and competitor opportunity engine built directly into the research process: it finds relevant posts, preserves source links, explains why each signal matters, and drafts value-first comments for human review.
 - A production layer for idea-to-video, blog/social creation, auto-posting, notifications, analytics, and build-measure-learn-improve loops.
 - A multi-client workflow for freelancers and agencies that need repeatable output without rebuilding strategy from scratch every morning.
 
@@ -34,8 +34,9 @@ This playbook connects the full agency loop: research, ideas, leads, scripts, pr
 - Related-industry angles clearly labeled and connected back to the client's offer.
 - 5 production-ready draft angles: Value Explainer, Client Q&A, Myth Buster, Mistake Prevention, and Lead-Gen CTA.
 - When approved and connected, the agent can turn those drafts into actual video, blog, and social assets through production tools.
-- Hot/warm lead signals with source, profile URL when visible, post/current URL when visible, and why the lead matters.
-- Competitor intelligence across direct, adjacent, and audience competitors, including hooks, offers, positioning, and source URLs.
+- Lead & Competitor Opportunities with source links, post URLs when visible, context, why it matters, and a copy-ready value-first comment for each opportunity.
+- Hot/warm/watch lead signals, including direct needs, indirect pain signals, objections, complaints, buying triggers, and adjacent needs.
+- Competitor intelligence across direct, indirect, adjacent, attention, and authority/KOL competitors, including hooks, offers, positioning, audience overlap, and useful places to show up.
 - New source opportunities, such as groups, pages, creators, communities, or competitor profiles worth monitoring.
 - A clear production path: approve, revise, choose another idea, create a video, publish, schedule, reconnect, or measure.
 
@@ -45,8 +46,8 @@ This playbook connects the full agency loop: research, ideas, leads, scripts, pr
 - Build content from real market demand, not vibes.
 - Turn audience pain points into content pillars.
 - Turn private community chatter into scripts, lead-gen angles, and objections to answer.
-- Turn competitor activity into positioning and differentiation.
-- Spot hot/warm leads while doing normal content research.
+- Turn competitor activity into positioning, differentiation, and useful places to show up with a helpful comment instead of a sales pitch.
+- Spot hot/warm/watch leads while doing normal content research, with source links and copy-ready value-first comments for human review.
 - Keep each client separated by profile, sources, reports, history, analytics, and learning.
 - Add clients one by one as the agency grows.
 - Run one client, ten clients, or every active client on a schedule.
@@ -60,8 +61,9 @@ Important: the Local Collector is not the setup entrypoint. It is a private-sour
 - Auto-discovers private data sources from the user's social interest graph: joined groups, followed KOLs, creator profiles, subscribed channels, and recommendation feeds.
 - Lets the user provide private sources manually, approve AI-discovered sources, or do both.
 - Uses the user's existing logged-in Chrome session through the Solo Agency Local Collector extension and Local Collector app. Private data stays local on the user's computer by default.
+- Does not use Claude in Chrome, Codex/browser tools, Playwright, or agent-controlled browsers to read logged-in private sources.
 - Never asks for passwords, cookies, OTPs, tokens, or raw credentials.
-- Updates the report, idea matrix, best idea, leads, competitors, and drafts after private scans, instead of stopping at "collector succeeded."
+- Updates the report, idea matrix, best idea, Lead & Competitor Opportunities, and drafts after private scans, instead of stopping at "collector succeeded."
 
 ## Production, Distribution, And Learning
 
@@ -117,6 +119,8 @@ If you are an AI agent setting up this repo, start here:
 2. Follow the checklist in that file in order.
 3. Do not install, start, or configure `solo-agency-collector/` first.
 4. The Local Collector is activated only later if the playbook reaches the private-source stage and the human approves it.
-5. During Local Collector activation, do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent. Prepare the files, then give the human the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension `Load unpacked` folder path.
+5. If the human asks to scan or monitor private/logged-in groups, feeds, profiles, communities, or social sources after the conversation has drifted, reload `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before taking action.
+6. Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read logged-in/private sources. Use only the Solo Agency Local Collector extension plus the Local Collector app.
+7. During Local Collector activation, do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent. Prepare the files, then give the human the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension `Load unpacked` folder path.
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
