@@ -1327,7 +1327,7 @@ Other agents:
 
 Manual run / run-now rule:
 
-- Any human request such as `run now`, `manual run`, `test run`, `trial run`, `collect now`, `scan now`, or `chạy thử` must bypass recurring schedule windows.
+- Any human request such as `run now`, `manual run`, `test run`, `trial run`, `collect now`, or `scan now` must bypass recurring schedule windows.
 - The agent must not wait for `scheduled_windows` when the human requested a manual run.
 - If the Local Collector app is reachable, the agent must create a run-now job and call `POST http://127.0.0.1:17321/jobs/run_now`.
 - The run-now job must include:

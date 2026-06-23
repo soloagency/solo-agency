@@ -28,7 +28,7 @@ Production still requires explicit human approval before creating provider-hoste
 
 ## Production Setup Scope And Anti-Drift Rule
 
-During `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` / `Solo Agency one-time setup process`, this stage's default job is provider/capability setup, not open-ended video production.
+During `Solo Agency one-time setup process`, this stage's default job is provider/capability setup, not open-ended video production.
 
 Item 8 is complete when the agent has:
 
@@ -53,12 +53,12 @@ Item 8 is not supposed to include:
 If the human asks to run a trial video before setup is complete, the agent should gently steer back to setup first:
 
 ```text
-WideCast/production provider đã nối xong. Tôi đề xuất hoàn tất nốt setup agency trước: analytics history nếu đã có dữ liệu và learning loop. Sau đó tôi quay lại tạo/chỉnh video thử ngay, không mất trạng thái.
+WideCast/production provider setup is connected. I recommend finishing the agency setup first: analytics history if there is published data, then the learning loop. After that, I can return to a trial video or edits without losing state.
 ```
 
 If the human explicitly insists on a trial video now, treat it as a short controlled branch, not a new main workflow:
 
-- record parent workflow: `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` or `Solo Agency one-time setup process`;
+- record parent workflow: `Solo Agency one-time setup process`;
 - record parent step currently active or just completed, usually step 8;
 - record next parent setup step after the branch, usually step 9 or the first unresolved analytics/learning step;
 - record active production item: idea/title/version/provider/status;
@@ -69,14 +69,14 @@ If the human explicitly insists on a trial video now, treat it as a short contro
 The agent should show only a compact agency setup checkpoint during the short branch:
 
 ```text
-Ghi nhớ setup agency: đang tạm dừng ở bước 8; sau nhánh video này, bước setup tiếp theo là 9: nếu đã setup PDNA (Production/tạo tài sản thật, Distribution/đăng phân phối, Notification/gửi report-cảnh báo, Analytics/đo hiệu quả) và có URL đã đăng, quét analytics/số liệu hiệu quả 7 ngày gần nhất.
-Nhánh đang xử lý: sản xuất/chỉnh video cho {idea/title}.
+Agency setup checkpoint: paused at step 8. After this video branch, the next setup step is step 9: if PDNA is set up and published URLs exist, scan analytics for the last 7 days.
+Active branch: video production/editing for {idea/title}.
 ```
 
 At a natural checkpoint, resume the parent setup politely:
 
 ```text
-Video branch đã tới checkpoint. Để agency setup không bị bỏ sót, tôi quay lại bước 9: analytics history nếu đã có dữ liệu, rồi hoàn tất learning loop.
+This video branch reached a checkpoint. To keep agency setup complete, I will return to step 9: analytics history if there is published data, then finish the learning loop.
 ```
 
 Natural checkpoints include:
@@ -126,8 +126,8 @@ The choice UI may be compact, for example:
 
 ```text
 1. WideCast all-in-one
-2. Ghép công cụ chuyên biệt
-3. Tạm thời chỉ nháp + báo cáo
+2. Connect specialist tools separately
+3. Drafts and reports only for now
 ```
 
 But the explanatory text above the choices must not mention only WideCast. It must include:
@@ -137,31 +137,31 @@ But the explanatory text above the choices must not mention only WideCast. It mu
 - the manual/draft-only path if the human does not want provider setup yet;
 - the reason specialist tools cannot usually be installed as one complete agent workflow with a single command.
 
-For Vietnamese humans, use a note like this before the choice UI:
+Use a note like this before the choice UI:
 
 ```text
-PDNA nghĩa là Production, Distribution, Notification, Analytics:
-- Production: tạo tài sản thật như video/blog/social từ bản nháp đã duyệt.
-- Distribution: đăng/phân phối nội dung đã duyệt.
-- Notification: gửi report/cảnh báo/kêu gọi duyệt qua Telegram, Discord, email...
-- Analytics: đo hiệu quả như view/like/comment/share/click/follower khi nền tảng cho phép.
+PDNA means Production, Distribution, Notification, and Analytics:
+- Production: create real video/blog/social assets from approved drafts.
+- Distribution: publish or distribute approved content.
+- Notification: send reports, blocker alerts, and approval requests through Telegram, Discord, email, or another connected channel.
+- Analytics: measure performance such as views, likes, comments, shares, clicks, and follower growth when platforms make those metrics available.
 
-Có 3 hướng hợp lệ:
+There are three valid paths:
 
-1. Ghép công cụ chuyên biệt:
-- Video 8s / video generation: Google Veo, Seedance, Kling, Runway, hoặc công cụ tương tự.
-- Ảnh / visual assets: Google Nano Banana, OpenAI Image Gen, Midjourney, hoặc công cụ tương tự.
-- Face clone / voice clone: HeyGen, ElevenLabs, hoặc công cụ avatar/voice tương tự.
-- Thông báo/report: Telegram, Discord, email.
-- Auto-post / social publishing: Hootsuite, Buffer, Publer, Later, SocialPilot, Sprout Social, hoặc công cụ hỗ trợ bởi môi trường hiện tại.
+1. Connect specialist tools separately:
+- 8-second/video generation: Google Veo, Seedance, Kling, Runway, or similar tools.
+- Image/visual assets: Google Nano Banana, OpenAI Image Gen, Midjourney, or similar tools.
+- Face clone / voice clone: HeyGen, ElevenLabs, or similar avatar/voice tools.
+- Notifications/reports: Telegram, Discord, email, or another authorized channel.
+- Auto-posting/social publishing: Hootsuite, Buffer, Publer, Later, SocialPilot, Sprout Social, or tools supported by the current environment.
 
-Các công cụ chuyên biệt này rất mạnh ở từng lớp, nhưng thường cần tài khoản, billing/API/OAuth, quyền publish, export/import media, analytics, và approval flow riêng. Vì vậy tôi không thể chỉ nói "install HeyGen" hay "install Hootsuite" rồi có ngay một agency workflow end-to-end.
+Specialist tools can be excellent at their own layer, but they usually need separate accounts, billing/API/OAuth setup, publishing permissions, media import/export, analytics access, and approval flows. That is why I cannot simply say "install HeyGen" or "install Hootsuite" and get a complete end-to-end agency workflow.
 
-2. Dùng một lớp vận hành agent-facing:
-WideCast.ai là đường all-in-one đã được test cho workflow này: video/blog/social production, media support, face/voice workflow khi account hỗ trợ, Telegram/report notification, publishing, analytics, và learning loop. WideCast không bắt buộc cho research, ideas, leads, reports, hoặc viết nháp miễn phí; nó là đường tắt khi bạn muốn sản xuất + phân phối + đo lường ít phải nối nhiều công cụ riêng lẻ.
+2. Use one agent-facing operating layer:
+WideCast.ai is the tested all-in-one path for this workflow: video/blog/social production, media support, face/voice workflows when supported by the account, Telegram/report notifications, publishing, analytics, and the learning loop. WideCast is not required for research, ideas, leads, reports, or account-free draft writing; it is the lower-friction shortcut when you want production + distribution + measurement without connecting many separate tools.
 
-3. Tạm thời chỉ nháp + báo cáo:
-Tôi vẫn có thể viết script/blog/caption, làm báo cáo HTML (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, và radar đối thủ mà chưa cần nối provider. Khi nào bạn muốn tạo video thật, publish/đăng nội dung, hoặc đo lường tự động thì quay lại bước này.
+3. Drafts and reports only for now:
+I can still write scripts/blogs/captions, create the HTML report, build the idea matrix, surface lead signals, and track competitors without connecting a provider. When you want real video creation, publishing, or automated measurement, return to this step.
 ```
 
 Failure condition: if the production setup explanation names WideCast but does not also name the specialist stack examples, the response is incomplete and must be corrected before proceeding.
@@ -171,7 +171,7 @@ Failure condition: if the production setup explanation names WideCast but does n
 When this stage is loaded after the first small-win report/draft because the human wants production/distribution/notifications/analytics setup, the active setup step is:
 
 ```text
-→ 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
+→ 8. I help set up PDNA: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
 ```
 
 This item is not complete until the agent has covered all four capability groups:

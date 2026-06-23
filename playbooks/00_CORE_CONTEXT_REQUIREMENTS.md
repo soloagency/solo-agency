@@ -15,7 +15,7 @@ Load first for every setup or run. This stage contains the core reasoning model,
 - The agent must keep user-facing language aligned with the human's language.
 - The agent must never treat research from public data sources only as private data source coverage.
 - The agent must explain marketing, analytics, and technical terms in plain language when speaking to a non-technical/non-marketing human.
-- The agent must use canonical source terminology in human-facing text: `public data sources` / `private data sources` in English, and `nguồn dữ liệu công khai` / `nguồn dữ liệu riêng tư` in Vietnamese. Do not shorten these terms, omit `data` / `dữ liệu`, use slash terms, or use mixed-language shorthand labels.
+- The agent must use canonical source terminology in human-facing text: `public data sources` and `private data sources`. Do not shorten these terms, omit `data`, use slash terms, or use mixed-language shorthand labels.
 
 ## Source Preservation Rule
 
@@ -84,10 +84,10 @@ The explanation must include production explicitly:
 - can publish approved content to 10+ connected platforms when authorized;
 - measures results and feeds the learning into the next run.
 
-In Vietnamese, a good concise explanation is:
+A good concise explanation is:
 
 ```text
-Mỗi ngày hệ thống tự nghiên cứu thị trường, tìm ý tưởng nội dung có dẫn nguồn, phát hiện lead nóng/ấm và đối thủ, viết sẵn kịch bản/blog/caption để bạn duyệt; sau khi bạn duyệt và đã kết nối provider, nó có thể tự sản xuất video/blog/social assets, đăng nội dung đã duyệt lên 10+ nền tảng, đo lường kết quả, rồi dùng dữ liệu đó để cải thiện vòng sau.
+Every day, Solo Agency researches the market, finds source-backed content ideas, detects hot/warm leads and competitors, drafts scripts/blogs/captions for approval, creates approved video/blog/social assets through connected providers, publishes approved content to 10+ platforms when authorized, measures results, and uses that learning to improve the next run.
 ```
 
 Do not imply that production is only a manual copy/paste step. Also do not imply that rendering, publishing, spending credits, face clone, voice clone, or outreach happens without explicit human approval.
@@ -96,7 +96,7 @@ Do not imply that production is only a manual copy/paste step. Also do not imply
 
 The agent must show and update this progress roadmap during setup so the human can catch missed steps.
 
-This is a human-facing progress roadmap, not an internal agent instruction list and not a form for the human to answer line by line. Use the human's language. Use `You`/`Bạn` for the actions the human must provide or approve, and `I`/`Tôi` for the actions the agent performs. Do not display internal verbs such as "Ask", "Infer", "Select", or "Run" as if the human were reading agent instructions.
+This is a human-facing progress roadmap, not an internal agent instruction list and not a form for the human to answer line by line. Use `You` for the actions the human must provide or approve, and `I` for the actions the agent performs. Do not display internal verbs such as "Ask", "Infer", "Select", or "Run" as if the human were reading agent instructions.
 
 For human-facing progress, prefer font/text status icons over raw checkbox syntax:
 
@@ -110,8 +110,8 @@ Every progress block must include a short line explaining that this is the agent
 
 The checklist must not assume the human understands marketing or technical terms. Explain terms directly in the checklist or immediately below it. Required meanings:
 
-- `nguồn dữ liệu công khai`: website, Google/tìm kiếm, báo, diễn đàn/trang công khai the agent can access without the human's login.
-- `nguồn dữ liệu riêng tư`: logged-in or membership-based sources such as Facebook groups/pages, X, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require access, Discord/Slack communities, competitor profiles, newsletters, or private forums.
+- `public data sources`: websites, search, news, public forums, and public pages the agent can access without the human's login.
+- `private data sources`: logged-in or membership-based sources such as Facebook groups/pages, X, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require access, Discord/Slack communities, competitor profiles, newsletters, or private forums.
 - `Local Collector`: local app plus Chrome extension on the human's computer; it uses the already logged-in Chrome session, reads approved visible pages only, and keeps private data local by default.
 - `offer`: business promise/package/value proposition.
 - `pain points`: customer problems, worries, objections, or urgent questions.
@@ -121,23 +121,23 @@ The checklist must not assume the human understands marketing or technical terms
 - `PDNA`: Production creates real assets, Distribution posts/sends approved outputs, Notification sends reports/blockers, Analytics measures performance.
 - `learning loop`: using results to improve the next run.
 
-For Vietnamese humans, use this wording:
+Use this wording:
 
 ```text
-Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)
-Đây là lộ trình minh bạch tôi đang tự thực hiện; bạn chỉ cần phản hồi khi tôi hỏi một câu cụ thể.
+Solo Agency one-time setup process
+This is the planned setup process I am working through. You only need to reply when I ask one specific question.
 
-→ 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
-○ 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
-○ 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
-○ 4. Tôi tự tìm/chọn nguồn dữ liệu công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
-○ 5. Bạn cung cấp nguồn dữ liệu riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, Reddit/subreddit, X, LinkedIn, GitHub riêng, Discord...); nếu bạn chưa biết nên thêm nguồn nào, tôi có thể đề nghị quét danh sách group/subreddit/community/page/profile/kênh bạn đã tham gia hoặc theo dõi, lọc nguồn phù hợp rồi xin bạn duyệt; tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
-○ 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
-○ 7A. Nếu bạn đã cung cấp nguồn dữ liệu riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn dữ liệu riêng tư ở trạng thái pending
-○ 7B. Tôi chạy lần đầu: quét nguồn dữ liệu công khai và nguồn dữ liệu riêng tư đã kích hoạt (hoặc chỉ dùng nguồn dữ liệu công khai nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, cơ hội lead/khách hàng tiềm năng và đối thủ kèm link bài viết + comment gợi ý để bạn copy khi phù hợp, và bản nháp kịch bản/blog/caption đầu tiên
-○ 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
-○ 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất
-○ 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, cơ hội lead/khách hàng tiềm năng và đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
+→ 1. You provide the product/service, profession, expertise, or business description
+○ 2. I infer the industry, sub-industry, related industries, audience, and offer
+○ 3. I infer pain points (customer problems) and content pillars (main repeatable content themes)
+○ 4. I find/select public data sources (websites, search, news, public forums, and public pages that do not require your account) and search keywords
+○ 5. You provide private data sources if you want (logged-in social groups, profiles, pages, channels, or communities). If you do not know which sources matter yet, I can suggest scanning joined groups/subreddits/communities/pages/profiles/channels you already follow, filter the candidates, and ask you to approve what to monitor. I activate the Local Collector only if you approve it.
+○ 6. I configure the automatic schedule/routine
+○ 7A. If you provided private data sources, I guide you through Local Collector setup so the first run can include those sources; if you want to move faster, I keep private data sources pending
+○ 7B. I run the first agency run: scan public data sources and activated private data sources, or public data sources only if 7A is postponed, then create the HTML report, idea matrix, Lead & Competitor Opportunities with post links and suggested comments, and the first script/blog/caption draft
+○ 8. I help set up PDNA: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
+○ 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
+○ 10. I update the report, idea matrix, best idea, Lead & Competitor Opportunities, drafts, analytics/statistics, and learning loop
 ```
 
 Progress roadmap integrity rule:
@@ -150,7 +150,7 @@ Progress roadmap integrity rule:
 - Step 6 is the one-time schedule/routine setup. It should happen before the first full agency run so future automation is already defined.
 - Step 7A is the private data source activation checkpoint. If private data sources were provided/approved and Local Collector is not installed, running, and healthy, 7A becomes the next required question after step 6. The agent must either guide Local Collector setup or ask whether the human wants to run public data sources only first while keeping private data sources pending.
 - Step 7A may be marked `–` only when no private data sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public data sources only first run. The reason must be shown in plain language.
-- Step 7B is the small win: report plus useful drafts. It must state whether the run will use data from public data sources only or public plus activated private data sources. After step 7B, the agent must not ask `làm video luôn không?` or start video editing. The next setup question is step 8.
+- Step 7B is the small win: report plus useful drafts. It must state whether the run will use data from public data sources only or public plus activated private data sources. After step 7B, the agent must not ask `make a video now?` or start video editing. The next setup question is step 8.
 - Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
 - Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `–` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
 - Step 10 is the final one-time setup process item and the daily learning-loop outcome. On the first run it uses report/draft content and data from private data sources; from the second run onward it also includes analytics/statistics from step 9.
@@ -172,10 +172,10 @@ Default behavior during the one-time setup process:
 - after provider setup, gently return to the next setup step;
 - defer trial video creation/editing until after the one-time setup process unless the human explicitly insists.
 
-Good Vietnamese transition after provider setup:
+Good transition after provider setup:
 
 ```text
-Production provider đã nối xong. Để hệ thống agency không thiếu các bước quan trọng, tôi sẽ hoàn tất setup chính: analytics history nếu đã có dữ liệu và learning loop. Sau khi setup xong, tôi có thể quay lại tạo/chỉnh video thử ngay.
+Production provider setup is connected. To keep the agency setup complete, I will finish the main setup path first: analytics history if there is published data, then the learning loop. After setup is complete, I can come back to a trial video or edits.
 ```
 
 If the human explicitly asks to create or edit a video before setup is complete, treat it as a short controlled branch:
@@ -185,19 +185,12 @@ If the human explicitly asks to create or edit a video before setup is complete,
 - show a compact parent checkpoint, not the full 16-item setup list, while the branch is active;
 - after one natural checkpoint, gently resume the parent setup unless the human explicitly asks to continue the production branch.
 
-For Vietnamese humans, use this compact parent checkpoint format during an active production branch:
-
-```text
-Ghi nhớ setup agency: đang tạm dừng ở bước {N}; sau nhánh video này, bước setup tiếp theo là {M}: {nhãn ngắn}.
-Nhánh đang xử lý: sản xuất/chỉnh video/blog/social cho {idea/title}.
-```
-
 After a natural checkpoint such as provider connected, draft approved, video created, scenes reviewed, final render/export/publish completed, branch blocked, or the human says they are done with the asset, the final question should usually return to the parent setup flow.
 
-Good Vietnamese final question after a branch checkpoint:
+Good final question after a branch checkpoint:
 
 ```text
-Video branch đã tới checkpoint. Tôi quay lại setup agency để hoàn tất nguồn dữ liệu riêng tư và lịch chạy tự động nhé?
+This video branch reached a checkpoint. Should I return to the agency setup flow and finish the remaining setup steps now?
 ```
 
 The progress block must show:
@@ -209,13 +202,7 @@ The progress block must show:
 
 For setup, use a title that clearly says this is a planned setup process, not a user questionnaire.
 
-For Vietnamese humans, use the exact title:
-
-```text
-Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)
-```
-
-For English humans, use:
+Use:
 
 ```text
 Solo Agency one-time setup process
@@ -223,7 +210,7 @@ Solo Agency one-time setup process
 
 Do not use bare internal stage names as human-facing progress titles. In particular:
 
-- Do not title a human-facing block with the internal private-data-source gate name alone; use `Lộ trình dự kiến cho Private Data Source Gate` in Vietnamese or `Private Data Source Gate planned preflight` in English.
+- Do not title a human-facing block with the internal private-data-source gate name alone; use `Private Data Source Gate planned preflight`.
 - Do not title a human-facing block with the old bare setup label; use the one-time setup process titles above.
 
 For other flows, use a specific progress title such as:
@@ -242,7 +229,7 @@ Do not end with a passive summary, a report link, or a vague statement such as "
 Good final lines:
 
 ```text
-Bạn đã cung cấp nguồn dữ liệu riêng tư nhưng Local Collector chưa bật. Bạn muốn tôi hướng dẫn bật Local Collector ngay để lần chạy đầu có dữ liệu nguồn dữ liệu riêng tư, hay chạy trước chỉ với nguồn dữ liệu công khai và giữ nguồn dữ liệu riêng tư ở trạng thái pending?
+You provided private data sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so the first run can include private data sources, or run public data sources only first and keep private data sources pending?
 ```
 
 ```text
@@ -455,7 +442,7 @@ The agent must follow these principles at all times:
 - Communicate with the human in the same language the human uses.
 - Store internal operational field names and schemas in English unless the human explicitly asks otherwise.
 - Write human-facing reports, daily digests, HTML reports, summaries, notifications, approval requests, and client-facing explanations in the language the human uses.
-- Search keyword language must follow the target audience's likely search/comment language, not automatically the human's chat language. If the human uses Vietnamese but the target audience is English-speaking homeowners in Orange County, the keyword bank should be primarily English. If the target audience is Vietnamese-speaking homeowners in Orange County, include Vietnamese and English keyword variants and label each keyword's language.
+- Search keyword language must follow the target audience's likely search/comment language, not automatically the human's chat language. If the human uses one language but the target audience searches and comments in another, the keyword bank should prioritize the audience language. If the audience is multilingual, include useful variants and label each keyword's language.
 - Content output language should follow the target audience and intended publishing audience unless the human explicitly chooses another language. Reports and setup chat may stay in the human's language even when keywords and content drafts are in the audience language.
 - User-facing reports must be HTML. Do not show, send, link, or ask the human to open `.md` reports as the report experience. Markdown files are internal source-of-truth records for the agent, audit trail, history, and future learning.
 - Do not make the human open Markdown files to learn what to do next. Human-facing setup guidance, blockers, commands, and next actions must be shown directly in the current chat message, Telegram notification, HTML report, or another human-facing channel.

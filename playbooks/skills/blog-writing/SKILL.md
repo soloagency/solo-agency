@@ -95,7 +95,7 @@ space is a feature.
 - Write a **meta description** (~150–160 chars) that is itself a mini-hook.
 - Note where **internal links** (related content) and **external citations**
   (authoritative sources) should go.
-- Match content language; for Vietnamese use proper diacritics.
+- Match the target content language and use correct spelling, punctuation, and typography for that language.
 
 ### 8 — Length tier (pick by intent)
 | Tier | Words | Use for |
