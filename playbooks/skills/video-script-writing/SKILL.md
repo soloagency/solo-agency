@@ -261,25 +261,45 @@ Writing **at least one** script is mandatory; dropping a format is fine **only
 with a fit-based reason** — skipping for effort, or returning zero scripts, is an
 invalid Stage-1 hand-off.
 
-#### 4b — Presenting the scripts: interactive HTML artifact (preferred when supported)
-If your host can render an **interactive HTML artifact** (e.g. Claude on
-claude.ai / Desktop), present the Stage-1 scripts as an HTML page instead of
-plain markdown: each version in its own **`contenteditable` div** with a **Copy
-button**, so the user can edit a version inline and copy the final text straight
-back into the chat — no need to describe edits in prose. Label each version
-**`Version N · CODE — Name`** (e.g. `Version 1 · VE — Value Explainer`,
-`Version 2 · QA — Client Q&A`), numbered over the formats you actually wrote.
+#### 4b — Presenting the scripts: interactive HTML artifact (MANDATORY when your host supports it)
+**STEP 4b.0 — declare your presentation mode FIRST, out loud, before you write the
+hand-off.** One literal line in the chat:
 
+> `Presentation: HTML-ARTIFACT` — my host renders interactive HTML artifacts, so I
+> will present the versions as an editable page with Copy buttons.
+
+…or, only if your host has no interactive-artifact surface:
+
+> `Presentation: MARKDOWN` — my host (CLI / terminal / plain chat) can't render an
+> interactive artifact, so I'll use coded markdown headings.
+
+**If your host CAN render an interactive HTML artifact (Claude on claude.ai /
+Desktop, or any surface that runs an HTML/JS canvas), you MUST choose
+HTML-ARTIFACT.** Dumping the versions as plain markdown when you could have built
+the artifact is the failure to avoid — the editable cards + Copy buttons are the
+whole point (the user edits inline and copies the final text straight back). It
+is NOT optional, NOT "nice to have", and "markdown is faster" is NOT a reason to
+skip it. MARKDOWN mode is only correct for hosts that genuinely cannot render an
+interactive artifact (most CLI/terminal agents, plain ChatGPT/Gemini/Grok chat).
+
+In **HTML-ARTIFACT mode**, build the page from the canonical template below:
+- Each version in its own **`contenteditable` div** with a **Copy button**, so the
+  user edits inline and copies the final text back — no need to describe edits.
+- Label each version **`Version N · CODE — Name`** (e.g. `Version 1 · VE — Value
+  Explainer`, `Version 2 · QA — Client Q&A`), numbered over the formats you wrote.
 - Keep `### Research` and the closing pick-invite as **normal chat markdown**
-  (outside the artifact) so they render cleanly; the artifact holds only the
-  editable version cards.
-- **Fallback:** if your host does NOT render interactive HTML artifacts
-  (most ChatGPT / Gemini / Grok chat surfaces), use the plain markdown coded
-  headings from step 4 — that's the default, the artifact is the upgrade.
-- **Accepting the pick:** treat any of these as a valid choice — a bare CODE
-  (`VE`), a `Version N` / `VN`, or the **pasted final text** the user copied out
-  of a card after editing. If they paste edited text, that pasted text IS the
-  approved script for Stage 2 — use it verbatim.
+  (outside the artifact); the artifact holds only the editable version cards.
+- Skipped formats get NO card — mention them + their one-line fit reason in chat.
+
+**Accepting the pick (both modes):** treat any of these as a valid choice — a bare
+CODE (`VE`), a `Version N` / `VN`, or the **pasted final text** the user copied
+out of a card. If they paste edited text, that pasted text IS the approved script
+for Stage 2 — use it verbatim.
+
+❌ **Anti-example (the exact mistake to avoid):** your host supports artifacts, but
+you print the 5 versions as a plain markdown list with no Copy buttons "to save a
+step." That is a skip. ✓ **Correct:** declare `Presentation: HTML-ARTIFACT`, build
+the editable + Copy-button page, keep Research/pick-invite as chat text.
 
 Canonical template (inline-styled so it survives the artifact sandbox; one
 `<section>` per version you wrote — adjust the count, never force five):
@@ -333,43 +353,71 @@ in**, and keep images **sparse**. Two hard rules govern the whole script:
   existing* video, not for authoring a new script). Just leave those beats bare;
   the engine sources B-roll for them.
 
-**Vetting loop — for each beat you want to illustrate (max 3):**
+**STEP 5.0 — declare your vetting mode FIRST, out loud, before sourcing anything.**
+Write one literal line in the chat so you (and the user) commit to it:
 
-*If your host CAN download a file and visually inspect it* (e.g. Claude with file
-read / a code sandbox):
-1. Find a candidate real image URL via the **R2 ladder** below (Wikimedia → the
-   subject's own source → reputable secondary via `web_fetch` → stock). Do NOT
-   use `widecast_search_broll` — it's edit-only.
-2. **Download the image to a local file and LOOK at it.** Judge fit: right
-   subject? clear, not a logo/watermark/ad/wrong thing? does it actually match
-   this beat? **Show the user the LOCAL image you just inspected** (render the
-   downloaded file, NOT the online URL — your sandbox can't display the online
-   URL, and showing what you saw keeps you honest and lets the user judge too).
-   If your host can't display a local image, state in one line what you saw.
-3. **Fits** → inline it. **Doesn't fit** → change the keyword / try another
-   source and repeat. **Retry up to 5 times per beat.**
-4. **Still nothing after 5 tries** → if you can generate images yourself,
-   **generate** a fitting one, **upload it via `widecast_upload_asset`**, and use
-   the returned `url`. (Inspect your own generation the same way before using.)
-5. **Can't generate** → call **`widecast_create_image`** as the LAST resort. It
-   costs **1 credit per image**, so **tell the user** you're spending it and why
-   (no real photo could be sourced for this beat). Reserve this for last because
-   real photos beat AI art for credibility — critical for news / real events /
-   real products, where an AI image would be wrong or misleading.
+> `Vetting mode: VISION` — I can download a file and view it, so I will look at
+> every image before inlining.
 
-*If your host CANNOT download + visually inspect* (most plain chat / MCP hosts):
-- **Do NOT inline a guessed URL blindly.** Evaluate candidates by **URL + source
-  authority** instead (the authority-match test in *R3* — apple.com for an
-  iPhone, AP/Reuters for a news event, a museum for an artwork). Inline only a
-  URL that came from a real source (a `web_fetch` body / search result / the
-  user) and passes the authority test.
-- **Do NOT fall back to `widecast_create_image` just because you can't see** —
-  industries like news genuinely need real photos; an AI generation would
-  fabricate reality. Generate/`create_image` is only a *no-good-real-image* path,
-  not a *no-vision* path. If no credible real URL exists for a beat, leave it to
-  auto-B-roll.
+…or, only if you genuinely cannot open a downloaded image:
 
-The image budget (≤3, ≥1, no adjacency) applies on BOTH paths.
+> `Vetting mode: URL-AUTHORITY` — I cannot view images, so I will judge candidates
+> by source authority.
+
+**If you have ANY way to download a file and view it (a bash/python sandbox, a
+file-read or image-view tool, an attach-image capability) you MUST choose
+VISION.** Reading the source page's caption, alt text, or "it's from Reuters so
+it's probably fine" is **NOT** vetting and is **NOT** a reason to drop to
+URL-AUTHORITY. URL-AUTHORITY is only for hosts that truly cannot open an image.
+Do not let the convenience of a descriptive stock page talk you out of looking.
+
+**VISION mode — each inline image is a 4-state machine. It is "vetted" ONLY after
+all four states complete, in order. Skip a state → NOT vetted → you may not
+inline it:**
+
+1. **SOURCED** — find a candidate real-image URL via the **R2 ladder** below
+   (Wikimedia → the subject's own source → reputable secondary via `web_fetch` →
+   stock). Do NOT use `widecast_search_broll` (edit-only).
+2. **DOWNLOADED** — save the image to a local file (curl/wget/your download tool).
+3. **VIEWED** — actually open and LOOK at the local file. Judge it: right
+   subject? clear? not a logo/watermark/ad/collage/wrong thing? does it match
+   this beat?
+4. **SHOWN-LOCAL** — display the **saved LOCAL file** to the user (NOT the online
+   URL — sandboxes can't render an `https://` URL, so pasting it shows nothing
+   and proves nothing). Use your host's local-file display:
+   - **Claude / Claude Code:** attach the saved image file in your reply.
+   - **Codex / CLI agents:** `view_image` (or equivalent) on the saved path.
+   - **Gemini / Grok / others:** your inline local-file / image-attachment view.
+   - If — and only if — your host has no way at all to display a local file, say
+     in one line exactly what you saw ("looked at the saved file: a wide AP photo
+     of the flooded highway, clear, on-subject"). Never substitute the online URL.
+
+   Only after SHOWN-LOCAL: **fits** → inline it. **Doesn't fit** → change the
+   keyword / try another source and repeat from state 1. **Retry up to 5 times
+   per beat.**
+
+5. **Still nothing after 5 tries** → if you can generate images yourself,
+   **generate** a fitting one, **upload via `widecast_upload_asset`**, use the
+   returned `url` (view + show it the same way first). **Can't generate** → call
+   **`widecast_create_image`** as the LAST resort — **1 credit per image**, so
+   **tell the user** you're spending it and why. Last because real photos beat AI
+   art for credibility — critical for news / real events / real products.
+
+❌ **Anti-example (this is the exact mistake to avoid):** finding a Pexels/stock
+page, reading its caption, deciding "looks relevant", and inlining the URL —
+**without ever downloading or viewing the actual pixels.** That is NOT vetted.
+✓ **Correct:** download → view the local file → show the local file to the user →
+*then* inline. If you only read text about the image, you did not vet it.
+
+**URL-AUTHORITY mode (truly cannot view — rare):** do NOT inline a guessed URL.
+Judge candidates by **URL + source authority** (the authority-match test in *R3*
+— apple.com for an iPhone, AP/Reuters for a news event, a museum for an artwork)
+and inline only a URL from a real source (`web_fetch` body / search result / the
+user) that passes it. Do NOT fall back to `widecast_create_image` just because
+you can't see — news needs real photos; generation would fabricate reality. No
+credible real URL for a beat → leave it to auto-B-roll.
+
+The image budget (≤3, ≥1, no adjacency) applies in BOTH modes.
 
 #### 6 — Offer the backup pool
 After placing your vetted inline images, also offer a small **backup pool** of
@@ -577,16 +625,27 @@ words) and let the engine expand it.
       masquerading as a documented real case.
 - [ ] Each ~150–300 words; written for the ear; one idea per sentence.
 - [ ] `### Research` bullets shown; closing line invites a pick by code.
+- [ ] **Presentation mode declared** (`HTML-ARTIFACT` or `MARKDOWN`). If the host
+      can render interactive HTML artifacts, the versions were delivered as the
+      editable + Copy-button artifact (per-version `contenteditable` + Copy,
+      labeled `Version N · CODE — Name`) — NOT plain markdown. Markdown only where
+      the host can't render an artifact.
 - [ ] No image inlining yet (that's Stage 2).
 
 **Stage 2 (the picked script):**
 - [ ] Word count ≤500 if `source="text"`; one CTA, specific + actionable.
+- [ ] **Vetting mode was declared out loud** (`VISION` or `URL-AUTHORITY`) before
+      sourcing; if the host can view images, the mode is VISION (not URL-AUTHORITY).
 - [ ] **Image budget honoured: 1–3 inline images, at least one, and no two
       consecutive scenes both carry an image.** All other scenes left to
       auto-B-roll (no `widecast_search_broll` — that's edit-only).
-- [ ] Every inline image was VETTED before use — downloaded + visually inspected
-      where the host can (with the local image shown to the user), or judged by
-      URL + source authority where it can't. No blind/guessed URLs.
+- [ ] (VISION) Every inline image went through all 4 states: SOURCED → DOWNLOADED
+      → VIEWED → SHOWN-LOCAL. None inlined on caption/source alone.
+- [ ] (VISION) The **local saved file** of every inline image was shown to the
+      user — NOT the online URL. (Or, host truly can't display files: a one-line
+      description of what was seen.)
+- [ ] (URL-AUTHORITY only) Each inline URL came from a real source and passes the
+      authority-match test. No blind/guessed URLs.
 - [ ] Inline media URLs are real (from `web_fetch` / search / user / a known-
       stable pattern, or `widecast_upload_asset` / `widecast_create_image`) —
       never fabricated; `.jpg`/`.jpeg`/`.png` (or allowed video ext) only.

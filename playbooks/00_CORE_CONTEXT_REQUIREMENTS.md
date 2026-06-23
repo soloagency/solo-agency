@@ -16,6 +16,7 @@ Load first for every setup or run. This stage contains the core reasoning model,
 - The agent must never treat research from public data sources only as private data source coverage.
 - The agent must explain marketing, analytics, and technical terms in plain language when speaking to a non-technical/non-marketing human.
 - The agent must use canonical source terminology in human-facing text: `public data sources` and `private data sources`. Do not shorten these terms, omit `data`, use slash terms, or use mixed-language shorthand labels.
+- The agent must not mention private data sources in the first setup or first add-client question. Step 5 may ask only a lightweight preference question about whether to include private data sources later. Step 7A is where the agent asks for actual private data source URLs/lists, offers discovery, gets approval, and handles Local Collector activation if needed.
 
 ## Source Preservation Rule
 
@@ -131,9 +132,9 @@ This is the planned setup process I am working through. You only need to reply w
 ○ 2. I infer the industry, sub-industry, related industries, audience, and offer
 ○ 3. I infer pain points (customer problems) and content pillars (main repeatable content themes)
 ○ 4. I find/select public data sources (websites, search, news, public forums, and public pages that do not require your account) and search keywords
-○ 5. You provide private data sources if you want (logged-in social groups, profiles, pages, channels, or communities). If you do not know which sources matter yet, I can suggest scanning joined groups/subreddits/communities/pages/profiles/channels you already follow, filter the candidates, and ask you to approve what to monitor. I activate the Local Collector only if you approve it.
+○ 5. You choose whether to include private data sources later (logged-in social groups, profiles, pages, channels, or communities). No links or install are needed at this step.
 ○ 6. I configure the automatic schedule/routine
-○ 7A. If you provided private data sources, I guide you through Local Collector setup so the first run can include those sources; if you want to move faster, I keep private data sources pending
+○ 7A. If you chose private data sources, I help you provide/approve sources or discover candidates from approved joined/followed/member spaces, then guide Local Collector setup so the first run can include those sources; if you want to move faster, I keep private data sources pending
 ○ 7B. I run the first agency run: scan public data sources and activated private data sources, or public data sources only if 7A is postponed, then create the HTML report, idea matrix, Lead & Competitor Opportunities with post links and suggested comments, and the first script/blog/caption draft
 ○ 8. I help set up PDNA: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
 ○ 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
@@ -145,10 +146,11 @@ Progress roadmap integrity rule:
 - Every setup progress block must show all 10 numbered items in order, including both substeps 7A and 7B.
 - Never hide steps 5-10 because they are pending, declined, blocked, or not applicable yet.
 - Use `○` for pending items, `→` for the current active item, `✓` for completed items, `!` for blocked or human-action-needed items, and `–` only after the human has explicitly declined or the item has been logged as not applicable with a reason.
-- Do not ask private data source discovery as a separate roadmap item or gate. If no manual private data sources are provided, or the human says they do not know which sources to add, the agent must offer one optional private data source discovery pass in plain language before marking step 5 complete or `–`.
+- Step 5 is only a lightweight preference gate. Do not ask the human for private data source URLs, group lists, account lists, discovery details, or Local Collector setup in step 5.
+- Do not ask private data source discovery as a separate roadmap item or gate. If the human wants private data sources or is unsure, offer one optional private data source discovery pass in plain language during step 7A, not during step 5.
 - A declined or postponed discovery pass is valid, but the agent must record the status and explain that public-only runs may miss many lead/competitor/community signals.
 - Step 6 is the one-time schedule/routine setup. It should happen before the first full agency run so future automation is already defined.
-- Step 7A is the private data source activation checkpoint. If private data sources were provided/approved and Local Collector is not installed, running, and healthy, 7A becomes the next required question after step 6. The agent must either guide Local Collector setup or ask whether the human wants to run public data sources only first while keeping private data sources pending.
+- Step 7A is the private data source intake, discovery, approval, and activation checkpoint. If private data sources were requested, the human is unsure, sources were provided/approved, or Local Collector is not installed/running/healthy, 7A becomes the next required question after step 6. The agent must either collect/triage/approve sources and guide Local Collector setup, or ask whether the human wants to run public data sources only first while keeping private data sources pending.
 - Step 7A may be marked `–` only when no private data sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public data sources only first run. The reason must be shown in plain language.
 - Step 7B is the small win: report plus useful drafts. It must state whether the run will use data from public data sources only or public plus activated private data sources. After step 7B, the agent must not ask `make a video now?` or start video editing. The next setup question is step 8.
 - Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
