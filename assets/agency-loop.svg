@@ -22,7 +22,7 @@
       .thin{stroke:#94a3b8;stroke-width:2;stroke-linecap:round}
       .dash{stroke:#94a3b8;stroke-width:2.2;stroke-linecap:round;stroke-dasharray:8 9}
       .title{font:700 42px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
-      .subtitle{font:500 18px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
+      .subtitle{font:500 16px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
       .step{font:700 22px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
       .copy{font:500 14px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
       .tiny{font:600 12px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.04em}
@@ -33,9 +33,9 @@
 
   <rect class="bg" width="1200" height="720" rx="0"/>
 
-  <g transform="translate(72 56)">
+  <g transform="translate(72 48)">
     <text class="title ink" x="0" y="0" dominant-baseline="hanging">The Solo Agency Loop</text>
-    <text class="subtitle muted" x="0" y="60">Attention is earned by running the full marketing cycle every day, not by staring at another blank prompt.</text>
+    <text class="subtitle muted" x="0" y="60">Daily research, production, distribution, measurement, learning, and improvement.</text>
   </g>
 
   <g filter="url(#shadow)">
@@ -58,11 +58,11 @@
   </g>
 
   <g filter="url(#shadow)">
-    <rect class="panel" x="486" y="112" width="226" height="120" rx="18"/>
-    <circle class="accent-lime" cx="520" cy="150" r="10"/>
-    <text class="step ink" x="544" y="142">Production</text>
-    <text class="copy muted" x="520" y="180">Scripts, blogs, video,</text>
-    <text class="copy muted" x="520" y="200">social assets</text>
+    <rect class="panel" x="486" y="136" width="226" height="120" rx="18"/>
+    <circle class="accent-lime" cx="520" cy="174" r="10"/>
+    <text class="step ink" x="544" y="166">Production</text>
+    <text class="copy muted" x="520" y="204">Scripts, blogs, video,</text>
+    <text class="copy muted" x="520" y="224">social assets</text>
   </g>
 
   <g filter="url(#shadow)">
@@ -97,8 +97,8 @@
     <text class="copy muted" x="124" y="522">sources, next ideas</text>
   </g>
 
-  <path class="loop" d="M321 225 C387 168 430 150 476 152"/>
-  <path class="loop" d="M716 154 C784 161 835 183 879 218"/>
+  <path class="loop" d="M321 225 C387 183 430 174 476 176"/>
+  <path class="loop" d="M716 178 C784 176 835 190 879 218"/>
   <path class="loop" d="M1005 310 C1033 349 1033 394 1006 429"/>
   <path class="loop" d="M881 505 C815 563 766 581 717 568"/>
   <path class="loop" d="M483 568 C408 566 358 539 322 505"/>
@@ -108,7 +108,7 @@
     <rect x="84" y="634" width="1032" height="48" rx="14" fill="#111827"/>
     <text class="copy" x="122" y="663" fill="#ffffff">Public data sources + approved private data sources feed the loop.</text>
     <circle cx="632" cy="658" r="6" class="accent-lime"/>
-    <text class="copy" x="650" y="663" fill="#ffffff">Lead &amp; competitor opportunities become reviewable actions, not automated outreach.</text>
+    <text class="copy" x="650" y="663" fill="#ffffff">Lead &amp; competitor actions stay human-reviewed.</text>
   </g>
 
   <g>
@@ -116,13 +116,13 @@
     <line class="dash" x1="969" y1="632" x2="780" y2="462"/>
   </g>
 
-  <g transform="translate(87 112)">
+  <g transform="translate(87 128)">
     <rect x="0" y="0" width="252" height="44" rx="12" fill="#e2e8f0"/>
     <text class="tiny muted" x="18" y="27">INPUTS</text>
     <text class="copy muted" x="82" y="28">markets, communities, URLs</text>
   </g>
 
-  <g transform="translate(860 112)">
+  <g transform="translate(860 128)">
     <rect x="0" y="0" width="252" height="44" rx="12" fill="#e2e8f0"/>
     <text class="tiny muted" x="18" y="27">OUTPUTS</text>
     <text class="copy muted" x="90" y="28">approved assets + reports</text>
