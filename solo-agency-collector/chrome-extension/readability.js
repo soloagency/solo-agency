@@ -471,7 +471,7 @@ Readability.prototype = {
 
     // for (var i = 0; i < node.attributes.length; i++) {
     //   replacement.setAttribute(node.attributes[i].name, node.attributes[i].value);
-    // } Gặp lỗi với Vue khi attribute có @ ví dụ như @click trong web https://www.munchkin.com/
+    // Copying attributes that start with @ can break Vue-style attributes such as @click.
     for (var i = 0; i < node.attributes.length; i++) {
         if (!node.attributes[i].name.startsWith('@')) {
             replacement.setAttribute(node.attributes[i].name, node.attributes[i].value);
@@ -2147,7 +2147,7 @@ function processNode(node, except_tags,baseLocation,prefix_text) {
             if (node.tagName === 'A') {
                 removeChildTags(node, ['script', 'style', 'noscript']);
                 // Check if the <a> tag contains a <script> tag
-                if(allURLs.indexOf(node.href)!=-1){//không add link trùng
+                if(allURLs.indexOf(node.href)!=-1){// Do not add duplicate links.
                   return;
                 }
                 if (!node.href.startsWith('http://') && !node.href.startsWith('https://')) {
@@ -2446,20 +2446,20 @@ function getBaseLocation(url) {
 }
 
 function cleanStyle(inputHTML) {
-    // Tạo một đối tượng DOMParser để chuyển đổi chuỗi HTML thành Document Object Model
+    // Parse the HTML string into a DOM document.
     const parser = new DOMParser();
     const doc = parser.parseFromString(inputHTML, 'text/html');
     
-    // Loại bỏ tất cả thẻ <style>
+    // Remove style tags marked for deletion.
     doc.querySelectorAll('style[data-simple-delete="true"]').forEach(el => el.remove());
     
-    // Duyệt qua tất cả các phần tử và loại bỏ thuộc tính class và style
+    // Remove class and style attributes from every element.
     doc.body.querySelectorAll('*').forEach(el => {
-        el.removeAttribute('class'); // Loại bỏ thuộc tính class
-        el.removeAttribute('style'); // Loại bỏ thuộc tính style
+        el.removeAttribute('class'); // Remove class attributes.
+        el.removeAttribute('style'); // Remove style attributes.
     });
     
-    // Trả về chuỗi HTML đã được làm sạch
+    // Return the cleaned HTML string.
     return doc.body.innerHTML;
 }
 
@@ -2513,8 +2513,9 @@ function do_readability(message,simple_html, simple_title,url){
   message.html=convertRelativeUrlsToAbsolute(message.html, BaseLocation);
   // item.combinedText=remove_relate_items(cleanText(combinedText.join("\n")))
   var  simple_doc = parser.parseFromString(simple_html, "text/html");
-  // uncomment nếu muốn có link trong text
-  // processNode(simple_doc.body,[],BaseLocation)//Cái này gộp thêm mấy cai link vào chứ ko đơn thuần là plaintext
+  // Uncomment if links should be included in text.
+  // This merges extra links into the output instead of returning plain text only.
+  // processNode(simple_doc.body,[],BaseLocation)
   // item.combinedText=remove_relate_items(cleanText(combinedText.join(" ")))
   item.combinedText=remove_relate_items(cleanText(getHumanReadableText(simple_doc.documentElement.outerHTML,productKeywords)))
 
@@ -2541,12 +2542,12 @@ function do_readability(message,simple_html, simple_title,url){
 
   if(item_readability){
 
-  }else{//nếu R ko parse dc thì lấy nguyên con
+  }else{// If Readability cannot parse, keep the original fallback.
     item_readability={}
     item_readability.title=""
     item_readability.content=""
   }
-  // uncomment nếu muốn có link trong doc
+  // Uncomment if links should be included in the document output.
   doc = parser.parseFromString(item_readability.content, "text/html");
   // processNode(doc.body,[],BaseLocation)
   // item_readability.combinedText=remove_relate_items(cleanText(combinedText.join(" ")))
@@ -2579,7 +2580,7 @@ function do_readability(message,simple_html, simple_title,url){
   
   item.page_urls=extractURLs(message.html,message.start_url,"")
 
-  item.content_urls=extractURLs(item_readability.content+simple_doc.body.innerHTML,message.start_url,item.title);//chỉ lấy những file pdf trong content
+  item.content_urls=extractURLs(item_readability.content+simple_doc.body.innerHTML,message.start_url,item.title);// Keep only PDF files found in content.
   item.content_urls = Array.from(new Set(item.content_urls.map(JSON.stringify)))
   .map(JSON.parse)
   .filter(item => typeof item.url === 'string' && item.url.endsWith('.pdf'));
@@ -2587,7 +2588,7 @@ function do_readability(message,simple_html, simple_title,url){
   if(compareUrls(message.start_url,message.url)){
     item.is_product=false;
   }else{
-    is_product=isProductPage((cleanText(extractPlainText(message.html))))//loại bỏ các relate 
+    is_product=isProductPage((cleanText(extractPlainText(message.html))))// Remove related-item noise.
     item.is_product=is_product[0]
     item.matchedKeywords=is_product[1]
   } 
@@ -2601,4 +2602,3 @@ function do_readability(message,simple_html, simple_title,url){
 
   return item;
 }
-

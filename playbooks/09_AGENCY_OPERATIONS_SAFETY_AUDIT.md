@@ -259,7 +259,7 @@ Do you want me to set up PDNA - Production (create real video/blog/social assets
 
 The agent must ask this question directly in the chat message or notification where it announces the first agency run result. It must not hide the question or setup steps inside a Markdown file.
 
-The same chat message must show the full `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` progress roadmap with all 10 numbered items, including both 7A and 7B. The agent must not hide steps 5-10. The roadmap must say it is the agent's planned process, not a questionnaire for the human.
+The same chat message must show the full `Solo Agency one-time setup process` progress roadmap with all 10 numbered items, including both 7A and 7B. The agent must not hide steps 5-10. The roadmap must say it is the agent's planned process, not a questionnaire for the human.
 
 Good first-run chat pattern:
 
@@ -270,20 +270,20 @@ Best idea today: {best idea}
 Report for mobile: {absolute HTML path or URL}
 First draft: {script/blog/caption title}
 
-Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)
-Đây là lộ trình minh bạch tôi đang tự thực hiện; bạn chỉ cần phản hồi khi tôi hỏi một câu cụ thể.
+Solo Agency one-time setup process
+This is the planned setup process I am working through. You only need to reply when I ask one specific question.
 
-✓ 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
-✓ 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
-✓ 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
-✓ 4. Tôi tự tìm/chọn nguồn dữ liệu công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
-✓ 5. Bạn cung cấp nguồn dữ liệu riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
-✓ 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
-– 7A. Nếu bạn đã cung cấp nguồn dữ liệu riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn dữ liệu riêng tư ở trạng thái pending (bạn chọn chạy lần đầu chỉ với nguồn dữ liệu công khai)
-✓ 7B. Tôi chạy lần đầu: quét nguồn dữ liệu công khai và nguồn dữ liệu riêng tư đã kích hoạt (hoặc chỉ dùng nguồn dữ liệu công khai nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
-→ 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
-– 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
-○ 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
+✓ 1. You provided the product/service, profession, expertise, or business description
+✓ 2. I inferred the industry, sub-industry, related industries, audience, and offer
+✓ 3. I inferred pain points and content pillars
+✓ 4. I selected public data sources and search keywords
+✓ 5. You provided or skipped private data sources; I activate the Local Collector only if you approve it
+✓ 6. I configured the automatic schedule/routine
+– 7A. Local Collector activation is pending or postponed; this first run uses public data sources only
+✓ 7B. I ran the first agency run and created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft
+→ 8. I help set up PDNA: Production, Distribution, Notification, and Analytics
+– 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
+○ 10. I update the report, idea matrix, best idea, Lead & Competitor Opportunities, drafts, analytics/statistics, and learning loop
 
 The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
 
@@ -330,7 +330,7 @@ First agency run-now rule:
 
 Manual run / run-now rule:
 
-- Any human request such as `run now`, `manual run`, `test run`, `trial run`, `collect now`, `scan now`, or `chạy thử` must bypass recurring schedule windows.
+- Any human request such as `run now`, `manual run`, `test run`, `trial run`, `collect now`, or `scan now` must bypass recurring schedule windows.
 - The agent must not wait for `scheduled_windows` when the human requested a manual run.
 - If the Local Collector app is reachable, the agent must create a run-now job and call `POST http://127.0.0.1:17321/jobs/run_now`.
 - The run-now job must include:
@@ -1404,7 +1404,7 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I infer related industries?
 - [ ] Did I show the 80% primary industry / 20% related industries rule?
 - [ ] Did I explain that public data sources are websites/search/public pages I can access without the human's login?
-- [ ] Did I use canonical source terms in human-facing text: `public data sources` / `private data sources` in English, or `nguồn dữ liệu công khai` / `nguồn dữ liệu riêng tư` in Vietnamese?
+- [ ] Did I use canonical source terms in human-facing text: `public data sources` and `private data sources`?
 - [ ] Did I ask whether the human wants to provide private data sources, and did I explain that private data sources are logged-in/social/community places such as groups, profiles, pages, channels, forums, or communities?
 - [ ] If the human had no private data source list, was unsure, skipped, or left it blank, did I offer one optional private data source discovery pass from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds?
 - [ ] Did I build a public keyword bank from pain points, problems, needs, objections, buying triggers, and local context, not only generic industry terms?
@@ -1590,7 +1590,7 @@ When production/video/blog/social work happens inside the one-time agency setup 
 - [ ] If the human explicitly insisted on a trial video before setup completed, did I record the parent setup checkpoint before entering the branch?
 - [ ] Did I remember the next parent setup step after the branch, instead of losing the agency setup thread?
 - [ ] Did I show a compact parent setup checkpoint during the short production branch?
-- [ ] After one natural branch checkpoint, did I return to the full `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` / `Solo Agency one-time setup process` roadmap unless the human explicitly asked to continue the branch?
+- [ ] After one natural branch checkpoint, did I return to the full `Solo Agency one-time setup process` roadmap unless the human explicitly asked to continue the branch?
 - [ ] Did I avoid claiming agency setup was complete merely because a provider was connected or a video trial was created?
 - [ ] Did I avoid forgetting steps 9-10 after production/video testing ended?
 
