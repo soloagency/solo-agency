@@ -543,11 +543,10 @@ For each daily run:
       - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
-   7. If private data sources are configured but not yet activated, do not attempt private collection during this run. Mark them as `pending_private_activation`, include the activation CTA in the report, and continue with public data sources.
-   8. If private data sources are activated, connect to the already-running Local Collector app according to `collector_config.run_mode`.
-   9. If private data sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
-   10. Check private collector health through `GET http://127.0.0.1:17321/status` when the Local Collector app is expected to be running.
-      - If the bridge is offline, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark private collection as unavailable for this run, and continue with public data sources.
+   7. Before deciding whether to skip private data sources, perform Collector Runtime Verification whenever private data sources exist in any state or collector status files exist. Do not treat saved labels such as `pending_private_activation`, `public_data_sources_only`, or `private sources postponed` as final; those labels can be stale after the human later installs, repairs, or reconnects the Local Collector.
+   8. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before any Collector Runtime Verification involving private data sources.
+   9. Try `GET http://127.0.0.1:17321/status`, but if it fails, check local collector health/status files for AI sandbox localhost isolation before claiming the Local Collector is inactive.
+      - If the bridge is offline or unverified after checking both `/status` and local health files, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark the exact blocker, and continue with public data sources.
       - If the bridge is online but `/status.config_file`, `/status.output_dir`, or `/status.run_now_request_file` points outside the current setup's `daily-content-pipeline/collector/` tree, mark `wrong_workspace_bridge`, do not run private collection, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
       - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
       - If the workspace identity check passes and `extension_health.status` is `recent`, continue private collection.
@@ -1385,6 +1384,8 @@ Before replying to the human, verify:
 - [ ] Did I avoid asking for credentials, cookies, passwords, OTPs, or tokens?
 - [ ] Did I avoid calling the collector a Facebook collector?
 - [ ] If the human asked for any private data source scan after conversation drift, including logged-in/account-required groups, feeds, profiles, pages, communities, or sources, did I reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before acting?
+- [ ] If I skipped private data sources during a scheduled/manual run, did I perform Collector Runtime Verification instead of trusting saved config labels such as `public_data_sources_only`, `private sources postponed`, or `pending_private_activation`?
+- [ ] If `GET http://127.0.0.1:17321/status` failed, did I check local collector health/status files for sandbox-localhost isolation before claiming the Local Collector was inactive?
 - [ ] If this involved private data sources, did I avoid Claude in Chrome, Claude Chrome Extension, Codex/browser tools, Playwright/Puppeteer/Selenium, fresh agent-opened browser profiles, and all other agent-controlled browsers?
 - [ ] If this was one-time Local Collector setup/update/repair, did I avoid running `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI sandbox?
 - [ ] If this was one-time Local Collector setup/update/repair, did I give the human both required local actions in chat: run the one-line Terminal/PowerShell setup/start command outside the AI sandbox and load the Chrome extension from the absolute runtime folder?
@@ -1406,8 +1407,9 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I show the 80% primary industry / 20% related industries rule?
 - [ ] Did I explain that public data sources are websites/search/public pages I can access without the human's login?
 - [ ] Did I use canonical source terms in human-facing text: `public data sources` and `private data sources`?
-- [ ] Did I ask whether the human wants to provide private data sources, and did I explain that private data sources are logged-in/social/community places such as groups, profiles, pages, channels, forums, or communities?
-- [ ] If the human had no private data source list, was unsure, skipped, or left it blank, did I offer one optional private data source discovery pass from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds?
+- [ ] Did I treat step 5 as only a lightweight preference question about whether to include private data sources later?
+- [ ] Did I avoid asking for private data source URLs/lists, discovery details, or Local Collector setup until step 7A?
+- [ ] If the human wanted private data sources or was unsure, did I handle actual source intake/discovery/approval in step 7A, including the optional discovery pass from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds?
 - [ ] Did I build a public keyword bank from pain points, problems, needs, objections, buying triggers, and local context, not only generic industry terms?
 - [ ] Did I choose keyword language based on the target audience's likely search/comment language, not automatically the human's chat language?
 - [ ] If the audience is multilingual, did I label keyword languages and include useful variants?
