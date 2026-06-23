@@ -66,6 +66,7 @@ Before starting any private data source scan, show or internally verify this gat
 Private data source gate
 [ ] Stage 2, Stage 8, and Stage 9 reloaded for this private data source request
 [ ] Local Collector app reachable
+[ ] Bridge identity verified: /status.config_file, /status.output_dir, and /status.run_now_request_file point to the current setup's daily-content-pipeline/collector tree
 [ ] Solo Agency Local Collector extension recent
 [ ] Approved private data sources loaded
 [ ] Scan depth read from collector config, or safe default stated

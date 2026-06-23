@@ -149,8 +149,9 @@ For each daily run:
    9. If private data sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
    10. Check private collector health through `GET http://127.0.0.1:17321/status` when the Local Collector app is expected to be running.
       - If the bridge is offline, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark private collection as unavailable for this run, and continue with public data sources.
+      - If the bridge is online but `/status.config_file`, `/status.output_dir`, or `/status.run_now_request_file` points outside the current setup's `daily-content-pipeline/collector/` tree, mark `wrong_workspace_bridge`, do not run private collection, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
       - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
-      - If `extension_health.status` is `recent`, continue private collection.
+      - If the workspace identity check passes and `extension_health.status` is `recent`, continue private collection.
    11. Prepare the private data source queue if private data sources are available and collector health is acceptable:
       - keep the active daily queue around 20 sources or fewer per client by default;
       - prioritize sources most relevant to the client, target audience, target location, pain points, and content pillars;
