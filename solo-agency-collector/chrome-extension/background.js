@@ -19,7 +19,9 @@ const ACTIVE_RUN_KEY = "collector_active_run";
 const AUDIT_KEY = "collector_audit";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.2-parallel-tabs";
+const EXTENSION_BUILD = "0.1.5-humanized-scroll";
+const NORMAL_SCROLL_CAP = 10;
+const DISCOVERY_SCROLL_CAP = 80;
 
 const inMemoryActiveRuns = new Set();
 
@@ -77,6 +79,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message && message.type === "manual_capture") {
       sendResponse(await manualCapture());
+      return;
+    }
+    if (message && message.type === "test_scroll_active_tab") {
+      sendResponse(await testScrollActiveTab(message));
       return;
     }
     if (message && message.type === "get_audit") {
@@ -393,11 +399,16 @@ async function collectSource(source, job, settings, sourceIndex) {
     // scroll/capture orchestrator. Same data_point envelope as before; the text
     // fields now carry the cleaned extraction instead of the raw innerText blob.
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: CAPTURE_FILES });
+    const discoveryMode = isDiscoveryCollection(job, source);
+    const maxScrollSteps = maxScrollStepsForCollection(job, source);
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: collectCleanPage,
       args: [{
         scrollSteps: Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
+        maxScrollSteps,
+        scrollMode: discoveryMode ? "discovery" : "standard",
+        stopAfterNoMoveScrolls: discoveryMode ? 3 : 0,
         minDelaySeconds: Number(job.pacing?.min_delay_seconds || settings.minDelaySeconds || 5),
         maxDelaySeconds: Number(job.pacing?.max_delay_seconds || settings.maxDelaySeconds || 5)
       }]
@@ -465,6 +476,8 @@ async function collectSource(source, job, settings, sourceIndex) {
         confidence: text ? "medium" : "low",
         scroll_count: cap.scrollStepsUsed || 0,
         max_scrolls: cap.scrollStepsUsed || 0,
+        scroll_debug: cap.scrollDebug || [],
+        scroll_stopped_reason: cap.scrollStoppedReason || "",
         extraction_engine: cap.engine || "",
         read_only: true
       },
@@ -555,6 +568,8 @@ async function syncSettingsToBridge(settings) {
       source_concurrency: clampNumber(settings.sourceConcurrency, 1, 3, 1),
       max_scrolls_per_source: clampNumber(settings.scrollSteps, 0, 10, 5),
       max_scrolls_allowed: 10,
+      discovery_scroll_steps: current.discovery_scroll_steps || 80,
+      max_discovery_scrolls_allowed: current.max_discovery_scrolls_allowed || 80,
       scroll_delay_seconds: clampNumber(settings.minDelaySeconds, 5, 60, 5),
       duplicate_filter: current.duplicate_filter || {
         compare_against_previous_day: true,
@@ -617,16 +632,191 @@ function waitForTabLoad(tabId, timeoutMs) {
 async function collectCleanPage(opts) {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const steps = clamp(Number(opts.scrollSteps) || 5, 0, 10);
+  const maxSteps = clamp(Number(opts.maxScrollSteps) || 10, 1, 80);
+  const steps = clamp(Number(opts.scrollSteps) || 5, 0, maxSteps);
+  const scrollMode = String(opts.scrollMode || "standard");
+  const stopAfterNoMoveScrolls = clamp(Number(opts.stopAfterNoMoveScrolls) || 0, 0, 10);
   const minD = clamp(Number(opts.minDelaySeconds) || 5, 1, 30);
   const maxD = clamp(Number(opts.maxDelaySeconds) || 5, minD, 60);
-  const delayMs = () => Math.floor((minD + Math.random() * (maxD - minD)) * 1000);
+  const randomBetween = (lo, hi) => lo + Math.random() * (hi - lo);
+  const delayMs = () => {
+    const baseSeconds = minD + Math.random() * (maxD - minD);
+    const jitter = minD === maxD ? randomBetween(0.72, 1.32) : randomBetween(0.9, 1.16);
+    return Math.floor(clamp(baseSeconds * jitter, 1, 60) * 1000);
+  };
   const accountUrls = [];
   const postUrls = [];
   const entityItems = [];
   const seenAccountUrls = new Set();
   const seenPostUrls = new Set();
   const seenEntityItems = new Set();
+  const scrollDebug = [];
+
+  function elementLabel(el) {
+    if (!el) return "unknown";
+    if (el === document.scrollingElement || el === document.documentElement || el === document.body) return "document";
+    const role = el.getAttribute && el.getAttribute("role");
+    const id = el.id ? `#${el.id}` : "";
+    const cls = el.className && typeof el.className === "string" ? `.${el.className.trim().split(/\s+/).slice(0, 2).join(".")}` : "";
+    return `${String(el.tagName || "element").toLowerCase()}${id}${cls}${role ? `[role=${role}]` : ""}`;
+  }
+
+  function scrollTopOf(target) {
+    if (!target || target.kind === "document") {
+      const root = document.scrollingElement || document.documentElement || document.body;
+      return Math.max(window.scrollY || 0, root ? root.scrollTop || 0 : 0, document.documentElement ? document.documentElement.scrollTop || 0 : 0, document.body ? document.body.scrollTop || 0 : 0);
+    }
+    return Number(target.el.scrollTop || 0);
+  }
+
+  function scrollMaxOf(target) {
+    if (!target || target.kind === "document") {
+      const root = document.scrollingElement || document.documentElement || document.body;
+      const scrollHeight = Math.max(root ? root.scrollHeight || 0 : 0, document.documentElement ? document.documentElement.scrollHeight || 0 : 0, document.body ? document.body.scrollHeight || 0 : 0);
+      const clientHeight = window.innerHeight || (root ? root.clientHeight || 0 : 0);
+      return Math.max(0, scrollHeight - clientHeight);
+    }
+    return Math.max(0, Number(target.el.scrollHeight || 0) - Number(target.el.clientHeight || 0));
+  }
+
+  function scrollCandidates() {
+    const candidates = [];
+    const root = document.scrollingElement || document.documentElement || document.body;
+    if (root) {
+      candidates.push({
+        kind: "document",
+        el: root,
+        label: "document",
+        viewport: window.innerHeight || root.clientHeight || 800,
+        score: scrollMaxOf({ kind: "document", el: root }) + 1000000
+      });
+    }
+    const selector = [
+      "main",
+      "section",
+      "div",
+      "[role='main']",
+      "[role='feed']",
+      "[role='list']",
+      "[data-pagelet]"
+    ].join(",");
+    for (const el of Array.from(document.querySelectorAll(selector))) {
+      if (!el || el === root || el === document.body || el === document.documentElement) continue;
+      const scrollable = Number(el.scrollHeight || 0) - Number(el.clientHeight || 0);
+      if (scrollable < 300) continue;
+      const rect = el.getBoundingClientRect();
+      if (!rect || rect.width < 220 || rect.height < 240) continue;
+      const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+      if (style && (style.visibility === "hidden" || style.display === "none")) continue;
+      const viewportOverlap = Math.max(0, Math.min(rect.bottom, window.innerHeight || rect.bottom) - Math.max(rect.top, 0));
+      const centerBonus = rect.top < (window.innerHeight || 800) * 0.75 && rect.bottom > (window.innerHeight || 800) * 0.25 ? 50000 : 0;
+      candidates.push({
+        kind: "element",
+        el,
+        label: elementLabel(el),
+        viewport: Math.max(300, Math.min(rect.height, window.innerHeight || rect.height || 800)),
+        score: scrollable + viewportOverlap * 10 + centerBonus
+      });
+    }
+    return candidates
+      .filter((target) => scrollMaxOf(target) - scrollTopOf(target) > 10)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8);
+  }
+
+  function setScrollTopOf(target, top) {
+    const nextTop = Math.max(0, Math.min(scrollMaxOf(target), Number(top) || 0));
+    if (!target || target.kind === "document") {
+      const root = document.scrollingElement || document.documentElement || document.body;
+      if (root) root.scrollTop = nextTop;
+      window.scrollTo(0, nextTop);
+      return;
+    }
+    target.el.scrollTop = nextTop;
+  }
+
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function humanDurationMs(baseMs) {
+    return Math.round(clamp(Number(baseMs) * randomBetween(0.72, 1.38), 420, 1450));
+  }
+
+  function humanScrollDistance(viewport, multiplier) {
+    const base = Math.max(680, Math.floor((viewport || window.innerHeight || 800) * multiplier));
+    return Math.round(base * randomBetween(0.84, 1.12));
+  }
+
+  async function animateScrollTarget(target, toTop, durationMs) {
+    const from = scrollTopOf(target);
+    const max = scrollMaxOf(target);
+    const to = Math.max(0, Math.min(max, Number(toTop) || 0));
+    if (Math.abs(to - from) < 1) return;
+    const duration = Math.max(260, Number(durationMs) || 760);
+    const raf = window.requestAnimationFrame || ((fn) => setTimeout(fn, 16));
+    const start = Date.now();
+    await new Promise((resolve) => {
+      function frame() {
+        const elapsed = Date.now() - start;
+        const progress = Math.min(1, elapsed / duration);
+        const nextTop = from + (to - from) * easeInOutCubic(progress);
+        setScrollTopOf(target, nextTop);
+        if (progress < 1) {
+          raf(frame);
+        } else {
+          resolve();
+        }
+      }
+      raf(frame);
+    });
+    setScrollTopOf(target, to);
+  }
+
+  async function tryScrollTarget(target, distance) {
+    const before = scrollTopOf(target);
+    const nextTop = Math.min(scrollMaxOf(target), before + distance);
+    const durationMs = humanDurationMs(scrollMode === "discovery" ? 850 : 700);
+    await animateScrollTarget(target, nextTop, durationMs);
+    await wait(Math.round(randomBetween(60, 170)));
+    const after = scrollTopOf(target);
+    return {
+      target: target.label,
+      before: Math.round(before),
+      after: Math.round(after),
+      delta: Math.round(after - before),
+      requested_distance: Math.round(distance),
+      duration_ms: durationMs,
+      max: Math.round(scrollMaxOf(target))
+    };
+  }
+
+  async function performCollectorScroll() {
+    const multiplier = scrollMode === "discovery" ? 0.95 : 0.85;
+    const targets = scrollCandidates();
+    let best = null;
+    for (const target of targets) {
+      const distance = humanScrollDistance(target.viewport || window.innerHeight || 800, multiplier);
+      const report = await tryScrollTarget(target, distance);
+      if (!best || Math.abs(report.delta) > Math.abs(best.delta || 0)) best = report;
+      if (Math.abs(report.delta) >= 120) return report;
+    }
+    if (best) return best;
+    const fallbackDistance = humanScrollDistance(window.innerHeight || 800, multiplier);
+    const fallbackTarget = { kind: "document", el: document.scrollingElement || document.documentElement || document.body, label: "window-fallback" };
+    const durationMs = humanDurationMs(scrollMode === "discovery" ? 850 : 700);
+    await animateScrollTarget(fallbackTarget, scrollTopOf(fallbackTarget) + fallbackDistance, durationMs);
+    await wait(Math.round(randomBetween(60, 170)));
+    return {
+      target: "window-fallback",
+      before: null,
+      after: Math.round(window.scrollY || 0),
+      delta: null,
+      requested_distance: Math.round(fallbackDistance),
+      duration_ms: durationMs,
+      max: Math.round(scrollMaxOf({ kind: "document", el: document.scrollingElement || document.documentElement || document.body }))
+    };
+  }
 
   function urlKey(value) {
     try {
@@ -667,6 +857,9 @@ async function collectCleanPage(opts) {
 
   let prev = "";
   let last = null;
+  let scrollStepsUsed = 0;
+  let consecutiveNoMove = 0;
+  let stoppedReason = "";
   for (let i = 0; i <= steps; i += 1) {
     try {
       last = (typeof window.__collectorCapture === "function") ? window.__collectorCapture(prev, {}) : last;
@@ -680,12 +873,27 @@ async function collectCleanPage(opts) {
     }
     if (last && last.merged) prev = last.merged;
     if (i < steps) {
-      window.scrollBy({ top: Math.max(300, Math.floor(window.innerHeight * 0.75)), left: 0 });
-      await wait(delayMs());
+      const scrollReport = await performCollectorScroll();
+      scrollStepsUsed += 1;
+      scrollReport.pause_ms = delayMs();
+      scrollDebug.push(scrollReport);
+      if (!scrollReport || Math.abs(Number(scrollReport.delta || 0)) < 80) {
+        consecutiveNoMove += 1;
+      } else {
+        consecutiveNoMove = 0;
+      }
+      if (stopAfterNoMoveScrolls > 0 && consecutiveNoMove >= stopAfterNoMoveScrolls) {
+        stoppedReason = `no_scroll_movement_${consecutiveNoMove}_times`;
+        break;
+      }
+      await wait(scrollReport.pause_ms);
     }
   }
   if (last) {
-    last.scrollStepsUsed = steps;
+    last.scrollStepsUsed = scrollStepsUsed;
+    last.requestedScrollSteps = steps;
+    last.scrollStoppedReason = stoppedReason;
+    last.scrollDebug = scrollDebug.slice(-20);
     last.accountUrls = accountUrls;
     last.postUrls = postUrls;
     last.entityItems = entityItems;
@@ -1006,6 +1214,207 @@ async function manualCapture() {
   return { ok: true, audit: nextAudit };
 }
 
+async function testScrollActiveTab(message) {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = tabs && tabs[0];
+  if (!tab || !tab.id) return { ok: false, error: "No active tab." };
+  const tabUrl = tab.url || "";
+  if (!/^https?:\/\//i.test(tabUrl)) {
+    return { ok: false, error: "Active tab is not an http(s) page." };
+  }
+  const steps = clampNumber(message.steps, 1, 20, 8);
+  const delayMs = clampNumber(message.delay_ms, 250, 5000, 900);
+  try {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: runVisibleScrollTest,
+      args: [{ steps, delayMs }]
+    });
+    const payload = result && result.result ? result.result : {};
+    return {
+      ok: true,
+      url: tabUrl,
+      steps_requested: steps,
+      steps_used: payload.stepsUsed || 0,
+      debug: payload.debug || []
+    };
+  } catch (error) {
+    return { ok: false, error: String(error && error.message ? error.message : error) };
+  }
+}
+
+async function runVisibleScrollTest(opts) {
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Number(v) || 0));
+  const steps = clamp(opts && opts.steps, 1, 20);
+  const delayMs = clamp(opts && opts.delayMs, 250, 5000);
+  const randomBetween = (lo, hi) => lo + Math.random() * (hi - lo);
+  const debug = [];
+
+  function elementLabel(el) {
+    if (!el) return "unknown";
+    if (el === document.scrollingElement || el === document.documentElement || el === document.body) return "document";
+    const role = el.getAttribute && el.getAttribute("role");
+    const id = el.id ? `#${el.id}` : "";
+    const cls = el.className && typeof el.className === "string" ? `.${el.className.trim().split(/\s+/).slice(0, 2).join(".")}` : "";
+    return `${String(el.tagName || "element").toLowerCase()}${id}${cls}${role ? `[role=${role}]` : ""}`;
+  }
+
+  function scrollTopOf(target) {
+    if (!target || target.kind === "document") {
+      const root = document.scrollingElement || document.documentElement || document.body;
+      return Math.max(window.scrollY || 0, root ? root.scrollTop || 0 : 0, document.documentElement ? document.documentElement.scrollTop || 0 : 0, document.body ? document.body.scrollTop || 0 : 0);
+    }
+    return Number(target.el.scrollTop || 0);
+  }
+
+  function scrollMaxOf(target) {
+    if (!target || target.kind === "document") {
+      const root = document.scrollingElement || document.documentElement || document.body;
+      const scrollHeight = Math.max(root ? root.scrollHeight || 0 : 0, document.documentElement ? document.documentElement.scrollHeight || 0 : 0, document.body ? document.body.scrollHeight || 0 : 0);
+      const clientHeight = window.innerHeight || (root ? root.clientHeight || 0 : 0);
+      return Math.max(0, scrollHeight - clientHeight);
+    }
+    return Math.max(0, Number(target.el.scrollHeight || 0) - Number(target.el.clientHeight || 0));
+  }
+
+  function scrollCandidates() {
+    const candidates = [];
+    const root = document.scrollingElement || document.documentElement || document.body;
+    if (root) {
+      candidates.push({
+        kind: "document",
+        el: root,
+        label: "document",
+        viewport: window.innerHeight || root.clientHeight || 800,
+        score: scrollMaxOf({ kind: "document", el: root }) + 1000000
+      });
+    }
+    const selector = [
+      "main",
+      "section",
+      "div",
+      "[role='main']",
+      "[role='feed']",
+      "[role='list']",
+      "[data-pagelet]"
+    ].join(",");
+    for (const el of Array.from(document.querySelectorAll(selector))) {
+      if (!el || el === root || el === document.body || el === document.documentElement) continue;
+      const scrollable = Number(el.scrollHeight || 0) - Number(el.clientHeight || 0);
+      if (scrollable < 300) continue;
+      const rect = el.getBoundingClientRect();
+      if (!rect || rect.width < 220 || rect.height < 240) continue;
+      const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+      if (style && (style.visibility === "hidden" || style.display === "none")) continue;
+      const viewportOverlap = Math.max(0, Math.min(rect.bottom, window.innerHeight || rect.bottom) - Math.max(rect.top, 0));
+      const centerBonus = rect.top < (window.innerHeight || 800) * 0.75 && rect.bottom > (window.innerHeight || 800) * 0.25 ? 50000 : 0;
+      candidates.push({
+        kind: "element",
+        el,
+        label: elementLabel(el),
+        viewport: Math.max(300, Math.min(rect.height, window.innerHeight || rect.height || 800)),
+        score: scrollable + viewportOverlap * 10 + centerBonus
+      });
+    }
+    return candidates
+      .filter((target) => scrollMaxOf(target) - scrollTopOf(target) > 10)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8);
+  }
+
+  function setScrollTopOf(target, top) {
+    const nextTop = Math.max(0, Math.min(scrollMaxOf(target), Number(top) || 0));
+    if (!target || target.kind === "document") {
+      const root = document.scrollingElement || document.documentElement || document.body;
+      if (root) root.scrollTop = nextTop;
+      window.scrollTo(0, nextTop);
+      return;
+    }
+    target.el.scrollTop = nextTop;
+  }
+
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function humanDurationMs(baseMs) {
+    return Math.round(clamp(Number(baseMs) * randomBetween(0.72, 1.38), 420, 1450));
+  }
+
+  function humanPauseMs(baseMs) {
+    return Math.round(clamp(Number(baseMs) * randomBetween(0.72, 1.34), 250, 5000));
+  }
+
+  function humanScrollDistance(viewport) {
+    const base = Math.max(680, Math.floor((viewport || window.innerHeight || 800) * 0.95));
+    return Math.round(base * randomBetween(0.84, 1.12));
+  }
+
+  async function animateScrollTarget(target, toTop, durationMs) {
+    const from = scrollTopOf(target);
+    const max = scrollMaxOf(target);
+    const to = Math.max(0, Math.min(max, Number(toTop) || 0));
+    if (Math.abs(to - from) < 1) return;
+    const duration = Math.max(260, Number(durationMs) || 850);
+    const raf = window.requestAnimationFrame || ((fn) => setTimeout(fn, 16));
+    const start = Date.now();
+    await new Promise((resolve) => {
+      function frame() {
+        const elapsed = Date.now() - start;
+        const progress = Math.min(1, elapsed / duration);
+        const nextTop = from + (to - from) * easeInOutCubic(progress);
+        setScrollTopOf(target, nextTop);
+        if (progress < 1) {
+          raf(frame);
+        } else {
+          resolve();
+        }
+      }
+      raf(frame);
+    });
+    setScrollTopOf(target, to);
+  }
+
+  async function tryScrollTarget(target, distance) {
+    const before = scrollTopOf(target);
+    const nextTop = Math.min(scrollMaxOf(target), before + distance);
+    const durationMs = humanDurationMs(850);
+    await animateScrollTarget(target, nextTop, durationMs);
+    await wait(Math.round(randomBetween(60, 170)));
+    const after = scrollTopOf(target);
+    return {
+      target: target.label,
+      before: Math.round(before),
+      after: Math.round(after),
+      delta: Math.round(after - before),
+      requested_distance: Math.round(distance),
+      duration_ms: durationMs,
+      max: Math.round(scrollMaxOf(target))
+    };
+  }
+
+  async function performScroll() {
+    const targets = scrollCandidates();
+    let best = null;
+    for (const target of targets) {
+      const distance = humanScrollDistance(target.viewport || window.innerHeight || 800);
+      const report = await tryScrollTarget(target, distance);
+      if (!best || Math.abs(report.delta) > Math.abs(best.delta || 0)) best = report;
+      if (Math.abs(report.delta) >= 120) return report;
+    }
+    return best || { target: "none", before: 0, after: 0, delta: 0, max: 0 };
+  }
+
+  for (let i = 0; i < steps; i += 1) {
+    const report = await performScroll();
+    report.pause_ms = humanPauseMs(delayMs);
+    debug.push(report);
+    await wait(report.pause_ms);
+  }
+  return { stepsUsed: debug.length, debug };
+}
+
 async function setState(patch) {
   const current = await getState();
   await chrome.storage.local.set({
@@ -1083,11 +1492,59 @@ function activeRunLockMs(job) {
     Number(pacing.max_sources || DEFAULT_SETTINGS.maxSourcesPerRun || 20),
     sources.length || Number(pacing.max_sources || DEFAULT_SETTINGS.maxSourcesPerRun || 20)
   );
-  const scrollSteps = clampNumber(pacing.scroll_steps, 0, 10, DEFAULT_SETTINGS.scrollSteps);
+  const scrollCap = isDiscoveryCollection(job) ? DISCOVERY_SCROLL_CAP : NORMAL_SCROLL_CAP;
+  const scrollSteps = clampNumber(pacing.scroll_steps, 0, scrollCap, DEFAULT_SETTINGS.scrollSteps);
   const maxDelaySeconds = clampNumber(pacing.max_delay_seconds, 5, 30, DEFAULT_SETTINGS.maxDelaySeconds);
   const estimatedMs = maxSources * ((scrollSteps + 2) * maxDelaySeconds * 1000 + 45000);
   const fallbackMs = ACTIVE_RUN_LOCK_MINUTES * 60 * 1000;
   return Math.max(30 * 60 * 1000, Math.min(fallbackMs, estimatedMs || fallbackMs));
+}
+
+function textLooksLikeDiscovery(value) {
+  return /\b(discover|discovery|joined|joins|member|membership|following|subscriptions?|recommendation|source[_ -]?discovery|group[_ -]?discovery)\b/i.test(String(value || ""));
+}
+
+function urlLooksLikeDiscovery(url) {
+  const value = String(url || "").toLowerCase();
+  return (
+    /facebook\.com\/groups\/joins\b/.test(value) ||
+    /facebook\.com\/groups\/discover\b/.test(value) ||
+    /reddit\.com\/subreddits\/mine\b/.test(value) ||
+    /linkedin\.com\/mynetwork\b/.test(value) ||
+    /youtube\.com\/feed\/subscriptions\b/.test(value)
+  );
+}
+
+function sourceLooksLikeDiscovery(source) {
+  if (!source || typeof source !== "object") return false;
+  return (
+    urlLooksLikeDiscovery(source.url) ||
+    textLooksLikeDiscovery(source.name) ||
+    textLooksLikeDiscovery(source.source_type) ||
+    textLooksLikeDiscovery(source.type) ||
+    textLooksLikeDiscovery(source.purpose) ||
+    textLooksLikeDiscovery(source.scan_mode) ||
+    textLooksLikeDiscovery(source.collection_mode)
+  );
+}
+
+function isDiscoveryCollection(job, source) {
+  if (sourceLooksLikeDiscovery(source)) return true;
+  if (!job || typeof job !== "object") return false;
+  if (
+    textLooksLikeDiscovery(job.job_type) ||
+    textLooksLikeDiscovery(job.mode) ||
+    textLooksLikeDiscovery(job.purpose) ||
+    textLooksLikeDiscovery(job.collection_mode) ||
+    textLooksLikeDiscovery(job.scan_mode)
+  ) {
+    return true;
+  }
+  return normalizeSources(job.sources || []).some(sourceLooksLikeDiscovery);
+}
+
+function maxScrollStepsForCollection(job, source) {
+  return isDiscoveryCollection(job, source) ? DISCOVERY_SCROLL_CAP : NORMAL_SCROLL_CAP;
 }
 
 function canonicalSourceKey(url) {

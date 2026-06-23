@@ -16,8 +16,10 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 - Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, mark measurement as `no published URLs yet` instead of pretending it ran.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
 - Every scheduled-run human-facing reply, notification, or report handoff must include an updated progress block. If the agent sends multiple progress updates during the scheduled run, each update must show the current completed/current/remaining state.
-- If private collection is blocked, continue public data sources and notify the human. Do not fall back to Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser for logged-in/private data sources.
+- If private collection is blocked, continue public data sources and notify the human. Do not fall back to Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser for private data sources.
 - Store schedule config and notification channel.
+- After any human-approved change made after the schedule/automation was created, perform Automation Resync before claiming the next scheduled run is updated.
+- Never say "the automation is updated" if only `collector_config.json`, only `schedule.md`, or only the Client Intelligence Profile was changed. The whole automation package must be synced or the remaining snapshot/update blocker must be stated.
 
 ## Source Preservation Rule
 
@@ -64,6 +66,7 @@ Every scheduled-run reply, notification, or report handoff must include:
 - remaining steps;
 - blockers or human decisions required;
 - whether published-URL analytics was run or skipped because no published URLs/metrics exist yet.
+- an `Automation freshness check` stating whether the latest changes are synced into the configured automation/scheduled task and whether tomorrow's run will read the current contracts/prompts/playbooks/source approvals/state, not only the latest config file.
 
 Use this title:
 
@@ -72,6 +75,76 @@ Solo Agency daily run progress
 ```
 
 The agent may use a compact form in notifications, but it must not send only a report link or summary while steps remain.
+
+Use this compact automation freshness line in scheduled-run updates and setup/repair progress blocks after a schedule exists:
+
+```text
+Automation freshness check: {✓ current | → resync in progress | ! action needed | – not applicable yet} - latest approved changes synced into the automation/scheduled task, including prompt/contract/playbook/source state, not only config: {yes | in progress | needs human task prompt update | no schedule yet}.
+```
+
+---
+
+## Automation Resync Contract
+
+An automation/scheduled task can contain a stale prompt snapshot from the moment it was created. A later config edit is not enough if the scheduled task still points to old instructions, old source state, or old setup assumptions.
+
+Trigger Automation Resync whenever a human-approved change happens after schedule/automation setup, including:
+
+- private data source discovery was run, approved, rejected, postponed, or changed;
+- Local Collector was activated, repaired, moved to another folder, or found to be writing to the wrong workspace;
+- public data sources, public search keywords, client profile fields, pain points, content pillars, audience, location, or offer changed;
+- PDNA, WideCast, Telegram, publishing, analytics, published URL history, or notification delivery changed;
+- schedule cadence, timezone, active clients, manual-only mode, or report delivery channel changed;
+- the playbook behavior changed in a way scheduled runs must follow.
+
+Automation Resync requires updating every relevant layer:
+
+1. Client Intelligence Profile: current source status, approvals, profile fields, private monitoring activation, PDNA, analytics, and notification status.
+2. Source/history logs: discovery results, approved/rejected/pending private data sources, new public data sources, keyword bank changes, and approval timestamps.
+3. `daily-content-pipeline/schedule.md`: cadence, included clients, notification channel, private data source status, PDNA status, and last resync timestamp.
+4. `daily-content-pipeline/collector/collector_config.json` or `POST http://127.0.0.1:17321/config`: only when private data source collection schedule/sources/scan depth changed.
+5. `daily-content-pipeline/automation/automation_manifest.md`: current run contract, paths, active clients, prompt source, config source, and last known state hash/summary.
+6. `daily-content-pipeline/automation/scheduled_run_prompt.md`: the exact prompt that the native AI automation/scheduled task should run.
+7. Native AI automation or scheduled task body: update it when the environment stores a separate prompt snapshot.
+8. `daily-content-pipeline/automation/resync_log.md`: what changed, what files/tasks were updated, what could not be updated, and what the next scheduled run should see.
+
+If the native AI automation task cannot be edited by the agent, the agent must:
+
+- write the exact replacement prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`;
+- mark `automation_prompt_update_pending` in `automation_manifest.md` and `schedule.md`;
+- give the human one concrete instruction to paste/replace the scheduled task prompt;
+- avoid claiming the scheduled run is fully updated until the human confirms the native task body was updated.
+
+Automation Resync verification:
+
+Before saying a post-schedule change is complete, do a dry-read as if tomorrow's scheduled run were starting:
+
+1. Read `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`.
+2. Read `daily-content-pipeline/automation/automation_manifest.md`.
+3. Read `daily-content-pipeline/schedule.md`.
+4. Read each active Client Intelligence Profile.
+5. Read `collector_config.json` when private data sources are active or pending.
+6. Confirm the latest user-approved changes are visible from those files and from the scheduled prompt/task body.
+
+The agent's human-facing completion message must say one of:
+
+```text
+Automation Resync complete: the next scheduled run will read the latest approved state.
+```
+
+or:
+
+```text
+Automation Resync partially complete: config/profile are updated, but the native scheduled task prompt still needs the human to replace it with daily-content-pipeline/automation/scheduled_run_prompt.md.
+```
+
+Bad completion wording:
+
+```text
+I updated the config, so tomorrow's automation is fixed.
+```
+
+This is invalid because it hides the possibility that the scheduled prompt/task still has an old snapshot.
 
 ---
 
@@ -184,11 +257,13 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. Prepare a report-delivery record containing the local `.html` report path, upload attempt status, uploaded report URL if available, notification channel, and final notification report link.
-10. If WideCast MCP notification/Telegram capability is available, inspect whether an HTML-capable WideCast report/file/asset upload API is available. If it is, upload the HTML report to WideCast first, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
-11. If WideCast notification is available but HTML upload is unavailable or fails, log the exact upload blocker and still send a WideCast notification that includes the best available local/hosted `.html` report path/link.
-12. If another authorized channel can send the HTML file or link more conveniently only because WideCast notification tooling is unavailable or blocked, use it.
-13. Log the upload attempt and notification attempt in `notifications/notification_log.md`.
+9. Load Stage 6 and run the Report Delivery Capability Check before claiming the run is complete.
+10. Prepare a report-delivery record containing the local `.html` report path, WideCast capability check status, tool discovery method, upload attempt status, uploaded report URL if available, notification channel, final notification report link, and blockers.
+11. If WideCast MCP notification/Telegram capability is available, inspect whether an HTML-capable WideCast report/file/asset upload API is available. Use the current environment's tool discovery/lazy-load mechanism before declaring unavailable. If upload exists, upload the HTML report to WideCast first, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
+12. If WideCast notification is available but HTML upload is unavailable or fails, log the exact upload blocker and still send a WideCast notification that includes the best available local/hosted `.html` report path/link.
+13. If the current AI connector/tool surface does not expose WideCast upload or notification tools, log `widecast_report_upload_unavailable` and/or `widecast_notification_tool_unavailable`, say this is a current tool-surface blocker, and provide the best available HTML path/link in chat or an authorized fallback channel.
+14. If another authorized channel can send the HTML file or link more conveniently only because WideCast notification tooling is unavailable or blocked, use it.
+15. Log the upload attempt and notification attempt in `notifications/notification_log.md`.
 
 The daily run is complete only when every active client is processed or explicitly logged as skipped.
 
@@ -198,12 +273,14 @@ Scheduled runs must assume the human may not be present in the AI agent UI. The 
 
 If WideCast notification/Telegram is connected and WideCast report upload supports HTML, the notification link must be the uploaded WideCast report URL, not only a local file path. If upload fails or the current wrapper does not support HTML upload, log the blocker and send the best available HTML path/link.
 
+If a WideCast upload/Telegram step is skipped because the agent did not inspect available tools/connectors, the scheduled run is incomplete. The agent must correct the omission by running the Report Delivery Capability Check, updating `notification_log.md`, and sending a correction message with the HTML report URL/path and blocker.
+
 A notification that only says the report is ready but contains no HTML report URL/path is invalid. If this happens, immediately send a correction notification with the HTML report URL/path and log the correction.
 
 ---
 
-- After the first report, ask the human whether they want daily, multiple-times-daily, weekly, manual-only, or another cadence.
-- Then write or update `schedule.md` and the relevant automation/config files.
+- During one-time setup, after the profile and source plan are known and before the first agency run, ask the human whether they want daily, multiple-times-daily, weekly, manual-only, or another cadence.
+- Then write or update `schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md`, `daily-content-pipeline/automation/resync_log.md`, and the relevant collector/native automation config files.
 
 Exact schedule contract:
 
@@ -272,6 +349,7 @@ solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
 - The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private data sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.
 - Scheduled run IDs are generated by the Local Collector app, usually using `YYYY-MM-DD_schedule-name`.
 - The agent must still write a human-readable `schedule.md` explaining the cadence, clients included, private data source limits, and notification behavior.
+- The agent must also write `daily-content-pipeline/automation/automation_manifest.md` and `daily-content-pipeline/automation/scheduled_run_prompt.md` so future agents can repair or resync the actual scheduled task prompt instead of relying on memory.
 
 ---
 

@@ -12,22 +12,24 @@ Run the scheduled Solo Agency daily run now.
 1. Load SOLO_AGENCY_PLAYBOOK.md from the local workspace or from the configured GitHub raw URL.
 2. Follow the Scheduled Run Playbook Loading Contract in playbooks/04_DAILY_SCHEDULE.md.
 3. Do not rely on memory from setup. Load the required child playbooks again at run time.
-4. Process every active client in daily-content-pipeline/clients_index.md.
-5. Do not ask setup questions when the saved Client Intelligence Profile is complete.
-6. Run public research, private scans if active, published-URL analytics only when published URLs/metrics exist, analysis, Lead & Competitor Opportunities, idea matrix, best idea selection, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approval allow it, HTML report generation, learning updates, and notification.
-7. If private data sources are active, load `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`; use only the Solo Agency Local Collector extension plus Local Collector app. Do not use Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser for logged-in/private data sources.
-8. If private data sources are active and the Local Collector app is reachable, verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree before trusting the bridge. If they point elsewhere, mark `wrong_workspace_bridge`, skip private collection, and tell the human to run the current setup's Local Collector command and remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
-9. If private data sources are active, read the Local Collector config before announcing scan depth. For the first lead/competitor pass for a client/source set, use 10 scrolls per approved source when safe. For normal daily scheduled runs, use the safe default: 5 scrolls per approved source, max 10, about 5 seconds between scrolls.
-10. If no private data sources are active for a client, do not block the scheduled run. Continue public data source research, but include `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed` in the HTML report/notification so the human understands that public-only runs can miss community, lead, and competitor signals.
-11. If published content exists, retrieve yesterday's and last-7-day published URLs, inspect each URL when authorized, record metrics/comment signals/learnings, and mark unavailable metrics honestly.
-12. If no published URLs/metrics exist yet, mark measurement as `no published URLs yet`; do not pretend the measurement-learning loop ran.
-13. Every human-facing reply, notification, or report handoff must include `Solo Agency daily run progress` with completed/current/remaining steps and blockers. If sending multiple updates, show updated progress each time.
-14. Human-facing reports must be HTML only. Markdown is internal.
-15. Prepare a report-delivery record for every HTML report: local `.html` path, WideCast upload attempted true/false, uploaded URL if available, upload blocker if any, notification channel, and final notification report link.
-16. If WideCast notification/Telegram is connected and WideCast report/file upload is available, upload each HTML report to WideCast first, then send the uploaded WideCast report URL through WideCast Telegram/email fallback. Do not send only a local file path when an uploaded URL is available.
-17. If report upload fails or no HTML-capable upload API exists, log the blocker, notify the human with the best available HTML path/link, and say that WideCast report upload failed or is unavailable.
-18. Never send a report-ready notification without an HTML report URL/path. If that happens by mistake, immediately send a correction notification with the HTML report URL/path and log the correction.
-19. Load playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md before claiming the scheduled run is complete.
+4. Read `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md` when present, and `daily-content-pipeline/schedule.md` before processing clients. If the manifest says `automation_prompt_update_pending`, report that blocker and still run from the latest local playbooks/profile/config instead of the stale snapshot.
+5. Process every active client in daily-content-pipeline/clients_index.md.
+6. Do not ask setup questions when the saved Client Intelligence Profile is complete.
+7. Run public research, private scans if active, published-URL analytics only when published URLs/metrics exist, analysis, Lead & Competitor Opportunities, idea matrix, best idea selection, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approval allow it, HTML report generation, learning updates, and notification.
+8. If private data sources are active, load `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`; use only the Solo Agency Local Collector extension plus Local Collector app. Do not use Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser for private data sources.
+9. If private data sources are active and the Local Collector app is reachable, verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree before trusting the bridge. If they point elsewhere, mark `wrong_workspace_bridge`, skip private collection, and tell the human to run the current setup's Local Collector command and remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
+10. If private data sources are active, read the Local Collector config before announcing scan depth. For the first lead/competitor pass for a client/source set, use 10 scrolls per approved source when safe. For normal daily scheduled runs, use the safe default: 5 scrolls per approved source, max 10, about 5 seconds between scrolls.
+11. If no private data sources are active for a client, do not block the scheduled run. Continue public data source research, but include `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed` in the HTML report/notification so the human understands that public-only runs can miss community, lead, and competitor signals.
+12. If published content exists, retrieve yesterday's and last-7-day published URLs, inspect each URL when authorized, record metrics/comment signals/learnings, and mark unavailable metrics honestly.
+13. If no published URLs/metrics exist yet, mark measurement as `no published URLs yet`; do not pretend the measurement-learning loop ran.
+14. Every human-facing reply, notification, or report handoff must include `Solo Agency daily run progress` with completed/current/remaining steps and blockers. If sending multiple updates, show updated progress each time. Also include an `Automation freshness check` that states whether the latest changes are synced into the automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state.
+15. Human-facing reports must be HTML only. Markdown is internal.
+16. Load Stage 6 and run the Report Delivery Capability Check for every HTML report. Use tool discovery/lazy-load before declaring WideCast upload or Telegram notification unavailable.
+17. Prepare a report-delivery record for every HTML report: local `.html` path, WideCast capability checked true/false, tool discovery method, upload tool available true/false/unknown, notification tool available true/false/unknown, upload attempted true/false, uploaded URL if available, upload blocker if any, notification channel, notification attempted true/false, and final notification report link.
+18. If WideCast notification/Telegram is connected and WideCast report/file upload is available, upload each HTML report to WideCast first, then send the uploaded WideCast report URL through WideCast Telegram/email fallback. Do not send only a local file path when an uploaded URL is available.
+19. If the current AI connector/tool surface does not expose WideCast HTML upload or Telegram/notification tools, log `widecast_report_upload_unavailable` and/or `widecast_notification_tool_unavailable`, say this is a current tool-surface blocker, and notify/surface the best available HTML path/link through chat or another authorized fallback.
+20. Never send a report-ready notification without an HTML report URL/path. If that happens by mistake, immediately send a correction notification with the HTML report URL/path and log the correction.
+21. Load playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md before claiming the scheduled run is complete.
 ```
 
 ## Required Runtime Loads
@@ -38,6 +40,8 @@ At the start of every scheduled run, load:
 - `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`
 - `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`
 - `playbooks/04_DAILY_SCHEDULE.md`
+- `daily-content-pipeline/automation/automation_manifest.md` when present
+- `daily-content-pipeline/schedule.md` when present
 
 Then conditionally load:
 
@@ -60,11 +64,13 @@ Scheduled runs should not ask those questions again. They should read saved stat
 If WideCast Telegram is connected:
 
 1. Generate the local `.html` report.
-2. Inspect available WideCast tools/capabilities for a report/file/asset upload API that supports HTML.
+2. Inspect available WideCast tools/capabilities for a report/file/asset upload API that supports HTML and a Telegram/report notification send tool. Use tool discovery/lazy-load when available.
 3. Upload the `.html` report to WideCast when an HTML-capable upload API exists.
 4. Capture the returned public or reviewable report URL.
 5. Send that uploaded URL through WideCast Telegram with the run summary, blockers, lead/competitor counts, and next action.
-6. If upload is unavailable or fails, send the best available local/hosted `.html` report path/link through WideCast notification and clearly state the upload blocker.
+6. If upload is unavailable or fails but notification is available, send the best available local/hosted `.html` report path/link through WideCast notification and clearly state the upload blocker.
 7. Log the upload attempt and notification in `daily-content-pipeline/notifications/notification_log.md`.
 
-If the current WideCast wrapper does not expose an HTML-capable upload API, do not pretend upload succeeded. Log `widecast_report_upload_unavailable`, send the best available HTML path/link, and tell the human how to enable report upload.
+If the current AI connector/tool surface or WideCast wrapper does not expose an HTML-capable upload API, do not pretend upload succeeded. Log `widecast_report_upload_unavailable`, send/surface the best available HTML path/link, and state the tool-surface blocker clearly.
+
+If the current AI connector/tool surface does not expose a WideCast Telegram/report notification send tool, log `widecast_notification_tool_unavailable`, surface the best available HTML path/link in chat or another authorized fallback, and do not claim WideCast itself lacks notification capability.

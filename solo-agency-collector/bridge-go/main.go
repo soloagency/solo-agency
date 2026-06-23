@@ -228,6 +228,8 @@ func defaultCollectorConfig() map[string]any {
 		"source_concurrency":     1,
 		"max_scrolls_per_source": 5,
 		"max_scrolls_allowed":    10,
+		"discovery_scroll_steps": 80,
+		"max_discovery_scrolls_allowed": 80,
 		"scroll_delay_seconds":   5,
 		"duplicate_filter": map[string]any{
 			"compare_against_previous_day": true,
@@ -808,8 +810,13 @@ func (b *bridge) currentPersistentJob(now time.Time) (map[string]any, bool, stri
 		return nil, false, runID
 	}
 
-	maxAllowed := clampInt(getInt(doc, "max_scrolls_allowed", 10), 1, 10)
-	scrolls := clampInt(getInt(doc, "max_scrolls_per_source", 5), 0, maxAllowed)
+	discovery := sourcesHaveDiscovery(sources)
+	maxAllowed := maxScrollsAllowedForJob(doc, map[string]any{"sources": sources})
+	defaultScrolls := getInt(doc, "max_scrolls_per_source", 5)
+	if discovery {
+		defaultScrolls = getInt(doc, "discovery_scroll_steps", 80)
+	}
+	scrolls := clampInt(defaultScrolls, 0, maxAllowed)
 	delay := clampInt(getInt(doc, "scroll_delay_seconds", 5), 5, 60)
 	maxSources := clampInt(getInt(doc, "max_sources_per_run", 20), 1, 20)
 	sourceConcurrency := clampInt(getInt(doc, "source_concurrency", 1), 1, 3)
@@ -900,9 +907,77 @@ func defaultPacing(doc map[string]any) map[string]any {
 	}
 }
 
+func textLooksLikeDiscovery(value any) bool {
+	text := strings.ToLower(fmt.Sprint(value))
+	return strings.Contains(text, "discover") ||
+		strings.Contains(text, "discovery") ||
+		strings.Contains(text, "joined") ||
+		strings.Contains(text, "joins") ||
+		strings.Contains(text, "member") ||
+		strings.Contains(text, "membership") ||
+		strings.Contains(text, "following") ||
+		strings.Contains(text, "subscription") ||
+		strings.Contains(text, "recommendation") ||
+		strings.Contains(text, "source_discovery") ||
+		strings.Contains(text, "group_discovery")
+}
+
+func urlLooksLikeDiscovery(value any) bool {
+	url := strings.ToLower(fmt.Sprint(value))
+	return strings.Contains(url, "facebook.com/groups/joins") ||
+		strings.Contains(url, "facebook.com/groups/discover") ||
+		strings.Contains(url, "reddit.com/subreddits/mine") ||
+		strings.Contains(url, "linkedin.com/mynetwork") ||
+		strings.Contains(url, "youtube.com/feed/subscriptions")
+}
+
+func sourceLooksLikeDiscovery(source map[string]any) bool {
+	return urlLooksLikeDiscovery(source["url"]) ||
+		textLooksLikeDiscovery(source["name"]) ||
+		textLooksLikeDiscovery(source["source_type"]) ||
+		textLooksLikeDiscovery(source["type"]) ||
+		textLooksLikeDiscovery(source["purpose"]) ||
+		textLooksLikeDiscovery(source["scan_mode"]) ||
+		textLooksLikeDiscovery(source["collection_mode"])
+}
+
+func sourcesHaveDiscovery(sources []any) bool {
+	for _, raw := range sources {
+		if source, ok := raw.(map[string]any); ok && sourceLooksLikeDiscovery(source) {
+			return true
+		}
+	}
+	return false
+}
+
+func jobLooksLikeDiscovery(job map[string]any) bool {
+	if textLooksLikeDiscovery(job["job_type"]) ||
+		textLooksLikeDiscovery(job["mode"]) ||
+		textLooksLikeDiscovery(job["purpose"]) ||
+		textLooksLikeDiscovery(job["scan_mode"]) ||
+		textLooksLikeDiscovery(job["collection_mode"]) {
+		return true
+	}
+	return sourcesHaveDiscovery(asSlice(job["sources"]))
+}
+
+func maxScrollsAllowedForJob(doc map[string]any, job map[string]any) int {
+	normal := clampInt(getInt(doc, "max_scrolls_allowed", 10), 1, 10)
+	if !jobLooksLikeDiscovery(job) {
+		return normal
+	}
+	discovery := clampInt(getInt(doc, "max_discovery_scrolls_allowed", 80), normal, 80)
+	if discovery < normal {
+		return normal
+	}
+	return discovery
+}
+
 func pacingForJob(doc map[string]any, job map[string]any) map[string]any {
 	pacing := defaultPacing(doc)
+	rawScrollOverride := false
 	if rawPacing, ok := job["pacing"].(map[string]any); ok {
+		_, rawScrollOverride = rawPacing["scroll_steps"]
 		for key, value := range rawPacing {
 			pacing[key] = value
 		}
@@ -913,7 +988,10 @@ func pacingForJob(doc map[string]any, job map[string]any) map[string]any {
 	if raw, ok := job["max_parallel_sources"]; ok {
 		pacing["source_concurrency"] = raw
 	}
-	maxAllowed := clampInt(getInt(doc, "max_scrolls_allowed", 10), 1, 10)
+	if jobLooksLikeDiscovery(job) && !rawScrollOverride {
+		pacing["scroll_steps"] = getInt(doc, "discovery_scroll_steps", 80)
+	}
+	maxAllowed := maxScrollsAllowedForJob(doc, job)
 	minDelay := clampInt(getInt(pacing, "min_delay_seconds", 5), 5, 60)
 	maxDelay := clampInt(getInt(pacing, "max_delay_seconds", minDelay), minDelay, 60)
 	maxSources := clampInt(getInt(pacing, "max_sources", getInt(doc, "max_sources_per_run", 20)), 1, 20)

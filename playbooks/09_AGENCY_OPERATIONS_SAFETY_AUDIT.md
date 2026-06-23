@@ -13,14 +13,62 @@ Load before claiming setup, daily run, private data source setup, schedule, prod
 - Respect approval gates and regulated-industry safety.
 - For each test log, identify skipped stages, unnecessary questions, jump-ahead behavior, report format failures, and missed gates.
 - If any required stage was not loaded, load it before proceeding.
-- Before any private/logged-in source scan, confirm `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 were loaded in the current private data source turn, even if the conversation drifted through unrelated topics.
-- Treat any use of Claude in Chrome, Claude Chrome Extension, Codex/browser tools, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or another agent-controlled browser for logged-in/private data source collection as a critical workflow violation.
+- Before any private data source scan, confirm `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 were loaded in the current private data source turn, even if the conversation drifted through unrelated topics.
+- Treat any use of Claude in Chrome, Claude Chrome Extension, Codex/browser tools, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or another agent-controlled browser for private data source collection as a critical workflow violation.
+- Before claiming any post-schedule change is complete, verify Automation Resync was performed when schedule/automation already exists. Config-only updates are not enough if a native scheduled task prompt may still contain an old snapshot.
 
 ## Source Preservation Rule
 
 This file is detailed source material moved from the original monolithic `SOLO_AGENCY_PLAYBOOK.md`.
 
 Do not summarize away requirements, examples, checklists, schemas, protocols, URLs, edge cases, warnings, approval gates, or completion gates. If a downstream agent needs to shorten its response to the human, it may summarize the response, but it must still obey the full requirements in this file.
+
+---
+
+## Automation Resync Safety Check
+
+Run this check before saying any setup repair, private data source approval, Local Collector repair, PDNA connection, notification change, analytics change, schedule change, or client/profile update is complete when a schedule/automation already exists.
+
+Ask:
+
+1. Did this change happen after `daily-content-pipeline/schedule.md` or a native automation/scheduled task was created?
+2. Would tomorrow's scheduled run need to know about this change?
+3. Could the scheduled task have an old prompt snapshot, old source status, old approval state, or old collector path?
+
+If yes to any of those, the agent must load Stage 4 and perform Automation Resync before claiming completion.
+
+Minimum resync audit:
+
+- Client Intelligence Profile updated.
+- Source/discovery/history logs updated when source state changed.
+- `daily-content-pipeline/schedule.md` updated.
+- `daily-content-pipeline/collector/collector_config.json` or `POST /config` updated when private data source collection changed.
+- `daily-content-pipeline/automation/automation_manifest.md` updated.
+- `daily-content-pipeline/automation/scheduled_run_prompt.md` updated.
+- Actual native AI automation/scheduled task prompt updated when accessible, or `automation_prompt_update_pending` clearly logged when not accessible.
+- `daily-content-pipeline/automation/resync_log.md` updated.
+- Dry-read verification performed from the scheduled-run entrypoint and latest local files.
+- The human-facing progress block includes an `Automation freshness check` that answers whether the latest changes were synced into automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state.
+
+Completion wording must distinguish full vs partial sync:
+
+```text
+Automation Resync complete: the next scheduled run will read the latest approved sources/config.
+```
+
+or:
+
+```text
+Automation Resync partially complete: local files are updated, but the native scheduled task prompt still needs human update.
+```
+
+Do not say:
+
+```text
+Config updated, so automation is done.
+```
+
+That is a safety-audit failure.
 
 ---
 
@@ -211,7 +259,7 @@ Do you want me to set up PDNA - Production (create real video/blog/social assets
 
 The agent must ask this question directly in the chat message or notification where it announces the first agency run result. It must not hide the question or setup steps inside a Markdown file.
 
-The same chat message must show the full `Solo Agency onetime setup` progress checklist with all 10 numbered items, including both 7A and 7B. The agent must not hide steps 5-10.
+The same chat message must show the full `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` progress roadmap with all 10 numbered items, including both 7A and 7B. The agent must not hide steps 5-10. The roadmap must say it is the agent's planned process, not a questionnaire for the human.
 
 Good first-run chat pattern:
 
@@ -222,18 +270,20 @@ Best idea today: {best idea}
 Report for mobile: {absolute HTML path or URL}
 First draft: {script/blog/caption title}
 
-Solo Agency onetime setup
-[x] 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
-[x] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
-[x] 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
-[x] 4. Tôi tự tìm/chọn nguồn dữ liệu công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
-[x] 5. Bạn cung cấp nguồn dữ liệu riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
-[x] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
-[-] 7A. Nếu bạn đã cung cấp nguồn dữ liệu riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn dữ liệu riêng tư ở trạng thái pending (bạn chọn chạy lần đầu chỉ với nguồn dữ liệu công khai)
-[x] 7B. Tôi chạy lần đầu: quét nguồn dữ liệu công khai và nguồn dữ liệu riêng tư đã kích hoạt (hoặc chỉ dùng nguồn dữ liệu công khai nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
-[ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
-[-] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
-[ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
+Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)
+Đây là lộ trình minh bạch tôi đang tự thực hiện; bạn chỉ cần phản hồi khi tôi hỏi một câu cụ thể.
+
+✓ 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
+✓ 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
+✓ 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
+✓ 4. Tôi tự tìm/chọn nguồn dữ liệu công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
+✓ 5. Bạn cung cấp nguồn dữ liệu riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
+✓ 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
+– 7A. Nếu bạn đã cung cấp nguồn dữ liệu riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn dữ liệu riêng tư ở trạng thái pending (bạn chọn chạy lần đầu chỉ với nguồn dữ liệu công khai)
+✓ 7B. Tôi chạy lần đầu: quét nguồn dữ liệu công khai và nguồn dữ liệu riêng tư đã kích hoạt (hoặc chỉ dùng nguồn dữ liệu công khai nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
+→ 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
+– 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
+○ 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
 
 The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
 
@@ -1219,7 +1269,7 @@ Read and follow SOLO_AGENCY_PLAYBOOK.md exactly. Start by asking me only for the
 The correct first response from the agent should be similar to:
 
 ```md
-What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. Optional: if you already know logged-in/social/community data sources you may want monitored later, such as Facebook groups, subreddits, X/LinkedIn/GitHub pages, Discord/Slack communities, or competitor profiles, include them too. If you do not know which private data sources are useful yet, that is normal; later I can suggest a one-time discovery pass from groups, subreddits, communities, pages, profiles, channels, or feeds you approve, then you choose what to monitor. I will infer industry, audience, pain points/customer problems, content pillars/main content themes, and public data sources/web-search sources I can access without your login, then show you the setup summary before saving anything as stable context.
+What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. Optional: if you already know private data sources (logged-in/social/community places) you may want monitored later, such as Facebook groups, subreddits, X/LinkedIn/GitHub pages, Discord/Slack communities, or competitor profiles, include them too. If you do not know which private data sources are useful yet, that is normal; later I can suggest a one-time discovery pass from groups, subreddits, communities, pages, profiles, channels, or feeds you approve, then you choose what to monitor. I will infer industry, audience, pain points/customer problems, content pillars/main content themes, and public data sources/web-search sources I can access without your login, then show you the setup summary before saving anything as stable context.
 ```
 
 If space allows, the first response should mention that the agent will also infer related industries and keep content focused around an 80% primary / 20% related-industry mix.
@@ -1323,16 +1373,19 @@ Before replying to the human, verify:
 - [ ] If I asked a question, did I first show what I inferred from the previous answer?
 - [ ] Did I show setup or research assumptions clearly instead of hiding them in files?
 - [ ] If the setup, daily run, private data source setup, production setup, scheduling, publishing, or measurement workflow is not complete, did I show an updated progress block in this reply?
+- [ ] If schedule/automation already exists and this reply includes a progress block, did I include an `Automation freshness check` stating whether the latest changes are synced into the automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state?
 - [ ] If I am handing control back to the human while required steps remain, is the final line exactly one concrete next-step question?
 - [ ] If human action is needed, did I show the exact action directly in chat or notification?
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I mentioned a report, did I provide only the HTML path/link for human review and avoid showing the Markdown report path?
 - [ ] If I mentioned a report and any workflow step remains, did I include both the progress block and the required next-step question in chat instead of relying on the report's `Next Action` section?
 - [ ] Did I avoid jumping to the first agency run before private data source status, the 7A Local Collector checkpoint, and schedule/routine were resolved?
+- [ ] If I generated or announced an HTML report, did I run the Stage 6 Report Delivery Capability Check: inspect WideCast upload/notification tools with discovery/lazy-load when available, attempt upload/notification when available, log exact blockers when unavailable, and provide the HTML report path/link?
+- [ ] If WideCast upload/Telegram was skipped, did I distinguish `current AI connector/tool surface does not expose this tool` from `WideCast itself does not support this capability`?
 - [ ] Did I avoid asking for credentials, cookies, passwords, OTPs, or tokens?
 - [ ] Did I avoid calling the collector a Facebook collector?
-- [ ] If the human asked for any private/logged-in scan after conversation drift, did I reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before acting?
-- [ ] If this involved private/logged-in sources, did I avoid Claude in Chrome, Claude Chrome Extension, Codex/browser tools, Playwright/Puppeteer/Selenium, fresh agent-opened browser profiles, and all other agent-controlled browsers?
+- [ ] If the human asked for any private data source scan after conversation drift, including logged-in/account-required groups, feeds, profiles, pages, communities, or sources, did I reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before acting?
+- [ ] If this involved private data sources, did I avoid Claude in Chrome, Claude Chrome Extension, Codex/browser tools, Playwright/Puppeteer/Selenium, fresh agent-opened browser profiles, and all other agent-controlled browsers?
 - [ ] If this was one-time Local Collector setup/update/repair, did I avoid running `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI sandbox?
 - [ ] If this was one-time Local Collector setup/update/repair, did I give the human both required local actions in chat: run the one-line Terminal/PowerShell setup/start command outside the AI sandbox and load the Chrome extension from the absolute runtime folder?
 - [ ] If I discussed private data source setup, Local Collector activation, or private data source discovery, did I reassure the human about one-time professional setup patience, local-only data safety, and daily scanning coverage?
@@ -1351,7 +1404,8 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I infer related industries?
 - [ ] Did I show the 80% primary industry / 20% related industries rule?
 - [ ] Did I explain that public data sources are websites/search/public pages I can access without the human's login?
-- [ ] Did I ask whether the human wants to provide private data sources, and did I explain that private data sources are logged-in/social/community data sources such as groups, profiles, pages, channels, forums, or communities?
+- [ ] Did I use canonical source terms in human-facing text: `public data sources` / `private data sources` in English, or `nguồn dữ liệu công khai` / `nguồn dữ liệu riêng tư` in Vietnamese?
+- [ ] Did I ask whether the human wants to provide private data sources, and did I explain that private data sources are logged-in/social/community places such as groups, profiles, pages, channels, forums, or communities?
 - [ ] If the human had no private data source list, was unsure, skipped, or left it blank, did I offer one optional private data source discovery pass from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds?
 - [ ] Did I build a public keyword bank from pain points, problems, needs, objections, buying triggers, and local context, not only generic industry terms?
 - [ ] Did I choose keyword language based on the target audience's likely search/comment language, not automatically the human's chat language?
@@ -1528,7 +1582,7 @@ Before presenting production setup choices or claiming the PDNA setup gate is co
 
 ### Production Setup Anti-Drift Checklist
 
-When production/video/blog/social work happens inside onetime agency setup, verify:
+When production/video/blog/social work happens inside the one-time agency setup process, verify:
 
 - [ ] Did I treat step 8 as provider/capability setup after the small win, not open-ended trial video creation?
 - [ ] Did I avoid starting scene editing, repeated media swaps, render/export, publishing, or credit-spending while steps 9-10 were still pending, unless the human explicitly overrode after a warning?
@@ -1536,7 +1590,7 @@ When production/video/blog/social work happens inside onetime agency setup, veri
 - [ ] If the human explicitly insisted on a trial video before setup completed, did I record the parent setup checkpoint before entering the branch?
 - [ ] Did I remember the next parent setup step after the branch, instead of losing the agency setup thread?
 - [ ] Did I show a compact parent setup checkpoint during the short production branch?
-- [ ] After one natural branch checkpoint, did I return to the full `Solo Agency onetime setup` checklist unless the human explicitly asked to continue the branch?
+- [ ] After one natural branch checkpoint, did I return to the full `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` / `Solo Agency one-time setup process` roadmap unless the human explicitly asked to continue the branch?
 - [ ] Did I avoid claiming agency setup was complete merely because a provider was connected or a video trial was created?
 - [ ] Did I avoid forgetting steps 9-10 after production/video testing ended?
 
@@ -1560,6 +1614,8 @@ Before saying the run is complete, verify:
 - [ ] Did the report include a Production Readiness status for each draft, such as `production-ready`, `script-ready, media-pending`, or `needs human detail`?
 - [ ] Did the report end with exactly one primary next action, with secondary actions clearly de-emphasized?
 - [ ] Did the chat or notification that announces the report show an updated progress block when required steps remain?
+- [ ] If schedule/automation already exists, did that chat or notification include an `Automation freshness check` instead of only saying the config/report is updated?
+- [ ] Did the chat or notification include the Report Delivery Capability Check outcome: WideCast capability checked, upload attempted or blocker, notification attempted or blocker, and final HTML report path/link?
 - [ ] Did that chat or notification end with exactly one concrete next-step question when the human needs to choose the next step?
 - [ ] Is the HTML factually aligned with the internal Markdown report?
 - [ ] Is the HTML standalone and portable?
