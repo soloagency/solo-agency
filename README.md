@@ -4,6 +4,10 @@ Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" to tur
 
 ## The Point
 
+Founder note:
+
+I learned the hard way: when you are solo, the hardest problem is attention. Attention Is All You Need, but attention has to be earned with content people actually care about. That means daily research, production, distribution, measurement, and improvement, not another blank prompt.
+
 - Content without research is guessing.
 - Research without production is wasted.
 - Production without distribution is invisible.
@@ -16,10 +20,9 @@ This playbook connects the full agency loop: research, ideas, lead and competito
 ## What This Is
 
 - An AI-agent operating playbook for daily content intelligence across one client or an entire client roster.
-- A thin root playbook plus modular stage playbooks: the agent loads only the detailed setup, research, private data source, production, scheduling, reporting, storage, collector, or analytics protocol it needs next.
 - A marketing workflow: research -> insight -> content pillar -> idea -> script/blog/social -> approval -> production -> distribution -> analytics -> learning.
 - A public data source + private data source intelligence system across Google, industry sites, FB, IG, YT, TT, X, LinkedIn, Reddit, groups, pages, creators, and communities.
-- If the human does not know which private data sources to add, the agent can suggest a one-time discovery pass through approved logged-in surfaces such as joined Facebook groups, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, and community feeds, then filter the candidates and ask for approval before monitoring anything.
+- Helps scan and evaluate private data sources you already have, such as joined Facebook groups, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, and community feeds.
 - A pain-point-to-content-pillar engine that turns real audience problems into daily content angles.
 - A lead and competitor opportunity engine built directly into the research process: it finds relevant posts, preserves source links, explains why each signal matters, and drafts value-first comments for human review.
 - A production layer for idea-to-video, blog/social creation, auto-posting, notifications, analytics, and build-measure-learn-improve loops.
@@ -40,14 +43,14 @@ This playbook connects the full agency loop: research, ideas, lead and competito
 - New source opportunities, such as groups, pages, creators, communities, or competitor profiles worth monitoring.
 - A clear production path: approve, revise, choose another idea, create a video, publish, schedule, reconnect, or measure.
 
-## Why Agencies Use It
+## Built For Solo Operators, Useful For Agencies
 
 - Serve more clients without opening a blank doc every morning.
 - Build content from real market demand, not vibes.
-- Turn audience pain points into content pillars.
-- Turn private community chatter into scripts, lead-gen angles, and objections to answer.
-- Turn competitor activity into positioning, differentiation, and useful places to show up with a helpful comment instead of a sales pitch.
-- Spot hot/warm/watch leads while doing normal content research, with source links and copy-ready value-first comments for human review.
+- Convert audience pain points into content pillars, scripts, blogs, and social angles.
+- Turn private community chatter into lead-gen angles, objections to answer, and timely comments.
+- Use competitor activity to understand positioning, offers, audience overlap, and useful places to show up.
+- Spot hot/warm/watch leads during normal content research, with source links and copy-ready value-first comments.
 - Keep each client separated by profile, sources, reports, history, analytics, and learning.
 - Add clients one by one as the agency grows.
 - Run one client, ten clients, or every active client on a schedule.
