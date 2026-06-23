@@ -19,6 +19,8 @@ Load when installing, starting, stopping, checking, scheduling, updating, or tro
 - One-time setup must include both human actions: run the Local Collector app setup/start command, then install/load the Chrome extension from the absolute runtime extension folder.
 - No credentials, hidden APIs, DMs, inboxes, account pages, or contact scraping.
 - Private data source discovery jobs are allowed only after explicit human consent and must produce candidate sources for review, not automatically activated monitoring sources.
+- A reachable bridge is not automatically healthy. The agent must verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point elsewhere, mark `wrong_workspace_bridge` and require the human-run setup/start command for the current setup.
+- A normal machine should have one active Solo Agency Local Collector runtime and one active Solo Agency Local Collector Chrome extension for the current setup. When old installs are suspected, ask the human to remove/disable old Solo Agency Local Collector entries in `chrome://extensions`.
 
 ## Source Preservation Rule
 
@@ -198,6 +200,7 @@ Chrome extension folder disambiguation:
 - That toolkit folder is source/developer material. It is not the human-facing Chrome `Load unpacked` folder during agency setup.
 - The only folder the agent may tell a normal human to load in Chrome is the runtime folder under `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
 - If both folders exist, the agent must explicitly warn: `Do not load the extension folder inside solo-agency/solo-agency-collector. Load only the solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME folder shown below.`
+- A normal machine should have only one active Solo Agency Local Collector runtime and one active Solo Agency Local Collector Chrome extension. If the human has installed the extension from a previous Solo Agency setup, the agent must ask them to remove or disable the older Solo Agency Local Collector entries in `chrome://extensions` and keep only the extension loaded from the current setup's absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
 - The generated setup instructions, setup status file, and chat message must show only one Chrome extension path: the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` path.
 - Do not put app binaries, downloaded zips, the unpacked extension, PID files, or collector logs inside `daily-content-pipeline/`. That folder should remain data/config/output only.
 
@@ -215,7 +218,7 @@ Install flow:
 10. Create the setup/start script or launcher, but do not execute it from the AI agent.
 11. Give the human exactly one Terminal/PowerShell command or one double-clickable launcher path to run outside the AI sandbox.
 12. In the same human-facing message, give the Chrome extension `Load unpacked` steps and the one absolute runtime extension folder path.
-13. After the human confirms both actions, health-check `GET http://127.0.0.1:17321/status`.
+13. After the human confirms both actions, health-check `GET http://127.0.0.1:17321/status` and run the workspace identity check before claiming the collector is healthy.
 14. Prefer persistent scheduler mode for unattended collection. After one-time setup succeeds, scheduled runs should use the already-running Local Collector app and should not ask the human to repeat setup.
 
 Absolute path rule:
@@ -460,6 +463,8 @@ stop_existing_bridge
 echo "Install the Chrome extension from this ONE absolute folder:"
 echo "$EXTENSION_DIR"
 echo "Do NOT load any chrome-extension folder under solo-agency/solo-agency-collector; that is the toolkit/source copy."
+echo "If you previously loaded another Solo Agency Local Collector extension, remove or disable the old one in chrome://extensions and keep only this current runtime copy."
+echo "One machine should have one active Solo Agency Local Collector runtime for the current setup."
 echo "Starting the Local Collector app in the background with the newest executable."
 nohup "$BRIDGE" --host 127.0.0.1 --port "$PORT" --config-file "$CONFIG_FILE" --output-dir "$COLLECTOR_DATA_ROOT/inbox" --persistent >> "$LOG_FILE" 2>&1 &
 BRIDGE_PID="$!"
@@ -647,6 +652,8 @@ try {
 Write-Host "Install the Solo Agency Local Collector extension from this folder:"
 Write-Host $ExtensionDir
 Write-Host "Do NOT load any chrome-extension folder under solo-agency\solo-agency-collector; that is the toolkit/source copy."
+Write-Host "If you previously loaded another Solo Agency Local Collector extension, remove or disable the old one in chrome://extensions and keep only this current runtime copy."
+Write-Host "One machine should have one active Solo Agency Local Collector runtime for the current setup."
 Write-Host "Starting the Local Collector app in the background with the newest executable."
 $Args = @(
   "--host", "127.0.0.1",
@@ -833,24 +840,37 @@ Health check sequence:
    - record `status.persistent`,
    - record `status.job_available`,
    - record `status.output_dir`,
+   - record `status.config_file`,
+   - record `status.run_now_request_file`,
    - record `status.counts`,
    - inspect `status.extension_health`.
-3. If `extension_health.status` is `recent`, private collection infrastructure is currently healthy.
-4. If `extension_health.status` is `no_extension_check_yet` immediately after extension install, bridge restart, or settings save, wait and re-check for up to 75 seconds before declaring private collection unavailable.
-5. If `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second grace window, treat private collection as unavailable for now and identify likely causes:
+3. Before treating the bridge as healthy, run the current-workspace identity check:
+   - expected `config_file`: `{current_setup_root}/daily-content-pipeline/collector/collector_config.json`;
+   - expected `output_dir`: `{current_setup_root}/daily-content-pipeline/collector/inbox` or a run folder under that inbox;
+   - expected `run_now_request_file`: `{current_setup_root}/daily-content-pipeline/collector/run_now_request.json`.
+4. Normalize paths when possible before comparing. Prefer absolute paths from `/status`; if a path is relative or ambiguous, do not assume it matches unless it clearly resolves under the current setup root.
+5. If the bridge is running but any of those paths point to another setup folder, mark the collector as `wrong_workspace_bridge`, not healthy. Do not create run-now jobs, do not write `run_now_request.json`, and do not claim private data source monitoring is active.
+6. For `wrong_workspace_bridge`, tell the human plainly:
+   - a Local Collector app is already running, but it belongs to a previous Solo Agency setup or another folder;
+   - one machine should have only one active Solo Agency Local Collector runtime for the current setup;
+   - the human should run the current setup's one-line Local Collector command outside the AI sandbox so the script can stop the old `collector-bridge` process and start the bridge with the current workspace paths;
+   - if the human has loaded multiple Solo Agency Local Collector extensions in Chrome, they should open `chrome://extensions`, remove or disable old Solo Agency Local Collector entries, and keep only the extension loaded from the current setup's absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
+7. If the workspace identity check passes and `extension_health.status` is `recent`, private collection infrastructure is currently healthy.
+8. If the workspace identity check passes and `extension_health.status` is `no_extension_check_yet` immediately after extension install, bridge restart, or settings save, wait and re-check for up to 75 seconds before declaring private collection unavailable.
+9. If the workspace identity check passes and `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second grace window, treat private collection as unavailable for now and identify likely causes:
    - Chrome is closed,
    - extension is not installed,
    - extension is disabled or removed,
    - Solo Agency Local Collector extension and Local Collector app URL/port mismatch,
    - Chrome service worker is asleep and has not woken recently,
    - browser profile is not the one where the extension was installed.
-6. If `/status` fails:
+10. If `/status` fails:
    - record `bridge_status: offline`,
    - do not try to start the bridge from inside the AI agent sandbox during setup/repair,
    - provide the human with the absolute-path Local Collector app setup/start command,
    - continue with public data sources and previously collected private data.
-6. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public data sources, log the private data source blocker, and notify the human.
-7. If the extension is recent but a private data source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
+11. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public data sources, log the private data source blocker, and notify the human.
+12. If the extension is recent but a private data source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
 
 The AI agent must surface this health information transparently in the daily report and in Telegram notifications when private data sources are unavailable.
 
@@ -863,6 +883,17 @@ Last extension check: 2026-06-20 08:52 local time
 Likely cause: Chrome is closed or the extension is disabled.
 Impact: Private Facebook/LinkedIn sources were skipped today. Public data sources still ran.
 Action: Open Chrome with the Solo Agency Local Collector extension enabled, stay logged in, or run the Local Collector app start command again if needed.
+```
+
+Wrong workspace example:
+
+```md
+Agent: Claude Schedule
+Collector status: wrong_workspace_bridge
+Running bridge config: /Users/alex/old_setup/daily-content-pipeline/collector/collector_config.json
+Current setup config: /Users/alex/oneman_agency/daily-content-pipeline/collector/collector_config.json
+Impact: I cannot use this bridge for today's private data source scan because it may write data into the old setup folder.
+Action: Please run the Local Collector setup/start command for the current setup outside the AI sandbox. If you previously loaded multiple Solo Agency Local Collector extensions, open chrome://extensions and remove or disable the old entries. Keep only the extension loaded from /Users/alex/oneman_agency/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/.
 ```
 
 ### OS Startup For Persistent Bridge
@@ -1103,6 +1134,9 @@ The `/status` response should include:
 - active run/window id,
 - current job type: `run_now`, `scheduled`, `on_demand`, or `none`,
 - output directory,
+- config file path,
+- run-now request file path,
+- config file updated timestamp when available,
 - job availability,
 - completed status,
 - counts,
@@ -1110,6 +1144,8 @@ The `/status` response should include:
 - `extension_health.seconds_since_last_check`,
 - `extension_health.extension_check_count`,
 - `extension_health.status` such as `recent`, `stale`, or `no_extension_check_yet`.
+
+The AI agent must use `output_dir`, `config_file`, and `run_now_request_file` as a bridge identity check. A bridge is not healthy for the current setup unless those paths point to the current setup's `daily-content-pipeline/collector/` tree. A bridge can be `status: ready` and `extension_health: recent` while still being wrong for the current setup if it was started by a previous install.
 
 The bridge should also write a local health file:
 

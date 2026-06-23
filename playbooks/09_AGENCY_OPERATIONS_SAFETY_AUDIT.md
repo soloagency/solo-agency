@@ -498,8 +498,9 @@ For each daily run:
    9. If private data sources are activated, check and update `daily-content-pipeline/collector/collector_setup_status.md` before deciding whether private collection is available.
    10. Check private collector health through `GET http://127.0.0.1:17321/status` when the Local Collector app is expected to be running.
       - If the bridge is offline, do not start it from inside the AI sandbox. Prepare an absolute-path human-run start command, mark private collection as unavailable for this run, and continue with public data sources.
+      - If the bridge is online but `/status.config_file`, `/status.output_dir`, or `/status.run_now_request_file` points outside the current setup's `daily-content-pipeline/collector/` tree, mark `wrong_workspace_bridge`, do not run private collection, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
       - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
-      - If `extension_health.status` is `recent`, continue private collection.
+      - If the workspace identity check passes and `extension_health.status` is `recent`, continue private collection.
    11. Prepare the private data source queue if private data sources are available and collector health is acceptable:
       - keep the active daily queue around 20 sources or fewer per client by default;
       - prioritize sources most relevant to the client, target audience, target location, pain points, and content pillars;
@@ -1400,6 +1401,9 @@ Before claiming private data sources were collected, verify:
 - [ ] Did I reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 for this private data source turn?
 - [ ] Did I use only the Solo Agency Local Collector extension plus Local Collector app, not Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser?
 - [ ] Is the Local Collector app running?
+- [ ] Did I verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree, not an older Solo Agency setup folder?
+- [ ] If `/status` showed a running bridge from another setup folder, did I mark `wrong_workspace_bridge`, avoid private collection, and give the human the current setup's one-line Local Collector setup/start command?
+- [ ] If an old bridge or old extension install was detected, did I remind the human that one machine should have one active Solo Agency Local Collector runtime and ask them to remove/disable old Solo Agency Local Collector entries in `chrome://extensions`?
 - [ ] Is the Solo Agency Local Collector extension recent, not stale?
 - [ ] Did I avoid Claude Chrome Extension for automated private collection?
 - [ ] If this is one-time setup/update/repair, did I avoid starting/restarting the Local Collector app from inside the AI sandbox and instead provide the human-run setup/start command?
