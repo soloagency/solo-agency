@@ -282,7 +282,7 @@ Use this log so scheduled runs do not silently complete or fail while the human 
 
 ### `collector/collector_setup_status.md`
 
-Tracks whether the Solo Agency Local Collector extension and Local Collector app are installed, reachable, blocked, pending activation, or waiting for human action.
+Tracks whether the Solo Agency Local Collector extension and Local Collector app are installed, reachable, blocked, pending activation, writing to the wrong setup folder, or waiting for human action.
 
 This file is mandatory after the human agrees to activate private data source monitoring, when configuring a schedule that includes private data sources, or when the agent needs to report a private data source collector blocker.
 
@@ -314,6 +314,7 @@ Allowed status:
 - `extension_not_loaded`
 - `extension_stale`
 - `bridge_offline`
+- `wrong_workspace_bridge`
 - `session_expired`
 - `failed`
 
@@ -527,7 +528,7 @@ items:
 
 ## private_monitoring_activation
 
-status: not_provided | pending_private_activation | activation_declined_for_now | activation_requested | setup_files_prepared_waiting_for_human_command | setup_command_given_waiting_for_human_run | setup_command_ran_waiting_for_extension | installed_and_running | blocked
+status: not_provided | pending_private_activation | activation_declined_for_now | activation_requested | setup_files_prepared_waiting_for_human_command | setup_command_given_waiting_for_human_run | setup_command_ran_waiting_for_extension | installed_and_running | wrong_workspace_bridge | blocked
 first_trial_policy: public_first_small_win
 last_prompted_date:
 human_decision:
