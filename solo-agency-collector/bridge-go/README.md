@@ -65,6 +65,21 @@ Each `/status` call also synchronizes local control files:
 - moves consumed run-now request files aside as `run_now_request.{run_id}.{timestamp}.consumed.json`;
 - remembers the processed file signature in memory as a replay guard if moving/removing fails.
 
+Agents can override parallel source tabs per run by setting
+`pacing.source_concurrency` (or top-level `source_concurrency`) in the
+run-now payload. The bridge clamps it to `1..3`; omission keeps the default `1`.
+
+```json
+{
+  "run_id": "manual_deep_scan",
+  "sources": [{ "name": "Example group", "url": "https://www.facebook.com/groups/example" }],
+  "pacing": {
+    "source_concurrency": 3,
+    "scroll_steps": 5
+  }
+}
+```
+
 The response includes `extension_health`:
 
 - `status`: `recent`, `stale`, or `no_extension_check_yet`

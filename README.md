@@ -16,10 +16,10 @@ This playbook connects the full agency loop: research, ideas, lead and competito
 ## What This Is
 
 - An AI-agent operating playbook for daily content intelligence across one client or an entire client roster.
-- A thin root playbook plus modular stage playbooks: the agent loads only the detailed setup, research, private-source, production, scheduling, reporting, storage, collector, or analytics protocol it needs next.
+- A thin root playbook plus modular stage playbooks: the agent loads only the detailed setup, research, private data source, production, scheduling, reporting, storage, collector, or analytics protocol it needs next.
 - A marketing workflow: research -> insight -> content pillar -> idea -> script/blog/social -> approval -> production -> distribution -> analytics -> learning.
-- A public + private source intelligence system across Google, industry sites, FB, IG, YT, TT, X, LinkedIn, Reddit, groups, pages, creators, and communities.
-- Auto-discovers private social signals from the user's own interest graph: groups they joined, profiles/pages/KOLs they follow, channels they subscribe to, and feeds they already trust, so valuable market signals do not disappear in the scroll.
+- A public data source + private data source intelligence system across Google, industry sites, FB, IG, YT, TT, X, LinkedIn, Reddit, groups, pages, creators, and communities.
+- If the human does not know which private data sources to add, the agent can suggest a one-time discovery pass through approved logged-in surfaces such as joined Facebook groups, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, and community feeds, then filter the candidates and ask for approval before monitoring anything.
 - A pain-point-to-content-pillar engine that turns real audience problems into daily content angles.
 - A lead and competitor opportunity engine built directly into the research process: it finds relevant posts, preserves source links, explains why each signal matters, and drafts value-first comments for human review.
 - A production layer for idea-to-video, blog/social creation, auto-posting, notifications, analytics, and build-measure-learn-improve loops.
@@ -53,15 +53,16 @@ This playbook connects the full agency loop: research, ideas, lead and competito
 - Run one client, ten clients, or every active client on a schedule.
 - Keep humans in control of approvals, publishing, rendering, outreach, and spending.
 
-## Private Source Intelligence
+## Private Data Source Intelligence
 
-Important: the Local Collector is not the setup entrypoint. It is a private-source module used only after the main playbook reaches the private-source stage and the human approves collector activation.
+Important: the Local Collector is not the setup entrypoint. It is a private data source module used only after the main playbook reaches the private data source stage and the human approves collector activation.
 
-- Monitors logged-in private sources such as FB groups/pages, IG profiles, YT channels/comments, TT accounts, X accounts, LinkedIn pages, Reddit communities, competitor pages, fanpages, and niche forums.
-- Auto-discovers private data sources from the user's social interest graph: joined groups, followed KOLs, creator profiles, subscribed channels, and recommendation feeds.
-- Lets the user provide private sources manually, approve AI-discovered sources, or do both.
+- Monitors logged-in private data sources such as FB groups/pages, IG profiles, YT channels/comments, TT accounts, X accounts, LinkedIn pages, Reddit communities, competitor pages, fanpages, and niche forums.
+- If the user has no list yet, recommends private data source discovery instead of silently skipping this layer. The agent can review candidate Facebook groups, subreddits, communities, followed KOLs/pages, creator profiles, subscribed channels, and recommendation feeds the user approves.
+- Lets the user provide private data sources manually, approve AI-discovered candidates, or do both.
+- Filters candidate sources by relevance, activity, pain-point match, target-audience fit, lead potential, competitor intelligence value, noise, and account-safety risk before asking the user to approve them.
 - Uses the user's existing logged-in Chrome session through the Solo Agency Local Collector extension and Local Collector app. Private data stays local on the user's computer by default.
-- Does not use Claude in Chrome, Codex/browser tools, Playwright, or agent-controlled browsers to read logged-in private sources.
+- Does not use Claude in Chrome, Codex/browser tools, Playwright, or agent-controlled browsers to read logged-in private data sources.
 - Never asks for passwords, cookies, OTPs, tokens, or raw credentials.
 - Updates the report, idea matrix, best idea, Lead & Competitor Opportunities, and drafts after private scans, instead of stopping at "collector succeeded."
 
@@ -73,6 +74,7 @@ Important: the Local Collector is not the setup entrypoint. It is a private-sour
 - Repurposes one approved idea into video, blog, and social formats.
 - Publishes approved content to connected channels when authorized by the human.
 - Sends report, blocker, approval, publishing, and session-refresh notifications through available notification providers.
+- Encourages a free WideCast + Telegram setup so daily report links and blockers can reach the human remotely, without sitting in front of the computer.
 - Measures content through connected analytics tools and visible platform metrics when available.
 - Tracks views, likes, comments, shares, saves, clicks, follower growth, and unavailable metrics honestly.
 - Updates hook learnings, CTA learnings, content-pillar scores, source priority, experiment backlog, and future idea selection.
@@ -98,9 +100,9 @@ The main playbook tells the agent which detailed stage playbook to load next. If
 Add a new client: [client name].
 They provide [product/service/profession/expertise].
 Their target market is [location if known].
-Here are optional private sources to monitor: [URLs].
-You may also ask me whether to discover sources from my joined groups, followed profiles/KOLs, subscriptions, and feeds.
-Run the setup and first public-source report.
+Here are optional private data sources to monitor: [URLs].
+You may also ask me whether to discover private data sources from my joined groups, subreddits, followed profiles/KOLs, subscriptions, and feeds.
+Run the setup and first report using public data sources.
 ```
 
 ## Agent Compatibility
@@ -118,9 +120,9 @@ If you are an AI agent setting up this repo, start here:
 1. Read `SOLO_AGENCY_PLAYBOOK.md` first.
 2. Follow the checklist in that file in order.
 3. Do not install, start, or configure `solo-agency-collector/` first.
-4. The Local Collector is activated only later if the playbook reaches the private-source stage and the human approves it.
+4. The Local Collector is activated only later if the playbook reaches the private data source stage and the human approves it.
 5. If the human asks to scan or monitor private/logged-in groups, feeds, profiles, communities, or social sources after the conversation has drifted, reload `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before taking action.
-6. Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read logged-in/private sources. Use only the Solo Agency Local Collector extension plus the Local Collector app.
+6. Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read logged-in/private data sources. Use only the Solo Agency Local Collector extension plus the Local Collector app.
 7. During Local Collector activation, do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent. Prepare the files, then give the human the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension `Load unpacked` folder path.
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.

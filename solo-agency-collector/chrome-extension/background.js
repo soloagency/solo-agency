@@ -6,6 +6,7 @@ const DEFAULT_SETTINGS = {
   minDelaySeconds: 5,
   maxDelaySeconds: 5,
   maxSourcesPerRun: 20,
+  sourceConcurrency: 1,
   scrollSteps: 5,
   maxTextChars: 12000,
   closeTabsAfterCollect: true
@@ -18,7 +19,7 @@ const ACTIVE_RUN_KEY = "collector_active_run";
 const AUDIT_KEY = "collector_audit";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.1-run-lock";
+const EXTENSION_BUILD = "0.1.2-parallel-tabs";
 
 const inMemoryActiveRuns = new Set();
 
@@ -212,6 +213,15 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
     sources.length
   );
   const selectedSources = sources.slice(0, maxSources);
+  const sourceConcurrency = Math.min(
+    selectedSources.length || 1,
+    clampNumber(
+      pacing.source_concurrency || pacing.max_parallel_sources || settings.sourceConcurrency,
+      1,
+      3,
+      1
+    )
+  );
   const counts = {
     dataPoints: 0,
     competitors: 0,
@@ -220,9 +230,10 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
 
   await setState({
     status: "running",
-    message: `Collecting ${selectedSources.length} private sources.`,
+    message: `Collecting ${selectedSources.length} private sources with ${sourceConcurrency} tab${sourceConcurrency === 1 ? "" : "s"}.`,
     runId,
     totalSources: selectedSources.length,
+    sourceConcurrency,
     dataPointsCollected: counts.dataPoints,
     competitorsDetected: counts.competitors,
     newPrivateSourcesDetected: counts.newPrivateSources,
@@ -230,8 +241,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
     updatedAt: new Date().toISOString()
   });
 
-  for (let index = 0; index < selectedSources.length; index += 1) {
-    const source = selectedSources[index];
+  async function processSource(source, index) {
     const sourceLabel = source.name || source.url || `source ${index + 1}`;
     await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
       run_id: runId,
@@ -241,6 +251,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
       status: "started",
       index: index + 1,
       total: selectedSources.length,
+      source_concurrency: sourceConcurrency,
       captured_at: new Date().toISOString(),
       collector_identity: "chrome-extension-local-collector"
     });
@@ -250,6 +261,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
       message: `Collecting ${index + 1}/${selectedSources.length}: ${sourceLabel}`,
       runId,
       currentSource: sourceLabel,
+      sourceConcurrency,
       currentScroll: 0,
       maxScrolls: Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
       dataPointsCollected: counts.dataPoints,
@@ -261,7 +273,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
     await delay(randomDelayMs(settings, pacing));
 
     try {
-      const collected = await collectSource(source, job, settings);
+      const collected = await collectSource(source, job, settings, index + 1);
       await postToBridge(bridgeBaseUrl, token, "/collect/data_point", collected.dataPoint);
       counts.dataPoints += 1;
       if (isCompetitorSource(source)) {
@@ -300,6 +312,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
         status: "collected",
         index: index + 1,
         total: selectedSources.length,
+        source_concurrency: sourceConcurrency,
         current_url: collected.dataPoint.current_url || "",
         post_url: collected.dataPoint.post_url || collected.dataPoint.current_url || "",
         profile_url: collected.dataPoint.profile_url || "",
@@ -311,6 +324,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
         message: `Collected ${index + 1}/${selectedSources.length}: ${sourceLabel}`,
         runId,
         currentSource: sourceLabel,
+        sourceConcurrency,
         currentScroll: collected.dataPoint.scroll_count || 0,
         maxScrolls: collected.dataPoint.max_scrolls || 0,
         dataPointsCollected: counts.dataPoints,
@@ -328,11 +342,24 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
         issue: String(error && error.message ? error.message : error),
         index: index + 1,
         total: selectedSources.length,
+        source_concurrency: sourceConcurrency,
         captured_at: new Date().toISOString(),
         collector_identity: "chrome-extension-local-collector"
       });
     }
   }
+
+  let nextIndex = 0;
+  const workerCount = Math.max(1, sourceConcurrency);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < selectedSources.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const source = selectedSources[index];
+      await processSource(source, index);
+    }
+  });
+  await Promise.all(workers);
 
   await postToBridge(bridgeBaseUrl, token, "/complete", {
     run_id: runId,
@@ -353,7 +380,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
   });
 }
 
-async function collectSource(source, job, settings) {
+async function collectSource(source, job, settings, sourceIndex) {
   if (!source.url || !/^https?:\/\//i.test(source.url)) {
     throw new Error("source url must start with http:// or https://");
   }
@@ -385,14 +412,28 @@ async function collectSource(source, job, settings) {
     const accountUrls = Array.isArray(cap.accountUrls) ? cap.accountUrls : [];
     const postUrls = Array.isArray(cap.postUrls) ? cap.postUrls : [];
     const entityItems = Array.isArray(cap.entityItems) ? cap.entityItems : [];
+    const entityProfileUrls = entityItems
+      .filter((it) => it && /profile|account/i.test(String(it.type || "")))
+      .map((it) => it.url)
+      .filter(Boolean);
+    const profileCandidates = [];
+    const seenProfileCandidates = new Set();
+    for (const url of accountUrls.concat(entityProfileUrls)) {
+      const key = canonicalSourceKey(url);
+      if (!key || seenProfileCandidates.has(key)) continue;
+      seenProfileCandidates.add(key);
+      profileCandidates.push(url);
+    }
     const pageLike = {
       current_url: cap.url || "",
       title: cap.title || "",
-      profile_candidates: accountUrls,
+      profile_candidates: profileCandidates,
       post_candidates: postUrls,
+      entity_candidates: entityItems,
       raw_visible_text_excerpt: excerpt
     };
-    const snapshotFilename = `${safeSlug(runId || "run")}_${safeSlug(source.name || source.platform || "source")}_${Date.now()}.html`;
+    const snapshotNonce = Math.random().toString(36).slice(2, 8);
+    const snapshotFilename = `${safeSlug(runId || "run")}_${String(sourceIndex || 0).padStart(2, "0")}_${safeSlug(source.name || source.platform || "source")}_${Date.now()}_${snapshotNonce}.html`;
 
     return {
       dataPoint: {
@@ -407,11 +448,13 @@ async function collectSource(source, job, settings) {
         priority: source.priority || "",
         scan_cadence: source.scan_cadence || "",
         purpose: source.purpose || "",
+        source_index: sourceIndex || 0,
         current_url: cap.url || "",
         post_url: postUrls[0] || cap.url || "",
-        profile_url: accountUrls[0] || "",
-        profile_candidates: accountUrls,
+        profile_url: profileCandidates[0] || "",
+        profile_candidates: profileCandidates,
         post_candidates: postUrls,
+        entity_candidates: entityItems,
         title: cap.title || "",
         visible_text_summary: excerpt.slice(0, 1200),
         raw_visible_text_excerpt: excerpt,
@@ -426,7 +469,7 @@ async function collectSource(source, job, settings) {
         read_only: true
       },
       newPrivateSources: entityItems
-        .filter((it) => it && /group|community|page|channel/i.test(String(it.type || "")))
+        .filter((it) => it && /group|community|page|channel|profile|account/i.test(String(it.type || "")))
         .slice(0, 20)
         .map((it) => ({
           run_id: runId,
@@ -509,6 +552,7 @@ async function syncSettingsToBridge(settings) {
       default_runs_per_day: current.default_runs_per_day || 1,
       poll_interval_seconds: clampNumber(settings.pollSeconds, 5, 60, 5),
       max_sources_per_run: clampNumber(settings.maxSourcesPerRun, 1, 20, 20),
+      source_concurrency: clampNumber(settings.sourceConcurrency, 1, 3, 1),
       max_scrolls_per_source: clampNumber(settings.scrollSteps, 0, 10, 5),
       max_scrolls_allowed: 10,
       scroll_delay_seconds: clampNumber(settings.minDelaySeconds, 5, 60, 5),
@@ -577,6 +621,49 @@ async function collectCleanPage(opts) {
   const minD = clamp(Number(opts.minDelaySeconds) || 5, 1, 30);
   const maxD = clamp(Number(opts.maxDelaySeconds) || 5, minD, 60);
   const delayMs = () => Math.floor((minD + Math.random() * (maxD - minD)) * 1000);
+  const accountUrls = [];
+  const postUrls = [];
+  const entityItems = [];
+  const seenAccountUrls = new Set();
+  const seenPostUrls = new Set();
+  const seenEntityItems = new Set();
+
+  function urlKey(value) {
+    try {
+      const parsed = new URL(String(value || ""), location.href);
+      parsed.hash = "";
+      return parsed.href.replace(/\/+$/, "").toLowerCase();
+    } catch (error) {
+      return String(value || "").trim().replace(/\/+$/, "").toLowerCase();
+    }
+  }
+
+  function addUniqueUrl(target, seen, values) {
+    if (!Array.isArray(values)) return;
+    for (const value of values) {
+      if (!value) continue;
+      const key = urlKey(value);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      target.push(value);
+    }
+  }
+
+  function entityKey(item) {
+    if (!item || typeof item !== "object") return "";
+    if (item.url) return urlKey(item.url);
+    return `${String(item.type || "").toLowerCase()}:${String(item.name || "").trim().toLowerCase()}`;
+  }
+
+  function addEntityItems(values) {
+    if (!Array.isArray(values)) return;
+    for (const item of values) {
+      const key = entityKey(item);
+      if (!key || seenEntityItems.has(key)) continue;
+      seenEntityItems.add(key);
+      entityItems.push(item);
+    }
+  }
 
   let prev = "";
   let last = null;
@@ -586,13 +673,23 @@ async function collectCleanPage(opts) {
     } catch (error) {
       last = { error: String(error && error.message ? error.message : error) };
     }
+    if (last) {
+      addUniqueUrl(accountUrls, seenAccountUrls, last.accountUrls);
+      addUniqueUrl(postUrls, seenPostUrls, last.postUrls);
+      addEntityItems(last.entityItems);
+    }
     if (last && last.merged) prev = last.merged;
     if (i < steps) {
       window.scrollBy({ top: Math.max(300, Math.floor(window.innerHeight * 0.75)), left: 0 });
       await wait(delayMs());
     }
   }
-  if (last) last.scrollStepsUsed = steps;
+  if (last) {
+    last.scrollStepsUsed = steps;
+    last.accountUrls = accountUrls;
+    last.postUrls = postUrls;
+    last.entityItems = entityItems;
+  }
   return last || {};
 }
 
@@ -817,6 +914,7 @@ function normalizeSettings(input) {
   next.minDelaySeconds = clampNumber(next.minDelaySeconds, 5, 20, 5);
   next.maxDelaySeconds = clampNumber(next.maxDelaySeconds, next.minDelaySeconds, 30, 5);
   next.maxSourcesPerRun = clampNumber(next.maxSourcesPerRun, 1, 50, 20);
+  next.sourceConcurrency = clampNumber(next.sourceConcurrency, 1, 3, 1);
   next.scrollSteps = clampNumber(next.scrollSteps, 0, 10, 5);
   next.maxTextChars = clampNumber(next.maxTextChars, 1000, 30000, 12000);
   next.closeTabsAfterCollect = Boolean(next.closeTabsAfterCollect);

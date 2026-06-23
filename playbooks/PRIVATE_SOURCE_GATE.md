@@ -1,18 +1,19 @@
-# Private Source Gate
+# Private Data Source Gate
 
-Load this short gate immediately whenever the human asks to scan, monitor, review, collect, scrape, open, or read any logged-in/private source.
+Load this short gate immediately whenever the human asks to scan, monitor, review, collect, scrape, open, or read any logged-in/private data source.
 
-This gate exists to prevent conversation drift. Even if the conversation moved through many unrelated topics, the moment private-source intent returns, the agent must reload this gate before opening any browser, extension, automation tool, or private URL.
+This gate exists to prevent conversation drift. Even if the conversation moved through many unrelated topics, the moment private data source intent returns, the agent must reload this gate before opening any browser, extension, automation tool, or private URL.
 
 ## Trigger Phrases
 
-Treat any of these as private-source triggers:
+Treat any of these as private data source triggers:
 
 - `scan private group`, `quét private group`, `quét group`, `scan group`
 - Facebook groups, joined groups, fanpages, private pages, competitor profiles
-- X/Twitter, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require login or account context
+- X/Twitter, LinkedIn, Instagram, TikTok, YouTube, Reddit/subreddits, GitHub areas that require login or account context
 - Discord, Slack, private forums, newsletters, dashboards, member communities
-- `private source`, `nguồn riêng tư`, logged-in source, social/community source
+- `private data source`, `nguồn dữ liệu riêng tư`, logged-in source, social/community source
+- private data source discovery, joined/member group discovery, subreddit/community discovery
 - home feed, for-you feed, recommendation feed, following list, subscriptions, joined communities
 - any request to use the human's logged-in account, membership, social graph, private feed, or browser session
 
@@ -20,7 +21,7 @@ If unsure whether a source is public or private, treat it as private until prove
 
 ## Required Reload
 
-Before acting on a private-source trigger, load:
+Before acting on a private data source trigger, load:
 
 1. `playbooks/PRIVATE_SOURCE_GATE.md`
 2. `playbooks/02_PRIVATE_SOURCE_SETUP.md`
@@ -31,7 +32,7 @@ Do this even if those files were loaded earlier in the conversation. Do not rely
 
 ## Forbidden Browser Rule
 
-For logged-in/private-source collection, the agent must not use:
+For logged-in/private data source collection, the agent must not use:
 
 - Claude in Chrome or Claude Chrome Extension;
 - Codex built-in browser, Codex in-app browser, or browser tools controlled directly by Codex;
@@ -45,7 +46,7 @@ These tools may be used for public web research, local UI testing, opening setup
 
 ## Collector-Only Rule
 
-Private-source collection must use only:
+Private data source collection must use only:
 
 ```text
 Human's logged-in Chrome
@@ -55,43 +56,42 @@ Human's logged-in Chrome
   -> AI agent reads local output and analyzes it
 ```
 
-If the Local Collector app or extension is unavailable, do not fall back to Claude in Chrome, Codex browser, Playwright, or another agent-controlled browser. Continue public-only work and mark private sources as `pending_private_activation` or `collector_unavailable`.
+If the Local Collector app or extension is unavailable, do not fall back to Claude in Chrome, Codex browser, Playwright, or another agent-controlled browser. Continue work with public data sources only and mark private data sources as `pending_private_activation` or `collector_unavailable`.
 
 ## Preflight Block
 
-Before starting any private-source scan, show or internally verify this gate. If handing control back to the human, include it in the reply.
+Before starting any private data source scan, show or internally verify this gate. If handing control back to the human, include it in the reply.
 
 ```text
-Private-source gate
-[ ] Stage 2, Stage 8, and Stage 9 reloaded for this private-source request
+Private data source gate
+[ ] Stage 2, Stage 8, and Stage 9 reloaded for this private data source request
 [ ] Local Collector app reachable
 [ ] Solo Agency Local Collector extension recent
-[ ] Approved private sources loaded
+[ ] Approved private data sources loaded
 [ ] Scan depth read from collector config, or safe default stated
 Collection method: Solo Agency Local Collector only
 Forbidden for logged-in sources: Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser
 ```
 
-If any required item is missing, do not scan private sources yet. Ask the next concrete setup/repair question or continue public-only.
+If any required item is missing, do not scan private data sources yet. Ask the next concrete setup/repair question or continue public data sources only.
 
 ## Human-Facing Reminder
 
-When replying about a private-source scan, include a compact reminder:
+When replying about a private data source scan, include a compact reminder:
 
 ```text
 Private collection method: Solo Agency Local Collector only.
 I will not use Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser for logged-in sources.
 ```
 
-This reminder should appear in private-source progress updates, blocker messages, setup repair messages, and report handoffs while private-source work is pending or active.
+This reminder should appear in private data source progress updates, blocker messages, setup repair messages, and report handoffs while private data source work is pending or active.
 
 ## Completion Gate
 
-A private-source scan is not complete until:
+A private data source scan is not complete until:
 
 - the Local Collector app was reachable;
 - the Solo Agency Local Collector extension was recent;
 - data was collected through approved sources only;
 - collected data was analyzed for ideas, leads, competitors, new sources, and evidence;
 - the report/idea matrix/drafts were updated or the blocker was honestly reported.
-
