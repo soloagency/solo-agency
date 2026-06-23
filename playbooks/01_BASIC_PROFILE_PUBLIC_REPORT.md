@@ -12,7 +12,7 @@ Load during first setup, add-client flow, setup repair, and first agency run/rep
 - Do not ask for industry or sub-industry.
 - Show inference before asking the next question.
 - Explain any marketing/tech term in plain language when asking the human for input.
-- Ask for optional manual private data sources before the first agency run.
+- Ask only a lightweight private data source preference question before schedule setup. Actual private data source URLs/lists, discovery, approval, and Local Collector activation belong to step 7A.
 - Configure schedule/routine once the basic source plan is known.
 - If private data sources exist and Local Collector is not installed/running/healthy, resolve the 7A checkpoint before the first agency run: guide Local Collector setup, or explicitly ask whether to run public data sources only first while keeping private data sources pending.
 - The first agency run creates the small win: HTML report plus idea matrix, Lead & Competitor Opportunities, and draft script/blog/caption.
@@ -34,7 +34,6 @@ At setup, the agent must ask only for:
 - Client name, if not already known.
 - The client's product/service, profession, expertise, or business description.
 - Target location only if location matters and cannot be inferred.
-- Optional private data sources the human wants monitored.
 
 The agent must not ask for `output_formats` by default. If no output format is specified, default to `video_script`. If the human asks for blog, article, newsletter, SEO content, or long-form content, add `blog_article`. If the human asks for platform captions, add `social_caption`.
 
@@ -47,6 +46,7 @@ The agent must not ask the human to define:
 - `pain_points`
 - `content_pillars`
 - `public_data_sources`
+- `private_data_sources`
 - `idea categories`
 - `content angles`
 - `daily matrix`
@@ -55,11 +55,13 @@ The agent must infer these first.
 
 Good first setup question:
 
-`What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. Optional: if you already know private data sources (logged-in/social/community places) you may want monitored later, such as Facebook groups, subreddits, X/LinkedIn/GitHub pages, Discord/Slack communities, or competitor profiles, include them too. If you do not know which private data sources are useful yet, that is normal; later I can suggest a one-time discovery pass from groups, subreddits, communities, pages, profiles, channels, or feeds you approve, then you choose what to monitor.`
+`What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location.`
 
 Good add-client question:
 
-`Please provide the new client's name and product/service, profession, expertise, or business description. Include target location if known. Optional: include any private data sources (logged-in/social/community places) you may want monitored later, such as competitor pages, Facebook groups, subreddits, X/LinkedIn/GitHub pages, Discord/Slack communities, or private forums. If you do not know which private data sources are useful yet, I can later suggest a one-time discovery pass from approved groups, subreddits, communities, pages, profiles, channels, or feeds. I will explain the Local Collector and ask permission before activating private data source collection.`
+`Please provide the new client's name and product/service, profession, expertise, or business description. Include target location if known.`
+
+Do not mention private data sources in the first setup or add-client question. Step 5 may ask only a lightweight preference question about whether to include private data sources later. Step 7A is where the agent asks for actual private data source URLs/lists, offers discovery, gets approval, and handles Local Collector activation before the first run if needed.
 
 Bad setup questions:
 
@@ -116,34 +118,32 @@ Required setup sequence:
    - which content pillars are `primary_industry` vs `related_industry`
    - the planned content mix rule, normally 80% primary industry and 20% related industries
    - a compact `Pain-Point Keyword Sample`, not a generic industry keyword list. The full keyword bank must still be saved to the client profile/source notes for long-term rotation.
-6. If the human has not already provided private data sources, ask whether the human wants to provide private data sources. Explain plainly that private data sources mean logged-in/social/community places the human may want monitored later, such as competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities/subreddits, niche forums, and manually known Facebook groups.
-   - If the human already provided private data sources in an earlier message, do not ask again before setup. Process the provided sources.
+6. Ask only a lightweight private data source preference question: whether the human wants Solo Agency to include private data sources later. Explain plainly that private data sources mean logged-in/social/community places the human may want monitored later, such as competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities/subreddits, niche forums, and Facebook groups. Do not ask for URLs, group lists, account lists, discovery details, or Local Collector setup yet.
+   - If the human already provided private data sources in an earlier message, record them as `pending_7A_review` and do not process/scan them yet.
+   - If the human says yes or unsure, record `private_sources_requested` or `private_sources_unsure` and keep source intake/discovery pending for 7A.
+   - If the human declines or postpones, record `not_provided` or `discovery_declined_or_postponed`, and say plainly that public-only runs can still work but may miss many lead/competitor/community signals.
+7. Show the complete setup summary and ask the human to correct only what is wrong.
+8. Save the Client Intelligence Profile file only after the human has had a chance to correct the setup summary.
+9. Configure the schedule/routine before the first agency run, using the best scheduling mechanism available in the environment. Do not promise private data source collection in the schedule unless Local Collector setup is healthy or clearly marked pending/blocked.
+10. If private data sources were requested, the human is unsure, private data sources were already provided, or private data source discovery is needed, stop at checklist step 7A before asking the generic first-run question. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9.
+11. During step 7A, ask for actual private data source URLs/lists or offer one optional private data source discovery pass from approved joined/followed/member spaces. Explain that many useful idea, lead, and competitor signals live in groups/subreddits/communities/pages/profiles/channels the human already follows or joined. Ask for human approval before adding any discovered source.
+   - Do not ask a separate private data source discovery checklist question. Discovery stays inside 7A.
    - Do not label the collector by platform. Even if the provided sources are all Facebook, call it the Solo Agency Local Collector extension and Local Collector app.
-7. If the human does not provide private data sources, says they do not know which sources matter, skips the question, or leaves it blank, offer one optional private data source discovery pass instead of silently continuing. Explain that many useful idea, lead, and competitor signals live in groups/subreddits/communities/pages/profiles/channels the human already follows or joined. Ask whether the human wants the agent to discover candidates from approved surfaces and then show a filtered shortlist for approval.
-8. Do not ask a separate private data source discovery checklist question. If the human wants help finding more private data sources, offer it plainly as optional private data source discovery inside the private data source step and explain that the agent will ask for approval before adding discovered sources.
-9. If the human approves Facebook member-groups discovery, scan the joined-groups discovery page through the Solo Agency Local Collector:
-   - `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added`
-   - If the human agrees, this requires Local Collector activation before the joined-groups discovery scan.
-   - If the human declines or postpones, do not inspect that page.
-10. If the human approves other platform discovery categories, use the private data source discovery platform starting URL registry and mark each approved category as `pending_private_activation` until the Local Collector is active and healthy.
-11. After the answer, infer and show:
-   - which private data sources are likely useful
-   - which sources should be skipped or treated as optional
-   - how the private data sources map to content pillars
-   - whether the private data source list should be kept as `daily`, `weekly`, or `optional` based on relevance and safe monitoring volume
-12. If the human declines or postpones both manual private data sources and discovery, record the private data source status as `not_provided` or `discovery_declined_or_postponed`, and say plainly that public-only runs can still work but may miss many lead/competitor/community signals.
-13. Show the complete setup summary and ask the human to correct only what is wrong.
-14. Save the Client Intelligence Profile file only after the human has had a chance to correct the setup summary.
-15. Configure the schedule/routine before the first agency run, using the best scheduling mechanism available in the environment. Do not promise private data source collection in the schedule unless Local Collector setup is healthy or clearly marked pending/blocked.
-16. If private data sources were provided/approved and Local Collector is not installed, running, and healthy, stop at checklist step 7A before asking the generic first-run question. Guide the human through Local Collector setup, or ask one explicit choice: activate Local Collector now so the first run can include data from private data sources, or run the first agency run public data sources only first while keeping private data sources as `pending_private_activation`.
-17. After the 7A checkpoint is resolved, ask whether the human wants to run the first agency run immediately. The likely default is yes, but the human should still approve starting the run now. If 7A is pending/postponed, the question must state that this first run will be public data sources only.
-18. Run the first agency run using public data sources and any already approved/available private data.
+   - If the human approves Facebook member-groups discovery, scan the joined-groups discovery page through the Solo Agency Local Collector:
+     - `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added`
+     - If the human agrees, this requires Local Collector activation before the joined-groups discovery scan.
+     - If the human declines or postpones, do not inspect that page.
+   - If the human approves other platform discovery categories, use the private data source discovery platform starting URL registry and mark each approved category as `pending_private_activation` until the Local Collector is active and healthy.
+   - After source intake or discovery, infer and show which private data sources are likely useful, which should be skipped or treated as optional, how they map to content pillars, and whether each source should be `daily`, `weekly`, or `optional` based on relevance and safe monitoring volume.
+12. During step 7A, guide Local Collector setup, or ask one explicit choice: activate Local Collector now so the first run can include data from private data sources, or run the first agency run public data sources only first while keeping private data sources as `pending_private_activation`.
+13. After the 7A checkpoint is resolved, ask whether the human wants to run the first agency run immediately. The likely default is yes, but the human should still approve starting the run now. If 7A is pending/postponed, the question must state that this first run will be public data sources only.
+14. Run the first agency run using public data sources and any already approved/available private data.
    - If Local Collector setup is not healthy, run public data sources and list private data sources as `pending_private_activation`.
    - If approved source-discovery categories exist but Local Collector is not active yet, list each category as `pending_private_activation`.
    - If no private data sources are configured because manual input and discovery were declined/postponed, list private data source coverage as `not_provided` or `discovery_declined_or_postponed`, and include a concise recommendation to revisit private data source discovery later.
    - Explain that private data source monitoring requires a one-time Solo Agency Local Collector extension and Local Collector app setup. Say plainly that the Local Collector is a local app plus Chrome extension on the human's computer that uses the already logged-in browser session, reads approved visible pages only, and keeps private data local by default.
-19. Load Stage 10 and produce the first agency report and first draft script/blog/caption as the small win. The report must include Lead & Competitor Opportunities when signals exist, with post/current URLs and copy-ready value-first comments for human review.
-20. After showing the first report, the chat message must include:
+15. Load Stage 10 and produce the first agency report and first draft script/blog/caption as the small win. The report must include Lead & Competitor Opportunities when signals exist, with post/current URLs and copy-ready value-first comments for human review.
+16. After showing the first report, the chat message must include:
    - the best idea and a short useful summary;
    - the mobile-friendly HTML report path/link;
    - a visible `Solo Agency one-time setup process` progress roadmap with completed/current/remaining steps;
@@ -153,9 +153,9 @@ Required setup sequence:
    - if no private data sources are active, a plain-language note that the report may miss many community/lead/competitor signals until discovery or manual sources are approved;
    - the first draft script/blog/caption or a clear link/section where it appears in the HTML report;
    - the direct setup question for step 8: `Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?`
-21. The agent must not end the small-win handoff with `Do you want me to make a video now?` or start scene editing/rendering. Production setup comes first.
-22. If the human says yes to step 8, load Stage 3 and complete the provider/capability setup gate.
-23. After any private scan or approved source-discovery scan, analyze the collected private data and update the report. This means extracting data points, detecting leads, detecting competitors, listing new private data sources, updating the idea matrix, re-scoring the best idea, updating drafts if needed, regenerating the HTML report, and showing the updated report to the human.
+17. The agent must not end the small-win handoff with `Do you want me to make a video now?` or start scene editing/rendering. Production setup comes first.
+18. If the human says yes to step 8, load Stage 3 and complete the provider/capability setup gate.
+19. After any private scan or approved source-discovery scan, analyze the collected private data and update the report. This means extracting data points, detecting leads, detecting competitors, listing new private data sources, updating the idea matrix, re-scoring the best idea, updating drafts if needed, regenerating the HTML report, and showing the updated report to the human.
 
 Every follow-up question must include a short `What I inferred from your last answer` section before the next question.
 
@@ -404,12 +404,12 @@ The setup flow is not a menu of optional next steps. The agent must not ask the 
 - running the first agency run,
 - creating a video.
 
-The one allowed 7A choice is operational, not a new menu: if private data sources exist and Local Collector is pending, ask whether to activate Local Collector now so the first run can include private data, or run public data sources only first while keeping private data sources pending.
+The one allowed 7A choice is operational, not a new menu: if private data sources exist and Local Collector is pending, ask whether to activate Local Collector now so the first run can include data from private data sources, or run public data sources only first while keeping private data sources pending.
 
 The correct order is fixed:
 
 1. Finish setup and save the Client Intelligence Profile.
-2. Resolve optional manual private data sources and Local Collector activation status.
+2. Resolve the step 5 private data source preference, then resolve 7A private data source intake/discovery/approval and Local Collector activation when applicable.
 3. Configure the schedule/routine once the basic source plan is known.
 4. If private data sources exist and Local Collector is not installed/running/healthy, handle checklist step 7A: guide Local Collector setup now, or ask whether to run public data sources only first while keeping private data sources pending.
 5. Ask whether the human wants to run the first agency run immediately. If 7A is pending/postponed, state that this first run will be public data sources only.
@@ -474,7 +474,7 @@ This is the planned setup process I am working through. You only need to reply w
 ✓ 2. I inferred the industry, sub-industry, related industries, audience, and offer
 ✓ 3. I inferred pain points and content pillars
 ✓ 4. I selected public data sources and search keywords
-✓ 5. You provided or skipped private data sources; I activate the Local Collector only if you approve it
+✓ 5. You chose whether to include private data sources later
 ✓ 6. I configured the automatic schedule/routine
 – 7A. Local Collector activation is pending or postponed; this first run uses public data sources only
 ✓ 7B. I ran the first agency run and created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft

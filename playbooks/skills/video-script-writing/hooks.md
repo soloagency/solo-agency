@@ -70,7 +70,7 @@ Write **five** hook variants, score each, ship the winner:
   ✅ "The 'small' subscription that costs the average person $4,200 over a decade."
 
 ## Per-language note
-Write the hook in the **target language** naturally (do not translate word for
-word; adapt idioms). Keep it punchy and conversational in that language; the same
-3-layer logic applies. Keyword/visual search terms downstream can be English when
-that improves asset discovery, but the spoken hook is in the content language.
+Write the hook in the **target language** naturally (don't translate word-for-
+word — adapt idioms). For Vietnamese, keep it punchy and conversational; the same
+3-layer logic applies. Keyword/visual search terms downstream are English, but the
+spoken hook is in the content language.
