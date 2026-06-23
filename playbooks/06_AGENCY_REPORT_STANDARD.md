@@ -134,26 +134,33 @@ Template:
 - Private collection impact:
 - Required human action:
 
-## Private Sources Pending Activation
+## Private Data Sources Pending Activation
 
-Use this section when private sources were provided but the Solo Agency Local Collector extension and Local Collector app are not activated yet.
+Use this section when private data sources were provided but the Solo Agency Local Collector extension and Local Collector app are not activated yet.
 
 - Status: pending_private_activation | activated | not_provided | unavailable
-- Why private sources were not scanned today:
+- Why private data sources were not scanned today:
 - What is needed to activate them:
 - Suggested next question:
-  - `Private sources (logged-in/social/community sources such as groups, profiles, pages, channels, forums, or communities) are not activated yet because they require the Local Collector app and Chrome extension on your computer. Do you want me to prepare the setup files and then give you the two required local steps: run one Terminal/PowerShell command yourself and load the Chrome extension from the folder I show you?`
+  - `Private data sources (logged-in/social/community data sources such as groups, profiles, pages, channels, forums, or communities) are not activated yet because they require the Local Collector app and Chrome extension on your computer. Do you want me to prepare the setup files and then give you the two required local steps: run one Terminal/PowerShell command yourself and load the Chrome extension from the folder I show you?`
 - Sources waiting for activation:
   - Source:
     - URL:
     - Platform:
     - Why it matters:
 
-## Private Source Discovery
+## Private Data Source Discovery
 
-Use this section when the human approved, declined, postponed, or has not yet been asked about optional source discovery from joined groups, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds.
+Use this section when the human approved, declined, postponed, or has not yet been asked about optional private data source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds.
 
-- Status: not_asked | declined | approved_pending_activation | active | blocked | completed
+- Status: not_asked | recommended | declined | postponed | approved_pending_activation | pending_human_approval | active | blocked | completed | discovery_declined_or_postponed
+- Display title, when useful: `Private Data Source Discovery Recommended`, `Private Data Source Discovery Pending Approval`, `Private Data Source Discovery Declined/Postponed`, or the same meaning translated into the report language.
+- Why this matters:
+  - If no private data sources are active, the report may miss many community discussions, lead signals, competitor posts, objections, and niche content ideas from logged-in/member spaces.
+- Recommended next action:
+  - If status is `not_asked` or `recommended`, ask whether the human wants a one-time discovery pass through approved joined groups, subreddits, communities, followed pages/KOLs, subscribed channels, and feeds.
+  - If status is `pending_human_approval`, ask the human to approve, remove, or add candidate sources before monitoring begins.
+  - If status is `declined`, `postponed`, or `discovery_declined_or_postponed`, do not nag, but keep the coverage limitation visible.
 - Reassurance shown:
   - Professional agency-scale setup, normally one-time:
   - Local-only data safety:
@@ -189,7 +196,7 @@ Use this section when the human approved, declined, postponed, or has not yet be
 
 ## Sources Checked
 
-### Public Sources
+### Public Data Sources
 
 - Source:
   - URL:
@@ -208,7 +215,7 @@ Use this section when the human approved, declined, postponed, or has not yet be
   - Follow-up keyword, if any:
   - Notes:
 
-### Private Sources
+### Private Data Sources
 
 - Source:
   - URL captured:
@@ -221,7 +228,7 @@ Use this section when the human approved, declined, postponed, or has not yet be
 |---|---|---|---|
 |  |  |  |  |
 
-## New Private Sources Detected
+## New Private Data Sources Detected
 
 - Source:
   - Platform:
@@ -510,7 +517,7 @@ Use the appropriate version label for the actual draft. `VE — Value Explainer`
 
 ### Source-Backed Rationale
 
-Include the reference URLs that support the script's key claims. For private sources, include the captured private URL and note that the human may need to be logged in to verify it.
+Include the reference URLs that support the script's key claims. For private data sources, include the captured private URL and note that the human may need to be logged in to verify it.
 
 ## Version 1: Blog — Educational Article
 
@@ -607,8 +614,10 @@ The HTML report must include:
 - Agent identity.
 - Clients processed.
 - Client status.
-- Private collector health: bridge status, extension last check time, extension status, and private-source blockers.
-- Private Source Discovery status when asked, approved, pending, blocked, or completed.
+- Private collector health: bridge status, extension last check time, extension status, and private data source blockers.
+- Private Data Source Discovery status when asked, approved, pending, blocked, or completed.
+- Private Data Source Discovery Recommended when no private data sources are configured and discovery has not been offered yet.
+- Private Data Source Discovery Declined/Postponed when the human declined or postponed discovery, including a clear note that public-only reports can still be useful but may miss many community, lead, and competitor signals.
 - Top ideas.
 - Best idea.
 - Mapped content pillar.
@@ -622,6 +631,7 @@ The HTML report must include:
 - WideCast-writing-skill draft: video script, blog/article, social caption, or configured combination.
 - Production/provider status: draft only, approval required, provider setup required, video/blog/social asset created, ready to publish, published, or blocked.
 - `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section when WideCast account tools, Telegram notification, publishing, or video creation are not connected yet.
+- If WideCast Telegram is not connected yet, a short `Get daily reports on Telegram` note explaining that WideCast signup plus Telegram connection can be used as a free remote-report path, so the human can receive daily HTML report links and blockers while away from the computer.
 - Approval options.
 - Next actions.
 
@@ -636,7 +646,7 @@ Required report hierarchy:
 1. `Executive Snapshot`
    - Client name.
    - Run date and agent identity.
-   - Source coverage status: public-only, public + private, private pending, private failed, or mixed.
+   - Source coverage status: public data sources only, public data sources + private data sources, private data sources pending, private data sources failed, or mixed.
    - Best idea of the day in one sentence.
    - Why it matters today.
    - Content asset status: draft ready, approval required, provider setup required, video/blog/social asset created, ready to publish, published, needs human detail, needs visual assets, or blocked.
@@ -665,15 +675,15 @@ Required report hierarchy:
 4. `Source Coverage And Data Quality`
    - Public search keywords used today.
    - Pain-point/problem/need keyword sample used or added today, with the rest saved in the keyword bank for rotation. Do not dump the full keyword bank into the human-facing report.
-   - Public sources scanned.
-   - New public sources discovered/promoted/demoted today, with a compact summary. Do not dump the full public source list.
-   - Private sources scanned, pending, skipped, failed, or session-expired.
-   - New private sources detected.
+   - Public data sources scanned.
+   - New public data sources discovered/promoted/demoted today, with a compact summary. Do not dump the full public data source list.
+   - Private data sources scanned, pending, skipped, failed, or session-expired.
+   - New private data sources detected.
    - Known blind spots for this run.
    - Data confidence summary.
-   - If private sources were provided but not activated yet, state that clearly and do not imply lead coverage is complete.
+   - If private data sources were provided but not activated yet, state that clearly and do not imply lead coverage is complete.
 
-5. `Private Source Discovery`
+5. `Private Data Source Discovery`
    - Discovery categories approved, declined, pending, or not requested.
    - Platforms and discovery URLs used.
    - Whether the Solo Agency Local Collector is active, pending, or blocked.
@@ -715,7 +725,7 @@ Required report hierarchy:
    - The suggested comment must use the same language as the post, provide value, avoid direct advertising, avoid `DM me`, avoid attacking competitors, and sound natural rather than AI-polished.
    - The suggested comment may include one or two tiny natural imperfections or typos when appropriate, but must remain clear and trustworthy.
    - Each suggested comment must have a real local `Copy comment` button that copies the comment text only. It must not imply the comment will be posted automatically.
-   - If no leads/competitors were found, say whether that means `none found after scanning`, `public-only coverage`, `private sources pending Local Collector activation`, `session expired`, or `source unavailable`.
+   - If no leads/competitors were found, say whether that means `none found after scanning`, `coverage from public data sources only`, `private data sources pending Local Collector activation`, `session expired`, or `source unavailable`.
    - If competitor data is inferred without a captured URL, label it as market hypothesis, not detected competitor evidence.
 
 9. `Production-Ready Drafts`
@@ -743,7 +753,7 @@ Required report hierarchy:
    - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
    - After schedule/routine is configured but the first agency run has not happened, the primary next action should be asking whether to run the first agency run now.
    - After the first agency run small win exists and PDNA setup - Production, Distribution, Notification, and Analytics - has not been completed/declined/blocked, the primary next action should usually be that setup gate.
-   - For reports where production setup is completed/declined/blocked and private sources are pending, the primary next action should usually be activating the Solo Agency Local Collector or marking private sources pending, not starting a video branch.
+   - For reports where production setup is completed/declined/blocked and private data sources are pending, the primary next action should usually be activating the Solo Agency Local Collector or marking private data sources pending, not starting a video branch.
    - Do not ask "make a video now?" as the primary next action immediately after the small win; production/provider setup comes first.
 
 ### Report Handoff Chat Rule
@@ -777,7 +787,7 @@ Do not end a report handoff with:
 Examples of correct final questions:
 
 ```text
-Bạn đã cung cấp nguồn riêng tư nhưng Local Collector chưa bật. Bạn muốn tôi hướng dẫn bật Local Collector ngay để lần chạy đầu có dữ liệu nguồn riêng tư, hay chạy public-only trước và giữ nguồn riêng tư ở trạng thái pending?
+Bạn đã cung cấp nguồn dữ liệu riêng tư nhưng Local Collector chưa bật. Bạn muốn tôi hướng dẫn bật Local Collector ngay để lần chạy đầu có dữ liệu nguồn dữ liệu riêng tư, hay chạy trước chỉ với nguồn dữ liệu công khai và giữ nguồn dữ liệu riêng tư ở trạng thái pending?
 ```
 
 ```text
@@ -799,7 +809,7 @@ Professional presentation rules:
 - Use tables only when they make comparison or verification easier.
 - Put reference links beside the claim, idea, lead, competitor, or draft they support. Do not hide all references in one generic source list.
 - Label missing data honestly: `not scanned`, `pending activation`, `session expired`, `not detected`, or `low confidence`.
-- Do not pretend public-only research has private lead coverage.
+- Do not pretend research from public data sources only has private lead coverage.
 
 Recommended HTML section order:
 
@@ -808,7 +818,7 @@ Recommended HTML section order:
 2. Today's Recommendation
 3. Evidence Ledger
 4. Source Coverage And Data Quality
-5. Private Source Discovery
+5. Private Data Source Discovery
 6. Idea Portfolio
 7. Decision Scorecard
 8. Lead & Competitor Opportunities
@@ -891,6 +901,13 @@ The agent must deliver the HTML report to the human by the most convenient avail
 Notification fallback rule:
 
 - WideCast MCP notification/Telegram is the preferred scheduled-run notification channel.
+- If WideCast Telegram is not connected yet, the HTML report must include a concise setup note encouraging the human to register or log in to WideCast, connect Telegram for free daily report alerts, and use it to receive report links/blockers remotely without sitting in front of the machine.
+  Translate this note into the report/human language.
+  Suggested report copy:
+  ```text
+  Get daily reports on Telegram
+  You can register/log in to WideCast and connect Telegram for free daily report alerts. After that, scheduled runs can send report links and blockers to your phone, so you do not need to keep watching the AI agent window.
+  ```
 - If WideCast notification tools are available, call the WideCast notification tool even if the human has not connected Telegram yet. WideCast should handle fallback email delivery when Telegram is not connected.
 - If WideCast notification tools are available and WideCast exposes an HTML-capable report/file/asset upload API, upload the `.html` report to WideCast first and send the uploaded URL through WideCast Telegram/email fallback.
 - Do not send only a local file path when an uploaded WideCast report URL is available.

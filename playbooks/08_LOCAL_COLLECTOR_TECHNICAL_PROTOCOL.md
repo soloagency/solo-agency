@@ -13,11 +13,12 @@ Load when installing, starting, stopping, checking, scheduling, updating, or tro
 - Use `POST /jobs/run_now` or `run_now_request.json` for manual/private run-now jobs.
 - Do not fake extension health by sending extension-only headers from the AI agent.
 - Setup scripts must preserve data/config and stop only old collector processes occupying port 17321.
-- When this stage is loaded for a private/logged-in source request, first reload `playbooks/PRIVATE_SOURCE_GATE.md` if it is not already loaded in the current private-source turn.
-- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for logged-in/private-source collection.
+- When this stage is loaded for a private/logged-in source request, first reload `playbooks/PRIVATE_SOURCE_GATE.md` if it is not already loaded in the current private data source turn.
+- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for logged-in/private data source collection.
 - During one-time Local Collector setup/update/repair, the AI agent must not execute `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if the agent has shell permissions. The human must run the setup/start command in their own Terminal/PowerShell outside the agent sandbox.
 - One-time setup must include both human actions: run the Local Collector app setup/start command, then install/load the Chrome extension from the absolute runtime extension folder.
 - No credentials, hidden APIs, DMs, inboxes, account pages, or contact scraping.
+- Private data source discovery jobs are allowed only after explicit human consent and must produce candidate sources for review, not automatically activated monitoring sources.
 
 ## Source Preservation Rule
 
@@ -31,14 +32,14 @@ Do not summarize away requirements, examples, checklists, schemas, protocols, UR
 
 Source Discovery Mode must scroll deeply until no new source names or URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
 
-Daily Content Monitoring Mode keeps the conservative default: 5 scrolls, max 10, 5 seconds between scrolls, and about 20 private sources or fewer per client.
+Daily Content Monitoring Mode keeps the conservative default: 5 scrolls, max 10, 5 seconds between scrolls, and about 20 private data sources or fewer per client.
 
 Do not apply the daily 5-scroll default to source discovery.
 
 Lead And Competitor Detection Mode is part of normal data collection, not a separate extra scan:
 
-- First lead/competitor pass for a client/source set: 10 scrolls per approved private source when Local Collector is active and safety settings allow it.
-- Recurring daily scheduled runs: 5 scrolls per approved private source by default.
+- First lead/competitor pass for a client/source set: 10 scrolls per approved private data source when Local Collector is active and safety settings allow it.
+- Recurring daily scheduled runs: 5 scrolls per approved private data source by default.
 - Extract lead and competitor opportunities during the same pass used for ideas, market signals, data points, and source quality.
 - Do not run a second lead/competitor scan unless the human explicitly asks for a deeper pass, the first scan failed, or the saved schedule/config allows it.
 - If `collector_config.max_scrolls_per_source` is lower than the desired lead/competitor depth, obey the safer lower setting and record the coverage limitation in the report.
@@ -73,6 +74,8 @@ This is source discovery, not daily monitoring. I will scroll until no new sourc
 ```
 
 Do not let the human think "scan groups" is unbounded or vague.
+
+When the human has no private data source list, discovery is a first-class Local Collector job type. The job should use approved discovery surfaces such as joined Facebook groups, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, communities, and feeds. It must return candidate sources with enough context for the agent to filter and ask for human approval before saving anything as active.
 
 ---
 
@@ -122,7 +125,7 @@ You do not need to understand the technical details. I will give you the exact b
 The collector layer exists because many AI agents have unreliable private-browser access:
 
 - Claude may be sandboxed and unable to open a headed Playwright browser.
-- Claude Chrome Extension must not be used for automated private-source collection because it may require the human to click Allow during runs and can stop an unattended schedule.
+- Claude Chrome Extension must not be used for automated private data source collection because it may require the human to click Allow during runs and can stop an unattended schedule.
 - Some agents can reason and write well but cannot safely operate logged-in social sessions.
 - Some scheduled runs happen while the human is away.
 
@@ -236,7 +239,7 @@ Binary selection:
 | Windows | amd64 / x64 | `collector-bridge-windows-amd64.exe` |
 | Linux | amd64 / x64 | `collector-bridge-linux-amd64` |
 
-If the current OS/CPU is not listed, the agent must log `collector_unavailable`, continue with public sources, and notify the human that a compatible collector binary is not available yet.
+If the current OS/CPU is not listed, the agent must log `collector_unavailable`, continue with public data sources, and notify the human that a compatible collector binary is not available yet.
 
 ### Required One-Time Human Setup Handoff
 
@@ -281,11 +284,11 @@ Please install the Solo Agency Local Collector extension once:
 
 Important: if you also see a folder named `solo-agency/solo-agency-collector/chrome-extension`, do not select that one. That is the toolkit/source copy. Select only the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME` folder above.
 
-After this one-time setup, you may close this instruction tab whenever you want. For private-source collection to work at scheduled times, Chrome should be open and logged in to the private sources, and the Local Collector app should be running or configured to auto-start.
+After this one-time setup, you may close this instruction tab whenever you want. For private data source collection to work at scheduled times, Chrome should be open and logged in to the private data sources, and the Local Collector app should be running or configured to auto-start.
 ```
 
 3. The agent must not ask for passwords, cookies, OTPs, or credentials.
-4. If the extension is not installed or cannot contact the Local Collector app, the agent logs `extension_unavailable`, continues with public sources, and notifies the human.
+4. If the extension is not installed or cannot contact the Local Collector app, the agent logs `extension_unavailable`, continues with public data sources, and notifies the human.
 
 The AI agent must create a ready-to-run setup/start script file and give the human exactly one short command to paste into Terminal or PowerShell. The agent must do this even if it can run local commands itself; one-time collector setup must happen outside the AI agent sandbox.
 
@@ -797,7 +800,7 @@ Default behavior:
 - One daily collection window.
 - 5 second extension bridge check interval when Chrome is active and the bridge is running.
 - About 60-75 second practical fallback window when Chrome has suspended the extension service worker.
-- 5 scrolls per private source.
+- 5 scrolls per private data source.
 - 5 seconds between scrolls.
 - Maximum configurable scrolls: 10.
 
@@ -812,7 +815,7 @@ Panel visibility rule:
   - data points collected,
   - leads detected,
   - competitors detected,
-  - new private sources detected,
+  - new private data sources detected,
   - last bridge contact time,
   - last error or blocker.
 
@@ -845,11 +848,11 @@ Health check sequence:
    - record `bridge_status: offline`,
    - do not try to start the bridge from inside the AI agent sandbox during setup/repair,
    - provide the human with the absolute-path Local Collector app setup/start command,
-   - continue with public sources and previously collected private data.
-6. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public sources, log the private-source blocker, and notify the human.
-7. If the extension is recent but a private source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
+   - continue with public data sources and previously collected private data.
+6. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public data sources, log the private data source blocker, and notify the human.
+7. If the extension is recent but a private data source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
 
-The AI agent must surface this health information transparently in the daily report and in Telegram notifications when private sources are unavailable.
+The AI agent must surface this health information transparently in the daily report and in Telegram notifications when private data sources are unavailable.
 
 Example notification:
 
@@ -858,7 +861,7 @@ Agent: Claude Schedule
 Collector status: bridge_running, extension_stale
 Last extension check: 2026-06-20 08:52 local time
 Likely cause: Chrome is closed or the extension is disabled.
-Impact: Private Facebook/LinkedIn sources were skipped today. Public sources still ran.
+Impact: Private Facebook/LinkedIn sources were skipped today. Public data sources still ran.
 Action: Open Chrome with the Solo Agency Local Collector extension enabled, stay logged in, or run the Local Collector app start command again if needed.
 ```
 
@@ -938,7 +941,7 @@ Typical run:
 3. Agent creates a collection job file.
 4. Agent starts the bridge on `127.0.0.1` with a short TTL.
 5. Solo Agency Local Collector extension detects the bridge by polling localhost.
-6. Extension fetches the job, collects visible authorized data from configured private sources, and posts results back to the bridge.
+6. Extension fetches the job, collects visible authorized data from configured private data sources, and posts results back to the bridge.
 7. Bridge writes JSONL/status/snapshot files.
 8. Agent reads the files.
 9. Agent stops the bridge or lets it auto-shutdown.
@@ -962,7 +965,7 @@ If the local bridge is not already running, the agent should not assume it can s
 - The extension may queue a limited amount of data in extension storage until a bridge is available.
 - The agent must log `collector_unavailable`.
 - The agent must notify the human that the Local Collector app is not running and provide the one-line setup/start command for the human to run outside the AI sandbox.
-- The agent should continue with public sources and previously collected private data if available.
+- The agent should continue with public data sources and previously collected private data if available.
 
 Important constraint:
 
@@ -979,7 +982,7 @@ Important browser reality:
 - Use `chrome.alarms` as the durable wake-up mechanism while Chrome is running.
 - Use a short in-memory poll loop only while the service worker is awake.
 - If Chrome is closed, the computer is asleep, the extension is disabled/removed, or the browser profile is not running, the extension cannot collect private data.
-- In those cases, the bridge/agent must mark private collection as temporarily unavailable, continue with public sources and previously collected private data, and notify the human through WideCast MCP / Telegram when available.
+- In those cases, the bridge/agent must mark private collection as temporarily unavailable, continue with public data sources and previously collected private data, and notify the human through WideCast MCP / Telegram when available.
 
 The extension should:
 
@@ -997,8 +1000,8 @@ The extension should:
 - Close collector-created tabs after collection when configured.
 - Do not promise fully invisible collection. A Chrome extension generally needs a real page/tab context to read logged-in private web pages; offscreen/background-only pages cannot reliably read arbitrary logged-in social feeds.
 - Apply conservative pacing and delay rules.
-- Default to 5 scrolls per private source and wait 5 seconds between scrolls.
-- Allow the human to configure up to 10 scrolls per private source.
+- Default to 5 scrolls per private data source and wait 5 seconds between scrolls.
+- Allow the human to configure up to 10 scrolls per private data source.
 - Collect visible text, URLs, timestamps, engagement hints, profile URLs, post/current URLs, and source metadata.
 - Collect relevant recommended groups/pages/communities as `new_private_sources` when visible.
 - Post structured results back to the local bridge.
@@ -1066,12 +1069,12 @@ Health API:
 - The Solo Agency Local Collector extension may call `/status` from its extension context and may include `X-Collector-Extension: media-agency-local-collector`; that is how the Local Collector app records `extension_health.last_extension_check_at`.
 - The AI agent must not use the extension header during normal health checks, because it would make the bridge think the browser extension checked in when only the AI agent did.
 - If `/status` fails to connect, the Local Collector app is not running or is blocked. The AI agent must not start it from inside the AI sandbox during setup/repair; give the human the one-line setup/start command generated during setup.
-- If `/status` succeeds but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, the Local Collector app is running but the Solo Agency Local Collector extension is not currently checking in. The AI agent should treat private-source collection as unavailable until fixed, continue public-source work, and notify the human through WideCast Telegram if available.
+- If `/status` succeeds but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, the Local Collector app is running but the Solo Agency Local Collector extension is not currently checking in. The AI agent should treat private data source collection as unavailable until fixed, continue public data source work, and notify the human through WideCast Telegram if available.
 
 `POST /jobs/run_now` is required for manual runs and first-trial runs. It lets the AI agent tell the Local Collector app:
 
 ```text
-Run this private-source job immediately. Do not wait for the recurring schedule window.
+Run this private data source job immediately. Do not wait for the recurring schedule window.
 ```
 
 Run-now behavior:
@@ -1121,7 +1124,7 @@ Every time the extension checks `/status`, the bridge should update the last ext
 - bridge running but Chrome closed,
 - extension installed but stale/sleeping,
 - extension recent and healthy,
-- private source session expired,
+- private data source session expired,
 - platform checkpoint/captcha/rate limit.
 
 The bridge may run smoothly without admin permission on many machines because it binds only to loopback, but the agent must not promise zero operating-system prompts in every environment. Some corporate devices, antivirus tools, endpoint security tools, firewalls, Gatekeeper, or SmartScreen policies may still warn about new executables. Signed binaries are recommended for public distribution.
@@ -1174,19 +1177,29 @@ Every detected competitor must include both:
 - `profile_url`
 - `post_url` or `current_url`
 
-Every new private source candidate must include:
+Every new private data source candidate must include:
 
 - `source_name`
 - `platform`
-- `source_type`
+- `source_type`: `joined_group`, `subreddit`, `community`, `followed_profile`, `followed_page`, `subscribed_channel`, `followed_company`, `recommendation_feed_author`, `recommendation_feed_topic`, or `other`
 - `profile_or_group_url`
 - `current_recommendation_url`
 - `detected_while_scanning`
+- `discovery_category`: `membership_sources`, `following_sources`, or `recommendation_feed_sources`
+- `discovery_url`
 - `why_relevant`
+- `matched_pain_points`
 - `related_content_pillar`
+- `target_audience_fit`
+- `location_fit`
+- `lead_potential`
+- `competitor_intelligence_value`
+- `noise_level`
+- `risk_level`
 - `estimated_priority`
 - `suggested_scan_cadence`
-- `status`
+- `classification`: `recommended_daily`, `recommended_weekly`, `optional`, `watch_once`, `skip_not_relevant`, `skip_too_broad`, `skip_too_noisy`, `skip_sensitive_or_risky`, or `skip_platform_unavailable`
+- `approval_status`: `pending_human_approval`, `approved`, `rejected`, or `skipped`
 
 If a URL is unavailable, write `unavailable` and include a note explaining why.
 
@@ -1200,8 +1213,8 @@ Codex:
 
 Claude:
 
-- Claude must use the Solo Agency Local Collector extension plus the Local Collector app for automated private-source collection.
-- Claude must not use Claude Chrome Extension for automated private-source collection because it can require repeated human Allow clicks and can block unattended schedules.
+- Claude must use the Solo Agency Local Collector extension plus the Local Collector app for automated private data source collection.
+- Claude must not use Claude Chrome Extension for automated private data source collection because it can require repeated human Allow clicks and can block unattended schedules.
 - Claude must provide a user-run command, persistent bridge startup instructions, or OS startup service setup instructions. It must not run the one-time setup/start command from inside Claude.
 - After the bridge is running, Claude reads collector output files and performs reasoning, idea generation, script writing, reporting, and WideCast actions.
 
@@ -1227,9 +1240,9 @@ Native Messaging may be added later as an advanced or enterprise option.
 
 ### Deprecated Browser Session Fallback
 
-Older drafts allowed AI-agent-controlled headed browser profiles, CDP sessions, and native browser tools as fallback paths for private-source collection. That fallback is no longer allowed for the Solo Agency private-source workflow.
+Older drafts allowed AI-agent-controlled headed browser profiles, CDP sessions, and native browser tools as fallback paths for private data source collection. That fallback is no longer allowed for the Solo Agency private data source workflow.
 
-For logged-in/private sources, do not use:
+For logged-in/private data sources, do not use:
 
 - Claude in Chrome or Claude Chrome Extension;
 - Codex built-in browser, Codex in-app browser, or Codex-controlled browser tools;
@@ -1239,7 +1252,7 @@ For logged-in/private sources, do not use:
 - remote-debugging/CDP browser sessions opened or controlled by the AI agent;
 - exported cookies, browser storage state, credentials, OTPs, or tokens.
 
-The only supported private-source path is:
+The only supported private data source path is:
 
 ```text
 Human's logged-in Chrome
@@ -1249,27 +1262,27 @@ Human's logged-in Chrome
   -> AI agent reads local output and analyzes it
 ```
 
-If the Local Collector is unavailable, the agent must continue public-only work, use previously collected private data if available, or ask the human to complete Local Collector setup/repair. It must not improvise a browser fallback.
+If the Local Collector is unavailable, the agent must continue work with public data sources only, use previously collected private data if available, or ask the human to complete Local Collector setup/repair. It must not improvise a browser fallback.
 
 ### AI-Service-Specific Guidance
 
 Codex:
 
-- Codex must not use native browser, in-app browser, Playwright, remote debugging, or agent-controlled browser tools for logged-in/private-source review.
+- Codex must not use native browser, in-app browser, Playwright, remote debugging, or agent-controlled browser tools for logged-in/private data source review.
 - After the human-run Local Collector setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or `run_now_request.json`, read collector output, and continue the daily pipeline.
 
 Claude:
 
-- Claude must not use Claude in Chrome or Claude Chrome Extension for logged-in/private-source collection.
+- Claude must not use Claude in Chrome or Claude Chrome Extension for logged-in/private data source collection.
 - Claude must use the Solo Agency Local Collector extension plus the Local Collector app described above.
 - Claude must give the human a one-time command or startup-service instructions to run the Local Collector app outside the sandbox. It must not run the one-time setup/start command from inside Claude.
 - The recommended Claude-safe mode is `persistent_bridge_scheduler`, because once the Local Collector app is running at OS startup, Claude only needs to read local collector files.
-- If the Local Collector app is unavailable, Claude should continue with public sources and previously collected private data, then notify the human.
+- If the Local Collector app is unavailable, Claude should continue with public data sources and previously collected private data, then notify the human.
 
 Other agents:
 
-- Other AI agents must follow the same collector-only rule for logged-in/private sources.
-- Native browser automation is allowed only for public pages, setup instructions, or local UI testing, not for private-source collection.
+- Other AI agents must follow the same collector-only rule for logged-in/private data sources.
+- Native browser automation is allowed only for public pages, setup instructions, or local UI testing, not for private data source collection.
 
 ---
 
@@ -1347,7 +1360,7 @@ Exact manual run-now contract:
 - `run_now` must be `true`.
 - `force` must be `false` unless the human explicitly asks for a troubleshooting rerun and understands the same `run_id` may run again.
 - `run_now_ttl_minutes` should be 30 by default and must not exceed 120.
-- `sources` must contain the private sources for that client if private sources exist. If there are no private sources, the agent should still run public research without the Local Collector app.
+- `sources` must contain the private data sources for that client if private data sources exist. If there are no private data sources, the agent should still run public research without the Local Collector app.
 - `pacing.scroll_steps` defaults to 5 and must not exceed 10.
 - If the agent cannot make this POST itself but can write local files, it should write the JSON payload to:
 
@@ -1390,7 +1403,7 @@ Schedule rule:
 - Ask schedule/routine questions after the profile and source plan are known and before the first agency run.
 - Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, or another cadence.
 - Then write or update `schedule.md` and the relevant automation/config files.
-- After schedule/routine setup, if private sources exist and Local Collector is pending, first handle 7A: guide Local Collector setup or ask whether to run public-only now while keeping private sources pending. If no private-source activation is pending, ask whether to run the first agency run immediately.
+- After schedule/routine setup, if private data sources exist and Local Collector is pending, first handle 7A: guide Local Collector setup or ask whether to run public data sources only now while keeping private data sources pending. If no private data source activation is pending, ask whether to run the first agency run immediately.
 
 Exact schedule contract:
 
@@ -1443,8 +1456,8 @@ Exact schedule contract:
 
 - For multiple scheduled runs per day, add multiple enabled items to `scheduled_windows`, for example `morning`, `midday`, and `afternoon`.
 - For manual-only mode, set all `scheduled_windows[].enabled` values to `false` and rely only on `/jobs/run_now`.
-- If the human has not activated private-source monitoring yet, configure the recurring schedule as public-only and clearly mark private sources as `pending_private_activation`.
-- Only configure scheduled private-source collection after Local Collector activation is accepted and collector health is confirmed or explicitly documented as pending/blocker.
+- If the human has not activated private data source monitoring yet, configure the recurring schedule as public data sources only and clearly mark private data sources as `pending_private_activation`.
+- Only configure scheduled private data source collection after Local Collector activation is accepted and collector health is confirmed or explicitly documented as pending/blocker.
 - The Local Collector app must run in persistent mode for unattended scheduled collection:
 
 ```text
@@ -1456,8 +1469,8 @@ solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
   --persistent
 ```
 
-- The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.
+- The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private data sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.
 - Scheduled run IDs are generated by the Local Collector app, usually using `YYYY-MM-DD_schedule-name`.
-- The agent must still write a human-readable `schedule.md` explaining the cadence, clients included, private-source limits, and notification behavior.
+- The agent must still write a human-readable `schedule.md` explaining the cadence, clients included, private data source limits, and notification behavior.
 
 ---

@@ -62,6 +62,7 @@ type bridge struct {
 	lastRunNowRequestSig string
 
 	mu          sync.Mutex
+	fileMu      sync.Mutex
 	counts      map[string]int
 	completed   bool
 	completions map[string]string
@@ -224,6 +225,7 @@ func defaultCollectorConfig() map[string]any {
 		"default_runs_per_day":   1,
 		"poll_interval_seconds":  5,
 		"max_sources_per_run":    20,
+		"source_concurrency":     1,
 		"max_scrolls_per_source": 5,
 		"max_scrolls_allowed":    10,
 		"scroll_delay_seconds":   5,
@@ -720,12 +722,10 @@ func (b *bridge) activateRunNowJob(job map[string]any, now time.Time, source str
 	if _, ok := job["sources"]; !ok {
 		job["sources"] = []any{}
 	}
-	if _, ok := job["pacing"]; !ok {
-		b.mu.Lock()
-		configDoc := cloneMap(b.configDoc)
-		b.mu.Unlock()
-		job["pacing"] = defaultPacing(configDoc)
-	}
+	b.mu.Lock()
+	configDoc := cloneMap(b.configDoc)
+	b.mu.Unlock()
+	job["pacing"] = pacingForJob(configDoc, job)
 	if _, ok := job["collector_policy"]; !ok {
 		job["collector_policy"] = defaultCollectorPolicy()
 	}
@@ -812,6 +812,7 @@ func (b *bridge) currentPersistentJob(now time.Time) (map[string]any, bool, stri
 	scrolls := clampInt(getInt(doc, "max_scrolls_per_source", 5), 0, maxAllowed)
 	delay := clampInt(getInt(doc, "scroll_delay_seconds", 5), 5, 60)
 	maxSources := clampInt(getInt(doc, "max_sources_per_run", 20), 1, 20)
+	sourceConcurrency := clampInt(getInt(doc, "source_concurrency", 1), 1, 3)
 	month := now.Format("2006-01")
 	outputDir := filepath.Join(root, month, runID)
 	_ = os.MkdirAll(filepath.Join(outputDir, "snapshots"), 0o700)
@@ -828,6 +829,7 @@ func (b *bridge) currentPersistentJob(now time.Time) (map[string]any, bool, stri
 			"min_delay_seconds": delay,
 			"max_delay_seconds": delay,
 			"max_sources":       maxSources,
+			"source_concurrency": sourceConcurrency,
 			"scroll_steps":      scrolls,
 			"max_text_chars":    12000,
 		},
@@ -887,13 +889,46 @@ func defaultPacing(doc map[string]any) map[string]any {
 	scrolls := clampInt(getInt(doc, "max_scrolls_per_source", 5), 0, maxAllowed)
 	delay := clampInt(getInt(doc, "scroll_delay_seconds", 5), 5, 60)
 	maxSources := clampInt(getInt(doc, "max_sources_per_run", 20), 1, 20)
+	sourceConcurrency := clampInt(getInt(doc, "source_concurrency", 1), 1, 3)
 	return map[string]any{
-		"min_delay_seconds": delay,
-		"max_delay_seconds": delay,
-		"max_sources":       maxSources,
-		"scroll_steps":      scrolls,
-		"max_text_chars":    12000,
+		"min_delay_seconds":  delay,
+		"max_delay_seconds":  delay,
+		"max_sources":        maxSources,
+		"source_concurrency": sourceConcurrency,
+		"scroll_steps":       scrolls,
+		"max_text_chars":     12000,
 	}
+}
+
+func pacingForJob(doc map[string]any, job map[string]any) map[string]any {
+	pacing := defaultPacing(doc)
+	if rawPacing, ok := job["pacing"].(map[string]any); ok {
+		for key, value := range rawPacing {
+			pacing[key] = value
+		}
+	}
+	if raw, ok := job["source_concurrency"]; ok {
+		pacing["source_concurrency"] = raw
+	}
+	if raw, ok := job["max_parallel_sources"]; ok {
+		pacing["source_concurrency"] = raw
+	}
+	maxAllowed := clampInt(getInt(doc, "max_scrolls_allowed", 10), 1, 10)
+	minDelay := clampInt(getInt(pacing, "min_delay_seconds", 5), 5, 60)
+	maxDelay := clampInt(getInt(pacing, "max_delay_seconds", minDelay), minDelay, 60)
+	maxSources := clampInt(getInt(pacing, "max_sources", getInt(doc, "max_sources_per_run", 20)), 1, 20)
+	scrolls := clampInt(getInt(pacing, "scroll_steps", getInt(doc, "max_scrolls_per_source", 5)), 0, maxAllowed)
+	maxTextChars := clampInt(getInt(pacing, "max_text_chars", 12000), 1000, 30000)
+	sourceConcurrency := clampInt(getInt(pacing, "source_concurrency", getInt(pacing, "max_parallel_sources", 1)), 1, 3)
+
+	pacing["min_delay_seconds"] = minDelay
+	pacing["max_delay_seconds"] = maxDelay
+	pacing["max_sources"] = maxSources
+	pacing["scroll_steps"] = scrolls
+	pacing["max_text_chars"] = maxTextChars
+	pacing["source_concurrency"] = sourceConcurrency
+	delete(pacing, "max_parallel_sources")
+	return pacing
 }
 
 func defaultCollectorPolicy() map[string]any {
@@ -1065,10 +1100,13 @@ func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := filepath.Join(b.cfg.outputDir, "snapshots", name)
+	b.fileMu.Lock()
 	if err := os.WriteFile(path, []byte(html), 0o600); err != nil {
+		b.fileMu.Unlock()
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	b.fileMu.Unlock()
 	delete(meta, "html")
 	meta["snapshot_path"] = path
 	meta["record_type"] = "snapshot"
@@ -1152,6 +1190,8 @@ func (b *bridge) handleShutdown(w http.ResponseWriter, r *http.Request) {
 
 func (b *bridge) writeJSONL(filename string, record map[string]any) error {
 	path := filepath.Join(b.cfg.outputDir, filename)
+	b.fileMu.Lock()
+	defer b.fileMu.Unlock()
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
@@ -1195,6 +1235,8 @@ func (b *bridge) writeStatus(status, message string) error {
 	if err != nil {
 		return err
 	}
+	b.fileMu.Lock()
+	defer b.fileMu.Unlock()
 	return os.WriteFile(filepath.Join(b.cfg.outputDir, "collector_status.json"), append(data, '\n'), 0o600)
 }
 
@@ -1217,6 +1259,8 @@ func (b *bridge) writeHealthFile() error {
 	if err != nil {
 		return err
 	}
+	b.fileMu.Lock()
+	defer b.fileMu.Unlock()
 	return os.WriteFile(filepath.Join(b.outputRoot, "bridge_health.json"), append(data, '\n'), 0o600)
 }
 

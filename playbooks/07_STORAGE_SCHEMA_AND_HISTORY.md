@@ -214,7 +214,7 @@ Slug rules:
 Monthly organization rule:
 
 - Any file created daily must be stored under a `YYYY-MM/` folder.
-- This applies to client outputs, master digests, collector jobs, collector inboxes, history logs, data points, leads, competitors, and new private-source logs.
+- This applies to client outputs, master digests, collector jobs, collector inboxes, history logs, data points, leads, competitors, and new private data source logs.
 - Keep `latest.md`, `latest.html`, `latest_master_digest.md`, and `latest_master_digest.html` as convenience pointers at their existing locations.
 - Do not allow long-running pipelines to accumulate hundreds or thousands of daily files directly in one folder.
 
@@ -284,9 +284,9 @@ Use this log so scheduled runs do not silently complete or fail while the human 
 
 Tracks whether the Solo Agency Local Collector extension and Local Collector app are installed, reachable, blocked, pending activation, or waiting for human action.
 
-This file is mandatory after the human agrees to activate private-source monitoring, when configuring a schedule that includes private sources, or when the agent needs to report a private-source collector blocker.
+This file is mandatory after the human agrees to activate private data source monitoring, when configuring a schedule that includes private data sources, or when the agent needs to report a private data source collector blocker.
 
-It is not required when no private sources are active. Before activation, the first agency report should simply list private sources under `Private Sources Pending Activation`.
+It is not required when no private data sources are active. Before activation, the first agency report should simply list private data sources under `Private Data Sources Pending Activation`.
 
 Format:
 
@@ -319,9 +319,9 @@ Allowed status:
 
 The agent must update this file before:
 
-- claiming private-source monitoring is active,
-- running a manual private-source scan,
-- configuring recurring private-source collection,
+- claiming private data source monitoring is active,
+- running a manual private data source scan,
+- configuring recurring private data source collection,
 - reporting that private collection is unavailable.
 
 ### `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`
@@ -534,16 +534,18 @@ human_decision:
 collector_setup_status_file:
 notes:
 
-## private_interest_discovery
+## private_data_source_discovery
 
-status: not_asked | declined | partially_approved | approved | pending_private_activation | active | blocked
+status: not_asked | recommended | declined | postponed | partially_approved | approved | pending_human_approval | pending_private_activation | active | blocked | completed | discovery_declined_or_postponed
 reassurance_shown:
   professional_setup_once: true | false
   local_data_only: true | false
   daily_scan_prevents_missed_signals: true | false
+why_recommended:
+coverage_limitation_if_skipped:
 categories:
   membership_sources:
-    status: not_asked | declined | approved | pending_private_activation | active | blocked
+    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
     platforms:
     - platform:
       discovery_urls:
@@ -551,7 +553,7 @@ categories:
         status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
         last_scanned_at:
   following_sources:
-    status: not_asked | declined | approved | pending_private_activation | active | blocked
+    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
     platforms:
     - platform:
       discovery_urls:
@@ -559,7 +561,7 @@ categories:
         status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
         last_scanned_at:
   recommendation_feed_sources:
-    status: not_asked | declined | approved | pending_private_activation | active | blocked
+    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
     platforms:
     - platform:
       discovery_urls:
@@ -735,7 +737,7 @@ Allowed status:
 
 Purpose:
 
-- Track potential hot and warm leads discovered during public/private source scanning.
+- Track potential hot and warm leads discovered during public/private data source scanning.
 - Preserve source URLs and reasoning for why the lead may be relevant.
 - Avoid losing sales opportunities discovered during content research.
 
@@ -872,14 +874,14 @@ Privacy rule:
 
 Purpose:
 
-- Track new private-source candidates discovered while scanning private platforms.
+- Track new private data source candidates discovered while scanning private platforms.
 - Preserve Facebook-recommended groups, pages, communities, profiles, or similar source suggestions.
-- Let the human review new sources before they become part of the active daily private-source queue.
+- Let the human review new sources before they become part of the active daily private data source queue.
 
 Format:
 
 ```md
-# New Private Sources Log
+# New Private Data Sources Log
 
 | Date | Platform | Source Type | Source Name | Profile/Group URL | Current Recommendation URL | Detected While Scanning | Why Relevant | Related Content Pillar | Estimated Priority | Suggested Cadence | Status | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -1030,7 +1032,7 @@ For each published content item from the last 7 days, the agent should measure i
 
 ### Published URL Measurement Via Local Collector
 
-The Local Collector is not only for private-source idea discovery. It should also be reused for published URL measurement when possible.
+The Local Collector is not only for private data source idea discovery. It should also be reused for published URL measurement when possible.
 
 Reason:
 

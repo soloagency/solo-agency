@@ -6,6 +6,7 @@ const fields = [
   "minDelaySeconds",
   "maxDelaySeconds",
   "maxSourcesPerRun",
+  "sourceConcurrency",
   "scrollSteps",
   "closeTabsAfterCollect"
 ];
@@ -107,6 +108,7 @@ function readSettings() {
     minDelaySeconds: Number(document.getElementById("minDelaySeconds").value),
     maxDelaySeconds: Number(document.getElementById("maxDelaySeconds").value),
     maxSourcesPerRun: Number(document.getElementById("maxSourcesPerRun").value),
+    sourceConcurrency: Number(document.getElementById("sourceConcurrency").value),
     scrollSteps: Number(document.getElementById("scrollSteps").value),
     closeTabsAfterCollect: document.getElementById("closeTabsAfterCollect").checked
   };

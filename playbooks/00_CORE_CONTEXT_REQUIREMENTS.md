@@ -13,7 +13,7 @@ Load first for every setup or run. This stage contains the core reasoning model,
 - The agent must detect leads and competitors while researching.
 - The agent must load Stage 10 before presenting lead/competitor opportunities, report comments, or lead/competitor logs.
 - The agent must keep user-facing language aligned with the human's language.
-- The agent must never treat public-only research as private-source coverage.
+- The agent must never treat research from public data sources only as private data source coverage.
 - The agent must explain marketing, analytics, and technical terms in plain language when speaking to a non-technical/non-marketing human.
 
 ## Source Preservation Rule
@@ -54,7 +54,7 @@ Recommended child playbooks:
 - `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`: full A-H workflow, examples, reasoning rules, lead/competitor rules, related-industry rule, language/report rules.
 - `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`: setup interview, inference-first profile, public research, keyword rotation, first agency run and HTML report.
 - `playbooks/PRIVATE_SOURCE_GATE.md`: short anti-drift gate for any private/logged-in group/feed/profile/community scan request.
-- `playbooks/02_PRIVATE_SOURCE_SETUP.md`: manual private sources, optional private source discovery, Local Collector activation, source discovery, first private scan, private-enhanced report update.
+- `playbooks/02_PRIVATE_SOURCE_SETUP.md`: manual private data sources, optional private data source discovery, Local Collector activation, source discovery, first private scan, private-enhanced report update.
 - `playbooks/03_PRODUCTION_DISTRIBUTION.md`: writing drafts, production provider setup, video/blog/social creation, publishing, notifications. Do not name this file after any specific vendor.
 - `playbooks/04_DAILY_SCHEDULE.md`: manual/daily/weekly routine and schedule.
 - `playbooks/05_MEASURE_LEARN_IMPROVE.md`: published content analytics, comments, 7-day measurement, learning loop.
@@ -99,8 +99,8 @@ This is a human-facing progress checklist, not an internal agent instruction lis
 
 The checklist must not assume the human understands marketing or technical terms. Explain terms directly in the checklist or immediately below it. Required meanings:
 
-- `nguồn công khai`: website, Google/tìm kiếm, báo, diễn đàn/trang công khai the agent can access without the human's login.
-- `nguồn riêng tư`: logged-in or membership-based sources such as Facebook groups/pages, X, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require access, Discord/Slack communities, competitor profiles, newsletters, or private forums.
+- `nguồn dữ liệu công khai`: website, Google/tìm kiếm, báo, diễn đàn/trang công khai the agent can access without the human's login.
+- `nguồn dữ liệu riêng tư`: logged-in or membership-based sources such as Facebook groups/pages, X, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require access, Discord/Slack communities, competitor profiles, newsletters, or private forums.
 - `Local Collector`: local app plus Chrome extension on the human's computer; it uses the already logged-in Chrome session, reads approved visible pages only, and keeps private data local by default.
 - `offer`: business promise/package/value proposition.
 - `pain points`: customer problems, worries, objections, or urgent questions.
@@ -117,11 +117,11 @@ Solo Agency onetime setup
 [ ] 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
 [ ] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
 [ ] 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
-[ ] 4. Tôi tự tìm/chọn nguồn công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
-[ ] 5. Bạn cung cấp nguồn riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
+[ ] 4. Tôi tự tìm/chọn nguồn dữ liệu công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
+[ ] 5. Bạn cung cấp nguồn dữ liệu riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, Reddit/subreddit, X, LinkedIn, GitHub riêng, Discord...); nếu bạn chưa biết nên thêm nguồn nào, tôi có thể đề nghị quét danh sách group/subreddit/community/page/profile/kênh bạn đã tham gia hoặc theo dõi, lọc nguồn phù hợp rồi xin bạn duyệt; tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
 [ ] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
-[ ] 7A. Nếu bạn đã cung cấp nguồn riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn riêng tư ở trạng thái pending
-[ ] 7B. Tôi chạy lần đầu: quét nguồn công khai và nguồn riêng tư đã kích hoạt (hoặc public-only nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, cơ hội lead/khách hàng tiềm năng và đối thủ kèm link bài viết + comment gợi ý để bạn copy khi phù hợp, và bản nháp kịch bản/blog/caption đầu tiên
+[ ] 7A. Nếu bạn đã cung cấp nguồn dữ liệu riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn dữ liệu riêng tư ở trạng thái pending
+[ ] 7B. Tôi chạy lần đầu: quét nguồn dữ liệu công khai và nguồn dữ liệu riêng tư đã kích hoạt (hoặc chỉ dùng nguồn dữ liệu công khai nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, cơ hội lead/khách hàng tiềm năng và đối thủ kèm link bài viết + comment gợi ý để bạn copy khi phù hợp, và bản nháp kịch bản/blog/caption đầu tiên
 [ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
 [ ] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất
 [ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, cơ hội lead/khách hàng tiềm năng và đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
@@ -132,18 +132,19 @@ Checklist integrity rule:
 - Every setup progress block must show all 10 numbered items in order, including both substeps 7A and 7B.
 - Never hide steps 5-10 because they are pending, declined, blocked, or not applicable yet.
 - Use `[ ]` for pending items, `[x]` for completed items, and `[-]` only after the human has explicitly declined or the item has been logged as blocked/not applicable.
-- Do not ask source discovery as a separate checklist item or gate. If extra private-source discovery is useful, describe it plainly as optional source discovery and ask for approval only when needed.
+- Do not ask private data source discovery as a separate checklist item or gate. If no manual private data sources are provided, or the human says they do not know which sources to add, the agent must offer one optional private data source discovery pass in plain language before marking step 5 complete or `[-]`.
+- A declined or postponed discovery pass is valid, but the agent must record the status and explain that public-only runs may miss many lead/competitor/community signals.
 - Step 6 is the one-time schedule/routine setup. It should happen before the first full agency run so future automation is already defined.
-- Step 7A is the private-source activation checkpoint. If private sources were provided/approved and Local Collector is not installed, running, and healthy, 7A becomes the next required question after step 6. The agent must either guide Local Collector setup or ask whether the human wants to run public-only first while keeping private sources pending.
-- Step 7A may be marked `[-]` only when no private sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public-only first run. The reason must be shown in plain language.
-- Step 7B is the small win: report plus useful drafts. It must state whether the run will use public-only data or public plus activated private sources. After step 7B, the agent must not ask `làm video luôn không?` or start video editing. The next setup question is step 8.
+- Step 7A is the private data source activation checkpoint. If private data sources were provided/approved and Local Collector is not installed, running, and healthy, 7A becomes the next required question after step 6. The agent must either guide Local Collector setup or ask whether the human wants to run public data sources only first while keeping private data sources pending.
+- Step 7A may be marked `[-]` only when no private data sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public data sources only first run. The reason must be shown in plain language.
+- Step 7B is the small win: report plus useful drafts. It must state whether the run will use data from public data sources only or public plus activated private data sources. After step 7B, the agent must not ask `làm video luôn không?` or start video editing. The next setup question is step 8.
 - Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while onetime setup is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
 - Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `[-]` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
-- Step 10 is the final onetime setup item and the daily learning-loop outcome. On the first run it uses report/draft/private-source data; from the second run onward it also includes analytics/statistics from step 9.
+- Step 10 is the final onetime setup item and the daily learning-loop outcome. On the first run it uses report/draft content and data from private data sources; from the second run onward it also includes analytics/statistics from step 9.
 
 ### Progress And Next-Step Question Rule
 
-While setup, daily run, private-source activation, production setup, publishing, scheduling, or measurement is still incomplete, every human-facing reply that hands control back to the human must include a compact progress block.
+While setup, daily run, private data source activation, production setup, publishing, scheduling, or measurement is still incomplete, every human-facing reply that hands control back to the human must include a compact progress block.
 
 During scheduled runs, every human-facing progress update, notification, or report handoff must include `Solo Agency daily run progress`. If the scheduled run sends multiple updates, each update must refresh completed/current/remaining steps.
 
@@ -183,7 +184,7 @@ After a natural checkpoint such as provider connected, draft approved, video cre
 Good Vietnamese final question after a branch checkpoint:
 
 ```text
-Video branch đã tới checkpoint. Tôi quay lại setup agency để hoàn tất nguồn riêng tư và lịch chạy tự động nhé?
+Video branch đã tới checkpoint. Tôi quay lại setup agency để hoàn tất nguồn dữ liệu riêng tư và lịch chạy tự động nhé?
 ```
 
 The progress block must show:
@@ -204,7 +205,7 @@ For other flows, use a specific progress title such as:
 ```text
 Solo Agency daily run progress
 Solo Agency production progress
-Solo Agency private-source progress
+Solo Agency private data source progress
 Solo Agency measurement progress
 ```
 
@@ -215,7 +216,7 @@ Do not end with a passive summary, a report link, or a vague statement such as "
 Good final lines:
 
 ```text
-Bạn đã cung cấp nguồn riêng tư nhưng Local Collector chưa bật. Bạn muốn tôi hướng dẫn bật Local Collector ngay để lần chạy đầu có dữ liệu nguồn riêng tư, hay chạy public-only trước và giữ nguồn riêng tư ở trạng thái pending?
+Bạn đã cung cấp nguồn dữ liệu riêng tư nhưng Local Collector chưa bật. Bạn muốn tôi hướng dẫn bật Local Collector ngay để lần chạy đầu có dữ liệu nguồn dữ liệu riêng tư, hay chạy trước chỉ với nguồn dữ liệu công khai và giữ nguồn dữ liệu riêng tư ở trạng thái pending?
 ```
 
 ```text
@@ -242,11 +243,11 @@ Next steps are in the report.
 
 The agent may omit the next-step question only when the entire requested workflow is complete and no human decision is required.
 
-### Manual Private Sources And Discovery Are Independent
+### Manual Private Data Sources And Discovery Are Independent
 
-Private-source setup must support both paths independently:
+Private data source setup must support both paths independently:
 
-1. The human manually provides private sources:
+1. The human manually provides private data sources:
    - competitor profiles;
    - fanpages;
    - Facebook groups;
@@ -259,7 +260,7 @@ Private-source setup must support both paths independently:
    - Reddit communities;
    - any private or community source they want monitored.
 
-2. The human allows the agent to discover private sources from sources and feeds the user already follows or belongs to:
+2. The human allows the agent to discover private data sources from sources and feeds the user already follows or belongs to:
    - groups the user has joined;
    - profiles/pages/KOLs the user follows;
    - channels the user subscribes to;
@@ -269,6 +270,8 @@ Private-source setup must support both paths independently:
 The human can choose only manual sources, only discovery, both, neither, or postpone either option.
 
 The agent must not assume discovery replaces manual source input.
+
+If the human provides no private data sources, says they are not sure, or skips the question, the agent must treat that as a discovery opportunity, not as proof that private data sources are unnecessary. Offer one concise option to discover candidate private data sources from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds. If the human declines or postpones, record that status and continue public data source work with a clear note that lead/competitor/community coverage is limited.
 
 ### Source Discovery Deep Scroll Rule
 
@@ -286,19 +289,19 @@ There are two separate private collection modes:
    - Default: 5 scrolls per source.
    - Maximum: 10 scrolls per source.
    - Delay: 5 seconds between scrolls.
-   - Recommend about 20 daily private sources or fewer per client.
+   - Recommend about 20 daily private data sources or fewer per client.
 
 ### Private Scan Completion Rule
 
 After private collection runs, the agent must not stop at `collector succeeded`.
 
-Private-source setup or enrichment is complete only when the agent:
+Private data source setup or enrichment is complete only when the agent:
 
 1. reads the collected data;
 2. extracts relevant data points;
 3. detects hot/warm leads;
 4. detects competitors;
-5. detects new private sources;
+5. detects new private data sources;
 6. updates the idea matrix;
 7. re-scores or updates the best idea;
 8. updates drafts/scripts/blogs if private data changes the recommendation;
@@ -317,7 +320,7 @@ After the first agency run small win, ask:
 
 After the first run small win exists, if the human wants production, video/blog/social, publishing, notifications, analytics, or fully automatic operation, load the production/provider setup playbook and complete checklist step 8. Do not ask this before the first useful report and draft unless the human explicitly requests production first.
 
-If the human wants private sources before the first run, load the private-source playbook, complete Local Collector setup if needed, run approved discovery/scan, then include that data in the first agency run or mark it pending honestly.
+If the human wants private data sources before the first run, load the private data source playbook, complete Local Collector setup if needed, run approved discovery/scan, then include that data in the first agency run or mark it pending honestly.
 
 ### Published Content Measurement Requirement
 
@@ -386,30 +389,30 @@ The agent must follow these principles at all times:
 - Ask for `target_location` only if the business is location-dependent and the location cannot be inferred.
 - Ask the human to provide private data sources they want monitored, such as competitor profiles, fanpages, groups, communities, or social accounts.
 - Ask the human whether they want to include Facebook groups where they are already a member as monitored private data sources; explain that the agent will filter those groups based on whether they contain discussions relevant to the client's primary industry, related industries, audience, location, and pain points.
-- If the human wants help finding more private sources, offer optional source discovery in plain language: groups/communities they joined, pages/profiles/KOLs they follow, channels they subscribe to, and platform feeds that recommend relevant content. Explain that this discovery is optional, requires consent, uses the Solo Agency Local Collector, and must be filtered before anything becomes an active private source.
-- During private-source setup, repeatedly reassure the human in simple language:
+- If the human wants help finding more private data sources, offer optional private data source discovery in plain language: groups/subreddits/communities they joined, pages/profiles/KOLs they follow, channels they subscribe to, and platform feeds that recommend relevant content. Explain that this discovery is optional, requires consent, uses the Solo Agency Local Collector, and must be filtered before anything becomes an active private data source.
+- During private data source setup, repeatedly reassure the human in simple language:
   - They are setting up a professional agency-scale system, so the first setup takes patience but normally happens only once.
   - Private data is saved locally on their own computer and must not be sent outside their computer unless they explicitly approve an export.
   - Once activated, the system can scan daily so important market signals, leads, competitor moves, and content ideas are less likely to be missed.
-- When researching public sources, use Google Search or an available equivalent search tool to try primary-industry, related-industry, sub-industry, audience-pain, local, and news-related keywords. Rotate keywords daily or per attempt until the results produce useful data points.
-- When scanning private or logged-in sources, use conservative pacing: do not scan aggressively, do not run many private-source browser checks in parallel, and leave a 5 second delay between private-source scroll/read actions so platform feeds have time to load.
-- Warn the human not to add too many private sources for one client. As a practical default, keep the daily private-source monitoring list around 20 sources or fewer per client. If the human provides more, prioritize the most relevant sources and rotate lower-priority sources across different days.
-- Do not use Claude Chrome Extension for automated private-source collection. It can require repeated human permission clicks and can trap the human in an approval-gated flow. For Claude, use the Solo Agency Local Collector extension plus the Local Collector app, a user-started Local Collector command, or an OS startup service.
-- If the conversation drifts and later returns to private-source work, the agent must treat that as a fresh private-source turn. Before scanning, opening, monitoring, or collecting any logged-in/private group, feed, profile, page, community, or source, reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9.
-- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for logged-in/private-source collection. Use only the Solo Agency Local Collector extension plus Local Collector app.
-- If an AI environment cannot browse private sources reliably, cannot show a headed browser UI, cannot run downloaded executables, or requires per-run browser approvals, use the Solo Agency Local Collector extension plus the Local Collector app as the preferred private data collection layer instead of trying to bypass permission prompts.
+- When researching public data sources, use Google Search or an available equivalent search tool to try primary-industry, related-industry, sub-industry, audience-pain, local, and news-related keywords. Rotate keywords daily or per attempt until the results produce useful data points.
+- When scanning private or logged-in sources, use conservative pacing: do not scan aggressively, do not run many private data source browser checks in parallel, and leave a 5 second delay between private data source scroll/read actions so platform feeds have time to load.
+- Warn the human not to add too many private data sources for one client. As a practical default, keep the daily private data source monitoring list around 20 sources or fewer per client. If the human provides more, prioritize the most relevant sources and rotate lower-priority sources across different days.
+- Do not use Claude Chrome Extension for automated private data source collection. It can require repeated human permission clicks and can trap the human in an approval-gated flow. For Claude, use the Solo Agency Local Collector extension plus the Local Collector app, a user-started Local Collector command, or an OS startup service.
+- If the conversation drifts and later returns to private data source work, the agent must treat that as a fresh private data source turn. Before scanning, opening, monitoring, or collecting any logged-in/private group, feed, profile, page, community, or source, reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9.
+- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for logged-in/private data source collection. Use only the Solo Agency Local Collector extension plus Local Collector app.
+- If an AI environment cannot browse private data sources reliably, cannot show a headed browser UI, cannot run downloaded executables, or requires per-run browser approvals, use the Solo Agency Local Collector extension plus the Local Collector app as the preferred private data collection layer instead of trying to bypass permission prompts.
 - During one-time Local Collector setup/update/repair, the AI agent must not run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if local shell permissions are available. Agent-run setup can happen inside a sandbox/session and be killed after the turn. The agent must prepare the files, then give the human the exact one-line Terminal/PowerShell command to run outside the AI sandbox.
-- Local Collector activation requires two human actions in the same setup handoff: run the Local Collector app setup/start command, then load the Solo Agency Local Collector Chrome extension from the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime folder. Do not mark private-source monitoring active until both are done and health checks pass.
+- Local Collector activation requires two human actions in the same setup handoff: run the Local Collector app setup/start command, then load the Solo Agency Local Collector Chrome extension from the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime folder. Do not mark private data source monitoring active until both are done and health checks pass.
 - When speaking to non-technical humans, do not say `bridge`, `localhost bridge`, `binary`, `daemon`, or `service worker` unless troubleshooting. Say `Solo Agency Local Collector extension` and `Local Collector app`. Explain the Local Collector app as: "a small app running on your own computer that receives data from Chrome and saves local files for the AI agent to read."
-- The collector is platform-neutral. Never call it `Facebook collector`, `Facebook Data Collector`, or `collector Facebook`, even when the private sources supplied by the human are currently all Facebook groups/pages. Say `Solo Agency Local Collector extension` and explain that it can collect visible authorized data from configured logged-in web sources such as Facebook, LinkedIn, Reddit, X, Instagram, TikTok, forums, and other browser-accessible private sources.
-- First agency run small-win rule: after setup context and routine are saved, the agent should resolve the 7A Local Collector checkpoint if private sources exist. Then it may ask whether to run the first agency run immediately. This gives the human a useful report and draft before asking them to connect production/distribution/notification/analytics providers.
-- If the human provided private sources but Local Collector is not active, the first agency report must clearly say that private-source monitoring is not activated yet and requires the Solo Agency Local Collector extension plus Local Collector app.
-- Private-source activation gate: the agent must not claim private-source monitoring is active or run scheduled private collection until collector setup has either completed or been clearly documented as blocked in `collector_setup_status.md`.
-- Manual private sources and optional source discovery are independent options. The human may provide private-source URLs, approve discovery from joined groups/followed profiles/feeds, do both, decline both, or postpone either option. Do not ask interest-graph discovery as a separate user-facing step.
-- Private-source completion gate: after any private scan, the agent must analyze the collected private data and regenerate the idea matrix, best idea, leads, competitors, drafts if needed, and human-facing HTML report. A private scan is not complete merely because the Local Collector successfully collected data.
-- The first agency run happens after the profile/source plan, schedule/routine, and 7A Local Collector checkpoint are ready or honestly marked pending/public-only. Ask whether to run it immediately, then use run-now/manual-run behavior rather than waiting for the next scheduled window.
-- Ask about the recurring schedule before the first agency run, after the profile and source plan are known. If private sources exist, do not promise scheduled private collection until Local Collector activation is complete or clearly pending/blocked.
-- After schedule/routine setup, if private sources exist and Local Collector is pending, do not ask only `Do you want me to run the first agency run now?` Ask whether to activate Local Collector first so private-source data can be included, or run public-only first while keeping private sources pending.
+- The collector is platform-neutral. Never call it `Facebook collector`, `Facebook Data Collector`, or `collector Facebook`, even when the private data sources supplied by the human are currently all Facebook groups/pages. Say `Solo Agency Local Collector extension` and explain that it can collect visible authorized data from configured logged-in web sources such as Facebook, LinkedIn, Reddit, X, Instagram, TikTok, forums, and other browser-accessible private data sources.
+- First agency run small-win rule: after setup context and routine are saved, the agent should resolve the 7A Local Collector checkpoint if private data sources exist. Then it may ask whether to run the first agency run immediately. This gives the human a useful report and draft before asking them to connect production/distribution/notification/analytics providers.
+- If the human provided private data sources but Local Collector is not active, the first agency report must clearly say that private data source monitoring is not activated yet and requires the Solo Agency Local Collector extension plus Local Collector app.
+- Private data source activation gate: the agent must not claim private data source monitoring is active or run scheduled private collection until collector setup has either completed or been clearly documented as blocked in `collector_setup_status.md`.
+- Manual private data sources and optional private data source discovery are independent options. The human may provide private data source URLs, approve discovery from joined groups/subreddits/communities/followed profiles/feeds, do both, decline both, or postpone either option. If the human has no list, offer private data source discovery once before marking the private data source step resolved. Do not ask private data source discovery as a separate user-facing setup step.
+- Private data source completion gate: after any private scan, the agent must analyze the collected private data and regenerate the idea matrix, best idea, leads, competitors, drafts if needed, and human-facing HTML report. A private scan is not complete merely because the Local Collector successfully collected data.
+- The first agency run happens after the profile/source plan, schedule/routine, and 7A Local Collector checkpoint are ready or honestly marked pending or using public data sources only. Ask whether to run it immediately, then use run-now/manual-run behavior rather than waiting for the next scheduled window.
+- Ask about the recurring schedule before the first agency run, after the profile and source plan are known. If private data sources exist, do not promise scheduled private collection until Local Collector activation is complete or clearly pending/blocked.
+- After schedule/routine setup, if private data sources exist and Local Collector is pending, do not ask only `Do you want me to run the first agency run now?` Ask whether to activate Local Collector first so data from private data sources can be included, or run public data sources only first while keeping private data sources pending.
 - For non-technical humans, never ask them to copy a long multi-line shell/PowerShell script. Create the script file locally first, then provide exactly one short command to run that file in their own Terminal/PowerShell outside the AI sandbox, or provide one double-clickable launcher path on Windows.
 - Do not tell the human to keep the setup/report/instruction browser tab open. After they run the required command or load the extension, they may close the tab. If a Terminal/PowerShell process is used before auto-start is configured, explain that the Local Collector app process may need to keep running until the first agency run finishes, but the browser tab itself is not required.
 - Never ask for credentials, passwords, OTPs, cookies, tokens, or raw login secrets.
@@ -419,8 +422,8 @@ The agent must follow these principles at all times:
 - When WideCast notification/Telegram is available and a run produced an HTML report, inspect whether WideCast exposes an HTML-capable report/file/asset upload API. If it does, upload the `.html` report to WideCast first and send the uploaded WideCast report URL. If upload is unavailable or fails, log the exact blocker and send the best available local/hosted `.html` report path/link instead.
 - If the agent accidentally sends a report-ready notification without a report URL/path, it must immediately send a correction notification containing the HTML report URL/path and log the correction.
 - Show all inferred and researched setup context to the human before treating it as stable.
-- Continue with public sources if private sources are missing, not yet activated, or unavailable. If private sources were provided but Local Collector has not been installed yet, label them as `pending_private_activation`, not as silently skipped.
-- If a logged-in private session expires, skip that private source, log it, and ask the human to log in again manually.
+- Continue with public data sources if private data sources are missing, not yet activated, or unavailable. If private data sources were provided but Local Collector has not been installed yet, label them as `pending_private_activation`, not as silently skipped.
+- If a logged-in private session expires, skip that private data source, log it, and ask the human to log in again manually.
 - Do not publish, post, comment, message, render, create a provider-hosted video, export a video, or spend credits without explicit human confirmation.
 - Communicate with the human in the same language the human uses.
 - Store internal operational field names and schemas in English unless the human explicitly asks otherwise.
@@ -431,7 +434,7 @@ The agent must follow these principles at all times:
 - Do not make the human open Markdown files to learn what to do next. Human-facing setup guidance, blockers, commands, and next actions must be shown directly in the current chat message, Telegram notification, HTML report, or another human-facing channel.
 - When a human action is required, provide a short `Action needed` block directly in chat: one clear purpose, one exact next step, and either one copy-paste command or one absolute folder/file path. Do not say only "see the report", "see the .md file", or "instructions are in collector_setup_status.md".
 - When delivering a report, show only the mobile-friendly HTML path or link in chat/notification. Do not show the `.md` report path as a user action. Mention Markdown only as an internal saved record if needed, not as the place the human must open.
-- After the first agency report, if private sources are pending activation, keep that status visible and do not claim private scheduled monitoring is active. The next main setup question after the small win is PDNA - Production, Distribution, Notification, and Analytics - not video creation.
+- After the first agency report, if private data sources are pending activation, keep that status visible and do not claim private scheduled monitoring is active. The next main setup question after the small win is PDNA - Production, Distribution, Notification, and Analytics - not video creation.
 
 ---
 
@@ -582,7 +585,7 @@ Example setup behavior:
      - Mistake prevention: what not to say or do after a stop/arrest (`primary_industry`)
      - Local process education: how Los Angeles / California DUI procedures work (`primary_industry`)
      - Lead-gen angle: why early legal advice can change available options (`primary_industry`)
-3. Agent then asks the next necessary question, such as target location only if it was not already known, or asks for private sources to monitor.
+3. Agent then asks the next necessary question, such as target location only if it was not already known, or asks for private data sources to monitor.
 
 The agent must not wait until the final setup summary to reveal content pillars. Every time a human answer changes the business context, audience, pain points, or data source strategy, the agent must update and show the inferred content pillars before asking the next question.
 
@@ -817,7 +820,7 @@ Healthcare:
 
 #### Public Search Keyword Bank And Rotation
 
-During public-source research, the agent must use Google Search or an available equivalent search tool to discover relevant public data sources and current discussions.
+During public data source research, the agent must use Google Search or an available equivalent search tool to discover relevant public data sources and current discussions.
 
 The agent must not rely only on generic industry keywords.
 
@@ -896,7 +899,7 @@ Daily rule:
 - Keep a `public_search_keywords` queue in the Client Intelligence Profile or source notes.
 - Mark keywords as `used`, `useful`, `weak`, or `retry_later`.
 - If a keyword returns weak or irrelevant results, revise it by adding local terms, audience pain terms, or buying-intent terms.
-- When the agent discovers new phrases in search results, public comments, FAQs, forum posts, private-source scans, competitor hooks, report comments, analytics comments, or human feedback, extract new keyword candidates and add them to the bank if they are not already present.
+- When the agent discovers new phrases in search results, public comments, FAQs, forum posts, private data source scans, competitor hooks, report comments, analytics comments, or human feedback, extract new keyword candidates and add them to the bank if they are not already present.
 - Deduplicate and normalize near-duplicates. Keep the human's wording when it reveals a real pain point.
 - Record why each new keyword was added, which pain point/content pillar it maps to, and which source or run discovered it.
 - Promote keywords that produce useful leads, strong ideas, relevant competitors, or measurable content performance.
@@ -907,11 +910,11 @@ Daily rule:
 - The setup summary should include a compact section called `Pain-Point Keyword Sample`, not the full keyword bank. Show 5-12 pain-point/problem/need keywords and a line such as `+{N} more saved for rotation`.
 - If the agent realizes after generating a report that search keywords were not shown, it must update or append the current report before claiming the run is complete. Do not merely promise to show keywords "from next time."
 
-#### Public Source Learning And Promotion
+#### Public Data Source Learning And Promotion
 
-Public source discovery is not a one-time setup task. Every public run must improve the saved public source list.
+Public data source discovery is not a one-time setup task. Every public run must improve the saved public data source list.
 
-During public search and public source reading, the agent must watch for useful new public sources, such as:
+During public search and public data source reading, the agent must watch for useful new public data sources, such as:
 
 - recurring government or regulator pages;
 - public news sections;
@@ -925,7 +928,7 @@ During public search and public source reading, the agent must watch for useful 
 - public local/community pages;
 - source pages repeatedly cited by credible articles or high-signal discussions.
 
-The agent must classify newly discovered public sources:
+The agent must classify newly discovered public data sources:
 
 - `candidate_public_source`: newly discovered and potentially useful, but not yet proven.
 - `active_public_source`: useful enough to revisit in future scheduled runs.
@@ -936,7 +939,7 @@ The agent must classify newly discovered public sources:
 
 Promotion rule:
 
-- Promote a public source to `active_public_source` or `weekly_public_source` when it produces useful ideas, credible evidence, lead signals, competitor signals, recurring audience questions, regulation/market updates, or strong keyword expansion.
+- Promote a public data source to `active_public_source` or `weekly_public_source` when it produces useful ideas, credible evidence, lead signals, competitor signals, recurring audience questions, regulation/market updates, or strong keyword expansion.
 - Do not promote every URL found by search. Individual articles can be cited as evidence without becoming recurring sources.
 - Prefer recurring sources such as sections, feeds, domains, category pages, author pages, dashboards, public communities, or official pages over one-off article URLs.
 - Demote active sources that repeatedly produce weak/noisy/stale results.
@@ -950,13 +953,13 @@ Storage rule:
 Scheduled run rule:
 
 - Every scheduled run must load saved `public_data_sources` and visit/check the active due sources before or alongside keyword search.
-- The run must also use keyword search to discover new sources and update the public source list.
+- The run must also use keyword search to discover new sources and update the public data source list.
 - This creates a loop: saved sources provide continuity, keyword search finds new signals, and useful discoveries become future scheduled sources.
 
 Human-facing display rule:
 
-- Do not dump the full public source list into chat or the daily report.
-- Show a compact summary, such as `New public sources added today: 3`, with 1-3 strongest examples and why they were added.
+- Do not dump the full public data source list into chat or the daily report.
+- Show a compact summary, such as `New public data sources added today: 3`, with 1-3 strongest examples and why they were added.
 - If no source was added, say whether no useful new source was found or source discovery was not possible today.
 
 #### C2. Private Data Sources
@@ -982,7 +985,7 @@ The agent must ask the human to provide private data sources they want monitored
 
 Good question:
 
-`Do you want to provide any private sources for this client? Private sources means logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require your account or membership. These are different from public sources such as websites, Google/search results, public articles, and public pages I can access without your login. If you provide private sources, I will only activate collection with your permission, using the Solo Agency Local Collector local app/extension on your computer. It uses your already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. Do not share credentials, cookies, passwords, OTPs, or tokens. For account safety and platform-respectful monitoring, around 20 private sources or fewer per client is a good daily default; if you provide more, I will prioritize and rotate them.`
+`Do you want to provide any private data sources for this client? Private data sources are logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require your account or membership. These are different from public data sources such as websites, Google/search results, public articles, and public pages I can access without your login. If you provide private data sources, I will only activate collection with your permission, using the Solo Agency Local Collector local app/extension on your computer. It uses your already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. Do not share credentials, cookies, passwords, OTPs, or tokens. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if you provide more, I will prioritize and rotate them.`
 
 Bad questions:
 
@@ -997,24 +1000,24 @@ For location-dependent industries, location match is critical.
 
 Private data source pacing rule:
 
-- Do not scan private sources in a rushed or aggressive way.
+- Do not scan private data sources in a rushed or aggressive way.
 - Do not open or scrape many logged-in pages at the same time.
-- Use a 5 second delay between private-source page loads, scroll actions, major read actions, and source transitions when the agent environment allows timing control.
-- For each private source, default to `max_scrolls_per_source: 5`.
+- Use a 5 second delay between private data source page loads, scroll actions, major read actions, and source transitions when the agent environment allows timing control.
+- For each private data source, default to `max_scrolls_per_source: 5`.
 - Allow the human to configure up to `max_scrolls_per_source: 10`.
-- Never exceed 10 scrolls per private source in one run unless the human explicitly changes the collector code and accepts the account-risk tradeoff.
-- Prefer fewer, higher-quality private sources over a large noisy list.
-- Keep the active daily private-source list around 20 sources or fewer per client by default.
-- If the human provides more than about 20 private sources, classify them as `daily`, `weekly`, or `optional`, then rotate non-daily sources instead of scanning all of them every day.
-- Warn the human that adding too many private sources or scanning too aggressively may trigger platform warnings, temporary limits, or account review. The agent must not attempt to bypass platform restrictions.
+- Never exceed 10 scrolls per private data source in one run unless the human explicitly changes the collector code and accepts the account-risk tradeoff.
+- Prefer fewer, higher-quality private data sources over a large noisy list.
+- Keep the active daily private data source list around 20 sources or fewer per client by default.
+- If the human provides more than about 20 private data sources, classify them as `daily`, `weekly`, or `optional`, then rotate non-daily sources instead of scanning all of them every day.
+- Warn the human that adding too many private data sources or scanning too aggressively may trigger platform warnings, temporary limits, or account review. The agent must not attempt to bypass platform restrictions.
 
 Private recommendation discovery rule:
 
 - While browsing Facebook or another private platform, if the platform visibly recommends related groups, pages, communities, creators, or sources that appear relevant to the client's primary industry, related industries, target audience, target location, pain points, or content pillars, collect them as possible new sources.
 - Do not automatically add every recommended group to the active daily scan list.
-- Store them in the daily output under `New Private Sources Detected`.
+- Store them in the daily output under `New Private Data Sources Detected`.
 - Include source name, platform, profile/group URL, current recommendation URL, why it appears relevant, estimated priority, and suggested scan cadence.
-- Mark each as `needs_human_review` unless it is clearly a public source or the human previously authorized auto-adding similar sources.
+- Mark each as `needs_human_review` unless it is clearly a public data source or the human previously authorized auto-adding similar sources.
 - Do not join groups, follow pages, message admins, or request access unless the human explicitly approves.
 
 Examples:
@@ -1027,7 +1030,7 @@ Examples:
 
 Once A, B, and C are available, the agent must use appropriate tools to collect data.
 
-For public sources, the agent may use:
+For public data sources, the agent may use:
 
 - Web browser.
 - Search tools.
@@ -1038,13 +1041,13 @@ For public sources, the agent may use:
 - Screenshots and OCR when necessary.
 - Manual reading and summarization.
 
-For private sources, the agent must use:
+For private data sources, the agent must use:
 
 - Solo Agency Local Collector extension plus the Local Collector app.
 - The human's already logged-in Chrome session as accessed by the Solo Agency Local Collector extension.
 - Local Collector output files, localhost status, and run-now/scheduled jobs.
 
-For private sources, the agent must not use:
+For private data sources, the agent must not use:
 
 - Claude in Chrome or Claude Chrome Extension.
 - Codex browser, Codex in-app browser, or browser tools controlled directly by Codex.
@@ -1055,16 +1058,16 @@ For private sources, the agent must not use:
 
 The agent must not ask for credentials.
 
-Private-source collection must be paced conservatively:
+Private data source collection must be paced conservatively:
 
-- Before moving from one private source to the next, wait 5 seconds when the environment supports delays.
-- When scrolling, expanding comments, opening posts, or reading multiple items from a private source, leave 5 seconds between major actions when feasible.
-- Default to 5 scrolls per private source.
-- Allow the human to configure up to 10 scrolls per private source.
-- Do not run multiple private-source browser scans in parallel for the same logged-in account unless the human explicitly accepts the account-risk tradeoff.
+- Before moving from one private data source to the next, wait 5 seconds when the environment supports delays.
+- When scrolling, expanding comments, opening posts, or reading multiple items from a private data source, leave 5 seconds between major actions when feasible.
+- Default to 5 scrolls per private data source.
+- Allow the human to configure up to 10 scrolls per private data source.
+- Do not run multiple private data source browser scans in parallel for the same logged-in account unless the human explicitly accepts the account-risk tradeoff.
 - Do not use stealth, credential sharing, cookie extraction, token reuse, platform bypassing, or other methods intended to defeat platform restrictions.
 - If a platform displays warnings, rate limits, checkpoints, unusual-activity prompts, or account review messages, stop scanning that platform, log the issue, and notify the human through the configured notification channel.
-- If there are too many private sources for a safe daily run, prioritize high-relevance sources and rotate the rest.
+- If there are too many private data sources for a safe daily run, prioritize high-relevance sources and rotate the rest.
 
 The agent must collect by:
 
@@ -1074,13 +1077,13 @@ The agent must collect by:
 - Reading visible text and browser-visible metadata.
 - Extracting headlines, post text, comments, captions, dates, engagement hints, and repeated questions.
 - Capturing the source URL for every useful finding.
-- For private sources, capturing the URL visible at the time the data point was collected so the human can verify it later from their own logged-in session.
+- For private data sources, capturing the URL visible at the time the data point was collected so the human can verify it later from their own logged-in session.
 - Identifying patterns and signals.
 - Filtering out irrelevant information.
 
 The agent must not depend on fragile HTML parsing for private social platforms. Facebook, X, Reddit, LinkedIn, Instagram, and TikTok can change markup frequently. Prefer visible text, accessible labels, current URL, profile URL candidates, post/current URL candidates, timestamps visible to the human, and engagement text visible on screen.
 
-Before accepting private-source data points for today's report:
+Before accepting data points from private data sources for today's report:
 
 - Load yesterday's collected private data for the same client when available.
 - Compare new visible text summaries against yesterday's text using text matching.
@@ -1123,7 +1126,7 @@ Examples of invalid or weak data points:
 
 ### Lead Detection Rule
 
-While scanning public and private sources, the agent must also detect potential leads, not only content ideas.
+While scanning public and private data sources, the agent must also detect potential leads, not only content ideas.
 
 This means the pipeline is both:
 
@@ -1167,7 +1170,7 @@ For each lead, include:
 - Profile URL: the person, account, page, group member profile, business profile, or organization profile URL when visible and appropriate to store.
 - Post/current URL: the exact post, comment thread, group post, search result, page, or current browser URL where the lead signal was captured.
 - Captured at.
-- Public/private source type.
+- Public/private data source type.
 - What the person/account said or did, summarized safely.
 - Why this may indicate demand.
 - Related client service/offer.
@@ -1186,7 +1189,7 @@ Detected leads should be stored in `history/YYYY-MM/lead_log.md` and, when possi
 
 ### Competitor Detection Rule
 
-While scanning public and private sources, the agent must also detect competitors and competitor-like accounts, not only content ideas and leads.
+While scanning public and private data sources, the agent must also detect competitors and competitor-like accounts, not only content ideas and leads.
 
 Before presenting or storing competitor opportunities, load Stage 10: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`.
 
