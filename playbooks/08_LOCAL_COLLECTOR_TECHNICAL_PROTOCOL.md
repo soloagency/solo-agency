@@ -13,6 +13,8 @@ Load when installing, starting, stopping, checking, scheduling, updating, or tro
 - Use `POST /jobs/run_now` or `run_now_request.json` for manual/private run-now jobs.
 - Do not fake extension health by sending extension-only headers from the AI agent.
 - Setup scripts must preserve data/config and stop only old collector processes occupying port 17321.
+- When this stage is loaded for a private/logged-in source request, first reload `playbooks/PRIVATE_SOURCE_GATE.md` if it is not already loaded in the current private-source turn.
+- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for logged-in/private-source collection.
 - During one-time Local Collector setup/update/repair, the AI agent must not execute `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if the agent has shell permissions. The human must run the setup/start command in their own Terminal/PowerShell outside the agent sandbox.
 - One-time setup must include both human actions: run the Local Collector app setup/start command, then install/load the Chrome extension from the absolute runtime extension folder.
 - No credentials, hidden APIs, DMs, inboxes, account pages, or contact scraping.
@@ -33,6 +35,15 @@ Daily Content Monitoring Mode keeps the conservative default: 5 scrolls, max 10,
 
 Do not apply the daily 5-scroll default to source discovery.
 
+Lead And Competitor Detection Mode is part of normal data collection, not a separate extra scan:
+
+- First lead/competitor pass for a client/source set: 10 scrolls per approved private source when Local Collector is active and safety settings allow it.
+- Recurring daily scheduled runs: 5 scrolls per approved private source by default.
+- Extract lead and competitor opportunities during the same pass used for ideas, market signals, data points, and source quality.
+- Do not run a second lead/competitor scan unless the human explicitly asks for a deeper pass, the first scan failed, or the saved schedule/config allows it.
+- If `collector_config.max_scrolls_per_source` is lower than the desired lead/competitor depth, obey the safer lower setting and record the coverage limitation in the report.
+- Always load Stage 10 before reporting lead/competitor opportunities.
+
 ## Scan Depth Disclosure Rule
 
 Whenever the agent announces that it will scan groups, communities, fanpages, social profiles, or other private/logged-in sources, it must disclose the scan depth in plain language.
@@ -41,6 +52,12 @@ For daily content monitoring, say:
 
 ```text
 I will go through each approved group/source one by one and scroll {N} times per source. I will read {N} from the Local Collector configuration when available; otherwise I will use the safe default of 5 scrolls, max 10, with about 5 seconds between scrolls.
+```
+
+For the first lead/competitor pass, say:
+
+```text
+I will go through each approved group/source one by one and scroll 10 times per source for the first lead/competitor pass, if the Local Collector configuration and account-safety limits allow it. Future daily runs will usually use 5 scrolls per source.
 ```
 
 To resolve `{N}`, use this order:
@@ -1208,104 +1225,51 @@ The default collector should use localhost because it is easy for a human-run lo
 
 Native Messaging may be added later as an advanced or enterprise option.
 
-### Fallback Browser Session Flow
+### Deprecated Browser Session Fallback
 
-If the extension plus on-demand localhost bridge is unavailable, use this two-phase browser session flow whenever the environment allows it.
+Older drafts allowed AI-agent-controlled headed browser profiles, CDP sessions, and native browser tools as fallback paths for private-source collection. That fallback is no longer allowed for the Solo Agency private-source workflow.
 
-### Phase 1: Manual Login Bootstrap
+For logged-in/private sources, do not use:
 
-If the agent can show a headed browser UI, the agent must:
+- Claude in Chrome or Claude Chrome Extension;
+- Codex built-in browser, Codex in-app browser, or Codex-controlled browser tools;
+- ChatGPT/Gemini/Grok browser surfaces;
+- Playwright/Puppeteer/Selenium controlled directly by the AI agent;
+- a fresh browser profile opened by the AI agent;
+- remote-debugging/CDP browser sessions opened or controlled by the AI agent;
+- exported cookies, browser storage state, credentials, OTPs, or tokens.
 
-1. Open a headed browser window with a dedicated persistent profile folder.
-2. Use a source-specific profile path such as:
-   - `daily-content-pipeline/browser_profiles/facebook/`
-   - `daily-content-pipeline/browser_profiles/linkedin/`
-   - `daily-content-pipeline/browser_profiles/reddit/`
-3. Ask the human to log in manually inside that browser window.
-4. Never ask the human to share credentials.
-5. Keep cookies, local storage, and browser session data inside the dedicated profile folder.
-6. Treat the profile folder as sensitive because it may contain authenticated session data.
+The only supported private-source path is:
 
-The agent should say:
+```text
+Human's logged-in Chrome
+  -> Solo Agency Local Collector extension
+  -> Local Collector app running outside the AI sandbox
+  -> local output files / localhost status
+  -> AI agent reads local output and analyzes it
+```
 
-`I will open a dedicated browser profile for this source. Please log in manually in the browser window. Do not share your password, OTP, cookies, or credentials. After login, close the browser window and I will reuse that browser profile for future collection until the session expires.`
-
-### If The Agent Cannot Show Browser UI
-
-Some environments, including some Claude Desktop or Claude sandbox setups, may allow file or command execution but cannot display a Playwright headed browser window. In that case, the agent must not claim it can complete headed login bootstrap by itself.
-
-Use one of these alternatives:
-
-1. External local bootstrap script:
-   - The agent creates or provides a small local script that the human runs outside the sandbox.
-   - The script opens a visible browser with a dedicated persistent profile folder.
-   - The human logs in manually.
-   - Future collection reuses that profile.
-
-2. Local CDP bridge:
-   - The human opens Chrome outside the sandbox with a dedicated `--user-data-dir` and `--remote-debugging-port`.
-   - The agent or collector connects to that browser through Chrome DevTools Protocol if the environment can access the local endpoint.
-   - The human logs in in the visible browser, while the collector later reuses the same profile or CDP session.
-
-3. External scheduled collector:
-   - A local cron job, LaunchAgent, n8n workflow, Make scenario, Browserbase, Browserless, Apify, or another browser automation service performs private-source collection.
-   - The collector writes daily data points into the pipeline files.
-   - The AI agent reads those data points and performs reasoning, idea generation, and script writing.
-
-4. Manual fallback:
-   - If no browser automation path is available, the human provides exported text, screenshots, copied posts, or a group/source list.
-   - The agent treats this as manually supplied data and continues the pipeline.
-
-The agent should say:
-
-`This environment cannot display a browser login window. I will not ask for credentials. Please run the external browser bootstrap or open the provided Chrome profile outside the sandbox, log in manually, and then I will reuse the resulting profile or data files for future collection.`
-
-### Phase 2: Scheduled Headless Collection
-
-After the human has logged in once, the agent or collector should:
-
-1. Reuse the same persistent browser profile.
-2. Run future collection jobs headlessly when possible.
-3. Visit only the configured private data sources.
-4. Extract only relevant visible text and metadata.
-5. Filter collected data against primary industry, sub-industry, related industries, target audience, target location, pain points, and business offer.
-6. Save collected findings as data points in the client pipeline.
-7. Log skipped or expired sessions.
-
-If the session expires:
-
-- Skip the private source for that run.
-- Log `session_expired` in `history/YYYY-MM/data_sources_log.md`.
-- Ask the human to refresh login manually through the headed browser profile.
-- Never ask for credentials.
+If the Local Collector is unavailable, the agent must continue public-only work, use previously collected private data if available, or ask the human to complete Local Collector setup/repair. It must not improvise a browser fallback.
 
 ### AI-Service-Specific Guidance
 
 Codex:
 
-- If Codex has a native browser or in-app browser tool available, Codex may use that browser directly for private-source review.
-- If persistent login is needed for scheduled collection, Codex may still use the browser session bootstrap and collector flow.
+- Codex must not use native browser, in-app browser, Playwright, remote debugging, or agent-controlled browser tools for logged-in/private-source review.
+- After the human-run Local Collector setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or `run_now_request.json`, read collector output, and continue the daily pipeline.
 
 Claude:
 
-- If the human is using Claude, the private-source path is the Solo Agency Local Collector extension plus the Local Collector app described above.
-- Claude must not use Claude Chrome Extension for this automated private-source workflow.
-- Claude must give the human a one-time command or startup-service instructions to run the bridge outside the sandbox. It must not run the one-time setup/start command from inside Claude.
-- The recommended Claude-safe mode is `persistent_bridge_scheduler`, because once the bridge is running at OS startup, Claude only needs to read local collector files.
-- If the bridge is unavailable, Claude should continue with public sources and previously collected private data, then notify the human.
+- Claude must not use Claude in Chrome or Claude Chrome Extension for logged-in/private-source collection.
+- Claude must use the Solo Agency Local Collector extension plus the Local Collector app described above.
+- Claude must give the human a one-time command or startup-service instructions to run the Local Collector app outside the sandbox. It must not run the one-time setup/start command from inside Claude.
+- The recommended Claude-safe mode is `persistent_bridge_scheduler`, because once the Local Collector app is running at OS startup, Claude only needs to read local collector files.
+- If the Local Collector app is unavailable, Claude should continue with public sources and previously collected private data, then notify the human.
 
 Other agents:
 
-- If the agent has reliable native browser automation, it may use that.
-- If native browsing is unreliable, approval-gated, or unavailable, use the persistent browser profile collector flow.
-
-Security note:
-
-- Browser profile folders and storage state files may contain sensitive authenticated session data.
-- Do not commit them to git.
-- Do not upload them.
-- Do not share them across users.
-- Store them locally and restrict access where possible.
+- Other AI agents must follow the same collector-only rule for logged-in/private sources.
+- Native browser automation is allowed only for public pages, setup instructions, or local UI testing, not for private-source collection.
 
 ---
 

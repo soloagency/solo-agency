@@ -13,6 +13,8 @@ Load before claiming setup, daily run, private-source setup, schedule, productio
 - Respect approval gates and regulated-industry safety.
 - For each test log, identify skipped stages, unnecessary questions, jump-ahead behavior, report format failures, and missed gates.
 - If any required stage was not loaded, load it before proceeding.
+- Before any private/logged-in source scan, confirm `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 were loaded in the current private-source turn, even if the conversation drifted through unrelated topics.
+- Treat any use of Claude in Chrome, Claude Chrome Extension, Codex/browser tools, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or another agent-controlled browser for logged-in/private-source collection as a critical workflow violation.
 
 ## Source Preservation Rule
 
@@ -559,7 +561,8 @@ Do not discard existing user-provided values unless the human confirms.
 
 For private sources:
 
-- Use already logged-in browser sessions only.
+- Use only the human's already logged-in Chrome session as accessed through the Solo Agency Local Collector extension plus Local Collector app.
+- Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or any agent-controlled browser.
 - Do not request credentials.
 - Do not request cookies.
 - Do not request OTP.
@@ -1325,6 +1328,8 @@ Before replying to the human, verify:
 - [ ] Did I avoid jumping to the first agency run before private-source status, the 7A Local Collector checkpoint, and schedule/routine were resolved?
 - [ ] Did I avoid asking for credentials, cookies, passwords, OTPs, or tokens?
 - [ ] Did I avoid calling the collector a Facebook collector?
+- [ ] If the human asked for any private/logged-in scan after conversation drift, did I reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before acting?
+- [ ] If this involved private/logged-in sources, did I avoid Claude in Chrome, Claude Chrome Extension, Codex/browser tools, Playwright/Puppeteer/Selenium, fresh agent-opened browser profiles, and all other agent-controlled browsers?
 - [ ] If this was one-time Local Collector setup/update/repair, did I avoid running `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI sandbox?
 - [ ] If this was one-time Local Collector setup/update/repair, did I give the human both required local actions in chat: run the one-line Terminal/PowerShell setup/start command outside the AI sandbox and load the Chrome extension from the absolute runtime folder?
 - [ ] If I discussed private-source setup, Local Collector activation, or source discovery, did I reassure the human about one-time professional setup patience, local-only data safety, and daily scanning coverage?
@@ -1389,6 +1394,8 @@ Before completing public research, verify:
 
 Before claiming private sources were collected, verify:
 
+- [ ] Did I reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 for this private-source turn?
+- [ ] Did I use only the Solo Agency Local Collector extension plus Local Collector app, not Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser?
 - [ ] Is the Local Collector app running?
 - [ ] Is the Solo Agency Local Collector extension recent, not stale?
 - [ ] Did I avoid Claude Chrome Extension for automated private collection?
@@ -1452,15 +1459,31 @@ Before choosing the best idea, verify:
 
 Before final report, verify:
 
+- [ ] Did I load Stage 10: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`?
+- [ ] Did I treat lead/competitor detection as a core opportunity module, not a small appendix?
+- [ ] Did I detect leads and competitors during the same data collection pass, unless the human explicitly approved a deeper pass?
+- [ ] For the first lead/competitor private-source pass, did I use 10 scrolls per approved source when safe, or document why I could not?
+- [ ] For recurring daily runs, did I use 5 scrolls per approved source by default, or document the configured value?
 - [ ] Did I detect hot leads?
 - [ ] Did I detect warm leads?
+- [ ] Did I detect indirect need signals, pain signals, buying triggers, objections, comparisons, complaints, or adjacent needs when relevant?
 - [ ] Did each lead include profile URL and post/current URL?
 - [ ] Did I explain why each lead is hot or warm?
 - [ ] Did I detect direct competitors?
+- [ ] Did I detect indirect competitors?
 - [ ] Did I detect adjacent competitors?
 - [ ] Did I detect audience competitors?
+- [ ] Did I detect authority/KOL competitors when they compete for the same audience's trust?
 - [ ] Did each competitor include profile URL and post/current URL?
+- [ ] Did the HTML report include `Lead & Competitor Opportunities`, or the same-language equivalent?
+- [ ] Did every displayed lead/competitor opportunity include a post/current URL when available?
+- [ ] Did every displayed lead/competitor opportunity include a context-aware copy-ready comment?
+- [ ] Did each copy button copy only the suggested comment and avoid implying auto-posting?
+- [ ] Did each suggested comment use the same language as the post?
+- [ ] Did each suggested comment provide value without directly advertising, saying `DM me`, or attacking a competitor?
+- [ ] If I used one or two tiny natural imperfections or typos, did they make the comment sound human without making the user look careless or unclear?
 - [ ] Did I avoid suggesting spammy outreach or unsafe actions?
+- [ ] Did I update `lead_log.md`, `competitor_log.md`, and `lead_competitor_opportunities.jsonl` when possible?
 
 ### WideCast Writing Draft Checklist
 

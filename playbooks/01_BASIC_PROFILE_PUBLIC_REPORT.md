@@ -15,7 +15,8 @@ Load during first setup, add-client flow, setup repair, and first agency run/rep
 - Ask for optional manual private sources before the first agency run.
 - Configure schedule/routine once the basic source plan is known.
 - If private sources exist and Local Collector is not installed/running/healthy, resolve the 7A checkpoint before the first agency run: guide Local Collector setup, or explicitly ask whether to run public-only first while keeping private sources pending.
-- The first agency run creates the small win: HTML report plus idea matrix, leads, competitors, and draft script/blog/caption.
+- The first agency run creates the small win: HTML report plus idea matrix, Lead & Competitor Opportunities, and draft script/blog/caption.
+- Load Stage 10 before reporting leads, competitors, comment opportunities, or lead/competitor logs.
 - After the small win, ask PDNA setup - Production, Distribution, Notification, and Analytics; do not ask "make a video now?"
 
 ## Source Preservation Rule
@@ -138,7 +139,7 @@ Required setup sequence:
    - If Local Collector setup is not healthy, run public sources and list private sources as `pending_private_activation`.
    - If approved source-discovery categories exist but Local Collector is not active yet, list each category as `pending_private_activation`.
    - Explain that private-source monitoring requires a one-time Solo Agency Local Collector extension and Local Collector app setup. Say plainly that the Local Collector is a local app plus Chrome extension on the human's computer that uses the already logged-in browser session, reads approved visible pages only, and keeps private data local by default.
-17. Produce the first agency report and first draft script/blog/caption as the small win.
+17. Load Stage 10 and produce the first agency report and first draft script/blog/caption as the small win. The report must include Lead & Competitor Opportunities when signals exist, with post/current URLs and copy-ready value-first comments for human review.
 18. After showing the first report, the chat message must include:
    - the best idea and a short useful summary;
    - the mobile-friendly HTML report path/link;
