@@ -2,7 +2,7 @@
 
 This is the Chrome MV3 extension for the Solo Agency Local Collector.
 
-The user installs it once in the Chrome profile that is already logged in to Facebook, LinkedIn, Reddit, Instagram, TikTok, or other private sources they want monitored.
+The user installs it once in the Chrome profile that is already logged in to Facebook, LinkedIn, Reddit, Instagram, TikTok, or other private data sources they want monitored.
 
 ## What It Does
 
@@ -13,7 +13,7 @@ The user installs it once in the Chrome profile that is already logged in to Fac
 - Opens configured source URLs in inactive tabs using the user's existing Chrome session.
 - Closes collector-created tabs after scanning when configured.
 - Waits 5 seconds between scroll/read actions by default.
-- Uses 5 scrolls per private source by default, configurable up to 10.
+- Uses 5 scrolls per private data source by default, configurable up to 10.
 - Reads visible text, URLs, page title, engagement hints, profile URL candidates, and post/current URL candidates.
 - Detects related recommended private groups/pages/communities and sends them as `new_private_source` records for human review.
 - Sends structured data back to the local bridge.

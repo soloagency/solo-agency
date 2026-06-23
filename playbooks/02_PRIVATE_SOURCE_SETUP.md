@@ -6,7 +6,7 @@ Stage: `02`
 
 Load when private data sources, manual private URLs, joined groups, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, private data source discovery, or Local Collector activation are requested, approved, pending, or blocked.
 
-If this stage was triggered by a human request to scan, monitor, collect, review, or open a private/logged-in source after any amount of conversation drift, first reload `playbooks/PRIVATE_SOURCE_GATE.md`, then reload Stage 8 and Stage 9 before taking action.
+If this stage was triggered by a human request to scan, monitor, collect, review, or open a private data source after any amount of conversation drift, first reload `playbooks/PRIVATE_SOURCE_GATE.md`, then reload Stage 8 and Stage 9 before taking action.
 
 ## Hard Gates For This Stage
 
@@ -17,11 +17,12 @@ If this stage was triggered by a human request to scan, monitor, collect, review
 - Explain Local Collector in plain language before asking the human to install or activate it.
 - Use the Facebook joined-groups URL only with explicit consent.
 - Do not use automated approval-gated browser extension flows for unattended collection.
-- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for logged-in/private data source collection.
+- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for private data source collection.
 - Private data source collection must go through the Solo Agency Local Collector extension plus the Local Collector app only.
-- Before any private data source scan, show or internally verify the `Private data source gate` preflight from `playbooks/PRIVATE_SOURCE_GATE.md`.
+- Before any private data source scan, show or internally verify the `Lộ trình dự kiến cho Private Data Source Gate` / `Private Data Source Gate planned preflight` roadmap from `playbooks/PRIVATE_SOURCE_GATE.md`.
 - Collector success alone is not completion; analyze data and regenerate the report.
 - Load Stage 10 before analyzing or reporting lead/competitor opportunities from private data sources.
+- If schedule/automation was already configured, any private data source approval, rejection, activation, discovery result, Local Collector repair, or source cadence change must trigger Automation Resync from Stage 4 before claiming the future scheduled run is updated.
 
 ## Source Preservation Rule
 
@@ -187,6 +188,7 @@ If the human says yes:
 10. Ask the human to approve, remove, or add sources before anything is saved as active.
 11. Save approved sources to `private_data_sources`.
 12. Save unapproved candidates to the discovery log as `pending_human_approval`, `rejected`, or `skipped`.
+13. If `daily-content-pipeline/schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, or any native automation/scheduled task already exists, load Stage 4 and perform Automation Resync. This must update the Client Intelligence Profile, source logs, `schedule.md`, collector config if relevant, automation manifest, scheduled-run prompt/task body, and resync log. Do not tell the human that tomorrow's scheduled run will scan the approved sources until this resync or a clearly logged `automation_prompt_update_pending` state is complete.
 
 If the human says no or not now:
 
@@ -229,6 +231,7 @@ https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
 5. Use the human's already logged-in Chrome session. If Facebook is logged out, mark `facebook_session_expired` and ask the human to log in manually.
 6. Create a manual `run_now` job for the Local Collector to scan the joined-groups discovery URL.
 7. Use Source Discovery Mode, not Daily Content Monitoring Mode:
+   - set `job_type: "private_data_source_discovery"` or source `purpose: "source_discovery"`;
    - scroll until no new group names/URLs appear for 3 consecutive scrolls;
    - use a hard safety cap such as 80 scrolls;
    - use `scroll_delay_seconds`: 5;
@@ -258,6 +261,7 @@ daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/his
 ```
 
 16. Also add selected or newly discovered group candidates to `New Private Data Sources Detected` in the next report.
+17. If schedule/automation already exists, immediately run Automation Resync from Stage 4 so the next scheduled run reads the approved Facebook group list instead of the old pending/private-data-source-skipped snapshot.
 
 If the human declines:
 
@@ -385,6 +389,8 @@ Source discovery pacing:
 - Source discovery is not the same as daily content monitoring.
 - For joined groups, followed profiles/pages/KOLs, subscribed channels, communities, and similar source lists, the collector must scroll deeply until no new source names/URLs appear for 3 consecutive scrolls.
 - Use a hard safety cap, for example 80 scrolls, to avoid infinite scrolling.
+- Discovery scrolls must be real page-sized scrolls through the active list/page, not tiny nudges. If the output finds only the first few dozen sources despite a high scroll cap, inspect `scroll_debug`, `scroll_count`, and `scroll_stopped_reason`, then retry after updating/reloading the extension.
+- When creating a `run_now` job for discovery, mark the job/source with a discovery indicator, such as `job_type: "private_data_source_discovery"`, `purpose: "source_discovery"`, or a discovery URL like the Facebook joined-groups URL. This prevents the bridge/extension from applying the daily max-10 scroll cap.
 - Use `scroll_delay_seconds`: 5.
 - Avoid parallel private data source scans.
 - Do not stop source discovery at the daily default of 5 scrolls, because that can miss many groups or followed sources lower in the list.

@@ -55,11 +55,11 @@ The agent must infer these first.
 
 Good first setup question:
 
-`What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. Optional: if you already know logged-in/social/community data sources you may want monitored later, such as Facebook groups, subreddits, X/LinkedIn/GitHub pages, Discord/Slack communities, or competitor profiles, include them too. If you do not know which private data sources are useful yet, that is normal; later I can suggest a one-time discovery pass from groups, subreddits, communities, pages, profiles, channels, or feeds you approve, then you choose what to monitor.`
+`What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. Optional: if you already know private data sources (logged-in/social/community places) you may want monitored later, such as Facebook groups, subreddits, X/LinkedIn/GitHub pages, Discord/Slack communities, or competitor profiles, include them too. If you do not know which private data sources are useful yet, that is normal; later I can suggest a one-time discovery pass from groups, subreddits, communities, pages, profiles, channels, or feeds you approve, then you choose what to monitor.`
 
 Good add-client question:
 
-`Please provide the new client's name and product/service, profession, expertise, or business description. Include target location if known. Optional: include any logged-in/social/community data sources you may want monitored later, such as competitor pages, Facebook groups, subreddits, X/LinkedIn/GitHub pages, Discord/Slack communities, or private forums. If you do not know which private data sources are useful yet, I can later suggest a one-time discovery pass from approved groups, subreddits, communities, pages, profiles, channels, or feeds. I will explain the Local Collector and ask permission before activating private data source collection.`
+`Please provide the new client's name and product/service, profession, expertise, or business description. Include target location if known. Optional: include any private data sources (logged-in/social/community places) you may want monitored later, such as competitor pages, Facebook groups, subreddits, X/LinkedIn/GitHub pages, Discord/Slack communities, or private forums. If you do not know which private data sources are useful yet, I can later suggest a one-time discovery pass from approved groups, subreddits, communities, pages, profiles, channels, or feeds. I will explain the Local Collector and ask permission before activating private data source collection.`
 
 Bad setup questions:
 
@@ -146,7 +146,7 @@ Required setup sequence:
 20. After showing the first report, the chat message must include:
    - the best idea and a short useful summary;
    - the mobile-friendly HTML report path/link;
-   - a visible `Solo Agency onetime setup` progress block with completed/current/remaining steps;
+   - a visible `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` progress roadmap with completed/current/remaining steps;
    - a clear note that the run used public data sources only if private data sources are not active;
    - the number and names/URLs of pending private data sources, if any;
    - whether optional private data source discovery categories are pending, approved, declined, or not requested;
@@ -436,12 +436,12 @@ Do you want me to set up PDNA - Production (create real video/blog/social assets
 
 The agent must ask this question directly in the chat message or notification where it announces the first agency run result. It must not hide the question or setup steps inside a Markdown file.
 
-The same chat message must show the updated `Solo Agency onetime setup` progress checklist or a compact progress summary. It must show that first agency run/report generation is complete and that production/provider setup, private data source activation, published-URL analytics status, and report/recommendation update status are still pending, completed, declined, blocked, or not applicable.
+The same chat message must show the updated `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` progress roadmap or a compact progress summary. It must show that first agency run/report generation is complete and that production/provider setup, private data source activation, published-URL analytics status, and report/recommendation update status are still pending, completed, declined, blocked, or not applicable. The roadmap must say it is the agent's planned process, not a questionnaire for the human.
 
 If PDNA setup - Production, Distribution, Notification, and Analytics - is already completed, declined, or blocked and private data source activation is pending, the final line must be:
 
 ```md
-Private data sources (logged-in/social/community data sources such as groups, profiles, pages, channels, or forums) are not activated yet because they require the Local Collector app and Chrome extension on your computer. Do you want me to prepare the setup files and then give you the two required local steps: run one Terminal/PowerShell command yourself and load the Chrome extension from the folder I show you?
+Private data sources (logged-in/social/community places such as groups, profiles, pages, channels, or forums) are not activated yet because they require the Local Collector app and Chrome extension on your computer. Do you want me to prepare the setup files and then give you the two required local steps: run one Terminal/PowerShell command yourself and load the Chrome extension from the folder I show you?
 ```
 
 If there are no private data sources and discovery was declined or not requested, the final line must ask the next required decision, usually:
@@ -467,18 +467,20 @@ Best idea today: {best idea}
 Report for mobile: {absolute HTML path or URL}
 First draft: {script/blog/caption title}
 
-Solo Agency onetime setup
-[x] 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
-[x] 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
-[x] 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
-[x] 4. Tôi tự tìm/chọn nguồn dữ liệu công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
-[x] 5. Bạn cung cấp nguồn dữ liệu riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
-[x] 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
-[-] 7A. Nếu bạn đã cung cấp nguồn dữ liệu riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn dữ liệu riêng tư ở trạng thái pending (bạn chọn chạy lần đầu chỉ với nguồn dữ liệu công khai)
-[x] 7B. Tôi chạy lần đầu: quét nguồn dữ liệu công khai và nguồn dữ liệu riêng tư đã kích hoạt (hoặc chỉ dùng nguồn dữ liệu công khai nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
-[ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
-[-] 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
-[ ] 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
+Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)
+Đây là lộ trình minh bạch tôi đang tự thực hiện; bạn chỉ cần phản hồi khi tôi hỏi một câu cụ thể.
+
+✓ 1. Bạn cung cấp sản phẩm/dịch vụ, nghề, chuyên môn hoặc mô tả doanh nghiệp
+✓ 2. Tôi tự suy luận ngành, ngành phụ, ngành liên quan, đối tượng, offer (gói giá trị/lý do khách hàng nên mua)
+✓ 3. Tôi tự suy luận pain points (vấn đề/nỗi đau khách hàng) và content pillars (chủ đề nội dung chính)
+✓ 4. Tôi tự tìm/chọn nguồn dữ liệu công khai (website, Google/tìm kiếm, báo, diễn đàn/trang công khai không cần tài khoản của bạn) và từ khóa tìm kiếm
+✓ 5. Bạn cung cấp nguồn dữ liệu riêng tư nếu muốn (nhóm/profile/trang/kênh social hoặc cộng đồng cần đăng nhập như Facebook, X, LinkedIn, GitHub riêng, Discord...); tôi chỉ kích hoạt Local Collector (app/extension chạy trên máy bạn, giữ dữ liệu local) nếu bạn cho phép
+✓ 6. Tôi cấu hình lịch/routine tự động (giờ và tần suất chạy)
+– 7A. Nếu bạn đã cung cấp nguồn dữ liệu riêng tư, tôi hướng dẫn bạn cài/kích hoạt Local Collector (app/extension chạy trên máy bạn, dùng Chrome đã đăng nhập và giữ dữ liệu local) để lần chạy đầu có thể lấy dữ liệu từ các nguồn đó; nếu bạn muốn chạy nhanh trước, tôi giữ nguồn dữ liệu riêng tư ở trạng thái pending (bạn chọn chạy lần đầu chỉ với nguồn dữ liệu công khai)
+✓ 7B. Tôi chạy lần đầu: quét nguồn dữ liệu công khai và nguồn dữ liệu riêng tư đã kích hoạt (hoặc chỉ dùng nguồn dữ liệu công khai nếu 7A chưa xong/được hoãn), tạo HTML report (báo cáo mở bằng trình duyệt/điện thoại), bảng ý tưởng, tín hiệu lead/khách hàng tiềm năng, đối thủ, và bản nháp kịch bản/blog/caption đầu tiên
+→ 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
+– 9. Từ lần chạy thứ hai, nếu đã setup PDNA, tôi quét analytics/số liệu hiệu quả các URL đã đăng trong 7 ngày gần nhất (PDNA chưa setup hoặc chưa có URL đã đăng)
+○ 10. Tôi cập nhật report, bảng ý tưởng, ý tưởng tốt nhất, lead/khách hàng tiềm năng, đối thủ, bản nháp, analytics/statistics, và learning loop (dùng dữ liệu để cải thiện lần chạy sau)
 
 The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
 

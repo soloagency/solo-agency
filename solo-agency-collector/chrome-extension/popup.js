@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("checkNow").addEventListener("click", checkNow);
   document.getElementById("capture").addEventListener("click", capture);
   document.getElementById("showResult").addEventListener("click", showResult);
+  document.getElementById("testScroll").addEventListener("click", testScroll);
   document.getElementById("resetAudit").addEventListener("click", resetAudit);
 });
 
@@ -45,6 +46,24 @@ async function capture() {
 
 function showResult() {
   chrome.tabs.create({ url: chrome.runtime.getURL("audit.html") });
+}
+
+async function testScroll() {
+  setStatus("Testing active-tab scroll: 8 slow page-sized steps. Watch the open tab.");
+  const response = await sendMessage({ type: "test_scroll_active_tab", steps: 8, delay_ms: 900 });
+  if (!response.ok) {
+    setStatus(`Scroll test failed: ${response.error || "unknown error"}`);
+    return;
+  }
+  const lines = (response.debug || []).map((item, index) => {
+    return `#${index + 1} ${item.target || "target"} delta=${item.delta}px top=${item.after}px`;
+  });
+  setStatus([
+    "Scroll test finished.",
+    `URL: ${response.url || ""}`,
+    `Steps: ${response.steps_used || 0}/${response.steps_requested || 0}`,
+    ...lines.slice(-8)
+  ].join("\n"));
 }
 
 async function resetAudit() {

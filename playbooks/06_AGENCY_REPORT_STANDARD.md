@@ -142,7 +142,7 @@ Use this section when private data sources were provided but the Solo Agency Loc
 - Why private data sources were not scanned today:
 - What is needed to activate them:
 - Suggested next question:
-  - `Private data sources (logged-in/social/community data sources such as groups, profiles, pages, channels, forums, or communities) are not activated yet because they require the Local Collector app and Chrome extension on your computer. Do you want me to prepare the setup files and then give you the two required local steps: run one Terminal/PowerShell command yourself and load the Chrome extension from the folder I show you?`
+  - `Private data sources (logged-in/social/community places such as groups, profiles, pages, channels, forums, or communities) are not activated yet because they require the Local Collector app and Chrome extension on your computer. Do you want me to prepare the setup files and then give you the two required local steps: run one Terminal/PowerShell command yourself and load the Chrome extension from the folder I show you?`
 - Sources waiting for activation:
   - Source:
     - URL:
@@ -771,9 +771,11 @@ When the agent announces a report in chat, Telegram, email, or another human-fac
 Report-ready notification validity rule:
 
 - A report-ready notification without an HTML report URL/path is invalid.
+- Before deciding WideCast upload or notification is unavailable, the agent must run a Report Delivery Capability Check using the current environment's tool discovery / connector discovery / lazy-load mechanism when available.
 - If WideCast notification/Telegram is available, the agent must try to deliver the report through WideCast notification.
 - If a WideCast HTML-capable report/file/asset upload tool is available, upload the `.html` report first and send the uploaded WideCast report URL.
 - If WideCast report upload is unavailable or fails, the agent must log the blocker and still include the best available local/hosted `.html` report path/link in the notification.
+- If the current AI connector/tool surface does not expose WideCast upload or Telegram tools, say exactly that. Do not claim that WideCast itself lacks the API or capability unless verified from WideCast docs/account status.
 - If the agent accidentally sends a notification without a report URL/path, it must immediately send a correction notification containing the HTML report URL/path and log the correction.
 
 Do not end a report handoff with:
@@ -912,6 +914,7 @@ Notification fallback rule:
 - If WideCast notification tools are available and WideCast exposes an HTML-capable report/file/asset upload API, upload the `.html` report to WideCast first and send the uploaded URL through WideCast Telegram/email fallback.
 - Do not send only a local file path when an uploaded WideCast report URL is available.
 - If the current WideCast wrapper cannot upload `.html` files, log `widecast_report_upload_unavailable`, send the best available HTML path/link, and state the upload blocker clearly.
+- If the current AI connector/tool surface does not expose a WideCast Telegram/notification send tool, log `widecast_notification_tool_unavailable` and state that this is a tool-surface blocker, not proof that WideCast lacks notification capability.
 - Never send a report-ready notification that contains only a status summary. The notification must include an `HTML report` URL/path field.
 - The agent should not switch to Gmail/email merely because Telegram is not connected in WideCast.
 - Use Gmail/email only when WideCast notification tools are unavailable or blocked.
@@ -930,5 +933,56 @@ If the channel cannot send files directly, send a short notification containing:
 - Number of clients processed.
 - Number of hot leads, warm leads, and competitors detected.
 - Required human actions.
+
+## Report Delivery Capability Check
+
+Run this check before claiming any daily run, scheduled run, or report handoff is complete.
+
+1. Confirm the local `.html` report exists.
+2. Check the configured notification channel from `daily-content-pipeline/schedule.md` and the Client Intelligence Profile.
+3. If WideCast is configured, preferred, connected, or likely available, inspect the current tool/connector surface for:
+   - WideCast account/status capability;
+   - HTML-capable report/file/asset upload capability;
+   - Telegram/report notification send capability;
+   - email fallback capability exposed by WideCast, if any.
+4. Use tool discovery/lazy-load where the AI environment supports it. Do not assume a WideCast tool is unavailable merely because it was not already visible in the first tool list.
+5. If upload capability exists, upload the `.html` report and capture the uploaded URL.
+6. If notification capability exists, send the uploaded URL when available; otherwise send the best available local/hosted `.html` path/link with the exact upload blocker.
+7. If the notification tool itself is unavailable, use an authorized fallback channel such as Gmail/email only when available and authorized; otherwise surface the local HTML path in chat and log the notification blocker.
+8. Save a report-delivery record in `daily-content-pipeline/notifications/notification_log.md`.
+
+The report-delivery record must include:
+
+```yaml
+html_report_path:
+widecast_capability_checked: true | false
+widecast_tool_discovery_method:
+widecast_upload_tool_available: true | false | unknown
+widecast_notification_tool_available: true | false | unknown
+widecast_telegram_connected: true | false | unknown
+widecast_upload_attempted: true | false
+widecast_uploaded_report_url:
+widecast_notification_attempted: true | false
+widecast_notification_status: sent | failed | unavailable | skipped
+fallback_notification_channel:
+final_report_link_sent_to_human:
+blocker:
+```
+
+Completion is invalid if the agent says only `report ready` or `config updated` without this delivery outcome when a scheduled run or daily report was requested.
+
+Correct blocker wording:
+
+```text
+Report delivery: HTML report generated. WideCast capability check completed. The current AI connector exposes no HTML upload or Telegram notification tool, so I logged `widecast_report_upload_unavailable` / `widecast_notification_tool_unavailable` and am giving you the local HTML report path here.
+```
+
+Incorrect blocker wording:
+
+```text
+WideCast cannot upload reports.
+```
+
+That is too broad unless the agent verified WideCast account/API status directly.
 
 ---

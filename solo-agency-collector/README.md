@@ -17,9 +17,7 @@ It has two parts:
    - Polls the local bridge on `127.0.0.1`.
    - Sends visible, authorized page data to local files through the bridge.
 
-3. `skills/`
-   - Account-free writing skills for video scripts, blog articles, and social posts.
-   - AI agents should load these local files before requiring any external writing-skill API or account setup.
+Writing skills are intentionally outside this collector package. AI agents should load account-free writing skills from `../playbooks/skills/` before requiring any external writing-skill API or account setup.
 
 ## End-User Model
 
@@ -107,6 +105,8 @@ The Chrome extension is installed manually once for now:
 
 Do not load the source folder from a cloned toolkit, such as `solo-agency/solo-agency-collector/chrome-extension/`, for a normal agency setup. The toolkit folder is for development. The running agency should load only the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime copy.
 
+Use one active Solo Agency Local Collector per machine for the current setup. If you previously loaded another Solo Agency Local Collector extension from an older setup folder, remove or disable that old entry in `chrome://extensions` and keep only the extension loaded from the current setup's absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
+
 ## Developer Model
 
 Maintainers build the bridge from source:
@@ -179,3 +179,5 @@ daily-content-pipeline/collector/inbox/YYYY-MM/{run_id}/
 AI agents read these files and continue with filtering, lead detection, competitor detection, idea generation, WideCast-writing-skill drafts, HTML reports, and notifications.
 
 AI agents can also call `GET http://127.0.0.1:17321/status` to check bridge and extension health. The status includes `extension_health.last_extension_check_at`, `extension_health.seconds_since_last_check`, and `extension_health.status`.
+
+Agents must also verify that `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. A reachable bridge may belong to an older setup. If those paths point elsewhere, treat it as `wrong_workspace_bridge`, ask the human to run the current setup's Local Collector setup/start command, and do not collect private data until the bridge writes to the current workspace.

@@ -13,8 +13,8 @@ Load when installing, starting, stopping, checking, scheduling, updating, or tro
 - Use `POST /jobs/run_now` or `run_now_request.json` for manual/private run-now jobs.
 - Do not fake extension health by sending extension-only headers from the AI agent.
 - Setup scripts must preserve data/config and stop only old collector processes occupying port 17321.
-- When this stage is loaded for a private/logged-in source request, first reload `playbooks/PRIVATE_SOURCE_GATE.md` if it is not already loaded in the current private data source turn.
-- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for logged-in/private data source collection.
+- When this stage is loaded for a private data source request, first reload `playbooks/PRIVATE_SOURCE_GATE.md` if it is not already loaded in the current private data source turn.
+- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for private data source collection.
 - During one-time Local Collector setup/update/repair, the AI agent must not execute `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if the agent has shell permissions. The human must run the setup/start command in their own Terminal/PowerShell outside the agent sandbox.
 - One-time setup must include both human actions: run the Local Collector app setup/start command, then install/load the Chrome extension from the absolute runtime extension folder.
 - No credentials, hidden APIs, DMs, inboxes, account pages, or contact scraping.
@@ -38,6 +38,8 @@ Daily Content Monitoring Mode keeps the conservative default: 5 scrolls, max 10,
 
 Do not apply the daily 5-scroll default to source discovery.
 
+Discovery scrolls must be real page-sized scrolls. The Local Collector extension should scroll the actual active scroll container, not merely nudge `window` by a small amount. If a discovery run reports a high scroll cap but finds only the first few dozen sources, inspect the collector output for `scroll_debug`, `scroll_count`, and `scroll_stopped_reason`; low deltas or repeated `no_scroll_movement` mean the extension did not move through the list deeply enough and the run should be retried after updating/reloading the extension.
+
 Lead And Competitor Detection Mode is part of normal data collection, not a separate extra scan:
 
 - First lead/competitor pass for a client/source set: 10 scrolls per approved private data source when Local Collector is active and safety settings allow it.
@@ -49,7 +51,7 @@ Lead And Competitor Detection Mode is part of normal data collection, not a sepa
 
 ## Scan Depth Disclosure Rule
 
-Whenever the agent announces that it will scan groups, communities, fanpages, social profiles, or other private/logged-in sources, it must disclose the scan depth in plain language.
+Whenever the agent announces that it will scan groups, communities, fanpages, social profiles, or other private data sources, it must disclose the scan depth in plain language.
 
 For daily content monitoring, say:
 
@@ -72,7 +74,7 @@ To resolve `{N}`, use this order:
 For source discovery, disclose the different rule:
 
 ```text
-This is source discovery, not daily monitoring. I will scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+This is source discovery, not daily monitoring. I will scroll the actual list/page roughly one screen at a time until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
 ```
 
 Do not let the human think "scan groups" is unbounded or vague.
@@ -165,12 +167,12 @@ https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collec
 Current writing-skill artifacts:
 
 ```text
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/video-script-writing.zip
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/blog-writing.zip
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/social-post-writing.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/video-script-writing.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/blog-writing.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/social-post-writing.zip
 ```
 
-If the agent is already running inside a cloned copy of `https://github.com/soloagency/solo-agency`, it must prefer local repo files under `solo-agency-collector/dist/` and `solo-agency-collector/skills/` before downloading the same files from raw GitHub URLs.
+If the agent is already running inside a cloned copy of `https://github.com/soloagency/solo-agency`, it must prefer local repo files under `solo-agency-collector/dist/` for collector artifacts and `playbooks/skills/` for writing-skill artifacts before downloading the same files from raw GitHub URLs.
 
 The AI agent should prepare the collector locally as much as its environment allows, but it must not start the one-time setup script or collector app itself. The setup/start command must be run by the human outside the AI agent sandbox so the Local Collector app survives after the agent command/session ends.
 
@@ -1278,7 +1280,7 @@ Native Messaging may be added later as an advanced or enterprise option.
 
 Older drafts allowed AI-agent-controlled headed browser profiles, CDP sessions, and native browser tools as fallback paths for private data source collection. That fallback is no longer allowed for the Solo Agency private data source workflow.
 
-For logged-in/private data sources, do not use:
+For private data sources, do not use:
 
 - Claude in Chrome or Claude Chrome Extension;
 - Codex built-in browser, Codex in-app browser, or Codex-controlled browser tools;
@@ -1304,12 +1306,12 @@ If the Local Collector is unavailable, the agent must continue work with public 
 
 Codex:
 
-- Codex must not use native browser, in-app browser, Playwright, remote debugging, or agent-controlled browser tools for logged-in/private data source review.
+- Codex must not use native browser, in-app browser, Playwright, remote debugging, or agent-controlled browser tools for private data source review.
 - After the human-run Local Collector setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or `run_now_request.json`, read collector output, and continue the daily pipeline.
 
 Claude:
 
-- Claude must not use Claude in Chrome or Claude Chrome Extension for logged-in/private data source collection.
+- Claude must not use Claude in Chrome or Claude Chrome Extension for private data source collection.
 - Claude must use the Solo Agency Local Collector extension plus the Local Collector app described above.
 - Claude must give the human a one-time command or startup-service instructions to run the Local Collector app outside the sandbox. It must not run the one-time setup/start command from inside Claude.
 - The recommended Claude-safe mode is `persistent_bridge_scheduler`, because once the Local Collector app is running at OS startup, Claude only needs to read local collector files.
@@ -1317,7 +1319,7 @@ Claude:
 
 Other agents:
 
-- Other AI agents must follow the same collector-only rule for logged-in/private data sources.
+- Other AI agents must follow the same collector-only rule for private data sources.
 - Native browser automation is allowed only for public pages, setup instructions, or local UI testing, not for private data source collection.
 
 ---
@@ -1397,7 +1399,8 @@ Exact manual run-now contract:
 - `force` must be `false` unless the human explicitly asks for a troubleshooting rerun and understands the same `run_id` may run again.
 - `run_now_ttl_minutes` should be 30 by default and must not exceed 120.
 - `sources` must contain the private data sources for that client if private data sources exist. If there are no private data sources, the agent should still run public research without the Local Collector app.
-- `pacing.scroll_steps` defaults to 5 and must not exceed 10.
+- `pacing.scroll_steps` defaults to 5 and must not exceed 10 for daily monitoring.
+- For Source Discovery Mode only, `pacing.scroll_steps` may be up to 80. Mark the job/source with a discovery indicator, such as `job_type: "private_data_source_discovery"`, `purpose: "source_discovery"`, or a discovery URL like `https://www.facebook.com/groups/joins/...`, so the bridge and extension do not clamp the run to the daily monitoring limit.
 - If the agent cannot make this POST itself but can write local files, it should write the JSON payload to:
 
 ```text
@@ -1440,6 +1443,9 @@ Schedule rule:
 - Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, or another cadence.
 - Then write or update `schedule.md` and the relevant automation/config files.
 - After schedule/routine setup, if private data sources exist and Local Collector is pending, first handle 7A: guide Local Collector setup or ask whether to run public data sources only now while keeping private data sources pending. If no private data source activation is pending, ask whether to run the first agency run immediately.
+- If schedule/routine setup already happened and the human later approves private data sources, repairs Local Collector, changes scan depth, changes source cadence, connects notification/PDNA, or changes any future-run behavior, load Stage 4 and perform Automation Resync. Updating only `collector_config.json` is not enough when the native AI automation prompt/task may still contain an older setup snapshot.
+- During Automation Resync, update the Client Intelligence Profile, `schedule.md`, `collector_config.json` or `POST /config` when relevant, `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md`, the actual native scheduled task prompt if accessible, and `daily-content-pipeline/automation/resync_log.md`.
+- Before claiming the schedule will use the new collector/source state, dry-read the scheduled entrypoint, manifest, schedule, profile, and collector config to confirm the next scheduled run will see the current approved sources/status.
 
 Exact schedule contract:
 
