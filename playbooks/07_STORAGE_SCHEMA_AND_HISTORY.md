@@ -61,6 +61,10 @@ Use one folder per client/business/location:
   daily-content-pipeline/              # data/config/output only
   clients_index.md
   schedule.md
+  automation/
+    automation_manifest.md
+    scheduled_run_prompt.md
+    resync_log.md
   notifications/
     notification_log.md
   collector/
@@ -132,6 +136,10 @@ Examples:
 daily-content-pipeline/
   clients_index.md
   schedule.md
+  automation/
+    automation_manifest.md
+    scheduled_run_prompt.md
+    resync_log.md
   notifications/
     notification_log.md
   collector/
@@ -264,6 +272,82 @@ The schedule may use:
 
 If true automation is unavailable, create manual instructions.
 
+### `automation/automation_manifest.md`
+
+Records the current automation package that scheduled runs must obey. This file exists because native AI automations and schedulers may store their own prompt snapshot at creation time. If the human changes anything after schedule setup, the agent must update this manifest during Automation Resync.
+
+Create this file when any schedule/automation/routine is configured.
+
+Minimum format:
+
+```md
+# Automation Manifest
+
+- manifest_version: 1
+- created_at:
+- last_resynced_at:
+- resync_status: current | automation_prompt_update_pending | partial | blocked
+- scheduler_type: native_ai_automation | native_ai_scheduled_task | cron | launchd | task_scheduler | n8n | make | zapier | github_actions | server_job | manual
+- scheduler_name:
+- scheduler_location_or_url:
+- timezone:
+- schedule_file: daily-content-pipeline/schedule.md
+- scheduled_prompt_file: daily-content-pipeline/automation/scheduled_run_prompt.md
+- scheduled_entrypoint: playbooks/SCHEDULED_RUN_ENTRYPOINT.md
+- root_playbook: SOLO_AGENCY_PLAYBOOK.md
+- clients_index: daily-content-pipeline/clients_index.md
+- collector_config: daily-content-pipeline/collector/collector_config.json
+- notification_channel:
+- pdna_status:
+- private_data_source_status_summary:
+- latest_user_change_summary:
+- actual_native_task_prompt_updated: true | false | not_applicable | unknown
+- automation_prompt_update_pending_reason:
+- automation_freshness_status: current | resync_in_progress | action_needed | not_applicable
+- automation_freshness_summary: whether latest changes are synced into automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state
+
+## Active Clients
+
+| Client | Client Slug | Profile Path | Status | Private Data Source Status | PDNA Status | Notes |
+|---|---|---|---|---|---|---|
+
+## Current Run Contract
+
+- Scheduled runs must load the latest local playbooks at run time.
+- Scheduled runs must read this manifest, schedule.md, clients_index.md, active Client Intelligence Profiles, and collector_config.json when private data sources are active or pending.
+- Scheduled runs must not rely only on the prompt snapshot from the day the automation was created.
+
+## Last Dry-Read Verification
+
+- verified_at:
+- verified_by_agent:
+- result: pass | fail | partial
+- next_scheduled_run_will_see:
+- blockers:
+```
+
+### `automation/scheduled_run_prompt.md`
+
+Stores the exact prompt that should be used by the native AI automation or scheduler. This should normally mirror `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` while pointing to the local workspace.
+
+The agent must update this file during Automation Resync whenever a future scheduled run needs new behavior or newly approved state.
+
+If the AI environment stores a separate prompt inside a native scheduled task and the agent cannot edit it directly, write the replacement prompt here and set `resync_status: automation_prompt_update_pending` in `automation_manifest.md`.
+
+### `automation/resync_log.md`
+
+Tracks all post-schedule changes and whether the automation package was fully synced.
+
+Format:
+
+```md
+# Automation Resync Log
+
+| Date | Agent | Human Change | Files Updated | Native Task Prompt Updated | Dry-Read Result | Remaining Blocker | Next Scheduled Run Expected Behavior |
+|---|---|---|---|---|---|---|---|
+| 2026-06-23 | Claude | Approved 12 Facebook groups as private data sources | profile, schedule.md, collector_config.json, automation_manifest.md, scheduled_run_prompt.md | yes | pass | none | Scan approved groups via Local Collector |
+```
+
 ### `notifications/notification_log.md`
 
 Tracks notifications sent to the human through WideCast MCP / Telegram or any available notification channel.
@@ -273,12 +357,22 @@ Format:
 ```md
 # Notification Log
 
-| Date | Agent | Event | Channel | Status | Message Summary | Related Output | Action Needed |
-|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude Schedule | daily_run_completed | WideCast Telegram | sent | 10 client outputs ready | outputs/2026-06/2026-06-20_master_digest.html | Review approvals |
+| Date | Agent | Event | Channel | Status | HTML Report Path | WideCast Capability Checked | WideCast Upload Tool | WideCast Notification Tool | Upload Attempted | Uploaded Report URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-06-20 | Claude Schedule | daily_run_completed | WideCast Telegram | sent | outputs/2026-06/2026-06-20_master_digest.html | yes | available | available | yes | https://... | yes | https://... | none | Review approvals |
 ```
 
 Use this log so scheduled runs do not silently complete or fail while the human is away.
+
+If WideCast upload or notification cannot be used, the log must distinguish:
+
+- `widecast_report_upload_unavailable`: current connector/tool surface exposes no HTML-capable upload tool.
+- `widecast_notification_tool_unavailable`: current connector/tool surface exposes no WideCast Telegram/report notification send tool.
+- `widecast_upload_failed`: upload tool exists but the upload call failed.
+- `widecast_notification_failed`: notification tool exists but send failed.
+- `widecast_telegram_not_connected`: notification tool exists but Telegram is not connected and no fallback was sent.
+
+Do not use `unavailable` generically when the actual issue is that the current AI connector/tool surface does not expose a tool.
 
 ### `collector/collector_setup_status.md`
 
@@ -619,6 +713,24 @@ collector_panel:
   show_scroll_count: true
   show_data_point_count: true
   show_status: true
+
+## automation_sync
+
+status: current | needs_resync | automation_prompt_update_pending | partial | blocked
+last_profile_change_at:
+last_profile_change_summary:
+last_resynced_at:
+last_resynced_by_agent:
+automation_manifest_file: daily-content-pipeline/automation/automation_manifest.md
+scheduled_prompt_file: daily-content-pipeline/automation/scheduled_run_prompt.md
+schedule_file: daily-content-pipeline/schedule.md
+collector_config_file: daily-content-pipeline/collector/collector_config.json
+native_task_prompt_updated: true | false | not_applicable | unknown
+dry_read_verification:
+  verified_at:
+  result: pass | fail | partial
+  scheduled_run_will_see:
+  blockers:
 
 ## brand_voice
 

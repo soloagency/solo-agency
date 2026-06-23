@@ -28,7 +28,7 @@ Production still requires explicit human approval before creating provider-hoste
 
 ## Production Setup Scope And Anti-Drift Rule
 
-During `Solo Agency onetime setup`, this stage's default job is provider/capability setup, not open-ended video production.
+During `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` / `Solo Agency one-time setup process`, this stage's default job is provider/capability setup, not open-ended video production.
 
 Item 8 is complete when the agent has:
 
@@ -58,7 +58,7 @@ WideCast/production provider đã nối xong. Tôi đề xuất hoàn tất nố
 
 If the human explicitly insists on a trial video now, treat it as a short controlled branch, not a new main workflow:
 
-- record parent workflow: `Solo Agency onetime setup`;
+- record parent workflow: `Dự kiến lộ trình cài đặt Solo Agency (one-time setup process)` or `Solo Agency one-time setup process`;
 - record parent step currently active or just completed, usually step 8;
 - record next parent setup step after the branch, usually step 9 or the first unresolved analytics/learning step;
 - record active production item: idea/title/version/provider/status;
@@ -166,12 +166,12 @@ Tôi vẫn có thể viết script/blog/caption, làm báo cáo HTML (báo cáo 
 
 Failure condition: if the production setup explanation names WideCast but does not also name the specialist stack examples, the response is incomplete and must be corrected before proceeding.
 
-### Onetime Setup Item 8 Completion Contract
+### One-Time Setup Process Item 8 Completion Contract
 
 When this stage is loaded after the first small-win report/draft because the human wants production/distribution/notifications/analytics setup, the active setup step is:
 
 ```text
-[ ] 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
+→ 8. Tôi trợ giúp bạn thiết lập PDNA: Production (tạo tài sản thật như video/blog/social), Distribution (đăng/phân phối), Notification (gửi report/cảnh báo), Analytics (đo hiệu quả) nếu bạn muốn biến bản nháp thành tài sản thật và tự động phân phối/đo lường
 ```
 
 This item is not complete until the agent has covered all four capability groups:
@@ -447,12 +447,12 @@ Use this order:
 
 1. If a native tool or MCP tool such as `widecast_get_writing_skill` is available, call it with the needed format: `video`, `blog`, or `social`.
 2. If MCP/account tools are not available, download the matching static skill zip from the Solo Agency GitHub repo:
-   - `https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/video-script-writing.zip`
-   - `https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/blog-writing.zip`
-   - `https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/skills/social-post-writing.zip`
+   - `https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/video-script-writing.zip`
+   - `https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/blog-writing.zip`
+   - `https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/social-post-writing.zip`
 3. Extract the zip, read `SKILL.md`, and apply the method fully. If the zip contains referenced helper files, read the referenced files needed by `SKILL.md`.
 4. Cache the loaded method locally so future runs can continue even if the network is unavailable.
-5. If the repo was cloned locally, prefer the local files under `solo-agency-collector/skills/` instead of downloading the same zip again.
+5. If the repo was cloned locally, prefer the local files under `playbooks/skills/` instead of downloading the same zip again.
 6. If all methods fail, write the draft using best judgment, clearly mark that the writing method could not be loaded, and continue the daily report instead of blocking the human.
 
 The Solo Agency GitHub repo must be treated as the account-free setup source for writing skills. Do not require a WideCast account, API key, MCP setup, or external vendor-hosted download merely to write video scripts, blog drafts, social captions, idea lists, or reports.
@@ -645,7 +645,7 @@ Before sending any report-ready notification, the agent must create a delivery r
 Required sequence:
 
 1. Generate the standalone local `.html` report.
-2. Inspect available WideCast tools/capabilities for an HTML-capable report/file/asset upload endpoint.
+2. Inspect available WideCast tools/capabilities for an HTML-capable report/file/asset upload endpoint and report/Telegram notification send capability. Use the current environment's tool discovery/lazy-load mechanism when available before declaring a tool unavailable.
 3. If such an endpoint exists, upload the `.html` file to WideCast.
 4. Capture the returned uploaded report URL.
 5. Send the uploaded WideCast report URL through WideCast Telegram/email fallback.
@@ -661,8 +661,10 @@ If the current WideCast integration exposes only media upload and does not suppo
 
 - log `widecast_report_upload_unavailable`;
 - send the best available HTML report path/link through WideCast Telegram if possible;
-- tell the human that WideCast report upload is unavailable in the current wrapper;
+- tell the human that the current AI connector/tool surface or wrapper does not expose HTML report upload, rather than claiming WideCast itself lacks upload support;
 - continue the scheduled run instead of failing the entire pipeline.
+
+If the current AI connector/tool surface does not expose WideCast Telegram/report notification sending, log `widecast_notification_tool_unavailable`, state that this is a tool-surface blocker, and use the best authorized fallback channel or local HTML report path.
 
 Every notification must include:
 
