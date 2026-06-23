@@ -8,11 +8,11 @@ This gate exists to prevent conversation drift. Even if the conversation moved t
 
 Treat any of these as private data source triggers:
 
-- `scan private group`, `quét private group`, `quét group`, `scan group`
+- `scan private group`, `scan group`
 - Facebook groups, joined groups, fanpages, private pages, competitor profiles
 - X/Twitter, LinkedIn, Instagram, TikTok, YouTube, Reddit/subreddits, GitHub areas that require login or account context
 - Discord, Slack, private forums, newsletters, dashboards, member communities
-- `private data source`, `nguồn dữ liệu riêng tư`, logged-in source, social/community source
+- `private data source`, logged-in source, social/community source
 - private data source discovery, joined/member group discovery, subreddit/community discovery
 - home feed, for-you feed, recommendation feed, following list, subscriptions, joined communities
 - any request to use the human's logged-in account, membership, social graph, private feed, or browser session
@@ -73,8 +73,8 @@ Use font/text status icons:
 The human-facing version must explain that the agent is doing these checks and that the human only needs to act when the agent asks one concrete next-step question.
 
 ```text
-Lộ trình dự kiến cho Private Data Source Gate
-Đây là các kiểm tra tôi tự làm trước khi quét nguồn dữ liệu riêng tư; bạn chỉ cần phản hồi khi tôi hỏi một việc cụ thể.
+Private Data Source Gate planned preflight
+These are the checks I run before scanning private data sources. You only need to act when I ask one specific next-step question.
 
 ✓ Stage 2, Stage 8, and Stage 9 reloaded for this private data source request
 → Local Collector app reachable

@@ -4,7 +4,7 @@ When the user asks to set up this repo, always read `SOLO_AGENCY_PLAYBOOK.md` fi
 
 Do not install, start, or configure `solo-agency-collector/` before the playbook explicitly reaches the Local Collector/private data source stage and the human approves it.
 
-In human-facing text, use canonical source terms: `public data sources` and `private data sources` in English, or `nguồn dữ liệu công khai` and `nguồn dữ liệu riêng tư` in Vietnamese. Do not shorten these terms, omit `data` / `dữ liệu`, use slash terms, or use mixed-language shorthand labels.
+Use the canonical terms `public data sources` and `private data sources` in human-facing text. Do not shorten them, omit `data`, or use slash labels.
 
 If the human asks to scan, monitor, collect, or review private data sources (logged-in groups, feeds, profiles, communities, or social sources) after any amount of conversation drift, reload `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before taking action.
 

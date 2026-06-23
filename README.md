@@ -17,6 +17,8 @@ I learned the hard way: when you are solo, the hardest problem is attention. Att
 
 This playbook connects the full agency loop: research, ideas, lead and competitor opportunities, scripts, production, distribution, measurement, learning, and improvement.
 
+![Solo Agency full marketing agency loop](assets/agency-loop.svg)
+
 ## What This Is
 
 - An AI-agent operating playbook for daily content intelligence across one client or an entire client roster.
@@ -124,7 +126,7 @@ If you are an AI agent setting up this repo, start here:
 2. Follow the checklist in that file in order.
 3. Do not install, start, or configure `solo-agency-collector/` first.
 4. The Local Collector is activated only later if the playbook reaches the private data source stage and the human approves it.
-5. In human-facing text, use canonical source terms: `public data sources` and `private data sources` in English, or `nguồn dữ liệu công khai` and `nguồn dữ liệu riêng tư` in Vietnamese. Do not shorten these terms, omit `data` / `dữ liệu`, use slash terms, or use mixed-language shorthand labels.
+5. Use the canonical terms `public data sources` and `private data sources`. Do not shorten them, omit `data`, or use slash labels.
 6. If the human asks to scan or monitor private data sources (logged-in groups, feeds, profiles, communities, or social sources) after the conversation has drifted, reload `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before taking action.
 7. Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read private data sources. Use only the Solo Agency Local Collector extension plus the Local Collector app.
 8. During Local Collector activation, do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent. Prepare the files, then give the human the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension `Load unpacked` folder path.

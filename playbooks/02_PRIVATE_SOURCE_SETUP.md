@@ -19,7 +19,7 @@ If this stage was triggered by a human request to scan, monitor, collect, review
 - Do not use automated approval-gated browser extension flows for unattended collection.
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for private data source collection.
 - Private data source collection must go through the Solo Agency Local Collector extension plus the Local Collector app only.
-- Before any private data source scan, show or internally verify the `Lộ trình dự kiến cho Private Data Source Gate` / `Private Data Source Gate planned preflight` roadmap from `playbooks/PRIVATE_SOURCE_GATE.md`.
+- Before any private data source scan, show or internally verify the `Private Data Source Gate planned preflight` roadmap from `playbooks/PRIVATE_SOURCE_GATE.md`.
 - Collector success alone is not completion; analyze data and regenerate the report.
 - Load Stage 10 before analyzing or reporting lead/competitor opportunities from private data sources.
 - If schedule/automation was already configured, any private data source approval, rejection, activation, discovery result, Local Collector repair, or source cadence change must trigger Automation Resync from Stage 4 before claiming the future scheduled run is updated.

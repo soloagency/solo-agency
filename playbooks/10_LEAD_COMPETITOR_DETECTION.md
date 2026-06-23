@@ -231,10 +231,10 @@ The report must include a section named:
 Lead & Competitor Opportunities
 ```
 
-If the report is in another language, translate the title naturally. Vietnamese example:
+If the report is in another language, translate the title naturally. English default:
 
 ```text
-Cơ hội Lead & Đối thủ
+Lead & Competitor Opportunities
 ```
 
 For each opportunity, include:

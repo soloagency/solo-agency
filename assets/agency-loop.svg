@@ -1,0 +1,130 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Solo Agency full marketing agency loop</title>
+  <desc id="desc">A circular marketing loop showing research, production, distribution, measurement, learning, and improvement around attention, with human approval and public/private data sources feeding the system.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="10" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2 2 L11 7 L2 12" fill="none" stroke="#111827" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .bg{fill:#f8fafc}
+      .ink{fill:#111827}
+      .muted{fill:#475569}
+      .soft{fill:#e2e8f0}
+      .panel{fill:#ffffff;stroke:#d6dee8;stroke-width:2}
+      .accent-lime{fill:#b7ff3c}
+      .accent-coral{fill:#ff6b57}
+      .accent-sky{fill:#7dd3fc}
+      .accent-ink{fill:#111827}
+      .loop{stroke:#111827;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow)}
+      .thin{stroke:#94a3b8;stroke-width:2;stroke-linecap:round}
+      .dash{stroke:#94a3b8;stroke-width:2.2;stroke-linecap:round;stroke-dasharray:8 9}
+      .title{font:700 42px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
+      .subtitle{font:500 18px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
+      .step{font:700 22px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
+      .copy{font:500 14px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
+      .tiny{font:600 12px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.04em}
+      .center-title{font:800 30px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
+      .center-copy{font:600 15px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
+    </style>
+  </defs>
+
+  <rect class="bg" width="1200" height="720" rx="0"/>
+
+  <g transform="translate(72 56)">
+    <text class="title ink" x="0" y="0" dominant-baseline="hanging">The Solo Agency Loop</text>
+    <text class="subtitle muted" x="0" y="60">Attention is earned by running the full marketing cycle every day, not by staring at another blank prompt.</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect class="panel" x="405" y="232" width="390" height="230" rx="22"/>
+    <circle cx="600" cy="310" r="43" class="accent-ink"/>
+    <path d="M583 312 C583 299 590 290 600 290 C610 290 617 299 617 312" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+    <path d="M572 346 H628" stroke="#b7ff3c" stroke-width="8" stroke-linecap="round"/>
+    <path d="M586 330 H614" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+    <text class="center-title ink" x="600" y="374" text-anchor="middle">Attention</text>
+    <text class="center-copy muted" x="600" y="404" text-anchor="middle">earned with useful content</text>
+    <text class="tiny muted" x="600" y="433" text-anchor="middle">HUMAN APPROVAL STAYS IN CONTROL</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect class="panel" x="90" y="184" width="226" height="120" rx="18"/>
+    <circle class="accent-sky" cx="124" cy="222" r="10"/>
+    <text class="step ink" x="148" y="214">Research</text>
+    <text class="copy muted" x="124" y="252">Market signals, pains,</text>
+    <text class="copy muted" x="124" y="272">questions, competitors</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect class="panel" x="486" y="112" width="226" height="120" rx="18"/>
+    <circle class="accent-lime" cx="520" cy="150" r="10"/>
+    <text class="step ink" x="544" y="142">Production</text>
+    <text class="copy muted" x="520" y="180">Scripts, blogs, video,</text>
+    <text class="copy muted" x="520" y="200">social assets</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect class="panel" x="884" y="184" width="226" height="120" rx="18"/>
+    <circle class="accent-coral" cx="918" cy="222" r="10"/>
+    <text class="step ink" x="942" y="214">Distribution</text>
+    <text class="copy muted" x="918" y="252">Publish, schedule,</text>
+    <text class="copy muted" x="918" y="272">notify, repurpose</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect class="panel" x="884" y="434" width="226" height="120" rx="18"/>
+    <circle class="accent-sky" cx="918" cy="472" r="10"/>
+    <text class="step ink" x="942" y="464">Measurement</text>
+    <text class="copy muted" x="918" y="502">Views, comments,</text>
+    <text class="copy muted" x="918" y="522">saves, clicks, leads</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect class="panel" x="486" y="502" width="226" height="120" rx="18"/>
+    <circle class="accent-lime" cx="520" cy="540" r="10"/>
+    <text class="step ink" x="544" y="532">Learning</text>
+    <text class="copy muted" x="520" y="570">What worked, what</text>
+    <text class="copy muted" x="520" y="590">failed, what changed</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect class="panel" x="90" y="434" width="226" height="120" rx="18"/>
+    <circle class="accent-coral" cx="124" cy="472" r="10"/>
+    <text class="step ink" x="148" y="464">Improvement</text>
+    <text class="copy muted" x="124" y="502">Better hooks, offers,</text>
+    <text class="copy muted" x="124" y="522">sources, next ideas</text>
+  </g>
+
+  <path class="loop" d="M321 225 C387 168 430 150 476 152"/>
+  <path class="loop" d="M716 154 C784 161 835 183 879 218"/>
+  <path class="loop" d="M1005 310 C1033 349 1033 394 1006 429"/>
+  <path class="loop" d="M881 505 C815 563 766 581 717 568"/>
+  <path class="loop" d="M483 568 C408 566 358 539 322 505"/>
+  <path class="loop" d="M195 431 C166 394 166 349 195 310"/>
+
+  <g>
+    <rect x="84" y="634" width="1032" height="48" rx="14" fill="#111827"/>
+    <text class="copy" x="122" y="663" fill="#ffffff">Public data sources + approved private data sources feed the loop.</text>
+    <circle cx="632" cy="658" r="6" class="accent-lime"/>
+    <text class="copy" x="650" y="663" fill="#ffffff">Lead &amp; competitor opportunities become reviewable actions, not automated outreach.</text>
+  </g>
+
+  <g>
+    <line class="dash" x1="232" y1="632" x2="420" y2="462"/>
+    <line class="dash" x1="969" y1="632" x2="780" y2="462"/>
+  </g>
+
+  <g transform="translate(87 112)">
+    <rect x="0" y="0" width="252" height="44" rx="12" fill="#e2e8f0"/>
+    <text class="tiny muted" x="18" y="27">INPUTS</text>
+    <text class="copy muted" x="82" y="28">markets, communities, URLs</text>
+  </g>
+
+  <g transform="translate(860 112)">
+    <rect x="0" y="0" width="252" height="44" rx="12" fill="#e2e8f0"/>
+    <text class="tiny muted" x="18" y="27">OUTPUTS</text>
+    <text class="copy muted" x="90" y="28">approved assets + reports</text>
+  </g>
+</svg>

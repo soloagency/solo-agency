@@ -789,7 +789,7 @@ Do not end a report handoff with:
 Examples of correct final questions:
 
 ```text
-Bạn đã cung cấp nguồn dữ liệu riêng tư nhưng Local Collector chưa bật. Bạn muốn tôi hướng dẫn bật Local Collector ngay để lần chạy đầu có dữ liệu nguồn dữ liệu riêng tư, hay chạy trước chỉ với nguồn dữ liệu công khai và giữ nguồn dữ liệu riêng tư ở trạng thái pending?
+You provided private data sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so the first run can include private data sources, or run public data sources only first and keep private data sources pending?
 ```
 
 ```text

@@ -220,30 +220,30 @@
     "promoted",
     "ad",
     "advertisement",
-    "trang chủ",
-    "bạn bè",
-    "nhóm",
-    "thông báo",
-    "tin nhắn",
-    "tìm kiếm",
-    "xem thêm",
-    "ẩn bớt",
-    "thích",
-    "bình luận",
-    "chia sẻ",
-    "trả lời",
-    "theo dõi",
-    "đang theo dõi",
+    "trang ch\u1ee7",
+    "b\u1ea1n b\u00e8",
+    "nh\u00f3m",
+    "th\u00f4ng b\u00e1o",
+    "tin nh\u1eafn",
+    "t\u00ecm ki\u1ebfm",
+    "xem th\u00eam",
+    "\u1ea9n b\u1edbt",
+    "th\u00edch",
+    "b\u00ecnh lu\u1eadn",
+    "chia s\u1ebb",
+    "tr\u1ea3 l\u1eddi",
+    "theo d\u00f5i",
+    "\u0111ang theo d\u00f5i",
     "tham gia",
-    "đã tham gia",
-    "lưu",
-    "đã lưu",
-    "viết bình luận",
-    "xem thêm bình luận",
-    "phù hợp nhất",
-    "đăng nhập",
-    "đăng ký",
-    "được tài trợ",
+    "\u0111\u00e3 tham gia",
+    "l\u01b0u",
+    "\u0111\u00e3 l\u01b0u",
+    "vi\u1ebft b\u00ecnh lu\u1eadn",
+    "xem th\u00eam b\u00ecnh lu\u1eadn",
+    "ph\u00f9 h\u1ee3p nh\u1ea5t",
+    "\u0111\u0103ng nh\u1eadp",
+    "\u0111\u0103ng k\u00fd",
+    "\u0111\u01b0\u1ee3c t\u00e0i tr\u1ee3",
   ];
 
   const UI_SET = new Set(UI_TEXT.map(normalizeKey));
@@ -258,9 +258,9 @@
     "comment by",
     "most relevant",
     "be the first to comment",
-    "viết bình luận",
-    "xem thêm bình luận",
-    "phù hợp nhất",
+    "vi\u1ebft b\u00ecnh lu\u1eadn",
+    "xem th\u00eam b\u00ecnh lu\u1eadn",
+    "ph\u00f9 h\u1ee3p nh\u1ea5t",
   ].map(normalizeKey);
 
   const METRIC_WORDS = {
@@ -269,17 +269,17 @@
       "views",
       "viewed",
       "watching",
-      "lượt xem",
+      "l\u01b0\u1ee3t xem",
       "luot xem",
-      "visualización",
+      "visualizaci\u00f3n",
       "visualizaciones",
       "vistas",
       "vues",
-      "visualizações",
-      "조회",
-      "再生",
-      "播放",
-      "просмотров",
+      "visualiza\u00e7\u00f5es",
+      "\uc870\ud68c",
+      "\u518d\u751f",
+      "\u64ad\u653e",
+      "\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u043e\u0432",
     ],
     likes: [
       "like",
@@ -287,23 +287,23 @@
       "liked",
       "reaction",
       "reactions",
-      "thích",
+      "th\u00edch",
       "thich",
-      "lượt thích",
+      "l\u01b0\u1ee3t th\u00edch",
       "luot thich",
       "me gusta",
-      "j’aime",
+      "j\u2019aime",
       "jaime",
       "curtidas",
-      "좋아요",
+      "\uc88b\uc544\uc694",
     ],
     shares: [
       "share",
       "shares",
       "shared",
-      "chia sẻ",
+      "chia s\u1ebb",
       "chia se",
-      "lượt chia sẻ",
+      "l\u01b0\u1ee3t chia s\u1ebb",
       "luot chia se",
       "partages",
       "compartidos",
@@ -315,14 +315,14 @@
       "commented",
       "reply",
       "replies",
-      "bình luận",
+      "b\u00ecnh lu\u1eadn",
       "binh luan",
-      "lượt bình luận",
+      "l\u01b0\u1ee3t b\u00ecnh lu\u1eadn",
       "luot binh luan",
       "comentarios",
       "commentaires",
       "kommentare",
-      "댓글",
+      "\ub313\uae00",
     ],
     reposts: [
       "repost",
@@ -331,8 +331,8 @@
       "retweets",
       "quote",
       "quotes",
-      "đăng lại",
-      "dang lai",
+      "\u0111\u0103ng l\u1ea1i",
+      "\x64\x61\x6e\x67\x20\x6c\x61\x69",
       "reposts",
     ],
     saves: [
@@ -344,9 +344,9 @@
       "added to favorites",
       "bookmark",
       "bookmarks",
-      "lưu",
+      "l\u01b0u",
       "luu",
-      "đã lưu",
+      "\u0111\u00e3 l\u01b0u",
       "da luu",
     ],
   };
@@ -357,8 +357,8 @@
       "^\\d+\\s*(s|sec|second|seconds|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks|mo|month|months|y|yr|year|years)$",
       "^\\d+\\s*(s|sec|second|seconds|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks|mo|month|months|y|yr|year|years)\\s+ago$",
       "^\\d+\\s*(sec|min|hr|hrs?)\\.\\s+ago$",
-      "^\\d+\\s*(giây|phút|gio|giờ|ngày|tuần|tháng|năm)$",
-      "^(just now|yesterday|today|vừa xong|hôm qua|hôm nay)$",
+      "^\\d+\\s*(gi\u00e2y|ph\u00fat|gio|gi\u1edd|ng\u00e0y|tu\u1ea7n|th\u00e1ng|n\u0103m)$",
+      "^(just now|yesterday|today|v\u1eeba xong|h\u00f4m qua|h\u00f4m nay)$",
       "^[A-Z][a-z]{2}\\s+\\d{1,2}(,\\s*\\d{4})?$",
       "^\\d{1,2}[:.]\\d{2}(\\s*(AM|PM))?$",
       "^\\d{1,2}[/-]\\d{1,2}([/-]\\d{2,4})?$",
@@ -1272,8 +1272,8 @@
     const cleaned = cleanText(text);
     if (!isNameLike(cleaned)) return false;
     if (/^@?[a-z0-9._-]{2,30}$/i.test(cleaned)) return true;
-    if (/[’']/.test(cleaned)) return false;
-    if (/[.!?。！？…]/.test(cleaned)) return false;
+    if (/[\u2019']/.test(cleaned)) return false;
+    if (/[.!?\u3002\uff01\uff1f\u2026]/.test(cleaned)) return false;
 
     const words = cleaned.split(/\s+/).filter(Boolean);
     const lowerStopwords = new Set([
@@ -1369,7 +1369,7 @@
       if (
         score < 10 &&
         !postContentLinkTextKeys.has(key) &&
-        !((/[#@]/.test(text) || /[’']/.test(text)) && score >= 6)
+        !((/[#@]/.test(text) || /[\u2019']/.test(text)) && score >= 6)
       ) continue;
 
       const contentLine = cleanContentLine(text);
@@ -1389,12 +1389,12 @@
   function cleanContentLine(text) {
     return cleanText(text)
       .replace(/^go to channel\s+/i, "")
-      .replace(/^['’]s\s+(?:post|reel|video|photo|story)\s*:\s*/i, "")
-      .replace(/^.+?[’']s\s+(?:post|reel|video|photo|story)\s*:\s*/i, "")
+      .replace(/^['\u2019]s\s+(?:post|reel|video|photo|story)\s*:\s*/i, "")
+      .replace(/^.+?[\u2019']s\s+(?:post|reel|video|photo|story)\s*:\s*/i, "")
       .replace(/^.+?\s+(?:shared|posted|created|added)\s+(?:a\s+|an\s+)?(?:new\s+)?(?:post|reel|video|photo|story|short)\s*:\s*/i, "")
       .replace(/^(?:shared|posted|created|added)\s+(?:a\s+|an\s+)?(?:new\s+)?(?:post|reel|video|photo|story|short)\s*:\s*/i, "")
       .replace(/\s+\d+\s+(?:second|seconds|minute|minutes|hour|hours)(?:,\s*\d+\s+(?:second|seconds|minute|minutes))?$/i, "")
-      .replace(/^[“"](.+)[”"]$/s, "$1")
+      .replace(/^[\u201c"](.+)[\u201d"]$/s, "$1")
       .trim();
   }
 
@@ -1444,7 +1444,7 @@
     if (/^[\W_]+$/u.test(cleaned)) return false;
     if (/^\d+$/.test(cleaned)) return false;
     if (/^[\d\s.,:/-]+$/.test(cleaned)) return false;
-    if (/^(·|•|\||-)+$/.test(cleaned)) return false;
+    if (/^(\u00b7|\u2022|\||-)+$/.test(cleaned)) return false;
 
     const words = cleaned.split(/\s+/).filter(Boolean);
     if (words.length === 1 && cleaned.length < 18 && !/^#/.test(cleaned) && !/@/.test(cleaned)) {
@@ -1460,11 +1460,11 @@
     let score = 0;
     score += Math.min(cleaned.length / 4, 35);
     score += Math.min(words.length * 2, 30);
-    if (/[.!?。！？]/.test(cleaned)) score += 8;
+    if (/[.!?\u3002\uff01\uff1f]/.test(cleaned)) score += 8;
     if (/[#@]/.test(cleaned)) score += 4;
-    if (/[’']/.test(cleaned)) score += 8;
-    if (/[a-zA-ZÀ-ỹ]{2,}/.test(cleaned) && /\s/.test(cleaned)) score += 8;
-    if (looksLikeNameOnly(cleaned) && !/[’']/.test(cleaned)) score -= 18;
+    if (/[\u2019']/.test(cleaned)) score += 8;
+    if (/[a-zA-Z\u00c0-\u1ef9]{2,}/.test(cleaned) && /\s/.test(cleaned)) score += 8;
+    if (looksLikeNameOnly(cleaned) && !/[\u2019']/.test(cleaned)) score -= 18;
     if (cleaned.length < 20 && words.length <= 3) score -= 12;
     if (/^(follow|subscribe|join|like|comment|share)\b/i.test(cleaned)) score -= 15;
     return score;
@@ -1939,7 +1939,7 @@
       .sort((a, b) => b.length - a.length)
       .map(escapeRegExp);
     const labelGroup = labels.join("|");
-    const numberGroup = "([0-9][0-9.,\\s]*\\s*(?:K|M|B|T|k|m|b|t)?|[0-9]+(?:[.,][0-9]+)?\\s*(?:nghìn|ngan|triệu|trieu|tỷ|ty))";
+    const numberGroup = "([0-9][0-9.,\\s]*\\s*(?:K|M|B|T|k|m|b|t)?|[0-9]+(?:[.,][0-9]+)?\\s*(?:ngh\u00ecn|ngan|tri\u1ec7u|trieu|t\u1ef7|ty))";
 
     const numberBefore = new RegExp(`${numberGroup}\\s*(${labelGroup})\\b`, "giu");
     const labelBefore = new RegExp(`\\b(${labelGroup})\\s*[:\\-]?\\s*${numberGroup}`, "giu");
@@ -2014,14 +2014,14 @@
       m: 1_000_000,
       b: 1_000_000_000,
       t: 1_000_000_000_000,
-      nghìn: 1_000,
+      ngh\u00ecn: 1_000,
       ngan: 1_000,
-      triệu: 1_000_000,
+      tri\u1ec7u: 1_000_000,
       trieu: 1_000_000,
-      tỷ: 1_000_000_000,
+      t\u1ef7: 1_000_000_000,
       ty: 1_000_000_000,
     };
-    const match = text.match(/^([0-9][0-9.,\s]*)(?:\s*(k|m|b|t|nghìn|ngan|triệu|trieu|tỷ|ty))?$/i);
+    const match = text.match(/^([0-9][0-9.,\s]*)(?:\s*(k|m|b|t|ngh\u00ecn|ngan|tri\u1ec7u|trieu|t\u1ef7|ty))?$/i);
     if (!match) return null;
 
     let numberText = match[1].replace(/\s+/g, "");
@@ -2656,7 +2656,7 @@
     const words = cleaned.split(/\s+/).filter(Boolean);
     if (words.length > 8) return false;
     if (/^@?[a-z0-9._-]{2,30}$/i.test(cleaned)) return true;
-    if (/[A-ZÀ-Ỹ]/.test(cleaned[0]) && words.length <= 6) return true;
+    if (/[A-Z\u00c0-\u1ef8]/.test(cleaned[0]) && words.length <= 6) return true;
     if (words.length >= 2 && words.length <= 6 && words.every((word) => /[\p{L}\p{N}.&'-]/u.test(word))) return true;
     return false;
   }
@@ -2664,7 +2664,7 @@
   function looksLikeNameOnly(text) {
     const cleaned = cleanText(text);
     if (!isNameLike(cleaned)) return false;
-    return !/[.!?。！？]/.test(cleaned) && cleaned.split(/\s+/).length <= 5;
+    return !/[.!?\u3002\uff01\uff1f]/.test(cleaned) && cleaned.split(/\s+/).length <= 5;
   }
 
   function pruneEmpty(value) {
