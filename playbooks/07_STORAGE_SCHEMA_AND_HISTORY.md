@@ -209,6 +209,7 @@ Use one folder per client/business/location:
           YYYY-MM/
             YYYY-MM-DD.md
             YYYY-MM-DD.html
+            YYYY-MM-DD.report_state.json
           latest.md
           latest.html
 ```
@@ -307,6 +308,7 @@ Monthly organization rule:
 - Any file created daily must be stored under a `YYYY-MM/` folder.
 - This applies to client outputs, master digests, collector jobs, collector inboxes, history logs, data points, leads, competitors, and new private data source logs.
 - Keep `latest.md`, `latest.html`, `latest_master_digest.md`, and `latest_master_digest.html` as convenience pointers at their existing locations.
+- Keep report state beside the dated report as `YYYY-MM-DD.report_state.json`.
 - Do not allow long-running pipelines to accumulate hundreds or thousands of daily files directly in one folder.
 
 ---
@@ -383,6 +385,8 @@ Minimum format:
 - notification_channel:
 - pdna_status:
 - private_data_source_status_summary:
+- report_merge_contract: one_report_two_lanes | legacy_mixed_report | unknown
+- report_notification_policy: same_report_public_private_notifications_allowed | single_final_notification | unknown
 - latest_user_change_summary:
 - actual_native_task_prompt_updated: true | false | not_applicable | unknown
 - automation_prompt_update_pending_reason:
@@ -440,9 +444,10 @@ Format:
 ```md
 # Notification Log
 
-| Date | Agent | Event | Channel | Status | HTML Report Path | WideCast Capability Checked | WideCast Upload Tool | WideCast Notification Tool | Upload Attempted | Uploaded Report URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude Schedule | daily_run_completed | WideCast Telegram | sent | outputs/2026-06/2026-06-20_master_digest.html | yes | available | available | yes | https://... | yes | https://... | none | Review approvals |
+| Date | Agent | Event | Lane Status | Channel | Status | HTML Report Path | WideCast Capability Checked | WideCast Upload Tool | WideCast Notification Tool | Upload Attempted | Uploaded Report URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-06-20 | Claude Schedule | daily_run_completed | public_lane_ready | WideCast Telegram | sent | outputs/2026-06/2026-06-20.html | yes | available | available | yes | https://... | yes | https://... | none | Await private lane or review approvals |
+| 2026-06-20 | Claude Schedule | daily_run_completed | private_lane_appended | WideCast Telegram | sent | outputs/2026-06/2026-06-20.html | yes | available | available | yes | https://... | yes | https://... | none | Review merged report |
 ```
 
 Use this log so scheduled runs do not silently complete or fail while the human is away.
@@ -501,6 +506,63 @@ The agent must update this file before:
 - running a manual private data source scan,
 - configuring recurring private data source collection,
 - reporting that private collection is unavailable.
+
+### `outputs/YYYY-MM/YYYY-MM-DD.report_state.json`
+
+Tracks the merge state for the one canonical daily report. It prevents a later public or private data source pass from overwriting the other lane.
+
+Minimum format:
+
+```json
+{
+  "client_slug": "",
+  "run_id": "",
+  "report_date": "",
+  "report_md_path": "outputs/YYYY-MM/YYYY-MM-DD.md",
+  "report_html_path": "outputs/YYYY-MM/YYYY-MM-DD.html",
+  "latest_md_path": "outputs/latest.md",
+  "latest_html_path": "outputs/latest.html",
+  "public_section_status": "missing",
+  "private_section_status": "missing",
+  "last_public_update_at": "",
+  "last_private_update_at": "",
+  "public_data_sources_count": 0,
+  "private_data_sources_count": 0,
+  "public_lead_count": 0,
+  "private_lead_count": 0,
+  "public_competitor_count": 0,
+  "private_competitor_count": 0,
+  "public_notification_status": "not_sent",
+  "private_notification_status": "not_sent",
+  "last_notification_report_path": "",
+  "last_notification_report_url": "",
+  "last_merge_agent": "",
+  "last_merge_note": ""
+}
+```
+
+Allowed section status:
+
+- `missing`
+- `pending`
+- `complete`
+- `skipped`
+- `failed`
+- `blocked`
+
+Allowed notification status:
+
+- `not_sent`
+- `sent`
+- `skipped`
+- `failed`
+
+Rules:
+
+- Public data source pass may write only the public lane and report-level metadata. It must preserve any existing private lane.
+- Private data source pass may write only the private lane and report-level metadata. It must preserve any existing public lane.
+- `latest.md` and `latest.html` must always point to the merged report, not a lane-specific artifact.
+- If two notifications are sent, both must reference the same report path or uploaded URL, with lane status recorded in `notification_log.md`.
 
 ### `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`
 

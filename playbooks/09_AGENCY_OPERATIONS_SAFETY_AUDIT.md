@@ -33,6 +33,11 @@ Before claiming Automation Flow completion for a client:
 - Confirm private data source collection, if attempted, used only the shared Local Collector app plus the matching client extension.
 - Confirm `client_slug`, `extension_instance_id`, and output path all match.
 - Confirm collector output was read only from `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/`.
+- Confirm the client has one canonical report for the day/run, with `Public Data Source Intelligence` above `Private Data Source Intelligence`.
+- Confirm the public lane and private lane have separate source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
+- Confirm the private pass did not overwrite, delete, reorder, summarize away, or regenerate the public lane.
+- Confirm `outputs/YYYY-MM/YYYY-MM-DD.report_state.json` exists or the exact blocker is logged, and that its public/private section statuses match the report.
+- Confirm any public-lane and private-lane notifications point to the same canonical HTML report path or uploaded URL.
 - Confirm changes discovered during the run were written back to persistent setup/config and resynced.
 
 Treat these as critical workflow violations:
@@ -42,6 +47,8 @@ Treat these as critical workflow violations:
 - An extension for client A receives, writes, or completes a job for client B.
 - An agent reads private data source output from another client's collector inbox.
 - A global `extension_health.status: recent` is used as proof that the target client's extension is healthy without checking the matching `client_slug + extension_instance_id`.
+- A private data source pass overwrites the public data source lane or creates a separate private report for the same client/day/run.
+- Public and private notifications link to different report files for the same client/day/run.
 
 ## Source Preservation Rule
 
@@ -1353,21 +1360,22 @@ A daily run is complete when:
 3. Data points are collected.
 4. Hot and warm leads are detected, listed, or explicitly marked as none found.
 5. Direct, adjacent, and audience competitors are detected, listed, or explicitly marked as none found.
-6. A 3x2 idea matrix is created for each processed client.
-7. One best idea is selected for each processed client.
+6. A separate 3x2 public idea matrix and private idea matrix are created for each processed client when the corresponding lane has data, or the lane states why it is pending/skipped/blocked.
+7. One best public idea and one best private idea are selected for each processed client when data exists, plus any overall recommendation if useful.
 8. Each idea maps to a content pillar when possible.
 9. Each idea is labeled as `primary_industry` or `related_industry`, with a visible related-industry note and bridge-back logic shown for related-industry ideas.
 10. One configured WideCast-writing-skill draft is written for each processed client, defaulting to video script and adding blog/article or social caption when configured.
-11. Per-client Markdown and mobile-friendly HTML reports are created.
-12. `latest.md` and `latest.html` are updated for each processed client.
-13. Client history is updated, including industry scope for selected ideas so the 80/20 mix can be tracked over time.
-14. Lead and competitor logs are updated.
-15. Approval status is tracked.
-16. Markdown and mobile-friendly HTML master digests are created.
-17. `latest_master_digest.md` and `latest_master_digest.html` are updated.
-18. Human-facing reports and notifications are written in the language the human uses.
-19. The human is notified through the configured notification channel, preferably WideCast MCP / Telegram, with the HTML report path/link. The Markdown report path must not be presented as a user-facing report link.
-20. Human approval options are shown.
+11. One per-client canonical Markdown report and one mobile-friendly HTML report are created for each processed client, with public data source intelligence above private data source intelligence.
+12. The report state file `outputs/YYYY-MM/YYYY-MM-DD.report_state.json` is created/updated for each processed client.
+13. `latest.md` and `latest.html` are updated for each processed client and point to the merged report, not a lane-specific report.
+14. Client history is updated, including industry scope for selected ideas so the 80/20 mix can be tracked over time.
+15. Lead and competitor logs are updated.
+16. Approval status is tracked.
+17. Markdown and mobile-friendly HTML master digests are created when a master digest task is configured.
+18. `latest_master_digest.md` and `latest_master_digest.html` are updated when a master digest task is configured.
+19. Human-facing reports and notifications are written in the language the human uses.
+20. The human is notified through the configured notification channel, preferably WideCast MCP / Telegram, with the HTML report path/link. Public-lane and private-lane notifications are both allowed, but they must point to the same canonical HTML report path or uploaded URL. The Markdown report path must not be presented as a user-facing report link.
+21. Human approval options are shown.
 
 An agency operating cycle is complete when:
 
@@ -1522,6 +1530,19 @@ Before using collected data, verify:
 - [ ] Did I avoid treating UI junk as real source/content?
 - [ ] Did I keep low-confidence items out of main recommendations?
 
+### Report Merge Checklist
+
+Before generating, updating, or notifying a report, verify:
+
+- [ ] Is there exactly one canonical report for this client/day/run?
+- [ ] Does the report show `Public Data Source Intelligence` above `Private Data Source Intelligence`?
+- [ ] Did I read the existing Markdown report and `outputs/YYYY-MM/YYYY-MM-DD.report_state.json` before updating a lane?
+- [ ] If this is a public pass, did I update only the public lane and preserve any existing private lane?
+- [ ] If this is a private pass, did I update only the private lane and preserve the public lane?
+- [ ] Did `latest.md` and `latest.html` point to the merged report, not to a lane-specific report?
+- [ ] If I sent two notifications, did both point to the same canonical HTML report path or uploaded URL?
+- [ ] Did I log lane status as `public_lane_ready`, `private_lane_appended`, `private_lane_blocked`, or `final_merged_report_ready`?
+
 ### Idea Generation Checklist
 
 Before selecting the best idea, verify:
@@ -1568,7 +1589,7 @@ Before final report, verify:
 - [ ] Did I detect audience competitors?
 - [ ] Did I detect authority/KOL competitors when they compete for the same audience's trust?
 - [ ] Did each competitor include profile URL and post/current URL?
-- [ ] Did the HTML report include `Lead & Competitor Opportunities`, or the same-language equivalent?
+- [ ] Did the HTML report include `Public Lead & Competitor Opportunities` and `Private Lead & Competitor Opportunities`, or same-language equivalents, when those lanes have data?
 - [ ] Did every displayed lead/competitor opportunity include a post/current URL when available?
 - [ ] Did every displayed lead/competitor opportunity include a context-aware copy-ready comment?
 - [ ] Did each copy button copy only the suggested comment and avoid implying auto-posting?

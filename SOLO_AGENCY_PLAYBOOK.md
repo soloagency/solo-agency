@@ -106,6 +106,23 @@ Automation Flow may:
 
 Every configuration change made during Automation Flow must be written back into the persistent setup state and resynced into future automation: Client Intelligence Profile, source approval state, `collector_config.json`, `extension_registry.json`, `schedule.md`, `automation_manifest.md`, `scheduled_run_prompt.md`, native task prompt when editable, and `resync_log.md`.
 
+### One Report, Two Data Lanes
+
+Every client/day/run must have one canonical report, not separate public and private reports.
+
+The report must show:
+
+1. `Public Data Source Intelligence`
+2. `Private Data Source Intelligence`
+
+Public data source intelligence appears first. Private data source intelligence appears below it.
+
+Each lane has its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation. Private data source runs often happen after the public lane is already written; in that case the private lane must be appended into the same report and must not overwrite, delete, reorder, or summarize away the public lane.
+
+The report must use section markers and `outputs/YYYY-MM/YYYY-MM-DD.report_state.json` so later automation passes can update only the intended lane. `latest.md` and `latest.html` must point to the merged report.
+
+Two notifications are acceptable: one when the public lane is ready and one when the private lane is appended or blocked. Both notifications must point to the same canonical HTML report path or uploaded URL.
+
 ### One Bridge, Many Client Extensions
 
 Use one shared Local Collector app/bridge per machine, but use one client-specific unpacked Chrome extension folder per client Chrome profile/account:
@@ -452,7 +469,7 @@ Setup is not complete until:
 - Useful recurring public data sources discovered during runs were saved/promoted into `public_data_sources` with cadence so later scheduled runs can revisit them.
 - Step 5 private data source preference was resolved before schedule setup, and step 7A private data source intake/discovery/approval plus the Local Collector checkpoint were resolved or honestly marked pending before the client-specific automation task was declared ready.
 - Schedule/routine and the client-specific automation task were configured before the first report.
-- The automation task contract requires the first automation run to load Stage 10, generate a mobile-friendly HTML report, include Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, and create at least one useful draft script/blog/caption.
+- The automation task contract requires the first automation run to load Stage 10, generate one mobile-friendly HTML report with separate public/private lanes, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, and create at least one useful draft script/blog/caption.
 - The setup handoff showed the exact task name the human should run for the first report.
 - PDNA - Production, Distribution, Notification, and Analytics - was treated as provider/configuration setup only, not report/video/publish execution inside Setup Flow.
 
@@ -486,7 +503,7 @@ Daily run is not complete until:
 
 - Every active client was processed or explicitly skipped.
 - Sources, keywords, data quality, leads, competitors, ideas, best idea, drafts, and blockers were recorded.
-- Stage 10 was loaded and Lead & Competitor Opportunities were detected, skipped with a clear reason, or marked pending/private data sources unavailable.
+- Stage 10 was loaded and lane-specific Lead & Competitor Opportunities were detected, skipped with a clear reason, or marked pending/private data sources unavailable.
 - A mobile-friendly HTML report exists.
 - The human received the HTML report path/link or notification.
 - Stage 6 Report Delivery Capability Check was run: WideCast upload/notification capability was inspected with available tool discovery/lazy-load, the HTML report was uploaded and sent when tools existed, or the exact tool-surface/upload/notification blocker was logged and the best available HTML path/link was delivered.

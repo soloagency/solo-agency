@@ -13,6 +13,8 @@ Load whenever generating, reviewing, debugging, or improving a human-facing repo
 - The report must be standalone, mobile-friendly, agency-grade, and factually aligned with the Markdown source.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
 - Do not create fake action buttons in static HTML.
+- Keep exactly one canonical report per client/day/run, with public data source intelligence above private data source intelligence.
+- Never let a later private data source pass overwrite the public data source section. Private results must append into, or replace only, the private section of the same report.
 
 ## Source Preservation Rule
 
@@ -102,6 +104,87 @@ outputs/latest.html
 
 `latest.md` is internal. `latest.html` is the human-facing convenience file.
 
+### Latest Override: Two-Lane Public/Private Report Contract
+
+Every client/day/run must produce one canonical report, not separate public and private reports.
+
+The report must have two stable lanes in this order:
+
+1. `Public Data Source Intelligence`
+2. `Private Data Source Intelligence`
+
+Both lanes must use the same structure:
+
+- Source coverage and data quality.
+- Data points and evidence ledger.
+- Lead & Competitor Opportunities for that lane.
+- Idea Matrix.
+- Best idea for that lane.
+- Draft/recommendation for that lane.
+- Blockers, skipped sources, and confidence notes.
+
+The private lane usually has richer post/current URLs and copy-ready comments. Public data source opportunities should also include copy-ready comments when there is a concrete public post/context where a comment is safe and useful. If the public source does not support a safe comment action, keep the field and state `not available from this public data source` or the same meaning in the report language.
+
+The Markdown source must contain explicit section markers:
+
+```md
+<!-- SOLO_AGENCY_SECTION:PUBLIC_START -->
+## Public Data Source Intelligence
+...
+<!-- SOLO_AGENCY_SECTION:PUBLIC_END -->
+
+<!-- SOLO_AGENCY_SECTION:PRIVATE_START -->
+## Private Data Source Intelligence
+...
+<!-- SOLO_AGENCY_SECTION:PRIVATE_END -->
+```
+
+The HTML report must render the same two lanes in the same order. It may use custom design, but it must remain factually aligned with the merged Markdown and must not collapse public and private evidence into one mixed, ambiguous section.
+
+Update rules:
+
+- Public pass: create the report if missing, write or replace only the public lane, and preserve the private lane if it already exists. If private data sources have not run yet, create a private placeholder with status `pending_private_collection`, `pending_private_activation`, `skipped`, or the exact blocker.
+- Private pass: load the existing report and `report_state.json`, then write or replace only the private lane. Do not rewrite, summarize away, delete, or reorder the public lane.
+- If private data sources finish after public data sources, append their findings below the public lane in the same report and regenerate the same HTML report path.
+- If private data sources fail, time out, are stale, or are blocked, update only the private lane with the exact blocker and regenerate the same HTML report path.
+- If a private pass starts but the public lane is missing, create a public lane placeholder that says public data sources were not run or were unavailable, then write the private lane below it. Do not create a private-only report.
+
+State file:
+
+Each report should have a sibling state file:
+
+```text
+outputs/YYYY-MM/YYYY-MM-DD.report_state.json
+```
+
+The state file must track at least:
+
+```json
+{
+  "client_slug": "",
+  "run_id": "",
+  "report_md_path": "",
+  "report_html_path": "",
+  "public_section_status": "missing|pending|complete|skipped|failed",
+  "private_section_status": "missing|pending|complete|skipped|failed|blocked",
+  "last_public_update_at": "",
+  "last_private_update_at": "",
+  "public_notification_status": "not_sent|sent|skipped",
+  "private_notification_status": "not_sent|sent|skipped",
+  "last_notification_report_path": ""
+}
+```
+
+Before writing a report, the agent must read the existing Markdown and state file when present. If the state file says a lane is complete, a later pass may update only that same lane or the other lane; it must not regenerate the whole report from memory in a way that drops the other lane.
+
+Notification rule:
+
+- Two notifications are acceptable: one after the public lane is ready and one after the private lane is appended/updated.
+- Both notifications must point to the same canonical HTML report path or uploaded URL, not two different report files.
+- The notification text must say whether the report is `public lane ready`, `private lane appended`, `private lane blocked`, or `final merged report ready`.
+- Do not send repeated notifications for the same lane in the same run unless correcting a missing/broken report link.
+- Log each notification with lane, report path/URL, and report state.
+
 Template:
 
 ```md
@@ -122,6 +205,50 @@ Template:
 - Content pillars:
 - Business offer:
 - Platforms:
+
+## Report Lane Order
+
+The sections below are mandatory. Public data source intelligence must appear first. Private data source intelligence must appear second. The detailed field templates later in this document are schemas to apply inside each lane; do not render one mixed global section that combines public data sources and private data sources. In the actual report, all public lane details must live inside the public markers, and all private collector health, private discovery, private sources, private opportunities, private ideas, and private drafts must live inside the private markers.
+
+<!-- SOLO_AGENCY_SECTION:PUBLIC_START -->
+## Public Data Source Intelligence
+
+### Public Source Coverage And Data Quality
+
+### Public Data Points And Evidence Ledger
+
+### Public Lead & Competitor Opportunities
+
+### Public Idea Matrix
+
+### Best Public Idea
+
+### Public Draft / Recommendation
+
+### Public Blockers And Limits
+<!-- SOLO_AGENCY_SECTION:PUBLIC_END -->
+
+<!-- SOLO_AGENCY_SECTION:PRIVATE_START -->
+## Private Data Source Intelligence
+
+### Private Collector Health
+
+### Private Data Source Discovery
+
+### Private Source Coverage And Data Quality
+
+### Private Data Points And Evidence Ledger
+
+### Private Lead & Competitor Opportunities
+
+### Private Idea Matrix
+
+### Best Private Idea
+
+### Private Draft / Recommendation
+
+### Private Blockers And Limits
+<!-- SOLO_AGENCY_SECTION:PRIVATE_END -->
 
 ## Private Collector Health
 
@@ -281,7 +408,7 @@ Use this section title exactly for English reports, or translate it naturally in
 
 ## Leads Detected
 
-This may be kept as a detailed subsection, but the human-facing HTML should prioritize the unified `Lead & Competitor Opportunities` section.
+This may be kept as a detailed subsection, but the human-facing HTML should prioritize the lane-specific `Public Lead & Competitor Opportunities` and `Private Lead & Competitor Opportunities` sections.
 
 ### Hot Leads
 
@@ -317,7 +444,7 @@ This may be kept as a detailed subsection, but the human-facing HTML should prio
 
 ## Competitors Detected
 
-This may be kept as a detailed subsection, but the human-facing HTML should prioritize the unified `Lead & Competitor Opportunities` section.
+This may be kept as a detailed subsection, but the human-facing HTML should prioritize the lane-specific `Public Lead & Competitor Opportunities` and `Private Lead & Competitor Opportunities` sections.
 
 - Competitor:
   - Competitor type: direct | indirect | adjacent | attention | authority_or_kol
@@ -614,6 +741,9 @@ The HTML report must include:
 - Agent identity.
 - Clients processed.
 - Client status.
+- A `Public Data Source Intelligence` lane above the private lane.
+- A `Private Data Source Intelligence` lane below the public lane.
+- Separate public and private source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
 - Private collector health: bridge status, extension last check time, extension status, and private data source blockers.
 - Private Data Source Discovery status when asked, approved, pending, blocked, or completed.
 - Private Data Source Discovery Recommended when no private data sources are configured and discovery has not been offered yet.
@@ -654,7 +784,26 @@ Required report hierarchy:
    - Competitor signal count.
    - One recommended next action.
 
-2. `Today's Recommendation`
+2. `Public Data Source Intelligence`
+   - Public source coverage and data quality.
+   - Public evidence ledger.
+   - Public Lead & Competitor Opportunities.
+   - Public Idea Matrix.
+   - Best public idea.
+   - Public draft/recommendation.
+   - Public blockers or limitations.
+
+3. `Private Data Source Intelligence`
+   - Private collector health and source status.
+   - Private source coverage and data quality.
+   - Private evidence ledger.
+   - Private Lead & Competitor Opportunities.
+   - Private Idea Matrix.
+   - Best private idea.
+   - Private draft/recommendation.
+   - Private blockers, skipped sources, stale extension/session issues, or pending activation notes.
+
+4. `Today's Recommendation`
    - The single best idea.
    - Target audience segment.
    - Pain point or desire it hits.
@@ -665,14 +814,15 @@ Required report hierarchy:
    - Confidence level: high, medium, or low.
    - Main reference URLs.
 
-3. `Evidence Ledger`
+5. `Evidence Ledger`
    - Every important factual claim, number, date, law/regulation point, price, platform policy, market signal, or news claim used in the report must appear in a claim-level evidence table.
    - Required columns: `Claim`, `Source URL`, `Source type`, `Captured at`, `Confidence`, `Used in`.
    - If a claim is inferred rather than directly stated by a source, label it `inference` and explain the logic.
    - Do not use unsupported numeric claims in the final recommendation or script.
    - If a useful claim cannot be verified, either remove it or mark it as low confidence and keep it out of the main hook.
+   - Keep source type visible as `public` or `private`; do not merge source evidence so the reader cannot tell where a claim came from.
 
-4. `Source Coverage And Data Quality`
+6. `Source Coverage And Data Quality`
    - Public search keywords used today.
    - Pain-point/problem/need keyword sample used or added today, with the rest saved in the keyword bank for rotation. Do not dump the full keyword bank into the human-facing report.
    - Public data sources scanned.
@@ -683,7 +833,7 @@ Required report hierarchy:
    - Data confidence summary.
    - If private data sources were provided but not activated yet, state that clearly and do not imply lead coverage is complete.
 
-5. `Private Data Source Discovery`
+7. `Private Data Source Discovery`
    - Discovery categories approved, declined, pending, or not requested.
    - Platforms and discovery URLs used.
    - Whether the Solo Agency Local Collector is active, pending, or blocked.
@@ -694,7 +844,7 @@ Required report hierarchy:
    - Sources requiring human approval before being activated.
    - Reassurance summary: professional one-time setup, local-only data safety, and daily scanning to avoid missed signals.
 
-6. `Idea Portfolio`
+8. `Idea Portfolio`
    - Keep the three-section idea structure:
      - Hot / Trend / News
      - Evergreen / Foundation
@@ -710,14 +860,15 @@ Required report hierarchy:
    - Score or qualitative rating for heat, relevance, lead potential, novelty, and confidence.
    - Empty weak slots are allowed. Do not fill a matrix slot with filler just to make the report look complete.
 
-7. `Decision Scorecard`
+9. `Decision Scorecard`
    - Compare the top candidate ideas before choosing the best one.
    - Score at least: trend heat, audience pain intensity, business relevance, lead potential, novelty/history risk, evidence strength, and production effort.
    - Briefly explain why the selected idea won and why the other strong candidates did not win today.
 
-8. `Lead & Competitor Opportunities`
-   - Use this exact title for English reports, or a natural same-language title for the human/report language.
+10. `Public Lead & Competitor Opportunities` and `Private Lead & Competitor Opportunities`
+   - Use these lane-specific titles for English reports, or natural same-language titles for the human/report language.
    - Load Stage 10 before generating this section.
+   - A report-level `Lead & Competitor Opportunities` rollup is allowed, but it must not replace the lane-specific sections and must keep source type visible.
    - Separate hot leads, warm leads, watch leads, direct competitors, indirect competitors, adjacent solutions, attention competitors, and authority/KOL competitors when relevant.
    - Every displayed opportunity must include post/current URL when available. Include profile URL only when visible and safe.
    - Include source, captured_at, context, need or audience-overlap signal, why it matters, confidence, suggested human action, and safety note.
@@ -728,7 +879,7 @@ Required report hierarchy:
    - If no leads/competitors were found, say whether that means `none found after scanning`, `coverage from public data sources only`, `private data sources pending Local Collector activation`, `session expired`, or `source unavailable`.
    - If competitor data is inferred without a captured URL, label it as market hypothesis, not detected competitor evidence.
 
-9. `Production-Ready Drafts`
+11. `Production-Ready Drafts`
    - Use complete version names:
      - `Version 1: VE — Value Explainer`
      - `Version 2: QA — Client Q&A`
@@ -742,7 +893,7 @@ Required report hierarchy:
    - If a connected provider has already created an approved video/blog/social asset, include the produced asset URL/status and label it `asset-created`, `ready-to-publish`, or `published`.
    - If provider setup or human approval is still needed before creating the asset, say that clearly. Do not describe draft writing as if production has already happened.
 
-10. `Compliance And Brand Safety`
+12. `Compliance And Brand Safety`
    - Include short risk notes for legal, financial, insurance, medical, regulated, or sensitive industries.
    - Avoid guarantees, misleading claims, unsafe outreach, or pretending the client has performed services they have not performed.
    - If a CTA needs license number, phone number, disclaimer, location, or offer approval, list it under `Needs human detail`.
@@ -817,18 +968,20 @@ Recommended HTML section order:
 
 ```text
 1. Executive Snapshot
-2. Today's Recommendation
-3. Evidence Ledger
-4. Source Coverage And Data Quality
-5. Private Data Source Discovery
-6. Idea Portfolio
-7. Decision Scorecard
-8. Lead & Competitor Opportunities
-9. Production-Ready Drafts
-10. Compliance And Brand Safety
-11. Unlock Production & Distribution & Measure-Learning Loop With WideCast, when applicable
-12. Next Action
-13. Appendix / Raw References, optional
+2. Public Data Source Intelligence
+3. Private Data Source Intelligence
+4. Today's Recommendation
+5. Evidence Ledger
+6. Source Coverage And Data Quality
+7. Private Data Source Discovery
+8. Idea Portfolio
+9. Decision Scorecard
+10. Public Lead & Competitor Opportunities / Private Lead & Competitor Opportunities
+11. Production-Ready Drafts
+12. Compliance And Brand Safety
+13. Unlock Production & Distribution & Measure-Learning Loop With WideCast, when applicable
+14. Next Action
+15. Appendix / Raw References, optional
 ```
 
 Static HTML reports are not application UIs. The agent must not create buttons that imply an action will happen when the human taps them unless the button is backed by a real working URL or local browser action. For approval, revision, choosing another idea, creating a WideCast video, publishing, or outreach, the report should say what to tell the AI agent or where to open WideCast. For lead/competitor comments, a local `Copy comment` button is allowed only if it copies the suggested comment text and does not imply auto-posting.

@@ -24,7 +24,7 @@ Also load during:
 - Source discovery mode is different: it may scroll deeper under Stage 8 rules. Do not confuse source discovery with daily lead/competitor monitoring.
 - For private data sources, use only the Solo Agency Local Collector extension plus Local Collector app. Never use Claude in Chrome, Codex built-in browser, Playwright, Puppeteer, Selenium, or any agent-controlled browser for private data source collection.
 - Every detected lead or competitor opportunity shown in the HTML report must include the post/current URL when available, context, classification, why it matters, and a copy-ready suggested comment.
-- The HTML report section title should be `Lead & Competitor Opportunities`, or the same meaning in the human/report language.
+- The HTML report must keep public data source opportunities and private data source opportunities separate. Use `Public Lead & Competitor Opportunities` inside `Public Data Source Intelligence` and `Private Lead & Competitor Opportunities` inside `Private Data Source Intelligence`, or the same meaning in the human/report language.
 - Suggested comments are for human review only. Do not auto-comment, auto-DM, scrape contact details, or initiate outreach without explicit human approval.
 - Comments must build personal brand and trust by adding value. They must not directly advertise the user's service, attack competitors, or sound like generic AI text.
 
@@ -225,17 +225,21 @@ This competitor forgot to mention that our service is better.
 
 ## HTML Report Contract
 
-The report must include a section named:
+The report must include lane-specific sections named:
 
 ```text
-Lead & Competitor Opportunities
+Public Lead & Competitor Opportunities
+Private Lead & Competitor Opportunities
 ```
 
-If the report is in another language, translate the title naturally. English default:
+If the report is in another language, translate the titles naturally. English defaults:
 
 ```text
-Lead & Competitor Opportunities
+Public Lead & Competitor Opportunities
+Private Lead & Competitor Opportunities
 ```
+
+A report-level rollup named `Lead & Competitor Opportunities` is allowed, but it must not replace the lane-specific sections and must not mix public and private evidence without visible `source type` labels.
 
 For each opportunity, include:
 

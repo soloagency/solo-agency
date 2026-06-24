@@ -34,6 +34,8 @@ Rules:
 - The task prompt must pin `target_client_slug` and must not process other clients.
 - The task may use the shared Local Collector app/bridge, but private data source jobs must be routed by `client_slug + extension_instance_id`.
 - If the AI automation environment cannot call `127.0.0.1`, it must use file-based job requests under `daily-content-pipeline/collector/jobs/pending/` and read bridge/extension health from local files.
+- The task prompt must require one canonical report with `Public Data Source Intelligence` above `Private Data Source Intelligence`.
+- If private data sources run after public data sources, the task must append/update only the private lane in the same report and must not overwrite the public lane.
 - A setup/config session may instruct the human to run `AvenNgo - Solo Agency First Run`, but it must not generate the report inside the setup chat.
 - Automation Flow may accept config changes during a real run, but must immediately perform Automation Resync before claiming future runs are current.
 
