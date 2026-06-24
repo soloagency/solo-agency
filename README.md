@@ -8,8 +8,6 @@ Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" to tur
 
 ## The Point
 
-Founder note:
-
 I learned the hard way: when you are solo, the hardest problem is attention. Attention Is All You Need, but attention has to be earned with content people actually care about. That means daily research, production, distribution, measurement, and improvement, not another blank prompt.
 
 - Content without research is guessing.
