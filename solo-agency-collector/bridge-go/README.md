@@ -16,7 +16,9 @@ End users do not need Go when prebuilt binaries are shipped.
 - Support short on-demand runs and persistent scheduler runs.
 - In persistent scheduler mode, expose `/config`, return jobs only inside configured collection windows, and stay online after `/complete`.
 - Reload `collector_config.json` during `/status` when the file timestamp or size changes.
-- Load `run_now_request.json` during `/status` as a file-based fallback for sandboxed agents that cannot call localhost HTTP directly.
+- Queue run-now jobs from `POST /jobs/run_now` and from per-client files under `daily-content-pipeline/collector/jobs/pending/`.
+- Treat `run_now_request.json` as a legacy/batch shim for sandboxed agents that cannot call localhost HTTP directly; convert it to queued jobs during `/status`.
+- Maintain separate active job state, counters, output dirs, and completion state per `client_slug`, bound to the claiming extension instance when present, so different client Chrome profiles can collect in parallel through one shared bridge.
 - Record extension check-ins from Chrome extension `/status` calls.
 - Expose bridge and extension health through `/status` and `bridge_health.json`.
 
@@ -60,10 +62,11 @@ GET http://127.0.0.1:17321/status
 Each `/status` call also synchronizes local control files:
 
 - reloads `collector_config.json` if it changed;
-- loads `daily-content-pipeline/collector/run_now_request.json` as a run-now job if present;
+- converts `daily-content-pipeline/collector/run_now_request.json` into queued run-now jobs if present;
 - writes `run_now_request_status.json`;
 - moves consumed run-now request files aside as `run_now_request.{run_id}.{timestamp}.consumed.json`;
 - remembers the processed file signature in memory as a replay guard if moving/removing fails.
+- checks `jobs/pending/` and exposes the next matching queued job only to the extension identity for that client; different client identities can be active at the same time, while jobs for the same client/profile remain sequential.
 
 Agents can override parallel source tabs per run by setting
 `pacing.source_concurrency` (or top-level `source_concurrency`) in the

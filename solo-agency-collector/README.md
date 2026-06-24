@@ -65,9 +65,9 @@ Manual run mode:
 
 - Human-requested runs must not wait for a configured schedule window.
 - AI agents should POST a run-now job to `http://127.0.0.1:17321/jobs/run_now`.
-- If an AI sandbox cannot call the local HTTP endpoint but can write local files, it should write the same job payload to `daily-content-pipeline/collector/run_now_request.json`; write a temp file first, then rename it into place after the JSON is complete.
-- The bridge loads `run_now_request.json` on the next `/status`, writes `run_now_request_status.json`, moves it aside as `run_now_request.{run_id}.{timestamp}.consumed.json`, and keeps an in-memory signature guard if moving/removing fails.
-- The extension will pick up the run-now job on the next `/status` poll.
+- If an AI sandbox cannot call the local HTTP endpoint but can write local files, it should write one unique per-client job payload under `daily-content-pipeline/collector/jobs/pending/`.
+- `daily-content-pipeline/collector/run_now_request.json` is a legacy/batch shim only. The bridge converts one job or `{"jobs":[...]}` into per-client queue files, writes `run_now_request_status.json`, moves the shim aside as `run_now_request.{run_id}.{timestamp}.consumed.json`, and keeps an in-memory signature guard if moving/removing fails.
+- The matching client extension will pick up its queued run-now job on the next `/status` poll. The shared bridge can expose one active private collector job per client identity, bound to the claiming extension instance, so different client Chrome profiles can collect in parallel. Jobs for the same client/profile remain sequential and move to the next queued job after `/complete` or TTL.
 - Every run-now job should have a unique `run_id`, `force: false` by default, and a TTL so it cannot remain active all day if `/complete` is not received.
 - `/complete` clears the run-now job so it does not repeat.
 - Do not simulate manual collection by editing `scheduled_windows`.
@@ -76,7 +76,7 @@ Config reload:
 
 - The bridge checks `collector_config.json` on `/status` and reloads it when the file timestamp or size changes.
 - AI agents may still prefer `POST /config`, but direct file edits are allowed for intentional recurring schedule updates when HTTP is unavailable.
-- Manual run-now collection should use `/jobs/run_now` or `run_now_request.json`, not temporary schedule windows.
+- Manual run-now collection should use `/jobs/run_now` or per-client `jobs/pending/` queue files, not temporary schedule windows.
 
 Browser limits:
 
@@ -115,7 +115,7 @@ The Chrome extension is installed manually once for now:
 
 Do not load the source folder from a cloned toolkit, such as `solo-agency/solo-agency-collector/chrome-extension/`, for a normal agency setup. The toolkit folder is for development. The running agency should load only the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime copy.
 
-Use one active Solo Agency Local Collector per machine for the current setup. If you previously loaded another Solo Agency Local Collector extension from an older setup folder, remove or disable that old entry in `chrome://extensions` and keep only the extension loaded from the current setup's absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
+Use one active Solo Agency Local Collector bridge runtime per machine for the current setup. Use one client-specific Solo Agency Local Collector extension per client Chrome profile/account, loaded from the current setup's generated `extensions/{client_slug}/` folder. If you previously loaded another Solo Agency Local Collector extension from an older setup folder, remove or disable that old entry in `chrome://extensions`.
 
 ## Developer Model
 
