@@ -8,13 +8,14 @@ Load whenever generating, reviewing, debugging, or improving a human-facing repo
 
 ## Hard Gates For This Stage
 
-- Human-facing reports are HTML only.
+- Canonical human-facing report files are HTML only. PDF export is an optional derivative client-share artifact when the human explicitly asks for a PDF.
 - Markdown is internal.
 - The report must be standalone, mobile-friendly, agency-grade, and factually aligned with the Markdown source.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
 - Do not create fake action buttons in static HTML.
 - Keep exactly one canonical report set per client/day/run: one daily index HTML plus one full public data sources HTML and one full private data sources HTML.
 - Never merge public data source intelligence and private data source intelligence into one dense HTML body. Each lane is a first-class report file so a later private pass cannot overwrite or summarize away the public pass.
+- PDF is an optional client-share artifact only when requested. It must be generated from the three HTML report files, not from raw memory, and it must not replace the canonical HTML report set.
 
 ## Source Preservation Rule
 
@@ -32,7 +33,7 @@ Each active client must have one daily output folder:
 outputs/YYYY-MM/YYYY-MM-DD/
 ```
 
-Markdown is the canonical internal output record. HTML is the only human-facing rendered report.
+Markdown is the canonical internal output record. HTML is the canonical human-facing rendered report. PDF may be created only as an optional derivative from the HTML report set when the human explicitly asks for a client-share PDF.
 
 The agent must keep the Markdown file even when an HTML report is created, unless the current environment truly cannot write Markdown. The Markdown file is required for:
 
@@ -47,7 +48,7 @@ The HTML report must be created from the same facts, references, ideas, analysis
 
 ### Human-Facing Report Rule: HTML Only
 
-The agent must show report results to the human as HTML only.
+The agent must show report results to the human as HTML by default. If the human explicitly asks for a PDF, create it as a derivative of the HTML report set and still keep the HTML files as canonical.
 
 Do not show, send, link, or ask the human to open the Markdown report as the user-facing report.
 
@@ -57,6 +58,7 @@ Allowed:
 - Mention that a Markdown source file exists only when explaining internal storage or troubleshooting.
 - Deliver the `.html` report path/link to the human.
 - Send Telegram/WideCast notifications with the `.html` path/link.
+- Deliver a `.pdf` client-share export only when explicitly requested, while still providing or preserving the `.html` report path/link.
 
 Not allowed:
 
@@ -64,8 +66,9 @@ Not allowed:
 - "See `outputs/YYYY-MM/YYYY-MM-DD.md` for details."
 - Using the `.md` file as the primary human-facing report.
 - Sending both `.md` and `.html` and making the human decide which one to open.
+- Treating a PDF export as the canonical report source or using it to replace the three HTML files.
 
-Every user-facing report path, notification, or review instruction must point to the `.html` file.
+Every default report path, notification, or review instruction must point to the `.html` file. A `.pdf` path may be included only as an explicitly requested client-share export alongside the canonical `.html` path.
 
 ### Internal Markdown, Beautiful HTML
 
@@ -107,9 +110,10 @@ The latest convenience files should be:
 outputs/latest/{client-name}-daily-report.html
 outputs/latest/{client-name}-public-data-sources-report.html
 outputs/latest/{client-name}-private-data-sources-report.html
+outputs/latest/{client-name}-client-report.pdf
 ```
 
-The daily latest file is the default human-facing convenience link. Public/private latest files are allowed as direct lane links.
+The daily latest file is the default human-facing convenience link. Public/private latest files are allowed as direct lane links. The PDF latest file is allowed only as an extra client-share deliverable when the human asks for a PDF.
 
 ### Latest Override: Three-File Public/Private Report Contract
 
@@ -177,6 +181,44 @@ Update rules:
 - If private data sources fail, time out, are stale, or are blocked, update only the private report with the exact blocker and update the daily index lane status.
 - If a private pass starts but the public report is missing, create a public report placeholder file that says public data sources were not run or were unavailable, then create the private report. Do not create a private-only report set without a daily index.
 
+### Client PDF Export Contract
+
+When the human asks for a PDF to send to a client, create an additional client-share package from the existing three HTML files:
+
+```text
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf
+outputs/latest/{client-name}-client-report.pdf
+```
+
+The PDF source HTML must be a standalone print-friendly document assembled from:
+
+1. `{client-name}-daily-report.html` for the cover, executive snapshot, lane status, blockers, delivery status, and next action.
+2. `{client-name}-public-data-sources-report.html` for the public data sources section.
+3. `{client-name}-private-data-sources-report.html` for the private data sources section when it exists and is approved for client sharing.
+
+Do not build the PDF directly from memory or from only one lane. If any of the three canonical HTML files is missing or blocked, include a clear status page in `{client-name}-client-report.html` instead of inventing content.
+
+PDF formatting rules:
+
+- The PDF source HTML must not depend on remote JavaScript, remote CSS, collapsible UI, copy buttons, or hover-only interactions.
+- Add print CSS with readable page margins, stable headings, page breaks between major sections, visible URLs/references, and no clipped cards or horizontal scrolling.
+- Convert interactive HTML controls into plain text before PDF export.
+- Preserve source references, dates, confidence notes, blockers, and human approval status.
+- The PDF should be client-shareable and polished, but the three HTML files remain the canonical report files for automation updates.
+
+Private data source safety rules:
+
+- Do not include raw private post text, private group member details, login/session information, collector internals, cookies, screenshots, or browser/profile details.
+- Include private data source findings only as approved summaries unless the human explicitly approves sharing exact private source names, URLs, or excerpts with the client.
+- If sharing safety is uncertain, mark `client_pdf_redaction_status: needs_human_review` and create only `{client-name}-client-report.html` for review, not the final PDF.
+
+PDF generation rule:
+
+- Use a reliable local HTML-to-PDF renderer when available, such as browser print-to-PDF or an equivalent PDF engine.
+- If PDF generation is unavailable in the current AI/runtime environment, still create the print-friendly `{client-name}-client-report.html`, record `pdf_generation_blocked`, and tell the human the exact blocker.
+- Do not upload or send the PDF through a provider unless the current client's verified provider config/OpenAPI capabilities support the file upload/notification path and the human asked for that delivery.
+
 State file:
 
 Each report should have a sibling state file:
@@ -202,6 +244,13 @@ The state file must track at least:
   "last_private_update_at": "",
   "public_notification_status": "not_sent|sent|skipped",
   "private_notification_status": "not_sent|sent|skipped",
+  "client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html",
+  "client_report_pdf_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf",
+  "latest_client_pdf_path": "outputs/latest/{client-name}-client-report.pdf",
+  "client_pdf_status": "not_requested|pending_review|generated|blocked|skipped",
+  "client_pdf_redaction_status": "not_needed|redacted|approved_exact_sources|needs_human_review",
+  "client_pdf_generated_at": "",
+  "client_pdf_blocker": "",
   "last_notification_report_path": "",
   "last_notification_lane": "daily|public|private"
 }
