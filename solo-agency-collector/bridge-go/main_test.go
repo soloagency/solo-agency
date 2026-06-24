@@ -119,6 +119,78 @@ func TestRunNowRequestFileLoadsAndMovesAside(t *testing.T) {
 	}
 }
 
+func TestRunNowAPIWritesStatusAndCompletion(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(root, "collector_config.json")
+	outputDir := filepath.Join(root, "inbox")
+	if err := os.WriteFile(configPath, []byte(`{"version":"0.1.0","scheduled_windows":[],"clients":[]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b, err := newBridge(config{
+		host:       defaultHost,
+		port:       defaultPort,
+		configFile: configPath,
+		outputDir:  outputDir,
+		persistent: true,
+		ttl:        defaultTTL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runReq := httptest.NewRequest(http.MethodPost, "/jobs/run_now", bytes.NewBufferString(`{
+  "run_id": "2026-06-23_angela-do_smoke",
+  "client_slug": "angela-do",
+  "allowed_extension_instance_ids": ["ext_angelado_default"],
+  "sources": [
+    {"name":"Example Group","url":"https://www.facebook.com/groups/example","platform":"facebook"}
+  ]
+}`))
+	runRec := httptest.NewRecorder()
+	b.handleRunNowJob(runRec, runReq)
+	if runRec.Code != http.StatusOK {
+		t.Fatalf("run-now status = %d, want %d; body=%s", runRec.Code, http.StatusOK, runRec.Body.String())
+	}
+
+	statusPath := filepath.Join(root, "run_now_request_status.json")
+	status, err := readMapFile(statusPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := getString(status, "run_id", ""); got != "2026-06-23_angela-do_smoke" {
+		t.Fatalf("status run_id = %q, want api run id", got)
+	}
+	if got := getString(status, "request", ""); got != "POST /jobs/run_now" {
+		t.Fatalf("status request = %q, want POST /jobs/run_now", got)
+	}
+	if got := getBool(status, "loaded", false); !got {
+		t.Fatalf("status loaded = %v, want true", got)
+	}
+
+	completeReq := httptest.NewRequest(http.MethodPost, "/complete", bytes.NewBufferString(`{"run_id":"2026-06-23_angela-do_smoke","client_slug":"angela-do"}`))
+	completeReq.Header.Set("X-Collector-Client-Slug", "angela-do")
+	completeReq.Header.Set("X-Collector-Extension-Instance", "ext_angelado_default")
+	completeRec := httptest.NewRecorder()
+	b.handleComplete(completeRec, completeReq)
+	if completeRec.Code != http.StatusOK {
+		t.Fatalf("complete status = %d, want %d; body=%s", completeRec.Code, http.StatusOK, completeRec.Body.String())
+	}
+
+	status, err = readMapFile(statusPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := getString(status, "status", ""); got != "completed" {
+		t.Fatalf("status after complete = %q, want completed", got)
+	}
+	if got := getBool(status, "completed", false); !got {
+		t.Fatalf("completed = %v, want true", got)
+	}
+	if got := getString(status, "extension_instance_id", ""); got != "ext_angelado_default" {
+		t.Fatalf("extension_instance_id = %q, want ext_angelado_default", got)
+	}
+}
+
 func TestRejectsStaleWritesAfterRunNowComplete(t *testing.T) {
 	root := t.TempDir()
 	configPath := filepath.Join(root, "collector_config.json")

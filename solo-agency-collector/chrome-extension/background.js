@@ -17,9 +17,10 @@ const SETTINGS_KEY = "collector_settings";
 const COMPLETED_RUNS_KEY = "collector_completed_runs";
 const ACTIVE_RUN_KEY = "collector_active_run";
 const AUDIT_KEY = "collector_audit";
+const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.5-humanized-scroll";
+const EXTENSION_BUILD = "0.1.13-active-capture-overlay";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 80;
 
@@ -27,6 +28,7 @@ const inMemoryActiveRuns = new Set();
 let clientBindingCache = null;
 
 chrome.runtime.onInstalled.addListener(async () => {
+  await resetRunLockAfterBuildChange("installed");
   const settings = await getSettings();
   await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
   chrome.alarms.create("collector_poll", { periodInMinutes: Math.max(1, settings.pollMinutes || 1) });
@@ -36,6 +38,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  await resetRunLockAfterBuildChange("startup");
   const settings = await getSettings();
   chrome.alarms.create("collector_poll", { periodInMinutes: Math.max(1, settings.pollMinutes || 1) });
   scheduleShortPoll(settings);
@@ -120,6 +123,7 @@ function scheduleShortPoll(settings) {
 }
 
 async function pollBridge(reason) {
+  await resetRunLockAfterBuildChange(reason || "poll");
   const settings = await getSettings();
   const binding = await getClientBinding();
   if (!settings.enabled) {
@@ -267,6 +271,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
 
   async function processSource(source, index) {
     const sourceLabel = source.name || source.url || `source ${index + 1}`;
+    const tabActivationMode = shouldActivateCollectionTab(job, source) ? "active_tab" : "background_tab";
     await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
       run_id: runId,
       client_slug: job.client_slug || binding.client_slug || "",
@@ -274,6 +279,8 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
       source_url: source.url || "",
       platform: source.platform || "",
       status: "started",
+      tab_activation_mode: tabActivationMode,
+      capture_overlay: tabActivationMode === "active_tab",
       index: index + 1,
       total: selectedSources.length,
       source_concurrency: sourceConcurrency,
@@ -336,6 +343,8 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
         source_url: source.url || "",
         platform: source.platform || "",
         status: "collected",
+        tab_activation_mode: tabActivationMode,
+        capture_overlay: tabActivationMode === "active_tab",
         index: index + 1,
         total: selectedSources.length,
         source_concurrency: sourceConcurrency,
@@ -366,6 +375,8 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
         source_url: source.url || "",
         platform: source.platform || "",
         status: "error",
+        tab_activation_mode: tabActivationMode,
+        capture_overlay: tabActivationMode === "active_tab",
         issue: String(error && error.message ? error.message : error),
         index: index + 1,
         total: selectedSources.length,
@@ -413,28 +424,42 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     throw new Error("source url must start with http:// or https://");
   }
 
-  const tab = await createTab({ url: source.url, active: false });
+  const activateCollectionTab = shouldActivateCollectionTab(job, source);
+  const captureOverlayText = collectorCaptureOverlayText(job, binding);
+  const tab = await createTab({ url: source.url, active: activateCollectionTab });
   try {
+    if (activateCollectionTab) {
+      await activateTab(tab);
+    }
     await waitForTabLoad(tab.id, 25000);
+    if (activateCollectionTab) {
+      await installCollectorCaptureOverlayOnTab(tab, captureOverlayText);
+    }
     await delay(randomDelayMs(settings, job.pacing || {}));
     // Inject the cleaning pipeline (filtering.js + helpers), then run the
     // scroll/capture orchestrator. Same data_point envelope as before; the text
     // fields now carry the cleaned extraction instead of the raw innerText blob.
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: CAPTURE_FILES });
+    await withTimeout(
+      chrome.scripting.executeScript({ target: { tabId: tab.id }, files: CAPTURE_FILES }),
+      20000,
+      "inject_capture_files_timeout_needs_site_access"
+    );
     const discoveryMode = isDiscoveryCollection(job, source);
     const maxScrollSteps = maxScrollStepsForCollection(job, source);
-    const [result] = await chrome.scripting.executeScript({
+    const collectOptions = {
+      scrollSteps: Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
+      maxScrollSteps,
+      scrollMode: discoveryMode ? "discovery" : "standard",
+      stopAfterNoMoveScrolls: discoveryMode ? 3 : 0,
+      minDelaySeconds: Number(job.pacing?.min_delay_seconds || settings.minDelaySeconds || 5),
+      maxDelaySeconds: Number(job.pacing?.max_delay_seconds || settings.maxDelaySeconds || 5)
+    };
+    const captureTimeoutMs = captureTimeoutMsForCollection(job, source, settings, collectOptions);
+    const [result] = await withTimeout(chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: collectCleanPage,
-      args: [{
-        scrollSteps: Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
-        maxScrollSteps,
-        scrollMode: discoveryMode ? "discovery" : "standard",
-        stopAfterNoMoveScrolls: discoveryMode ? 3 : 0,
-        minDelaySeconds: Number(job.pacing?.min_delay_seconds || settings.minDelaySeconds || 5),
-        maxDelaySeconds: Number(job.pacing?.max_delay_seconds || settings.maxDelaySeconds || 5)
-      }]
-    });
+      args: [collectOptions]
+    }), captureTimeoutMs, "capture_timeout_needs_visible_collector_window_or_site_access");
 
     const cap = result && result.result ? result.result : {};
     const now = new Date().toISOString();
@@ -503,6 +528,9 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         scroll_debug: cap.scrollDebug || [],
         scroll_stopped_reason: cap.scrollStoppedReason || "",
         extraction_engine: cap.engine || "",
+        tab_activation_mode: activateCollectionTab ? "active_tab" : "background_tab",
+        capture_overlay: activateCollectionTab,
+        capture_overlay_text: activateCollectionTab ? captureOverlayText : "",
         read_only: true
       },
       newPrivateSources: entityItems
@@ -594,6 +622,124 @@ function createTab(createProperties) {
   });
 }
 
+async function activateTab(tab) {
+  if (!tab || typeof tab.id !== "number") return;
+  try {
+    await chrome.tabs.update(tab.id, { active: true });
+    if (typeof tab.windowId === "number") {
+      await chrome.windows.update(tab.windowId, { focused: true });
+    }
+  } catch (error) {
+    // Capture can still proceed if focusing is blocked, but the run will keep
+    // tab_activation_mode metadata so the agent can diagnose weak output later.
+  }
+}
+
+async function installCollectorCaptureOverlayOnTab(tab, text) {
+  if (!tab || typeof tab.id !== "number") return false;
+  try {
+    await withTimeout(chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: installCollectorCaptureOverlay,
+      args: [{ text }]
+    }), 8000, "install_capture_overlay_timeout");
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function collectorCaptureOverlayText(job, binding) {
+  const clientName = String(
+    job?.client_name ||
+    job?.client_display_name ||
+    binding?.client_name ||
+    ""
+  ).trim();
+  if (clientName) {
+    return `${clientName} Solo Agency Collector Capturing data under your approval...`;
+  }
+  const displayName = String(
+    binding?.extension_display_name ||
+    job?.extension_display_name ||
+    "Solo Agency Collector"
+  ).replace(/\s*-\s*/g, " ").trim();
+  return `${displayName} Capturing data under your approval...`;
+}
+
+function installCollectorCaptureOverlay(options) {
+  const overlayId = "solo-agency-collector-capture-overlay";
+  const styleId = "solo-agency-collector-capture-overlay-style";
+  const label = String(options && options.text ? options.text : "Solo Agency Collector Capturing data under your approval...");
+  try {
+    const existing = document.getElementById(overlayId);
+    if (existing) existing.remove();
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+@keyframes soloAgencyCollectorRecordBlink {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.72); }
+  45% { opacity: 0.36; transform: scale(0.82); box-shadow: 0 0 0 18px rgba(255, 0, 0, 0); }
+}
+#${overlayId} {
+  position: fixed !important;
+  top: 18px !important;
+  right: 18px !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  max-width: min(760px, calc(100vw - 36px)) !important;
+  padding: 16px 20px !important;
+  border: 3px solid rgba(255, 255, 255, 0.98) !important;
+  border-radius: 14px !important;
+  background: rgba(10, 10, 10, 0.92) !important;
+  color: #ffffff !important;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45) !important;
+  pointer-events: none !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+  line-height: 1.1 !important;
+  letter-spacing: 0 !important;
+  text-align: left !important;
+}
+#${overlayId} .solo-agency-collector-record-dot {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  border-radius: 999px !important;
+  background: #ff0000 !important;
+  animation: soloAgencyCollectorRecordBlink 0.9s infinite !important;
+}
+#${overlayId} .solo-agency-collector-record-label {
+  color: #ffffff !important;
+  font-size: clamp(24px, 2.5vw, 42px) !important;
+  font-weight: 900 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0 !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8) !important;
+}
+`;
+      (document.head || document.documentElement).appendChild(style);
+    }
+    const overlay = document.createElement("div");
+    overlay.id = overlayId;
+    overlay.setAttribute("role", "status");
+    overlay.setAttribute("aria-live", "polite");
+    const dot = document.createElement("span");
+    dot.className = "solo-agency-collector-record-dot";
+    const text = document.createElement("span");
+    text.className = "solo-agency-collector-record-label";
+    text.textContent = label;
+    overlay.appendChild(dot);
+    overlay.appendChild(text);
+    (document.body || document.documentElement).appendChild(overlay);
+    return { ok: true, text: label };
+  } catch (error) {
+    return { ok: false, error: String(error && error.message ? error.message : error) };
+  }
+}
+
 function waitForTabLoad(tabId, timeoutMs) {
   return new Promise((resolve) => {
     let done = false;
@@ -612,6 +758,34 @@ function waitForTabLoad(tabId, timeoutMs) {
     }
     chrome.tabs.onUpdated.addListener(listener);
   });
+}
+
+async function withTimeout(promise, timeoutMs, label) {
+  const original = Promise.resolve(promise);
+  let timer = null;
+  try {
+    return await Promise.race([
+      original,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`${label || "operation_timeout"} after ${Math.round((timeoutMs || 0) / 1000)}s`));
+        }, timeoutMs || 30000);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    original.catch(() => {});
+  }
+}
+
+function captureTimeoutMsForCollection(job, source, settings, options) {
+  const maxScrollSteps = maxScrollStepsForCollection(job, source);
+  const scrollSteps = clampNumber(options?.scrollSteps, 0, maxScrollSteps, settings.scrollSteps || DEFAULT_SETTINGS.scrollSteps);
+  const maxDelaySeconds = clampNumber(options?.maxDelaySeconds, 1, 60, settings.maxDelaySeconds || DEFAULT_SETTINGS.maxDelaySeconds);
+  const perStepMs = (maxDelaySeconds * 1000) + 25000;
+  const estimatedMs = 90000 + Math.max(1, scrollSteps) * perStepMs;
+  const capMs = isDiscoveryCollection(job, source) ? 25 * 60 * 1000 : 12 * 60 * 1000;
+  return Math.max(3 * 60 * 1000, Math.min(capMs, estimatedMs));
 }
 
 // Injected orchestrator for the AUTOMATED collector. Requires CAPTURE_FILES to
@@ -723,10 +897,6 @@ async function collectCleanPage(opts) {
     target.el.scrollTop = nextTop;
   }
 
-  function easeInOutCubic(t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  }
-
   function humanDurationMs(baseMs) {
     return Math.round(clamp(Number(baseMs) * randomBetween(0.72, 1.38), 420, 1450));
   }
@@ -736,36 +906,46 @@ async function collectCleanPage(opts) {
     return Math.round(base * randomBetween(0.84, 1.12));
   }
 
-  async function animateScrollTarget(target, toTop, durationMs) {
+  function dispatchScrollHints(target, distance) {
+    const node = target && target.kind === "element" ? target.el : document.scrollingElement || document.documentElement || document.body;
+    try {
+      const wheel = new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaY: Math.max(120, Number(distance) || 0),
+        view: window
+      });
+      (node || document).dispatchEvent(wheel);
+    } catch (error) {
+      // Synthetic input hints are best-effort only.
+    }
+    try {
+      (target && target.kind === "element" ? target.el : window).dispatchEvent(new Event("scroll", { bubbles: true }));
+    } catch (error) {
+      // Ignore pages that block synthetic events.
+    }
+  }
+
+  async function moveScrollTarget(target, toTop, durationMs) {
     const from = scrollTopOf(target);
     const max = scrollMaxOf(target);
     const to = Math.max(0, Math.min(max, Number(toTop) || 0));
     if (Math.abs(to - from) < 1) return;
     const duration = Math.max(260, Number(durationMs) || 760);
-    const raf = window.requestAnimationFrame || ((fn) => setTimeout(fn, 16));
-    const start = Date.now();
-    await new Promise((resolve) => {
-      function frame() {
-        const elapsed = Date.now() - start;
-        const progress = Math.min(1, elapsed / duration);
-        const nextTop = from + (to - from) * easeInOutCubic(progress);
-        setScrollTopOf(target, nextTop);
-        if (progress < 1) {
-          raf(frame);
-        } else {
-          resolve();
-        }
-      }
-      raf(frame);
-    });
+    if (Math.abs(to - from) > 240) {
+      setScrollTopOf(target, from + (to - from) * 0.58);
+      dispatchScrollHints(target, to - from);
+      await wait(Math.round(clamp(duration / 7, 60, 180)));
+    }
     setScrollTopOf(target, to);
+    dispatchScrollHints(target, to - from);
   }
 
   async function tryScrollTarget(target, distance) {
     const before = scrollTopOf(target);
     const nextTop = Math.min(scrollMaxOf(target), before + distance);
     const durationMs = humanDurationMs(scrollMode === "discovery" ? 850 : 700);
-    await animateScrollTarget(target, nextTop, durationMs);
+    await moveScrollTarget(target, nextTop, durationMs);
     await wait(Math.round(randomBetween(60, 170)));
     const after = scrollTopOf(target);
     return {
@@ -793,7 +973,7 @@ async function collectCleanPage(opts) {
     const fallbackDistance = humanScrollDistance(window.innerHeight || 800, multiplier);
     const fallbackTarget = { kind: "document", el: document.scrollingElement || document.documentElement || document.body, label: "window-fallback" };
     const durationMs = humanDurationMs(scrollMode === "discovery" ? 850 : 700);
-    await animateScrollTarget(fallbackTarget, scrollTopOf(fallbackTarget) + fallbackDistance, durationMs);
+    await moveScrollTarget(fallbackTarget, scrollTopOf(fallbackTarget) + fallbackDistance, durationMs);
     await wait(Math.round(randomBetween(60, 170)));
     return {
       target: "window-fallback",
@@ -1382,10 +1562,6 @@ async function runVisibleScrollTest(opts) {
     target.el.scrollTop = nextTop;
   }
 
-  function easeInOutCubic(t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  }
-
   function humanDurationMs(baseMs) {
     return Math.round(clamp(Number(baseMs) * randomBetween(0.72, 1.38), 420, 1450));
   }
@@ -1399,36 +1575,46 @@ async function runVisibleScrollTest(opts) {
     return Math.round(base * randomBetween(0.84, 1.12));
   }
 
-  async function animateScrollTarget(target, toTop, durationMs) {
+  function dispatchScrollHints(target, distance) {
+    const node = target && target.kind === "element" ? target.el : document.scrollingElement || document.documentElement || document.body;
+    try {
+      const wheel = new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaY: Math.max(120, Number(distance) || 0),
+        view: window
+      });
+      (node || document).dispatchEvent(wheel);
+    } catch (error) {
+      // Synthetic input hints are best-effort only.
+    }
+    try {
+      (target && target.kind === "element" ? target.el : window).dispatchEvent(new Event("scroll", { bubbles: true }));
+    } catch (error) {
+      // Ignore pages that block synthetic events.
+    }
+  }
+
+  async function moveScrollTarget(target, toTop, durationMs) {
     const from = scrollTopOf(target);
     const max = scrollMaxOf(target);
     const to = Math.max(0, Math.min(max, Number(toTop) || 0));
     if (Math.abs(to - from) < 1) return;
     const duration = Math.max(260, Number(durationMs) || 850);
-    const raf = window.requestAnimationFrame || ((fn) => setTimeout(fn, 16));
-    const start = Date.now();
-    await new Promise((resolve) => {
-      function frame() {
-        const elapsed = Date.now() - start;
-        const progress = Math.min(1, elapsed / duration);
-        const nextTop = from + (to - from) * easeInOutCubic(progress);
-        setScrollTopOf(target, nextTop);
-        if (progress < 1) {
-          raf(frame);
-        } else {
-          resolve();
-        }
-      }
-      raf(frame);
-    });
+    if (Math.abs(to - from) > 240) {
+      setScrollTopOf(target, from + (to - from) * 0.58);
+      dispatchScrollHints(target, to - from);
+      await wait(Math.round(clamp(duration / 7, 60, 180)));
+    }
     setScrollTopOf(target, to);
+    dispatchScrollHints(target, to - from);
   }
 
   async function tryScrollTarget(target, distance) {
     const before = scrollTopOf(target);
     const nextTop = Math.min(scrollMaxOf(target), before + distance);
     const durationMs = humanDurationMs(850);
-    await animateScrollTarget(target, nextTop, durationMs);
+    await moveScrollTarget(target, nextTop, durationMs);
     await wait(Math.round(randomBetween(60, 170)));
     const after = scrollTopOf(target);
     return {
@@ -1482,16 +1668,32 @@ async function getCompletedRuns() {
 async function acquireRunLock(runId, job, bridgeStatus, reason) {
   const now = Date.now();
   if (inMemoryActiveRuns.size > 0) {
-    return { acquired: false, reason: "in_memory_active_run" };
+    const hasSameRun = inMemoryActiveRuns.has(runId);
+    if (!hasSameRun && shouldReplaceStaleRunLock(runId, job, bridgeStatus)) {
+      inMemoryActiveRuns.clear();
+    } else {
+      return { acquired: false, reason: "in_memory_active_run" };
+    }
   }
 
   const lockData = await chrome.storage.local.get(ACTIVE_RUN_KEY);
   if (inMemoryActiveRuns.size > 0) {
-    return { acquired: false, reason: "in_memory_active_run" };
+    const hasSameRun = inMemoryActiveRuns.has(runId);
+    if (!hasSameRun && shouldReplaceStaleRunLock(runId, job, bridgeStatus)) {
+      inMemoryActiveRuns.clear();
+    } else {
+      return { acquired: false, reason: "in_memory_active_run" };
+    }
   }
 
-  const currentLock = lockData[ACTIVE_RUN_KEY] || null;
+  let currentLock = lockData[ACTIVE_RUN_KEY] || null;
   const lockExpiresAt = currentLock && Date.parse(currentLock.expiresAt || "");
+  if (currentLock && Number.isFinite(lockExpiresAt) && lockExpiresAt > now) {
+    if (currentLock.runId !== runId && shouldReplaceStaleRunLock(runId, job, bridgeStatus)) {
+      await chrome.storage.local.remove(ACTIVE_RUN_KEY);
+      currentLock = null;
+    }
+  }
   if (currentLock && Number.isFinite(lockExpiresAt) && lockExpiresAt > now) {
     return { acquired: false, reason: "storage_active_run", lock: currentLock };
   }
@@ -1519,6 +1721,13 @@ async function acquireRunLock(runId, job, bridgeStatus, reason) {
   return { acquired: true, owner, lock };
 }
 
+function shouldReplaceStaleRunLock(runId, job, bridgeStatus) {
+  if (!runId) return false;
+  const bridgeRunId = String(bridgeStatus?.run_id || "");
+  if (bridgeRunId && bridgeRunId !== runId) return false;
+  return Boolean(job?.force || job?.run_now || job?.active_tab_diagnostic || job?.activate_tab_for_test);
+}
+
 async function releaseRunLock(runId, owner) {
   inMemoryActiveRuns.delete(runId);
   const lockData = await chrome.storage.local.get(ACTIVE_RUN_KEY);
@@ -1526,6 +1735,22 @@ async function releaseRunLock(runId, owner) {
   if (currentLock && currentLock.runId === runId && currentLock.owner === owner) {
     await chrome.storage.local.remove(ACTIVE_RUN_KEY);
   }
+}
+
+async function resetRunLockAfterBuildChange(reason) {
+  const data = await chrome.storage.local.get(BUILD_STATE_KEY);
+  if (data[BUILD_STATE_KEY] === EXTENSION_BUILD) return false;
+  inMemoryActiveRuns.clear();
+  await chrome.storage.local.remove(ACTIVE_RUN_KEY);
+  await chrome.storage.local.set({ [BUILD_STATE_KEY]: EXTENSION_BUILD });
+  await setState({
+    status: "updated",
+    message: `Collector extension updated to ${EXTENSION_BUILD}; stale run lock cleared.`,
+    reason,
+    extensionBuild: EXTENSION_BUILD,
+    updatedAt: new Date().toISOString()
+  });
+  return true;
 }
 
 function trimCompletedRuns(runs) {
@@ -1593,6 +1818,39 @@ function isDiscoveryCollection(job, source) {
 
 function maxScrollStepsForCollection(job, source) {
   return isDiscoveryCollection(job, source) ? DISCOVERY_SCROLL_CAP : NORMAL_SCROLL_CAP;
+}
+
+function shouldActivateCollectionTab(job, source) {
+  const pacing = job && typeof job === "object" ? job.pacing || {} : {};
+  if (
+    explicitFalse(job?.activate_tab) ||
+    explicitFalse(job?.focus_collection_tab) ||
+    explicitFalse(pacing?.activate_tab) ||
+    explicitFalse(pacing?.focus_collection_tab) ||
+    explicitFalse(source?.activate_tab) ||
+    explicitFalse(source?.focus_collection_tab) ||
+    explicitTrue(job?.background_tab) ||
+    explicitTrue(job?.allow_background_tab) ||
+    explicitTrue(pacing?.background_tab) ||
+    explicitTrue(pacing?.allow_background_tab) ||
+    explicitTrue(source?.background_tab) ||
+    explicitTrue(source?.allow_background_tab)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function explicitTrue(value) {
+  if (value === true) return true;
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+}
+
+function explicitFalse(value) {
+  if (value === false) return true;
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "false" || normalized === "0" || normalized === "no" || normalized === "off";
 }
 
 function canonicalSourceKey(url) {

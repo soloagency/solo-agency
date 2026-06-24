@@ -43,6 +43,16 @@ solo-agency-local-collector/bin/
 
 The AI agent chooses the right binary for the user's OS and CPU.
 
+## Maintainer Build / Pre-Upload
+
+From the repo root, run:
+
+```sh
+./deploy-soloagency.sh
+```
+
+This rebuilds the Go bridge binaries for macOS arm64, macOS amd64, Linux amd64, and Windows amd64; rebuilds the Chrome extension zip artifacts; refreshes `dist/SHA256SUMS`; runs Go tests; and runs upload preflight checks. Use `./deploy-soloagency.sh --collector-only` when only collector artifacts need to be refreshed.
+
 Recommended unattended mode:
 
 - Start the bridge in persistent scheduler mode.
