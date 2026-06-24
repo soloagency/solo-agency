@@ -210,7 +210,17 @@ https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/b
 https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/social-post-writing.zip
 ```
 
-If the agent is already running inside a cloned copy of `https://github.com/soloagency/solo-agency`, it must prefer local repo files under `solo-agency-collector/dist/` for collector artifacts and `playbooks/skills/` for writing-skill artifacts before downloading the same files from raw GitHub URLs.
+If the agent is already running inside a cloned copy of `https://github.com/soloagency/solo-agency`, it may prefer local repo files under `solo-agency-collector/dist/` for collector artifacts and `playbooks/skills/` for writing-skill artifacts only after the clone passes the Fresh Source Verification below. Unverified local files are not a distribution source.
+
+Fresh Source Verification:
+
+- Treat GitHub `main` as the source of truth for every one-time setup, repair, update, or Local Collector preparation.
+- Do not reuse fixed shared fallback folders such as `/tmp/solo-agency`, `/var/tmp/solo-agency`, `/dev/shm/solo-agency`, or another generic cache path that may contain files from a prior session.
+- If a temporary checkout is needed, create a fresh unique directory with `mktemp -d`, clone `https://github.com/soloagency/solo-agency`, and verify it before reading or copying any file.
+- Verification requires `.git` to exist, `git remote get-url origin` to resolve to the Solo Agency GitHub repository, and `git rev-parse HEAD` to equal `git ls-remote origin refs/heads/main` after clone/fetch.
+- A folder without `.git`, a folder owned by another user, a folder with an old timestamp, or a target that could not be deleted/updated is stale cache. Do not read from it, copy from it, or use it as fallback.
+- If `rm -rf`, `git fetch`, `git pull`, `git clone`, `curl`, or archive download fails because of permissions, sandboxing, or network access, stop and request permission or give the human one exact GitHub command. Do not continue with the old local folder.
+- Do not let shell chaining hide a failed cleanup. The agent must confirm the clone/download actually happened and must report the verified commit hash in setup status or chat before using the artifacts.
 
 The AI agent should prepare the collector locally as much as its environment allows, but it must not start the one-time setup script or collector app itself. The setup/start command must be run by the human outside the AI agent sandbox so the Local Collector app survives after the agent command/session ends.
 
@@ -254,20 +264,20 @@ Chrome extension folder disambiguation:
 Install flow:
 
 1. Detect the user's OS and CPU architecture.
-2. Check whether `solo-agency-collector/dist/` already exists locally from a cloned repo.
-3. If local artifacts exist, copy `SHA256SUMS` and `collector-bridge-binaries-0.1.0.zip` from the local repo.
-4. If local artifacts do not exist, download them from the raw GitHub URLs above.
-5. Verify checksums when the environment has checksum tools available.
-6. Extract bridge binaries into the absolute runtime path for `solo-agency-local-collector/bin/`.
-7. Prepare the Chrome extension template into the absolute per-client path `extensions/{client_slug}/`, patch the manifest name to `{Client Name} - Solo Agency Collector`, and create `client_binding.json`. Prefer the repo helper when available:
+2. Establish a verified fresh source: use the current setup root only if it passes Fresh Source Verification, otherwise clone GitHub `main` into a fresh unique `mktemp -d` checkout. If fresh source cannot be verified, stop instead of using local cache.
+3. Copy `SHA256SUMS`, `collector-bridge-binaries-0.1.0.zip`, extension templates, and helper scripts only from the verified checkout, or download the exact raw GitHub URLs above when cloning is unavailable.
+4. Verify checksums when the environment has checksum tools available.
+5. Extract bridge binaries into the absolute runtime path for `solo-agency-local-collector/bin/`.
+6. Prepare the Chrome extension template into the absolute per-client path `extensions/{client_slug}/`, patch the manifest name to `{Client Name} - Solo Agency Collector`, and create `client_binding.json`. Prefer the repo helper when available from the verified checkout:
    ```bash
    solo-agency-collector/scripts/prepare_client_extension.sh "{Client Name}" "{client_slug}" "{extension_instance_id}" "{ABSOLUTE_AGENCY_ROOT}"
    ```
-8. Select the correct bridge binary for the current machine.
-9. On macOS/Linux, ensure the selected binary is executable.
-10. Create the setup/start script or launcher, but do not execute it from the AI agent.
-11. Give the human exactly one Terminal/PowerShell command or one double-clickable launcher path to run outside the AI sandbox.
-12. In the same human-facing message, give the Chrome extension `Load unpacked` steps and the one absolute per-client extension folder path.
+7. Select the correct bridge binary for the current machine.
+8. On macOS/Linux, ensure the selected binary is executable.
+9. Create the setup/start script or launcher, but do not execute it from the AI agent.
+10. Give the human exactly one Terminal/PowerShell command or one double-clickable launcher path to run outside the AI sandbox.
+11. In the same human-facing message, give the Chrome extension `Load unpacked` steps and the one absolute per-client extension folder path.
+12. Record the verified source path and commit hash in `daily-content-pipeline/collector/collector_setup_status.md` when the file exists or is being created.
 13. After the human confirms both actions, health-check `GET http://127.0.0.1:17321/status` and run the workspace identity check before claiming the collector is healthy.
 14. Prefer persistent scheduler mode for unattended collection. After one-time setup succeeds, scheduled runs should use the already-running Local Collector app and should not ask the human to repeat setup.
 

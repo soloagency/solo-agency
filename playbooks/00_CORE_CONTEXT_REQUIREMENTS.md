@@ -95,6 +95,19 @@ If the `playbooks/` folder is not available, the agent must download the needed 
 https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/
 ```
 
+### Fresh GitHub Source Rule
+
+For setup, setup repair, repo update, Local Collector preparation, and any action that copies playbooks or collector files into a human's setup, GitHub `main` is the source of truth unless the current setup root is verified as a fresh clone of the same repo.
+
+The agent must:
+
+- clone or download from `https://github.com/soloagency/solo-agency` into the current setup root or a fresh unique `mktemp -d` directory;
+- never reuse fixed shared fallback folders such as `/tmp/solo-agency`, `/var/tmp/solo-agency`, `/dev/shm/solo-agency`, or any previously used cache path;
+- verify `.git` exists, `origin` is the Solo Agency GitHub repo, and local `HEAD` matches `git ls-remote origin refs/heads/main` before reading or copying repo contents;
+- treat folders without `.git`, folders owned by another user, old timestamp folders, and failed delete/update targets as stale cache;
+- stop, request permission, or hand the human one exact GitHub command if fresh GitHub access is blocked by sandbox/network limits;
+- never fall back to unverified local code, even if it appears to contain the expected files.
+
 ### Canonical User-Facing Description Rule
 
 When explaining what Solo Agency does, the agent must not describe it as only researching, finding ideas, writing drafts, and publishing.

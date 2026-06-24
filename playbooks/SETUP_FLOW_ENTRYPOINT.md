@@ -17,6 +17,19 @@ Setup Flow is the control plane. It configures Solo Agency so automation tasks r
 9. After any approved config change, perform Automation Resync if a schedule/automation already exists.
 10. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`.
 
+## Fresh Source Acquisition Hard Gate
+
+Before copying playbooks, `solo-agency-collector/` artifacts, extension templates, scripts, or zipped assets into the human's setup, the setup agent must verify the source repo.
+
+Required behavior:
+
+- Use the current setup root if it is already a verified clone of `https://github.com/soloagency/solo-agency`; otherwise clone into a fresh unique `mktemp -d` directory.
+- Do not use fixed shared fallback folders such as `/tmp/solo-agency`, `/var/tmp/solo-agency`, or `/dev/shm/solo-agency`.
+- Do not trust a folder that lacks `.git`, has the wrong owner, has an old timestamp, or could not be removed/updated.
+- Verify `git remote get-url origin`, `git rev-parse HEAD`, and `git ls-remote origin refs/heads/main`; local `HEAD` must match GitHub `main` before the agent reads or copies files from that checkout.
+- If GitHub access fails because of network or sandbox restrictions, request the needed permission or give the human one exact clone/download command. Do not proceed with stale local code.
+- Record the verified source path and commit hash in `daily-content-pipeline/collector/collector_setup_status.md` or `daily-content-pipeline/automation/resync_log.md` when those files exist.
+
 ## Required Setup Output
 
 For each configured client, Setup Flow must leave these current:

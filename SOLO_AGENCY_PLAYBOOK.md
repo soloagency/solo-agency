@@ -188,7 +188,18 @@ Every day, Solo Agency researches the market, finds source-backed content ideas,
 
 Do not imply that production is only a manual copy/paste step. Also do not imply that rendering, publishing, spending credits, face clone, voice clone, or outreach happens without explicit human approval.
 
-## Missing Playbook Download Rule
+## Fresh GitHub Source And Missing Playbook Download Rule
+
+For setup, repair, update, or Local Collector preparation, the agent must treat GitHub `main` as the source of truth unless it has verified that the current setup root is already a fresh clone of the same repo.
+
+Hard rules:
+
+- Do not reuse fixed shared fallback folders such as `/tmp/solo-agency`, `/var/tmp/solo-agency`, `/dev/shm/solo-agency`, or another path that could contain leftovers from a previous agent/session.
+- If a temporary checkout is needed, create a fresh unique directory with `mktemp -d`, clone `https://github.com/soloagency/solo-agency`, and verify the checkout before reading or copying from it.
+- Verification requires `.git` to exist, `origin` to point to `https://github.com/soloagency/solo-agency`, and `git rev-parse HEAD` to match `git ls-remote origin refs/heads/main` after clone/fetch.
+- A directory without `.git`, with the wrong owner, with an old timestamp, or after a failed delete/update is stale cache. Do not read from it, copy from it, or use it as fallback.
+- If sandbox or network limits block fresh GitHub access, request the needed permission or give the human one exact GitHub clone/download command. Do not continue by using unverified local code.
+- Before copying playbooks, collector artifacts, or extension templates into a setup, record the verified source path and commit hash in the setup notes/status when such a file exists.
 
 If the local `playbooks/` folder is unavailable, download the needed child playbook from:
 
