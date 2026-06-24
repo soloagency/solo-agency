@@ -903,9 +903,9 @@ Required report hierarchy:
    - Secondary actions may be listed below, but they must not compete with the primary next action.
    - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
    - After schedule/routine is configured but the first agency run has not happened, the primary next action should be asking whether to run the first agency run now.
-   - After the first agency run small win exists and PDNA setup - Production, Distribution, Notification, and Analytics - has not been completed/declined/blocked, the primary next action should usually be that setup gate.
+   - After the first Automation Flow report/draft exists and PDNA setup - Production, Distribution, Notification, and Analytics - has not been completed/declined/blocked, the primary next action should usually be that setup gate.
    - For reports where production setup is completed/declined/blocked and private data sources are pending, the primary next action should usually be activating the Solo Agency Local Collector or marking private data sources pending, not starting a video branch.
-   - Do not ask "make a video now?" as the primary next action immediately after the small win; production/provider setup comes first.
+   - Do not ask "make a video now?" as the primary next action immediately after the first Automation Flow report/draft; production/provider setup comes first.
 
 ### Report Handoff Chat Rule
 
