@@ -265,29 +265,35 @@ In this mode:
 
 Manual runs must not wait for a configured schedule window.
 
-For first trials, test runs, "run now", "collect now", or any human-requested manual collection, POST a job to:
+For first trials, test runs, "run now", "collect now", or any human-requested manual collection, enqueue a per-client job. If localhost is reachable, POST the job to:
 
 ```text
 POST http://127.0.0.1:17321/jobs/run_now
 ```
 
-The job should include a unique `run_id`, `run_now: true`, `force: false` by default, `run_now_ttl_minutes` (default 30, max 120), `sources`, `pacing`, and client metadata. The bridge will expose it immediately through `/status` and `/jobs/current`; the Chrome extension should pick it up on its next poll.
+The job should include a unique `run_id`, `run_now: true`, `force: false` by default, `run_now_ttl_minutes` (default 30, max 120), `sources`, `pacing`, `client_slug`, and `allowed_extension_instance_ids`. The bridge queues the job and the matching Chrome extension claims it on its next poll. The bridge runs only one collector job at a time, then moves to the next queued client after `/complete`.
 
-If an AI sandbox cannot call the human machine's localhost endpoint directly but can write local files, write the same payload to:
+If an AI sandbox cannot call the human machine's localhost endpoint directly but can write local files, use the queue directory. Write one atomic JSON file per client/run:
+
+```text
+daily-content-pipeline/collector/jobs/pending/{timestamp}_{client_slug}_{run_id}.json
+```
+
+Write each file atomically: write a temporary file in the same folder first, then rename it to a unique `.json` filename after the JSON is complete. Never have multiple agents write the same pending filename.
+
+Legacy single-file fallback:
 
 ```text
 daily-content-pipeline/collector/run_now_request.json
 ```
 
-Write the file atomically: write a temporary file in the same folder first, then rename it to `run_now_request.json` after the JSON is complete.
-
-The bridge checks this file during `/status`, loads it as a run-now job, writes `run_now_request_status.json`, moves it aside as `run_now_request.{run_id}.{timestamp}.consumed.json`, and keeps an in-memory signature guard if moving/removing fails. This is the preferred fallback because it does not require the human to run another command and it prevents the same file from being replayed forever.
+The bridge still checks this file during `/status`, but now converts the payload into queue files under `jobs/pending/`, writes `run_now_request_status.json`, and moves the request aside as `run_now_request.{batch_or_run_id}.{timestamp}.consumed.json`. A single file may contain either one job or a batch object with `{"jobs":[...]}`. Do not use the single file when multiple automation agents may write concurrently; two writers can still overwrite the same path before the bridge sees it. Use `jobs/pending/` unique files for multi-client and scheduled automation.
 
 Do not simulate a manual run by editing `scheduled_windows` or creating a temporary schedule window. If an AI sandbox cannot call HTTP and cannot write the request file, create a local helper script/launcher as the last fallback. That helper must POST `/jobs/run_now`; it must not restart the bridge just to make a schedule edit take effect.
 
 If a legacy collector without `/jobs/run_now` requires a temporary schedule fallback, clearly label it as a fallback, back up the config, use a short unique temporary window, restore the original config after completion/timeout, and report the fallback. Do not use this fallback when `/jobs/run_now` exists.
 
-Use a new unique `run_id` for every manual run. Do not reuse the same run id with `force: true` as the default behavior. If `/complete` is never received, the bridge must stop exposing the run-now job after its TTL expires.
+Use a new unique `run_id` for every manual run. Do not reuse the same run id with `force: true` as the default behavior. If `/complete` is never received, the bridge must stop exposing the active run-now job after its TTL expires and then continue with the next queued job.
 
 After the extension posts `/complete`, the run-now job is cleared.
 
@@ -296,7 +302,7 @@ Config reload behavior:
 - The bridge checks `collector_config.json` during `/status`.
 - If the file timestamp or size changed, the bridge reloads config without restart.
 - Use `POST /config` when available, but direct config file edits are acceptable for intentional recurring schedule updates when HTTP is unavailable.
-- Manual runs must still use `/jobs/run_now` or `run_now_request.json`, not schedule edits.
+- Manual runs must still use `/jobs/run_now` or per-client files under `jobs/pending/`, not schedule edits. `run_now_request.json` is only a legacy/batch shim that the bridge converts into queue files.
 
 ## Start Bridge: On-Demand Mode
 

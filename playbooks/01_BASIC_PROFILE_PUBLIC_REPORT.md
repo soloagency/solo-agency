@@ -4,7 +4,7 @@ Stage: `01`
 
 ## Load Rule
 
-Load during first setup, add-client flow, setup repair, and first agency run/report generation. This stage must be loaded together with Stage 0 before the first setup question.
+Load during first setup, add-client flow, setup repair, and Automation Flow first agency run/report generation. This stage must be loaded together with Stage 0 before the first setup question. In Setup Flow, the report-generation parts of this stage are superseded by the Setup Flow hard stop.
 
 ## Hard Gates For This Stage
 
@@ -18,6 +18,7 @@ Load during first setup, add-client flow, setup repair, and first agency run/rep
 - The first report must be produced by the client-specific automation task, not by the Setup Flow chat.
 - Load Stage 10 before reporting leads, competitors, comment opportunities, or lead/competitor logs.
 - PDNA setup - Production, Distribution, Notification, and Analytics - is a setup/config provider gate; do not start production or ask "make a video now?" inside Setup Flow.
+- If the human asks to run, create, generate, show, refresh, or update a report while this stage is being used for Setup Flow, do not run the report. Finish or resync the client-specific automation task and tell the human the exact task name to run.
 
 ## Latest Override: Setup Flow Does Not Run Reports
 
@@ -26,7 +27,7 @@ This stage contains older first-run/report instructions for the previous workflo
 - In Setup Flow, do not run the first agency run, first report, public scan, private data source scan, draft generation, video creation, publishing, or PDNA actions.
 - Setup Flow must finish by creating or updating the client-specific automation task and all persistent config needed for that task to run correctly.
 - The first report must run in Automation Flow, using a client-specific task whose name begins with the client name, for example `AvenNgo - Solo Agency First Run` or `AvenNgo - Solo Agency Daily Run`.
-- If the human asks to run a report while still in Setup Flow, verify/resync the automation task instead and tell the human the exact task name to run.
+- If the human asks to run, create, generate, show, refresh, or update a report while still in Setup Flow, verify/resync the automation task instead and tell the human the exact task name to run. Do not ask whether to run the report now, do not load the scheduled-run entrypoint in the setup chat, and do not perform public research, private data source collection, report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or report notifications.
 - Any later setup/config change in this session must update the Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled prompt, native task prompt when editable, and resync log.
 
 Updated setup completion means `ready_for_automation_first_run`, not `first_report_completed`.
@@ -519,8 +520,9 @@ Manual run / run-now rule:
 - If the Local Collector app is not reachable, the agent must not try to start it from inside the AI sandbox during setup/repair. Provide the one-line Local Collector app setup/start command for the human to run outside the sandbox, then retry the run-now job only after the app is reachable.
 - Recurring schedule windows are only for unattended scheduled runs. They must not block manual runs.
 - Do not simulate a manual run by editing `scheduled_windows` or creating a temporary schedule window. Manual runs must use `/jobs/run_now`.
-- If the agent cannot call `http://127.0.0.1:17321` from its own sandbox but can write local files, it must write the same run-now payload to `daily-content-pipeline/collector/run_now_request.json`. The Local Collector app must check this file on `/status`, load it as a run-now job, write `run_now_request_status.json`, and move the request aside as consumed. This avoids asking the human to run another command.
-- If the agent cannot call HTTP and cannot write the local request file, only then create a local run-now helper script or launcher and give the human exactly one short command/path to run it. The helper script must POST `/jobs/run_now` with the correct payload, then optionally poll `/status`.
+- If the agent cannot call `http://127.0.0.1:17321` from its own sandbox but can write local files, it must write one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`. The Local Collector app claims matching pending jobs on `/status`, moves claimed files into `jobs/claimed/`, writes output for that client, then moves completed files into `jobs/completed/`.
+- `daily-content-pipeline/collector/run_now_request.json` is a legacy/batch shim only. It may contain one job or `{"jobs":[...]}` and the bridge converts it into `jobs/pending/` queue files. Do not use this single filename when multiple agents or scheduled tasks may write concurrently.
+- If the agent cannot call HTTP and cannot write the local queue file, only then create a local run-now helper script or launcher and give the human exactly one short command/path to run it. The helper script must POST `/jobs/run_now` with the correct payload, then optionally poll `/status`.
 - Do not ask the human to restart the Local Collector app merely to make a manually edited schedule file take effect. Restarting is only appropriate for updating the Local Collector app itself, recovering a stuck/offline process, or applying an intentional recurring schedule change when both `/config` and file auto-reload are unavailable.
 - If a legacy collector without `/jobs/run_now` forces a temporary schedule fallback, the agent must clearly label it as a fallback, back up the original config, create a short unique temporary window, restart or reload only through an already-running service or a human-run setup/start command when required, restore the original config immediately after completion/timeout, and report that fallback to the human. This fallback must not be used when `/jobs/run_now` exists.
 
@@ -575,21 +577,23 @@ Exact manual run-now contract:
 - `run_now_ttl_minutes` should be 30 by default and must not exceed 120.
 - `sources` must contain the private data sources for that client if private data sources exist. If there are no private data sources, the agent should still run public research without the Local Collector app.
 - `pacing.scroll_steps` defaults to 5 and must not exceed 10.
-- If the agent cannot make this POST itself but can write local files, it should write the JSON payload to:
+- If the agent cannot make this POST itself but can write local files, it should write the JSON payload to one unique per-client queue file:
 
 ```text
-daily-content-pipeline/collector/run_now_request.json
+daily-content-pipeline/collector/jobs/pending/{timestamp}_{client_slug}_{run_id}.json
 ```
 
-The agent should write this file atomically: write a temporary file in the same folder first, then rename it to `run_now_request.json` only after the JSON is complete.
+The agent should write this file atomically: write a temporary file in the same folder first, then rename it into `jobs/pending/` only after the JSON is complete.
 
-The running Local Collector app should pick up this file on the next `/status` check from the Chrome extension or AI agent, usually within a few seconds while Chrome is active. After loading the request, the Local Collector app must immediately consume the request so it cannot loop forever:
+The running Local Collector app should pick up queued files on the next `/status` check from the matching Chrome extension, usually within a few seconds while Chrome is active. The bridge must:
 
-- move it to `run_now_request.{run_id}.{timestamp}.consumed.json`;
 - write `run_now_request_status.json`;
-- remember the processed file signature in memory as a replay guard if moving/removing fails;
+- move claimed files into `jobs/claimed/`;
+- move completed files into `jobs/completed/`;
 - clear the active run-now job on `/complete`;
-- expire the active run-now job after `run_now_ttl_minutes` if `/complete` never arrives.
+- expire the active run-now job after `run_now_ttl_minutes` if `/complete` never arrives, then allow the next queued client job to proceed.
+
+The single file `daily-content-pipeline/collector/run_now_request.json` remains supported only as a legacy/batch shim. It is safe for one agent to write a batch object with `{"jobs":[...]}`; it is not safe for multiple writers to race on the same filename.
 
 After loading the request, the Local Collector app should write:
 
@@ -606,10 +610,8 @@ Only if the agent cannot write the request file should it create one of these he
 bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/run_private_now.sh"
 ```
 
-- After posting `/jobs/run_now`, poll plain `GET /status` until either:
-  - `current_job_type` becomes `run_now` and `job_available` is `true`,
-  - the extension completes and `/status` returns `job_available: false`, or
-  - the TTL expires and private collection is marked unavailable for this run.
+- After posting `/jobs/run_now` or writing a queue file, do not fake extension headers. Plain `GET /status` is only a bridge health check; `job_available` is scoped to the real client extension identity.
+- Track progress through `run_now_request_status.json`, `bridge_health.json`, `collector_status.json`, `jobs/claimed/`, `jobs/completed/`, and new output files under the run output directory until the job completes or TTL expires.
 
 Schedule rule:
 
@@ -737,10 +739,10 @@ For each daily run:
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
    22. Select the best idea of the day.
    23. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
-   24. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
-   25. Generate `outputs/YYYY-MM/YYYY-MM-DD.html` as a polished standalone human-facing report. It must be factually aligned with the Markdown report, mobile-friendly, and include editable draft review blocks when drafts exist.
-   26. Update or copy `outputs/latest.md`.
-   27. Update or copy `outputs/latest.html`.
+   24. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
+   25. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+   26. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   27. Update or copy the latest public/private lane HTML files when those lane reports exist.
    28. Update `history/YYYY-MM/content_log.md`.
    29. Update `history/YYYY-MM/data_sources_log.md`.
    30. Update `history/YYYY-MM/lead_log.md`.

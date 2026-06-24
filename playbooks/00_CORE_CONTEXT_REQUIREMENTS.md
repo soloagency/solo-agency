@@ -38,6 +38,15 @@ Solo Agency now separates setup/configuration from operational runs:
 
 This override wins over older references in this file to first agency runs, report drafts, or report delivery during setup.
 
+Report request hard stop in Setup Flow:
+
+- If the human asks to run, create, generate, show, refresh, or update a report while the current session is Setup Flow, do not comply by running the report.
+- A report request does not switch the current setup chat into Automation Flow.
+- The agent must finish or resync the client-specific automation task and tell the human the exact task name to run.
+- Do not ask whether the human wants the agent to run the report now.
+- Do not load the scheduled-run entrypoint, start public research, collect private data sources, generate an idea matrix, create Lead & Competitor Opportunities, write drafts, scan analytics, or send report notifications inside Setup Flow.
+- If the native automation task cannot be updated by the agent, mark `automation_prompt_update_pending`, write the exact prompt/update instructions to `daily-content-pipeline/automation/scheduled_run_prompt.md`, and ask the human to update/run the native task.
+
 ---
 
 ## 0. Latest Delta Requirements And Modularization Plan

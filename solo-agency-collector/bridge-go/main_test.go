@@ -93,11 +93,28 @@ func TestRunNowRequestFileLoadsAndMovesAside(t *testing.T) {
 	b.mu.Lock()
 	runNow := cloneMap(b.runNowJob)
 	b.mu.Unlock()
-	if got := getString(runNow, "run_id", ""); got != "2026-06-20_client_manual_120000" {
-		t.Fatalf("run_now run_id = %q, want request run_id", got)
+	if got := getString(runNow, "run_id", ""); got != "" {
+		t.Fatalf("run_now active immediately = %q, want queued only", got)
 	}
 	if _, err := os.Stat(requestPath); !os.IsNotExist(err) {
 		t.Fatalf("request file still exists or unexpected stat error: %v", err)
+	}
+	pendingMatches, err := filepath.Glob(filepath.Join(root, "jobs", "pending", "*.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pendingMatches) != 1 {
+		t.Fatalf("pending jobs = %d, want 1", len(pendingMatches))
+	}
+	job, available, runID := b.currentPersistentJob(time.Now(), extensionIdentity{instanceID: "ext_any"})
+	if !available {
+		t.Fatal("queued legacy run-now file was not available to extension")
+	}
+	if runID != "2026-06-20_client_manual_120000" {
+		t.Fatalf("runID = %q, want request run id", runID)
+	}
+	if got := getString(job, "run_id", ""); got != "2026-06-20_client_manual_120000" {
+		t.Fatalf("job run_id = %q, want request run id", got)
 	}
 	matches, err := filepath.Glob(filepath.Join(root, "run_now_request.*.consumed.json"))
 	if err != nil {
@@ -157,14 +174,29 @@ func TestRunNowAPIWritesStatusAndCompletion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := getString(status, "run_id", ""); got != "2026-06-23_angela-do_smoke" {
-		t.Fatalf("status run_id = %q, want api run id", got)
+	if got := getInt(status, "queued_count", 0); got != 1 {
+		t.Fatalf("status queued_count = %d, want 1", got)
 	}
 	if got := getString(status, "request", ""); got != "POST /jobs/run_now" {
 		t.Fatalf("status request = %q, want POST /jobs/run_now", got)
 	}
-	if got := getBool(status, "loaded", false); !got {
-		t.Fatalf("status loaded = %v, want true", got)
+	if got := getBool(status, "queued", false); !got {
+		t.Fatalf("status queued = %v, want true", got)
+	}
+	if got := getBool(status, "loaded", true); got {
+		t.Fatalf("status loaded = %v, want false before extension claim", got)
+	}
+
+	angela := extensionIdentity{clientSlug: "angela-do", instanceID: "ext_angelado_default", displayName: "Angela Do - Solo Agency Collector"}
+	job, available, runID := b.currentPersistentJob(time.Now(), angela)
+	if !available {
+		t.Fatal("queued API run-now job was not available to matching extension")
+	}
+	if runID != "2026-06-23_angela-do_smoke" {
+		t.Fatalf("runID = %q, want api run id", runID)
+	}
+	if got := getString(job, "client_slug", ""); got != "angela-do" {
+		t.Fatalf("job client_slug = %q, want angela-do", got)
 	}
 
 	completeReq := httptest.NewRequest(http.MethodPost, "/complete", bytes.NewBufferString(`{"run_id":"2026-06-23_angela-do_smoke","client_slug":"angela-do"}`))
@@ -188,6 +220,136 @@ func TestRunNowAPIWritesStatusAndCompletion(t *testing.T) {
 	}
 	if got := getString(status, "extension_instance_id", ""); got != "ext_angelado_default" {
 		t.Fatalf("extension_instance_id = %q, want ext_angelado_default", got)
+	}
+}
+
+func TestRunNowBatchQueuesMultipleClientsInParallel(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(root, "collector_config.json")
+	outputDir := filepath.Join(root, "inbox")
+	if err := os.WriteFile(configPath, []byte(`{"version":"0.1.0","scheduled_windows":[],"clients":[]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b, err := newBridge(config{
+		host:       defaultHost,
+		port:       defaultPort,
+		configFile: configPath,
+		outputDir:  outputDir,
+		persistent: true,
+		ttl:        defaultTTL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runReq := httptest.NewRequest(http.MethodPost, "/jobs/run_now", bytes.NewBufferString(`{
+  "batch_id": "manual_two_clients",
+  "jobs": [
+    {
+      "run_id": "2026-06-24_angela-do_manual",
+      "client_slug": "angela-do",
+      "allowed_extension_instance_ids": ["ext_angelado_default"],
+      "sources": [{"name":"Angela Group","url":"https://www.facebook.com/groups/angela"}]
+    },
+    {
+      "run_id": "2026-06-24_aven-ngo_manual",
+      "client_slug": "aven-ngo",
+      "allowed_extension_instance_ids": ["ext_avenngo_default"],
+      "sources": [{"name":"Aven Group","url":"https://www.facebook.com/groups/aven"}]
+    }
+  ]
+}`))
+	runRec := httptest.NewRecorder()
+	b.handleRunNowJob(runRec, runReq)
+	if runRec.Code != http.StatusOK {
+		t.Fatalf("run-now batch status = %d, want %d; body=%s", runRec.Code, http.StatusOK, runRec.Body.String())
+	}
+	status, err := readMapFile(filepath.Join(root, "run_now_request_status.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := getInt(status, "queued_count", 0); got != 2 {
+		t.Fatalf("queued_count = %d, want 2", got)
+	}
+	pending, err := filepath.Glob(filepath.Join(root, "jobs", "pending", "*.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pending) != 2 {
+		t.Fatalf("pending jobs = %d, want 2", len(pending))
+	}
+
+	now := time.Now()
+	angela := extensionIdentity{clientSlug: "angela-do", instanceID: "ext_angelado_default"}
+	aven := extensionIdentity{clientSlug: "aven-ngo", instanceID: "ext_avenngo_default"}
+
+	jobA, availableA, runIDA := b.currentPersistentJob(now, angela)
+	if !availableA {
+		t.Fatal("angela queued job was not available")
+	}
+	if runIDA != "2026-06-24_angela-do_manual" {
+		t.Fatalf("runIDA = %q, want angela run id", runIDA)
+	}
+	if got := getString(jobA, "client_slug", ""); got != "angela-do" {
+		t.Fatalf("jobA client_slug = %q, want angela-do", got)
+	}
+	outputA := getString(jobA, "output_dir", "")
+	jobB, availableB, runIDB := b.currentPersistentJob(now, aven)
+	if !availableB {
+		t.Fatal("aven queued job was not available while angela run was active")
+	}
+	if runIDB != "2026-06-24_aven-ngo_manual" {
+		t.Fatalf("runIDB = %q, want aven run id", runIDB)
+	}
+	if got := getString(jobB, "client_slug", ""); got != "aven-ngo" {
+		t.Fatalf("jobB client_slug = %q, want aven-ngo", got)
+	}
+	outputB := getString(jobB, "output_dir", "")
+	if outputA == "" || outputB == "" || outputA == outputB {
+		t.Fatalf("output dirs should be non-empty and distinct: A=%q B=%q", outputA, outputB)
+	}
+
+	writeA := httptest.NewRequest(http.MethodPost, "/collect/data_point", bytes.NewBufferString(`{"run_id":"`+runIDA+`","client_slug":"angela-do","source_name":"Angela Group"}`))
+	writeA.Header.Set("X-Collector-Client-Slug", "angela-do")
+	writeA.Header.Set("X-Collector-Extension-Instance", "ext_angelado_default")
+	writeRecA := httptest.NewRecorder()
+	b.handleDataPoint(writeRecA, writeA)
+	if writeRecA.Code != http.StatusOK {
+		t.Fatalf("angela write status = %d, want %d; body=%s", writeRecA.Code, http.StatusOK, writeRecA.Body.String())
+	}
+	writeB := httptest.NewRequest(http.MethodPost, "/collect/data_point", bytes.NewBufferString(`{"run_id":"`+runIDB+`","client_slug":"aven-ngo","source_name":"Aven Group"}`))
+	writeB.Header.Set("X-Collector-Client-Slug", "aven-ngo")
+	writeB.Header.Set("X-Collector-Extension-Instance", "ext_avenngo_default")
+	writeRecB := httptest.NewRecorder()
+	b.handleDataPoint(writeRecB, writeB)
+	if writeRecB.Code != http.StatusOK {
+		t.Fatalf("aven write status = %d, want %d; body=%s", writeRecB.Code, http.StatusOK, writeRecB.Body.String())
+	}
+	if data, err := os.ReadFile(filepath.Join(outputA, "private_data_points.jsonl")); err != nil || !strings.Contains(string(data), "Angela Group") {
+		t.Fatalf("angela output missing data; err=%v data=%s", err, string(data))
+	}
+	if data, err := os.ReadFile(filepath.Join(outputB, "private_data_points.jsonl")); err != nil || !strings.Contains(string(data), "Aven Group") {
+		t.Fatalf("aven output missing data; err=%v data=%s", err, string(data))
+	}
+
+	completeReq := httptest.NewRequest(http.MethodPost, "/complete", bytes.NewBufferString(`{"run_id":"`+runIDA+`","client_slug":"angela-do"}`))
+	completeReq.Header.Set("X-Collector-Client-Slug", "angela-do")
+	completeReq.Header.Set("X-Collector-Extension-Instance", "ext_angelado_default")
+	completeRec := httptest.NewRecorder()
+	b.handleComplete(completeRec, completeReq)
+	if completeRec.Code != http.StatusOK {
+		t.Fatalf("complete angela status = %d, want %d; body=%s", completeRec.Code, http.StatusOK, completeRec.Body.String())
+	}
+
+	stillB, stillAvailableB, stillRunIDB := b.currentPersistentJob(now, aven)
+	if !stillAvailableB {
+		t.Fatal("aven active run should remain available after angela completes")
+	}
+	if stillRunIDB != runIDB {
+		t.Fatalf("stillRunIDB = %q, want %q", stillRunIDB, runIDB)
+	}
+	if got := getString(stillB, "client_slug", ""); got != "aven-ngo" {
+		t.Fatalf("stillB client_slug = %q, want aven-ngo", got)
 	}
 }
 
@@ -295,7 +457,7 @@ func TestQueuedJobRoutesOnlyToMatchingExtension(t *testing.T) {
 	}
 }
 
-func TestScheduledJobDoesNotSwitchClientsWhileActive(t *testing.T) {
+func TestScheduledJobsRunInParallelPerClient(t *testing.T) {
 	root := t.TempDir()
 	configPath := filepath.Join(root, "collector_config.json")
 	outputDir := filepath.Join(root, "inbox")
@@ -342,10 +504,15 @@ func TestScheduledJobDoesNotSwitchClientsWhileActive(t *testing.T) {
 		t.Fatalf("jobA client_slug = %q, want avenngo", got)
 	}
 
-	if jobB, availableB, runIDB := b.currentPersistentJob(now, other); availableB {
-		t.Fatalf("other client received job while avenngo active: runID=%s job=%v", runIDB, jobB)
-	} else if runIDB != runIDA {
-		t.Fatalf("blocked runID = %q, want active runID %q", runIDB, runIDA)
+	jobB, availableB, runIDB := b.currentPersistentJob(now, other)
+	if !availableB {
+		t.Fatal("other client scheduled job was not available while avenngo active")
+	}
+	if runIDB == runIDA {
+		t.Fatalf("other client reused avenngo runID %q", runIDB)
+	}
+	if got := getString(jobB, "client_slug", ""); got != "other-client" {
+		t.Fatalf("jobB client_slug = %q, want other-client", got)
 	}
 
 	completeReq := httptest.NewRequest(http.MethodPost, "/complete", bytes.NewBufferString(`{"run_id":"`+runIDA+`","client_slug":"avenngo"}`))
@@ -357,15 +524,15 @@ func TestScheduledJobDoesNotSwitchClientsWhileActive(t *testing.T) {
 		t.Fatalf("complete status = %d, want %d; body=%s", completeRec.Code, http.StatusOK, completeRec.Body.String())
 	}
 
-	jobB, availableB, runIDB := b.currentPersistentJob(now, other)
-	if !availableB {
-		t.Fatal("other client job was not available after avenngo completed")
+	stillB, stillAvailableB, stillRunIDB := b.currentPersistentJob(now, other)
+	if !stillAvailableB {
+		t.Fatal("other client job should remain active after avenngo completed")
 	}
-	if runIDB == runIDA {
-		t.Fatalf("other client reused avenngo runID %q", runIDB)
+	if stillRunIDB != runIDB {
+		t.Fatalf("stillRunIDB = %q, want %q", stillRunIDB, runIDB)
 	}
-	if got := getString(jobB, "client_slug", ""); got != "other-client" {
-		t.Fatalf("jobB client_slug = %q, want other-client", got)
+	if got := getString(stillB, "client_slug", ""); got != "other-client" {
+		t.Fatalf("stillB client_slug = %q, want other-client", got)
 	}
 }
 

@@ -69,8 +69,25 @@ type bridge struct {
 	completed   bool
 	completions map[string]string
 	activeJob   map[string]any
+	activeRuns  map[string]*activeRun
+	runIndex    map[string]string
 	extensions  map[string]extensionTelemetry
 	stopping    bool
+}
+
+type activeRun struct {
+	key         string
+	job         map[string]any
+	counts      map[string]int
+	completed   bool
+	claimedPath string
+}
+
+type writeTarget struct {
+	activeKey string
+	runID     string
+	outputDir string
+	job       map[string]any
 }
 
 type extensionTelemetry struct {
@@ -174,6 +191,8 @@ func newBridge(cfg config) (*bridge, error) {
 		completions:       completions,
 		counts:            emptyCounts(),
 		activeJob:         cloneMap(job),
+		activeRuns:        map[string]*activeRun{},
+		runIndex:          map[string]string{},
 		extensions:        map[string]extensionTelemetry{},
 	}
 	if err := b.writeStatus("ready", "bridge started"); err != nil {
@@ -238,7 +257,7 @@ func defaultCollectorConfig() map[string]any {
 		"version":                       "0.1.0",
 		"timezone":                      "local",
 		"run_mode":                      "persistent_bridge_scheduler",
-		"routing_mode":                  "shared_bridge_per_client_extension",
+		"routing_mode":                  "shared_bridge_parallel_per_client_extension",
 		"default_runs_per_day":          1,
 		"poll_interval_seconds":         5,
 		"max_sources_per_run":           20,
@@ -380,7 +399,7 @@ func (b *bridge) loadRunNowRequestIfPresent() {
 		return
 	}
 	b.mu.Unlock()
-	job, err := readMapFile(path)
+	payload, err := readMapFile(path)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			log.Printf("run-now request file not loaded: %v", err)
@@ -388,12 +407,7 @@ func (b *bridge) loadRunNowRequestIfPresent() {
 		return
 	}
 	now := time.Now()
-	if getString(job, "run_id", "") == "" {
-		if requestID := getString(job, "request_id", ""); requestID != "" {
-			job["run_id"] = requestID
-		}
-	}
-	resp, err := b.activateRunNowJob(job, now, "file")
+	resp, err := b.enqueueRunNowPayload(payload, now, "file")
 	status := map[string]any{
 		"object":     "collector_run_now_request_status",
 		"request_at": now.UTC().Format(time.RFC3339),
@@ -409,7 +423,7 @@ func (b *bridge) loadRunNowRequestIfPresent() {
 	for key, value := range resp {
 		status[key] = value
 	}
-	consumedPath, consumeErr := consumeRunNowRequestFile(path, getString(resp, "run_id", now.Format("2006-01-02_150405")), now)
+	consumedPath, consumeErr := consumeRunNowRequestFile(path, getString(resp, "batch_id", getString(resp, "run_id", now.Format("2006-01-02_150405"))), now)
 	status["consumed"] = consumeErr == nil
 	if consumedPath != "" {
 		status["consumed_path"] = consumedPath
@@ -608,12 +622,13 @@ func (b *bridge) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	identity := extensionIdentityFromRequest(r)
 	b.refreshLocalControlFiles()
+	now := time.Now()
 	jobAvailable := true
 	activeRunID := b.cfg.runID
 	status := "ready"
 	currentJobType := "on_demand"
 	if b.cfg.persistent {
-		job, available, runID := b.currentPersistentJob(time.Now(), identity)
+		job, available, runID := b.currentPersistentJob(now, identity)
 		jobAvailable = available
 		activeRunID = runID
 		currentJobType = "none"
@@ -630,13 +645,27 @@ func (b *bridge) handleStatus(w http.ResponseWriter, r *http.Request) {
 	b.mu.Lock()
 	counts := cloneIntMap(b.counts)
 	completed := b.completed
-	if b.cfg.persistent {
-		_, completed = b.completions[activeRunID]
-	}
 	outputDir := b.cfg.outputDir
+	if b.cfg.persistent {
+		counts = emptyCounts()
+		outputDir = b.outputRoot
+		completed = false
+		if activeRunID != "" {
+			if key := b.runIndex[activeRunID]; key != "" {
+				if run := b.activeRuns[key]; run != nil {
+					counts = cloneIntMap(run.counts)
+					completed = run.completed
+					outputDir = getString(run.job, "output_dir", outputDir)
+				}
+			} else if _, ok := b.completions[activeRunID]; ok {
+				completed = true
+			}
+		}
+	}
 	startedAt := b.startedAt.Format(time.RFC3339)
 	ttlSeconds := int(b.cfg.ttl.Seconds())
 	extension := b.extensionStatusLocked(time.Now().UTC())
+	activeJobs := b.activeRunSummariesLocked()
 	configFile := b.cfg.configFile
 	configFileUpdatedAt := ""
 	if !b.configFileModTime.IsZero() {
@@ -660,6 +689,8 @@ func (b *bridge) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"config_file":            configFile,
 		"config_file_updated_at": configFileUpdatedAt,
 		"run_now_request_file":   runNowRequestFile,
+		"routing_mode":           "shared_bridge_parallel_per_client_extension",
+		"active_jobs":            activeJobs,
 	})
 }
 
@@ -739,7 +770,7 @@ func (b *bridge) handleRunNowJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	resp, err := b.activateRunNowJob(job, time.Now(), "api")
+	resp, err := b.enqueueRunNowPayload(job, time.Now(), "api")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -747,7 +778,163 @@ func (b *bridge) handleRunNowJob(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, resp)
 }
 
+func (b *bridge) enqueueRunNowPayload(payload map[string]any, now time.Time, source string) (map[string]any, error) {
+	jobs := runNowJobsFromPayload(payload, now)
+	if len(jobs) == 0 {
+		return nil, fmt.Errorf("run-now request contains no jobs")
+	}
+	batchID := getString(payload, "batch_id", "")
+	if batchID == "" {
+		batchID = getString(payload, "request_id", "")
+	}
+	if batchID == "" && len(jobs) == 1 {
+		batchID = getString(jobs[0], "run_id", "")
+	}
+	if batchID == "" {
+		batchID = fmt.Sprintf("%s_%d_jobs", now.UTC().Format("2006-01-02_150405"), len(jobs))
+	}
+	var runIDs []string
+	var queuedPaths []string
+	var clients []string
+	for index, job := range jobs {
+		queuedPath, runID, clientSlug, err := b.enqueueRunNowJob(job, now, source, index)
+		if err != nil {
+			return nil, err
+		}
+		runIDs = append(runIDs, runID)
+		queuedPaths = append(queuedPaths, queuedPath)
+		if clientSlug != "" {
+			clients = append(clients, clientSlug)
+		}
+	}
+	resp := map[string]any{
+		"ok":             true,
+		"object":         "collector_run_now_queued",
+		"queued":         true,
+		"loaded":         false,
+		"batch_id":       batchID,
+		"queued_count":   len(jobs),
+		"run_ids":        runIDs,
+		"client_slugs":   uniqueStrings(clients),
+		"queued_paths":   queuedPaths,
+		"source":         source,
+		"queue_dir":      filepath.Join(b.collectorDataDir(), "jobs", "pending"),
+		"request_at":     now.UTC().Format(time.RFC3339),
+		"queue_behavior": "queued_for_matching_client_extension; bridge can run different clients in parallel",
+	}
+	status := cloneMap(resp)
+	status["object"] = "collector_run_now_request_status"
+	status["request"] = source
+	if source == "api" {
+		status["request"] = "POST /jobs/run_now"
+	}
+	if source == "file" {
+		status["request"] = filepath.Base(b.runNowRequestPath)
+	}
+	status["consumed"] = source != "file"
+	_ = b.writeRunNowRequestStatus(status)
+	return resp, nil
+}
+
+func runNowJobsFromPayload(payload map[string]any, now time.Time) []map[string]any {
+	if payload == nil {
+		return nil
+	}
+	if rawJobs := asSlice(payload["jobs"]); len(rawJobs) > 0 {
+		var jobs []map[string]any
+		for index, raw := range rawJobs {
+			job, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			next := cloneMap(job)
+			inheritRunNowDefaults(next, payload)
+			if getString(next, "run_id", "") == "" {
+				if requestID := getString(next, "request_id", ""); requestID != "" {
+					next["run_id"] = requestID
+				}
+			}
+			if getString(next, "run_id", "") == "" {
+				clientSlug := getString(next, "client_slug", fmt.Sprintf("client_%02d", index+1))
+				next["run_id"] = fmt.Sprintf("%s_%s_%02d", now.UTC().Format("2006-01-02_150405"), safeFilename(clientSlug), index+1)
+			}
+			jobs = append(jobs, next)
+		}
+		return jobs
+	}
+	next := cloneMap(payload)
+	if getString(next, "run_id", "") == "" {
+		if requestID := getString(next, "request_id", ""); requestID != "" {
+			next["run_id"] = requestID
+		}
+	}
+	return []map[string]any{next}
+}
+
+func inheritRunNowDefaults(job, payload map[string]any) {
+	for _, key := range []string{
+		"run_now_ttl_minutes",
+		"pacing",
+		"collector_policy",
+		"force",
+		"business_slug",
+		"location_slug",
+		"language",
+		"max_parallel_sources",
+		"source_concurrency",
+	} {
+		if _, ok := job[key]; !ok {
+			if value, exists := payload[key]; exists {
+				job[key] = value
+			}
+		}
+	}
+}
+
+func (b *bridge) enqueueRunNowJob(job map[string]any, now time.Time, source string, index int) (string, string, string, error) {
+	job = sanitizeMap(job)
+	runID := getString(job, "run_id", "")
+	if runID == "" {
+		clientSlug := getString(job, "client_slug", "manual")
+		runID = fmt.Sprintf("%s_%s_%02d", now.UTC().Format("2006-01-02_150405"), safeFilename(clientSlug), index+1)
+	}
+	job["run_id"] = runID
+	job["run_now"] = true
+	job["run_now_source"] = source
+	job["queued_at"] = now.UTC().Format(time.RFC3339)
+	if _, ok := job["force"]; !ok {
+		job["force"] = false
+	}
+	if _, ok := job["sources"]; !ok {
+		job["sources"] = []any{}
+	}
+	pendingDir := filepath.Join(b.collectorDataDir(), "jobs", "pending")
+	if err := os.MkdirAll(pendingDir, 0o700); err != nil {
+		return "", "", "", err
+	}
+	clientSlug := getString(job, "client_slug", "unknown-client")
+	name := fmt.Sprintf("%020d_%03d_%s_%s.json", now.UTC().UnixNano(), index+1, safeFilename(clientSlug), safeFilename(runID))
+	path := filepath.Join(pendingDir, name)
+	if err := writeMapFile(path, job); err != nil {
+		return "", "", "", err
+	}
+	_ = b.writeCollectorEvent("job_routing", map[string]any{
+		"status":                "run_now_job_queued",
+		"path":                  path,
+		"run_id":                runID,
+		"client_slug":           clientSlug,
+		"source":                source,
+		"queue_index":           index + 1,
+		"extension_instance_id": getString(job, "extension_instance_id", ""),
+	})
+	return path, runID, clientSlug, nil
+}
+
 func (b *bridge) activateRunNowJob(job map[string]any, now time.Time, source string) (map[string]any, error) {
+	return b.activateRunNowJobForIdentity(job, now, source, extensionIdentity{}, "")
+}
+
+func (b *bridge) activateRunNowJobForIdentity(job map[string]any, now time.Time, source string, identity extensionIdentity, claimedPath string) (map[string]any, error) {
 	job = sanitizeMap(job)
 	runID := getString(job, "run_id", fmt.Sprintf("%s_first_trial", now.Format("2006-01-02_150405")))
 	job["run_id"] = runID
@@ -790,24 +977,43 @@ func (b *bridge) activateRunNowJob(job map[string]any, now time.Time, source str
 	}
 
 	b.mu.Lock()
-	b.runNowJob = job
-	b.cfg.runID = runID
-	b.cfg.outputDir = getString(job, "output_dir", b.cfg.outputDir)
-	b.completed = false
-	b.counts = emptyCounts()
-	b.activeJob = cloneMap(job)
-	b.activeJobClaimedPath = ""
-	delete(b.completions, runID)
+	outputDir := getString(job, "output_dir", b.cfg.outputDir)
+	if b.cfg.persistent {
+		key := activeRunKey(job, identity)
+		b.activeRuns[key] = &activeRun{
+			key:         key,
+			job:         cloneMap(job),
+			counts:      emptyCounts(),
+			completed:   false,
+			claimedPath: claimedPath,
+		}
+		b.runIndex[runID] = key
+		delete(b.completions, runID)
+	} else {
+		b.runNowJob = job
+		b.cfg.runID = runID
+		b.cfg.outputDir = outputDir
+		b.completed = false
+		b.counts = emptyCounts()
+		b.activeJob = cloneMap(job)
+		b.activeJobClaimedPath = claimedPath
+		delete(b.completions, runID)
+	}
 	b.saveCompletionsLocked()
 	b.mu.Unlock()
-	_ = b.writeStatus("ready", fmt.Sprintf("run-now collector job loaded from %s", source))
+	if b.cfg.persistent {
+		_ = b.writeRunStatus("ready", fmt.Sprintf("run-now collector job loaded from %s", source), runID, outputDir, emptyCounts(), false)
+	} else {
+		_ = b.writeStatus("ready", fmt.Sprintf("run-now collector job loaded from %s", source))
+	}
 	resp := map[string]any{
 		"ok":                 true,
 		"object":             "collector_run_now_loaded",
 		"run_id":             runID,
-		"output_dir":         job["output_dir"],
+		"output_dir":         outputDir,
 		"run_now_expires_at": expiresAt,
 		"source":             source,
+		"client_slug":        getString(job, "client_slug", ""),
 	}
 	if source != "file" {
 		status := map[string]any{
@@ -862,21 +1068,28 @@ func (b *bridge) activateQueuedJobForExtension(now time.Time, identity extension
 		}
 		runID := getString(job, "run_id", getString(job, "job_id", fmt.Sprintf("%s_%s", now.Format("2006-01-02_150405"), safeFilename(identity.clientSlug))))
 		job["run_id"] = runID
-		resp, err := b.activateRunNowJob(job, now, "queue")
-		if err != nil {
+		claimedPath := b.moveQueuedJob(path, "claimed", runID)
+		if claimedPath == "" {
 			_ = b.writeCollectorEvent("job_routing", map[string]any{
-				"status":      "queued_job_rejected",
+				"status":      "queued_job_claim_failed",
 				"path":        path,
 				"run_id":      runID,
 				"client_slug": identity.clientSlug,
-				"error":       err.Error(),
 			})
 			continue
 		}
-		claimedPath := b.moveQueuedJob(path, "claimed", runID)
-		b.mu.Lock()
-		b.activeJobClaimedPath = claimedPath
-		b.mu.Unlock()
+		resp, err := b.activateRunNowJobForIdentity(job, now, "queue", identity, claimedPath)
+		if err != nil {
+			_ = b.writeCollectorEvent("job_routing", map[string]any{
+				"status":       "queued_job_rejected",
+				"path":         path,
+				"claimed_path": claimedPath,
+				"run_id":       runID,
+				"client_slug":  identity.clientSlug,
+				"error":        err.Error(),
+			})
+			continue
+		}
 		_ = b.writeCollectorEvent("job_routing", map[string]any{
 			"status":                 "queued_job_claimed",
 			"path":                   path,
@@ -888,9 +1101,14 @@ func (b *bridge) activateQueuedJobForExtension(now time.Time, identity extension
 			"output_dir":             resp["output_dir"],
 		})
 		b.mu.Lock()
-		queued := cloneMap(b.runNowJob)
+		claimedJob := cloneMap(job)
+		if key := b.runIndex[runID]; key != "" {
+			if run := b.activeRuns[key]; run != nil {
+				claimedJob = cloneMap(run.job)
+			}
+		}
 		b.mu.Unlock()
-		return queued, true, runID
+		return claimedJob, true, runID
 	}
 	return nil, false, ""
 }
@@ -910,55 +1128,125 @@ func (b *bridge) moveQueuedJob(path, state, runID string) string {
 	return targetPath
 }
 
+func activeRunKey(job map[string]any, identity extensionIdentity) string {
+	if job != nil {
+		if clientSlug := getString(job, "client_slug", ""); clientSlug != "" {
+			return "client:" + safeFilename(clientSlug)
+		}
+		if extensionID := getString(job, "extension_instance_id", ""); extensionID != "" {
+			return "extension:" + safeFilename(extensionID)
+		}
+		allowed := stringList(job["allowed_extension_instance_ids"])
+		if len(allowed) == 1 {
+			return "extension:" + safeFilename(allowed[0])
+		}
+	}
+	if identity.clientSlug != "" {
+		return "client:" + safeFilename(identity.clientSlug)
+	}
+	if identity.instanceID != "" {
+		return "extension:" + safeFilename(identity.instanceID)
+	}
+	if job != nil {
+		if runID := getString(job, "run_id", ""); runID != "" {
+			return "run:" + safeFilename(runID)
+		}
+	}
+	return "default"
+}
+
+func activeRunExpired(job map[string]any, now time.Time) bool {
+	for _, key := range []string{"run_now_expires_at", "scheduled_expires_at"} {
+		rawExpires := getString(job, key, "")
+		if rawExpires == "" {
+			continue
+		}
+		expiresAt, err := time.Parse(time.RFC3339, rawExpires)
+		if err == nil && now.UTC().After(expiresAt) {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *bridge) activeRunSummariesLocked() []any {
+	out := make([]any, 0, len(b.activeRuns))
+	for key, run := range b.activeRuns {
+		if run == nil {
+			continue
+		}
+		job := run.job
+		out = append(out, map[string]any{
+			"active_key":            key,
+			"run_id":                getString(job, "run_id", ""),
+			"client_slug":           getString(job, "client_slug", ""),
+			"extension_instance_id": getString(job, "extension_instance_id", ""),
+			"output_dir":            getString(job, "output_dir", ""),
+			"current_job_type":      currentJobTypeForJob(job),
+			"completed":             run.completed,
+			"counts":                cloneIntMap(run.counts),
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		left, _ := out[i].(map[string]any)
+		right, _ := out[j].(map[string]any)
+		return fmt.Sprint(left["active_key"]) < fmt.Sprint(right["active_key"])
+	})
+	return out
+}
+
+func currentJobTypeForJob(job map[string]any) string {
+	if getBool(job, "run_now", false) {
+		return "run_now"
+	}
+	if getBool(job, "scheduled", false) {
+		return "scheduled"
+	}
+	return "on_demand"
+}
+
 func (b *bridge) currentPersistentJob(now time.Time, identity extensionIdentity) (map[string]any, bool, string) {
-	b.mu.Lock()
-	if b.runNowJob != nil {
-		runNow := cloneMap(b.runNowJob)
-		runID := getString(runNow, "run_id", b.cfg.runID)
+	if !b.cfg.persistent {
+		b.mu.Lock()
+		active := cloneMap(b.activeJob)
+		runID := b.cfg.runID
 		completed := b.completed
-		expired := false
-		if rawExpires := getString(runNow, "run_now_expires_at", ""); rawExpires != "" {
-			if expiresAt, err := time.Parse(time.RFC3339, rawExpires); err == nil && now.UTC().After(expiresAt) {
-				expired = true
-				b.runNowJob = nil
-				b.completed = false
+		b.mu.Unlock()
+		if completed || !jobMatchesExtension(active, identity) {
+			return nil, false, runID
+		}
+		return active, true, runID
+	}
+
+	key := activeRunKey(nil, identity)
+	if key != "" {
+		b.mu.Lock()
+		if run := b.activeRuns[key]; run != nil {
+			job := cloneMap(run.job)
+			runID := getString(job, "run_id", "")
+			completed := run.completed
+			expired := activeRunExpired(job, now)
+			if expired {
+				delete(b.activeRuns, key)
+				delete(b.runIndex, runID)
 			}
+			b.mu.Unlock()
+			if expired {
+				return nil, false, runID
+			}
+			if completed || !jobMatchesExtension(job, identity) {
+				return nil, false, runID
+			}
+			return job, true, runID
 		}
 		b.mu.Unlock()
-		if expired {
-			return nil, false, runID
-		}
-		if completed {
-			return nil, false, runID
-		}
-		if !jobMatchesExtension(runNow, identity) {
-			return nil, false, runID
-		}
-		return runNow, true, runID
 	}
-	if b.cfg.persistent {
-		active := cloneMap(b.activeJob)
-		activeRunID := getString(active, "run_id", "")
-		if activeRunID != "" && activeRunID == b.cfg.runID && !b.completed && getBool(active, "scheduled", false) {
-			expired := false
-			if rawExpires := getString(active, "scheduled_expires_at", ""); rawExpires != "" {
-				if expiresAt, err := time.Parse(time.RFC3339, rawExpires); err == nil && now.UTC().After(expiresAt) {
-					expired = true
-					b.activeJob = nil
-					b.cfg.runID = ""
-					b.cfg.outputDir = b.outputRoot
-					b.counts = emptyCounts()
-				}
-			}
-			if !expired {
-				b.mu.Unlock()
-				if jobMatchesExtension(active, identity) {
-					return active, true, activeRunID
-				}
-				return nil, false, activeRunID
-			}
-		}
+
+	if identity.clientSlug == "" && identity.instanceID == "" {
+		return nil, false, ""
 	}
+
+	b.mu.Lock()
 	doc := cloneMap(b.configDoc)
 	root := b.outputRoot
 	completions := make(map[string]string, len(b.completions))
@@ -1050,15 +1338,26 @@ func (b *bridge) currentPersistentJob(now time.Time, identity extensionIdentity)
 	}
 
 	b.mu.Lock()
-	if b.cfg.runID != runID {
-		b.counts = emptyCounts()
+	key = activeRunKey(job, identity)
+	if run := b.activeRuns[key]; run != nil {
+		existing := cloneMap(run.job)
+		b.mu.Unlock()
+		if jobMatchesExtension(existing, identity) {
+			return existing, true, getString(existing, "run_id", runID)
+		}
+		return nil, false, getString(existing, "run_id", runID)
 	}
-	b.cfg.runID = runID
-	b.cfg.outputDir = outputDir
-	b.completed = false
-	b.activeJob = cloneMap(job)
-	b.activeJobClaimedPath = ""
+	b.activeRuns[key] = &activeRun{
+		key:       key,
+		job:       cloneMap(job),
+		counts:    emptyCounts(),
+		completed: false,
+	}
+	b.runIndex[runID] = key
+	delete(b.completions, runID)
+	b.saveCompletionsLocked()
 	b.mu.Unlock()
+	_ = b.writeRunStatus("ready", "scheduled collector job loaded", runID, outputDir, emptyCounts(), false)
 	return job, true, runID
 }
 
@@ -1338,14 +1637,14 @@ func (b *bridge) appendRecord(w http.ResponseWriter, r *http.Request, kind, file
 	}
 	record = sanitizeMap(record)
 	identity := extensionIdentityFromRequest(r)
-	activeRunID, err := b.activeWriteRunID(record, identity)
+	target, err := b.activeWriteTarget(record, identity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 	record["object"] = "collector_" + kind
 	record["record_type"] = kind
-	record["run_id"] = activeRunID
+	record["run_id"] = target.runID
 	if identity.instanceID != "" {
 		record["extension_instance_id"] = identity.instanceID
 	}
@@ -1355,11 +1654,11 @@ func (b *bridge) appendRecord(w http.ResponseWriter, r *http.Request, kind, file
 	record["received_at"] = time.Now().UTC().Format(time.RFC3339)
 	record["bridge_runtime"] = runtime.GOOS + "/" + runtime.GOARCH
 
-	if err := b.writeJSONL(filename, record); err != nil {
+	if err := b.writeJSONL(target.outputDir, filename, record); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	b.increment(countKey)
+	b.increment(target, countKey)
 	writeJSON(w, map[string]any{"ok": true, "record_type": kind})
 }
 
@@ -1388,12 +1687,12 @@ func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 	meta := sanitizeMap(record)
 	identity := extensionIdentityFromRequest(r)
-	activeRunID, err := b.activeWriteRunID(meta, identity)
+	target, err := b.activeWriteTarget(meta, identity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	path := filepath.Join(b.cfg.outputDir, "snapshots", name)
+	path := filepath.Join(target.outputDir, "snapshots", name)
 	b.fileMu.Lock()
 	if err := os.WriteFile(path, []byte(html), 0o600); err != nil {
 		b.fileMu.Unlock()
@@ -1404,7 +1703,7 @@ func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 	delete(meta, "html")
 	meta["snapshot_path"] = path
 	meta["record_type"] = "snapshot"
-	meta["run_id"] = activeRunID
+	meta["run_id"] = target.runID
 	if identity.instanceID != "" {
 		meta["extension_instance_id"] = identity.instanceID
 	}
@@ -1412,15 +1711,15 @@ func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 		meta["extension_display_name"] = identity.displayName
 	}
 	meta["received_at"] = time.Now().UTC().Format(time.RFC3339)
-	if err := b.writeJSONL("source_status.jsonl", meta); err != nil {
+	if err := b.writeJSONL(target.outputDir, "source_status.jsonl", meta); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	b.increment("snapshots")
+	b.increment(target, "snapshots")
 	writeJSON(w, map[string]any{"ok": true, "snapshot_path": path})
 }
 
-func (b *bridge) activeWriteRunID(record map[string]any, identity extensionIdentity) (string, error) {
+func (b *bridge) activeWriteTarget(record map[string]any, identity extensionIdentity) (writeTarget, error) {
 	incomingRunID := getString(record, "run_id", "")
 	incomingClientSlug := getString(record, "client_slug", "")
 	b.mu.Lock()
@@ -1428,40 +1727,69 @@ func (b *bridge) activeWriteRunID(record map[string]any, identity extensionIdent
 	cfgRunID := b.cfg.runID
 	completed := b.completed
 	activeJob := cloneMap(b.activeJob)
+	outputDir := b.cfg.outputDir
 	b.mu.Unlock()
 
 	if !persistent {
 		if completed {
-			return cfgRunID, errors.New("collector run is already completed")
+			return writeTarget{}, errors.New("collector run is already completed")
 		}
 		if incomingRunID != "" && incomingRunID != cfgRunID {
-			return cfgRunID, fmt.Errorf("stale collector run %q; active run is %q", incomingRunID, cfgRunID)
+			return writeTarget{}, fmt.Errorf("stale collector run %q; active run is %q", incomingRunID, cfgRunID)
 		}
 		if !jobMatchesExtension(activeJob, identity) {
-			return cfgRunID, fmt.Errorf("extension %q is not allowed to write run %q", identity.instanceID, cfgRunID)
+			return writeTarget{}, fmt.Errorf("extension %q is not allowed to write run %q", identity.instanceID, cfgRunID)
 		}
 		if err := validateRecordClient(activeJob, incomingClientSlug); err != nil {
-			return cfgRunID, err
+			return writeTarget{}, err
 		}
-		return cfgRunID, nil
+		return writeTarget{runID: cfgRunID, outputDir: outputDir, job: activeJob}, nil
 	}
 
-	if cfgRunID == "" {
-		return cfgRunID, errors.New("no active collector job")
+	b.mu.Lock()
+	targetKey := ""
+	if incomingRunID != "" {
+		targetKey = b.runIndex[incomingRunID]
+		if targetKey == "" {
+			if _, ok := b.completions[incomingRunID]; ok {
+				b.mu.Unlock()
+				return writeTarget{}, errors.New("collector run is already completed")
+			}
+			b.mu.Unlock()
+			return writeTarget{}, fmt.Errorf("no active collector job for run %q", incomingRunID)
+		}
+	} else {
+		targetKey = activeRunKey(nil, identity)
+		if targetKey == "default" && len(b.activeRuns) == 1 {
+			for key := range b.activeRuns {
+				targetKey = key
+			}
+		}
 	}
-	if completed {
-		return cfgRunID, errors.New("collector run is already completed")
+	run := b.activeRuns[targetKey]
+	if run == nil {
+		b.mu.Unlock()
+		return writeTarget{}, errors.New("no active collector job")
 	}
-	if incomingRunID != "" && incomingRunID != cfgRunID {
-		return cfgRunID, fmt.Errorf("stale collector run %q; active run is %q", incomingRunID, cfgRunID)
+	job := cloneMap(run.job)
+	runID := getString(job, "run_id", incomingRunID)
+	runCompleted := run.completed
+	outDir := getString(job, "output_dir", b.outputRoot)
+	b.mu.Unlock()
+
+	if runCompleted {
+		return writeTarget{}, errors.New("collector run is already completed")
 	}
-	if !jobMatchesExtension(activeJob, identity) {
-		return cfgRunID, fmt.Errorf("extension %q is not allowed to write run %q", identity.instanceID, cfgRunID)
+	if incomingRunID != "" && incomingRunID != runID {
+		return writeTarget{}, fmt.Errorf("stale collector run %q; active run is %q", incomingRunID, runID)
 	}
-	if err := validateRecordClient(activeJob, incomingClientSlug); err != nil {
-		return cfgRunID, err
+	if !jobMatchesExtension(job, identity) {
+		return writeTarget{}, fmt.Errorf("extension %q is not allowed to write run %q", identity.instanceID, runID)
 	}
-	return cfgRunID, nil
+	if err := validateRecordClient(job, incomingClientSlug); err != nil {
+		return writeTarget{}, err
+	}
+	return writeTarget{activeKey: targetKey, runID: runID, outputDir: outDir, job: job}, nil
 }
 
 func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
@@ -1483,12 +1811,44 @@ func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
 			record = sanitizeMap(record)
 		}
 	}
+	incomingRunID := getString(record, "run_id", "")
 	b.mu.Lock()
+	persistent := b.cfg.persistent
 	activeJob := cloneMap(b.activeJob)
 	currentRunID := b.cfg.runID
 	claimedPath := b.activeJobClaimedPath
+	outputDir := b.cfg.outputDir
+	activeKey := ""
+	if persistent {
+		if incomingRunID != "" {
+			activeKey = b.runIndex[incomingRunID]
+		} else {
+			activeKey = activeRunKey(nil, identity)
+			if activeKey == "default" && len(b.activeRuns) == 1 {
+				for key := range b.activeRuns {
+					activeKey = key
+				}
+			}
+		}
+		run := b.activeRuns[activeKey]
+		if run == nil {
+			if incomingRunID != "" {
+				if _, ok := b.completions[incomingRunID]; ok {
+					b.mu.Unlock()
+					http.Error(w, "collector run is already completed", http.StatusConflict)
+					return
+				}
+			}
+			b.mu.Unlock()
+			http.Error(w, "no active collector job", http.StatusConflict)
+			return
+		}
+		activeJob = cloneMap(run.job)
+		currentRunID = getString(activeJob, "run_id", incomingRunID)
+		claimedPath = run.claimedPath
+		outputDir = getString(activeJob, "output_dir", b.outputRoot)
+	}
 	b.mu.Unlock()
-	incomingRunID := getString(record, "run_id", "")
 	if incomingRunID != "" && incomingRunID != currentRunID {
 		http.Error(w, fmt.Sprintf("stale collector run %q; active run is %q", incomingRunID, currentRunID), http.StatusConflict)
 		return
@@ -1502,18 +1862,32 @@ func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	runID := currentRunID
+	counts := emptyCounts()
 	b.mu.Lock()
-	b.completed = true
-	runID := b.cfg.runID
-	if b.cfg.persistent && runID != "" {
-		b.completions[runID] = time.Now().UTC().Format(time.RFC3339)
-		if b.runNowJob != nil && getString(b.runNowJob, "run_id", "") == runID {
-			b.runNowJob = nil
+	if persistent {
+		if run := b.activeRuns[activeKey]; run != nil {
+			run.completed = true
+			counts = cloneIntMap(run.counts)
+			delete(b.activeRuns, activeKey)
+			delete(b.runIndex, runID)
+		}
+		if runID != "" {
+			b.completions[runID] = time.Now().UTC().Format(time.RFC3339)
 		}
 		b.saveCompletionsLocked()
+	} else {
+		b.completed = true
+		counts = cloneIntMap(b.counts)
+		if b.cfg.persistent && runID != "" {
+			b.completions[runID] = time.Now().UTC().Format(time.RFC3339)
+			if b.runNowJob != nil && getString(b.runNowJob, "run_id", "") == runID {
+				b.runNowJob = nil
+			}
+			b.saveCompletionsLocked()
+		}
+		b.activeJobClaimedPath = ""
 	}
-	b.activeJobClaimedPath = ""
-	persistent := b.cfg.persistent
 	b.mu.Unlock()
 	if claimedPath != "" {
 		_ = os.MkdirAll(filepath.Join(b.collectorDataDir(), "jobs", "completed"), 0o700)
@@ -1539,7 +1913,7 @@ func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
 			"request_at":             getString(activeJob, "created_at", ""),
 			"request":                getString(activeJob, "run_now_source", ""),
 			"run_id":                 runID,
-			"output_dir":             getString(activeJob, "output_dir", b.cfg.outputDir),
+			"output_dir":             getString(activeJob, "output_dir", outputDir),
 			"run_now_expires_at":     getString(activeJob, "run_now_expires_at", ""),
 			"source":                 getString(activeJob, "run_now_source", ""),
 			"client_slug":            getString(activeJob, "client_slug", ""),
@@ -1554,7 +1928,11 @@ func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = b.writeRunNowRequestStatus(status)
 	}
-	_ = b.writeStatus("completed", "collector marked run complete")
+	if persistent {
+		_ = b.writeRunStatus("completed", "collector marked run complete", runID, outputDir, counts, true)
+	} else {
+		_ = b.writeStatus("completed", "collector marked run complete")
+	}
 	writeJSON(w, map[string]any{"ok": true, "status": "completed"})
 	if persistent {
 		return
@@ -1577,8 +1955,8 @@ func (b *bridge) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
-func (b *bridge) writeJSONL(filename string, record map[string]any) error {
-	path := filepath.Join(b.cfg.outputDir, filename)
+func (b *bridge) writeJSONL(outputDir, filename string, record map[string]any) error {
+	path := filepath.Join(outputDir, filename)
 	b.fileMu.Lock()
 	defer b.fileMu.Unlock()
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
@@ -1591,11 +1969,63 @@ func (b *bridge) writeJSONL(filename string, record map[string]any) error {
 	return enc.Encode(record)
 }
 
-func (b *bridge) increment(key string) {
+func (b *bridge) increment(target writeTarget, key string) {
+	counts := emptyCounts()
+	completed := false
 	b.mu.Lock()
-	b.counts[key]++
+	if b.cfg.persistent && target.activeKey != "" {
+		if run := b.activeRuns[target.activeKey]; run != nil {
+			run.counts[key]++
+			counts = cloneIntMap(run.counts)
+			completed = run.completed
+		}
+	} else {
+		b.counts[key]++
+		counts = cloneIntMap(b.counts)
+		completed = b.completed
+	}
 	b.mu.Unlock()
+	if b.cfg.persistent && target.outputDir != "" {
+		_ = b.writeRunStatus("ready", "record received", target.runID, target.outputDir, counts, completed)
+		return
+	}
 	_ = b.writeStatus("ready", "record received")
+}
+
+func (b *bridge) writeRunStatus(status, message, runID, outputDir string, counts map[string]int, completed bool) error {
+	if outputDir == "" {
+		outputDir = b.outputRoot
+	}
+	b.mu.Lock()
+	extension := b.extensionStatusLocked(time.Now().UTC())
+	b.mu.Unlock()
+	payload := map[string]any{
+		"object":           "collector_status",
+		"status":           status,
+		"message":          message,
+		"run_id":           runID,
+		"started_at":       b.startedAt.Format(time.RFC3339),
+		"updated_at":       time.Now().UTC().Format(time.RFC3339),
+		"output_dir":       outputDir,
+		"job_file":         b.cfg.jobFile,
+		"completed":        completed,
+		"counts":           counts,
+		"bridge_host":      b.cfg.host,
+		"bridge_port":      b.cfg.port,
+		"persistent":       b.cfg.persistent,
+		"routing_mode":     "shared_bridge_parallel_per_client_extension",
+		"extension_health": extension,
+	}
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return err
+	}
+	b.fileMu.Lock()
+	defer b.fileMu.Unlock()
+	if err := os.MkdirAll(outputDir, 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(outputDir, "collector_status.json"), append(data, '\n'), 0o600)
 }
 
 func (b *bridge) writeStatus(status, message string) error {
@@ -1603,6 +2033,7 @@ func (b *bridge) writeStatus(status, message string) error {
 	counts := cloneIntMap(b.counts)
 	completed := b.completed
 	extension := b.extensionStatusLocked(time.Now().UTC())
+	activeJobs := b.activeRunSummariesLocked()
 	b.mu.Unlock()
 	payload := map[string]any{
 		"object":           "collector_status",
@@ -1618,6 +2049,8 @@ func (b *bridge) writeStatus(status, message string) error {
 		"bridge_host":      b.cfg.host,
 		"bridge_port":      b.cfg.port,
 		"persistent":       b.cfg.persistent,
+		"routing_mode":     "shared_bridge_parallel_per_client_extension",
+		"active_jobs":      activeJobs,
 		"extension_health": extension,
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
@@ -1632,6 +2065,7 @@ func (b *bridge) writeStatus(status, message string) error {
 func (b *bridge) writeHealthFile() error {
 	b.mu.Lock()
 	extensionHealth := b.extensionStatusLocked(time.Now().UTC())
+	activeJobs := b.activeRunSummariesLocked()
 	payload := map[string]any{
 		"object":           "collector_bridge_health",
 		"status":           "running",
@@ -1642,6 +2076,8 @@ func (b *bridge) writeHealthFile() error {
 		"persistent":       b.cfg.persistent,
 		"config_file":      b.cfg.configFile,
 		"output_root":      b.outputRoot,
+		"routing_mode":     "shared_bridge_parallel_per_client_extension",
+		"active_jobs":      activeJobs,
 		"extension_health": extensionHealth,
 	}
 	b.mu.Unlock()
@@ -1826,6 +2262,20 @@ func stringList(raw any) []string {
 		if value != "" {
 			out = append(out, value)
 		}
+	}
+	return out
+}
+
+func uniqueStrings(items []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" || seen[item] {
+			continue
+		}
+		seen[item] = true
+		out = append(out, item)
 	}
 	return out
 }
