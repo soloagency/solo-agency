@@ -344,7 +344,7 @@ There are two separate private collection modes:
 1. Source Discovery Mode:
    - Used to discover groups, profiles, pages, channels, KOLs, and communities.
    - Must scroll deeply until no new source names/URLs appear for 3 consecutive scrolls.
-   - Use a hard safety cap, for example 80 scrolls.
+   - Use a hard safety cap of 10 scrolls.
    - Do not stop at the daily default of 5 scrolls because this can miss many joined groups or followed sources.
    - Filter candidate sources by relevance before asking the human to approve them.
 
@@ -1706,14 +1706,17 @@ The current AI session's WideCast MCP/native tool account is not authoritative f
 If WideCast is not configured for the client, the agent must:
 
 1. Read or create `daily-content-pipeline/provider_defaults.json` with WideCast as the default OpenAPI provider: `https://widecast.ai/openapi.yaml`.
-2. Ask the human to register or log in only if required.
-3. Ask the human to open `https://widecast.ai/#setup`.
-4. Direct the human to API Keys and ask for a `wc_live_*` API key for this specific client.
-5. Save only the required API key reference/local value in this client's `integrations/providers/provider_config.local.json`.
-6. Fetch/cache `https://widecast.ai/openapi.yaml` and discover operation IDs.
-7. Verify account identity with `getAccount`.
-8. Save provider capability status and trigger Automation Resync when a schedule exists.
-9. Use MCP URL setup only as optional compatibility when the human or AI host explicitly chooses connector-based setup, and only after keeping the client-scoped provider identity in the client folder.
+2. Ask the human to register at `https://widecast.ai/#setup` if needed. Mention the free 50 credits/month path when that offer is shown.
+3. Ask the human to log in and click `Setup AI Agent`.
+4. Ask the human to open the `API Keys & MCP` tab, click `Setup`, then click `Generate API key and MCP url`.
+5. Ask the human to copy only the API key for this specific client and paste it back to the agent. Do not ask for the MCP URL unless the human explicitly chose MCP/connector setup.
+6. Ask the human to connect Telegram so daily report links, blockers, and approval requests can reach them.
+7. If convenient, ask the human to connect this client's social accounts there too, so approved content can later be published to 10+ platforms after they approve the exact content and target platforms.
+8. Save only the required API key reference/local value in this client's `integrations/providers/provider_config.local.json`.
+9. Fetch/cache `https://widecast.ai/openapi.yaml` and discover operation IDs.
+10. Verify account identity with `getAccount`.
+11. Save provider capability status and trigger Automation Resync when a schedule exists.
+12. Use MCP URL setup only as optional compatibility when the human or AI host explicitly chooses connector-based setup, and only after keeping the client-scoped provider identity in the client folder.
 
 The agent must never ask for:
 

@@ -265,8 +265,8 @@ func defaultCollectorConfig() map[string]any {
 		"source_concurrency":            1,
 		"max_scrolls_per_source":        5,
 		"max_scrolls_allowed":           10,
-		"discovery_scroll_steps":        80,
-		"max_discovery_scrolls_allowed": 80,
+		"discovery_scroll_steps":        10,
+		"max_discovery_scrolls_allowed": 10,
 		"scroll_delay_seconds":          5,
 		"duplicate_filter": map[string]any{
 			"compare_against_previous_day": true,
@@ -1288,7 +1288,7 @@ func (b *bridge) currentPersistentJob(now time.Time, identity extensionIdentity)
 	maxAllowed := maxScrollsAllowedForJob(doc, map[string]any{"sources": sources})
 	defaultScrolls := getInt(doc, "max_scrolls_per_source", 5)
 	if discovery {
-		defaultScrolls = getInt(doc, "discovery_scroll_steps", 80)
+		defaultScrolls = getInt(doc, "discovery_scroll_steps", 10)
 	}
 	scrolls := clampInt(defaultScrolls, 0, maxAllowed)
 	delay := clampInt(getInt(doc, "scroll_delay_seconds", 5), 5, 60)
@@ -1467,7 +1467,7 @@ func maxScrollsAllowedForJob(doc map[string]any, job map[string]any) int {
 	if !jobLooksLikeDiscovery(job) {
 		return normal
 	}
-	discovery := clampInt(getInt(doc, "max_discovery_scrolls_allowed", 80), normal, 80)
+	discovery := clampInt(getInt(doc, "max_discovery_scrolls_allowed", 10), normal, 10)
 	if discovery < normal {
 		return normal
 	}
@@ -1490,7 +1490,7 @@ func pacingForJob(doc map[string]any, job map[string]any) map[string]any {
 		pacing["source_concurrency"] = raw
 	}
 	if jobLooksLikeDiscovery(job) && !rawScrollOverride {
-		pacing["scroll_steps"] = getInt(doc, "discovery_scroll_steps", 80)
+		pacing["scroll_steps"] = getInt(doc, "discovery_scroll_steps", 10)
 	}
 	maxAllowed := maxScrollsAllowedForJob(doc, job)
 	minDelay := clampInt(getInt(pacing, "min_delay_seconds", 5), 5, 60)

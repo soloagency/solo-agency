@@ -42,7 +42,7 @@ For video/blog/social production actions, load `playbooks/SOLO_AGENCY_VIDEO_PROV
 
 When saving a client provider API key, use `api_key_env` or `api_key_local` exactly. Do not create `api_key`; the OpenAPI helper ignores that field and treats auth as missing.
 
-When explaining WideCast/API-key setup, preserve human-in-the-loop wording: WideCast lets the agent create video/blog/social assets and send notifications for human review, then publish to 10+ platforms only after the human approves the exact content and target platforms. Do not say or imply that adding an API key authorizes automatic posting of unreviewed drafts.
+When explaining WideCast/API-key setup, give the exact human steps: register at `https://widecast.ai/#setup` (free 50 credits/month when that offer is shown), log in, click `Setup AI Agent`, open the `API Keys & MCP` tab, click `Setup`, click `Generate API key and MCP url`, then copy only the API key back to the agent for this client's config. Also ask them to connect Telegram for daily reports, and optionally connect social accounts there to enable publishing to 10+ platforms only after they approve the exact content and target platforms. Do not say or imply that adding an API key authorizes automatic posting of unreviewed drafts.
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
 
