@@ -37,6 +37,7 @@ The current canonical runtime/data layout is:
   daily-content-pipeline/              # data/config/output only
     clients_index.md
     schedule.md
+    provider_defaults.json             # public/provider-neutral catalog, no secrets
     automation/
       automation_manifest.md
       scheduled_run_prompt.md
@@ -71,6 +72,13 @@ The current canonical runtime/data layout is:
       {client_slug}/
         {business_slug}_{location_slug}/
           client_profile_{client_slug}_{business_slug}_{location_slug}.md
+          integrations/
+            providers/
+              provider_config.local.json
+              provider_capabilities.json
+              provider_openapi_cache.yaml
+              provider_calls.jsonl
+              provider_health.md
           ...
 ```
 
@@ -142,6 +150,7 @@ Use one folder per client/business/location:
       popup.html
       popup.js
   daily-content-pipeline/              # data/config/output only
+  provider_defaults.json               # default OpenAPI provider catalog, no secrets
   clients_index.md
   schedule.md
   automation/
@@ -193,6 +202,13 @@ Use one folder per client/business/location:
           publishing_log.md
         analytics/
           metrics_log.md
+        integrations/
+          providers/
+            provider_config.local.json
+            provider_capabilities.json
+            provider_openapi_cache.yaml
+            provider_calls.jsonl
+            provider_health.md
         reports/
           YYYY-MM_report.md
         experiments/
@@ -225,6 +241,7 @@ Examples:
 daily-content-pipeline/
   clients_index.md
   schedule.md
+  provider_defaults.json
   automation/
     automation_manifest.md
     scheduled_run_prompt.md
@@ -264,6 +281,13 @@ daily-content-pipeline/
           approval_log.md
         analytics/
           metrics_log.md
+        integrations/
+          providers/
+            provider_config.local.json
+            provider_capabilities.json
+            provider_openapi_cache.yaml
+            provider_calls.jsonl
+            provider_health.md
         reports/
           2026-06_report.md
         history/
@@ -366,6 +390,38 @@ The schedule may use:
 
 If true automation is unavailable, create manual instructions.
 
+### `provider_defaults.json`
+
+Public, provider-neutral catalog for default production/distribution/notification/analytics providers. This file must not contain API keys, MCP tokens, OAuth tokens, cookies, passwords, or client account secrets.
+
+Create or update this file when PDNA provider setup is introduced:
+
+```json
+{
+  "schema_version": 1,
+  "default_production_provider": "widecast",
+  "providers": {
+    "widecast": {
+      "type": "openapi",
+      "provider_home_url": "https://widecast.ai/",
+      "discovery_url": "https://widecast.ai/openapi.yaml",
+      "auth_type": "bearer_api_key",
+      "api_key_prefix": "wc_live_",
+      "secret_storage": "per_client_local_config",
+      "notes": "Default all-in-one OpenAPI provider for production, distribution, notification, and analytics. Client secrets live only in each client's provider_config.local.json or the user's secret manager."
+    }
+  }
+}
+```
+
+Rules:
+
+- Agents must use `discovery_url` to fetch the OpenAPI spec instead of hard-coding endpoint paths.
+- Agents must read the OpenAPI `servers` list and operation schemas before calling provider APIs.
+- The provider home URL is only a human-facing setup link and fallback discovery root.
+- A new provider can be added beside `widecast` if it exposes an equivalent OpenAPI spec and supports the needed PDNA capability groups.
+- Do not commit real API keys or account-specific provider state into this file.
+
 ### `automation/automation_manifest.md`
 
 Records the current automation package that scheduled runs must obey. This file exists because native AI automations and schedulers may store their own prompt snapshot at creation time. If the human changes anything after schedule setup, the agent must update this manifest during Automation Resync.
@@ -391,8 +447,11 @@ Minimum format:
 - root_playbook: SOLO_AGENCY_PLAYBOOK.md
 - clients_index: daily-content-pipeline/clients_index.md
 - collector_config: daily-content-pipeline/collector/collector_config.json
+- provider_defaults: daily-content-pipeline/provider_defaults.json
 - notification_channel:
 - pdna_status:
+- provider_status_summary:
+- provider_capability_cache_status:
 - private_data_source_status_summary:
 - report_merge_contract: one_report_two_lanes | legacy_mixed_report | unknown
 - report_notification_policy: same_report_public_private_notifications_allowed | single_final_notification | unknown
@@ -410,7 +469,7 @@ Minimum format:
 ## Current Run Contract
 
 - Scheduled runs must load the latest local playbooks at run time.
-- Scheduled runs must read this manifest, schedule.md, clients_index.md, active Client Intelligence Profiles, and collector_config.json when private data sources are active or pending.
+- Scheduled runs must read this manifest, schedule.md, provider_defaults.json, clients_index.md, active Client Intelligence Profiles, per-client provider config, and collector_config.json when private data sources are active or pending.
 - Scheduled runs must not rely only on the prompt snapshot from the day the automation was created.
 
 ## Last Dry-Read Verification
@@ -446,30 +505,171 @@ Format:
 
 ### `notifications/notification_log.md`
 
-Tracks notifications sent to the human through WideCast MCP / Telegram or any available notification channel.
+Tracks notifications sent to the human through the configured provider notification channel, WideCast OpenAPI/Telegram/email fallback, or any other authorized notification channel.
 
 Format:
 
 ```md
 # Notification Log
 
-| Date | Agent | Event | Lane Status | Channel | Status | HTML Report Path | WideCast Capability Checked | WideCast Upload Tool | WideCast Notification Tool | Upload Attempted | Uploaded Report URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
+| Date | Agent | Event | Lane Status | Channel | Status | HTML Report Path | Provider | Provider Discovery Checked | Upload Operation | Notification Operation | Upload Attempted | Uploaded Report URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude Schedule | daily_run_completed | public_report_ready | WideCast Telegram | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | yes | available | available | yes | https://... | yes | https://... | none | Await private report or review approvals |
-| 2026-06-20 | Claude Schedule | daily_run_completed | private_report_ready | WideCast Telegram | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | yes | available | available | yes | https://... | yes | https://... | none | Review daily report index and lane reports |
+| 2026-06-20 | Claude Schedule | daily_run_completed | public_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... | yes | https://... | none | Await private report or review approvals |
+| 2026-06-20 | Claude Schedule | daily_run_completed | private_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... | yes | https://... | none | Review daily report index and lane reports |
 ```
 
 Use this log so scheduled runs do not silently complete or fail while the human is away.
 
-If WideCast upload or notification cannot be used, the log must distinguish:
+If provider upload or notification cannot be used, the log must distinguish:
 
-- `widecast_report_upload_unavailable`: current connector/tool surface exposes no HTML-capable upload tool.
-- `widecast_notification_tool_unavailable`: current connector/tool surface exposes no WideCast Telegram/report notification send tool.
-- `widecast_upload_failed`: upload tool exists but the upload call failed.
-- `widecast_notification_failed`: notification tool exists but send failed.
-- `widecast_telegram_not_connected`: notification tool exists but Telegram is not connected and no fallback was sent.
+- `provider_config_missing`: no per-client provider config exists.
+- `provider_auth_missing`: provider config exists but the client has not supplied an API key or supported auth value.
+- `provider_auth_failed`: the provider rejected the client credential.
+- `provider_discovery_failed`: OpenAPI discovery URL could not be fetched or parsed.
+- `provider_required_operation_missing`: the OpenAPI spec lacks the operation needed for the requested action.
+- `provider_account_mismatch`: provider account verification does not match the saved client/account identity.
+- `provider_upload_failed`: upload operation exists but the upload call failed.
+- `provider_notification_failed`: notification operation exists but send failed.
+- `provider_notification_not_configured`: provider account is valid but Telegram/email/notification destination is not configured and no fallback was sent.
 
-Do not use `unavailable` generically when the actual issue is that the current AI connector/tool surface does not expose a tool.
+WideCast-specific aliases may still be logged for backward compatibility:
+
+- `widecast_report_upload_unavailable` means the current provider/OpenAPI capability check or legacy connector path exposed no HTML-capable upload operation.
+- `widecast_notification_tool_unavailable` means the current provider/OpenAPI capability check or legacy connector path exposed no WideCast notification send operation.
+- `widecast_upload_failed`, `widecast_notification_failed`, and `widecast_telegram_not_connected` keep their legacy meaning but should be accompanied by the provider-neutral blocker when possible.
+
+Do not use `unavailable` generically when the actual issue is missing config, failed auth, missing provider operation, expired credentials, or a provider account mismatch.
+
+### Per-Client Provider Integration Files
+
+Each client that uses PDNA provider actions must keep provider state under:
+
+```text
+daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/integrations/providers/
+```
+
+#### `provider_config.local.json`
+
+Client-local configuration. Treat this file as sensitive local state. Do not include it in a public repo, zip, screenshot, report, or support bundle unless secrets are removed.
+
+Minimum WideCast OpenAPI example:
+
+```json
+{
+  "schema_version": 1,
+  "client_slug": "angela-do",
+  "active_provider": "widecast",
+  "providers": {
+    "widecast": {
+      "type": "openapi",
+      "discovery_url": "https://widecast.ai/openapi.yaml",
+      "provider_home_url": "https://widecast.ai/",
+      "auth_type": "bearer_api_key",
+      "api_key_env": "SOLO_AGENCY_WIDECAST_API_KEY_ANGELA_DO",
+      "api_key_local": "",
+      "account_verified_at": "",
+      "account_identity": {
+        "company_id": "",
+        "email_masked": "",
+        "name": "",
+        "connected_platforms": []
+      },
+      "pdna": {
+        "production": "not_configured",
+        "distribution": "not_configured",
+        "notification": "not_configured",
+        "analytics": "not_configured"
+      },
+      "notification": {
+        "enabled": false,
+        "preferred_operation_id": "sendTelegramMessage",
+        "delivery": "telegram_or_email_fallback"
+      },
+      "report_upload": {
+        "enabled": false,
+        "preferred_operation_id": "uploadAsset",
+        "content_type": "text/html",
+        "ttl_hours_note": "WideCast uploadAsset URLs are currently short-lived. Use for report notifications, not permanent archives."
+      }
+    }
+  }
+}
+```
+
+Credential rules:
+
+- Prefer `api_key_env` or the user's secret manager when available.
+- If a local API key is saved in `api_key_local`, keep it only in this per-client local file and redact it in all logs and reports.
+- Never store passwords, OTPs, browser cookies, social session tokens, or raw OAuth refresh tokens here.
+- Before any provider action, verify the active provider account with the provider account operation, such as WideCast `getAccount`.
+- If the verified account identity changes unexpectedly, stop provider actions and log `provider_account_mismatch`.
+
+#### `provider_capabilities.json`
+
+Snapshot of the OpenAPI operations discovered for the active provider. This is safe to keep without secrets.
+
+When local Python execution is available, agents may create or refresh this file with `tools/provider_openapi.py discover --config <client provider_config.local.json> --defaults daily-content-pipeline/provider_defaults.json --out-dir <client integrations/providers folder>`.
+
+Minimum shape:
+
+```json
+{
+  "schema_version": 1,
+  "provider": "widecast",
+  "discovered_at": "",
+  "discovery_url": "https://widecast.ai/openapi.yaml",
+  "server_url": "",
+  "auth_scheme": "bearerAuth",
+  "operation_ids": {
+    "account": "getAccount",
+    "analytics": "getAnalytics",
+    "upload_html_report": "uploadAsset",
+    "send_notification": "sendTelegramMessage",
+    "publish": "publish",
+    "create_video": "createVideo",
+    "export_video": "exportVideo",
+    "get_status": "getStatus",
+    "get_video_data": "getVideoData",
+    "get_writing_skill": "getWritingSkill",
+    "create_content": "createContent",
+    "create_image": "createImage",
+    "search_broll": "searchBroll",
+    "collect_ideas": "collectIdeas"
+  },
+  "capability_status": {
+    "production": "available | partial | unavailable",
+    "distribution": "available | partial | unavailable",
+    "notification": "available | partial | unavailable",
+    "analytics": "available | partial | unavailable"
+  },
+  "blockers": []
+}
+```
+
+#### `provider_openapi_cache.yaml`
+
+Raw OpenAPI spec cache for repeatable automation. Refresh it when:
+
+- the file is missing;
+- the cache is older than the configured refresh policy;
+- `provider_defaults.json` changes;
+- the provider action fails because an operation/schema appears stale;
+- the human changes provider configuration.
+
+#### `provider_calls.jsonl`
+
+Append-only provider audit log. Each line should include timestamp, agent, client_slug, provider, operationId, redacted request summary, response status, request_id if present, and blocker if any. Never log full API keys or private data source raw content.
+
+#### `provider_health.md`
+
+Human-readable provider status:
+
+```md
+# Provider Health
+
+| Date | Agent | Provider | Account Verified | Production | Distribution | Notification | Analytics | Credits | Connected Platforms | Blocker | Next Action |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+```
 
 ### `collector/collector_setup_status.md`
 
@@ -1256,11 +1456,11 @@ Track metrics when available:
 - Content pillar.
 - Funnel stage.
 
-### WideCast MCP Analytics Collection Rule
+### WideCast OpenAPI Analytics Collection Rule
 
-When running weekly learning, monthly reporting, or any performance review, the agent must use available WideCast MCP capabilities to collect performance data before drawing conclusions.
+When running weekly learning, monthly reporting, or any performance review, the agent must use available verified provider analytics capabilities before drawing conclusions. For WideCast, load the current client's provider config, discover or refresh `https://widecast.ai/openapi.yaml`, verify the account with `getAccount`, then call available analytics/library operations such as `getAnalytics`, `listVideos`, `getStatus`, and `getVideoData`.
 
-The agent should inspect the available WideCast MCP tool/API list at runtime and call the relevant tools for:
+The agent should inspect the available WideCast OpenAPI operation list at runtime and call the relevant operations for:
 
 - Recently published content.
 - Published post/video URLs.
@@ -1276,11 +1476,11 @@ The agent should inspect the available WideCast MCP tool/API list at runtime and
 - Follower counts.
 - Engagement trends.
 
-If WideCast MCP exposes a list of published posts, recent videos, production history, publishing history, analytics dashboard, or platform statistics, the agent must use those sources first.
+If WideCast OpenAPI exposes a list of published posts, recent videos, production history, publishing history, analytics dashboard, or platform statistics, the agent must use those sources first after verifying that the API key belongs to the current client.
 
 For each published content item from the last 7 days, the agent should measure it daily for up to 7 days after publishing:
 
-1. Retrieve the published URL and metadata through WideCast MCP when available.
+1. Retrieve the published URL and metadata through WideCast OpenAPI when available.
 2. Save URL, title, description, caption, hashtags, platform, publish date, and related script/output file.
 3. Use the Solo Agency Local Collector extension plus Local Collector app to capture visible metrics from each published URL when tools, permissions, and login state allow it.
 4. Measure or extract available engagement metrics, such as:
@@ -1296,7 +1496,7 @@ For each published content item from the last 7 days, the agent should measure i
    - objections
    - requests for help
    - lead signals in comments
-5. If direct platform metrics are not accessible, record the limitation and use whatever WideCast MCP analytics or visible public metrics are available.
+5. If direct platform metrics are not accessible, record the limitation and use whatever WideCast OpenAPI analytics or visible public metrics are available.
 6. Store all results in `analytics/metrics_log.md`.
 7. Store audience questions, objections, and useful comment signals in `analytics/comment_signal_log.md`.
 8. Store strategic learnings in `analytics/learning_log.md`.
@@ -1314,7 +1514,7 @@ Reason:
 
 When measuring published URLs:
 
-1. Build a temporary run-now collector job whose sources are the published URLs retrieved from WideCast MCP.
+1. Build a temporary run-now collector job whose sources are the published URLs retrieved from the configured provider, such as WideCast OpenAPI.
 2. Mark these sources clearly, for example:
    - `source_type: published_content_url`
    - `purpose: performance_measurement`
@@ -1328,9 +1528,9 @@ When measuring published URLs:
 9. Store strategic learnings in `analytics/learning_log.md`.
 10. If a metric is hidden, unavailable, or not visible in the logged-in session, write `unavailable` and explain why.
 
-The agent must not scrape hidden APIs, extract cookies, bypass login, or defeat platform restrictions to measure metrics. Use only authorized visible data or WideCast MCP analytics.
+The agent must not scrape hidden APIs, extract cookies, bypass login, or defeat platform restrictions to measure metrics. Use only authorized visible data or verified provider analytics.
 
-The agent must also call WideCast MCP analytics or dashboard tools that provide overall account-level statistics, such as total views, follower growth, platform performance, or other aggregate metrics. These aggregate metrics should be stored and used for learning even when per-post data is incomplete.
+The agent must also call WideCast OpenAPI analytics or dashboard operations that provide overall account-level statistics, such as total views, follower growth, platform performance, or other aggregate metrics. These aggregate metrics should be stored and used for learning even when per-post data is incomplete.
 
 Do not invent metrics. If a platform hides likes, shares, comments, views, or follower data from the current agent/session, mark the metric as `unavailable` and explain why.
 
@@ -1339,7 +1539,7 @@ Suggested `analytics/metrics_log.md` format:
 ```md
 | Date Checked | Published Date | Client | Platform | URL | Title | Description | Hashtags | Content Pillar | Funnel Stage | Views | Likes | Comments | Shares | Saves | Followers/Subscribers | Source Of Metric | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | 2026-06-18 | Smith Law | TikTok | https://... | What to do after a DUI stop | Short DUI education video | #dui #california | Emergency first steps | Education | 1200 | 44 | 8 | 3 | unavailable | unavailable | WideCast MCP + public URL check | Comments show license-suspension anxiety |
+| 2026-06-20 | 2026-06-18 | Smith Law | TikTok | https://... | What to do after a DUI stop | Short DUI education video | #dui #california | Emergency first steps | Education | 1200 | 44 | 8 | 3 | unavailable | unavailable | WideCast OpenAPI + public URL check | Comments show license-suspension anxiety |
 ```
 
 Suggested `analytics/comment_signal_log.md` format:

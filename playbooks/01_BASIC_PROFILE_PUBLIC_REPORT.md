@@ -738,7 +738,7 @@ For each daily run:
    20. Generate the 3x2 idea matrix, labeling each idea as `primary_industry` or `related_industry`.
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
    22. Select the best idea of the day.
-   23. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
+   23. Write the configured WideCast-writing-skill draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable.
    24. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
    25. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
    26. Update or copy `outputs/latest/{client-name}-daily-report.html`.
@@ -752,7 +752,7 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If WideCast MCP notification/Telegram capability is available, send a notification to the human that includes the agent identity, run status, HTML report path/link, clients processed, blockers, lead/competitor counts, and required actions.
+9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, send a notification to the human that includes the agent identity, run status, HTML report path/link, clients processed, blockers, lead/competitor counts, and required actions.
 9. If another authorized channel can send the HTML file or link more conveniently, use it.
 10. Log the notification attempt in `notifications/notification_log.md`.
 
@@ -760,7 +760,7 @@ The daily run is complete only when every active client is processed or explicit
 
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast MCP / Telegram.
+Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
 
 ---
 

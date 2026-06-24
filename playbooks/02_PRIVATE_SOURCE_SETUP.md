@@ -505,7 +505,7 @@ If access fails:
 
 - Skip the source.
 - Log `session_expired` or `unavailable`.
-- Notify the human through WideCast MCP / Telegram if available.
+- Notify the human through the configured provider notification channel if available, preferably WideCast OpenAPI Telegram/email fallback for the current client.
 - Tell the human in the agent UI and notification channel:
 
 `I could not access [source name] because the session appears expired or unavailable. I skipped it for today's run. Please log in manually through the browser/session if you want it included in future runs.`
