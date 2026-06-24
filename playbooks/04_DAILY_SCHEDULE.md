@@ -10,6 +10,7 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 
 - During one-time setup, configure schedule/routine and the client-specific automation task after the basic source plan is known.
 - After configuring the routine, do not run the first report in Setup Flow; verify the client-specific automation task and tell the human the exact task name to run for the first report.
+- If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, do not run it and do not ask whether to run it now. Treat the request as a handoff request: verify/resync the task, then tell the human the exact client-specific automation task name to run.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
 - Scheduled runs must run research, private scans if active, analysis, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification.
 - Scheduled runs must load Stage 10 and produce Lead & Competitor Opportunities, or explicitly mark them as not found, not scanned, pending activation, or unavailable.
@@ -32,11 +33,16 @@ Rules:
 - Create one client-specific automation task per active client by default.
 - Every client-specific task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
 - The task prompt must pin `target_client_slug` and must not process other clients.
-- The task may use the shared Local Collector app/bridge, but private data source jobs must be routed by `client_slug + extension_instance_id`.
+- The task may use the shared Local Collector app/bridge, but private data source jobs must be routed by `client_slug` and bound to the claiming `extension_instance_id` when present.
 - If the AI automation environment cannot call `127.0.0.1`, it must use file-based job requests under `daily-content-pipeline/collector/jobs/pending/` and read bridge/extension health from local files.
-- The task prompt must require one canonical report with `Public Data Source Intelligence` above `Private Data Source Intelligence`.
-- If private data sources run after public data sources, the task must append/update only the private lane in the same report and must not overwrite the public lane.
+- With one shared Local Collector app/bridge, private data source collection is parallel across different client Chrome profiles/extensions. Multiple scheduled agents may enqueue jobs at the same time; the bridge should expose a separate active collector job per `client_slug`, bind it to the claiming extension instance, route each run to its own output folder, and serialize only jobs for the same client/profile after `/complete` or TTL expiry.
+- The task prompt must require one canonical three-file report set per client/day/run:
+  - `{client-name}-public-data-sources-report.html`
+  - `{client-name}-private-data-sources-report.html`
+  - `{client-name}-daily-report.html`
+- If private data sources run after public data sources, the task must create/update only the private report and daily report. It must not overwrite, regenerate, or summarize away the public report.
 - A setup/config session may instruct the human to run `AvenNgo - Solo Agency First Run`, but it must not generate the report inside the setup chat.
+- A setup/config session must not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` as a workaround for a human report request. The scheduled entrypoint belongs in the native automation task or a separate Automation Flow run, not inside Setup Flow.
 - Automation Flow may accept config changes during a real run, but must immediately perform Automation Resync before claiming future runs are current.
 
 For multi-client daily operations, prefer separate client tasks plus an optional master digest task. The master digest task must not scan private data sources; it only reads existing client reports/outputs and summarizes them.
@@ -253,7 +259,7 @@ For each daily run:
       - Read `daily-content-pipeline/collector/collector_setup_status.md` when present.
       - Inspect recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json` files.
       - Inspect recent consumed run-now status files such as `run_now_request_status.json`, `run_now_request.consumed.json`, or timestamped `run_now_request*.consumed.json` files when present.
-      - If those local status files show a recent current-workspace bridge and recent extension check, use the Stage 8 file-based run-now path by writing `daily-content-pipeline/collector/run_now_request.json` and waiting for collector output. Do not ask the human to restart the Local Collector just because the API was unreachable from the AI sandbox.
+      - If those local status files show a recent current-workspace bridge and recent extension check, use the Stage 8 file-based run-now queue by writing one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/` and waiting for collector output. Do not ask the human to restart the Local Collector just because the API was unreachable from the AI sandbox.
       - If the files are missing, stale, point to another workspace, or do not prove a recent extension check, mark the precise blocker: `collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, or `extension_status_unknown`.
    11. If no private data sources are configured, and discovery was never offered or was postponed, do not block the scheduled run. Continue with public data sources, but include `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed` in the report/notification. Explain that public-only runs can still produce useful ideas but may miss community, lead, and competitor signals from logged-in/member spaces.
    12. If private data sources remain unavailable after Collector Runtime Verification, continue with public data sources and previously collected private data when available. Log the exact verification outcome in the report and notification; do not merely say the config was public-only.
@@ -276,9 +282,9 @@ For each daily run:
    25. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
    26. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, load Stage 3 and create the approved video/blog/social asset according to provider approval gates. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`.
    27. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
-   28. Generate `outputs/YYYY-MM/YYYY-MM-DD.html` as a polished standalone human-facing report. It must be factually aligned with the Markdown report, mobile-friendly, and include editable draft review blocks when drafts exist.
-   29. Update or copy `outputs/latest.md`.
-   30. Update or copy `outputs/latest.html`.
+   28. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+   29. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   30. Update or copy the latest public/private lane HTML files when those lane reports exist.
    31. Update `history/YYYY-MM/content_log.md`.
    32. Update `history/YYYY-MM/data_sources_log.md`.
    33. Update `history/YYYY-MM/lead_log.md`.
@@ -520,7 +526,7 @@ Health check sequence:
      - `daily-content-pipeline/collector/collector_setup_status.md`,
      - recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json`,
      - recent `run_now_request_status.json` or `run_now_request*.consumed.json` files.
-   - if those files show a recent current-workspace bridge and recent extension check, use the file-based run-now path from Stage 8 rather than asking the human to restart the collector;
+   - if those files show a recent current-workspace bridge and recent extension check, use the file-based run-now queue from Stage 8 rather than asking the human to restart the collector;
    - if the files are missing, stale, or point to another workspace, record the exact blocker such as `collector_status_unverified`, `collector_offline_or_unreachable`, or `wrong_workspace_bridge`;
    - do not try to start the bridge from inside the AI agent sandbox during setup/repair;
    - continue with public data sources and previously collected private data if live private collection remains unavailable.

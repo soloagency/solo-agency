@@ -13,8 +13,8 @@ Load whenever generating, reviewing, debugging, or improving a human-facing repo
 - The report must be standalone, mobile-friendly, agency-grade, and factually aligned with the Markdown source.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
 - Do not create fake action buttons in static HTML.
-- Keep exactly one canonical report per client/day/run, with public data source intelligence above private data source intelligence.
-- Never let a later private data source pass overwrite the public data source section. Private results must append into, or replace only, the private section of the same report.
+- Keep exactly one canonical report set per client/day/run: one daily index HTML plus one full public data sources HTML and one full private data sources HTML.
+- Never merge public data source intelligence and private data source intelligence into one dense HTML body. Each lane is a first-class report file so a later private pass cannot overwrite or summarize away the public pass.
 
 ## Source Preservation Rule
 
@@ -26,10 +26,10 @@ Do not summarize away requirements, examples, checklists, schemas, protocols, UR
 
 ## 11. Daily Output File Format
 
-Each active client must have one daily output file:
+Each active client must have one daily output folder:
 
 ```text
-outputs/YYYY-MM/YYYY-MM-DD.md
+outputs/YYYY-MM/YYYY-MM-DD/
 ```
 
 Markdown is the canonical internal output record. HTML is the only human-facing rendered report.
@@ -78,11 +78,17 @@ The HTML report does not need to be a direct Markdown render. If a direct Markdo
 
 Correct behavior:
 
-1. Author and save the complete internal report as `outputs/YYYY-MM/YYYY-MM-DD.md`.
-2. Create `outputs/YYYY-MM/YYYY-MM-DD.html` as a polished human-facing report using the same facts, references, ideas, lead/competitor data, and draft content.
-3. The HTML may be custom structured and styled for readability, mobile scanning, editable draft review, and copy workflow.
-4. The HTML must not omit required report sections that exist in the Markdown.
-5. If the Markdown report changes, update/regenerate the HTML so both artifacts stay factually aligned.
+1. Author and save the complete internal report source under `outputs/YYYY-MM/YYYY-MM-DD/`, using stable client-prefixed names.
+2. Create exactly three human-facing HTML files for the client/day/run:
+   - `{client-name}-public-data-sources-report.html`
+   - `{client-name}-private-data-sources-report.html`
+   - `{client-name}-daily-report.html`
+3. `{client-name}` must be a filesystem-safe client name/slug, lower-kebab preferred, for example `angela-do` or `aven-ngo`.
+4. The public and private HTML files are full lane reports, not summaries.
+5. The daily HTML file is the concise index/overview linking to the public and private reports, showing lane status, blockers, best next action, and notification status.
+6. The HTML may be custom structured and styled for readability, mobile scanning, editable draft review, and copy workflow.
+7. The HTML must not omit required report sections that exist in the corresponding Markdown/source record.
+8. If a Markdown/source record changes, update/regenerate only the affected lane HTML plus the daily index so artifacts stay factually aligned.
 
 Quality rules for HTML:
 
@@ -98,22 +104,44 @@ Quality rules for HTML:
 The latest convenience files should be:
 
 ```text
-outputs/latest.md
-outputs/latest.html
+outputs/latest/{client-name}-daily-report.html
+outputs/latest/{client-name}-public-data-sources-report.html
+outputs/latest/{client-name}-private-data-sources-report.html
 ```
 
-`latest.md` is internal. `latest.html` is the human-facing convenience file.
+The daily latest file is the default human-facing convenience link. Public/private latest files are allowed as direct lane links.
 
-### Latest Override: Two-Lane Public/Private Report Contract
+### Latest Override: Three-File Public/Private Report Contract
 
-Every client/day/run must produce one canonical report, not separate public and private reports.
+Every client/day/run must produce one canonical report set, not one merged public/private mega-report.
 
-The report must have two stable lanes in this order:
+The canonical report set has exactly these HTML files:
 
-1. `Public Data Source Intelligence`
-2. `Private Data Source Intelligence`
+```text
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html
+```
 
-Both lanes must use the same structure:
+File responsibilities:
+
+1. `{client-name}-public-data-sources-report.html`
+   - Full public data sources report only.
+   - Must contain public source coverage, public evidence, public Lead & Competitor Opportunities, public idea matrix, best public idea, and public draft/recommendation.
+   - Must not include private data source findings except a status pointer such as `private data sources pending`, `private data sources blocked`, or a link to the private report.
+
+2. `{client-name}-private-data-sources-report.html`
+   - Full private data sources report only.
+   - Must contain private collector health, private source coverage, private evidence, private Lead & Competitor Opportunities, private idea matrix, best private idea, copy-ready comments when available, and private draft/recommendation.
+   - Must not rewrite or summarize the public data sources report.
+
+3. `{client-name}-daily-report.html`
+   - Concise daily index/overview.
+   - Must link to the public and private report files.
+   - Must show each lane's status, top recommendation summary, blockers, notification/delivery status, and the one next action.
+   - Must not replace either full lane report.
+
+Both full lane reports must use the same structure:
 
 - Source coverage and data quality.
 - Data points and evidence ledger.
@@ -125,7 +153,7 @@ Both lanes must use the same structure:
 
 The private lane usually has richer post/current URLs and copy-ready comments. Public data source opportunities should also include copy-ready comments when there is a concrete public post/context where a comment is safe and useful. If the public source does not support a safe comment action, keep the field and state `not available from this public data source` or the same meaning in the report language.
 
-The Markdown source must contain explicit section markers:
+The Markdown/source record may keep explicit section markers for internal continuity:
 
 ```md
 <!-- SOLO_AGENCY_SECTION:PUBLIC_START -->
@@ -139,22 +167,22 @@ The Markdown source must contain explicit section markers:
 <!-- SOLO_AGENCY_SECTION:PRIVATE_END -->
 ```
 
-The HTML report must render the same two lanes in the same order. It may use custom design, but it must remain factually aligned with the merged Markdown and must not collapse public and private evidence into one mixed, ambiguous section.
+The HTML deliverables must stay split by file. Do not collapse public and private evidence into one mixed, ambiguous HTML section.
 
 Update rules:
 
-- Public pass: create the report if missing, write or replace only the public lane, and preserve the private lane if it already exists. If private data sources have not run yet, create a private placeholder with status `pending_private_collection`, `pending_private_activation`, `skipped`, or the exact blocker.
-- Private pass: load the existing report and `report_state.json`, then write or replace only the private lane. Do not rewrite, summarize away, delete, or reorder the public lane.
-- If private data sources finish after public data sources, append their findings below the public lane in the same report and regenerate the same HTML report path.
-- If private data sources fail, time out, are stale, or are blocked, update only the private lane with the exact blocker and regenerate the same HTML report path.
-- If a private pass starts but the public lane is missing, create a public lane placeholder that says public data sources were not run or were unavailable, then write the private lane below it. Do not create a private-only report.
+- Public pass: create or replace only `{client-name}-public-data-sources-report.html`, then create/update `{client-name}-daily-report.html` with private status `pending`, `blocked`, `skipped`, or the exact blocker.
+- Private pass: create or replace only `{client-name}-private-data-sources-report.html`, then create/update `{client-name}-daily-report.html`. Do not rewrite, summarize away, delete, or regenerate the public report file.
+- If private data sources finish after public data sources, update only the private report and daily index. Do not open/rewrite the public report except to repair broken links with explicit reason.
+- If private data sources fail, time out, are stale, or are blocked, update only the private report with the exact blocker and update the daily index lane status.
+- If a private pass starts but the public report is missing, create a public report placeholder file that says public data sources were not run or were unavailable, then create the private report. Do not create a private-only report set without a daily index.
 
 State file:
 
 Each report should have a sibling state file:
 
 ```text
-outputs/YYYY-MM/YYYY-MM-DD.report_state.json
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json
 ```
 
 The state file must track at least:
@@ -163,25 +191,29 @@ The state file must track at least:
 {
   "client_slug": "",
   "run_id": "",
+  "report_dir": "outputs/YYYY-MM/YYYY-MM-DD/",
   "report_md_path": "",
-  "report_html_path": "",
+  "public_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html",
+  "private_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html",
+  "daily_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html",
   "public_section_status": "missing|pending|complete|skipped|failed",
   "private_section_status": "missing|pending|complete|skipped|failed|blocked",
   "last_public_update_at": "",
   "last_private_update_at": "",
   "public_notification_status": "not_sent|sent|skipped",
   "private_notification_status": "not_sent|sent|skipped",
-  "last_notification_report_path": ""
+  "last_notification_report_path": "",
+  "last_notification_lane": "daily|public|private"
 }
 ```
 
-Before writing a report, the agent must read the existing Markdown and state file when present. If the state file says a lane is complete, a later pass may update only that same lane or the other lane; it must not regenerate the whole report from memory in a way that drops the other lane.
+Before writing a report, the agent must read the existing source/state file when present. If the state file says a lane is complete, a later pass may update only that lane's HTML file and the daily index. It must not regenerate the other lane from memory in a way that drops detail.
 
 Notification rule:
 
-- Two notifications are acceptable: one after the public lane is ready and one after the private lane is appended/updated.
-- Both notifications must point to the same canonical HTML report path or uploaded URL, not two different report files.
-- The notification text must say whether the report is `public lane ready`, `private lane appended`, `private lane blocked`, or `final merged report ready`.
+- Two notifications are acceptable: one after the public report is ready and one after the private report is ready/blocked.
+- Notifications should normally point to `{client-name}-daily-report.html` or its uploaded URL. A lane-specific direct link may be included as a secondary link, but the daily report remains the canonical handoff link.
+- The notification text must say whether the report set is `public_report_ready`, `private_report_ready`, `private_report_blocked`, or `daily_report_ready`.
 - Do not send repeated notifications for the same lane in the same run unless correcting a missing/broken report link.
 - Log each notification with lane, report path/URL, and report state.
 
@@ -206,9 +238,9 @@ Template:
 - Business offer:
 - Platforms:
 
-## Report Lane Order
+## Internal Source Lane Order
 
-The sections below are mandatory. Public data source intelligence must appear first. Private data source intelligence must appear second. The detailed field templates later in this document are schemas to apply inside each lane; do not render one mixed global section that combines public data sources and private data sources. In the actual report, all public lane details must live inside the public markers, and all private collector health, private discovery, private sources, private opportunities, private ideas, and private drafts must live inside the private markers.
+The sections below are mandatory for the internal source record. Public data source intelligence must appear first. Private data source intelligence must appear second. The detailed field templates later in this document are schemas to apply inside each lane. The human-facing HTML must still be split into `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`; do not render one mixed global HTML body that combines public data sources and private data sources.
 
 <!-- SOLO_AGENCY_SECTION:PUBLIC_START -->
 ## Public Data Source Intelligence
@@ -696,17 +728,18 @@ The HTML report is human-facing, so it must be written in the same language the 
 Required internal and human-facing outputs:
 
 - Per-client report:
-  - Internal source: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD.md`
-  - Human-facing report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD.html`
-  - Internal latest pointer: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/latest.md`
-  - Human-facing latest report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/latest.html`
+  - Internal source: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md`
+  - Human-facing public report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html`
+  - Human-facing private report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html`
+  - Human-facing daily index: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html`
+  - Human-facing latest daily index: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/latest/{client-name}-daily-report.html`
 - Master report:
   - Internal source: `daily-content-pipeline/outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`
   - Human-facing report: `daily-content-pipeline/outputs/YYYY-MM/YYYY-MM-DD_master_digest.html`
   - Internal latest pointer: `daily-content-pipeline/outputs/latest_master_digest.md`
   - Human-facing latest report: `daily-content-pipeline/outputs/latest_master_digest.html`
 
-The human should only be shown the `Human-facing report` and `Human-facing latest report` paths. Internal `.md` paths are for the agent only.
+The human should normally be shown the `Human-facing daily index` path. Public/private lane report paths may be shown as secondary links. Internal `.md` paths are for the agent only.
 
 Do not present this older ambiguous shape to the human:
 
@@ -717,7 +750,7 @@ Open either latest.md or latest.html
 Only present:
 
 ```text
-Open latest.html
+Open {client-name}-daily-report.html
 ```
 
 The HTML report must be mobile-first:
@@ -735,15 +768,20 @@ The HTML report must be mobile-first:
 - Collapsible sections when the report is long, if the environment can generate them.
 - Clear color/status labels for hot leads, warm leads, high-threat competitors, approval-needed items, and session-expired blockers.
 
-The HTML report must include:
+The daily HTML index must include:
 
 - Run date.
 - Agent identity.
 - Clients processed.
 - Client status.
-- A `Public Data Source Intelligence` lane above the private lane.
-- A `Private Data Source Intelligence` lane below the public lane.
-- Separate public and private source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
+- Links to `{client-name}-public-data-sources-report.html` and `{client-name}-private-data-sources-report.html`.
+- Public report status and private report status.
+- Top public recommendation summary and top private recommendation summary when available.
+- Blockers, notification status, and next action.
+
+Each full lane HTML report must include:
+
+- Its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
 - Private collector health: bridge status, extension last check time, extension status, and private data source blockers.
 - Private Data Source Discovery status when asked, approved, pending, blocked, or completed.
 - Private Data Source Discovery Recommended when no private data sources are configured and discovery has not been offered yet.
@@ -902,7 +940,7 @@ Required report hierarchy:
    - End with exactly one primary next action.
    - Secondary actions may be listed below, but they must not compete with the primary next action.
    - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
-   - After schedule/routine is configured but the first agency run has not happened, the primary next action should be asking whether to run the first agency run now.
+   - After schedule/routine is configured but the first agency run has not happened, the primary next action should be handoff to the exact client-specific automation task. In Setup Flow, do not ask whether to run the first agency run now.
    - After the first Automation Flow report/draft exists and PDNA setup - Production, Distribution, Notification, and Analytics - has not been completed/declined/blocked, the primary next action should usually be that setup gate.
    - For reports where production setup is completed/declined/blocked and private data sources are pending, the primary next action should usually be activating the Solo Agency Local Collector or marking private data sources pending, not starting a video branch.
    - Do not ask "make a video now?" as the primary next action immediately after the first Automation Flow report/draft; production/provider setup comes first.

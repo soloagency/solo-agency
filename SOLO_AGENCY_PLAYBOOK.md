@@ -90,7 +90,7 @@ In Setup Flow the agent must not:
 - render, publish, spend credits, or start outreach;
 - branch into report review or production even if the human asks casually. Instead, ensure the correct automation task is configured and tell the human the task name to run.
 
-If the human asks to run a report during Setup Flow, say plainly that Setup Flow only configures the system, then verify or create the client-specific automation task and instruct the human to run that task.
+If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, treat it as a setup handoff request, not as permission to enter Automation Flow. The latest human request does not convert the setup chat into an automation run. Say plainly that Setup Flow only configures the system, then verify or create the client-specific automation task and instruct the human to run that task.
 
 Required response pattern:
 
@@ -99,6 +99,13 @@ I will not run a report in this setup chat because Setup Flow is only for config
 ```
 
 The agent must not continue with report generation in the same setup turn after saying this. The only allowed work after this response is setup/configuration work, Automation Resync, or a handoff that gives the exact automation task name.
+
+Forbidden Setup Flow follow-through:
+
+- Do not ask "Do you want me to run it now?" in Setup Flow.
+- Do not start public data source research, private data source collection, report writing, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery in Setup Flow.
+- Do not load the scheduled-run entrypoint as a workaround inside the same setup chat.
+- If the native automation task cannot be created or updated directly, write the exact scheduled prompt/update instructions to `daily-content-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and tell the human the one exact native automation task action needed. Do not simulate the task by running the report in setup.
 
 ### Automation Flow: operations plane
 
@@ -114,22 +121,25 @@ Automation Flow may:
 
 Every configuration change made during Automation Flow must be written back into the persistent setup state and resynced into future automation: Client Intelligence Profile, source approval state, `collector_config.json`, `extension_registry.json`, `schedule.md`, `automation_manifest.md`, `scheduled_run_prompt.md`, native task prompt when editable, and `resync_log.md`.
 
-### One Report, Two Data Lanes
+### One Report Set, Three HTML Files
 
-Every client/day/run must have one canonical report, not separate public and private reports.
+Every client/day/run must have one canonical report set with three HTML files, not one merged public/private mega-report.
 
-The report must show:
+Use these exact filename patterns, with `{client-name}` as a filesystem-safe client name/slug such as `angela-do` or `aven-ngo`:
 
-1. `Public Data Source Intelligence`
-2. `Private Data Source Intelligence`
+```text
+{client-name}-public-data-sources-report.html
+{client-name}-private-data-sources-report.html
+{client-name}-daily-report.html
+```
 
-Public data source intelligence appears first. Private data source intelligence appears below it.
+The public report is the full report for public data sources only. The private report is the full report for private data sources only. The daily report is a concise index/overview that links to both, shows lane status, blockers, notification status, and the one next action.
 
-Each lane has its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation. Private data source runs often happen after the public lane is already written; in that case the private lane must be appended into the same report and must not overwrite, delete, reorder, or summarize away the public lane.
+Each full lane report has its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation. Private data source runs often happen after the public report is already written; in that case the private pass must create/update only `{client-name}-private-data-sources-report.html` and `{client-name}-daily-report.html`. It must not overwrite, delete, reorder, or summarize away `{client-name}-public-data-sources-report.html`.
 
-The report must use section markers and `outputs/YYYY-MM/YYYY-MM-DD.report_state.json` so later automation passes can update only the intended lane. `latest.md` and `latest.html` must point to the merged report.
+The report set must use `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` so later automation passes can update only the intended lane. The `latest` human-facing link must point to `{client-name}-daily-report.html`, not a lane-specific report unless explicitly requested.
 
-Two notifications are acceptable: one when the public lane is ready and one when the private lane is appended or blocked. Both notifications must point to the same canonical HTML report path or uploaded URL.
+Two notifications are acceptable: one when the public report is ready and one when the private report is ready or blocked. Notifications should normally point to `{client-name}-daily-report.html` or its uploaded URL, with lane-specific report links as secondary links when useful.
 
 ### One Bridge, Many Client Extensions
 
@@ -193,7 +203,7 @@ Load only the stage needed for the current action, plus any dependency named by 
 | Stage | File | Load When |
 |---|---|---|
 | 0 | `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` | Always load first. Defines mission, reasoning rules, audience, sources, idea matrix, best-idea selection, lead/competitor logic, language rules, and non-negotiables. |
-| 1 | `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md` | Load during first setup, client setup, setup repair, and first agency run/report. |
+| 1 | `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md` | Load during first setup, client setup, setup repair, and Automation Flow first agency run/report. In Setup Flow, its report instructions are superseded by the setup hard stop. |
 | Private Data Source Gate | `playbooks/PRIVATE_SOURCE_GATE.md` | Load immediately when any private data source scan, group scan, joined-groups review, social/community data source, or feed/profile requiring account context is mentioned, even if the conversation drifted through unrelated topics. |
 | 2 | `playbooks/02_PRIVATE_SOURCE_SETUP.md` | Load when private data sources, manual private data source input, Facebook joined groups, private data source discovery, or Local Collector activation are mentioned or pending. |
 | 3 | `playbooks/03_PRODUCTION_DISTRIBUTION.md` | Load only when writing drafts, creating video/blog/social assets, setting up a production provider, rendering/exporting, publishing, notifications, or approval gates are relevant. |
@@ -473,7 +483,7 @@ Setup is not complete until:
 - Useful recurring public data sources discovered during runs were saved/promoted into `public_data_sources` with cadence so later scheduled runs can revisit them.
 - Step 5 private data source preference was resolved before schedule setup, and step 7A private data source intake/discovery/approval plus the Local Collector checkpoint were resolved or honestly marked pending before the client-specific automation task was declared ready.
 - Schedule/routine and the client-specific automation task were configured before the first report.
-- The automation task contract requires the first automation run to load Stage 10, generate one mobile-friendly HTML report with separate public/private lanes, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, and create at least one useful draft script/blog/caption.
+- The automation task contract requires the first automation run to load Stage 10, generate the three-file HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, and create at least one useful draft script/blog/caption.
 - The setup handoff showed the exact task name the human should run for the first report.
 - PDNA - Production, Distribution, Notification, and Analytics - was treated as provider/configuration setup only, not report/video/publish execution inside Setup Flow.
 

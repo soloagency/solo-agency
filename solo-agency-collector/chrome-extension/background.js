@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.14-capture-overlay-stream";
+const EXTENSION_BUILD = "0.1.15-polished-capture-overlay";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 80;
 
@@ -657,20 +657,20 @@ function collectorCaptureOverlayText(job, binding) {
     ""
   ).trim();
   if (clientName) {
-    return `${clientName} Solo Agency Collector Capturing data under your approval, no username/password/cookie or any data send out.`;
+    return `${clientName} - Solo Agency Collector`;
   }
   const displayName = String(
     binding?.extension_display_name ||
     job?.extension_display_name ||
     "Solo Agency Collector"
   ).replace(/\s*-\s*/g, " ").trim();
-  return `${displayName} Capturing data under your approval, no username/password/cookie or any data send out.`;
+  return displayName || "Solo Agency Collector";
 }
 
 function installCollectorCaptureOverlay(options) {
   const overlayId = "solo-agency-collector-capture-overlay";
   const styleId = "solo-agency-collector-capture-overlay-style";
-  const label = String(options && options.text ? options.text : "Solo Agency Collector Capturing data under your approval, no username/password/cookie or any data send out.");
+  const label = String(options && options.text ? options.text : "Solo Agency Collector");
   try {
     const existing = document.getElementById(overlayId);
     if (existing) existing.remove();
@@ -682,93 +682,128 @@ function installCollectorCaptureOverlay(options) {
   0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.72); }
   45% { opacity: 0.36; transform: scale(0.82); box-shadow: 0 0 0 18px rgba(255, 0, 0, 0); }
 }
-#${overlayId} {
-  position: fixed !important;
-  top: 18px !important;
-  right: 18px !important;
-  z-index: 2147483647 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;
-  gap: 12px !important;
-  width: min(820px, calc(100vw - 36px)) !important;
-  max-height: min(72vh, 760px) !important;
-  padding: 16px !important;
-  border: 3px solid rgba(255, 255, 255, 0.98) !important;
-  border-radius: 14px !important;
-  background: rgba(10, 10, 10, 0.92) !important;
-  color: #ffffff !important;
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45) !important;
-  pointer-events: none !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
-  line-height: 1.1 !important;
-  letter-spacing: 0 !important;
-  text-align: left !important;
-}
-#${overlayId} .solo-agency-collector-record-head {
-  display: flex !important;
-  align-items: center !important;
-  gap: 16px !important;
-}
-#${overlayId} .solo-agency-collector-record-dot {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  border-radius: 999px !important;
-  background: #ff0000 !important;
-  animation: soloAgencyCollectorRecordBlink 0.9s infinite !important;
-}
-#${overlayId} .solo-agency-collector-record-label {
-  color: #ffffff !important;
-  font-size: clamp(22px, 2.1vw, 36px) !important;
-  font-weight: 900 !important;
-  line-height: 1.05 !important;
-  letter-spacing: 0 !important;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8) !important;
-}
-#${overlayId} .solo-agency-collector-stream-title {
-  color: #ffdfdf !important;
-  font-size: 14px !important;
-  font-weight: 800 !important;
-  letter-spacing: 0 !important;
-  text-transform: uppercase !important;
-}
-#${overlayId} .solo-agency-collector-stream-box {
-  min-height: 142px !important;
-  max-height: min(38vh, 330px) !important;
-  overflow: hidden !important;
-  padding: 12px !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  border-radius: 10px !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-}
-#${overlayId} .solo-agency-collector-stream {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 10px !important;
-  max-height: min(34vh, 300px) !important;
-  overflow: hidden !important;
-  color: #f8fafc !important;
-  font-size: 17px !important;
-  font-weight: 700 !important;
-  line-height: 1.32 !important;
-  white-space: pre-wrap !important;
-}
-#${overlayId} .solo-agency-collector-stream-row {
-  padding: 8px 10px !important;
-  border-left: 4px solid #ff3838 !important;
-  background: rgba(0, 0, 0, 0.32) !important;
-  border-radius: 8px !important;
-}
-#${overlayId} .solo-agency-collector-stream-meta {
-  display: block !important;
-  margin-bottom: 4px !important;
-  color: #fecaca !important;
-  font-size: 12px !important;
-  font-weight: 900 !important;
-  letter-spacing: 0 !important;
-  text-transform: uppercase !important;
-}
+	#${overlayId} {
+	  position: fixed !important;
+	  top: 18px !important;
+	  right: 18px !important;
+	  z-index: 2147483647 !important;
+	  display: flex !important;
+	  flex-direction: column !important;
+	  align-items: stretch !important;
+	  gap: 10px !important;
+	  width: min(380px, calc(100vw - 28px)) !important;
+	  max-height: min(52vh, 430px) !important;
+	  padding: 12px !important;
+	  border: 1px solid rgba(248, 113, 113, 0.36) !important;
+	  border-radius: 10px !important;
+	  background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(7, 10, 18, 0.94)) !important;
+	  color: #f8fafc !important;
+	  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.34), 0 0 0 1px rgba(255, 255, 255, 0.08) inset !important;
+	  pointer-events: none !important;
+	  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+	  line-height: 1.25 !important;
+	  letter-spacing: 0 !important;
+	  text-align: left !important;
+	  backdrop-filter: blur(10px) saturate(1.15) !important;
+	}
+	#${overlayId} .solo-agency-collector-record-head {
+	  display: flex !important;
+	  align-items: flex-start !important;
+	  gap: 10px !important;
+	}
+	#${overlayId} .solo-agency-collector-record-dot {
+	  width: 18px !important;
+	  height: 18px !important;
+	  min-width: 18px !important;
+	  margin-top: 2px !important;
+	  border-radius: 999px !important;
+	  background: radial-gradient(circle at 35% 35%, #fecaca 0, #ef4444 38%, #991b1b 100%) !important;
+	  animation: soloAgencyCollectorRecordBlink 0.9s infinite !important;
+	}
+	#${overlayId} .solo-agency-collector-title-stack {
+	  display: flex !important;
+	  flex-direction: column !important;
+	  gap: 4px !important;
+	  min-width: 0 !important;
+	}
+	#${overlayId} .solo-agency-collector-record-label {
+	  color: #ffffff !important;
+	  font-size: 15px !important;
+	  font-weight: 800 !important;
+	  line-height: 1.2 !important;
+	  letter-spacing: 0 !important;
+	  white-space: nowrap !important;
+	  overflow: hidden !important;
+	  text-overflow: ellipsis !important;
+	  max-width: 320px !important;
+	}
+	#${overlayId} .solo-agency-collector-record-subtitle {
+	  color: #cbd5e1 !important;
+	  font-size: 11px !important;
+	  font-weight: 600 !important;
+	  line-height: 1.3 !important;
+	  letter-spacing: 0 !important;
+	}
+	#${overlayId} .solo-agency-collector-privacy {
+	  color: #fecaca !important;
+	  font-size: 10px !important;
+	  font-weight: 700 !important;
+	  line-height: 1.25 !important;
+	  letter-spacing: 0 !important;
+	}
+	#${overlayId} .solo-agency-collector-stream-title {
+	  display: flex !important;
+	  justify-content: space-between !important;
+	  align-items: center !important;
+	  gap: 10px !important;
+	  color: #e2e8f0 !important;
+	  font-size: 11px !important;
+	  font-weight: 800 !important;
+	  letter-spacing: 0 !important;
+	  text-transform: uppercase !important;
+	}
+	#${overlayId} .solo-agency-collector-stream-count {
+	  color: #94a3b8 !important;
+	  font-size: 10px !important;
+	  font-weight: 700 !important;
+	  text-transform: none !important;
+	}
+	#${overlayId} .solo-agency-collector-stream-box {
+	  min-height: 92px !important;
+	  max-height: min(30vh, 220px) !important;
+	  overflow: hidden !important;
+	  padding: 8px !important;
+	  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+	  border-radius: 8px !important;
+	  background: rgba(2, 6, 23, 0.62) !important;
+	}
+	#${overlayId} .solo-agency-collector-stream {
+	  display: flex !important;
+	  flex-direction: column !important;
+	  gap: 6px !important;
+	  max-height: min(28vh, 204px) !important;
+	  overflow: hidden !important;
+	  color: #dbeafe !important;
+	  font-size: 11px !important;
+	  font-weight: 500 !important;
+	  line-height: 1.35 !important;
+	  white-space: pre-wrap !important;
+	}
+	#${overlayId} .solo-agency-collector-stream-row {
+	  padding: 6px 7px !important;
+	  border-left: 2px solid rgba(248, 113, 113, 0.78) !important;
+	  background: rgba(15, 23, 42, 0.72) !important;
+	  border-radius: 6px !important;
+	}
+	#${overlayId} .solo-agency-collector-stream-meta {
+	  display: block !important;
+	  margin-bottom: 3px !important;
+	  color: #fca5a5 !important;
+	  font-size: 9px !important;
+	  font-weight: 800 !important;
+	  letter-spacing: 0 !important;
+	  text-transform: uppercase !important;
+	}
 `;
       (document.head || document.documentElement).appendChild(style);
     }
@@ -780,14 +815,31 @@ function installCollectorCaptureOverlay(options) {
     head.className = "solo-agency-collector-record-head";
     const dot = document.createElement("span");
     dot.className = "solo-agency-collector-record-dot";
-    const text = document.createElement("span");
-    text.className = "solo-agency-collector-record-label";
-    text.textContent = label;
-    head.appendChild(dot);
-    head.appendChild(text);
-    const streamTitle = document.createElement("div");
-    streamTitle.className = "solo-agency-collector-stream-title";
-    streamTitle.textContent = "Data being collected locally";
+	    const text = document.createElement("span");
+	    text.className = "solo-agency-collector-record-label";
+	    text.textContent = label;
+	    const stack = document.createElement("div");
+	    stack.className = "solo-agency-collector-title-stack";
+	    const subtitle = document.createElement("div");
+	    subtitle.className = "solo-agency-collector-record-subtitle";
+	    subtitle.textContent = "Capturing approved visible-page data locally";
+	    const privacy = document.createElement("div");
+	    privacy.className = "solo-agency-collector-privacy";
+	    privacy.textContent = "No username, password, cookie, token, or account secret is collected or sent out.";
+	    stack.appendChild(text);
+	    stack.appendChild(subtitle);
+	    stack.appendChild(privacy);
+	    head.appendChild(dot);
+	    head.appendChild(stack);
+	    const streamTitle = document.createElement("div");
+	    streamTitle.className = "solo-agency-collector-stream-title";
+	    const streamTitleText = document.createElement("span");
+	    streamTitleText.textContent = "Live data preview";
+	    const streamCount = document.createElement("span");
+	    streamCount.className = "solo-agency-collector-stream-count";
+	    streamCount.textContent = "0 items";
+	    streamTitle.appendChild(streamTitleText);
+	    streamTitle.appendChild(streamCount);
     const streamBox = document.createElement("div");
     streamBox.className = "solo-agency-collector-stream-box";
     const stream = document.createElement("div");
@@ -803,10 +855,11 @@ function installCollectorCaptureOverlay(options) {
     (document.body || document.documentElement).appendChild(overlay);
     window.__soloAgencyCollectorUpdateOverlay = function(payload) {
       try {
-        const target = document.querySelector(`#${overlayId} .solo-agency-collector-stream`);
-        const box = document.querySelector(`#${overlayId} .solo-agency-collector-stream-box`);
-        if (!target || !box) return;
-        const data = payload && typeof payload === "object" ? payload : {};
+	        const target = document.querySelector(`#${overlayId} .solo-agency-collector-stream`);
+	        const box = document.querySelector(`#${overlayId} .solo-agency-collector-stream-box`);
+	        const count = document.querySelector(`#${overlayId} .solo-agency-collector-stream-count`);
+	        if (!target || !box) return;
+	        const data = payload && typeof payload === "object" ? payload : {};
         const row = document.createElement("div");
         row.className = "solo-agency-collector-stream-row";
         const meta = document.createElement("span");
@@ -815,12 +868,16 @@ function installCollectorCaptureOverlay(options) {
         meta.textContent = `${step} - ${String(data.phase || "capturing")}`;
         const body = document.createElement("span");
         const raw = String(data.text || data.message || "").replace(/\s+/g, " ").trim();
-        body.textContent = raw ? raw.slice(-1400) : "Collecting visible page text...";
-        row.appendChild(meta);
-        row.appendChild(body);
-        target.appendChild(row);
-        while (target.children.length > 14) target.removeChild(target.firstChild);
-        box.scrollTop = box.scrollHeight;
+	        body.textContent = raw ? raw.slice(-520) : "Collecting visible page text...";
+	        row.appendChild(meta);
+	        row.appendChild(body);
+	        target.appendChild(row);
+	        while (target.children.length > 8) target.removeChild(target.firstChild);
+	        if (count) {
+	          const itemCount = Math.max(0, target.children.length - 1);
+	          count.textContent = `${itemCount} item${itemCount === 1 ? "" : "s"}`;
+	        }
+	        box.scrollTop = box.scrollHeight;
         target.scrollTop = target.scrollHeight;
       } catch (error) {
         // Overlay preview is informational only; never block collection.

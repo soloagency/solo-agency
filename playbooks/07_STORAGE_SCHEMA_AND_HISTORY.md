@@ -207,11 +207,16 @@ Use one folder per client/business/location:
             new_private_sources_log.md
         outputs/
           YYYY-MM/
-            YYYY-MM-DD.md
-            YYYY-MM-DD.html
-            YYYY-MM-DD.report_state.json
-          latest.md
-          latest.html
+            YYYY-MM-DD/
+              {client-name}-daily-report.md
+              {client-name}-public-data-sources-report.html
+              {client-name}-private-data-sources-report.html
+              {client-name}-daily-report.html
+              {client-name}-report_state.json
+          latest/
+            {client-name}-daily-report.html
+            {client-name}-public-data-sources-report.html
+            {client-name}-private-data-sources-report.html
 ```
 
 Examples:
@@ -270,10 +275,13 @@ daily-content-pipeline/
             lead_competitor_opportunities.jsonl
         outputs/
           2026-06/
-            2026-06-19.md
-            2026-06-19.html
-          latest.md
-          latest.html
+            2026-06-19/
+              smith-law-public-data-sources-report.html
+              smith-law-private-data-sources-report.html
+              smith-law-daily-report.html
+              smith-law-report_state.json
+          latest/
+            smith-law-daily-report.html
     austin-home-group/
       realestate_austin/
         client_profile_austin-home-group_realestate_austin.md
@@ -283,7 +291,8 @@ daily-content-pipeline/
             data_sources_log.md
         outputs/
           2026-06/
-            2026-06-19.md
+            2026-06-19/
+              austin-home-group-daily-report.html
     bright-mortgage/
       mortgage_texas/
         client_profile_bright-mortgage_mortgage_texas.md
@@ -307,8 +316,8 @@ Monthly organization rule:
 
 - Any file created daily must be stored under a `YYYY-MM/` folder.
 - This applies to client outputs, master digests, collector jobs, collector inboxes, history logs, data points, leads, competitors, and new private data source logs.
-- Keep `latest.md`, `latest.html`, `latest_master_digest.md`, and `latest_master_digest.html` as convenience pointers at their existing locations.
-- Keep report state beside the dated report as `YYYY-MM-DD.report_state.json`.
+- Keep `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-public-data-sources-report.html`, `outputs/latest/{client-name}-private-data-sources-report.html`, `latest_master_digest.md`, and `latest_master_digest.html` as convenience pointers/copies.
+- Keep report state beside the dated report set as `YYYY-MM-DD/{client-name}-report_state.json`.
 - Do not allow long-running pipelines to accumulate hundreds or thousands of daily files directly in one folder.
 
 ---
@@ -446,8 +455,8 @@ Format:
 
 | Date | Agent | Event | Lane Status | Channel | Status | HTML Report Path | WideCast Capability Checked | WideCast Upload Tool | WideCast Notification Tool | Upload Attempted | Uploaded Report URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude Schedule | daily_run_completed | public_lane_ready | WideCast Telegram | sent | outputs/2026-06/2026-06-20.html | yes | available | available | yes | https://... | yes | https://... | none | Await private lane or review approvals |
-| 2026-06-20 | Claude Schedule | daily_run_completed | private_lane_appended | WideCast Telegram | sent | outputs/2026-06/2026-06-20.html | yes | available | available | yes | https://... | yes | https://... | none | Review merged report |
+| 2026-06-20 | Claude Schedule | daily_run_completed | public_report_ready | WideCast Telegram | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | yes | available | available | yes | https://... | yes | https://... | none | Await private report or review approvals |
+| 2026-06-20 | Claude Schedule | daily_run_completed | private_report_ready | WideCast Telegram | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | yes | available | available | yes | https://... | yes | https://... | none | Review daily report index and lane reports |
 ```
 
 Use this log so scheduled runs do not silently complete or fail while the human is away.
@@ -507,9 +516,9 @@ The agent must update this file before:
 - configuring recurring private data source collection,
 - reporting that private collection is unavailable.
 
-### `outputs/YYYY-MM/YYYY-MM-DD.report_state.json`
+### `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json`
 
-Tracks the merge state for the one canonical daily report. It prevents a later public or private data source pass from overwriting the other lane.
+Tracks the state for the canonical three-file daily report set. It prevents a later public or private data source pass from overwriting or summarizing away the other lane's full HTML report.
 
 Minimum format:
 
@@ -518,10 +527,14 @@ Minimum format:
   "client_slug": "",
   "run_id": "",
   "report_date": "",
-  "report_md_path": "outputs/YYYY-MM/YYYY-MM-DD.md",
-  "report_html_path": "outputs/YYYY-MM/YYYY-MM-DD.html",
-  "latest_md_path": "outputs/latest.md",
-  "latest_html_path": "outputs/latest.html",
+  "report_dir": "outputs/YYYY-MM/YYYY-MM-DD/",
+  "report_md_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md",
+  "public_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html",
+  "private_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html",
+  "daily_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html",
+  "latest_daily_html_path": "outputs/latest/{client-name}-daily-report.html",
+  "latest_public_html_path": "outputs/latest/{client-name}-public-data-sources-report.html",
+  "latest_private_html_path": "outputs/latest/{client-name}-private-data-sources-report.html",
   "public_section_status": "missing",
   "private_section_status": "missing",
   "last_public_update_at": "",
@@ -535,9 +548,10 @@ Minimum format:
   "public_notification_status": "not_sent",
   "private_notification_status": "not_sent",
   "last_notification_report_path": "",
+  "last_notification_lane": "daily",
   "last_notification_report_url": "",
-  "last_merge_agent": "",
-  "last_merge_note": ""
+  "last_update_agent": "",
+  "last_update_note": ""
 }
 ```
 
@@ -559,10 +573,10 @@ Allowed notification status:
 
 Rules:
 
-- Public data source pass may write only the public lane and report-level metadata. It must preserve any existing private lane.
-- Private data source pass may write only the private lane and report-level metadata. It must preserve any existing public lane.
-- `latest.md` and `latest.html` must always point to the merged report, not a lane-specific artifact.
-- If two notifications are sent, both must reference the same report path or uploaded URL, with lane status recorded in `notification_log.md`.
+- Public data source pass may write only `{client-name}-public-data-sources-report.html`, public source records, and `{client-name}-daily-report.html` status metadata. It must preserve any existing private report.
+- Private data source pass may write only `{client-name}-private-data-sources-report.html`, private source records, and `{client-name}-daily-report.html` status metadata. It must preserve any existing public report.
+- `latest/{client-name}-daily-report.html` must point to or copy the daily report index, not a lane-specific artifact.
+- If two notifications are sent, both should reference the same daily report path or uploaded URL, with lane status recorded in `notification_log.md`. Lane-specific links may be included as secondary links.
 
 ### `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`
 

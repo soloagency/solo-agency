@@ -33,11 +33,11 @@ Before claiming Automation Flow completion for a client:
 - Confirm private data source collection, if attempted, used only the shared Local Collector app plus the matching client extension.
 - Confirm `client_slug`, `extension_instance_id`, and output path all match.
 - Confirm collector output was read only from `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/`.
-- Confirm the client has one canonical report for the day/run, with `Public Data Source Intelligence` above `Private Data Source Intelligence`.
-- Confirm the public lane and private lane have separate source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
-- Confirm the private pass did not overwrite, delete, reorder, summarize away, or regenerate the public lane.
-- Confirm `outputs/YYYY-MM/YYYY-MM-DD.report_state.json` exists or the exact blocker is logged, and that its public/private section statuses match the report.
-- Confirm any public-lane and private-lane notifications point to the same canonical HTML report path or uploaded URL.
+- Confirm the client has one canonical three-file report set for the day/run: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+- Confirm the public report and private report have separate source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
+- Confirm the private pass did not overwrite, delete, reorder, summarize away, or regenerate the public report file.
+- Confirm `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` exists or the exact blocker is logged, and that its public/private statuses match the report set.
+- Confirm any public and private notifications point to `{client-name}-daily-report.html` or its uploaded URL as the canonical handoff, with lane-specific links only as secondary links.
 - Confirm changes discovered during the run were written back to persistent setup/config and resynced.
 
 Treat these as critical workflow violations:
@@ -47,8 +47,8 @@ Treat these as critical workflow violations:
 - An extension for client A receives, writes, or completes a job for client B.
 - An agent reads private data source output from another client's collector inbox.
 - A global `extension_health.status: recent` is used as proof that the target client's extension is healthy without checking the matching `client_slug + extension_instance_id`.
-- A private data source pass overwrites the public data source lane or creates a separate private report for the same client/day/run.
-- Public and private notifications link to different report files for the same client/day/run.
+- A private data source pass overwrites, regenerates, or summarizes away `{client-name}-public-data-sources-report.html`.
+- The report set is missing `{client-name}-daily-report.html` as the canonical handoff/index file.
 
 ## Source Preservation Rule
 
@@ -215,6 +215,8 @@ Then the agent must follow the same 10-item setup model. Do not introduce Add Cl
 9. Record analytics as an Automation Flow concern only.
 10. Do not run the first agency run, first report, public scan, private data source scan, report updates, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, video creation, publishing, or PDNA production actions inside Setup Flow.
 
+If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, treat it as a failed-safety condition unless the agent stops operational work. The agent must verify/resync the client-specific automation task, provide the exact task name to run, and avoid loading the scheduled-run entrypoint or running any report work inside the setup chat.
+
 Example:
 
 Human:
@@ -373,8 +375,9 @@ Manual run / run-now rule:
 - If the Local Collector app is not reachable, the agent must not try to start it from inside the AI sandbox during setup/repair. Provide the one-line Local Collector app setup/start command for the human to run outside the sandbox, then retry the run-now job only after the app is reachable.
 - Recurring schedule windows are only for unattended scheduled runs. They must not block manual runs.
 - Do not simulate a manual run by editing `scheduled_windows` or creating a temporary schedule window. Manual runs must use `/jobs/run_now`.
-- If the agent cannot call `http://127.0.0.1:17321` from its own sandbox but can write local files, it must write the same run-now payload to `daily-content-pipeline/collector/run_now_request.json`. The Local Collector app must check this file on `/status`, load it as a run-now job, write `run_now_request_status.json`, and move the request aside as consumed. This avoids asking the human to run another command.
-- If the agent cannot call HTTP and cannot write the local request file, only then create a local run-now helper script or launcher and give the human exactly one short command/path to run it. The helper script must POST `/jobs/run_now` with the correct payload, then optionally poll `/status`.
+- If the agent cannot call `http://127.0.0.1:17321` from its own sandbox but can write local files, it must write one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`. The Local Collector app claims matching pending jobs on `/status`, moves claimed files into `jobs/claimed/`, writes output for that client, then moves completed files into `jobs/completed/`.
+- `daily-content-pipeline/collector/run_now_request.json` is a legacy/batch shim only. It may contain one job or `{"jobs":[...]}` and the bridge converts it into `jobs/pending/` queue files. Do not use this single filename when multiple agents or scheduled tasks may write concurrently.
+- If the agent cannot call HTTP and cannot write the local queue file, only then create a local run-now helper script or launcher and give the human exactly one short command/path to run it. The helper script must POST `/jobs/run_now` with the correct payload, then optionally poll `/status`.
 - Do not ask the human to restart the Local Collector app merely to make a manually edited schedule file take effect. Restarting is only appropriate for updating the Local Collector app itself, recovering a stuck/offline process, or applying an intentional recurring schedule change when both `/config` and file auto-reload are unavailable.
 - If a legacy collector without `/jobs/run_now` forces a temporary schedule fallback, the agent must clearly label it as a fallback, back up the original config, create a short unique temporary window, restart or reload only through an already-running service or a human-run setup/start command when required, restore the original config immediately after completion/timeout, and report that fallback to the human. This fallback must not be used when `/jobs/run_now` exists.
 
@@ -429,21 +432,23 @@ Exact manual run-now contract:
 - `run_now_ttl_minutes` should be 30 by default and must not exceed 120.
 - `sources` must contain the private data sources for that client if private data sources exist. If there are no private data sources, the agent should still run public research without the Local Collector app.
 - `pacing.scroll_steps` defaults to 5 and must not exceed 10.
-- If the agent cannot make this POST itself but can write local files, it should write the JSON payload to:
+- If the agent cannot make this POST itself but can write local files, it should write the JSON payload to one unique per-client queue file:
 
 ```text
-daily-content-pipeline/collector/run_now_request.json
+daily-content-pipeline/collector/jobs/pending/{timestamp}_{client_slug}_{run_id}.json
 ```
 
-The agent should write this file atomically: write a temporary file in the same folder first, then rename it to `run_now_request.json` only after the JSON is complete.
+The agent should write this file atomically: write a temporary file in the same folder first, then rename it into `jobs/pending/` only after the JSON is complete.
 
-The running Local Collector app should pick up this file on the next `/status` check from the Chrome extension or AI agent, usually within a few seconds while Chrome is active. After loading the request, the Local Collector app must immediately consume the request so it cannot loop forever:
+The running Local Collector app should pick up queued files on the next `/status` check from the matching Chrome extension, usually within a few seconds while Chrome is active. The bridge must:
 
-- move it to `run_now_request.{run_id}.{timestamp}.consumed.json`;
 - write `run_now_request_status.json`;
-- remember the processed file signature in memory as a replay guard if moving/removing fails;
+- move claimed files into `jobs/claimed/`;
+- move completed files into `jobs/completed/`;
 - clear the active run-now job on `/complete`;
-- expire the active run-now job after `run_now_ttl_minutes` if `/complete` never arrives.
+- expire the active run-now job after `run_now_ttl_minutes` if `/complete` never arrives, then allow the next queued client job to proceed.
+
+The single file `daily-content-pipeline/collector/run_now_request.json` remains supported only as a legacy/batch shim. It is safe for one agent to write a batch object with `{"jobs":[...]}`; it is not safe for multiple writers to race on the same filename.
 
 After loading the request, the Local Collector app should write:
 
@@ -460,10 +465,8 @@ Only if the agent cannot write the request file should it create one of these he
 bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/run_private_now.sh"
 ```
 
-- After posting `/jobs/run_now`, poll plain `GET /status` until either:
-  - `current_job_type` becomes `run_now` and `job_available` is `true`,
-  - the extension completes and `/status` returns `job_available: false`, or
-  - the TTL expires and private collection is marked unavailable for this run.
+- After posting `/jobs/run_now` or writing a queue file, do not fake extension headers. Plain `GET /status` is only a bridge health check; `job_available` is scoped to the real client extension identity.
+- Track progress through `run_now_request_status.json`, `bridge_health.json`, `collector_status.json`, `jobs/claimed/`, `jobs/completed/`, and new output files under the run output directory until the job completes or TTL expires.
 
 Schedule rule:
 
@@ -594,10 +597,10 @@ For each daily run:
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
    22. Select the best idea of the day.
    23. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
-   24. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
-   25. Generate `outputs/YYYY-MM/YYYY-MM-DD.html` as a polished standalone human-facing report. It must be factually aligned with the Markdown report, mobile-friendly, and include editable draft review blocks when drafts exist.
-   26. Update or copy `outputs/latest.md`.
-   27. Update or copy `outputs/latest.html`.
+   24. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
+   25. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+   26. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   27. Update or copy the latest public/private lane HTML files when those lane reports exist.
    28. Update `history/YYYY-MM/content_log.md`.
    29. Update `history/YYYY-MM/data_sources_log.md`.
    30. Update `history/YYYY-MM/lead_log.md`.
@@ -1358,16 +1361,16 @@ A daily run is complete when:
 8. Each idea maps to a content pillar when possible.
 9. Each idea is labeled as `primary_industry` or `related_industry`, with a visible related-industry note and bridge-back logic shown for related-industry ideas.
 10. One configured WideCast-writing-skill draft is written for each processed client, defaulting to video script and adding blog/article or social caption when configured.
-11. One per-client canonical Markdown report and one mobile-friendly HTML report are created for each processed client, with public data source intelligence above private data source intelligence.
-12. The report state file `outputs/YYYY-MM/YYYY-MM-DD.report_state.json` is created/updated for each processed client.
-13. `latest.md` and `latest.html` are updated for each processed client and point to the merged report, not a lane-specific report.
+11. One per-client canonical three-file HTML report set is created for each processed client: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+12. The report state file `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` is created/updated for each processed client.
+13. `outputs/latest/{client-name}-daily-report.html` is updated for each processed client and points to the daily report index, not a lane-specific report.
 14. Client history is updated, including industry scope for selected ideas so the 80/20 mix can be tracked over time.
 15. Lead and competitor logs are updated.
 16. Approval status is tracked.
 17. Markdown and mobile-friendly HTML master digests are created when a master digest task is configured.
 18. `latest_master_digest.md` and `latest_master_digest.html` are updated when a master digest task is configured.
 19. Human-facing reports and notifications are written in the language the human uses.
-20. The human is notified through the configured notification channel, preferably WideCast MCP / Telegram, with the HTML report path/link. Public-lane and private-lane notifications are both allowed, but they must point to the same canonical HTML report path or uploaded URL. The Markdown report path must not be presented as a user-facing report link.
+20. The human is notified through the configured notification channel, preferably WideCast MCP / Telegram, with the `{client-name}-daily-report.html` path/link. Public and private notifications are both allowed, but they should point to the same daily report index path or uploaded URL, with lane-specific report links only as secondary links. The Markdown report path must not be presented as a user-facing report link.
 21. Human approval options are shown.
 
 An agency operating cycle is complete when:
@@ -1495,7 +1498,7 @@ Before claiming private data sources were collected, verify:
 - [ ] Did I avoid Claude Chrome Extension for automated private collection?
 - [ ] If this is one-time setup/update/repair, did I avoid starting/restarting the Local Collector app from inside the AI sandbox and instead provide the human-run setup/start command?
 - [ ] If the bridge failed with `address already in use` or `/status` showed stale/wrong config, did the setup/start script or an explicit human-approved troubleshooting path handle the restart by stopping only old `collector-bridge` processes on port `17321` before starting the newest executable?
-- [ ] For manual run, did I use `/jobs/run_now` or `run_now_request.json`?
+- [ ] For manual run, did I use `/jobs/run_now` or one unique per-client job under `daily-content-pipeline/collector/jobs/pending/`, leaving `run_now_request.json` only as a legacy/batch shim?
 - [ ] For Facebook joined-groups discovery, did I use a manual `run_now` job for `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added` instead of pretending the joined groups were manually provided?
 - [ ] After Facebook joined-groups discovery, did I filter groups by client relevance and ask the human to approve recommended groups before adding them to active `private_data_sources`?
 - [ ] For optional private data source discovery, did I use only approved discovery categories and platform starting URLs?
@@ -1527,14 +1530,14 @@ Before using collected data, verify:
 
 Before generating, updating, or notifying a report, verify:
 
-- [ ] Is there exactly one canonical report for this client/day/run?
-- [ ] Does the report show `Public Data Source Intelligence` above `Private Data Source Intelligence`?
-- [ ] Did I read the existing Markdown report and `outputs/YYYY-MM/YYYY-MM-DD.report_state.json` before updating a lane?
-- [ ] If this is a public pass, did I update only the public lane and preserve any existing private lane?
-- [ ] If this is a private pass, did I update only the private lane and preserve the public lane?
-- [ ] Did `latest.md` and `latest.html` point to the merged report, not to a lane-specific report?
-- [ ] If I sent two notifications, did both point to the same canonical HTML report path or uploaded URL?
-- [ ] Did I log lane status as `public_lane_ready`, `private_lane_appended`, `private_lane_blocked`, or `final_merged_report_ready`?
+- [ ] Is there exactly one canonical three-file report set for this client/day/run?
+- [ ] Does the report set include `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`?
+- [ ] Did I read the existing source/state file and `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` before updating a lane report?
+- [ ] If this is a public pass, did I update only the public report and daily index while preserving any existing private report?
+- [ ] If this is a private pass, did I update only the private report and daily index while preserving the public report?
+- [ ] Did `outputs/latest/{client-name}-daily-report.html` point to the daily report index, not to a lane-specific report?
+- [ ] If I sent two notifications, did both point to the same daily report index path or uploaded URL, with lane-specific report links only as secondary links?
+- [ ] Did I log lane status as `public_report_ready`, `private_report_ready`, `private_report_blocked`, or `daily_report_ready`?
 
 ### Idea Generation Checklist
 
@@ -1671,7 +1674,7 @@ Before saying the run is complete, verify:
 - [ ] If the report includes script/blog/social drafts, did I present each version in an editable HTML block with a working local `Copy this version` button?
 - [ ] Did the HTML draft section visibly tell the human they can fine-tune the draft on the page, copy the final version, and paste it back into the AI chat?
 - [ ] Did every editable version clearly say the human should copy the edited final text and paste it back into the AI chat?
-- [ ] Did I update `latest.md` and `latest.html`?
+- [ ] Did I update `outputs/latest/{client-name}-daily-report.html` and the latest lane HTML files when those lane reports exist?
 - [ ] Did I generate/update master digest if multiple clients exist?
 - [ ] Did I write the report in the human's language?
 - [ ] Did every user-facing report link/path in chat, Telegram, or notification point to `.html`, not `.md`?

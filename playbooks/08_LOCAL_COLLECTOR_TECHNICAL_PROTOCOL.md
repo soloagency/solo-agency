@@ -10,7 +10,7 @@ Load when installing, starting, stopping, checking, scheduling, updating, or tro
 
 - Default localhost is `127.0.0.1:17321`.
 - Use `GET /status` for health checks.
-- Use `POST /jobs/run_now` or `run_now_request.json` for manual/private run-now jobs.
+- Use `POST /jobs/run_now` or per-client queue files under `daily-content-pipeline/collector/jobs/pending/` for manual/private run-now jobs. `run_now_request.json` is a legacy/batch shim that the bridge converts into queued jobs.
 - Do not fake extension health by sending extension-only headers from the AI agent.
 - Setup scripts must preserve data/config and stop only old collector processes occupying port 17321.
 - When this stage is loaded for a private data source request, first reload `playbooks/PRIVATE_SOURCE_GATE.md` if it is not already loaded in the current private data source turn.
@@ -30,7 +30,7 @@ The current multi-client model supersedes older one-extension wording:
 - Each client may have its own Chrome profile/account and must have its own unpacked extension folder under `extensions/{client_slug}/`.
 - The Chrome extension display name must begin with the client name: `{Client Name} - Solo Agency Collector`.
 - The human-facing `Load unpacked` folder for a client is the absolute path to `extensions/{client_slug}/`, not `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
-- The shared bridge routes jobs by `client_slug + extension_instance_id` and writes output only under `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/{run_id}/`.
+- The shared bridge routes jobs by `client_slug`, binds each active job to the claiming `extension_instance_id` when present, can run different client identities in parallel, serializes only jobs for the same client/profile, and writes output only under `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/{run_id}/`.
 - Agents running in sandboxes should prefer file-based job requests under `daily-content-pipeline/collector/jobs/pending/` and local health/status files over localhost calls.
 - Extension popup/settings must not write global `collector_config.json`; global agency/collector config is managed by the agent/playbook and Automation Resync.
 
@@ -421,7 +421,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
   "version": "0.1.0",
   "timezone": "local",
   "run_mode": "persistent_bridge_scheduler",
-  "routing_mode": "shared_bridge_per_client_extension",
+  "routing_mode": "shared_bridge_parallel_per_client_extension",
   "default_runs_per_day": 1,
   "poll_interval_seconds": 5,
   "max_sources_per_run": 20,
@@ -611,7 +611,7 @@ if (-not (Test-Path $ConfigPath)) {
   "version": "0.1.0",
   "timezone": "local",
   "run_mode": "persistent_bridge_scheduler",
-  "routing_mode": "shared_bridge_per_client_extension",
+  "routing_mode": "shared_bridge_parallel_per_client_extension",
   "default_runs_per_day": 1,
   "poll_interval_seconds": 5,
   "max_sources_per_run": 20,
@@ -1132,7 +1132,7 @@ Health API:
 - If `/status` fails to connect, the Local Collector app is not running or is blocked. The AI agent must not start it from inside the AI sandbox during setup/repair; give the human the one-line setup/start command generated during setup.
 - If `/status` succeeds but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, the Local Collector app is running but the Solo Agency Local Collector extension is not currently checking in. The AI agent should treat private data source collection as unavailable until fixed, continue public data source work, and notify the human through WideCast Telegram if available.
 
-`POST /jobs/run_now` is required for manual runs and first-trial runs. It lets the AI agent tell the Local Collector app:
+`POST /jobs/run_now` is required for manual runs and first-trial runs when localhost is reachable. It lets the AI agent tell the Local Collector app:
 
 ```text
 Run this private data source job immediately. Do not wait for the recurring schedule window.
@@ -1140,13 +1140,14 @@ Run this private data source job immediately. Do not wait for the recurring sche
 
 Run-now behavior:
 
-- The Local Collector app stores the run-now job as the active job.
-- `/status` returns `job_available: true` and `current_job_type: run_now`.
-- The Solo Agency Local Collector extension sees the job on its next poll and starts collecting.
+- The Local Collector app queues the run-now job.
+- The matching Solo Agency Local Collector extension claims the queued job on its next `/status` poll.
+- `/status` returns `job_available: true` and `current_job_type: run_now` only for the client extension whose `client_slug` and bound `extension_instance_id` match the active/claimed job.
+- With one shared bridge, private collection is parallel per client identity: multiple client Chrome profiles can collect at the same time through the same bridge, each with its own active job, output folder, counters, and completion state. Jobs for the same client/profile remain sequential. After `/complete` or TTL, the bridge continues to that client's next queued job.
 - The run-now job should default to `force: false`.
 - Each manual run should use a fresh unique `run_id`.
 - The run-now job must include a TTL, default 30 minutes and maximum 120 minutes.
-- If `/complete` is never received, the Local Collector app must stop exposing the run-now job after its TTL expires.
+- If `/complete` is never received, the Local Collector app must stop exposing the active run-now job after its TTL expires, then allow the next queued job to proceed.
 - After `/complete`, the run-now job is cleared so it does not repeat.
 
 Run-now stuck-status guard:
@@ -1196,7 +1197,7 @@ daily-content-pipeline/collector/run_now_request_status.json
 daily-content-pipeline/collector/run_now_request*.consumed.json
 ```
 
-If these files show a recent current-workspace bridge, current-workspace output/config paths, and a recent extension check, the agent should use the file-based run-now request path (`daily-content-pipeline/collector/run_now_request.json`) and wait for collector output instead of asking the human to restart the collector. If the files are missing, stale, or point to another setup folder, the agent must log the exact blocker (`collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, or `extension_status_unknown`) and continue with public data sources and previously collected private data when available.
+If these files show a recent current-workspace bridge, current-workspace output/config paths, and a recent extension check, the agent should use the file-based queue path (`daily-content-pipeline/collector/jobs/pending/{unique_job}.json`) and wait for collector output instead of asking the human to restart the collector. Use one unique file per client/run. If the files are missing, stale, or point to another setup folder, the agent must log the exact blocker (`collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, or `extension_status_unknown`) and continue with public data sources and previously collected private data when available.
 
 Every time the extension checks `/status`, the bridge should update the last extension check timestamp. This lets the AI agent distinguish between:
 
@@ -1289,7 +1290,7 @@ If a URL is unavailable, write `unavailable` and include a note explaining why.
 Codex:
 
 - During one-time Local Collector setup/update/repair, Codex must not run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if Codex has shell permission. Codex must prepare the files and give the human the Terminal/PowerShell command to run outside the Codex sandbox.
-- After the human-run setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or `run_now_request.json`, read collector output, and continue the daily pipeline.
+- After the human-run setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`, read collector output, and continue the daily pipeline. `run_now_request.json` is only a legacy/batch shim.
 - If Codex cannot access Chrome's logged-in session directly, it should still use the extension/bridge output files.
 
 Claude:
@@ -1350,7 +1351,7 @@ If the Local Collector is unavailable, the agent must continue work with public 
 Codex:
 
 - Codex must not use native browser, in-app browser, Playwright, remote debugging, or agent-controlled browser tools for private data source review.
-- After the human-run Local Collector setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or `run_now_request.json`, read collector output, and continue the daily pipeline.
+- After the human-run Local Collector setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`, read collector output, and continue the daily pipeline. `run_now_request.json` is only a legacy/batch shim.
 
 Claude:
 
@@ -1372,7 +1373,7 @@ Manual run / run-now rule:
 
 - Any human request such as `run now`, `manual run`, `test run`, `trial run`, `collect now`, or `scan now` must bypass recurring schedule windows.
 - The agent must not wait for `scheduled_windows` when the human requested a manual run.
-- If the Local Collector app is reachable, the agent must create a run-now job and call `POST http://127.0.0.1:17321/jobs/run_now`.
+- If the Local Collector app is reachable, the agent must create a run-now job and call `POST http://127.0.0.1:17321/jobs/run_now`. The bridge will queue the job, not overwrite the currently active job.
 - The run-now job must include:
   - unique `run_id`,
   - `run_now: true`,
@@ -1380,15 +1381,17 @@ Manual run / run-now rule:
   - `run_now_ttl_minutes`, default 30 and maximum 120,
   - private `sources`,
   - pacing rules,
-  - client/business/location metadata when available.
+  - client/business/location metadata when available,
+  - `allowed_extension_instance_ids` for the matching client extension whenever known.
 - To run again, the agent should create a new unique `run_id` instead of forcing the same run id repeatedly.
 - The run-now job must expire automatically if it is not completed, so the extension cannot keep seeing the same manual job all day.
-- The Solo Agency Local Collector extension should see `job_available: true` on the next `/status` poll and run immediately.
+- The matching Solo Agency Local Collector extension should see `job_available: true` on a `/status` poll when its queued job becomes active. With one shared bridge, jobs for different clients can be active at the same time; only jobs for the same client/profile are queued sequentially.
 - If the Local Collector app is not reachable, the agent must not try to start it from inside the AI sandbox during one-time setup/repair. Provide the one-line Local Collector app setup/start command for the human to run outside the sandbox, then retry the run-now job only after the app is reachable.
 - Recurring schedule windows are only for unattended scheduled runs. They must not block manual runs.
-- Do not simulate a manual run by editing `scheduled_windows` or creating a temporary schedule window. Manual runs must use `/jobs/run_now`.
-- If the agent cannot call `http://127.0.0.1:17321` from its own sandbox but can write local files, it must write the same run-now payload to `daily-content-pipeline/collector/run_now_request.json`. The Local Collector app must check this file on `/status`, load it as a run-now job, write `run_now_request_status.json`, and move the request aside as consumed. This avoids asking the human to run another command.
-- If the agent cannot call HTTP and cannot write the local request file, only then create a local run-now helper script or launcher and give the human exactly one short command/path to run it. The helper script must POST `/jobs/run_now` with the correct payload, then optionally poll `/status`.
+- Do not simulate a manual run by editing `scheduled_windows` or creating a temporary schedule window. Manual runs must use `/jobs/run_now` or file-based queued jobs.
+- If the agent cannot call `http://127.0.0.1:17321` from its own sandbox but can write local files, it must write one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`. The Local Collector app claims matching pending jobs on `/status`, moves claimed files into `jobs/claimed/`, writes output for that client, then moves completed files into `jobs/completed/`. This avoids asking the human to run another command and avoids `run_now_request.json` overwrite races.
+- `daily-content-pipeline/collector/run_now_request.json` remains a legacy/batch shim only. It may contain one job or a batch object with `{"jobs":[...]}`, and the bridge converts it into `jobs/pending/` queue files before consuming it. Do not use this single filename when multiple agents or scheduled tasks may write concurrently.
+- If the agent cannot call HTTP and cannot write the local queue file, only then create a local run-now helper script or launcher and give the human exactly one short command/path to run it. The helper script must POST `/jobs/run_now` with the correct payload, then optionally poll `/status`.
 - Do not ask the human to restart the Local Collector app merely to make a manually edited schedule file take effect. Restarting is only appropriate for updating the Local Collector app itself, recovering a stuck/offline process, or applying an intentional recurring schedule change when both `/config` and file auto-reload are unavailable.
 - If a legacy collector without `/jobs/run_now` forces a temporary schedule fallback, the agent must clearly label it as a fallback, back up the original config, create a short unique temporary window, restart or reload only through an already-running service or a human-run setup/start command when required, restore the original config immediately after completion/timeout, and report that fallback to the human. This fallback must not be used when `/jobs/run_now` exists.
 
@@ -1444,21 +1447,22 @@ Exact manual run-now contract:
 - `sources` must contain the private data sources for that client if private data sources exist. If there are no private data sources, the agent should still run public research without the Local Collector app.
 - `pacing.scroll_steps` defaults to 5 and must not exceed 10 for daily monitoring.
 - For Source Discovery Mode only, `pacing.scroll_steps` may be up to 80. Mark the job/source with a discovery indicator, such as `job_type: "private_data_source_discovery"`, `purpose: "source_discovery"`, or a discovery URL like `https://www.facebook.com/groups/joins/...`, so the bridge and extension do not clamp the run to the daily monitoring limit.
-- If the agent cannot make this POST itself but can write local files, it should write the JSON payload to:
+- If the agent cannot make this POST itself but can write local files, it should write the JSON payload as one unique file under:
 
 ```text
-daily-content-pipeline/collector/run_now_request.json
+daily-content-pipeline/collector/jobs/pending/{timestamp}_{client_slug}_{run_id}.json
 ```
 
-The agent should write this file atomically: write a temporary file in the same folder first, then rename it to `run_now_request.json` only after the JSON is complete.
+The agent should write this file atomically: write a temporary file in the same folder first, then rename it to a unique `.json` filename only after the JSON is complete. For multiple clients, write one queued file per client/run. Do not reuse a filename.
 
-The running Local Collector app should pick up this file on the next `/status` check from the Chrome extension or AI agent, usually within a few seconds while Chrome is active. After loading the request, the Local Collector app must immediately consume the request so it cannot loop forever:
+The running Local Collector app should pick up pending jobs on the next `/status` check from the matching Chrome extension, usually within a few seconds while Chrome is active. After claiming a pending job, the Local Collector app must move it through the queue lifecycle so it cannot loop forever:
 
-- move it to `run_now_request.{run_id}.{timestamp}.consumed.json`;
+- move it to `jobs/claimed/`;
 - write `run_now_request_status.json`;
-- remember the processed file signature in memory as a replay guard if moving/removing fails;
+- route it only to the matching `client_slug` and bound `extension_instance_id`;
 - clear the active run-now job on `/complete`;
-- expire the active run-now job after `run_now_ttl_minutes` if `/complete` never arrives.
+- move the claimed file to `jobs/completed/` on `/complete`;
+- expire the active run-now job after `run_now_ttl_minutes` if `/complete` never arrives, then allow the next queued job to proceed.
 
 After loading the request, the Local Collector app should write:
 
@@ -1475,10 +1479,8 @@ Only if the agent cannot write the request file should it create one of these he
 bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/run_private_now.sh"
 ```
 
-- After posting `/jobs/run_now`, poll plain `GET /status` until either:
-  - `current_job_type` becomes `run_now` and `job_available` is `true`,
-  - the extension completes and `/status` returns `job_available: false`, or
-  - the TTL expires and private collection is marked unavailable for this run.
+- After posting `/jobs/run_now` or writing a queue file, do not fake extension headers. Plain `GET /status` is only a bridge health check; `job_available` is scoped to the real client extension identity.
+- Track progress through `run_now_request_status.json`, `bridge_health.json`, `collector_status.json`, `jobs/claimed/`, `jobs/completed/`, and new output files under the run output directory until the job completes or TTL expires.
 
 Schedule rule:
 
