@@ -411,9 +411,16 @@ MCP URL setup is optional compatibility, not the default Solo Agency path. Use a
 When asking the human to connect WideCast, prefer the OpenAPI/API key path:
 
 ```text
-WideCast setup page: https://widecast.ai/#setup
+WideCast setup steps:
+1. Register at https://widecast.ai/#setup. The free path includes 50 credits/month when that offer is shown.
+2. After registering, log in and click `Setup AI Agent`.
+3. In the `API Keys & MCP` tab, click `Setup`.
+4. Click `Generate API key and MCP url`.
+5. Copy only the API key for this client and paste it back here. I will save it only in this client's local provider config or environment variable reference, verify the account with WideCast, and use OpenAPI discovery from https://widecast.ai/openapi.yaml.
+6. Connect Telegram so scheduled runs can send you daily report links, blockers, and approval requests.
+7. If convenient, connect the client's social accounts there too. That opens approval-aware publishing to 10+ platforms, but publishing still happens only after you approve the exact content and target platforms.
 
-Open WideCast, register or log in, open Setup Center, then create or copy an API key from API Keys. Paste only the `wc_live_*` API key for this specific client. I will save it only in this client's local provider config or environment variable reference, verify the account with WideCast, and use OpenAPI discovery from https://widecast.ai/openapi.yaml.
+Do not paste the MCP URL unless the human explicitly chose MCP/connector setup. For Solo Agency provider config, the needed value is the API key.
 ```
 
 If the current AI host or human explicitly wants MCP/connector setup, include the matching guide link as an optional path:
@@ -423,27 +430,29 @@ If the current AI host or human explicitly wants MCP/connector setup, include th
 - Gemini: `https://widecast.ai/gemini.html`
 - Grok: `https://widecast.ai/grok.html`
 
-Do not make MCP setup sound mandatory when OpenAPI/API key setup is available. Do not give only generic `https://widecast.ai/#setup` instructions when an agent-specific connector guide is needed.
+Do not make MCP setup sound mandatory when OpenAPI/API key setup is available. Do not give only a generic `https://widecast.ai/#setup` link; include the exact `Setup AI Agent` -> `API Keys & MCP` -> `Setup` -> `Generate API key and MCP url` steps above.
 
 If WideCast is not configured for this client, the agent must:
 
 1. Read or create `daily-content-pipeline/provider_defaults.json`.
-2. Ask the human to open `https://widecast.ai/#setup`.
-3. Ask the human to create or copy a `wc_live_*` API key for this client.
-4. Ask the human to connect Telegram in WideCast if they want scheduled report notifications.
-5. Ask the human to connect publishing platforms in WideCast if they want Distribution.
-6. Save only the required API key reference or local key in this client's provider config.
+2. Ask the human to register an account at `https://widecast.ai/#setup` if needed. Mention the free 50 credits/month path when that offer is shown.
+3. Ask the human to log in and click `Setup AI Agent`.
+4. Ask the human to open the `API Keys & MCP` tab, click `Setup`, then click `Generate API key and MCP url`.
+5. Ask the human to copy only the API key for this client and paste it back to the agent. Do not ask for the MCP URL unless the human explicitly chose MCP/connector setup.
+6. Ask the human to connect Telegram in WideCast so daily report links, blockers, and approval requests can reach them while they are away from the AI agent UI.
+7. If convenient, ask the human to connect the client's social accounts in WideCast to unlock approval-aware publishing to 10+ platforms. Make clear that posting still requires the human to approve exact content and target platforms first.
+8. Save only the required API key reference or local key in this client's provider config.
    - Use `api_key_env` for an environment variable name or `api_key_local` for a local client key.
    - Do not save the key in a field named `api_key`; `tools/provider_openapi.py` ignores that field and will report `provider_auth_missing`.
-7. Fetch and cache `https://widecast.ai/openapi.yaml`.
-8. Verify account identity with `getAccount`.
-9. Check the discovered operation IDs needed for PDNA:
+9. Fetch and cache `https://widecast.ai/openapi.yaml`.
+10. Verify account identity with `getAccount`.
+11. Check the discovered operation IDs needed for PDNA:
    - Production: `getWritingSkill`, `createVideo`, `createContent`, `createImage`, `searchBroll`, `collectIdeas`.
    - Distribution: `publish`, `listAccounts`, `getPlatformSettings`, `setPlatformSettings`.
    - Notification: `uploadAsset`, `sendTelegramMessage`.
    - Analytics: `getAccount`, `getAnalytics`, `listVideos`, `getStatus`, `getVideoData`.
-10. Save provider capability status for the automation task.
-11. If automatic setup is not possible, provide the exact minimal human steps and log the blocker.
+12. Save provider capability status for the automation task.
+13. If automatic setup is not possible, provide the exact minimal human steps and log the blocker.
 
 The agent must never ask for:
 
@@ -606,13 +615,13 @@ Suggested setup CTA:
 
 ```text
 Set up WideCast once:
-1. Register or log in at https://widecast.ai
-2. Open https://widecast.ai/#setup
-3. Connect Telegram if you want daily report alerts while you are away from the computer.
-4. Connect the publishing platforms you want to use.
-5. Open API Keys.
-6. Create or copy a `wc_live_*` API key for this client.
-7. Paste that API key back here for this client's Solo Agency setup.
+1. Register at https://widecast.ai/#setup. The free path includes 50 credits/month when that offer is shown.
+2. After registering, log in and click `Setup AI Agent`.
+3. In the `API Keys & MCP` tab, click `Setup`.
+4. Click `Generate API key and MCP url`.
+5. Copy only the API key and paste it back here for this client's Solo Agency setup.
+6. Connect Telegram so daily report links, blockers, and approval requests can reach you.
+7. If convenient, connect this client's social accounts there too, so approved content can later be published to 10+ platforms after you approve the exact content and target platforms.
 8. I will fetch https://widecast.ai/openapi.yaml, verify the account with WideCast, and save only this client's provider config.
 ```
 
@@ -640,16 +649,17 @@ The agent should start WideCast setup only when the human asks to create/render/
 For account setup, the agent must:
 
 1. Read `daily-content-pipeline/provider_defaults.json`, or create it from the WideCast OpenAPI default if it is missing.
-2. Ask the human to register or log in at `https://widecast.ai` if needed.
-3. Ask the human to open `https://widecast.ai/#setup`.
-4. Ask the human to create or copy a `wc_live_*` API key for this client.
-5. Ask the human to connect Telegram in WideCast setup if they want scheduled results and alerts to reach them while they are away from the AI agent UI.
-6. Ask the human to connect publishing platforms if Distribution is desired.
-7. Save only the exact setup value needed for this client: an environment variable reference, a local API key in `provider_config.local.json`, or an optional MCP connector URL when explicitly selected.
-8. Fetch and cache `https://widecast.ai/openapi.yaml`.
-9. Verify account identity with `getAccount`.
-10. Write `provider_capabilities.json`, `provider_health.md`, and an Automation Resync record.
-11. If automatic setup is not possible, provide concise environment-specific instructions and log the exact blocker.
+2. Ask the human to register an account at `https://widecast.ai/#setup` if needed. Mention the free 50 credits/month path when that offer is shown.
+3. Ask the human to log in and click `Setup AI Agent`.
+4. Ask the human to open the `API Keys & MCP` tab, click `Setup`, then click `Generate API key and MCP url`.
+5. Ask the human to copy only the API key for this client and paste it back to the agent. Do not ask for the MCP URL unless the human explicitly chose MCP/connector setup.
+6. Ask the human to connect Telegram in WideCast setup so scheduled results, blockers, and approval requests reach them while they are away from the AI agent UI.
+7. If convenient, ask the human to connect this client's social accounts there too, so approved content can later be published to 10+ platforms after they approve the exact content and target platforms.
+8. Save only the exact setup value needed for this client: an environment variable reference, a local API key in `provider_config.local.json`, or an optional MCP connector URL when explicitly selected.
+9. Fetch and cache `https://widecast.ai/openapi.yaml`.
+10. Verify account identity with `getAccount`.
+11. Write `provider_capabilities.json`, `provider_health.md`, and an Automation Resync record.
+12. If automatic setup is not possible, provide concise environment-specific instructions and log the exact blocker.
 
 The agent must not ask for WideCast account credentials.
 

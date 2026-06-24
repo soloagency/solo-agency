@@ -71,7 +71,7 @@ Do not summarize away requirements, examples, checklists, schemas, protocols, UR
 
 ## Latest Delta Override: Discovery Mode Versus Daily Monitoring
 
-Source Discovery Mode normally scrolls deeply until no new source names or URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+Source Discovery Mode normally scrolls until no new source names or URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
 
 Facebook keyword group search discovery is a bounded Source Discovery Mode variant: for `https://www.facebook.com/search/groups/?q={url_encoded_keyword}`, use 10 scrolls per keyword by default, with `purpose: "facebook_group_keyword_search_discovery"`. This search-results pass is for collecting candidate groups, filtering UI noise, and asking the human to approve sources. It must not join groups, request access, or add groups as active sources without approval.
 
@@ -117,7 +117,7 @@ To resolve `{N}`, use this order:
 For source discovery, disclose the different rule:
 
 ```text
-This is source discovery, not daily monitoring. I will scroll the actual list/page roughly one screen at a time until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+This is source discovery, not daily monitoring. I will scroll the actual list/page roughly one screen at a time until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
 ```
 
 Do not let the human think "scan groups" is unbounded or vague.
@@ -1467,7 +1467,7 @@ Exact manual run-now contract:
 - `run_now_ttl_minutes` should be 30 by default and must not exceed 120.
 - `sources` must contain the private data sources for that client if private data sources exist. If there are no private data sources, the agent should still run public research without the Local Collector app.
 - `pacing.scroll_steps` defaults to 5 and must not exceed 10 for daily monitoring.
-- For Source Discovery Mode only, `pacing.scroll_steps` may be up to 80. Mark the job/source with a discovery indicator, such as `job_type: "private_data_source_discovery"`, `purpose: "source_discovery"`, or a discovery URL like `https://www.facebook.com/groups/joins/...`, so the bridge and extension do not clamp the run to the daily monitoring limit.
+- For Source Discovery Mode, `pacing.scroll_steps` must not exceed 10. Mark the job/source with a discovery indicator, such as `job_type: "private_data_source_discovery"`, `purpose: "source_discovery"`, or a discovery URL like `https://www.facebook.com/groups/joins/...`, while still keeping the 10-scroll hard cap.
 - For Facebook keyword group search discovery, use `purpose: "facebook_group_keyword_search_discovery"`, `discovery_category: "keyword_search_sources"`, and `pacing.scroll_steps: 10` per keyword URL.
 - If the agent cannot make this POST itself but can write local files, it should write the JSON payload as one unique file under:
 

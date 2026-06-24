@@ -36,7 +36,7 @@ Do not summarize away requirements, examples, checklists, schemas, protocols, UR
 
 Source Discovery Mode and Daily Content Monitoring Mode are different.
 
-For Source Discovery Mode, including joined groups, followed sources, subscribed channels, KOLs, communities, and recommendation surfaces, scroll deeply until no new source names or URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+For Source Discovery Mode, including joined groups, followed sources, subscribed channels, KOLs, communities, and recommendation surfaces, scroll until no new source names or URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
 
 For Daily Content Monitoring Mode, keep the conservative default: 5 scrolls per source, maximum 10, 5 seconds between scrolls, and around 20 daily private data sources or fewer per client.
 
@@ -73,7 +73,7 @@ The agent must determine `{N}` from the best available source:
 2. If the Local Collector app is running, check `GET http://127.0.0.1:17321/status` and/or `GET /config` when available.
 3. If neither source is available, use the documented default: `5` scrolls per source, max `10`, 5-second delay.
 
-For source discovery, do not say "5 scrolls" unless the configured discovery mode explicitly says that. Source Discovery Mode uses the deep-scroll rule: continue until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+For source discovery, do not say "5 scrolls" unless the configured discovery mode explicitly says that. Source Discovery Mode uses the discovery rule: continue until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
 
 If the agent cannot read the actual config, it must be honest:
 
@@ -160,7 +160,7 @@ If the human says yes:
 2. Activate/setup the Local Collector if it is not installed and healthy. The agent must prepare files and give the human the one-line Terminal/PowerShell command and Chrome extension `Load unpacked` folder path; it must not run setup/start scripts itself.
 3. Ask which broad discovery surfaces are approved if not already clear. Keep the question short and default to the most likely safe set for the client, for example Facebook joined groups and Reddit joined/subscribed communities for community-heavy businesses.
 4. Run only approved discovery URLs/surfaces.
-5. Use Source Discovery Mode: scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+5. Use Source Discovery Mode: scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
 6. Extract candidate source names, URLs, platform, visible description/context, activity hints, topic hints, audience fit, location fit, and risk/noise signals.
 7. Filter and classify candidates:
    - `recommended_daily`
@@ -235,7 +235,7 @@ https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
 7. Use Source Discovery Mode, not Daily Content Monitoring Mode:
    - set `job_type: "private_data_source_discovery"` or source `purpose: "source_discovery"`;
    - scroll until no new group names/URLs appear for 3 consecutive scrolls;
-   - use a hard safety cap such as 80 scrolls;
+   - use a hard safety cap of 10 scrolls;
    - use `scroll_delay_seconds`: 5;
    - read visible text and current URLs only.
 8. Review visible group names, group URLs, descriptions, category hints, membership/context hints, and any visible preview text.
@@ -490,9 +490,9 @@ Source discovery pacing:
 - Source discovery is not the same as daily content monitoring.
 - For joined groups, followed profiles/pages/KOLs, subscribed channels, communities, and similar source lists, the collector must scroll deeply until no new source names/URLs appear for 3 consecutive scrolls.
 - For Facebook keyword group search discovery at `https://www.facebook.com/search/groups/?q={url_encoded_keyword}`, use exactly 10 scrolls per keyword unless the human explicitly approves a different value. This is a bounded search-results pass, not a full joined-source inventory.
-- Use a hard safety cap, for example 80 scrolls, to avoid infinite scrolling.
+- Use a hard safety cap of 10 scrolls to avoid infinite scrolling and account-safety risk.
 - Discovery scrolls must be real page-sized scrolls through the active list/page, not tiny nudges. If the output finds only the first few dozen sources despite a high scroll cap, inspect `scroll_debug`, `scroll_count`, and `scroll_stopped_reason`, then retry after updating/reloading the extension.
-- When creating a `run_now` job for discovery, mark the job/source with a discovery indicator, such as `job_type: "private_data_source_discovery"`, `purpose: "source_discovery"`, or a discovery URL like the Facebook joined-groups URL. This prevents the bridge/extension from applying the daily max-10 scroll cap.
+- When creating a `run_now` job for discovery, mark the job/source with a discovery indicator, such as `job_type: "private_data_source_discovery"`, `purpose: "source_discovery"`, or a discovery URL like the Facebook joined-groups URL, while still keeping the 10-scroll hard cap.
 - Use `scroll_delay_seconds`: 5.
 - Avoid parallel private data source scans.
 - Do not stop source discovery at the daily default of 5 scrolls, because that can miss many groups or followed sources lower in the list.
