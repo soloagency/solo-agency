@@ -797,8 +797,8 @@ Each full lane HTML report must include:
 - Data source issues.
 - Private sessions needing login.
 - WideCast-writing-skill draft: video script, blog/article, social caption, or configured combination.
-- Production/provider status: draft only, approval required, provider setup required, video/blog/social asset created, ready to publish, published, or blocked.
-- `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section when WideCast account tools, Telegram notification, publishing, or video creation are not connected yet.
+- Production/provider status: draft only, approval required, client provider setup required, video/blog/social asset created, ready to publish, published, or blocked.
+- `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section when the client's WideCast/OpenAPI provider config, Telegram notification, publishing, or video creation is not connected yet.
 - If WideCast Telegram is not connected yet, a short `Get daily reports on Telegram` note explaining that WideCast signup plus Telegram connection can be used as a free remote-report path, so the human can receive daily HTML report links and blockers while away from the computer.
 - Approval options.
 - Next actions.
@@ -862,6 +862,8 @@ Required report hierarchy:
 
 6. `Source Coverage And Data Quality`
    - Public search keywords used today.
+   - Public keyword count and diversity: show whether at least 10 distinct public search keywords were used, or name the blocker if not.
+   - Public candidate idea sufficiency: show whether at least 3 source-backed ideas were new or newly angled after history review, or name the blocker if not.
    - Pain-point/problem/need keyword sample used or added today, with the rest saved in the keyword bank for rotation. Do not dump the full keyword bank into the human-facing report.
    - Public data sources scanned.
    - New public data sources discovered/promoted/demoted today, with a compact summary. Do not dump the full public data source list.
@@ -874,10 +876,12 @@ Required report hierarchy:
 7. `Private Data Source Discovery`
    - Discovery categories approved, declined, pending, or not requested.
    - Platforms and discovery URLs used.
+   - Facebook keyword group searches run, including keywords, search URLs, and 10-scroll status per keyword.
    - Whether the Solo Agency Local Collector is active, pending, or blocked.
    - Candidate groups, profiles, pages, KOLs, channels, communities, and feed-surfaced sources found.
    - Which candidates are recommended for daily, weekly, optional, or watch-once monitoring.
    - Which candidates were skipped as irrelevant, too broad, too noisy, sensitive/risky, or unavailable.
+   - For Facebook keyword group search, show skipped/noisy examples separately so the human can see UI noise was filtered out.
    - Feed signals detected, with current URL and source when visible.
    - Sources requiring human approval before being activated.
    - Reassurance summary: professional one-time setup, local-only data safety, and daily scanning to avoid missed signals.
@@ -893,6 +897,9 @@ Required report hierarchy:
      - Global or local label.
      - Primary industry or related industry label.
      - Pain point or content pillar.
+     - Novelty status: `new`, `new_angle`, `near_duplicate_rejected`, or `repeat_rejected`.
+     - Prior related idea/date when the idea reuses a topic from history.
+     - New angle explanation when applicable.
      - Reference URL(s).
      - Short rationale.
    - Score or qualitative rating for heat, relevance, lead potential, novelty, and confidence.
@@ -901,6 +908,7 @@ Required report hierarchy:
 9. `Decision Scorecard`
    - Compare the top candidate ideas before choosing the best one.
    - Score at least: trend heat, audience pain intensity, business relevance, lead potential, novelty/history risk, evidence strength, and production effort.
+   - Include the Idea Novelty Check result for the winner and the strongest rejected candidate: whether the idea is new, newly angled, or rejected as too close to prior history.
    - Briefly explain why the selected idea won and why the other strong candidates did not win today.
 
 10. `Public Lead & Competitor Opportunities` and `Private Lead & Competitor Opportunities`
@@ -1133,13 +1141,13 @@ Run this check before claiming any daily run, scheduled run, or report handoff i
 2. Check the configured notification channel from `daily-content-pipeline/schedule.md` and the Client Intelligence Profile.
 3. Load `daily-content-pipeline/provider_defaults.json` and the target client's `integrations/providers/provider_config.local.json` when present.
 4. If WideCast is configured, preferred, connected, or likely available, fetch/cache `https://widecast.ai/openapi.yaml` unless the cache is current.
-5. Verify the provider account before using account actions. For WideCast, call `getAccount` and compare the verified account identity to the saved client provider identity when present.
+5. Verify the provider account before using account actions. For WideCast, call `getAccount` with the current client's configured provider credential and compare the verified account identity to the saved client provider identity when present.
 6. Inspect the discovered OpenAPI operation list for:
    - account/status capability, such as `getAccount`;
    - HTML-capable report/file/asset upload capability, such as `uploadAsset` with `text/html`;
    - Telegram/report notification send capability, such as `sendTelegramMessage`;
    - email fallback behavior exposed by the provider, if any.
-7. Use legacy tool discovery/lazy-load only as a fallback or compatibility path. Do not assume a provider capability is unavailable merely because it was not already visible in the first AI tool list.
+7. Use legacy tool discovery/lazy-load only as a fallback or compatibility path after the client-scoped provider config/account identity has been checked. A global MCP/native WideCast account visible in the AI session is not proof that the current client's report upload, notification, platforms, credits, or analytics are configured. If the tool account cannot be proven to match the client provider identity, log `global_mcp_not_client_scoped` and continue with the per-client OpenAPI/API-key setup path or the best authorized fallback.
 8. If upload capability exists, upload the `.html` report and capture the uploaded URL and TTL if returned.
 9. If notification capability exists, send the uploaded URL when available; otherwise send the best available local/hosted `.html` path/link with the exact upload blocker.
 10. If the provider notification operation itself is unavailable, use an authorized fallback channel such as Gmail/email only when available and authorized; otherwise surface the local HTML path in chat and log the notification blocker.
@@ -1154,6 +1162,8 @@ provider_discovery_url:
 provider_openapi_checked: true | false
 provider_account_verified: true | false | unknown
 provider_account_identity:
+provider_identity_source: per_client_openapi | global_mcp_compat | unknown
+mcp_compatibility_status: not_used | identity_matched | identity_mismatch | not_client_scoped
 upload_operation_id:
 notification_operation_id:
 provider_upload_available: true | false | unknown

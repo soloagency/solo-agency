@@ -4,7 +4,7 @@ Stage: `02`
 
 ## Load Rule
 
-Load when private data sources, manual private URLs, joined groups, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, private data source discovery, or Local Collector activation are requested, approved, pending, or blocked.
+Load when private data sources, manual private URLs, joined groups, Facebook keyword group search, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, private data source discovery, or Local Collector activation are requested, approved, pending, or blocked.
 
 If this stage was triggered by a human request to scan, monitor, collect, review, or open a private data source after any amount of conversation drift, first reload `playbooks/PRIVATE_SOURCE_GATE.md`, then reload Stage 8 and Stage 9 before taking action.
 
@@ -115,7 +115,7 @@ Examples of private data sources:
 
 The agent must say:
 
-`Do you want to provide any private data sources for this client? Private data sources are logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require your account or membership. These are different from public data sources such as websites, Google/search results, public articles, and public pages I can access without your login. If you provide private data sources, I will only activate collection with your permission, using the Solo Agency Local Collector local app/extension on your computer. It uses your already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. Do not share credentials, cookies, passwords, OTPs, or tokens. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if you provide more, I will prioritize and rotate them.`
+`Do you want to provide any private data sources for this client? Private data sources are logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require your account or membership. These are different from public data sources such as websites, Google/search results, public articles, and public pages I can access without your login. If you provide private data sources, you must already be a member, follower, subscriber, logged in, or otherwise authorized to view them in the Chrome profile where this client's Solo Agency Local Collector extension is installed. I recommend one separate Chrome profile per client, with that client's extension loaded and the relevant social accounts logged in there. I will only activate collection with your permission, using the Solo Agency Local Collector local app/extension on your computer. It uses your already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. Do not share credentials, cookies, passwords, OTPs, or tokens. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if you provide more, I will prioritize and rotate them.`
 
 ### Private Data Source Discovery When The Human Has No List
 
@@ -130,6 +130,8 @@ No problem if you do not know which private data sources to add yet. A lot of th
 The agent must explain that discovery is optional, consent-based, and local:
 
 - It uses only approved logged-in surfaces.
+- The human must already have permission to view those surfaces in the client Chrome profile where the extension is installed.
+- One separate Chrome profile per client is recommended so each client's extension and social logins stay cleanly separated.
 - It requires the Solo Agency Local Collector extension and Local Collector app.
 - It does not ask for passwords, cookies, OTPs, tokens, or credentials.
 - It does not add every discovered source automatically.
@@ -282,6 +284,104 @@ If a private session expires:
 - Tell the human which source needs manual login.
 - Never ask for credentials.
 
+### Facebook Keyword Group Search Discovery
+
+Facebook keyword group search is a second Facebook group discovery path. It is for finding new candidate groups by search keyword, not only reviewing groups the human already joined.
+
+Use it when:
+
+- the human explicitly asks to find new Facebook groups;
+- the human has no useful group list and approves keyword-based discovery;
+- current private data source scans are too noisy and the agent needs cleaner source candidates;
+- the client's topic has obvious group-search keywords.
+
+The agent must ask for explicit consent before running it:
+
+```text
+Do you want me to find new Facebook groups with keyword search for this client? I will use the Solo Agency Local Collector in the client's Chrome profile, search Facebook groups with keywords that match the client's audience and pain points, scroll 10 times on each search result page, filter out Facebook UI noise and irrelevant results, then show you a shortlist to approve. I will not join groups, request access, or add any group to private data sources unless you approve it and the client Chrome profile can access it.
+```
+
+Keyword selection:
+
+- Infer search keywords from the client's industry, sub-industry, target audience, target location, pain points, content pillars, business offer, buying-intent phrases, and public keyword bank.
+- Use short, specific phrases. Good examples: `ai tools`, `small business automation`, `real estate investors Austin`, `DUI help Los Angeles`, `California homeowners insurance`.
+- Use 1-5 search keywords per discovery pass unless the human explicitly approves a broader pass.
+- URL-encode each keyword and use this URL pattern:
+
+```text
+https://www.facebook.com/search/groups/?q={url_encoded_keyword}
+```
+
+Run rules:
+
+1. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 8, and Stage 9 before any scan.
+2. Use only the Solo Agency Local Collector extension plus Local Collector app in the matching client Chrome profile.
+3. Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or any agent-controlled browser.
+4. Do not ask for Facebook cookies, passwords, tokens, OTPs, or credentials.
+5. Use `job_type: "private_data_source_discovery"` and `purpose: "facebook_group_keyword_search_discovery"`.
+6. For each keyword URL, set `scroll_steps: 10` and `scroll_delay_seconds: 5`.
+7. Capture only visible search-result information: group name, group URL, result rank/order when visible, visible description/snippet, member/activity hints, category hints, current URL, search keyword, and discovery URL.
+8. If Facebook is logged out, checkpointed, blocked, or the page is unavailable, mark the exact blocker such as `facebook_session_expired`, `facebook_checkpoint`, `platform_url_changed`, or `search_results_unavailable`.
+
+Noise filtering:
+
+- Accept a candidate only if it looks like a real Facebook group result, preferably with a group name and a URL such as `/groups/...`.
+- Ignore Facebook navigation, tabs, filters, buttons, ads/sponsored blocks, people/pages/posts/events results, generic UI labels, repeated headers, and any text that is not a group candidate.
+- Reject or down-rank groups that are too broad, spammy, low-signal, sensitive/risky, unrelated to the client's audience, unrelated to pain points, or not accessible from the client Chrome profile.
+- Do not treat a keyword search result as an active private data source until the human approves it.
+- Do not join a group, request access, message admins, or follow pages as part of this workflow.
+
+Classify candidates as:
+
+- `recommended_daily`
+- `recommended_weekly`
+- `optional`
+- `watch_once`
+- `skip_not_relevant`
+- `skip_too_broad`
+- `skip_too_noisy`
+- `skip_sensitive_or_risky`
+- `skip_platform_unavailable`
+
+For every candidate, save:
+
+- `source_type: facebook_group_search_result`
+- `discovery_category: keyword_search_sources`
+- `search_keyword`
+- `search_url`
+- `result_rank`
+- `profile_or_group_url`
+- `membership_status: unknown | joined | not_joined | public_visible | requires_join | unavailable`
+- `why_relevant`
+- `matched_pain_points`
+- `related_content_pillar`
+- `target_audience_fit`
+- `location_fit`
+- `noise_level`
+- `risk_level`
+- `classification`
+- `approval_status`
+
+Show the human a short `Facebook Keyword Group Search Review` before saving anything as active:
+
+- keywords searched;
+- 10-scroll status for each keyword;
+- candidate groups found;
+- recommended groups and why they fit;
+- skipped/noisy result examples;
+- access/membership notes;
+- which groups need human approval or joining before scheduled monitoring can use them.
+
+Ask the human to approve the recommended groups before adding them as active `private_data_sources`. If the group requires membership or access and the client Chrome profile cannot view it yet, save it as `pending_human_approval` or `pending_private_activation`, not active.
+
+Save the discovery output under:
+
+```text
+daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/facebook_group_keyword_search_review_YYYY-MM-DD.md
+```
+
+If schedule/automation already exists and the human approves new groups, run Automation Resync from Stage 4 so the next scheduled run reads the approved group list instead of the old source state.
+
 ### Optional Private Data Source Discovery
 
 Private data sources are not limited to URLs pasted by the human. Many useful sources are already inside accounts, communities, and feeds the human already uses:
@@ -333,6 +433,7 @@ If a URL does not work, the agent must mark `platform_url_changed` or `login_req
 | Platform | Discovery Type | Starting URL | Notes |
 |---|---|---|---|
 | Facebook | Joined groups | `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added` | Use for groups the human has joined. |
+| Facebook | Keyword group search | `https://www.facebook.com/search/groups/?q={url_encoded_keyword}` | Use only with explicit keyword-search discovery consent. Scroll 10 times per keyword, filter group results, and ask approval before adding any group. |
 | Facebook | Groups feed | `https://www.facebook.com/groups/feed/` | Use for posts from joined groups and group recommendations. |
 | Facebook | Home/news feed | `https://www.facebook.com/` | Use only with explicit feed discovery consent. |
 | Facebook | Liked/followed pages candidate | `https://www.facebook.com/pages/?category=liked` | Treat as candidate URL; verify in logged-in browser. |
@@ -388,6 +489,7 @@ Source discovery pacing:
 
 - Source discovery is not the same as daily content monitoring.
 - For joined groups, followed profiles/pages/KOLs, subscribed channels, communities, and similar source lists, the collector must scroll deeply until no new source names/URLs appear for 3 consecutive scrolls.
+- For Facebook keyword group search discovery at `https://www.facebook.com/search/groups/?q={url_encoded_keyword}`, use exactly 10 scrolls per keyword unless the human explicitly approves a different value. This is a bounded search-results pass, not a full joined-source inventory.
 - Use a hard safety cap, for example 80 scrolls, to avoid infinite scrolling.
 - Discovery scrolls must be real page-sized scrolls through the active list/page, not tiny nudges. If the output finds only the first few dozen sources despite a high scroll cap, inspect `scroll_debug`, `scroll_count`, and `scroll_stopped_reason`, then retry after updating/reloading the extension.
 - When creating a `run_now` job for discovery, mark the job/source with a discovery indicator, such as `job_type: "private_data_source_discovery"`, `purpose: "source_discovery"`, or a discovery URL like the Facebook joined-groups URL. This prevents the bridge/extension from applying the daily max-10 scroll cap.

@@ -49,6 +49,19 @@ Report request hard stop in Setup Flow:
 
 ---
 
+## Required Runtime
+
+Solo Agency must run in an AI agent runtime that supports:
+
+- local workspace file reads/writes;
+- scheduled automation or native tasks;
+- multiple parallel/sub-agent work streams for research, private collection coordination, reporting, provider checks, and resync verification;
+- Local Collector setup handoff and later collector file/status inspection.
+
+Good runtime examples include Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or comparable desktop/local agent environments. A plain web chat is not enough for the full Solo Agency workflow. The agent may use web chat only as a review/conversation surface, not as the primary runtime for setup, scheduled runs, Local Collector coordination, or multi-agent automation.
+
+When asked how to install or run Solo Agency, the agent must say this plainly before setup proceeds. Do not imply that pasting the playbook into a browser-only chat will create the automation system.
+
 ## 0. Latest Delta Requirements And Modularization Plan
 
 This section records the latest requirements that must be treated as part of the source of truth before any future split into child playbooks.
@@ -164,7 +177,7 @@ Use this wording:
 Solo Agency one-time setup process
 This is the planned setup process I am working through. You only need to reply when I ask one specific question.
 
-→ 1. You provide the product/service, profession, expertise, or business description
+→ 1. You provide the product/service, profession, expertise, business description, or public website/profile URL
 ○ 2. I infer the industry, sub-industry, related industries, audience, and offer
 ○ 3. I infer pain points (customer problems) and content pillars (main repeatable content themes)
 ○ 4. I find/select public data sources (websites, search, news, public forums, and public pages that do not require your account) and search keywords
@@ -379,8 +392,8 @@ The measure-learn-improve phase is mandatory once content has been published.
 
 For each published content item, the agent must:
 
-1. Use connected provider tools when available.
-2. If provider MCP/tools are connected, call the relevant tools to retrieve:
+1. Use connected provider analytics when available.
+2. If provider OpenAPI/tools are connected and verified for this client, call the relevant operations to retrieve:
    - videos/posts published yesterday;
    - videos/posts published in the last 7 days;
    - published URLs;
@@ -434,7 +447,8 @@ The agent must follow these principles at all times:
 - Ask only for information that is truly required and cannot be inferred, researched, or discovered.
 - During setup, ask questions step by step; after every human answer, immediately infer what can be inferred from that answer and show the inference before asking the next question.
 - Do not ask the human to define `industry` or `sub_industry`.
-- Ask the human first only for the product/service, profession, expertise, or business description.
+- Ask the human first only for the product/service, profession, expertise, business description, or a public website/profile URL the agent can inspect for setup context.
+- Treat a public website/profile URL as valid setup input. Reading that public page to infer industry, offer, audience, location, and content pillars is allowed during Setup Flow; it is not the same as running an operational public data source scan, report, or daily research pass.
 - Infer `related_industries` after inferring the primary industry and sub-industry. Show those related industries to the human during setup and use them to broaden research and content angles.
 - Keep the content strategy anchored around the primary industry: approximately 80% of ideas/scripts should revolve around the primary industry and primary offer, and approximately 20% may use related industries when there is a clear logical bridge back to the client's offer, audience, pain points, or lead-generation goals.
 - Ask for `target_location` only if the business is location-dependent and the location cannot be inferred.
@@ -454,6 +468,7 @@ The agent must follow these principles at all times:
 - If an AI environment cannot browse private data sources reliably, cannot show a headed browser UI, cannot run downloaded executables, or requires per-run browser approvals, use the Solo Agency Local Collector extension plus the Local Collector app as the preferred private data collection layer instead of trying to bypass permission prompts.
 - During one-time Local Collector setup/update/repair, the AI agent must not run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if local shell permissions are available. Agent-run setup can happen inside a sandbox/session and be killed after the turn. The agent must prepare the files, then give the human the exact one-line Terminal/PowerShell command to run outside the AI sandbox.
 - Local Collector activation requires the human to run the shared Local Collector app setup/start command, then load the client-specific Solo Agency Local Collector extension from the absolute `extensions/{client_slug}/` folder in the matching client Chrome profile/account. Do not mark private data source monitoring active until the shared bridge and the matching client extension health checks pass.
+- When asking for or working with private data sources, tell the human they must already be a member, follower, subscriber, logged in, or otherwise authorized to view those sources in the Chrome profile where the client-specific extension is installed. Recommend one separate Chrome profile per client with that client's extension loaded and the relevant social accounts logged in there.
 - When speaking to non-technical humans, do not say `bridge`, `localhost bridge`, `binary`, `daemon`, or `service worker` unless troubleshooting. Say `Solo Agency Local Collector extension` and `Local Collector app`. Explain the Local Collector app as: "a small app running on your own computer that receives data from Chrome and saves local files for the AI agent to read."
 - The collector is platform-neutral. Never call it `Facebook collector`, `Facebook Data Collector`, or `collector Facebook`, even when the private data sources supplied by the human are currently all Facebook groups/pages. Say `Solo Agency Local Collector extension` and explain that it can collect visible authorized data from configured logged-in web sources such as Facebook, LinkedIn, Reddit, X, Instagram, TikTok, forums, and other browser-accessible private data sources.
 - Setup completion rule: after setup context and routine are saved, the agent should resolve or record the 7A Local Collector checkpoint if private data sources exist, then create/verify the client-specific automation task. The first report must run in Automation Flow, not inside the setup chat.
@@ -498,7 +513,7 @@ This section translates and expands the original human daily content production 
 
 The agent must identify the target audience `[target_audience]`, lead type, or people who are likely to become interested in the client's field, service, product, expertise, or profession.
 
-The agent must infer the industry and sub-industry from the client's product/service, profession, expertise, or business description. The agent must not ask the human to manually provide `industry` or `sub_industry` unless inference is impossible after reasonable research.
+The agent must infer the industry and sub-industry from the client's product/service, profession, expertise, business description, public website/profile URL, or other public context. The agent must not ask the human to manually provide `industry` or `sub_industry` unless inference is impossible after reasonable research.
 
 The agent must also infer related industries `[related_industries]`.
 
@@ -948,6 +963,8 @@ Examples:
 Daily rule:
 
 - Try a different keyword or keyword cluster each day or each failed attempt. Prioritize pain-point/problem/need clusters before generic industry clusters.
+- Each public data source run must use at least 10 distinct public search keywords unless search tooling is unavailable or the saved keyword bank has fewer than 10 usable entries after expansion. At least 7 of the 10 should come from pain-point, problem, need/goal, buying-intent, objection, comparison, question, local-context, or trend/news groups. Generic industry keywords are context only, not the main search strategy.
+- Continue rotating keyword clusters until the agent finds at least 3 source-backed candidate ideas that are new or newly angled against recent history. If fewer than 3 qualifying ideas are found after 10+ distinct keywords and due public data sources have been checked, the agent must report the coverage limitation, list the keywords tried, and avoid fabricating weak ideas.
 - Keep a `public_search_keywords` queue in the Client Intelligence Profile or source notes.
 - Mark keywords as `used`, `useful`, `weak`, or `retry_later`.
 - If a keyword returns weak or irrelevant results, revise it by adding local terms, audience pain terms, or buying-intent terms.
@@ -959,6 +976,7 @@ Daily rule:
 - Continue until the agent finds credible results or reasonably concludes that no useful public signal exists for that slot today.
 - Do not fabricate trends or news if search results are weak.
 - The daily report must include a visible section called `Public Search Keywords Used Today`. Do not hide search queries only in internal logs.
+- The daily report must also show whether the public research produced at least 3 new or newly angled candidate ideas, and must name the blocker if it did not.
 - The setup summary should include a compact section called `Pain-Point Keyword Sample`, not the full keyword bank. Show 5-12 pain-point/problem/need keywords and a line such as `+{N} more saved for rotation`.
 - If the agent realizes after generating a report that search keywords were not shown, it must update or append the current report before claiming the run is complete. Do not merely promise to show keywords "from next time."
 
@@ -1587,6 +1605,14 @@ The best idea is defined by:
 
 The agent must check `history/YYYY-MM/content_log.md` before selecting.
 
+Before choosing the best idea, the agent must perform an Idea Novelty Check:
+
+- Compare today's candidate ideas against the recent content history, preferably the last 7-30 days when available.
+- Treat exact repeats and near-duplicates as ineligible unless the agent can state a genuinely new angle.
+- A valid new angle must change the audience segment, pain point, objection, local/current context, evidence, lead-gen framing, risk/deadline, comparison, or practical recommendation enough that the human would not experience it as the same idea again.
+- If a topic was used before but is still selected with a new angle, record the prior idea/date, today's new angle, and why the re-angle is justified.
+- If at least 3 new or newly angled candidate ideas cannot be found, continue public keyword rotation before selecting; if the minimum still cannot be met, report the limitation instead of padding the matrix.
+
 The agent must explain why the chosen idea won.
 
 If the chosen idea comes from a related industry or adjacent signal reasoning, the explanation must include:
@@ -1673,6 +1699,8 @@ The agent must not create a WideCast video until the human explicitly approves.
 
 Before creating videos, sending notifications, uploading reports, publishing, retrieving analytics, or spending credits through WideCast, the agent must use the current client's provider config and OpenAPI discovery path.
 
+The current AI session's WideCast MCP/native tool account is not authoritative for a client. Do not use a global MCP account's visible credits, platforms, Telegram status, analytics, or publish settings to claim this client's PDNA is connected. First read the current client's `integrations/providers/provider_config.local.json`, verify the account through the client's configured OpenAPI/API-key path, and log `global_mcp_not_client_scoped` if a visible MCP/native account cannot be proven to match the client provider identity.
+
 If WideCast is not configured for the client, the agent must:
 
 1. Read or create `daily-content-pipeline/provider_defaults.json` with WideCast as the default OpenAPI provider: `https://widecast.ai/openapi.yaml`.
@@ -1683,7 +1711,7 @@ If WideCast is not configured for the client, the agent must:
 6. Fetch/cache `https://widecast.ai/openapi.yaml` and discover operation IDs.
 7. Verify account identity with `getAccount`.
 8. Save provider capability status and trigger Automation Resync when a schedule exists.
-9. Use MCP URL setup only as optional compatibility when the human or AI host explicitly chooses connector-based setup.
+9. Use MCP URL setup only as optional compatibility when the human or AI host explicitly chooses connector-based setup, and only after keeping the client-scoped provider identity in the client folder.
 
 The agent must never ask for:
 

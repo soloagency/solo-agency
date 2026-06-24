@@ -28,6 +28,7 @@ The current multi-client model supersedes older one-extension wording:
 
 - A normal machine should have one active shared Local Collector app/bridge for the current agency root.
 - Each client may have its own Chrome profile/account and must have its own unpacked extension folder under `extensions/{client_slug}/`.
+- Recommend one separate Chrome profile per client. That profile should have the matching client extension installed and should be logged in to the social accounts/private data sources that the human is already authorized to view for that client.
 - The Chrome extension display name must begin with the client name: `{Client Name} - Solo Agency Collector`.
 - The human-facing `Load unpacked` folder for a client is the absolute path to `extensions/{client_slug}/`, not `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
 - The shared bridge routes jobs by `client_slug`, binds each active job to the claiming `extension_instance_id` when present, can run different client identities in parallel, serializes only jobs for the same client/profile, and writes output only under `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/{run_id}/`.
@@ -44,6 +45,8 @@ Click Load unpacked.
 Select:
 {ABSOLUTE_AGENCY_ROOT}/extensions/{client_slug}/
 ```
+
+Every Add Client or First Client Setup handoff must include this block with the real absolute path. The agent must not merely say that the extension was created. The human needs the path and steps because a new unpacked extension must be loaded into the matching client Chrome profile/account before private data source collection can work for that client.
 
 The agent must prepare `extensions/{client_slug}/manifest.json` with:
 
@@ -68,7 +71,9 @@ Do not summarize away requirements, examples, checklists, schemas, protocols, UR
 
 ## Latest Delta Override: Discovery Mode Versus Daily Monitoring
 
-Source Discovery Mode must scroll deeply until no new source names or URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+Source Discovery Mode normally scrolls deeply until no new source names or URLs appear for 3 consecutive scrolls, with a hard safety cap such as 80 scrolls.
+
+Facebook keyword group search discovery is a bounded Source Discovery Mode variant: for `https://www.facebook.com/search/groups/?q={url_encoded_keyword}`, use 10 scrolls per keyword by default, with `purpose: "facebook_group_keyword_search_discovery"`. This search-results pass is for collecting candidate groups, filtering UI noise, and asking the human to approve sources. It must not join groups, request access, or add groups as active sources without approval.
 
 Daily Content Monitoring Mode keeps the conservative default: 5 scrolls, max 10, 5 seconds between scrolls, and about 20 private data sources or fewer per client.
 
@@ -117,7 +122,7 @@ This is source discovery, not daily monitoring. I will scroll the actual list/pa
 
 Do not let the human think "scan groups" is unbounded or vague.
 
-When the human has no private data source list, discovery is a first-class Local Collector job type. The job should use approved discovery surfaces such as joined Facebook groups, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, communities, and feeds. It must return candidate sources with enough context for the agent to filter and ask for human approval before saving anything as active.
+When the human has no private data source list, discovery is a first-class Local Collector job type. The job should use approved discovery surfaces such as joined Facebook groups, Facebook keyword group search, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, communities, and feeds. It must return candidate sources with enough context for the agent to filter and ask for human approval before saving anything as active.
 
 ---
 
@@ -315,6 +320,8 @@ The agent must create or update the local setup files, then hand the human exact
    - macOS/Linux: `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
    - Windows: one prepared PowerShell command or one double-clickable `Start Local Collector.cmd` path.
 2. Install the client-specific Solo Agency Local Collector Chrome extension in the matching Chrome profile/account:
+   - use a separate Chrome profile for this client when possible;
+   - make sure this profile is already logged in to the approved private data sources and the human has member/follower/subscriber/access rights for them;
    - open `chrome://extensions`;
    - enable Developer mode;
    - click `Load unpacked`;
@@ -339,7 +346,7 @@ Chrome extension installation flow:
 ```md
 Please install the Solo Agency Local Collector extension for {Client Name}:
 
-1. Open the Chrome profile/account for {Client Name}.
+1. Open the Chrome profile/account for {Client Name}. A separate Chrome profile per client is recommended.
 2. Go to `chrome://extensions`.
 3. Turn on `Developer mode`.
 4. Click `Load unpacked`.
@@ -348,7 +355,7 @@ Please install the Solo Agency Local Collector extension for {Client Name}:
 
 Important: if you also see a folder named `solo-agency/solo-agency-collector/chrome-extension`, do not select that one. That is the toolkit/source copy. Select only the client folder under `extensions/{client_slug}/`.
 
-After this one-time setup, you may close this instruction tab whenever you want. For private data source collection to work at scheduled times, that Chrome profile should be open and logged in to the private data sources approved for this client, and the shared Local Collector app should be running or configured to auto-start.
+After this one-time setup, you may close this instruction tab whenever you want. For private data source collection to work at scheduled times, that Chrome profile should be open, logged in to the social accounts/private data sources approved for this client, and already have member/follower/subscriber/access rights for those sources. The shared Local Collector app should be running or configured to auto-start.
 ```
 
 3. The agent must not ask for passwords, cookies, OTPs, or credentials.
@@ -1273,12 +1280,16 @@ Every new private data source candidate must include:
 
 - `source_name`
 - `platform`
-- `source_type`: `joined_group`, `subreddit`, `community`, `followed_profile`, `followed_page`, `subscribed_channel`, `followed_company`, `recommendation_feed_author`, `recommendation_feed_topic`, or `other`
+- `source_type`: `joined_group`, `facebook_group_search_result`, `subreddit`, `community`, `followed_profile`, `followed_page`, `subscribed_channel`, `followed_company`, `recommendation_feed_author`, `recommendation_feed_topic`, or `other`
 - `profile_or_group_url`
 - `current_recommendation_url`
 - `detected_while_scanning`
-- `discovery_category`: `membership_sources`, `following_sources`, or `recommendation_feed_sources`
+- `discovery_category`: `membership_sources`, `following_sources`, `recommendation_feed_sources`, or `keyword_search_sources`
 - `discovery_url`
+- `search_keyword` when discovered through keyword search
+- `search_url` when discovered through keyword search
+- `result_rank` when visible or inferable from order
+- `membership_status`: `unknown`, `joined`, `not_joined`, `public_visible`, `requires_join`, or `unavailable`
 - `why_relevant`
 - `matched_pain_points`
 - `related_content_pillar`
@@ -1457,6 +1468,7 @@ Exact manual run-now contract:
 - `sources` must contain the private data sources for that client if private data sources exist. If there are no private data sources, the agent should still run public research without the Local Collector app.
 - `pacing.scroll_steps` defaults to 5 and must not exceed 10 for daily monitoring.
 - For Source Discovery Mode only, `pacing.scroll_steps` may be up to 80. Mark the job/source with a discovery indicator, such as `job_type: "private_data_source_discovery"`, `purpose: "source_discovery"`, or a discovery URL like `https://www.facebook.com/groups/joins/...`, so the bridge and extension do not clamp the run to the daily monitoring limit.
+- For Facebook keyword group search discovery, use `purpose: "facebook_group_keyword_search_discovery"`, `discovery_category: "keyword_search_sources"`, and `pacing.scroll_steps: 10` per keyword URL.
 - If the agent cannot make this POST itself but can write local files, it should write the JSON payload as one unique file under:
 
 ```text

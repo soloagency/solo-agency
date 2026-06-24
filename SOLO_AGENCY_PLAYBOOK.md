@@ -20,10 +20,10 @@ Only after those two files are loaded may the agent ask the first setup question
 Ask only:
 
 ```text
-What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location.
+What product/service, profession, expertise, business description, or public website/profile URL should this pipeline focus on? If location matters, include the target location.
 ```
 
-Do not ask for industry, sub-industry, target audience, pain points, content pillars, idea categories, public data sources, or private data sources in the first question. Infer what can be inferred first. Step 5 may ask only a lightweight preference question about whether to include private data sources later. Step 7A is where the agent asks for actual private data source URLs/lists, offers discovery, gets approval, and handles Local Collector activation if needed.
+Do not ask for industry, sub-industry, target audience, pain points, content pillars, idea categories, public data sources, or private data sources in the first question. A public website/profile URL is acceptable as first setup input; the agent may read it for setup context when web access is available, but this is not an operational public data source scan or report run. Infer what can be inferred first. Step 5 may ask only a lightweight preference question about whether to include private data sources later. Step 7A is where the agent asks for actual private data source URLs/lists, offers discovery, gets approval, and handles Local Collector activation if needed.
 
 ## Plain-Language Human Communication Rule
 
@@ -65,6 +65,12 @@ research -> evidence -> ideas -> leads -> competitor intelligence -> selected re
 ```
 
 The human should not manage the workflow manually. The human should spend only a few minutes approving, correcting, or blocking actions that require judgment or authorization.
+
+## Required Runtime
+
+Solo Agency is an agent-operated automation workflow, not a plain web-chat prompt.
+
+The agent must tell the human to run Solo Agency in Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or a comparable desktop/local AI agent environment that can read/write workspace files, maintain scheduled automation, coordinate multiple parallel/sub-agent work streams, and hand off Local Collector setup. A normal web chat may be useful for review, but it must not be presented as the primary runtime because it cannot reliably host the automation, file state, private data source collection handoff, and multi-agent work Solo Agency requires.
 
 ## Latest Architecture Override: Setup Flow And Automation Flow
 
@@ -155,6 +161,10 @@ Use one shared Local Collector app/bridge per machine, but use one client-specif
 
 Each extension must carry a `client_binding.json` with `client_slug`, `client_name`, `extension_instance_id`, and `extension_display_name`. The bridge routes private data source jobs by `client_slug + extension_instance_id` and writes output only under that client's collector inbox folder.
 
+When discussing private data sources, the agent must tell the human that each client should ideally use a separate Chrome profile with that client's extension installed, and that the profile must already be logged in and authorized to view the approved groups, feeds, profiles, pages, channels, communities, or dashboards. The agent must not ask for credentials, join groups, request access, or bypass permissions.
+
+When adding any new client, the agent must create or verify that client's dedicated extension folder under `extensions/{client_slug}/` and include the install handoff in the same setup completion message: the exact absolute extension path, the Chrome profile/account to use, and the `chrome://extensions` -> Developer mode -> `Load unpacked` steps. Do not merely say the extension was created.
+
 ### Automation Task Naming Rule
 
 Every client-specific automation or scheduled task name must begin with the client name because task lists often truncate the end of long names:
@@ -216,7 +226,7 @@ Load only the stage needed for the current action, plus any dependency named by 
 | 0 | `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` | Always load first. Defines mission, reasoning rules, audience, sources, idea matrix, best-idea selection, lead/competitor logic, language rules, and non-negotiables. |
 | 1 | `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md` | Load during first setup, client setup, setup repair, and Automation Flow first agency run/report. In Setup Flow, its report instructions are superseded by the setup hard stop. |
 | Private Data Source Gate | `playbooks/PRIVATE_SOURCE_GATE.md` | Load immediately when any private data source scan, group scan, joined-groups review, social/community data source, or feed/profile requiring account context is mentioned, even if the conversation drifted through unrelated topics. |
-| 2 | `playbooks/02_PRIVATE_SOURCE_SETUP.md` | Load when private data sources, manual private data source input, Facebook joined groups, private data source discovery, or Local Collector activation are mentioned or pending. |
+| 2 | `playbooks/02_PRIVATE_SOURCE_SETUP.md` | Load when private data sources, manual private data source input, Facebook joined groups, Facebook keyword group search, private data source discovery, or Local Collector activation are mentioned or pending. |
 | 3 | `playbooks/03_PRODUCTION_DISTRIBUTION.md` | Load only when writing drafts, creating video/blog/social assets, setting up a production provider, rendering/exporting, publishing, notifications, or approval gates are relevant. |
 | 4 | `playbooks/04_DAILY_SCHEDULE.md` | Load during routine setup after the profile/source plan is known, and during scheduled/manual run execution. |
 | 5 | `playbooks/05_MEASURE_LEARN_IMPROVE.md` | Load once any content has been published, and during yesterday/7-day analytics review. |
@@ -239,9 +249,9 @@ The setup flow is fixed and must stay aligned with the 10-item `Solo Agency one-
 4. Select public data sources and build a public search keyword bank. The keyword bank must include broad industry keywords, but it must be driven primarily by the target audience's pain points, problems, objections, questions, needs, buying triggers, and local context. The public data source list is not fixed: after each run, useful recurring public data sources discovered through search or reading must be saved/promoted so future scheduled runs can visit them automatically.
 5. Ask one lightweight private data source preference question: whether the human wants Solo Agency to include private data sources later. Do not ask for URLs, group lists, account lists, discovery details, or Local Collector setup at this point. Valid outcomes are `private_sources_requested`, `private_sources_declined`, `private_sources_postponed`, or `private_sources_unsure`.
 6. Configure the recurring schedule/routine once the basic public source plan and private data source preference are known. If private data sources were requested but are not active, configure the schedule as public data sources only for now and keep private data sources as `pending_private_activation`.
-7A. Resolve or record the private data source checkpoint before claiming the client automation task is ready. If private data sources were requested, the human is unsure, private data sources already exist, or private data source discovery is needed, load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9. Ask for manual private data sources or offer one optional discovery pass from approved joined/followed/member spaces, get human approval before adding sources, and guide Local Collector setup if the human wants the automation task to include those sources. If the human wants to move faster, configure the first automation run to use public data sources only until private data sources are activated.
+7A. Resolve or record the private data source checkpoint before claiming the client automation task is ready. If private data sources were requested, the human is unsure, private data sources already exist, or private data source discovery is needed, load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9. Ask for manual private data sources or offer one optional discovery pass from approved joined/followed/member spaces or Facebook keyword group search, get human approval before adding sources, and guide Local Collector setup if the human wants the automation task to include those sources. If the human wants to move faster, configure the first automation run to use public data sources only until private data sources are activated.
 7B. Create or verify the client-specific automation task that will run the first report. The task name must begin with the client name, for example `AvenNgo - Solo Agency First Run` or `AvenNgo - Solo Agency Daily Run`. Do not run the first report inside Setup Flow.
-8. After the automation task is configured, ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - as provider configuration. Do not create video/blog/social assets, render, publish, or spend credits inside Setup Flow.
+8. After the automation task is configured, ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - as client-scoped provider configuration. Do not treat a global MCP/native provider account as this client's PDNA connection. Do not create video/blog/social assets, render, publish, or spend credits inside Setup Flow.
 9. If published URL history exists, record that future Automation Flow should load Stage 5 and scan analytics/signals; if no published URL history exists, mark analytics as not available yet. Do not scan analytics inside Setup Flow.
 10. End Setup Flow only after setup/configuration state is current and the human has the exact client-specific automation task name to run for the first report. Do not update reports, idea matrices, best ideas, leads, competitors, drafts, or the learning loop inside Setup Flow; those belong to Automation Flow.
 
@@ -296,13 +306,13 @@ Use this wording:
 Solo Agency one-time setup process
 This is the planned setup process I am working through. You only need to reply when I ask one specific question.
 
-→ 1. You provide the product/service, profession, expertise, or business description
+→ 1. You provide the product/service, profession, expertise, business description, or public website/profile URL
 ○ 2. I infer the industry, sub-industry, related industries, audience, and offer
 ○ 3. I infer pain points (customer problems) and content pillars (main repeatable content themes)
 ○ 4. I find/select public data sources (websites, search, news, public forums, and public pages that do not require your account) and search keywords
 ○ 5. You choose whether to include private data sources later (logged-in social groups, profiles, pages, channels, or communities). No links or install are needed at this step.
 ○ 6. I configure the automatic schedule/routine
-○ 7A. If you chose private data sources, I help you provide/approve sources or discover candidates from approved joined/followed/member spaces, then guide Local Collector setup so the first run can include those sources; if you want to move faster, I keep private data sources pending
+○ 7A. If you chose private data sources, I help you provide/approve sources or discover candidates from approved joined/followed/member spaces or Facebook keyword group search, then guide Local Collector setup so the first run can include those sources; if you want to move faster, I keep private data sources pending
 ○ 7B. I create or verify the client-specific automation task that will run the first report in Automation Flow; I do not run the report inside this setup chat
 ○ 8. I help set up PDNA provider configuration only: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
 ○ 9. In Automation Flow, from the second run onward, if PDNA is set up, the task scans analytics for published URLs from the last 7 days
@@ -321,7 +331,7 @@ Progress roadmap integrity rule:
 - Step 7A is the private data source intake, discovery, approval, and activation checkpoint. If private data sources were requested, the human is unsure, sources were provided/approved, or Local Collector is not installed/running/healthy, 7A becomes the next required question after step 6. The agent must either collect/triage/approve sources and guide Local Collector setup, or mark private data sources as pending so the client-specific automation task can run public data sources only until activation is complete.
 - Step 7A may be marked `–` only when no private data sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public data sources only first run. The reason must be shown in plain language.
 - Step 7B is the automation handoff, not the report itself. It must verify or create the client-specific automation task, state whether that task will use public data sources only or public plus activated private data sources, and give the exact task name the human should run for the first report. The agent must not generate the report, idea matrix, drafts, or video inside Setup Flow. After step 7B, the next setup question is step 8.
-- Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
+- Step 8 is client-scoped provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider for the current client, verify the account through that client's provider config/OpenAPI credential, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
 - Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `–` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
 - Step 10 is shown in the setup roadmap only to explain what Automation Flow will do later. It is not executed in Setup Flow. On the first automation run it uses report/draft content and data from activated private data sources; from the second automation run onward it can also include analytics/statistics from step 9.
 
@@ -459,7 +469,7 @@ The agent may omit the next-step question only when the entire requested workflo
 
 - Preserve every requirement in the loaded playbooks.
 - Ask only for information that cannot be inferred, researched, discovered, or read from local files.
-- Ask the first setup question only for product/service, profession, expertise, or business description.
+- Ask the first setup question only for product/service, profession, expertise, business description, or a public website/profile URL.
 - Do not ask the human to define industry or sub-industry.
 - Show inference before asking the next question.
 - Configure schedule/routine and the client-specific automation task before the first report; if private data sources exist and Local Collector is not active, handle step 7A or mark private data sources as pending before declaring automation ready.
