@@ -24,6 +24,7 @@ const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 80;
 
 const inMemoryActiveRuns = new Set();
+let clientBindingCache = null;
 
 chrome.runtime.onInstalled.addListener(async () => {
   const settings = await getSettings();
@@ -65,7 +66,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const bridgeConfigSaved = await syncSettingsToBridge(next);
       await setState({
         status: "settings_saved",
-        message: bridgeConfigSaved ? "Settings saved locally and to bridge." : "Settings saved locally. Bridge is offline.",
+        message: bridgeConfigSaved === true
+          ? "Settings saved locally and to bridge."
+          : bridgeConfigSaved === "skipped"
+            ? "Settings saved locally. Shared agency config is managed by the agent and bridge."
+            : "Settings saved locally. Bridge config was not updated.",
         bridgeConfigSaved
       });
       const pollResult = await pollBridge("settings_saved");
@@ -116,6 +121,7 @@ function scheduleShortPoll(settings) {
 
 async function pollBridge(reason) {
   const settings = await getSettings();
+  const binding = await getClientBinding();
   if (!settings.enabled) {
     await setState({ status: "disabled", message: "Collector disabled.", reason });
     return { status: "disabled" };
@@ -126,10 +132,7 @@ async function pollBridge(reason) {
   try {
     status = await fetchJSON(`${bridgeBaseUrl}/status`, {
       method: "GET",
-      headers: {
-        "X-Collector-Extension": "media-agency-local-collector",
-        "X-Collector-Extension-Version": EXTENSION_BUILD
-      }
+      headers: collectorHeaders(binding)
     }, 6000);
   } catch (error) {
     await setState({
@@ -155,7 +158,22 @@ async function pollBridge(reason) {
     return { status: "idle" };
   }
 
-  const job = await fetchJSON(`${bridgeBaseUrl}/jobs/current`, { method: "GET" }, 8000);
+  const job = await fetchJSON(`${bridgeBaseUrl}/jobs/current`, {
+    method: "GET",
+    headers: collectorHeaders(binding)
+  }, 8000);
+  if (!jobMatchesBinding(job, binding)) {
+    await setState({
+      status: "job_for_other_client",
+      message: "Bridge returned a job for a different client or extension.",
+      runId: job && job.run_id ? String(job.run_id) : "",
+      bridgeStatus: status,
+      lastBridgeContactAt: bridgeContactAt,
+      reason,
+      updatedAt: new Date().toISOString()
+    });
+    return { status: "job_for_other_client" };
+  }
   const session = job.collector_bridge || {};
   const runId = String(job.run_id || session.run_id || status.run_id || "");
   if (!runId) {
@@ -201,7 +219,7 @@ async function pollBridge(reason) {
   }
 
   try {
-    await runJob({ job, token, bridgeBaseUrl, settings, reason });
+    await runJob({ job, token, bridgeBaseUrl, settings, binding, reason });
     completedRuns[runId] = new Date().toISOString();
     await chrome.storage.local.set({ [COMPLETED_RUNS_KEY]: trimCompletedRuns(completedRuns) });
     return { status: "completed", runId };
@@ -210,7 +228,7 @@ async function pollBridge(reason) {
   }
 }
 
-async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
+async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) {
   const runId = String(job.run_id || job.collector_bridge?.run_id || "");
   const sources = normalizeSources(job.sources || []);
   const pacing = job.pacing || {};
@@ -251,6 +269,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
     const sourceLabel = source.name || source.url || `source ${index + 1}`;
     await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
       run_id: runId,
+      client_slug: job.client_slug || binding.client_slug || "",
       source_name: source.name || "",
       source_url: source.url || "",
       platform: source.platform || "",
@@ -260,7 +279,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
       source_concurrency: sourceConcurrency,
       captured_at: new Date().toISOString(),
       collector_identity: "chrome-extension-local-collector"
-    });
+    }, binding);
 
     await setState({
       status: "running",
@@ -279,13 +298,13 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
     await delay(randomDelayMs(settings, pacing));
 
     try {
-      const collected = await collectSource(source, job, settings, index + 1);
-      await postToBridge(bridgeBaseUrl, token, "/collect/data_point", collected.dataPoint);
+      const collected = await collectSource(source, job, settings, binding, index + 1);
+      await postToBridge(bridgeBaseUrl, token, "/collect/data_point", collected.dataPoint, binding);
       counts.dataPoints += 1;
       if (isCompetitorSource(source)) {
         await postToBridge(bridgeBaseUrl, token, "/collect/competitor", {
           run_id: runId,
-          client_slug: job.client_slug || "",
+          client_slug: job.client_slug || binding.client_slug || "",
           source_name: source.name || "",
           platform: source.platform || "",
           competitor_type: source.competitor_type || "unknown",
@@ -302,16 +321,17 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
           opportunity: "AI agent should review this competitor source and derive positioning opportunities.",
           captured_at: new Date().toISOString(),
           collector_identity: "chrome-extension-local-collector"
-        });
+        }, binding);
         counts.competitors += 1;
       }
       for (const candidate of collected.newPrivateSources || []) {
-        await postToBridge(bridgeBaseUrl, token, "/collect/new_private_source", candidate);
+        await postToBridge(bridgeBaseUrl, token, "/collect/new_private_source", candidate, binding);
         counts.newPrivateSources += 1;
       }
-      await postToBridge(bridgeBaseUrl, token, "/collect/snapshot", collected.snapshot);
+      await postToBridge(bridgeBaseUrl, token, "/collect/snapshot", collected.snapshot, binding);
       await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
         run_id: runId,
+        client_slug: job.client_slug || binding.client_slug || "",
         source_name: source.name || "",
         source_url: source.url || "",
         platform: source.platform || "",
@@ -324,7 +344,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
         profile_url: collected.dataPoint.profile_url || "",
         captured_at: new Date().toISOString(),
         collector_identity: "chrome-extension-local-collector"
-      });
+      }, binding);
       await setState({
         status: "running",
         message: `Collected ${index + 1}/${selectedSources.length}: ${sourceLabel}`,
@@ -341,6 +361,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
     } catch (error) {
       await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
         run_id: runId,
+        client_slug: job.client_slug || binding.client_slug || "",
         source_name: source.name || "",
         source_url: source.url || "",
         platform: source.platform || "",
@@ -351,7 +372,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
         source_concurrency: sourceConcurrency,
         captured_at: new Date().toISOString(),
         collector_identity: "chrome-extension-local-collector"
-      });
+      }, binding);
     }
   }
 
@@ -369,10 +390,11 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
 
   await postToBridge(bridgeBaseUrl, token, "/complete", {
     run_id: runId,
+    client_slug: job.client_slug || binding.client_slug || "",
     status: "completed",
     completed_at: new Date().toISOString(),
     collector_identity: "chrome-extension-local-collector"
-  });
+  }, binding);
 
   await setState({
     status: "completed",
@@ -386,7 +408,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, reason }) {
   });
 }
 
-async function collectSource(source, job, settings, sourceIndex) {
+async function collectSource(source, job, settings, binding, sourceIndex) {
   if (!source.url || !/^https?:\/\//i.test(source.url)) {
     throw new Error("source url must start with http:// or https://");
   }
@@ -448,10 +470,12 @@ async function collectSource(source, job, settings, sourceIndex) {
 
     return {
       dataPoint: {
-        client_slug: job.client_slug || "",
+        client_slug: job.client_slug || binding.client_slug || "",
         business_slug: job.business_slug || "",
         location_slug: job.location_slug || "",
         run_id: runId,
+        extension_instance_id: binding.extension_instance_id || "",
+        extension_display_name: binding.extension_display_name || "",
         source_name: source.name || "",
         source_url: source.url || "",
         source_type: source.source_type || source.type || "private",
@@ -486,7 +510,9 @@ async function collectSource(source, job, settings, sourceIndex) {
         .slice(0, 20)
         .map((it) => ({
           run_id: runId,
-          client_slug: job.client_slug || "",
+          client_slug: job.client_slug || binding.client_slug || "",
+          extension_instance_id: binding.extension_instance_id || "",
+          extension_display_name: binding.extension_display_name || "",
           platform: source.platform || inferPlatform(source.url),
           source_type: String(it.type || "group"),
           source_name: it.name || it.url || "",
@@ -503,6 +529,9 @@ async function collectSource(source, job, settings, sourceIndex) {
         })),
       snapshot: {
         run_id: runId,
+        client_slug: job.client_slug || binding.client_slug || "",
+        extension_instance_id: binding.extension_instance_id || "",
+        extension_display_name: binding.extension_display_name || "",
         filename: snapshotFilename,
         source_name: source.name || "",
         source_url: source.url || "",
@@ -536,64 +565,23 @@ async function fetchJSON(url, options, timeoutMs) {
   }
 }
 
-async function postToBridge(baseUrl, token, path, payload) {
+async function postToBridge(baseUrl, token, path, payload, binding) {
+  const body = { ...(payload || {}) };
+  if (binding && binding.client_slug && !body.client_slug) body.client_slug = binding.client_slug;
+  if (binding && binding.extension_instance_id && !body.extension_instance_id) body.extension_instance_id = binding.extension_instance_id;
+  if (binding && binding.extension_display_name && !body.extension_display_name) body.extension_display_name = binding.extension_display_name;
   return fetchJSON(`${trimSlash(baseUrl)}${path}`, {
     method: "POST",
-    headers: {
+    headers: collectorHeaders(binding, {
       "Content-Type": "application/json",
-      "X-Collector-Token": token,
-      "X-Collector-Extension-Version": EXTENSION_BUILD
-    },
-    body: JSON.stringify(payload || {})
+      "X-Collector-Token": token
+    }),
+    body: JSON.stringify(body)
   }, 12000);
 }
 
 async function syncSettingsToBridge(settings) {
-  const baseUrl = trimSlash(settings.bridgeBaseUrl || DEFAULT_SETTINGS.bridgeBaseUrl);
-  try {
-    let current = {};
-    try {
-      current = await fetchJSON(`${baseUrl}/config`, { method: "GET" }, 4000);
-    } catch (error) {
-      current = {};
-    }
-    const nextConfig = {
-      ...current,
-      version: current.version || "0.1.0",
-      timezone: current.timezone || "local",
-      run_mode: "persistent_bridge_scheduler",
-      default_runs_per_day: current.default_runs_per_day || 1,
-      poll_interval_seconds: clampNumber(settings.pollSeconds, 5, 60, 5),
-      max_sources_per_run: clampNumber(settings.maxSourcesPerRun, 1, 20, 20),
-      source_concurrency: clampNumber(settings.sourceConcurrency, 1, 3, 1),
-      max_scrolls_per_source: clampNumber(settings.scrollSteps, 0, 10, 5),
-      max_scrolls_allowed: 10,
-      discovery_scroll_steps: current.discovery_scroll_steps || 80,
-      max_discovery_scrolls_allowed: current.max_discovery_scrolls_allowed || 80,
-      scroll_delay_seconds: clampNumber(settings.minDelaySeconds, 5, 60, 5),
-      duplicate_filter: current.duplicate_filter || {
-        compare_against_previous_day: true,
-        method: "visible_text_matching",
-        parse_html: false
-      },
-      scheduled_windows: current.scheduled_windows || [{
-        name: "daily_default",
-        enabled: true,
-        local_time_start: "09:00",
-        local_time_end: "09:30",
-        days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-      }],
-      clients: current.clients || []
-    };
-    await fetchJSON(`${baseUrl}/config`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(nextConfig)
-    }, 4000);
-    return true;
-  } catch (error) {
-    return false;
-  }
+  return "skipped";
 }
 
 function createTab(createProperties) {
@@ -1129,9 +1117,69 @@ function normalizeSettings(input) {
   return next;
 }
 
+function normalizeClientBinding(input) {
+  const raw = input && typeof input === "object" ? input : {};
+  return {
+    client_slug: String(raw.client_slug || "").trim(),
+    client_name: String(raw.client_name || "").trim(),
+    extension_instance_id: String(raw.extension_instance_id || "").trim(),
+    extension_display_name: String(raw.extension_display_name || raw.client_name || "").trim(),
+    bridge_base_url: raw.bridge_base_url ? trimSlash(String(raw.bridge_base_url)) : ""
+  };
+}
+
+async function getClientBinding() {
+  if (clientBindingCache) return clientBindingCache;
+  try {
+    const response = await fetch(chrome.runtime.getURL("client_binding.json"), { cache: "no-store" });
+    if (response.ok) {
+      clientBindingCache = normalizeClientBinding(await response.json());
+      return clientBindingCache;
+    }
+  } catch (error) {
+    // Legacy single-client installs may not have a binding file yet.
+  }
+  clientBindingCache = normalizeClientBinding({});
+  return clientBindingCache;
+}
+
+function collectorHeaders(binding, extra) {
+  const headers = {
+    "X-Collector-Extension": "media-agency-local-collector",
+    "X-Collector-Extension-Version": EXTENSION_BUILD,
+    ...(extra || {})
+  };
+  if (binding && binding.client_slug) headers["X-Collector-Client-Slug"] = binding.client_slug;
+  if (binding && binding.extension_instance_id) headers["X-Collector-Extension-Instance"] = binding.extension_instance_id;
+  if (binding && binding.extension_display_name) headers["X-Collector-Extension-Name"] = binding.extension_display_name;
+  return headers;
+}
+
+function jobMatchesBinding(job, binding) {
+  if (!job || !binding) return true;
+  const jobClient = String(job.client_slug || "").trim();
+  if (jobClient && binding.client_slug && jobClient !== binding.client_slug) return false;
+  if (jobClient && !binding.client_slug) return false;
+  const jobExtension = String(job.extension_instance_id || "").trim();
+  if (jobExtension && binding.extension_instance_id && jobExtension !== binding.extension_instance_id) return false;
+  if (jobExtension && !binding.extension_instance_id) return false;
+  const allowed = Array.isArray(job.allowed_extension_instance_ids)
+    ? job.allowed_extension_instance_ids.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  if (allowed.length > 0) {
+    return Boolean(binding.extension_instance_id && allowed.includes(binding.extension_instance_id));
+  }
+  return true;
+}
+
 async function getSettings() {
   const data = await chrome.storage.local.get(SETTINGS_KEY);
-  return normalizeSettings(data[SETTINGS_KEY] || DEFAULT_SETTINGS);
+  const binding = await getClientBinding();
+  const settings = normalizeSettings(data[SETTINGS_KEY] || DEFAULT_SETTINGS);
+  if (binding.bridge_base_url && (!data[SETTINGS_KEY] || !data[SETTINGS_KEY].bridgeBaseUrl)) {
+    settings.bridgeBaseUrl = binding.bridge_base_url;
+  }
+  return settings;
 }
 
 async function getState() {

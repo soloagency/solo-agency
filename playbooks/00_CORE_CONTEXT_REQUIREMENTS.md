@@ -26,6 +26,20 @@ Do not summarize away requirements, examples, checklists, schemas, protocols, UR
 
 ---
 
+## Latest Override: Control Plane Versus Operations Plane
+
+Solo Agency now separates setup/configuration from operational runs:
+
+- Setup Flow is the control plane. It creates and updates client setup, source state, collector/extension config, schedules, automation tasks, and resync logs. It must not run reports, scans, production, publishing, rendering, or outreach.
+- Automation Flow is the operations plane. It runs reports/scans/drafts from saved config and may also update config based on real findings, but must resync those changes for future runs.
+- The first report is not a setup-session deliverable. It must run through a client-specific automation task whose name begins with the client name.
+- Client-specific tasks must process only their pinned `target_client_slug`.
+- Use one shared Local Collector app/bridge, and one client-specific Chrome extension folder per client Chrome profile/account under `extensions/{client_slug}/`.
+
+This override wins over older references in this file to first agency runs or small-win reports during setup.
+
+---
+
 ## 0. Latest Delta Requirements And Modularization Plan
 
 This section records the latest requirements that must be treated as part of the source of truth before any future split into child playbooks.
@@ -135,10 +149,10 @@ This is the planned setup process I am working through. You only need to reply w
 ○ 5. You choose whether to include private data sources later (logged-in social groups, profiles, pages, channels, or communities). No links or install are needed at this step.
 ○ 6. I configure the automatic schedule/routine
 ○ 7A. If you chose private data sources, I help you provide/approve sources or discover candidates from approved joined/followed/member spaces, then guide Local Collector setup so the first run can include those sources; if you want to move faster, I keep private data sources pending
-○ 7B. I run the first agency run: scan public data sources and activated private data sources, or public data sources only if 7A is postponed, then create the HTML report, idea matrix, Lead & Competitor Opportunities with post links and suggested comments, and the first script/blog/caption draft
-○ 8. I help set up PDNA: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
-○ 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
-○ 10. I update the report, idea matrix, best idea, Lead & Competitor Opportunities, drafts, analytics/statistics, and learning loop
+○ 7B. I create or verify the client-specific automation task that will run the first report in Automation Flow; I do not run the report inside this setup chat
+○ 8. I help set up PDNA provider configuration only: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
+○ 9. In Automation Flow, from the second run onward, if PDNA is set up, the task scans analytics for published URLs from the last 7 days
+○ 10. In Automation Flow, the task updates the report, idea matrix, best idea, Lead & Competitor Opportunities, drafts, analytics/statistics, and learning loop
 ```
 
 Progress roadmap integrity rule:
@@ -150,7 +164,7 @@ Progress roadmap integrity rule:
 - Do not ask private data source discovery as a separate roadmap item or gate. If the human wants private data sources or is unsure, offer one optional private data source discovery pass in plain language during step 7A, not during step 5.
 - A declined or postponed discovery pass is valid, but the agent must record the status and explain that public-only runs may miss many lead/competitor/community signals.
 - Step 6 is the one-time schedule/routine setup. It should happen before the first full agency run so future automation is already defined.
-- Step 7A is the private data source intake, discovery, approval, and activation checkpoint. If private data sources were requested, the human is unsure, sources were provided/approved, or Local Collector is not installed/running/healthy, 7A becomes the next required question after step 6. The agent must either collect/triage/approve sources and guide Local Collector setup, or ask whether the human wants to run public data sources only first while keeping private data sources pending.
+- Step 7A is the private data source intake, discovery, approval, and activation checkpoint. If private data sources were requested, the human is unsure, sources were provided/approved, or Local Collector is not installed/running/healthy, 7A becomes the next required question after step 6. The agent must either collect/triage/approve sources and guide Local Collector setup, or mark private data sources as pending so the client-specific automation task can run public data sources only until activation is complete.
 - Step 7A may be marked `–` only when no private data sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public data sources only first run. The reason must be shown in plain language.
 - Step 7B is the small win: report plus useful drafts. It must state whether the run will use data from public data sources only or public plus activated private data sources. After step 7B, the agent must not ask `make a video now?` or start video editing. The next setup question is step 8.
 - Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
@@ -231,7 +245,7 @@ Do not end with a passive summary, a report link, or a vague statement such as "
 Good final lines:
 
 ```text
-You provided private data sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so the first run can include private data sources, or run public data sources only first and keep private data sources pending?
+You provided private data sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so the client-specific automation task can include private data sources later, or mark private data sources pending so the task runs public data sources only until activation is complete?
 ```
 
 ```text
@@ -325,17 +339,17 @@ Private data source setup or enrichment is complete only when the agent:
 
 Collector success alone is not completion.
 
-### Stage Flow After First Agency Run
+### Stage Flow After Setup Readiness
 
-Stage 1 must take the client from basic profile to first agency run and small-win report/draft.
+Stage 1 must take the client from basic profile to `ready_for_automation_first_run`.
 
-After the first agency run small win, ask:
+After the first automation report small win, the Automation Flow agent may ask:
 
 - Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
 
-After the first run small win exists, if the human wants production, video/blog/social, publishing, notifications, analytics, or fully automatic operation, load the production/provider setup playbook and complete checklist step 8. Do not ask this before the first useful report and draft unless the human explicitly requests production first.
+After the first automation report small win exists, if the human wants production, video/blog/social, publishing, notifications, analytics, or fully automatic operation, load the production/provider setup playbook and complete checklist step 8. In Setup Flow, treat this as provider/configuration only unless the human has explicitly moved into Automation Flow.
 
-If the human wants private data sources before the first run, load the private data source playbook, complete Local Collector setup if needed, run approved discovery/scan, then include that data in the first agency run or mark it pending honestly.
+If the human wants private data sources before the first automation run, load the private data source playbook, complete Local Collector setup if needed, then update the client-specific automation task. Do not run an approved discovery/scan inside Setup Flow; the first Automation Flow run should include that data or mark it pending honestly.
 
 ### Published Content Measurement Requirement
 
@@ -417,17 +431,17 @@ The agent must follow these principles at all times:
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for private data source collection. Use only the Solo Agency Local Collector extension plus Local Collector app.
 - If an AI environment cannot browse private data sources reliably, cannot show a headed browser UI, cannot run downloaded executables, or requires per-run browser approvals, use the Solo Agency Local Collector extension plus the Local Collector app as the preferred private data collection layer instead of trying to bypass permission prompts.
 - During one-time Local Collector setup/update/repair, the AI agent must not run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if local shell permissions are available. Agent-run setup can happen inside a sandbox/session and be killed after the turn. The agent must prepare the files, then give the human the exact one-line Terminal/PowerShell command to run outside the AI sandbox.
-- Local Collector activation requires two human actions in the same setup handoff: run the Local Collector app setup/start command, then load the Solo Agency Local Collector Chrome extension from the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime folder. Do not mark private data source monitoring active until both are done and health checks pass.
+- Local Collector activation requires the human to run the shared Local Collector app setup/start command, then load the client-specific Solo Agency Local Collector extension from the absolute `extensions/{client_slug}/` folder in the matching client Chrome profile/account. Do not mark private data source monitoring active until the shared bridge and the matching client extension health checks pass.
 - When speaking to non-technical humans, do not say `bridge`, `localhost bridge`, `binary`, `daemon`, or `service worker` unless troubleshooting. Say `Solo Agency Local Collector extension` and `Local Collector app`. Explain the Local Collector app as: "a small app running on your own computer that receives data from Chrome and saves local files for the AI agent to read."
 - The collector is platform-neutral. Never call it `Facebook collector`, `Facebook Data Collector`, or `collector Facebook`, even when the private data sources supplied by the human are currently all Facebook groups/pages. Say `Solo Agency Local Collector extension` and explain that it can collect visible authorized data from configured logged-in web sources such as Facebook, LinkedIn, Reddit, X, Instagram, TikTok, forums, and other browser-accessible private data sources.
-- First agency run small-win rule: after setup context and routine are saved, the agent should resolve the 7A Local Collector checkpoint if private data sources exist. Then it may ask whether to run the first agency run immediately. This gives the human a useful report and draft before asking them to connect production/distribution/notification/analytics providers.
+- Setup completion rule: after setup context and routine are saved, the agent should resolve or record the 7A Local Collector checkpoint if private data sources exist, then create/verify the client-specific automation task. The first report must run in Automation Flow, not inside the setup chat.
 - If the human provided private data sources but Local Collector is not active, the first agency report must clearly say that private data source monitoring is not activated yet and requires the Solo Agency Local Collector extension plus Local Collector app.
 - Private data source activation gate: the agent must not claim private data source monitoring is active or run scheduled private collection until collector setup has either completed or been clearly documented as blocked in `collector_setup_status.md`.
 - Manual private data sources and optional private data source discovery are independent options. The human may provide private data source URLs, approve discovery from joined groups/subreddits/communities/followed profiles/feeds, do both, decline both, or postpone either option. If the human has no list, offer private data source discovery once before marking the private data source step resolved. Do not ask private data source discovery as a separate user-facing setup step.
-- Private data source completion gate: after any private scan, the agent must analyze the collected private data and regenerate the idea matrix, best idea, leads, competitors, drafts if needed, and human-facing HTML report. A private scan is not complete merely because the Local Collector successfully collected data.
-- The first agency run happens after the profile/source plan, schedule/routine, and 7A Local Collector checkpoint are ready or honestly marked pending or using public data sources only. Ask whether to run it immediately, then use run-now/manual-run behavior rather than waiting for the next scheduled window.
-- Ask about the recurring schedule before the first agency run, after the profile and source plan are known. If private data sources exist, do not promise scheduled private collection until Local Collector activation is complete or clearly pending/blocked.
-- After schedule/routine setup, if private data sources exist and Local Collector is pending, do not ask only `Do you want me to run the first agency run now?` Ask whether to activate Local Collector first so data from private data sources can be included, or run public data sources only first while keeping private data sources pending.
+- Private data source completion gate in Automation Flow: after any private scan, the automation task must analyze the collected private data and regenerate the idea matrix, best idea, leads, competitors, drafts if needed, and human-facing HTML report. A private scan is not complete merely because the Local Collector successfully collected data.
+- The first report happens after the profile/source plan, schedule/routine, and 7A Local Collector checkpoint are ready or honestly marked pending, and it must be launched through the client-specific automation task.
+- Ask about the recurring schedule during setup after the profile and source plan are known. If private data sources exist, do not promise scheduled private collection until the shared bridge and matching client extension are complete or clearly pending/blocked.
+- After schedule/routine setup, if private data sources exist and Local Collector is pending, do not ask to run a report in setup. Configure the automation task for public data sources only first, or guide activation so the task can include private data sources later.
 - For non-technical humans, never ask them to copy a long multi-line shell/PowerShell script. Create the script file locally first, then provide exactly one short command to run that file in their own Terminal/PowerShell outside the AI sandbox, or provide one double-clickable launcher path on Windows.
 - Do not tell the human to keep the setup/report/instruction browser tab open. After they run the required command or load the extension, they may close the tab. If a Terminal/PowerShell process is used before auto-start is configured, explain that the Local Collector app process may need to keep running until the first agency run finishes, but the browser tab itself is not required.
 - Never ask for credentials, passwords, OTPs, cookies, tokens, or raw login secrets.

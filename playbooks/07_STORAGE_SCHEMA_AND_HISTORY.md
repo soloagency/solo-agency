@@ -14,6 +14,88 @@ Load when creating folders, saving profiles, updating logs, reading history, avo
 - Track history to avoid duplicate ideas.
 - Keep analytics, comments, learning, lead, competitor, source, and published-content logs.
 
+## Latest Override: Shared Bridge, Per-Client Extension Folders
+
+The current canonical runtime/data layout is:
+
+```text
+{agency_root}/
+  solo-agency/                         # toolkit/source repo, no client data
+  solo-agency-local-collector/         # shared Local Collector app/bridge runtime only
+    downloads/
+    bin/
+    setup_collector.sh
+    collector.pid
+    collector.log
+  extensions/                          # per-client Chrome Load unpacked folders
+    {client_slug}/
+      manifest.json
+      background.js
+      popup.html
+      popup.js
+      client_binding.json
+  daily-content-pipeline/              # data/config/output only
+    clients_index.md
+    schedule.md
+    automation/
+      automation_manifest.md
+      scheduled_run_prompt.md
+      resync_log.md
+    collector/
+      collector_setup_status.md
+      collector_config.json
+      extension_registry.json
+      agent_registry.json
+      jobs/
+        pending/
+        claimed/
+        completed/
+        failed/
+      inbox/
+        YYYY-MM/
+          {client_slug}/
+            YYYY-MM-DD_{client_slug}_{run_id}/
+              collector_status.json
+              private_data_points.jsonl
+              leads.jsonl
+              competitors.jsonl
+              new_private_sources.jsonl
+              source_status.jsonl
+              snapshots/
+      logs/
+        bridge_events.jsonl
+        extension_health.jsonl
+        job_routing.jsonl
+        agent_handoff.jsonl
+    clients/
+      {client_slug}/
+        {business_slug}_{location_slug}/
+          client_profile_{client_slug}_{business_slug}_{location_slug}.md
+          ...
+```
+
+Older references to a single `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder are legacy. New setup must prepare one extension folder per client under `extensions/{client_slug}/`.
+
+Per-client extension naming:
+
+```text
+{Client Name} - Solo Agency Collector
+```
+
+The client name must appear first because Chrome and task lists may truncate long names at the end.
+
+Each `extensions/{client_slug}/client_binding.json` must include:
+
+```json
+{
+  "client_slug": "avenngo",
+  "client_name": "AvenNgo",
+  "extension_instance_id": "ext_avenngo_default",
+  "extension_display_name": "AvenNgo - Solo Agency Collector",
+  "bridge_base_url": "http://127.0.0.1:17321"
+}
+```
+
 ## Source Preservation Rule
 
 This file is detailed source material moved from the original monolithic `SOLO_AGENCY_PLAYBOOK.md`.
@@ -43,21 +125,22 @@ Use one folder per client/business/location:
 ```text
 {agency_root}/
   solo-agency/                         # downloaded toolkit/source repo, no client data
-  solo-agency-local-collector/         # runtime app + Chrome extension only
+  solo-agency-local-collector/         # shared bridge runtime app only
     downloads/
       collector-bridge-binaries-0.1.0.zip
-      chrome-extension-collector-root-0.1.0.zip
       SHA256SUMS
     bin/
       collector-bridge-{os}-{arch}
-    LOAD_THIS_EXTENSION_IN_CHROME/
-      manifest.json
-      background.js
-      popup.html
-      popup.js
     setup_collector.sh
     collector.pid
     collector.log
+  extensions/                          # one Chrome extension folder per client
+    {client_slug}/
+      manifest.json                    # name starts with client name
+      client_binding.json
+      background.js
+      popup.html
+      popup.js
   daily-content-pipeline/              # data/config/output only
   clients_index.md
   schedule.md
@@ -380,7 +463,7 @@ Tracks whether the Solo Agency Local Collector extension and Local Collector app
 
 This file is mandatory after the human agrees to activate private data source monitoring, when configuring a schedule that includes private data sources, or when the agent needs to report a private data source collector blocker.
 
-It is not required when no private data sources are active. Before activation, the first agency report should simply list private data sources under `Private Data Sources Pending Activation`.
+It is not required when no private data sources are active. Before activation, the automation contract and automation report should simply list private data sources under `Private Data Sources Pending Activation`.
 
 Format:
 
@@ -389,7 +472,7 @@ Format:
 
 | Date | Agent | Status | Setup Command Given | Human Ran Setup Command | Chrome Extension Folder | Human Loaded Extension | Local Collector App | Health Endpoint | Last Health Check | Blocker | Required Human Action |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude | needs_user_action | bash "/ABSOLUTE/PATH/solo-agency-local-collector/setup_collector.sh" | no | /ABSOLUTE/PATH/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME | no | /ABSOLUTE/PATH/solo-agency-local-collector/bin/collector-bridge-darwin-arm64 | http://127.0.0.1:17321/status | unavailable | Extension not loaded in Chrome yet | Run the setup command in Terminal/PowerShell outside the AI sandbox, then Chrome -> chrome://extensions -> Load unpacked -> select only the absolute runtime extension folder |
+| 2026-06-20 | Claude | needs_user_action | bash "/ABSOLUTE/PATH/solo-agency-local-collector/setup_collector.sh" | no | /ABSOLUTE/PATH/extensions/{client_slug}/ | no | /ABSOLUTE/PATH/solo-agency-local-collector/bin/collector-bridge-darwin-arm64 | http://127.0.0.1:17321/status | unavailable | Client-specific extension not loaded in Chrome yet | Run the setup command in Terminal/PowerShell outside the AI sandbox, then Chrome -> chrome://extensions -> Load unpacked -> select only the absolute client-specific extension folder |
 ```
 
 Allowed status:

@@ -1,0 +1,7 @@
+{
+  "client_slug": "avenngo",
+  "client_name": "AvenNgo",
+  "extension_instance_id": "ext_avenngo_default",
+  "extension_display_name": "AvenNgo - Solo Agency Collector",
+  "bridge_base_url": "http://127.0.0.1:17321"
+}

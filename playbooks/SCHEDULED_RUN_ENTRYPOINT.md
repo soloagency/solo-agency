@@ -34,6 +34,40 @@ Run the scheduled Solo Agency daily run now.
 23. Load playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md before claiming the scheduled run is complete.
 ```
 
+## Latest Override: Client-Specific Automation Prompt
+
+For the current architecture, prefer one automation task per client. The task name must begin with the client name:
+
+```text
+{Client Name} - Solo Agency Daily Run
+```
+
+Client-specific automation prompts must include `target_client_slug` and should follow this contract:
+
+```text
+Run Solo Agency daily run for target_client_slug="{client_slug}" only.
+
+Load SOLO_AGENCY_PLAYBOOK.md and the required stage playbooks.
+Read daily-content-pipeline/clients_index.md and verify the target client is active.
+Do not process any other client.
+Read only this client's Client Intelligence Profile, public data sources, private data sources approval state, history, collector inbox, outputs, analytics, and publishing state.
+For private data sources, use only the extension_instance_id configured for this client in daily-content-pipeline/collector/extension_registry.json.
+If localhost is unavailable from the automation sandbox, read local bridge/extension health files and write a per-client job file under daily-content-pipeline/collector/jobs/pending/.
+The collector output path must be daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/{run_id}/.
+If the matching client extension is missing, stale, or wrong, continue with public data sources only and report the exact blocker.
+Generate this client's HTML report, update this client's history/learning, and resync any configuration changes made during the run.
+```
+
+If the prompt contains a `target_client_slug`, the scheduled agent must not loop through every active client. The older all-clients loop applies only to an explicitly named all-clients/master task.
+
+Optional master digest task:
+
+```text
+Solo Agency Master Digest - All Clients
+```
+
+The master digest task must not scan private data sources. It only reads existing client reports/outputs and creates a summary.
+
 ## Required Runtime Loads
 
 At the start of every scheduled run, load:
