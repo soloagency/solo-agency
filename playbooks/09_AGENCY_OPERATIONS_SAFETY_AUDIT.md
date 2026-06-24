@@ -74,6 +74,8 @@ Minimum resync audit:
 
 - Client Intelligence Profile updated.
 - Source/discovery/history logs updated when source state changed.
+- `daily-content-pipeline/provider_defaults.json` updated when provider catalog/discovery defaults changed.
+- The relevant client's `integrations/providers/` config, OpenAPI cache, capabilities, health, and provider call log updated when PDNA/provider/notification/analytics changed.
 - `daily-content-pipeline/schedule.md` updated.
 - `daily-content-pipeline/collector/collector_config.json` or `POST /config` updated when private data source collection changed.
 - `daily-content-pipeline/automation/automation_manifest.md` updated.
@@ -610,7 +612,7 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If WideCast MCP notification/Telegram capability is available, upload the HTML report to WideCast first when an HTML-capable report/file/asset upload API is available, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
+9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, upload the HTML report first when an HTML-capable upload operation such as `uploadAsset` is available, then send a notification to the human that includes the uploaded report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
 9. If another authorized channel can send the HTML file or link more conveniently, use it.
 10. Log the notification attempt in `notifications/notification_log.md`.
 
@@ -618,7 +620,7 @@ The daily run is complete only when every active client is processed or explicit
 
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast MCP / Telegram.
+Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
 
 ---
 
@@ -658,7 +660,7 @@ If access fails:
 
 - Skip the source.
 - Log `session_expired` or `unavailable`.
-- Notify the human through WideCast MCP / Telegram if available.
+- Notify the human through the configured provider notification channel if available, preferably WideCast OpenAPI Telegram/email fallback.
 - Tell the human in the agent UI and notification channel:
 
 `I could not access [source name] because the session appears expired or unavailable. I skipped it for today's run. Please log in manually through the browser/session if you want it included in future runs.`
@@ -690,7 +692,7 @@ The playbook does not require one specific scheduler because different AI servic
 
 The agent must record the chosen method in `schedule.md`.
 
-The agent must also record the notification channel in `schedule.md`. If WideCast MCP notification/Telegram tooling is available, record it as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email. If WideCast notification tooling is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast notification/Telegram or Gmail/email.
+The agent must also record the notification channel in `schedule.md`. If the client has verified WideCast OpenAPI config and the discovered spec exposes `sendTelegramMessage`, record WideCast Telegram/email fallback as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email when the account supports it. If WideCast OpenAPI notification is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast API key + Telegram/email fallback or Gmail/email.
 
 Scheduled runs should be designed as unattended runs. The human may not be watching the AI agent UI, so the agent must proactively notify the human when the run finishes or when human action is required.
 
@@ -1101,11 +1103,11 @@ Track metrics when available:
 - Content pillar.
 - Funnel stage.
 
-### WideCast MCP Analytics Collection Rule
+### WideCast OpenAPI Analytics Collection Rule
 
-When running weekly learning, monthly reporting, or any performance review, the agent must use available WideCast MCP capabilities to collect performance data before drawing conclusions.
+When running weekly learning, monthly reporting, or any performance review, the agent must use available verified provider analytics capabilities before drawing conclusions. For WideCast, load the current client's provider config, discover or refresh `https://widecast.ai/openapi.yaml`, verify the account with `getAccount`, then call available analytics/library operations such as `getAnalytics`, `listVideos`, `getStatus`, and `getVideoData`.
 
-The agent should inspect the available WideCast MCP tool/API list at runtime and call the relevant tools for:
+The agent should inspect the available WideCast OpenAPI operation list at runtime and call the relevant operations for:
 
 - Recently published content.
 - Published post/video URLs.
@@ -1121,11 +1123,11 @@ The agent should inspect the available WideCast MCP tool/API list at runtime and
 - Follower counts.
 - Engagement trends.
 
-If WideCast MCP exposes a list of published posts, recent videos, production history, publishing history, analytics dashboard, or platform statistics, the agent must use those sources first.
+If WideCast OpenAPI exposes a list of published posts, recent videos, production history, publishing history, analytics dashboard, or platform statistics, the agent must use those sources first after verifying that the API key belongs to the current client.
 
 For each published content item from the last 7 days, the agent should measure it daily for up to 7 days after publishing:
 
-1. Retrieve the published URL and metadata through WideCast MCP when available.
+1. Retrieve the published URL and metadata through WideCast OpenAPI when available.
 2. Save URL, title, description, caption, hashtags, platform, publish date, and related script/output file.
 3. Use the Solo Agency Local Collector extension plus Local Collector app to capture visible metrics from each published URL when tools, permissions, and login state allow it.
 4. Measure or extract available engagement metrics, such as:
@@ -1141,7 +1143,7 @@ For each published content item from the last 7 days, the agent should measure i
    - objections
    - requests for help
    - lead signals in comments
-5. If direct platform metrics are not accessible, record the limitation and use whatever WideCast MCP analytics or visible public metrics are available.
+5. If direct platform metrics are not accessible, record the limitation and use whatever WideCast OpenAPI analytics or visible public metrics are available.
 6. Store all results in `analytics/metrics_log.md`.
 7. Store audience questions, objections, and useful comment signals in `analytics/comment_signal_log.md`.
 8. Store strategic learnings in `analytics/learning_log.md`.
@@ -1159,7 +1161,7 @@ Reason:
 
 When measuring published URLs:
 
-1. Build a temporary run-now collector job whose sources are the published URLs retrieved from WideCast MCP.
+1. Build a temporary run-now collector job whose sources are the published URLs retrieved from the configured provider, such as WideCast OpenAPI.
 2. Mark these sources clearly, for example:
    - `source_type: published_content_url`
    - `purpose: performance_measurement`
@@ -1173,9 +1175,9 @@ When measuring published URLs:
 9. Store strategic learnings in `analytics/learning_log.md`.
 10. If a metric is hidden, unavailable, or not visible in the logged-in session, write `unavailable` and explain why.
 
-The agent must not scrape hidden APIs, extract cookies, bypass login, or defeat platform restrictions to measure metrics. Use only authorized visible data or WideCast MCP analytics.
+The agent must not scrape hidden APIs, extract cookies, bypass login, or defeat platform restrictions to measure metrics. Use only authorized visible data or verified provider analytics.
 
-The agent must also call WideCast MCP analytics or dashboard tools that provide overall account-level statistics, such as total views, follower growth, platform performance, or other aggregate metrics. These aggregate metrics should be stored and used for learning even when per-post data is incomplete.
+The agent must also call WideCast OpenAPI analytics or dashboard operations that provide overall account-level statistics, such as total views, follower growth, platform performance, or other aggregate metrics. These aggregate metrics should be stored and used for learning even when per-post data is incomplete.
 
 Do not invent metrics. If a platform hides likes, shares, comments, views, or follower data from the current agent/session, mark the metric as `unavailable` and explain why.
 
@@ -1184,7 +1186,7 @@ Suggested `analytics/metrics_log.md` format:
 ```md
 | Date Checked | Published Date | Client | Platform | URL | Title | Description | Hashtags | Content Pillar | Funnel Stage | Views | Likes | Comments | Shares | Saves | Followers/Subscribers | Source Of Metric | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | 2026-06-18 | Smith Law | TikTok | https://... | What to do after a DUI stop | Short DUI education video | #dui #california | Emergency first steps | Education | 1200 | 44 | 8 | 3 | unavailable | unavailable | WideCast MCP + public URL check | Comments show license-suspension anxiety |
+| 2026-06-20 | 2026-06-18 | Smith Law | TikTok | https://... | What to do after a DUI stop | Short DUI education video | #dui #california | Emergency first steps | Education | 1200 | 44 | 8 | 3 | unavailable | unavailable | WideCast OpenAPI + public URL check | Comments show license-suspension anxiety |
 ```
 
 Suggested `analytics/comment_signal_log.md` format:
@@ -1370,7 +1372,7 @@ A daily run is complete when:
 17. Markdown and mobile-friendly HTML master digests are created when a master digest task is configured.
 18. `latest_master_digest.md` and `latest_master_digest.html` are updated when a master digest task is configured.
 19. Human-facing reports and notifications are written in the language the human uses.
-20. The human is notified through the configured notification channel, preferably WideCast MCP / Telegram, with the `{client-name}-daily-report.html` path/link. Public and private notifications are both allowed, but they should point to the same daily report index path or uploaded URL, with lane-specific report links only as secondary links. The Markdown report path must not be presented as a user-facing report link.
+20. The human is notified through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback, with the `{client-name}-daily-report.html` path/link. Public and private notifications are both allowed, but they should point to the same daily report index path or uploaded URL, with lane-specific report links only as secondary links. The Markdown report path must not be presented as a user-facing report link.
 21. Human approval options are shown.
 
 An agency operating cycle is complete when:
@@ -1378,7 +1380,7 @@ An agency operating cycle is complete when:
 1. Approved content is tracked in the calendar.
 2. Assets and references are organized.
 3. Publishing status is logged.
-4. WideCast MCP is checked for recently published content URLs, metadata, and account/platform analytics when available.
+4. Verified provider analytics, preferably WideCast OpenAPI, are checked for recently published content URLs, metadata, and account/platform analytics when available.
 5. Performance metrics are captured when available, reusing the Solo Agency Local Collector extension plus Local Collector app for published URL measurement when possible.
 6. Reports or client-facing summaries are produced on the chosen cadence in the human's language.
 7. Important results, blockers, and required actions are pushed to the human through the configured notification channel.
@@ -1412,8 +1414,8 @@ Before replying to the human, verify:
 - [ ] If I mentioned a report and any workflow step remains, did I include both the progress block and the required next-step question in chat instead of relying on the report's `Next Action` section?
 - [ ] In Setup Flow, did I avoid running the first agency run/report directly and instead prepare or resync the client-specific automation task?
 - [ ] In Automation Flow, did I avoid jumping to the first report before private data source status, the 7A Local Collector checkpoint, and schedule/routine were resolved or honestly marked pending?
-- [ ] If I generated or announced an HTML report, did I run the Stage 6 Report Delivery Capability Check: inspect WideCast upload/notification tools with discovery/lazy-load when available, attempt upload/notification when available, log exact blockers when unavailable, and provide the HTML report path/link?
-- [ ] If WideCast upload/Telegram was skipped, did I distinguish `current AI connector/tool surface does not expose this tool` from `WideCast itself does not support this capability`?
+- [ ] If I generated or announced an HTML report, did I run the Stage 6 Provider Report Delivery Capability Check: inspect the configured provider/OpenAPI spec and account identity, attempt upload/notification when available, log exact blockers when unavailable, and provide the HTML report path/link?
+- [ ] If WideCast upload/Telegram was skipped, did I check the per-client OpenAPI provider path before treating legacy MCP/tool-surface absence as a blocker?
 - [ ] Did I avoid asking for credentials, cookies, passwords, OTPs, or tokens?
 - [ ] Did I avoid calling the collector a Facebook collector?
 - [ ] If the human asked for any private data source scan after conversation drift, including logged-in/account-required groups, feeds, profiles, pages, communities, or sources, did I reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before acting?
@@ -1626,8 +1628,12 @@ Before presenting production setup choices or claiming the PDNA setup gate is co
 - [ ] Did I present WideCast as a maintained all-in-one agent-facing shortcut, not as the identity of Solo Agency and not as mandatory for research, ideas, leads, reports, or free draft writing?
 - [ ] Did I include the manual/draft-only path for humans who do not want provider setup yet?
 - [ ] Did I avoid a response where the text names only WideCast while the specialist stack appears only as a short choice label?
-- [ ] If asking the human to connect WideCast, did I include the agent-specific setup guide link: Claude `https://widecast.ai/claude.html`, Codex/ChatGPT/OpenAI `https://widecast.ai/chatgpt.html`, Gemini `https://widecast.ai/gemini.html`, or Grok `https://widecast.ai/grok.html`?
-- [ ] If asking for an MCP URL, did I explain that the copied URL may include a `wc_mcp_...` token and should be pasted exactly, with no separate password/OAuth unless the official guide says otherwise?
+- [ ] If asking the human to connect WideCast, did I prefer the OpenAPI/API key path: `https://widecast.ai/#setup` -> API Keys -> copy a `wc_live_*` key for this specific client?
+- [ ] Did I avoid asking for passwords, cookies, OTPs, social credentials, or browser session tokens?
+- [ ] If the human or AI host explicitly chooses MCP/connector setup, did I include the agent-specific setup guide link: Claude `https://widecast.ai/claude.html`, Codex/ChatGPT/OpenAI `https://widecast.ai/chatgpt.html`, Gemini `https://widecast.ai/gemini.html`, or Grok `https://widecast.ai/grok.html`?
+- [ ] If asking for an MCP URL, did I explain that it is optional compatibility, may include a `wc_mcp_...` token, and should be pasted exactly with no separate password/OAuth unless the official guide says otherwise?
+- [ ] Did I verify the provider account with the account operation, such as WideCast `getAccount`, before claiming PDNA setup is connected?
+- [ ] Did I save provider discovery/capabilities and account identity only under the correct client's `integrations/providers/` folder?
 
 ### Production Setup Anti-Drift Checklist
 
@@ -1664,7 +1670,7 @@ Before saying the run is complete, verify:
 - [ ] Did the report end with exactly one primary next action, with secondary actions clearly de-emphasized?
 - [ ] Did the chat or notification that announces the report show an updated progress block when required steps remain?
 - [ ] If schedule/automation already exists, did that chat or notification include an `Automation freshness check` instead of only saying the config/report is updated?
-- [ ] Did the chat or notification include the Report Delivery Capability Check outcome: WideCast capability checked, upload attempted or blocker, notification attempted or blocker, and final HTML report path/link?
+- [ ] Did the chat or notification include the Provider Report Delivery Capability Check outcome: provider/OpenAPI discovery checked, account verified or blocker, upload attempted or blocker, notification attempted or blocker, and final HTML report path/link?
 - [ ] Did that chat or notification end with exactly one concrete next-step question when the human needs to choose the next step?
 - [ ] Is the HTML factually aligned with the internal Markdown report?
 - [ ] Is the HTML standalone and portable?
@@ -1680,21 +1686,21 @@ Before saying the run is complete, verify:
 - [ ] Did every user-facing report link/path in chat, Telegram, or notification point to `.html`, not `.md`?
 - [ ] Did I avoid fake interactive buttons in static HTML, except real local copy buttons for editable draft review?
 - [ ] Did I include references/URLs in the report?
-- [ ] Did I notify the human through WideCast notification/Telegram tooling if available, relying on WideCast's email fallback if Telegram is not connected?
+- [ ] Did I notify the human through the configured provider notification channel if available, preferably WideCast OpenAPI `sendTelegramMessage`, relying on WideCast's email fallback if Telegram is not connected and fallback is available?
 - [ ] Did every report-ready notification include an HTML report URL/path? A plain "report ready" notification with no report URL/path is invalid.
-- [ ] If WideCast notification/Telegram was available and an HTML-capable WideCast report/file/asset upload API was available, did I upload the `.html` report to WideCast first and send the uploaded report URL instead of only a local path?
-- [ ] Did I record a report-delivery object with local HTML path, upload attempted status, uploaded URL if any, upload blocker if any, notification channel, and final notification report link?
-- [ ] If WideCast report upload was unavailable or failed, did I log `widecast_report_upload_unavailable` or the exact upload blocker and send the best available HTML path/link?
+- [ ] If WideCast OpenAPI notification/Telegram was available and an HTML-capable `uploadAsset` operation was available, did I upload the `.html` report to WideCast first and send the uploaded report URL instead of only a local path?
+- [ ] Did I record a report-delivery object with local HTML path, provider, OpenAPI discovery status, account verification status, upload attempted status, uploaded URL if any, upload blocker if any, notification channel, and final notification report link?
+- [ ] If WideCast report upload was unavailable or failed, did I log the provider-neutral blocker, such as `provider_config_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_required_operation_missing`, or `provider_upload_failed`, and send the best available HTML path/link?
 - [ ] If I accidentally sent a notification without a report URL/path, did I immediately send a correction notification with the HTML report URL/path and log the correction?
-- [ ] If WideCast notification tooling was unavailable, did I try Gmail/email MCP or connector if available?
-- [ ] If neither WideCast notification nor Gmail/email was connected, did I suggest connecting WideCast notification/Telegram first, or Gmail/email as a secondary fallback?
+- [ ] If provider notification was unavailable, did I try Gmail/email MCP or connector if available?
+- [ ] If neither WideCast OpenAPI notification nor Gmail/email was connected, did I suggest connecting WideCast API key + Telegram/email fallback first, or Gmail/email as a secondary fallback?
 - [ ] Did the notification include agent identity, status, HTML report path/link, blockers, and next action?
 
 ### Measure-Learning Checklist
 
 Before claiming a weekly/monthly performance review or learning loop is complete, verify:
 
-- [ ] Did I call available WideCast MCP tools for published URLs, metadata, and account/platform analytics?
+- [ ] Did I call available verified provider analytics operations, such as WideCast OpenAPI `getAnalytics`, `listVideos`, `getStatus`, and `getVideoData`, for published URLs, metadata, and account/platform analytics?
 - [ ] Did I reuse the Solo Agency Local Collector extension plus Local Collector app to capture visible metrics from published URLs when possible?
 - [ ] Did I store normalized metrics in `analytics/metrics_log.md`?
 - [ ] Did I mark hidden or unavailable metrics as `unavailable` instead of inventing numbers?
@@ -1727,7 +1733,7 @@ The human provides only:
 - Private data sources they want monitored.
 - Corrections to the agent's inferred setup.
 - Approval before video creation, rendering, publishing, or spending credits.
-- Telegram/WideCast notification setup once, if they want scheduled alerts while away from the AI agent UI.
+- Telegram/WideCast API key notification setup once per client, if they want scheduled alerts while away from the AI agent UI.
 
 The agent owns:
 
@@ -1756,7 +1762,7 @@ The agent owns:
 - Delivery of report files/links through the most convenient authorized channel.
 - History tracking.
 - Schedule/routine setup according to environment capability.
-- WideCast setup discovery and integration guidance.
-- WideCast MCP / Telegram notification delivery for scheduled results, blockers, and human-action alerts.
+- WideCast OpenAPI setup discovery and integration guidance.
+- WideCast OpenAPI Telegram/email fallback notification delivery for scheduled results, blockers, and human-action alerts.
 
 This is the intended operating model.

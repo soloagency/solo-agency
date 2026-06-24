@@ -245,7 +245,7 @@ After any human-approved change that affects what a future scheduled run should 
 - public data sources and public search keyword banks;
 - Client Intelligence Profile fields such as offer, audience, location, pain points, content pillars, brand voice, or compliance notes;
 - Local Collector status, bridge path, extension status, scan depth, or collector config;
-- PDNA provider setup, WideCast/Telegram notification status, publishing targets, analytics access, or published URL history;
+- PDNA provider setup, WideCast/OpenAPI/API key configuration, Telegram/email fallback notification status, publishing targets, analytics access, or published URL history;
 - schedule cadence, timezone, active clients, manual-only mode, or notification channel;
 - playbook/instruction behavior that scheduled runs must obey.
 
@@ -253,12 +253,13 @@ Automation Resync means updating the full automation package, not only one JSON 
 
 1. Update the relevant Client Intelligence Profile and source approval state.
 2. Update discovery/source/history logs when source approvals changed.
-3. Update `daily-content-pipeline/schedule.md`.
-4. Update `daily-content-pipeline/collector/collector_config.json` or `POST /config` when private data source collection is affected.
-5. Update `daily-content-pipeline/automation/automation_manifest.md`.
-6. Update `daily-content-pipeline/automation/scheduled_run_prompt.md` and the actual native AI automation/scheduled-task prompt when that environment stores its own prompt snapshot.
-7. Update `daily-content-pipeline/automation/resync_log.md`.
-8. Run a dry-read verification: read the scheduled entrypoint, manifest, schedule, profile, and collector config as tomorrow's scheduled agent would, and confirm the newest approved state is visible.
+3. Update `daily-content-pipeline/provider_defaults.json` and the relevant client's `integrations/providers/` files when provider/PDNA/notification/analytics changed.
+4. Update `daily-content-pipeline/schedule.md`.
+5. Update `daily-content-pipeline/collector/collector_config.json` or `POST /config` when private data source collection is affected.
+6. Update `daily-content-pipeline/automation/automation_manifest.md`.
+7. Update `daily-content-pipeline/automation/scheduled_run_prompt.md` and the actual native AI automation/scheduled-task prompt when that environment stores its own prompt snapshot.
+8. Update `daily-content-pipeline/automation/resync_log.md`.
+9. Run a dry-read verification: read the scheduled entrypoint, manifest, provider defaults/config when relevant, schedule, profile, and collector config as tomorrow's scheduled agent would, and confirm the newest approved state is visible.
 
 If the agent cannot edit the actual native AI automation task body directly, it must write the exact replacement scheduled prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and ask the human to update the native task. Do not say the schedule is fully updated until that prompt snapshot is updated or the limitation is clearly logged.
 
@@ -520,8 +521,8 @@ Daily run is not complete until:
 - Stage 10 was loaded and lane-specific Lead & Competitor Opportunities were detected, skipped with a clear reason, or marked pending/private data sources unavailable.
 - A mobile-friendly HTML report exists.
 - The human received the HTML report path/link or notification.
-- Stage 6 Report Delivery Capability Check was run: WideCast upload/notification capability was inspected with available tool discovery/lazy-load, the HTML report was uploaded and sent when tools existed, or the exact tool-surface/upload/notification blocker was logged and the best available HTML path/link was delivered.
-- If WideCast Telegram is connected and WideCast HTML report upload is available, the HTML report was uploaded to WideCast and the human received the uploaded WideCast report URL.
+- Stage 6 Provider Report Delivery Capability Check was run: provider/OpenAPI discovery and account verification were inspected, the HTML report was uploaded and sent when operations existed, or the exact provider/upload/notification blocker was logged and the best available HTML path/link was delivered.
+- If WideCast OpenAPI notification is configured and WideCast HTML report upload is available, the HTML report was uploaded to WideCast and the human received the uploaded WideCast report URL.
 - Stage 9 self-audit passes or misses are reported honestly.
 
 ## Jump-Prevention Rules

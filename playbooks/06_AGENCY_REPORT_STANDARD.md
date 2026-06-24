@@ -960,11 +960,11 @@ When the agent announces a report in chat, Telegram, email, or another human-fac
 Report-ready notification validity rule:
 
 - A report-ready notification without an HTML report URL/path is invalid.
-- Before deciding WideCast upload or notification is unavailable, the agent must run a Report Delivery Capability Check using the current environment's tool discovery / connector discovery / lazy-load mechanism when available.
-- If WideCast notification/Telegram is available, the agent must try to deliver the report through WideCast notification.
-- If a WideCast HTML-capable report/file/asset upload tool is available, upload the `.html` report first and send the uploaded WideCast report URL.
-- If WideCast report upload is unavailable or fails, the agent must log the blocker and still include the best available local/hosted `.html` report path/link in the notification.
-- If the current AI connector/tool surface does not expose WideCast upload or Telegram tools, say exactly that. Do not claim that WideCast itself lacks the API or capability unless verified from WideCast docs/account status.
+- Before deciding provider upload or notification is unavailable, the agent must run a Provider Report Delivery Capability Check using the current client's provider config and OpenAPI discovery first, with legacy tool/connector discovery only as fallback.
+- If WideCast OpenAPI notification/Telegram/email fallback is available, the agent must try to deliver the report through WideCast notification.
+- If WideCast OpenAPI exposes an HTML-capable report/file/asset upload operation, upload the `.html` report first and send the uploaded WideCast report URL.
+- If WideCast report upload is unavailable or fails, the agent must log the exact provider blocker and still include the best available local/hosted `.html` report path/link in the notification.
+- If the current AI connector/tool surface does not expose WideCast upload or Telegram tools, check the per-client OpenAPI provider path before concluding capability is missing. Do not claim that WideCast itself lacks the API or capability unless verified from WideCast account/API/OpenAPI status.
 - If the agent accidentally sends a notification without a report URL/path, it must immediately send a correction notification containing the HTML report URL/path and log the correction.
 
 Do not end a report handoff with:
@@ -1084,8 +1084,8 @@ When the result is long, the agent should send or surface the HTML report instea
 
 The agent must deliver the HTML report to the human by the most convenient available channel:
 
-- WideCast MCP notification/Telegram tool with the uploaded WideCast HTML report URL when report upload is available. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
-- If the WideCast notification tool itself is unavailable, use a connected Gmail/email MCP, connector, or tool to email the HTML report or HTML report link to the human if available and authorized.
+- Configured provider notification, preferably WideCast OpenAPI `sendTelegramMessage`, with the uploaded WideCast HTML report URL when report upload is available. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
+- If the configured provider notification itself is unavailable, use a connected Gmail/email MCP, connector, or tool to email the HTML report or HTML report link to the human if available and authorized.
 - Agent chat file attachment if supported.
 - Local file path in the automation/thread output.
 - Slack, Discord, Google Drive, Notion, or other connector if available and authorized.
@@ -1093,23 +1093,23 @@ The agent must deliver the HTML report to the human by the most convenient avail
 
 Notification fallback rule:
 
-- WideCast MCP notification/Telegram is the preferred scheduled-run notification channel.
-- If WideCast Telegram is not connected yet, the HTML report must include a concise setup note encouraging the human to register or log in to WideCast, connect Telegram for free daily report alerts, and use it to receive report links/blockers remotely without sitting in front of the machine.
+- WideCast OpenAPI notification/Telegram/email fallback is the preferred scheduled-run notification channel when the client has configured WideCast as the provider.
+- If WideCast Telegram is not connected yet, the HTML report must include a concise setup note encouraging the human to register or log in to WideCast, connect Telegram for daily report alerts, and use it to receive report links/blockers remotely without sitting in front of the machine.
   Translate this note into the report/human language.
   Suggested report copy:
   ```text
   Get daily reports on Telegram
   You can register/log in to WideCast and connect Telegram for free daily report alerts. After that, scheduled runs can send report links and blockers to your phone, so you do not need to keep watching the AI agent window.
   ```
-- If WideCast notification tools are available, call the WideCast notification tool even if the human has not connected Telegram yet. WideCast should handle fallback email delivery when Telegram is not connected.
-- If WideCast notification tools are available and WideCast exposes an HTML-capable report/file/asset upload API, upload the `.html` report to WideCast first and send the uploaded URL through WideCast Telegram/email fallback.
+- If WideCast OpenAPI notification is available, call `sendTelegramMessage` even if the human has not connected Telegram yet. WideCast should handle fallback email delivery when Telegram is not connected and email fallback is available.
+- If WideCast OpenAPI notification is available and the discovered spec exposes an HTML-capable upload API, upload the `.html` report to WideCast first with `uploadAsset` and send the uploaded URL through WideCast Telegram/email fallback.
 - Do not send only a local file path when an uploaded WideCast report URL is available.
-- If the current WideCast wrapper cannot upload `.html` files, log `widecast_report_upload_unavailable`, send the best available HTML path/link, and state the upload blocker clearly.
-- If the current AI connector/tool surface does not expose a WideCast Telegram/notification send tool, log `widecast_notification_tool_unavailable` and state that this is a tool-surface blocker, not proof that WideCast lacks notification capability.
+- If provider config is missing, auth fails, OpenAPI discovery fails, account verification mismatches, or the current WideCast OpenAPI spec cannot upload `.html` files, log the exact provider-neutral blocker and any useful legacy WideCast alias, send the best available HTML path/link, and state the upload blocker clearly.
+- If OpenAPI discovery does not expose a WideCast Telegram/notification send operation, log `provider_required_operation_missing` and any useful legacy WideCast alias. Do not claim WideCast itself lacks notification capability merely because a legacy MCP/tool surface is not exposed.
 - Never send a report-ready notification that contains only a status summary. The notification must include an `HTML report` URL/path field.
-- The agent should not switch to Gmail/email merely because Telegram is not connected in WideCast.
-- Use Gmail/email only when WideCast notification tools are unavailable or blocked.
-- If Gmail/email is available and WideCast notification tools are unavailable, send the HTML report or a link/path to the HTML report by email to the human, using the same language the human uses.
+- The agent should not switch to Gmail/email merely because Telegram is not connected in WideCast if WideCast email fallback can deliver.
+- Use Gmail/email only when provider notification is unavailable or blocked.
+- If Gmail/email is available and provider notification is unavailable, send the HTML report or a link/path to the HTML report by email to the human, using the same language the human uses.
 - If neither WideCast notification nor Gmail/email is available, the agent should suggest connecting WideCast notification first, or Gmail/email as a secondary fallback.
 - The agent must not ask for email passwords, OAuth credentials, app passwords, cookies, or raw tokens. Use only an already connected Gmail/email tool, or guide the human to connect the official connector.
 - The email subject should include the client or master digest name, run date, and status, for example: `Daily Content Report Ready — Smith Law — 2026-06-21`.
@@ -1125,36 +1125,45 @@ If the channel cannot send files directly, send a short notification containing:
 - Number of hot leads, warm leads, and competitors detected.
 - Required human actions.
 
-## Report Delivery Capability Check
+## Provider Report Delivery Capability Check
 
 Run this check before claiming any daily run, scheduled run, or report handoff is complete.
 
 1. Confirm the local `.html` report exists.
 2. Check the configured notification channel from `daily-content-pipeline/schedule.md` and the Client Intelligence Profile.
-3. If WideCast is configured, preferred, connected, or likely available, inspect the current tool/connector surface for:
-   - WideCast account/status capability;
-   - HTML-capable report/file/asset upload capability;
-   - Telegram/report notification send capability;
-   - email fallback capability exposed by WideCast, if any.
-4. Use tool discovery/lazy-load where the AI environment supports it. Do not assume a WideCast tool is unavailable merely because it was not already visible in the first tool list.
-5. If upload capability exists, upload the `.html` report and capture the uploaded URL.
-6. If notification capability exists, send the uploaded URL when available; otherwise send the best available local/hosted `.html` path/link with the exact upload blocker.
-7. If the notification tool itself is unavailable, use an authorized fallback channel such as Gmail/email only when available and authorized; otherwise surface the local HTML path in chat and log the notification blocker.
-8. Save a report-delivery record in `daily-content-pipeline/notifications/notification_log.md`.
+3. Load `daily-content-pipeline/provider_defaults.json` and the target client's `integrations/providers/provider_config.local.json` when present.
+4. If WideCast is configured, preferred, connected, or likely available, fetch/cache `https://widecast.ai/openapi.yaml` unless the cache is current.
+5. Verify the provider account before using account actions. For WideCast, call `getAccount` and compare the verified account identity to the saved client provider identity when present.
+6. Inspect the discovered OpenAPI operation list for:
+   - account/status capability, such as `getAccount`;
+   - HTML-capable report/file/asset upload capability, such as `uploadAsset` with `text/html`;
+   - Telegram/report notification send capability, such as `sendTelegramMessage`;
+   - email fallback behavior exposed by the provider, if any.
+7. Use legacy tool discovery/lazy-load only as a fallback or compatibility path. Do not assume a provider capability is unavailable merely because it was not already visible in the first AI tool list.
+8. If upload capability exists, upload the `.html` report and capture the uploaded URL and TTL if returned.
+9. If notification capability exists, send the uploaded URL when available; otherwise send the best available local/hosted `.html` path/link with the exact upload blocker.
+10. If the provider notification operation itself is unavailable, use an authorized fallback channel such as Gmail/email only when available and authorized; otherwise surface the local HTML path in chat and log the notification blocker.
+11. Save a report-delivery record in `daily-content-pipeline/notifications/notification_log.md`.
 
 The report-delivery record must include:
 
 ```yaml
 html_report_path:
-widecast_capability_checked: true | false
-widecast_tool_discovery_method:
-widecast_upload_tool_available: true | false | unknown
-widecast_notification_tool_available: true | false | unknown
-widecast_telegram_connected: true | false | unknown
-widecast_upload_attempted: true | false
-widecast_uploaded_report_url:
-widecast_notification_attempted: true | false
-widecast_notification_status: sent | failed | unavailable | skipped
+provider:
+provider_discovery_url:
+provider_openapi_checked: true | false
+provider_account_verified: true | false | unknown
+provider_account_identity:
+upload_operation_id:
+notification_operation_id:
+provider_upload_available: true | false | unknown
+provider_notification_available: true | false | unknown
+provider_notification_destination_status: connected | fallback_email | not_configured | unknown
+provider_upload_attempted: true | false
+provider_uploaded_report_url:
+provider_uploaded_report_url_ttl:
+provider_notification_attempted: true | false
+provider_notification_status: sent | failed | unavailable | skipped
 fallback_notification_channel:
 final_report_link_sent_to_human:
 blocker:
@@ -1165,7 +1174,7 @@ Completion is invalid if the agent says only `report ready` or `config updated` 
 Correct blocker wording:
 
 ```text
-Report delivery: HTML report generated. WideCast capability check completed. The current AI connector exposes no HTML upload or Telegram notification tool, so I logged `widecast_report_upload_unavailable` / `widecast_notification_tool_unavailable` and am giving you the local HTML report path here.
+Report delivery: HTML report generated. Provider capability check completed. WideCast OpenAPI discovery or account verification is blocked by `{exact blocker}`, so I logged `{provider blocker}` and am giving you the local HTML report path here.
 ```
 
 Incorrect blocker wording:
@@ -1174,6 +1183,6 @@ Incorrect blocker wording:
 WideCast cannot upload reports.
 ```
 
-That is too broad unless the agent verified WideCast account/API status directly.
+That is too broad unless the agent verified WideCast account/API status and the current OpenAPI spec directly.
 
 ---
