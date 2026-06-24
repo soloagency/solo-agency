@@ -520,6 +520,8 @@ Format:
 
 Use this log so scheduled runs do not silently complete or fail while the human is away.
 
+Each provider-backed notification row or adjacent structured record should also preserve `provider_identity_source` and `mcp_compatibility_status` when available. For client-scoped OpenAPI delivery, `provider_identity_source` should be `per_client_openapi`. If a global MCP/native provider account was visible but not proven to match the client, record `mcp_compatibility_status: not_client_scoped` and blocker `global_mcp_not_client_scoped`.
+
 If provider upload or notification cannot be used, the log must distinguish:
 
 - `provider_config_missing`: no per-client provider config exists.
@@ -528,6 +530,7 @@ If provider upload or notification cannot be used, the log must distinguish:
 - `provider_discovery_failed`: OpenAPI discovery URL could not be fetched or parsed.
 - `provider_required_operation_missing`: the OpenAPI spec lacks the operation needed for the requested action.
 - `provider_account_mismatch`: provider account verification does not match the saved client/account identity.
+- `global_mcp_not_client_scoped`: an MCP/native provider tool is visible in the AI session, but it is not proven to be authenticated as the current client's configured provider account.
 - `provider_upload_failed`: upload operation exists but the upload call failed.
 - `provider_notification_failed`: notification operation exists but send failed.
 - `provider_notification_not_configured`: provider account is valid but Telegram/email/notification destination is not configured and no fallback was sent.
@@ -567,6 +570,9 @@ Minimum WideCast OpenAPI example:
       "auth_type": "bearer_api_key",
       "api_key_env": "SOLO_AGENCY_WIDECAST_API_KEY_ANGELA_DO",
       "api_key_local": "",
+      "provider_identity_source": "per_client_openapi",
+      "mcp_compatibility_status": "not_used",
+      "pdna_setup_blocker": "",
       "account_verified_at": "",
       "account_identity": {
         "company_id": "",
@@ -603,6 +609,9 @@ Credential rules:
 - Never store passwords, OTPs, browser cookies, social session tokens, or raw OAuth refresh tokens here.
 - Before any provider action, verify the active provider account with the provider account operation, such as WideCast `getAccount`.
 - If the verified account identity changes unexpectedly, stop provider actions and log `provider_account_mismatch`.
+- `provider_identity_source` must be `per_client_openapi` before PDNA is considered connected. `global_mcp_compat` is allowed only when the MCP/native tool identity has been compared to the saved client provider identity and matches exactly.
+- `mcp_compatibility_status` may be `not_used`, `identity_matched`, `identity_mismatch`, or `not_client_scoped`. If it is `identity_mismatch` or `not_client_scoped`, do not use MCP/native account data for this client's PDNA status.
+- `pdna_setup_blocker` should use provider-neutral blocker names such as `provider_config_missing`, `provider_auth_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_account_mismatch`, or `global_mcp_not_client_scoped`.
 
 #### `provider_capabilities.json`
 
@@ -642,6 +651,11 @@ Minimum shape:
     "notification": "available | partial | unavailable",
     "analytics": "available | partial | unavailable"
   },
+  "identity": {
+    "provider_identity_source": "per_client_openapi | global_mcp_compat | unknown",
+    "account_verified": true,
+    "mcp_compatibility_status": "not_used | identity_matched | identity_mismatch | not_client_scoped"
+  },
   "blockers": []
 }
 ```
@@ -667,8 +681,8 @@ Human-readable provider status:
 ```md
 # Provider Health
 
-| Date | Agent | Provider | Account Verified | Production | Distribution | Notification | Analytics | Credits | Connected Platforms | Blocker | Next Action |
-|---|---|---|---|---|---|---|---|---|---|---|---|
+| Date | Agent | Provider | Identity Source | MCP Compatibility | Account Verified | Production | Distribution | Notification | Analytics | Credits | Connected Platforms | Blocker | Next Action |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 ```
 
 ### `collector/collector_setup_status.md`
@@ -1022,6 +1036,19 @@ categories:
       - url:
         status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
         last_scanned_at:
+  keyword_search_sources:
+    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
+    platforms:
+    - platform:
+      search_keywords:
+      - keyword:
+        search_url:
+        scroll_steps:
+        candidate_count:
+        recommended_count:
+        skipped_noisy_count:
+        status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
+        last_scanned_at:
 candidate_source_review_policy:
   require_human_approval_before_activating: true
   max_daily_sources_default: 20
@@ -1035,9 +1062,13 @@ items:
   url:
   type: private
   platform:
-  source_type: manually_provided | joined_group | followed_profile | followed_page | subscribed_channel | followed_company | subreddit | community | discovered_from_feed
-  discovery_category: manually_provided | membership_sources | following_sources | recommendation_feed_sources
+  source_type: manually_provided | joined_group | facebook_group_search_result | followed_profile | followed_page | subscribed_channel | followed_company | subreddit | community | discovered_from_feed
+  discovery_category: manually_provided | membership_sources | following_sources | recommendation_feed_sources | keyword_search_sources
   discovery_url:
+  search_keyword:
+  search_url:
+  result_rank:
+  membership_status: unknown | joined | not_joined | public_visible | requires_join | unavailable
   approval_status: pending_human_approval | approved | rejected
   priority: high | medium | low
   scan_cadence: daily | weekly | optional
@@ -1145,16 +1176,17 @@ Purpose:
 - Avoid repeating the same idea too often.
 - Track selected ideas, scripts, approvals, videos, and outcomes.
 - Track whether each selected idea was `primary_industry` or `related_industry` so the agent can maintain the 80/20 content mix over time.
+- Track idea signatures, angles, and novelty decisions so future runs can reuse a topic only when the angle is materially different.
 
 Format:
 
 ```md
 # Content Log
 
-| Date | Idea | Category | Scope | Industry Scope | Related Industry | Content Pillar | Script Path | Status | Notes |
-|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-19 | Austin inventory is rising again | Hot / Trend / News | Local | primary_industry |  | Local market intelligence | outputs/2026-06/2026-06-19.md | drafted | Not yet approved |
-| 2026-06-20 | Why rising insurance premiums change your homebuying budget | Hot / Trend / News | Local | related_industry | P&C insurance | Affordability clarity | outputs/2026-06/2026-06-20.md | drafted | Related-industry idea connected back to buyer affordability |
+| Date | Idea | Idea Signature | Angle | Category | Scope | Industry Scope | Related Industry | Content Pillar | Prior Related Idea/Date | Novelty Decision | Script Path | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-06-19 | Austin inventory is rising again | austin-inventory-buyer-strategy | rising inventory changes buyer offer strategy | Hot / Trend / News | Local | primary_industry |  | Local market intelligence |  | new | outputs/2026-06/2026-06-19.md | drafted | Not yet approved |
+| 2026-06-20 | Why rising insurance premiums change your homebuying budget | insurance-premiums-homebuying-budget | insurance costs change affordability math | Hot / Trend / News | Local | related_industry | P&C insurance | Affordability clarity | 2026-06-12: monthly payment shock | new_angle | outputs/2026-06/2026-06-20.md | drafted | Related-industry idea connected back to buyer affordability |
 ```
 
 Allowed status:

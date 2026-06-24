@@ -4,6 +4,10 @@ Use this file as the entrypoint for setup/configuration sessions.
 
 Setup Flow is the control plane. It configures Solo Agency so automation tasks run correctly later. It does not run operational reports.
 
+## Runtime Requirement
+
+Before setup proceeds, verify or explain that Solo Agency needs Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or a comparable desktop/local AI agent runtime with workspace file access, automation/scheduled tasks, and multiple parallel/sub-agent work streams. Do not present a plain web chat as the primary runtime. Web chat can review results, but it cannot reliably host the file state, Local Collector handoff, scheduled automation, and multi-agent work this setup configures.
+
 ## Setup Flow Contract
 
 1. Load `SOLO_AGENCY_PLAYBOOK.md`.
@@ -14,8 +18,9 @@ Setup Flow is the control plane. It configures Solo Agency so automation tasks r
 6. If the human asks to run, create, generate, show, refresh, or update a report inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow; the request does not become Automation Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and tell the human the exact task name to run instead.
 7. Every client-specific automation task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
 8. Every per-client Chrome extension display name must begin with the client name, for example `AvenNgo - Solo Agency Collector`.
-9. After any approved config change, perform Automation Resync if a schedule/automation already exists.
-10. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`.
+9. PDNA provider setup must be client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming production, distribution, notification, analytics, credits, or connected platforms are available. Do not use a global MCP/native provider account as proof of this client's PDNA status.
+10. After any approved config change, perform Automation Resync if a schedule/automation already exists.
+11. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`.
 
 ## Fresh Source Acquisition Hard Gate
 
@@ -47,6 +52,8 @@ For each configured client, Setup Flow must leave these current:
 - `daily-content-pipeline/automation/resync_log.md`.
 
 If the native automation task prompt cannot be updated directly, mark `automation_prompt_update_pending` in the manifest and schedule, then give the human one concrete instruction to update the task prompt.
+
+For every new client, the setup handoff must include the dedicated extension install instructions, not just a status line. Show the absolute `extensions/{client_slug}/` folder path and the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account.
 
 ## Report Request Hard Stop
 

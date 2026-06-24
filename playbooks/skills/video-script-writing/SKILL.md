@@ -434,8 +434,15 @@ For the picked script: (i) **estimate credits** — 1 credit per scene (1 HOOK/
 opening + 1 per MAIN_POINT + 1 per KEY_TAKEAWAY + 1 CTA); express as a range
 (e.g. "~6–8 scenes / ~6–8 credits"). If you spent any credits on
 `widecast_create_image` during the step-5 vetting (1 credit per generated image),
-add them to the summary and say so explicitly. (ii) Call `widecast_account` ONCE
-to read `credits_remaining`. Then present, for each picked script, in ONE message:
+add them to the summary and say so explicitly. (ii) Read `credits_remaining`
+only from the current client's verified WideCast/OpenAPI provider config/account
+operation. Do NOT use a global `widecast_account` / MCP account balance unless
+that tool identity has already been proven to match this client's saved provider
+identity. If no client-scoped provider account is verified, show
+`Your balance: unknown — client WideCast API key/provider config not verified`
+and name the blocker (`provider_config_missing`, `provider_auth_missing`,
+`provider_account_mismatch`, or `global_mcp_not_client_scoped`). Then present,
+for each picked script, in ONE message:
 
 - `### Visual assets` — each verified URL: which beat + the `![alt](url)` block +
   one-line rationale (or, for abstract topics, the 3+ visual directions + why no
@@ -446,7 +453,7 @@ to read `credits_remaining`. Then present, for each picked script, in ONE messag
 - `### Production` —
   - `- Estimated cost: ~N–M credits (1 credit per scene; final count set by
     WideCast when scenes are generated)`
-  - `- Your balance: K credits remaining`
+  - `- Your balance: K credits remaining` or `- Your balance: unknown — {exact client provider blocker}`
   - `- Cost is the same whether you pick normal or faceless`
   - If `credits_remaining` < the LOW end of the range, add: `- ⚠ Your balance
     (K credits) is below the estimated cost — top up at widecast.ai before
