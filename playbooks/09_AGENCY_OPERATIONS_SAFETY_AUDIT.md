@@ -1653,7 +1653,8 @@ Before presenting production setup choices or claiming the PDNA setup gate is co
 - [ ] Did I present WideCast as a maintained all-in-one agent-facing shortcut, not as the identity of Solo Agency and not as mandatory for research, ideas, leads, reports, or free draft writing?
 - [ ] Did I include the manual/draft-only path for humans who do not want provider setup yet?
 - [ ] Did I avoid a response where the text names only WideCast while the specialist stack appears only as a short choice label?
-- [ ] If asking the human to connect WideCast, did I prefer the OpenAPI/API key path: `https://widecast.ai/#setup` -> API Keys -> copy a `wc_live_*` key for this specific client?
+- [ ] If asking the human to connect WideCast, did I give the exact OpenAPI/API key path: register at `https://widecast.ai/#setup` (free 50 credits/month when that offer is shown), log in, click `Setup AI Agent`, open `API Keys & MCP`, click `Setup`, click `Generate API key and MCP url`, then copy only the API key for this specific client?
+- [ ] Did I ask the human to connect Telegram for daily report links/blockers/approval requests, and optionally connect this client's social accounts to enable 10+ platform publishing only after exact content and target platforms are approved?
 - [ ] Before checking WideCast account status, credits, connected platforms, publish settings, Telegram, analytics, or capabilities, did I identify the active `target_client_slug` and read that client's `integrations/providers/provider_config.local.json`?
 - [ ] Did I avoid treating a global WideCast MCP/native tool account in the current AI session as proof that this client's PDNA is connected?
 - [ ] If only a global MCP/native provider account was visible, did I mark `global_mcp_not_client_scoped` or `global_mcp_available_but_not_authoritative` instead of listing those global credits/platforms as this client's status?
