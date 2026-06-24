@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Solo Agency Local Collector",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Collects visible, authorized private-source signals locally for Solo Agency workflows.",
   "permissions": [
     "alarms",

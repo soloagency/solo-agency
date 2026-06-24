@@ -168,7 +168,7 @@ Failure condition: if the production setup explanation names WideCast but does n
 
 ### One-Time Setup Process Item 8 Completion Contract
 
-When this stage is loaded after the first small-win report/draft because the human wants production/distribution/notifications/analytics setup, the active setup step is:
+When this stage is loaded after the first automation report because the human wants production/distribution/notifications/analytics setup, the active setup step is:
 
 ```text
 → 8. I help set up PDNA: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)

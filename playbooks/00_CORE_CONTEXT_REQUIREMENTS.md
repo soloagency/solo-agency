@@ -36,7 +36,7 @@ Solo Agency now separates setup/configuration from operational runs:
 - Client-specific tasks must process only their pinned `target_client_slug`.
 - Use one shared Local Collector app/bridge, and one client-specific Chrome extension folder per client Chrome profile/account under `extensions/{client_slug}/`.
 
-This override wins over older references in this file to first agency runs or small-win reports during setup.
+This override wins over older references in this file to first agency runs, report drafts, or report delivery during setup.
 
 ---
 
@@ -166,10 +166,10 @@ Progress roadmap integrity rule:
 - Step 6 is the one-time schedule/routine setup. It should happen before the first full agency run so future automation is already defined.
 - Step 7A is the private data source intake, discovery, approval, and activation checkpoint. If private data sources were requested, the human is unsure, sources were provided/approved, or Local Collector is not installed/running/healthy, 7A becomes the next required question after step 6. The agent must either collect/triage/approve sources and guide Local Collector setup, or mark private data sources as pending so the client-specific automation task can run public data sources only until activation is complete.
 - Step 7A may be marked `–` only when no private data sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public data sources only first run. The reason must be shown in plain language.
-- Step 7B is the small win: report plus useful drafts. It must state whether the run will use data from public data sources only or public plus activated private data sources. After step 7B, the agent must not ask `make a video now?` or start video editing. The next setup question is step 8.
+- Step 7B is the automation handoff, not the report itself. It must verify or create the client-specific automation task, state whether that task will use public data sources only or public plus activated private data sources, and give the exact task name the human should run for the first report. The agent must not generate the report, idea matrix, drafts, or video inside Setup Flow. After step 7B, the next setup question is step 8.
 - Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
 - Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `–` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
-- Step 10 is the final one-time setup process item and the daily learning-loop outcome. On the first run it uses report/draft content and data from private data sources; from the second run onward it also includes analytics/statistics from step 9.
+- Step 10 is shown in the setup roadmap only to explain what Automation Flow will do later. It is not executed in Setup Flow. On the first automation run it uses report/draft content and data from activated private data sources; from the second automation run onward it can also include analytics/statistics from step 9.
 
 ### Progress And Next-Step Question Rule
 
@@ -343,11 +343,11 @@ Collector success alone is not completion.
 
 Stage 1 must take the client from basic profile to `ready_for_automation_first_run`.
 
-After the first automation report small win, the Automation Flow agent may ask:
+After the first automation report is delivered, the Automation Flow agent may ask:
 
 - Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
 
-After the first automation report small win exists, if the human wants production, video/blog/social, publishing, notifications, analytics, or fully automatic operation, load the production/provider setup playbook and complete checklist step 8. In Setup Flow, treat this as provider/configuration only unless the human has explicitly moved into Automation Flow.
+After the first automation report is delivered, if the human wants production, video/blog/social, publishing, notifications, analytics, or fully automatic operation, load the production/provider setup playbook and complete checklist step 8. In Setup Flow, treat this as provider/configuration only unless the human has explicitly moved into Automation Flow.
 
 If the human wants private data sources before the first automation run, load the private data source playbook, complete Local Collector setup if needed, then update the client-specific automation task. Do not run an approved discovery/scan inside Setup Flow; the first Automation Flow run should include that data or mark it pending honestly.
 
@@ -464,7 +464,7 @@ The agent must follow these principles at all times:
 - Do not make the human open Markdown files to learn what to do next. Human-facing setup guidance, blockers, commands, and next actions must be shown directly in the current chat message, Telegram notification, HTML report, or another human-facing channel.
 - When a human action is required, provide a short `Action needed` block directly in chat: one clear purpose, one exact next step, and either one copy-paste command or one absolute folder/file path. Do not say only "see the report", "see the .md file", or "instructions are in collector_setup_status.md".
 - When delivering a report, show only the mobile-friendly HTML path or link in chat/notification. Do not show the `.md` report path as a user action. Mention Markdown only as an internal saved record if needed, not as the place the human must open.
-- After the first agency report, if private data sources are pending activation, keep that status visible and do not claim private scheduled monitoring is active. The next main setup question after the small win is PDNA - Production, Distribution, Notification, and Analytics - not video creation.
+- After the first automation report is delivered, if private data sources are pending activation, keep that status visible and do not claim private scheduled monitoring is active. The next main post-report question is PDNA - Production, Distribution, Notification, and Analytics - not video creation.
 
 ---
 
