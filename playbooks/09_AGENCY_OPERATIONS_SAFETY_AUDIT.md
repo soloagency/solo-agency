@@ -779,7 +779,7 @@ Competitors detected:
 
 ## Human Actions Needed
 
-- 
+-
 ```
 
 ---

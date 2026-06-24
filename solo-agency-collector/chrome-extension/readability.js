@@ -2137,7 +2137,7 @@ function processNode(node, except_tags,baseLocation,prefix_text) {
             if (['style', 'script', 'noscript', 'svg','img'].includes(node.tagName.toLowerCase())) {
                 return;
             }
-      
+
             if(except_tags.indexOf(node.tagName.toLowerCase()) !== -1) {
                 return;
             }
@@ -2209,9 +2209,9 @@ function processNode(node, except_tags,baseLocation,prefix_text) {
 function isProductPage(textContent) {
     const productKeywords = ['sold out','product details','add to cart', 'buy now', 'order now', 'add to wishlist', 'add to bag', 'reserve now', 'shop now', 'get a quote', 'inquire now',"You might also like","YOU MAY ALSO LIKE", "FREQUENTLY BOUGHT WITH", "Frequently bought together", "Related to items", "Related products", "Customers also viewed", "People also searched for", "Recommended for you", "Related to items you've viewed", "Suggested items", "Similar items", "You might also be interested in","Deals on related products","Compare with similar items","Products related to this item","Brands in this category on Amazon"];
     textContent = textContent.toLowerCase();  // convert to lowercase to match keywords irrespective of case
-    
+
     let matchedKeywords = []; // array to store matched keywords
-    
+
     const isProduct = productKeywords.some(keyword => {
         const lowerKeyword = keyword.toLowerCase();  // convert keyword to lowercase for case-insensitive matching
         const occurrences = textContent.split(lowerKeyword).length - 1;
@@ -2221,17 +2221,17 @@ function isProductPage(textContent) {
         }
         return false;
     });
-    
+
     if (isProduct) {
         console.log("Matched Keywords: ", matchedKeywords);
     }
-    
+
     return [isProduct,matchedKeywords];
 }
 
 function isHomepage(message) {
     const currentURL = message.start_url;
-    
+
     // Check for any paths or query strings
     if (window.location.pathname !== "/" || window.location.search) {
         return false;
@@ -2243,10 +2243,10 @@ function checkMoneyNearButtons(html, buttonTitles) {
   // Parse the HTML
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-  
+
   // Find elements with text containing money (assume money appears like $12.99)
   const moneyElements = Array.from(doc.querySelectorAll('*')).filter(el => /\$\d+(\.\d{1,2})?/.test(el.textContent));
-  
+
   // Find call to action "buttons" (could be <button>, <a>, <div>, or <span>)
   const buttonElements = Array.from(doc.querySelectorAll('button, a, div, span, input[type="button"], input[type="submit"]')).filter(el => buttonTitles.includes(el.textContent.trim()));
 
@@ -2265,7 +2265,7 @@ function checkMoneyNearButtons(html, buttonTitles) {
       // Further analysis can be done here to check 'nearness' based on your criteria
     }
   }
-  
+
   return isMoneyNearButton;
 }
 
@@ -2281,7 +2281,7 @@ function remove_relate_items(text) {
 function cleanHTML(htmlString) {
   // Create a new DOMParser
   const parser = new DOMParser();
-  
+
   // Parse the string into a document object
   const doc = parser.parseFromString(htmlString, 'text/html');
 
@@ -2339,12 +2339,12 @@ function extractElements(text, offset = 0) {
   let urls;
   let index = 0;
   let elements = [];
-  
+
   while ((urls = urlPattern.exec(text)) !== null) {
     const url = urls[0];
     const start = urlPattern.lastIndex - url.length;
     const precedingText = text.slice(index, start);
-    
+
     elements = elements.concat(
       precedingText.split(/\. |\./).filter(s => s.trim() !== '').map((sentence, i) => ({
         type: 'sentence',
@@ -2357,11 +2357,11 @@ function extractElements(text, offset = 0) {
       content: url,
       position: offset + precedingText.split(/\. |\./).length
     });
-    
+
     index = urlPattern.lastIndex;
     offset += precedingText.split(/\. |\./).length + 1;
   }
-  
+
   elements = elements.concat(
     text.slice(index).split(/\. |\./).filter(s => s.trim() !== '').map((sentence, i) => ({
       type: 'sentence',
@@ -2369,18 +2369,18 @@ function extractElements(text, offset = 0) {
       position: offset + i
     }))
   );
-  
+
   return elements;
 }
 
 function mergeAndRemoveDuplicateElementsOrdered(block1, block2) {
   const elements1 = extractElements(block1);
   const elements2 = extractElements(block2, elements1.length);
-  
+
   const allElements = elements1.concat(elements2);
   const uniqueElements = [];
   const seenSentences = new Set();
-  
+
   for (const element of allElements) {
     if (element.type === 'sentence') {
       const trimmedSentence = element.content.trim();
@@ -2392,9 +2392,9 @@ function mergeAndRemoveDuplicateElementsOrdered(block1, block2) {
       uniqueElements.push(element);
     }
   }
-  
+
   uniqueElements.sort((a, b) => a.position - b.position);
-  
+
   return uniqueElements.map(el => el.content).join('. ') + '.';
 }
 
@@ -2424,7 +2424,7 @@ function convertRelativeUrlsToAbsolute(html, baseLocation) {
     if (href && !href.startsWith('http://') && !href.startsWith('https://')) {
       // Create a URL object to leverage the browser's URL resolution
       const urlObj = new URL(href, baseLocation);
-      
+
       // Convert relative URL to absolute and update the original anchor
       anchor.href = urlObj.toString();
     }
@@ -2438,10 +2438,10 @@ function convertRelativeUrlsToAbsolute(html, baseLocation) {
 function getBaseLocation(url) {
   // Create a URL object
   const urlObj = new URL(url);
-  
+
   // Calculate the base location
   const baseLocation = `${urlObj.protocol}//${urlObj.host}`;
-  
+
   return baseLocation;
 }
 
@@ -2449,16 +2449,16 @@ function cleanStyle(inputHTML) {
     // Parse the HTML string into a DOM document.
     const parser = new DOMParser();
     const doc = parser.parseFromString(inputHTML, 'text/html');
-    
+
     // Remove style tags marked for deletion.
     doc.querySelectorAll('style[data-simple-delete="true"]').forEach(el => el.remove());
-    
+
     // Remove class and style attributes from every element.
     doc.body.querySelectorAll('*').forEach(el => {
         el.removeAttribute('class'); // Remove class attributes.
         el.removeAttribute('style'); // Remove style attributes.
     });
-    
+
     // Return the cleaned HTML string.
     return doc.body.innerHTML;
 }
@@ -2530,12 +2530,12 @@ function do_readability(message,simple_html, simple_title,url){
 
   var doc = parser.parseFromString(message.html, "text/html");
   item.main_image= getMainImageUrl(doc);
-  
+
   // console.log("JUST READ>>>",((doc.documentElement.innerText)))
   const textContent = remove_relate_items(cleanText(getHumanReadableText(doc.documentElement.outerHTML,productKeywords))).toLowerCase();  // convert to lowercase to match keywords irrespective of case
 
   message.html=doc.body.innerHTML
-  const readability = { Readability }; 
+  const readability = { Readability };
 
 
   var item_readability=(new readability.Readability(uri,doc)).parse()
@@ -2561,7 +2561,7 @@ function do_readability(message,simple_html, simple_title,url){
   const pattern = /\.\s[a-zA-Z0-9-]+\s{[^\}]+\}/g;
   item.combinedText=item.combinedText.replace(pattern, '').trim();
   item.price=""
-  
+
   var price=findPriceNearCTA(cleanText(textContent), productKeywords,1000);
   if (price==false){
       price=findPriceNearCTA(item.combinedText, productKeywords,1000);
@@ -2572,12 +2572,12 @@ function do_readability(message,simple_html, simple_title,url){
       //     const numberB = parseFloat(b.replace(/[^0-9.-]+/g, ""));
       //     return numberA - numberB;
       // });
-    
+
       // item.combinedText="Price: "+price.prices.join(" ")+" "+price.cta+". "+item.combinedText;
       item.price=price;
    }
 
-  
+
   item.page_urls=extractURLs(message.html,message.start_url,"")
 
   item.content_urls=extractURLs(item_readability.content+simple_doc.body.innerHTML,message.start_url,item.title);// Keep only PDF files found in content.
@@ -2591,7 +2591,7 @@ function do_readability(message,simple_html, simple_title,url){
     is_product=isProductPage((cleanText(extractPlainText(message.html))))// Remove related-item noise.
     item.is_product=is_product[0]
     item.matchedKeywords=is_product[1]
-  } 
+  }
   item.content=""
 
   if(item.price==""){
