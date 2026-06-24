@@ -363,6 +363,14 @@ MCP or native tools may be used only as an optional compatibility execution path
 
 If the tool identity cannot be compared, mark `global_mcp_not_client_scoped` and use the per-client OpenAPI/API-key setup path instead.
 
+#### Solo Agency Video Provider Adapter
+
+When a video/blog/social production action may call a concrete provider tool, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after the writing skill or provider skill. This adapter is the Solo Agency overlay for client routing.
+
+Vendored writing skills, including WideCast video script-writing skills, may be refreshed from upstream and may mention concrete MCP calls such as `widecast_create_video`, `widecast_account`, or `widecast_upload_asset`. Do not patch those vendored files for Solo Agency client-routing behavior. Interpret those calls as abstract capabilities, then resolve the actual operation from the current client's `integrations/providers/provider_config.local.json`, OpenAPI cache, and `provider_capabilities.json`.
+
+If the current client has no verified provider config or the required operation is missing, stop the provider action and log the exact blocker. Do not fall back to a global MCP/native account just because it is available in the current AI session.
+
 The default provider catalog should come from `daily-content-pipeline/provider_defaults.json`. If that file is missing, use this default only as a bootstrap template and then create the file:
 
 ```json
@@ -425,6 +433,8 @@ If WideCast is not configured for this client, the agent must:
 4. Ask the human to connect Telegram in WideCast if they want scheduled report notifications.
 5. Ask the human to connect publishing platforms in WideCast if they want Distribution.
 6. Save only the required API key reference or local key in this client's provider config.
+   - Use `api_key_env` for an environment variable name or `api_key_local` for a local client key.
+   - Do not save the key in a field named `api_key`; `tools/provider_openapi.py` ignores that field and will report `provider_auth_missing`.
 7. Fetch and cache `https://widecast.ai/openapi.yaml`.
 8. Verify account identity with `getAccount`.
 9. Check the discovered operation IDs needed for PDNA:
@@ -643,7 +653,7 @@ For account setup, the agent must:
 
 The agent must not ask for WideCast account credentials.
 
-### WideCast Video Creation Gate
+### Client-Scoped Video Creation Gate
 
 The agent must not create a video immediately after writing a script.
 
@@ -655,7 +665,7 @@ The correct sequence is:
 4. Write script.
 5. Show script to human.
 6. Ask for approval.
-7. Only after approval, create video in WideCast if this client's provider config is verified and the required OpenAPI operation exists.
+7. Only after approval, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md`, resolve the current client's verified provider and `production.create_video` operation from OpenAPI capabilities, then create the video through that client-scoped operation. For WideCast, use the WideCast OpenAPI operation only after this client's WideCast account identity is verified. Use MCP/native tools only if they are proven to be the same client account.
 
 ### WideCast Telegram Notification Protocol
 

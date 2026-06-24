@@ -228,11 +228,14 @@ Use one folder per client/business/location:
               {client-name}-public-data-sources-report.html
               {client-name}-private-data-sources-report.html
               {client-name}-daily-report.html
+              {client-name}-client-report.html
+              {client-name}-client-report.pdf
               {client-name}-report_state.json
           latest/
             {client-name}-daily-report.html
             {client-name}-public-data-sources-report.html
             {client-name}-private-data-sources-report.html
+            {client-name}-client-report.pdf
 ```
 
 Examples:
@@ -303,6 +306,8 @@ daily-content-pipeline/
               smith-law-public-data-sources-report.html
               smith-law-private-data-sources-report.html
               smith-law-daily-report.html
+              smith-law-client-report.html
+              smith-law-client-report.pdf
               smith-law-report_state.json
           latest/
             smith-law-daily-report.html
@@ -340,7 +345,7 @@ Monthly organization rule:
 
 - Any file created daily must be stored under a `YYYY-MM/` folder.
 - This applies to client outputs, master digests, collector jobs, collector inboxes, history logs, data points, leads, competitors, and new private data source logs.
-- Keep `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-public-data-sources-report.html`, `outputs/latest/{client-name}-private-data-sources-report.html`, `latest_master_digest.md`, and `latest_master_digest.html` as convenience pointers/copies.
+- Keep `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-public-data-sources-report.html`, `outputs/latest/{client-name}-private-data-sources-report.html`, optional `outputs/latest/{client-name}-client-report.pdf`, `latest_master_digest.md`, and `latest_master_digest.html` as convenience pointers/copies.
 - Keep report state beside the dated report set as `YYYY-MM-DD/{client-name}-report_state.json`.
 - Do not allow long-running pipelines to accumulate hundreds or thousands of daily files directly in one folder.
 
@@ -606,6 +611,7 @@ Credential rules:
 
 - Prefer `api_key_env` or the user's secret manager when available.
 - If a local API key is saved in `api_key_local`, keep it only in this per-client local file and redact it in all logs and reports.
+- Do not create or use a field named `api_key` in `provider_config.local.json`. The official helper reads `api_key_env` and `api_key_local`; a stray `api_key` field is ignored and will cause `provider_auth_missing`.
 - Never store passwords, OTPs, browser cookies, social session tokens, or raw OAuth refresh tokens here.
 - Before any provider action, verify the active provider account with the provider account operation, such as WideCast `getAccount`.
 - If the verified account identity changes unexpectedly, stop provider actions and log `provider_account_mismatch`.
@@ -749,6 +755,13 @@ Minimum format:
   "latest_daily_html_path": "outputs/latest/{client-name}-daily-report.html",
   "latest_public_html_path": "outputs/latest/{client-name}-public-data-sources-report.html",
   "latest_private_html_path": "outputs/latest/{client-name}-private-data-sources-report.html",
+  "client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html",
+  "client_report_pdf_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf",
+  "latest_client_pdf_path": "outputs/latest/{client-name}-client-report.pdf",
+  "client_pdf_status": "not_requested",
+  "client_pdf_redaction_status": "not_needed",
+  "client_pdf_generated_at": "",
+  "client_pdf_blocker": "",
   "public_section_status": "missing",
   "private_section_status": "missing",
   "last_public_update_at": "",
@@ -790,6 +803,8 @@ Rules:
 - Public data source pass may write only `{client-name}-public-data-sources-report.html`, public source records, and `{client-name}-daily-report.html` status metadata. It must preserve any existing private report.
 - Private data source pass may write only `{client-name}-private-data-sources-report.html`, private source records, and `{client-name}-daily-report.html` status metadata. It must preserve any existing public report.
 - `latest/{client-name}-daily-report.html` must point to or copy the daily report index, not a lane-specific artifact.
+- `latest/{client-name}-client-report.pdf` is optional and must point to or copy a PDF generated from `{client-name}-client-report.html`, which itself is assembled from the three canonical HTML reports. It must not replace the daily report index.
+- If a client-share PDF includes private data source findings, record `client_pdf_redaction_status` as `redacted`, `approved_exact_sources`, or `needs_human_review`.
 - If two notifications are sent, both should reference the same daily report path or uploaded URL, with lane status recorded in `notification_log.md`. Lane-specific links may be included as secondary links.
 
 ### `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`
