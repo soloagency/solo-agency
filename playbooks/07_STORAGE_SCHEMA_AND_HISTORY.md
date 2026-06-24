@@ -892,7 +892,7 @@ rationale:
 status:
 rationale:
 items:
-- 
+-
 
 ## content_pillars
 
@@ -1127,11 +1127,11 @@ rationale:
 
 ## assumptions
 
-- 
+-
 
 ## human_corrections
 
-- 
+-
 ```
 
 ---

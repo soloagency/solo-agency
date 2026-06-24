@@ -34,16 +34,6 @@ This playbook connects the full agency loop: research, ideas, lead and competito
 - A production layer for idea-to-video, blog/social creation, auto-posting, notifications, analytics, and build-measure-learn-improve loops.
 - A multi-client workflow for freelancers and agencies that need repeatable output without rebuilding strategy from scratch every morning.
 
-## Maintainer Pre-Upload
-
-Before pushing or uploading this repo to GitHub, run:
-
-```sh
-./deploy-soloagency.sh
-```
-
-This formats/tests the Go Local Collector bridge, cross-builds the prebuilt bridge binaries, rebuilds collector zip artifacts, refreshes `SHA256SUMS`, rebuilds playbook skill zips, removes `.DS_Store`, and runs upload preflight checks. Maintainers need Go installed; end users do not.
-
 ## What You Get Every Day
 
 - A client-ready HTML report with insights, proof, recommendations, and next actions.
@@ -130,7 +120,7 @@ Tested with Claude Desktop, Codex, Hermes, and OpenClaw.
 
 Community testing on other AI agents is welcome, especially around playbook loading, local collector setup, scheduled runs, progress display, and HTML report delivery.
 
-No vision model is required. Solo Agency is designed to run with an LLM-only agent. 
+No vision model is required. Solo Agency is designed to run with an LLM-only agent.
 
 ## Agent Entry Point
 
