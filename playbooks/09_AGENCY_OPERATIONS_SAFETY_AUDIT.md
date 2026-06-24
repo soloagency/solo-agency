@@ -163,12 +163,12 @@ First Client Setup Mode is the same as Add Client Mode, but it is triggered auto
 In First Client Setup Mode, ask only for the minimum information required to create the first client pipeline:
 
 - Client name, if not already known.
-- Product/service, profession, expertise, or business description.
+- Product/service, profession, expertise, business description, or public website/profile URL.
 - Target location only if location matters and cannot be inferred.
 - Optional private data sources to monitor.
 - Optional permission for private data source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
 
-Do not create fake client pipelines. If the client name or business description is missing, ask for that missing information and keep the root pipeline ready.
+Do not create fake client pipelines. If the client name or enough business context is missing, ask for the missing information and keep the root pipeline ready. A public website/profile URL counts as business context if it is publicly accessible and gives enough information to infer the setup.
 
 Whenever the human says something like:
 
@@ -183,7 +183,7 @@ The agent must enter Add Client Mode.
 In Add Client Mode, ask only for missing critical information:
 
 - Client name.
-- Product/service, profession, expertise, or business description.
+- Product/service, profession, expertise, business description, or public website/profile URL.
 - Target location only if location matters and cannot be inferred.
 - Optional private data sources to monitor.
 - Optional permission for private data source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
@@ -211,8 +211,8 @@ Then the agent must follow the same 10-item setup model. Do not introduce Add Cl
 4. Save the public data source plan and keyword bank.
 5. Resolve only the lightweight private data source preference: record provided sources as `pending_7A_review`, declined/no sources, pending Local Collector activation/private data source discovery, or `discovery_declined_or_postponed`.
 6. Configure the recurring schedule/routine once the basic source plan is known.
-7A. If private data sources exist or discovery is approved/pending, guide Local Collector setup now, or record private data sources as `pending_private_activation` so the automation task can continue with public data sources only if needed.
-7B. Prepare or verify the client-specific extension folder under `extensions/{client_slug}/`, with the client name at the start of the Chrome extension name. Create or resync the client-specific automation task, with the task name beginning with the client name. Update the Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled-run prompt/task body, and resync log. Finish the setup handoff by telling the human the exact automation task name to run for the first report, the extension folder to load if needed, and whether private data sources are active, pending, stale, or not requested.
+7A. If private data sources exist or discovery is approved/pending, guide Local Collector setup now, or record private data sources as `pending_private_activation` so the automation task can continue with public data sources only if needed. Discovery may include approved joined/followed/member spaces or Facebook keyword group search; any discovered source still needs human approval before activation.
+7B. Prepare or verify the client-specific extension folder under `extensions/{client_slug}/`, with the client name at the start of the Chrome extension name. For every new client, this dedicated extension folder is required even if private data sources are postponed. Create or resync the client-specific automation task, with the task name beginning with the client name. Update the Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled-run prompt/task body, and resync log. Finish the setup handoff by telling the human the exact automation task name to run for the first report, the absolute extension folder path, the matching Chrome profile/account to use, exact Chrome `Load unpacked` steps, and whether private data sources are active, pending, stale, or not requested. Do not merely say "extension created."
 8. If the human asks for production/video/blog/social, publishing, notifications, analytics, or "full automatic" during Setup Flow, load `playbooks/03_PRODUCTION_DISTRIBUTION.md` only as a provider/configuration gate. Do not create or publish assets from Setup Flow.
 9. Record analytics as an Automation Flow concern only.
 10. Do not run the first agency run, first report, public scan, private data source scan, report updates, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, video creation, publishing, or PDNA production actions inside Setup Flow.
@@ -303,7 +303,7 @@ First draft: {script/blog/caption title}
 Solo Agency automation process
 This is the planned automation process for this client. You only need to reply when I ask one specific question.
 
-✓ 1. You provided the product/service, profession, expertise, or business description
+✓ 1. You provided the product/service, profession, expertise, business description, or public website/profile URL
 ✓ 2. I inferred the industry, sub-industry, related industries, audience, and offer
 ✓ 3. I inferred pain points and content pillars
 ✓ 4. I selected public data sources and search keywords
@@ -315,7 +315,7 @@ This is the planned automation process for this client. You only need to reply w
 – 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
 ✓ 10. I created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft in Automation Flow
 
-The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
+The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, draft blog/social variants, receive Telegram alerts for review, publish approved content to 10+ platforms after you approve the exact content and target platforms, measure performance, and feed that learning back into better ideas.
 
 This run used public data sources only. I have {N} private data sources waiting, including:
 - {source name or URL}
@@ -337,7 +337,9 @@ Private data source activation rule:
 - The agent should proceed automatically as far as file preparation allows, but it must not run the one-time Local Collector setup/start command itself.
 - During one-time setup/update/repair, the agent must never execute `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI agent, even if shell permissions are available. Agent-run setup can be trapped in a sandbox/session and killed after the turn.
 - The agent must create the script/launcher file first and give the human exactly one short Terminal/PowerShell command or one double-clickable file path to run outside the AI sandbox, not a long multi-line script.
-- The same setup handoff must include the Chrome extension install steps and the one absolute client-specific extension folder path under `extensions/{client_slug}/`.
+- The same setup handoff must include the Chrome extension install steps and the one absolute client-specific extension folder path under `extensions/{client_slug}/` for every new client, even when private data sources are not active yet.
+- The handoff must say which Chrome profile/account to open for that client and must show `chrome://extensions` -> Developer mode -> `Load unpacked` -> select the absolute `extensions/{client_slug}/` folder.
+- Saying only "I created the extension" or "extension folder exists" is incomplete.
 - The exact human action must be shown directly in chat. The agent may also save it in `collector_setup_status.md`, but the saved file is only the agent's record and must not be the only place where the human receives the instruction.
 - The agent must not label the collector by the current platform, such as `Facebook collector`.
 - The agent must create or update `daily-content-pipeline/collector/collector_setup_status.md` when private data source activation begins.
@@ -356,7 +358,7 @@ Automation run-now rule:
 - If the Local Collector app is already installed, running, healthy, and matched to the target client's extension identity, the Automation Flow agent may include private data sources by creating a run-now job.
 - If the Local Collector app is not installed/running/healthy or the matching extension is stale, the Automation Flow agent should run public data sources and list private data sources as pending activation.
 - The automation report output must include a mobile-friendly HTML report, a concise summary, and at least one useful draft script/blog/caption.
-- If WideCast account tools are not connected, the automation HTML report must include `Unlock Production & Distribution & Measure-Learning Loop With WideCast` so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup.
+- If the client's WideCast/OpenAPI provider config is not connected and verified, the automation HTML report must include `Unlock Production & Distribution & Measure-Learning Loop With WideCast` so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup.
 
 Manual run / run-now rule:
 
@@ -567,9 +569,12 @@ For each daily run:
       - Do not use only generic industry keywords.
       - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
       - Use keywords in the target audience's likely search/comment language. Do not translate the keyword bank into the human's chat/report language unless the audience uses that language.
+      - Use at least 10 distinct public search keywords per public data source run unless search tooling is unavailable or the saved keyword bank has fewer than 10 usable entries after expansion.
+      - At least 7 of the 10 keywords should come from pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news groups.
       - Include at least one broad primary-industry keyword for context, at least one pain-point/problem keyword, at least one need/goal or buying-intent keyword, and local/location keywords when location matters.
       - Use a smaller rotation of related-industry keywords only when the bridge back to the client's offer is clear.
       - If results are weak, try a different pain-point/problem/need cluster before giving up.
+      - Continue keyword rotation until at least 3 source-backed candidate ideas are new or newly angled against `history/YYYY-MM/content_log.md`. If fewer than 3 qualify after 10+ distinct keywords and due public data sources have been checked, record the coverage limitation instead of fabricating weak ideas.
       - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
       - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
       - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
@@ -596,17 +601,18 @@ For each daily run:
    18. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
    19. Detect direct, adjacent, and audience competitors, including profile URLs, post/current URLs, and positioning notes.
    20. Generate the 3x2 idea matrix, labeling each idea as `primary_industry` or `related_industry`.
-   21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
-   22. Select the best idea of the day.
-   23. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
-   24. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
-   25. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   26. Update or copy `outputs/latest/{client-name}-daily-report.html`.
-   27. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   28. Update `history/YYYY-MM/content_log.md`.
-   29. Update `history/YYYY-MM/data_sources_log.md`.
-   30. Update `history/YYYY-MM/lead_log.md`.
-   31. Update `history/YYYY-MM/competitor_log.md`.
+   21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
+   22. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
+   23. Select the best idea of the day.
+   24. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
+   25. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
+   26. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+   27. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   28. Update or copy the latest public/private lane HTML files when those lane reports exist.
+   29. Update `history/YYYY-MM/content_log.md`.
+   30. Update `history/YYYY-MM/data_sources_log.md`.
+   31. Update `history/YYYY-MM/lead_log.md`.
+   32. Update `history/YYYY-MM/competitor_log.md`.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
@@ -1300,12 +1306,12 @@ Read and follow SOLO_AGENCY_PLAYBOOK.md exactly. Start by asking me only for the
 The correct first response from the agent should be similar to:
 
 ```md
-What product/service, profession, expertise, or business description should this pipeline focus on? If location matters, include the target location. I will infer industry, audience, pain points/customer problems, content pillars/main content themes, and public data sources/web-search sources I can access without your login, then show you the setup summary before saving anything as stable context.
+What product/service, profession, expertise, business description, or public website/profile URL should this pipeline focus on? If location matters, include the target location. I can use a public website/profile URL to understand the business if you prefer. I will infer industry, audience, pain points/customer problems, content pillars/main content themes, and public data sources/web-search sources I can access without your login, then show you the setup summary before saving anything as stable context.
 ```
 
 If space allows, the first response should mention that the agent will also infer related industries and keep content focused around an 80% primary / 20% related-industry mix.
 
-If the human says they have no clients yet, or if the first run discovers that `clients_index.md` has no real client rows, the agent should create or verify the root structure and immediately enter First Client Setup Mode. It should ask only for the first client's name and product/service, profession, expertise, or business description, plus target location only if location matters and cannot be inferred. It must not mention private data sources in the first client setup question. Step 5 may ask only a lightweight preference question about whether to include private data sources later. Step 7A is where the agent may ask for actual private data source URLs/lists, offer optional discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds, get approval, and handle Local Collector activation if needed.
+If the human says they have no clients yet, or if the first run discovers that `clients_index.md` has no real client rows, the agent should create or verify the root structure and immediately enter First Client Setup Mode. It should ask only for the first client's name and product/service, profession, expertise, business description, or public website/profile URL, plus target location only if location matters and cannot be inferred. It must not mention private data sources in the first client setup question. Step 5 may ask only a lightweight preference question about whether to include private data sources later. Step 7A is where the agent may ask for actual private data source URLs/lists, offer optional discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds, get approval, and handle Local Collector activation if needed.
 
 If the human gives a new client, the agent should enter Add Client Mode.
 
@@ -1332,11 +1338,11 @@ Initial setup is complete when:
 9. The recurring schedule/routine has been configured or explicitly marked manual-only/pending.
 10. The client-specific automation task exists or is proposed for the native automation system, and its task name begins with the client name.
 11. The scheduled-run prompt/task body pins `target_client_slug`, the expected client extension identity, source state, output path, and the Setup Flow / Automation Flow contract.
-12. The matching client extension folder exists under `extensions/{client_slug}/`, with the client name at the start of the Chrome extension name, or the setup handoff clearly says the extension is not required yet.
+12. The matching client extension folder exists under `extensions/{client_slug}/`, with the client name at the start of the Chrome extension name, and the setup handoff shows the absolute folder path plus the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account.
 13. If private data sources exist but Local Collector is not active yet, the automation contract includes `Private Data Sources Pending Activation` and lists the pending sources.
 14. If no private data sources were provided, the agent offered optional private data source discovery or recorded that discovery was declined/postponed.
 15. If no private data sources are active, the automation contract includes `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed`, with a plain note that public-only reports can miss community, lead, and competitor signals.
-16. If WideCast account tools are not connected, the automation report contract requires `Unlock Production & Distribution & Measure-Learning Loop With WideCast`.
+16. If the client's WideCast/OpenAPI provider config is not connected and verified, the automation report contract requires `Unlock Production & Distribution & Measure-Learning Loop With WideCast`.
 17. If the human agrees to activate private data sources, `daily-content-pipeline/collector/collector_setup_status.md` exists and shows either `installed_and_running` or a precise blocked status with the required human action.
 18. The setup handoff tells the human the exact client-specific automation task name to run for the first report.
 19. Any required human action is also shown directly in the current chat message with one clear command, one double-clickable launcher path, or one absolute extension folder path. Markdown-only setup instructions are a failure.
@@ -1431,7 +1437,7 @@ Before replying to the human, verify:
 
 Before saving a Client Intelligence Profile as stable, verify:
 
-- [ ] Did I ask first only for product/service, profession, expertise, or business description?
+- [ ] Did I ask first only for product/service, profession, expertise, business description, or public website/profile URL?
 - [ ] Did I avoid mentioning private data sources in the first setup or first add-client question?
 - [ ] Did I infer industry and sub-industry myself?
 - [ ] Did I infer target audience?
@@ -1445,6 +1451,8 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I treat step 5 as only a lightweight preference question about whether to include private data sources later?
 - [ ] Did I avoid asking for private data source URLs/lists, discovery details, or Local Collector setup until step 7A?
 - [ ] If the human wanted private data sources or was unsure, did I handle actual source intake/discovery/approval in step 7A, including the optional discovery pass from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds?
+- [ ] If this was Add Client Mode or First Client Setup Mode, did I create or verify a dedicated `extensions/{client_slug}/` folder, patch the Chrome extension name to `{Client Name} - Solo Agency Collector`, and show the absolute folder path plus exact `chrome://extensions` -> Developer mode -> `Load unpacked` steps for the matching client Chrome profile/account?
+- [ ] Did I avoid merely saying "I created the extension" or "extension folder exists" without the path and install steps?
 - [ ] Did I build a public keyword bank from pain points, problems, needs, objections, buying triggers, and local context, not only generic industry terms?
 - [ ] Did I choose keyword language based on the target audience's likely search/comment language, not automatically the human's chat language?
 - [ ] If the audience is multilingual, did I label keyword languages and include useful variants?
@@ -1456,6 +1464,9 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I reassure the human that daily scanning helps avoid missing market signals, leads, competitor moves, and content ideas?
 - [ ] Did I mention common discovery surfaces in plain language, including Facebook groups where the human is already a member, subreddits/communities they joined, and profiles/pages/KOLs/channels they follow?
 - [ ] If the human agreed to Facebook member-groups discovery, did I use `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added` as the discovery source through the Solo Agency Local Collector?
+- [ ] If the human agreed to Facebook keyword group search discovery, did I use `https://www.facebook.com/search/groups/?q={url_encoded_keyword}` with client-relevant keywords, Local Collector only, and 10 scrolls per keyword?
+- [ ] Did I filter Facebook keyword search results to real group candidates and remove UI noise, people/pages/posts/events results, ads/sponsored blocks, and irrelevant broad groups?
+- [ ] Did I avoid joining groups, requesting access, messaging admins, or adding keyword-search groups to active `private_data_sources` before human approval?
 - [ ] If Facebook member-groups discovery was approved but Local Collector was not active yet, did I mark it as `pending_private_activation` instead of silently skipping it?
 - [ ] Did I avoid adding all joined Facebook groups automatically and instead filter by client relevance before asking the human to approve recommended groups?
 - [ ] Did I show which private data sources are daily, weekly, or optional?
@@ -1476,6 +1487,9 @@ Before completing public research, verify:
 - [ ] Did I use at least one pain-point/problem keyword?
 - [ ] Did I use at least one need/goal or buying-intent keyword?
 - [ ] Did I optionally use one related-industry keyword if useful?
+- [ ] Did I use at least 10 distinct public search keywords, or document why search/tooling/keyword-bank limits made that impossible?
+- [ ] Did at least 7 of those keywords come from pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news groups?
+- [ ] Did I keep rotating keyword clusters until I found at least 3 source-backed candidate ideas that are new or newly angled, or document why that minimum could not be met?
 - [ ] Did I rotate keywords instead of reusing only old queries?
 - [ ] Did I record each keyword as `used`, `useful`, `weak`, or `retry_later`?
 - [ ] Did I extract new keyword candidates from useful search results, public discussions, private scans, competitor hooks, comments, analytics, or human feedback?
@@ -1493,6 +1507,8 @@ Before claiming private data sources were collected, verify:
 - [ ] Did I reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 for this private data source turn?
 - [ ] Did I use only the Solo Agency Local Collector extension plus Local Collector app, not Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser?
 - [ ] Is the Local Collector app running?
+- [ ] Did I tell the human private data sources require the matching client Chrome profile to already be logged in and authorized as a member/follower/subscriber or otherwise allowed viewer?
+- [ ] Did I recommend one separate Chrome profile per client with that client's extension loaded and relevant social accounts logged in?
 - [ ] Did I verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree, not an older Solo Agency setup folder?
 - [ ] If `/status` showed a running bridge from another setup folder, did I mark `wrong_workspace_bridge`, avoid private collection, and give the human the current setup's one-line Local Collector setup/start command?
 - [ ] If an old bridge or old extension install was detected, did I remind the human that one machine should have one active Solo Agency Local Collector runtime and ask them to remove/disable old Solo Agency Local Collector entries in `chrome://extensions`?
@@ -1502,7 +1518,9 @@ Before claiming private data sources were collected, verify:
 - [ ] If the bridge failed with `address already in use` or `/status` showed stale/wrong config, did the setup/start script or an explicit human-approved troubleshooting path handle the restart by stopping only old `collector-bridge` processes on port `17321` before starting the newest executable?
 - [ ] For manual run, did I use `/jobs/run_now` or one unique per-client job under `daily-content-pipeline/collector/jobs/pending/`, leaving `run_now_request.json` only as a legacy/batch shim?
 - [ ] For Facebook joined-groups discovery, did I use a manual `run_now` job for `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added` instead of pretending the joined groups were manually provided?
+- [ ] For Facebook keyword group search discovery, did I create a discovery job with `purpose: "facebook_group_keyword_search_discovery"`, `discovery_category: "keyword_search_sources"`, and `pacing.scroll_steps: 10` per keyword URL?
 - [ ] After Facebook joined-groups discovery, did I filter groups by client relevance and ask the human to approve recommended groups before adding them to active `private_data_sources`?
+- [ ] After Facebook keyword group search discovery, did I show keywords searched, candidate counts, recommended groups, noisy/skipped examples, membership/access notes, and ask for approval before activation?
 - [ ] For optional private data source discovery, did I use only approved discovery categories and platform starting URLs?
 - [ ] Did I treat feeds such as Facebook Home, YouTube Home, X Home, LinkedIn Feed, Instagram Explore, TikTok For You, and Reddit Home as discovery surfaces rather than permanent private data sources?
 - [ ] Did I avoid collecting DMs, inboxes, notifications, payment/account pages, or unrelated personal data?
@@ -1553,6 +1571,8 @@ Before selecting the best idea, verify:
 - [ ] Did every idea map to a pain point or content pillar?
 - [ ] Did every important idea include reference URLs?
 - [ ] Did I check history to avoid repeating old ideas?
+- [ ] Did I label each important idea's novelty status as `new`, `new_angle`, `near_duplicate_rejected`, or `repeat_rejected`?
+- [ ] If I reused a prior topic, did I record the prior idea/date and explain the materially new angle?
 
 ### Best Idea Selection Checklist
 
@@ -1560,6 +1580,7 @@ Before choosing the best idea, verify:
 
 - [ ] Did I compare heat/trend strength?
 - [ ] Did I check whether this idea was already used?
+- [ ] Did I reject exact repeats and near-duplicates unless there was a genuinely new angle?
 - [ ] Did I evaluate impact on target audience?
 - [ ] Did I evaluate audience size and scope?
 - [ ] Did I evaluate lead potential?
@@ -1629,6 +1650,11 @@ Before presenting production setup choices or claiming the PDNA setup gate is co
 - [ ] Did I include the manual/draft-only path for humans who do not want provider setup yet?
 - [ ] Did I avoid a response where the text names only WideCast while the specialist stack appears only as a short choice label?
 - [ ] If asking the human to connect WideCast, did I prefer the OpenAPI/API key path: `https://widecast.ai/#setup` -> API Keys -> copy a `wc_live_*` key for this specific client?
+- [ ] Before checking WideCast account status, credits, connected platforms, publish settings, Telegram, analytics, or capabilities, did I identify the active `target_client_slug` and read that client's `integrations/providers/provider_config.local.json`?
+- [ ] Did I avoid treating a global WideCast MCP/native tool account in the current AI session as proof that this client's PDNA is connected?
+- [ ] If only a global MCP/native provider account was visible, did I mark `global_mcp_not_client_scoped` or `global_mcp_available_but_not_authoritative` instead of listing those global credits/platforms as this client's status?
+- [ ] Did I verify the account through this client's configured OpenAPI/API-key path and compare the verified identity to the saved client provider identity before claiming PDNA is connected?
+- [ ] Did I check connected publishing platforms and provider settings through the verified client account, not through MCP-global `accounts` or `platform_settings` output?
 - [ ] Did I avoid asking for passwords, cookies, OTPs, social credentials, or browser session tokens?
 - [ ] If the human or AI host explicitly chooses MCP/connector setup, did I include the agent-specific setup guide link: Claude `https://widecast.ai/claude.html`, Codex/ChatGPT/OpenAI `https://widecast.ai/chatgpt.html`, Gemini `https://widecast.ai/gemini.html`, or Grok `https://widecast.ai/grok.html`?
 - [ ] If asking for an MCP URL, did I explain that it is optional compatibility, may include a `wc_mcp_...` token, and should be pasted exactly with no separate password/OAuth unless the official guide says otherwise?
@@ -1675,7 +1701,7 @@ Before saying the run is complete, verify:
 - [ ] Is the HTML factually aligned with the internal Markdown report?
 - [ ] Is the HTML standalone and portable?
 - [ ] Did I avoid making the HTML depend on `fetch("./report.md")`, remote scripts, remote CSS, or a neighboring Markdown file?
-- [ ] If WideCast account tools are not connected, did the HTML report include `Unlock Production & Distribution & Measure-Learning Loop With WideCast` covering video/blog production, 10+ platform publishing, Telegram notifications, performance measurement, and learning loop?
+- [ ] If the client's WideCast/OpenAPI provider config is not connected and verified, did the HTML report include `Unlock Production & Distribution & Measure-Learning Loop With WideCast` covering video/blog production, human review, 10+ platform publishing only after approval, Telegram notifications, performance measurement, and learning loop?
 - [ ] If WideCast Telegram is not connected yet, did the HTML report include a concise note that registering/logging in to WideCast and connecting Telegram can be used as a free remote-report path for daily HTML report links and blockers while the human is away from the computer?
 - [ ] If the report includes script/blog/social drafts, did I present each version in an editable HTML block with a working local `Copy this version` button?
 - [ ] Did the HTML draft section visibly tell the human they can fine-tune the draft on the page, copy the final version, and paste it back into the AI chat?
@@ -1690,7 +1716,7 @@ Before saying the run is complete, verify:
 - [ ] Did every report-ready notification include an HTML report URL/path? A plain "report ready" notification with no report URL/path is invalid.
 - [ ] If WideCast OpenAPI notification/Telegram was available and an HTML-capable `uploadAsset` operation was available, did I upload the `.html` report to WideCast first and send the uploaded report URL instead of only a local path?
 - [ ] Did I record a report-delivery object with local HTML path, provider, OpenAPI discovery status, account verification status, upload attempted status, uploaded URL if any, upload blocker if any, notification channel, and final notification report link?
-- [ ] If WideCast report upload was unavailable or failed, did I log the provider-neutral blocker, such as `provider_config_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_required_operation_missing`, or `provider_upload_failed`, and send the best available HTML path/link?
+- [ ] If WideCast report upload was unavailable or failed, did I log the provider-neutral blocker, such as `provider_config_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_required_operation_missing`, `provider_account_mismatch`, `global_mcp_not_client_scoped`, or `provider_upload_failed`, and send the best available HTML path/link?
 - [ ] If I accidentally sent a notification without a report URL/path, did I immediately send a correction notification with the HTML report URL/path and log the correction?
 - [ ] If provider notification was unavailable, did I try Gmail/email MCP or connector if available?
 - [ ] If neither WideCast OpenAPI notification nor Gmail/email was connected, did I suggest connecting WideCast API key + Telegram/email fallback first, or Gmail/email as a secondary fallback?
@@ -1728,7 +1754,7 @@ The human should not need to manage the workflow manually.
 The human provides only:
 
 - Client name.
-- Product/service, profession, expertise, or business description.
+- Product/service, profession, expertise, business description, or public website/profile URL.
 - Target location only when needed and not inferable.
 - Private data sources they want monitored.
 - Corrections to the agent's inferred setup.

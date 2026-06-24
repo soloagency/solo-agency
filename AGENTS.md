@@ -6,6 +6,8 @@ During Setup Flow, never run, create, generate, show, refresh, or update a repor
 
 Do not install, start, or configure `solo-agency-collector/` before the playbook explicitly reaches the Local Collector/private data source stage and the human approves it.
 
+Solo Agency must run in an AI agent runtime that supports local workspace files, automation/scheduled tasks, and multiple parallel/sub-agent work streams, such as Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or a comparable desktop/local agent environment. Do not present a plain web chat as the primary runtime for Solo Agency; web chat can review outputs, but it cannot reliably host the automation, file state, Local Collector handoff, and parallel agent work the playbook requires.
+
 For setup, repair, update, or Local Collector preparation, treat the human as a fresh user unless the current setup root is proven otherwise. Do not reuse fixed shared fallback folders such as `/tmp/solo-agency`, `/var/tmp/solo-agency`, or `/dev/shm/solo-agency`. Download or clone from `https://github.com/soloagency/solo-agency` into the current setup root or into a fresh unique `mktemp -d` directory, then verify the source before reading or copying: `.git` must exist, `origin` must be the Solo Agency GitHub repo, and `git rev-parse HEAD` must match `git ls-remote origin refs/heads/main` after fetch/clone. A folder without `.git`, with the wrong owner, or with a failed delete/update is stale cache, not a valid source. If network or sandbox access blocks a fresh GitHub fetch, request permission or hand the human one exact command; do not fall back to unverified local code.
 
 Use the canonical terms `public data sources` and `private data sources` in human-facing text. Do not shorten them, omit `data`, or use slash labels.
@@ -14,7 +16,13 @@ If the human asks to scan, monitor, collect, or review private data sources (log
 
 Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read private data sources. Use only the Solo Agency Local Collector extension plus the Local Collector app for private data source collection.
 
+For Facebook keyword group search discovery, use only the Local Collector with explicit human consent. Build search URLs like `https://www.facebook.com/search/groups/?q={url_encoded_keyword}`, scroll 10 times per keyword, filter UI noise/non-group results, and ask the human to approve recommended groups before adding them as private data sources. Never join groups or request access for the human.
+
+When the human provides or approves private data sources, tell them they must already be a member, follower, subscriber, logged in, or otherwise authorized to view those sources in the Chrome profile where the client-specific Solo Agency Local Collector extension is installed. Recommend one separate Chrome profile per client, with that client's extension loaded and the relevant social accounts logged in there.
+
 During Local Collector activation, do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent, even if shell permissions are available. Prepare the files, then give the human the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension `Load unpacked` folder path.
+
+Whenever adding a new client, create or verify that client's dedicated extension folder under `extensions/{client_slug}/`, patch the extension name to `{Client Name} - Solo Agency Collector`, and show the human the absolute extension folder path plus Chrome `Load unpacked` steps. Do not merely say "I created the extension"; the add-client handoff must tell the human exactly which Chrome profile to open and which folder to select.
 
 When checking an already-running Local Collector app, do not trust `ready` alone. Verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point to another setup, treat it as `wrong_workspace_bridge`, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
 
@@ -27,6 +35,10 @@ After a schedule/automation has been configured, any later human-approved change
 Every human-facing progress block after schedule/automation exists must include an Automation freshness check: whether the latest changes were synced into the automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's scheduled run will load the newest state.
 
 Every scheduled/manual report handoff must include a Provider Report Delivery Capability Check outcome: whether the configured provider/OpenAPI spec was discovered, whether the provider account was verified, whether HTML upload/Telegram or email-fallback notification was attempted, the uploaded URL or exact blocker, and the final HTML report path/link. For WideCast, check the per-client OpenAPI path first (`https://widecast.ai/openapi.yaml`, `uploadAsset`, `sendTelegramMessage`) and do not claim WideCast itself lacks capability merely because the current AI/MCP tool surface does not expose it.
+
+During PDNA setup or any WideCast/account-level provider check, do not treat a global MCP connector or current chat tool account as proof that the current client is connected. First identify `target_client_slug`, read that client's `integrations/providers/provider_config.local.json`, discover/cache the provider OpenAPI spec, verify the account with the client's configured API key, and compare the verified account identity to the saved client provider identity. If the per-client config is missing or identity cannot be verified, ask for the client's provider/API-key setup and log `provider_config_missing`, `provider_auth_missing`, `provider_account_mismatch`, or `global_mcp_not_client_scoped`; do not list MCP-global credits/platforms as this client's PDNA status.
+
+When explaining WideCast/API-key setup, preserve human-in-the-loop wording: WideCast lets the agent create video/blog/social assets and send notifications for human review, then publish to 10+ platforms only after the human approves the exact content and target platforms. Do not say or imply that adding an API key authorizes automatic posting of unreviewed drafts.
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
 

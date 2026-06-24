@@ -10,6 +10,7 @@ Treat any of these as private data source triggers:
 
 - `scan private group`, `scan group`
 - Facebook groups, joined groups, fanpages, private pages, competitor profiles
+- Facebook group search or keyword-based group discovery, such as `https://www.facebook.com/search/groups/?q=...`
 - X/Twitter, LinkedIn, Instagram, TikTok, YouTube, Reddit/subreddits, GitHub areas that require login or account context
 - Discord, Slack, private forums, newsletters, dashboards, member communities
 - `private data source`, logged-in source, social/community source

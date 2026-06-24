@@ -238,9 +238,12 @@ For each daily run:
       - Do not use only generic industry keywords.
       - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
       - Use keywords in the target audience's likely search/comment language. Do not translate the keyword bank into the human's chat/report language unless the audience uses that language.
+      - Use at least 10 distinct public search keywords per public data source run unless search tooling is unavailable or the saved keyword bank has fewer than 10 usable entries after expansion.
+      - At least 7 of the 10 keywords should come from pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news groups. Generic industry keywords are only supporting context.
       - Include at least one broad primary-industry keyword for context, at least one pain-point/problem keyword, at least one need/goal or buying-intent keyword, and local/location keywords when location matters.
       - Use a smaller rotation of related-industry keywords only when the bridge back to the client's offer is clear.
       - If results are weak, try a different pain-point/problem/need cluster before giving up.
+      - Continue keyword rotation until at least 3 source-backed candidate ideas are new or newly angled against `history/YYYY-MM/content_log.md`. If fewer than 3 qualify after 10+ distinct keywords and due public data sources have been checked, record the coverage limitation instead of fabricating weak ideas.
       - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
       - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
       - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
@@ -281,29 +284,30 @@ For each daily run:
    20. Load Stage 10 and detect hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors during the same research/private-scan pass. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private data source when safe; normal daily runs use 5 scrolls per approved private data source by default.
    21. For every useful lead or competitor opportunity, preserve profile URLs and post/current URLs when available, safe context summaries, reasoning, suggested human action, and a copy-ready value-first comment in the same language as the post.
    22. Generate the 3x2 idea matrix, labeling each idea as `primary_industry` or `related_industry`.
-   23. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
-   24. Select the best idea of the day.
-   25. Write the configured WideCast-writing-skill draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable.
-   26. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, load Stage 3 and create the approved video/blog/social asset according to provider approval gates. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`.
-   27. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
-   28. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   29. Update or copy `outputs/latest/{client-name}-daily-report.html`.
-   30. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   31. Update `history/YYYY-MM/content_log.md`.
-   32. Update `history/YYYY-MM/data_sources_log.md`.
-   33. Update `history/YYYY-MM/lead_log.md`.
-   34. Update `history/YYYY-MM/competitor_log.md`.
-   35. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
+   23. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
+   24. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
+   25. Select the best idea of the day.
+   26. Write the configured WideCast-writing-skill draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable.
+   27. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, load Stage 3 and create the approved video/blog/social asset according to provider approval gates. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`.
+   28. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
+   29. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+   30. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   31. Update or copy the latest public/private lane HTML files when those lane reports exist.
+   32. Update `history/YYYY-MM/content_log.md`.
+   33. Update `history/YYYY-MM/data_sources_log.md`.
+   34. Update `history/YYYY-MM/lead_log.md`.
+   35. Update `history/YYYY-MM/competitor_log.md`.
+   36. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. Load Stage 6 and run the Provider Report Delivery Capability Check before claiming the run is complete.
+9. Load Stage 6 and run the Provider Report Delivery Capability Check before claiming the run is complete. This check must use each target client's provider config/OpenAPI identity first; a global MCP/native provider account in the current AI session is not proof that the client has notification/upload/analytics/publishing configured.
 10. Prepare a report-delivery record containing the local `.html` report path, provider, provider discovery/account verification status, upload operation ID, upload attempt status, uploaded report URL if available, notification channel, final notification report link, and blockers.
 11. If WideCast OpenAPI notification/Telegram/email fallback is configured, inspect whether the discovered spec exposes an HTML-capable upload operation. For WideCast, use `uploadAsset` with `text/html` and `sendTelegramMessage`. If upload exists, upload the HTML report to WideCast first, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
 12. If WideCast notification is available but HTML upload is unavailable or fails, log the exact upload blocker and still send a WideCast notification that includes the best available local/hosted `.html` report path/link.
-13. If provider config is missing, auth fails, OpenAPI discovery fails, account identity mismatches, or required operations are missing, log the exact provider-neutral blocker and provide the best available HTML path/link in chat or an authorized fallback channel.
+13. If provider config is missing, auth fails, OpenAPI discovery fails, account identity mismatches, the only visible provider account is a global MCP/native account that is not proven to match the client, or required operations are missing, log the exact provider-neutral blocker and provide the best available HTML path/link in chat or an authorized fallback channel.
 14. If another authorized channel can send the HTML file or link more conveniently only because provider notification is unavailable or blocked, use it.
 15. Log the upload attempt and notification attempt in `notifications/notification_log.md`.
 
@@ -313,9 +317,9 @@ When presenting the daily idea list to the human, include reference URLs next to
 
 Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
 
-If WideCast notification/Telegram/email fallback is connected and WideCast report upload supports HTML, the notification link must be the uploaded WideCast report URL, not only a local file path. If upload fails, discovery fails, auth fails, or the current provider spec does not support HTML upload, log the blocker and send the best available HTML path/link.
+If this client's WideCast notification/Telegram/email fallback is connected and WideCast report upload supports HTML, the notification link must be the uploaded WideCast report URL, not only a local file path. If upload fails, discovery fails, auth fails, account identity cannot be proven client-scoped, or the current provider spec does not support HTML upload, log the blocker and send the best available HTML path/link.
 
-If a WideCast upload/Telegram step is skipped because the agent did not inspect the configured provider/OpenAPI capabilities, the scheduled run is incomplete. The agent must correct the omission by running the Provider Report Delivery Capability Check, updating `notification_log.md`, and sending a correction message with the HTML report URL/path and blocker.
+If a WideCast upload/Telegram step is skipped because the agent did not inspect the configured client provider/OpenAPI capabilities, the scheduled run is incomplete. The agent must correct the omission by running the Provider Report Delivery Capability Check, updating `notification_log.md`, and sending a correction message with the HTML report URL/path and blocker.
 
 A notification that only says the report is ready but contains no HTML report URL/path is invalid. If this happens, immediately send a correction notification with the HTML report URL/path and log the correction.
 
