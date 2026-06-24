@@ -147,6 +147,8 @@ The report set must use `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.j
 
 Two notifications are acceptable: one when the public report is ready and one when the private report is ready or blocked. Notifications should normally point to `{client-name}-daily-report.html` or its uploaded URL, with lane-specific report links as secondary links when useful.
 
+If the human explicitly asks for a PDF to send to a client, create it as an extra derivative artifact from the three HTML files: `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and optional `outputs/latest/{client-name}-client-report.pdf`. The PDF must not replace the three canonical HTML files, and private data source details must be redacted or held for human review unless sharing exact private sources was approved.
+
 ### One Bridge, Many Client Extensions
 
 Use one shared Local Collector app/bridge per machine, but use one client-specific unpacked Chrome extension folder per client Chrome profile/account:
@@ -475,7 +477,7 @@ The agent may omit the next-step question only when the entire requested workflo
 - Show inference before asking the next question.
 - Configure schedule/routine and the client-specific automation task before the first report; if private data sources exist and Local Collector is not active, handle step 7A or mark private data sources as pending before declaring automation ready.
 - If no private data sources are provided, offer optional private data source discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds before treating the private data source step as resolved.
-- User-facing reports are HTML only. Markdown is internal.
+- Canonical user-facing reports are HTML. Markdown is internal. PDF is allowed only as an explicitly requested client-share export derived from the three HTML files.
 - Private data stays local unless the human explicitly approves export.
 - Never ask for passwords, OTPs, cookies, tokens, or raw credentials.
 - Do not use approval-gated browser extensions for unattended private collection.
