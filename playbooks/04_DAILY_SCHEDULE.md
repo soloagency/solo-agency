@@ -119,7 +119,7 @@ Trigger Automation Resync whenever a human-approved change happens after schedul
 - private data source discovery was run, approved, rejected, postponed, or changed;
 - Local Collector was activated, repaired, moved to another folder, or found to be writing to the wrong workspace;
 - public data sources, public search keywords, client profile fields, pain points, content pillars, audience, location, or offer changed;
-- PDNA, WideCast, Telegram, publishing, analytics, published URL history, or notification delivery changed;
+- PDNA, production provider, WideCast API key/OpenAPI config, Telegram/email fallback, publishing, analytics, published URL history, or notification delivery changed;
 - schedule cadence, timezone, active clients, manual-only mode, or report delivery channel changed;
 - the playbook behavior changed in a way scheduled runs must follow.
 
@@ -127,12 +127,14 @@ Automation Resync requires updating every relevant layer:
 
 1. Client Intelligence Profile: current source status, approvals, profile fields, private monitoring activation, PDNA, analytics, and notification status.
 2. Source/history logs: discovery results, approved/rejected/pending private data sources, new public data sources, keyword bank changes, and approval timestamps.
-3. `daily-content-pipeline/schedule.md`: cadence, included clients, notification channel, private data source status, PDNA status, and last resync timestamp.
-4. `daily-content-pipeline/collector/collector_config.json` or `POST http://127.0.0.1:17321/config`: only when private data source collection schedule/sources/scan depth changed.
-5. `daily-content-pipeline/automation/automation_manifest.md`: current run contract, paths, active clients, prompt source, config source, and last known state hash/summary.
-6. `daily-content-pipeline/automation/scheduled_run_prompt.md`: the exact prompt that the native AI automation/scheduled task should run.
-7. Native AI automation or scheduled task body: update it when the environment stores a separate prompt snapshot.
-8. `daily-content-pipeline/automation/resync_log.md`: what changed, what files/tasks were updated, what could not be updated, and what the next scheduled run should see.
+3. `daily-content-pipeline/provider_defaults.json`: provider catalog/discovery URL defaults, no secrets.
+4. The client provider files under `integrations/providers/`: provider config, OpenAPI cache/capability snapshot, provider health, and provider call log when relevant.
+5. `daily-content-pipeline/schedule.md`: cadence, included clients, notification channel, private data source status, PDNA/provider status, and last resync timestamp.
+6. `daily-content-pipeline/collector/collector_config.json` or `POST http://127.0.0.1:17321/config`: only when private data source collection schedule/sources/scan depth changed.
+7. `daily-content-pipeline/automation/automation_manifest.md`: current run contract, paths, active clients, prompt source, config source, provider config source, and last known state hash/summary.
+8. `daily-content-pipeline/automation/scheduled_run_prompt.md`: the exact prompt that the native AI automation/scheduled task should run.
+9. Native AI automation or scheduled task body: update it when the environment stores a separate prompt snapshot.
+10. `daily-content-pipeline/automation/resync_log.md`: what changed, what files/tasks were updated, what could not be updated, and what the next scheduled run should see.
 
 If the native AI automation task cannot be edited by the agent, the agent must:
 
@@ -147,10 +149,12 @@ Before saying a post-schedule change is complete, do a dry-read as if tomorrow's
 
 1. Read `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`.
 2. Read `daily-content-pipeline/automation/automation_manifest.md`.
-3. Read `daily-content-pipeline/schedule.md`.
-4. Read each active Client Intelligence Profile.
-5. Read `collector_config.json` when private data sources are active or pending.
-6. Confirm the latest user-approved changes are visible from those files and from the scheduled prompt/task body.
+3. Read `daily-content-pipeline/provider_defaults.json` when present.
+4. Read `daily-content-pipeline/schedule.md`.
+5. Read each active Client Intelligence Profile.
+6. Read each relevant client's provider config/capability files when PDNA, notification, analytics, publishing, report delivery, or production was changed.
+7. Read `collector_config.json` when private data sources are active or pending.
+8. Confirm the latest user-approved changes are visible from those files and from the scheduled prompt/task body.
 
 The agent's human-facing completion message must say one of:
 
@@ -197,7 +201,7 @@ The playbook does not require one specific scheduler because different AI servic
 
 The agent must record the chosen method in `schedule.md`.
 
-The agent must also record the notification channel in `schedule.md`. If WideCast MCP notification/Telegram tooling is available, record it as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email. If WideCast notification tooling is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast notification/Telegram or Gmail/email.
+The agent must also record the notification channel in `schedule.md`. If the client has verified WideCast OpenAPI config and the discovered spec exposes `sendTelegramMessage`, record WideCast Telegram/email fallback as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email when the account supports it. If WideCast OpenAPI notification is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast API key + Telegram/email fallback or Gmail/email.
 
 Scheduled runs should be designed as unattended runs. The human may not be watching the AI agent UI, so the agent must proactively notify the human when the run finishes or when human action is required.
 
@@ -279,7 +283,7 @@ For each daily run:
    22. Generate the 3x2 idea matrix, labeling each idea as `primary_industry` or `related_industry`.
    23. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio.
    24. Select the best idea of the day.
-   25. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
+   25. Write the configured WideCast-writing-skill draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable.
    26. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, load Stage 3 and create the approved video/blog/social asset according to provider approval gates. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`.
    27. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
    28. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
@@ -295,23 +299,23 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. Load Stage 6 and run the Report Delivery Capability Check before claiming the run is complete.
-10. Prepare a report-delivery record containing the local `.html` report path, WideCast capability check status, tool discovery method, upload attempt status, uploaded report URL if available, notification channel, final notification report link, and blockers.
-11. If WideCast MCP notification/Telegram capability is available, inspect whether an HTML-capable WideCast report/file/asset upload API is available. Use the current environment's tool discovery/lazy-load mechanism before declaring unavailable. If upload exists, upload the HTML report to WideCast first, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
+9. Load Stage 6 and run the Provider Report Delivery Capability Check before claiming the run is complete.
+10. Prepare a report-delivery record containing the local `.html` report path, provider, provider discovery/account verification status, upload operation ID, upload attempt status, uploaded report URL if available, notification channel, final notification report link, and blockers.
+11. If WideCast OpenAPI notification/Telegram/email fallback is configured, inspect whether the discovered spec exposes an HTML-capable upload operation. For WideCast, use `uploadAsset` with `text/html` and `sendTelegramMessage`. If upload exists, upload the HTML report to WideCast first, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
 12. If WideCast notification is available but HTML upload is unavailable or fails, log the exact upload blocker and still send a WideCast notification that includes the best available local/hosted `.html` report path/link.
-13. If the current AI connector/tool surface does not expose WideCast upload or notification tools, log `widecast_report_upload_unavailable` and/or `widecast_notification_tool_unavailable`, say this is a current tool-surface blocker, and provide the best available HTML path/link in chat or an authorized fallback channel.
-14. If another authorized channel can send the HTML file or link more conveniently only because WideCast notification tooling is unavailable or blocked, use it.
+13. If provider config is missing, auth fails, OpenAPI discovery fails, account identity mismatches, or required operations are missing, log the exact provider-neutral blocker and provide the best available HTML path/link in chat or an authorized fallback channel.
+14. If another authorized channel can send the HTML file or link more conveniently only because provider notification is unavailable or blocked, use it.
 15. Log the upload attempt and notification attempt in `notifications/notification_log.md`.
 
 The daily run is complete only when every active client is processed or explicitly logged as skipped.
 
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast MCP / Telegram.
+Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
 
-If WideCast notification/Telegram is connected and WideCast report upload supports HTML, the notification link must be the uploaded WideCast report URL, not only a local file path. If upload fails or the current wrapper does not support HTML upload, log the blocker and send the best available HTML path/link.
+If WideCast notification/Telegram/email fallback is connected and WideCast report upload supports HTML, the notification link must be the uploaded WideCast report URL, not only a local file path. If upload fails, discovery fails, auth fails, or the current provider spec does not support HTML upload, log the blocker and send the best available HTML path/link.
 
-If a WideCast upload/Telegram step is skipped because the agent did not inspect available tools/connectors, the scheduled run is incomplete. The agent must correct the omission by running the Report Delivery Capability Check, updating `notification_log.md`, and sending a correction message with the HTML report URL/path and blocker.
+If a WideCast upload/Telegram step is skipped because the agent did not inspect the configured provider/OpenAPI capabilities, the scheduled run is incomplete. The agent must correct the omission by running the Provider Report Delivery Capability Check, updating `notification_log.md`, and sending a correction message with the HTML report URL/path and blocker.
 
 A notification that only says the report is ready but contains no HTML report URL/path is invalid. If this happens, immediately send a correction notification with the HTML report URL/path and log the correction.
 

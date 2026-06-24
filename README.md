@@ -103,7 +103,7 @@ Important: the Local Collector is not the setup entrypoint. It is a private data
 
 Connect specialist tools such as Google Veo, Seedance, Kling, Nano Banana, Shutterstock, Pexels, Pixabay, HeyGen, and similar media services for production assets.
 
-WideCast can be used as one maintained all-in-one path for writing, video production, publishing, notifications, analytics, and learning loops. It is not required for research, idea generation, lead detection, report generation, or account-free draft writing.
+WideCast can be used as one maintained all-in-one OpenAPI provider path for writing, video production, publishing, notifications, analytics, and learning loops. It is not required for research, idea generation, lead detection, report generation, or account-free draft writing. In multi-client setups, each client should use its own WideCast API key/provider config so billing, social accounts, notifications, and analytics stay isolated.
 
 ## Best First Prompt
 
@@ -146,8 +146,8 @@ If you are an AI agent setting up this repo, start here:
 8. Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read private data sources. Use only the Solo Agency Local Collector extension plus the Local Collector app.
 9. During Local Collector activation, do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent. Prepare the files, then give the human the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension `Load unpacked` folder path.
 10. When checking an already-running Local Collector app, do not trust `ready` alone. Verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point to another setup, treat it as `wrong_workspace_bridge`, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
-11. After a schedule/automation exists, every later approved change must trigger Automation Resync across the whole automation package, not only one config file. Update profile/source state, `schedule.md`, collector config when relevant, automation manifest, scheduled-run prompt/task body, and the resync log before saying the next scheduled run is updated.
+11. After a schedule/automation exists, every later approved change must trigger Automation Resync across the whole automation package, not only one config file. Update profile/source state, provider config/capability cache when relevant, `schedule.md`, collector config when relevant, automation manifest, scheduled-run prompt/task body, and the resync log before saying the next scheduled run is updated.
 12. Every human-facing progress block after schedule/automation exists must include an Automation freshness check: whether the latest changes were synced into the automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's scheduled run will load the newest state.
-13. Every scheduled/manual report handoff must include a Report Delivery Capability Check outcome: WideCast upload/notification tools checked, upload/Telegram attempted when available, uploaded URL or exact blocker logged, and final HTML report path/link delivered.
+13. Every scheduled/manual report handoff must include a Provider Report Delivery Capability Check outcome: configured provider/OpenAPI checked, account verified or blocker logged, HTML upload/notification attempted when available, uploaded URL or exact blocker logged, and final HTML report path/link delivered.
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.

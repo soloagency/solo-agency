@@ -1043,7 +1043,7 @@ Important browser reality:
 - Use `chrome.alarms` as the durable wake-up mechanism while Chrome is running.
 - Use a short in-memory poll loop only while the service worker is awake.
 - If Chrome is closed, the computer is asleep, the extension is disabled/removed, or the browser profile is not running, the extension cannot collect private data.
-- In those cases, the bridge/agent must mark private collection as temporarily unavailable, continue with public data sources and previously collected private data, and notify the human through WideCast MCP / Telegram when available.
+- In those cases, the bridge/agent must mark private collection as temporarily unavailable, continue with public data sources and previously collected private data, and notify the human through the configured provider notification channel when available, preferably WideCast OpenAPI Telegram/email fallback for the current client.
 
 The extension should:
 
@@ -1130,7 +1130,7 @@ Health API:
 - The Solo Agency Local Collector extension may call `/status` from its extension context and may include `X-Collector-Extension: media-agency-local-collector`; that is how the Local Collector app records `extension_health.last_extension_check_at`.
 - The AI agent must not use the extension header during normal health checks, because it would make the bridge think the browser extension checked in when only the AI agent did.
 - If `/status` fails to connect, the Local Collector app is not running or is blocked. The AI agent must not start it from inside the AI sandbox during setup/repair; give the human the one-line setup/start command generated during setup.
-- If `/status` succeeds but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, the Local Collector app is running but the Solo Agency Local Collector extension is not currently checking in. The AI agent should treat private data source collection as unavailable until fixed, continue public data source work, and notify the human through WideCast Telegram if available.
+- If `/status` succeeds but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, the Local Collector app is running but the Solo Agency Local Collector extension is not currently checking in. The AI agent should treat private data source collection as unavailable until fixed, continue public data source work, and notify the human through the configured provider notification channel if available.
 
 `POST /jobs/run_now` is required for manual runs and first-trial runs when localhost is reachable. It lets the AI agent tell the Local Collector app:
 
@@ -1156,7 +1156,7 @@ Run-now stuck-status guard:
 - The Local Collector app must treat `run_now_expires_at` as a hard stop. After that time, `/status` must return `job_available: false` for that run-now job even if the Solo Agency Local Collector extension crashed, Chrome was closed, the machine slept, or `/complete` was never called.
 - The agent must not set `force: true` for routine manual runs. `force: true` is reserved only for explicit troubleshooting when the human understands that it can intentionally re-run a previously completed `run_id`.
 - The agent must not reuse yesterday's or a previous manual `run_id` to “run again”. It must create a new unique `run_id`.
-- If the agent sees `current_job_type: run_now` for longer than the configured TTL, it should report a Local Collector app bug or stale process, notify the human through WideCast Telegram if available, and provide the human-run setup/start command or documented troubleshooting path instead of restarting the Local Collector app from inside the AI sandbox.
+- If the agent sees `current_job_type: run_now` for longer than the configured TTL, it should report a Local Collector app bug or stale process, notify the human through the configured provider notification channel if available, and provide the human-run setup/start command or documented troubleshooting path instead of restarting the Local Collector app from inside the AI sandbox.
 - If the Solo Agency Local Collector extension reports `already_completed`, the agent should not force the same job. It should create a new run-now job with a new `run_id`.
 
 The `/status` response should include:

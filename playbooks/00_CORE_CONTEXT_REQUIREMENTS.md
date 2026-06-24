@@ -457,8 +457,8 @@ The agent must follow these principles at all times:
 - Do not require a production-provider account, MCP connection, API key, or installed provider tool just to produce ideas, blog drafts, video scripts, or social captions. Writing must continue by loading the public writing-method fallback protocol in this playbook.
 - When provider notification/Telegram capability is available, use it to notify the human about completed scheduled runs, required approvals, session-expired issues, setup blockers, and any important failure because the human may not be present when the schedule runs.
 - Report-ready notifications must include the HTML report URL/path. A notification that only says the report is ready but does not include a link/path to the `.html` report is invalid.
-- When WideCast notification/Telegram is available or configured as preferred and a run produced an HTML report, run the Stage 6 Report Delivery Capability Check. Inspect whether the current AI connector/tool surface exposes WideCast HTML-capable report/file/asset upload and Telegram/notification send tools, using tool discovery/lazy-load if available. If upload exists, upload the `.html` report to WideCast first and send the uploaded WideCast report URL. If upload or notification tools are unavailable or fail, log the exact blocker and send/surface the best available local/hosted `.html` report path/link instead.
-- If the current AI connector/tool surface does not expose WideCast upload or Telegram/notification tools, say it as a tool-surface blocker. Do not claim WideCast itself lacks the API/capability unless verified from WideCast account/API status.
+- When WideCast notification/Telegram/email fallback is available or configured as preferred and a run produced an HTML report, run the Stage 6 Provider Report Delivery Capability Check. Inspect the current client's provider config and WideCast OpenAPI spec before falling back to legacy tool discovery. If `uploadAsset` supports `text/html`, upload the `.html` report to WideCast first and send the uploaded WideCast report URL through `sendTelegramMessage`. If provider config, auth, OpenAPI discovery, upload, or notification fails, log the exact blocker and send/surface the best available local/hosted `.html` report path/link instead.
+- If the current AI connector/tool surface does not expose WideCast upload or Telegram/notification tools, do not stop there. Check the per-client OpenAPI provider path first. Do not claim WideCast itself lacks the API/capability unless verified from WideCast account/API/OpenAPI status.
 - If the agent accidentally sends a report-ready notification without a report URL/path, it must immediately send a correction notification containing the HTML report URL/path and log the correction.
 - Show all inferred and researched setup context to the human before treating it as stable.
 - Continue with public data sources if private data sources are missing, not yet activated, or unavailable after the required Collector Runtime Verification. If private data sources were provided but Local Collector has not been installed yet, label them as `pending_private_activation`, not as silently skipped.
@@ -1656,20 +1656,21 @@ The agent must show the script, blog, or content draft to the human before creat
 
 The agent must not create a WideCast video until the human explicitly approves.
 
-#### WideCast Setup Requirement
+#### WideCast OpenAPI Setup Requirement
 
-Before creating videos, the agent must check whether WideCast MCP, OpenAPI, API key, native WideCast tools, or WideCast integration is available in the current environment.
+Before creating videos, sending notifications, uploading reports, publishing, retrieving analytics, or spending credits through WideCast, the agent must use the current client's provider config and OpenAPI discovery path.
 
-If WideCast is not installed or not connected, the agent must:
+If WideCast is not configured for the client, the agent must:
 
-1. Visit `https://widecast.ai` by itself.
-2. Learn the current WideCast setup and installation process.
-3. Ask the human to register or log in only if required.
-4. Ask the human to open `https://widecast.ai/#setup`.
-5. Direct the human to the `API Keys & MCP` section.
-6. Ask only for the required MCP URL, API key, or setup value needed by the current AI environment.
-7. Complete MCP/OpenAPI/tool setup if the current AI environment allows it.
-8. If the environment does not allow automatic setup, provide the exact minimal steps the human must do.
+1. Read or create `daily-content-pipeline/provider_defaults.json` with WideCast as the default OpenAPI provider: `https://widecast.ai/openapi.yaml`.
+2. Ask the human to register or log in only if required.
+3. Ask the human to open `https://widecast.ai/#setup`.
+4. Direct the human to API Keys and ask for a `wc_live_*` API key for this specific client.
+5. Save only the required API key reference/local value in this client's `integrations/providers/provider_config.local.json`.
+6. Fetch/cache `https://widecast.ai/openapi.yaml` and discover operation IDs.
+7. Verify account identity with `getAccount`.
+8. Save provider capability status and trigger Automation Resync when a schedule exists.
+9. Use MCP URL setup only as optional compatibility when the human or AI host explicitly chooses connector-based setup.
 
 The agent must never ask for:
 
@@ -1678,7 +1679,7 @@ The agent must never ask for:
 - OTP
 - Browser cookies
 - Raw session tokens
-- Any credential not explicitly designed as an API key or MCP URL
+- Any credential not explicitly designed as an API key or optional MCP connector URL
 
 The agent must not render, export, publish, or spend WideCast credits without explicit human confirmation.
 

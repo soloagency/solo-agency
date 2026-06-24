@@ -29,8 +29,8 @@ The measure-learn-improve phase is mandatory once content has been published.
 
 For each published content item, the agent must:
 
-1. Use connected provider tools when available.
-2. If provider MCP/tools are connected, call the relevant tools to retrieve:
+1. Use connected provider analytics when available.
+2. If provider OpenAPI/tools are connected and verified for this client, call the relevant operations to retrieve:
    - videos/posts published yesterday;
    - videos/posts published in the last 7 days;
    - published URLs;
@@ -102,7 +102,7 @@ The agent must:
 12. Feed the learning back into future source priority, content pillars, hooks, CTAs, idea scoring, lead-gen angles, scripts/blogs, and the saved public search keyword bank.
 13. Extract new keyword candidates from audience questions, objections, comments, lead signals, high-performing hooks, captions, and hashtags. Add non-duplicate useful candidates to `public_search_keywords` with keyword group, related pain point, related content pillar, source/reason, and first-added date.
 
-If the agent cannot access provider tools or published URLs, it must log the blocker and continue the rest of the scheduled run. It must not claim the measurement loop is complete.
+If the agent cannot access provider analytics or published URLs, it must log the blocker and continue the rest of the scheduled run. It must not claim the measurement loop is complete.
 
 ### 23.8 Analytics And Reporting
 
@@ -128,11 +128,11 @@ Track metrics when available:
 - Content pillar.
 - Funnel stage.
 
-### WideCast MCP Analytics Collection Rule
+### WideCast OpenAPI Analytics Collection Rule
 
-When running weekly learning, monthly reporting, or any performance review, the agent must use available WideCast MCP capabilities to collect performance data before drawing conclusions.
+When running weekly learning, monthly reporting, or any performance review, the agent must use the configured client provider's analytics capabilities before drawing conclusions. For WideCast, this means loading the client's provider config, discovering or refreshing `https://widecast.ai/openapi.yaml`, verifying the account with `getAccount`, and then calling available analytics/library operations such as `getAnalytics`, `listVideos`, `getStatus`, and `getVideoData`.
 
-The agent should inspect the available WideCast MCP tool/API list at runtime and call the relevant tools for:
+The agent should inspect the discovered WideCast OpenAPI operation list at runtime and call the relevant operations for:
 
 - Recently published content.
 - Published post/video URLs.
@@ -148,11 +148,11 @@ The agent should inspect the available WideCast MCP tool/API list at runtime and
 - Follower counts.
 - Engagement trends.
 
-If WideCast MCP exposes a list of published posts, recent videos, production history, publishing history, analytics dashboard, or platform statistics, the agent must use those sources first.
+If WideCast OpenAPI exposes a list of published posts, recent videos, production history, publishing history, analytics dashboard, or platform statistics, the agent must use those sources first after verifying that the API key belongs to the current client.
 
 For each published content item from the last 7 days, the agent should measure it daily for up to 7 days after publishing:
 
-1. Retrieve the published URL and metadata through WideCast MCP when available.
+1. Retrieve the published URL and metadata through WideCast OpenAPI when available.
 2. Save URL, title, description, caption, hashtags, platform, publish date, and related script/output file.
 3. Use the Solo Agency Local Collector extension plus Local Collector app to capture visible metrics from each published URL when tools, permissions, and login state allow it.
 4. Measure or extract available engagement metrics, such as:
@@ -168,7 +168,7 @@ For each published content item from the last 7 days, the agent should measure i
    - objections
    - requests for help
    - lead signals in comments
-5. If direct platform metrics are not accessible, record the limitation and use whatever WideCast MCP analytics or visible public metrics are available.
+5. If direct platform metrics are not accessible, record the limitation and use whatever WideCast OpenAPI analytics or visible public metrics are available.
 6. Store all results in `analytics/metrics_log.md`.
 7. Store audience questions, objections, and useful comment signals in `analytics/comment_signal_log.md`.
 8. Store strategic learnings in `analytics/learning_log.md`.
@@ -187,7 +187,7 @@ Reason:
 
 When measuring published URLs:
 
-1. Build a temporary run-now collector job whose sources are the published URLs retrieved from WideCast MCP.
+1. Build a temporary run-now collector job whose sources are the published URLs retrieved from the configured provider, such as WideCast OpenAPI.
 2. Mark these sources clearly, for example:
    - `source_type: published_content_url`
    - `purpose: performance_measurement`
@@ -201,9 +201,9 @@ When measuring published URLs:
 9. Store strategic learnings in `analytics/learning_log.md`.
 10. If a metric is hidden, unavailable, or not visible in the logged-in session, write `unavailable` and explain why.
 
-The agent must not scrape hidden APIs, extract cookies, bypass login, or defeat platform restrictions to measure metrics. Use only authorized visible data or WideCast MCP analytics.
+The agent must not scrape hidden APIs, extract cookies, bypass login, or defeat platform restrictions to measure metrics. Use only authorized visible data or verified provider analytics.
 
-The agent must also call WideCast MCP analytics or dashboard tools that provide overall account-level statistics, such as total views, follower growth, platform performance, or other aggregate metrics. These aggregate metrics should be stored and used for learning even when per-post data is incomplete.
+The agent must also call WideCast OpenAPI analytics or dashboard operations that provide overall account-level statistics, such as total views, follower growth, platform performance, or other aggregate metrics. These aggregate metrics should be stored and used for learning even when per-post data is incomplete.
 
 Do not invent metrics. If a platform hides likes, shares, comments, views, or follower data from the current agent/session, mark the metric as `unavailable` and explain why.
 
@@ -212,7 +212,7 @@ Suggested `analytics/metrics_log.md` format:
 ```md
 | Date Checked | Published Date | Client | Platform | URL | Title | Description | Hashtags | Content Pillar | Funnel Stage | Views | Likes | Comments | Shares | Saves | Followers/Subscribers | Source Of Metric | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | 2026-06-18 | Smith Law | TikTok | https://... | What to do after a DUI stop | Short DUI education video | #dui #california | Emergency first steps | Education | 1200 | 44 | 8 | 3 | unavailable | unavailable | WideCast MCP + public URL check | Comments show license-suspension anxiety |
+| 2026-06-20 | 2026-06-18 | Smith Law | TikTok | https://... | What to do after a DUI stop | Short DUI education video | #dui #california | Emergency first steps | Education | 1200 | 44 | 8 | 3 | unavailable | unavailable | WideCast OpenAPI + public URL check | Comments show license-suspension anxiety |
 ```
 
 Suggested `analytics/comment_signal_log.md` format:
@@ -271,7 +271,7 @@ Each experiment should include:
 
 Before claiming a weekly/monthly performance review or learning loop is complete, verify:
 
-- [ ] Did I call available WideCast MCP tools for published URLs, metadata, and account/platform analytics?
+- [ ] Did I call available verified provider analytics operations, such as WideCast OpenAPI `getAnalytics`, `listVideos`, `getStatus`, and `getVideoData`, for published URLs, metadata, and account/platform analytics?
 - [ ] Did I reuse the Solo Agency Local Collector extension plus Local Collector app to capture visible metrics from published URLs when possible?
 - [ ] Did I store normalized metrics in `analytics/metrics_log.md`?
 - [ ] Did I mark hidden or unavailable metrics as `unavailable` instead of inventing numbers?

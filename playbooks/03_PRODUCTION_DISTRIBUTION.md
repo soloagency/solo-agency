@@ -334,51 +334,81 @@ The agent must show the script, blog, or content draft to the human before creat
 
 The agent must not create a WideCast video until the human explicitly approves.
 
-#### WideCast Setup Requirement
+#### OpenAPI Provider Setup Requirement
 
-Before creating videos, the agent must check whether WideCast MCP, OpenAPI, API key, native WideCast tools, or WideCast integration is available in the current environment.
+Before creating videos, sending notifications, uploading reports, publishing, or retrieving analytics through an account-level provider, the agent must check whether the client has a configured production provider.
+
+The default provider catalog should come from `daily-content-pipeline/provider_defaults.json`. If that file is missing, use this default only as a bootstrap template and then create the file:
+
+```json
+{
+  "schema_version": 1,
+  "default_production_provider": "widecast",
+  "providers": {
+    "widecast": {
+      "type": "openapi",
+      "provider_home_url": "https://widecast.ai/",
+      "discovery_url": "https://widecast.ai/openapi.yaml",
+      "auth_type": "bearer_api_key",
+      "api_key_prefix": "wc_live_",
+      "secret_storage": "per_client_local_config"
+    }
+  }
+}
+```
+
+WideCast remains the maintained all-in-one reference path, but the integration model is OpenAPI-first:
+
+1. Read the selected provider from the client's `integrations/providers/provider_config.local.json`.
+2. If no provider config exists and the human wants PDNA, ask for the provider path. For WideCast, ask for the client's `wc_live_*` API key, not the human's password, browser session, cookie, or OTP.
+3. Fetch the OpenAPI spec from the provider `discovery_url`, such as `https://widecast.ai/openapi.yaml`.
+4. Parse the OpenAPI `servers`, `securitySchemes`, `operationId`, request schemas, response schemas, and relevant descriptions.
+5. Cache the spec as `provider_openapi_cache.yaml`.
+6. Write discovered operations and capability groups to `provider_capabilities.json`.
+7. Verify the account with the provider's account operation before any credit, publish, upload, analytics, or notification action. For WideCast this is `getAccount`.
+8. Save the verified provider account identity and PDNA status into the per-client provider config and `provider_health.md`.
+9. Log every provider call to `provider_calls.jsonl` with secrets redacted.
+
+When local Python execution is available, prefer the repo helper `tools/provider_openapi.py` for discovery, account verification, operation calls, and HTML report upload. If the helper cannot run, use equivalent curl/OpenAPI calls while preserving the same per-client config, account verification, redaction, and provider call logging rules.
+
+MCP URL setup is optional compatibility, not the default Solo Agency path. Use an MCP URL only when the human explicitly chooses connector-based setup or the current AI host requires MCP. Even then, keep the per-client provider identity and account verification in the client folder so multi-client runs do not silently use a global connector account.
 
 #### Agent-Specific WideCast Setup Docs
 
-When asking the human to connect WideCast, include the setup guide URL that matches the current AI agent environment when it can be inferred:
+When asking the human to connect WideCast, prefer the OpenAPI/API key path:
+
+```text
+WideCast setup page: https://widecast.ai/#setup
+
+Open WideCast, register or log in, open Setup Center, then create or copy an API key from API Keys. Paste only the `wc_live_*` API key for this specific client. I will save it only in this client's local provider config or environment variable reference, verify the account with WideCast, and use OpenAPI discovery from https://widecast.ai/openapi.yaml.
+```
+
+If the current AI host or human explicitly wants MCP/connector setup, include the matching guide link as an optional path:
 
 - Claude Desktop / Claude: `https://widecast.ai/claude.html`
 - Codex / ChatGPT / OpenAI agent: `https://widecast.ai/chatgpt.html`
 - Gemini: `https://widecast.ai/gemini.html`
 - Grok: `https://widecast.ai/grok.html`
 
-If the current agent environment is unclear, include all four guide links and tell the human to open the one that matches their agent.
+Do not make MCP setup sound mandatory when OpenAPI/API key setup is available. Do not give only generic `https://widecast.ai/#setup` instructions when an agent-specific connector guide is needed.
 
-The agent must not give only generic `https://widecast.ai/#setup` instructions when an agent-specific guide link is available. The generic setup page is still needed for copying the MCP URL, connecting Telegram, and connecting publishing platforms.
+If WideCast is not configured for this client, the agent must:
 
-For example, in Claude Desktop, the human-facing instruction should include:
-
-```text
-Claude Desktop guide: https://widecast.ai/claude.html
-WideCast setup page: https://widecast.ai/#setup
-
-Open the setup page, log in or create an account, then click Copy MCP URL. The URL contains a token like `wc_mcp_...`, so you do not need separate OAuth/password auth for the connector. In Claude Desktop, open Settings -> Connectors -> Add custom connector, paste the full MCP URL, name it WideCast, and click Connect. If Claude asks for OAuth/auth configuration, skip it because the token is already inside the URL.
-```
-
-If the current agent is Codex, ChatGPT, or another OpenAI agent, prefer:
-
-```text
-OpenAI / Codex / ChatGPT guide: https://widecast.ai/chatgpt.html
-WideCast setup page: https://widecast.ai/#setup
-```
-
-If WideCast is not installed or not connected, the agent must:
-
-1. Visit `https://widecast.ai` by itself.
-2. Learn the current WideCast setup and installation process.
-3. Include the matching agent-specific WideCast guide URL from `Agent-Specific WideCast Setup Docs`.
-4. Ask the human to register or log in only if required.
-5. Ask the human to open `https://widecast.ai/#setup`.
-6. Direct the human to the `API Keys & MCP` section and the `Copy MCP URL` button when MCP is needed.
-7. Explain that the copied MCP URL may contain a `wc_mcp_...` token and that this URL itself is the authentication material for MCP-style setup, so the human should not add passwords, cookies, OTPs, or unrelated OAuth credentials unless the official agent-specific guide explicitly requires them.
-8. Ask only for the required MCP URL, API key, or setup value needed by the current AI environment.
-9. Complete MCP/OpenAPI/tool setup if the current AI environment allows it.
-10. If the environment does not allow automatic setup, provide the exact minimal steps the human must do.
+1. Read or create `daily-content-pipeline/provider_defaults.json`.
+2. Ask the human to open `https://widecast.ai/#setup`.
+3. Ask the human to create or copy a `wc_live_*` API key for this client.
+4. Ask the human to connect Telegram in WideCast if they want scheduled report notifications.
+5. Ask the human to connect publishing platforms in WideCast if they want Distribution.
+6. Save only the required API key reference or local key in this client's provider config.
+7. Fetch and cache `https://widecast.ai/openapi.yaml`.
+8. Verify account identity with `getAccount`.
+9. Check the discovered operation IDs needed for PDNA:
+   - Production: `getWritingSkill`, `createVideo`, `createContent`, `createImage`, `searchBroll`, `collectIdeas`.
+   - Distribution: `publish`, `listAccounts`, `getPlatformSettings`, `setPlatformSettings`.
+   - Notification: `uploadAsset`, `sendTelegramMessage`.
+   - Analytics: `getAccount`, `getAnalytics`, `listVideos`, `getStatus`, `getVideoData`.
+10. Save provider capability status for the automation task.
+11. If automatic setup is not possible, provide the exact minimal human steps and log the blocker.
 
 The agent must never ask for:
 
@@ -387,7 +417,7 @@ The agent must never ask for:
 - OTP
 - Browser cookies
 - Raw session tokens
-- Any credential not explicitly designed as an API key or MCP URL
+- Any credential not explicitly designed as an API key or an optional MCP connector URL
 
 The agent must not render, export, publish, or spend WideCast credits without explicit human confirmation.
 
@@ -424,18 +454,18 @@ The final goal is that every day the human receives:
 
 ---
 
-## 17. WideCast Setup And Usage Protocol
+## 17. WideCast OpenAPI Setup And Usage Protocol
 
 The agent must separate two different WideCast use cases:
 
 1. Writing method access for blog/video/social drafts.
 2. Account actions such as video creation, rendering, publishing, analytics, Telegram notification, and credit-consuming operations.
 
-Writing method access must work even when the human has not registered at WideCast and has not connected MCP. Account actions require a real WideCast setup.
+Writing method access must work even when the human has not registered at WideCast and has not configured any provider credentials. Account actions require a real per-client provider setup.
 
-The agent must use WideCast account actions only after checking whether the current environment has WideCast tools, MCP, OpenAPI, API key, or native integration.
+The agent must use WideCast account actions only after loading the current client's provider config, discovering the WideCast OpenAPI spec, checking required operation IDs, and verifying the account with `getAccount`.
 
-WideCast should also be treated as the preferred notification channel when the human has connected Telegram in WideCast. Scheduled AI agents often run silently while the human is away, so important results and issues must be pushed to the human instead of waiting for the human to return to the agent UI.
+WideCast should also be treated as the default notification provider when the human has configured this client's WideCast API key and connected Telegram or email fallback in WideCast. Scheduled AI agents often run silently while the human is away, so important results and issues must be pushed to the human instead of waiting for the human to return to the agent UI.
 
 ### WideCast Writing Skill Access Without Account
 
@@ -445,8 +475,8 @@ This requirement does not mean the human must already have a WideCast account.
 
 Use this order:
 
-1. If a native tool or MCP tool such as `widecast_get_writing_skill` is available, call it with the needed format: `video`, `blog`, or `social`.
-2. If MCP/account tools are not available, download the matching static skill zip from the Solo Agency GitHub repo:
+1. If a native tool, MCP tool, or OpenAPI operation such as `getWritingSkill` is available, call it with the needed format: `video`, `blog`, or `social`. If the OpenAPI call requires a client API key and no client API key is configured, skip to the account-free fallback.
+2. If provider/account tools are not available, download the matching static skill zip from the Solo Agency GitHub repo:
    - `https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/video-script-writing.zip`
    - `https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/blog-writing.zip`
    - `https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/skills/social-post-writing.zip`
@@ -475,7 +505,7 @@ The cache metadata should include:
 - downloaded_at or loaded_at
 - method_format
 - skill version if provided
-- whether the source was MCP, GitHub static zip, repo-local file, or local cache
+   - whether the source was OpenAPI, MCP, GitHub static zip, repo-local file, or local cache
 
 The agent must not ask the human to register at WideCast merely to write scripts, blog drafts, social captions, idea lists, or reports.
 
@@ -540,31 +570,27 @@ Suggested setup CTA:
 
 ```text
 Set up WideCast once:
-1. Open the guide for your AI agent:
-   - Claude Desktop / Claude: https://widecast.ai/claude.html
-   - Codex / ChatGPT / OpenAI agent: https://widecast.ai/chatgpt.html
-   - Gemini: https://widecast.ai/gemini.html
-   - Grok: https://widecast.ai/grok.html
-2. Register or log in at https://widecast.ai
-3. Open https://widecast.ai/#setup
-4. Connect Telegram if you want free daily report alerts while you are away from the computer.
-5. Connect the publishing platforms you want to use.
-6. Open API Keys & MCP.
-7. Click Copy MCP URL when this AI agent needs MCP. The URL may contain a `wc_mcp_...` token, so it already carries the connector authentication.
-8. Paste the required MCP URL/API key/config value back here, or add it to this agent's connector settings if the guide says setup must happen in the app settings.
+1. Register or log in at https://widecast.ai
+2. Open https://widecast.ai/#setup
+3. Connect Telegram if you want daily report alerts while you are away from the computer.
+4. Connect the publishing platforms you want to use.
+5. Open API Keys.
+6. Create or copy a `wc_live_*` API key for this client.
+7. Paste that API key back here for this client's Solo Agency setup.
+8. I will fetch https://widecast.ai/openapi.yaml, verify the account with WideCast, and save only this client's provider config.
 ```
 
 The agent should show this CTA after delivering the first useful report, not before the user has seen value.
 
 ### If WideCast Is Already Available
 
-The agent may use available WideCast writing tools or video creation tools, but must still:
+The agent may use available WideCast OpenAPI operations, native tools, or optional MCP tools, but must still:
 
 - Show the script to the human.
 - Get approval before creating a video.
 - Get explicit confirmation before rendering/exporting/publishing/spending credits.
-- Check whether WideCast MCP exposes a notification or Telegram delivery tool/capability.
-- Use WideCast MCP notifications for scheduled-run results, blockers, login/session issues, and approval requests when available.
+- Check whether this client's provider config and discovered OpenAPI capabilities expose `uploadAsset` and `sendTelegramMessage`.
+- Use WideCast OpenAPI notifications for scheduled-run results, blockers, login/session issues, and approval requests when available.
 
 ### If WideCast Is Not Available
 
@@ -574,18 +600,17 @@ The agent should start WideCast setup only when the human asks to create/render/
 
 For account setup, the agent must:
 
-1. Visit `https://widecast.ai`.
-2. Learn the current setup instructions.
-3. Determine whether the current AI environment needs MCP URL, API key, OpenAPI config, or another integration method.
-4. Include the matching agent-specific guide link from `Agent-Specific WideCast Setup Docs`.
-5. Ask the human to register or log in if needed.
-6. Ask the human to open `https://widecast.ai/#setup`.
-7. Ask the human to go to `API Keys & MCP`.
-8. Ask only for the exact setup value needed, such as MCP URL or API key.
-9. If asking for MCP setup, explain that the copied MCP URL may contain a `wc_mcp_...` token, so the human should paste the full URL exactly and skip separate OAuth/auth setup unless the official guide says otherwise.
-10. Ask the human to connect Telegram in WideCast setup if they want scheduled results and alerts to reach them while they are away from the AI agent UI.
-11. Complete setup if possible.
-10. If automatic setup is not possible, provide concise environment-specific instructions.
+1. Read `daily-content-pipeline/provider_defaults.json`, or create it from the WideCast OpenAPI default if it is missing.
+2. Ask the human to register or log in at `https://widecast.ai` if needed.
+3. Ask the human to open `https://widecast.ai/#setup`.
+4. Ask the human to create or copy a `wc_live_*` API key for this client.
+5. Ask the human to connect Telegram in WideCast setup if they want scheduled results and alerts to reach them while they are away from the AI agent UI.
+6. Ask the human to connect publishing platforms if Distribution is desired.
+7. Save only the exact setup value needed for this client: an environment variable reference, a local API key in `provider_config.local.json`, or an optional MCP connector URL when explicitly selected.
+8. Fetch and cache `https://widecast.ai/openapi.yaml`.
+9. Verify account identity with `getAccount`.
+10. Write `provider_capabilities.json`, `provider_health.md`, and an Automation Resync record.
+11. If automatic setup is not possible, provide concise environment-specific instructions and log the exact blocker.
 
 The agent must not ask for WideCast account credentials.
 
@@ -601,13 +626,13 @@ The correct sequence is:
 4. Write script.
 5. Show script to human.
 6. Ask for approval.
-7. Only after approval, create video in WideCast if tools are available.
+7. Only after approval, create video in WideCast if this client's provider config is verified and the required OpenAPI operation exists.
 
 ### WideCast Telegram Notification Protocol
 
-If WideCast MCP has Telegram or notification capability available, the agent must use it for important user-facing communication during scheduled or unattended runs.
+If this client's WideCast provider config is verified and OpenAPI discovery exposes `sendTelegramMessage`, the agent must use it for important user-facing communication during scheduled or unattended runs.
 
-Use WideCast MCP notification/Telegram for:
+Use WideCast OpenAPI notification/Telegram/email fallback for:
 
 - Daily run completed.
 - Master digest ready.
@@ -629,15 +654,19 @@ Use WideCast MCP notification/Telegram for:
 
 ### WideCast HTML Report Upload Before Telegram
 
-When WideCast notification/Telegram is connected and the run produced an HTML report, the agent must upload the HTML report to WideCast before sending the Telegram message if WideCast exposes a report/file/asset upload API that supports HTML files.
+When WideCast notification/Telegram/email fallback is configured and the run produced an HTML report, the agent must upload the HTML report to WideCast before sending the message if OpenAPI discovery exposes an upload operation that supports HTML files. For WideCast this operation is `uploadAsset` with `text/html`.
 
 This is a report-delivery completion gate, not an optional polish step. A "report ready" notification that does not include an HTML report URL/path is invalid.
 
 Before sending any report-ready notification, the agent must create a delivery record with:
 
 - `local_html_report_path`;
-- `widecast_upload_attempted`: true/false;
-- `widecast_uploaded_report_url`, if available;
+- `provider`: normally `widecast`;
+- `provider_discovery_checked`: true/false;
+- `upload_operation_id`: normally `uploadAsset`;
+- `notification_operation_id`: normally `sendTelegramMessage`;
+- `provider_upload_attempted`: true/false;
+- `provider_uploaded_report_url`, if available;
 - `upload_blocker`, if upload was unavailable or failed;
 - `notification_channel`;
 - `notification_report_link`, which must be either the uploaded WideCast report URL or the best available local/hosted `.html` report path/link.
@@ -645,26 +674,30 @@ Before sending any report-ready notification, the agent must create a delivery r
 Required sequence:
 
 1. Generate the standalone local `.html` report.
-2. Inspect available WideCast tools/capabilities for an HTML-capable report/file/asset upload endpoint and report/Telegram notification send capability. Use the current environment's tool discovery/lazy-load mechanism when available before declaring a tool unavailable.
-3. If such an endpoint exists, upload the `.html` file to WideCast.
-4. Capture the returned uploaded report URL.
-5. Send the uploaded WideCast report URL through WideCast Telegram/email fallback.
-6. If no HTML-capable upload endpoint exists or upload fails, log the blocker and send the best available local/hosted `.html` report path/link through WideCast notification anyway.
-7. Include the run summary, blockers, lead/competitor counts, and the next action in the Telegram/email message.
-8. Log both the upload attempt and the notification in `daily-content-pipeline/notifications/notification_log.md`.
+2. Load the current client's provider config and fetch/cache the provider OpenAPI spec if needed.
+3. Verify the provider account with `getAccount` before using account actions.
+4. Inspect discovered WideCast operations for an HTML-capable upload operation and report/Telegram notification send capability. For WideCast, require `uploadAsset` and `sendTelegramMessage`.
+5. If such an endpoint exists, upload the `.html` file to WideCast as `text/html`.
+6. Capture the returned uploaded report URL.
+7. Send the uploaded WideCast report URL through WideCast Telegram/email fallback.
+8. If no HTML-capable upload endpoint exists or upload fails, log the blocker and send the best available local/hosted `.html` report path/link through WideCast notification anyway when notification is available.
+9. Include the run summary, blockers, lead/competitor counts, and the next action in the Telegram/email message.
+10. Log both the upload attempt and the notification in `daily-content-pipeline/notifications/notification_log.md`.
 
 The Telegram message should link to the uploaded report URL, not only to a local file path, whenever an uploaded URL is available.
 
+WideCast `uploadAsset` URLs may be short-lived. Treat the uploaded URL as a notification/handoff link, not as the permanent archive. The permanent local archive remains the client output folder and `outputs/latest/` copies.
+
 The agent must not send a notification that only says the report is ready without including a clickable or copyable report URL/path. If it already sent such a notification by mistake, it must immediately send a correction message containing the HTML report link/path and log the correction.
 
-If the current WideCast integration exposes only media upload and does not support `.html` report upload, the agent must not pretend the report was uploaded. It must:
+If the current WideCast OpenAPI spec or integration exposes only media upload and does not support `.html` report upload, the agent must not pretend the report was uploaded. It must:
 
-- log `widecast_report_upload_unavailable`;
+- log `provider_required_operation_missing` or `widecast_report_upload_unavailable`;
 - send the best available HTML report path/link through WideCast Telegram if possible;
-- tell the human that the current AI connector/tool surface or wrapper does not expose HTML report upload, rather than claiming WideCast itself lacks upload support;
+- tell the human whether the blocker is missing provider config, failed auth, failed OpenAPI discovery, missing operation, or upload failure;
 - continue the scheduled run instead of failing the entire pipeline.
 
-If the current AI connector/tool surface does not expose WideCast Telegram/report notification sending, log `widecast_notification_tool_unavailable`, state that this is a tool-surface blocker, and use the best authorized fallback channel or local HTML report path.
+If the provider config is missing, auth fails, or OpenAPI discovery does not expose WideCast Telegram/report notification sending, log the provider-neutral blocker and the legacy WideCast alias when useful, then use the best authorized fallback channel or local HTML report path.
 
 Every notification must include:
 
@@ -678,7 +711,7 @@ Every notification must include:
 
 Notifications are human-facing and must be written in the same language the human uses.
 
-If the daily result is short enough, send the useful summary directly through WideCast MCP / Telegram.
+If the daily result is short enough, send the useful summary directly through WideCast OpenAPI Telegram/email fallback.
 
 If the result is too long, send a concise notification instead:
 
@@ -701,17 +734,17 @@ Status: Private data source skipped today.
 Action needed: Open Chrome and log in to Facebook again. I will retry on the next run.
 ```
 
-The agent must not use public social publishing tools as a substitute for private user notifications. Telegram notification through WideCast MCP is for contacting the human, not for publishing content.
+The agent must not use public social publishing tools as a substitute for private user notifications. Telegram notification through WideCast OpenAPI is for contacting the human, not for publishing content.
 
-If WideCast MCP notification/Telegram capability is available, the agent must call it for scheduled-run results and blockers even if Telegram is not connected, because WideCast can fall back to email delivery.
+If WideCast OpenAPI notification/Telegram capability is available, the agent must call it for scheduled-run results and blockers even if Telegram is not connected, because WideCast can fall back to email delivery.
 
-If WideCast MCP notification/Telegram capability is not available in the current environment, the agent must:
+If WideCast OpenAPI notification/Telegram capability is not available for this client, the agent must:
 
 1. Record the missing notification capability in `notifications/notification_log.md`.
 2. Check whether Gmail/email MCP, connector, plugin, or tool access is available.
 3. If Gmail/email is available and authorized, send the HTML report or HTML report path/link by email to the human.
 4. If Gmail/email is not available, include the notification message in the local output or schedule log.
-5. Tell the human how to enable WideCast notification/Telegram through WideCast setup, or suggest connecting Gmail/email as a secondary fallback notification channel for scheduled reports.
+5. Tell the human how to enable WideCast API key + Telegram/email fallback through WideCast setup, or suggest connecting Gmail/email as a secondary fallback notification channel for scheduled reports.
 
 ---
 
