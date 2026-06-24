@@ -43,7 +43,7 @@ The agent should:
 2. Download the runtime files into the absolute `solo-agency-local-collector/downloads/` folder.
 3. Verify checksums when tools are available.
 4. Extract bridge binaries into the absolute `solo-agency-local-collector/bin/` folder.
-5. Extract the Chrome extension into the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
+5. Extract/copy the Chrome extension template into a per-client absolute `extensions/{client_slug}/` folder.
 6. Select the correct bridge binary for the user's OS/CPU.
 7. Ask for one-time human approval if the current AI environment requires permission before running a downloaded executable.
 8. Prefer persistent scheduler mode for unattended private data source collection.
@@ -57,15 +57,52 @@ The user still needs to install the Chrome extension once using Chrome Developer
 solo-agency-local-collector/
   downloads/
   bin/
-  LOAD_THIS_EXTENSION_IN_CHROME/
   setup_collector.sh
   collector.pid
   collector.log
+extensions/
+  {client_slug}/
+    manifest.json
+    background.js
+    popup.html
+    popup.js
+    client_binding.json
 daily-content-pipeline/collector/
   collector_setup_status.md
   collector_config.json
+  extension_registry.json
   jobs/
   inbox/
+```
+
+## Latest Multi-Client Runtime Rule
+
+Use one shared Local Collector app/bridge per machine, but one unpacked Chrome extension folder per client Chrome profile/account.
+
+The human-facing extension path is:
+
+```text
+/ABSOLUTE/PATH/TO/extensions/{client_slug}/
+```
+
+The extension display name must begin with the client name:
+
+```text
+{Client Name} - Solo Agency Collector
+```
+
+Each client extension folder must include `client_binding.json` with `client_slug`, `client_name`, `extension_instance_id`, `extension_display_name`, and `bridge_base_url`.
+
+Agents running in automation should write per-client private data source jobs under:
+
+```text
+daily-content-pipeline/collector/jobs/pending/
+```
+
+The bridge claims matching jobs by `client_slug + extension_instance_id` and writes output under:
+
+```text
+daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/{run_id}/
 ```
 
 ## Binary Selection
@@ -87,29 +124,31 @@ If the binary is missing:
 4. Continue with public data sources and any previously collected private data.
 5. Notify the user that the local collector binary is missing.
 
-## Chrome Extension One-Time Install
+## Chrome Extension Per-Client Install
 
-If `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/manifest.json` does not exist, download and extract:
+If `extensions/{client_slug}/manifest.json` does not exist, prepare it from the local extension template. Prefer the repo helper when available:
 
-```text
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
+```bash
+solo-agency-collector/scripts/prepare_client_extension.sh "{Client Name}" "{client_slug}" "{extension_instance_id}" "{ABSOLUTE_AGENCY_ROOT}"
 ```
+
+If the helper is not available, copy `solo-agency-collector/chrome-extension/` to `extensions/{client_slug}/`, patch that client's `manifest.json` so the extension name starts with the client name, and create `client_binding.json`.
 
 Then tell the user with the resolved absolute path, not a relative path:
 
 ```md
-Please install the local collector extension once:
+Please install the local collector extension for {Client Name}:
 
-1. Open Chrome.
+1. Open the Chrome profile/account for {Client Name}.
 2. Go to `chrome://extensions`.
 3. Turn on `Developer mode`.
 4. Click `Load unpacked`.
 5. Select this folder:
-   `/ABSOLUTE/PATH/TO/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`
+   `/ABSOLUTE/PATH/TO/extensions/{client_slug}/`
 
-Important: if you also see `/ABSOLUTE/PATH/TO/solo-agency/solo-agency-collector/chrome-extension/`, do not select it. That is the toolkit/source copy. The only folder to load for the running agency is the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder above.
+Important: if you also see `/ABSOLUTE/PATH/TO/solo-agency/solo-agency-collector/chrome-extension/`, do not select it. That is the toolkit/source copy. Select only the client folder under `extensions/{client_slug}/`.
 
-After this one-time setup, keep Chrome open and logged in to the private data sources you want monitored. The local bridge will run in persistent scheduler mode or I will start it during collection runs when this AI environment allows.
+After this one-time setup, keep that Chrome profile logged in to the private data sources approved for {Client Name}. The shared Local Collector app/bridge handles routing and local file output.
 ```
 
 If the AI agent cannot run the bridge binary because it is sandboxed, create a ready-to-run setup file such as:
@@ -320,7 +359,7 @@ When `wrong_workspace_bridge` happens:
 - do not claim private data source monitoring is active;
 - tell the human that the running Local Collector app belongs to a previous Solo Agency setup or another folder;
 - give the human the current setup's one-line Local Collector setup/start command to run outside the AI sandbox, so it can stop the old `collector-bridge` process and restart with the current config/output paths;
-- remind the human that one machine should have one active Solo Agency Local Collector runtime, and if they previously loaded multiple Solo Agency Local Collector extensions, they should open `chrome://extensions`, remove or disable old Solo Agency Local Collector entries, and keep only the extension loaded from the current setup's absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
+- remind the human that one machine should have one active shared Solo Agency Local Collector runtime, and one client-specific extension per client Chrome profile/account loaded from `extensions/{client_slug}/`. If stale extension entries exist, the human should remove or disable only the stale entries in `chrome://extensions`.
 
 After starting or restarting the bridge, wait and re-check `/status` for up to 75 seconds before reporting `no_extension_check_yet`, because Chrome's Manifest V3 service worker may be asleep until the next alarm.
 

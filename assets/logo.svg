@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Solo Agency logo</title>
+  <desc id="desc">A hand-drawn single-person mark for Solo Agency.</desc>
+  <defs>
+    <style>
+      .ink{stroke:#111827;stroke-width:28;stroke-linecap:round;stroke-linejoin:round}
+      .scratch{stroke:#111827;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;opacity:.62}
+      .lime{stroke:#b7ff3c;stroke-width:20;stroke-linecap:round;stroke-linejoin:round}
+      .dot{fill:#b7ff3c}
+    </style>
+  </defs>
+
+  <path class="lime" d="M348 82 C361 64 373 49 390 30 C383 57 379 78 380 99 C403 94 421 91 444 88 C418 101 399 114 382 130 C390 147 400 164 413 188 C391 170 375 157 355 145"/>
+
+  <path class="ink" d="M249 78 C210 84 185 110 186 146 C188 188 224 215 268 207 C307 200 333 168 326 130 C320 96 288 72 249 78"/>
+  <path class="scratch" d="M218 106 C238 91 277 91 299 112"/>
+  <path class="scratch" d="M207 161 C224 190 270 199 298 174"/>
+  <circle class="dot" cx="284" cy="139" r="13"/>
+
+  <path class="ink" d="M139 349 C179 277 221 239 266 231 C318 222 363 250 394 303 C348 290 311 294 284 319 C250 351 250 399 284 431"/>
+  <path class="ink" d="M161 447 C194 409 211 370 218 323"/>
+  <path class="ink" d="M282 319 C321 374 363 417 423 452"/>
+  <path class="scratch" d="M153 362 C201 326 260 312 323 323"/>
+  <path class="scratch" d="M228 258 C262 248 302 253 334 276"/>
+</svg>

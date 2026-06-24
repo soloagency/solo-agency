@@ -789,7 +789,7 @@ Do not end a report handoff with:
 Examples of correct final questions:
 
 ```text
-You provided private data sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so the first run can include private data sources, or run public data sources only first and keep private data sources pending?
+You provided private data sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so this client-specific automation task can include private data sources later, or keep private data sources pending so the task runs public data sources only until activation is complete?
 ```
 
 ```text

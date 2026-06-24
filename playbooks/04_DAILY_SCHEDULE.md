@@ -4,12 +4,12 @@ Stage: `04`
 
 ## Load Rule
 
-Load during one-time setup after the Client Intelligence Profile, public data source plan, and private data source status are known, so the routine can be configured before the first agency run. Also load during scheduled runs and whenever routine/schedule config is reviewed or repaired.
+Load during one-time setup after the Client Intelligence Profile, public data source plan, and private data source status are known, so the routine and client-specific automation task can be configured before the first report. Also load during scheduled runs and whenever routine/schedule config is reviewed or repaired.
 
 ## Hard Gates For This Stage
 
-- During one-time setup, configure schedule/routine before the first agency run, after the basic source plan is known.
-- After configuring the routine, ask whether the human wants to run the first agency run immediately.
+- During one-time setup, configure schedule/routine and the client-specific automation task after the basic source plan is known.
+- After configuring the routine, do not run the first report in Setup Flow; verify the client-specific automation task and tell the human the exact task name to run for the first report.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
 - Scheduled runs must run research, private scans if active, analysis, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification.
 - Scheduled runs must load Stage 10 and produce Lead & Competitor Opportunities, or explicitly mark them as not found, not scanned, pending activation, or unavailable.
@@ -20,6 +20,24 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 - Store schedule config and notification channel.
 - After any human-approved change made after the schedule/automation was created, perform Automation Resync before claiming the next scheduled run is updated.
 - Never say "the automation is updated" if only `collector_config.json`, only `schedule.md`, or only the Client Intelligence Profile was changed. The whole automation package must be synced or the remaining snapshot/update blocker must be stated.
+
+## Latest Override: Client-Specific Automation Tasks
+
+The current Solo Agency model uses separate Setup Flow and Automation Flow.
+
+Setup Flow must create/update schedule and automation tasks, but must not run the first report directly. The first real report must be executed by a client-specific automation task.
+
+Rules:
+
+- Create one client-specific automation task per active client by default.
+- Every client-specific task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
+- The task prompt must pin `target_client_slug` and must not process other clients.
+- The task may use the shared Local Collector app/bridge, but private data source jobs must be routed by `client_slug + extension_instance_id`.
+- If the AI automation environment cannot call `127.0.0.1`, it must use file-based job requests under `daily-content-pipeline/collector/jobs/pending/` and read bridge/extension health from local files.
+- A setup/config session may instruct the human to run `AvenNgo - Solo Agency First Run`, but it must not generate the report inside the setup chat.
+- Automation Flow may accept config changes during a real run, but must immediately perform Automation Resync before claiming future runs are current.
+
+For multi-client daily operations, prefer separate client tasks plus an optional master digest task. The master digest task must not scan private data sources; it only reads existing client reports/outputs and summarizes them.
 
 ## Source Preservation Rule
 
@@ -291,7 +309,7 @@ A notification that only says the report is ready but contains no HTML report UR
 
 ---
 
-- During one-time setup, after the profile and source plan are known and before the first agency run, ask the human whether they want daily, multiple-times-daily, weekly, manual-only, or another cadence.
+- During one-time setup, after the profile and source plan are known and before the client-specific automation task is marked ready, ask the human whether they want daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence.
 - Then write or update `schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md`, `daily-content-pipeline/automation/resync_log.md`, and the relevant collector/native automation config files.
 
 Exact schedule contract:
