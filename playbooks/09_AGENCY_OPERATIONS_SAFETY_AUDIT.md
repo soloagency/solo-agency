@@ -600,7 +600,7 @@ For each daily run:
    17. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
    18. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
    19. Detect direct, adjacent, and audience competitors, including profile URLs, post/current URLs, and positioning notes.
-   20. Generate the 3x2 idea matrix, labeling each idea as `primary_industry` or `related_industry`.
+   20. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from today's data into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`.
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
    22. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
    23. Select the best idea of the day.
@@ -1364,7 +1364,7 @@ A daily run is complete when:
 3. Data points are collected.
 4. Hot and warm leads are detected, listed, or explicitly marked as none found.
 5. Direct, adjacent, and audience competitors are detected, listed, or explicitly marked as none found.
-6. A separate 3x2 public idea matrix and private idea matrix are created for each processed client when the corresponding lane has data, or the lane states why it is pending/skipped/blocked.
+6. A separate 3x2 public idea matrix and private idea matrix are created for each processed client when the corresponding lane has data, or the lane states why it is pending/skipped/blocked. Each matrix is six buckets, not six total ideas; every credible, source-backed idea harvested for that lane today should appear in the matching bucket.
 7. One best public idea and one best private idea are selected for each processed client when data exists, plus any overall recommendation if useful.
 8. Each idea maps to a content pillar when possible.
 9. Each idea is labeled as `primary_industry` or `related_industry`, with a visible related-industry note and bridge-back logic shown for related-industry ideas.
@@ -1565,7 +1565,9 @@ Before selecting the best idea, verify:
 
 - [ ] Did I create the 3 sections: Hot/Trend/News, Evergreen/Foundation, Lead-Gen / Conversion?
 - [ ] Did I consider both global and local scale?
-- [ ] Did I allow empty matrix slots if no good data exists?
+- [ ] Did I treat the 3x2 matrix as six buckets, not six total ideas?
+- [ ] Did I include every credible, source-backed idea harvested from today's public data sources or private data sources in the matching bucket, even when one bucket has 3-5+ ideas?
+- [ ] Did I allow empty buckets if no good data exists?
 - [ ] Did I label each idea as `primary_industry` or `related_industry`?
 - [ ] If related industry, did I explain the bridge back to the client offer?
 - [ ] Did every idea map to a pain point or content pillar?
@@ -1684,7 +1686,7 @@ When production/video/blog/social work happens inside the one-time agency setup 
 Before saying the run is complete, verify:
 
 - [ ] Did I save Markdown as the canonical internal record?
-- [ ] Did I generate a polished mobile-friendly HTML report as the only human-facing report?
+- [ ] Did I generate a polished mobile-friendly HTML report as the canonical human-facing report?
 - [ ] Did the HTML report follow the Agency-Grade HTML Report Standard, not merely list raw ideas?
 - [ ] Did the top of the report include an Executive Snapshot with source coverage status, best idea, lead/competitor counts, content readiness, blockers, and one recommended next action?
 - [ ] If optional private data source discovery was asked, approved, pending, blocked, or completed, did the HTML report include a clear `Private Data Source Discovery` section?
@@ -1711,6 +1713,9 @@ Before saying the run is complete, verify:
 - [ ] Did the HTML draft section visibly tell the human they can fine-tune the draft on the page, copy the final version, and paste it back into the AI chat?
 - [ ] Did every editable version clearly say the human should copy the edited final text and paste it back into the AI chat?
 - [ ] Did I update `outputs/latest/{client-name}-daily-report.html` and the latest lane HTML files when those lane reports exist?
+- [ ] If the human requested a client-share PDF, did I generate `{client-name}-client-report.html` from the three canonical HTML files before exporting `{client-name}-client-report.pdf`?
+- [ ] If the PDF includes private data source findings, did I redact raw private posts, group member details, login/session details, collector internals, and unapproved private source URLs/excerpts, or mark `client_pdf_redaction_status: needs_human_review` instead of exporting?
+- [ ] Did I preserve the canonical `.html` report path/link even when also providing a `.pdf` export?
 - [ ] Did I generate/update master digest if multiple clients exist?
 - [ ] Did I write the report in the human's language?
 - [ ] Did every user-facing report link/path in chat, Telegram, or notification point to `.html`, not `.md`?

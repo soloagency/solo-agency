@@ -311,6 +311,7 @@ daily-content-pipeline/
               smith-law-report_state.json
           latest/
             smith-law-daily-report.html
+            smith-law-client-report.pdf
     austin-home-group/
       realestate_austin/
         client_profile_austin-home-group_realestate_austin.md

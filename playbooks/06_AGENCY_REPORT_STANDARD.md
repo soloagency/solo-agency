@@ -544,11 +544,13 @@ This may be kept as a detailed subsection, but the human-facing HTML should prio
 
 ## Idea Matrix
 
+The 3x2 matrix is six idea buckets, not six total ideas. Under each Global/Local bucket below, repeat the idea block for every credible, source-backed idea harvested from today's data for that layer and scope. Do not discard useful ideas because the bucket already contains one idea.
+
 ### 1. Hot / Trend / News
 
 #### Global
 
-- Idea:
+- Idea (repeat this block for every credible idea in this bucket):
   - Visible note, if related industry:
   - Mapped content pillar:
   - Industry scope: primary_industry | related_industry
@@ -564,7 +566,7 @@ This may be kept as a detailed subsection, but the human-facing HTML should prio
 
 #### Local
 
-- Idea:
+- Idea (repeat this block for every credible idea in this bucket):
   - Visible note, if related industry:
   - Mapped content pillar:
   - Industry scope: primary_industry | related_industry
@@ -582,7 +584,7 @@ This may be kept as a detailed subsection, but the human-facing HTML should prio
 
 #### Global
 
-- Idea:
+- Idea (repeat this block for every credible idea in this bucket):
   - Visible note, if related industry:
   - Mapped content pillar:
   - Industry scope: primary_industry | related_industry
@@ -598,7 +600,7 @@ This may be kept as a detailed subsection, but the human-facing HTML should prio
 
 #### Local
 
-- Idea:
+- Idea (repeat this block for every credible idea in this bucket):
   - Visible note, if related industry:
   - Mapped content pillar:
   - Industry scope: primary_industry | related_industry
@@ -616,7 +618,7 @@ This may be kept as a detailed subsection, but the human-facing HTML should prio
 
 #### Global
 
-- Idea:
+- Idea (repeat this block for every credible idea in this bucket):
   - Visible note, if related industry:
   - Mapped content pillar:
   - Industry scope: primary_industry | related_industry
@@ -632,7 +634,7 @@ This may be kept as a detailed subsection, but the human-facing HTML should prio
 
 #### Local
 
-- Idea:
+- Idea (repeat this block for every credible idea in this bucket):
   - Visible note, if related industry:
   - Mapped content pillar:
   - Industry scope: primary_industry | related_industry
@@ -941,6 +943,7 @@ Required report hierarchy:
      - Evergreen / Foundation
      - Lead-Gen / Conversion
    - Include both global and local angles when they matter.
+   - Treat each global/local area as a bucket that can contain many ideas. Include every credible, source-backed idea harvested today in the appropriate bucket; do not reduce the matrix to one idea per bucket.
    - For every idea, show:
      - Title.
      - Global or local label.
@@ -952,7 +955,7 @@ Required report hierarchy:
      - Reference URL(s).
      - Short rationale.
    - Score or qualitative rating for heat, relevance, lead potential, novelty, and confidence.
-   - Empty weak slots are allowed. Do not fill a matrix slot with filler just to make the report look complete.
+   - Empty weak buckets are allowed. Do not fill a bucket with filler just to make the report look complete, and do not drop credible harvested ideas merely because the bucket already has another idea.
 
 9. `Decision Scorecard`
    - Compare the top candidate ideas before choosing the best one.
