@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.13-active-capture-overlay";
+const EXTENSION_BUILD = "0.1.14-capture-overlay-stream";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 80;
 
@@ -657,20 +657,20 @@ function collectorCaptureOverlayText(job, binding) {
     ""
   ).trim();
   if (clientName) {
-    return `${clientName} Solo Agency Collector Capturing data under your approval...`;
+    return `${clientName} Solo Agency Collector Capturing data under your approval, no username/password/cookie or any data send out.`;
   }
   const displayName = String(
     binding?.extension_display_name ||
     job?.extension_display_name ||
     "Solo Agency Collector"
   ).replace(/\s*-\s*/g, " ").trim();
-  return `${displayName} Capturing data under your approval...`;
+  return `${displayName} Capturing data under your approval, no username/password/cookie or any data send out.`;
 }
 
 function installCollectorCaptureOverlay(options) {
   const overlayId = "solo-agency-collector-capture-overlay";
   const styleId = "solo-agency-collector-capture-overlay-style";
-  const label = String(options && options.text ? options.text : "Solo Agency Collector Capturing data under your approval...");
+  const label = String(options && options.text ? options.text : "Solo Agency Collector Capturing data under your approval, no username/password/cookie or any data send out.");
   try {
     const existing = document.getElementById(overlayId);
     if (existing) existing.remove();
@@ -688,10 +688,12 @@ function installCollectorCaptureOverlay(options) {
   right: 18px !important;
   z-index: 2147483647 !important;
   display: flex !important;
-  align-items: center !important;
-  gap: 16px !important;
-  max-width: min(760px, calc(100vw - 36px)) !important;
-  padding: 16px 20px !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 12px !important;
+  width: min(820px, calc(100vw - 36px)) !important;
+  max-height: min(72vh, 760px) !important;
+  padding: 16px !important;
   border: 3px solid rgba(255, 255, 255, 0.98) !important;
   border-radius: 14px !important;
   background: rgba(10, 10, 10, 0.92) !important;
@@ -703,6 +705,11 @@ function installCollectorCaptureOverlay(options) {
   letter-spacing: 0 !important;
   text-align: left !important;
 }
+#${overlayId} .solo-agency-collector-record-head {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+}
 #${overlayId} .solo-agency-collector-record-dot {
   width: 32px !important;
   height: 32px !important;
@@ -713,11 +720,54 @@ function installCollectorCaptureOverlay(options) {
 }
 #${overlayId} .solo-agency-collector-record-label {
   color: #ffffff !important;
-  font-size: clamp(24px, 2.5vw, 42px) !important;
+  font-size: clamp(22px, 2.1vw, 36px) !important;
   font-weight: 900 !important;
   line-height: 1.05 !important;
   letter-spacing: 0 !important;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8) !important;
+}
+#${overlayId} .solo-agency-collector-stream-title {
+  color: #ffdfdf !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase !important;
+}
+#${overlayId} .solo-agency-collector-stream-box {
+  min-height: 142px !important;
+  max-height: min(38vh, 330px) !important;
+  overflow: hidden !important;
+  padding: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+#${overlayId} .solo-agency-collector-stream {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  max-height: min(34vh, 300px) !important;
+  overflow: hidden !important;
+  color: #f8fafc !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  line-height: 1.32 !important;
+  white-space: pre-wrap !important;
+}
+#${overlayId} .solo-agency-collector-stream-row {
+  padding: 8px 10px !important;
+  border-left: 4px solid #ff3838 !important;
+  background: rgba(0, 0, 0, 0.32) !important;
+  border-radius: 8px !important;
+}
+#${overlayId} .solo-agency-collector-stream-meta {
+  display: block !important;
+  margin-bottom: 4px !important;
+  color: #fecaca !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase !important;
 }
 `;
       (document.head || document.documentElement).appendChild(style);
@@ -726,14 +776,56 @@ function installCollectorCaptureOverlay(options) {
     overlay.id = overlayId;
     overlay.setAttribute("role", "status");
     overlay.setAttribute("aria-live", "polite");
+    const head = document.createElement("div");
+    head.className = "solo-agency-collector-record-head";
     const dot = document.createElement("span");
     dot.className = "solo-agency-collector-record-dot";
     const text = document.createElement("span");
     text.className = "solo-agency-collector-record-label";
     text.textContent = label;
-    overlay.appendChild(dot);
-    overlay.appendChild(text);
+    head.appendChild(dot);
+    head.appendChild(text);
+    const streamTitle = document.createElement("div");
+    streamTitle.className = "solo-agency-collector-stream-title";
+    streamTitle.textContent = "Data being collected locally";
+    const streamBox = document.createElement("div");
+    streamBox.className = "solo-agency-collector-stream-box";
+    const stream = document.createElement("div");
+    stream.className = "solo-agency-collector-stream";
+    const initialRow = document.createElement("div");
+    initialRow.className = "solo-agency-collector-stream-row";
+    initialRow.textContent = "Waiting for visible page text...";
+    stream.appendChild(initialRow);
+    streamBox.appendChild(stream);
+    overlay.appendChild(head);
+    overlay.appendChild(streamTitle);
+    overlay.appendChild(streamBox);
     (document.body || document.documentElement).appendChild(overlay);
+    window.__soloAgencyCollectorUpdateOverlay = function(payload) {
+      try {
+        const target = document.querySelector(`#${overlayId} .solo-agency-collector-stream`);
+        const box = document.querySelector(`#${overlayId} .solo-agency-collector-stream-box`);
+        if (!target || !box) return;
+        const data = payload && typeof payload === "object" ? payload : {};
+        const row = document.createElement("div");
+        row.className = "solo-agency-collector-stream-row";
+        const meta = document.createElement("span");
+        meta.className = "solo-agency-collector-stream-meta";
+        const step = data.step != null && data.total != null ? `step ${data.step}/${data.total}` : "collector";
+        meta.textContent = `${step} - ${String(data.phase || "capturing")}`;
+        const body = document.createElement("span");
+        const raw = String(data.text || data.message || "").replace(/\s+/g, " ").trim();
+        body.textContent = raw ? raw.slice(-1400) : "Collecting visible page text...";
+        row.appendChild(meta);
+        row.appendChild(body);
+        target.appendChild(row);
+        while (target.children.length > 14) target.removeChild(target.firstChild);
+        box.scrollTop = box.scrollHeight;
+        target.scrollTop = target.scrollHeight;
+      } catch (error) {
+        // Overlay preview is informational only; never block collection.
+      }
+    };
     return { ok: true, text: label };
   } catch (error) {
     return { ok: false, error: String(error && error.message ? error.message : error) };
@@ -1023,11 +1115,38 @@ async function collectCleanPage(opts) {
     }
   }
 
+  function compactOverlayText(value) {
+    return String(value || "").replace(/\s+/g, " ").trim().slice(-1800);
+  }
+
+  function overlayTextFromCapture(capture) {
+    if (!capture) return "";
+    if (capture.error) return `Capture warning: ${String(capture.error)}`;
+    const text = capture.mergedDisplay || capture.merged || capture.display || capture.text || "";
+    return compactOverlayText(text);
+  }
+
+  function updateCollectorOverlay(payload) {
+    try {
+      if (typeof window.__soloAgencyCollectorUpdateOverlay === "function") {
+        window.__soloAgencyCollectorUpdateOverlay(payload || {});
+      }
+    } catch (error) {
+      // The on-page preview is informational only; never block collection.
+    }
+  }
+
   let prev = "";
   let last = null;
   let scrollStepsUsed = 0;
   let consecutiveNoMove = 0;
   let stoppedReason = "";
+  updateCollectorOverlay({
+    phase: "starting",
+    step: 0,
+    total: steps,
+    text: `Preparing local capture for ${location.href}`
+  });
   for (let i = 0; i <= steps; i += 1) {
     try {
       last = (typeof window.__collectorCapture === "function") ? window.__collectorCapture(prev, {}) : last;
@@ -1040,11 +1159,23 @@ async function collectCleanPage(opts) {
       addEntityItems(last.entityItems);
     }
     if (last && last.merged) prev = last.merged;
+    updateCollectorOverlay({
+      phase: "capturing",
+      step: Math.min(i, steps),
+      total: steps,
+      text: overlayTextFromCapture(last) || `Captured visible page state at ${location.href}`
+    });
     if (i < steps) {
       const scrollReport = await performCollectorScroll();
       scrollStepsUsed += 1;
       scrollReport.pause_ms = delayMs();
       scrollDebug.push(scrollReport);
+      updateCollectorOverlay({
+        phase: "scrolling",
+        step: scrollStepsUsed,
+        total: steps,
+        text: `Scrolled ${scrollReport.target || "page"} by ${scrollReport.delta == null ? "unknown" : scrollReport.delta} px. Waiting ${Math.round(scrollReport.pause_ms / 1000)}s for new visible data to load.`
+      });
       if (!scrollReport || Math.abs(Number(scrollReport.delta || 0)) < 80) {
         consecutiveNoMove += 1;
       } else {
@@ -1052,6 +1183,12 @@ async function collectCleanPage(opts) {
       }
       if (stopAfterNoMoveScrolls > 0 && consecutiveNoMove >= stopAfterNoMoveScrolls) {
         stoppedReason = `no_scroll_movement_${consecutiveNoMove}_times`;
+        updateCollectorOverlay({
+          phase: "stopping",
+          step: scrollStepsUsed,
+          total: steps,
+          text: `Stopping local capture: ${stoppedReason}.`
+        });
         break;
       }
       await wait(scrollReport.pause_ms);
@@ -1066,6 +1203,12 @@ async function collectCleanPage(opts) {
     last.postUrls = postUrls;
     last.entityItems = entityItems;
   }
+  updateCollectorOverlay({
+    phase: "completed",
+    step: scrollStepsUsed,
+    total: steps,
+    text: "Local visible-page capture completed. Saving collected data to the Local Collector app on this computer."
+  });
   return last || {};
 }
 

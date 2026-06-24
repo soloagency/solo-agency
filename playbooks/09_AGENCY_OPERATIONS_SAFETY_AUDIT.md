@@ -201,26 +201,19 @@ The agent must infer:
 - `compliance_notes`
 - `negative_topics`
 
-Then the agent must:
+Then the agent must follow the same 10-item setup model. Do not introduce Add Client setup steps 11+.
 
-1. Show the inferred setup summary to the human.
-2. Ask the human to correct only what is wrong.
-3. Create a new client pipeline folder.
-4. Create the client's Client Intelligence Profile file.
-5. Create the client's history folder.
-6. Create the client's outputs folder.
-7. Add the client to `clients_index.md`.
-8. Resolve the private data source question: record provided sources, decline/no sources, pending Local Collector activation/private data source discovery, or `discovery_declined_or_postponed`. If the human has no private data source list yet, offer optional private data source discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds before treating this as resolved.
-9. If the human agrees to private data source activation or private data source discovery, install or initiate the Solo Agency Local Collector extension and Local Collector app setup, then ask for approval before adding any discovered sources to active private data sources.
-10. Configure the recurring schedule/routine once the basic source plan is known.
-11. If private data sources exist and Local Collector is not installed/running/healthy, handle checklist step 7A: guide Local Collector setup now, or record private data sources as `pending_private_activation` so the automation task can continue with public data sources only if needed.
-12. Prepare or verify the client-specific extension folder under `extensions/{client_slug}/`, with the client name at the start of the Chrome extension name.
-13. Create or resync the client-specific automation task. The task name must begin with the client name.
-14. Update the Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled-run prompt/task body, and resync log.
-15. Do not run the first agency run, first report, public scan, private data source scan, draft generation, video creation, publishing, or analytics scan inside Setup Flow.
-16. Finish the setup handoff by telling the human the exact automation task name to run for the first report, the extension folder to load if needed, and whether private data sources are active, pending, stale, or not requested.
-17. If the human asks for production/video/blog/social, publishing, notifications, analytics, or "full automatic" during Setup Flow, load `playbooks/03_PRODUCTION_DISTRIBUTION.md` only as a provider/configuration gate. Do not create or publish assets from Setup Flow.
-18. Reports, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, and PDNA production actions belong to Automation Flow.
+1. Show the inferred setup summary to the human and ask them to correct only what is wrong.
+2. Create or update the client pipeline folder, Client Intelligence Profile, history folder, outputs folder, and `clients_index.md` row.
+3. Save the inferred pain points, content pillars, business offer, language assumptions, and compliance notes.
+4. Save the public data source plan and keyword bank.
+5. Resolve only the lightweight private data source preference: record provided sources as `pending_7A_review`, declined/no sources, pending Local Collector activation/private data source discovery, or `discovery_declined_or_postponed`.
+6. Configure the recurring schedule/routine once the basic source plan is known.
+7A. If private data sources exist or discovery is approved/pending, guide Local Collector setup now, or record private data sources as `pending_private_activation` so the automation task can continue with public data sources only if needed.
+7B. Prepare or verify the client-specific extension folder under `extensions/{client_slug}/`, with the client name at the start of the Chrome extension name. Create or resync the client-specific automation task, with the task name beginning with the client name. Update the Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled-run prompt/task body, and resync log. Finish the setup handoff by telling the human the exact automation task name to run for the first report, the extension folder to load if needed, and whether private data sources are active, pending, stale, or not requested.
+8. If the human asks for production/video/blog/social, publishing, notifications, analytics, or "full automatic" during Setup Flow, load `playbooks/03_PRODUCTION_DISTRIBUTION.md` only as a provider/configuration gate. Do not create or publish assets from Setup Flow.
+9. Record analytics as an Automation Flow concern only.
+10. Do not run the first agency run, first report, public scan, private data source scan, report updates, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, video creation, publishing, or PDNA production actions inside Setup Flow.
 
 Example:
 
@@ -313,10 +306,10 @@ This is the planned automation process for this client. You only need to reply w
 ✓ 5. You chose whether to include private data sources later
 ✓ 6. I configured the automatic schedule/routine
 – 7A. Local Collector activation is pending or postponed; this automation run uses public data sources only
-✓ 7B. I ran the automation report and created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft
+✓ 7B. The client-specific automation task was created/verified before this run; this report was generated by Automation Flow, not Setup Flow
 → 8. I help set up PDNA: Production, Distribution, Notification, and Analytics
 – 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
-○ 10. I update the report, idea matrix, best idea, Lead & Competitor Opportunities, drafts, analytics/statistics, and learning loop
+✓ 10. I created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft in Automation Flow
 
 The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
 
@@ -1637,7 +1630,7 @@ Before presenting production setup choices or claiming the PDNA setup gate is co
 
 When production/video/blog/social work happens inside the one-time agency setup process, verify:
 
-- [ ] Did I treat step 8 as provider/capability setup after the small win, not open-ended trial video creation?
+- [ ] Did I treat step 8 as provider/capability setup after the setup handoff or an Automation Flow report, not open-ended trial video creation?
 - [ ] Did I avoid starting scene editing, repeated media swaps, render/export, publishing, or credit-spending while steps 9-10 were still pending, unless the human explicitly overrode after a warning?
 - [ ] After provider setup completed, did I gently return to the next setup step instead of asking to keep playing with the video?
 - [ ] If the human explicitly insisted on a trial video before setup completed, did I record the parent setup checkpoint before entering the branch?

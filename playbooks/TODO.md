@@ -200,7 +200,7 @@ First priority is not adding these advanced layers. First priority is validating
 - Does it avoid asking for industry/sub-industry?
 - Does it resolve private data source status before configuring the first routine?
 - Does it configure schedule/routine before asking to run the first agency run now?
-- Does it ask PDNA - Production, Distribution, Notification, and Analytics - only after the small-win report/draft exists?
+- Does it ask PDNA - Production, Distribution, Notification, and Analytics - only after the first Automation Flow report/draft exists?
 - Does it load Stage 2/8 before private data source work?
 - Does it load Stage 3 before production/provider work?
 - Does it load Stage 5 after publishing?

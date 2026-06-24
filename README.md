@@ -121,7 +121,7 @@ They provide [product/service/profession/expertise].
 Their target market is [location if known].
 Here are optional private data sources to monitor: [URLs].
 You may also ask me whether to discover private data sources from my joined groups, subreddits, followed profiles/KOLs, subscriptions, and feeds.
-Run the setup and first report using public data sources.
+Set up the client-specific automation task for the first report using public data sources. Do not run the report inside the setup chat.
 ```
 
 ## Agent Compatibility
