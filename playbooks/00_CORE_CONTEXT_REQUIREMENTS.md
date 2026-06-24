@@ -973,7 +973,7 @@ Daily rule:
 - Record why each new keyword was added, which pain point/content pillar it maps to, and which source or run discovered it.
 - Promote keywords that produce useful leads, strong ideas, relevant competitors, or measurable content performance.
 - Demote keywords that repeatedly produce weak/noisy results.
-- Continue until the agent finds credible results or reasonably concludes that no useful public signal exists for that slot today.
+- Continue until the agent finds credible results or reasonably concludes that no useful public signal exists for that keyword group today.
 - Do not fabricate trends or news if search results are weak.
 - The daily report must include a visible section called `Public Search Keywords Used Today`. Do not hide search queries only in internal logs.
 - The daily report must also show whether the public research produced at least 3 new or newly angled candidate ideas, and must name the blocker if it did not.
@@ -1419,7 +1419,7 @@ Each layer must include two scopes:
 1. Global
 2. Local
 
-This creates a 3x2 matrix:
+This creates a 3x2 matrix of idea buckets, not a six-idea limit:
 
 | Layer | Global | Local |
 |---|---|---|
@@ -1427,9 +1427,11 @@ This creates a 3x2 matrix:
 | Evergreen / Foundation | Global timeless education | Local timeless education |
 | Lead-Gen / Conversion | Global conversion-focused ideas | Local conversion-focused ideas |
 
-A slot may be empty on a given day if there is no credible idea.
+A bucket may contain zero, one, or many ideas on a given day. Put every credible, source-backed idea harvested from today's public data sources or private data sources into the matching layer and scope bucket. For example, if today's global Evergreen/Foundation signals produce five useful education ideas, all five belong in that bucket.
 
-The agent must not invent fake news. If there is no credible data for a slot, mark it as empty and explain why.
+Do not cap the matrix at six ideas and do not discard useful data merely because a bucket already has one idea. If a bucket becomes crowded, score, rank, or mark lower-priority ideas as watchlist, but keep the harvested idea visible unless it is irrelevant, unsupported, unsafe, or too weak. The agent must not invent fake news. If there is no credible data for a bucket, mark it as empty and explain why.
+
+The `at least 3 new or newly angled candidate ideas` requirement is a novelty and selection-quality floor. It is not a maximum idea count for the matrix.
 
 The idea list must respect the primary/related industry content mix:
 
