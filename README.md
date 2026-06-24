@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="Solo Agency logo" width="112">
+</p>
+
 # Solo Agency
 
 Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" to turn it into a real marketing team that works every morning: research, lead and competitor opportunities, videos, blogs, distribution, analytics, and improvements, ready for your approval.

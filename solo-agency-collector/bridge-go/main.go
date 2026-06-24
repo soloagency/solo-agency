@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -60,21 +61,34 @@ type bridge struct {
 	configFileSize       int64
 	runNowRequestPath    string
 	lastRunNowRequestSig string
+	activeJobClaimedPath string
 
 	mu          sync.Mutex
 	fileMu      sync.Mutex
 	counts      map[string]int
 	completed   bool
 	completions map[string]string
-	extension   extensionTelemetry
+	activeJob   map[string]any
+	extensions  map[string]extensionTelemetry
 	stopping    bool
 }
 
 type extensionTelemetry struct {
+	instanceID  string
+	clientSlug  string
+	displayName string
 	lastCheckAt time.Time
 	lastOrigin  string
 	lastVersion string
 	checkCount  int
+}
+
+type extensionIdentity struct {
+	instanceID  string
+	clientSlug  string
+	displayName string
+	origin      string
+	version     string
 }
 
 func main() {
@@ -159,6 +173,8 @@ func newBridge(cfg config) (*bridge, error) {
 		runNowRequestPath: defaultRunNowRequestPath(cfg),
 		completions:       completions,
 		counts:            emptyCounts(),
+		activeJob:         cloneMap(job),
+		extensions:        map[string]extensionTelemetry{},
 	}
 	if err := b.writeStatus("ready", "bridge started"); err != nil {
 		return nil, err
@@ -219,18 +235,20 @@ func defaultRunNowRequestPath(cfg config) string {
 
 func defaultCollectorConfig() map[string]any {
 	return map[string]any{
-		"version":                "0.1.0",
-		"timezone":               "local",
-		"run_mode":               "persistent_bridge_scheduler",
-		"default_runs_per_day":   1,
-		"poll_interval_seconds":  5,
-		"max_sources_per_run":    20,
-		"source_concurrency":     1,
-		"max_scrolls_per_source": 5,
-		"max_scrolls_allowed":    10,
-		"discovery_scroll_steps": 80,
+		"version":                       "0.1.0",
+		"timezone":                      "local",
+		"run_mode":                      "persistent_bridge_scheduler",
+		"routing_mode":                  "shared_bridge_per_client_extension",
+		"default_runs_per_day":          1,
+		"poll_interval_seconds":         5,
+		"max_sources_per_run":           20,
+		"scheduled_job_ttl_minutes":     120,
+		"source_concurrency":            1,
+		"max_scrolls_per_source":        5,
+		"max_scrolls_allowed":           10,
+		"discovery_scroll_steps":        80,
 		"max_discovery_scrolls_allowed": 80,
-		"scroll_delay_seconds":   5,
+		"scroll_delay_seconds":          5,
 		"duplicate_filter": map[string]any{
 			"compare_against_previous_day": true,
 			"method":                       "visible_text_matching",
@@ -519,29 +537,50 @@ func (b *bridge) allowOrigin(w http.ResponseWriter, r *http.Request) bool {
 	w.Header().Set("Access-Control-Allow-Origin", origin)
 	w.Header().Set("Vary", "Origin")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Collector-Token, X-Collector-Extension, X-Collector-Extension-Version, Authorization")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Collector-Token, X-Collector-Extension, X-Collector-Extension-Version, X-Collector-Client-Slug, X-Collector-Extension-Instance, X-Collector-Extension-Name, Authorization")
 	w.Header().Set("Access-Control-Max-Age", "300")
 	return true
 }
 
 func (b *bridge) recordExtensionCheck(r *http.Request) {
-	origin := r.Header.Get("Origin")
+	identity := extensionIdentityFromRequest(r)
+	origin := identity.origin
 	header := r.Header.Get("X-Collector-Extension")
-	version := r.Header.Get("X-Collector-Extension-Version")
 	if !strings.HasPrefix(origin, "chrome-extension://") && header != "media-agency-local-collector" {
 		return
 	}
 	if origin == "" {
 		origin = "chrome-extension://detected-by-header"
 	}
+	if identity.instanceID == "" {
+		identity.instanceID = origin
+	}
+	if identity.instanceID == "" {
+		identity.instanceID = "legacy-default"
+	}
+	if identity.origin == "" {
+		identity.origin = origin
+	}
 	now := time.Now().UTC()
 	b.mu.Lock()
-	b.extension.lastCheckAt = now
-	b.extension.lastOrigin = origin
-	b.extension.lastVersion = version
-	b.extension.checkCount++
+	prev := b.extensions[identity.instanceID]
+	prev.instanceID = identity.instanceID
+	prev.clientSlug = identity.clientSlug
+	prev.displayName = identity.displayName
+	prev.lastCheckAt = now
+	prev.lastOrigin = identity.origin
+	prev.lastVersion = identity.version
+	prev.checkCount++
+	b.extensions[identity.instanceID] = prev
 	b.mu.Unlock()
 	_ = b.writeHealthFile()
+	_ = b.writeCollectorEvent("extension_health", map[string]any{
+		"extension_instance_id":  identity.instanceID,
+		"client_slug":            identity.clientSlug,
+		"extension_display_name": identity.displayName,
+		"origin":                 identity.origin,
+		"extension_version":      identity.version,
+	})
 }
 
 func (b *bridge) requireToken(next http.HandlerFunc) http.HandlerFunc {
@@ -567,13 +606,14 @@ func (b *bridge) handleStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	identity := extensionIdentityFromRequest(r)
 	b.refreshLocalControlFiles()
 	jobAvailable := true
 	activeRunID := b.cfg.runID
 	status := "ready"
 	currentJobType := "on_demand"
 	if b.cfg.persistent {
-		job, available, runID := b.currentPersistentJob(time.Now())
+		job, available, runID := b.currentPersistentJob(time.Now(), identity)
 		jobAvailable = available
 		activeRunID = runID
 		currentJobType = "none"
@@ -667,10 +707,11 @@ func (b *bridge) handleCurrentJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	identity := extensionIdentityFromRequest(r)
 	b.refreshLocalControlFiles()
 	job := cloneMap(b.job)
 	if b.cfg.persistent {
-		persistentJob, available, _ := b.currentPersistentJob(time.Now())
+		persistentJob, available, _ := b.currentPersistentJob(time.Now(), identity)
 		if !available {
 			http.Error(w, "no active scheduled job", http.StatusNoContent)
 			return
@@ -732,18 +773,29 @@ func (b *bridge) activateRunNowJob(job map[string]any, now time.Time, source str
 		job["collector_policy"] = defaultCollectorPolicy()
 	}
 	month := now.Format("2006-01")
-	outputDir := filepath.Join(b.outputRoot, month, safeFilename(runID))
-	job["output_dir"] = outputDir
-	if err := os.MkdirAll(filepath.Join(outputDir, "snapshots"), 0o700); err != nil {
-		return nil, err
+	clientSlug := getString(job, "client_slug", "")
+	if clientSlug != "" {
+		outputDir := filepath.Join(b.outputRoot, month, safeFilename(clientSlug), safeFilename(runID))
+		job["output_dir"] = outputDir
+		if err := os.MkdirAll(filepath.Join(outputDir, "snapshots"), 0o700); err != nil {
+			return nil, err
+		}
+	} else {
+		outputDir := filepath.Join(b.outputRoot, month, safeFilename(runID))
+		job["output_dir"] = outputDir
+		if err := os.MkdirAll(filepath.Join(outputDir, "snapshots"), 0o700); err != nil {
+			return nil, err
+		}
 	}
 
 	b.mu.Lock()
 	b.runNowJob = job
 	b.cfg.runID = runID
-	b.cfg.outputDir = outputDir
+	b.cfg.outputDir = getString(job, "output_dir", b.cfg.outputDir)
 	b.completed = false
 	b.counts = emptyCounts()
+	b.activeJob = cloneMap(job)
+	b.activeJobClaimedPath = ""
 	delete(b.completions, runID)
 	b.saveCompletionsLocked()
 	b.mu.Unlock()
@@ -752,13 +804,91 @@ func (b *bridge) activateRunNowJob(job map[string]any, now time.Time, source str
 		"ok":                 true,
 		"object":             "collector_run_now_loaded",
 		"run_id":             runID,
-		"output_dir":         outputDir,
+		"output_dir":         job["output_dir"],
 		"run_now_expires_at": expiresAt,
 		"source":             source,
 	}, nil
 }
 
-func (b *bridge) currentPersistentJob(now time.Time) (map[string]any, bool, string) {
+func (b *bridge) activateQueuedJobForExtension(now time.Time, identity extensionIdentity) (map[string]any, bool, string) {
+	if identity.clientSlug == "" && identity.instanceID == "" {
+		return nil, false, ""
+	}
+	pendingDir := filepath.Join(b.collectorDataDir(), "jobs", "pending")
+	var paths []string
+	_ = filepath.WalkDir(pendingDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d == nil || d.IsDir() || !strings.HasSuffix(strings.ToLower(d.Name()), ".json") {
+			return nil
+		}
+		paths = append(paths, path)
+		return nil
+	})
+	sort.Strings(paths)
+	for _, path := range paths {
+		job, err := readMapFile(path)
+		if err != nil {
+			_ = b.writeCollectorEvent("job_routing", map[string]any{
+				"status": "queued_job_read_error",
+				"path":   path,
+				"error":  err.Error(),
+			})
+			continue
+		}
+		job = sanitizeMap(job)
+		if !jobMatchesExtension(job, identity) {
+			continue
+		}
+		runID := getString(job, "run_id", getString(job, "job_id", fmt.Sprintf("%s_%s", now.Format("2006-01-02_150405"), safeFilename(identity.clientSlug))))
+		job["run_id"] = runID
+		resp, err := b.activateRunNowJob(job, now, "queue")
+		if err != nil {
+			_ = b.writeCollectorEvent("job_routing", map[string]any{
+				"status":      "queued_job_rejected",
+				"path":        path,
+				"run_id":      runID,
+				"client_slug": identity.clientSlug,
+				"error":       err.Error(),
+			})
+			continue
+		}
+		claimedPath := b.moveQueuedJob(path, "claimed", runID)
+		b.mu.Lock()
+		b.activeJobClaimedPath = claimedPath
+		b.mu.Unlock()
+		_ = b.writeCollectorEvent("job_routing", map[string]any{
+			"status":                 "queued_job_claimed",
+			"path":                   path,
+			"claimed_path":           claimedPath,
+			"run_id":                 runID,
+			"client_slug":            identity.clientSlug,
+			"extension_instance_id":  identity.instanceID,
+			"extension_display_name": identity.displayName,
+			"output_dir":             resp["output_dir"],
+		})
+		b.mu.Lock()
+		queued := cloneMap(b.runNowJob)
+		b.mu.Unlock()
+		return queued, true, runID
+	}
+	return nil, false, ""
+}
+
+func (b *bridge) moveQueuedJob(path, state, runID string) string {
+	if path == "" {
+		return ""
+	}
+	targetDir := filepath.Join(b.collectorDataDir(), "jobs", state)
+	if err := os.MkdirAll(targetDir, 0o700); err != nil {
+		return ""
+	}
+	targetPath := filepath.Join(targetDir, fmt.Sprintf("%s_%s", safeFilename(runID), filepath.Base(path)))
+	if err := os.Rename(path, targetPath); err != nil {
+		return ""
+	}
+	return targetPath
+}
+
+func (b *bridge) currentPersistentJob(now time.Time, identity extensionIdentity) (map[string]any, bool, string) {
 	b.mu.Lock()
 	if b.runNowJob != nil {
 		runNow := cloneMap(b.runNowJob)
@@ -779,7 +909,33 @@ func (b *bridge) currentPersistentJob(now time.Time) (map[string]any, bool, stri
 		if completed {
 			return nil, false, runID
 		}
+		if !jobMatchesExtension(runNow, identity) {
+			return nil, false, runID
+		}
 		return runNow, true, runID
+	}
+	if b.cfg.persistent {
+		active := cloneMap(b.activeJob)
+		activeRunID := getString(active, "run_id", "")
+		if activeRunID != "" && activeRunID == b.cfg.runID && !b.completed && getBool(active, "scheduled", false) {
+			expired := false
+			if rawExpires := getString(active, "scheduled_expires_at", ""); rawExpires != "" {
+				if expiresAt, err := time.Parse(time.RFC3339, rawExpires); err == nil && now.UTC().After(expiresAt) {
+					expired = true
+					b.activeJob = nil
+					b.cfg.runID = ""
+					b.cfg.outputDir = b.outputRoot
+					b.counts = emptyCounts()
+				}
+			}
+			if !expired {
+				b.mu.Unlock()
+				if jobMatchesExtension(active, identity) {
+					return active, true, activeRunID
+				}
+				return nil, false, activeRunID
+			}
+		}
 	}
 	doc := cloneMap(b.configDoc)
 	root := b.outputRoot
@@ -790,17 +946,25 @@ func (b *bridge) currentPersistentJob(now time.Time) (map[string]any, bool, stri
 	fallbackJob := cloneMap(b.job)
 	b.mu.Unlock()
 
+	if queuedJob, ok, runID := b.activateQueuedJobForExtension(now, identity); ok {
+		return queuedJob, true, runID
+	}
+
 	window, ok := activeWindow(doc, now)
 	if !ok {
 		return nil, false, ""
 	}
 	windowName := getString(window, "name", "daily_default")
-	runID := fmt.Sprintf("%s_%s", now.Format("2006-01-02"), safeFilename(windowName))
+	runIDParts := []string{now.Format("2006-01-02"), safeFilename(windowName)}
+	if identity.clientSlug != "" {
+		runIDParts = append(runIDParts, safeFilename(identity.clientSlug))
+	}
+	runID := strings.Join(runIDParts, "_")
 	if completions[runID] != "" {
 		return nil, false, runID
 	}
 
-	sources := configuredSources(doc)
+	sources := configuredSources(doc, identity.clientSlug)
 	if len(sources) == 0 {
 		if fallbackSources, ok := fallbackJob["sources"].([]any); ok {
 			sources = fallbackSources
@@ -820,25 +984,33 @@ func (b *bridge) currentPersistentJob(now time.Time) (map[string]any, bool, stri
 	delay := clampInt(getInt(doc, "scroll_delay_seconds", 5), 5, 60)
 	maxSources := clampInt(getInt(doc, "max_sources_per_run", 20), 1, 20)
 	sourceConcurrency := clampInt(getInt(doc, "source_concurrency", 1), 1, 3)
+	scheduledTTL := clampInt(getInt(doc, "scheduled_job_ttl_minutes", 120), 15, 240)
 	month := now.Format("2006-01")
-	outputDir := filepath.Join(root, month, runID)
+	outputParts := []string{root, month}
+	if identity.clientSlug != "" {
+		outputParts = append(outputParts, safeFilename(identity.clientSlug))
+	}
+	outputParts = append(outputParts, runID)
+	outputDir := filepath.Join(outputParts...)
 	_ = os.MkdirAll(filepath.Join(outputDir, "snapshots"), 0o700)
 
 	job := map[string]any{
-		"run_id":        runID,
-		"collector":     "media-agency-local-collector",
-		"created_at":    now.UTC().Format(time.RFC3339),
-		"scheduled":     true,
-		"schedule_name": windowName,
-		"output_dir":    outputDir,
-		"sources":       sources,
+		"run_id":                runID,
+		"collector":             "media-agency-local-collector",
+		"created_at":            now.UTC().Format(time.RFC3339),
+		"scheduled":             true,
+		"schedule_name":         windowName,
+		"scheduled_ttl_minutes": scheduledTTL,
+		"scheduled_expires_at":  now.Add(time.Duration(scheduledTTL) * time.Minute).UTC().Format(time.RFC3339),
+		"output_dir":            outputDir,
+		"sources":               sources,
 		"pacing": map[string]any{
-			"min_delay_seconds": delay,
-			"max_delay_seconds": delay,
-			"max_sources":       maxSources,
+			"min_delay_seconds":  delay,
+			"max_delay_seconds":  delay,
+			"max_sources":        maxSources,
 			"source_concurrency": sourceConcurrency,
-			"scroll_steps":      scrolls,
-			"max_text_chars":    12000,
+			"scroll_steps":       scrolls,
+			"max_text_chars":     12000,
 		},
 		"collector_policy": map[string]any{
 			"read_only":                     true,
@@ -848,6 +1020,12 @@ func (b *bridge) currentPersistentJob(now time.Time) (map[string]any, bool, stri
 			"do_not_scrape_contact_details": true,
 		},
 	}
+	if identity.clientSlug != "" {
+		job["client_slug"] = identity.clientSlug
+	}
+	if identity.instanceID != "" {
+		job["allowed_extension_instance_ids"] = []any{identity.instanceID}
+	}
 
 	b.mu.Lock()
 	if b.cfg.runID != runID {
@@ -856,6 +1034,8 @@ func (b *bridge) currentPersistentJob(now time.Time) (map[string]any, bool, stri
 	b.cfg.runID = runID
 	b.cfg.outputDir = outputDir
 	b.completed = false
+	b.activeJob = cloneMap(job)
+	b.activeJobClaimedPath = ""
 	b.mu.Unlock()
 	return job, true, runID
 }
@@ -1019,7 +1199,7 @@ func defaultCollectorPolicy() map[string]any {
 	}
 }
 
-func configuredSources(doc map[string]any) []any {
+func configuredSources(doc map[string]any, clientSlug string) []any {
 	var out []any
 	appendSources := func(sourceItems []any, client map[string]any) {
 		for _, item := range sourceItems {
@@ -1037,6 +1217,9 @@ func configuredSources(doc map[string]any) []any {
 				copyDefault(next, "location_slug", getString(client, "location_slug", ""))
 				copyDefault(next, "language", getString(client, "language", ""))
 			}
+			if clientSlug != "" && getString(next, "client_slug", "") != clientSlug {
+				continue
+			}
 			if getString(next, "source_type", "") == "" {
 				next["source_type"] = "private"
 			}
@@ -1048,6 +1231,9 @@ func configuredSources(doc map[string]any) []any {
 	for _, item := range asSlice(doc["clients"]) {
 		client, ok := item.(map[string]any)
 		if !ok || !getBool(client, "enabled", true) {
+			continue
+		}
+		if clientSlug != "" && getString(client, "client_slug", "") != clientSlug {
 			continue
 		}
 		appendSources(asSlice(client["private_sources"]), client)
@@ -1129,7 +1315,8 @@ func (b *bridge) appendRecord(w http.ResponseWriter, r *http.Request, kind, file
 		return
 	}
 	record = sanitizeMap(record)
-	activeRunID, err := b.activeWriteRunID(record)
+	identity := extensionIdentityFromRequest(r)
+	activeRunID, err := b.activeWriteRunID(record, identity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -1137,6 +1324,12 @@ func (b *bridge) appendRecord(w http.ResponseWriter, r *http.Request, kind, file
 	record["object"] = "collector_" + kind
 	record["record_type"] = kind
 	record["run_id"] = activeRunID
+	if identity.instanceID != "" {
+		record["extension_instance_id"] = identity.instanceID
+	}
+	if identity.displayName != "" {
+		record["extension_display_name"] = identity.displayName
+	}
 	record["received_at"] = time.Now().UTC().Format(time.RFC3339)
 	record["bridge_runtime"] = runtime.GOOS + "/" + runtime.GOARCH
 
@@ -1172,7 +1365,8 @@ func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	meta := sanitizeMap(record)
-	activeRunID, err := b.activeWriteRunID(meta)
+	identity := extensionIdentityFromRequest(r)
+	activeRunID, err := b.activeWriteRunID(meta, identity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -1189,6 +1383,12 @@ func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 	meta["snapshot_path"] = path
 	meta["record_type"] = "snapshot"
 	meta["run_id"] = activeRunID
+	if identity.instanceID != "" {
+		meta["extension_instance_id"] = identity.instanceID
+	}
+	if identity.displayName != "" {
+		meta["extension_display_name"] = identity.displayName
+	}
 	meta["received_at"] = time.Now().UTC().Format(time.RFC3339)
 	if err := b.writeJSONL("source_status.jsonl", meta); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1198,12 +1398,14 @@ func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true, "snapshot_path": path})
 }
 
-func (b *bridge) activeWriteRunID(record map[string]any) (string, error) {
+func (b *bridge) activeWriteRunID(record map[string]any, identity extensionIdentity) (string, error) {
 	incomingRunID := getString(record, "run_id", "")
+	incomingClientSlug := getString(record, "client_slug", "")
 	b.mu.Lock()
 	persistent := b.cfg.persistent
 	cfgRunID := b.cfg.runID
 	completed := b.completed
+	activeJob := cloneMap(b.activeJob)
 	b.mu.Unlock()
 
 	if !persistent {
@@ -1213,17 +1415,31 @@ func (b *bridge) activeWriteRunID(record map[string]any) (string, error) {
 		if incomingRunID != "" && incomingRunID != cfgRunID {
 			return cfgRunID, fmt.Errorf("stale collector run %q; active run is %q", incomingRunID, cfgRunID)
 		}
+		if !jobMatchesExtension(activeJob, identity) {
+			return cfgRunID, fmt.Errorf("extension %q is not allowed to write run %q", identity.instanceID, cfgRunID)
+		}
+		if err := validateRecordClient(activeJob, incomingClientSlug); err != nil {
+			return cfgRunID, err
+		}
 		return cfgRunID, nil
 	}
 
-	_, available, activeRunID := b.currentPersistentJob(time.Now())
-	if !available || activeRunID == "" {
-		return activeRunID, errors.New("no active collector job")
+	if cfgRunID == "" {
+		return cfgRunID, errors.New("no active collector job")
 	}
-	if incomingRunID != "" && incomingRunID != activeRunID {
-		return activeRunID, fmt.Errorf("stale collector run %q; active run is %q", incomingRunID, activeRunID)
+	if completed {
+		return cfgRunID, errors.New("collector run is already completed")
 	}
-	return activeRunID, nil
+	if incomingRunID != "" && incomingRunID != cfgRunID {
+		return cfgRunID, fmt.Errorf("stale collector run %q; active run is %q", incomingRunID, cfgRunID)
+	}
+	if !jobMatchesExtension(activeJob, identity) {
+		return cfgRunID, fmt.Errorf("extension %q is not allowed to write run %q", identity.instanceID, cfgRunID)
+	}
+	if err := validateRecordClient(activeJob, incomingClientSlug); err != nil {
+		return cfgRunID, err
+	}
+	return cfgRunID, nil
 }
 
 func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
@@ -1231,6 +1447,39 @@ func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	identity := extensionIdentityFromRequest(r)
+	record := map[string]any{}
+	if r.Body != nil && r.Body != http.NoBody {
+		defer r.Body.Close()
+		limited := io.LimitReader(r.Body, maxJSONBodyBytes)
+		body, _ := io.ReadAll(limited)
+		if len(strings.TrimSpace(string(body))) > 0 {
+			if err := json.Unmarshal(body, &record); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			record = sanitizeMap(record)
+		}
+	}
+	b.mu.Lock()
+	activeJob := cloneMap(b.activeJob)
+	currentRunID := b.cfg.runID
+	claimedPath := b.activeJobClaimedPath
+	b.mu.Unlock()
+	incomingRunID := getString(record, "run_id", "")
+	if incomingRunID != "" && incomingRunID != currentRunID {
+		http.Error(w, fmt.Sprintf("stale collector run %q; active run is %q", incomingRunID, currentRunID), http.StatusConflict)
+		return
+	}
+	if !jobMatchesExtension(activeJob, identity) {
+		http.Error(w, fmt.Sprintf("extension %q is not allowed to complete run %q", identity.instanceID, currentRunID), http.StatusConflict)
+		return
+	}
+	if err := validateRecordClient(activeJob, getString(record, "client_slug", "")); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+
 	b.mu.Lock()
 	b.completed = true
 	runID := b.cfg.runID
@@ -1241,8 +1490,21 @@ func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
 		}
 		b.saveCompletionsLocked()
 	}
+	b.activeJobClaimedPath = ""
 	persistent := b.cfg.persistent
 	b.mu.Unlock()
+	if claimedPath != "" {
+		_ = os.MkdirAll(filepath.Join(b.collectorDataDir(), "jobs", "completed"), 0o700)
+		completedPath := filepath.Join(b.collectorDataDir(), "jobs", "completed", filepath.Base(claimedPath))
+		_ = os.Rename(claimedPath, completedPath)
+	}
+	_ = b.writeCollectorEvent("job_routing", map[string]any{
+		"status":                 "job_completed",
+		"run_id":                 runID,
+		"client_slug":            getString(activeJob, "client_slug", ""),
+		"extension_instance_id":  identity.instanceID,
+		"extension_display_name": identity.displayName,
+	})
 	_ = b.writeStatus("completed", "collector marked run complete")
 	writeJSON(w, map[string]any{"ok": true, "status": "completed"})
 	if persistent {
@@ -1320,6 +1582,7 @@ func (b *bridge) writeStatus(status, message string) error {
 
 func (b *bridge) writeHealthFile() error {
 	b.mu.Lock()
+	extensionHealth := b.extensionStatusLocked(time.Now().UTC())
 	payload := map[string]any{
 		"object":           "collector_bridge_health",
 		"status":           "running",
@@ -1330,7 +1593,7 @@ func (b *bridge) writeHealthFile() error {
 		"persistent":       b.cfg.persistent,
 		"config_file":      b.cfg.configFile,
 		"output_root":      b.outputRoot,
-		"extension_health": b.extensionStatusLocked(time.Now().UTC()),
+		"extension_health": extensionHealth,
 	}
 	b.mu.Unlock()
 	data, err := json.MarshalIndent(payload, "", "  ")
@@ -1348,25 +1611,73 @@ func (b *bridge) extensionStatusLocked(now time.Time) map[string]any {
 	if staleAfter < 25 {
 		staleAfter = 25
 	}
+	extensions := make([]any, 0, len(b.extensions))
+	recentCount := 0
+	latestCheck := time.Time{}
+	latestOrigin := ""
+	latestVersion := ""
+	totalChecks := 0
+	for _, ext := range b.extensions {
+		secondsSince := any(nil)
+		status := "no_extension_check_yet"
+		if !ext.lastCheckAt.IsZero() {
+			seconds := int(now.Sub(ext.lastCheckAt).Seconds())
+			secondsSince = seconds
+			if seconds <= staleAfter {
+				status = "recent"
+				recentCount++
+			} else {
+				status = "stale"
+			}
+			if ext.lastCheckAt.After(latestCheck) {
+				latestCheck = ext.lastCheckAt
+				latestOrigin = ext.lastOrigin
+				latestVersion = ext.lastVersion
+			}
+		}
+		totalChecks += ext.checkCount
+		extensions = append(extensions, map[string]any{
+			"extension_instance_id":          ext.instanceID,
+			"client_slug":                    ext.clientSlug,
+			"extension_display_name":         ext.displayName,
+			"status":                         status,
+			"last_extension_check_at":        formatTime(ext.lastCheckAt),
+			"seconds_since_last_check":       secondsSince,
+			"extension_check_count":          ext.checkCount,
+			"last_extension_origin":          ext.lastOrigin,
+			"extension_version":              ext.lastVersion,
+			"expected_poll_seconds":          pollSeconds,
+			"stale_after_seconds":            staleAfter,
+			"can_collect_when_chrome_closed": false,
+		})
+	}
+	sort.SliceStable(extensions, func(i, j int) bool {
+		left, _ := extensions[i].(map[string]any)
+		right, _ := extensions[j].(map[string]any)
+		return fmt.Sprint(left["client_slug"], left["extension_instance_id"]) < fmt.Sprint(right["client_slug"], right["extension_instance_id"])
+	})
 	out := map[string]any{
 		"status":                         "no_extension_check_yet",
 		"last_extension_check_at":        "",
 		"seconds_since_last_check":       nil,
-		"extension_check_count":          b.extension.checkCount,
-		"last_extension_origin":          b.extension.lastOrigin,
-		"extension_version":              b.extension.lastVersion,
+		"extension_check_count":          totalChecks,
+		"last_extension_origin":          latestOrigin,
+		"extension_version":              latestVersion,
 		"expected_poll_seconds":          pollSeconds,
 		"stale_after_seconds":            staleAfter,
 		"possible_missing_reasons":       []string{"Chrome is closed", "extension is not installed", "extension is disabled or removed", "bridge URL/port mismatch", "Chrome service worker is sleeping"},
 		"can_collect_when_chrome_closed": false,
+		"recent_extension_count":         recentCount,
+		"total_extension_count":          len(extensions),
+		"extensions":                     extensions,
 	}
-	if b.extension.lastCheckAt.IsZero() {
+	if latestCheck.IsZero() {
 		return out
 	}
-	seconds := int(now.Sub(b.extension.lastCheckAt).Seconds())
-	out["last_extension_check_at"] = b.extension.lastCheckAt.Format(time.RFC3339)
+	seconds := int(now.Sub(latestCheck).Seconds())
+	out["last_extension_check_at"] = latestCheck.Format(time.RFC3339)
 	out["seconds_since_last_check"] = seconds
-	if seconds <= staleAfter {
+	if recentCount > 0 {
 		out["status"] = "recent"
 		out["possible_missing_reasons"] = []string{}
 	} else {
@@ -1390,6 +1701,115 @@ func (b *bridge) shutdown(reason string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_ = b.server.Shutdown(ctx)
+}
+
+func extensionIdentityFromRequest(r *http.Request) extensionIdentity {
+	if r == nil {
+		return extensionIdentity{}
+	}
+	origin := r.Header.Get("Origin")
+	instanceID := strings.TrimSpace(r.Header.Get("X-Collector-Extension-Instance"))
+	if instanceID == "" && strings.HasPrefix(origin, "chrome-extension://") {
+		instanceID = origin
+	}
+	return extensionIdentity{
+		instanceID:  instanceID,
+		clientSlug:  strings.TrimSpace(r.Header.Get("X-Collector-Client-Slug")),
+		displayName: strings.TrimSpace(r.Header.Get("X-Collector-Extension-Name")),
+		origin:      origin,
+		version:     strings.TrimSpace(r.Header.Get("X-Collector-Extension-Version")),
+	}
+}
+
+func jobMatchesExtension(job map[string]any, identity extensionIdentity) bool {
+	if len(job) == 0 {
+		return true
+	}
+	jobClient := getString(job, "client_slug", "")
+	if jobClient != "" && identity.clientSlug != "" && jobClient != identity.clientSlug {
+		return false
+	}
+	if jobClient != "" && identity.clientSlug == "" {
+		return false
+	}
+	jobExtension := getString(job, "extension_instance_id", "")
+	if jobExtension != "" && identity.instanceID != "" && jobExtension != identity.instanceID {
+		return false
+	}
+	if jobExtension != "" && identity.instanceID == "" {
+		return false
+	}
+	allowed := stringList(job["allowed_extension_instance_ids"])
+	if len(allowed) > 0 {
+		if identity.instanceID == "" {
+			return false
+		}
+		for _, item := range allowed {
+			if item == identity.instanceID {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
+func validateRecordClient(job map[string]any, recordClientSlug string) error {
+	jobClient := getString(job, "client_slug", "")
+	if jobClient == "" || recordClientSlug == "" || jobClient == recordClientSlug {
+		return nil
+	}
+	return fmt.Errorf("collector client mismatch %q; active client is %q", recordClientSlug, jobClient)
+}
+
+func stringList(raw any) []string {
+	var out []string
+	for _, item := range asSlice(raw) {
+		value := strings.TrimSpace(fmt.Sprint(item))
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func (b *bridge) collectorDataDir() string {
+	if b.cfg.configFile != "" {
+		return filepath.Dir(b.cfg.configFile)
+	}
+	if filepath.Base(b.outputRoot) == "inbox" {
+		return filepath.Dir(b.outputRoot)
+	}
+	return b.outputRoot
+}
+
+func (b *bridge) writeCollectorEvent(logName string, payload map[string]any) error {
+	if payload == nil {
+		payload = map[string]any{}
+	}
+	payload["object"] = "collector_" + logName
+	payload["logged_at"] = time.Now().UTC().Format(time.RFC3339)
+	path := filepath.Join(b.collectorDataDir(), "logs", safeFilename(logName)+".jsonl")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	b.fileMu.Lock()
+	defer b.fileMu.Unlock()
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(payload)
+}
+
+func formatTime(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.Format(time.RFC3339)
 }
 
 func readMap(r *http.Request, limit int64) (map[string]any, error) {

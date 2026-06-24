@@ -20,7 +20,43 @@ Load when installing, starting, stopping, checking, scheduling, updating, or tro
 - No credentials, hidden APIs, DMs, inboxes, account pages, or contact scraping.
 - Private data source discovery jobs are allowed only after explicit human consent and must produce candidate sources for review, not automatically activated monitoring sources.
 - A reachable bridge is not automatically healthy. The agent must verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point elsewhere, mark `wrong_workspace_bridge` and require the human-run setup/start command for the current setup.
-- A normal machine should have one active Solo Agency Local Collector runtime and one active Solo Agency Local Collector Chrome extension for the current setup. When old installs are suspected, ask the human to remove/disable old Solo Agency Local Collector entries in `chrome://extensions`.
+- A normal machine should have one active shared Solo Agency Local Collector runtime/bridge for the current setup, and one client-specific Solo Agency Local Collector Chrome extension per client Chrome profile/account. When old installs are suspected, ask the human to remove/disable stale entries in `chrome://extensions` and keep only the current per-client extension entries under `extensions/{client_slug}/`.
+
+## Latest Override: One Shared Bridge, Many Client Extensions
+
+The current multi-client model supersedes older one-extension wording:
+
+- A normal machine should have one active shared Local Collector app/bridge for the current agency root.
+- Each client may have its own Chrome profile/account and must have its own unpacked extension folder under `extensions/{client_slug}/`.
+- The Chrome extension display name must begin with the client name: `{Client Name} - Solo Agency Collector`.
+- The human-facing `Load unpacked` folder for a client is the absolute path to `extensions/{client_slug}/`, not `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
+- The shared bridge routes jobs by `client_slug + extension_instance_id` and writes output only under `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/{run_id}/`.
+- Agents running in sandboxes should prefer file-based job requests under `daily-content-pipeline/collector/jobs/pending/` and local health/status files over localhost calls.
+- Extension popup/settings must not write global `collector_config.json`; global agency/collector config is managed by the agent/playbook and Automation Resync.
+
+Per-client extension setup handoff:
+
+```text
+Open the Chrome profile/account for {Client Name}.
+Go to chrome://extensions.
+Enable Developer mode.
+Click Load unpacked.
+Select:
+{ABSOLUTE_AGENCY_ROOT}/extensions/{client_slug}/
+```
+
+The agent must prepare `extensions/{client_slug}/manifest.json` with:
+
+```json
+{
+  "name": "{Client Name} - Solo Agency Collector",
+  "short_name": "{Client Name} Collector"
+}
+```
+
+The agent must also create `extensions/{client_slug}/client_binding.json` with `client_slug`, `client_name`, `extension_instance_id`, `extension_display_name`, and `bridge_base_url`.
+
+Bridge/extension health for automation must be checked per client. A global `extension_health.status: recent` is not enough when multiple client extensions exist; the scheduled task must find the matching extension entry for the target `client_slug` and `extension_instance_id`.
 
 ## Source Preservation Rule
 
@@ -181,17 +217,24 @@ Canonical local layout:
 ```text
 {agency_root}/
   solo-agency/                         # downloaded toolkit/source repo
-  solo-agency-local-collector/         # runtime app + Chrome extension only
+  solo-agency-local-collector/         # shared runtime app / bridge only
     downloads/
     bin/
-    LOAD_THIS_EXTENSION_IN_CHROME/
     setup_collector.sh
     collector.pid
     collector.log
+  extensions/                          # one Chrome Load unpacked folder per client
+    {client_slug}/
+      manifest.json
+      background.js
+      popup.html
+      popup.js
+      client_binding.json
   daily-content-pipeline/              # data/config/output only
     collector/
       collector_setup_status.md
       collector_config.json
+      extension_registry.json
       jobs/
       inbox/
 ```
@@ -200,26 +243,29 @@ Chrome extension folder disambiguation:
 
 - There may be another `chrome-extension/` folder inside the downloaded toolkit/repo, such as `solo-agency/solo-agency-collector/chrome-extension/`.
 - That toolkit folder is source/developer material. It is not the human-facing Chrome `Load unpacked` folder during agency setup.
-- The only folder the agent may tell a normal human to load in Chrome is the runtime folder under `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
-- If both folders exist, the agent must explicitly warn: `Do not load the extension folder inside solo-agency/solo-agency-collector. Load only the solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME folder shown below.`
-- A normal machine should have only one active Solo Agency Local Collector runtime and one active Solo Agency Local Collector Chrome extension. If the human has installed the extension from a previous Solo Agency setup, the agent must ask them to remove or disable the older Solo Agency Local Collector entries in `chrome://extensions` and keep only the extension loaded from the current setup's absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
-- The generated setup instructions, setup status file, and chat message must show only one Chrome extension path: the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` path.
+- The only folder the agent may tell a normal human to load in Chrome for a client is the per-client runtime folder under `extensions/{client_slug}/`.
+- If both folders exist, the agent must explicitly warn: `Do not load the extension folder inside solo-agency/solo-agency-collector. Load only the extensions/{client_slug} folder shown below for this client.`
+- A normal machine should have only one active shared Solo Agency Local Collector runtime/bridge, but may have multiple client-specific Solo Agency Local Collector extensions, one per client Chrome profile/account.
+- The generated setup instructions, setup status file, and chat message must show the absolute per-client extension path: `extensions/{client_slug}/`.
 - Do not put app binaries, downloaded zips, the unpacked extension, PID files, or collector logs inside `daily-content-pipeline/`. That folder should remain data/config/output only.
 
 Install flow:
 
 1. Detect the user's OS and CPU architecture.
 2. Check whether `solo-agency-collector/dist/` already exists locally from a cloned repo.
-3. If local artifacts exist, copy `SHA256SUMS`, `collector-bridge-binaries-0.1.0.zip`, and `chrome-extension-collector-root-0.1.0.zip` from the local repo.
+3. If local artifacts exist, copy `SHA256SUMS` and `collector-bridge-binaries-0.1.0.zip` from the local repo.
 4. If local artifacts do not exist, download them from the raw GitHub URLs above.
 5. Verify checksums when the environment has checksum tools available.
 6. Extract bridge binaries into the absolute runtime path for `solo-agency-local-collector/bin/`.
-7. Extract the Chrome extension zip into the absolute runtime path for `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
+7. Prepare the Chrome extension template into the absolute per-client path `extensions/{client_slug}/`, patch the manifest name to `{Client Name} - Solo Agency Collector`, and create `client_binding.json`. Prefer the repo helper when available:
+   ```bash
+   solo-agency-collector/scripts/prepare_client_extension.sh "{Client Name}" "{client_slug}" "{extension_instance_id}" "{ABSOLUTE_AGENCY_ROOT}"
+   ```
 8. Select the correct bridge binary for the current machine.
 9. On macOS/Linux, ensure the selected binary is executable.
 10. Create the setup/start script or launcher, but do not execute it from the AI agent.
 11. Give the human exactly one Terminal/PowerShell command or one double-clickable launcher path to run outside the AI sandbox.
-12. In the same human-facing message, give the Chrome extension `Load unpacked` steps and the one absolute runtime extension folder path.
+12. In the same human-facing message, give the Chrome extension `Load unpacked` steps and the one absolute per-client extension folder path.
 13. After the human confirms both actions, health-check `GET http://127.0.0.1:17321/status` and run the workspace identity check before claiming the collector is healthy.
 14. Prefer persistent scheduler mode for unattended collection. After one-time setup succeeds, scheduled runs should use the already-running Local Collector app and should not ask the human to repeat setup.
 
@@ -229,11 +275,12 @@ Absolute path rule:
 - The AI agent must resolve and show the absolute folder path.
 - The AI agent must never show `daily-content-pipeline/collector/chrome-extension/` or `solo-agency/solo-agency-collector/chrome-extension/` as the folder for a normal human to load in Chrome. The first path belongs to the old mixed data/runtime layout; the second path is for source/development only.
 - Correct examples:
-  - macOS/Linux: `/Users/alex/oneman_agency/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`
-  - Windows: `C:\Users\Alex\oneman_agency\solo-agency-local-collector\LOAD_THIS_EXTENSION_IN_CHROME\`
+  - macOS/Linux: `/Users/alex/oneman_agency/extensions/avenngo/`
+  - Windows: `C:\Users\Alex\oneman_agency\extensions\avenngo\`
 - Incorrect examples:
   - `daily-content-pipeline/collector/chrome-extension/`
   - `solo-agency/solo-agency-collector/chrome-extension/`
+  - `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`
 
 Binary selection:
 
@@ -255,11 +302,11 @@ The agent must create or update the local setup files, then hand the human exact
 1. Run the Local Collector app setup/start command outside the agent sandbox:
    - macOS/Linux: `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
    - Windows: one prepared PowerShell command or one double-clickable `Start Local Collector.cmd` path.
-2. Install the Solo Agency Local Collector Chrome extension:
+2. Install the client-specific Solo Agency Local Collector Chrome extension in the matching Chrome profile/account:
    - open `chrome://extensions`;
    - enable Developer mode;
    - click `Load unpacked`;
-   - select only the absolute runtime folder: `/ABSOLUTE/PATH/TO/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
+   - select only the absolute per-client folder: `/ABSOLUTE/PATH/TO/extensions/{client_slug}/`.
 
 The human-facing setup message must show both actions together. Do not say only "I started it", "I ran setup", or "instructions are in collector_setup_status.md".
 
@@ -269,27 +316,27 @@ For later scheduled runs, do not ask the human to repeat these steps. Use the al
 
 Chrome extension installation flow:
 
-1. The agent downloads and extracts the extension into an absolute path, for example:
+1. The agent copies/extracts and patches the extension into an absolute per-client path, for example:
 
 ```text
-/Users/alex/oneman_agency/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/
+/Users/alex/oneman_agency/extensions/avenngo/
 ```
 
 2. The agent tells the human directly in chat, Telegram, or another human-facing channel:
 
 ```md
-Please install the Solo Agency Local Collector extension once:
+Please install the Solo Agency Local Collector extension for {Client Name}:
 
-1. Open Chrome.
+1. Open the Chrome profile/account for {Client Name}.
 2. Go to `chrome://extensions`.
 3. Turn on `Developer mode`.
 4. Click `Load unpacked`.
 5. Select this folder:
-   `/ABSOLUTE/PATH/TO/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`
+   `/ABSOLUTE/PATH/TO/extensions/{client_slug}/`
 
-Important: if you also see a folder named `solo-agency/solo-agency-collector/chrome-extension`, do not select that one. That is the toolkit/source copy. Select only the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME` folder above.
+Important: if you also see a folder named `solo-agency/solo-agency-collector/chrome-extension`, do not select that one. That is the toolkit/source copy. Select only the client folder under `extensions/{client_slug}/`.
 
-After this one-time setup, you may close this instruction tab whenever you want. For private data source collection to work at scheduled times, Chrome should be open and logged in to the private data sources, and the Local Collector app should be running or configured to auto-start.
+After this one-time setup, you may close this instruction tab whenever you want. For private data source collection to work at scheduled times, that Chrome profile should be open and logged in to the private data sources approved for this client, and the shared Local Collector app should be running or configured to auto-start.
 ```
 
 3. The agent must not ask for passwords, cookies, OTPs, or credentials.
@@ -341,16 +388,14 @@ AGENCY_ROOT="/ABSOLUTE/PATH/TO"
 PIPELINE_ROOT="$AGENCY_ROOT/daily-content-pipeline"
 COLLECTOR_RUNTIME_ROOT="$AGENCY_ROOT/solo-agency-local-collector"
 COLLECTOR_DATA_ROOT="$PIPELINE_ROOT/collector"
-EXTENSION_DIR="$COLLECTOR_RUNTIME_ROOT/LOAD_THIS_EXTENSION_IN_CHROME"
 BASE_URL="https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector"
 BRIDGE_ZIP_URL="$BASE_URL/dist/collector-bridge-binaries-0.1.0.zip"
-EXTENSION_ZIP_URL="$BASE_URL/dist/chrome-extension-collector-root-0.1.0.zip"
 PORT="17321"
 CONFIG_FILE="$COLLECTOR_DATA_ROOT/collector_config.json"
 PID_FILE="$COLLECTOR_RUNTIME_ROOT/collector.pid"
 LOG_FILE="$COLLECTOR_RUNTIME_ROOT/collector.log"
 
-mkdir -p "$COLLECTOR_RUNTIME_ROOT/downloads" "$COLLECTOR_RUNTIME_ROOT/bin" "$EXTENSION_DIR" "$COLLECTOR_DATA_ROOT/inbox" "$COLLECTOR_DATA_ROOT/jobs"
+mkdir -p "$COLLECTOR_RUNTIME_ROOT/downloads" "$COLLECTOR_RUNTIME_ROOT/bin" "$COLLECTOR_DATA_ROOT/inbox" "$COLLECTOR_DATA_ROOT/jobs/pending" "$COLLECTOR_DATA_ROOT/logs"
 
 echo "Downloading or updating the Local Collector app file..."
 BRIDGE_ZIP="$COLLECTOR_RUNTIME_ROOT/downloads/collector-bridge-binaries-0.1.0.zip"
@@ -365,14 +410,7 @@ else
   rm -f "$BRIDGE_ZIP_TMP"
 fi
 
-if [ ! -f "$EXTENSION_DIR/manifest.json" ]; then
-  echo "Installing Solo Agency Local Collector extension files..."
-  curl -L -o "$COLLECTOR_RUNTIME_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip.tmp" "$EXTENSION_ZIP_URL"
-  mv "$COLLECTOR_RUNTIME_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip.tmp" "$COLLECTOR_RUNTIME_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip"
-  unzip -o "$COLLECTOR_RUNTIME_ROOT/downloads/chrome-extension-collector-root-0.1.0.zip" -d "$EXTENSION_DIR"
-else
-  echo "Keeping existing Solo Agency Local Collector extension folder unchanged."
-fi
+echo "Per-client Chrome extension folders are managed separately under $AGENCY_ROOT/extensions/{client_slug}."
 
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "Creating default collector_config.json..."
@@ -381,6 +419,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
   "version": "0.1.0",
   "timezone": "local",
   "run_mode": "persistent_bridge_scheduler",
+  "routing_mode": "shared_bridge_per_client_extension",
   "default_runs_per_day": 1,
   "poll_interval_seconds": 5,
   "max_sources_per_run": 20,
@@ -462,11 +501,10 @@ stop_existing_bridge() {
 
 stop_existing_bridge
 
-echo "Install the Chrome extension from this ONE absolute folder:"
-echo "$EXTENSION_DIR"
+echo "Local Collector app setup is ready."
+echo "Client-specific Chrome extension folders are prepared separately under: $AGENCY_ROOT/extensions/{client_slug}/"
 echo "Do NOT load any chrome-extension folder under solo-agency/solo-agency-collector; that is the toolkit/source copy."
-echo "If you previously loaded another Solo Agency Local Collector extension, remove or disable the old one in chrome://extensions and keep only this current runtime copy."
-echo "One machine should have one active Solo Agency Local Collector runtime for the current setup."
+echo "One machine should have one active shared Solo Agency Local Collector runtime for the current setup."
 echo "Starting the Local Collector app in the background with the newest executable."
 nohup "$BRIDGE" --host 127.0.0.1 --port "$PORT" --config-file "$CONFIG_FILE" --output-dir "$COLLECTOR_DATA_ROOT/inbox" --persistent >> "$LOG_FILE" 2>&1 &
 BRIDGE_PID="$!"
@@ -492,12 +530,12 @@ Open Terminal, paste this one line, and press Enter:
 
 `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
 
-Step 2 - load the Chrome extension.
+Step 2 - load the client-specific Chrome extension in the Chrome profile/account for this client.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:
 
-`/ABSOLUTE/PATH/TO/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`
+`/ABSOLUTE/PATH/TO/extensions/{client_slug}/`
 
-Important: do not select any `solo-agency/solo-agency-collector/chrome-extension` folder. Use only the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME` folder above.
+Important: do not select any `solo-agency/solo-agency-collector/chrome-extension` folder. Use only the client folder under `extensions/{client_slug}/`.
 
 After both steps are done, tell me "done". Then I will check the Local Collector status and continue.
 ```
@@ -527,10 +565,8 @@ $AgencyRoot = "C:\ABSOLUTE\PATH\TO"
 $PipelineRoot = Join-Path $AgencyRoot "daily-content-pipeline"
 $CollectorRuntimeRoot = Join-Path $AgencyRoot "solo-agency-local-collector"
 $CollectorDataRoot = Join-Path $PipelineRoot "collector"
-$ExtensionDir = Join-Path $CollectorRuntimeRoot "LOAD_THIS_EXTENSION_IN_CHROME"
 $BaseUrl = "https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector"
 $BridgeZipUrl = "$BaseUrl/dist/collector-bridge-binaries-0.1.0.zip"
-$ExtensionZipUrl = "$BaseUrl/dist/chrome-extension-collector-root-0.1.0.zip"
 $Port = 17321
 $ConfigPath = Join-Path $CollectorDataRoot "collector_config.json"
 $PidPath = Join-Path $CollectorRuntimeRoot "collector.pid"
@@ -540,9 +576,9 @@ $ErrLogPath = Join-Path $CollectorRuntimeRoot "collector.err.log"
 New-Item -ItemType Directory -Force -Path `
   (Join-Path $CollectorRuntimeRoot "downloads"), `
   (Join-Path $CollectorRuntimeRoot "bin"), `
-  $ExtensionDir, `
   (Join-Path $CollectorDataRoot "inbox"), `
-  (Join-Path $CollectorDataRoot "jobs") | Out-Null
+  (Join-Path $CollectorDataRoot "jobs\pending"), `
+  (Join-Path $CollectorDataRoot "logs") | Out-Null
 
 Write-Host "Downloading or updating the Local Collector app file..."
 $BridgeZipTmp = Join-Path $CollectorRuntimeRoot "downloads\collector-bridge-binaries-0.1.0.zip.tmp"
@@ -564,17 +600,7 @@ if ($BridgeNeedsInstall) {
   Remove-Item $BridgeZipTmp -Force -ErrorAction SilentlyContinue
 }
 
-$ExtensionManifest = Join-Path $ExtensionDir "manifest.json"
-if (-not (Test-Path $ExtensionManifest)) {
-  Write-Host "Installing Solo Agency Local Collector extension files..."
-  $ExtensionZipTmp = Join-Path $CollectorRuntimeRoot "downloads\chrome-extension-collector-root-0.1.0.zip.tmp"
-  $ExtensionZip = Join-Path $CollectorRuntimeRoot "downloads\chrome-extension-collector-root-0.1.0.zip"
-  Invoke-WebRequest -Uri $ExtensionZipUrl -OutFile $ExtensionZipTmp
-  Move-Item -Force $ExtensionZipTmp $ExtensionZip
-  Expand-Archive -Force $ExtensionZip $ExtensionDir
-} else {
-  Write-Host "Keeping existing Solo Agency Local Collector extension folder unchanged."
-}
+Write-Host "Per-client Chrome extension folders are managed separately under $AgencyRoot\extensions\{client_slug}."
 
 if (-not (Test-Path $ConfigPath)) {
   Write-Host "Creating default collector_config.json..."
@@ -583,6 +609,7 @@ if (-not (Test-Path $ConfigPath)) {
   "version": "0.1.0",
   "timezone": "local",
   "run_mode": "persistent_bridge_scheduler",
+  "routing_mode": "shared_bridge_per_client_extension",
   "default_runs_per_day": 1,
   "poll_interval_seconds": 5,
   "max_sources_per_run": 20,
@@ -651,11 +678,10 @@ try {
   # Get-NetTCPConnection may not be available in older Windows environments. Continue.
 }
 
-Write-Host "Install the Solo Agency Local Collector extension from this folder:"
-Write-Host $ExtensionDir
+Write-Host "Local Collector app setup is ready."
+Write-Host "Client-specific Chrome extension folders are prepared separately under: $AgencyRoot\extensions\{client_slug}\"
 Write-Host "Do NOT load any chrome-extension folder under solo-agency\solo-agency-collector; that is the toolkit/source copy."
-Write-Host "If you previously loaded another Solo Agency Local Collector extension, remove or disable the old one in chrome://extensions and keep only this current runtime copy."
-Write-Host "One machine should have one active Solo Agency Local Collector runtime for the current setup."
+Write-Host "One machine should have one active shared Solo Agency Local Collector runtime for the current setup."
 Write-Host "Starting the Local Collector app in the background with the newest executable."
 $Args = @(
   "--host", "127.0.0.1",
@@ -709,12 +735,12 @@ Open PowerShell, paste this one line, and press Enter:
 
 `powershell -ExecutionPolicy Bypass -File "C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\setup_local_collector.ps1"`
 
-Step 2 - load the Chrome extension.
+Step 2 - load the client-specific Chrome extension in the Chrome profile/account for this client.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:
 
-`C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\LOAD_THIS_EXTENSION_IN_CHROME\`
+`C:\ABSOLUTE\PATH\TO\extensions\{client_slug}\`
 
-Important: do not select any `solo-agency\solo-agency-collector\chrome-extension` folder. Use only the `solo-agency-local-collector\LOAD_THIS_EXTENSION_IN_CHROME` folder above.
+Important: do not select any `solo-agency\solo-agency-collector\chrome-extension` folder. Use only the client folder under `extensions\{client_slug}\`.
 
 After both steps are done, tell me "done". Then I will check the Local Collector status and continue.
 
@@ -856,7 +882,7 @@ Health check sequence:
    - a Local Collector app is already running, but it belongs to a previous Solo Agency setup or another folder;
    - one machine should have only one active Solo Agency Local Collector runtime for the current setup;
    - the human should run the current setup's one-line Local Collector command outside the AI sandbox so the script can stop the old `collector-bridge` process and start the bridge with the current workspace paths;
-   - if the human has loaded multiple Solo Agency Local Collector extensions in Chrome, they should open `chrome://extensions`, remove or disable old Solo Agency Local Collector entries, and keep only the extension loaded from the current setup's absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder.
+   - if the human has loaded old Solo Agency Local Collector extensions in Chrome, they should open `chrome://extensions`, remove or disable stale entries from previous setup folders, and keep only the current client-specific extensions loaded from this setup's absolute `extensions/{client_slug}/` folders. Multiple current extensions are expected when multiple clients use different Chrome profiles/accounts.
 7. If the workspace identity check passes and `extension_health.status` is `recent`, private collection infrastructure is currently healthy.
 8. If the workspace identity check passes and `extension_health.status` is `no_extension_check_yet` immediately after extension install, bridge restart, or settings save, wait and re-check for up to 75 seconds before declaring private collection unavailable.
 9. If the workspace identity check passes and `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second grace window, treat private collection as unavailable for now and identify likely causes:
@@ -895,7 +921,7 @@ Collector status: wrong_workspace_bridge
 Running bridge config: /Users/alex/old_setup/daily-content-pipeline/collector/collector_config.json
 Current setup config: /Users/alex/oneman_agency/daily-content-pipeline/collector/collector_config.json
 Impact: I cannot use this bridge for today's private data source scan because it may write data into the old setup folder.
-Action: Please run the Local Collector setup/start command for the current setup outside the AI sandbox. If you previously loaded multiple Solo Agency Local Collector extensions, open chrome://extensions and remove or disable the old entries. Keep only the extension loaded from /Users/alex/oneman_agency/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/.
+Action: Please run the Local Collector setup/start command for the current setup outside the AI sandbox. If you previously loaded old Solo Agency Local Collector extensions, open chrome://extensions and remove or disable stale entries from old setup folders. Keep the current client-specific extension loaded from /Users/alex/oneman_agency/extensions/{client_slug}/ in the matching client's Chrome profile.
 ```
 
 ### OS Startup For Persistent Bridge
@@ -1454,10 +1480,11 @@ bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/run_private_now.sh"
 
 Schedule rule:
 
-- Ask schedule/routine questions after the profile and source plan are known and before the first agency run.
-- Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, or another cadence.
-- Then write or update `schedule.md` and the relevant automation/config files.
-- After schedule/routine setup, if private data sources exist and Local Collector is pending, first handle 7A: guide Local Collector setup or ask whether to run public data sources only now while keeping private data sources pending. If no private data source activation is pending, ask whether to run the first agency run immediately.
+- Ask schedule/routine questions after the profile and source plan are known and before the client-specific automation task is marked ready.
+- Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence.
+- Then write or update `schedule.md`, the automation manifest, the scheduled-run prompt/task body, and the relevant collector/config files.
+- During Setup Flow, do not ask to run the first agency run immediately and do not run a report. Finish by preparing or resyncing the client-specific automation task whose task name begins with the client name.
+- After schedule/routine setup, if private data sources exist and Local Collector is pending, handle 7A: guide Local Collector setup or clearly mark private data sources as `pending_private_activation` in the automation contract so the first automation run can continue with public data sources only if needed.
 - If schedule/routine setup already happened and the human later approves private data sources, repairs Local Collector, changes scan depth, changes source cadence, connects notification/PDNA, or changes any future-run behavior, load Stage 4 and perform Automation Resync. Updating only `collector_config.json` is not enough when the native AI automation prompt/task may still contain an older setup snapshot.
 - During Automation Resync, update the Client Intelligence Profile, `schedule.md`, `collector_config.json` or `POST /config` when relevant, `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md`, the actual native scheduled task prompt if accessible, and `daily-content-pipeline/automation/resync_log.md`.
 - Before claiming the schedule will use the new collector/source state, dry-read the scheduled entrypoint, manifest, schedule, profile, and collector config to confirm the next scheduled run will see the current approved sources/status.
