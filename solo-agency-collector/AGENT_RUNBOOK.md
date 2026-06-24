@@ -378,6 +378,8 @@ The extension will:
 
 Chrome Manifest V3 cannot guarantee the background service worker stays awake forever. The extension uses immediate checks on install/startup/settings-save, Chrome alarms, and short polling while awake. If Chrome is closed, the computer is asleep, or the extension is disabled/removed, private collection cannot run.
 
+Extension build `0.1.10-filtering-capture` and newer avoids `requestAnimationFrame` in automated collection so background tabs are less likely to pause forever, while still keeping the full `filtering.js`/readability capture pipeline. It gives social captures enough time for 5-10 scroll passes, times out truly stalled capture scripts, and clears stale active-run locks after an extension build update. If bridge and extension heartbeat are healthy but a source stays `started` with zero data points, audit the bridge/extension contract first: client identity headers, run ownership, write token, POST endpoint responses, and output folder routing. Then check `source_status.jsonl` for `capture_timeout_needs_visible_collector_window_or_site_access` or `inject_capture_files_timeout_needs_site_access`. This can also mean a hidden/frozen tab, login/checkpoint page, missing site access, or wrong Chrome profile. The safe operational fallback is a dedicated per-client collector Chrome profile/window, not an agent-controlled browser.
+
 ## Failure Handling
 
 If the bridge cannot start:

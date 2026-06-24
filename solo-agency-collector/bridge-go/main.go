@@ -402,7 +402,7 @@ func (b *bridge) loadRunNowRequestIfPresent() {
 	if err != nil {
 		status["ok"] = false
 		status["error"] = err.Error()
-		_ = writeMapFile(filepath.Join(filepath.Dir(path), "run_now_request_status.json"), status)
+		_ = b.writeRunNowRequestStatus(status)
 		log.Printf("run-now request file rejected: %v", err)
 		return
 	}
@@ -418,7 +418,7 @@ func (b *bridge) loadRunNowRequestIfPresent() {
 		status["consume_warning"] = consumeErr.Error()
 		log.Printf("run-now request loaded but consume had warning: %v", consumeErr)
 	}
-	_ = writeMapFile(filepath.Join(filepath.Dir(path), "run_now_request_status.json"), status)
+	_ = b.writeRunNowRequestStatus(status)
 	b.mu.Lock()
 	b.lastRunNowRequestSig = sig
 	b.mu.Unlock()
@@ -755,6 +755,7 @@ func (b *bridge) activateRunNowJob(job map[string]any, now time.Time, source str
 	job["created_at"] = now.UTC().Format(time.RFC3339)
 	job["scheduled"] = false
 	job["run_now"] = true
+	job["run_now_source"] = source
 	ttlMinutes := clampInt(getInt(job, "run_now_ttl_minutes", 30), 1, 120)
 	expiresAt := now.Add(time.Duration(ttlMinutes) * time.Minute).UTC().Format(time.RFC3339)
 	job["run_now_ttl_minutes"] = ttlMinutes
@@ -800,14 +801,35 @@ func (b *bridge) activateRunNowJob(job map[string]any, now time.Time, source str
 	b.saveCompletionsLocked()
 	b.mu.Unlock()
 	_ = b.writeStatus("ready", fmt.Sprintf("run-now collector job loaded from %s", source))
-	return map[string]any{
+	resp := map[string]any{
 		"ok":                 true,
 		"object":             "collector_run_now_loaded",
 		"run_id":             runID,
 		"output_dir":         job["output_dir"],
 		"run_now_expires_at": expiresAt,
 		"source":             source,
-	}, nil
+	}
+	if source != "file" {
+		status := map[string]any{
+			"object":     "collector_run_now_request_status",
+			"ok":         true,
+			"loaded":     true,
+			"request_at": now.UTC().Format(time.RFC3339),
+			"request":    source,
+			"consumed":   true,
+		}
+		if source == "api" {
+			status["request"] = "POST /jobs/run_now"
+		}
+		if source == "queue" {
+			status["request"] = "jobs/pending"
+		}
+		for key, value := range resp {
+			status[key] = value
+		}
+		_ = b.writeRunNowRequestStatus(status)
+	}
+	return resp, nil
 }
 
 func (b *bridge) activateQueuedJobForExtension(now time.Time, identity extensionIdentity) (map[string]any, bool, string) {
@@ -1505,6 +1527,33 @@ func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
 		"extension_instance_id":  identity.instanceID,
 		"extension_display_name": identity.displayName,
 	})
+	if getBool(activeJob, "run_now", false) {
+		now := time.Now().UTC()
+		status := map[string]any{
+			"object":                 "collector_run_now_request_status",
+			"ok":                     true,
+			"loaded":                 true,
+			"completed":              true,
+			"status":                 "completed",
+			"completed_at":           now.Format(time.RFC3339),
+			"request_at":             getString(activeJob, "created_at", ""),
+			"request":                getString(activeJob, "run_now_source", ""),
+			"run_id":                 runID,
+			"output_dir":             getString(activeJob, "output_dir", b.cfg.outputDir),
+			"run_now_expires_at":     getString(activeJob, "run_now_expires_at", ""),
+			"source":                 getString(activeJob, "run_now_source", ""),
+			"client_slug":            getString(activeJob, "client_slug", ""),
+			"extension_instance_id":  identity.instanceID,
+			"extension_display_name": identity.displayName,
+		}
+		if status["request"] == "api" {
+			status["request"] = "POST /jobs/run_now"
+		}
+		if status["request"] == "queue" {
+			status["request"] = "jobs/pending"
+		}
+		_ = b.writeRunNowRequestStatus(status)
+	}
 	_ = b.writeStatus("completed", "collector marked run complete")
 	writeJSON(w, map[string]any{"ok": true, "status": "completed"})
 	if persistent {
@@ -1603,6 +1652,14 @@ func (b *bridge) writeHealthFile() error {
 	b.fileMu.Lock()
 	defer b.fileMu.Unlock()
 	return os.WriteFile(filepath.Join(b.outputRoot, "bridge_health.json"), append(data, '\n'), 0o600)
+}
+
+func (b *bridge) writeRunNowRequestStatus(status map[string]any) error {
+	if b.runNowRequestPath == "" {
+		return nil
+	}
+	path := filepath.Join(filepath.Dir(b.runNowRequestPath), "run_now_request_status.json")
+	return writeMapFile(path, status)
 }
 
 func (b *bridge) extensionStatusLocked(now time.Time) map[string]any {

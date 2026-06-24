@@ -29,7 +29,7 @@ client_slug="$2"
 extension_instance_id="${3:-${client_slug}-local-collector}"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 workspace_root="${4:-$(cd "$script_dir/../.." && pwd)}"
-template_dir="$workspace_root/solo-agency-collector/chrome-extension"
+template_dir="${SOLO_AGENCY_EXTENSION_TEMPLATE_DIR:-$workspace_root/solo-agency-collector/chrome-extension}"
 target_dir="$workspace_root/extensions/$client_slug"
 
 if [[ ! "$client_slug" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
@@ -71,6 +71,8 @@ binding = {
     "client_name": client_name,
     "client_slug": client_slug,
     "extension_instance_id": extension_instance_id,
+    "extension_display_name": display_name,
+    "bridge_base_url": "http://127.0.0.1:17321",
     "display_name": display_name,
     "routing_mode": "shared_bridge_per_client_extension",
 }

@@ -28,6 +28,7 @@ The user installs it once in the Chrome profile that is already logged in to Fac
 - It does not bypass platform access controls.
 - It does not collect if Chrome is closed, the browser profile is not running, or the extension is disabled/removed.
 - It does not guarantee a permanently awake background worker in all browser/OS power states.
+- Hidden/background tabs may be throttled by Chrome; build `0.1.10-filtering-capture` and newer reduces this risk, gives 5-10 scroll social captures enough time to finish, clears stale active-run locks after updates, and keeps the full `filtering.js` capture pipeline. If tabs open/close but no data reaches disk, audit bridge/extension identity, write token, POST responses, and output folder routing before changing the capture pipeline.
 
 ## Runtime Install
 
