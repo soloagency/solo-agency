@@ -10,6 +10,9 @@
       "auth_type": "bearer_api_key",
       "api_key_env": "",
       "api_key_local": "",
+      "provider_identity_source": "per_client_openapi",
+      "mcp_compatibility_status": "not_used",
+      "pdna_setup_blocker": "",
       "account_verified_at": "",
       "account_identity": {
         "company_id": "",

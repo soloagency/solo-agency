@@ -1631,6 +1631,8 @@ Before presenting the content draft, verify:
 - [ ] If this is a video script, did I include visual notes?
 - [ ] Did I include CTA?
 - [ ] Did I ask for approval before creating/rendering/publishing video?
+- [ ] Before any provider-backed video creation, credit check, media upload, render/export, publish, notification, or analytics action, did I load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after the vendored writing/provider skill?
+- [ ] If a vendored skill named a concrete MCP call such as `widecast_create_video` or `widecast_account`, did I resolve it as a client-scoped provider capability from this client's config/OpenAPI cache before using any tool?
 - [ ] If explaining the system's capabilities, did I explicitly mention that approved drafts can become produced video/blog/social assets through connected providers, not only scripts/blogs/captions waiting for manual production?
 - [ ] Did I avoid spending credits without explicit confirmation?
 
@@ -1654,6 +1656,8 @@ Before presenting production setup choices or claiming the PDNA setup gate is co
 - [ ] Did I avoid treating a global WideCast MCP/native tool account in the current AI session as proof that this client's PDNA is connected?
 - [ ] If only a global MCP/native provider account was visible, did I mark `global_mcp_not_client_scoped` or `global_mcp_available_but_not_authoritative` instead of listing those global credits/platforms as this client's status?
 - [ ] Did I verify the account through this client's configured OpenAPI/API-key path and compare the verified identity to the saved client provider identity before claiming PDNA is connected?
+- [ ] Did I load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` before treating any video/blog/social provider action as available for this client?
+- [ ] Did I select production, media upload, render/export, publish, notification, and analytics operations from this client's `provider_capabilities.json` or freshly discovered OpenAPI operation list, not from the current AI host's global MCP tool list?
 - [ ] Did I check connected publishing platforms and provider settings through the verified client account, not through MCP-global `accounts` or `platform_settings` output?
 - [ ] Did I avoid asking for passwords, cookies, OTPs, social credentials, or browser session tokens?
 - [ ] If the human or AI host explicitly chooses MCP/connector setup, did I include the agent-specific setup guide link: Claude `https://widecast.ai/claude.html`, Codex/ChatGPT/OpenAI `https://widecast.ai/chatgpt.html`, Gemini `https://widecast.ai/gemini.html`, or Grok `https://widecast.ai/grok.html`?

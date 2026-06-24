@@ -38,6 +38,10 @@ Every scheduled/manual report handoff must include a Provider Report Delivery Ca
 
 During PDNA setup or any WideCast/account-level provider check, do not treat a global MCP connector or current chat tool account as proof that the current client is connected. First identify `target_client_slug`, read that client's `integrations/providers/provider_config.local.json`, discover/cache the provider OpenAPI spec, verify the account with the client's configured API key, and compare the verified account identity to the saved client provider identity. If the per-client config is missing or identity cannot be verified, ask for the client's provider/API-key setup and log `provider_config_missing`, `provider_auth_missing`, `provider_account_mismatch`, or `global_mcp_not_client_scoped`; do not list MCP-global credits/platforms as this client's PDNA status.
 
+For video/blog/social production actions, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after any vendored writing or provider skill. Vendored WideCast skills are upstream-managed and may be replaced during build; do not patch them for Solo Agency client-routing policy. If a vendored skill says to call a concrete MCP tool such as `widecast_create_video`, resolve that as a client-scoped provider capability from the current client's provider config/OpenAPI cache first, and use MCP only when the tool identity is proven to match the current client.
+
+When saving a client provider API key, use `api_key_env` or `api_key_local` exactly. Do not create `api_key`; the OpenAPI helper ignores that field and treats auth as missing.
+
 When explaining WideCast/API-key setup, preserve human-in-the-loop wording: WideCast lets the agent create video/blog/social assets and send notifications for human review, then publish to 10+ platforms only after the human approves the exact content and target platforms. Do not say or imply that adding an API key authorizes automatic posting of unreviewed drafts.
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
