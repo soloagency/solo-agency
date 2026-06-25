@@ -276,6 +276,8 @@ For each daily run:
       - classify extra sources as `weekly` or `optional` and rotate them across future runs;
       - do not run aggressive or parallel private data source scans for the same logged-in account.
    14. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
+      - After private collection reaches a terminal state, reconcile status and counts before report handoff: private scan status, completed timestamp, sources attempted/completed/blocked, data points kept, leads, competitors, recommended private data sources, noisy/skipped discovery candidates, notifications, and blockers must match across the private report, daily index, internal source record, report state JSON, and `outputs/latest/` copies.
+      - Do not leave stale `scan in progress`, `partial`, `pending`, or old recommended-source totals in one artifact after another artifact says the private scan is complete.
    15. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
    16. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, collector-status-unverified, wrong-workspace, or unavailable private data sources.
    17. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
@@ -287,27 +289,31 @@ For each daily run:
    23. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
    24. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
    25. Select the best idea of the day.
-   26. Write the configured WideCast-writing-skill draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable.
+   26. Write the configured production-ready draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
    27. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, load Stage 3 and create the approved video/blog/social asset according to provider approval gates. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`.
    28. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
-   29. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   30. Update or copy `outputs/latest/{client-name}-daily-report.html`.
-   31. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   32. Update `history/YYYY-MM/content_log.md`.
-   33. Update `history/YYYY-MM/data_sources_log.md`.
-   34. Update `history/YYYY-MM/lead_log.md`.
-   35. Update `history/YYYY-MM/competitor_log.md`.
-   36. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
+   29. Generate the three-file client-facing HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+   30. Generate or update the operator-only `{client-name}-INTERNAL_REPORT.html`, clearly labeled `INTERNAL_REPORT - Not for client sharing`, and put Solo Agency/WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/automation/blocker/debug details there.
+   31. Run the Client-Blind Scrub Gate on the client-facing HTML files. They must not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
+   32. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the scrubbed three HTML files, or record the exact PDF blocker/status.
+   33. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   34. Update or copy `outputs/latest/{client-name}-INTERNAL_REPORT.html`.
+   35. Update or copy the latest public/private lane HTML files when those lane reports exist.
+   36. Update `history/YYYY-MM/content_log.md`.
+   37. Update `history/YYYY-MM/data_sources_log.md`.
+   38. Update `history/YYYY-MM/lead_log.md`.
+   39. Update `history/YYYY-MM/competitor_log.md`.
+   40. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. Load Stage 6 and run the Provider Report Delivery Capability Check before claiming the run is complete. This check must use each target client's provider config/OpenAPI identity first; a global MCP/native provider account in the current AI session is not proof that the client has notification/upload/analytics/publishing configured.
-10. Prepare a report-delivery record containing the local `.html` report path, provider, provider discovery/account verification status, upload operation ID, upload attempt status, uploaded report URL if available, notification channel, final notification report link, and blockers.
-11. If WideCast OpenAPI notification/Telegram/email fallback is configured, inspect whether the discovered spec exposes an HTML-capable upload operation. For WideCast, use `uploadAsset` with `text/html` and `sendTelegramMessage`. If upload exists, upload the HTML report to WideCast first, then send a notification to the human that includes the uploaded WideCast report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
-12. If WideCast notification is available but HTML upload is unavailable or fails, log the exact upload blocker and still send a WideCast notification that includes the best available local/hosted `.html` report path/link.
-13. If provider config is missing, auth fails, OpenAPI discovery fails, account identity mismatches, the only visible provider account is a global MCP/native account that is not proven to match the client, or required operations are missing, log the exact provider-neutral blocker and provide the best available HTML path/link in chat or an authorized fallback channel.
+9. Load Stage 6 and run the Provider Report Delivery Capability Check before claiming the run is complete. This check must use each target client's provider config/OpenAPI identity first and must be recorded in `INTERNAL_REPORT`; a global MCP/native provider account in the current AI session is not proof that the client has notification/upload/analytics/publishing configured.
+10. Prepare a report-delivery record containing the local scrubbed `.html` report path, local PDF path/status, INTERNAL_REPORT path/status, client-facing scrub status, provider, provider discovery/account verification status, upload operation ID, upload attempt status, uploaded report URL if available, notification channel, final notification report link, and blockers.
+11. If WideCast OpenAPI notification/Telegram/email fallback is configured, inspect whether the discovered spec exposes an HTML-capable upload operation. For WideCast, use `uploadAsset` with `text/html` and `sendTelegramMessage`. If upload exists, upload the scrubbed client-facing HTML report to WideCast for operator delivery first, then send a notification to the human/operator that includes the uploaded report URL, PDF companion path/status, INTERNAL_REPORT path/status, run status, clients processed, blockers, lead/competitor counts, and required actions. Treat provider-hosted URLs as operator handoff links, not client-share links.
+12. If WideCast notification is available but HTML upload is unavailable or fails, log the exact upload blocker and still send a WideCast notification that includes the best available local/hosted `.html` report path/link plus PDF companion path/status plus INTERNAL_REPORT path/status.
+13. If provider config is missing, auth fails, OpenAPI discovery fails, account identity mismatches, the only visible provider account is a global MCP/native account that is not proven to match the client, or required operations are missing, log the exact provider-neutral blocker and provide the best available HTML path/link plus PDF companion path/status plus INTERNAL_REPORT path/status in chat or an authorized fallback channel.
 14. If another authorized channel can send the HTML file or link more conveniently only because provider notification is unavailable or blocked, use it.
 15. Log the upload attempt and notification attempt in `notifications/notification_log.md`.
 
@@ -315,11 +321,11 @@ The daily run is complete only when every active client is processed or explicit
 
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
+Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the scrubbed mobile-friendly client-facing HTML result plus PDF companion path/status plus INTERNAL_REPORT path/status, or a result-ready notification with those paths/statuses, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
 
-If this client's WideCast notification/Telegram/email fallback is connected and WideCast report upload supports HTML, the notification link must be the uploaded WideCast report URL, not only a local file path. If upload fails, discovery fails, auth fails, account identity cannot be proven client-scoped, or the current provider spec does not support HTML upload, log the blocker and send the best available HTML path/link.
+If this client's WideCast notification/Telegram/email fallback is connected and WideCast report upload supports HTML, the operator notification link should use the uploaded report URL, not only a local file path. Provider-hosted URLs are not client-share links. If upload fails, discovery fails, auth fails, account identity cannot be proven client-scoped, or the current provider spec does not support HTML upload, log the blocker and send the best available HTML path/link plus PDF companion path/status plus INTERNAL_REPORT path/status.
 
-If a WideCast upload/Telegram step is skipped because the agent did not inspect the configured client provider/OpenAPI capabilities, the scheduled run is incomplete. The agent must correct the omission by running the Provider Report Delivery Capability Check, updating `notification_log.md`, and sending a correction message with the HTML report URL/path and blocker.
+If a WideCast upload/Telegram step is skipped because the agent did not inspect the configured client provider/OpenAPI capabilities, the scheduled run is incomplete. The agent must correct the omission by running the Provider Report Delivery Capability Check, updating `notification_log.md` and `INTERNAL_REPORT`, and sending a correction message with the HTML report URL/path, PDF companion path/status, INTERNAL_REPORT path/status, and blocker.
 
 A notification that only says the report is ready but contains no HTML report URL/path is invalid. If this happens, immediately send a correction notification with the HTML report URL/path and log the correction.
 

@@ -316,7 +316,7 @@ This is the planned automation process for this client. You only need to reply w
 – 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
 ✓ 10. I created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft in Automation Flow
 
-The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, draft blog/social variants, receive Telegram alerts for review, publish approved content to 10+ platforms after you approve the exact content and target platforms, measure performance, and feed that learning back into better ideas.
+The operator-only `INTERNAL_REPORT` includes the PDNA/WideCast status and setup note. Client-facing reports do not mention Solo Agency, WideCast, provider tooling, Local Collector, automation, API keys, Telegram, or internal system details.
 
 This run used public data sources only. I have {N} private data sources waiting, including:
 - {source name or URL}
@@ -359,7 +359,7 @@ Automation run-now rule:
 - If the Local Collector app is already installed, running, healthy, and matched to the target client's extension identity, the Automation Flow agent may include private data sources by creating a run-now job.
 - If the Local Collector app is not installed/running/healthy or the matching extension is stale, the Automation Flow agent should run public data sources and list private data sources as pending activation.
 - The automation report output must include a mobile-friendly HTML report, a concise summary, and at least one useful draft script/blog/caption.
-- If the client's WideCast/OpenAPI provider config is not connected and verified, the automation HTML report must include `Unlock Production & Distribution & Measure-Learning Loop With WideCast` so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup.
+- If the client's WideCast/OpenAPI provider config is not connected and verified, the operator-only `INTERNAL_REPORT` and chat handoff must include the PDNA setup note so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup. Client-facing reports must not include this note.
 
 Manual run / run-now rule:
 
@@ -602,10 +602,12 @@ For each daily run:
    18. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
    19. Detect direct, adjacent, and audience competitors, including profile URLs, post/current URLs, and positioning notes.
    20. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from today's data into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`.
+      - Every idea must state the target audience pain point, viewer value/lesson, source signal, non-promotional angle, why it helps the audience, and soft business relevance.
+      - Rewrite or reject ideas that mainly praise, position, or advertise the client's product/service as `promotional_not_value_first`.
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
    22. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
-   23. Select the best idea of the day.
-   24. Write the configured WideCast-writing-skill draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the writing skill fallback if provider/account access is unavailable.
+   23. Select the best idea of the day only from ideas that pass the Audience Value-First Gate.
+   24. Write the configured production-ready draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the writing skill fallback if provider/account access is unavailable. Drafts must preserve the viewer-value lesson and must not become direct ads for the client's product/service. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
    25. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
    26. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
    27. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the three HTML files, or record the exact PDF blocker/status.
@@ -620,7 +622,7 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, upload the HTML report first when an HTML-capable upload operation such as `uploadAsset` is available, upload the PDF companion too when the verified client provider supports PDF upload, then send a notification to the human that includes the uploaded report URL, PDF companion path/status, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
+9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, upload the scrubbed client-facing HTML report first when an HTML-capable upload operation such as `uploadAsset` is available, upload the PDF companion too when the verified client provider supports PDF upload, then send a notification to the human/operator that includes the uploaded report URL, PDF companion path/status, INTERNAL_REPORT path/status, run status, clients processed, blockers, lead/competitor counts, and required actions. Treat provider-hosted URLs as operator handoff links, not client-share links.
 9. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
 10. Log the notification attempt in `notifications/notification_log.md`.
 
@@ -628,7 +630,7 @@ The daily run is complete only when every active client is processed or explicit
 
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result plus PDF companion path/status, or a result-ready notification with the HTML path/link plus PDF companion path/status, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
+Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the scrubbed mobile-friendly client-facing HTML result plus PDF companion path/status plus INTERNAL_REPORT path/status, or a result-ready notification with those paths/statuses, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
 
 ---
 
@@ -861,7 +863,7 @@ I manage these clients. Set up one pipeline for each. Ask only for missing criti
 ### Run Daily Pipeline
 
 ```md
-Run the daily content pipeline for every active client in clients_index.md. Produce today's idea lists, selected best ideas, configured WideCast-writing-skill drafts, and the master digest.
+Run the daily content pipeline for every active client in clients_index.md. Produce today's idea lists, selected best ideas, configured production-ready drafts, and the master digest.
 ```
 
 ### Add Private Data Sources Later
@@ -978,7 +980,7 @@ Approval statuses:
 
 The agent must never assume approval. It must ask for explicit approval before:
 
-- Creating a WideCast video.
+- Creating a production asset through a connected provider.
 - Rendering/exporting a video.
 - Publishing.
 - Spending credits.
@@ -1319,7 +1321,7 @@ If the human gives a new client, the agent should enter Add Client Mode.
 
 After Add Client Mode or First Client Setup Mode, the agent must follow the fixed order: setup context, resolve private data source status, configure schedule/routine, handle the 7A Local Collector checkpoint if private data sources are pending, prepare or resync the client-specific automation task, then hand off the exact task name the human should run for the first report. Setup Flow must not jump into report generation, video creation, publishing, or production actions.
 
-The agent must summarize the first report and any required next action directly in chat. It must provide the HTML report path/link as the primary review link plus the PDF companion path/status. It must not make the human open a Markdown file to review the report, activate private data sources, run setup, fix a blocker, or choose the next step.
+The agent must summarize the first report and any required next action directly in chat. It must provide the client-facing HTML report path/link as the primary review link plus the PDF companion path/status plus the operator-only `INTERNAL_REPORT` path/status. It must not make the human open a Markdown file to review the report, activate private data sources, run setup, fix a blocker, or choose the next step.
 
 If the human asks for daily output, the agent should process all active clients in `clients_index.md`.
 
@@ -1344,7 +1346,7 @@ Initial setup is complete when:
 13. If private data sources exist but Local Collector is not active yet, the automation contract includes `Private Data Sources Pending Activation` and lists the pending sources.
 14. If no private data sources were provided, the agent offered optional private data source discovery or recorded that discovery was declined/postponed.
 15. If no private data sources are active, the automation contract includes `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed`, with a plain note that public-only reports can miss community, lead, and competitor signals.
-16. If the client's WideCast/OpenAPI provider config is not connected and verified, the automation report contract requires `Unlock Production & Distribution & Measure-Learning Loop With WideCast`.
+16. If the client's WideCast/OpenAPI provider config is not connected and verified, the automation report contract requires the PDNA/WideCast setup note in `INTERNAL_REPORT` and the operator handoff, not in client-facing reports.
 17. If the human agrees to activate private data sources, `daily-content-pipeline/collector/collector_setup_status.md` exists and shows either `installed_and_running` or a precise blocked status with the required human action.
 18. The setup handoff tells the human the exact client-specific automation task name to run for the first report.
 19. Any required human action is also shown directly in the current chat message with one clear command, one double-clickable launcher path, or one absolute extension folder path. Markdown-only setup instructions are a failure.
@@ -1370,19 +1372,21 @@ A daily run is complete when:
 7. One best public idea and one best private idea are selected for each processed client when data exists, plus any overall recommendation if useful.
 8. Each idea maps to a content pillar when possible.
 9. Each idea is labeled as `primary_industry` or `related_industry`, with a visible related-industry note and bridge-back logic shown for related-industry ideas.
-10. One configured WideCast-writing-skill draft is written for each processed client, defaulting to video script and adding blog/article or social caption when configured.
-11. One per-client canonical three-file HTML report set is created for each processed client: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-12. The mandatory PDF companion `{client-name}-client-report.pdf` is created from the three HTML files, or the exact PDF blocker/status is recorded.
-13. The report state file `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` is created/updated for each processed client.
-14. `outputs/latest/{client-name}-daily-report.html` and `outputs/latest/{client-name}-client-report.pdf` are updated for each processed client when available and point to the daily report index/PDF companion, not a lane-specific report.
-15. Client history is updated, including industry scope for selected ideas so the 80/20 mix can be tracked over time.
-16. Lead and competitor logs are updated.
-17. Approval status is tracked.
-18. Markdown and mobile-friendly HTML master digests are created when a master digest task is configured.
-19. `latest_master_digest.md` and `latest_master_digest.html` are updated when a master digest task is configured.
-20. Human-facing reports and notifications are written in the language the human uses.
-21. The human is notified through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback, with the `{client-name}-daily-report.html` path/link plus PDF companion path/status. Public and private notifications are both allowed, but they should point to the same daily report index path or uploaded URL, with lane-specific report links only as secondary links. The Markdown report path must not be presented as a user-facing report link.
-22. Human approval options are shown.
+10. One production-ready draft is written for each processed client, defaulting to video script and adding blog/article or social caption when configured.
+11. One per-client canonical three-file client-facing HTML report set is created for each processed client: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+12. The operator-only `{client-name}-INTERNAL_REPORT.html` is created for each processed client and clearly labeled `INTERNAL_REPORT - Not for client sharing`.
+13. The client-facing HTML report set passes the Client-Blind Scrub Gate and does not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
+14. The mandatory PDF companion `{client-name}-client-report.pdf` is created from the scrubbed three HTML files, or the exact PDF blocker/status is recorded.
+15. The report state file `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` is created/updated for each processed client.
+16. `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-INTERNAL_REPORT.html`, and `outputs/latest/{client-name}-client-report.pdf` are updated for each processed client when available and point to the daily report index/internal report/PDF companion, not a lane-specific report.
+17. Client history is updated, including industry scope for selected ideas so the 80/20 mix can be tracked over time.
+18. Lead and competitor logs are updated.
+19. Approval status is tracked.
+20. Markdown and mobile-friendly HTML master digests are created when a master digest task is configured.
+21. `latest_master_digest.md` and `latest_master_digest.html` are updated when a master digest task is configured.
+22. Client-facing reports are written in the client's report language; operator notifications/internal reports are written in the human/operator language.
+23. The human/operator is notified through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback, with the `{client-name}-daily-report.html` path/link plus PDF companion path/status plus `INTERNAL_REPORT` path/status. Public and private notifications are both allowed, but they should point to the same daily report index path or uploaded operator-delivery URL, with lane-specific report links only as secondary links. The Markdown report path must not be presented as a user-facing report link.
+24. Human approval options are shown.
 
 An agency operating cycle is complete when:
 
@@ -1562,6 +1566,9 @@ Before generating, updating, or notifying a report, verify:
 - [ ] Did I read the existing source/state file and `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` before updating a lane report?
 - [ ] If this is a public pass, did I update only the public report and daily index while preserving any existing private report?
 - [ ] If this is a private pass, did I update only the private report and daily index while preserving the public report?
+- [ ] After a private pass reached a terminal state, did I reconcile private status and counts across the private report, daily index, internal Markdown/source record, report state JSON, notification log, and `outputs/latest/` copies?
+- [ ] Did I remove stale `scan in progress`, `partial`, `pending`, or old count text from all artifacts after the private scan completed or failed?
+- [ ] Do private source attempted/completed/blocked counts, data point counts, lead counts, competitor counts, and recommended-source counts match everywhere they are shown?
 - [ ] Did `outputs/latest/{client-name}-daily-report.html` point to the daily report index, not to a lane-specific report?
 - [ ] If I sent two notifications, did both point to the same daily report index path or uploaded URL, with lane-specific report links only as secondary links?
 - [ ] Did I log lane status as `public_report_ready`, `private_report_ready`, `private_report_blocked`, or `daily_report_ready`?
@@ -1578,6 +1585,10 @@ Before selecting the best idea, verify:
 - [ ] Did I label each idea as `primary_industry` or `related_industry`?
 - [ ] If related industry, did I explain the bridge back to the client offer?
 - [ ] Did every idea map to a pain point or content pillar?
+- [ ] Did every idea state a viewer value/lesson that helps the target audience even if they never buy from the client?
+- [ ] Did I keep the client's product/service name out of the idea premise unless the idea also contains a standalone educational lesson?
+- [ ] Did I reject or rewrite client-praise/direct-promo ideas as `promotional_not_value_first` instead of letting them enter the matrix?
+- [ ] Did important ideas include a value-first status such as `pass`, `rewritten`, or `promotional_not_value_first`?
 - [ ] Did every important idea include reference URLs?
 - [ ] Did I check history to avoid repeating old ideas?
 - [ ] Did I label each important idea's novelty status as `new`, `new_angle`, `near_duplicate_rejected`, or `repeat_rejected`?
@@ -1594,6 +1605,7 @@ Before choosing the best idea, verify:
 - [ ] Did I evaluate audience size and scope?
 - [ ] Did I evaluate lead potential?
 - [ ] Did I ensure it logically matches target audience and pain points?
+- [ ] Did I choose only from ideas that pass the Audience Value-First Gate, not from ideas that mainly promote, praise, or position the client's product/service?
 - [ ] Did I explain why this idea won?
 - [ ] Did I include source URLs for verification?
 
@@ -1622,7 +1634,7 @@ Before final report, verify:
 - [ ] Did every displayed lead/competitor opportunity include a context-aware copy-ready comment?
 - [ ] Did each copy button copy only the suggested comment and avoid implying auto-posting?
 - [ ] Did each suggested comment use the same language as the post?
-- [ ] Did each suggested comment provide value without directly advertising, saying `DM me`, or attacking a competitor?
+- [ ] Did each suggested comment provide value without directly advertising, saying `DM me`, `message me`, `inbox me`, `book a call`, `reach out to start`, or attacking a competitor?
 - [ ] If I used one or two tiny natural imperfections or typos, did they make the comment sound human without making the user look careless or unclear?
 - [ ] Did I avoid suggesting spammy outreach or unsafe actions?
 - [ ] Did I update `lead_log.md`, `competitor_log.md`, and `lead_competitor_opportunities.jsonl` when possible?
@@ -1636,6 +1648,8 @@ Before presenting the content draft, verify:
 - [ ] Did the draft match the selected best idea?
 - [ ] Did every draft variant use a clear label like `Version 1: VE — Value Explainer`, not an unexplained abbreviation like `VE` or `QA` alone?
 - [ ] Did the hook, headline, or opening speak to the target audience pain point?
+- [ ] Does the draft teach, clarify, warn, compare, or help the viewer make a better decision before mentioning the client's product/service?
+- [ ] Did I avoid turning the draft into a direct ad, client praise piece, competitor attack, or "why our product is better" pitch?
 - [ ] Did the draft include source-backed rationale?
 - [ ] If this is a video script, did I include visual notes?
 - [ ] Did I include CTA?
@@ -1695,11 +1709,14 @@ When production/video/blog/social work happens inside the one-time agency setup 
 Before saying the run is complete, verify:
 
 - [ ] Did I save Markdown as the canonical internal record?
-- [ ] Did I generate a polished mobile-friendly HTML report as the canonical human-facing report?
-- [ ] Did the HTML report follow the Agency-Grade HTML Report Standard, not merely list raw ideas?
+- [ ] Did I generate a polished mobile-friendly client-facing HTML report set as the canonical client-ready report?
+- [ ] Did I generate `{client-name}-INTERNAL_REPORT.html` and label it `INTERNAL_REPORT - Not for client sharing`?
+- [ ] Did the client-facing HTML report follow the Agency-Grade HTML Report Standard, not merely list raw ideas?
+- [ ] Did the client-facing HTML/PDF pass the Client-Blind Scrub Gate: no Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`?
+- [ ] Did I put all WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/private source inventory/automation/blocker/debug details in `INTERNAL_REPORT`, not client-facing files?
 - [ ] Did the top of the report include an Executive Snapshot with source coverage status, best idea, lead/competitor counts, content readiness, blockers, and one recommended next action?
 - [ ] If optional private data source discovery was asked, approved, pending, blocked, or completed, did the HTML report include a clear `Private Data Source Discovery` section?
-- [ ] Did that section show discovery categories, platforms/URLs used or pending, candidate sources found, skipped/noisy sources, feed signals, approval needs, and the three reassurance points?
+- [ ] Did the client-facing discovery section summarize only safe coverage/signal categories, while exact discovery categories, platforms/URLs, candidate sources, skipped/noisy sources, feed signals, approval needs, and internal mechanics are kept in `INTERNAL_REPORT`?
 - [ ] Did I include a claim-level Evidence Ledger for important facts, numbers, dates, laws, prices, platform policy claims, and market signals?
 - [ ] Did I remove or down-rank unsupported numeric/date/regulatory claims instead of using them in the main hook?
 - [ ] Did every important idea include its own reference URL(s), not only a generic source list elsewhere?
@@ -1709,36 +1726,38 @@ Before saying the run is complete, verify:
 - [ ] If competitor data was only a hypothesis without profile/post URLs, did I label it as a hypothesis rather than detected competitor evidence?
 - [ ] Did the report include a Production Readiness status for each draft, such as `production-ready`, `script-ready, media-pending`, or `needs human detail`?
 - [ ] Did the report end with exactly one primary next action, with secondary actions clearly de-emphasized?
-- [ ] Did the chat or notification that announces the report show an updated progress block when required steps remain?
-- [ ] If schedule/automation already exists, did that chat or notification include an `Automation freshness check` instead of only saying the config/report is updated?
-- [ ] Did the chat or notification include the Provider Report Delivery Capability Check outcome: Client tools checked first, provider/OpenAPI discovery checked, account verified or blocker, upload attempted or blocker, notification attempted or blocker, final HTML report path/link, and PDF companion path/status?
+- [ ] Did the operator chat or notification that announces the report show an updated progress block when required steps remain?
+- [ ] If schedule/automation already exists, did that operator chat/notification and `INTERNAL_REPORT` include an `Automation freshness check` instead of only saying the config/report is updated?
+- [ ] Did the operator chat/notification and `INTERNAL_REPORT` include the Provider Report Delivery Capability Check outcome: Client tools checked first, provider/OpenAPI discovery checked, account verified or blocker, upload attempted or blocker, notification attempted or blocker, final HTML report path/link, PDF companion path/status, and INTERNAL_REPORT path/status?
 - [ ] Did that chat or notification end with exactly one concrete next-step question when the human needs to choose the next step?
 - [ ] Is the HTML factually aligned with the internal Markdown report?
 - [ ] Is the HTML standalone and portable?
 - [ ] Did I avoid making the HTML depend on `fetch("./report.md")`, remote scripts, remote CSS, or a neighboring Markdown file?
-- [ ] If the client's WideCast/OpenAPI provider config is not connected and verified, did the HTML report include `Unlock Production & Distribution & Measure-Learning Loop With WideCast` covering video/blog production, human review, 10+ platform publishing only after approval, Telegram notifications, performance measurement, and learning loop?
-- [ ] If WideCast Telegram is not connected yet, did the HTML report include a concise note that registering/logging in to WideCast and connecting Telegram can be used as a free remote-report path for daily HTML report links and blockers while the human is away from the computer?
+- [ ] Did I check the HTML at a 390px mobile viewport, or reason through equivalent CSS, so the document itself has no horizontal overflow?
+- [ ] Are wide tables/evidence ledgers/scorecards inside a dedicated scroll wrapper or converted to stacked cards, with long URLs/source names wrapping inside the container?
+- [ ] If the client's WideCast/OpenAPI provider config is not connected and verified, did `INTERNAL_REPORT` and the operator handoff include the PDNA/WideCast setup note, while the client-facing report stayed clean?
+- [ ] If WideCast Telegram is not connected yet, did `INTERNAL_REPORT` include a concise operator note about registering/logging in to WideCast and connecting Telegram for daily report links/blockers, while the client-facing report stayed clean?
 - [ ] If the report includes script/blog/social drafts, did I present each version in an editable HTML block with a working local `Copy this version` button?
-- [ ] Did the HTML draft section visibly tell the human they can fine-tune the draft on the page, copy the final version, and paste it back into the AI chat?
-- [ ] Did every editable version clearly say the human should copy the edited final text and paste it back into the AI chat?
-- [ ] Did I update `outputs/latest/{client-name}-daily-report.html` and the latest lane HTML files when those lane reports exist?
-- [ ] Did I generate `{client-name}-client-report.html` from the three canonical HTML files before exporting the mandatory `{client-name}-client-report.pdf`, or record the exact PDF blocker/status?
-- [ ] If the PDF includes private data source findings, did I redact raw private posts, group member details, login/session details, collector internals, and unapproved private source URLs/excerpts, or mark `client_pdf_redaction_status: needs_human_review` instead of exporting?
+- [ ] Did the HTML draft section avoid saying `AI chat`, `agent`, Solo Agency, WideCast, providers, or internal workflow mechanics?
+- [ ] Did every editable version clearly say the reviewer can copy the edited final text for review or production?
+- [ ] Did I update `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-INTERNAL_REPORT.html`, and the latest lane HTML files when those lane reports exist?
+- [ ] Did I generate `{client-name}-client-report.html` from the three scrubbed canonical HTML files before exporting the mandatory `{client-name}-client-report.pdf`, or record the exact PDF blocker/status?
+- [ ] If the PDF includes private data source findings, did I redact raw private posts, group member details, login/session details, collector internals, private source inventory, and unapproved private source URLs/excerpts, or mark `client_pdf_redaction_status: needs_human_review` instead of exporting?
 - [ ] Did I preserve the canonical `.html` report path/link even when also providing a `.pdf` export?
 - [ ] Did I generate/update master digest if multiple clients exist?
 - [ ] Did I write the report in the human's language?
-- [ ] Did every user-facing report link/path in chat, Telegram, or notification point to `.html`, not `.md`?
+- [ ] Did every user/operator-facing report link/path in chat, Telegram, or notification point to `.html`, not `.md`?
 - [ ] Did I avoid fake interactive buttons in static HTML, except real local copy buttons for editable draft review?
 - [ ] Did I include references/URLs in the report?
 - [ ] Did I notify the human through the configured provider notification channel if available, preferably WideCast OpenAPI `sendTelegramMessage`, relying on WideCast's email fallback if Telegram is not connected and fallback is available?
-- [ ] Did every report-ready notification include an HTML report URL/path and PDF companion path/status? A plain "report ready" notification with no report URL/path and PDF status is invalid.
-- [ ] If WideCast OpenAPI notification/Telegram was available and an HTML-capable `uploadAsset` operation was available, did I upload the `.html` report to WideCast first and send the uploaded report URL instead of only a local path?
-- [ ] Did I record a report-delivery object with local HTML path, local PDF path/status, provider, OpenAPI discovery status, account verification status, upload attempted status, uploaded HTML/PDF URL if any, upload blocker if any, notification channel, and final notification report link?
-- [ ] If WideCast report upload was unavailable or failed, did I log the provider-neutral blocker, such as `provider_config_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_required_operation_missing`, `provider_account_mismatch`, `global_mcp_not_client_scoped`, or `provider_upload_failed`, and send the best available HTML path/link plus PDF companion path/status?
+- [ ] Did every report-ready notification include an HTML report URL/path, PDF companion path/status, and INTERNAL_REPORT path/status? A plain "report ready" notification with no report URL/path and PDF/internal status is invalid.
+- [ ] If WideCast OpenAPI notification/Telegram was available and an HTML-capable `uploadAsset` operation was available, did I upload the `.html` report to WideCast for operator delivery first and send the uploaded report URL instead of only a local path, while treating provider-hosted URLs as non-client-share links?
+- [ ] Did I record a report-delivery object with local HTML path, local PDF path/status, INTERNAL_REPORT path/status, client-facing scrub status, provider, OpenAPI discovery status, account verification status, upload attempted status, uploaded HTML/PDF URL if any, upload blocker if any, notification channel, and final notification report link?
+- [ ] If WideCast report upload was unavailable or failed, did I log the provider-neutral blocker, such as `provider_config_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_required_operation_missing`, `provider_account_mismatch`, `global_mcp_not_client_scoped`, or `provider_upload_failed`, and send the best available HTML path/link plus PDF companion path/status plus INTERNAL_REPORT path/status?
 - [ ] If I accidentally sent a notification without a report URL/path or PDF companion status, did I immediately send a correction notification with the HTML report URL/path plus PDF status and log the correction?
 - [ ] If provider notification was unavailable, did I try Gmail/email MCP or connector if available?
 - [ ] If neither WideCast OpenAPI notification nor Gmail/email was connected, did I suggest connecting WideCast API key + Telegram/email fallback first, or Gmail/email as a secondary fallback?
-- [ ] Did the notification include agent identity, status, HTML report path/link, PDF companion path/status, blockers, and next action?
+- [ ] Did the notification include status, HTML report path/link, PDF companion path/status, INTERNAL_REPORT path/status, blockers, and next action?
 
 ### Measure-Learning Checklist
 
