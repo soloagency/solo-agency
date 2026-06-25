@@ -20,9 +20,9 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.15-polished-capture-overlay";
+const EXTENSION_BUILD = "0.1.16-no-window-focus";
 const NORMAL_SCROLL_CAP = 10;
-const DISCOVERY_SCROLL_CAP = 80;
+const DISCOVERY_SCROLL_CAP = 10;
 
 const inMemoryActiveRuns = new Set();
 let clientBindingCache = null;
@@ -271,7 +271,8 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
 
   async function processSource(source, index) {
     const sourceLabel = source.name || source.url || `source ${index + 1}`;
-    const tabActivationMode = shouldActivateCollectionTab(job, source) ? "active_tab" : "background_tab";
+    const tabActivationPlan = collectionTabActivationPlan(job, source);
+    const tabActivationMode = tabActivationPlan.mode;
     await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
       run_id: runId,
       client_slug: job.client_slug || binding.client_slug || "",
@@ -280,7 +281,11 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
       platform: source.platform || "",
       status: "started",
       tab_activation_mode: tabActivationMode,
-      capture_overlay: tabActivationMode === "active_tab",
+      window_focus_requested: tabActivationPlan.focusWindow,
+      tab_create_active: tabActivationPlan.createActive,
+      tab_update_active: tabActivationPlan.updateActive,
+      window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
+      capture_overlay: tabActivationMode !== "background_tab",
       index: index + 1,
       total: selectedSources.length,
       source_concurrency: sourceConcurrency,
@@ -344,7 +349,11 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
         platform: source.platform || "",
         status: "collected",
         tab_activation_mode: tabActivationMode,
-        capture_overlay: tabActivationMode === "active_tab",
+        window_focus_requested: tabActivationPlan.focusWindow,
+        tab_create_active: tabActivationPlan.createActive,
+        tab_update_active: tabActivationPlan.updateActive,
+        window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
+        capture_overlay: tabActivationMode !== "background_tab",
         index: index + 1,
         total: selectedSources.length,
         source_concurrency: sourceConcurrency,
@@ -376,7 +385,11 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
         platform: source.platform || "",
         status: "error",
         tab_activation_mode: tabActivationMode,
-        capture_overlay: tabActivationMode === "active_tab",
+        window_focus_requested: tabActivationPlan.focusWindow,
+        tab_create_active: tabActivationPlan.createActive,
+        tab_update_active: tabActivationPlan.updateActive,
+        window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
+        capture_overlay: tabActivationMode !== "background_tab",
         issue: String(error && error.message ? error.message : error),
         index: index + 1,
         total: selectedSources.length,
@@ -426,10 +439,11 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
 
   const activateCollectionTab = shouldActivateCollectionTab(job, source);
   const captureOverlayText = collectorCaptureOverlayText(job, binding);
-  const tab = await createTab({ url: source.url, active: activateCollectionTab });
+  const tabActivationPlan = collectionTabActivationPlan(job, source);
+  const tab = await createTab({ url: source.url, active: tabActivationPlan.createActive });
   try {
     if (activateCollectionTab) {
-      await activateTab(tab);
+      await activateTab(tab, tabActivationPlan);
     }
     await waitForTabLoad(tab.id, 25000);
     if (activateCollectionTab) {
@@ -528,7 +542,11 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         scroll_debug: cap.scrollDebug || [],
         scroll_stopped_reason: cap.scrollStoppedReason || "",
         extraction_engine: cap.engine || "",
-        tab_activation_mode: activateCollectionTab ? "active_tab" : "background_tab",
+        tab_activation_mode: tabActivationPlan.mode,
+        window_focus_requested: tabActivationPlan.focusWindow,
+        tab_create_active: tabActivationPlan.createActive,
+        tab_update_active: tabActivationPlan.updateActive,
+        window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
         capture_overlay: activateCollectionTab,
         capture_overlay_text: activateCollectionTab ? captureOverlayText : "",
         read_only: true
@@ -622,16 +640,47 @@ function createTab(createProperties) {
   });
 }
 
-async function activateTab(tab) {
+function collectionTabActivationPlan(job, source) {
+  const active = shouldActivateCollectionTab(job, source);
+  if (!active) {
+    return {
+      mode: "background_tab",
+      createActive: false,
+      updateActive: false,
+      focusWindow: false
+    };
+  }
+
+  const pacing = job && typeof job === "object" ? job.pacing || {} : {};
+  const focusWindow = (
+    explicitTrue(job?.focus_collection_window) ||
+    explicitTrue(job?.focus_window) ||
+    explicitTrue(pacing?.focus_collection_window) ||
+    explicitTrue(pacing?.focus_window) ||
+    explicitTrue(source?.focus_collection_window) ||
+    explicitTrue(source?.focus_window)
+  );
+
+  return {
+    mode: focusWindow ? "active_tab_with_window_focus" : "active_tab_no_window_focus",
+    createActive: focusWindow,
+    updateActive: true,
+    focusWindow
+  };
+}
+
+async function activateTab(tab, plan = {}) {
   if (!tab || typeof tab.id !== "number") return;
   try {
-    await chrome.tabs.update(tab.id, { active: true });
-    if (typeof tab.windowId === "number") {
+    if (plan.updateActive !== false) {
+      await chrome.tabs.update(tab.id, { active: true });
+    }
+    if (plan.focusWindow && typeof tab.windowId === "number") {
       await chrome.windows.update(tab.windowId, { focused: true });
     }
   } catch (error) {
-    // Capture can still proceed if focusing is blocked, but the run will keep
-    // tab_activation_mode metadata so the agent can diagnose weak output later.
+    // Capture can still proceed if activating is blocked. Metadata records
+    // whether the run requested window focus or only tab activation.
   }
 }
 

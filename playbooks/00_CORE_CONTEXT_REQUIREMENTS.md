@@ -121,6 +121,32 @@ The agent must:
 - stop, request permission, or hand the human one exact GitHub command if fresh GitHub access is blocked by sandbox/network limits;
 - never fall back to unverified local code, even if it appears to contain the expected files.
 
+### Last-Resort Recovery And GitHub Issue Escalation Rule
+
+Because this repo changes frequently, the agent must treat any blocker, repeated failure, confusing contradiction, tool/config mismatch, stale asset, missing capability, or operational dead end as a possible old-playbook/code problem before giving up.
+
+Recovery sequence:
+
+1. Fetch or clone the latest `https://github.com/soloagency/solo-agency` `main` into a fresh unique verified checkout, or read the relevant raw GitHub playbook files.
+2. Do not use shared stale paths such as `/tmp/solo-agency`.
+3. Compare local `HEAD` with GitHub `main` and record both commit hashes.
+4. Reload the relevant latest playbook sections and check whether the newer instructions fix the issue.
+5. If the latest version fixes or clarifies the issue, follow it, update/resync the client setup or automation state when relevant, and report the recovery.
+6. If the agent is still blocked after the latest GitHub check, open or draft a GitHub issue for `soloagency/solo-agency`.
+
+Issue escalation and tracking:
+
+- The human does not need a GitHub account for blocker escalation. Do not make GitHub registration the required next action.
+- Direct GitHub issue creation requires an authorized agent/runtime identity. Use `gh issue create` only when `gh auth status` passes, `GITHUB_TOKEN`, `GH_TOKEN`, or `SOLO_AGENCY_GITHUB_ISSUE_TOKEN` is configured, a GitHub App/maintainer bot is available, and the environment permits issue creation.
+- Preferred operator setup is a dedicated maintainer bot token or GitHub App with narrow issue-writing access for `soloagency/solo-agency`, exposed only in trusted agent runtimes. Never store this token in client config, reports, issue drafts, or committed files.
+- If no authorized GitHub identity is available but a project support/intake channel is configured, send or queue the redacted issue draft through that channel.
+- If direct issue creation/sending is unavailable, write a ready-to-post issue draft under `daily-content-pipeline/automation/issues/`.
+- Track issue URL/number, intake channel, or draft path in `daily-content-pipeline/automation/github_issues.md`.
+- Include a redacted blocker fingerprint, safe reproduction steps, expected/actual behavior, local commit, GitHub `main` commit checked, environment/runtime, relevant blocker names, and redacted logs.
+- Never include API keys, tokens, cookies, passwords, private data source raw content, client-confidential details, raw logged-in screenshots, or sensitive customer data.
+- Check tracked issues during later setup repair, blocker recovery, and scheduled runs. If founder/community replies with a fix, apply it, update/resync automation, update the tracker, and notify the human.
+- Reuse an existing issue when the blocker fingerprint matches; do not create duplicates.
+
 ### Canonical User-Facing Description Rule
 
 When explaining what Solo Agency does, the agent must not describe it as only researching, finding ideas, writing drafts, and publishing.

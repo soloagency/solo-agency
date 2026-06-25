@@ -42,6 +42,9 @@ The current canonical runtime/data layout is:
       automation_manifest.md
       scheduled_run_prompt.md
       resync_log.md
+      github_issues.md
+      issues/
+        YYYY-MM-DD_{blocker_slug}.md
     collector/
       collector_setup_status.md
       collector_config.json
@@ -157,6 +160,9 @@ Use one folder per client/business/location:
     automation_manifest.md
     scheduled_run_prompt.md
     resync_log.md
+    github_issues.md
+    issues/
+      YYYY-MM-DD_{blocker_slug}.md
   notifications/
     notification_log.md
   collector/
@@ -508,6 +514,32 @@ Format:
 |---|---|---|---|---|---|---|---|
 | 2026-06-23 | Claude | Approved 12 Facebook groups as private data sources | profile, schedule.md, collector_config.json, automation_manifest.md, scheduled_run_prompt.md | yes | pass | none | Scan approved groups via Local Collector |
 ```
+
+### `automation/github_issues.md`
+
+Tracks GitHub issues, support/intake submissions, or issue drafts created when latest GitHub playbooks/code still do not resolve a blocker.
+
+Create or update this file when Last-Resort Recovery opens, sends, queues, or drafts an issue. The human does not need a GitHub account; direct GitHub creation uses an authorized agent/runtime identity when available, and otherwise falls back to a configured intake channel or local draft.
+
+Format:
+
+```md
+# GitHub Issue Tracker
+
+| Date | Agent | Client Slug | Blocker Fingerprint | Local Commit | GitHub Main Commit Checked | Issue URL / Intake Channel / Draft Path | Status | Next Check | Latest Response / Next Action |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-06-24 | Codex | smith-law | collector_wrong_workspace_bridge_after_fresh_check | abc123 | def456 | https://github.com/soloagency/solo-agency/issues/123 | opened_by_agent | 2026-06-25 | Waiting for maintainer response |
+```
+
+Issue draft files belong under:
+
+```text
+daily-content-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md
+```
+
+Recommended status values: `opened_by_agent`, `sent_to_intake`, `queued_for_intake`, `draft_waiting_for_support_channel`, `draft_waiting_for_human`, `answered`, `fix_applied`, `resolved`, `closed`.
+
+Each issue, intake submission, or draft must be redacted. Do not include API keys, cookies, tokens, passwords, raw private data source content, client-confidential details, raw logged-in screenshots, or sensitive customer data. Include only safe reproduction steps, expected/actual behavior, local commit, GitHub main commit checked, runtime, relevant blocker names, and redacted logs.
 
 ### `notifications/notification_log.md`
 
