@@ -81,8 +81,9 @@ Minimum resync audit:
 - `daily-content-pipeline/automation/automation_manifest.md` updated.
 - `daily-content-pipeline/automation/scheduled_run_prompt.md` updated.
 - Actual native AI automation/scheduled task prompt updated when accessible, or `automation_prompt_update_pending` clearly logged when not accessible.
+- `daily-content-pipeline/automation/github_issues.md` updated when a tracked GitHub issue, maintainer/community response, or issue-derived workaround affects future runs.
 - `daily-content-pipeline/automation/resync_log.md` updated.
-- Dry-read verification performed from the scheduled-run entrypoint and latest local files.
+- Dry-read verification performed from the scheduled-run entrypoint, issue tracker when present, and latest local files.
 - The human-facing progress block includes an `Automation freshness check` that answers whether the latest changes were synced into automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state.
 
 Completion wording must distinguish full vs partial sync:
@@ -1416,6 +1417,8 @@ Before replying to the human, verify:
 - [ ] If I am handing control back to the human while required steps remain, is the final line exactly one concrete next-step question?
 - [ ] If human action is needed, did I show the exact action directly in chat or notification?
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
+- [ ] If I am about to report a blocker, repeated failure, unclear contradiction, stale artifact, missing capability, or dead end, did I first run Last-Resort Recovery by checking GitHub `main` for newer Solo Agency playbooks/code and reloading the latest relevant instructions?
+- [ ] If the latest GitHub version still did not resolve the blocker, did I create, send, or draft a redacted issue without requiring the human to have a GitHub account, record the issue URL/number, intake channel, or draft path in `daily-content-pipeline/automation/github_issues.md`, and tell the human how it will be tracked?
 - [ ] If I mentioned a report, did I provide only the HTML path/link for human review and avoid showing the Markdown report path?
 - [ ] If I mentioned a report and any workflow step remains, did I include both the progress block and the required next-step question in chat instead of relying on the report's `Next Action` section?
 - [ ] In Setup Flow, did I avoid running the first agency run/report directly and instead prepare or resync the client-specific automation task?
