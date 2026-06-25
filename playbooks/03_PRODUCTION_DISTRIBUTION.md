@@ -392,6 +392,8 @@ The default provider catalog should come from `daily-content-pipeline/provider_d
       "type": "openapi",
       "provider_home_url": "https://widecast.ai/",
       "discovery_url": "https://widecast.ai/openapi.yaml",
+      "preferred_server_url": "https://widecast.ai/app/dashboard",
+      "disabled_server_urls": ["https://api.widecast.ai"],
       "auth_type": "bearer_api_key",
       "api_key_prefix": "wc_live_",
       "secret_storage": "per_client_local_config"
@@ -406,11 +408,12 @@ WideCast remains the maintained all-in-one reference path, but the integration m
 2. If no provider config exists and the human wants PDNA, ask for the provider path. For WideCast, ask for the client's `wc_live_*` API key, not the human's password, browser session, cookie, OTP, or a global MCP account.
 3. Fetch the OpenAPI spec from the provider `discovery_url`, such as `https://widecast.ai/openapi.yaml`.
 4. Parse the OpenAPI `servers`, `securitySchemes`, `operationId`, request schemas, response schemas, and relevant descriptions.
-5. Cache the spec as `provider_openapi_cache.yaml`.
-6. Write discovered operations and capability groups to `provider_capabilities.json`.
-7. Verify the account with the provider's account operation before any credit, publish, upload, analytics, or notification action. For WideCast this is `getAccount`.
-8. Save the verified provider account identity and PDNA status into the per-client provider config and `provider_health.md`.
-9. Log every provider call to `provider_calls.jsonl` with secrets redacted.
+5. Select the API server from the current client's provider config/defaults before trusting server order in the spec. For WideCast, the current production server is `https://widecast.ai/app/dashboard`; `https://api.widecast.ai` is a planned/disabled vanity host and must not be called unless a future playbook explicitly enables it.
+6. Cache the spec as `provider_openapi_cache.yaml`.
+7. Write discovered operations and capability groups to `provider_capabilities.json`, including the selected `server_url` and any disabled/skipped server URLs.
+8. Verify the account with the provider's account operation before any credit, publish, upload, analytics, or notification action. For WideCast this is `getAccount`.
+9. Save the verified provider account identity and PDNA status into the per-client provider config and `provider_health.md`.
+10. Log every provider call to `provider_calls.jsonl` with secrets redacted.
 
 When local Python execution is available, prefer the repo helper `tools/provider_openapi.py` for discovery, account verification, operation calls, and HTML report upload. If the helper cannot run, use equivalent curl/OpenAPI calls while preserving the same per-client config, account verification, redaction, and provider call logging rules.
 
