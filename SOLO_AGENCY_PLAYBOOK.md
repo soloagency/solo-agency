@@ -72,6 +72,14 @@ Solo Agency is an agent-operated automation workflow, not a plain web-chat promp
 
 The agent must tell the human to run Solo Agency in Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or a comparable desktop/local AI agent environment that can read/write workspace files, maintain scheduled automation, coordinate multiple parallel/sub-agent work streams, and hand off Local Collector setup. A normal web chat may be useful for review, but it must not be presented as the primary runtime because it cannot reliably host the automation, file state, private data source collection handoff, and multi-agent work Solo Agency requires.
 
+## Client Tools First Rule
+
+Whenever the agent checks whether production, video, blog, social, upload, notification, publishing, analytics, credits, connected platforms, or provider account tools are available, it must check Client tools first and global MCP/native tools second.
+
+`Client tools` means the current client's provider files and discovered API surface: `integrations/providers/provider_config.local.json`, the fetched OpenAPI spec/cache, verified account identity, `provider_capabilities.json`, `provider_health.md`, and redacted provider call logs. A global MCP/native tool list is only a compatibility surface after the agent proves that tool identity matches the current client's saved provider identity.
+
+The agent must not say "no video tool", "no WideCast tool", "no upload tool", "no notification tool", or similar until it has checked or refreshed the current client's Client tools and logged the exact blocker. If Client tools expose the needed OpenAPI operation but global MCP does not, use the Client tools path.
+
 ## Latest Architecture Override: Setup Flow And Automation Flow
 
 Solo Agency has two independent human-facing flows. This override wins over any older wording in this repo that tells the setup agent to run the first report, first agency run, private scan, video creation, publishing, or production action inside the setup chat.
@@ -145,9 +153,9 @@ Each full lane report has its own source coverage, evidence, Lead & Competitor O
 
 The report set must use `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` so later automation passes can update only the intended lane. The `latest` human-facing link must point to `{client-name}-daily-report.html`, not a lane-specific report unless explicitly requested.
 
-Two notifications are acceptable: one when the public report is ready and one when the private report is ready or blocked. Notifications should normally point to `{client-name}-daily-report.html` or its uploaded URL, with lane-specific report links as secondary links when useful.
+Two notifications are acceptable: one when the public report is ready and one when the private report is ready or blocked. Notifications should normally point to `{client-name}-daily-report.html` or its uploaded URL, include the mandatory PDF companion path/status, and include lane-specific report links as secondary links when useful.
 
-If the human explicitly asks for a PDF to send to a client, create it as an extra derivative artifact from the three HTML files: `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and optional `outputs/latest/{client-name}-client-report.pdf`. The PDF must not replace the three canonical HTML files, and private data source details must be redacted or held for human review unless sharing exact private sources was approved.
+After creating or updating the three HTML files, create or update the mandatory PDF companion package from those HTML files: `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf`. The PDF must be offered alongside the HTML report so the recipient can choose the format. It must not replace the three canonical HTML files. Private data source details must be redacted or held for human review unless sharing exact private sources was approved. If PDF generation is blocked by tooling or redaction uncertainty, create the print-friendly `{client-name}-client-report.html`, record `client_pdf_status: blocked` with the exact blocker, and still hand off the HTML report plus the PDF blocker.
 
 ### One Bridge, Many Client Extensions
 
@@ -255,7 +263,7 @@ GitHub issue escalation rules:
 | Private Data Source Gate | `playbooks/PRIVATE_SOURCE_GATE.md` | Load immediately when any private data source scan, group scan, joined-groups review, social/community data source, or feed/profile requiring account context is mentioned, even if the conversation drifted through unrelated topics. |
 | 2 | `playbooks/02_PRIVATE_SOURCE_SETUP.md` | Load when private data sources, manual private data source input, Facebook joined groups, Facebook keyword group search, private data source discovery, or Local Collector activation are mentioned or pending. |
 | 3 | `playbooks/03_PRODUCTION_DISTRIBUTION.md` | Load only when writing drafts, creating video/blog/social assets, setting up a production provider, rendering/exporting, publishing, notifications, or approval gates are relevant. |
-| 3A | `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` | Load after any vendored writing/provider skill when video creation, credits, media upload, render/export, publishing, notification, analytics, or provider account actions are relevant. It overrides provider-specific MCP calls by resolving the current client's provider config/OpenAPI capabilities first. |
+| 3A | `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` | Load after any vendored writing/provider skill when video creation, credits, media upload, render/export, publishing, notification, analytics, or provider account actions are relevant. It overrides provider-specific MCP calls by resolving Client tools first: the current client's provider config, verified OpenAPI capabilities, and provider capability cache. |
 | 4 | `playbooks/04_DAILY_SCHEDULE.md` | Load during routine setup after the profile/source plan is known, and during scheduled/manual run execution. |
 | 5 | `playbooks/05_MEASURE_LEARN_IMPROVE.md` | Load once any content has been published, and during yesterday/7-day analytics review. |
 | 6 | `playbooks/06_AGENCY_REPORT_STANDARD.md` | Load whenever generating, reviewing, or fixing a human-facing report. |
@@ -504,7 +512,7 @@ The agent may omit the next-step question only when the entire requested workflo
 - Show inference before asking the next question.
 - Configure schedule/routine and the client-specific automation task before the first report; if private data sources exist and Local Collector is not active, handle step 7A or mark private data sources as pending before declaring automation ready.
 - If no private data sources are provided, offer optional private data source discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds before treating the private data source step as resolved.
-- Canonical user-facing reports are HTML. Markdown is internal. PDF is allowed only as an explicitly requested client-share export derived from the three HTML files.
+- Canonical user-facing reports are HTML. Markdown is internal. A PDF companion is mandatory after the HTML report set is created or updated; it must be derived from the three HTML files, offered alongside the HTML handoff, and recorded as generated or blocked with the exact blocker.
 - Before declaring any blocker/dead end, check GitHub `main` for newer Solo Agency playbooks/code; if latest GitHub still does not resolve it, create, send, or draft a redacted issue without requiring the human to have a GitHub account, then track it in `automation/github_issues.md`.
 - Private data stays local unless the human explicitly approves export.
 - Never ask for passwords, OTPs, cookies, tokens, or raw credentials.
@@ -572,9 +580,10 @@ Daily run is not complete until:
 - Sources, keywords, data quality, leads, competitors, ideas, best idea, drafts, and blockers were recorded.
 - Stage 10 was loaded and lane-specific Lead & Competitor Opportunities were detected, skipped with a clear reason, or marked pending/private data sources unavailable.
 - A mobile-friendly HTML report exists.
-- The human received the HTML report path/link or notification.
-- Stage 6 Provider Report Delivery Capability Check was run: provider/OpenAPI discovery and account verification were inspected, the HTML report was uploaded and sent when operations existed, or the exact provider/upload/notification blocker was logged and the best available HTML path/link was delivered.
-- If WideCast OpenAPI notification is configured and WideCast HTML report upload is available, the HTML report was uploaded to WideCast and the human received the uploaded WideCast report URL.
+- The mandatory PDF companion was generated from the three HTML files, or the exact PDF blocker/status was recorded.
+- The human received the HTML report path/link plus PDF companion path/status by chat or notification.
+- Stage 6 Provider Report Delivery Capability Check was run with Client tools first: provider/OpenAPI discovery and account verification were inspected, the HTML report was uploaded and sent when operations existed, the PDF was uploaded when the verified client provider supported it, or the exact provider/upload/notification blocker was logged and the best available HTML path/link plus PDF companion path/status was delivered.
+- If WideCast OpenAPI notification is configured and WideCast HTML report upload is available, the HTML report was uploaded to WideCast and the human received the uploaded WideCast report URL plus PDF companion path/status.
 - Stage 9 self-audit passes or misses are reported honestly.
 
 ## Jump-Prevention Rules

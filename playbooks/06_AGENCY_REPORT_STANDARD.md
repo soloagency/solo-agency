@@ -8,14 +8,14 @@ Load whenever generating, reviewing, debugging, or improving a human-facing repo
 
 ## Hard Gates For This Stage
 
-- Canonical human-facing report files are HTML only. PDF export is an optional derivative client-share artifact when the human explicitly asks for a PDF.
+- Canonical human-facing report files are HTML. A PDF companion is mandatory after the HTML report set is created or updated.
 - Markdown is internal.
 - The report must be standalone, mobile-friendly, agency-grade, and factually aligned with the Markdown source.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
 - Do not create fake action buttons in static HTML.
 - Keep exactly one canonical report set per client/day/run: one daily index HTML plus one full public data sources HTML and one full private data sources HTML.
 - Never merge public data source intelligence and private data source intelligence into one dense HTML body. Each lane is a first-class report file so a later private pass cannot overwrite or summarize away the public pass.
-- PDF is an optional client-share artifact only when requested. It must be generated from the three HTML report files, not from raw memory, and it must not replace the canonical HTML report set.
+- The PDF companion must be generated from the three HTML report files, not from raw memory, and it must not replace the canonical HTML report set. If PDF export or safe redaction is blocked, record the exact blocker and still provide the HTML report path/link.
 
 ## Source Preservation Rule
 
@@ -33,7 +33,7 @@ Each active client must have one daily output folder:
 outputs/YYYY-MM/YYYY-MM-DD/
 ```
 
-Markdown is the canonical internal output record. HTML is the canonical human-facing rendered report. PDF may be created only as an optional derivative from the HTML report set when the human explicitly asks for a client-share PDF.
+Markdown is the canonical internal output record. HTML is the canonical human-facing rendered report. PDF is a mandatory companion derived from the HTML report set so the recipient can choose HTML or PDF.
 
 The agent must keep the Markdown file even when an HTML report is created, unless the current environment truly cannot write Markdown. The Markdown file is required for:
 
@@ -46,9 +46,9 @@ The agent must keep the Markdown file even when an HTML report is created, unles
 
 The HTML report must be created from the same facts, references, ideas, analysis, and draft content as the Markdown report, but it may use a custom structure and design. It must not become a factually divergent report. If the agent can only preserve one long-term artifact, preserve the Markdown file first and regenerate HTML later. If the agent can only deliver one artifact to the human, deliver the HTML report because all user-facing reports must be HTML.
 
-### Human-Facing Report Rule: HTML Only
+### Human-Facing Report Rule: HTML Plus PDF Companion
 
-The agent must show report results to the human as HTML by default. If the human explicitly asks for a PDF, create it as a derivative of the HTML report set and still keep the HTML files as canonical.
+The agent must show report results to the human as HTML and provide the PDF companion status/path in the same handoff. The PDF is a derivative of the HTML report set; the HTML files remain canonical for future automation updates.
 
 Do not show, send, link, or ask the human to open the Markdown report as the user-facing report.
 
@@ -58,7 +58,7 @@ Allowed:
 - Mention that a Markdown source file exists only when explaining internal storage or troubleshooting.
 - Deliver the `.html` report path/link to the human.
 - Send Telegram/WideCast notifications with the `.html` path/link.
-- Deliver a `.pdf` client-share export only when explicitly requested, while still providing or preserving the `.html` report path/link.
+- Deliver a `.pdf` companion alongside the `.html` path/link, or state the exact PDF blocker/status if generation is unavailable or unsafe.
 
 Not allowed:
 
@@ -68,7 +68,7 @@ Not allowed:
 - Sending both `.md` and `.html` and making the human decide which one to open.
 - Treating a PDF export as the canonical report source or using it to replace the three HTML files.
 
-Every default report path, notification, or review instruction must point to the `.html` file. A `.pdf` path may be included only as an explicitly requested client-share export alongside the canonical `.html` path.
+Every default report path, notification, or review instruction must point to the `.html` file as the primary review link and include the `.pdf` companion path/status as the secondary share-ready artifact.
 
 ### Internal Markdown, Beautiful HTML
 
@@ -113,7 +113,7 @@ outputs/latest/{client-name}-private-data-sources-report.html
 outputs/latest/{client-name}-client-report.pdf
 ```
 
-The daily latest file is the default human-facing convenience link. Public/private latest files are allowed as direct lane links. The PDF latest file is allowed only as an extra client-share deliverable when the human asks for a PDF.
+The daily latest file is the default human-facing convenience link. Public/private latest files are allowed as direct lane links. The PDF latest file is the mandatory companion deliverable when PDF generation is available and safe.
 
 ### Latest Override: Three-File Public/Private Report Contract
 
@@ -181,9 +181,9 @@ Update rules:
 - If private data sources fail, time out, are stale, or are blocked, update only the private report with the exact blocker and update the daily index lane status.
 - If a private pass starts but the public report is missing, create a public report placeholder file that says public data sources were not run or were unavailable, then create the private report. Do not create a private-only report set without a daily index.
 
-### Client PDF Export Contract
+### Client PDF Companion Contract
 
-When the human asks for a PDF to send to a client, create an additional client-share package from the existing three HTML files:
+After creating or updating the three-file HTML report set, create or update an additional client-share package from the existing three HTML files:
 
 ```text
 outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html
@@ -197,7 +197,7 @@ The PDF source HTML must be a standalone print-friendly document assembled from:
 2. `{client-name}-public-data-sources-report.html` for the public data sources section.
 3. `{client-name}-private-data-sources-report.html` for the private data sources section when it exists and is approved for client sharing.
 
-Do not build the PDF directly from memory or from only one lane. If any of the three canonical HTML files is missing or blocked, include a clear status page in `{client-name}-client-report.html` instead of inventing content.
+Do not build the PDF directly from memory or from only one lane. If any of the three canonical HTML files is missing or blocked, include a clear status page in `{client-name}-client-report.html` instead of inventing content. Then export the PDF when safe, or record the exact blocker.
 
 PDF formatting rules:
 
@@ -217,7 +217,7 @@ PDF generation rule:
 
 - Use a reliable local HTML-to-PDF renderer when available, such as browser print-to-PDF or an equivalent PDF engine.
 - If PDF generation is unavailable in the current AI/runtime environment, still create the print-friendly `{client-name}-client-report.html`, record `pdf_generation_blocked`, and tell the human the exact blocker.
-- Do not upload or send the PDF through a provider unless the current client's verified provider config/OpenAPI capabilities support the file upload/notification path and the human asked for that delivery.
+- Do not upload the PDF through a provider unless the current client's verified provider config/OpenAPI capabilities support the file upload/notification path. If provider PDF upload is unavailable, still include the local PDF path/status beside the HTML link.
 
 State file:
 
@@ -247,7 +247,7 @@ The state file must track at least:
   "client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html",
   "client_report_pdf_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf",
   "latest_client_pdf_path": "outputs/latest/{client-name}-client-report.pdf",
-  "client_pdf_status": "not_requested|pending_review|generated|blocked|skipped",
+  "client_pdf_status": "pending|pending_review|generated|blocked",
   "client_pdf_redaction_status": "not_needed|redacted|approved_exact_sources|needs_human_review",
   "client_pdf_generated_at": "",
   "client_pdf_blocker": "",
@@ -262,6 +262,7 @@ Notification rule:
 
 - Two notifications are acceptable: one after the public report is ready and one after the private report is ready/blocked.
 - Notifications should normally point to `{client-name}-daily-report.html` or its uploaded URL. A lane-specific direct link may be included as a secondary link, but the daily report remains the canonical handoff link.
+- Notifications must include the PDF companion path/status beside the HTML link.
 - The notification text must say whether the report set is `public_report_ready`, `private_report_ready`, `private_report_blocked`, or `daily_report_ready`.
 - Do not send repeated notifications for the same lane in the same run unless correcting a missing/broken report link.
 - Log each notification with lane, report path/URL, and report state.
@@ -1012,20 +1013,21 @@ The HTML report's `Next Action` section is not enough by itself.
 When the agent announces a report in chat, Telegram, email, or another human-facing channel, and any required workflow step remains unfinished, the handoff message must include:
 
 1. A short useful summary.
-2. The HTML report path/link only.
+2. The HTML report path/link as the primary review link, plus the PDF companion path/status.
 3. A visible progress block for the active workflow.
 4. The one required next decision.
 5. A final line that is exactly one concrete next-step question.
 
 Report-ready notification validity rule:
 
-- A report-ready notification without an HTML report URL/path is invalid.
-- Before deciding provider upload or notification is unavailable, the agent must run a Provider Report Delivery Capability Check using the current client's provider config and OpenAPI discovery first, with legacy tool/connector discovery only as fallback.
+- A report-ready notification without an HTML report URL/path and PDF companion status is invalid.
+- Before deciding provider upload or notification is unavailable, the agent must run a Provider Report Delivery Capability Check using Client tools first: the current client's provider config, OpenAPI discovery, verified identity, and capability cache, with legacy/global MCP/native tool discovery only as fallback after identity match.
 - If WideCast OpenAPI notification/Telegram/email fallback is available, the agent must try to deliver the report through WideCast notification.
 - If WideCast OpenAPI exposes an HTML-capable report/file/asset upload operation, upload the `.html` report first and send the uploaded WideCast report URL.
-- If WideCast report upload is unavailable or fails, the agent must log the exact provider blocker and still include the best available local/hosted `.html` report path/link in the notification.
-- If the current AI connector/tool surface does not expose WideCast upload or Telegram tools, check the per-client OpenAPI provider path before concluding capability is missing. Do not claim that WideCast itself lacks the API or capability unless verified from WideCast account/API/OpenAPI status.
-- If the agent accidentally sends a notification without a report URL/path, it must immediately send a correction notification containing the HTML report URL/path and log the correction.
+- If the verified client provider exposes PDF upload, upload the PDF companion too; otherwise include the local PDF path/status.
+- If WideCast report upload is unavailable or fails, the agent must log the exact provider blocker and still include the best available local/hosted `.html` report path/link plus PDF companion path/status in the notification.
+- If the current AI connector/tool surface does not expose WideCast upload or Telegram tools, check Client tools first before concluding capability is missing. Do not claim that WideCast itself lacks the API or capability unless verified from the current client's provider config, account/API, and OpenAPI status.
+- If the agent accidentally sends a notification without a report URL/path or PDF companion status, it must immediately send a correction notification containing the HTML report URL/path plus PDF status and log the correction.
 
 Do not end a report handoff with:
 
@@ -1140,12 +1142,12 @@ document.addEventListener("click", async function (event) {
 </script>
 ```
 
-When the result is long, the agent should send or surface the HTML report instead of dumping the whole result into chat.
+When the result is long, the agent should send or surface the HTML report plus PDF companion path/status instead of dumping the whole result into chat.
 
-The agent must deliver the HTML report to the human by the most convenient available channel:
+The agent must deliver the HTML report and PDF companion path/status to the human by the most convenient available channel:
 
-- Configured provider notification, preferably WideCast OpenAPI `sendTelegramMessage`, with the uploaded WideCast HTML report URL when report upload is available. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
-- If the configured provider notification itself is unavailable, use a connected Gmail/email MCP, connector, or tool to email the HTML report or HTML report link to the human if available and authorized.
+- Configured provider notification, preferably WideCast OpenAPI `sendTelegramMessage`, with the uploaded WideCast HTML report URL when report upload is available and the PDF companion URL/path/status. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
+- If the configured provider notification itself is unavailable, use a connected Gmail/email MCP, connector, or tool to email the HTML/PDF reports or links to the human if available and authorized.
 - Agent chat file attachment if supported.
 - Local file path in the automation/thread output.
 - Slack, Discord, Google Drive, Notion, or other connector if available and authorized.
@@ -1162,19 +1164,19 @@ Notification fallback rule:
   Register at https://widecast.ai/#setup, log in, click Setup AI Agent, open API Keys & MCP, click Setup, then Generate API key and MCP url. Paste only the API key back to the agent for this client. Connect Telegram there so scheduled runs can send report links, blockers, and approval requests to your phone. If convenient, connect social accounts too; publishing to 10+ platforms still happens only after you approve the exact content and target platforms.
   ```
 - If WideCast OpenAPI notification is available, call `sendTelegramMessage` even if the human has not connected Telegram yet. WideCast should handle fallback email delivery when Telegram is not connected and email fallback is available.
-- If WideCast OpenAPI notification is available and the discovered spec exposes an HTML-capable upload API, upload the `.html` report to WideCast first with `uploadAsset` and send the uploaded URL through WideCast Telegram/email fallback.
+- If WideCast OpenAPI notification is available and Client tools expose an HTML-capable upload API, upload the `.html` report to WideCast first with `uploadAsset` and send the uploaded URL through WideCast Telegram/email fallback. Upload the PDF companion too only when Client tools expose a compatible PDF upload operation; otherwise include the local PDF path/status.
 - Do not send only a local file path when an uploaded WideCast report URL is available.
-- If provider config is missing, auth fails, OpenAPI discovery fails, account verification mismatches, or the current WideCast OpenAPI spec cannot upload `.html` files, log the exact provider-neutral blocker and any useful legacy WideCast alias, send the best available HTML path/link, and state the upload blocker clearly.
-- If OpenAPI discovery does not expose a WideCast Telegram/notification send operation, log `provider_required_operation_missing` and any useful legacy WideCast alias. Do not claim WideCast itself lacks notification capability merely because a legacy MCP/tool surface is not exposed.
-- Never send a report-ready notification that contains only a status summary. The notification must include an `HTML report` URL/path field.
+- If provider config is missing, auth fails, OpenAPI discovery fails, account verification mismatches, or the current WideCast OpenAPI spec cannot upload `.html` files, log the exact provider-neutral blocker and any useful legacy WideCast alias, send the best available HTML path/link plus PDF companion path/status, and state the upload blocker clearly.
+- If OpenAPI discovery does not expose a WideCast Telegram/notification send operation, log `provider_required_operation_missing` and any useful legacy WideCast alias. Do not claim WideCast itself lacks notification capability merely because a legacy/global MCP/native tool surface is not exposed.
+- Never send a report-ready notification that contains only a status summary. The notification must include an `HTML report` URL/path field and a `PDF companion` URL/path/status field.
 - The agent should not switch to Gmail/email merely because Telegram is not connected in WideCast if WideCast email fallback can deliver.
 - Use Gmail/email only when provider notification is unavailable or blocked.
-- If Gmail/email is available and provider notification is unavailable, send the HTML report or a link/path to the HTML report by email to the human, using the same language the human uses.
+- If Gmail/email is available and provider notification is unavailable, send the HTML/PDF reports or a link/path to the HTML report plus PDF companion path/status by email to the human, using the same language the human uses.
 - If neither WideCast notification nor Gmail/email is available, the agent should suggest connecting WideCast notification first, or Gmail/email as a secondary fallback.
 - The agent must not ask for email passwords, OAuth credentials, app passwords, cookies, or raw tokens. Use only an already connected Gmail/email tool, or guide the human to connect the official connector.
 - The email subject should include the client or master digest name, run date, and status, for example: `Daily Content Report Ready — Smith Law — 2026-06-21`.
-- The email body should include agent identity, run status, HTML report path/link, blockers, lead/competitor counts, and next action.
-- If the email tool supports attachments, attach the `.html` report. If not, include the HTML report path/link.
+- The email body should include agent identity, run status, HTML report path/link, PDF companion path/status, blockers, lead/competitor counts, and next action.
+- If the email tool supports attachments, attach the `.html` report and `.pdf` companion when available. If not, include the HTML report path/link plus PDF companion path/status.
 
 If the channel cannot send files directly, send a short notification containing:
 
@@ -1190,25 +1192,31 @@ If the channel cannot send files directly, send a short notification containing:
 Run this check before claiming any daily run, scheduled run, or report handoff is complete.
 
 1. Confirm the local `.html` report exists.
-2. Check the configured notification channel from `daily-content-pipeline/schedule.md` and the Client Intelligence Profile.
-3. Load `daily-content-pipeline/provider_defaults.json` and the target client's `integrations/providers/provider_config.local.json` when present.
-4. If WideCast is configured, preferred, connected, or likely available, fetch/cache `https://widecast.ai/openapi.yaml` unless the cache is current.
-5. Verify the provider account before using account actions. For WideCast, call `getAccount` with the current client's configured provider credential and compare the verified account identity to the saved client provider identity when present.
-6. Inspect the discovered OpenAPI operation list for:
+2. Confirm the mandatory PDF companion exists or that `client_pdf_status` and `client_pdf_blocker` record the exact blocker.
+3. Check the configured notification channel from `daily-content-pipeline/schedule.md` and the Client Intelligence Profile.
+4. Load `daily-content-pipeline/provider_defaults.json` and the target client's `integrations/providers/provider_config.local.json` when present.
+5. If WideCast is configured, preferred, connected, or likely available, fetch/cache `https://widecast.ai/openapi.yaml` unless the cache is current.
+6. Verify the provider account before using account actions. For WideCast, call `getAccount` with the current client's configured provider credential and compare the verified account identity to the saved client provider identity when present.
+7. Inspect the discovered OpenAPI operation list for:
    - account/status capability, such as `getAccount`;
    - HTML-capable report/file/asset upload capability, such as `uploadAsset` with `text/html`;
+   - PDF/file upload capability when exposed by the verified client provider;
    - Telegram/report notification send capability, such as `sendTelegramMessage`;
    - email fallback behavior exposed by the provider, if any.
-7. Use legacy tool discovery/lazy-load only as a fallback or compatibility path after the client-scoped provider config/account identity has been checked. A global MCP/native WideCast account visible in the AI session is not proof that the current client's report upload, notification, platforms, credits, or analytics are configured. If the tool account cannot be proven to match the client provider identity, log `global_mcp_not_client_scoped` and continue with the per-client OpenAPI/API-key setup path or the best authorized fallback.
-8. If upload capability exists, upload the `.html` report and capture the uploaded URL and TTL if returned.
-9. If notification capability exists, send the uploaded URL when available; otherwise send the best available local/hosted `.html` path/link with the exact upload blocker.
-10. If the provider notification operation itself is unavailable, use an authorized fallback channel such as Gmail/email only when available and authorized; otherwise surface the local HTML path in chat and log the notification blocker.
-11. Save a report-delivery record in `daily-content-pipeline/notifications/notification_log.md`.
+8. Use legacy/global MCP/native tool discovery/lazy-load only as a fallback or compatibility path after Client tools and the client-scoped provider config/account identity have been checked. A global MCP/native WideCast account visible in the AI session is not proof that the current client's report upload, notification, platforms, credits, or analytics are configured. If the tool account cannot be proven to match the client provider identity, log `global_mcp_not_client_scoped` and continue with the per-client OpenAPI/API-key setup path or the best authorized fallback.
+9. If upload capability exists, upload the `.html` report and capture the uploaded URL and TTL if returned.
+10. If PDF upload capability exists, upload the PDF companion and capture the uploaded URL and TTL if returned.
+11. If notification capability exists, send the uploaded URL when available; otherwise send the best available local/hosted `.html` path/link with the exact upload blocker. Always include the PDF companion URL/path/status.
+12. If the provider notification operation itself is unavailable, use an authorized fallback channel such as Gmail/email only when available and authorized; otherwise surface the local HTML path plus PDF companion path/status in chat and log the notification blocker.
+13. Save a report-delivery record in `daily-content-pipeline/notifications/notification_log.md`.
 
 The report-delivery record must include:
 
 ```yaml
 html_report_path:
+pdf_report_path:
+pdf_status:
+pdf_blocker:
 provider:
 provider_discovery_url:
 provider_openapi_checked: true | false
@@ -1223,11 +1231,13 @@ provider_notification_available: true | false | unknown
 provider_notification_destination_status: connected | fallback_email | not_configured | unknown
 provider_upload_attempted: true | false
 provider_uploaded_report_url:
+provider_uploaded_pdf_url:
 provider_uploaded_report_url_ttl:
 provider_notification_attempted: true | false
 provider_notification_status: sent | failed | unavailable | skipped
 fallback_notification_channel:
 final_report_link_sent_to_human:
+final_pdf_link_or_status_sent_to_human:
 blocker:
 ```
 
@@ -1236,7 +1246,7 @@ Completion is invalid if the agent says only `report ready` or `config updated` 
 Correct blocker wording:
 
 ```text
-Report delivery: HTML report generated. Provider capability check completed. WideCast OpenAPI discovery or account verification is blocked by `{exact blocker}`, so I logged `{provider blocker}` and am giving you the local HTML report path here.
+Report delivery: HTML report generated and PDF companion status recorded. Client tools/provider capability check completed. WideCast OpenAPI discovery or account verification is blocked by `{exact blocker}`, so I logged `{provider blocker}` and am giving you the local HTML report path plus PDF companion path/status here.
 ```
 
 Incorrect blocker wording:
