@@ -449,7 +449,7 @@ This is the planned automation process for this client. You only need to reply w
 – 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
 ✓ 10. I created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft in Automation Flow
 
-The report includes an `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section. You can keep using the playbook manually, or connect WideCast once to create videos, publish to 10+ platforms, receive Telegram alerts, measure performance, and feed that learning back into better ideas.
+The operator-only `INTERNAL_REPORT` includes the PDNA/WideCast status and setup note. The client-facing report stays clean and does not mention Solo Agency, WideCast, provider tooling, Local Collector, automation, API keys, Telegram, or internal system details.
 
 This run used public data sources only. I have {N} private data sources waiting, including:
 - {source name or URL}
@@ -502,7 +502,7 @@ Automation run-now rule:
 - If the Local Collector app is already installed, running, healthy, and matched to the target client's extension identity, the Automation Flow agent may include private data sources by creating a run-now job.
 - If the Local Collector app is not installed/running/healthy or the matching extension is stale, the Automation Flow agent should run public data sources and list private data sources as pending activation.
 - The automation report output must include a mobile-friendly HTML report, a concise summary, and at least one useful draft script/blog/caption.
-- If the client's WideCast/OpenAPI provider config is not connected and verified, the automation HTML report must include `Unlock Production & Distribution & Measure-Learning Loop With WideCast` so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup.
+- If the client's WideCast/OpenAPI provider config is not connected and verified, the operator-only `INTERNAL_REPORT` and operator handoff must include the PDNA/WideCast setup note so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup. Client-facing reports must not include this note.
 
 Manual run / run-now rule:
 
@@ -734,6 +734,8 @@ For each daily run:
       - classify extra sources as `weekly` or `optional` and rotate them across future runs;
       - do not run aggressive or parallel private data source scans for the same logged-in account.
    12. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
+      - After private collection reaches a terminal state, reconcile status and counts before report handoff: private scan status, completed timestamp, sources attempted/completed/blocked, data points kept, leads, competitors, recommended private data sources, noisy/skipped discovery candidates, notifications, and blockers must match across the private report, daily index, internal source record, report state JSON, and `outputs/latest/` copies.
+      - Do not leave stale `scan in progress`, `partial`, `pending`, or old recommended-source totals in one artifact after another artifact says the private scan is complete.
    13. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
    14. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, or unavailable private data sources.
    15. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
@@ -742,25 +744,30 @@ For each daily run:
    18. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
    19. Detect direct, adjacent, and audience competitors, including profile URLs, post/current URLs, and positioning notes.
    20. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from today's data into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`.
+      - Every idea must pass the Audience Value-First Gate: it must state the target audience pain point, the viewer value/lesson, the source signal, the non-promotional angle, why it helps the audience, and only then the soft business relevance.
+      - Do not make the client's product/service name the premise of the idea. If an idea only says the client/product wins, out-positions, is better, or should be chosen, rewrite it into an educational viewer lesson or reject it as `promotional_not_value_first`.
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
    22. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
-   23. Select the best idea of the day.
-   24. Write the configured WideCast-writing-skill draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the account-free writing skill fallback when provider/account access is unavailable.
+   23. Select the best idea of the day only from ideas that pass the Audience Value-First Gate.
+   24. Write the configured production-ready draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the account-free writing skill fallback when provider/account access is unavailable. Drafts must preserve the same viewer-value lesson and must not become direct ads for the client's product/service. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
    25. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
-   26. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   27. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the three HTML files, or record the exact PDF blocker/status.
-   28. Update or copy `outputs/latest/{client-name}-daily-report.html`.
-   29. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   30. Update `history/YYYY-MM/content_log.md`.
-   31. Update `history/YYYY-MM/data_sources_log.md`.
-   32. Update `history/YYYY-MM/lead_log.md`.
-   33. Update `history/YYYY-MM/competitor_log.md`.
+   26. Generate the three-file client-facing HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+   27. Generate or update the operator-only `{client-name}-INTERNAL_REPORT.html`, clearly labeled `INTERNAL_REPORT - Not for client sharing`, and put Solo Agency/WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/automation/blocker/debug details there.
+   28. Run the Client-Blind Scrub Gate on the client-facing HTML files. They must not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
+   29. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the scrubbed three HTML files, or record the exact PDF blocker/status.
+   30. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   31. Update or copy `outputs/latest/{client-name}-INTERNAL_REPORT.html`.
+   32. Update or copy the latest public/private lane HTML files when those lane reports exist.
+   33. Update `history/YYYY-MM/content_log.md`.
+   34. Update `history/YYYY-MM/data_sources_log.md`.
+   35. Update `history/YYYY-MM/lead_log.md`.
+   36. Update `history/YYYY-MM/competitor_log.md`.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, send a notification to the human that includes the agent identity, run status, HTML report path/link, PDF companion path/status, clients processed, blockers, lead/competitor counts, and required actions.
+9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, send a notification to the human/operator that includes run status, client-facing HTML report path/link, PDF companion path/status, INTERNAL_REPORT path/status, clients processed, blockers, lead/competitor counts, and required actions.
 9. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
 10. Log the notification attempt in `notifications/notification_log.md`.
 
@@ -768,7 +775,7 @@ The daily run is complete only when every active client is processed or explicit
 
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result plus PDF companion path/status, or a result-ready notification with the HTML path/link plus PDF companion path/status, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
+Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the scrubbed mobile-friendly client-facing HTML result plus PDF companion path/status plus INTERNAL_REPORT path/status, or a result-ready notification with those paths/statuses, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
 
 ---
 
