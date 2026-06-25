@@ -24,6 +24,10 @@ from typing import Any
 
 
 DEFAULT_DISCOVERY_URL = "https://widecast.ai/openapi.yaml"
+DEFAULT_WIDECAST_SERVER_URL = "https://widecast.ai/app/dashboard"
+DEFAULT_DISABLED_SERVER_URLS = {
+    "widecast": {"https://api.widecast.ai"},
+}
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
 USER_AGENT = "SoloAgencyOpenAPIAdapter/1.0"
 
@@ -76,6 +80,88 @@ def _discovery_url(defaults: dict[str, Any], config: dict[str, Any], provider: s
     return str(default_block.get("discovery_url") or DEFAULT_DISCOVERY_URL)
 
 
+def _normalize_url(url: str) -> str:
+    return str(url or "").strip().rstrip("/")
+
+
+def _as_string_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [str(item) for item in value if str(item).strip()]
+    return []
+
+
+def _disabled_server_urls(defaults: dict[str, Any], config: dict[str, Any], provider: str) -> set[str]:
+    default_block = defaults.get("providers", {}).get(provider, {})
+    block = _provider_block(config, provider)
+    disabled = set(DEFAULT_DISABLED_SERVER_URLS.get(provider, set()))
+    disabled.update(_as_string_list(default_block.get("disabled_server_urls")))
+    disabled.update(_as_string_list(block.get("disabled_server_urls")))
+    return {_normalize_url(url) for url in disabled if _normalize_url(url)}
+
+
+def _preferred_server_urls(defaults: dict[str, Any], config: dict[str, Any], provider: str) -> list[str]:
+    default_block = defaults.get("providers", {}).get(provider, {})
+    block = _provider_block(config, provider)
+    preferred = []
+    for source in (
+        block.get("server_url"),
+        block.get("preferred_server_url"),
+        default_block.get("server_url"),
+        default_block.get("preferred_server_url"),
+    ):
+        preferred.extend(_as_string_list(source))
+    if provider == "widecast":
+        preferred.append(DEFAULT_WIDECAST_SERVER_URL)
+    seen = set()
+    result = []
+    for url in preferred:
+        normalized = _normalize_url(url)
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            result.append(normalized)
+    return result
+
+
+def _select_server_url(
+    defaults: dict[str, Any],
+    config: dict[str, Any],
+    provider: str,
+    server_urls: list[str],
+) -> tuple[str, list[str]]:
+    disabled = _disabled_server_urls(defaults, config, provider)
+    cleaned_candidates = []
+    seen = set()
+    for url in server_urls:
+        normalized = _normalize_url(url)
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            cleaned_candidates.append(normalized)
+
+    skipped_disabled = [url for url in cleaned_candidates if url in disabled]
+    for url in _preferred_server_urls(defaults, config, provider):
+        if url in disabled:
+            if url not in skipped_disabled:
+                skipped_disabled.append(url)
+            continue
+        return url, skipped_disabled
+
+    for url in cleaned_candidates:
+        if url in disabled:
+            continue
+        return url, skipped_disabled
+
+    if skipped_disabled:
+        raise ProviderError(
+            "provider_discovery_failed: all discovered/preferred OpenAPI server URLs are disabled: "
+            + ", ".join(skipped_disabled)
+        )
+    raise ProviderError("provider_discovery_failed: OpenAPI server URL not found")
+
+
 def _fetch(url: str, headers: dict[str, str] | None = None) -> tuple[int, str, bytes]:
     merged = {"User-Agent": USER_AGENT, "Accept": "application/yaml, application/json, text/yaml, */*"}
     merged.update(headers or {})
@@ -120,7 +206,7 @@ def _request_json(
 
 
 def _parse_openapi_yaml(text: str) -> dict[str, Any]:
-    server_url = ""
+    server_urls: list[str] = []
     operations: dict[str, dict[str, str]] = {}
     current_path = ""
     current_method = ""
@@ -133,8 +219,8 @@ def _parse_openapi_yaml(text: str) -> dict[str, Any]:
         if stripped == "servers:":
             in_servers = True
             continue
-        if in_servers and stripped.startswith("- url:") and not server_url:
-            server_url = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+        if in_servers and stripped.startswith("- url:"):
+            server_urls.append(stripped.split(":", 1)[1].strip().strip('"').strip("'"))
             continue
         if stripped == "paths:":
             in_paths = True
@@ -162,16 +248,16 @@ def _parse_openapi_yaml(text: str) -> dict[str, Any]:
                 "path": current_path,
             }
 
-    if not server_url:
+    if not server_urls:
         raise ProviderError("provider_discovery_failed: OpenAPI server URL not found")
-    return {"server_url": server_url, "operations": operations}
+    return {"server_urls": server_urls, "server_url": server_urls[0], "operations": operations}
 
 
 def _parse_openapi(raw: bytes, content_type: str) -> tuple[dict[str, Any], str]:
     text = raw.decode("utf-8", "replace")
     if "json" in content_type or text.lstrip().startswith("{"):
         doc = json.loads(text)
-        server_url = doc.get("servers", [{}])[0].get("url")
+        server_urls = [str(item.get("url")) for item in doc.get("servers", []) if item.get("url")]
         operations = {}
         for path, methods in doc.get("paths", {}).items():
             for method, op in methods.items():
@@ -180,9 +266,9 @@ def _parse_openapi(raw: bytes, content_type: str) -> tuple[dict[str, Any], str]:
                 operation_id = op.get("operationId")
                 if operation_id:
                     operations[operation_id] = {"method": method.upper(), "path": path}
-        if not server_url:
+        if not server_urls:
             raise ProviderError("provider_discovery_failed: OpenAPI server URL not found")
-        return {"server_url": server_url, "operations": operations}, text
+        return {"server_urls": server_urls, "server_url": server_urls[0], "operations": operations}, text
     return _parse_openapi_yaml(text), text
 
 
@@ -193,6 +279,13 @@ def _load_spec(args: argparse.Namespace, config: dict[str, Any], defaults: dict[
     if status >= 400:
         raise ProviderError(f"provider_discovery_failed: status={status}")
     parsed, raw_text = _parse_openapi(raw, content_type)
+    parsed["server_url"], skipped_disabled = _select_server_url(
+        defaults,
+        config,
+        provider,
+        parsed.get("server_urls") or [parsed.get("server_url", "")],
+    )
+    parsed["skipped_disabled_server_urls"] = skipped_disabled
     return provider, parsed, raw_text
 
 
@@ -236,6 +329,8 @@ def cmd_discover(args: argparse.Namespace) -> int:
         "discovered_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "discovery_url": args.discovery_url or _discovery_url(defaults, config, provider),
         "server_url": parsed["server_url"],
+        "server_urls_discovered": parsed.get("server_urls", []),
+        "server_urls_skipped_disabled": parsed.get("skipped_disabled_server_urls", []),
         "operation_ids": {k: v for k, v in sorted(parsed["operations"].items())},
     }
     if args.out_dir:

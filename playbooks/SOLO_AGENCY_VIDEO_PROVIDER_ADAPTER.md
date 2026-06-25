@@ -68,6 +68,14 @@ When a writing or production skill names a provider-specific tool, map it to the
 
 For WideCast, the default discovery URL is `https://widecast.ai/openapi.yaml`, but the agent must still read the current client's provider config first and must not infer availability from a global MCP connection.
 
+WideCast server selection rule:
+
+- Current production API server: `https://widecast.ai/app/dashboard`.
+- Disabled/planned vanity host: `https://api.widecast.ai`.
+- If the OpenAPI `servers` list includes both, select `https://widecast.ai/app/dashboard` and skip `https://api.widecast.ai`.
+- Do not try `https://api.widecast.ai` first and do not fall back to it after a dashboard-path failure unless a future Solo Agency playbook explicitly removes it from `disabled_server_urls`.
+- If an older `provider_config.local.json`, `provider_capabilities.json`, or `provider_openapi_cache.yaml` selected `https://api.widecast.ai`, refresh discovery/capabilities, update the selected server, and log `provider_server_selection_corrected`.
+
 ## Override For Vendored WideCast Skill Text
 
 If a vendored WideCast writing skill says:
