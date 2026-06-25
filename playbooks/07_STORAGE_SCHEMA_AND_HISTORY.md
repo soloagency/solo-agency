@@ -45,6 +45,7 @@ The current canonical runtime/data layout is:
       github_issues.md
       update_state.json
       update_log.md
+      update_notice.md
       update_watch_prompt.md
       backups/
         update_YYYY-MM-DD_HHMMSS/
@@ -168,11 +169,13 @@ Use one folder per client/business/location:
     github_issues.md
     update_state.json
     update_log.md
+    update_notice.md
     update_watch_prompt.md
     backups/
     github_issues.md
     update_state.json
     update_log.md
+    update_notice.md
     update_watch_prompt.md
     backups/
       update_YYYY-MM-DD_HHMMSS/
@@ -619,6 +622,31 @@ Recommended change classifications:
 - `setup_or_schedule_contract`
 - `breaking_or_major_behavior`
 - `unknown`
+
+### `automation/update_notice.md`
+
+Internal/local notice for the latest GitHub update-watch outcome.
+
+Use this file when a new Solo Agency version is available, an update was applied, auto-apply is disabled and the human needs to decide, or bridge/extension human action is required.
+
+Do not send update-watch notices through Telegram, WideCast/email fallback, provider notification channels, social posting, or client notification channels. Version checks and applied updates are internal user/agency maintenance, not client delivery. Do not put update-watch rows in `notifications/notification_log.md`; that log is for report/result delivery and related operational notifications.
+
+Minimum content:
+
+```md
+# Solo Agency Update Notice
+
+- checked_at:
+- installed_commit:
+- latest_github_commit:
+- change_classification:
+- auto_apply_approved:
+- update_applied:
+- bridge_action_required:
+- extension_reload_required:
+- automation_prompt_update_pending:
+- next_human_action:
+```
 
 ### `automation/update_watch_prompt.md`
 
