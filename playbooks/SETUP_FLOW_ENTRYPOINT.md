@@ -35,6 +35,18 @@ Required behavior:
 - If GitHub access fails because of network or sandbox restrictions, request the needed permission or give the human one exact clone/download command. Do not proceed with stale local code.
 - Record the verified source path and commit hash in `daily-content-pipeline/collector/collector_setup_status.md` or `daily-content-pipeline/automation/resync_log.md` when those files exist.
 
+## Setup Blocker Recovery
+
+If setup hits any unexpected blocker, old/corrupt artifact, missing file, permission mismatch, stale extension/collector behavior, instruction conflict, or dead end:
+
+1. Assume the setup agent may be using an old Solo Agency version.
+2. Re-run the Fresh Source Acquisition Hard Gate against GitHub `main`.
+3. Reload `SOLO_AGENCY_PLAYBOOK.md` plus the relevant child playbooks from the verified latest source.
+4. If the newest playbook fixes the setup path, continue from the latest rule and resync the client setup/automation state.
+5. If the newest GitHub version still leaves the setup blocked, escalate without requiring the human to have a GitHub account: create a redacted GitHub issue when the agent/runtime has an authorized GitHub identity, send/queue it through a configured support/intake channel when available, or write a ready-to-post issue draft.
+
+Do not include private client data, secrets, cookies, tokens, raw private data source captures, or logged-in screenshots in GitHub issues. If direct issue creation/sending is unavailable, write the draft under `daily-content-pipeline/automation/issues/`, track it in `daily-content-pipeline/automation/github_issues.md`, and tell the human the path.
+
 ## Required Setup Output
 
 For each configured client, Setup Flow must leave these current:

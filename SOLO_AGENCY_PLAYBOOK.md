@@ -221,6 +221,31 @@ https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/
 
 Load only the stage needed for the current action, plus any dependency named by that stage.
 
+## Last-Resort Recovery And GitHub Issue Escalation Rule
+
+Solo Agency changes frequently. When the agent encounters any blocker, repeated failure, confusing contradiction, tool/config mismatch, stale asset, missing capability, or operational dead end, it must first assume the local playbook/code may be old.
+
+Before saying "blocked" or asking the human to debug manually, the agent must run this recovery sequence:
+
+1. Perform a Fresh GitHub Source Check against `https://github.com/soloagency/solo-agency` `main`.
+2. Use a fresh unique checkout or raw GitHub playbook files; never use a shared `/tmp/solo-agency` cache.
+3. Record the local commit, GitHub `main` commit, and whether they match.
+4. Reload the relevant latest playbooks from GitHub/main and check whether a newer rule fixes the issue.
+5. If the latest playbook/code contains a fix or clearer protocol, follow it, update/resync the current client setup or automation state, and note the recovery in the human-facing progress/blocker message.
+6. If the latest GitHub version still leaves the agent stuck, create or draft a GitHub issue for `soloagency/solo-agency`.
+
+GitHub issue escalation rules:
+
+- The human does not need a GitHub account for blocker escalation. Do not make "please register for GitHub" the only recovery path.
+- Direct issue creation still requires an authorized GitHub identity. Prefer `gh issue create` only when `gh auth status` passes, `GITHUB_TOKEN`, `GH_TOKEN`, or `SOLO_AGENCY_GITHUB_ISSUE_TOKEN` is configured, a GitHub App/maintainer bot is available, and the environment permits issue creation.
+- Preferred operator setup is a dedicated maintainer bot token or GitHub App with the narrowest possible issue-writing access for `soloagency/solo-agency`, exposed only in trusted agent runtimes. Never store this token in client config, reports, issue drafts, or committed files.
+- If no authorized GitHub identity is available but a project support/intake channel is configured, send or queue the redacted issue draft through that channel.
+- If the agent cannot create or send the issue directly, write a ready-to-post issue draft under `daily-content-pipeline/automation/issues/`.
+- Track every opened/sent/drafted issue in `daily-content-pipeline/automation/github_issues.md` with issue URL/number, intake channel, or draft path, blocker fingerprint, affected client if safe to name, local commit, GitHub commit checked, current status, next check date, and latest response summary.
+- Check tracked open issues during later setup repair, scheduled runs, and blocker recovery; if a founder/community response gives a fix, apply it, resync automation, update the tracker, and tell the human.
+- Do not spam duplicate issues. Reuse or update an existing issue when the blocker fingerprint matches.
+- Never include secrets, API keys, cookies, browser session tokens, private data source raw content, client-confidential details, raw logged-in screenshots, or sensitive customer data in a public issue. Use redacted summaries and local paths only when safe.
+
 ## Stage Map
 
 | Stage | File | Load When |
@@ -271,6 +296,7 @@ After any human-approved change that affects what a future scheduled run should 
 - Local Collector status, bridge path, extension status, scan depth, or collector config;
 - PDNA provider setup, WideCast/OpenAPI/API key configuration, Telegram/email fallback notification status, publishing targets, analytics access, or published URL history;
 - schedule cadence, timezone, active clients, manual-only mode, or notification channel;
+- GitHub issue tracker status, maintainer/community fix guidance, or issue-derived workaround that future scheduled runs must remember;
 - playbook/instruction behavior that scheduled runs must obey.
 
 Automation Resync means updating the full automation package, not only one JSON or Markdown file:
@@ -282,8 +308,9 @@ Automation Resync means updating the full automation package, not only one JSON 
 5. Update `daily-content-pipeline/collector/collector_config.json` or `POST /config` when private data source collection is affected.
 6. Update `daily-content-pipeline/automation/automation_manifest.md`.
 7. Update `daily-content-pipeline/automation/scheduled_run_prompt.md` and the actual native AI automation/scheduled-task prompt when that environment stores its own prompt snapshot.
-8. Update `daily-content-pipeline/automation/resync_log.md`.
-9. Run a dry-read verification: read the scheduled entrypoint, manifest, provider defaults/config when relevant, schedule, profile, and collector config as tomorrow's scheduled agent would, and confirm the newest approved state is visible.
+8. Update `daily-content-pipeline/automation/github_issues.md` when a tracked issue, issue response, or issue-derived workaround affects future runs.
+9. Update `daily-content-pipeline/automation/resync_log.md`.
+10. Run a dry-read verification: read the scheduled entrypoint, manifest, issue tracker, provider defaults/config when relevant, schedule, profile, and collector config as tomorrow's scheduled agent would, and confirm the newest approved state is visible.
 
 If the agent cannot edit the actual native AI automation task body directly, it must write the exact replacement scheduled prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and ask the human to update the native task. Do not say the schedule is fully updated until that prompt snapshot is updated or the limitation is clearly logged.
 
@@ -478,6 +505,7 @@ The agent may omit the next-step question only when the entire requested workflo
 - Configure schedule/routine and the client-specific automation task before the first report; if private data sources exist and Local Collector is not active, handle step 7A or mark private data sources as pending before declaring automation ready.
 - If no private data sources are provided, offer optional private data source discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds before treating the private data source step as resolved.
 - Canonical user-facing reports are HTML. Markdown is internal. PDF is allowed only as an explicitly requested client-share export derived from the three HTML files.
+- Before declaring any blocker/dead end, check GitHub `main` for newer Solo Agency playbooks/code; if latest GitHub still does not resolve it, create, send, or draft a redacted issue without requiring the human to have a GitHub account, then track it in `automation/github_issues.md`.
 - Private data stays local unless the human explicitly approves export.
 - Never ask for passwords, OTPs, cookies, tokens, or raw credentials.
 - Do not use approval-gated browser extensions for unattended private collection.
