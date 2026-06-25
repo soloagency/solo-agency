@@ -339,11 +339,19 @@ The agent must not create a WideCast video until the human explicitly approves.
 
 Before creating videos, sending notifications, uploading reports, publishing, or retrieving analytics through an account-level provider, the agent must check whether the client has a configured production provider.
 
+#### Client Tools First Capability Check
+
+For every provider/tool availability question, check Client tools first and global MCP/native tools second. This applies when the human asks whether the agent can make a video, write/create a blog, upload media, send Telegram/email notifications, publish, read analytics, check credits, inspect connected platforms, or "check tools".
+
+Client tools means the current client's `integrations/providers/provider_config.local.json`, fetched OpenAPI spec/cache, verified provider account identity, `provider_capabilities.json`, `provider_health.md`, and redacted provider call logs. Global MCP/native tools are never the first source of truth. They are only an optional compatibility path after the identity is proven to match this client.
+
+If Client tools expose the required OpenAPI operation but the global MCP list does not, use the Client tools path. If Client tools are missing or stale, refresh OpenAPI discovery or log the exact provider-neutral blocker before saying the tool is unavailable.
+
 #### Client-Scoped PDNA Identity Gate
 
 PDNA setup is client-scoped. The current AI session's WideCast MCP tools, connector account, visible account profile, credits, or connected platforms are never authoritative by themselves for a Solo Agency client.
 
-Before saying WideCast, a production provider, notifications, publishing, analytics, credits, or connected platforms are available for a client, the agent must:
+Before saying WideCast, a production provider, notifications, publishing, analytics, credits, connected platforms, or any provider tool is available or unavailable for a client, the agent must check Client tools first:
 
 1. Identify the active `target_client_slug` and the client's pipeline folder from `clients_index.md`, the Client Intelligence Profile, or the setup context.
 2. Read the client's `integrations/providers/provider_config.local.json`.
@@ -354,7 +362,7 @@ Before saying WideCast, a production provider, notifications, publishing, analyt
 7. Discover this client's capability status from the verified OpenAPI operation list and, when needed, operations such as `listAccounts`, `getPlatformSettings`, `getAnalytics`, or equivalent provider-specific operations called with the client credential.
 8. Save `provider_capabilities.json`, `provider_health.md`, and a redacted `provider_calls.jsonl` entry under the same client's `integrations/providers/` folder.
 
-If WideCast MCP/native tools are visible in the current AI host before the per-client config is verified, record only `global_mcp_available_but_not_authoritative` in notes if useful. Do not use MCP-global account name, credits, connected platforms, Telegram status, analytics, or publish settings to mark this client's PDNA as connected.
+If WideCast MCP/native tools are visible in the current AI host before the per-client config is verified, record only `global_mcp_available_but_not_authoritative` in notes if useful. Do not use MCP-global account name, credits, connected platforms, Telegram status, analytics, or publish settings to mark this client's PDNA as connected. Do not check global MCP/native tools first.
 
 MCP or native tools may be used only as an optional compatibility execution path after one of these is true:
 
@@ -452,7 +460,8 @@ If WideCast is not configured for this client, the agent must:
    - Notification: `uploadAsset`, `sendTelegramMessage`.
    - Analytics: `getAccount`, `getAnalytics`, `listVideos`, `getStatus`, `getVideoData`.
 12. Save provider capability status for the automation task.
-13. If automatic setup is not possible, provide the exact minimal human steps and log the blocker.
+13. Automation Resync must update the scheduled task/prompt with the active provider, client provider config path, provider capability cache path, verified account status, and the rule: `check Client tools first, then global MCP/native tools`.
+14. If automatic setup is not possible, provide the exact minimal human steps and log the blocker.
 
 The agent must never ask for:
 
@@ -633,6 +642,7 @@ The phrase "WideCast is already available" means this client's provider config i
 
 The agent may use available WideCast OpenAPI operations, native tools, or optional MCP tools only after the Client-Scoped PDNA Identity Gate passes. It must still:
 
+- Check Client tools first, then global MCP/native tools only as optional compatibility after account identity matches.
 - Show the script to the human.
 - Get approval before creating a video.
 - Get explicit confirmation before rendering/exporting/publishing/spending credits.
@@ -659,7 +669,8 @@ For account setup, the agent must:
 9. Fetch and cache `https://widecast.ai/openapi.yaml`.
 10. Verify account identity with `getAccount`.
 11. Write `provider_capabilities.json`, `provider_health.md`, and an Automation Resync record.
-12. If automatic setup is not possible, provide concise environment-specific instructions and log the exact blocker.
+12. Update the automation/scheduled task prompt with the active provider, client provider config path, provider capability cache path, verified account status, and the explicit instruction to check Client tools first before global MCP/native tools.
+13. If automatic setup is not possible, provide concise environment-specific instructions and log the exact blocker.
 
 The agent must not ask for WideCast account credentials.
 
@@ -675,7 +686,7 @@ The correct sequence is:
 4. Write script.
 5. Show script to human.
 6. Ask for approval.
-7. Only after approval, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md`, resolve the current client's verified provider and `production.create_video` operation from OpenAPI capabilities, then create the video through that client-scoped operation. For WideCast, use the WideCast OpenAPI operation only after this client's WideCast account identity is verified. Use MCP/native tools only if they are proven to be the same client account.
+7. Only after approval, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md`, resolve the current client's verified provider and `production.create_video` operation from Client tools/OpenAPI capabilities first, then create the video through that client-scoped operation. For WideCast, use the WideCast OpenAPI operation only after this client's WideCast account identity is verified. Use MCP/native tools only if they are proven to be the same client account.
 
 ### WideCast Telegram Notification Protocol
 
@@ -701,52 +712,57 @@ Use WideCast OpenAPI notification/Telegram/email fallback for:
 - Credits or account issues.
 - Any blocker that requires human action.
 
-### WideCast HTML Report Upload Before Telegram
+### WideCast HTML Report Upload And PDF Companion Before Telegram
 
-When WideCast notification/Telegram/email fallback is configured and the run produced an HTML report, the agent must upload the HTML report to WideCast before sending the message if OpenAPI discovery exposes an upload operation that supports HTML files. For WideCast this operation is `uploadAsset` with `text/html`.
+When WideCast notification/Telegram/email fallback is configured and the run produced an HTML report, the agent must also produce the mandatory PDF companion from the HTML report set before report handoff. The agent must upload the HTML report to WideCast before sending the message if Client tools/OpenAPI discovery expose an upload operation that supports HTML files. For WideCast this operation is `uploadAsset` with `text/html`. Upload the PDF companion too only when the verified client provider exposes a compatible PDF/file upload path; otherwise include the local PDF path or exact PDF blocker in the notification.
 
-This is a report-delivery completion gate, not an optional polish step. A "report ready" notification that does not include an HTML report URL/path is invalid.
+This is a report-delivery completion gate, not an optional polish step. A "report ready" notification that does not include an HTML report URL/path and PDF companion status is invalid.
 
 Before sending any report-ready notification, the agent must create a delivery record with:
 
 - `local_html_report_path`;
+- `local_pdf_report_path` or `client_pdf_blocker`;
+- `client_pdf_status`;
 - `provider`: normally `widecast`;
 - `provider_discovery_checked`: true/false;
 - `upload_operation_id`: normally `uploadAsset`;
 - `notification_operation_id`: normally `sendTelegramMessage`;
 - `provider_upload_attempted`: true/false;
 - `provider_uploaded_report_url`, if available;
+- `provider_uploaded_pdf_url`, if available;
 - `upload_blocker`, if upload was unavailable or failed;
 - `notification_channel`;
 - `notification_report_link`, which must be either the uploaded WideCast report URL or the best available local/hosted `.html` report path/link.
 
 Required sequence:
 
-1. Generate the standalone local `.html` report.
-2. Load the current client's provider config and fetch/cache the provider OpenAPI spec if needed.
-3. Verify the provider account with `getAccount` before using account actions.
-4. Inspect discovered WideCast operations for an HTML-capable upload operation and report/Telegram notification send capability. For WideCast, require `uploadAsset` and `sendTelegramMessage`.
-5. If such an endpoint exists, upload the `.html` file to WideCast as `text/html`.
-6. Capture the returned uploaded report URL.
-7. Send the uploaded WideCast report URL through WideCast Telegram/email fallback.
-8. If no HTML-capable upload endpoint exists or upload fails, log the blocker and send the best available local/hosted `.html` report path/link through WideCast notification anyway when notification is available.
-9. Include the run summary, blockers, lead/competitor counts, and the next action in the Telegram/email message.
-10. Log both the upload attempt and the notification in `daily-content-pipeline/notifications/notification_log.md`.
+1. Generate the standalone local `.html` report set.
+2. Generate or update `{client-name}-client-report.html` and `{client-name}-client-report.pdf` from that report set, or record the exact PDF blocker.
+3. Load the current client's provider config and fetch/cache the provider OpenAPI spec if needed.
+4. Verify the provider account with `getAccount` before using account actions.
+5. Inspect Client tools first for HTML/PDF-capable upload operations and report/Telegram notification send capability. For WideCast, require `uploadAsset` and `sendTelegramMessage` for the HTML path.
+6. If such an endpoint exists, upload the `.html` file to WideCast as `text/html`.
+7. Capture the returned uploaded report URL.
+8. If PDF upload is supported by the verified client provider, upload the PDF companion and capture its URL; otherwise keep the local PDF path/status.
+9. Send the uploaded WideCast report URL plus PDF companion URL/path/status through WideCast Telegram/email fallback.
+10. If no HTML-capable upload endpoint exists or upload fails, log the blocker and send the best available local/hosted `.html` report path/link plus PDF companion path/status through WideCast notification anyway when notification is available.
+11. Include the run summary, blockers, lead/competitor counts, and the next action in the Telegram/email message.
+12. Log both the upload attempt and the notification in `daily-content-pipeline/notifications/notification_log.md`.
 
-The Telegram message should link to the uploaded report URL, not only to a local file path, whenever an uploaded URL is available.
+The Telegram message should link to the uploaded HTML report URL, not only to a local file path, whenever an uploaded URL is available. It should also include the PDF companion URL/path/status so the recipient can choose HTML or PDF.
 
 WideCast `uploadAsset` URLs may be short-lived. Treat the uploaded URL as a notification/handoff link, not as the permanent archive. The permanent local archive remains the client output folder and `outputs/latest/` copies.
 
-The agent must not send a notification that only says the report is ready without including a clickable or copyable report URL/path. If it already sent such a notification by mistake, it must immediately send a correction message containing the HTML report link/path and log the correction.
+The agent must not send a notification that only says the report is ready without including a clickable or copyable report URL/path and PDF companion status. If it already sent such a notification by mistake, it must immediately send a correction message containing the HTML report link/path plus PDF status and log the correction.
 
 If the current WideCast OpenAPI spec or integration exposes only media upload and does not support `.html` report upload, the agent must not pretend the report was uploaded. It must:
 
 - log `provider_required_operation_missing` or `widecast_report_upload_unavailable`;
-- send the best available HTML report path/link through WideCast Telegram if possible;
+- send the best available HTML report path/link and PDF companion path/status through WideCast Telegram if possible;
 - tell the human whether the blocker is missing provider config, failed auth, failed OpenAPI discovery, missing operation, or upload failure;
 - continue the scheduled run instead of failing the entire pipeline.
 
-If the provider config is missing, auth fails, or OpenAPI discovery does not expose WideCast Telegram/report notification sending, log the provider-neutral blocker and the legacy WideCast alias when useful, then use the best authorized fallback channel or local HTML report path.
+If the provider config is missing, auth fails, or OpenAPI discovery does not expose WideCast Telegram/report notification sending, log the provider-neutral blocker and the legacy WideCast alias when useful, then use the best authorized fallback channel or local HTML report path plus PDF companion path/status.
 
 Every notification must include:
 
@@ -755,6 +771,7 @@ Every notification must include:
 - Client name or number of clients affected.
 - Short status summary.
 - The exact HTML report URL/path to open. This field is mandatory for report-ready notifications.
+- The exact PDF companion URL/path, or the exact PDF blocker/status.
 - What action the human needs to take, if any.
 - Timestamp when possible.
 
@@ -769,6 +786,7 @@ Agent: Claude Schedule
 Event: daily_run_completed
 Status: 10 client outputs are ready.
 Report: {uploaded WideCast HTML report URL if available; otherwise local HTML report path}
+PDF: {uploaded PDF URL if available; otherwise local PDF path or PDF blocker}
 Action needed: Review scripts and approve which ones should become WideCast videos.
 ```
 
@@ -791,7 +809,7 @@ If WideCast OpenAPI notification/Telegram capability is not available for this c
 
 1. Record the missing notification capability in `notifications/notification_log.md`.
 2. Check whether Gmail/email MCP, connector, plugin, or tool access is available.
-3. If Gmail/email is available and authorized, send the HTML report or HTML report path/link by email to the human.
+3. If Gmail/email is available and authorized, send the HTML/PDF reports or HTML report path/link plus PDF companion path/status by email to the human.
 4. If Gmail/email is not available, include the notification message in the local output or schedule log.
 5. Tell the human how to enable WideCast API key + Telegram/email fallback through WideCast setup, or suggest connecting Gmail/email as a secondary fallback notification channel for scheduled reports.
 

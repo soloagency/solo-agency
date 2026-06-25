@@ -352,7 +352,7 @@ Monthly organization rule:
 
 - Any file created daily must be stored under a `YYYY-MM/` folder.
 - This applies to client outputs, master digests, collector jobs, collector inboxes, history logs, data points, leads, competitors, and new private data source logs.
-- Keep `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-public-data-sources-report.html`, `outputs/latest/{client-name}-private-data-sources-report.html`, optional `outputs/latest/{client-name}-client-report.pdf`, `latest_master_digest.md`, and `latest_master_digest.html` as convenience pointers/copies.
+- Keep `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-public-data-sources-report.html`, `outputs/latest/{client-name}-private-data-sources-report.html`, required `outputs/latest/{client-name}-client-report.pdf` when PDF export is available and safe, `latest_master_digest.md`, and `latest_master_digest.html` as convenience pointers/copies.
 - Keep report state beside the dated report set as `YYYY-MM-DD/{client-name}-report_state.json`.
 - Do not allow long-running pipelines to accumulate hundreds or thousands of daily files directly in one folder.
 
@@ -550,10 +550,10 @@ Format:
 ```md
 # Notification Log
 
-| Date | Agent | Event | Lane Status | Channel | Status | HTML Report Path | Provider | Provider Discovery Checked | Upload Operation | Notification Operation | Upload Attempted | Uploaded Report URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude Schedule | daily_run_completed | public_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... | yes | https://... | none | Await private report or review approvals |
-| 2026-06-20 | Claude Schedule | daily_run_completed | private_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... | yes | https://... | none | Review daily report index and lane reports |
+| Date | Agent | Event | Lane Status | Channel | Status | HTML Report Path | PDF Report Path | PDF Status | Provider | Provider Discovery Checked | Upload Operation | Notification Operation | Upload Attempted | Uploaded HTML URL | Uploaded PDF URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-06-20 | Claude Schedule | daily_run_completed | public_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | outputs/2026-06/2026-06-20/angela-do-client-report.pdf | generated | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... |  | yes | https://... | none | Await private report or review approvals |
+| 2026-06-20 | Claude Schedule | daily_run_completed | private_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | outputs/2026-06/2026-06-20/angela-do-client-report.pdf | generated | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... |  | yes | https://... | none | Review daily report index and lane reports |
 ```
 
 Use this log so scheduled runs do not silently complete or fail while the human is away.
@@ -647,6 +647,7 @@ Credential rules:
 - Do not create or use a field named `api_key` in `provider_config.local.json`. The official helper reads `api_key_env` and `api_key_local`; a stray `api_key` field is ignored and will cause `provider_auth_missing`.
 - Never store passwords, OTPs, browser cookies, social session tokens, or raw OAuth refresh tokens here.
 - Before any provider action, verify the active provider account with the provider account operation, such as WideCast `getAccount`.
+- Before checking global MCP/native tools, check this per-client provider config plus OpenAPI/cache/capability files as Client tools. Global MCP/native tools are only compatibility after identity match.
 - If the verified account identity changes unexpectedly, stop provider actions and log `provider_account_mismatch`.
 - `provider_identity_source` must be `per_client_openapi` before PDNA is considered connected. `global_mcp_compat` is allowed only when the MCP/native tool identity has been compared to the saved client provider identity and matches exactly.
 - `mcp_compatibility_status` may be `not_used`, `identity_matched`, `identity_mismatch`, or `not_client_scoped`. If it is `identity_mismatch` or `not_client_scoped`, do not use MCP/native account data for this client's PDNA status.
@@ -654,9 +655,11 @@ Credential rules:
 
 #### `provider_capabilities.json`
 
-Snapshot of the OpenAPI operations discovered for the active provider. This is safe to keep without secrets.
+Snapshot of the OpenAPI operations discovered for the active provider. This is the main Client tools inventory for provider actions and is safe to keep without secrets.
 
 When local Python execution is available, agents may create or refresh this file with `tools/provider_openapi.py discover --config <client provider_config.local.json> --defaults daily-content-pipeline/provider_defaults.json --out-dir <client integrations/providers folder>`.
+
+Whenever the human or automation asks to check tools, check this Client tools file first. Only inspect global MCP/native tools after this file and the verified provider identity are current.
 
 Minimum shape:
 
@@ -791,7 +794,7 @@ Minimum format:
   "client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html",
   "client_report_pdf_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf",
   "latest_client_pdf_path": "outputs/latest/{client-name}-client-report.pdf",
-  "client_pdf_status": "not_requested",
+  "client_pdf_status": "pending",
   "client_pdf_redaction_status": "not_needed",
   "client_pdf_generated_at": "",
   "client_pdf_blocker": "",
@@ -831,12 +834,19 @@ Allowed notification status:
 - `skipped`
 - `failed`
 
+Allowed `client_pdf_status`:
+
+- `pending`
+- `generated`
+- `pending_review`
+- `blocked`
+
 Rules:
 
 - Public data source pass may write only `{client-name}-public-data-sources-report.html`, public source records, and `{client-name}-daily-report.html` status metadata. It must preserve any existing private report.
 - Private data source pass may write only `{client-name}-private-data-sources-report.html`, private source records, and `{client-name}-daily-report.html` status metadata. It must preserve any existing public report.
 - `latest/{client-name}-daily-report.html` must point to or copy the daily report index, not a lane-specific artifact.
-- `latest/{client-name}-client-report.pdf` is optional and must point to or copy a PDF generated from `{client-name}-client-report.html`, which itself is assembled from the three canonical HTML reports. It must not replace the daily report index.
+- `latest/{client-name}-client-report.pdf` is required when PDF export is available and safe, and must point to or copy a PDF generated from `{client-name}-client-report.html`, which itself is assembled from the three canonical HTML reports. It must not replace the daily report index. If PDF export is unavailable or unsafe, keep `client_pdf_status: blocked` and record `client_pdf_blocker`.
 - If a client-share PDF includes private data source findings, record `client_pdf_redaction_status` as `redacted`, `approved_exact_sources`, or `needs_human_review`.
 - If two notifications are sent, both should reference the same daily report path or uploaded URL, with lane status recorded in `notification_log.md`. Lane-specific links may be included as secondary links.
 
