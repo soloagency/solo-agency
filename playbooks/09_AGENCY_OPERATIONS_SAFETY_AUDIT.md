@@ -605,29 +605,30 @@ For each daily run:
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
    22. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
    23. Select the best idea of the day.
-   24. Write the configured WideCast-writing-skill draft using the writing skill fallback if MCP/account is unavailable.
+   24. Write the configured WideCast-writing-skill draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the writing skill fallback if provider/account access is unavailable.
    25. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
    26. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   27. Update or copy `outputs/latest/{client-name}-daily-report.html`.
-   28. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   29. Update `history/YYYY-MM/content_log.md`.
-   30. Update `history/YYYY-MM/data_sources_log.md`.
-   31. Update `history/YYYY-MM/lead_log.md`.
-   32. Update `history/YYYY-MM/competitor_log.md`.
+   27. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the three HTML files, or record the exact PDF blocker/status.
+   28. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   29. Update or copy the latest public/private lane HTML files when those lane reports exist.
+   30. Update `history/YYYY-MM/content_log.md`.
+   31. Update `history/YYYY-MM/data_sources_log.md`.
+   32. Update `history/YYYY-MM/lead_log.md`.
+   33. Update `history/YYYY-MM/competitor_log.md`.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, upload the HTML report first when an HTML-capable upload operation such as `uploadAsset` is available, then send a notification to the human that includes the uploaded report URL, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
-9. If another authorized channel can send the HTML file or link more conveniently, use it.
+9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, upload the HTML report first when an HTML-capable upload operation such as `uploadAsset` is available, upload the PDF companion too when the verified client provider supports PDF upload, then send a notification to the human that includes the uploaded report URL, PDF companion path/status, agent identity, run status, clients processed, blockers, lead/competitor counts, and required actions.
+9. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
 10. Log the notification attempt in `notifications/notification_log.md`.
 
 The daily run is complete only when every active client is processed or explicitly logged as skipped.
 
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
+Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result plus PDF companion path/status, or a result-ready notification with the HTML path/link plus PDF companion path/status, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
 
 ---
 
@@ -1318,7 +1319,7 @@ If the human gives a new client, the agent should enter Add Client Mode.
 
 After Add Client Mode or First Client Setup Mode, the agent must follow the fixed order: setup context, resolve private data source status, configure schedule/routine, handle the 7A Local Collector checkpoint if private data sources are pending, prepare or resync the client-specific automation task, then hand off the exact task name the human should run for the first report. Setup Flow must not jump into report generation, video creation, publishing, or production actions.
 
-The agent must summarize the first report and any required next action directly in chat. It must provide the HTML report path/link only. It must not make the human open a Markdown file to review the report, activate private data sources, run setup, fix a blocker, or choose the next step.
+The agent must summarize the first report and any required next action directly in chat. It must provide the HTML report path/link as the primary review link plus the PDF companion path/status. It must not make the human open a Markdown file to review the report, activate private data sources, run setup, fix a blocker, or choose the next step.
 
 If the human asks for daily output, the agent should process all active clients in `clients_index.md`.
 
@@ -1371,16 +1372,17 @@ A daily run is complete when:
 9. Each idea is labeled as `primary_industry` or `related_industry`, with a visible related-industry note and bridge-back logic shown for related-industry ideas.
 10. One configured WideCast-writing-skill draft is written for each processed client, defaulting to video script and adding blog/article or social caption when configured.
 11. One per-client canonical three-file HTML report set is created for each processed client: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-12. The report state file `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` is created/updated for each processed client.
-13. `outputs/latest/{client-name}-daily-report.html` is updated for each processed client and points to the daily report index, not a lane-specific report.
-14. Client history is updated, including industry scope for selected ideas so the 80/20 mix can be tracked over time.
-15. Lead and competitor logs are updated.
-16. Approval status is tracked.
-17. Markdown and mobile-friendly HTML master digests are created when a master digest task is configured.
-18. `latest_master_digest.md` and `latest_master_digest.html` are updated when a master digest task is configured.
-19. Human-facing reports and notifications are written in the language the human uses.
-20. The human is notified through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback, with the `{client-name}-daily-report.html` path/link. Public and private notifications are both allowed, but they should point to the same daily report index path or uploaded URL, with lane-specific report links only as secondary links. The Markdown report path must not be presented as a user-facing report link.
-21. Human approval options are shown.
+12. The mandatory PDF companion `{client-name}-client-report.pdf` is created from the three HTML files, or the exact PDF blocker/status is recorded.
+13. The report state file `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` is created/updated for each processed client.
+14. `outputs/latest/{client-name}-daily-report.html` and `outputs/latest/{client-name}-client-report.pdf` are updated for each processed client when available and point to the daily report index/PDF companion, not a lane-specific report.
+15. Client history is updated, including industry scope for selected ideas so the 80/20 mix can be tracked over time.
+16. Lead and competitor logs are updated.
+17. Approval status is tracked.
+18. Markdown and mobile-friendly HTML master digests are created when a master digest task is configured.
+19. `latest_master_digest.md` and `latest_master_digest.html` are updated when a master digest task is configured.
+20. Human-facing reports and notifications are written in the language the human uses.
+21. The human is notified through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback, with the `{client-name}-daily-report.html` path/link plus PDF companion path/status. Public and private notifications are both allowed, but they should point to the same daily report index path or uploaded URL, with lane-specific report links only as secondary links. The Markdown report path must not be presented as a user-facing report link.
+22. Human approval options are shown.
 
 An agency operating cycle is complete when:
 
@@ -1419,12 +1421,14 @@ Before replying to the human, verify:
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I am about to report a blocker, repeated failure, unclear contradiction, stale artifact, missing capability, or dead end, did I first run Last-Resort Recovery by checking GitHub `main` for newer Solo Agency playbooks/code and reloading the latest relevant instructions?
 - [ ] If the latest GitHub version still did not resolve the blocker, did I create, send, or draft a redacted issue without requiring the human to have a GitHub account, record the issue URL/number, intake channel, or draft path in `daily-content-pipeline/automation/github_issues.md`, and tell the human how it will be tracked?
-- [ ] If I mentioned a report, did I provide only the HTML path/link for human review and avoid showing the Markdown report path?
+- [ ] If I mentioned a report, did I provide the HTML path/link as the primary human review link, include the PDF companion path/status, and avoid showing the Markdown report path?
 - [ ] If I mentioned a report and any workflow step remains, did I include both the progress block and the required next-step question in chat instead of relying on the report's `Next Action` section?
+- [ ] If I checked tools/capabilities or claimed a tool was available/unavailable, did I check Client tools first (`provider_config.local.json`, OpenAPI cache/spec, verified identity, `provider_capabilities.json`) and global MCP/native tools only second?
 - [ ] In Setup Flow, did I avoid running the first agency run/report directly and instead prepare or resync the client-specific automation task?
 - [ ] In Automation Flow, did I avoid jumping to the first report before private data source status, the 7A Local Collector checkpoint, and schedule/routine were resolved or honestly marked pending?
-- [ ] If I generated or announced an HTML report, did I run the Stage 6 Provider Report Delivery Capability Check: inspect the configured provider/OpenAPI spec and account identity, attempt upload/notification when available, log exact blockers when unavailable, and provide the HTML report path/link?
-- [ ] If WideCast upload/Telegram was skipped, did I check the per-client OpenAPI provider path before treating legacy MCP/tool-surface absence as a blocker?
+- [ ] If I generated or announced an HTML report, did I generate/update the mandatory PDF companion or record the exact PDF blocker/status?
+- [ ] If I generated or announced an HTML report, did I run the Stage 6 Provider Report Delivery Capability Check: inspect Client tools first, verify the configured provider/OpenAPI spec and account identity, attempt upload/notification when available, log exact blockers when unavailable, and provide the HTML report path/link plus PDF companion path/status?
+- [ ] If WideCast upload/Telegram was skipped, did I check Client tools first before treating legacy/global MCP/native tool absence as a blocker?
 - [ ] Did I avoid asking for credentials, cookies, passwords, OTPs, or tokens?
 - [ ] Did I avoid calling the collector a Facebook collector?
 - [ ] If the human asked for any private data source scan after conversation drift, including logged-in/account-required groups, feeds, profiles, pages, communities, or sources, did I reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before acting?
@@ -1659,6 +1663,7 @@ Before presenting production setup choices or claiming the PDNA setup gate is co
 - [ ] If asking the human to connect WideCast, did I give the exact OpenAPI/API key path: register at `https://widecast.ai/#setup` (free 50 credits/month when that offer is shown), log in, click `Setup AI Agent`, open `API Keys & MCP`, click `Setup`, click `Generate API key and MCP url`, then copy only the API key for this specific client?
 - [ ] Did I ask the human to connect Telegram for daily report links/blockers/approval requests, and optionally connect this client's social accounts to enable 10+ platform publishing only after exact content and target platforms are approved?
 - [ ] Before checking WideCast account status, credits, connected platforms, publish settings, Telegram, analytics, or capabilities, did I identify the active `target_client_slug` and read that client's `integrations/providers/provider_config.local.json`?
+- [ ] Before checking any provider tool availability, did I check Client tools first (provider config, OpenAPI cache/spec, verified identity, `provider_capabilities.json`) and global MCP/native tools only second?
 - [ ] Did I avoid treating a global WideCast MCP/native tool account in the current AI session as proof that this client's PDNA is connected?
 - [ ] If only a global MCP/native provider account was visible, did I mark `global_mcp_not_client_scoped` or `global_mcp_available_but_not_authoritative` instead of listing those global credits/platforms as this client's status?
 - [ ] Did I verify the account through this client's configured OpenAPI/API-key path and compare the verified identity to the saved client provider identity before claiming PDNA is connected?
@@ -1706,7 +1711,7 @@ Before saying the run is complete, verify:
 - [ ] Did the report end with exactly one primary next action, with secondary actions clearly de-emphasized?
 - [ ] Did the chat or notification that announces the report show an updated progress block when required steps remain?
 - [ ] If schedule/automation already exists, did that chat or notification include an `Automation freshness check` instead of only saying the config/report is updated?
-- [ ] Did the chat or notification include the Provider Report Delivery Capability Check outcome: provider/OpenAPI discovery checked, account verified or blocker, upload attempted or blocker, notification attempted or blocker, and final HTML report path/link?
+- [ ] Did the chat or notification include the Provider Report Delivery Capability Check outcome: Client tools checked first, provider/OpenAPI discovery checked, account verified or blocker, upload attempted or blocker, notification attempted or blocker, final HTML report path/link, and PDF companion path/status?
 - [ ] Did that chat or notification end with exactly one concrete next-step question when the human needs to choose the next step?
 - [ ] Is the HTML factually aligned with the internal Markdown report?
 - [ ] Is the HTML standalone and portable?
@@ -1717,7 +1722,7 @@ Before saying the run is complete, verify:
 - [ ] Did the HTML draft section visibly tell the human they can fine-tune the draft on the page, copy the final version, and paste it back into the AI chat?
 - [ ] Did every editable version clearly say the human should copy the edited final text and paste it back into the AI chat?
 - [ ] Did I update `outputs/latest/{client-name}-daily-report.html` and the latest lane HTML files when those lane reports exist?
-- [ ] If the human requested a client-share PDF, did I generate `{client-name}-client-report.html` from the three canonical HTML files before exporting `{client-name}-client-report.pdf`?
+- [ ] Did I generate `{client-name}-client-report.html` from the three canonical HTML files before exporting the mandatory `{client-name}-client-report.pdf`, or record the exact PDF blocker/status?
 - [ ] If the PDF includes private data source findings, did I redact raw private posts, group member details, login/session details, collector internals, and unapproved private source URLs/excerpts, or mark `client_pdf_redaction_status: needs_human_review` instead of exporting?
 - [ ] Did I preserve the canonical `.html` report path/link even when also providing a `.pdf` export?
 - [ ] Did I generate/update master digest if multiple clients exist?
@@ -1726,14 +1731,14 @@ Before saying the run is complete, verify:
 - [ ] Did I avoid fake interactive buttons in static HTML, except real local copy buttons for editable draft review?
 - [ ] Did I include references/URLs in the report?
 - [ ] Did I notify the human through the configured provider notification channel if available, preferably WideCast OpenAPI `sendTelegramMessage`, relying on WideCast's email fallback if Telegram is not connected and fallback is available?
-- [ ] Did every report-ready notification include an HTML report URL/path? A plain "report ready" notification with no report URL/path is invalid.
+- [ ] Did every report-ready notification include an HTML report URL/path and PDF companion path/status? A plain "report ready" notification with no report URL/path and PDF status is invalid.
 - [ ] If WideCast OpenAPI notification/Telegram was available and an HTML-capable `uploadAsset` operation was available, did I upload the `.html` report to WideCast first and send the uploaded report URL instead of only a local path?
-- [ ] Did I record a report-delivery object with local HTML path, provider, OpenAPI discovery status, account verification status, upload attempted status, uploaded URL if any, upload blocker if any, notification channel, and final notification report link?
-- [ ] If WideCast report upload was unavailable or failed, did I log the provider-neutral blocker, such as `provider_config_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_required_operation_missing`, `provider_account_mismatch`, `global_mcp_not_client_scoped`, or `provider_upload_failed`, and send the best available HTML path/link?
-- [ ] If I accidentally sent a notification without a report URL/path, did I immediately send a correction notification with the HTML report URL/path and log the correction?
+- [ ] Did I record a report-delivery object with local HTML path, local PDF path/status, provider, OpenAPI discovery status, account verification status, upload attempted status, uploaded HTML/PDF URL if any, upload blocker if any, notification channel, and final notification report link?
+- [ ] If WideCast report upload was unavailable or failed, did I log the provider-neutral blocker, such as `provider_config_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_required_operation_missing`, `provider_account_mismatch`, `global_mcp_not_client_scoped`, or `provider_upload_failed`, and send the best available HTML path/link plus PDF companion path/status?
+- [ ] If I accidentally sent a notification without a report URL/path or PDF companion status, did I immediately send a correction notification with the HTML report URL/path plus PDF status and log the correction?
 - [ ] If provider notification was unavailable, did I try Gmail/email MCP or connector if available?
 - [ ] If neither WideCast OpenAPI notification nor Gmail/email was connected, did I suggest connecting WideCast API key + Telegram/email fallback first, or Gmail/email as a secondary fallback?
-- [ ] Did the notification include agent identity, status, HTML report path/link, blockers, and next action?
+- [ ] Did the notification include agent identity, status, HTML report path/link, PDF companion path/status, blockers, and next action?
 
 ### Measure-Learning Checklist
 

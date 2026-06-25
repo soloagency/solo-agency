@@ -745,29 +745,30 @@ For each daily run:
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
    22. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
    23. Select the best idea of the day.
-   24. Write the configured WideCast-writing-skill draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable.
+   24. Write the configured WideCast-writing-skill draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the account-free writing skill fallback when provider/account access is unavailable.
    25. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
    26. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   27. Update or copy `outputs/latest/{client-name}-daily-report.html`.
-   28. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   29. Update `history/YYYY-MM/content_log.md`.
-   30. Update `history/YYYY-MM/data_sources_log.md`.
-   31. Update `history/YYYY-MM/lead_log.md`.
-   32. Update `history/YYYY-MM/competitor_log.md`.
+   27. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the three HTML files, or record the exact PDF blocker/status.
+   28. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   29. Update or copy the latest public/private lane HTML files when those lane reports exist.
+   30. Update `history/YYYY-MM/content_log.md`.
+   31. Update `history/YYYY-MM/data_sources_log.md`.
+   32. Update `history/YYYY-MM/lead_log.md`.
+   33. Update `history/YYYY-MM/competitor_log.md`.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, send a notification to the human that includes the agent identity, run status, HTML report path/link, clients processed, blockers, lead/competitor counts, and required actions.
-9. If another authorized channel can send the HTML file or link more conveniently, use it.
+9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, send a notification to the human that includes the agent identity, run status, HTML report path/link, PDF companion path/status, clients processed, blockers, lead/competitor counts, and required actions.
+9. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
 10. Log the notification attempt in `notifications/notification_log.md`.
 
 The daily run is complete only when every active client is processed or explicitly logged as skipped.
 
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result or a result-ready notification with the HTML path/link has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
+Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the mobile-friendly HTML result plus PDF companion path/status, or a result-ready notification with the HTML path/link plus PDF companion path/status, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
 
 ---
 

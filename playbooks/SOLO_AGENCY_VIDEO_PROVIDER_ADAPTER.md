@@ -11,13 +11,28 @@ This adapter is Solo Agency policy. It intentionally lives outside vendored skil
 ## Hard Gates
 
 - Do not edit vendored provider skills to add Solo Agency client-routing policy. Put overrides in this adapter and load it after the vendored skill.
+- Every tool/capability check must check Client tools first and global MCP/native tools second. Client tools are the current client's provider config, OpenAPI cache/spec, verified account identity, `provider_capabilities.json`, provider health, and redacted provider logs.
 - Do not use a global MCP/native provider account as the current client's account unless its identity is proven to match the saved client provider identity.
 - Do not estimate credits, create video, upload media, publish, notify, or poll account data from an account-level provider until the current client's provider config and OpenAPI capabilities are verified.
 - If provider config, auth, discovery, account identity, or a required operation is missing, stop the provider action and log the exact blocker. Continue with draft/report work when possible.
 
+## Tool Availability Check Rule
+
+When the human or another agent asks whether the system has tools for video, blog, social posts, media upload, render/export, publishing, notification, analytics, account credits, connected platforms, or WideCast itself, do not start from the current chat's MCP tool list.
+
+Check in this order:
+
+1. Current client's provider config and auth value.
+2. Current client's OpenAPI discovery/cache and verified provider account identity.
+3. Current client's `provider_capabilities.json` or freshly discovered operation list.
+4. Required capability group and operation schema.
+5. Global MCP/native tools only as optional compatibility after identity match is proven.
+
+If Client tools expose the required operation and global MCP does not, report that the client tool exists and use the Client tools path. If Client tools are missing or stale, refresh discovery or log the exact blocker before saying a capability is unavailable.
+
 ## Client-Scoped Provider Action Resolver
 
-Before any provider action, resolve the target provider in this order:
+Before any provider action, resolve the target provider through Client tools first in this order:
 
 1. Identify `target_client_slug` from the task prompt, `clients_index.md`, the Client Intelligence Profile, or setup context.
 2. Load only that client's Client Intelligence Profile and folder under `daily-content-pipeline/clients/{client_slug}/...`.
@@ -27,7 +42,7 @@ Before any provider action, resolve the target provider in this order:
 6. Read or create `integrations/providers/provider_capabilities.json` from the discovered OpenAPI operation list.
 7. Verify account identity through the configured client credential and the provider account operation, such as WideCast `getAccount`.
 8. Compare the verified account identity with the saved client provider identity when present.
-9. Select the operation by capability group and required schema, not by whatever MCP tools happen to be visible in the current AI host.
+9. Select the operation by capability group and required schema from Client tools, not by whatever MCP tools happen to be visible in the current AI host.
 10. Log the redacted call intent/result to `integrations/providers/provider_calls.jsonl` and update `integrations/providers/provider_health.md`.
 
 Preferred execution path:
@@ -92,6 +107,7 @@ Provider setup does not authorize automatic publishing. The agent may create vid
 After a video/provider action attempt, report:
 
 - `target_client_slug`;
+- confirmation that Client tools were checked before global MCP/native tools;
 - provider name and config path checked;
 - OpenAPI discovery status and operation ID used, or blocker;
 - account verification status, redacted identity, and match/mismatch result;
