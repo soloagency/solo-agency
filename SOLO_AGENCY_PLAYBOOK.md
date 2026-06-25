@@ -294,6 +294,16 @@ GitHub issue escalation rules:
 - Do not spam duplicate issues. Reuse or update an existing issue when the blocker fingerprint matches.
 - Never include secrets, API keys, cookies, browser session tokens, private data source raw content, client-confidential details, raw logged-in screenshots, or sensitive customer data in a public issue. Use redacted summaries and local paths only when safe.
 
+## Solo Agency Update Command And Version Watch Rule
+
+When the human says `update`, `upgrade`, `cập nhật`, `sync latest`, `pull latest`, or an equivalent short update command, load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` and treat the request as a Solo Agency update command, not a report request.
+
+The update command means: check the latest GitHub `main`, compare the local installed version against the verified latest source, inspect playbooks/contracts/collector bridge/Chrome extension/provider tooling/setup scripts/templates, apply safe updates while preserving secrets and client data, resync every client and automation/scheduled task, and update `daily-content-pipeline/automation/update_state.json` plus `update_log.md`.
+
+Do not run public research, private data source collection, reports, video/blog/social production, analytics, publishing, or outreach because the human asked for update. In Setup Flow, update remains control-plane work. In Automation Flow, update work must not leave a report run on partially mixed old/new instructions.
+
+After schedule/automation exists, recommend the daily `Solo Agency - GitHub Update Watch` task. This maintenance task checks GitHub for new versions, classifies changes, notifies the operator, and applies/resyncs updates only when the human has approved auto-apply. If bridge/runtime or extension code changed, the handoff must include exact bridge rerun and Chrome extension reload instructions for every affected client profile.
+
 ## Stage Map
 
 | Stage | File | Load When |
@@ -311,6 +321,7 @@ GitHub issue escalation rules:
 | 8 | `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` | Load when installing, running, checking, scheduling, or troubleshooting the Local Collector. |
 | 9 | `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` | Load before claiming setup, daily run, private scan, production, measurement, or schedule completion. |
 | 10 | `playbooks/10_LEAD_COMPETITOR_DETECTION.md` | Load whenever detecting, scoring, reporting, storing, or improving lead and competitor opportunities, including first runs and scheduled runs. |
+| 11 | `playbooks/11_UPDATE_AND_VERSION_WATCH.md` | Load when the human asks to update/upgrade/sync latest Solo Agency, during stale-version/blocker recovery, and for the daily GitHub update-watch task. |
 | Setup Entrypoint | `playbooks/SETUP_FLOW_ENTRYPOINT.md` | Use for setup/configuration sessions. Setup Flow configures clients, extensions, collector, schedules, automation prompts, and resync logs, but does not run reports. |
 | Scheduled Entrypoint | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | Use as the scheduler prompt for unattended daily runs. |
 | TODO | `playbooks/TODO.md` | Backlog for future improvements. Do not treat TODO items as daily questions to the human. |
@@ -326,7 +337,7 @@ The setup flow is fixed and must stay aligned with the 10-item `Solo Agency one-
 5. Ask one lightweight private data source preference question: whether the human wants Solo Agency to include private data sources later. Do not ask for URLs, group lists, account lists, discovery details, or Local Collector setup at this point. Valid outcomes are `private_sources_requested`, `private_sources_declined`, `private_sources_postponed`, or `private_sources_unsure`.
 6. Configure the recurring schedule/routine once the basic public source plan and private data source preference are known. If private data sources were requested but are not active, configure the schedule as public data sources only for now and keep private data sources as `pending_private_activation`.
 7A. Resolve or record the private data source checkpoint before claiming the client automation task is ready. If private data sources were requested, the human is unsure, private data sources already exist, or private data source discovery is needed, load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9. Ask for manual private data sources or offer one optional discovery pass from approved joined/followed/member spaces or Facebook keyword group search, get human approval before adding sources, and guide Local Collector setup if the human wants the automation task to include those sources. If the human wants to move faster, configure the first automation run to use public data sources only until private data sources are activated.
-7B. Create or verify the client-specific automation task that will run the first report. The task name must begin with the client name, for example `AvenNgo - Solo Agency First Run` or `AvenNgo - Solo Agency Daily Run`. Do not run the first report inside Setup Flow.
+7B. Create or verify the client-specific automation task that will run the first report. The task name must begin with the client name, for example `AvenNgo - Solo Agency First Run` or `AvenNgo - Solo Agency Daily Run`. Do not run the first report inside Setup Flow. After schedule/automation exists, offer the maintenance task `Solo Agency - GitHub Update Watch` as a separate update-watch automation, not as a new human-facing setup step.
 8. After the automation task is configured, ask whether the human wants PDNA setup - Production, Distribution, Notification, and Analytics - as client-scoped provider configuration. Do not treat a global MCP/native provider account as this client's PDNA connection. Do not create video/blog/social assets, render, publish, or spend credits inside Setup Flow.
 9. If published URL history exists, record that future Automation Flow should load Stage 5 and scan analytics/signals; if no published URL history exists, mark analytics as not available yet. Do not scan analytics inside Setup Flow.
 10. End Setup Flow only after setup/configuration state is current and the human has the exact client-specific automation task name to run for the first report. Do not update reports, idea matrices, best ideas, leads, competitors, drafts, or the learning loop inside Setup Flow; those belong to Automation Flow.
@@ -345,7 +356,8 @@ After any human-approved change that affects what a future scheduled run should 
 - PDNA provider setup, WideCast/OpenAPI/API key configuration, Telegram/email fallback notification status, publishing targets, analytics access, or published URL history;
 - schedule cadence, timezone, active clients, manual-only mode, or notification channel;
 - GitHub issue tracker status, maintainer/community fix guidance, or issue-derived workaround that future scheduled runs must remember;
-- playbook/instruction behavior that scheduled runs must obey.
+- playbook/instruction behavior that scheduled runs must obey;
+- Solo Agency update/version-watch state, applied update commit, update-watch task status, bridge rerun requirement, or extension reload requirement.
 
 Automation Resync means updating the full automation package, not only one JSON or Markdown file:
 
@@ -357,8 +369,9 @@ Automation Resync means updating the full automation package, not only one JSON 
 6. Update `daily-content-pipeline/automation/automation_manifest.md`.
 7. Update `daily-content-pipeline/automation/scheduled_run_prompt.md` and the actual native AI automation/scheduled-task prompt when that environment stores its own prompt snapshot.
 8. Update `daily-content-pipeline/automation/github_issues.md` when a tracked issue, issue response, or issue-derived workaround affects future runs.
-9. Update `daily-content-pipeline/automation/resync_log.md`.
-10. Run a dry-read verification: read the scheduled entrypoint, manifest, issue tracker, provider defaults/config when relevant, schedule, profile, and collector config as tomorrow's scheduled agent would, and confirm the newest approved state is visible.
+9. Update `daily-content-pipeline/automation/update_state.json` and `update_log.md` when an update check or applied update affects future runs.
+10. Update `daily-content-pipeline/automation/resync_log.md`.
+11. Run a dry-read verification: read the scheduled entrypoint, manifest, issue tracker, update state, provider defaults/config when relevant, schedule, profile, and collector config as tomorrow's scheduled agent would, and confirm the newest approved state is visible.
 
 If the agent cannot edit the actual native AI automation task body directly, it must write the exact replacement scheduled prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and ask the human to update the native task. Do not say the schedule is fully updated until that prompt snapshot is updated or the limitation is clearly logged.
 
@@ -555,6 +568,7 @@ The agent may omit the next-step question only when the entire requested workflo
 - Canonical client-facing reports are HTML and client-blind. Markdown is internal. A PDF companion is mandatory after the HTML report set is created or updated; it must be derived from the three scrubbed HTML files, offered alongside the HTML handoff, and recorded as generated or blocked with the exact blocker. The operator-only `INTERNAL_REPORT` path/status must be handed off alongside the client-ready files.
 - Ideas, best ideas, comments, scripts, blogs, captions, and recommendations must be audience-value-first. Reject or rewrite client/product praise as `promotional_not_value_first`.
 - Before declaring any blocker/dead end, check GitHub `main` for newer Solo Agency playbooks/code; if latest GitHub still does not resolve it, create, send, or draft a redacted issue without requiring the human to have a GitHub account, then track it in `automation/github_issues.md`.
+- When the human says `update` or asks to sync latest, load Stage 11, fetch/verify GitHub `main`, update playbooks/code/templates/collector/extension/provider contracts safely, resync every client and automation task, and give bridge rerun plus extension reload instructions when those components changed.
 - Private data stays local unless the human explicitly approves export.
 - Never ask for passwords, OTPs, cookies, tokens, or raw credentials.
 - Do not use approval-gated browser extensions for unattended private collection.
@@ -588,6 +602,19 @@ Setup is not complete until:
 - The automation task contract requires the first automation run to load Stage 10, generate the three-file client-facing HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), generate `{client-name}-INTERNAL_REPORT.html`, pass the Client-Blind Scrub Gate, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, reject direct-promo ideas as `promotional_not_value_first`, and create at least one useful audience-value-first draft script/blog/caption.
 - The setup handoff showed the exact task name the human should run for the first report.
 - PDNA - Production, Distribution, Notification, and Analytics - was treated as provider/configuration setup only, not report/video/publish execution inside Setup Flow.
+- After schedule/automation exists, the `Solo Agency - GitHub Update Watch` maintenance task was offered/configured or the exact pending prompt path/action was recorded.
+
+Solo Agency update is not complete until:
+
+- Stage 11 was loaded.
+- GitHub `main` was checked through a verified source checkout or safe remote commit check.
+- Local/installed commit and latest GitHub commit were recorded.
+- The diff scope covered playbooks, contracts, provider/OpenAPI tooling, Local Collector bridge/runtime, Chrome extension templates, setup scripts, templates, installed runtime copies, client extension folders, and automation contracts.
+- Backups were created for replaced runtime files/folders.
+- Secrets, client configs, private data source captures, history, approvals, reports, outputs, and extension `client_binding.json` values were preserved.
+- `daily-content-pipeline/automation/update_state.json` and `update_log.md` were updated.
+- Every configured client and automation/scheduled task was resynced or a precise blocker was logged.
+- Bridge rerun instructions and Chrome extension reload/Load unpacked steps were given when those files changed.
 
 Private data source setup is not complete until:
 
@@ -636,6 +663,7 @@ Daily run is not complete until:
 - If the agent is about to scan, open, monitor, or collect from a private data source, stop and reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before opening any browser or URL.
 - If the agent is about to install or run collector tooling but Stage 8 is not loaded, load it first.
 - If the agent is about to detect, score, report, store, or improve leads or competitors, load Stage 10 first.
+- If the agent is about to answer an update/upgrade/sync-latest request, or is about to resolve a blocker by checking the latest GitHub version, load Stage 11 first.
 - If the agent is about to create, render, publish, or notify through a production provider but Stage 3 is not loaded, load it first.
 - If the setup agent is about to run the first agency run/report directly, stop and prepare or resync the client-specific automation task instead.
 - If an automation agent is about to run the first report before private data source status, the 7A Local Collector checkpoint, and schedule/routine are resolved or honestly marked pending, stop and load the needed stage.

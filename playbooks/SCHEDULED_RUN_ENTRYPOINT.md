@@ -12,8 +12,9 @@ Run the scheduled Solo Agency daily run now.
 1. Load SOLO_AGENCY_PLAYBOOK.md from the local workspace or from the configured GitHub raw URL.
 2. Follow the Scheduled Run Playbook Loading Contract in playbooks/04_DAILY_SCHEDULE.md.
 3. Do not rely on memory from setup. Load the required child playbooks again at run time.
-4. Read `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md` when present, `daily-content-pipeline/automation/github_issues.md` when present, `daily-content-pipeline/provider_defaults.json` when present, and `daily-content-pipeline/schedule.md` before processing clients. If the manifest says `automation_prompt_update_pending`, report that blocker and still run from the latest local playbooks/profile/config instead of the stale snapshot. If tracked GitHub issues have new maintainer/community responses that fix a blocker, apply the fix and resync automation before claiming the run is current.
-4A. If any blocker, repeated failure, unexpected behavior, stale artifact, tool/config mismatch, or dead end occurs, perform Last-Resort Recovery before declaring the run blocked: check GitHub `main` for a newer Solo Agency playbook/code version, reload the latest relevant instructions, retry if the newer rule resolves it, and if still blocked create, send, or draft a redacted issue tracked in `daily-content-pipeline/automation/github_issues.md` without requiring the human to have a GitHub account.
+4. Read `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md` when present, `daily-content-pipeline/automation/github_issues.md` when present, `daily-content-pipeline/automation/update_state.json` when present, `daily-content-pipeline/provider_defaults.json` when present, and `daily-content-pipeline/schedule.md` before processing clients. If the manifest says `automation_prompt_update_pending`, report that blocker and still run from the latest local playbooks/profile/config instead of the stale snapshot. If tracked GitHub issues have new maintainer/community responses that fix a blocker, apply the fix and resync automation before claiming the run is current.
+4A. If any blocker, repeated failure, unexpected behavior, stale artifact, tool/config mismatch, or dead end occurs, perform Last-Resort Recovery before declaring the run blocked: load `playbooks/11_UPDATE_AND_VERSION_WATCH.md`, check GitHub `main` for a newer Solo Agency playbook/code version, reload the latest relevant instructions, retry if the newer rule resolves it, and if still blocked create, send, or draft a redacted issue tracked in `daily-content-pipeline/automation/github_issues.md` without requiring the human to have a GitHub account.
+4B. If this scheduled task is `Solo Agency - GitHub Update Watch` or the run request is an update/upgrade/sync-latest request, load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` and run only the update-watch workflow. Do not process clients, run reports, scan public data sources, scan private data sources, create production assets, publish, or scan analytics from this update-watch task.
 5. Process every active client in daily-content-pipeline/clients_index.md.
 6. Do not ask setup questions when the saved Client Intelligence Profile is complete.
 7. Run public research first, then private scans if active, then published-URL analytics only when published URLs/metrics exist and the configured provider/URL inspection path allows it, analysis, Lead & Competitor Opportunities, audience-value-first idea matrix, best idea selection, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approval allow it, client-facing HTML report generation, operator-only INTERNAL_REPORT generation, mandatory PDF companion generation, learning updates, and notification. Every idea and draft must teach the target audience something useful before it benefits the client's brand; reject or rewrite direct product-praise ideas as `promotional_not_value_first`. Before any tool or capability check for video/blog/social/provider/upload/notification/publishing/analytics, check Client tools first and global MCP/native tools second, and put those details in `INTERNAL_REPORT`, not client-facing files. Before any video/blog/social provider action, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after any vendored writing/provider skill and resolve the current client's provider config/OpenAPI capability instead of using global MCP state. Public data source intelligence and private data source intelligence must be separate full client-facing HTML reports inside one canonical report set.
@@ -79,6 +80,33 @@ Solo Agency Master Digest - All Clients
 
 The master digest task must not scan private data sources. It only reads existing client reports/outputs and creates a summary.
 
+## Optional GitHub Update Watch Task Prompt
+
+Use this prompt for the maintenance task named:
+
+```text
+Solo Agency - GitHub Update Watch
+```
+
+The task checks whether Solo Agency has changed upstream and keeps installed playbooks/code/templates aligned with GitHub. It must not run any client report or collection workflow.
+
+```text
+Run Solo Agency GitHub update watch now.
+
+Load SOLO_AGENCY_PLAYBOOK.md, playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md, playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md, and playbooks/11_UPDATE_AND_VERSION_WATCH.md.
+Read daily-content-pipeline/automation/update_state.json when present, daily-content-pipeline/automation/automation_manifest.md when present, daily-content-pipeline/automation/scheduled_run_prompt.md when present, daily-content-pipeline/automation/github_issues.md when present, and daily-content-pipeline/schedule.md when present.
+Check https://github.com/soloagency/solo-agency main using the Stage 11 Fresh GitHub Checkout Protocol or a safe remote commit check.
+Compare the installed/local commit with GitHub main.
+If there is no new commit, update update_state.json and update_log.md with the check result, then stop.
+If there is a new commit, compare root instructions, playbooks, provider/OpenAPI tooling, Local Collector bridge/runtime, Chrome extension templates, setup scripts, templates, and automation contracts.
+Classify the change as no_change, playbook_only, provider_tooling, collector_bridge, chrome_extension, collector_bridge_and_extension, setup_or_schedule_contract, breaking_or_major_behavior, or unknown.
+If auto_apply_approved is true in update_state.json, apply the update from a verified fresh checkout, preserve secrets/client data/private captures/history/outputs, update every configured client and extension folder as needed, resync automation/scheduled task prompts, and update update_state.json, update_log.md, automation_manifest.md, scheduled_run_prompt.md, and resync_log.md.
+If auto_apply_approved is false, do not apply the update. Notify the human/operator with the classification and ask whether to apply.
+If bridge/runtime files changed, include the exact current-setup command the human must run outside the AI sandbox.
+If extension files changed, include the exact extension folder path and Chrome reload/Load unpacked steps for each client profile.
+Do not process client reports, public data sources, private data sources, video/blog/social production, publishing, or analytics in this update-watch task.
+```
+
 ## Required Runtime Loads
 
 At the start of every scheduled run, load:
@@ -91,6 +119,7 @@ At the start of every scheduled run, load:
 - `daily-content-pipeline/provider_defaults.json` when present
 - `daily-content-pipeline/schedule.md` when present
 - `daily-content-pipeline/automation/github_issues.md` when present
+- `daily-content-pipeline/automation/update_state.json` when present
 - the target client's `integrations/providers/provider_config.local.json` when PDNA, analytics, report delivery, notification, production, or publishing is needed
 
 Then conditionally load:
@@ -102,6 +131,7 @@ Then conditionally load:
 - `playbooks/05_MEASURE_LEARN_IMPROVE.md` when any published content exists or yesterday/last-7-day measurement is due.
 - `playbooks/06_AGENCY_REPORT_STANDARD.md` whenever creating or delivering HTML reports.
 - `playbooks/10_LEAD_COMPETITOR_DETECTION.md` whenever detecting, scoring, reporting, storing, or improving lead and competitor opportunities. This is normally required for every daily run.
+- `playbooks/11_UPDATE_AND_VERSION_WATCH.md` whenever the run is the `Solo Agency - GitHub Update Watch` task, the human asked for update/upgrade/sync latest, or Last-Resort Recovery checks the newest GitHub version.
 - `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before claiming completion.
 
 ## Scheduled Run Difference From First Setup

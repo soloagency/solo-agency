@@ -43,6 +43,11 @@ The current canonical runtime/data layout is:
       scheduled_run_prompt.md
       resync_log.md
       github_issues.md
+      update_state.json
+      update_log.md
+      update_watch_prompt.md
+      backups/
+        update_YYYY-MM-DD_HHMMSS/
       issues/
         YYYY-MM-DD_{blocker_slug}.md
     collector/
@@ -161,6 +166,16 @@ Use one folder per client/business/location:
     scheduled_run_prompt.md
     resync_log.md
     github_issues.md
+    update_state.json
+    update_log.md
+    update_watch_prompt.md
+    backups/
+    github_issues.md
+    update_state.json
+    update_log.md
+    update_watch_prompt.md
+    backups/
+      update_YYYY-MM-DD_HHMMSS/
     issues/
       YYYY-MM-DD_{blocker_slug}.md
   notifications/
@@ -546,6 +561,77 @@ daily-content-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md
 Recommended status values: `opened_by_agent`, `sent_to_intake`, `queued_for_intake`, `draft_waiting_for_support_channel`, `draft_waiting_for_human`, `answered`, `fix_applied`, `resolved`, `closed`.
 
 Each issue, intake submission, or draft must be redacted. Do not include API keys, cookies, tokens, passwords, raw private data source content, client-confidential details, raw logged-in screenshots, or sensitive customer data. Include only safe reproduction steps, expected/actual behavior, local commit, GitHub main commit checked, runtime, relevant blocker names, and redacted logs.
+
+### `automation/update_state.json`
+
+Tracks the installed Solo Agency version, latest GitHub check, auto-apply preference, bridge/extension action requirements, and resync state.
+
+Create this file when the first update check runs, when the `Solo Agency - GitHub Update Watch` task is created, or when Stage 11 applies an update.
+
+Minimum schema:
+
+```json
+{
+  "schema_version": 1,
+  "installed_commit": "",
+  "latest_checked_commit": "",
+  "last_checked_at": "",
+  "last_applied_commit": "",
+  "last_applied_at": "",
+  "auto_apply_approved": false,
+  "update_watch_task_name": "Solo Agency - GitHub Update Watch",
+  "last_change_classification": "",
+  "bridge_update_required": false,
+  "extension_reload_required": false,
+  "automation_prompt_update_pending": false,
+  "clients_resynced": [],
+  "automations_resynced": [],
+  "human_actions_required": []
+}
+```
+
+Do not store secrets, private data source content, client-confidential report content, cookies, tokens, or raw provider responses in this file.
+
+### `automation/update_log.md`
+
+Tracks every GitHub update check and every applied update.
+
+Format:
+
+```md
+# Solo Agency Update Log
+
+| Date | Agent | Local Commit Before | GitHub Main Commit | Change Classification | Applied | Backup Path | Clients Resynced | Automations Resynced | Bridge Action Required | Extension Reload Required | Blocker / Next Action |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+```
+
+Recommended change classifications:
+
+- `no_change`
+- `playbook_only`
+- `provider_tooling`
+- `collector_bridge`
+- `chrome_extension`
+- `collector_bridge_and_extension`
+- `setup_or_schedule_contract`
+- `breaking_or_major_behavior`
+- `unknown`
+
+### `automation/update_watch_prompt.md`
+
+Stores the exact prompt for the native maintenance automation task named `Solo Agency - GitHub Update Watch` when the current AI runtime cannot create or edit that task directly.
+
+The prompt must come from `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` and must load Stage 11. It must not include client report-generation instructions beyond explicitly saying not to run reports/scans/production.
+
+### `automation/backups/`
+
+Stores timestamped update backups:
+
+```text
+daily-content-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/
+```
+
+Use it for runtime files or folders that Stage 11 replaces. Do not use it as a long-term archive for private data source captures, client reports, secrets, cookies, tokens, or provider API keys.
 
 ### `notifications/notification_log.md`
 
