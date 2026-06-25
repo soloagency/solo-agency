@@ -70,7 +70,8 @@ At the start of every scheduled run, the agent must load or re-load the relevant
 7. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
 8. Load Stage 6 whenever generating the human-facing HTML report.
 9. Load Stage 10 whenever lead/competitor opportunities, comments, opportunity logs, or competitor monitoring are part of the run. This is normally every first run and every scheduled daily run.
-10. Load Stage 9 before claiming the scheduled run is complete.
+10. Load Stage 11 when the task is `Solo Agency - GitHub Update Watch`, when an update/upgrade/sync-latest request is being handled, or when blocker recovery checks GitHub for a newer Solo Agency version.
+11. Load Stage 9 before claiming the scheduled run is complete.
 
 The difference between first setup and scheduled runs:
 
@@ -121,7 +122,8 @@ Trigger Automation Resync whenever a human-approved change happens after schedul
 - public data sources, public search keywords, client profile fields, pain points, content pillars, audience, location, or offer changed;
 - PDNA, production provider, WideCast API key/OpenAPI config, Telegram/email fallback, publishing, analytics, published URL history, or notification delivery changed;
 - schedule cadence, timezone, active clients, manual-only mode, or report delivery channel changed;
-- the playbook behavior changed in a way scheduled runs must follow.
+- the playbook behavior changed in a way scheduled runs must follow;
+- Solo Agency update/version-watch state changed, an upstream update was applied, the update-watch task was created/changed, bridge rerun is required, or extension reload is required.
 
 Automation Resync requires updating every relevant layer:
 
@@ -134,7 +136,8 @@ Automation Resync requires updating every relevant layer:
 7. `daily-content-pipeline/automation/automation_manifest.md`: current run contract, paths, active clients, prompt source, config source, provider config source, and last known state hash/summary.
 8. `daily-content-pipeline/automation/scheduled_run_prompt.md`: the exact prompt that the native AI automation/scheduled task should run.
 9. Native AI automation or scheduled task body: update it when the environment stores a separate prompt snapshot.
-10. `daily-content-pipeline/automation/resync_log.md`: what changed, what files/tasks were updated, what could not be updated, and what the next scheduled run should see.
+10. `daily-content-pipeline/automation/update_state.json` and `update_log.md`: update-watch state, checked/applied commits, change classification, and human actions required.
+11. `daily-content-pipeline/automation/resync_log.md`: what changed, what files/tasks were updated, what could not be updated, and what the next scheduled run should see.
 
 If the native AI automation task cannot be edited by the agent, the agent must:
 
@@ -154,7 +157,8 @@ Before saying a post-schedule change is complete, do a dry-read as if tomorrow's
 5. Read each active Client Intelligence Profile.
 6. Read each relevant client's provider config/capability files when PDNA, notification, analytics, publishing, report delivery, or production was changed.
 7. Read `collector_config.json` when private data sources are active or pending.
-8. Confirm the latest user-approved changes are visible from those files and from the scheduled prompt/task body.
+8. Read `daily-content-pipeline/automation/update_state.json` when update/version-watch or a GitHub-applied change affects future runs.
+9. Confirm the latest user-approved changes are visible from those files and from the scheduled prompt/task body.
 
 The agent's human-facing completion message must say one of:
 
@@ -204,6 +208,26 @@ The agent must record the chosen method in `schedule.md`.
 The agent must also record the notification channel in `schedule.md`. If the client has verified WideCast OpenAPI config and the discovered spec exposes `sendTelegramMessage`, record WideCast Telegram/email fallback as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email when the account supports it. If WideCast OpenAPI notification is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast API key + Telegram/email fallback or Gmail/email.
 
 Scheduled runs should be designed as unattended runs. The human may not be watching the AI agent UI, so the agent must proactively notify the human when the run finishes or when human action is required.
+
+## GitHub Update Watch Scheduling Rule
+
+After the first schedule/automation has been configured, offer a separate maintenance automation:
+
+```text
+Solo Agency - GitHub Update Watch
+```
+
+This task exists because Solo Agency is updated frequently and older playbooks/code may be the cause of tomorrow's blocker.
+
+Rules:
+
+- The task should run daily, preferably before client daily runs.
+- It must load `playbooks/11_UPDATE_AND_VERSION_WATCH.md`.
+- It must check GitHub `main`, compare the installed version, classify the change, and update `daily-content-pipeline/automation/update_state.json` plus `update_log.md`.
+- It must not run client reports, public data source scans, private data source scans, production, publishing, or analytics.
+- It may auto-apply updates only when the human has approved auto-apply in `update_state.json` or an equivalent operator setting.
+- Even when auto-apply is approved, bridge/runtime changes still require a human-run command outside the AI sandbox and extension changes still require Chrome reload/Load unpacked steps per client profile.
+- If the automation environment cannot create the native task directly, write the exact prompt from `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` to `daily-content-pipeline/automation/update_watch_prompt.md`, log `update_watch_task_prompt_pending`, and give the human the exact task name and prompt path.
 
 If no automation is available:
 

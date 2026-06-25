@@ -13,14 +13,16 @@ Before setup proceeds, verify or explain that Solo Agency needs Codex, Claude De
 1. Load `SOLO_AGENCY_PLAYBOOK.md`.
 2. Load `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`, `playbooks/04_DAILY_SCHEDULE.md`, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`.
 3. Load `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, and `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` when private data sources, client Chrome profiles, client extensions, or Local Collector setup are involved.
-4. Create or update client setup, public data sources, private data sources approval state, extension folders, collector config, schedule files, automation manifests, scheduled prompts, and resync logs.
-5. Do not run public scans, private data source scans, reports, first agency runs, production, rendering, publishing, analytics scans, or outreach in Setup Flow.
-6. If the human asks to run, create, generate, show, refresh, or update a report inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow; the request does not become Automation Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and tell the human the exact task name to run instead.
-7. Every client-specific automation task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
-8. Every per-client Chrome extension display name must begin with the client name, for example `AvenNgo - Solo Agency Collector`.
-9. PDNA provider setup must be client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming production, distribution, notification, analytics, credits, or connected platforms are available. Do not use a global MCP/native provider account as proof of this client's PDNA status.
-10. After any approved config change, perform Automation Resync if a schedule/automation already exists.
-11. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`.
+4. Load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` when the human asks for update/upgrade/sync latest, when setup repair suspects stale playbooks/code, or when configuring the `Solo Agency - GitHub Update Watch` maintenance task.
+5. Create or update client setup, public data sources, private data sources approval state, extension folders, collector config, schedule files, automation manifests, scheduled prompts, update-watch state, and resync logs.
+6. Do not run public scans, private data source scans, reports, first agency runs, production, rendering, publishing, analytics scans, or outreach in Setup Flow.
+7. If the human asks to run, create, generate, show, refresh, or update a report inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow; the request does not become Automation Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and tell the human the exact task name to run instead.
+8. If the human says only `update`, `upgrade`, `cập nhật`, `sync latest`, or `pull latest`, treat that as the Stage 11 Solo Agency update command, not as `update a report`.
+9. Every client-specific automation task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
+10. Every per-client Chrome extension display name must begin with the client name, for example `AvenNgo - Solo Agency Collector`.
+11. PDNA provider setup must be client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming production, distribution, notification, analytics, credits, or connected platforms are available. Do not use a global MCP/native provider account as proof of this client's PDNA status.
+12. After any approved config change or applied Solo Agency update, perform Automation Resync if a schedule/automation already exists.
+13. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`.
 
 ## Fresh Source Acquisition Hard Gate
 
@@ -34,6 +36,7 @@ Required behavior:
 - Verify `git remote get-url origin`, `git rev-parse HEAD`, and `git ls-remote origin refs/heads/main`; local `HEAD` must match GitHub `main` before the agent reads or copies files from that checkout.
 - If GitHub access fails because of network or sandbox restrictions, request the needed permission or give the human one exact clone/download command. Do not proceed with stale local code.
 - Record the verified source path and commit hash in `daily-content-pipeline/collector/collector_setup_status.md` or `daily-content-pipeline/automation/resync_log.md` when those files exist.
+- For a full update command, record the verified source path, commit hash, change classification, backup path, client resync state, bridge action requirement, and extension reload requirement in `daily-content-pipeline/automation/update_state.json` and `update_log.md`.
 
 ## Setup Blocker Recovery
 
@@ -61,11 +64,14 @@ For each configured client, Setup Flow must leave these current:
 - `daily-content-pipeline/schedule.md`.
 - `daily-content-pipeline/automation/automation_manifest.md`.
 - `daily-content-pipeline/automation/scheduled_run_prompt.md`.
+- `daily-content-pipeline/automation/update_state.json` and `update_log.md` when update/watch has been checked, configured, or applied.
 - `daily-content-pipeline/automation/resync_log.md`.
 
 If the native automation task prompt cannot be updated directly, mark `automation_prompt_update_pending` in the manifest and schedule, then give the human one concrete instruction to update the task prompt.
 
 For every new client, the setup handoff must include the dedicated extension install instructions, not just a status line. Show the absolute `extensions/{client_slug}/` folder path and the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account.
+
+After schedule/automation exists, offer the separate maintenance task `Solo Agency - GitHub Update Watch`. If the runtime cannot create it directly, write the exact prompt to `daily-content-pipeline/automation/update_watch_prompt.md`, tell the human the task name to create, and record `update_watch_task_prompt_pending` in the automation/update state.
 
 ## Report Request Hard Stop
 

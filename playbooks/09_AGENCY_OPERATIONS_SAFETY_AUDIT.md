@@ -16,6 +16,7 @@ Load before claiming setup, daily run, private data source setup, schedule, prod
 - Before any private data source scan, confirm `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 were loaded in the current private data source turn, even if the conversation drifted through unrelated topics.
 - Treat any use of Claude in Chrome, Claude Chrome Extension, Codex/browser tools, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or another agent-controlled browser for private data source collection as a critical workflow violation.
 - Before claiming any post-schedule change is complete, verify Automation Resync was performed when schedule/automation already exists. Config-only updates are not enough if a native scheduled task prompt may still contain an old snapshot.
+- Before claiming any Solo Agency update/upgrade/sync-latest work is complete, verify Stage 11 was loaded, GitHub `main` was checked from a verified source, backups/logs were written, clients and automations were resynced, and bridge/extension human actions were given when required.
 
 ## Latest Override: Setup Flow And Client Isolation Audit
 
@@ -105,6 +106,41 @@ Config updated, so automation is done.
 ```
 
 That is a safety-audit failure.
+
+---
+
+## Update And Version Watch Safety Check
+
+Run this check before saying an update command, update-watch run, setup repair update, or stale-version recovery is complete.
+
+Minimum update audit:
+
+- Stage 11 `playbooks/11_UPDATE_AND_VERSION_WATCH.md` was loaded.
+- The source was GitHub `main` from `https://github.com/soloagency/solo-agency`.
+- The agent used the current verified setup root or a fresh unique `mktemp -d` checkout.
+- No fixed shared fallback folder such as `/tmp/solo-agency`, `/var/tmp/solo-agency`, or `/dev/shm/solo-agency` was used.
+- `.git`, `origin`, local `HEAD`, and remote `refs/heads/main` were verified before reading or copying source files.
+- The update check covered root instructions, all playbooks, provider/OpenAPI tooling, Local Collector bridge/runtime, Chrome extension templates, setup scripts, templates, client runtime copies, and automation contracts.
+- `daily-content-pipeline/automation/update_state.json` and `update_log.md` were created or updated.
+- Runtime files/folders replaced by the update were backed up under `daily-content-pipeline/automation/backups/` or an equivalent logged backup path.
+- Secrets and local user/client state were preserved, including provider API keys, `provider_config.local.json`, private data source captures, Client Intelligence Profiles, approvals, history, reports, outputs, analytics, publishing logs, and extension `client_binding.json`.
+- Every active/configured client was checked for required schema/template updates.
+- Every affected `extensions/{client_slug}/` folder was regenerated or patched when extension code/templates changed.
+- Automation Resync was performed when schedule/automation exists.
+- If native scheduled task prompts could not be edited directly, `automation_prompt_update_pending` was logged and the human received the exact replacement prompt path/action.
+- If bridge/runtime files changed, the human received the exact current-setup command to run outside the AI sandbox.
+- If extension files changed, the human received the exact Chrome profile plus `chrome://extensions` reload or `Load unpacked` steps for each client extension.
+- The human-facing completion states `update complete`, `update partially complete`, or `update blocked` with the exact remaining action.
+
+Treat these as critical workflow violations:
+
+- Saying "updated" after only pulling local code but not resyncing client automation tasks.
+- Copying from an unverified stale folder because GitHub access failed.
+- Updating playbooks but leaving scheduled prompt snapshots on the old behavior.
+- Updating the extension template but not updating per-client `extensions/{client_slug}/` folders.
+- Updating bridge/extension code without telling the human to rerun the bridge or reload the Chrome extension.
+- Overwriting `provider_config.local.json`, API keys, private data source captures, reports, history, or outputs during an update.
+- Running a report, scan, production action, publish action, or analytics scan merely because the human said `update`.
 
 ---
 
