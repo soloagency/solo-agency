@@ -12,8 +12,11 @@ Load whenever generating, reviewing, debugging, or improving a human-facing repo
 - Markdown is internal.
 - The report must be standalone, mobile-friendly, agency-grade, and factually aligned with the Markdown source.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
+- Every idea, best idea, comment, and draft must be audience-value-first: useful to the viewer before useful to the client's brand. Reject or rewrite direct product/service praise as `promotional_not_value_first`.
 - Do not create fake action buttons in static HTML.
 - Keep exactly one canonical report set per client/day/run: one daily index HTML plus one full public data sources HTML and one full private data sources HTML.
+- Client-facing report files and the PDF companion must be client-blind: no Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled-task, API-key/config, Telegram, agent/tool/debug, or `INTERNAL_REPORT` details.
+- Every run must also create an operator-only `{client-name}-INTERNAL_REPORT.html` clearly labeled `INTERNAL_REPORT - Not for client sharing`.
 - Never merge public data source intelligence and private data source intelligence into one dense HTML body. Each lane is a first-class report file so a later private pass cannot overwrite or summarize away the public pass.
 - The PDF companion must be generated from the three HTML report files, not from raw memory, and it must not replace the canonical HTML report set. If PDF export or safe redaction is blocked, record the exact blocker and still provide the HTML report path/link.
 
@@ -33,7 +36,7 @@ Each active client must have one daily output folder:
 outputs/YYYY-MM/YYYY-MM-DD/
 ```
 
-Markdown is the canonical internal output record. HTML is the canonical human-facing rendered report. PDF is a mandatory companion derived from the HTML report set so the recipient can choose HTML or PDF.
+Markdown is the canonical internal output record. Client-facing HTML is the canonical rendered report. PDF is a mandatory companion derived from the client-facing HTML report set so the recipient can choose HTML or PDF. The operator-only `INTERNAL_REPORT` is a separate diagnostic/operations report and must not be sent to the client.
 
 The agent must keep the Markdown file even when an HTML report is created, unless the current environment truly cannot write Markdown. The Markdown file is required for:
 
@@ -42,7 +45,7 @@ The agent must keep the Markdown file even when an HTML report is created, unles
 - duplicate idea detection;
 - diffing changes across days;
 - regenerating HTML reports;
-- preserving references, reasoning, leads, competitors, and WideCast scripts without parsing HTML.
+- preserving references, reasoning, leads, competitors, provider-backed drafts, and operational notes without parsing HTML.
 
 The HTML report must be created from the same facts, references, ideas, analysis, and draft content as the Markdown report, but it may use a custom structure and design. It must not become a factually divergent report. If the agent can only preserve one long-term artifact, preserve the Markdown file first and regenerate HTML later. If the agent can only deliver one artifact to the human, deliver the HTML report because all user-facing reports must be HTML.
 
@@ -75,23 +78,26 @@ Every default report path, notification, or review instruction must point to the
 The agent must create two artifacts with different purposes:
 
 1. Markdown is the internal canonical record for agent memory, history, learning, diffing, and regeneration.
-2. HTML is the human-facing report and must be designed for a polished mobile review experience.
+2. Client-facing HTML is the polished agency report for review/sharing.
+3. `INTERNAL_REPORT` is the operator-only system report for automation, PDNA/provider, delivery, and collector details.
 
 The HTML report does not need to be a direct Markdown render. If a direct Markdown-to-HTML renderer produces an ugly or hard-to-use report, the agent should create a better designed standalone HTML report instead.
 
 Correct behavior:
 
 1. Author and save the complete internal report source under `outputs/YYYY-MM/YYYY-MM-DD/`, using stable client-prefixed names.
-2. Create exactly three human-facing HTML files for the client/day/run:
+2. Create exactly three client-facing HTML files for the client/day/run:
    - `{client-name}-public-data-sources-report.html`
    - `{client-name}-private-data-sources-report.html`
    - `{client-name}-daily-report.html`
-3. `{client-name}` must be a filesystem-safe client name/slug, lower-kebab preferred, for example `angela-do` or `aven-ngo`.
-4. The public and private HTML files are full lane reports, not summaries.
-5. The daily HTML file is the concise index/overview linking to the public and private reports, showing lane status, blockers, best next action, and notification status.
-6. The HTML may be custom structured and styled for readability, mobile scanning, editable draft review, and copy workflow.
-7. The HTML must not omit required report sections that exist in the corresponding Markdown/source record.
-8. If a Markdown/source record changes, update/regenerate only the affected lane HTML plus the daily index so artifacts stay factually aligned.
+3. Create one operator-only internal report:
+   - `{client-name}-INTERNAL_REPORT.html`
+4. `{client-name}` must be a filesystem-safe client name/slug, lower-kebab preferred, for example `angela-do` or `aven-ngo`.
+5. The public and private HTML files are full lane reports, not summaries.
+6. The daily HTML file is the concise index/overview linking to the public and private reports, showing lane status, client-relevant blockers/limits, best next action, and delivery status without internal tooling details.
+7. The HTML may be custom structured and styled for readability, mobile scanning, editable draft review, and copy workflow.
+8. The client-facing HTML must not omit required client-relevant report sections that exist in the corresponding Markdown/source record, but it must scrub internal system/provider/collector details into `INTERNAL_REPORT`.
+9. If a Markdown/source record changes, update/regenerate only the affected lane HTML plus the daily index so artifacts stay factually aligned, and update `INTERNAL_REPORT` when operational state changed.
 
 Quality rules for HTML:
 
@@ -103,6 +109,7 @@ Quality rules for HTML:
 - Escape user/source text safely before rendering it into HTML.
 - Versioned draft sections such as `Version 1: VE — Value Explainer` must be presented as polished editable review blocks with local copy buttons.
 - The agent may spend extra time generating a beautiful HTML report because the HTML is the only report the human sees.
+- The page must not create document-level horizontal scrolling on a 390px-wide mobile viewport. Wide tables must be wrapped in a dedicated `.table-scroll` or equivalent container with `overflow-x: auto`, or transformed into stacked mobile cards. The body, main containers, cards, buttons, code blocks, URLs, and long source names must use responsive width constraints plus `overflow-wrap: anywhere` or equivalent so only the table wrapper scrolls, never the entire page.
 
 The latest convenience files should be:
 
@@ -110,10 +117,11 @@ The latest convenience files should be:
 outputs/latest/{client-name}-daily-report.html
 outputs/latest/{client-name}-public-data-sources-report.html
 outputs/latest/{client-name}-private-data-sources-report.html
+outputs/latest/{client-name}-INTERNAL_REPORT.html
 outputs/latest/{client-name}-client-report.pdf
 ```
 
-The daily latest file is the default human-facing convenience link. Public/private latest files are allowed as direct lane links. The PDF latest file is the mandatory companion deliverable when PDF generation is available and safe.
+The daily latest file is the default client-ready convenience link. Public/private latest files are allowed as direct lane links. The internal latest file is for the user/operator only. The PDF latest file is the mandatory client-ready companion deliverable when PDF generation is available and safe.
 
 ### Latest Override: Three-File Public/Private Report Contract
 
@@ -136,13 +144,15 @@ File responsibilities:
 
 2. `{client-name}-private-data-sources-report.html`
    - Full private data sources report only.
-   - Must contain private collector health, private source coverage, private evidence, private Lead & Competitor Opportunities, private idea matrix, best private idea, copy-ready comments when available, and private draft/recommendation.
+   - Must contain private source coverage, safe summarized private evidence, private Lead & Competitor Opportunities, private idea matrix, best private idea, copy-ready comments when available, and private draft/recommendation.
+   - Must not contain Local Collector, Chrome extension, login/session, API, raw private post/member, or private source inventory details.
    - Must not rewrite or summarize the public data sources report.
 
 3. `{client-name}-daily-report.html`
    - Concise daily index/overview.
    - Must link to the public and private report files.
-   - Must show each lane's status, top recommendation summary, blockers, notification/delivery status, and the one next action.
+   - Must show each lane's status, top recommendation summary, client-relevant blockers/limits, delivery status, and the one next action.
+   - Must not show provider, notification-channel, automation, API-key/config, Local Collector, or debug details.
    - Must not replace either full lane report.
 
 Both full lane reports must use the same structure:
@@ -153,7 +163,7 @@ Both full lane reports must use the same structure:
 - Idea Matrix.
 - Best idea for that lane.
 - Draft/recommendation for that lane.
-- Blockers, skipped sources, and confidence notes.
+- Client-relevant blockers/limits, skipped public sources or safely summarized private coverage limits, and confidence notes.
 
 The private lane usually has richer post/current URLs and copy-ready comments. Public data source opportunities should also include copy-ready comments when there is a concrete public post/context where a comment is safe and useful. If the public source does not support a safe comment action, keep the field and state `not available from this public data source` or the same meaning in the report language.
 
@@ -178,8 +188,76 @@ Update rules:
 - Public pass: create or replace only `{client-name}-public-data-sources-report.html`, then create/update `{client-name}-daily-report.html` with private status `pending`, `blocked`, `skipped`, or the exact blocker.
 - Private pass: create or replace only `{client-name}-private-data-sources-report.html`, then create/update `{client-name}-daily-report.html`. Do not rewrite, summarize away, delete, or regenerate the public report file.
 - If private data sources finish after public data sources, update only the private report and daily index. Do not open/rewrite the public report except to repair broken links with explicit reason.
+- After a private data source pass reaches a terminal state (`complete`, `complete_live_scan`, `blocked`, `failed`, `skipped`, or equivalent), reconcile the lane status and counts across the private lane report, daily index, internal Markdown/source record, report state JSON, notification log entry, and `outputs/latest/` copies before handoff. The same run must not say `scan in progress` or `partial` in one artifact while another artifact says `complete`.
+- Reconciled counts must include sources configured, sources attempted, sources completed, sources blocked/skipped, data points kept, hot/warm/watch leads, competitors, new private data sources recommended, noisy/skipped discovery candidates, and notifications attempted/sent/blocked when those concepts exist in the run.
 - If private data sources fail, time out, are stale, or are blocked, update only the private report with the exact blocker and update the daily index lane status.
 - If a private pass starts but the public report is missing, create a public report placeholder file that says public data sources were not run or were unavailable, then create the private report. Do not create a private-only report set without a daily index.
+
+### Operator Internal Report Contract
+
+Every client/day/run must create or update an operator-only report:
+
+```text
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.html
+outputs/latest/{client-name}-INTERNAL_REPORT.html
+```
+
+When a Markdown source is useful, save:
+
+```text
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.md
+```
+
+The internal report must begin with:
+
+```text
+INTERNAL_REPORT - Not for client sharing
+```
+
+The internal report is where the agent must put details that are useful to the user/operator but inappropriate for a client-facing deliverable:
+
+- Solo Agency run identity, playbook version/freshness, automation freshness check, scheduled task/manifest status, resync status, and issue/recovery tracking.
+- PDNA provider status: current provider such as WideCast, provider config path, API-key/config status, OpenAPI discovery status, account verification identity, provider capabilities, provider health, and redacted provider call logs.
+- WideCast-specific operator details when configured: Telegram/email fallback status, connected social platforms, credits/plan when available through the verified client account, upload/notification/render/publish/analytics operation status, and exact blockers.
+- Private data source inventory: approved, pending, blocked, daily/weekly/optional sources, discovery candidates, skipped/noisy sources, and access/membership notes.
+- Local Collector and extension status: bridge status, config/output/run-now paths, extension instance, Chrome profile guidance, last check time, source/job status, and collector blockers.
+- Report delivery log: client-facing HTML path, client PDF path/status, uploaded URLs/TTL when available, notification attempts, blockers, and correction notifications.
+- Count/status reconciliation: public/private source counts, data point counts, lead/competitor counts, recommended-source counts, timestamps, and stale-artifact checks.
+- Next operator action.
+
+The internal report may mention Solo Agency, WideCast, Local Collector, providers, OpenAPI, MCP, API keys, Telegram, Chrome extension, automation, scheduled tasks, config files, and debug details. Those terms must stay out of client-facing files.
+
+### Client-Blind Scrub Gate
+
+Before handing off or exporting any client-facing HTML/PDF/video/blog/social/caption/comment, scan it for internal system references. Client-facing output must not mention:
+
+```text
+Solo Agency
+WideCast
+INTERNAL_REPORT
+Local Collector
+Chrome extension
+MCP
+OpenAPI
+API key
+Telegram
+PDNA provider
+provider_config
+Client tools
+global MCP
+automation
+scheduled task
+collector bridge
+agent debug
+```
+
+Do not include a footer such as `Powered by Solo Agency`, `Created with Solo Agency`, `Generated by WideCast`, or equivalent. If a footer is needed, keep it neutral or agency-owned, for example:
+
+```text
+Prepared for {Client} by {Agency/User}
+```
+
+If the configured agency/user name is unknown, omit the footer instead of inserting Solo Agency or WideCast. If a word such as `provider` appears as a normal industry term, for example `insurance provider`, it is allowed only when it is clearly unrelated to tooling/PDNA/provider config.
 
 ### Client PDF Companion Contract
 
@@ -191,13 +269,13 @@ outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf
 outputs/latest/{client-name}-client-report.pdf
 ```
 
-The PDF source HTML must be a standalone print-friendly document assembled from:
+The PDF source HTML must be a standalone print-friendly client-blind document assembled from scrubbed client-facing files:
 
 1. `{client-name}-daily-report.html` for the cover, executive snapshot, lane status, blockers, delivery status, and next action.
 2. `{client-name}-public-data-sources-report.html` for the public data sources section.
 3. `{client-name}-private-data-sources-report.html` for the private data sources section when it exists and is approved for client sharing.
 
-Do not build the PDF directly from memory or from only one lane. If any of the three canonical HTML files is missing or blocked, include a clear status page in `{client-name}-client-report.html` instead of inventing content. Then export the PDF when safe, or record the exact blocker.
+Do not build the PDF directly from memory, from only one lane, or from `INTERNAL_REPORT`. If any of the three canonical HTML files is missing or blocked, include a clear client-safe status page in `{client-name}-client-report.html` instead of inventing content. Then export the PDF when safe, or record the exact blocker in `INTERNAL_REPORT` and `report_state.json`.
 
 PDF formatting rules:
 
@@ -205,12 +283,13 @@ PDF formatting rules:
 - Add print CSS with readable page margins, stable headings, page breaks between major sections, visible URLs/references, and no clipped cards or horizontal scrolling.
 - Convert interactive HTML controls into plain text before PDF export.
 - Preserve source references, dates, confidence notes, blockers, and human approval status.
+- Run the Client-Blind Scrub Gate before PDF export. The PDF must not contain Solo Agency, WideCast, provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation, scheduled task, API-key/config, Telegram, or debug details.
 - The PDF should be client-shareable and polished, but the three HTML files remain the canonical report files for automation updates.
 
 Private data source safety rules:
 
-- Do not include raw private post text, private group member details, login/session information, collector internals, cookies, screenshots, or browser/profile details.
-- Include private data source findings only as approved summaries unless the human explicitly approves sharing exact private source names, URLs, or excerpts with the client.
+- Do not include raw private post text, private group member details, login/session information, collector internals, cookies, screenshots, browser/profile details, private source inventory, or unapproved private source URLs/excerpts.
+- Include private data source findings only as safe agency-style summaries, for example `Community signal: several local homeowners discussed rate increases and coverage confusion.`
 - If sharing safety is uncertain, mark `client_pdf_redaction_status: needs_human_review` and create only `{client-name}-client-report.html` for review, not the final PDF.
 
 PDF generation rule:
@@ -238,8 +317,34 @@ The state file must track at least:
   "public_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html",
   "private_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html",
   "daily_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html",
+  "internal_report_md_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.md",
+  "internal_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.html",
+  "latest_internal_report_html_path": "outputs/latest/{client-name}-INTERNAL_REPORT.html",
   "public_section_status": "missing|pending|complete|skipped|failed",
-  "private_section_status": "missing|pending|complete|skipped|failed|blocked",
+  "private_section_status": "missing|pending|complete|complete_live_scan|skipped|failed|blocked",
+  "internal_report_status": "pending|generated|blocked",
+  "client_facing_scrub_status": "pending|pass|failed|blocked",
+  "client_facing_scrub_blocker": "",
+  "public_data_sources_count": 0,
+  "private_data_sources_count": 0,
+  "public_sources_attempted": 0,
+  "public_sources_completed": 0,
+  "public_sources_blocked_or_skipped": 0,
+  "private_sources_attempted": 0,
+  "private_sources_completed": 0,
+  "private_sources_blocked_or_skipped": 0,
+  "public_data_points_kept": 0,
+  "private_data_points_kept": 0,
+  "public_lead_count": 0,
+  "private_lead_count": 0,
+  "public_watch_lead_count": 0,
+  "private_watch_lead_count": 0,
+  "public_competitor_count": 0,
+  "private_competitor_count": 0,
+  "public_new_sources_recommended_count": 0,
+  "private_new_sources_recommended_count": 0,
+  "private_noisy_or_skipped_discovery_candidates_count": 0,
+  "counts_reconciled_at": "",
   "last_public_update_at": "",
   "last_private_update_at": "",
   "public_notification_status": "not_sent|sent|skipped",
@@ -261,8 +366,8 @@ Before writing a report, the agent must read the existing source/state file when
 Notification rule:
 
 - Two notifications are acceptable: one after the public report is ready and one after the private report is ready/blocked.
-- Notifications should normally point to `{client-name}-daily-report.html` or its uploaded URL. A lane-specific direct link may be included as a secondary link, but the daily report remains the canonical handoff link.
-- Notifications must include the PDF companion path/status beside the HTML link.
+- Notifications to the user/operator should normally point to `{client-name}-daily-report.html` or its uploaded URL. A lane-specific direct link may be included as a secondary link, but the daily report remains the canonical client-ready handoff link.
+- Notifications to the user/operator must include the PDF companion path/status beside the HTML link and should include `{client-name}-INTERNAL_REPORT.html` as an operator-only secondary link/path.
 - The notification text must say whether the report set is `public_report_ready`, `private_report_ready`, `private_report_blocked`, or `daily_report_ready`.
 - Do not send repeated notifications for the same lane in the same run unless correcting a missing/broken report link.
 - Log each notification with lane, report path/URL, and report state.
@@ -290,7 +395,7 @@ Template:
 
 ## Internal Source Lane Order
 
-The sections below are mandatory for the internal source record. Public data source intelligence must appear first. Private data source intelligence must appear second. The detailed field templates later in this document are schemas to apply inside each lane. The human-facing HTML must still be split into `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`; do not render one mixed global HTML body that combines public data sources and private data sources.
+The sections below are mandatory for the internal source record. Public data source intelligence must appear first. Private data source intelligence must appear second. Internal operational details must appear only inside the `INTERNAL_REPORT` section. The detailed field templates later in this document are schemas to apply inside each lane. The client-facing HTML must still be split into `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`; do not render one mixed global HTML body that combines public data sources and private data sources.
 
 <!-- SOLO_AGENCY_SECTION:PUBLIC_START -->
 ## Public Data Source Intelligence
@@ -332,6 +437,30 @@ The sections below are mandatory for the internal source record. Public data sou
 ### Private Blockers And Limits
 <!-- SOLO_AGENCY_SECTION:PRIVATE_END -->
 
+<!-- SOLO_AGENCY_SECTION:INTERNAL_REPORT_START -->
+## INTERNAL_REPORT - Not for client sharing
+
+### Run Status And Automation Freshness
+
+### PDNA Provider Status
+
+### WideCast / Provider Account And Capability Status
+
+### Telegram And Social Platform Connections
+
+### Private Data Sources Inventory
+
+### Local Collector And Extension Health
+
+### Report Delivery And Notification Log
+
+### Count And Status Reconciliation
+
+### Issues, Blockers, Recovery Actions
+
+### Next Operator Action
+<!-- SOLO_AGENCY_SECTION:INTERNAL_REPORT_END -->
+
 ## Private Collector Health
 
 - Bridge status:
@@ -345,7 +474,7 @@ The sections below are mandatory for the internal source record. Public data sou
 
 ## Private Data Sources Pending Activation
 
-Use this section when private data sources were provided but the Solo Agency Local Collector extension and Local Collector app are not activated yet.
+Use this section inside the internal source record and `INTERNAL_REPORT` when private data sources were provided but the Solo Agency Local Collector extension and Local Collector app are not activated yet. In client-facing reports, translate this into a client-safe coverage note such as `private community sources pending` without naming Solo Agency, Local Collector, Chrome extensions, or internal setup mechanics.
 
 - Status: pending_private_activation | activated | not_provided | unavailable
 - Why private data sources were not scanned today:
@@ -652,6 +781,12 @@ The 3x2 matrix is six idea buckets, not six total ideas. Under each Global/Local
 ## Best Idea Today
 
 - Selected idea:
+- Audience pain point:
+- Viewer value / lesson:
+- Non-promotional angle:
+- Why this helps the audience:
+- Soft business relevance:
+- Promotional risk check: pass | rewritten | promotional_not_value_first
 - Visible note, if related industry:
 - Mapped content pillar:
 - Industry scope: primary_industry | related_industry
@@ -671,7 +806,7 @@ The 3x2 matrix is six idea buckets, not six total ideas. Under each Global/Local
 - Repetition check:
 - Lead potential:
 
-## WideCast-Writing-Skill Content Drafts
+## Production-Ready Content Drafts
 
 ### Writing Method Used
 
@@ -679,6 +814,8 @@ The 3x2 matrix is six idea buckets, not six total ideas. Under each Global/Local
 - Source: MCP | public_api | static_zip | local_cache | best_effort_fallback
 - Source URL or tool:
 - Loaded at:
+
+Keep writing-method/source/tool details in the internal Markdown/source record and `INTERNAL_REPORT`. In client-facing HTML/PDF, show only the polished draft versions, source-backed rationale, and production readiness status.
 
 ### Version Label Rule
 
@@ -755,43 +892,45 @@ Include the reference URLs that support the article's key claims.
 
 ## Human Approval Options
 
-- Edit a version directly in the HTML report, click `Copy this version`, and paste the final text back into the AI chat.
+- Edit a version directly in the HTML report, click `Copy this version`, and use the final text for review or production.
 - Approve this draft.
 - Revise this draft.
 - Pick another idea from the list.
 - Request a blog/video variant.
-- Create the video in WideCast.
+- Create the approved production asset.
 ```
 
 ### Mobile HTML Report Rule
 
-In addition to internal Markdown files, the agent must export the final daily results as mobile-friendly HTML designed for the human to read, edit draft versions, copy final text, and make decisions.
+In addition to internal Markdown files, the agent must export the final daily results as mobile-friendly client-facing HTML designed to read like a professional agency report. The user/operator can read, edit draft versions, copy final text, and make decisions, but the client-facing HTML must not expose internal system/tooling details.
 
-The HTML report does not replace the Markdown report internally. Treat Markdown as the source-of-truth record for the agent and HTML as the only portable, mobile-friendly rendered delivery copy for the human.
+The HTML report does not replace the Markdown report internally. Treat Markdown as the source-of-truth record for the agent, client-facing HTML as the portable rendered delivery copy, and `INTERNAL_REPORT` as the operator-only system report.
 
 The HTML must be standalone and portable. Do not create an HTML report that requires fetching a neighboring `.md` file through `fetch("./report.md")`, because local file access and mobile sharing can break.
 
-The agent may create a custom HTML report instead of a direct Markdown render when that produces a better user experience. The HTML must remain factually aligned with the Markdown, but it should be optimized for human reading, mobile review, and editable draft workflow.
+The agent may create a custom HTML report instead of a direct Markdown render when that produces a better user experience. The client-facing HTML must remain factually aligned with the Markdown, but it should be optimized for client-safe reading, mobile review, and editable draft workflow.
 
-The HTML report is the preferred human-facing result because scheduled runs often happen while the human is away from the AI agent UI, and the human may open the result on a phone.
+The client-facing HTML report is the preferred review/share result because scheduled runs often happen while the human is away from the AI agent UI, and the human may open the result on a phone.
 
-The HTML report is human-facing, so it must be written in the same language the human uses. Keep internal file names and field keys stable if needed, but section titles, summaries, explanations, recommendations, and action labels should match the user's language.
+The client-facing HTML report must be written in the same language the human wants to use with the client. Keep internal file names and field keys stable if needed, but section titles, summaries, explanations, recommendations, and action labels should match the report language.
 
-Required internal and human-facing outputs:
+Required internal, client-facing, and operator-facing outputs:
 
 - Per-client report:
   - Internal source: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md`
-  - Human-facing public report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html`
-  - Human-facing private report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html`
-  - Human-facing daily index: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html`
-  - Human-facing latest daily index: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/latest/{client-name}-daily-report.html`
+  - Client-facing public report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html`
+  - Client-facing private report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html`
+  - Client-facing daily index: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html`
+  - Client-facing latest daily index: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/latest/{client-name}-daily-report.html`
+  - Operator-only internal report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.html`
+  - Operator-only latest internal report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/latest/{client-name}-INTERNAL_REPORT.html`
 - Master report:
   - Internal source: `daily-content-pipeline/outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`
-  - Human-facing report: `daily-content-pipeline/outputs/YYYY-MM/YYYY-MM-DD_master_digest.html`
+  - Operator-facing report: `daily-content-pipeline/outputs/YYYY-MM/YYYY-MM-DD_master_digest.html`
   - Internal latest pointer: `daily-content-pipeline/outputs/latest_master_digest.md`
-  - Human-facing latest report: `daily-content-pipeline/outputs/latest_master_digest.html`
+  - Operator-facing latest report: `daily-content-pipeline/outputs/latest_master_digest.html`
 
-The human should normally be shown the `Human-facing daily index` path. Public/private lane report paths may be shown as secondary links. Internal `.md` paths are for the agent only.
+The human/operator should normally be shown the client-ready daily index path, PDF companion path/status, and operator-only `INTERNAL_REPORT` path. Public/private lane report paths may be shown as secondary links. Internal `.md` paths are for the agent only.
 
 Do not present this older ambiguous shape to the human:
 
@@ -819,25 +958,25 @@ The HTML report must be mobile-first:
 - Short section summaries before long details.
 - Collapsible sections when the report is long, if the environment can generate them.
 - Clear color/status labels for hot leads, warm leads, high-threat competitors, approval-needed items, and session-expired blockers.
+- No document-level horizontal overflow at common mobile widths such as 390px. Tables, evidence ledgers, and scorecards must either become stacked cards or be placed inside a clearly styled horizontal-scroll wrapper. Long URLs, group names, post titles, and source names must wrap inside their cells/cards.
 
 The daily HTML index must include:
 
 - Run date.
-- Agent identity.
 - Clients processed.
 - Client status.
 - Links to `{client-name}-public-data-sources-report.html` and `{client-name}-private-data-sources-report.html`.
 - Public report status and private report status.
 - Top public recommendation summary and top private recommendation summary when available.
-- Blockers, notification status, and next action.
+- Client-relevant blockers/limits, delivery status, and next action.
 
 Each full lane HTML report must include:
 
 - Its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
-- Private collector health: bridge status, extension last check time, extension status, and private data source blockers.
-- Private Data Source Discovery status when asked, approved, pending, blocked, or completed.
-- Private Data Source Discovery Recommended when no private data sources are configured and discovery has not been offered yet.
-- Private Data Source Discovery Declined/Postponed when the human declined or postponed discovery, including a clear note that public-only reports can still be useful but may miss many community, lead, and competitor signals.
+- Safe private data source coverage status when relevant, without Local Collector, extension, login/session, or internal source inventory details.
+- Private Data Source Discovery status when asked, approved, pending, blocked, or completed, stated as client-safe coverage information.
+- Private Data Source Discovery Recommended when no private data sources are configured and discovery has not been offered yet, stated without internal setup mechanics.
+- Private Data Source Discovery Declined/Postponed when the human declined or postponed discovery, including a clear client-safe note that public-only reports can still be useful but may miss community, lead, and competitor signals.
 - Top ideas.
 - Best idea.
 - Mapped content pillar.
@@ -847,11 +986,9 @@ Each full lane HTML report must include:
 - Competitor profile URLs and post/current URLs when available.
 - Suggested value-first comments with real local copy buttons for every displayed lead/competitor opportunity.
 - Data source issues.
-- Private sessions needing login.
-- WideCast-writing-skill draft: video script, blog/article, social caption, or configured combination.
-- Production/provider status: draft only, approval required, client provider setup required, video/blog/social asset created, ready to publish, published, or blocked.
-- `Unlock Production & Distribution & Measure-Learning Loop With WideCast` section when the client's WideCast/OpenAPI provider config, Telegram notification, publishing, or video creation is not connected yet.
-- If WideCast Telegram is not connected yet, a short `Get daily reports on Telegram` note explaining that WideCast signup plus Telegram connection can be used as a free remote-report path, so the human can receive daily HTML report links and blockers while away from the computer.
+- Private source access limitations stated without naming login/session mechanics.
+- Production-ready draft: video script, blog/article, social caption, or configured combination.
+- Production readiness status in client-safe language: draft ready, approval required, ready for production, published, or blocked by missing client detail.
 - Approval options.
 - Next actions.
 
@@ -865,11 +1002,11 @@ Required report hierarchy:
 
 1. `Executive Snapshot`
    - Client name.
-   - Run date and agent identity.
+   - Run date.
    - Source coverage status: public data sources only, public data sources + private data sources, private data sources pending, private data sources failed, or mixed.
    - Best idea of the day in one sentence.
    - Why it matters today.
-   - Content asset status: draft ready, approval required, provider setup required, video/blog/social asset created, ready to publish, published, needs human detail, needs visual assets, or blocked.
+   - Content asset status: draft ready, approval required, ready for production, published, needs human detail, needs visual assets, or blocked.
    - Lead count: hot, warm, and not scanned/pending if applicable.
    - Competitor signal count.
    - One recommended next action.
@@ -884,14 +1021,14 @@ Required report hierarchy:
    - Public blockers or limitations.
 
 3. `Private Data Source Intelligence`
-   - Private collector health and source status.
+   - Private source coverage and status, stated without internal collector/extension/login details.
    - Private source coverage and data quality.
    - Private evidence ledger.
    - Private Lead & Competitor Opportunities.
    - Private Idea Matrix.
    - Best private idea.
    - Private draft/recommendation.
-   - Private blockers, skipped sources, stale extension/session issues, or pending activation notes.
+   - Private blockers, skipped sources, or pending coverage notes stated in client-safe language.
 
 4. `Today's Recommendation`
    - The single best idea.
@@ -916,27 +1053,19 @@ Required report hierarchy:
    - Public search keywords used today.
    - Public keyword count and diversity: show whether at least 10 distinct public search keywords were used, or name the blocker if not.
    - Public candidate idea sufficiency: show whether at least 3 source-backed ideas were new or newly angled after history review, or name the blocker if not.
-   - Pain-point/problem/need keyword sample used or added today, with the rest saved in the keyword bank for rotation. Do not dump the full keyword bank into the human-facing report.
+   - Pain-point/problem/need keyword sample used or added today, with the rest saved in the keyword bank for rotation. Do not dump the full keyword bank into the client-facing report.
    - Public data sources scanned.
    - New public data sources discovered/promoted/demoted today, with a compact summary. Do not dump the full public data source list.
-   - Private data sources scanned, pending, skipped, failed, or session-expired.
-   - New private data sources detected.
+   - Private data source coverage summarized safely: scanned, pending, skipped, failed, or unavailable. Do not mention login/session mechanics, Local Collector, Chrome extension, or private source inventory.
+   - New private data source signal categories detected, summarized safely.
    - Known blind spots for this run.
    - Data confidence summary.
    - If private data sources were provided but not activated yet, state that clearly and do not imply lead coverage is complete.
 
 7. `Private Data Source Discovery`
-   - Discovery categories approved, declined, pending, or not requested.
-   - Platforms and discovery URLs used.
-   - Facebook keyword group searches run, including keywords, search URLs, and 10-scroll status per keyword.
-   - Whether the Solo Agency Local Collector is active, pending, or blocked.
-   - Candidate groups, profiles, pages, KOLs, channels, communities, and feed-surfaced sources found.
-   - Which candidates are recommended for daily, weekly, optional, or watch-once monitoring.
-   - Which candidates were skipped as irrelevant, too broad, too noisy, sensitive/risky, or unavailable.
-   - For Facebook keyword group search, show skipped/noisy examples separately so the human can see UI noise was filtered out.
-   - Feed signals detected, with current URL and source when visible.
-   - Sources requiring human approval before being activated.
-   - Reassurance summary: professional one-time setup, local-only data safety, and daily scanning to avoid missed signals.
+   - In client-facing reports, include only a safe summary such as `additional community/source discovery is pending`, `new community signal categories were found`, or `private source coverage was unavailable today`.
+   - Do not include discovery URLs, exact private source inventory, Facebook search URLs, scroll counts, Local Collector state, extension state, login/session state, or source-approval mechanics.
+   - Put discovery categories, URLs, keywords, candidate groups/profiles/pages/KOLs/channels/communities, skipped/noisy examples, feed signals, source approval needs, and Local Collector status in `INTERNAL_REPORT`.
 
 8. `Idea Portfolio`
    - Keep the three-section idea structure:
@@ -945,16 +1074,29 @@ Required report hierarchy:
      - Lead-Gen / Conversion
    - Include both global and local angles when they matter.
    - Treat each global/local area as a bucket that can contain many ideas. Include every credible, source-backed idea harvested today in the appropriate bucket; do not reduce the matrix to one idea per bucket.
+   - Every idea must be audience-value-first, not client-praise-first. The idea must be useful even if the viewer never buys from the client.
    - For every idea, show:
      - Title.
      - Global or local label.
      - Primary industry or related industry label.
-     - Pain point or content pillar.
+     - Audience pain point.
+     - Viewer value / lesson.
+     - Source signal.
+     - Non-promotional angle.
+     - Why this helps the audience.
+     - Soft business relevance.
+     - Content pillar.
      - Novelty status: `new`, `new_angle`, `near_duplicate_rejected`, or `repeat_rejected`.
+     - Value-first status: `pass`, `rewritten`, or `promotional_not_value_first`.
      - Prior related idea/date when the idea reuses a topic from history.
      - New angle explanation when applicable.
      - Reference URL(s).
      - Short rationale.
+   - Do not use the client's product/service name as the main value of the idea. The product/service may appear only in `soft business relevance`, a case-study note, or a gentle CTA after the educational value is clear.
+   - Reject or rewrite ideas that merely praise, position, or advertise the client/product/service. Use `promotional_not_value_first` for ideas that cannot be made educational.
+   - Bad idea: `{Client Product} out-positions competitors with research + multi-platform execution.`
+   - Better idea: `Why small brands should test one message across three channels before spending heavily on content production.`
+   - Better soft business relevance: `Fits {Client Product} because the offer supports research and multi-platform execution, but the content teaches the audience how to make a smarter decision first.`
    - Score or qualitative rating for heat, relevance, lead potential, novelty, and confidence.
    - Empty weak buckets are allowed. Do not fill a bucket with filler just to make the report look complete, and do not drop credible harvested ideas merely because the bucket already has another idea.
 
@@ -972,10 +1114,10 @@ Required report hierarchy:
    - Every displayed opportunity must include post/current URL when available. Include profile URL only when visible and safe.
    - Include source, captured_at, context, need or audience-overlap signal, why it matters, confidence, suggested human action, and safety note.
    - Every displayed opportunity must include one copy-ready suggested comment based on the specific post context.
-   - The suggested comment must use the same language as the post, provide value, avoid direct advertising, avoid `DM me`, avoid attacking competitors, and sound natural rather than AI-polished.
+   - The suggested comment must use the same language as the post, provide value, avoid direct advertising, avoid `DM me`, `message me`, `inbox me`, `book a call`, `reach out to start`, or similar sales CTAs, avoid attacking competitors, and sound natural rather than AI-polished.
    - The suggested comment may include one or two tiny natural imperfections or typos when appropriate, but must remain clear and trustworthy.
    - Each suggested comment must have a real local `Copy comment` button that copies the comment text only. It must not imply the comment will be posted automatically.
-   - If no leads/competitors were found, say whether that means `none found after scanning`, `coverage from public data sources only`, `private data sources pending Local Collector activation`, `session expired`, or `source unavailable`.
+   - If no leads/competitors were found, say whether that means `none found after scanning`, `coverage from public data sources only`, `additional private/community coverage pending`, or `source unavailable`. Keep Local Collector/login/session mechanics in `INTERNAL_REPORT`.
    - If competitor data is inferred without a captured URL, label it as market hypothesis, not detected competitor evidence.
 
 11. `Production-Ready Drafts`
@@ -988,9 +1130,9 @@ Required report hierarchy:
    - Each version should be a usable draft, not only a one-line angle, unless the report explicitly labels it as an angle preview.
    - For each version, include hook/opening, body, CTA, tone, estimated length, source references, and production notes.
    - If visual/media URLs are required for immediate video creation but are missing, label the draft as `script-ready, media-pending`.
-   - If the draft is ready for WideCast video/blog/social creation, label it `production-ready`.
-   - If a connected provider has already created an approved video/blog/social asset, include the produced asset URL/status and label it `asset-created`, `ready-to-publish`, or `published`.
-   - If provider setup or human approval is still needed before creating the asset, say that clearly. Do not describe draft writing as if production has already happened.
+   - If the draft is ready for production, label it `production-ready`.
+   - If an approved video/blog/social asset has already been created, include the produced asset URL/status and label it `asset-created`, `ready-to-publish`, or `published`.
+   - If human approval or missing client detail is still needed before creating the asset, say that clearly in client-safe language. Put provider/setup blockers in `INTERNAL_REPORT`.
 
 12. `Compliance And Brand Safety`
    - Include short risk notes for legal, financial, insurance, medical, regulated, or sensitive industries.
@@ -1003,7 +1145,7 @@ Required report hierarchy:
    - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
    - After schedule/routine is configured but the first agency run has not happened, the primary next action should be handoff to the exact client-specific automation task. In Setup Flow, do not ask whether to run the first agency run now.
    - After the first Automation Flow report/draft exists and PDNA setup - Production, Distribution, Notification, and Analytics - has not been completed/declined/blocked, the primary next action should usually be that setup gate.
-   - For reports where production setup is completed/declined/blocked and private data sources are pending, the primary next action should usually be activating the Solo Agency Local Collector or marking private data sources pending, not starting a video branch.
+   - For client-facing reports where private data source coverage is pending, the primary next action should usually be reviewing/approving additional source coverage or continuing with public-data-source-only insights. Put Local Collector activation mechanics in `INTERNAL_REPORT`.
    - Do not ask "make a video now?" as the primary next action immediately after the first Automation Flow report/draft; production/provider setup comes first.
 
 ### Report Handoff Chat Rule
@@ -1021,11 +1163,11 @@ When the agent announces a report in chat, Telegram, email, or another human-fac
 Report-ready notification validity rule:
 
 - A report-ready notification without an HTML report URL/path and PDF companion status is invalid.
-- Before deciding provider upload or notification is unavailable, the agent must run a Provider Report Delivery Capability Check using Client tools first: the current client's provider config, OpenAPI discovery, verified identity, and capability cache, with legacy/global MCP/native tool discovery only as fallback after identity match.
-- If WideCast OpenAPI notification/Telegram/email fallback is available, the agent must try to deliver the report through WideCast notification.
-- If WideCast OpenAPI exposes an HTML-capable report/file/asset upload operation, upload the `.html` report first and send the uploaded WideCast report URL.
+- Before deciding provider upload or notification is unavailable, the agent must run a Provider Report Delivery Capability Check using Client tools first and record the details in `INTERNAL_REPORT`: the current client's provider config, OpenAPI discovery, verified identity, and capability cache, with legacy/global MCP/native tool discovery only as fallback after identity match.
+- If WideCast OpenAPI notification/Telegram/email fallback is available, the agent must try to deliver the report to the user/operator through WideCast notification.
+- If WideCast OpenAPI exposes an HTML-capable report/file/asset upload operation, upload the client-facing `.html` report for operator delivery and send the uploaded URL to the user/operator. Treat provider-hosted URLs as operator handoff links, not client-share links, because the URL/domain may reveal the provider.
 - If the verified client provider exposes PDF upload, upload the PDF companion too; otherwise include the local PDF path/status.
-- If WideCast report upload is unavailable or fails, the agent must log the exact provider blocker and still include the best available local/hosted `.html` report path/link plus PDF companion path/status in the notification.
+- If WideCast report upload is unavailable or fails, the agent must log the exact provider blocker in `INTERNAL_REPORT` and still include the best available local/hosted `.html` report path/link plus PDF companion path/status in the operator notification.
 - If the current AI connector/tool surface does not expose WideCast upload or Telegram tools, check Client tools first before concluding capability is missing. Do not claim that WideCast itself lacks the API or capability unless verified from the current client's provider config, account/API, and OpenAPI status.
 - If the agent accidentally sends a notification without a report URL/path or PDF companion status, it must immediately send a correction notification containing the HTML report URL/path plus PDF status and log the correction.
 
@@ -1060,6 +1202,7 @@ Professional presentation rules:
 - Avoid unexplained abbreviations.
 - Avoid emoji-heavy, gimmicky, or dashboard-toy styling. A small number of status symbols is acceptable, but the report should feel client-ready.
 - Use tables only when they make comparison or verification easier.
+- When using tables, make the mobile behavior explicit in the HTML/CSS: wrap wide tables in a scroll container or switch to cards. Never let a table widen the whole page on mobile.
 - Put reference links beside the claim, idea, lead, competitor, or draft they support. Do not hide all references in one generic source list.
 - Label missing data honestly: `not scanned`, `pending activation`, `session expired`, `not detected`, or `low confidence`.
 - Do not pretend research from public data sources only has private lead coverage.
@@ -1079,16 +1222,15 @@ Recommended HTML section order:
 10. Public Lead & Competitor Opportunities / Private Lead & Competitor Opportunities
 11. Production-Ready Drafts
 12. Compliance And Brand Safety
-13. Unlock Production & Distribution & Measure-Learning Loop With WideCast, when applicable
-14. Next Action
-15. Appendix / Raw References, optional
+13. Next Action
+14. Appendix / Raw References, optional
 ```
 
-Static HTML reports are not application UIs. The agent must not create buttons that imply an action will happen when the human taps them unless the button is backed by a real working URL or local browser action. For approval, revision, choosing another idea, creating a WideCast video, publishing, or outreach, the report should say what to tell the AI agent or where to open WideCast. For lead/competitor comments, a local `Copy comment` button is allowed only if it copies the suggested comment text and does not imply auto-posting.
+Static HTML reports are not application UIs. The agent must not create buttons that imply an action will happen when the human taps them unless the button is backed by a real working URL or local browser action. For approval, revision, choosing another idea, production, publishing, or outreach, the client-facing report should say what decision to make or what wording to approve without naming Solo Agency, WideCast, providers, or tools. Operator-only instructions about where to open WideCast or another provider belong in `INTERNAL_REPORT`. For lead/competitor comments, a local `Copy comment` button is allowed only if it copies the suggested comment text and does not imply auto-posting.
 
 ### Editable Draft Review Blocks In HTML
 
-When the report contains script, blog/article, or social-caption drafts, the HTML report should present each draft version in an editable block so the human can quickly revise the wording inside the browser and copy the final text back into the AI chat.
+When the client-facing report contains script, blog/article, or social-caption drafts, the HTML report should present each draft version in an editable block so the reviewer can quickly revise the wording inside the browser and copy the final text for review or production.
 
 This is a local review convenience, not a publishing or approval system.
 
@@ -1096,13 +1238,13 @@ The editable blocks should be generated by the HTML renderer from Markdown versi
 
 Rules:
 
-- The HTML report must show a visible human-facing note near the draft section: `You can fine-tune the draft directly on this page. When you are happy with it, click Copy this version and paste the final text back into the AI chat.` Translate this note into the human's language.
+- The client-facing HTML report may show a neutral note near the draft section: `You can fine-tune the draft directly on this page. When you are happy with it, click Copy this version for review or production.` Translate this note into the report language. Do not mention AI chat, agents, Solo Agency, WideCast, providers, or internal workflow mechanics.
 - Each draft version must be displayed in its own visually separated section.
 - Each section heading must use the full human-readable version label, such as `Version 1: VE — Value Explainer` or `Version 2: QA — Client Q&A`.
 - The editable draft body should use a real editable element, such as `<div contenteditable="true">`.
 - Each version may include one local `Copy this version` button.
 - The copy button must copy the current edited text from that version's editable block, not the original unedited text.
-- The HTML must clearly tell the human: `Edit this draft here if you want, then click Copy and paste the final version back into the AI chat.`
+- The HTML must clearly tell the reviewer: `Edit this draft here if you want, then click Copy when the final version is ready.`
 - The HTML must not autosave edits, upload edits, publish edits, approve edits, render videos, or spend credits.
 - The Markdown report remains the canonical internal record until the human pastes an edited final version back into chat or explicitly asks the agent to save it.
 - All draft text inserted into HTML must be escaped safely before rendering. Do not inject untrusted source text as raw HTML.
@@ -1114,7 +1256,7 @@ Suggested minimal structure:
 ```html
 <section class="draft-version">
   <h2>Version 1: VE — Value Explainer</h2>
-  <p class="hint">You can fine-tune this draft directly on this page. When you are happy with it, click Copy this version and paste the final text back into the AI chat.</p>
+  <p class="hint">You can fine-tune this draft directly on this page. When you are happy with it, click Copy this version for review or production.</p>
   <div id="draft-v1" class="editable-draft" contenteditable="true" spellcheck="true">
     <!-- Escaped draft text goes here. -->
   </div>
@@ -1144,9 +1286,9 @@ document.addEventListener("click", async function (event) {
 
 When the result is long, the agent should send or surface the HTML report plus PDF companion path/status instead of dumping the whole result into chat.
 
-The agent must deliver the HTML report and PDF companion path/status to the human by the most convenient available channel:
+The agent must deliver the client-facing HTML report, PDF companion path/status, and operator-only `INTERNAL_REPORT` path/status to the user/operator by the most convenient available channel:
 
-- Configured provider notification, preferably WideCast OpenAPI `sendTelegramMessage`, with the uploaded WideCast HTML report URL when report upload is available and the PDF companion URL/path/status. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
+- Configured provider notification, preferably WideCast OpenAPI `sendTelegramMessage`, with the uploaded operator-delivery HTML report URL when report upload is available, the PDF companion URL/path/status, and the `INTERNAL_REPORT` path/status. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
 - If the configured provider notification itself is unavailable, use a connected Gmail/email MCP, connector, or tool to email the HTML/PDF reports or links to the human if available and authorized.
 - Agent chat file attachment if supported.
 - Local file path in the automation/thread output.
@@ -1156,9 +1298,9 @@ The agent must deliver the HTML report and PDF companion path/status to the huma
 Notification fallback rule:
 
 - WideCast OpenAPI notification/Telegram/email fallback is the preferred scheduled-run notification channel when the client has configured WideCast as the provider.
-- If WideCast Telegram is not connected yet, the HTML report must include a concise setup note encouraging the human to register at WideCast, get an API key through `Setup AI Agent` -> `API Keys & MCP` -> `Setup` -> `Generate API key and MCP url`, connect Telegram for daily report alerts, and use it to receive report links/blockers remotely without sitting in front of the machine. Mention that connecting social accounts is optional and enables publishing only after human approval.
-  Translate this note into the report/human language.
-  Suggested report copy:
+- If WideCast Telegram is not connected yet, `INTERNAL_REPORT` and the operator handoff may include a concise setup note encouraging the human to register at WideCast, get an API key through `Setup AI Agent` -> `API Keys & MCP` -> `Setup` -> `Generate API key and MCP url`, connect Telegram for daily report alerts, and use it to receive report links/blockers remotely without sitting in front of the machine. Mention that connecting social accounts is optional and enables publishing only after human approval. Do not put this note in client-facing reports or PDFs.
+  Translate this note into the human/operator language.
+  Suggested internal/operator copy:
   ```text
   Get daily reports on Telegram
   Register at https://widecast.ai/#setup, log in, click Setup AI Agent, open API Keys & MCP, click Setup, then Generate API key and MCP url. Paste only the API key back to the agent for this client. Connect Telegram there so scheduled runs can send report links, blockers, and approval requests to your phone. If convenient, connect social accounts too; publishing to 10+ platforms still happens only after you approve the exact content and target platforms.
@@ -1175,7 +1317,7 @@ Notification fallback rule:
 - If neither WideCast notification nor Gmail/email is available, the agent should suggest connecting WideCast notification first, or Gmail/email as a secondary fallback.
 - The agent must not ask for email passwords, OAuth credentials, app passwords, cookies, or raw tokens. Use only an already connected Gmail/email tool, or guide the human to connect the official connector.
 - The email subject should include the client or master digest name, run date, and status, for example: `Daily Content Report Ready — Smith Law — 2026-06-21`.
-- The email body should include agent identity, run status, HTML report path/link, PDF companion path/status, blockers, lead/competitor counts, and next action.
+- The email body should include run status, client-facing HTML report path/link, PDF companion path/status, `INTERNAL_REPORT` path/status, blockers, lead/competitor counts, and next action.
 - If the email tool supports attachments, attach the `.html` report and `.pdf` companion when available. If not, include the HTML report path/link plus PDF companion path/status.
 
 If the channel cannot send files directly, send a short notification containing:
@@ -1183,6 +1325,7 @@ If the channel cannot send files directly, send a short notification containing:
 - Agent identity.
 - Run status.
 - HTML report path or URL.
+- INTERNAL_REPORT path or status.
 - Number of clients processed.
 - Number of hot leads, warm leads, and competitors detected.
 - Required human actions.
@@ -1191,29 +1334,37 @@ If the channel cannot send files directly, send a short notification containing:
 
 Run this check before claiming any daily run, scheduled run, or report handoff is complete.
 
-1. Confirm the local `.html` report exists.
+This is an operator/internal check. Its detailed output must be recorded in `INTERNAL_REPORT` and `notification_log.md`, not in client-facing reports or PDFs.
+
+1. Confirm the local client-facing `.html` report exists.
 2. Confirm the mandatory PDF companion exists or that `client_pdf_status` and `client_pdf_blocker` record the exact blocker.
-3. Check the configured notification channel from `daily-content-pipeline/schedule.md` and the Client Intelligence Profile.
-4. Load `daily-content-pipeline/provider_defaults.json` and the target client's `integrations/providers/provider_config.local.json` when present.
-5. If WideCast is configured, preferred, connected, or likely available, fetch/cache `https://widecast.ai/openapi.yaml` unless the cache is current.
-6. Verify the provider account before using account actions. For WideCast, call `getAccount` with the current client's configured provider credential and compare the verified account identity to the saved client provider identity when present.
-7. Inspect the discovered OpenAPI operation list for:
+3. Confirm `{client-name}-INTERNAL_REPORT.html` exists or that `internal_report_status` records the exact blocker.
+4. Confirm `client_facing_scrub_status: pass` before calling any report client-ready.
+5. Check the configured notification channel from `daily-content-pipeline/schedule.md` and the Client Intelligence Profile.
+6. Load `daily-content-pipeline/provider_defaults.json` and the target client's `integrations/providers/provider_config.local.json` when present.
+7. If WideCast is configured, preferred, connected, or likely available, fetch/cache `https://widecast.ai/openapi.yaml` unless the cache is current.
+8. Verify the provider account before using account actions. For WideCast, call `getAccount` with the current client's configured provider credential and compare the verified account identity to the saved client provider identity when present.
+9. Inspect the discovered OpenAPI operation list for:
    - account/status capability, such as `getAccount`;
    - HTML-capable report/file/asset upload capability, such as `uploadAsset` with `text/html`;
    - PDF/file upload capability when exposed by the verified client provider;
    - Telegram/report notification send capability, such as `sendTelegramMessage`;
    - email fallback behavior exposed by the provider, if any.
-8. Use legacy/global MCP/native tool discovery/lazy-load only as a fallback or compatibility path after Client tools and the client-scoped provider config/account identity have been checked. A global MCP/native WideCast account visible in the AI session is not proof that the current client's report upload, notification, platforms, credits, or analytics are configured. If the tool account cannot be proven to match the client provider identity, log `global_mcp_not_client_scoped` and continue with the per-client OpenAPI/API-key setup path or the best authorized fallback.
-9. If upload capability exists, upload the `.html` report and capture the uploaded URL and TTL if returned.
-10. If PDF upload capability exists, upload the PDF companion and capture the uploaded URL and TTL if returned.
-11. If notification capability exists, send the uploaded URL when available; otherwise send the best available local/hosted `.html` path/link with the exact upload blocker. Always include the PDF companion URL/path/status.
-12. If the provider notification operation itself is unavailable, use an authorized fallback channel such as Gmail/email only when available and authorized; otherwise surface the local HTML path plus PDF companion path/status in chat and log the notification blocker.
-13. Save a report-delivery record in `daily-content-pipeline/notifications/notification_log.md`.
+10. Use legacy/global MCP/native tool discovery/lazy-load only as a fallback or compatibility path after Client tools and the client-scoped provider config/account identity have been checked. A global MCP/native WideCast account visible in the AI session is not proof that the current client's report upload, notification, platforms, credits, or analytics are configured. If the tool account cannot be proven to match the client provider identity, log `global_mcp_not_client_scoped` and continue with the per-client OpenAPI/API-key setup path or the best authorized fallback.
+11. If upload capability exists, upload the client-facing `.html` report for user/operator delivery and capture the uploaded URL and TTL if returned. Treat provider-hosted URLs as operator handoff links, not client-share links.
+12. If PDF upload capability exists, upload the PDF companion and capture the uploaded URL and TTL if returned.
+13. If notification capability exists, send the uploaded URL when available; otherwise send the best available local/hosted `.html` path/link with the exact upload blocker. Always include the PDF companion URL/path/status and the internal report path/status.
+14. If the provider notification operation itself is unavailable, use an authorized fallback channel such as Gmail/email only when available and authorized; otherwise surface the local HTML path plus PDF companion path/status plus internal report path/status in chat and log the notification blocker.
+15. Save a report-delivery record in `daily-content-pipeline/notifications/notification_log.md`.
 
 The report-delivery record must include:
 
 ```yaml
 html_report_path:
+internal_report_path:
+internal_report_status:
+client_facing_scrub_status:
+client_facing_scrub_blocker:
 pdf_report_path:
 pdf_status:
 pdf_blocker:
@@ -1238,6 +1389,7 @@ provider_notification_status: sent | failed | unavailable | skipped
 fallback_notification_channel:
 final_report_link_sent_to_human:
 final_pdf_link_or_status_sent_to_human:
+final_internal_report_link_or_status_sent_to_human:
 blocker:
 ```
 

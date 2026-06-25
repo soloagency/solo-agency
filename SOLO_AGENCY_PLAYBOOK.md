@@ -80,6 +80,42 @@ Whenever the agent checks whether production, video, blog, social, upload, notif
 
 The agent must not say "no video tool", "no WideCast tool", "no upload tool", "no notification tool", or similar until it has checked or refreshed the current client's Client tools and logged the exact blocker. If Client tools expose the needed OpenAPI operation but global MCP does not, use the Client tools path.
 
+## Audience Value-First Content Rule
+
+Every idea, Idea Matrix entry, best idea, suggested comment, video script, blog draft, social caption, and production recommendation must be useful to the target audience before it is useful to the client's brand.
+
+The content premise must answer at least one of these questions:
+
+- What will the viewer learn?
+- What mistake will the viewer avoid?
+- What decision will the viewer make better?
+- What risk, cost, confusion, or wasted effort will the viewer reduce?
+
+Do not turn market or competitor signals into direct praise for the client's product/service. Do not make the client's brand, product name, or service claim the main value of an idea unless the idea also contains a standalone audience lesson. Avoid client-worship phrasing such as `{Client Product} wins`, `{Client Product} out-positions competitors`, `why our service is better`, or `choose us because...`.
+
+Client/product relevance belongs in a secondary field such as `soft business relevance`, `why this fits the client's offer`, or a gentle CTA after the educational value is already clear. If an idea cannot be rewritten into a viewer-value lesson without directly advertising the client, reject it as `promotional_not_value_first`.
+
+## Client-Blind Deliverable And Internal Report Rule
+
+Client-facing deliverables must be client-blind by default. There is no attribution opt-in path in the playbook. Reports, PDFs, videos, blogs, captions, comments, and other assets intended for the client's client/customer must not mention `Solo Agency`, `WideCast`, PDNA/provider tooling, `OpenAPI`, `MCP`, `Local Collector`, Chrome extensions, automation/scheduled tasks, API keys, Telegram, config files, agent/tool/debug details, or `INTERNAL_REPORT`.
+
+Client-facing output should read like work from a professional agency: market insight, evidence, audience pain points, idea matrix, recommendation, draft, and next action. Technical operations belong only in the operator/internal layer.
+
+Every client/day/run must also create an operator-only internal report with `INTERNAL_REPORT` in the filename:
+
+```text
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.html
+outputs/latest/{client-name}-INTERNAL_REPORT.html
+```
+
+When a Markdown internal report is useful, save it as:
+
+```text
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.md
+```
+
+The internal report must be clearly labeled `INTERNAL_REPORT - Not for client sharing` and must contain Solo Agency/WideCast/provider/PDNA status, Telegram/social-platform status, API-key/config status, Local Collector and extension health, private data source inventory, automation freshness, delivery-capability checks, blockers, issue/recovery details, and next operator action.
+
 ## Latest Architecture Override: Setup Flow And Automation Flow
 
 Solo Agency has two independent human-facing flows. This override wins over any older wording in this repo that tells the setup agent to run the first report, first agency run, private scan, video creation, publishing, or production action inside the setup chat.
@@ -153,9 +189,13 @@ Each full lane report has its own source coverage, evidence, Lead & Competitor O
 
 The report set must use `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` so later automation passes can update only the intended lane. The `latest` human-facing link must point to `{client-name}-daily-report.html`, not a lane-specific report unless explicitly requested.
 
-Two notifications are acceptable: one when the public report is ready and one when the private report is ready or blocked. Notifications should normally point to `{client-name}-daily-report.html` or its uploaded URL, include the mandatory PDF companion path/status, and include lane-specific report links as secondary links when useful.
+After a private data source scan completes, the agent must reconcile the whole report set before handoff: `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`, `{client-name}-daily-report.md` or source record, `{client-name}-report_state.json`, and `outputs/latest/` convenience copies must agree on private scan status, completed timestamps, sources attempted/completed, data point counts, lead counts, competitor counts, recommended-source counts, blocker counts, and notification/delivery status. Do not leave stale phrases such as `scan in progress`, `partial`, `pending`, or old recommended-source totals in one artifact after another artifact says the private scan is complete.
 
-After creating or updating the three HTML files, create or update the mandatory PDF companion package from those HTML files: `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf`. The PDF must be offered alongside the HTML report so the recipient can choose the format. It must not replace the three canonical HTML files. Private data source details must be redacted or held for human review unless sharing exact private sources was approved. If PDF generation is blocked by tooling or redaction uncertainty, create the print-friendly `{client-name}-client-report.html`, record `client_pdf_status: blocked` with the exact blocker, and still hand off the HTML report plus the PDF blocker.
+Every run must also create/update `{client-name}-INTERNAL_REPORT.html` and `outputs/latest/{client-name}-INTERNAL_REPORT.html`. Client-facing report files and the PDF companion must stay free of Solo Agency, WideCast, provider, Local Collector, automation, API-key/config, Telegram, and debug/system details; put those details in `INTERNAL_REPORT` instead.
+
+Two notifications are acceptable: one when the public report is ready and one when the private report is ready or blocked. Notifications to the user/operator should normally point to `{client-name}-daily-report.html` or its uploaded operator-delivery URL, include the mandatory PDF companion path/status, include `{client-name}-INTERNAL_REPORT.html` path/status, and include lane-specific report links as secondary links when useful.
+
+After creating or updating the three client-facing HTML files, run the Client-Blind Scrub Gate, then create or update the mandatory PDF companion package from those scrubbed HTML files: `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf`. The PDF must be offered alongside the HTML report so the recipient can choose the format. It must not replace the three canonical HTML files. Private data source details must be safe summarized; raw private content, private source inventory, and internal system details belong in `INTERNAL_REPORT`. If PDF generation is blocked by tooling or redaction uncertainty, create the print-friendly `{client-name}-client-report.html`, record `client_pdf_status: blocked` with the exact blocker, and still hand off the HTML report plus the PDF blocker plus the INTERNAL_REPORT path/status.
 
 ### One Bridge, Many Client Extensions
 
@@ -512,7 +552,8 @@ The agent may omit the next-step question only when the entire requested workflo
 - Show inference before asking the next question.
 - Configure schedule/routine and the client-specific automation task before the first report; if private data sources exist and Local Collector is not active, handle step 7A or mark private data sources as pending before declaring automation ready.
 - If no private data sources are provided, offer optional private data source discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds before treating the private data source step as resolved.
-- Canonical user-facing reports are HTML. Markdown is internal. A PDF companion is mandatory after the HTML report set is created or updated; it must be derived from the three HTML files, offered alongside the HTML handoff, and recorded as generated or blocked with the exact blocker.
+- Canonical client-facing reports are HTML and client-blind. Markdown is internal. A PDF companion is mandatory after the HTML report set is created or updated; it must be derived from the three scrubbed HTML files, offered alongside the HTML handoff, and recorded as generated or blocked with the exact blocker. The operator-only `INTERNAL_REPORT` path/status must be handed off alongside the client-ready files.
+- Ideas, best ideas, comments, scripts, blogs, captions, and recommendations must be audience-value-first. Reject or rewrite client/product praise as `promotional_not_value_first`.
 - Before declaring any blocker/dead end, check GitHub `main` for newer Solo Agency playbooks/code; if latest GitHub still does not resolve it, create, send, or draft a redacted issue without requiring the human to have a GitHub account, then track it in `automation/github_issues.md`.
 - Private data stays local unless the human explicitly approves export.
 - Never ask for passwords, OTPs, cookies, tokens, or raw credentials.
@@ -544,7 +585,7 @@ Setup is not complete until:
 - Useful recurring public data sources discovered during runs were saved/promoted into `public_data_sources` with cadence so later scheduled runs can revisit them.
 - Step 5 private data source preference was resolved before schedule setup, and step 7A private data source intake/discovery/approval plus the Local Collector checkpoint were resolved or honestly marked pending before the client-specific automation task was declared ready.
 - Schedule/routine and the client-specific automation task were configured before the first report.
-- The automation task contract requires the first automation run to load Stage 10, generate the three-file HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, and create at least one useful draft script/blog/caption.
+- The automation task contract requires the first automation run to load Stage 10, generate the three-file client-facing HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), generate `{client-name}-INTERNAL_REPORT.html`, pass the Client-Blind Scrub Gate, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, reject direct-promo ideas as `promotional_not_value_first`, and create at least one useful audience-value-first draft script/blog/caption.
 - The setup handoff showed the exact task name the human should run for the first report.
 - PDNA - Production, Distribution, Notification, and Analytics - was treated as provider/configuration setup only, not report/video/publish execution inside Setup Flow.
 
@@ -580,10 +621,12 @@ Daily run is not complete until:
 - Sources, keywords, data quality, leads, competitors, ideas, best idea, drafts, and blockers were recorded.
 - Stage 10 was loaded and lane-specific Lead & Competitor Opportunities were detected, skipped with a clear reason, or marked pending/private data sources unavailable.
 - A mobile-friendly HTML report exists.
-- The mandatory PDF companion was generated from the three HTML files, or the exact PDF blocker/status was recorded.
-- The human received the HTML report path/link plus PDF companion path/status by chat or notification.
-- Stage 6 Provider Report Delivery Capability Check was run with Client tools first: provider/OpenAPI discovery and account verification were inspected, the HTML report was uploaded and sent when operations existed, the PDF was uploaded when the verified client provider supported it, or the exact provider/upload/notification blocker was logged and the best available HTML path/link plus PDF companion path/status was delivered.
-- If WideCast OpenAPI notification is configured and WideCast HTML report upload is available, the HTML report was uploaded to WideCast and the human received the uploaded WideCast report URL plus PDF companion path/status.
+- An operator-only `{client-name}-INTERNAL_REPORT.html` exists and is clearly labeled `INTERNAL_REPORT - Not for client sharing`.
+- The mandatory PDF companion was generated from the three scrubbed HTML files, or the exact PDF blocker/status was recorded.
+- The human/operator received the HTML report path/link plus PDF companion path/status plus INTERNAL_REPORT path/status by chat or notification.
+- Client-facing HTML/PDF files passed the client-blind scrub gate: no Solo Agency, WideCast, provider tooling, Local Collector, automation, API-key/config, Telegram, or debug/system details.
+- Stage 6 Provider Report Delivery Capability Check was run with Client tools first and recorded in `INTERNAL_REPORT`: provider/OpenAPI discovery and account verification were inspected, the HTML report was uploaded and sent when operations existed, the PDF was uploaded when the verified client provider supported it, or the exact provider/upload/notification blocker was logged and the best available HTML path/link plus PDF companion path/status plus INTERNAL_REPORT path/status was delivered.
+- If WideCast OpenAPI notification is configured and WideCast HTML report upload is available, the client-facing HTML report was uploaded to WideCast for operator delivery and the human received the uploaded report URL plus PDF companion path/status. The client-facing files themselves still must not mention WideCast.
 - Stage 9 self-audit passes or misses are reported honestly.
 
 ## Jump-Prevention Rules

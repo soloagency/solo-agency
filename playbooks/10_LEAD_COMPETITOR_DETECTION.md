@@ -170,6 +170,33 @@ Competitor score dimensions:
 - strategic threat;
 - opportunity for the user to add a better, clearer, or more helpful perspective.
 
+## Audience Value-First Opportunity Rule
+
+Lead and competitor intelligence must produce useful audience-facing ideas, not direct praise for the user's product/service.
+
+When a lead or competitor signal becomes an idea, best idea, suggested comment, script, blog, caption, or recommendation, it must state:
+
+- the audience pain point or confusion;
+- the viewer value / lesson;
+- the source signal;
+- the non-promotional angle;
+- why it helps the audience;
+- the soft business relevance to the user's offer.
+
+Do not convert competitor positioning into `the client should out-position them`, `our product is better`, `{Client Product} wins`, `choose us`, or similar direct promotional framing. If the idea cannot teach the audience something useful without selling, reject it as `promotional_not_value_first`.
+
+Bad competitor-derived idea:
+
+```text
+MiniMeo out-positions competitors by selling without selling across multiple platforms.
+```
+
+Better competitor-derived idea:
+
+```text
+How small brands can test whether their "selling without selling" message is actually clear before pushing it across every platform.
+```
+
 Use qualitative labels if numeric scoring would slow the run:
 
 ```text
@@ -187,7 +214,7 @@ The comment must:
 - provide a useful insight, question, clarification, checklist item, or perspective;
 - sound like a real person, not an AI assistant;
 - be short enough to paste into a social thread without looking like a mini blog post;
-- avoid direct selling, self-promotion, `DM me`, `book a call`, `we can help`, or service pitches;
+- avoid direct selling, self-promotion, `DM me`, `message me`, `inbox me`, `book a call`, `reach out to start`, `we can help`, or service pitches;
 - avoid attacking or undermining a competitor;
 - avoid guarantees, regulated claims, legal/medical/financial advice, or unsafe instructions;
 - avoid over-polished phrasing, generic motivational language, and obvious AI cadence;
