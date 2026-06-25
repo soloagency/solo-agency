@@ -308,7 +308,7 @@ The update command means: check the latest GitHub `main`, compare the local inst
 
 Do not run public research, private data source collection, reports, video/blog/social production, analytics, publishing, or outreach because the human asked for update. In Setup Flow, update remains control-plane work. In Automation Flow, update work must not leave a report run on partially mixed old/new instructions.
 
-After schedule/automation exists, recommend the daily `Solo Agency - GitHub Update Watch` task. This maintenance task checks GitHub for new versions, classifies changes, notifies the operator, and applies/resyncs updates only when the human has approved auto-apply. If bridge/runtime or extension code changed, the handoff must include exact bridge rerun and Chrome extension reload instructions for every affected client profile.
+After schedule/automation exists, recommend the daily `Solo Agency - GitHub Update Watch` task. This maintenance task checks GitHub for new versions, classifies changes, writes a local/internal update notice, and applies/resyncs updates only when the human has approved auto-apply. It must not send Telegram, WideCast/email-fallback, provider notifications, social posts, or client notifications because version maintenance is internal user/agency work. If bridge/runtime or extension code changed, the handoff must include exact bridge rerun and Chrome extension reload instructions for every affected client profile.
 
 ## Stage Map
 

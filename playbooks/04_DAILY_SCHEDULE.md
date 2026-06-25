@@ -225,6 +225,7 @@ Rules:
 - It must load `playbooks/11_UPDATE_AND_VERSION_WATCH.md`.
 - It must check GitHub `main`, compare the installed version, classify the change, and update `daily-content-pipeline/automation/update_state.json` plus `update_log.md`.
 - It must not run client reports, public data source scans, private data source scans, production, publishing, or analytics.
+- It must not send Telegram, WideCast/email-fallback, provider notifications, social posts, or client notifications. GitHub update checks are internal user/agency maintenance; write `daily-content-pipeline/automation/update_notice.md` and surface the result in the setup/maintenance chat or native task output instead.
 - It may auto-apply updates only when the human has approved auto-apply in `update_state.json` or an equivalent operator setting.
 - Even when auto-apply is approved, bridge/runtime changes still require a human-run command outside the AI sandbox and extension changes still require Chrome reload/Load unpacked steps per client profile.
 - If the automation environment cannot create the native task directly, write the exact prompt from `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` to `daily-content-pipeline/automation/update_watch_prompt.md`, log `update_watch_task_prompt_pending`, and give the human the exact task name and prompt path.
