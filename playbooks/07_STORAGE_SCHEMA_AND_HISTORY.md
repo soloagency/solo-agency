@@ -438,6 +438,8 @@ Create or update this file when PDNA provider setup is introduced:
       "type": "openapi",
       "provider_home_url": "https://widecast.ai/",
       "discovery_url": "https://widecast.ai/openapi.yaml",
+      "preferred_server_url": "https://widecast.ai/app/dashboard",
+      "disabled_server_urls": ["https://api.widecast.ai"],
       "auth_type": "bearer_api_key",
       "api_key_prefix": "wc_live_",
       "secret_storage": "per_client_local_config",
@@ -451,6 +453,7 @@ Rules:
 
 - Agents must use `discovery_url` to fetch the OpenAPI spec instead of hard-coding endpoint paths.
 - Agents must read the OpenAPI `servers` list and operation schemas before calling provider APIs.
+- For WideCast, agents must select `https://widecast.ai/app/dashboard` as the current production server and skip `https://api.widecast.ai` as a disabled/planned vanity host unless a future playbook explicitly enables it.
 - The provider home URL is only a human-facing setup link and fallback discovery root.
 - A new provider can be added beside `widecast` if it exposes an equivalent OpenAPI spec and supports the needed PDNA capability groups.
 - Do not commit real API keys or account-specific provider state into this file.
@@ -697,6 +700,8 @@ Minimum WideCast OpenAPI example:
       "type": "openapi",
       "discovery_url": "https://widecast.ai/openapi.yaml",
       "provider_home_url": "https://widecast.ai/",
+      "preferred_server_url": "https://widecast.ai/app/dashboard",
+      "disabled_server_urls": ["https://api.widecast.ai"],
       "auth_type": "bearer_api_key",
       "api_key_env": "SOLO_AGENCY_WIDECAST_API_KEY_ANGELA_DO",
       "api_key_local": "",
@@ -744,6 +749,7 @@ Credential rules:
 - `provider_identity_source` must be `per_client_openapi` before PDNA is considered connected. `global_mcp_compat` is allowed only when the MCP/native tool identity has been compared to the saved client provider identity and matches exactly.
 - `mcp_compatibility_status` may be `not_used`, `identity_matched`, `identity_mismatch`, or `not_client_scoped`. If it is `identity_mismatch` or `not_client_scoped`, do not use MCP/native account data for this client's PDNA status.
 - `pdna_setup_blocker` should use provider-neutral blocker names such as `provider_config_missing`, `provider_auth_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_account_mismatch`, or `global_mcp_not_client_scoped`.
+- For WideCast, `preferred_server_url` must stay `https://widecast.ai/app/dashboard` and `disabled_server_urls` must include `https://api.widecast.ai` until a future playbook explicitly enables that host.
 
 #### `provider_capabilities.json`
 
@@ -761,7 +767,9 @@ Minimum shape:
   "provider": "widecast",
   "discovered_at": "",
   "discovery_url": "https://widecast.ai/openapi.yaml",
-  "server_url": "",
+  "server_url": "https://widecast.ai/app/dashboard",
+  "server_urls_discovered": [],
+  "server_urls_skipped_disabled": ["https://api.widecast.ai"],
   "auth_scheme": "bearerAuth",
   "operation_ids": {
     "account": "getAccount",

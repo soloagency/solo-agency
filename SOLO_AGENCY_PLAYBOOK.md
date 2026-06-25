@@ -80,6 +80,12 @@ Whenever the agent checks whether production, video, blog, social, upload, notif
 
 The agent must not say "no video tool", "no WideCast tool", "no upload tool", "no notification tool", or similar until it has checked or refreshed the current client's Client tools and logged the exact blocker. If Client tools expose the needed OpenAPI operation but global MCP does not, use the Client tools path.
 
+## WideCast OpenAPI Server Selection Rule
+
+For WideCast, the current production OpenAPI server is `https://widecast.ai/app/dashboard`.
+
+Treat `https://api.widecast.ai` as a disabled/planned vanity host unless a future Solo Agency playbook explicitly enables it. If the discovered OpenAPI `servers` list includes both, choose `https://widecast.ai/app/dashboard`, skip `https://api.widecast.ai`, and record the correction in Client tools/capability logs when an older config or cache selected the disabled host.
+
 ## Audience Value-First Content Rule
 
 Every idea, Idea Matrix entry, best idea, suggested comment, video script, blog draft, social caption, and production recommendation must be useful to the target audience before it is useful to the client's brand.
