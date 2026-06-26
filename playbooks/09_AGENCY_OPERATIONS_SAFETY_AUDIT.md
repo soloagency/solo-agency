@@ -1458,6 +1458,9 @@ Before replying to the human, verify:
 - [ ] If schedule/automation already exists and this reply includes a progress block, did I include an `Automation freshness check` stating whether the latest changes are synced into the automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state?
 - [ ] If I am handing control back to the human while required steps remain, is the final line exactly one concrete next-step question?
 - [ ] If human action is needed, did I show the exact action directly in chat or notification?
+- [ ] If human action is needed, did I use the root playbook `**[ACTION REQUIRED]**` block instead of burying the question/action in paragraphs, reports, file links, or progress text?
+- [ ] If no human action is needed, did I say `No action required right now.` instead of ending with an ambiguous prompt?
+- [ ] Did I keep the most important required action at the end of the reply, with no more than three `**[ACTION REQUIRED]**` blocks?
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I am about to report a blocker, repeated failure, unclear contradiction, stale artifact, missing capability, or dead end, did I first run Last-Resort Recovery by checking GitHub `main` for newer Solo Agency playbooks/code and reloading the latest relevant instructions?
 - [ ] If the latest GitHub version still did not resolve the blocker, did I create, send, or draft a redacted issue without requiring the human to have a GitHub account, record the issue URL/number, intake channel, or draft path in `daily-content-pipeline/automation/github_issues.md`, and tell the human how it will be tracked?
@@ -1766,7 +1769,7 @@ Before saying the run is complete, verify:
 - [ ] Did the operator chat or notification that announces the report show an updated progress block when required steps remain?
 - [ ] If schedule/automation already exists, did that operator chat/notification and `INTERNAL_REPORT` include an `Automation freshness check` instead of only saying the config/report is updated?
 - [ ] Did the operator chat/notification and `INTERNAL_REPORT` include the Provider Report Delivery Capability Check outcome: Client tools checked first, provider/OpenAPI discovery checked, account verified or blocker, upload attempted or blocker, notification attempted or blocker, final HTML report path/link, PDF companion path/status, and INTERNAL_REPORT path/status?
-- [ ] Did that chat or notification end with exactly one concrete next-step question when the human needs to choose the next step?
+- [ ] Did that chat or notification end with exactly one concrete next-step question in a `**[ACTION REQUIRED]**` block when the human needs to choose the next step?
 - [ ] Is the HTML factually aligned with the internal Markdown report?
 - [ ] Is the HTML standalone and portable?
 - [ ] Did I avoid making the HTML depend on `fetch("./report.md")`, remote scripts, remote CSS, or a neighboring Markdown file?

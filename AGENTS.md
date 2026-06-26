@@ -2,6 +2,8 @@
 
 When the user asks to set up this repo, always read `SOLO_AGENCY_PLAYBOOK.md` first and follow its checklist in order.
 
+Human-facing required actions must use the Solo Agency `**[ACTION REQUIRED]**` block from `SOLO_AGENCY_PLAYBOOK.md`. Do not bury questions, approvals, commands, Chrome extension paths, provider/API-key setup, or automation task edits in paragraphs or reports. If no human action is needed, say `No action required right now.`
+
 During Setup Flow, never run, create, generate, show, refresh, or update a report in the setup chat, even if the human explicitly asks. Treat the request as a handoff request: verify/resync the client-specific automation task, tell the human the exact task name to run, and do not load the scheduled-run entrypoint or perform public research/private collection/report generation inside Setup Flow.
 
 Do not install, start, or configure `solo-agency-collector/` before the playbook explicitly reaches the Local Collector/private data source stage and the human approves it.

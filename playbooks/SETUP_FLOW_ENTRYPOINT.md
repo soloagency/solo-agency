@@ -23,6 +23,7 @@ Before setup proceeds, verify or explain that Solo Agency needs Codex, Claude De
 11. PDNA provider setup must be client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming production, distribution, notification, analytics, credits, or connected platforms are available. Do not use a global MCP/native provider account as proof of this client's PDNA status.
 12. After any approved config change or applied Solo Agency update, perform Automation Resync if a schedule/automation already exists.
 13. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`.
+14. Every human question, approval request, one-line Terminal/PowerShell command, Chrome `Load unpacked` instruction, provider/API-key setup request, and native automation task edit must use the `**[ACTION REQUIRED]**` block from `SOLO_AGENCY_PLAYBOOK.md`. If setup continues without needing the human, say `No action required right now.`
 
 ## Fresh Source Acquisition Hard Gate
 
@@ -69,7 +70,7 @@ For each configured client, Setup Flow must leave these current:
 
 If the native automation task prompt cannot be updated directly, mark `automation_prompt_update_pending` in the manifest and schedule, then give the human one concrete instruction to update the task prompt.
 
-For every new client, the setup handoff must include the dedicated extension install instructions, not just a status line. Show the absolute `extensions/{client_slug}/` folder path and the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account.
+For every new client, the setup handoff must include the dedicated extension install instructions, not just a status line. Show the absolute `extensions/{client_slug}/` folder path and the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account inside a `**[ACTION REQUIRED]**` block.
 
 After schedule/automation exists, offer the separate maintenance task `Solo Agency - GitHub Update Watch`. If the runtime cannot create it directly, write the exact prompt to `daily-content-pipeline/automation/update_watch_prompt.md`, tell the human the task name to create, and record `update_watch_task_prompt_pending` in the automation/update state.
 
@@ -80,6 +81,7 @@ When the human asks for a report/run while this entrypoint is active, the only v
 1. State that Setup Flow does not run reports.
 2. Finish or resync the client-specific automation task.
 3. Provide the exact task name and whether it will run public data sources only or public plus activated private data sources.
-4. If the native automation UI requires human action, provide that one exact action.
+4. If the native automation UI requires human action, provide that one exact action in a `**[ACTION REQUIRED]**` block.
+5. End with a `**[ACTION REQUIRED]**` block naming the exact client-specific automation task to run for the report, or say `No action required right now.` when no action is needed.
 
 Do not ask whether to run the report now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not perform public research, private data source collection, report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery in Setup Flow.

@@ -54,6 +54,85 @@ Canonical terminology rule:
 - If login or membership context matters, write it as an explanation after the canonical term, for example: `private data sources (logged-in/member/community places that may require your account)`.
 - Do not use `private data` as shorthand for `private data sources`; reserve `private data` for actual collected data, storage, privacy, or export discussions.
 
+## Human Action Highlighting Contract
+
+Important human questions and instructions must be impossible to miss.
+
+Any human-facing reply, setup handoff, blocker, notification, report handoff, or next-step question that requires the human to answer, approve, paste, run, click, load an extension, connect a provider, edit an automation task, or confirm state must put that request in a standalone block.
+
+Do not bury required questions or actions inside long paragraphs, progress roadmaps, report links, Markdown files, or status summaries. If a required question appears in body text, repeat the final required ask in the action block. If no human action is needed, say:
+
+```text
+No action required right now.
+```
+
+Use this stable text marker exactly. A font/text icon such as `!`, `⚠`, or `✓` may appear before it, but the text marker is required because icons render differently across AI chat apps:
+
+```text
+**[ACTION REQUIRED]**
+```
+
+Generic human-action format:
+
+```text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name or workspace}
+**I need you to:** {one concrete action or question}
+**Reply with:** `{exact reply option}` or `{exact text to paste}`
+**Why:** {one short reason}
+```
+
+Command/action format:
+
+````text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name or workspace}
+**Run this outside the AI sandbox:**
+
+```sh
+one exact command
+```
+
+**Then reply:** `done`
+**Why:** {one short reason}
+````
+
+Chrome/extension format:
+
+```text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name}
+**Open this Chrome profile/account:** {profile/account hint}
+**Load unpacked folder:** `{absolute extensions/{client_slug}/ path}`
+**Then reply:** `done`
+**Why:** This binds the correct client extension to the correct logged-in account.
+```
+
+Approval format:
+
+```text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name}
+**Approve one option:** `{option_a}` / `{option_b}` / `{option_c}`
+**What I will do after approval:** {one sentence}
+**Why:** {one short reason}
+```
+
+Rules:
+
+- Put the most important required action at the end of the message.
+- Use at most three `**[ACTION REQUIRED]**` blocks in one reply. If more than three actions exist, group or prioritize them.
+- Keep each block short enough to scan on mobile.
+- Do not use an icon as the only signal; the `**[ACTION REQUIRED]**` text marker is mandatory.
+- Do not ask for passwords, cookies, OTPs, browser session tokens, or social credentials. Provider setup blocks may ask only for the specific API key or OAuth/connection action the playbook allows.
+- Setup Flow report requests must end with an action block that names the exact client-specific automation task to run, not a question asking whether to run the report now.
+- Production, rendering, publishing, credit spending, face/voice clone, provider account connection, lead outreach, private data source discovery, private data source approval, Local Collector start/reload, Chrome extension loading, and native automation task edits always require this block.
+- Scheduled runs and notifications should use the block only when the human must act. Otherwise they should include `No action required right now.`
+
 ## Mission
 
 Turn an AI agent into a practical daily marketing agency operator for one owner or many clients.
