@@ -21,6 +21,7 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 - Store schedule config and notification channel.
 - After any human-approved change made after the schedule/automation was created, perform Automation Resync before claiming the next scheduled run is updated.
 - Never say "the automation is updated" if only `collector_config.json`, only `schedule.md`, or only the Client Intelligence Profile was changed. The whole automation package must be synced or the remaining snapshot/update blocker must be stated.
+- Every schedule/routine question, native automation task creation/update instruction, scheduled prompt paste/replace instruction, report-request hard-stop handoff, and automation freshness blocker that needs the human must use the root playbook `**[ACTION REQUIRED]**` block.
 
 ## Latest Override: Client-Specific Automation Tasks
 
@@ -143,7 +144,7 @@ If the native AI automation task cannot be edited by the agent, the agent must:
 
 - write the exact replacement prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`;
 - mark `automation_prompt_update_pending` in `automation_manifest.md` and `schedule.md`;
-- give the human one concrete instruction to paste/replace the scheduled task prompt;
+- give the human one concrete instruction to paste/replace the scheduled task prompt in a `**[ACTION REQUIRED]**` block;
 - avoid claiming the scheduled run is fully updated until the human confirms the native task body was updated.
 
 Automation Resync verification:

@@ -23,6 +23,7 @@ If this stage was triggered by a human request to scan, monitor, collect, review
 - Collector success alone is not completion; analyze data and regenerate the report.
 - Load Stage 10 before analyzing or reporting lead/competitor opportunities from private data sources.
 - If schedule/automation was already configured, any private data source approval, rejection, activation, discovery result, Local Collector repair, or source cadence change must trigger Automation Resync from Stage 4 before claiming the future scheduled run is updated.
+- Every human-facing private data source question, discovery approval, recommended-source approval, Local Collector command, Chrome profile/login reminder, and extension `Load unpacked` handoff must use the root playbook `**[ACTION REQUIRED]**` block. Do not hide the actual question inside explanatory text.
 
 ## Source Preservation Rule
 
@@ -148,7 +149,7 @@ Discovery surfaces to offer when relevant:
 - Instagram/TikTok followed creators and recommendation feeds when approved.
 - Discord/Slack/community forums only when the human explicitly provides/approves the community surface and Local Collector support exists.
 
-The agent should ask one compact approval question, not a long questionnaire:
+The agent should ask one compact approval question, not a long questionnaire, and put that question in a `**[ACTION REQUIRED]**` block:
 
 ```text
 Do you want me to run private data source discovery from places you already joined or follow, such as Facebook groups, subreddits, followed pages/KOLs, subscribed channels, and community feeds? I will use the Local Collector only, filter candidates, and ask you to approve the shortlist before anything becomes a daily monitored source.
@@ -187,7 +188,7 @@ If the human says yes:
    - competitor intelligence value;
    - proposed cadence;
    - risk/noise note.
-10. Ask the human to approve, remove, or add sources before anything is saved as active.
+10. Ask the human to approve, remove, or add sources in a `**[ACTION REQUIRED]**` block before anything is saved as active.
 11. Save approved sources to `private_data_sources`.
 12. Save unapproved candidates to the discovery log as `pending_human_approval`, `rejected`, or `skipped`.
 13. If `daily-content-pipeline/schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, or any native automation/scheduled task already exists, load Stage 4 and perform Automation Resync. This must update the Client Intelligence Profile, source logs, `schedule.md`, collector config if relevant, automation manifest, scheduled-run prompt/task body, and resync log. Do not tell the human that tomorrow's scheduled run will scan the approved sources until this resync or a clearly logged `automation_prompt_update_pending` state is complete.
@@ -253,7 +254,7 @@ https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
     - proposed scan cadence
     - skipped groups count and examples
     - account-safety note
-12. Ask the human to approve the recommended groups before adding them as active `private_data_sources`.
+12. Ask the human to approve the recommended groups in a `**[ACTION REQUIRED]**` block before adding them as active `private_data_sources`.
 13. After approval, add selected groups to `private_data_sources`.
 14. Log skipped groups as not relevant when appropriate.
 15. Save the discovery output under:

@@ -71,7 +71,7 @@ Use font/text status icons:
 - `!` blocked or needs human action
 - `–` skipped or not applicable with a short reason
 
-The human-facing version must explain that the agent is doing these checks and that the human only needs to act when the agent asks one concrete next-step question.
+The human-facing version must explain that the agent is doing these checks and that the human only needs to act when the agent asks one concrete next-step question. That concrete next-step question or command must be in a standalone `**[ACTION REQUIRED]**` block from the root playbook.
 
 ```text
 Private Data Source Gate planned preflight
@@ -88,11 +88,13 @@ Collection method: Solo Agency Local Collector only
 Forbidden for logged-in sources: Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser
 ```
 
-If any required item is missing, do not scan private data sources yet. Ask the next concrete setup/repair question or continue public data sources only.
+If any required item is missing, do not scan private data sources yet. Ask the next concrete setup/repair question in a `**[ACTION REQUIRED]**` block or continue public data sources only.
 
 ## Human-Facing Reminder
 
-When replying about a private data source scan, include a compact reminder:
+When replying about a private data source scan, include a compact reminder. If the human needs to approve sources, load/reload an extension, start/restart the bridge, log into a Chrome profile, or choose scan/discovery scope, put that request in a `**[ACTION REQUIRED]**` block.
+
+Include this compact reminder:
 
 ```text
 Private collection method: Solo Agency Local Collector only.
