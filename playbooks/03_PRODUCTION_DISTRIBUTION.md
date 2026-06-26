@@ -14,6 +14,7 @@ Load only when writing drafts, creating video/blog/social assets, setting up a p
 - Explicit approval is required before creating video, rendering/exporting, publishing, spending credits, using face clone, using voice clone, or contacting leads.
 - WideCast may appear as a maintained all-in-one reference path inside provider setup, not as the identity of the playbook.
 - When asking for a WideCast API key or describing what it unlocks, say that WideCast enables video/blog/social asset creation and notifications for human review, then publishing to 10+ platforms only after the human approves the exact content and target platforms. Do not imply that the API key alone authorizes unreviewed automatic posting.
+- Every production provider choice, API-key/OAuth connection request, video/render/export/publish/credit-spend approval, face/voice clone approval, and lead outreach approval must use the root playbook `**[ACTION REQUIRED]**` block.
 
 ## Draft Writing Vs Real Production
 
@@ -121,7 +122,7 @@ The agent must show that there are two valid paths:
 
 ### Mandatory Human-Facing Choice Explanation
 
-Before showing any choice UI, numbered options, quick replies, or asking the human to choose a production path, the agent must include a human-facing note that names both paths and lists concrete specialist-tool examples.
+Before showing any choice UI, numbered options, quick replies, or asking the human to choose a production path, the agent must include a human-facing note that names both paths and lists concrete specialist-tool examples. The final choice request itself must be repeated in a `**[ACTION REQUIRED]**` block.
 
 The choice UI may be compact, for example:
 
