@@ -31,6 +31,45 @@ DEFAULT_DISABLED_SERVER_URLS = {
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
 USER_AGENT = "SoloAgencyOpenAPIAdapter/1.0"
 
+KNOWN_OPERATION_CANDIDATES = {
+    "account": ["getAccount"],
+    "analytics": ["getAnalytics"],
+    "list_videos": ["listVideos"],
+    "upload_asset": ["uploadAsset"],
+    "upload_html_report": ["uploadAsset"],
+    "send_notification": ["sendTelegramMessage"],
+    "publish": ["publish"],
+    "create_video": ["createVideo"],
+    "export_video": ["exportVideo"],
+    "get_status": ["getStatus", "waitForVideo"],
+    "get_video_data": ["getVideoData", "videoData"],
+    "get_writing_skill": ["getWritingSkill"],
+    "get_editing_skill": ["getEditingSkill"],
+    "create_content": ["createContent"],
+    "create_image": ["createImage"],
+    "search_broll": ["searchBroll"],
+    "collect_ideas": ["collectIdeas"],
+    "scene_geometry": ["sceneGeometry", "getSceneGeometry"],
+    "scene_inspector": ["sceneInspector", "inspectScene", "getSceneInspector"],
+    "modify_scene": ["modifyScene"],
+}
+
+CAPABILITY_GROUP_ALIASES = {
+    "production": ["create_video", "get_status"],
+    "video_editing": [
+        "get_editing_skill",
+        "get_video_data",
+        "scene_geometry",
+        "scene_inspector",
+        "modify_scene",
+    ],
+    "render_export": ["export_video"],
+    "media": ["upload_asset", "create_image", "search_broll"],
+    "distribution": ["publish"],
+    "notification": ["send_notification"],
+    "analytics": ["account", "analytics", "list_videos", "get_status", "get_video_data"],
+}
+
 
 class ProviderError(RuntimeError):
     pass
@@ -289,6 +328,40 @@ def _load_spec(args: argparse.Namespace, config: dict[str, Any], defaults: dict[
     return provider, parsed, raw_text
 
 
+def _operation_aliases(operations: dict[str, dict[str, str]]) -> dict[str, str]:
+    by_lower = {operation_id.lower(): operation_id for operation_id in operations}
+    aliases: dict[str, str] = {}
+    for alias, candidates in KNOWN_OPERATION_CANDIDATES.items():
+        for candidate in candidates:
+            operation_id = by_lower.get(candidate.lower())
+            if operation_id:
+                aliases[alias] = operation_id
+                break
+    return aliases
+
+
+def _capability_status(operation_aliases: dict[str, str]) -> dict[str, str]:
+    status: dict[str, str] = {}
+    for group, required_aliases in CAPABILITY_GROUP_ALIASES.items():
+        present = [alias for alias in required_aliases if alias in operation_aliases]
+        if len(present) == len(required_aliases):
+            status[group] = "available"
+        elif present:
+            status[group] = "partial"
+        else:
+            status[group] = "unavailable"
+    return status
+
+
+def _missing_capability_aliases(operation_aliases: dict[str, str]) -> dict[str, list[str]]:
+    missing: dict[str, list[str]] = {}
+    for group, required_aliases in CAPABILITY_GROUP_ALIASES.items():
+        group_missing = [alias for alias in required_aliases if alias not in operation_aliases]
+        if group_missing:
+            missing[group] = group_missing
+    return missing
+
+
 def _url_for(server_url: str, path: str, query: list[str] | None = None) -> str:
     url = server_url.rstrip("/") + "/" + path.lstrip("/")
     if query:
@@ -323,6 +396,7 @@ def cmd_discover(args: argparse.Namespace) -> int:
     config = _read_json(args.config)
     defaults = _read_json(args.defaults)
     provider, parsed, raw_text = _load_spec(args, config, defaults)
+    operation_aliases = _operation_aliases(parsed["operations"])
     out = {
         "schema_version": 1,
         "provider": provider,
@@ -332,6 +406,9 @@ def cmd_discover(args: argparse.Namespace) -> int:
         "server_urls_discovered": parsed.get("server_urls", []),
         "server_urls_skipped_disabled": parsed.get("skipped_disabled_server_urls", []),
         "operation_ids": {k: v for k, v in sorted(parsed["operations"].items())},
+        "operation_aliases": {k: operation_aliases[k] for k in sorted(operation_aliases)},
+        "capability_status": _capability_status(operation_aliases),
+        "missing_capability_aliases": _missing_capability_aliases(operation_aliases),
     }
     if args.out_dir:
         out_dir = Path(args.out_dir)

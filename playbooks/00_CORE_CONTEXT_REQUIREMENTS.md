@@ -93,7 +93,7 @@ Recommended child playbooks:
 - `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`: setup interview, inference-first profile, public research, keyword rotation, first agency run and HTML report.
 - `playbooks/PRIVATE_SOURCE_GATE.md`: short anti-drift gate for any private data source scan request involving logged-in groups, feeds, profiles, or communities.
 - `playbooks/02_PRIVATE_SOURCE_SETUP.md`: manual private data sources, optional private data source discovery, Local Collector activation, source discovery, first private scan, private-enhanced report update.
-- `playbooks/03_PRODUCTION_DISTRIBUTION.md`: writing drafts, production provider setup, video/blog/social creation, publishing, notifications. Do not name this file after any specific vendor.
+- `playbooks/03_PRODUCTION_DISTRIBUTION.md`: writing drafts, production provider setup, video/blog/social creation, video scene editing, publishing, notifications. Do not name this file after any specific vendor.
 - `playbooks/04_DAILY_SCHEDULE.md`: manual/daily/weekly routine and schedule.
 - `playbooks/05_MEASURE_LEARN_IMPROVE.md`: published content analytics, comments, 7-day measurement, learning loop.
 - `playbooks/06_AGENCY_REPORT_STANDARD.md`: agency-grade mobile HTML report standard.
@@ -156,14 +156,14 @@ The explanation must include production explicitly:
 - researches the market every day;
 - finds source-backed content ideas, hot/warm leads, and competitors;
 - writes approval-ready scripts/blogs/captions;
-- after human approval and provider setup, creates video/blog/social assets through connected production tools;
+- after human approval and provider setup, creates video/blog/social assets through connected production tools, including scene-editing review before final video render/export;
 - can publish approved content to 10+ connected platforms when authorized;
 - measures results and feeds the learning into the next run.
 
 A good concise explanation is:
 
 ```text
-Every day, Solo Agency researches the market, finds source-backed content ideas, detects hot/warm leads and competitors, drafts scripts/blogs/captions for approval, creates approved video/blog/social assets through connected providers, publishes approved content to 10+ platforms when authorized, measures results, and uses that learning to improve the next run.
+Every day, Solo Agency researches the market, finds source-backed content ideas, detects hot/warm leads and competitors, drafts scripts/blogs/captions for approval, creates approved video/blog/social assets through connected providers, audits/fixes reviewable video scenes before final render/export when video production is approved, publishes approved content to 10+ platforms when authorized, measures results, and uses that learning to improve the next run.
 ```
 
 Do not imply that production is only a manual copy/paste step. Also do not imply that rendering, publishing, spending credits, face clone, voice clone, or outreach happens without explicit human approval.
@@ -229,6 +229,7 @@ Progress roadmap integrity rule:
 - Step 7A may be marked `–` only when no private data sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public data sources only first run. The reason must be shown in plain language.
 - Step 7B is the automation handoff, not the report itself. It must verify or create the client-specific automation task, state whether that task will use public data sources only or public plus activated private data sources, and give the exact task name the human should run for the first report. The agent must not generate the report, idea matrix, drafts, or video inside Setup Flow. After step 7B, the next setup question is step 8.
 - Step 8 is provider/capability setup only: choose the provider path, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint.
+- After a provider creates reviewable video scenes from an approved script, the normal production branch is not complete until the video-editing skill pass has audited/fixed the scenes or logged an explicit blocker/decline. Final MP4 render/export still requires a fresh explicit approval after that pass.
 - Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `–` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
 - Step 10 is shown in the setup roadmap only to explain what Automation Flow will do later. It is not executed in Setup Flow. On the first automation run it uses report/draft content and data from activated private data sources; from the second automation run onward it can also include analytics/statistics from step 9.
 

@@ -153,7 +153,7 @@ The agent must tell the human to run Solo Agency in Codex, Claude Desktop/Cowork
 
 ## Client Tools First Rule
 
-Whenever the agent checks whether production, video, blog, social, upload, notification, publishing, analytics, credits, connected platforms, or provider account tools are available, it must check Client tools first and global MCP/native tools second.
+Whenever the agent checks whether production, video, video scene editing, blog, social, upload, notification, publishing, analytics, credits, connected platforms, or provider account tools are available, it must check Client tools first and global MCP/native tools second.
 
 `Client tools` means the current client's provider files and discovered API surface: `integrations/providers/provider_config.local.json`, the fetched OpenAPI spec/cache, verified account identity, `provider_capabilities.json`, `provider_health.md`, and redacted provider call logs. A global MCP/native tool list is only a compatibility surface after the agent proves that tool identity matches the current client's saved provider identity.
 
@@ -328,7 +328,7 @@ The explanation must include production explicitly:
 A good concise explanation is:
 
 ```text
-Every day, Solo Agency researches the market, finds source-backed content ideas, detects hot/warm leads and competitors, drafts scripts/blogs/captions for approval, creates approved video/blog/social assets through connected providers, publishes approved content to 10+ platforms when authorized, measures results, and uses that learning to improve the next run.
+Every day, Solo Agency researches the market, finds source-backed content ideas, detects hot/warm leads and competitors, drafts scripts/blogs/captions for approval, creates approved video/blog/social assets through connected providers, audits/fixes reviewable video scenes before final render/export when video production is approved, publishes approved content to 10+ platforms when authorized, measures results, and uses that learning to improve the next run.
 ```
 
 Do not imply that production is only a manual copy/paste step. Also do not imply that rendering, publishing, spending credits, face clone, voice clone, or outreach happens without explicit human approval.
@@ -398,7 +398,8 @@ After schedule/automation exists, recommend the daily `Solo Agency - GitHub Upda
 | Private Data Source Gate | `playbooks/PRIVATE_SOURCE_GATE.md` | Load immediately when any private data source scan, group scan, joined-groups review, social/community data source, or feed/profile requiring account context is mentioned, even if the conversation drifted through unrelated topics. |
 | 2 | `playbooks/02_PRIVATE_SOURCE_SETUP.md` | Load when private data sources, manual private data source input, Facebook joined groups, Facebook keyword group search, private data source discovery, or Local Collector activation are mentioned or pending. |
 | 3 | `playbooks/03_PRODUCTION_DISTRIBUTION.md` | Load only when writing drafts, creating video/blog/social assets, setting up a production provider, rendering/exporting, publishing, notifications, or approval gates are relevant. |
-| 3A | `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` | Load after any vendored writing/provider skill when video creation, credits, media upload, render/export, publishing, notification, analytics, or provider account actions are relevant. It overrides provider-specific MCP calls by resolving Client tools first: the current client's provider config, verified OpenAPI capabilities, and provider capability cache. |
+| 3A | `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` | Load after any vendored writing/provider/video-editing skill when video creation, scene editing, credits, media upload, render/export, publishing, notification, analytics, or provider account actions are relevant. It overrides provider-specific MCP calls by resolving Client tools first: the current client's provider config, verified OpenAPI capabilities, and provider capability cache. |
+| 3B | `playbooks/skills/video-editing/SKILL.md` | Load after provider video creation returns reviewable scenes, or whenever a human asks to edit/finish/review a provider video. It audits and fixes scenes before final render/export. Load through the client-scoped provider `getEditingSkill` capability when available; otherwise use the local repo skill files. |
 | 4 | `playbooks/04_DAILY_SCHEDULE.md` | Load during routine setup after the profile/source plan is known, and during scheduled/manual run execution. |
 | 5 | `playbooks/05_MEASURE_LEARN_IMPROVE.md` | Load once any content has been published, and during yesterday/7-day analytics review. |
 | 6 | `playbooks/06_AGENCY_REPORT_STANDARD.md` | Load whenever generating, reviewing, or fixing a human-facing report. |
@@ -717,6 +718,8 @@ Production/distribution is not complete until:
 - Stage 3 was loaded.
 - Drafts were shown to the human.
 - Explicit approval was received for any create/render/export/publish/credit-spending/clone action.
+- For provider video creation, reviewable scenes were followed by the video-editing skill pass or an explicit logged blocker/decline.
+- Final MP4 render/export was not called until the human gave a fresh explicit render/export approval after scene editing/review.
 - Publishing and notification outcomes were logged.
 
 Measurement is not complete until:

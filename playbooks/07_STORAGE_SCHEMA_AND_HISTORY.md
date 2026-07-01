@@ -745,9 +745,24 @@ Minimum WideCast OpenAPI example:
       },
       "pdna": {
         "production": "not_configured",
+        "video_editing": "not_configured",
+        "render_export": "not_configured",
         "distribution": "not_configured",
         "notification": "not_configured",
         "analytics": "not_configured"
+      },
+      "video_editing": {
+        "enabled": false,
+        "preferred_skill_operation_id": "getEditingSkill",
+        "preferred_video_data_operation_id": "getVideoData",
+        "preferred_scene_geometry_operation_id": "sceneGeometry",
+        "preferred_scene_inspector_operation_id": "sceneInspector",
+        "preferred_modify_scene_operation_id": "modifyScene"
+      },
+      "render_export": {
+        "enabled": false,
+        "preferred_operation_id": "exportVideo",
+        "requires_fresh_human_approval": true
       },
       "notification": {
         "enabled": false,
@@ -800,8 +815,13 @@ Minimum shape:
   "server_urls_skipped_disabled": ["https://api.widecast.ai"],
   "auth_scheme": "bearerAuth",
   "operation_ids": {
+    "createVideo": {"method": "POST", "path": "/..."},
+    "getAccount": {"method": "GET", "path": "/..."}
+  },
+  "operation_aliases": {
     "account": "getAccount",
     "analytics": "getAnalytics",
+    "upload_asset": "uploadAsset",
     "upload_html_report": "uploadAsset",
     "send_notification": "sendTelegramMessage",
     "publish": "publish",
@@ -810,17 +830,26 @@ Minimum shape:
     "get_status": "getStatus",
     "get_video_data": "getVideoData",
     "get_writing_skill": "getWritingSkill",
+    "get_editing_skill": "getEditingSkill",
+    "scene_geometry": "sceneGeometry",
+    "scene_inspector": "sceneInspector",
+    "modify_scene": "modifyScene",
     "create_content": "createContent",
     "create_image": "createImage",
     "search_broll": "searchBroll",
-    "collect_ideas": "collectIdeas"
+    "collect_ideas": "collectIdeas",
+    "list_videos": "listVideos"
   },
   "capability_status": {
     "production": "available | partial | unavailable",
+    "video_editing": "available | partial | unavailable",
+    "render_export": "available | partial | unavailable",
+    "media": "available | partial | unavailable",
     "distribution": "available | partial | unavailable",
     "notification": "available | partial | unavailable",
     "analytics": "available | partial | unavailable"
   },
+  "missing_capability_aliases": {},
   "identity": {
     "provider_identity_source": "per_client_openapi | global_mcp_compat | unknown",
     "account_verified": true,
@@ -1403,6 +1432,11 @@ Allowed status:
 
 - `drafted`
 - `approved`
+- `scenes_created`
+- `scene_editing_complete`
+- `scene_editing_blocked`
+- `render_ready`
+- `rendered`
 - `video_created`
 - `published`
 - `rejected`
