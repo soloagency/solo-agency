@@ -38,6 +38,8 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 
 - About to **declare `Scene N: PASS`** without scanning all 9 DoD gates + §7 Quality Standard (incl. module coverage + final composition/dead-zone) → run the scan first; PASS is earned by the scan. The DoD lives in `ai_video_editor/03_dod_gates`; the Quality Standard lives in `ai_video_editor/05_quality_qa_priority`.
 
+- About to **declare `Scene N: PASS` from a batch/contact-sheet/gallery/table/script/bulk API result** → STOP. That result is triage only. Pull/show the scene's own BEFORE and AFTER/final screenshots, complete all 9 gates, include Gate 5 background proof and Module Coverage Gate, confirm server-saved, then declare PASS only for that exact scene.
+
 - About to **declare `Scene N: PASS`** but the end checklist cannot name the Gate 5 verdict (`PASS keep`, `PASS grid-by-design`, or `FIXED + PASS`) → STOP. The background audit is missing even if overlay/composition passed.
 
 - About to **declare `Scene N: PASS` / final handoff** but the `MODULE COVERAGE GATE` has any missing required module → STOP. Load the missing module at the correct step, resume the earliest invalidated gate, then re-scan.
@@ -45,6 +47,10 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 - About to **move to the next scene** with no stated `PASS`/`FAIL` verdict → declare the verdict first. No verdict = scene not done.
 
 - About to **write a final summary / completion report / Telegram completion message / export question** → STOP and run the Pre-summary completion scan (Critical Rule 12d). If any scene/gate/ledger row is incomplete, do that work first instead of summarizing.
+
+- About to **ask for render/export or call `export_video`** while any content scene lacks its own `Scene N: PASS` → STOP. The only allowed status is `partial_triage_only` / `partial_fix_only`; do not ask for render/export and do not call export.
+
+- About to **handoff after triage or a partial set of fixes** → STOP. Say the status is `partial_triage_only` or `partial_fix_only`, then list scenes with individual PASS separately from scenes not individually PASS. Do not imply full video completion.
 
 - About to **final-handoff a video** without a complete per-scene background-audit ledger for every content scene → STOP. Say "background audit not complete" and run the missing Gate 5 rows before hand-off/export.
 

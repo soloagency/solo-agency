@@ -6,6 +6,14 @@ The 9 gates are pass/fail; the actual work-recipes live in the topic modules (`1
 
 ---
 
+## Batch / gallery / script outputs are triage only
+
+Batch contact sheets, galleries, tables, scripts, bulk API results, multi-scene scans, or any "all scenes at once" artifact are useful only to **triage** likely problems. They are never DoD proof and never authorize `Scene N: PASS`.
+
+If the run used only batch triage, or fixed only a selected subset without closing every content scene, the required status is `partial_triage_only` (or `partial_fix_only` when edits were made but not all scenes have individual PASS). Do not ask for render/export, do not call `export_video`, and do not send completion notification while any content scene lacks its own `Scene N: PASS`.
+
+`Scene N: PASS` requires that exact scene's own 9-gate evidence: BEFORE shown, Gate 4/5/6 completed as applicable, AFTER/final shown, server-saved confirmation, required module coverage, and §7 quality scan. A batch table saying a scene "looks OK" is not PASS.
+
 ## DoD — finish EVERY gate below before moving to the next scene
 
 Do NOT advance while any gate is unchecked. Overlay review, background audit, screenshot-show, and final composition/dead-zone are the most-often-skipped checks — they are explicit gates here on purpose.
@@ -206,6 +214,7 @@ You may advance to the next scene ONLY after you state an explicit verdict:
 
 - To say **"Scene N: PASS"** you must FIRST **scan all 9 DoD gates above AND the §7 Quality Standard (`ai_video_editor/05_quality_qa_priority`)**, and confirm **every** one is met. PASS is *earned by the scan* — never declared from memory or assumption.
 - The PASS scan must include the local-visible screenshot evidence: "BEFORE shown: yes" and "AFTER/final shown: yes". If either is missing, PASS is forbidden.
+- Batch/contact-sheet/gallery/table/script/bulk API outputs are not PASS evidence. If that is the only evidence, the scene status is `triaged_only`, not `PASS`.
 - If any gate / §7 item is unmet → **"Scene N: FAIL — [list the failing gates]"**, fix them, then **re-scan and re-declare**. Loop until PASS.
 - **Never advance on a FAIL, and never advance with no verdict at all** (an un-verdicted scene = not done). The verdict line + its gate-by-gate ✓ is the last thing you post for a scene before starting the next.
 
@@ -214,13 +223,24 @@ You may advance to the next scene ONLY after you state an explicit verdict:
 ## Final video hand-off — after the last content scene passes
 
 - First run the **Pre-summary completion scan** (Critical Rule 12d in `ai_video_editor/01_critical_rules`): every content scene has `Scene N: PASS`, Gate 1–9 checked, Module Coverage Gate PASS, Background Audit Ledger complete, scene 2 thumbnail sync complete, final CTA endpoint handling complete for the last content scene, and no unhandled `[ACTION REQUIRED]` item hidden.
-- If the scan finds missing major work, do that work now. Do not write a "done" summary as a substitute for completing it.
+- If the scan finds missing major work, do that work now. Do not write a "done" summary as a substitute for completing it. If the user explicitly asked for only triage or only selected-scene fixes, hand off as `partial_triage_only` / `partial_fix_only`, not complete.
 - Do **not** revisit the thumbnail; it was completed by the immediate post-scene-2 sync gate.
 - Pull/keep the `review_url` for the video.
 - Send the user a Telegram/self-notification (WideCast self-notify tool, with email fallback if Telegram is not connected) saying the edit is complete and including the `review_url`.
 - In chat, give a short summary of what was changed/fixed. Keep it concise; do not replay every gate.
-- Ask exactly one export question: `Render/export the final MP4 now, or do you want to review the scenes first?`
+- Ask exactly one export question only after every content scene has individual PASS: `Render/export the final MP4 now, or do you want to review the scenes first?`
 - Do **not** call `export_video` until the user explicitly confirms render/export in the current conversation turn.
+
+If any content scene is not individually PASS, replace the completion hand-off with:
+
+```text
+Run status: <partial_triage_only | partial_fix_only>
+Scenes with individual PASS: <scene ids or none>
+Scenes not individually PASS: <scene ids + missing proof/gates>
+Export/render: blocked until every content scene has Scene N: PASS
+```
+
+Do not ask the render/export question in this partial state.
 
 ---
 

@@ -90,7 +90,7 @@ Load the module for the full text + nuance. These headlines are reminders, not t
 12a. **Endpoint scenes (scene 2 + thumbnail + final CTA) are special.** Load `40_thumbnail_cta` for both. Sync thumbnail immediately after scene 2 PASS.
 12b. **Gate 5 requires a printed BACKGROUND PROOF.** No proof = scene not done.
 12c. **Gate Resume Scan after any detour/fix.** A fix is not a verdict; rescan from the earliest invalidated gate.
-12d. **Pre-summary completion scan.** No summary/Telegram/export until every scene PASS + Module Coverage Gate + ledgers complete.
+12d. **Pre-summary completion scan.** No summary/Telegram/export until every scene PASS + Module Coverage Gate + ledgers complete. Batch/contact-sheet/gallery/table/script/API results are triage only, never DoD proof.
 13. **The master is an INDEX — load each module BEFORE its step.** Memory ≠ re-loading.
 13a. **Module Coverage Gate — missing playbook = not done.** Gate 9 proves required playbooks loaded.
 14. **Announce plan + report progress.** Vertical 9-gate checklist at scene start, gate-by-gate progress, ✓/✗ recap + `Scene N: PASS|FAIL` verdict at scene end.
@@ -116,6 +116,7 @@ If you're about to do any of these, STOP and do the prerequisite first:
 - declare `Scene N: PASS` without scanning 9 DoD gates + §7 → run the scan
 - declare PASS without naming Gate 5 verdict (`PASS keep` / `PASS grid-by-design` / `FIXED + PASS`) → STOP
 - declare PASS with any missing required module in MODULE COVERAGE GATE → STOP
+- declare PASS from a batch/contact-sheet/gallery/table/script/API result → STOP. Status is `partial_triage_only` until each scene has its own 9-gate PASS.
 - move to next scene without stated `PASS`/`FAIL` → declare verdict first
 - write final summary / hand-off / export question → run Pre-summary completion scan
 - final-handoff without complete Background Audit Ledger → STOP
