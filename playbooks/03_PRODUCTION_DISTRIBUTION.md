@@ -10,6 +10,7 @@ Load only when writing drafts, creating video/blog/social assets, editing provid
 
 - Writing must work without any provider account.
 - Generate the five default draft versions unless the human asks otherwise.
+- Any script inside a report, Markdown source record, previous draft, or content history is reference context only. Before any provider video creation request, load and apply the existing WideCast video script-writing skill to produce the final production script/brief, including research and Stage 2 inline-media/direct-image-URL workflow when relevant. Do not edit, replace, summarize, or reimplement the WideCast skill.
 - Provider setup starts only after the human has received value or asks for production/distribution/notifications/analytics.
 - Explicit approval is required before creating video, rendering/exporting, publishing, spending credits, using face clone, using voice clone, or contacting leads.
 - If the client-scoped PDNA provider is missing, unverified, mismatched, or missing the required video operation, do not create local video media as a fallback. No `ffmpeg`, Pillow, `moviepy`, browser/canvas screenshot, Remotion, slideshow, MP4/MOV/GIF, or "rough video" substitute is allowed.
@@ -270,9 +271,9 @@ Every default video-script run should produce these five WideCast-style draft ve
 
 - `Version 1: VE — Value Explainer`
 - `Version 2: QA — Client Q&A`
-- `Version 3: MB — Myth Buster`
-- `Version 4: MP — Mistake Prevention`
-- `Version 5: LG — Lead-Gen CTA`
+- `Version 3: POV — POV`
+- `Version 4: CS — Case Study`
+- `Version 5: MB — Myth-Buster`
 
 Every draft variant must be labeled with a clear version number, short code, and plain meaning. Use `Version 1: VE — Value Explainer`, not just `VE`. Use `Version 2: QA — Client Q&A`, not just `QA`. If a non-video format or a human override produces only one draft, still label it as `Version 1`.
 
@@ -666,8 +667,10 @@ The phrase "WideCast is already available" means this client's provider config i
 The agent may use available WideCast OpenAPI operations, native tools, or optional MCP tools only after the Client-Scoped PDNA Identity Gate passes. It must still:
 
 - Check Client tools first, then global MCP/native tools only as optional compatibility after account identity matches.
-- Show the script to the human.
-- Get approval before creating a video.
+- Treat report scripts and earlier drafts as reference context only.
+- Load and apply the existing WideCast video script-writing skill before any provider video creation request.
+- Show the skill-produced final script with visual handoff to the human during manual/interactive work.
+- Get approval before creating a video, unless the scheduled Automation Flow already carries valid approval for provider video creation.
 - After video creation returns reviewable scenes, load the video-editing skill and run the scene audit/fix pass before final render/export.
 - Get explicit confirmation before rendering/exporting/publishing/spending credits.
 - Check whether this client's discovered OpenAPI capabilities expose the video-editing operations needed for the pass: `getEditingSkill`, `getVideoData`, scene geometry, scene inspector, and `modifyScene`.
@@ -679,7 +682,7 @@ The agent may use available WideCast OpenAPI operations, native tools, or option
 
 If this client's WideCast provider config is missing, auth is missing, auth fails, OpenAPI discovery fails, account verification fails, or the only visible account is a global MCP/native tool account that is not proven to match this client, WideCast is not available for this client's PDNA yet. The agent must continue writing and reporting through the writing-skill fallback above.
 
-If the human request is video creation, rendering, or exporting, this is a hard video-production blocker. Continue only with script/storyboard/production-brief work, then ask for PDNA setup with the root playbook `**[ACTION REQUIRED]**` block. Do not create a local MP4, slideshow, preview video, or rough video with local render tools.
+If the human request is video creation, rendering, or exporting, this is a hard video-production blocker. Still load and apply the account-free WideCast video script-writing skill to produce the final production script/brief from the selected idea/report draft, including research and direct inline image URLs where the runtime can verify them. Then stop at script/storyboard/production-brief work and ask for PDNA setup with the root playbook `**[ACTION REQUIRED]**` block. Do not create a local MP4, slideshow, preview video, or rough video with local render tools.
 
 The agent should start WideCast setup only when the human asks to create/render/publish a video, use Telegram notifications, use analytics, or connect account-level tools.
 
@@ -701,6 +704,28 @@ For account setup, the agent must:
 
 The agent must not ask for WideCast account credentials.
 
+### Final WideCast Script Skill Gate
+
+This gate applies before every `production.create_video`, `widecast_create_video`, or equivalent provider video request.
+
+Report scripts, daily-report draft versions, Markdown source records, and previous content-history drafts are source context only. The agent must not paste any of them into the video provider unchanged.
+
+Required sequence:
+
+1. Load the existing WideCast video script-writing skill through the verified client provider `getWritingSkill(format=video)` operation when available, or from `playbooks/skills/video-script-writing/SKILL.md` / the static GitHub fallback when PDNA is not connected.
+2. Load the modules required by the skill for the current step, including `method`, `formats`, `research_visuals`, and `handoff` when reaching final video handoff.
+3. Use the selected report idea/draft only as input context.
+4. Run the skill's research-first workflow. For real, current, product, place, person, event, or visual-dependent topics, source and vet sparse direct image URLs for the beats that need real visuals; use markdown image syntax or `media_pool` according to the skill. If the runtime cannot research or verify visuals, record the limitation and stop at a production brief/blocker unless the loaded skill explicitly routes that case through a verified server-side research handoff with valid approval. Never fabricate image URLs.
+5. Produce and save a final WideCast-grade script/production brief artifact for the run, with the selected format/code, research bullets, inline-media URLs or media pool, production mode if known, and approval reference/status.
+6. Use only this skill-produced final script/brief as the provider payload.
+7. Do not edit, replace, summarize, or reimplement the WideCast skill itself. It is upstream-managed and may improve independently.
+
+Manual/interactive rule: after the skill-produced final script and visual handoff are ready, stop and ask the human to confirm before calling the provider. A generic "make a video" request approves the skill pass, not provider video creation.
+
+Scheduled Automation Flow rule: when the saved run state already contains valid approval for provider video creation, this final skill pass is not a second confirmation gate. Send the skill-produced final script/brief to the verified client-scoped provider. If approval is missing, stop at `approval_required` and surface the final script for review.
+
+Missing PDNA rule: even when the client provider is missing or unverified, run the account-free writing-skill fallback and create the final script/storyboard/production brief. Then stop at the PDNA setup blocker. Missing PDNA never permits local video creation.
+
 ### Client-Scoped Video Creation Gate
 
 The agent must not create a video immediately after writing a script.
@@ -711,10 +736,11 @@ The correct sequence is:
 2. Generate ideas.
 3. Select best idea.
 4. Write script.
-5. Show script to human.
-6. Ask for approval.
-7. Only after approval, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md`, resolve the current client's verified provider and `production.create_video` operation from Client tools/OpenAPI capabilities first, then create the video through that client-scoped operation. For WideCast, use the WideCast OpenAPI operation only after this client's WideCast account identity is verified. Use MCP/native tools only if they are proven to be the same client account.
-8. If the verified client-scoped provider or required video operation cannot be resolved, stop at the provider blocker and PDNA setup action block. Do not create local video media as a fallback.
+5. Treat the report/draft script as context, then run the Final WideCast Script Skill Gate.
+6. Show the skill-produced final script and visual handoff to the human in manual/interactive work.
+7. Ask for approval in manual/interactive work, or verify the scheduled Automation Flow already has valid video-creation approval.
+8. Only after approval, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md`, resolve the current client's verified provider and `production.create_video` operation from Client tools/OpenAPI capabilities first, then create the video through that client-scoped operation. For WideCast, use the WideCast OpenAPI operation only after this client's WideCast account identity is verified. Use MCP/native tools only if they are proven to be the same client account.
+9. If the verified client-scoped provider or required video operation cannot be resolved, stop at the provider blocker and PDNA setup action block. Do not create local video media as a fallback.
 
 ### Client-Scoped Video Editing Gate
 

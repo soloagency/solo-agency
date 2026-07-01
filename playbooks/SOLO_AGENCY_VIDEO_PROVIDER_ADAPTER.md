@@ -14,6 +14,7 @@ This adapter is Solo Agency policy. It intentionally lives outside vendored skil
 - Every tool/capability check must check Client tools first and global MCP/native tools second. Client tools are the current client's provider config, OpenAPI cache/spec, verified account identity, `provider_capabilities.json`, provider health, and redacted provider logs.
 - Do not use a global MCP/native provider account as the current client's account unless its identity is proven to match the saved client provider identity.
 - Do not estimate credits, create video, edit scenes, upload media, render/export, publish, notify, or poll account data from an account-level provider until the current client's provider config and OpenAPI capabilities are verified.
+- Do not call `production.create_video`, `widecast_create_video`, or any equivalent provider video operation with a report script, Markdown source record, prior draft, or content-history script pasted through unchanged. A final script/brief produced by loading and applying the existing WideCast video script-writing skill is required first.
 - If provider config, auth, discovery, account identity, or a required operation is missing, stop the provider action and log the exact blocker. Continue with draft/report work when possible, but do not create video media locally.
 - Never replace missing client-scoped video capability with a local/system video renderer. `ffmpeg`, Pillow, `moviepy`, browser screenshots/canvas, Remotion, slideshow export, MP4/MOV/GIF generation, or similar tools are forbidden as fallback video production paths.
 
@@ -38,6 +39,20 @@ This adapter only resolves provider-backed video capabilities. If `production.cr
 The agent may create script text, storyboards, shot lists, visual notes, or production briefs. It must not create a local video file, rough cut, animated slideshow, preview MP4, or final export with non-provider tools. Missing WideCast/client provider setup is a video-production blocker, not permission to improvise with local rendering.
 
 If the current Automation Flow can safely update the client's provider config, ask for the client's WideCast API key by default in that same session, save it as `api_key_env` or `api_key_local`, fetch/cache OpenAPI, verify account identity, refresh `provider_capabilities.json`, update provider health, and resync automation before any later video action. Do not ask provider/scope/spend/publish/account-identity questions for the default path. If the human explicitly chose a non-WideCast provider, use that provider's API key instead. If the session cannot update provider config, hand off to setup/maintenance with the exact PDNA setup action.
+
+## Final WideCast Script Skill Requirement
+
+This adapter may resolve a video creation operation only after the current run has a final WideCast-grade script or production brief created by the WideCast video script-writing skill.
+
+Required evidence before create:
+
+1. The agent loaded the existing `playbooks/skills/video-script-writing/SKILL.md` through the verified client provider `getWritingSkill(format=video)` operation or through the repo-local/static fallback.
+2. The final script/brief was produced by applying that skill to the selected idea/report draft, not copied from the client-facing report and not hand-rolled from agent memory.
+3. The final script/brief records research bullets and the selected format/code when available.
+4. For visual-dependent videos, the final script includes vetted direct image URLs in markdown image syntax, or a `media_pool`/visual blocker entry when direct URLs could not be verified. Image URLs must not be fabricated.
+5. The run state records approval status: manual/interactive confirmation, saved scheduled-run video-creation approval, or `approval_required`.
+
+If this evidence is missing, do not resolve or call the provider video operation. Load Stage 3's Final WideCast Script Skill Gate and produce the final script first by applying the existing WideCast skill. If PDNA is missing, the skill may still run through the account-free fallback, but the adapter must stop before provider video creation.
 
 ## Client-Scoped Provider Action Resolver
 
@@ -98,7 +113,7 @@ WideCast server selection rule:
 If a vendored WideCast writing skill says:
 
 - "call `widecast_account`" -> read credits/account status through the current client's verified provider config/OpenAPI path.
-- "call `widecast_create_video`" -> call the resolved `production.create_video` operation for the current client.
+- "call `widecast_create_video`" -> first verify the Final WideCast Script Skill Requirement, then call the resolved `production.create_video` operation for the current client.
 - "call `widecast_upload_asset`" -> call the resolved `media.upload_asset` operation for the current client.
 - "call `widecast_video_data`, `widecast_scene_geometry`, `widecast_scene_inspector`, or `widecast_modify_scene`" -> call the resolved `video_editing` operation for the current client.
 - "call `widecast_get_editing_skill`" -> load the resolved client-scoped editing skill when available, otherwise use the repo-local `playbooks/skills/video-editing/` fallback and log the provider skill blocker.
@@ -113,7 +128,7 @@ When a client-scoped `production.create_video` call succeeds, treat the returned
 
 Required post-create sequence:
 
-1. Record the provider result in the client's internal report/history: topic/video ID, review URL, operation ID, production mode, approval source, and script/version used.
+1. Record the provider result in the client's internal report/history: topic/video ID, review URL, operation ID, production mode, approval source, final WideCast script artifact/path, selected format/code, inline image URLs or media pool, and script/version used.
 2. Resolve `video_editing` operations from Client tools before using any global MCP/native edit tool:
    - `getEditingSkill`;
    - `getVideoData`;
@@ -142,6 +157,8 @@ Use these blocker names consistently:
 - `provider_capability_cache_missing`
 - `provider_required_operation_missing`
 - `provider_setup_required_for_video`
+- `final_widecast_script_missing`
+- `inline_media_vetting_blocked`
 - `global_mcp_available_but_not_authoritative`
 - `global_mcp_not_client_scoped`
 - `local_diy_video_fallback_forbidden`
@@ -166,6 +183,7 @@ After a video/provider action attempt, report:
 - OpenAPI discovery status and operation ID used, or blocker;
 - account verification status, redacted identity, and match/mismatch result;
 - human approval status;
+- final WideCast script skill status, artifact/path, selected format/code, and inline-media/media-pool status;
 - review URL/status URL/output URL if returned;
 - for created videos, topic/video ID, scene-editing status, edit operations used or blocked, and final render/export approval status;
 - local logs updated under `integrations/providers/`.

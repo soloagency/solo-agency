@@ -39,7 +39,7 @@ This playbook connects the full agency loop: research, ideas, lead and competito
 - The best idea of the day, selected by freshness, audience pain, lead potential, business impact, and offer relevance.
 - A global/local idea matrix across Hot / Trend / News, Evergreen / Foundation, and Lead-Gen / Conversion.
 - Related-industry angles clearly labeled and connected back to the client's offer.
-- 5 production-ready draft angles: Value Explainer, Client Q&A, Myth Buster, Mistake Prevention, and Lead-Gen CTA.
+- 5 production-ready draft angles: Value Explainer, Client Q&A, POV, Case Study, and Myth-Buster.
 - When approved and connected, the agent can turn those drafts into actual video, blog, and social assets through production tools.
 - Lead & Competitor Opportunities with source links, post URLs when visible, context, why it matters, and a copy-ready value-first comment for each opportunity.
 - Hot/warm/watch lead signals, including direct needs, indirect pain signals, objections, complaints, buying triggers, and adjacent needs.
