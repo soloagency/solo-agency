@@ -9,7 +9,7 @@ _Version: `modular-1.1` · module of the AI Video Editor Playbook (`SKILL.md`)._
 
 This is the **diversity vocabulary for TEXT** (titles, labels, values, quotes). The native Canvas typography renderer already mixes these axes across 142 curated presets — but when YOU author an overlay as SVG you must reproduce the look yourself. Below: every axis value with a **concrete SVG recipe**. Do not ship flat-only text.
 
-> **HOW TO USE.** Per video, derive ONE text look = `structure × depth × fill × typeface × casing × palette` from brand/topic/rotation (see §0.5 "vary between videos"). Keep it across the video; change it next video. The TITLE may carry the richest treatment (bevel/metallic/gradient + a controlled outline); secondary text stays simpler and cleaner: solid heavy fill on a chip/card/quiet area, with **no visible text stroke/outline**.
+> **HOW TO USE.** Per video, derive ONE text look = `structure × depth × fill × typeface × casing × palette` from brand/topic/rotation (see §0.5 "vary between videos"). Keep it across the video; change it next video. The TITLE may carry the richest treatment (bevel/metallic/gradient + a controlled outline); secondary text stays simpler and cleaner: solid heavy fill on a chip/card/quiet area, with **no visible text stroke/outline**. **Authoring cap:** visible text stroke is **0–2px max on the 720 canvas**; use shadows/backplates/chips/shapes for extra separation, not thicker letter outlines.
 
 > **Reusable `<defs>` (declare once per SVG, reference by id):**
 > ```svg
@@ -31,9 +31,9 @@ This is the **diversity vocabulary for TEXT** (titles, labels, values, quotes). 
 | value | look | SVG recipe |
 |---|---|---|
 | `solid` | filled letters, no outline | `<text fill="#F4C61F">` (use on a calm/dark area only) |
-| `solid_outlined` | filled + dark contour (the safe default over footage) | `<text fill="#FFF" stroke="#0C0F14" stroke-width="<6–8% of font-px>" paint-order="stroke">` |
-| `hollow_outline` | outline-only, transparent interior (footage shows through letters) | `<text fill="none" stroke="#F4C61F" stroke-width="3" paint-order="stroke">` — bold display sizes only |
-| `double_outline` | letter + 2 stacked contours (sticker/retro) | draw the SAME text TWICE, back copy first: `<text ... stroke="#0C0F14" stroke-width="14" paint-order="stroke"/>` then `<text ... fill="#FFF" stroke="#F4C61F" stroke-width="7" paint-order="stroke"/>` (same x/y) |
+| `solid_outlined` | filled + thin dark contour (hero/title over footage) | `<text fill="#FFF" stroke="#0C0F14" stroke-width="2" paint-order="stroke">` (use 1.5–2px); secondary text uses `solid` + chip/backplate, not stroke |
+| `hollow_outline` | outline-only, transparent interior (rare display treatment) | `<text fill="none" stroke="#F4C61F" stroke-width="2" paint-order="stroke">` — bold display titles only; do not use for labels/values |
+| `double_outline` | sticker/retro without thick text stroke | draw the SAME title text with a 1.5–2px face stroke, then add a separate rounded backplate/sticker shape or soft shadow behind it. Do **not** stack 7–14px text strokes; if it needs that much separation, the placement/backplate is wrong. |
 
 ## Axis: depth — z-dimension of the letters
 <!-- SYNC: depth = flat, beveled, soft_drop -->
