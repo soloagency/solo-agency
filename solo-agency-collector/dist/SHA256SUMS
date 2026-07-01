@@ -1,7 +1,7 @@
-b6d802e41b0a14ce7c19836031f0ad5def47582341ad9da082b026f07c9ebc72  solo-agency-local-collector/bin/collector-bridge-darwin-amd64
-589dbe94dfd03a0d40a473d515182e494dd2a7f1c5bd43b3ed86abb8a51aee14  solo-agency-local-collector/bin/collector-bridge-darwin-arm64
-d02365707bdb3f6b5b2722050d2dbada6756b2db04b3110bc9596dd64192fd85  solo-agency-local-collector/bin/collector-bridge-linux-amd64
-f80284555835dbcccd7bbfa520c87daf30282b9166534412330d426a6b9e9364  solo-agency-local-collector/bin/collector-bridge-windows-amd64.exe
-64938cc2222d132250a20cbbfbe65fa7442fbea3373b37f632aa793c598a9e33  solo-agency-collector/dist/collector-bridge-binaries-0.1.0.zip
-60abe5fbfe18c8716517f3a19f26dbc28c49b2fe1cd0b29edf3ae656878dbfe2  solo-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
-3e5bf9daa649e039c0c4dde3a7ad840c44d3b5d02ed35b3f671e60752a4c42e4  solo-agency-collector/dist/chrome-extension-collector-0.1.0.zip
+6c915411f556ec7858c9a21766070fbaae5a2af406a090a63a87efdf3b0b2d0c  solo-agency-local-collector/bin/collector-bridge-darwin-amd64
+548618d6653d4540ebdb99148ecc365a975f5d9076d7f81079a8742bb7d19996  solo-agency-local-collector/bin/collector-bridge-darwin-arm64
+f11216faab1d3d1d0aba889f2a228b14e64ee393dd120f21c6dabc765858a5e0  solo-agency-local-collector/bin/collector-bridge-linux-amd64
+3b8bca3a0a9f4e59fffaa83364d8eaa7bf27123efbd777cfb4cbf120cff5e6d6  solo-agency-local-collector/bin/collector-bridge-windows-amd64.exe
+e628d0558700ca46f4a086e9a0628363608d1d121e0bc93ecda1ff7e14c97320  solo-agency-collector/dist/collector-bridge-binaries-0.1.0.zip
+9c2b5bec656cd9fc11f8df00c61e65f7baad09ef7055e5c9bff06bc6cc84c360  solo-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
+676356df41155660058445888cb0830972095c4eb54fe3722bfe2596f1c441c9  solo-agency-collector/dist/chrome-extension-collector-0.1.0.zip

@@ -18,6 +18,7 @@ Load before claiming setup, daily run, private data source setup, schedule, prod
 - Before claiming any post-schedule change is complete, verify Automation Resync was performed when schedule/automation already exists. Config-only updates are not enough if a native scheduled task prompt may still contain an old snapshot.
 - Before claiming any Solo Agency update/upgrade/sync-latest work is complete, verify Stage 11 was loaded, GitHub `main` was checked from a verified source, backups/logs were written, clients and automations were resynced, and bridge/extension human actions were given when required.
 - Treat local DIY video production as a critical workflow violation when client-scoped PDNA/video provider setup is missing, unverified, mismatched, or missing the required operation. Do not create MP4/MOV/GIF/slideshow/rough video files with `ffmpeg`, Pillow, `moviepy`, browser/canvas screenshots, Remotion, or similar fallback renderers.
+- Treat sending a report script, Markdown source record, previous draft, or content-history script directly to a video provider without first loading and applying the existing WideCast video script-writing skill as a critical workflow violation. The skill pass must run research and Stage 2 inline-media/direct-image-URL workflow when relevant, even if PDNA is missing and the run can only stop at a script/production-brief blocker. Editing, replacing, summarizing, or reimplementing the WideCast skill is also a workflow violation.
 - Before claiming any report run is complete, verify Stage 6 loaded `playbooks/skills/report-design/SKILL.md` and that client-facing HTML/PDF was generated with `tools/solo_report_renderer.py` or a reusable approved template. One-off report/PDF scripts are a workflow violation unless the exact blocker and approved exception are logged.
 
 ## Latest Override: Setup Flow And Client Isolation Audit
@@ -1469,6 +1470,7 @@ Before replying to the human, verify:
 - [ ] If I mentioned a report and any workflow step remains, did I include both the progress block and the required next-step question in chat instead of relying on the report's `Next Action` section?
 - [ ] If I checked tools/capabilities or claimed a tool was available/unavailable, did I check Client tools first (`provider_config.local.json`, OpenAPI cache/spec, verified identity, `provider_capabilities.json`) and global MCP/native tools only second?
 - [ ] If video creation/render/export was requested and client-scoped PDNA provider setup was missing or blocked, did I stop at script/storyboard/production-brief work, explain the provider requirement, and use a `**[ACTION REQUIRED]**` block instead of creating local video media?
+- [ ] Before any video provider creation request, did I treat report scripts as reference only and create a final WideCast-grade script/brief by loading and applying the existing video script-writing skill, including research and inline-media/direct-image-URL workflow where verifiable?
 - [ ] In Setup Flow, did I avoid running the first agency run/report directly and instead prepare or resync the client-specific automation task?
 - [ ] In Automation Flow, did I avoid jumping to the first report before private data source status, the step 6 Local Collector checkpoint, schedule/routine, and client-specific automation task were resolved or honestly marked pending?
 - [ ] If I generated or announced an HTML report, did I generate/update the mandatory PDF companion or record the exact PDF blocker/status?
@@ -1694,6 +1696,10 @@ Before presenting the content draft, verify:
 - [ ] Did the draft include source-backed rationale?
 - [ ] If this is a video script, did I include visual notes?
 - [ ] Did I include CTA?
+- [ ] Before any provider video creation request, did I load and apply the existing WideCast video script-writing skill and save the final script/brief artifact instead of sending the report script unchanged or writing from agent memory?
+- [ ] For visual-dependent videos, did the skill-produced final script include vetted direct image URLs, markdown image syntax, or a media-pool/visual blocker entry, with no fabricated URLs?
+- [ ] In manual/interactive work, did I stop after the final script/visual handoff and wait for explicit confirmation before provider video creation?
+- [ ] In scheduled Automation Flow, if I continued directly after the final skill pass, did I verify the run already had valid video-creation approval?
 - [ ] Did I ask for approval before creating/rendering/publishing video?
 - [ ] Before any provider-backed video creation, scene editing, credit check, media upload, render/export, publish, notification, or analytics action, did I load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after the vendored writing/video-editing/provider skill?
 - [ ] If a vendored skill named a concrete MCP call such as `widecast_create_video`, `widecast_video_data`, `widecast_modify_scene`, or `widecast_account`, did I resolve it as a client-scoped provider capability from this client's config/OpenAPI cache before using any tool?

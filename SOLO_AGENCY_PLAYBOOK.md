@@ -169,6 +169,18 @@ The human-facing explanation must say plainly that high-quality videos over 1 mi
 
 If the current Automation Flow can update this client's provider config, ask for the client's WideCast API key by default in the same session and continue PDNA setup there. If it cannot, send the human to the setup/maintenance session or exact automation task update path. Either way, use the root `**[ACTION REQUIRED]**` block and do not self-create video.
 
+## Final WideCast Video Script Skill Gate
+
+Any video script shown inside a report, Markdown source record, previous draft, or content history is reference context only. It is not a production provider payload.
+
+Before any `production.create_video`, `widecast_create_video`, or equivalent provider video request, the agent must load and apply the existing WideCast video script-writing skill to produce the final production script/brief from the selected idea/report draft. Use the verified client provider's writing-skill operation when available; otherwise use the repo-local/static fallback under `playbooks/skills/video-script-writing/`, even when PDNA is not connected yet. Do not edit, replace, summarize, or reimplement the WideCast skill.
+
+The final script/brief must follow the loaded skill's research-first and Stage 2 inline-media workflow: ground facts with current research when tools allow it, pick or adapt the strongest script format, source/vet sparse direct image URLs for the beats that need real visuals, and produce a final script/production brief suitable for WideCast. If research or image vetting is unavailable in the current runtime, record that limitation and stop at a production brief/blocker unless the loaded WideCast skill explicitly routes that no-research case through a verified server-side research handoff with valid approval. Never fabricate facts or URLs.
+
+Manual/interactive flow: after the final WideCast-grade script and visual handoff are ready, stop and wait for explicit human confirmation before creating the provider video.
+
+Scheduled Automation Flow: when the run already has valid approval for provider video creation, this final skill pass is not a second human-confirmation gate; send only the skill-produced final script/brief to the verified client-scoped provider. If approval is missing, stop at `approval_required`. If PDNA/provider setup is missing, still create/save the final WideCast-grade script/production brief from the skill, then stop at the PDNA setup blocker and do not create local video media.
+
 ## Default PDNA Setup Rule
 
 When PDNA is not configured and the human asks whether the agent can configure PDNA, asks for instructions, asks to make a video, or otherwise wants production/notification/analytics setup, the default path is WideCast. Do not ask the human to choose provider, scope, account identity, spend-credit policy, publish policy, analytics policy, or notification scope before starting default setup.

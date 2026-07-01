@@ -18,6 +18,7 @@ Load first for every setup or run. This stage contains the core reasoning model,
 - The agent must use canonical source terminology in human-facing text: `public data sources` and `private data sources`. Do not shorten these terms, omit `data`, use slash terms, or use mixed-language shorthand labels.
 - The agent must not mention private data sources in the first setup or first add-client question. Private data sources are asked only after the schedule/routine and client-specific automation task have been configured; if the human approves or changes private data sources, resync the automation task afterward.
 - The agent must not create local video media as a fallback when a verified client-scoped PDNA provider is missing or blocked. Missing provider setup must trigger a PDNA setup/action block, not a local `ffmpeg`/Pillow/`moviepy`/Remotion/canvas/slideshow video.
+- Any video script inside a report, Markdown source record, previous draft, or history is reference context only. Before any provider video creation request, the agent must load and apply the existing WideCast video script-writing skill from the verified provider or `playbooks/skills/video-script-writing/SKILL.md`, produce the final production script/brief with research and inline-media/direct-image-URL workflow where verifiable, and use only that skill-produced final script/brief as the provider payload. Do not edit, replace, summarize, or reimplement the WideCast skill.
 - Default PDNA setup must be one-action WideCast setup. When PDNA is missing and the human asks for setup/instructions/video/production, ask only for the client's WideCast API key; do not ask provider, scope, spend, publish, notification, analytics, or account-identity questions before starting the default path.
 
 ## Source Preservation Rule
@@ -1684,9 +1685,9 @@ Every default video-script run should produce these five WideCast-style draft ve
 
 - `Version 1: VE — Value Explainer`
 - `Version 2: QA — Client Q&A`
-- `Version 3: MB — Myth Buster`
-- `Version 4: MP — Mistake Prevention`
-- `Version 5: LG — Lead-Gen CTA`
+- `Version 3: POV — POV`
+- `Version 4: CS — Case Study`
+- `Version 5: MB — Myth-Buster`
 
 Every draft variant must be labeled with a clear version number, short code, and plain meaning. Use `Version 1: VE — Value Explainer`, not just `VE`. Use `Version 2: QA — Client Q&A`, not just `QA`. If a non-video format or a human override produces only one draft, still label it as `Version 1`.
 
@@ -1762,6 +1763,8 @@ The agent must never ask for:
 The agent must not render, export, publish, or spend WideCast credits without explicit human confirmation.
 
 The agent must not self-create local video media when WideCast/client PDNA is missing or blocked. Ask for the API key in the same Automation Flow when the current session can update provider config; otherwise hand off to setup/maintenance with the exact PDNA setup action.
+
+The agent must not send a report script or earlier draft directly to WideCast/client video production. Load the existing WideCast video script-writing skill again, create the final WideCast-grade script/brief with research and sparse direct image URLs/media pool where verifiable, then follow the manual confirmation or scheduled-approval gate from Stage 3. Do not edit, replace, summarize, or reimplement the WideCast skill.
 
 For default WideCast setup, the agent must not ask the human to choose provider, scope, expected account identity, spend-credit permission, publish permission, notification channel, or analytics mode. Use safe defaults, verify the account through OpenAPI, discover capabilities, and keep all create/render/export/publish/credit-spend actions behind later explicit approval gates.
 

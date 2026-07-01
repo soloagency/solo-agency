@@ -12,7 +12,7 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 - After configuring the routine, do not run the first report in Setup Flow; verify the client-specific automation task and tell the human the exact task name to run for the first report.
 - If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, do not run it and do not ask whether to run it now. Treat the request as a handoff request: verify/resync the task, then tell the human the exact client-specific automation task name to run.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
-- Scheduled runs must run research, private scans if active, analysis, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification. Before report HTML/PDF work, scheduled runs must load `playbooks/skills/report-design/SKILL.md` and use `tools/solo_report_renderer.py` by default instead of writing ad hoc report/PDF scripts. If video provider setup is missing or blocked, scheduled runs must stop at script/storyboard/production-brief output and ask for PDNA setup; they must not create local video media with `ffmpeg`, Pillow, `moviepy`, Remotion, browser/canvas screenshots, slideshow export, or similar tools.
+- Scheduled runs must run research, private scans if active, analysis, production-ready drafts, final WideCast video-script skill pass before any video provider request, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification. Before report HTML/PDF work, scheduled runs must load `playbooks/skills/report-design/SKILL.md` and use `tools/solo_report_renderer.py` by default instead of writing ad hoc report/PDF scripts. Before any video provider request, scheduled runs must load and apply the existing WideCast video script-writing skill, treat report scripts as reference only, produce the final production script/brief with research and inline-media/direct-image-URL workflow, and use only that skill-produced artifact as the payload. If video provider setup is missing or blocked, scheduled runs must still save the final WideCast-grade script/storyboard/production-brief output and ask for PDNA setup; they must not create local video media with `ffmpeg`, Pillow, `moviepy`, Remotion, browser/canvas screenshots, slideshow export, or similar tools.
 - Scheduled runs must load Stage 10 and produce Lead & Competitor Opportunities, or explicitly mark them as not found, not scanned, pending activation, or unavailable.
 - Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, mark measurement as `no published URLs yet` instead of pretending it ran.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
@@ -68,11 +68,12 @@ At the start of every scheduled run, the agent must load or re-load the relevant
 4. Load Stage 1 only if a profile is missing, incomplete, stale, or needs setup repair. Do not ask setup questions when the saved profile is complete.
 5. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private data sources are active, pending, blocked, or being scanned.
 6. Load Stage 3 when drafts, production, publishing, provider setup, or notification provider actions are needed.
-7. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
-8. Load Stage 6 and then `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or packaging the human-facing HTML/PDF report.
-9. Load Stage 10 whenever lead/competitor opportunities, comments, opportunity logs, or competitor monitoring are part of the run. This is normally every first run and every scheduled daily run.
-10. Load Stage 11 when the task is `Solo Agency - GitHub Update Watch`, when an update/upgrade/sync-latest request is being handled, or when blocker recovery checks GitHub for a newer Solo Agency version.
-11. Load Stage 9 before claiming the scheduled run is complete.
+7. Before any video provider creation request, load `playbooks/skills/video-script-writing/SKILL.md` and its required modules through the verified client provider when available or repo-local/static fallback when PDNA is missing. Apply that existing skill to produce the final script/brief before provider creation; do not edit/reimplement the skill and do not send report drafts unchanged.
+8. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
+9. Load Stage 6 and then `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or packaging the human-facing HTML/PDF report.
+10. Load Stage 10 whenever lead/competitor opportunities, comments, opportunity logs, or competitor monitoring are part of the run. This is normally every first run and every scheduled daily run.
+11. Load Stage 11 when the task is `Solo Agency - GitHub Update Watch`, when an update/upgrade/sync-latest request is being handled, or when blocker recovery checks GitHub for a newer Solo Agency version.
+12. Load Stage 9 before claiming the scheduled run is complete.
 
 The difference between first setup and scheduled runs:
 
@@ -316,20 +317,21 @@ For each daily run:
    24. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
    25. Select the best idea of the day.
    26. Write the configured production-ready draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
-   27. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, load Stage 3 and create the approved video/blog/social asset according to provider approval gates. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`; for video, do not create local video media as a fallback.
-   28. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
-   29. Generate the three-file client-facing HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   30. Generate or update the operator-only `{client-name}-INTERNAL_REPORT.html`, clearly labeled `INTERNAL_REPORT - Not for client sharing`, and put Solo Agency/WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/automation/blocker/debug details there.
-   31. Run the Client-Blind Scrub Gate on the client-facing HTML files. They must not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
-   32. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the scrubbed three HTML files, or record the exact PDF blocker/status.
-   33. Update or copy `outputs/latest/{client-name}-daily-report.html`.
-   34. Update or copy `outputs/latest/{client-name}-INTERNAL_REPORT.html`.
-   35. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   36. Update `history/YYYY-MM/content_log.md`.
-   37. Update `history/YYYY-MM/data_sources_log.md`.
-   38. Update `history/YYYY-MM/lead_log.md`.
-   39. Update `history/YYYY-MM/competitor_log.md`.
-   40. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
+   27. Before any video provider creation request, load Stage 3 and the existing WideCast video script-writing skill again, treat the report/draft script as reference only, and create the final WideCast-grade script/brief with research plus inline-media/direct-image-URL workflow where verifiable. Do not edit or reimplement the skill.
+   28. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, create the approved video/blog/social asset according to provider approval gates. For video, use only the skill-produced final script/brief from the prior step as the provider payload. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`; for video, do not create local video media as a fallback.
+   29. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
+   30. Generate the three-file client-facing HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+   31. Generate or update the operator-only `{client-name}-INTERNAL_REPORT.html`, clearly labeled `INTERNAL_REPORT - Not for client sharing`, and put Solo Agency/WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/automation/blocker/debug details there.
+   32. Run the Client-Blind Scrub Gate on the client-facing HTML files. They must not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
+   33. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the scrubbed three HTML files, or record the exact PDF blocker/status.
+   34. Update or copy `outputs/latest/{client-name}-daily-report.html`.
+   35. Update or copy `outputs/latest/{client-name}-INTERNAL_REPORT.html`.
+   36. Update or copy the latest public/private lane HTML files when those lane reports exist.
+   37. Update `history/YYYY-MM/content_log.md`.
+   38. Update `history/YYYY-MM/data_sources_log.md`.
+   39. Update `history/YYYY-MM/lead_log.md`.
+   40. Update `history/YYYY-MM/competitor_log.md`.
+   41. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
