@@ -78,7 +78,7 @@ Load the module for the full text + nuance. These headlines are reminders, not t
 2b. **WideCast edit trigger = full autonomous run.** "edit this video" + a WideCast URL/`topic_id` = full audit + fix. Never ask scope.
 3. **Decide by SIGHT, not by `pattern`.** Visual calls need a local-shown screenshot. `scene_geometry` never substitutes for looking.
 4. **Overlay = transparent internal vector, hosted, uploaded, then screenshot-verified.** Safe box x∈[36,684], y∈[128,960]. Show a local overlay preview only when the environment already supports it cheaply; never expose the internal format to normal users.
-5. **ONE atom = ONE object** (`<g data-wc-object>`). Atomize, never clump. Co-appear via shared `data-wc-delay`.
+5. **ONE atom = ONE object** (`<g data-wc-object>`). Atomize, never clump. Co-appear via shared `data-wc-delay`; a clumped overlay is not upload-ready.
 6. **Font: HEAVY family** (e.g. `"<Family> Black"`). One font + accent per video; vary between videos.
 6a. **Overlay copy correctness is its own gate.** Every visible string proofread; typos/grammar/wrong currency/wrong term = FAIL.
 7. **Diversify the LOOK.** Load the style library; reproduce a real look (gradient/glossy/3D/metallic/…); never ship flat-only.
