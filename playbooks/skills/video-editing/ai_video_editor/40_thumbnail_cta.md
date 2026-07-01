@@ -24,7 +24,7 @@ Do **not** judge these endpoint scenes by the normal scene-overlay standard alon
 1. **Background:** first make scene 2's frame strong enough to be the cover. Use its own `thumbnailUrl`/A-roll frame when it has a clear face/emotion and matches the video topic. If scene 2's frame is weak, fix/choose the opening frame first; the static thumbnail should normally inherit that frame.
 2. **Poster title:** 2-5 words, max 2 primary lines. It should be the click promise or consequence, not the full quote.
 3. **Text placement:** lower-third / chest / negative-space placement that preserves eyes, nose, mouth, and the recognisable subject. For non-human thumbnails, preserve the product/vehicle/document/prop.
-4. **Readability:** huge heavy title, bright fill, controlled thin outline/shadow. A thumbnail title may be larger than normal scene titles, and its **letter body must look genuinely thick in the final 280x498 screenshot**.
+4. **Readability is only the floor:** huge heavy title, bright fill, controlled thin outline/shadow, and poster-level first-second punch. A thumbnail title may be larger than normal scene titles, and its **letter body must look genuinely thick in the final 280x498 screenshot**.
 5. **Contrast device:** a local scrim/gradient behind title is allowed and often useful, but keep it tasteful. It should support open typography, not become a boxed title card or giant ad banner.
 6. **Controlled poster decoration:** if the poster still feels flat after the title is thick enough, add a small set of SVG decoration accents (for example a vertical/horizontal bar, title bracket, diagonal slash near the title, tiny alert mark, or thin underline). These accents should create TV-poster energy and guide the eye toward the title/subject, not add new information.
 7. **Endpoint style mandate:** scene 2 / thumbnail / final CTA must look like an endpoint poster, not like an inside-scene card. A plain horizontal text bar, centered rounded card, or normal title-over-panel layout is too generic for endpoints even when readable. Pick one clear endpoint style from the ladder below and make it visible in the final screenshot.
@@ -139,8 +139,8 @@ Opening-poster / thumbnail / CTA typography may be more aggressive than normal s
 - Title can exceed the normal scene title cap when needed; target roughly **70-110px** on the 720 canvas for worded titles, larger only if the line is very short.
 - Use a 900-equivalent VN-safe face such as `Be Vietnam Pro Black` / `Inter Black`, and set `font-weight="900"` where possible.
 - Use bright white/yellow/red accents with a **thin controlled outline** and shadow. Do not make the title look strong by making the outline huge.
-- **Poster title thickness is stricter than normal scene title thickness.** If the post-upload screenshot still looks even slightly thin, patch the SVG by duplicating the same title text **7-9 times** in the same face fill with tiny offsets around center (`x±1.5-3px`, `y±1.5-3px`, plus diagonal offsets), then put one final top copy with only a **thin** dark stroke (`~1.5-2px`). This thickens the letter body without turning the outline into a black blob. Do this for the main poster words before changing layout or adding more decorations.
-- The title must read at 280x498 without zoom.
+- **Poster title thickness is stricter than normal scene title thickness.** Endpoint titles should usually use **12–18 same-fill face copies** (within the global 8–18 range) with tiny offsets around center (`x±1.5-3.5px`, `y±1.5-3.5px`, plus diagonal offsets), then one final top copy with only a **thin** dark stroke (`~1.5-2px`). This thickens the letter body without turning the outline into a black blob. Do this for the main poster words before changing layout or adding more decorations.
+- The title must read at 280x498 without zoom AND feel punchy in the first second; "readable but still thin" is endpoint FAIL.
 - Tiny sublines must have no visible stroke/outline. Use solid fill on a scrim/card or remove the subline.
 
 Layout:
@@ -192,7 +192,7 @@ Opening poster pair PASS requires all of:
 - The thumbnail sync happened immediately after scene 2 PASS and before scene 3 started; there is no final thumbnail pass.
 - The title communicates the whole-video promise/consequence in ~1 second.
 - The design uses a named endpoint style from the ladder and looks poster-like, not like a normal inside-scene card/text overlay.
-- The title is huge, bright, **extra thick-bodied**, and readable at feed size. "Readable but still thin" is not enough for a thumbnail.
+- The title is huge, bright, **extra thick-bodied from a 12–18x face stack**, and readable at feed size. "Readable but still thin" is not enough for a thumbnail.
 - The title does not cover the subject's eyes/nose/mouth or the key product/prop.
 - In scene 2, caption and poster title coexist: no caption/title overlap, no visual crowding, and the caption does not become a second competing headline.
 - No cramped text, no muddy/dark text, no edge-touching title, no subtitle that needs zoom.
@@ -203,7 +203,7 @@ Opening poster pair FAIL triggers:
 - Full quote pasted as many small lines.
 - Endpoint design is just a normal card, centered text box, horizontal lower-third bar, or generic title/subtitle layout.
 - Weak/dim text over a bright or busy photo.
-- Title is technically readable but not poster-thick.
+- Title is technically readable but not poster-thick / lacks first-second punch.
 - Title covers the face or key object.
 - Badge/subline makes the design feel crowded or ad-like.
 - Decorations feel random, cover the subject, crowd the title, or become louder than the message.
@@ -216,7 +216,7 @@ Final CTA PASS requires all of:
 - The current/final screenshot for the CTA scene was downloaded locally and visibly shown before judgment.
 - The scene communicates one clear action in ~1 second.
 - The design uses a named endpoint style from the ladder and looks like a CTA poster, not a normal interior explainer card.
-- The CTA hero text is title-grade: bright, thick-bodied, high contrast, readable at 280x498.
+- The CTA hero text is title-grade: bright, thick-bodied from the face stack, high contrast, and punchy/readable at 280x498.
 - If A-roll, narrator face remains the primary human close; CTA typography supports the face instead of replacing it with object clutter.
 - Support text, if any, has no visible stroke/outline and remains readable without zoom.
 - Caption, CTA, and overlay do not fight each other.
