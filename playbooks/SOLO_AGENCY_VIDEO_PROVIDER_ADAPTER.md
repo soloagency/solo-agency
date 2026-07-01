@@ -48,9 +48,11 @@ Required evidence before create:
 
 1. The agent loaded the existing `playbooks/skills/video-script-writing/SKILL.md` through the verified client provider `getWritingSkill(format=video)` operation or through the repo-local/static fallback.
 2. The final script/brief was produced by applying that skill to the selected idea/report draft, not copied from the client-facing report and not hand-rolled from agent memory.
-3. The final script/brief records research bullets and the selected format/code when available.
-4. For visual-dependent videos, the final script includes vetted direct image URLs in markdown image syntax, or a `media_pool`/visual blocker entry when direct URLs could not be verified. Image URLs must not be fabricated.
-5. The run state records approval status: manual/interactive confirmation, saved scheduled-run video-creation approval, or `approval_required`.
+3. If a report version/code, pasted edited version, or automation recommended/approved version existed, the final script/brief follows only that selected version/code; the agent did not generate a second five-version set during production.
+4. If no selected/recommended version existed, the run records that the WideCast skill's Stage 1 options were produced and a pick/recommendation was obtained before provider creation.
+5. The final script/brief records research bullets and the selected format/code when available.
+6. For visual-dependent videos, the final script includes vetted direct image/video URLs in markdown image syntax, or a `media_pool`/visual blocker entry when direct URLs could not be verified. URLs must not be fabricated.
+7. The run state records approval status: manual/interactive confirmation, saved scheduled-run video-creation approval, or `approval_required`.
 
 If this evidence is missing, do not resolve or call the provider video operation. Load Stage 3's Final WideCast Script Skill Gate and produce the final script first by applying the existing WideCast skill. If PDNA is missing, the skill may still run through the account-free fallback, but the adapter must stop before provider video creation.
 
