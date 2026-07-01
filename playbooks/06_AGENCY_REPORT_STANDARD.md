@@ -1186,7 +1186,7 @@ You provided private data sources, but the Local Collector is not active yet. Do
 ```
 
 ```text
-Do you want to create the video from Version 1 now?
+PDNA provider is verified and Version 1 is approved. Do you want me to create the video from Version 1 through the connected provider now?
 ```
 
 ```text

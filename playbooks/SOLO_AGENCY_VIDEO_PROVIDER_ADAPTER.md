@@ -14,7 +14,8 @@ This adapter is Solo Agency policy. It intentionally lives outside vendored skil
 - Every tool/capability check must check Client tools first and global MCP/native tools second. Client tools are the current client's provider config, OpenAPI cache/spec, verified account identity, `provider_capabilities.json`, provider health, and redacted provider logs.
 - Do not use a global MCP/native provider account as the current client's account unless its identity is proven to match the saved client provider identity.
 - Do not estimate credits, create video, edit scenes, upload media, render/export, publish, notify, or poll account data from an account-level provider until the current client's provider config and OpenAPI capabilities are verified.
-- If provider config, auth, discovery, account identity, or a required operation is missing, stop the provider action and log the exact blocker. Continue with draft/report work when possible.
+- If provider config, auth, discovery, account identity, or a required operation is missing, stop the provider action and log the exact blocker. Continue with draft/report work when possible, but do not create video media locally.
+- Never replace missing client-scoped video capability with a local/system video renderer. `ffmpeg`, Pillow, `moviepy`, browser screenshots/canvas, Remotion, slideshow export, MP4/MOV/GIF generation, or similar tools are forbidden as fallback video production paths.
 
 ## Tool Availability Check Rule
 
@@ -29,6 +30,14 @@ Check in this order:
 5. Global MCP/native tools only as optional compatibility after identity match is proven.
 
 If Client tools expose the required operation and global MCP does not, report that the client tool exists and use the Client tools path. If Client tools are missing or stale, refresh discovery or log the exact blocker before saying a capability is unavailable.
+
+## No Local Video Substitute
+
+This adapter only resolves provider-backed video capabilities. If `production.create_video`, `video_editing.*`, or `production.export_video` cannot be resolved from the verified current client's provider config/OpenAPI capability cache, the correct outcome is a provider blocker plus a PDNA setup request.
+
+The agent may create script text, storyboards, shot lists, visual notes, or production briefs. It must not create a local video file, rough cut, animated slideshow, preview MP4, or final export with non-provider tools. Missing WideCast/client provider setup is a video-production blocker, not permission to improvise with local rendering.
+
+If the current Automation Flow can safely update the client's provider config, ask for the client's WideCast API key by default in that same session, save it as `api_key_env` or `api_key_local`, fetch/cache OpenAPI, verify account identity, refresh `provider_capabilities.json`, update provider health, and resync automation before any later video action. Do not ask provider/scope/spend/publish/account-identity questions for the default path. If the human explicitly chose a non-WideCast provider, use that provider's API key instead. If the session cannot update provider config, hand off to setup/maintenance with the exact PDNA setup action.
 
 ## Client-Scoped Provider Action Resolver
 
@@ -59,6 +68,7 @@ When a writing or production skill names a provider-specific tool, map it to the
 | --- | --- |
 | `widecast_account`, account balance, credits | `account.verify` and `account.credits` from the current client's provider config/OpenAPI account operation |
 | `widecast_create_video`, `create_video` | `production.create_video` from the current client's verified provider capabilities |
+| local renderer phrases such as `ffmpeg`, Pillow, `moviepy`, Remotion, canvas video, slideshow video, or local MP4 | No capability mapping. These are forbidden fallbacks when provider video capability is missing. |
 | `widecast_get_editing_skill`, video-editing skill | `production.video_editing_skill` / `video_editing.get_editing_skill` from the current client's verified provider capabilities |
 | `widecast_upload_asset`, media upload, file upload | `media.upload_asset` from the current client's verified provider capabilities |
 | `widecast_wait_for_video`, `widecast_get_status`, scene/status polling | `production.get_status` from the current client's verified provider capabilities |
@@ -95,6 +105,7 @@ If a vendored WideCast writing skill says:
 - "open MCP review URL / use MCP status" -> use the review/status URL returned by the verified client provider operation, or mark the exact blocker.
 
 Do not silently fall back to the current chat's MCP/global account when the client provider config is missing or unverifiable.
+Do not silently fall back to local/system video generation when the client provider config or required video operation is missing.
 
 ## Video Creation To Scene Editing Chain
 
@@ -130,14 +141,16 @@ Use these blocker names consistently:
 - `provider_account_mismatch`
 - `provider_capability_cache_missing`
 - `provider_required_operation_missing`
+- `provider_setup_required_for_video`
 - `global_mcp_available_but_not_authoritative`
 - `global_mcp_not_client_scoped`
+- `local_diy_video_fallback_forbidden`
 - `provider_call_failed`
 - `video_editing_skill_missing`
 - `scene_editing_operation_missing`
 - `human_approval_missing`
 
-When blocked, tell the human what was not done, why, and the exact next action. Do not spend credits, render, publish, or imply the provider action succeeded.
+When blocked, tell the human what was not done, why, and the exact next action. Do not spend credits, render, publish, create local video media, or imply the provider action succeeded.
 
 ## Human-In-The-Loop Rule
 
