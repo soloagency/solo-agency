@@ -19,7 +19,7 @@ What to draw per chart pattern (each piece in its own `data-wc-object` group —
 | `trend_chart` | A line up/down, data dots, X-axis labels, title; minimal. |
 | `structural_diagram` | By substructure: flow (N steps →), cycle (circle + arrows), funnel (tiers), hierarchy (tree), before/after (2 panels), do-vs-dont (✓ green / ✗ red), list, formula (formula + labeled arrows), spectrum (bar + marker). |
 
-**Chart labels/values are secondary text, not title text.** Keep each value, axis/bar label, legend row, and total badge readable at 280×498 with **no visible text stroke/outline**. If a label/value needs contrast, give it a clean chip/card/backplate or move it to a quiet area; do not stroke small text. Before upload and again on the final screenshot, check label/value collisions explicitly: total badges must not cover `$` values, bar labels must not sit inside dark/muddy cards, and no value may overlap another text/object.
+**Chart text stroke policy.** Chart labels/values are secondary text, not title text. Keep each value, axis/bar label, legend row, and total badge readable at 280×498 with **no visible text stroke/outline**. If a label/value needs contrast, give it a clean chip/card/backplate or move it to a quiet area; do not stroke small text. Chart titles may use the global title treatment, but their visible text stroke is still capped at **2px on the 720 canvas**. Before upload and again on the final screenshot, check label/value collisions explicitly: total badges must not cover `$` values, bar labels must not sit inside dark/muddy cards, and no value may overlap another text/object.
 
 ### Diversify the chart look — do NOT ship flat-solid only
 
