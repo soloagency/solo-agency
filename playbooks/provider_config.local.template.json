@@ -24,9 +24,24 @@
       },
       "pdna": {
         "production": "not_configured",
+        "video_editing": "not_configured",
+        "render_export": "not_configured",
         "distribution": "not_configured",
         "notification": "not_configured",
         "analytics": "not_configured"
+      },
+      "video_editing": {
+        "enabled": false,
+        "preferred_skill_operation_id": "getEditingSkill",
+        "preferred_video_data_operation_id": "getVideoData",
+        "preferred_scene_geometry_operation_id": "sceneGeometry",
+        "preferred_scene_inspector_operation_id": "sceneInspector",
+        "preferred_modify_scene_operation_id": "modifyScene"
+      },
+      "render_export": {
+        "enabled": false,
+        "preferred_operation_id": "exportVideo",
+        "requires_fresh_human_approval": true
       },
       "notification": {
         "enabled": false,

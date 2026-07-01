@@ -4,7 +4,7 @@ Stage: `03`
 
 ## Load Rule
 
-Load only when writing drafts, creating video/blog/social assets, setting up a production provider, sending notifications, rendering/exporting, publishing, or spending credits is relevant.
+Load only when writing drafts, creating video/blog/social assets, editing provider video scenes, setting up a production provider, sending notifications, rendering/exporting, publishing, or spending credits is relevant.
 
 ## Hard Gates For This Stage
 
@@ -12,6 +12,8 @@ Load only when writing drafts, creating video/blog/social assets, setting up a p
 - Generate the five default draft versions unless the human asks otherwise.
 - Provider setup starts only after the human has received value or asks for production/distribution/notifications/analytics.
 - Explicit approval is required before creating video, rendering/exporting, publishing, spending credits, using face clone, using voice clone, or contacting leads.
+- Provider video creation returns reviewable scenes, not a finished client-ready MP4. After scenes are created, load the video-editing skill and run the scene audit/fix pass before asking for final render/export approval.
+- Scene editing may use free provider scene-edit operations as part of the approved video-production branch, but paid image generation, render/export, publishing, clone use, or any credit-spending action still needs its own explicit approval gate.
 - WideCast may appear as a maintained all-in-one reference path inside provider setup, not as the identity of the playbook.
 - When asking for a WideCast API key or describing what it unlocks, say that WideCast enables video/blog/social asset creation and notifications for human review, then publishing to 10+ platforms only after the human approves the exact content and target platforms. Do not imply that the API key alone authorizes unreviewed automatic posting.
 - Every production provider choice, API-key/OAuth connection request, video/render/export/publish/credit-spend approval, face/voice clone approval, and lead outreach approval must use the root playbook `**[ACTION REQUIRED]**` block.
@@ -38,6 +40,7 @@ Item 8 is complete when the agent has:
 - recorded the selected path: specialist stack, WideCast all-in-one, manual/draft-only, blocked, or declined;
 - connected the available provider or documented the exact remaining connection step;
 - checked/report notification capability;
+- checked video creation, scene editing, and final render/export capability or documented what remains unavailable;
 - checked publishing capability or documented what remains unconnected;
 - checked analytics capability or documented what remains unavailable;
 - saved the setup status for later scheduled runs.
@@ -344,7 +347,7 @@ Before creating videos, sending notifications, uploading reports, publishing, or
 
 #### Client Tools First Capability Check
 
-For every provider/tool availability question, check Client tools first and global MCP/native tools second. This applies when the human asks whether the agent can make a video, write/create a blog, upload media, send Telegram/email notifications, publish, read analytics, check credits, inspect connected platforms, or "check tools".
+For every provider/tool availability question, check Client tools first and global MCP/native tools second. This applies when the human asks whether the agent can make a video, edit/review video scenes, write/create a blog, upload media, send Telegram/email notifications, publish, read analytics, check credits, inspect connected platforms, or "check tools".
 
 Client tools means the current client's `integrations/providers/provider_config.local.json`, fetched OpenAPI spec/cache, verified provider account identity, `provider_capabilities.json`, `provider_health.md`, and redacted provider call logs. Global MCP/native tools are never the first source of truth. They are only an optional compatibility path after the identity is proven to match this client.
 
@@ -376,9 +379,9 @@ If the tool identity cannot be compared, mark `global_mcp_not_client_scoped` and
 
 #### Solo Agency Video Provider Adapter
 
-When a video/blog/social production action may call a concrete provider tool, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after the writing skill or provider skill. This adapter is the Solo Agency overlay for client routing.
+When a video/blog/social production or video scene-editing action may call a concrete provider tool, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after the writing skill, video-editing skill, or provider skill. This adapter is the Solo Agency overlay for client routing.
 
-Vendored writing skills, including WideCast video script-writing skills, may be refreshed from upstream and may mention concrete MCP calls such as `widecast_create_video`, `widecast_account`, or `widecast_upload_asset`. Do not patch those vendored files for Solo Agency client-routing behavior. Interpret those calls as abstract capabilities, then resolve the actual operation from the current client's `integrations/providers/provider_config.local.json`, OpenAPI cache, and `provider_capabilities.json`.
+Vendored writing and video-editing skills, including WideCast video script-writing and video-editing skills, may be refreshed from upstream and may mention concrete MCP calls such as `widecast_create_video`, `widecast_account`, `widecast_upload_asset`, `widecast_video_data`, or `widecast_modify_scene`. Do not patch those vendored files for Solo Agency client-routing behavior. Interpret those calls as abstract capabilities, then resolve the actual operation from the current client's `integrations/providers/provider_config.local.json`, OpenAPI cache, and `provider_capabilities.json`.
 
 If the current client has no verified provider config or the required operation is missing, stop the provider action and log the exact blocker. Do not fall back to a global MCP/native account just because it is available in the current AI session.
 
@@ -462,6 +465,8 @@ If WideCast is not configured for this client, the agent must:
 10. Verify account identity with `getAccount`.
 11. Check the discovered operation IDs needed for PDNA:
    - Production: `getWritingSkill`, `createVideo`, `createContent`, `createImage`, `searchBroll`, `collectIdeas`.
+   - Video scene editing: `getEditingSkill`, `getVideoData`, `sceneGeometry` or `getSceneGeometry`, `sceneInspector` or equivalent, `modifyScene`.
+   - Final video output: `getStatus`, `exportVideo`.
    - Distribution: `publish`, `listAccounts`, `getPlatformSettings`, `setPlatformSettings`.
    - Notification: `uploadAsset`, `sendTelegramMessage`.
    - Analytics: `getAccount`, `getAnalytics`, `listVideos`, `getStatus`, `getVideoData`.
@@ -653,7 +658,9 @@ The agent may use available WideCast OpenAPI operations, native tools, or option
 - Check Client tools first, then global MCP/native tools only as optional compatibility after account identity matches.
 - Show the script to the human.
 - Get approval before creating a video.
+- After video creation returns reviewable scenes, load the video-editing skill and run the scene audit/fix pass before final render/export.
 - Get explicit confirmation before rendering/exporting/publishing/spending credits.
+- Check whether this client's discovered OpenAPI capabilities expose the video-editing operations needed for the pass: `getEditingSkill`, `getVideoData`, scene geometry, scene inspector, and `modifyScene`.
 - Check whether this client's provider config and discovered OpenAPI capabilities expose `uploadAsset` and `sendTelegramMessage`.
 - Check connected publishing platforms and credits through this client's verified OpenAPI/account operations, not through a global MCP account.
 - Use WideCast OpenAPI notifications for scheduled-run results, blockers, login/session issues, and approval requests when available.
@@ -695,6 +702,51 @@ The correct sequence is:
 5. Show script to human.
 6. Ask for approval.
 7. Only after approval, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md`, resolve the current client's verified provider and `production.create_video` operation from Client tools/OpenAPI capabilities first, then create the video through that client-scoped operation. For WideCast, use the WideCast OpenAPI operation only after this client's WideCast account identity is verified. Use MCP/native tools only if they are proven to be the same client account.
+
+### Client-Scoped Video Editing Gate
+
+Provider video creation is the handoff from script to reviewable scenes. It is not the end of the video-production workflow.
+
+After `production.create_video` returns a provider topic/video ID, `review_url`, `embed_url`, or equivalent scene-review result:
+
+1. Save the returned video/topic ID, review URL, chosen script version, production mode, provider operation ID, and approval reference in the content log/internal report.
+2. Load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` if it is not already loaded.
+3. Resolve the scene-editing capability group through Client tools first:
+   - editing skill: `getEditingSkill`;
+   - scene data: `getVideoData`;
+   - scene layout geometry: `sceneGeometry` or `getSceneGeometry`;
+   - scene screenshot/inspector: `sceneInspector`, `inspectScene`, or equivalent;
+   - scene mutation: `modifyScene`;
+   - background/media helpers when available: `searchBroll`, `createImage`, and `uploadAsset`.
+4. Load `playbooks/skills/video-editing/SKILL.md` through the verified client provider `getEditingSkill` operation when available. If the provider skill endpoint is unavailable but the repo-local skill exists, use the local files under `playbooks/skills/video-editing/`.
+5. Follow the video-editing skill load map exactly. The editing skill is modular: load the master index, then the required modules before each step. Do not work from memory.
+6. Pull `getVideoData` first, then run the editing pass from the first real content scene through the final content/CTA scene. The pass should audit/fix overlay, background, layout, captions, narrator face clearance, and scene consistency.
+7. When the editing skill needs a scene screenshot or visual evidence, use the provider scene inspector/screenshot operation when available. Save the temporary screenshot/media/SVG evidence locally and show it to the human before judging or applying it, as required by the skill.
+8. Free scene edits such as `modifyScene`, layout changes, overlay upload, metadata correction, B-roll switch, and background swaps may be applied autonomously inside the approved production branch when the editing skill requires them.
+9. Paid operations still need a fresh approval/cost gate before use. This includes provider image generation, final render/export, publishing, clone use, or any operation that spends credits.
+10. If the video uses teleprompter or user A-roll and the scenes require the human to record/upload media, stop at a clear action block. Do not render/export around a missing human recording.
+11. Before handoff, record one of these scene-editing statuses in the internal report and content/history log: `scene_editing_complete`, `scene_editing_blocked`, `scene_editing_declined`, or `scene_editing_needs_human_recording`.
+12. Only after the editing skill's pre-summary completion scan passes should the agent ask the final question: render/export the final MP4 now, or review the scenes first?
+
+The final render/export gate is separate from video creation and scene editing. The agent must not call `production.export_video` until the human explicitly confirms render/export after the edited scenes are ready for review.
+
+Human-facing final editing handoff must include:
+
+- the review/edit URL;
+- a short summary of what was checked or changed;
+- whether any human recording/upload is still needed;
+- the exact render/export approval question in a root playbook `**[ACTION REQUIRED]**` block.
+
+Provider/internal reporting must include:
+
+- target client slug;
+- provider config path checked;
+- OpenAPI/capability discovery status;
+- account verification status;
+- operations used or blocked: `getEditingSkill`, `getVideoData`, scene geometry, scene inspector, `modifyScene`, media helpers, and `exportVideo`;
+- topic/video ID and review URL;
+- scene-editing status;
+- whether final render/export was approved, declined, blocked, or pending.
 
 ### WideCast Telegram Notification Protocol
 
