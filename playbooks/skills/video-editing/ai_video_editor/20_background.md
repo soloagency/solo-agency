@@ -185,6 +185,8 @@ F. **Download the thumbnails locally & build a contact sheet.** Download the thu
 
 G. **Show the contact sheet BEFORE evaluating visually or applying the clip.** Display the local contact sheet first, then state clearly which clip number is chosen and why. Don't look privately, don't apply first, and don't show afterward.
 
+G1. **Contact sheet = candidate triage only.** A contact sheet can choose a candidate, but it does not prove Gate 5 PASS and it never proves `Scene N: PASS`. Gate 5 still needs the active background/media plate + composite screenshot evidence for this exact scene, and the scene still needs the full 9-gate DoD before PASS.
+
 G2. **Evaluate for real & technical filter.** Now that the local contact sheet has been shown, drop off-topic clips; apply the §4.6 filter (natively portrait, not too bright for a text-heavy scene, no duplicates, no watermark). If poor, search again and repeat F→G→G2.
 
 H. **(Demo) Wait ~1 second** so the user can record. Keep going — don't stop to wait for a response; the work must not be interrupted.
@@ -207,6 +209,7 @@ J. **Move to the next scene**, repeat.
 - Editing `segment.narrator_face` to adjust layout (wrong — use `overlay.narrator.rect`).
 - Scrolling the browser manually.
 - Looking at candidate thumbnails privately before showing the local contact sheet.
+- Treating a contact sheet as scene proof. It is triage/selection evidence only, not Gate 5 PASS and not `Scene N: PASS`.
 - Applying the clip before showing the contact sheet.
 - Pasting raw HTML or just pasting an external thumbnail URL.
 - Always putting the chosen clip at #1.
