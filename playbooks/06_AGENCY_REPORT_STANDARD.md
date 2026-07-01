@@ -900,9 +900,9 @@ Default video-script versions:
 
 - `Version 1: VE — Value Explainer`
 - `Version 2: QA — Client Q&A`
-- `Version 3: MB — Myth Buster`
-- `Version 4: MP — Mistake Prevention`
-- `Version 5: LG — Lead-Gen CTA`
+- `Version 3: POV — POV`
+- `Version 4: CS — Case Study`
+- `Version 5: MB — Myth-Buster`
 
 If a non-video format or a human override produces only one draft, still label it as `Version 1`.
 
@@ -1191,9 +1191,9 @@ Required report hierarchy:
    - Use complete version names:
      - `Version 1: VE — Value Explainer`
      - `Version 2: QA — Client Q&A`
-     - `Version 3: MB — Myth Buster`
-     - `Version 4: MP — Mistake Prevention`
-     - `Version 5: LG — Lead-Gen CTA`
+     - `Version 3: POV — POV`
+     - `Version 4: CS — Case Study`
+     - `Version 5: MB — Myth-Buster`
    - Each version should be a usable draft, not only a one-line angle, unless the report explicitly labels it as an angle preview.
    - For each version, include hook/opening, body, CTA, tone, estimated length, source references, and production notes.
    - If visual/media URLs are required for immediate video creation but are missing, label the draft as `script-ready, media-pending`.
