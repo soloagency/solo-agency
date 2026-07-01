@@ -1693,10 +1693,26 @@ Before presenting the content draft, verify:
 - [ ] If this is a video script, did I include visual notes?
 - [ ] Did I include CTA?
 - [ ] Did I ask for approval before creating/rendering/publishing video?
-- [ ] Before any provider-backed video creation, credit check, media upload, render/export, publish, notification, or analytics action, did I load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after the vendored writing/provider skill?
-- [ ] If a vendored skill named a concrete MCP call such as `widecast_create_video` or `widecast_account`, did I resolve it as a client-scoped provider capability from this client's config/OpenAPI cache before using any tool?
+- [ ] Before any provider-backed video creation, scene editing, credit check, media upload, render/export, publish, notification, or analytics action, did I load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after the vendored writing/video-editing/provider skill?
+- [ ] If a vendored skill named a concrete MCP call such as `widecast_create_video`, `widecast_video_data`, `widecast_modify_scene`, or `widecast_account`, did I resolve it as a client-scoped provider capability from this client's config/OpenAPI cache before using any tool?
 - [ ] If explaining the system's capabilities, did I explicitly mention that approved drafts can become produced video/blog/social assets through connected providers, not only scripts/blogs/captions waiting for manual production?
 - [ ] Did I avoid spending credits without explicit confirmation?
+
+### Video Scene Editing Checklist
+
+Before saying a provider-created video is ready for final render/export, verify:
+
+- [ ] Did I load Stage 3 and `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` before any provider scene/edit action?
+- [ ] Did I resolve the video-editing operations from this client's Client tools first: `getEditingSkill`, `getVideoData`, scene geometry, scene inspector, `modifyScene`, and media helpers when needed?
+- [ ] Did I load `playbooks/skills/video-editing/SKILL.md` through the verified client provider when available, or from the local repo fallback when the provider skill endpoint was unavailable?
+- [ ] Did I follow the editing skill module load map instead of working from memory?
+- [ ] Did I pull `getVideoData` before editing and use stable scene UID/`voice_file` when available?
+- [ ] Did I use scene geometry for coordinates and scene inspector screenshots/local visual evidence for visual judgment?
+- [ ] Did I show local screenshot/media/SVG evidence before judging, applying, or uploading it when the editing skill required visual proof?
+- [ ] Did I confirm `modifyScene` changes by re-pulling scene data/geometry?
+- [ ] Did I log `scene_editing_complete`, `scene_editing_blocked`, `scene_editing_declined`, or `scene_editing_needs_human_recording` in the internal report/history?
+- [ ] Did I avoid paid generated images, render/export, publishing, clone use, or any credit spend without a fresh explicit approval gate?
+- [ ] Did I ask the human to render/export the final MP4 only after the editing skill's pre-summary completion scan passed?
 
 ### Production Provider Choice Checklist
 
@@ -1722,7 +1738,7 @@ Before presenting production setup choices or claiming the PDNA setup gate is co
 - [ ] If only a global MCP/native provider account was visible, did I mark `global_mcp_not_client_scoped` or `global_mcp_available_but_not_authoritative` instead of listing those global credits/platforms as this client's status?
 - [ ] Did I verify the account through this client's configured OpenAPI/API-key path and compare the verified identity to the saved client provider identity before claiming PDNA is connected?
 - [ ] Did I load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` before treating any video/blog/social provider action as available for this client?
-- [ ] Did I select production, media upload, render/export, publish, notification, and analytics operations from this client's `provider_capabilities.json` or freshly discovered OpenAPI operation list, not from the current AI host's global MCP tool list?
+- [ ] Did I select production, scene editing, media upload, render/export, publish, notification, and analytics operations from this client's `provider_capabilities.json` or freshly discovered OpenAPI operation list, not from the current AI host's global MCP tool list?
 - [ ] Did I check connected publishing platforms and provider settings through the verified client account, not through MCP-global `accounts` or `platform_settings` output?
 - [ ] Did I avoid asking for passwords, cookies, OTPs, social credentials, or browser session tokens?
 - [ ] If the human or AI host explicitly chooses MCP/connector setup, did I include the agent-specific setup guide link: Claude `https://widecast.ai/claude.html`, Codex/ChatGPT/OpenAI `https://widecast.ai/chatgpt.html`, Gemini `https://widecast.ai/gemini.html`, or Grok `https://widecast.ai/grok.html`?

@@ -4,21 +4,21 @@ Stage: `03A`
 
 ## Load Rule
 
-Load this file after any vendored writing or production skill whenever the agent may create a video, estimate production credits, upload production media, poll production status, publish produced content, or use any provider account action for a Solo Agency client.
+Load this file after any vendored writing, video-editing, or production skill whenever the agent may create a video, edit/review provider video scenes, estimate production credits, upload production media, poll production status, render/export, publish produced content, or use any provider account action for a Solo Agency client.
 
-This adapter is Solo Agency policy. It intentionally lives outside vendored skills such as `playbooks/skills/video-script-writing/SKILL.md`, because those skills may be refreshed from upstream. If a vendored skill tells the agent to call a concrete MCP tool such as `widecast_create_video`, `widecast_account`, `widecast_upload_asset`, or `widecast_publish`, treat that instruction as an abstract capability request and resolve it through this adapter first.
+This adapter is Solo Agency policy. It intentionally lives outside vendored skills such as `playbooks/skills/video-script-writing/SKILL.md` and `playbooks/skills/video-editing/SKILL.md`, because those skills may be refreshed from upstream. If a vendored skill tells the agent to call a concrete MCP tool such as `widecast_create_video`, `widecast_account`, `widecast_upload_asset`, `widecast_video_data`, `widecast_modify_scene`, or `widecast_publish`, treat that instruction as an abstract capability request and resolve it through this adapter first.
 
 ## Hard Gates
 
 - Do not edit vendored provider skills to add Solo Agency client-routing policy. Put overrides in this adapter and load it after the vendored skill.
 - Every tool/capability check must check Client tools first and global MCP/native tools second. Client tools are the current client's provider config, OpenAPI cache/spec, verified account identity, `provider_capabilities.json`, provider health, and redacted provider logs.
 - Do not use a global MCP/native provider account as the current client's account unless its identity is proven to match the saved client provider identity.
-- Do not estimate credits, create video, upload media, publish, notify, or poll account data from an account-level provider until the current client's provider config and OpenAPI capabilities are verified.
+- Do not estimate credits, create video, edit scenes, upload media, render/export, publish, notify, or poll account data from an account-level provider until the current client's provider config and OpenAPI capabilities are verified.
 - If provider config, auth, discovery, account identity, or a required operation is missing, stop the provider action and log the exact blocker. Continue with draft/report work when possible.
 
 ## Tool Availability Check Rule
 
-When the human or another agent asks whether the system has tools for video, blog, social posts, media upload, render/export, publishing, notification, analytics, account credits, connected platforms, or WideCast itself, do not start from the current chat's MCP tool list.
+When the human or another agent asks whether the system has tools for video, video scene editing, blog, social posts, media upload, render/export, publishing, notification, analytics, account credits, connected platforms, or WideCast itself, do not start from the current chat's MCP tool list.
 
 Check in this order:
 
@@ -59,8 +59,15 @@ When a writing or production skill names a provider-specific tool, map it to the
 | --- | --- |
 | `widecast_account`, account balance, credits | `account.verify` and `account.credits` from the current client's provider config/OpenAPI account operation |
 | `widecast_create_video`, `create_video` | `production.create_video` from the current client's verified provider capabilities |
+| `widecast_get_editing_skill`, video-editing skill | `production.video_editing_skill` / `video_editing.get_editing_skill` from the current client's verified provider capabilities |
 | `widecast_upload_asset`, media upload, file upload | `media.upload_asset` from the current client's verified provider capabilities |
 | `widecast_wait_for_video`, `widecast_get_status`, scene/status polling | `production.get_status` from the current client's verified provider capabilities |
+| `widecast_video_data`, scene data | `production.get_video_data` / `video_editing.get_video_data` from the current client's verified provider capabilities |
+| `widecast_scene_geometry`, scene geometry | `video_editing.scene_geometry` from the current client's verified provider capabilities |
+| `widecast_scene_inspector`, scene screenshots/inspection | `video_editing.scene_inspector` from the current client's verified provider capabilities |
+| `widecast_modify_scene`, scene edits | `video_editing.modify_scene` from the current client's verified provider capabilities |
+| `widecast_search_broll`, B-roll/media search | `media.search_broll` from the current client's verified provider capabilities |
+| `widecast_create_image`, generated scene image | `media.create_image` from the current client's verified provider capabilities, with explicit cost/credit approval before paid generation |
 | `widecast_export_video`, render/export | `production.export_video` from the current client's verified provider capabilities, with a fresh human approval gate |
 | `widecast_publish`, post to platforms | `distribution.publish` from the current client's verified provider capabilities, with exact content and platform approval |
 | `sendTelegramMessage`, Telegram/email fallback | `notification.send` from the current client's verified provider capabilities |
@@ -83,9 +90,33 @@ If a vendored WideCast writing skill says:
 - "call `widecast_account`" -> read credits/account status through the current client's verified provider config/OpenAPI path.
 - "call `widecast_create_video`" -> call the resolved `production.create_video` operation for the current client.
 - "call `widecast_upload_asset`" -> call the resolved `media.upload_asset` operation for the current client.
+- "call `widecast_video_data`, `widecast_scene_geometry`, `widecast_scene_inspector`, or `widecast_modify_scene`" -> call the resolved `video_editing` operation for the current client.
+- "call `widecast_get_editing_skill`" -> load the resolved client-scoped editing skill when available, otherwise use the repo-local `playbooks/skills/video-editing/` fallback and log the provider skill blocker.
 - "open MCP review URL / use MCP status" -> use the review/status URL returned by the verified client provider operation, or mark the exact blocker.
 
 Do not silently fall back to the current chat's MCP/global account when the client provider config is missing or unverifiable.
+
+## Video Creation To Scene Editing Chain
+
+When a client-scoped `production.create_video` call succeeds, treat the returned provider topic/video ID and `review_url` as the start of the scene-editing stage, not as the finished video.
+
+Required post-create sequence:
+
+1. Record the provider result in the client's internal report/history: topic/video ID, review URL, operation ID, production mode, approval source, and script/version used.
+2. Resolve `video_editing` operations from Client tools before using any global MCP/native edit tool:
+   - `getEditingSkill`;
+   - `getVideoData`;
+   - `sceneGeometry` or `getSceneGeometry`;
+   - `sceneInspector`, `inspectScene`, or equivalent screenshot/inspection operation;
+   - `modifyScene`;
+   - media helpers such as `searchBroll`, `createImage`, and `uploadAsset` when needed.
+3. Load the video-editing skill from the verified client provider when `getEditingSkill` is available. If it is not available but the repo-local skill exists, load `playbooks/skills/video-editing/SKILL.md` and its required modules from disk.
+4. Follow the editing skill's module load map and visual evidence rules. Pull `getVideoData` first, work by stable scene UID/`voice_file` when available, use scene geometry for coordinates, use scene inspector screenshots for visual judgment, and confirm modifications by re-pulling scene data.
+5. Do not ask the human to choose scene-by-scene options during the autonomous editing pass. The editing skill decides and fixes, unless a required human asset/action is missing.
+6. Paid provider actions inside editing, such as generated images, require explicit cost/credit approval. Free scene mutations such as `modifyScene` may run as part of the approved video-production branch.
+7. After the editing skill's pre-summary completion scan passes, ask the human whether to render/export the final MP4 or review scenes first. Rendering/export is a separate approval gate and must call `production.export_video` only after a fresh explicit yes.
+
+If any required edit operation is missing, log the exact blocker from this adapter's blocker list, keep the review URL available, and ask the human whether to review manually or connect/repair the provider capability. Do not claim the final MP4 is ready.
 
 ## Blockers
 
@@ -102,6 +133,8 @@ Use these blocker names consistently:
 - `global_mcp_available_but_not_authoritative`
 - `global_mcp_not_client_scoped`
 - `provider_call_failed`
+- `video_editing_skill_missing`
+- `scene_editing_operation_missing`
 - `human_approval_missing`
 
 When blocked, tell the human what was not done, why, and the exact next action. Do not spend credits, render, publish, or imply the provider action succeeded.
@@ -121,4 +154,5 @@ After a video/provider action attempt, report:
 - account verification status, redacted identity, and match/mismatch result;
 - human approval status;
 - review URL/status URL/output URL if returned;
+- for created videos, topic/video ID, scene-editing status, edit operations used or blocked, and final render/export approval status;
 - local logs updated under `integrations/providers/`.

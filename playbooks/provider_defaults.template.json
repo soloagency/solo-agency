@@ -11,7 +11,7 @@
       "auth_type": "bearer_api_key",
       "api_key_prefix": "wc_live_",
       "secret_storage": "per_client_local_config",
-      "notes": "Default all-in-one OpenAPI provider for production, distribution, notification, and analytics. Use https://widecast.ai/app/dashboard as the current production API server. Do not call https://api.widecast.ai unless a future release explicitly enables that host. Copy this file to daily-content-pipeline/provider_defaults.json during setup. Do not put API keys here."
+      "notes": "Default all-in-one OpenAPI provider for production, video scene editing, render/export, distribution, notification, and analytics. Use https://widecast.ai/app/dashboard as the current production API server. Do not call https://api.widecast.ai unless a future release explicitly enables that host. Copy this file to daily-content-pipeline/provider_defaults.json during setup. Do not put API keys here."
     }
   }
 }
