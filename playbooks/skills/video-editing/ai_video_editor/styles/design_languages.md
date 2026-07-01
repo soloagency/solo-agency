@@ -5,6 +5,8 @@ _Version: `modular-1.1` · style module of the AI Video Editor Playbook._
 This is the **visual language layer**, not a replacement for the Universal Overlay Design Standard. Every language below still obeys: readable mobile title, strong contrast, safe zones, face/caption clearance, correct copy, separated objects, and post-upload screenshot proof.
 
 > **HOW TO USE — short.** Pick ONE language before authoring/rebuilding an overlay. Use it as a design direction, then render the scene's pattern via `ai_video_editor/31_typography.md`, `ai_video_editor/32_charts.md`, or `ai_video_editor/33_patterns.md`. Keep one language across a video unless an endpoint/CTA or scene context clearly needs a deliberate shift. Do not explain the language to normal users; just apply it.
+>
+> **Universal title rule across EVERY language:** title/hero/primary CTA/hero metric text is **open typography**, never boxed inside a card/chip/pill/panel/black translucent rectangle. It must use 900-equivalent weight (`Black`/`900`, plus `font-weight="900"` where possible) and visible text stroke **0–2px max**. If a language mentions cards, panels, pills, tags, plates, or bubbles, those are for secondary labels, stats, frames, decoration, or object surfaces — **not containers for the main title**. Use shadow, glow, scrim/gradient, brackets, underlines, slashes, or object-integrated placement for title contrast.
 
 ## Selection Rules
 

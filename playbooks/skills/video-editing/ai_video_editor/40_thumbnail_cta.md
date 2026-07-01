@@ -25,7 +25,7 @@ Do **not** judge these endpoint scenes by the normal scene-overlay standard alon
 2. **Poster title:** 2-5 words, max 2 primary lines. It should be the click promise or consequence, not the full quote.
 3. **Text placement:** lower-third / chest / negative-space placement that preserves eyes, nose, mouth, and the recognisable subject. For non-human thumbnails, preserve the product/vehicle/document/prop.
 4. **Readability:** huge heavy title, bright fill, controlled thin outline/shadow. A thumbnail title may be larger than normal scene titles, and its **letter body must look genuinely thick in the final 280x498 screenshot**.
-5. **Contrast device:** a local scrim/card/gradient behind title is allowed and often useful, but keep it tasteful. It should support the title, not become a giant ad banner.
+5. **Contrast device:** a local scrim/gradient behind title is allowed and often useful, but keep it tasteful. It should support open typography, not become a boxed title card or giant ad banner.
 6. **Controlled poster decoration:** if the poster still feels flat after the title is thick enough, add a small set of SVG decoration accents (for example a vertical/horizontal bar, title bracket, diagonal slash near the title, tiny alert mark, or thin underline). These accents should create TV-poster energy and guide the eye toward the title/subject, not add new information.
 7. **Endpoint style mandate:** scene 2 / thumbnail / final CTA must look like an endpoint poster, not like an inside-scene card. A plain horizontal text bar, centered rounded card, or normal title-over-panel layout is too generic for endpoints even when readable. Pick one clear endpoint style from the ladder below and make it visible in the final screenshot.
 
@@ -137,7 +137,7 @@ Hard limits:
 Opening-poster / thumbnail / CTA typography may be more aggressive than normal scene text:
 
 - Title can exceed the normal scene title cap when needed; target roughly **70-110px** on the 720 canvas for worded titles, larger only if the line is very short.
-- Use a heavy VN-safe face such as `Be Vietnam Pro Black` / `Inter Black`.
+- Use a 900-equivalent VN-safe face such as `Be Vietnam Pro Black` / `Inter Black`, and set `font-weight="900"` where possible.
 - Use bright white/yellow/red accents with a **thin controlled outline** and shadow. Do not make the title look strong by making the outline huge.
 - **Poster title thickness is stricter than normal scene title thickness.** If the post-upload screenshot still looks even slightly thin, patch the SVG by duplicating the same title text **7-9 times** in the same face fill with tiny offsets around center (`x±1.5-3px`, `y±1.5-3px`, plus diagonal offsets), then put one final top copy with only a **thin** dark stroke (`~1.5-2px`). This thickens the letter body without turning the outline into a black blob. Do this for the main poster words before changing layout or adding more decorations.
 - The title must read at 280x498 without zoom.
@@ -147,10 +147,10 @@ Layout:
 
 - Preserve face/subject: eyes, nose, mouth should stay clear unless the title intentionally frames around them.
 - Lower-third title over torso/negative space is often best for human thumbnails.
-- A local scrim behind the title is allowed; avoid full-canvas opaque panels that kill the photo.
+- A local scrim/gradient behind the title is allowed; avoid full-canvas opaque panels that kill the photo and never put the poster title inside a generic card/chip/pill/rounded rectangle.
 - A badge/pill is optional. If it looks like a clickable button or clutters the poster, remove it or turn it into simple open text.
 - Accent strips/underlines must be thin and directional. Do not add multiple warning marks, stickers, badges, arrows, or boxes just to create energy.
-- Avoid normal explainer-card composition at endpoints: no generic rounded card with centered horizontal title, no plain lower-third rectangle with one line of text, no row of small chips as the main design, and no balanced info-panel look. If a backplate/card is needed for contrast, it must be integrated into a poster/magazine composition, not become the design.
+- Avoid normal explainer-card composition at endpoints: no generic rounded card with centered horizontal title, no plain lower-third rectangle with one line of text, no row of small chips as the main design, and no balanced info-panel look. If a backplate/card is needed for secondary/support text contrast, it must be integrated into a poster/magazine composition, not become the design; the main title remains open typography.
 
 ### Poster/CTA decoration standard
 
