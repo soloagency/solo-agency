@@ -12,7 +12,7 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 - After configuring the routine, do not run the first report in Setup Flow; verify the client-specific automation task and tell the human the exact task name to run for the first report.
 - If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, do not run it and do not ask whether to run it now. Treat the request as a handoff request: verify/resync the task, then tell the human the exact client-specific automation task name to run.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
-- Scheduled runs must run research, private scans if active, analysis, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification. If video provider setup is missing or blocked, scheduled runs must stop at script/storyboard/production-brief output and ask for PDNA setup; they must not create local video media with `ffmpeg`, Pillow, `moviepy`, Remotion, browser/canvas screenshots, slideshow export, or similar tools.
+- Scheduled runs must run research, private scans if active, analysis, production-ready drafts, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification. Before report HTML/PDF work, scheduled runs must load `playbooks/skills/report-design/SKILL.md` and use `tools/solo_report_renderer.py` by default instead of writing ad hoc report/PDF scripts. If video provider setup is missing or blocked, scheduled runs must stop at script/storyboard/production-brief output and ask for PDNA setup; they must not create local video media with `ffmpeg`, Pillow, `moviepy`, Remotion, browser/canvas screenshots, slideshow export, or similar tools.
 - Scheduled runs must load Stage 10 and produce Lead & Competitor Opportunities, or explicitly mark them as not found, not scanned, pending activation, or unavailable.
 - Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, mark measurement as `no published URLs yet` instead of pretending it ran.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
@@ -69,7 +69,7 @@ At the start of every scheduled run, the agent must load or re-load the relevant
 5. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private data sources are active, pending, blocked, or being scanned.
 6. Load Stage 3 when drafts, production, publishing, provider setup, or notification provider actions are needed.
 7. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
-8. Load Stage 6 whenever generating the human-facing HTML report.
+8. Load Stage 6 and then `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or packaging the human-facing HTML/PDF report.
 9. Load Stage 10 whenever lead/competitor opportunities, comments, opportunity logs, or competitor monitoring are part of the run. This is normally every first run and every scheduled daily run.
 10. Load Stage 11 when the task is `Solo Agency - GitHub Update Watch`, when an update/upgrade/sync-latest request is being handled, or when blocker recovery checks GitHub for a newer Solo Agency version.
 11. Load Stage 9 before claiming the scheduled run is complete.
@@ -81,7 +81,7 @@ The difference between first setup and scheduled runs:
 - Scheduled runs must not re-ask industry, sub-industry, audience, pain points, content pillars, or private data source setup questions if those fields are already present.
 - Scheduled runs may ask the human only when an approval gate, blocker, missing critical field, expired private session, production/render/publish/credit decision, or lead outreach decision requires human input.
 
-Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, published-URL analytics when published content exists, data analysis, Lead & Competitor Opportunities, idea matrix, best idea, production-ready drafts, approved video/blog/social production when authorized, HTML report, notification, and measurement/learning when measurement data exists.
+Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, published-URL analytics when published content exists, data analysis, Lead & Competitor Opportunities, idea matrix, best idea, production-ready drafts, approved video/blog/social production when authorized, Stage 6 plus report-design-rendered HTML/PDF report, notification, and measurement/learning when measurement data exists.
 
 ## Scheduled Run Progress Display Contract
 

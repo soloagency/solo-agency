@@ -6,11 +6,18 @@ Stage: `06`
 
 Load whenever generating, reviewing, debugging, or improving a human-facing report.
 
+Immediately after loading this file, load `playbooks/skills/report-design/SKILL.md`
+before writing, regenerating, reviewing, packaging, or fixing report HTML/PDF.
+The report-design skill is the report-specific adaptation of the landing-page
+design discipline from `leonxlnx/taste-skill`; Stage 6 remains the operational
+contract, and the report-design skill controls visual quality.
+
 ## Hard Gates For This Stage
 
 - Canonical human-facing report files are HTML. A PDF companion is mandatory after the HTML report set is created or updated.
 - Markdown is internal.
 - The report must be standalone, mobile-friendly, agency-grade, and factually aligned with the Markdown source.
+- The report must use the reusable report-design module and reusable renderer path by default. Do not write one-off Python/HTML/PDF scripts for ordinary report generation.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
 - Every idea, best idea, comment, and draft must be audience-value-first: useful to the viewer before useful to the client's brand. Reject or rewrite direct product/service praise as `promotional_not_value_first`.
 - Do not create fake action buttons in static HTML.
@@ -110,6 +117,66 @@ Quality rules for HTML:
 - Versioned draft sections such as `Version 1: VE — Value Explainer` must be presented as polished editable review blocks with local copy buttons.
 - The agent may spend extra time generating a beautiful HTML report because the HTML is the only report the human sees.
 - The page must not create document-level horizontal scrolling on a 390px-wide mobile viewport. Wide tables must be wrapped in a dedicated `.table-scroll` or equivalent container with `overflow-x: auto`, or transformed into stacked mobile cards. The body, main containers, cards, buttons, code blocks, URLs, and long source names must use responsive width constraints plus `overflow-wrap: anywhere` or equivalent so only the table wrapper scrolls, never the entire page.
+
+### Reusable Report Design And Renderer Contract
+
+The agent must not spend every daily run inventing a fresh report rendering
+script. Solo Agency includes a reusable report design skill and renderer:
+
+```text
+playbooks/skills/report-design/SKILL.md
+tools/solo_report_renderer.py
+```
+
+Required order for every client-facing report:
+
+1. Author or update the internal Markdown/source record with complete facts, references, lane markers, drafts, blockers, and operational notes.
+2. Load `playbooks/skills/report-design/SKILL.md`.
+3. Render each client-facing report from the approved source content with `tools/solo_report_renderer.py render`, or a named reusable template layered into that renderer.
+4. Run the Client-Blind Scrub Gate on each client-facing HTML file.
+5. Build `{client-name}-client-report.html` and `{client-name}-client-report.pdf` with `tools/solo_report_renderer.py package` from the scrubbed daily/public/private HTML files.
+6. If PDF export is unavailable, keep the package HTML, write the renderer status JSON, update `report_state.json`, and record the exact blocker in `INTERNAL_REPORT`.
+
+Default render command pattern:
+
+```sh
+python3 tools/solo_report_renderer.py render \
+  --input outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.md \
+  --output-html outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html \
+  --title "Public Data Sources Report" \
+  --client-name "{Client Name}" \
+  --report-kind "Public Data Sources Report" \
+  --client-facing \
+  --fail-on-scrub
+```
+
+Default package command pattern:
+
+```sh
+python3 tools/solo_report_renderer.py package \
+  --inputs \
+    outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html \
+    outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html \
+    outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html \
+  --output-html outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html \
+  --output-pdf outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf \
+  --title "{Client Name} Client Report" \
+  --client-name "{Client Name}" \
+  --client-facing \
+  --fail-on-scrub
+```
+
+Renderer behavior:
+
+- `render` creates standalone responsive HTML with a landing-page-like hero, navigation, polished sections, mobile-safe tables, and print CSS.
+- `package` combines scrubbed client-facing HTML files into a print-ready companion HTML and attempts PDF export through local browser print-to-PDF, WeasyPrint, or `wkhtmltopdf` when available.
+- Every renderer run writes `{output_html}.render_status.json` so `INTERNAL_REPORT` and `report_state.json` can record generated/blocked PDF status without parsing terminal output.
+- The renderer uses no remote CSS, JavaScript, fonts, or external services.
+
+Fallback rule:
+
+- If the renderer is missing or fails because of a bug, fix the reusable renderer or log `report_renderer_blocked`.
+- Do not replace it with a one-off script unless the human explicitly requests a custom report template for that client. If a custom template is approved, save it as a reusable named template and update this Stage 6 contract or the client profile so future runs reuse it.
 
 The latest convenience files should be:
 
