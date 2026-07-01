@@ -18,6 +18,7 @@ Load before claiming setup, daily run, private data source setup, schedule, prod
 - Before claiming any post-schedule change is complete, verify Automation Resync was performed when schedule/automation already exists. Config-only updates are not enough if a native scheduled task prompt may still contain an old snapshot.
 - Before claiming any Solo Agency update/upgrade/sync-latest work is complete, verify Stage 11 was loaded, GitHub `main` was checked from a verified source, backups/logs were written, clients and automations were resynced, and bridge/extension human actions were given when required.
 - Treat local DIY video production as a critical workflow violation when client-scoped PDNA/video provider setup is missing, unverified, mismatched, or missing the required operation. Do not create MP4/MOV/GIF/slideshow/rough video files with `ffmpeg`, Pillow, `moviepy`, browser/canvas screenshots, Remotion, or similar fallback renderers.
+- Before claiming any report run is complete, verify Stage 6 loaded `playbooks/skills/report-design/SKILL.md` and that client-facing HTML/PDF was generated with `tools/solo_report_renderer.py` or a reusable approved template. One-off report/PDF scripts are a workflow violation unless the exact blocker and approved exception are logged.
 
 ## Latest Override: Setup Flow And Client Isolation Audit
 
@@ -36,6 +37,8 @@ Before claiming Automation Flow completion for a client:
 - Confirm `client_slug`, `extension_instance_id`, and output path all match.
 - Confirm collector output was read only from `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/`.
 - Confirm the client has one canonical three-file report set for the day/run: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+- Confirm the report-design skill was loaded before report generation/repair and `tools/solo_report_renderer.py render` or a reusable approved template produced the client-facing HTML.
+- Confirm `tools/solo_report_renderer.py package` or a reusable approved package template produced the PDF companion package, or the exact PDF blocker is logged.
 - Confirm the public report and private report have separate source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
 - Confirm the private pass did not overwrite, delete, reorder, summarize away, or regenerate the public report file.
 - Confirm `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` exists or the exact blocker is logged, and that its public/private statuses match the report set.
@@ -51,6 +54,7 @@ Treat these as critical workflow violations:
 - A global `extension_health.status: recent` is used as proof that the target client's extension is healthy without checking the matching `client_slug + extension_instance_id`.
 - A private data source pass overwrites, regenerates, or summarizes away `{client-name}-public-data-sources-report.html`.
 - The report set is missing `{client-name}-daily-report.html` as the canonical handoff/index file.
+- A report run writes a new one-off Python/browser/PDF script instead of using or fixing the reusable report renderer.
 
 ## Source Preservation Rule
 

@@ -25,6 +25,8 @@ Client-facing deliverables are client-blind by default and must stay that way. D
 
 Every scheduled/manual report run must also create an operator-only file with `INTERNAL_REPORT` in the filename for each client/day/run. Put all Solo Agency, WideCast, provider, Telegram/social-platform, API-key/config, Local Collector, private data source inventory, automation freshness, delivery-capability, blocker, and debug details in that internal report, not in client-facing files. The internal report is for the user/operator only and must be clearly labeled `INTERNAL_REPORT - Not for client sharing`.
 
+Before generating, reviewing, fixing, or packaging any client-facing report HTML/PDF, load `playbooks/06_AGENCY_REPORT_STANDARD.md` and then `playbooks/skills/report-design/SKILL.md`. Use `tools/solo_report_renderer.py` by default for report HTML rendering and PDF companion packaging. Do not write fresh one-off Python/browser/PDF scripts for ordinary report runs; fix the reusable renderer or log the exact blocker instead.
+
 If the human asks to scan, monitor, collect, or review private data sources (logged-in groups, feeds, profiles, communities, or social sources) after any amount of conversation drift, reload `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before taking action.
 
 Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read private data sources. Use only the Solo Agency Local Collector extension plus the Local Collector app for private data source collection.
