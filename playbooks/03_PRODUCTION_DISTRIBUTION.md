@@ -9,7 +9,8 @@ Load only when writing drafts, creating video/blog/social assets, editing provid
 ## Hard Gates For This Stage
 
 - Writing must work without any provider account.
-- Generate the five default draft versions unless the human asks otherwise.
+- Generate the five default draft versions for report/review selection unless the human asks otherwise.
+- After a human or automation has selected a report version/code, do not generate five new versions again for video production. Load the existing WideCast video script-writing skill and continue only with the selected version/code through research, factual-core checks, Stage 2 inline media, and production handoff.
 - Any script inside a report, Markdown source record, previous draft, or content history is reference context only. Before any provider video creation request, load and apply the existing WideCast video script-writing skill to produce the final production script/brief, including research and Stage 2 inline-media/direct-image-URL workflow when relevant. Do not edit, replace, summarize, or reimplement the WideCast skill.
 - Provider setup starts only after the human has received value or asks for production/distribution/notifications/analytics.
 - Explicit approval is required before creating video, rendering/exporting, publishing, spending credits, using face clone, using voice clone, or contacting leads.
@@ -257,7 +258,7 @@ When the human explicitly asks about alternatives or rejects WideCast, do not hi
 
 After selecting the best idea, the agent must write the configured WideCast-writing-skill content draft.
 
-Default output is five complete short-form video script draft versions for the selected best idea. If the Client Intelligence Profile has `output_formats` containing `blog_article`, the agent must also write a blog/article draft or outline according to the configured cadence. If the profile includes `social_caption`, the agent may also draft platform-native captions.
+Default report output is five complete short-form video script draft versions for the selected best idea. These five versions are suggestion options so the human or Automation Flow can choose a direction. They are not final provider payloads and should normally stay free of inline image/video URLs. If the Client Intelligence Profile has `output_formats` containing `blog_article`, the agent must also write a blog/article draft or outline according to the configured cadence. If the profile includes `social_caption`, the agent may also draft platform-native captions.
 
 The writing step must not be blocked by the absence of a WideCast account, MCP connection, API key, Custom GPT, or installed WideCast tool. The agent must load the WideCast writing method by following the fallback protocol in `WideCast Writing Skill Access Without Account`.
 
@@ -274,6 +275,8 @@ Every default video-script run should produce these five WideCast-style draft ve
 - `Version 3: POV — POV`
 - `Version 4: CS — Case Study`
 - `Version 5: MB — Myth-Buster`
+
+When the human has selected one of these versions, pasted an edited version, or the Automation Flow has saved a recommended/approved version, later video production must not run the five-version Stage 1 comparison again. Treat the chosen report version/code as the picked script for the WideCast skill flow and run only the selected version through the required research refresh, factual-core check, Stage 2 inline-media/direct-image-URL treatment, media pool, and production handoff.
 
 Every draft variant must be labeled with a clear version number, short code, and plain meaning. Use `Version 1: VE — Value Explainer`, not just `VE`. Use `Version 2: QA — Client Q&A`, not just `QA`. If a non-video format or a human override produces only one draft, still label it as `Version 1`.
 
@@ -715,10 +718,12 @@ Required sequence:
 1. Load the existing WideCast video script-writing skill through the verified client provider `getWritingSkill(format=video)` operation when available, or from `playbooks/skills/video-script-writing/SKILL.md` / the static GitHub fallback when PDNA is not connected.
 2. Load the modules required by the skill for the current step, including `method`, `formats`, `research_visuals`, and `handoff` when reaching final video handoff.
 3. Use the selected report idea/draft only as input context.
-4. Run the skill's research-first workflow. For real, current, product, place, person, event, or visual-dependent topics, source and vet sparse direct image URLs for the beats that need real visuals; use markdown image syntax or `media_pool` according to the skill. If the runtime cannot research or verify visuals, record the limitation and stop at a production brief/blocker unless the loaded skill explicitly routes that case through a verified server-side research handoff with valid approval. Never fabricate image URLs.
-5. Produce and save a final WideCast-grade script/production brief artifact for the run, with the selected format/code, research bullets, inline-media URLs or media pool, production mode if known, and approval reference/status.
-6. Use only this skill-produced final script/brief as the provider payload.
-7. Do not edit, replace, summarize, or reimplement the WideCast skill itself. It is upstream-managed and may improve independently.
+4. If a report version/code, pasted edited version, or automation recommended/approved version already exists, do not generate five new scripts. Treat that version as the picked script/code and continue only with that selected format through the WideCast skill's standards.
+5. If no selected/recommended version exists yet, use the WideCast skill's Stage 1 flow to produce the fitting version options and get a human pick or automation recommendation before provider video creation.
+6. Run the skill's research-first workflow for the selected version. For real, current, product, place, person, event, or visual-dependent topics, source and vet sparse direct image/video URLs for the beats that need real visuals; use markdown image syntax or `media_pool` according to the skill. If the runtime cannot research or verify visuals, record the limitation and stop at a production brief/blocker unless the loaded skill explicitly routes that case through a verified server-side research handoff with valid approval. Never fabricate image or video URLs.
+7. Produce and save one final WideCast-grade script/production brief artifact for the run, with the selected format/code, research bullets, inline-media URLs or media pool, production mode if known, and approval reference/status.
+8. Use only this skill-produced final script/brief as the provider payload.
+9. Do not edit, replace, summarize, or reimplement the WideCast skill itself. It is upstream-managed and may improve independently.
 
 Manual/interactive rule: after the skill-produced final script and visual handoff are ready, stop and ask the human to confirm before calling the provider. A generic "make a video" request approves the skill pass, not provider video creation.
 

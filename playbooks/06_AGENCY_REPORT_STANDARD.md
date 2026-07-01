@@ -904,6 +904,8 @@ Default video-script versions:
 - `Version 4: CS — Case Study`
 - `Version 5: MB — Myth-Buster`
 
+In client-facing reports, these five video-script versions are candidate options for choosing a direction. They should not include inline image/video URLs by default and must not be treated as the final provider video payload. After a version/code is selected, the production flow loads the WideCast video script-writing skill again and processes only that selected version through research, factual-core checks, Stage 2 visual treatment, inline media URLs, media pool, and production handoff.
+
 If a non-video format or a human override produces only one draft, still label it as `Version 1`.
 
 ## Version 1: VE — Value Explainer
@@ -1188,6 +1190,7 @@ Required report hierarchy:
    - If competitor data is inferred without a captured URL, label it as market hypothesis, not detected competitor evidence.
 
 11. `Production-Ready Drafts`
+   - For video, this section is a selection surface: the five versions are candidate script options for human/automation choice, not final provider-ready payloads.
    - Use complete version names:
      - `Version 1: VE — Value Explainer`
      - `Version 2: QA — Client Q&A`
@@ -1196,8 +1199,9 @@ Required report hierarchy:
      - `Version 5: MB — Myth-Buster`
    - Each version should be a usable draft, not only a one-line angle, unless the report explicitly labels it as an angle preview.
    - For each version, include hook/opening, body, CTA, tone, estimated length, source references, and production notes.
+   - Do not spend report time sourcing or vetting inline image/video URLs for all five video options. Label video options as `script option, visual treatment pending` unless a selected-version WideCast skill pass has already produced the final inline media treatment.
    - If visual/media URLs are required for immediate video creation but are missing, label the draft as `script-ready, media-pending`.
-   - If the draft is ready for production, label it `production-ready`.
+   - If a selected version has already passed the WideCast video script-writing skill's Stage 2 visual treatment, label that one selected version `final script ready for provider`, not all five options.
    - If an approved video/blog/social asset has already been created, include the produced asset URL/status and label it `asset-created`, `ready-to-publish`, or `published`.
    - If human approval or missing client detail is still needed before creating the asset, say that clearly in client-safe language. Put provider/setup blockers in `INTERNAL_REPORT`.
 

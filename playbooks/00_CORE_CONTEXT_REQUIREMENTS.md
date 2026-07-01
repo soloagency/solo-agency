@@ -19,6 +19,7 @@ Load first for every setup or run. This stage contains the core reasoning model,
 - The agent must not mention private data sources in the first setup or first add-client question. Private data sources are asked only after the schedule/routine and client-specific automation task have been configured; if the human approves or changes private data sources, resync the automation task afterward.
 - The agent must not create local video media as a fallback when a verified client-scoped PDNA provider is missing or blocked. Missing provider setup must trigger a PDNA setup/action block, not a local `ffmpeg`/Pillow/`moviepy`/Remotion/canvas/slideshow video.
 - Any video script inside a report, Markdown source record, previous draft, or history is reference context only. Before any provider video creation request, the agent must load and apply the existing WideCast video script-writing skill from the verified provider or `playbooks/skills/video-script-writing/SKILL.md`, produce the final production script/brief with research and inline-media/direct-image-URL workflow where verifiable, and use only that skill-produced final script/brief as the provider payload. Do not edit, replace, summarize, or reimplement the WideCast skill.
+- Report video-script versions are selection options only. If a version/code is already selected by the human, pasted back with edits, or saved as the automation recommendation, do not generate five new versions during video production. Continue only with that selected version/code through the WideCast skill's Stage 2 visual treatment and final handoff standards.
 - Default PDNA setup must be one-action WideCast setup. When PDNA is missing and the human asks for setup/instructions/video/production, ask only for the client's WideCast API key; do not ask provider, scope, spend, publish, notification, analytics, or account-identity questions before starting the default path.
 
 ## Source Preservation Rule
@@ -1671,7 +1672,7 @@ Why:
 
 After selecting the best idea, the agent must write the configured WideCast-writing-skill content draft.
 
-Default output is five complete short-form video script draft versions for the selected best idea. If the Client Intelligence Profile has `output_formats` containing `blog_article`, the agent must also write a blog/article draft or outline according to the configured cadence. If the profile includes `social_caption`, the agent may also draft platform-native captions.
+Default report output is five complete short-form video script draft versions for the selected best idea. These are selection options for the human or Automation Flow, not final provider video payloads. If the Client Intelligence Profile has `output_formats` containing `blog_article`, the agent must also write a blog/article draft or outline according to the configured cadence. If the profile includes `social_caption`, the agent may also draft platform-native captions.
 
 The writing step must not be blocked by the absence of a WideCast account, MCP connection, API key, Custom GPT, or installed WideCast tool. The agent must load the WideCast writing method by following the fallback protocol in `WideCast Writing Skill Access Without Account`.
 
@@ -1765,6 +1766,8 @@ The agent must not render, export, publish, or spend WideCast credits without ex
 The agent must not self-create local video media when WideCast/client PDNA is missing or blocked. Ask for the API key in the same Automation Flow when the current session can update provider config; otherwise hand off to setup/maintenance with the exact PDNA setup action.
 
 The agent must not send a report script or earlier draft directly to WideCast/client video production. Load the existing WideCast video script-writing skill again, create the final WideCast-grade script/brief with research and sparse direct image URLs/media pool where verifiable, then follow the manual confirmation or scheduled-approval gate from Stage 3. Do not edit, replace, summarize, or reimplement the WideCast skill.
+
+If a report version/code has already been selected, the agent must not create a second five-version set. Treat the selected report version as the picked script for the WideCast skill flow, apply the selected format's standards plus Stage 2 visual treatment, and produce one final provider-ready script/brief.
 
 For default WideCast setup, the agent must not ask the human to choose provider, scope, expected account identity, spend-credit permission, publish permission, notification channel, or analytics mode. Use safe defaults, verify the account through OpenAPI, discover capabilities, and keep all create/render/export/publish/credit-spend actions behind later explicit approval gates.
 
