@@ -17,6 +17,7 @@ Load before claiming setup, daily run, private data source setup, schedule, prod
 - Treat any use of Claude in Chrome, Claude Chrome Extension, Codex/browser tools, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or another agent-controlled browser for private data source collection as a critical workflow violation.
 - Before claiming any post-schedule change is complete, verify Automation Resync was performed when schedule/automation already exists. Config-only updates are not enough if a native scheduled task prompt may still contain an old snapshot.
 - Before claiming any Solo Agency update/upgrade/sync-latest work is complete, verify Stage 11 was loaded, GitHub `main` was checked from a verified source, backups/logs were written, clients and automations were resynced, and bridge/extension human actions were given when required.
+- Treat local DIY video production as a critical workflow violation when client-scoped PDNA/video provider setup is missing, unverified, mismatched, or missing the required operation. Do not create MP4/MOV/GIF/slideshow/rough video files with `ffmpeg`, Pillow, `moviepy`, browser/canvas screenshots, Remotion, or similar fallback renderers.
 
 ## Latest Override: Setup Flow And Client Isolation Audit
 
@@ -1463,6 +1464,7 @@ Before replying to the human, verify:
 - [ ] If I mentioned a report, did I provide the HTML path/link as the primary human review link, include the PDF companion path/status, and avoid showing the Markdown report path?
 - [ ] If I mentioned a report and any workflow step remains, did I include both the progress block and the required next-step question in chat instead of relying on the report's `Next Action` section?
 - [ ] If I checked tools/capabilities or claimed a tool was available/unavailable, did I check Client tools first (`provider_config.local.json`, OpenAPI cache/spec, verified identity, `provider_capabilities.json`) and global MCP/native tools only second?
+- [ ] If video creation/render/export was requested and client-scoped PDNA provider setup was missing or blocked, did I stop at script/storyboard/production-brief work, explain the provider requirement, and use a `**[ACTION REQUIRED]**` block instead of creating local video media?
 - [ ] In Setup Flow, did I avoid running the first agency run/report directly and instead prepare or resync the client-specific automation task?
 - [ ] In Automation Flow, did I avoid jumping to the first report before private data source status, the step 6 Local Collector checkpoint, schedule/routine, and client-specific automation task were resolved or honestly marked pending?
 - [ ] If I generated or announced an HTML report, did I generate/update the mandatory PDF companion or record the exact PDF blocker/status?
@@ -1691,6 +1693,7 @@ Before presenting the content draft, verify:
 - [ ] Did I ask for approval before creating/rendering/publishing video?
 - [ ] Before any provider-backed video creation, scene editing, credit check, media upload, render/export, publish, notification, or analytics action, did I load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after the vendored writing/video-editing/provider skill?
 - [ ] If a vendored skill named a concrete MCP call such as `widecast_create_video`, `widecast_video_data`, `widecast_modify_scene`, or `widecast_account`, did I resolve it as a client-scoped provider capability from this client's config/OpenAPI cache before using any tool?
+- [ ] If the verified client provider or required video operation was missing, did I avoid all local video fallbacks (`ffmpeg`, Pillow, `moviepy`, Remotion, browser/canvas screenshots, slideshow export, MP4/MOV/GIF) and ask for PDNA setup/API key instead?
 - [ ] If explaining the system's capabilities, did I explicitly mention that approved drafts can become produced video/blog/social assets through connected providers, not only scripts/blogs/captions waiting for manual production?
 - [ ] Did I avoid spending credits without explicit confirmation?
 
@@ -1712,21 +1715,15 @@ Before saying a provider-created video is ready for final render/export, verify:
 
 ### Production Provider Choice Checklist
 
-Before presenting production setup choices or claiming the PDNA setup gate is complete, verify that PDNA was explained as Production, Distribution, Notification, and Analytics:
+Before claiming the PDNA setup gate is complete, verify that default setup stayed low-friction:
 
-- [ ] Did the human-facing explanation name the specialist stack path before or alongside WideCast?
-- [ ] Did I list concrete specialist examples for video generation, such as Google Veo, Seedance, Kling, and Runway?
-- [ ] Did I list concrete image generation examples, such as Google Nano Banana, OpenAI Image Gen, and Midjourney?
-- [ ] Did I list concrete face/voice examples, such as HeyGen and ElevenLabs?
-- [ ] Did I list notification examples, such as Telegram, Discord, and email?
-- [ ] Did I list auto-posting/social publishing examples, such as Hootsuite, Buffer, Publer, Later, SocialPilot, and Sprout Social?
-- [ ] Did I explain that specialist tools may require separate accounts, billing/API/OAuth, publish permissions, media import/export, analytics, and approval flows?
-- [ ] Did I explain why I cannot simply say `install HeyGen` or `install Hootsuite` and get a complete end-to-end agent workflow?
-- [ ] Did I present WideCast as a maintained all-in-one agent-facing shortcut, not as the identity of Solo Agency and not as mandatory for research, ideas, leads, reports, or free draft writing?
-- [ ] Did I include the manual/draft-only path for humans who do not want provider setup yet?
-- [ ] Did I avoid a response where the text names only WideCast while the specialist stack appears only as a short choice label?
+- [ ] Did I explain PDNA as Production, Distribution, Notification, and Analytics in plain language?
+- [ ] If the human wanted default setup, did I ask only for the WideCast API key and avoid provider/scope/spend/publish/account-identity questions?
+- [ ] Did I avoid asking "Provider=...", "Scope=...", "Spend credits yes/no", "Publish yes/no", "What account identity?", or similar setup-form questions before starting the default WideCast path?
+- [ ] Did I treat WideCast as the default maintained all-in-one agent-facing path, not as the identity of Solo Agency and not as mandatory for research, ideas, leads, reports, or free draft writing?
+- [ ] Did I discuss specialist-stack examples only if the human explicitly asked for alternatives, rejected WideCast, or requested a non-default provider?
 - [ ] If asking the human to connect WideCast, did I give the exact OpenAPI/API key path: register at `https://widecast.ai/#setup` (free 50 credits/month when that offer is shown), log in, click `Setup AI Agent`, open `API Keys & MCP`, click `Setup`, click `Generate API key and MCP url`, then copy only the API key for this specific client?
-- [ ] Did I ask the human to connect Telegram for daily report links/blockers/approval requests, and optionally connect this client's social accounts to enable 10+ platform publishing only after exact content and target platforms are approved?
+- [ ] Did I mention Telegram and social-account connection as optional WideCast-side setup, without turning them into separate yes/no questions during default PDNA setup?
 - [ ] Before checking WideCast account status, credits, connected platforms, publish settings, Telegram, analytics, or capabilities, did I identify the active `target_client_slug` and read that client's `integrations/providers/provider_config.local.json`?
 - [ ] Before checking any provider tool availability, did I check Client tools first (provider config, OpenAPI cache/spec, verified identity, `provider_capabilities.json`) and global MCP/native tools only second?
 - [ ] For WideCast OpenAPI, did I select `https://widecast.ai/app/dashboard` as the current production server and skip `https://api.widecast.ai` as a disabled/planned vanity host unless a future playbook explicitly enables it?
@@ -1747,9 +1744,9 @@ Before presenting production setup choices or claiming the PDNA setup gate is co
 When production/video/blog/social work happens inside the one-time agency setup process, verify:
 
 - [ ] Did I treat step 7 as provider/capability setup after the setup handoff or an Automation Flow report, not open-ended trial video creation?
-- [ ] Did I avoid starting scene editing, repeated media swaps, render/export, publishing, or credit-spending while steps 8-9 were still pending, unless the human explicitly overrode after a warning?
+- [ ] Did I avoid starting scene editing, repeated media swaps, render/export, publishing, or credit-spending while steps 8-9 were still pending, unless the human explicitly overrode after a warning and the client-scoped provider plus required operation were verified?
 - [ ] After provider setup completed, did I gently return to the next setup step instead of asking to keep playing with the video?
-- [ ] If the human explicitly insisted on a trial video before setup completed, did I record the parent setup checkpoint before entering the branch?
+- [ ] If the human explicitly insisted on a trial video before setup completed, did I verify the client-scoped provider and required operation first, avoid local video fallback, and record the parent setup checkpoint before entering the branch?
 - [ ] Did I remember the next parent setup step after the branch, instead of losing the agency setup thread?
 - [ ] Did I show a compact parent setup checkpoint during the short production branch?
 - [ ] After one natural branch checkpoint, did I return to the full `Solo Agency one-time setup process` roadmap unless the human explicitly asked to continue the branch?
