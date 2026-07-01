@@ -34,7 +34,7 @@ Production still requires explicit human approval before creating provider-hoste
 
 During `Solo Agency one-time setup process`, this stage's default job is provider/capability setup, not open-ended video production.
 
-Item 8 is complete when the agent has:
+Item 7 is complete when the agent has:
 
 - presented the provider choices neutrally;
 - recorded the selected path: specialist stack, WideCast all-in-one, manual/draft-only, blocked, or declined;
@@ -45,7 +45,7 @@ Item 8 is complete when the agent has:
 - checked analytics capability or documented what remains unavailable;
 - saved the setup status for later scheduled runs.
 
-Item 8 is not supposed to include:
+Item 7 is not supposed to include:
 
 - creating a trial video;
 - editing video scenes;
@@ -64,8 +64,8 @@ WideCast/production provider setup is connected. I recommend finishing the agenc
 If the human explicitly insists on a trial video now, treat it as a short controlled branch, not a new main workflow:
 
 - record parent workflow: `Solo Agency one-time setup process`;
-- record parent step currently active or just completed, usually step 8;
-- record next parent setup step after the branch, usually step 9 or the first unresolved analytics/learning step;
+- record parent step currently active or just completed, usually step 7;
+- record next parent setup step after the branch, usually step 8 or the first unresolved analytics/learning step;
 - record active production item: idea/title/version/provider/status;
 - record approvals already granted and approvals still required;
 - do one bounded production action or one review/edit cycle;
@@ -74,14 +74,14 @@ If the human explicitly insists on a trial video now, treat it as a short contro
 The agent should show only a compact agency setup checkpoint during the short branch:
 
 ```text
-Agency setup checkpoint: paused at step 8. After this video branch, the next setup step is step 9: if PDNA is set up and published URLs exist, scan analytics for the last 7 days.
+Agency setup checkpoint: paused at step 7. After this video branch, the next setup step is step 8: if PDNA is set up and published URLs exist, scan analytics for the last 7 days.
 Active branch: video production/editing for {idea/title}.
 ```
 
 At a natural checkpoint, resume the parent setup politely:
 
 ```text
-This video branch reached a checkpoint. To keep agency setup complete, I will return to step 9: analytics history if there is published data, then finish the learning loop.
+This video branch reached a checkpoint. To keep agency setup complete, I will return to step 8: analytics history if there is published data, then finish the learning loop.
 ```
 
 Natural checkpoints include:
@@ -171,12 +171,12 @@ I can still write scripts/blogs/captions, create the HTML report, build the idea
 
 Failure condition: if the production setup explanation names WideCast but does not also name the specialist stack examples, the response is incomplete and must be corrected before proceeding.
 
-### One-Time Setup Process Item 8 Completion Contract
+### One-Time Setup Process Item 7 Completion Contract
 
 When this stage is loaded after the first automation report because the human wants production/distribution/notifications/analytics setup, the active setup step is:
 
 ```text
-→ 8. I help set up PDNA: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
+→ 7. I help set up PDNA: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
 ```
 
 This item is not complete until the agent has covered all four capability groups:
