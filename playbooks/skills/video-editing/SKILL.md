@@ -2,7 +2,7 @@
 
 Version: `modular-2.0` · This file is the **MASTER INDEX**. It is intentionally small so every host/MCP runtime can deliver it without hitting per-tool-call output caps. Every detail — rules, jump-prevention triggers, DoD gate templates, principles, workflow, quality bar, priority order — lives in **separate modules** under `ai_video_editor/`. Reach a step → open the matching module → then act.
 
-The goal of the AI video editor is to edit each scene so that the final video has **correct content, a clear face, clear text, the right visuals, good layout, and consistent quality from beginning to end.**
+The goal of the AI video editor is to edit each scene so that the final video has **correct content, a clear face, instant-punch title text, the right visuals, good layout, and consistent quality from beginning to end.** Readability is only the minimum floor; short-form titles must feel thick, vivid, and graspable in the first second.
 
 > **Overarching principle — name the field, do not guess.** Stick to the exact field name in the data: `show_narrator=true` (not "the scene has a narrator"), `overlay.<sub>.visible=true` (not "it has an overlay"). All geometry (safe zone, narrator face, overlay position) is precomputed — call `scene_geometry` instead of estimating coordinates.
 
@@ -74,12 +74,12 @@ Load the module for the full text + nuance. These headlines are reminders, not t
 0. **Visual evidence gate.** Every image used as evidence — screenshots (`scene_inspector` → `curl` `result.screenshot.url` → local file), found media, generated images, and cheap local overlay previews when available — must be saved locally and SHOWN visibly to the user BEFORE the agent judges/edits/uploads from it. Overlay previews are opportunistic; the mandatory overlay truth is the post-upload composite screenshot.
 1. **Name the field, never guess.** Selector = `voice_file` (not `id`). After every `modify_scene`, re-pull `video_data`/`scene_geometry` to confirm saved.
 2. **Runtime = autonomous, end-to-end.** Work scene 2 → last content scene in ONE pass. Never pause to ask. No `A or B?` questions to the user.
-2a. **Decision protocol — choose, don't defer.** Priority: content correctness → face preservation → readability → safe-zone/caption → aesthetic → minimal edit.
+2a. **Decision protocol — choose, don't defer.** Priority: content correctness → face preservation → readability floor + title first-second punch → safe-zone/caption → aesthetic → minimal edit.
 2b. **WideCast edit trigger = full autonomous run.** "edit this video" + a WideCast URL/`topic_id` = full audit + fix. Never ask scope.
 3. **Decide by SIGHT, not by `pattern`.** Visual calls need a local-shown screenshot. `scene_geometry` never substitutes for looking.
 4. **Overlay = transparent internal vector, hosted, uploaded, then screenshot-verified.** Safe box x∈[36,684], y∈[128,960]. Show a local overlay preview only when the environment already supports it cheaply; never expose the internal format to normal users.
 5. **ONE atom = ONE object** (`<g data-wc-object>`). Atomize, never clump. Co-appear via shared `data-wc-delay`; a clumped overlay is not upload-ready.
-6. **Font: HEAVY family** (e.g. `"<Family> Black"`). One font + accent per video; vary between videos.
+6. **Title typography: HEAVY + stacked face**. Title/hero text uses a 900-equivalent family (e.g. `"<Family> Black"` + `font-weight="900"`), open typography, 8–18 same-fill face copies for body thickness, and <=2px visible text stroke. Readable-but-thin title = FAIL.
 6a. **Overlay copy correctness is its own gate.** Every visible string proofread; typos/grammar/wrong currency/wrong term = FAIL.
 7. **Diversify the LOOK.** Load the style library; reproduce a real look (gradient/glossy/3D/metallic/…); never ship flat-only.
 8. **A-roll: face is sacred.** Never edit `narrator_face`; solve narrator + overlay together. A full-canvas narrator trial cannot fail because the current overlay is in the wrong place; move/resize/simplify/rebuild the overlay before shrinking the narrator. Final CTA scene: narrator-primary + typography-led CTA.

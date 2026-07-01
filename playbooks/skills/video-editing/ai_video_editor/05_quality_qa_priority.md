@@ -20,7 +20,7 @@ A scene is considered passing when:
 - if `show_narrator=true`, `boxes.narrator.face` is clear and not covered
 - the overlay is correct in content and large enough to read on mobile
 - every visible overlay string is typo-free, grammar-correct, uses the right language/diacritics/casing, and preserves required numbers, currency, %, proper nouns, and domain terms
-- **title readability is video-grade, not just technically present:** hero/title text is bright, high-contrast, **thick-bodied via the font/body, with a thin controlled outline**, immediately prominent, and states the scene takeaway rather than merely repeating a panel label
+- **title readability is only the minimum floor:** hero/title text must be bright, high-contrast, vivid, **900-weight and thick-bodied via an 8–18x same-fill face stack**, with a thin controlled outline <=2px, immediately prominent, graspable in the first second, and states the scene takeaway rather than merely repeating a panel label. Readable-but-thin, hollow-looking, grey, or timid title text fails even if every letter can technically be read.
 - **secondary text/label readability is a separate PASS gate:** every non-title label/value/card line/callout is readable in the 280×498 screenshot without zoom, has enough contrast against its own card/background, fits its container with padding, and is not overlapped/covered by another badge/object/text. **Small/non-title text must NOT use visible stroke/outline**; if contrast is weak, use a clean chip/card/backplate, increase size/weight, or simplify the copy instead of adding a border. No secondary text is dark-on-dark, muddy, over-stroked, thin, blurred, cramped into an icon/card, hidden inside a dark card, or decorative at the expense of comprehension. A strong title does not forgive unreadable labels.
 - **every overlay object/text is inside `safe_rect` — NONE intrudes into `dead_top` or `dead_bottom`** (re-check on the rendered screenshot vs `scene_geometry` rects, because server auto-fit / A-roll auto-center can push content out after upload — see verify step in `ai_video_editor/30_overlay_core`). If the whole overlay is too tall for the safe band, the remedy order is: move whole group → resize whole group → rebuild only if the resize breaks title/secondary readability.
 - the caption is readable, doesn't overflow `dead_bottom`
@@ -57,7 +57,7 @@ When two gates pull in opposite directions, decide by this order (top wins):
 
 1. Don't get the content wrong.
 2. Don't cover the narrator's face (`boxes.narrator.face`).
-3. The caption/text must be readable.
+3. The caption/text must be readable; for title/hero text, readability is only the floor and first-second punch/thickness must also pass.
 4. The main overlay must be large enough.
 5. The background must be relevant (or a clean grid when the overlay is the content).
 6. The layout must be beautiful and intentional.
