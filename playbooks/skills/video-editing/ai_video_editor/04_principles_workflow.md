@@ -49,7 +49,7 @@ Example: in a video about insurance or estate planning, STT might write `Living 
 - Name fields precisely; use `voice_file` as the selector.
 - Don't edit `text` just because the sentence sounds odd; you must rely on context.
 - Don't pick a beautiful visual that's wrong on content.
-- Don't force overlay work. If `pattern="narration_only"`, `visual` is empty, or the local-shown scene is intentionally carried by narrator/background/caption, mark overlay audit N/A and do not invent an overlay/title. Missing title is not a defect unless the scene's data or existing overlay asks for one.
+- Don't force overlay work on normal scenes. If `pattern="narration_only"`, `visual` is empty, or the local-shown scene is intentionally carried by narrator/background/caption, mark overlay audit N/A and do not invent an overlay/title. Missing title is not a defect unless the scene's data or existing overlay asks for one. **Endpoint exception:** scene 2/opening poster, thumbnail sync, and final CTA still load `40_thumbnail_cta` and decide whether poster/CTA overlay is required even when current overlay is missing.
 - Don't replace good existing visuals. A good map, realistic photo, chart, diagram, or illustration should be preserved; repair serious defects with layout/additive/text fixes before considering any rebuild.
 - Don't homogenize the video into "big title + one object." Preserve each scene's intended pattern and visual variety.
 - Don't make the overlay too small just to keep the narrator large; don't make the narrator so small the face becomes worthless.
