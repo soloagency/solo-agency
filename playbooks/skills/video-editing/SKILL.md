@@ -33,7 +33,7 @@ The 5 modules below carry the rules + workflow that apply across the whole run. 
 
 1. **`ai_video_editor/01_critical_rules`** — 14 critical rules that hold across every scene + the self-audit checklist run before each reply.
 2. **`ai_video_editor/02_jump_prevention`** — "about to do X → STOP, do Y first" interrupt list.
-3. **`ai_video_editor/03_dod_gates`** — per-scene Definition of Done (9 gates) + every template block (Gate 4 module-load proof, Gate 4 A-roll layout priority proof, Gate 4 title proof, Gate 4 secondary text proof, Gate 5 background proof, Gate 6 screenshot checks, Gate 9 module coverage).
+3. **`ai_video_editor/03_dod_gates`** — per-scene Definition of Done (9 gates) + every template block (Gate 4 module-load proof, Gate 4 A-roll layout priority proof, Gate 4 title proof, Gate 4 secondary text proof, Gate 5 background proof, Gate 6 DEAD-ZONE PROOF + screenshot checks, Gate 9 module coverage).
 4. **`ai_video_editor/04_principles_workflow`** — §1 general principles, §2 whole-video workflow (initial context pass + Background Audit Ledger init), §10 reminders.
 5. **`ai_video_editor/05_quality_qa_priority`** — §7 Quality Standard, §8 video-level QA, §9 priority order for gate conflicts.
 
@@ -79,6 +79,8 @@ Load the module for the full text + nuance. These headlines are reminders, not t
 3. **Decide by SIGHT, not by `pattern`.** Visual calls need a local-shown screenshot. `scene_geometry` never substitutes for looking.
 4. **Overlay = transparent internal vector, hosted, uploaded, then screenshot-verified.** Safe box x∈[36,684], y∈[128,960]. Show a local overlay preview only when the environment already supports it cheaply; never expose the internal format to normal users.
 4a. **Do not force overlays, titles, or replacement.** For normal content scenes, if `pattern="narration_only"`, `visual` is empty, or the scene intentionally has no overlay, mark overlay audit N/A and do not invent an overlay/title. **Exception:** scene 2/opening poster, thumbnail sync, and final CTA are endpoint scenes; they still load `40_thumbnail_cta` and must decide whether poster/CTA overlay is required even when current overlay is missing. If an existing map/photo/chart/diagram/illustration is good enough and on-topic, preserve it; repair only serious defects. Full overlay replacement is the last resort and must prove it is strictly better than BEFORE.
+4b. **Dead-zone micro-gate.** Dead zone is not an aesthetic subnote. On every scene with a visible overlay, after any upload/layout/no-edit decision and before Scene PASS, pull `scene_geometry` and print Gate 6 DEAD-ZONE PROOF: no overlay object/text in `dead_top`/`dead_bottom`, caption fits `dead_bottom`, object ids listed. Missing proof = FAIL.
+4c. **Fix only the failing layer.** Gate 4 owns overlay; Gate 5 owns background. Background miss/search failure/geo mismatch/grid fallback can change only `mediaUrl`/`mediaType`; it does not authorize overlay rebuild, disable, or restyle. Overlay defects can change overlay/layout only; they do not authorize background replacement. Crossing layers requires an independent printed FAIL proof in the other gate. Preserve realistic overlay photos/maps/complex visuals when the background changes.
 5. **ONE atom = ONE object** (`<g data-wc-object>`). Atomize, never clump. Co-appear via shared `data-wc-delay`; a clumped overlay is not upload-ready.
 6. **Title typography: HEAVY + stacked face**. Title/hero text uses a 900-equivalent family (e.g. `"<Family> Black"` + `font-weight="900"`), open typography, 8–15 same-fill face copies for body thickness, and <=2px visible text stroke. This range is a guardrail, not an auto-pass: if the duplicate fill makes letters muddy, deformed, over-thick, or swallows counters/negative space/Vietnamese diacritics, reduce count/offset or change font. More than 15 face copies = FAIL. Readable-but-thin title = FAIL.
 6a. **Overlay copy correctness is its own gate.** Every visible string proofread; typos/grammar/wrong currency/wrong term = FAIL.
@@ -107,6 +109,7 @@ If you're about to do any of these, STOP and do the prerequisite first:
 - ask "what kind of edit?" after a WideCast URL → STOP. Scope is **Full audit + fix**.
 - audit background → load `20_background`
 - start Gate 6 without printed Gate 5 BACKGROUND PROOF → STOP, run Gate 5
+- declare Gate 6/Scene PASS without printed Gate 6 DEAD-ZONE PROOF when overlay is visible → STOP, pull `scene_geometry`, fill the proof, fix if needed
 - finished any detour/fix and feel ready to summarize → run Gate Resume Scan
 - (re)build overlay → load the whole chain `30_overlay_core` + `31`/`32`/`33` + `styles/*`
 - visual call from `scene_geometry` alone → STOP, pull screenshot first
@@ -134,7 +137,7 @@ Print this 9-gate checklist VERTICALLY at the start of every scene; tick ✓/✗
 3. ☐ **BEFORE screenshot** pulled, downloaded with `curl`, SHOWN locally, THEN evaluated.
 4. ☐ **Overlay reviewed/rebuilt** — load `30_overlay_core` first + endpoint/typography/content modules + style lib; for A-roll print Gate 4 A-ROLL LAYOUT PRIORITY PROOF before overlay decisions, proving narrator + overlay were solved together and the overlay was not treated as fixed; print Gate 4 MODULE LOAD PROOF + TITLE GATE PROOF + SECONDARY TEXT GATE PROOF.
 5. ☐ **Background audited** — load `20_background` first; print Gate 5 BACKGROUND PROOF with two local-visible images.
-6. ☐ **Final composition tuned** — layout + safe zone + dead-zone + face clearance + caption + balance.
+6. ☐ **Final composition tuned** — layout + safe zone + Gate 6 DEAD-ZONE PROOF + face clearance + caption + balance.
 7. ☐ **AFTER screenshot** pulled, downloaded, SHOWN locally, evaluated for all of above.
 8. ☐ **Server-saved** — re-pulled `video_data`/`scene_geometry` to confirm persisted.
 9. ☐ **MODULE COVERAGE GATE** — print proof; PASS only if every required playbook loaded at the correct step.

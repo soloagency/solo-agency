@@ -13,6 +13,15 @@ Whether A-roll or B-roll, the agent must evaluate whether the background is appr
 
 > **Show ≠ ask.** Contact sheets, candidate thumbnails, and downloaded plates are shown so the run is auditable; they are not a request for the user to pick. At runtime the agent evaluates the visible evidence, chooses the best background itself, applies it, and reports the decision. Do not stop to ask "which clip/image should I use?"
 
+### 4.0. Layer isolation — Gate 5 is background-only
+
+Gate 5 owns only the background/media plate. If the current background is wrong, no fitting background is found, the geo/context check fails, or the correct fallback is grid, the allowed edit is branch (A) `mediaUrl`/`mediaType` only.
+
+- Do **not** rebuild, replace, disable, restyle, or upload an overlay because the background failed.
+- Do **not** redraw an existing realistic overlay photo/map/entity image/complex visual just because the background changed or became grid.
+- If the new background makes the overlay harder to read, first finish Gate 5 as a background action, then return to Gate 4/Gate 6 with an independent overlay FAIL proof and the normal least-destructive repair ladder.
+- The reverse is also true: an overlay defect does not justify background replacement unless Gate 5 independently proves the background fails.
+
 ### 4.1. The first decision: GRID or a REAL background (image/video)
 
 The first audit question for every scene: **grid, or a real background?**
@@ -52,7 +61,7 @@ Search/evaluation implication: include the needed location/currency in search ke
 | `real_entity` | real image (pipeline pre-filled it BLIND) | The pre-filled image is often wrong — you SEE, so fix it (§5.0). |
 
 - **⭐ FIRST CHECK — BYPASS CASES:**
-  - **Force-grid / active grid:** if the scene is force-grid or the active media is already a grid clip, SKIP the real-background search/evaluation below — grid is already applied on purpose, leave it. Signal: **`segment.force_grid === true`**, `stock_fallback_reason` ending in `_force_grid` (e.g. `hybrid_vertical_force_grid`, `illustration_document_force_grid`, `illustration_digital_ui_force_grid`), or an active `mediaUrl`/`brollUrl` that is clearly a grid background. Do **not** evaluate subject matter, geo cues, or content fit for a grid. Only confirm the local-shown composite/plate, the grid cap/shared-grid rule, and that overlay/caption readability is not harmed. You may still edit the **overlay** on top.
+  - **Force-grid / active grid:** if the scene is force-grid or the active media is already a grid clip, SKIP the real-background search/evaluation below — grid is already applied on purpose, leave it. Signal: **`segment.force_grid === true`**, `stock_fallback_reason` ending in `_force_grid` (e.g. `hybrid_vertical_force_grid`, `illustration_document_force_grid`, `illustration_digital_ui_force_grid`), or an active `mediaUrl`/`brollUrl` that is clearly a grid background. Do **not** evaluate subject matter, geo cues, or content fit for a grid. Only confirm the local-shown composite/plate, the grid cap/shared-grid rule, and that overlay/caption readability is not harmed. Edit the **overlay** only if Gate 4 independently proves an overlay defect; grid-by-design is not an overlay rebuild trigger.
   - **Full-canvas A-roll:** if `active_roll="A"` / `show_narrator=true` and the narrator fills or occludes the canvas, the narrator is the visual. Do **not** evaluate the hidden fallback/background plate for content fit. Mark the background action as no-op and continue with narrator/overlay/layout checks.
   - Also respect an explicit `use_stock_video=false` the user deliberately set.
 
@@ -134,6 +143,7 @@ A background is deemed not good enough if: it's unrelated; too generic; wrong in
 
 - Apply the clip with `modify_scene` branch (A): `field_name=mediaUrl` (+ `mediaType="video"`; for an image, `mediaType="image"`), selector `by="voice_file"`. A search/web result is a URL → put it straight in `mediaUrl`; a **self-made or self-gen file** → `upload_asset` (presign) → PUT → then `mediaUrl=<asset_url>`.
 - ⚠ **Background = branch (A) `mediaUrl` only. NEVER branch (I) `narrator.upload_video`** (that is the A-roll narrator's face video — see §4.1b).
+- **Layer isolation check:** a background apply/fallback must leave `remotion_spec`, overlay objects, overlay layout, and realistic overlay images unchanged unless Gate 4 already printed an independent overlay FAIL proof for this scene.
 - **After applying, pull `video_data` again** to confirm `mediaUrl` changed correctly.
 - For a scene with `stock_fallback_reason`/`hybrid_vertical`, check whether the background reverts to grid by design; if it does, that is correct behavior — don't override it.
 - If needed, take 1 screenshot to check the readability of text on the new background — download `result.screenshot.url` to a local file with `curl`, show the local image first, then evaluate.

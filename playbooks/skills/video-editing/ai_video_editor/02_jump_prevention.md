@@ -20,6 +20,12 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 
 - About to **start Gate 6 / final composition work** and this scene does not yet have a printed `Gate 5 BACKGROUND PROOF` with a PASS/FIXED verdict → STOP. Run Gate 5 first. Overlay urgency, obvious text errors, or "the screenshot looks fine" do not waive background proof.
 
+- About to **rebuild, replace, upload, disable, or restyle an overlay** because background search failed, the background is wrong, geo failed, or grid fallback was chosen → STOP. Gate 5 owns background only; keep overlay/remotion unchanged unless Gate 4 already printed an independent overlay FAIL proof for this exact scene.
+
+- About to **replace or re-search the background** because the overlay is ugly, unreadable, in a dead zone, or stylistically weak → STOP. Overlay/layout defects are fixed in Gate 4/Gate 6; change background only when Gate 5 independently fails.
+
+- About to **declare Gate 6 PASS / Scene PASS** while a visible overlay/remotion object exists and there is no printed `Gate 6 DEAD-ZONE PROOF` for the latest overlay/layout state → STOP. Pull fresh `scene_geometry`, list checked object ids/layout_ids, verify `dead_top`, `dead_bottom`, and caption reserve, fix if needed, then repeat the proof.
+
 - Just finished any **detour/fix** (wrong term, typo, missing number/symbol, bad overlay word, covered face, wrong thumbnail, background swap, geo mismatch, layout tweak, tool/debug issue, or cross-scene small fix) and feel ready to summarize/handoff/move on → STOP. Run the Gate Resume Scan from Critical Rule 12c (`ai_video_editor/01_critical_rules`) and continue from the earliest unchecked or invalidated gate; a fix is not a scene/run verdict.
 
 - About to **(re)build, apply, or approve an overlay on A-roll** (`show_narrator=true`) without a printed Gate 4 A-ROLL LAYOUT PRIORITY PROOF → STOP. Load `ai_video_editor/10_mechanics`, run the full-canvas-first ladder inside Gate 4, and decide the overlay/narrator tradeoff before drawing/uploading/accepting the overlay.
@@ -36,7 +42,7 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 
 - About to **ask the user to choose/approve an option during runtime** → STOP. Use the decision protocol in Critical Rule 2a, choose the best option yourself, act, and only report the decision/proof. Do not turn uncertainty into a user question.
 
-- About to **declare `Scene N: PASS`** without scanning all 9 DoD gates + §7 Quality Standard (incl. module coverage + final composition/dead-zone) → run the scan first; PASS is earned by the scan. The DoD lives in `ai_video_editor/03_dod_gates`; the Quality Standard lives in `ai_video_editor/05_quality_qa_priority`.
+- About to **declare `Scene N: PASS`** without scanning all 9 DoD gates + §7 Quality Standard (incl. module coverage + final composition + the explicit Gate 6 DEAD-ZONE PROOF) → run the scan first; PASS is earned by the scan. The DoD lives in `ai_video_editor/03_dod_gates`; the Quality Standard lives in `ai_video_editor/05_quality_qa_priority`.
 
 - About to **declare `Scene N: PASS` from a batch/contact-sheet/gallery/table/script/bulk API result** → STOP. That result is triage only. Pull/show the scene's own BEFORE and AFTER/final screenshots, complete all 9 gates, include Gate 5 background proof and Module Coverage Gate, confirm server-saved, then declare PASS only for that exact scene.
 
