@@ -91,7 +91,7 @@ Load the module for the full text + nuance. These headlines are reminders, not t
 10. **Realistic photos are REUSED, never "drawn".** Add to a good overlay via `modify_scene` (M) `remotion.add_element`.
 11. **Show found media in chat BEFORE looking/evaluating/applying.** No private preview first.
 12. **Every scene = overlay review (Gate 4) AND background audit (Gate 5).** Two separate passes. Never skip the background.
-12a. **Endpoint scenes (scene 2 + thumbnail + final CTA) are special.** Load `40_thumbnail_cta` for both. Sync thumbnail immediately after scene 2 PASS.
+12a. **Endpoint scenes (scene 2 + thumbnail + final CTA) are special.** Load `40_thumbnail_cta` for both. Sync thumbnail immediately after scene 2 PASS. Endpoint scenes must also print `Gate 4 ENDPOINT DESIGN VARIANT PROOF`: chosen `styles/design_languages` language + endpoint archetype + anti-template check. The same red side-bar/double-underline/giant-outline poster motif across unrelated videos = FAIL.
 12b. **Gate 5 requires a printed BACKGROUND PROOF.** No proof = scene not done.
 12c. **Gate Resume Scan after any detour/fix.** A fix is not a verdict; rescan from the earliest invalidated gate.
 12d. **Pre-summary completion scan.** No summary/Telegram/export until every scene PASS + Module Coverage Gate + ledgers complete. Batch/contact-sheet/gallery/table/script/API results are triage only, never DoD proof.

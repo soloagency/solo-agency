@@ -14,6 +14,8 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 
 - About to **handle the last non-thumbnail/content scene or `type="CALL TO ACTION"`** → first load `ai_video_editor/40_thumbnail_cta`; treat it as the closing CTA endpoint, with one clear action, typography stronger than decorative objects, and poster-grade composition rather than normal inside-scene card styling.
 
+- About to **author, upload, apply, or approve an endpoint overlay** for scene 2/opening poster, thumbnail sync, or final CTA without a printed `Gate 4 ENDPOINT DESIGN VARIANT PROOF` → STOP. Load `styles/design_languages`, choose a language + endpoint archetype, state variant tokens, and pass the anti-template check before touching the overlay. Reusing the same red side-bar/double-underline/giant-outline motif across unrelated videos is not a proof of style; it is a process failure.
+
 - About to **ask what kind of edit / edit scope** after the user gave a WideCast URL or `topic_id` (`What kind of edit do you want?`, `Full audit + fix / Specific scenes / Backgrounds / Text`, `Before I touch anything...`, `edit this video can mean different things`, `Asking Edit scope`, `request_user_input`) → STOP. The scope is already **Full audit + fix**. Do not ask. Continue the autonomous run from `video_data` → whole-video context → scene 2.
 
 - About to **audit/choose the background** → first load `ai_video_editor/20_background`. (Background is its OWN pass immediately after overlay, never folded into the overlay.)
@@ -26,7 +28,7 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 
 - About to **declare Gate 6 PASS / Scene PASS** while a visible overlay/remotion object exists and there is no printed `Gate 6 DEAD-ZONE PROOF` for the latest overlay/layout state → STOP. Pull fresh `scene_geometry`, list checked object ids/layout_ids, verify `dead_top`, `dead_bottom`, and caption reserve, fix if needed, then repeat the proof.
 
-- About to **declare Gate 7 / Scene PASS** while visible overlay, chart, label, title, generated image, or image-baked message text exists and there is no printed `Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK` for the latest screenshot → STOP. Read the exact words from the rendered screenshot itself, compare against intended copy, and fix any typo/grammar/diacritic/glyph/pseudo-text error before PASS.
+- About to **declare Gate 7 / Scene PASS** while visible overlay, chart, label, title, generated image, or image-baked message text exists and there is no printed `Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK` using a local PNG from MCP `widecast_scene_inspector action="overlay_poster"` for the current `remotion_spec` → STOP. Call the MCP action with topic `id`, scene `voice_file`, and `activate:true`, download/show the returned URL once, read the exact words from the poster itself, compare against intended copy, and fix any typo/grammar/diacritic/glyph/pseudo-text error before PASS. If the poster result is unavailable, state the composite fallback; do not construct the poster URL manually and do not launch a browser/local converter just to make one.
 
 - Just finished any **detour/fix** (wrong term, typo, missing number/symbol, bad overlay word, covered face, wrong thumbnail, background swap, geo mismatch, layout tweak, tool/debug issue, or cross-scene small fix) and feel ready to summarize/handoff/move on → STOP. Run the Gate Resume Scan from Critical Rule 12c (`ai_video_editor/01_critical_rules`) and continue from the earliest unchecked or invalidated gate; a fix is not a scene/run verdict.
 
@@ -40,7 +42,7 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 
 - About to **act on a screenshot / found media you have not SHOWN** locally → save + show it first (Critical Rules 0/11).
 
-- About to spend time **rendering/converting an overlay preview** before upload → STOP. Only show a pre-upload overlay preview if the runtime already has a cheap direct display/conversion path; otherwise upload/apply the overlay and verify via the post-upload composite screenshot (Critical Rule 4).
+- About to spend time **rendering/converting an overlay preview** before upload → STOP. Only show a pre-upload overlay preview if the runtime already has a cheap direct display/conversion path; otherwise upload/apply the overlay, verify composition via the post-upload composite screenshot, and verify rendered text via MCP `widecast_scene_inspector action="overlay_poster"` when visible overlay/message text exists (Critical Rule 4).
 
 - About to **ask the user to choose/approve an option during runtime** → STOP. Use the decision protocol in Critical Rule 2a, choose the best option yourself, act, and only report the decision/proof. Do not turn uncertainty into a user question.
 

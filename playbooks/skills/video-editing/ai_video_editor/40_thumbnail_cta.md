@@ -3,7 +3,7 @@
 _Version: `modular-1.1` · module of the AI Video Editor Playbook (`SKILL.md`)._
 
 > **Module of the AI Video Editor Playbook.** Master index + checklist + critical rules live in `SKILL.md`. **Load this when:** you are handling the first real scene after the thumbnail (usually scene 2 / the opening poster scene), its immediate static thumbnail sync, OR the last content/CTA scene.
-> Cross-refs: screenshot truth + geometry → `10_mechanics.md`; background plate evidence → `20_background.md`; SVG overlay rules → `30_overlay_core.md`; poster typography → `31_typography.md` + `styles/text_axes.md`.
+> Cross-refs: screenshot truth + geometry → `10_mechanics.md`; background plate evidence → `20_background.md`; SVG overlay rules → `30_overlay_core.md`; endpoint visual grammar → `styles/design_languages.md`; poster typography → `31_typography.md` + `styles/text_axes.md`.
 
 ---
 
@@ -37,6 +37,12 @@ Example for an insurance deductible video:
 
 ### Endpoint visual style ladder
 
+The ladder below defines the **endpoint archetype** (the role/composition of the endpoint). It is not the full visual style. For every opening poster, synced thumbnail, and final CTA, the visual grammar must come from one chosen `styles/design_languages` language. Print `Gate 4 ENDPOINT DESIGN VARIANT PROOF` before authoring, uploading, applying, or approving an endpoint overlay.
+
+Good endpoint design = `design language` + `endpoint archetype` + scene-specific background/subject integration. Bad endpoint design = repeating one safe recipe across unrelated videos.
+
+The known bad default template is: **giant outlined all-caps title + red vertical side bar + red/double underline**. That motif is BLOCKED as a default. It can be used only when the chosen design language and topic genuinely justify it, and the proof shows distinct variant tokens beyond those bars/underlines.
+
 Pick **one** of these for scene 2, the synced thumbnail, and the final CTA. The agent chooses; do not ask the user.
 
 1. **Dynamic poster typography:** oversized words with staggered baselines, angled/vertical word blocks, strong scale contrast, and a few motion slashes/brackets anchored to the title.
@@ -63,7 +69,7 @@ Run this when you reach the first real scene after the thumbnail. **Before movin
 2. **Show current scene:** pull `screenshot_scene_280x498`, download `result.screenshot.url` locally with `curl`, show it, then evaluate.
 3. **Show the active frame/plate:** download the scene's active `thumbnailUrl`/media plate locally and show it separately. Decide by sight whether this frame can sell the whole video.
 4. **If the frame is weak:** fix the opening scene's plate/frame first. Do not let the static thumbnail become stronger than scene 2; the pair should match.
-5. **Author the poster overlay:** load `30_overlay_core.md`, `31_typography.md`, and `styles/text_axes.md`. Choose one endpoint style from the ladder (`dynamic poster typography`, `magazine-cover thumbnail`, `kinetic stacked type`, `typographic collage`, `object-integrated title`, `premium CTA poster`, or `minimal premium cover`). Use this module's short-title, thick-title, and decoration standards. Show a cheap local overlay preview only if already available; otherwise skip pre-upload preview and verify from the post-upload composite screenshot.
+5. **Author the poster overlay:** load `30_overlay_core.md`, `31_typography.md`, `styles/design_languages.md`, and `styles/text_axes.md`. Choose one design language and one endpoint archetype from the ladder (`dynamic poster typography`, `magazine-cover thumbnail`, `kinetic stacked type`, `typographic collage`, `object-integrated title`, `premium CTA poster`, or `minimal premium cover`). Print `Gate 4 ENDPOINT DESIGN VARIANT PROOF` before drawing/uploading. Use this module's short-title, thick-title, and decoration standards. Show a cheap local overlay preview only if already available; otherwise skip pre-upload preview and verify from the post-upload composite screenshot.
 6. **Upload/apply to scene 2 first:** use `remotion.upload_overlay` by scene 2's `voice_file`.
 7. **Verify the video-scene version:** pull/show the final scene 2 composite screenshot. It must pass poster readability AND video-scene coexistence: face/subject clear, caption still readable, and the caption does not visually compete with or crowd the poster title.
 8. **If caption conflicts:** revise the poster layout, reserve a caption lane, simplify the poster text, or adjust caption placement when the tool supports it. Do not declare scene 2 PASS while the poster title and caption fight each other.
@@ -83,7 +89,7 @@ Run this when you reach the last non-thumbnail/content scene, and always when `t
 4. **Prefer typography over objects:** final CTA overlays should usually be text-led, not object-heavy. Use 1 short hero CTA line plus, at most, one small support line. A clear typographic call beats a chart/checklist/icon collage at the end.
 5. **A-roll final scene:** if `show_narrator=true` / `active_roll="A"`, the human close wins. Keep the narrator full canvas or large by default. Place the CTA as bold lower-third/chest/side typography that clears eyes, nose, mouth, and caption. Do not shrink the narrator into a fallback picture-in-picture layout for a CTA unless a detail-dense visual is truly indispensable and the higher-priority full-canvas/shifted-full-canvas layouts have been rejected.
 6. **B-roll/faceless final scene:** use a clean centered or lower-third CTA group inside the safe zone. If the background is busy, add a tasteful local scrim/backplate behind the CTA text.
-7. **Author/adjust the CTA overlay:** load `30_overlay_core.md`, `31_typography.md`, and `styles/text_axes.md`. Choose one endpoint style from the ladder, usually `premium CTA poster`, `dynamic poster typography`, `magazine-cover thumbnail`, or `minimal premium cover`. Use poster-grade title/body thickness, bright fill, thin controlled outline/shadow for the hero CTA, and no visible stroke on small support text.
+7. **Author/adjust the CTA overlay:** load `30_overlay_core.md`, `31_typography.md`, `styles/design_languages.md`, and `styles/text_axes.md`. Choose one design language and one endpoint archetype, usually `premium CTA poster`, `dynamic poster typography`, `magazine-cover thumbnail`, or `minimal premium cover`. Print `Gate 4 ENDPOINT DESIGN VARIANT PROOF` before drawing/uploading. The CTA may share a brand accent with scene 2, but it must not blindly clone scene 2's poster motif; it needs action-led hierarchy. Use poster-grade title/body thickness, bright fill, thin controlled outline/shadow for the hero CTA, and no visible stroke on small support text.
 8. **Avoid small text clutter:** remove social icons, QR-like marks, tiny handles, tiny labels, or decorative objects unless they are large enough to read at 280x498 and directly support the action. If a handle/URL is needed, it must be large, simple, and not fight the caption.
 9. **Verify:** pull/show the AFTER screenshot. CTA PASS requires: one dominant action, title-grade readability, face/caption clear, no dead-zone object, no cramped support text, and server-saved confirmation.
 
@@ -103,6 +109,8 @@ CTA FAIL triggers:
 - A large chart/checklist/object collage competes with the narrator's final human close.
 - The CTA duplicates the caption or states a vague category instead of an action.
 - The CTA text is dark, thin, cramped, or hidden in the caption/dead-bottom area.
+- No `Gate 4 ENDPOINT DESIGN VARIANT PROOF`, no chosen design language, or no CTA-specific variant check.
+- The CTA blindly clones scene 2's poster motif instead of creating an action-led closing composition.
 
 ---
 
@@ -150,6 +158,7 @@ Layout:
 - A local scrim/gradient behind the title is allowed; avoid full-canvas opaque panels that kill the photo and never put the poster title inside a generic card/chip/pill/rounded rectangle.
 - A badge/pill is optional. If it looks like a clickable button or clutters the poster, remove it or turn it into simple open text.
 - Accent strips/underlines must be thin and directional. Do not add multiple warning marks, stickers, badges, arrows, or boxes just to create energy.
+- Do not let accent strips become the whole identity. The repeated motif `red side bar + red/white underline + giant outlined title` is a FAIL as a default endpoint recipe; if used, the endpoint proof must justify it through a named design language and distinct composition.
 - Avoid normal explainer-card composition at endpoints: no generic rounded card with centered horizontal title, no plain lower-third rectangle with one line of text, no row of small chips as the main design, and no balanced info-panel look. If a backplate/card is needed for secondary/support text contrast, it must be integrated into a poster/magazine composition, not become the design; the main title remains open typography.
 
 ### Poster/CTA decoration standard
@@ -192,6 +201,7 @@ Opening poster pair PASS requires all of:
 - The thumbnail sync happened immediately after scene 2 PASS and before scene 3 started; there is no final thumbnail pass.
 - The title communicates the whole-video promise/consequence in ~1 second.
 - The design uses a named endpoint style from the ladder and looks poster-like, not like a normal inside-scene card/text overlay.
+- The design also uses a named `styles/design_languages` language and passed `Gate 4 ENDPOINT DESIGN VARIANT PROOF`.
 - The title is huge, bright, **extra thick-bodied from a 12–15x face stack**, and readable at feed size. "Readable but still thin" is not enough for a thumbnail; muddy/blobby/deformed duplicate fill fails even inside 12–15, and >15 copies is over-thick and fails.
 - The title does not cover the subject's eyes/nose/mouth or the key product/prop.
 - In scene 2, caption and poster title coexist: no caption/title overlap, no visual crowding, and the caption does not become a second competing headline.
@@ -202,6 +212,8 @@ Opening poster pair FAIL triggers:
 
 - Full quote pasted as many small lines.
 - Endpoint design is just a normal card, centered text box, horizontal lower-third bar, or generic title/subtitle layout.
+- Endpoint design repeats the same giant outlined title + red vertical bar + red/double underline motif by habit, especially across unrelated videos.
+- No `Gate 4 ENDPOINT DESIGN VARIANT PROOF`, no chosen design language, or a vague style claim without variant tokens.
 - Weak/dim text over a bright or busy photo.
 - Title is technically readable but not poster-thick / lacks first-second punch.
 - Title covers the face or key object.
@@ -216,9 +228,17 @@ Final CTA PASS requires all of:
 - The current/final screenshot for the CTA scene was downloaded locally and visibly shown before judgment.
 - The scene communicates one clear action in ~1 second.
 - The design uses a named endpoint style from the ladder and looks like a CTA poster, not a normal interior explainer card.
+- The design also uses a named `styles/design_languages` language and passed `Gate 4 ENDPOINT DESIGN VARIANT PROOF`.
 - The CTA hero text is title-grade: bright, thick-bodied from the face stack, high contrast, and punchy/readable at 280x498.
 - If A-roll, narrator face remains the primary human close; CTA typography supports the face instead of replacing it with object clutter.
 - Support text, if any, has no visible stroke/outline and remains readable without zoom.
 - Caption, CTA, and overlay do not fight each other.
 - No CTA text/object sits in `dead_top` or `dead_bottom`.
 - The final `video_data`/`scene_geometry` confirms the new overlay/spec/layout persisted.
+
+Final CTA FAIL triggers:
+
+- No clear next action, or the action is less prominent than decoration.
+- No `Gate 4 ENDPOINT DESIGN VARIANT PROOF`, no chosen design language, or no CTA-specific variant check.
+- The CTA blindly clones scene 2's poster motif instead of creating an action-led closing composition.
+- The CTA uses the same red side-bar/double-underline/giant-outline recipe as a default rather than a justified design-language choice.
