@@ -139,7 +139,7 @@ Opening-poster / thumbnail / CTA typography may be more aggressive than normal s
 - Title can exceed the normal scene title cap when needed; target roughly **70-110px** on the 720 canvas for worded titles, larger only if the line is very short.
 - Use a 900-equivalent VN-safe face such as `Be Vietnam Pro Black` / `Inter Black`, and set `font-weight="900"` where possible.
 - Use bright white/yellow/red accents with a **thin controlled outline** and shadow. Do not make the title look strong by making the outline huge.
-- **Poster title thickness is stricter than normal scene title thickness.** Endpoint titles should usually use **12–18 same-fill face copies** (within the global 8–18 range) with tiny offsets around center (`x±1.5-3.5px`, `y±1.5-3.5px`, plus diagonal offsets), then one final top copy with only a **thin** dark stroke (`~1.5-2px`). This thickens the letter body without turning the outline into a black blob. Do this for the main poster words before changing layout or adding more decorations.
+- **Poster title thickness is stricter than normal scene title thickness.** Endpoint titles should usually use **12–15 same-fill face copies** (within the global 8–15 range) with tiny offsets around center (`x±1.5-3.5px`, `y±1.5-3.5px`, plus diagonal offsets), then one final top copy with only a **thin** dark stroke (`~1.5-2px`). This thickens the letter body without turning the outline into a black blob. Do this for the main poster words before changing layout or adding more decorations. But 12–15 is still only a starting range: if the poster title becomes blobby, deformed, closes counters/negative space, crushes tracking, swallows Vietnamese marks, or feels less premium, reduce count/offset or switch font. More than 15 face copies = FAIL.
 - The title must read at 280x498 without zoom AND feel punchy in the first second; "readable but still thin" is endpoint FAIL.
 - Tiny sublines must have no visible stroke/outline. Use solid fill on a scrim/card or remove the subline.
 
@@ -192,7 +192,7 @@ Opening poster pair PASS requires all of:
 - The thumbnail sync happened immediately after scene 2 PASS and before scene 3 started; there is no final thumbnail pass.
 - The title communicates the whole-video promise/consequence in ~1 second.
 - The design uses a named endpoint style from the ladder and looks poster-like, not like a normal inside-scene card/text overlay.
-- The title is huge, bright, **extra thick-bodied from a 12–18x face stack**, and readable at feed size. "Readable but still thin" is not enough for a thumbnail.
+- The title is huge, bright, **extra thick-bodied from a 12–15x face stack**, and readable at feed size. "Readable but still thin" is not enough for a thumbnail; muddy/blobby/deformed duplicate fill fails even inside 12–15, and >15 copies is over-thick and fails.
 - The title does not cover the subject's eyes/nose/mouth or the key product/prop.
 - In scene 2, caption and poster title coexist: no caption/title overlap, no visual crowding, and the caption does not become a second competing headline.
 - No cramped text, no muddy/dark text, no edge-touching title, no subtitle that needs zoom.
