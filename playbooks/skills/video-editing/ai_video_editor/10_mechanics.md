@@ -101,7 +101,7 @@ If the scene has a narrator (`show_narrator=true`, i.e. `active_roll="A"`) or ha
 Read from the result:
 
 - `boxes.narrator.face` and `face_center` — whether the narrator's face is occluded by an object/text (against `boxes.remotion.objects` and `boxes.caption`).
-- `safe_zones` — whether objects/overlays are inside `safe_rect`, and whether they overflow `dead_top`/`dead_bottom`.
+- `safe_zones` — whether objects/overlays are inside `safe_rect`, and whether they overflow `dead_top`/`dead_bottom`. Use this to fill the mandatory **Gate 6 DEAD-ZONE PROOF** in `03_dod_gates`; do not bury the check inside a general composition verdict.
 - `boxes.remotion.object_layer.objects[].rect` — whether the overlay is large enough to read/see detail.
 - `boxes.caption.container_rect` — whether the caption covers the face or the main object.
 These checks are **yours to compute from the boxes above** (there are no pre-scored verdict arrays). For any **visual/aesthetic** judgment (does it look good, does text sink, is the icon right, is the narrator too small, is this the right A-roll layout priority) use a **local-shown screenshot from MCP `screenshot_scene_280x498`** (§6), not the geometry. Geometry-only approval is forbidden when screenshots are available.
