@@ -38,13 +38,13 @@ Before claiming Automation Flow completion for a client:
 - Confirm private data source collection, if attempted, used only the shared Local Collector app plus the matching client extension.
 - Confirm `client_slug`, `extension_instance_id`, and output path all match.
 - Confirm collector output was read only from `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/`.
-- Confirm the client has one canonical three-file report set for the day/run: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+- Confirm the client has one canonical combined client-facing report for the day/run: `{client-name}-client-report.html`, built from scrubbed staging files `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
 - Confirm the report-design skill was loaded before report generation/repair and `tools/solo_report_renderer.py render` or a reusable approved template produced the client-facing HTML.
 - Confirm `tools/solo_report_renderer.py package` or a reusable approved package template produced the PDF companion package, or the exact PDF blocker is logged.
 - Confirm the public report and private report have separate source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
 - Confirm the private pass did not overwrite, delete, reorder, summarize away, or regenerate the public report file.
 - Confirm `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` exists or the exact blocker is logged, and that its public/private statuses match the report set.
-- Confirm any public and private notifications point to `{client-name}-daily-report.html` or its uploaded URL as the canonical handoff, with lane-specific links only as secondary links.
+- Confirm any public and private notifications point to `{client-name}-client-report.html` or its uploaded URL as the canonical handoff. Daily/public/private staging links should be omitted unless requested for diagnostics.
 - Confirm changes discovered during the run were written back to persistent setup/config and resynced.
 
 Treat these as critical workflow violations:
@@ -1415,16 +1415,16 @@ A daily run is complete when:
 11. One per-client canonical three-file client-facing HTML report set is created for each processed client: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
 12. The operator-only `{client-name}-INTERNAL_REPORT.html` is created for each processed client and clearly labeled `INTERNAL_REPORT - Not for client sharing`.
 13. The client-facing HTML report set passes the Client-Blind Scrub Gate and does not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
-14. The mandatory PDF companion `{client-name}-client-report.pdf` is created from the scrubbed three HTML files, or the exact PDF blocker/status is recorded.
+14. The mandatory PDF companion `{client-name}-client-report.pdf` is created from the combined `{client-name}-client-report.html`, which itself is assembled from the scrubbed three staging HTML files, or the exact PDF blocker/status is recorded.
 15. The report state file `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` is created/updated for each processed client.
-16. `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-INTERNAL_REPORT.html`, and `outputs/latest/{client-name}-client-report.pdf` are updated for each processed client when available and point to the daily report index/internal report/PDF companion, not a lane-specific report.
+16. `outputs/latest/{client-name}-client-report.html`, `outputs/latest/{client-name}-INTERNAL_REPORT.html`, and `outputs/latest/{client-name}-client-report.pdf` are updated for each processed client when available and point to the combined report/internal report/PDF companion, not a lane-specific report.
 17. Client history is updated, including industry scope for selected ideas so the 80/20 mix can be tracked over time.
 18. Lead and competitor logs are updated.
 19. Approval status is tracked.
 20. Markdown and mobile-friendly HTML master digests are created when a master digest task is configured.
 21. `latest_master_digest.md` and `latest_master_digest.html` are updated when a master digest task is configured.
 22. Client-facing reports are written in the client's report language; operator notifications/internal reports are written in the human/operator language.
-23. The human/operator is notified through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback, with the `{client-name}-daily-report.html` path/link plus PDF companion path/status plus `INTERNAL_REPORT` path/status. Public and private notifications are both allowed, but they should point to the same daily report index path or uploaded operator-delivery URL, with lane-specific report links only as secondary links. The Markdown report path must not be presented as a user-facing report link.
+23. The human/operator is notified through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback, with the `{client-name}-client-report.html` path/link plus PDF companion path/status plus `INTERNAL_REPORT` path/status. Public and private notifications are both allowed, but they should point to the same combined report path or uploaded operator-delivery URL. Daily/public/private staging links should be omitted unless requested for diagnostics. The Markdown report path must not be presented as a user-facing report link.
 24. Human approval options are shown.
 
 An agency operating cycle is complete when:
@@ -1606,16 +1606,16 @@ Before using collected data, verify:
 
 Before generating, updating, or notifying a report, verify:
 
-- [ ] Is there exactly one canonical three-file report set for this client/day/run?
-- [ ] Does the report set include `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`?
+- [ ] Is there exactly one canonical combined client-facing report for this client/day/run?
+- [ ] Does the report set include staging files `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`, plus the delivered `{client-name}-client-report.html`?
 - [ ] Did I read the existing source/state file and `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` before updating a lane report?
-- [ ] If this is a public pass, did I update only the public report and daily index while preserving any existing private report?
-- [ ] If this is a private pass, did I update only the private report and daily index while preserving the public report?
-- [ ] After a private pass reached a terminal state, did I reconcile private status and counts across the private report, daily index, internal Markdown/source record, report state JSON, notification log, and `outputs/latest/` copies?
+- [ ] If this is a public pass, did I update only the public report and daily index while preserving any existing private report, then rebuild the combined client report/PDF?
+- [ ] If this is a private pass, did I update only the private report and daily index while preserving the public report, then rebuild the combined client report/PDF?
+- [ ] After a private pass reached a terminal state, did I reconcile private status and counts across the private report, daily index, combined client report, internal Markdown/source record, report state JSON, notification log, and `outputs/latest/` copies?
 - [ ] Did I remove stale `scan in progress`, `partial`, `pending`, or old count text from all artifacts after the private scan completed or failed?
 - [ ] Do private source attempted/completed/blocked counts, data point counts, lead counts, competitor counts, and recommended-source counts match everywhere they are shown?
-- [ ] Did `outputs/latest/{client-name}-daily-report.html` point to the daily report index, not to a lane-specific report?
-- [ ] If I sent two notifications, did both point to the same daily report index path or uploaded URL, with lane-specific report links only as secondary links?
+- [ ] Did `outputs/latest/{client-name}-client-report.html` point to the combined client-facing report, not to a lane-specific or daily staging report?
+- [ ] If I sent two notifications, did both point to the same combined client report path or uploaded URL, without lane-specific staging links unless requested for diagnostics?
 - [ ] Did I log lane status as `public_report_ready`, `private_report_ready`, `private_report_blocked`, or `daily_report_ready`?
 
 ### Idea Generation Checklist

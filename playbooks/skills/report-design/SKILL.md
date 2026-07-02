@@ -58,8 +58,11 @@ translation:
 8. Draft/recommendation: polished review blocks, not raw prompt output.
 9. Limits and blockers: client-safe coverage limits and next action.
 
-The daily report is an index/cover report. It should be shorter, with strong
-links to the full public data sources and private data sources reports.
+The daily report is a staging cover/index. It should be shorter, but the
+delivered client-facing HTML must be the combined `{client-name}-client-report.html`
+that includes the daily cover plus the full public data sources and private data
+sources sections in one standalone file. Do not make the human/client open
+separate lane HTML files.
 
 ## Visual System
 
@@ -83,8 +86,8 @@ scripts during each run:
 python3 tools/solo_report_renderer.py render --input REPORT.md --output-html REPORT.html --title "Daily Intelligence Report" --client-name "Client Name" --report-kind "Daily Report"
 ```
 
-To create the mandatory PDF companion package from the three scrubbed
-client-facing HTML files:
+To create the single client-facing HTML report and mandatory PDF companion from
+the three scrubbed staging HTML files:
 
 ```sh
 python3 tools/solo_report_renderer.py package --inputs CLIENT-daily-report.html CLIENT-public-data-sources-report.html CLIENT-private-data-sources-report.html --output-html CLIENT-client-report.html --output-pdf CLIENT-client-report.pdf --title "Client Report" --client-name "Client Name"
@@ -103,9 +106,10 @@ Before handing off any report:
 - [ ] Used `tools/solo_report_renderer.py` or logged why the reusable renderer was unavailable.
 - [ ] HTML is standalone, mobile-friendly, and visually polished.
 - [ ] The first viewport has a useful hero, not a file title plus wall of text.
-- [ ] Public data sources and private data sources remain separate lane reports.
-- [ ] The daily report links to both lane reports and does not replace them.
-- [ ] The PDF companion was generated from the client-facing HTML set, or the exact PDF blocker was recorded.
+- [ ] Public data sources and private data sources remain separate sections inside the combined client report.
+- [ ] The delivered HTML is `{client-name}-client-report.html`, not the short daily staging index.
+- [ ] The combined HTML does not link out to sibling daily/public/private HTML files; any such references are internal section anchors or plain labels.
+- [ ] The PDF companion was generated from the same combined client-facing HTML, or the exact PDF blocker was recorded.
 - [ ] Client-Blind Scrub Gate passed for client-facing HTML/PDF.
 - [ ] `INTERNAL_REPORT` contains all operations/provider/debug details excluded from client-facing files.
 - [ ] No fake buttons, remote dependencies, raw Markdown dump, or mobile body overflow.
