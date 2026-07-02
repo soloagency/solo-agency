@@ -26,6 +26,8 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 
 - About to **declare Gate 6 PASS / Scene PASS** while a visible overlay/remotion object exists and there is no printed `Gate 6 DEAD-ZONE PROOF` for the latest overlay/layout state → STOP. Pull fresh `scene_geometry`, list checked object ids/layout_ids, verify `dead_top`, `dead_bottom`, and caption reserve, fix if needed, then repeat the proof.
 
+- About to **declare Gate 7 / Scene PASS** while visible overlay, chart, label, title, generated image, or image-baked message text exists and there is no printed `Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK` for the latest screenshot → STOP. Read the exact words from the rendered screenshot itself, compare against intended copy, and fix any typo/grammar/diacritic/glyph/pseudo-text error before PASS.
+
 - Just finished any **detour/fix** (wrong term, typo, missing number/symbol, bad overlay word, covered face, wrong thumbnail, background swap, geo mismatch, layout tweak, tool/debug issue, or cross-scene small fix) and feel ready to summarize/handoff/move on → STOP. Run the Gate Resume Scan from Critical Rule 12c (`ai_video_editor/01_critical_rules`) and continue from the earliest unchecked or invalidated gate; a fix is not a scene/run verdict.
 
 - About to **(re)build, apply, or approve an overlay on A-roll** (`show_narrator=true`) without a printed Gate 4 A-ROLL LAYOUT PRIORITY PROOF → STOP. Load `ai_video_editor/10_mechanics`, run the full-canvas-first ladder inside Gate 4, and decide the overlay/narrator tradeoff before drawing/uploading/accepting the overlay.

@@ -84,6 +84,7 @@ Load the module for the full text + nuance. These headlines are reminders, not t
 5. **ONE atom = ONE object** (`<g data-wc-object>`). Atomize, never clump. Co-appear via shared `data-wc-delay`; a clumped overlay is not upload-ready.
 6. **Title typography: HEAVY + stacked face**. Title/hero text uses a 900-equivalent family (e.g. `"<Family> Black"` + `font-weight="900"`), open typography, 8–15 same-fill face copies for body thickness, and <=2px visible text stroke. This range is a guardrail, not an auto-pass: if the duplicate fill makes letters muddy, deformed, over-thick, or swallows counters/negative space/Vietnamese diacritics, reduce count/offset or change font. More than 15 face copies = FAIL. Readable-but-thin title = FAIL.
 6a. **Overlay copy correctness is its own gate.** Every visible string proofread; typos/grammar/wrong currency/wrong term = FAIL.
+6b. **Rendered image typo/grammar check.** Read the words from the actual BEFORE/AFTER screenshot, not just JSON fields. Any overlay/chart/label/title or generated/image-baked text visible in the render must match intended copy and have no typo, grammar, diacritic, glyph, pseudo-text, currency, number, or domain-term error. Models often generate bad text inside images; screenshot text is the source of truth.
 7. **Diversify the LOOK.** Load the style library; reproduce a real look (gradient/glossy/3D/metallic/…); never ship flat-only, and never homogenize a whole video into the same "big title + one object" template.
 8. **A-roll: face is sacred.** Never edit `narrator_face`; solve narrator + overlay together. A full-canvas narrator trial cannot fail because the current overlay is in the wrong place; move/resize/simplify/rebuild the overlay before shrinking the narrator. Final CTA scene: narrator-primary + typography-led CTA.
 9. **Grid ≤ 3 scenes/video, all sharing ONE grid.** Default to real background otherwise.
@@ -138,7 +139,7 @@ Print this 9-gate checklist VERTICALLY at the start of every scene; tick ✓/✗
 4. ☐ **Overlay reviewed/rebuilt** — load `30_overlay_core` first + endpoint/typography/content modules + style lib; for A-roll print Gate 4 A-ROLL LAYOUT PRIORITY PROOF before overlay decisions, proving narrator + overlay were solved together and the overlay was not treated as fixed; print Gate 4 MODULE LOAD PROOF + TITLE GATE PROOF + SECONDARY TEXT GATE PROOF.
 5. ☐ **Background audited** — load `20_background` first; print Gate 5 BACKGROUND PROOF with two local-visible images.
 6. ☐ **Final composition tuned** — layout + safe zone + Gate 6 DEAD-ZONE PROOF + face clearance + caption + balance.
-7. ☐ **AFTER screenshot** pulled, downloaded, SHOWN locally, evaluated for all of above.
+7. ☐ **AFTER screenshot** pulled, downloaded, SHOWN locally, evaluated for all of above; if visible message text exists, print/pass Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK.
 8. ☐ **Server-saved** — re-pulled `video_data`/`scene_geometry` to confirm persisted.
 9. ☐ **MODULE COVERAGE GATE** — print proof; PASS only if every required playbook loaded at the correct step.
 

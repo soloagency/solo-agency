@@ -5,7 +5,7 @@ The tool intentionally uses Python's standard library so scheduled agents can
 render reports without installing dependencies. It has two commands:
 
   render  - Markdown/source record to polished standalone HTML, optional PDF.
-  package - Combine scrubbed client-facing HTML files into print HTML/PDF.
+  package - Combine scrubbed staging HTML files into the single client-facing HTML/PDF.
 """
 
 from __future__ import annotations
@@ -20,6 +20,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.parse
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Iterable
 
@@ -738,33 +740,109 @@ def extract_body_fragment(html_text: str) -> str:
     return html_text
 
 
+def package_section_label(path: Path) -> str:
+    lower_name = path.name.lower()
+    if "daily-report" in lower_name:
+        return "Daily Cover"
+    if "public-data-sources-report" in lower_name:
+        return "Public Data Sources"
+    if "private-data-sources-report" in lower_name:
+        return "Private Data Sources"
+    return path.stem.replace("-", " ").title()
+
+
+def local_href_basename(value: str) -> str:
+    parsed = urllib.parse.urlparse(html.unescape(value))
+    if parsed.scheme or parsed.netloc:
+        return ""
+    return Path(urllib.parse.unquote(parsed.path)).name
+
+
+def rewrite_sibling_report_links(
+    fragment: str,
+    link_targets: dict[str, tuple[str, str]],
+) -> str:
+    """Point sibling report-file references at sections inside the package."""
+
+    def href_repl(match: re.Match[str]) -> str:
+        quote, value = match.group(1), match.group(2)
+        basename = local_href_basename(value)
+        if basename in link_targets:
+            target, _label = link_targets[basename]
+            return f'href={quote}{html.escape(target, quote=True)}{quote}'
+        return match.group(0)
+
+    fragment = re.sub(r'\bhref=(["\'])([^"\']+)\1', href_repl, fragment, flags=re.IGNORECASE)
+
+    for basename, (target, label) in link_targets.items():
+        escaped_name = html.escape(basename)
+        replacement = f'<a href="{html.escape(target, quote=True)}">{html.escape(label)}</a>'
+
+        def cell_repl(match: re.Match[str]) -> str:
+            return f"{match.group(1)}{replacement}{match.group(2)}"
+
+        fragment = re.sub(
+            rf"(<t[dh][^>]*>\s*){re.escape(escaped_name)}(\s*</t[dh]>)",
+            cell_repl,
+            fragment,
+            flags=re.IGNORECASE,
+        )
+    return fragment
+
+
+def namespace_fragment_ids(fragment: str, prefix: str) -> str:
+    ids = re.findall(r'\bid=(["\'])([^"\']+)\1', fragment, flags=re.IGNORECASE)
+    id_map = {old: f"{prefix}-{old}" for _quote, old in ids if not old.startswith(f"{prefix}-")}
+    if not id_map:
+        return fragment
+
+    def id_repl(match: re.Match[str]) -> str:
+        quote, old = match.group(1), match.group(2)
+        return f'id={quote}{html.escape(id_map.get(old, old), quote=True)}{quote}'
+
+    def href_repl(match: re.Match[str]) -> str:
+        quote, old = match.group(1), match.group(2)
+        return f'href={quote}#{html.escape(id_map.get(old, old), quote=True)}{quote}'
+
+    fragment = re.sub(r'\bid=(["\'])([^"\']+)\1', id_repl, fragment, flags=re.IGNORECASE)
+    fragment = re.sub(r'\bhref=(["\'])#([^"\']+)\1', href_repl, fragment, flags=re.IGNORECASE)
+    return fragment
+
+
 def package_command(args: argparse.Namespace) -> int:
     input_paths = [Path(path) for path in args.inputs]
     missing = [str(path) for path in input_paths if not path.exists()]
     generated_at = now_iso()
     sections: list[str] = []
-    for path in input_paths:
+    link_targets = {
+        path.name: (f"#part-{idx + 1}", package_section_label(path))
+        for idx, path in enumerate(input_paths)
+    }
+    for idx, path in enumerate(input_paths):
+        section_id = f"part-{idx + 1}"
+        label = package_section_label(path)
         if not path.exists():
             sections.append(
-                f'<section class="report-section"><h2>{html.escape(path.name)}</h2>'
+                f'<section class="report-section" id="{section_id}"><h2>{html.escape(label)}</h2>'
                 f"<p>This report file was unavailable when the PDF companion package was prepared.</p></section>"
             )
             continue
         fragment = extract_body_fragment(read_text(path))
-        label = path.stem.replace("-", " ").title()
+        fragment = rewrite_sibling_report_links(fragment, link_targets)
+        fragment = namespace_fragment_ids(fragment, section_id)
         sections.append(
-            f'<section class="report-section print-source"><div class="print-source-title">'
+            f'<section class="report-section print-source" id="{section_id}"><div class="print-source-title">'
             f"<strong>{html.escape(label)}</strong></div>{fragment}</section>"
         )
 
     body_html = "\n".join(sections)
-    nav = [(f"part-{idx+1}", Path(path).stem.replace("-", " ").title()) for idx, path in enumerate(input_paths)]
+    nav = [(f"part-{idx+1}", package_section_label(Path(path))) for idx, path in enumerate(input_paths)]
     title = args.title or "Client Report"
     html_text = render_full_html(
         body_html,
         nav,
         title=title,
-        subtitle=args.subtitle or "Print-ready companion assembled from the current client-facing HTML report set.",
+        subtitle=args.subtitle or "A complete client-facing report assembled into one standalone HTML file with a matching PDF companion.",
         client_name=args.client_name or "",
         report_kind=args.report_kind or "Client Report Package",
         report_date=args.report_date or dt.date.today().isoformat(),
@@ -862,6 +940,158 @@ def export_pdf_with_weasyprint(html_path: Path, pdf_path: Path) -> tuple[bool, s
         return False, f"weasyprint_failed: {exc}"
 
 
+class _ReportTextExtractor(HTMLParser):
+    block_tags = {
+        "address",
+        "article",
+        "aside",
+        "blockquote",
+        "br",
+        "dd",
+        "div",
+        "dl",
+        "dt",
+        "figcaption",
+        "figure",
+        "footer",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "header",
+        "hr",
+        "li",
+        "main",
+        "ol",
+        "p",
+        "pre",
+        "section",
+        "table",
+        "tbody",
+        "td",
+        "tfoot",
+        "th",
+        "thead",
+        "tr",
+        "ul",
+    }
+    heading_tags = {"h1", "h2", "h3"}
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.blocks: list[tuple[str, str]] = []
+        self.parts: list[str] = []
+        self.current_style = "body"
+        self.skip_depth = 0
+
+    def flush(self) -> None:
+        text = re.sub(r"\s+", " ", " ".join(self.parts)).strip()
+        if text:
+            self.blocks.append((self.current_style, text))
+        self.parts = []
+        self.current_style = "body"
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        if tag in {"script", "style", "noscript", "svg"}:
+            self.skip_depth += 1
+            return
+        if self.skip_depth:
+            return
+        if tag in self.heading_tags:
+            self.flush()
+            self.current_style = tag
+        elif tag == "li":
+            self.flush()
+            self.current_style = "li"
+            self.parts.append("•")
+        elif tag in {"td", "th"}:
+            if self.parts:
+                self.parts.append("|")
+        elif tag in self.block_tags:
+            self.flush()
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag in {"script", "style", "noscript", "svg"} and self.skip_depth:
+            self.skip_depth -= 1
+            return
+        if self.skip_depth:
+            return
+        if tag in self.block_tags or tag in self.heading_tags:
+            self.flush()
+
+    def handle_data(self, data: str) -> None:
+        if self.skip_depth:
+            return
+        if data.strip():
+            self.parts.append(data.strip())
+
+
+def export_pdf_with_reportlab(html_path: Path, pdf_path: Path) -> tuple[bool, str]:
+    try:
+        from reportlab.lib import colors  # type: ignore
+        from reportlab.lib.pagesizes import letter  # type: ignore
+        from reportlab.lib.styles import getSampleStyleSheet  # type: ignore
+        from reportlab.lib.units import inch  # type: ignore
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer  # type: ignore
+    except Exception as exc:  # pragma: no cover - optional dependency
+        return False, f"reportlab_unavailable: {exc}"
+
+    try:
+        extractor = _ReportTextExtractor()
+        extractor.feed(read_text(html_path))
+        extractor.flush()
+
+        styles = getSampleStyleSheet()
+        styles["Title"].fontName = "Helvetica-Bold"
+        styles["Title"].fontSize = 22
+        styles["Title"].leading = 27
+        styles["Heading1"].fontName = "Helvetica-Bold"
+        styles["Heading1"].fontSize = 18
+        styles["Heading1"].leading = 22
+        styles["Heading2"].fontName = "Helvetica-Bold"
+        styles["Heading2"].fontSize = 14
+        styles["Heading2"].leading = 18
+        styles["BodyText"].fontName = "Helvetica"
+        styles["BodyText"].fontSize = 9.5
+        styles["BodyText"].leading = 13
+        styles["BodyText"].textColor = colors.HexColor("#171512")
+
+        story = []
+        for style_name, text in extractor.blocks:
+            escaped = html.escape(text)
+            if style_name == "h1":
+                story.append(Paragraph(escaped, styles["Title"]))
+                story.append(Spacer(1, 0.18 * inch))
+            elif style_name in {"h2", "h3"}:
+                story.append(Paragraph(escaped, styles["Heading1" if style_name == "h2" else "Heading2"]))
+                story.append(Spacer(1, 0.09 * inch))
+            else:
+                story.append(Paragraph(escaped, styles["BodyText"]))
+                story.append(Spacer(1, 0.045 * inch))
+
+        if not story:
+            return False, "reportlab_failed: no_text_extracted"
+
+        pdf_path.parent.mkdir(parents=True, exist_ok=True)
+        doc = SimpleDocTemplate(
+            str(pdf_path),
+            pagesize=letter,
+            leftMargin=0.55 * inch,
+            rightMargin=0.55 * inch,
+            topMargin=0.55 * inch,
+            bottomMargin=0.55 * inch,
+            title=html_path.stem,
+        )
+        doc.build(story)
+        return True, ""
+    except Exception as exc:  # pragma: no cover - optional dependency
+        return False, f"reportlab_failed: {exc}"
+
+
 def export_pdf_with_wkhtmltopdf(html_path: Path, pdf_path: Path) -> tuple[bool, str]:
     binary = shutil.which("wkhtmltopdf")
     if not binary:
@@ -882,6 +1112,7 @@ def export_pdf(html_path: Path, pdf_path: Path) -> tuple[str, str]:
     attempts = [
         export_pdf_with_chrome,
         export_pdf_with_weasyprint,
+        export_pdf_with_reportlab,
         export_pdf_with_wkhtmltopdf,
     ]
     blockers: list[str] = []
@@ -911,8 +1142,8 @@ def build_parser() -> argparse.ArgumentParser:
     render.add_argument("--fail-on-scrub", action="store_true", help="Exit non-zero if client-blind terms are found.")
     render.set_defaults(func=render_command)
 
-    package = subparsers.add_parser("package", help="Package client-facing HTML files into print HTML/PDF.")
-    package.add_argument("--inputs", nargs="+", required=True, help="Scrubbed HTML inputs, usually daily/public/private.")
+    package = subparsers.add_parser("package", help="Package staging HTML files into the single client-facing HTML/PDF.")
+    package.add_argument("--inputs", nargs="+", required=True, help="Scrubbed staging HTML inputs, usually daily/public/private.")
     package.add_argument("--output-html", required=True, help="Output package HTML path.")
     package.add_argument("--output-pdf", help="Optional output PDF path.")
     package.add_argument("--title", default="Client Report", help="Package title.")

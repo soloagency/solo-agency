@@ -14,18 +14,18 @@ contract, and the report-design skill controls visual quality.
 
 ## Hard Gates For This Stage
 
-- Canonical human-facing report files are HTML. A PDF companion is mandatory after the HTML report set is created or updated.
+- Canonical human-facing report output is one standalone HTML file per client/day/run: `{client-name}-client-report.html`. A PDF companion generated from that same HTML is mandatory when export is available and safe.
 - Markdown is internal.
 - The report must be standalone, mobile-friendly, agency-grade, and factually aligned with the Markdown source.
 - The report must use the reusable report-design module and reusable renderer path by default. Do not write one-off Python/HTML/PDF scripts for ordinary report generation.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
 - Every idea, best idea, comment, and draft must be audience-value-first: useful to the viewer before useful to the client's brand. Reject or rewrite direct product/service praise as `promotional_not_value_first`.
 - Do not create fake action buttons in static HTML.
-- Keep exactly one canonical report set per client/day/run: one daily index HTML plus one full public data sources HTML and one full private data sources HTML.
+- Keep exactly one canonical client-facing report file per client/day/run. Daily/public/private HTML files may be generated as scrubbed staging inputs for lane isolation, but the file handed to the human/client or uploaded through a provider must be the combined `{client-name}-client-report.html`.
 - Client-facing report files and the PDF companion must be client-blind: no Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled-task, API-key/config, Telegram, agent/tool/debug, or `INTERNAL_REPORT` details.
 - Every run must also create an operator-only `{client-name}-INTERNAL_REPORT.html` clearly labeled `INTERNAL_REPORT - Not for client sharing`.
-- Never merge public data source intelligence and private data source intelligence into one dense HTML body. Each lane is a first-class report file so a later private pass cannot overwrite or summarize away the public pass.
-- The PDF companion must be generated from the three HTML report files, not from raw memory, and it must not replace the canonical HTML report set. If PDF export or safe redaction is blocked, record the exact blocker and still provide the HTML report path/link.
+- Never let a later public/private pass overwrite or summarize away the other lane. Keep lane staging files separate for generation/state safety, then combine them into the one client-facing HTML report.
+- The PDF companion must be generated from `{client-name}-client-report.html`, not from raw memory, `INTERNAL_REPORT`, or a short daily index. If PDF export or safe redaction is blocked, record the exact blocker and still provide the combined HTML report path/link.
 
 ## Source Preservation Rule
 
@@ -58,7 +58,7 @@ The HTML report must be created from the same facts, references, ideas, analysis
 
 ### Human-Facing Report Rule: HTML Plus PDF Companion
 
-The agent must show report results to the human as HTML and provide the PDF companion status/path in the same handoff. The PDF is a derivative of the HTML report set; the HTML files remain canonical for future automation updates.
+The agent must show report results to the human as one combined HTML report and provide the PDF companion status/path in the same handoff. The PDF is a derivative of that same combined HTML; the daily/public/private HTML files are staging artifacts for automation updates, not separate files for the human to open.
 
 Do not show, send, link, or ask the human to open the Markdown report as the user-facing report.
 
@@ -66,7 +66,7 @@ Allowed:
 
 - Save `.md` internally for agent memory, history, learning, diffing, and regeneration.
 - Mention that a Markdown source file exists only when explaining internal storage or troubleshooting.
-- Deliver the `.html` report path/link to the human.
+- Deliver the combined `{client-name}-client-report.html` path/link to the human.
 - Send Telegram/WideCast notifications with the `.html` path/link.
 - Deliver a `.pdf` companion alongside the `.html` path/link, or state the exact PDF blocker/status if generation is unavailable or unsafe.
 
@@ -78,14 +78,14 @@ Not allowed:
 - Sending both `.md` and `.html` and making the human decide which one to open.
 - Treating a PDF export as the canonical report source or using it to replace the three HTML files.
 
-Every default report path, notification, or review instruction must point to the `.html` file as the primary review link and include the `.pdf` companion path/status as the secondary share-ready artifact.
+Every default report path, notification, or review instruction must point to `{client-name}-client-report.html` as the primary review link and include the `.pdf` companion path/status as the secondary share-ready artifact.
 
 ### Internal Markdown, Beautiful HTML
 
 The agent must create two artifacts with different purposes:
 
 1. Markdown is the internal canonical record for agent memory, history, learning, diffing, and regeneration.
-2. Client-facing HTML is the polished agency report for review/sharing.
+2. Client-facing HTML is the combined polished agency report for review/sharing.
 3. `INTERNAL_REPORT` is the operator-only system report for automation, PDNA/provider, delivery, and collector details.
 
 The HTML report does not need to be a direct Markdown render. If a direct Markdown-to-HTML renderer produces an ugly or hard-to-use report, the agent should create a better designed standalone HTML report instead.
@@ -93,18 +93,21 @@ The HTML report does not need to be a direct Markdown render. If a direct Markdo
 Correct behavior:
 
 1. Author and save the complete internal report source under `outputs/YYYY-MM/YYYY-MM-DD/`, using stable client-prefixed names.
-2. Create exactly three client-facing HTML files for the client/day/run:
+2. Create exactly three scrubbed staging HTML files for the client/day/run:
    - `{client-name}-public-data-sources-report.html`
    - `{client-name}-private-data-sources-report.html`
    - `{client-name}-daily-report.html`
-3. Create one operator-only internal report:
+3. Package those staging files into the single client-facing report:
+   - `{client-name}-client-report.html`
+4. Create one operator-only internal report:
    - `{client-name}-INTERNAL_REPORT.html`
-4. `{client-name}` must be a filesystem-safe client name/slug, lower-kebab preferred, for example `angela-do` or `aven-ngo`.
-5. The public and private HTML files are full lane reports, not summaries.
-6. The daily HTML file is the concise index/overview linking to the public and private reports, showing lane status, client-relevant blockers/limits, best next action, and delivery status without internal tooling details.
-7. The HTML may be custom structured and styled for readability, mobile scanning, editable draft review, and copy workflow.
-8. The client-facing HTML must not omit required client-relevant report sections that exist in the corresponding Markdown/source record, but it must scrub internal system/provider/collector details into `INTERNAL_REPORT`.
-9. If a Markdown/source record changes, update/regenerate only the affected lane HTML plus the daily index so artifacts stay factually aligned, and update `INTERNAL_REPORT` when operational state changed.
+5. `{client-name}` must be a filesystem-safe client name/slug, lower-kebab preferred, for example `angela-do` or `aven-ngo`.
+6. The public and private staging HTML files are full lane reports, not summaries.
+7. The daily staging HTML file is the concise cover/index for the combined report, showing lane status, client-relevant blockers/limits, best next action, and delivery status without internal tooling details.
+8. The combined client-facing HTML must include the daily cover, full public lane, and full private lane/status in one standalone file. It must not require the reader to open or click into sibling HTML files.
+9. The HTML may be custom structured and styled for readability, mobile scanning, editable draft review, and copy workflow.
+10. The client-facing HTML must not omit required client-relevant report sections that exist in the corresponding Markdown/source record, but it must scrub internal system/provider/collector details into `INTERNAL_REPORT`.
+11. If a Markdown/source record changes, update/regenerate only the affected lane staging HTML plus the daily index, then rebuild `{client-name}-client-report.html` and its PDF companion so the delivered HTML/PDF stay identical in content.
 
 Quality rules for HTML:
 
@@ -134,7 +137,7 @@ Required order for every client-facing report:
 2. Load `playbooks/skills/report-design/SKILL.md`.
 3. Render each client-facing report from the approved source content with `tools/solo_report_renderer.py render`, or a named reusable template layered into that renderer.
 4. Run the Client-Blind Scrub Gate on each client-facing HTML file.
-5. Build `{client-name}-client-report.html` and `{client-name}-client-report.pdf` with `tools/solo_report_renderer.py package` from the scrubbed daily/public/private HTML files.
+5. Build `{client-name}-client-report.html` and `{client-name}-client-report.pdf` with `tools/solo_report_renderer.py package` from the scrubbed daily/public/private HTML files. This package HTML is the only default human/client-facing report link.
 6. If PDF export is unavailable, keep the package HTML, write the renderer status JSON, update `report_state.json`, and record the exact blocker in `INTERNAL_REPORT`.
 
 Default render command pattern:
@@ -169,7 +172,8 @@ python3 tools/solo_report_renderer.py package \
 Renderer behavior:
 
 - `render` creates standalone responsive HTML with a landing-page-like hero, navigation, polished sections, mobile-safe tables, and print CSS.
-- `package` combines scrubbed client-facing HTML files into a print-ready companion HTML and attempts PDF export through local browser print-to-PDF, WeasyPrint, or `wkhtmltopdf` when available.
+- `package` combines scrubbed staging HTML files into the single client-facing HTML report and attempts PDF export from that same HTML through local browser print-to-PDF, WeasyPrint, or `wkhtmltopdf` when available.
+- `package` must not leave links that send the reader to sibling daily/public/private HTML files. Any such references must become internal anchors within `{client-name}-client-report.html` or plain section labels.
 - Every renderer run writes `{output_html}.render_status.json` so `INTERNAL_REPORT` and `report_state.json` can record generated/blocked PDF status without parsing terminal output.
 - The renderer uses no remote CSS, JavaScript, fonts, or external services.
 
@@ -185,16 +189,21 @@ outputs/latest/{client-name}-daily-report.html
 outputs/latest/{client-name}-public-data-sources-report.html
 outputs/latest/{client-name}-private-data-sources-report.html
 outputs/latest/{client-name}-INTERNAL_REPORT.html
+outputs/latest/{client-name}-client-report.html
 outputs/latest/{client-name}-client-report.pdf
 ```
 
-The daily latest file is the default client-ready convenience link. Public/private latest files are allowed as direct lane links. The internal latest file is for the user/operator only. The PDF latest file is the mandatory client-ready companion deliverable when PDF generation is available and safe.
+The latest client report file is the default client-ready convenience link. Daily/public/private latest files are staging/debug convenience copies and must not be the primary handoff unless the human explicitly asks for a lane-only diagnostic. The internal latest file is for the user/operator only. The PDF latest file is the mandatory client-ready companion deliverable when PDF generation is available and safe.
 
-### Latest Override: Three-File Public/Private Report Contract
+### Latest Override: Single Client Report Contract With Lane Staging
 
-Every client/day/run must produce one canonical report set, not one merged public/private mega-report.
+Every client/day/run must produce one canonical client-facing report file:
 
-The canonical report set has exactly these HTML files:
+```text
+outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html
+```
+
+The staging set used to build it has exactly these HTML files:
 
 ```text
 outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html
@@ -216,11 +225,17 @@ File responsibilities:
    - Must not rewrite or summarize the public data sources report.
 
 3. `{client-name}-daily-report.html`
-   - Concise daily index/overview.
-   - Must link to the public and private report files.
+   - Concise cover/index/overview for the combined report.
+   - May reference the public/private sections, but the final packaged report must use internal section anchors, not sibling-file links.
    - Must show each lane's status, top recommendation summary, client-relevant blockers/limits, delivery status, and the one next action.
    - Must not show provider, notification-channel, automation, API-key/config, Local Collector, or debug details.
    - Must not replace either full lane report.
+
+4. `{client-name}-client-report.html`
+   - The only default client-facing HTML handoff/upload file.
+   - Must include the daily cover plus the full public and private lane content/status in one standalone HTML file.
+   - Must not require the reader to open `daily-report.html`, `public-data-sources-report.html`, or `private-data-sources-report.html`.
+   - Must not contain sibling-file links to those staging files; rewrite them to internal anchors or section labels during packaging.
 
 Both full lane reports must use the same structure:
 
@@ -248,17 +263,17 @@ The Markdown/source record may keep explicit section markers for internal contin
 <!-- SOLO_AGENCY_SECTION:PRIVATE_END -->
 ```
 
-The HTML deliverables must stay split by file. Do not collapse public and private evidence into one mixed, ambiguous HTML section.
+The staging files must keep public and private evidence split while generating and updating. The delivered `{client-name}-client-report.html` must combine them into one readable report with clearly separated public data sources and private data sources sections.
 
 Update rules:
 
-- Public pass: create or replace only `{client-name}-public-data-sources-report.html`, then create/update `{client-name}-daily-report.html` with private status `pending`, `blocked`, `skipped`, or the exact blocker.
-- Private pass: create or replace only `{client-name}-private-data-sources-report.html`, then create/update `{client-name}-daily-report.html`. Do not rewrite, summarize away, delete, or regenerate the public report file.
+- Public pass: create or replace only `{client-name}-public-data-sources-report.html`, then create/update `{client-name}-daily-report.html` with private status `pending`, `blocked`, `skipped`, or the exact blocker, then rebuild `{client-name}-client-report.html` and PDF from the staging files.
+- Private pass: create or replace only `{client-name}-private-data-sources-report.html`, then create/update `{client-name}-daily-report.html`, then rebuild `{client-name}-client-report.html` and PDF from the staging files. Do not rewrite, summarize away, delete, or regenerate the public report file.
 - If private data sources finish after public data sources, update only the private report and daily index. Do not open/rewrite the public report except to repair broken links with explicit reason.
 - After a private data source pass reaches a terminal state (`complete`, `complete_live_scan`, `blocked`, `failed`, `skipped`, or equivalent), reconcile the lane status and counts across the private lane report, daily index, internal Markdown/source record, report state JSON, notification log entry, and `outputs/latest/` copies before handoff. The same run must not say `scan in progress` or `partial` in one artifact while another artifact says `complete`.
 - Reconciled counts must include sources configured, sources attempted, sources completed, sources blocked/skipped, data points kept, hot/warm/watch leads, competitors, new private data sources recommended, noisy/skipped discovery candidates, and notifications attempted/sent/blocked when those concepts exist in the run.
 - If private data sources fail, time out, are stale, or are blocked, update only the private report with the exact blocker and update the daily index lane status.
-- If a private pass starts but the public report is missing, create a public report placeholder file that says public data sources were not run or were unavailable, then create the private report. Do not create a private-only report set without a daily index.
+- If a private pass starts but the public report is missing, create a public report placeholder file that says public data sources were not run or were unavailable, then create the private report and rebuild the combined client report. Do not create a private-only report without the daily cover and combined package.
 
 ### Operator Internal Report Contract
 
@@ -326,32 +341,35 @@ Prepared for {Client} by {Agency/User}
 
 If the configured agency/user name is unknown, omit the footer instead of inserting Solo Agency or WideCast. If a word such as `provider` appears as a normal industry term, for example `insurance provider`, it is allowed only when it is clearly unrelated to tooling/PDNA/provider config.
 
-### Client PDF Companion Contract
+### Client HTML And PDF Companion Contract
 
-After creating or updating the three-file HTML report set, create or update an additional client-share package from the existing three HTML files:
+After creating or updating the daily/public/private staging HTML files, create or update the single client-facing report package:
 
 ```text
 outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html
+outputs/latest/{client-name}-client-report.html
 outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf
 outputs/latest/{client-name}-client-report.pdf
 ```
 
-The PDF source HTML must be a standalone print-friendly client-blind document assembled from scrubbed client-facing files:
+The package HTML must be a standalone, mobile-friendly, print-friendly, client-blind document assembled from scrubbed staging files:
 
 1. `{client-name}-daily-report.html` for the cover, executive snapshot, lane status, blockers, delivery status, and next action.
 2. `{client-name}-public-data-sources-report.html` for the public data sources section.
 3. `{client-name}-private-data-sources-report.html` for the private data sources section when it exists and is approved for client sharing.
 
-Do not build the PDF directly from memory, from only one lane, or from `INTERNAL_REPORT`. If any of the three canonical HTML files is missing or blocked, include a clear client-safe status page in `{client-name}-client-report.html` instead of inventing content. Then export the PDF when safe, or record the exact blocker in `INTERNAL_REPORT` and `report_state.json`.
+Do not build the package or PDF directly from memory, from only one lane, or from `INTERNAL_REPORT`. If any staging HTML file is missing or blocked, include a clear client-safe status page in `{client-name}-client-report.html` instead of inventing content. Then export the PDF from `{client-name}-client-report.html` when safe, or record the exact blocker in `INTERNAL_REPORT` and `report_state.json`.
+
+The combined `{client-name}-client-report.html` must be content-equivalent to the PDF companion. The reader must not need to open separate daily/public/private HTML files to see Idea Matrix, Lead & Competitor Opportunities, Best Idea, drafts, or lane status.
 
 PDF formatting rules:
 
-- The PDF source HTML must not depend on remote JavaScript, remote CSS, collapsible UI, copy buttons, or hover-only interactions.
+- The client report HTML/PDF source must not depend on remote JavaScript, remote CSS, collapsible UI, copy buttons, or hover-only interactions for core readability.
 - Add print CSS with readable page margins, stable headings, page breaks between major sections, visible URLs/references, and no clipped cards or horizontal scrolling.
 - Convert interactive HTML controls into plain text before PDF export.
 - Preserve source references, dates, confidence notes, blockers, and human approval status.
 - Run the Client-Blind Scrub Gate before PDF export. The PDF must not contain Solo Agency, WideCast, provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation, scheduled task, API-key/config, Telegram, or debug details.
-- The PDF should be client-shareable and polished, but the three HTML files remain the canonical report files for automation updates.
+- The PDF should be client-shareable and polished, and it must be exported from the same combined client report HTML. The daily/public/private staging files remain automation update inputs, not separate client handoff files.
 
 Private data source safety rules:
 
@@ -384,6 +402,8 @@ The state file must track at least:
   "public_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html",
   "private_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html",
   "daily_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html",
+  "client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html",
+  "latest_client_html_path": "outputs/latest/{client-name}-client-report.html",
   "internal_report_md_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.md",
   "internal_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.html",
   "latest_internal_report_html_path": "outputs/latest/{client-name}-INTERNAL_REPORT.html",
@@ -416,7 +436,6 @@ The state file must track at least:
   "last_private_update_at": "",
   "public_notification_status": "not_sent|sent|skipped",
   "private_notification_status": "not_sent|sent|skipped",
-  "client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html",
   "client_report_pdf_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf",
   "latest_client_pdf_path": "outputs/latest/{client-name}-client-report.pdf",
   "client_pdf_status": "pending|pending_review|generated|blocked",
@@ -433,7 +452,7 @@ Before writing a report, the agent must read the existing source/state file when
 Notification rule:
 
 - Two notifications are acceptable: one after the public report is ready and one after the private report is ready/blocked.
-- Notifications to the user/operator should normally point to `{client-name}-daily-report.html` or its uploaded URL. A lane-specific direct link may be included as a secondary link, but the daily report remains the canonical client-ready handoff link.
+- Notifications to the user/operator must normally point to `{client-name}-client-report.html` or its uploaded URL. Daily/public/private staging links must not be the primary report link and should be omitted unless the human explicitly asks for diagnostic lane files.
 - Notifications to the user/operator must include the PDF companion path/status beside the HTML link and should include `{client-name}-INTERNAL_REPORT.html` as an operator-only secondary link/path.
 - The notification text must say whether the report set is `public_report_ready`, `private_report_ready`, `private_report_blocked`, or `daily_report_ready`.
 - Do not send repeated notifications for the same lane in the same run unless correcting a missing/broken report link.
@@ -987,10 +1006,11 @@ Required internal, client-facing, and operator-facing outputs:
 
 - Per-client report:
   - Internal source: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md`
-  - Client-facing public report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html`
-  - Client-facing private report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html`
-  - Client-facing daily index: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html`
-  - Client-facing latest daily index: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/latest/{client-name}-daily-report.html`
+  - Staging public report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html`
+  - Staging private report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html`
+  - Staging daily cover/index: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html`
+  - Client-facing combined report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html`
+  - Client-facing latest combined report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/latest/{client-name}-client-report.html`
   - Operator-only internal report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.html`
   - Operator-only latest internal report: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outputs/latest/{client-name}-INTERNAL_REPORT.html`
 - Master report:
@@ -999,7 +1019,7 @@ Required internal, client-facing, and operator-facing outputs:
   - Internal latest pointer: `daily-content-pipeline/outputs/latest_master_digest.md`
   - Operator-facing latest report: `daily-content-pipeline/outputs/latest_master_digest.html`
 
-The human/operator should normally be shown the client-ready daily index path, PDF companion path/status, and operator-only `INTERNAL_REPORT` path. Public/private lane report paths may be shown as secondary links. Internal `.md` paths are for the agent only.
+The human/operator should normally be shown only the client-ready combined report path, PDF companion path/status, and operator-only `INTERNAL_REPORT` path. Public/private lane staging paths should not be shown unless requested for diagnostics. Internal `.md` paths are for the agent only.
 
 Do not present this older ambiguous shape to the human:
 
@@ -1010,7 +1030,7 @@ Open either latest.md or latest.html
 Only present:
 
 ```text
-Open {client-name}-daily-report.html
+Open {client-name}-client-report.html
 ```
 
 The HTML report must be mobile-first:
@@ -1029,12 +1049,12 @@ The HTML report must be mobile-first:
 - Clear color/status labels for hot leads, warm leads, high-threat competitors, approval-needed items, and session-expired blockers.
 - No document-level horizontal overflow at common mobile widths such as 390px. Tables, evidence ledgers, and scorecards must either become stacked cards or be placed inside a clearly styled horizontal-scroll wrapper. Long URLs, group names, post titles, and source names must wrap inside their cells/cards.
 
-The daily HTML index must include:
+The daily staging HTML cover/index must include:
 
 - Run date.
 - Clients processed.
 - Client status.
-- Links to `{client-name}-public-data-sources-report.html` and `{client-name}-private-data-sources-report.html`.
+- References to the public data sources and private data sources sections. When packaged into `{client-name}-client-report.html`, these must be internal anchors or plain labels, not links to sibling HTML files.
 - Public report status and private report status.
 - Top public recommendation summary and top private recommendation summary when available.
 - Client-relevant blockers/limits, delivery status, and next action.

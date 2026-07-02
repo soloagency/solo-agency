@@ -818,7 +818,7 @@ Use WideCast OpenAPI notification/Telegram/email fallback for:
 
 ### WideCast HTML Report Upload And PDF Companion Before Telegram
 
-When WideCast notification/Telegram/email fallback is configured and the run produced an HTML report, the agent must also produce the mandatory PDF companion from the scrubbed client-facing HTML report set and generate/update `{client-name}-INTERNAL_REPORT.html` before report handoff. The agent must upload the client-facing HTML report to WideCast for user/operator delivery before sending the message if Client tools/OpenAPI discovery expose an upload operation that supports HTML files. For WideCast this operation is `uploadAsset` with `text/html`. Upload the PDF companion too only when the verified client provider exposes a compatible PDF/file upload path; otherwise include the local PDF path or exact PDF blocker in the notification. Provider-hosted URLs are operator handoff links, not client-share links, because the URL/domain may reveal the provider.
+When WideCast notification/Telegram/email fallback is configured and the run produced an HTML report, the agent must also produce the mandatory PDF companion from the combined `{client-name}-client-report.html` and generate/update `{client-name}-INTERNAL_REPORT.html` before report handoff. The agent must upload the combined client-facing HTML report to WideCast for user/operator delivery before sending the message if Client tools/OpenAPI discovery expose an upload operation that supports HTML files. For WideCast this operation is `uploadAsset` with `text/html`. Upload the PDF companion too only when the verified client provider exposes a compatible PDF/file upload path; otherwise include the local PDF path or exact PDF blocker in the notification. Provider-hosted URLs are operator handoff links, not client-share links, because the URL/domain may reveal the provider.
 
 This is a report-delivery completion gate, not an optional polish step. A "report ready" notification that does not include an HTML report URL/path, PDF companion status, and INTERNAL_REPORT path/status is invalid.
 
@@ -842,14 +842,14 @@ Before sending any report-ready notification, the agent must create a delivery r
 
 Required sequence:
 
-1. Generate the standalone local `.html` report set.
+1. Generate the standalone local daily/public/private staging HTML files.
 2. Generate or update `{client-name}-INTERNAL_REPORT.html` and `outputs/latest/{client-name}-INTERNAL_REPORT.html`.
-3. Run the Client-Blind Scrub Gate on the client-facing HTML report set.
-4. Generate or update `{client-name}-client-report.html` and `{client-name}-client-report.pdf` from that scrubbed report set, or record the exact PDF blocker.
+3. Run the Client-Blind Scrub Gate on the staging HTML files and final package.
+4. Generate or update `{client-name}-client-report.html` and `{client-name}-client-report.pdf` from that scrubbed staging set, or record the exact PDF blocker. The combined HTML is the only default report URL/path to upload or send.
 5. Load the current client's provider config and fetch/cache the provider OpenAPI spec if needed.
 6. Verify the provider account with `getAccount` before using account actions.
 7. Inspect Client tools first for HTML/PDF-capable upload operations and report/Telegram notification send capability. For WideCast, require `uploadAsset` and `sendTelegramMessage` for the HTML path.
-8. If such an endpoint exists, upload the `.html` file to WideCast as `text/html` for operator delivery.
+8. If such an endpoint exists, upload `{client-name}-client-report.html` to WideCast as `text/html` for operator delivery.
 9. Capture the returned uploaded report URL.
 10. If PDF upload is supported by the verified client provider, upload the PDF companion and capture its URL; otherwise keep the local PDF path/status.
 11. Send the uploaded WideCast report URL plus PDF companion URL/path/status plus INTERNAL_REPORT path/status through WideCast Telegram/email fallback.
@@ -866,7 +866,7 @@ The agent must not send a notification that only says the report is ready withou
 If the current WideCast OpenAPI spec or integration exposes only media upload and does not support `.html` report upload, the agent must not pretend the report was uploaded. It must:
 
 - log `provider_required_operation_missing` or `widecast_report_upload_unavailable`;
-- send the best available HTML report path/link, PDF companion path/status, and INTERNAL_REPORT path/status through WideCast Telegram if possible;
+- send the best available combined `{client-name}-client-report.html` path/link, PDF companion path/status, and INTERNAL_REPORT path/status through WideCast Telegram if possible;
 - tell the human whether the blocker is missing provider config, failed auth, failed OpenAPI discovery, missing operation, or upload failure;
 - continue the scheduled run instead of failing the entire pipeline.
 

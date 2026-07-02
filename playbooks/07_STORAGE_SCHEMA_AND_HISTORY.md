@@ -262,6 +262,7 @@ Use one folder per client/business/location:
             {client-name}-public-data-sources-report.html
             {client-name}-private-data-sources-report.html
             {client-name}-INTERNAL_REPORT.html
+            {client-name}-client-report.html
             {client-name}-client-report.pdf
 ```
 
@@ -376,7 +377,7 @@ Monthly organization rule:
 
 - Any file created daily must be stored under a `YYYY-MM/` folder.
 - This applies to client outputs, master digests, collector jobs, collector inboxes, history logs, data points, leads, competitors, and new private data source logs.
-- Keep `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-public-data-sources-report.html`, `outputs/latest/{client-name}-private-data-sources-report.html`, `outputs/latest/{client-name}-INTERNAL_REPORT.html`, required `outputs/latest/{client-name}-client-report.pdf` when PDF export is available and safe, `latest_master_digest.md`, and `latest_master_digest.html` as convenience pointers/copies.
+- Keep `outputs/latest/{client-name}-client-report.html` as the default client-ready report pointer/copy, `outputs/latest/{client-name}-client-report.pdf` when PDF export is available and safe, `outputs/latest/{client-name}-INTERNAL_REPORT.html` for the operator, and daily/public/private latest files only as staging/diagnostic convenience copies. Also keep `latest_master_digest.md` and `latest_master_digest.html` for operator/master reporting.
 - Keep report state beside the dated report set as `YYYY-MM-DD/{client-name}-report_state.json`.
 - Do not allow long-running pipelines to accumulate hundreds or thousands of daily files directly in one folder.
 
@@ -931,7 +932,7 @@ The agent must update this file before:
 
 ### `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json`
 
-Tracks the state for the canonical three-file daily report set. It prevents a later public or private data source pass from overwriting or summarizing away the other lane's full HTML report.
+Tracks the state for the canonical combined client report and the three staging files used to build it. It prevents a later public or private data source pass from overwriting or summarizing away the other lane's full HTML report, and it ensures the combined HTML/PDF are rebuilt after lane updates.
 
 Minimum format:
 
@@ -945,13 +946,14 @@ Minimum format:
   "public_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html",
   "private_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html",
   "daily_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html",
+  "client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html",
+  "latest_client_html_path": "outputs/latest/{client-name}-client-report.html",
   "latest_daily_html_path": "outputs/latest/{client-name}-daily-report.html",
   "latest_public_html_path": "outputs/latest/{client-name}-public-data-sources-report.html",
   "latest_private_html_path": "outputs/latest/{client-name}-private-data-sources-report.html",
   "internal_report_md_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.md",
   "internal_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.html",
   "latest_internal_report_html_path": "outputs/latest/{client-name}-INTERNAL_REPORT.html",
-  "client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html",
   "client_report_pdf_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf",
   "latest_client_pdf_path": "outputs/latest/{client-name}-client-report.pdf",
   "internal_report_status": "pending",
@@ -1021,15 +1023,16 @@ Allowed `client_pdf_status`:
 
 Rules:
 
-- Public data source pass may write only `{client-name}-public-data-sources-report.html`, public source records, and `{client-name}-daily-report.html` status metadata. It must preserve any existing private report.
-- Private data source pass may write only `{client-name}-private-data-sources-report.html`, private source records, and `{client-name}-daily-report.html` status metadata. It must preserve any existing public report.
+- Public data source pass may write only `{client-name}-public-data-sources-report.html`, public source records, `{client-name}-daily-report.html` status metadata, and the rebuilt combined `{client-name}-client-report.html`/PDF package. It must preserve any existing private report.
+- Private data source pass may write only `{client-name}-private-data-sources-report.html`, private source records, `{client-name}-daily-report.html` status metadata, and the rebuilt combined `{client-name}-client-report.html`/PDF package. It must preserve any existing public report.
 - After a public or private data source pass reaches a terminal state, the state file counts must be reconciled with the lane report, daily index, internal source record, notification log, and latest copies. Do not leave stale `partial`, `pending`, `scan in progress`, or old recommended-source totals in one artifact when another artifact reports completion.
-- `latest/{client-name}-daily-report.html` must point to or copy the daily report index, not a lane-specific artifact.
+- `latest/{client-name}-client-report.html` must point to or copy the combined client-facing HTML report and is the default human/client report link.
+- `latest/{client-name}-daily-report.html` may point to or copy the daily staging index, not a lane-specific artifact, but it must not be the primary report handoff link.
 - `latest/{client-name}-INTERNAL_REPORT.html` must point to or copy the operator-only internal report and must be clearly labeled `INTERNAL_REPORT - Not for client sharing`.
 - Client-facing files and the client PDF must pass the client-blind scrub gate before handoff. If not, keep `client_facing_scrub_status: failed` or `blocked`, record the blocker, and do not present the file as client-ready.
-- `latest/{client-name}-client-report.pdf` is required when PDF export is available and safe, and must point to or copy a PDF generated from `{client-name}-client-report.html`, which itself is assembled from the three canonical HTML reports. It must not replace the daily report index. If PDF export is unavailable or unsafe, keep `client_pdf_status: blocked` and record `client_pdf_blocker`.
+- `latest/{client-name}-client-report.pdf` is required when PDF export is available and safe, and must point to or copy a PDF generated from `{client-name}-client-report.html`, which itself is assembled from the three staging HTML reports. If PDF export is unavailable or unsafe, keep `client_pdf_status: blocked` and record `client_pdf_blocker`.
 - If a client-share PDF includes private data source findings, record `client_pdf_redaction_status` as `redacted`, `approved_exact_sources`, or `needs_human_review`.
-- If two notifications are sent, both should reference the same daily report path or uploaded URL, with lane status recorded in `notification_log.md`. Lane-specific links may be included as secondary links.
+- If two notifications are sent, both should reference the same combined client report path or uploaded URL, with lane status recorded in `notification_log.md`. Lane-specific staging links should be omitted unless requested for diagnostics.
 
 ### `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`
 
