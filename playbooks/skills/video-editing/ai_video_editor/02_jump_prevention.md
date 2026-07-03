@@ -6,6 +6,8 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 
 ---
 
+- A **module read errored / truncated / returned only a preview** ("output too large", "persisted output", 404, timeout, partial) → STOP. That module is NOT loaded. Re-read it in chunks to the end (quote its last line in the LOAD LEDGER) before the step that needs it. Never work from the preview, never skip it, never mark it loaded. (This is exactly how `03_dod_gates` gets skipped when it is large.)
+
 - About to **start a scene** → first load `ai_video_editor/10_mechanics`.
 
 - About to **handle the first real scene after the thumbnail** → first load `ai_video_editor/40_thumbnail_cta`; it is the opening poster frame even if its `type`/`pattern` is not `thumbnail`, and it needs a named endpoint poster style rather than a normal card/text-bar overlay.
@@ -65,5 +67,7 @@ This list is deliberately redundant with the Critical Rules (`ai_video_editor/01
 - About to **final-handoff a video** without a complete per-scene background-audit ledger for every content scene → STOP. Say "background audit not complete" and run the missing Gate 5 rows before hand-off/export.
 
 - User asks **"did you audit backgrounds?" / "are backgrounds suitable?"** → answer from the Gate 5 ledger only. If any content scene lacks a Gate 5 proof row, answer "not yet" and continue the background audit; do not infer from memory or from overlay screenshots.
+
+- About to call **`modify_scene` / `upload_asset` / `export_video`** → STOP and confirm, immediately above the write call: (1) run-level KICKOFF LOAD LEDGER is printed with a valid last-line for each kickoff module; (2) this scene has printed its plan + Gate 3 BEFORE + Gate 4 SCENE LOAD LEDGER for the modules this scene type needs (background→`20_background`; overlay-with-text→`30_overlay_core`+`31_typography`; endpoint→`40_thumbnail_cta`). Any missing → not allowed to write; print it first. (Announce ≠ pause: print, then keep working.)
 
 - **Resuming / continuing a run** → do NOT work from memory: re-load the modules for the step you are on.

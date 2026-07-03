@@ -19,6 +19,8 @@ This file is an INDEX, not the manual. **Opening a module is a REQUIRED ACTION**
 
 **Stable rule across both transports:** reach a step → open the module → act. Memory of a module loaded earlier does NOT replace re-loading it. Both transports are cheap.
 
+> **Transport does not relax anything.** MCP tool, REST endpoint (`/v1/scene_inspector`, `/v1/scene_geometry`, `/v1/modify_scene`, `/v1/upload_asset`…), or local `Read`/`cat` — every gate, module load, proof, and the LOAD LEDGER is identical and equally mandatory. Mapping tool names grants NO latitude to skip or soften a proof. Reading with `cat`/`sed` instead of `Read` is fine; skipping because of transport is not.
+
 > **This is exactly how the background audit gets skipped:** an agent reads the master, treats a scene as "an overlay geometry task", and never opens `20_background` — so the whole background/B-roll branch silently disappears. **The fix is mechanical: reach a step → open its module → then act.** If you did not open the module, you have not done the step.
 
 **Stable TEXT markers** (icons render differently across AI apps — the TEXT is the source of truth): use these literal markers; an emoji (⭐ ✓ → ○ !) MAY decorate but never replaces the text:
@@ -38,6 +40,8 @@ The 5 modules below carry the rules + workflow that apply across the whole run. 
 5. **`ai_video_editor/05_quality_qa_priority`** — §7 Quality Standard, §8 video-level QA, §9 priority order for gate conflicts.
 
 These 5 + `ai_video_editor/00_ENTRYPOINT` are the kickoff set. Per-scene modules (10/20/30/31/32/33/40) load at the step that needs them.
+
+**Before the first `modify_scene`/`upload_asset` of the run, print a KICKOFF LOAD LEDGER** (template in `ai_video_editor/03_dod_gates`): for each kickoff module report its line count and match it to `LOAD_MANIFEST.md`; a shortfall = truncated = NOT loaded → you are BLOCKED from writing. (Quote the last line only when no manifest is present.) This is the mechanical defense against skipping a module that errored with "output too large".
 
 ---
 
@@ -76,6 +80,7 @@ Load the module for the full text + nuance. These headlines are reminders, not t
 2. **Runtime = autonomous, end-to-end.** Work scene 2 → last content scene in ONE pass. Never pause to ask. No `A or B?` questions to the user.
 2a. **Decision protocol — choose, don't defer.** Priority: content correctness → face/subject preservation → preserve good existing work → readability floor + title first-second punch when a title legitimately exists/is required → safe-zone/caption → aesthetic → minimal necessary edit.
 2b. **WideCast edit trigger = full autonomous run.** "edit this video" + a WideCast URL/`topic_id` = full audit + fix. Never ask scope.
+2c. **Proof is a process artifact — no request suppresses it.** "Be concise / save credits / go fast" only shortens the final user summary (Rule 14 hand-off); it never cancels the per-scene gate proofs or module loads. Forbidden excuses: user-wants-short, save-cost, screenshot-looks-fine, I-remember-it, output-too-large, already-triaged, REST-not-MCP.
 3. **Decide by SIGHT, not by `pattern`.** Visual calls need a local-shown screenshot. `scene_geometry` never substitutes for looking.
 4. **Overlay = transparent internal vector, hosted, uploaded, then screenshot-verified.** Safe box x∈[36,684], y∈[128,960]. Show a local overlay preview only when the environment already supports it cheaply; never expose the internal format to normal users.
 4a. **Do not force overlays, titles, or replacement.** For normal content scenes, if `pattern="narration_only"`, `visual` is empty, or the scene intentionally has no overlay, mark overlay audit N/A and do not invent an overlay/title. **Exception:** scene 2/opening poster, thumbnail sync, and final CTA are endpoint scenes; they still load `40_thumbnail_cta` and must decide whether poster/CTA overlay is required even when current overlay is missing. If an existing map/photo/chart/diagram/illustration is good enough and on-topic, preserve it; repair only serious defects. Full overlay replacement is the last resort and must prove it is strictly better than BEFORE.
@@ -97,6 +102,7 @@ Load the module for the full text + nuance. These headlines are reminders, not t
 12d. **Pre-summary completion scan.** No summary/Telegram/export until every scene PASS + Module Coverage Gate + ledgers complete. Batch/contact-sheet/gallery/table/script/API results are triage only, never DoD proof.
 13. **The master is an INDEX — load each module BEFORE its step.** Memory ≠ re-loading.
 13a. **Module Coverage Gate — missing playbook = not done.** Gate 9 proves required playbooks loaded.
+13b. **A failed/truncated load = NOT loaded.** "Output too large"/persisted/preview/truncated/404/timeout = you have not loaded the module. Re-read in chunks to the end (quote its last line) before any step that needs it. Never proceed from a partial read; never mark it loaded.
 14. **Announce plan + report progress.** Vertical 9-gate checklist at scene start, gate-by-gate progress, ✓/✗ recap + `Scene N: PASS|FAIL` verdict at scene end.
 
 ---
@@ -160,6 +166,9 @@ Silently confirm — and fix any "no" before replying:
 - Finished a detour? Ran Gate Resume Scan?
 - About to summarize/hand-off/export? Ran Pre-summary completion scan?
 - Human must act? Used a standalone `[ACTION REQUIRED]` block?
+- Did any module read error/truncate this session? If yes, did I fully re-read it (can I quote its last line) before proceeding?
+- About to call a write endpoint (`modify_scene`/`upload_asset`/`export_video`)? Is the LOAD LEDGER + this scene's gate block already printed above it?
+- Am I dropping/compressing any required proof to be "concise" or save cost? If yes, restore it.
 
 ---
 
