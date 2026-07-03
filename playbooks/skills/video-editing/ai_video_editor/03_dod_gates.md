@@ -6,6 +6,31 @@ The 9 gates are pass/fail; the actual work-recipes live in the topic modules (`1
 
 ---
 
+## LOAD LEDGER — mandatory proof-of-read before any write
+
+The guard against skipping a module that errored with "output too large" is **its line count**: `LOAD_MANIFEST.md` (shipped in the skill zip, auto-generated at build) publishes the expected line count per module. After loading a module, compare your actual `lines` to its manifest row — a shortfall means the read was truncated = NOT loaded, so re-read to EOF before writing. That one number is the required check. `last_line` + `sha256` also ride in the manifest but are OPTIONAL deeper checks (staleness/integrity), not something to quote every load — extra ceremony makes agents drop real work. If no manifest is present, quote the module's last line instead (you can only quote it after reading to EOF).
+
+**KICKOFF LOAD LEDGER — print BEFORE the first `modify_scene`/`upload_asset` of the run.** For each kickoff module report its line count and match it to `LOAD_MANIFEST.md`:
+
+```text
+KICKOFF LOAD LEDGER:
+☑ 00_ENTRYPOINT          lines=<N>  manifest=<M | absent>
+☑ 01_critical_rules      lines=<N>  manifest=<M | absent>
+☑ 02_jump_prevention     lines=<N>  manifest=<M | absent>
+☑ 03_dod_gates           lines=<N>  manifest=<M | absent>
+☑ 04_principles_workflow lines=<N>  manifest=<M | absent>
+☑ 05_quality_qa_priority lines=<N>  manifest=<M | absent>
+☑ 10_mechanics           lines=<N>  manifest=<M | absent>
+Verdict: <PASS — every lines==manifest | BLOCKED — re-read <module> to EOF first>
+(no manifest? quote each module's last line instead to prove EOF)
+```
+
+**SCENE LOAD LEDGER — print at the START of each scene** for the modules that scene type needs per the LOAD MAP (background→`20_background`; overlay-with-text→`30_overlay_core`+`31_typography`+`styles/text_axes`; chart→`32_charts`; endpoint→`40_thumbnail_cta`+`styles/design_languages`). Same `lines=` + `manifest=` per line.
+
+**Rule:** a module whose `lines` falls short of its manifest row came back truncated = NOT loaded → BLOCKED from writing. "I read the preview" is not proof. A `modify_scene`/`upload_asset` with no valid LOAD LEDGER above it in the same transcript is an invalid edit; revert/redo.
+
+---
+
 ## Batch / gallery / script outputs are triage only
 
 Batch contact sheets, galleries, tables, scripts, bulk API results, multi-scene scans, or any "all scenes at once" artifact are useful only to **triage** likely problems. They are never DoD proof and never authorize `Scene N: PASS`.
@@ -13,6 +38,24 @@ Batch contact sheets, galleries, tables, scripts, bulk API results, multi-scene 
 If the run used only batch triage, or fixed only a selected subset without closing every content scene, the required status is `partial_triage_only` (or `partial_fix_only` when edits were made but not all scenes have individual PASS). Do not ask for render/export, do not call `export_video`, and do not send completion notification while any content scene lacks its own `Scene N: PASS`.
 
 `Scene N: PASS` requires that exact scene's own 9-gate evidence: BEFORE shown, Gate 4/5/6 completed as applicable, AFTER/final shown, server-saved confirmation, required module coverage, and §7 quality scan. A batch table saying a scene "looks OK" is not PASS.
+
+### Per-scene Proof-of-Work Receipt — required before any `Scene N: PASS`
+
+Do NOT emit `Scene N: PASS` unless, in the SAME scene block, these literal artifacts appear in order, each with the local file path shown to the user:
+
+```text
+Scene N plan            (vertical 9 gates)
+→ Gate 3 BEFORE: <local path>    (screenshot of THIS scene, taken WHEN scene N starts — NOT a batch shot pulled at run start)
+→ Gate 4 SCENE LOAD LEDGER + OVERLAY EXISTENCE/PRESERVE PROOF (+ A-ROLL/ENDPOINT/TITLE/SECONDARY when applicable)
+→ Gate 5 BACKGROUND PROOF (two local images: composite + active plate)
+→ Gate 6 DEAD-ZONE PROOF (scene_geometry after the latest layout)
+→ Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK (from overlay_poster) if any text
+→ Gate 8: re-pull video_data/scene_geometry — saved
+→ Gate 9 MODULE COVERAGE GATE
+Scene N: PASS — ✓1…✓9
+```
+
+**Anti-front-loading:** a batch of screenshots pulled at run start is triage only and does NOT satisfy Gate 3 or Gate 7 for any scene. Gate 3 for scene N must be a screenshot taken at the moment you START scene N. With only a batch/triage artifact, the run status is `partial_triage_only`: no PASS, no export.
 
 ## DoD — finish EVERY gate below before moving to the next scene
 

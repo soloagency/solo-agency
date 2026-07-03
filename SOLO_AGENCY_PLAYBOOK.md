@@ -13,7 +13,17 @@ Before asking any setup question, load:
 1. `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`
 2. `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`
 
-Only after those two files are loaded may the agent ask the first setup question.
+Only after those two files are loaded **IN FULL** — each with a printed LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` — may the agent ask the first setup question.
+
+## Full-Load Discipline
+
+Before any action, obey `playbooks/LOAD_LEDGER_PROTOCOL.md`. Core rules:
+
+- A read that **errors, truncates, previews, 404s, times out, or returns fewer lines than the manifest** = the file is **NOT loaded**. Never act on a partial read; re-read to EOF (chunk large files with `offset`/`limit` or `sed -n 'A,Bp'`) first.
+- **Every time you load a stage/module/dependency, print a minimal LOAD LEDGER** (file path, `lines_read` vs the `LOAD_MANIFEST.md` line count, dependency list, verdict) **before acting on it**. A file whose `lines_read` falls short of the manifest is truncated = not loaded. (last line / sha256 are optional deeper checks, not required each load — extra ceremony makes agents drop real work.)
+- **Dependency-complete:** when a stage names dependencies (e.g. Stage 3 → 3A → 3B → skill modules → styles), each needs its own LOAD LEDGER; the parent is not loaded until every child is.
+- **No excuse** — "file too large", "save time/tokens", "running from schedule", "I remember it", "human wants it short" — justifies a partial read or a skipped ledger. Brevity applies only to the human-facing summary.
+- Everywhere a gate says "Stage X was loaded", it means **loaded IN FULL** (ledger printed, matches `playbooks/LOAD_MANIFEST.md` when present).
 
 ## First Human Question
 
@@ -390,7 +400,7 @@ If the local `playbooks/` folder is unavailable, download the needed child playb
 https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/
 ```
 
-Load only the stage needed for the current action, plus any dependency named by that stage.
+Load only the stage needed for the current action, plus any dependency named by that stage. **After any GitHub-raw download, verify it against `playbooks/LOAD_MANIFEST.md`** (line count; last line / sha256 only for a deeper check) via a LOAD LEDGER; a short/partial download must be re-fetched before use — never act on a partial download.
 
 ## Last-Resort Recovery And GitHub Issue Escalation Rule
 
@@ -428,6 +438,8 @@ Do not run public research, private data source collection, reports, video/blog/
 After schedule/automation exists, recommend the daily `Solo Agency - GitHub Update Watch` task. This maintenance task checks GitHub for new versions, classifies changes, writes a local/internal update notice, and applies/resyncs updates only when the human has approved auto-apply. It must not send Telegram, WideCast/email-fallback, provider notifications, social posts, or client notifications because version maintenance is internal user/agency work. If bridge/runtime or extension code changed, the handoff must include exact bridge rerun and Chrome extension reload instructions for every affected client profile.
 
 ## Stage Map
+
+> **Every load requires a LOAD LEDGER** (`playbooks/LOAD_LEDGER_PROTOCOL.md`): read the file to its end, print `lines_read` and match it to `playbooks/LOAD_MANIFEST.md` when present, and ledger each named dependency. A short line count = truncated = NOT loaded.
 
 | Stage | File | Load When |
 |---|---|---|
@@ -712,6 +724,8 @@ The agent may omit the next-step question only when the entire requested workflo
 
 ## Completion Gates
 
+> In every gate below, **"Stage X was loaded" means loaded IN FULL** per `playbooks/LOAD_LEDGER_PROTOCOL.md`: a LOAD LEDGER was printed with `Verdict: PASS loaded-in-full`, line count matches `LOAD_MANIFEST.md` when present, and every named dependency was ledgered. A partially-read stage does not satisfy any "was loaded" gate.
+
 Setup is not complete until:
 
 - Stage 0 and Stage 1 were loaded.
@@ -784,6 +798,8 @@ Daily run is not complete until:
 
 ## Jump-Prevention Rules
 
+- If a stage/module read **errored, truncated, or returned only a preview** ("output too large", partial, 404), STOP: that file is NOT loaded. Re-read it to its last line (chunk it) — or re-fetch from GitHub and compare to `LOAD_MANIFEST.md` — before acting.
+- If the agent is about to take any **side-effect action** (ask the first setup question, run a report/scan, render/export, publish, notify, write client/automation state, claim completion) without a `Verdict: PASS loaded-in-full` LOAD LEDGER for the needed stage(s) — with dependencies ledgered — STOP and complete the ledger first.
 - If the agent is about to ask setup questions but Stage 0 or Stage 1 is not loaded, load them first.
 - If the agent is about to discuss private data sources but the private data source gate and Stage 2 are not loaded, load `playbooks/PRIVATE_SOURCE_GATE.md` and Stage 2 first.
 - If the agent is about to scan, open, monitor, or collect from a private data source, stop and reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before opening any browser or URL.
@@ -804,6 +820,8 @@ Before every reply, the agent must check:
 - Did I answer in the human's language?
 - Did I avoid asking for things I can infer or research?
 - Did I load the required stage files for the action I am taking?
+- Did I load them IN FULL — LOAD LEDGER printed, `lines_read` matching `LOAD_MANIFEST.md` when present, and every named dependency ledgered?
+- Did any file this session read error/truncate/return a preview? If yes, did I re-read it to EOF (or re-fetch) before acting, and not work from the partial text?
 - Did I avoid jumping past schedule/routine setup, client-specific automation readiness, the step 6 private data source/Local Collector checkpoint, approval gates, or measurement gates?
 - Did I give the human a short approval-ready decision instead of a long questionnaire?
 - Did I avoid presenting Markdown as the human-facing report?
