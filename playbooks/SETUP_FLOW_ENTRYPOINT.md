@@ -70,7 +70,7 @@ For each configured client, Setup Flow must leave these current:
 
 If the native automation task prompt cannot be updated directly, mark `automation_prompt_update_pending` in the manifest and schedule, then give the human one concrete instruction to update the task prompt.
 
-For every new client, the setup handoff must include the dedicated extension install instructions, not just a status line. Show the absolute `extensions/{client_slug}/` folder path and the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account inside a `**[ACTION REQUIRED]**` block.
+For every new client, the setup handoff must include the dedicated extension install instructions, not just a status line. Show the absolute `extensions/{client_slug}/` folder path and the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account inside a `**[ACTION REQUIRED]**` block. Before showing that path or the bridge start command, run the Stage 8 Source Safety Pre-Check and precede the install block with one short plain-language line confirming the collector's code was read and only runs locally (safe to install). If the pre-check does not pass, do not show the install steps; raise it to the operator instead.
 
 After schedule/automation exists, offer the separate maintenance task `Solo Agency - GitHub Update Watch`. If the runtime cannot create it directly, write the exact prompt to `daily-content-pipeline/automation/update_watch_prompt.md`, tell the human the task name to create, and record `update_watch_task_prompt_pending` in the automation/update state.
 

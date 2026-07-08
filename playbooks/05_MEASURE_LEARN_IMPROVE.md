@@ -4,7 +4,7 @@ Stage: `05`
 
 ## Load Rule
 
-Load once content has been published, during daily published-content checks, and during weekly/monthly performance review.
+Load once content has been published, during daily published-content checks, during weekly/monthly performance review, and on any scheduled run to record measurement status even when nothing is published yet (`measurement_status: no_published_urls_yet`).
 
 ## Hard Gates For This Stage
 
@@ -67,6 +67,8 @@ For each published content item, the agent must:
    - lead-gen angles;
    - future scripts/blogs;
    - public search keywords, especially phrases copied from real audience questions, objections, needs, and comments.
+
+All `analytics/...` paths in this file live under the client's folder `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/analytics/` (one log set per client).
 
 Do not invent metrics. Mark unavailable metrics clearly.
 
@@ -194,7 +196,7 @@ When measuring published URLs:
    - `platform: youtube | tiktok | instagram | facebook | x | linkedin | threads | pinterest | reddit | google_business_profile | other`
 3. Use conservative pacing and do not hammer platform pages.
 4. Capture visible text, current URL, page title, engagement hints, any visible metric labels/counts, and comments/questions when visible.
-5. Store raw collector output under the normal collector `inbox/YYYY-MM/{run_id}/` folder.
+5. Store raw collector output under the normal collector `inbox/YYYY-MM/{client_slug}/{run_id}/` folder.
 6. Parse the captured visible text into normalized metrics when possible.
 7. Store normalized metrics in `analytics/metrics_log.md`.
 8. Store useful comment/question/objection/lead signals in `analytics/comment_signal_log.md`.
@@ -206,6 +208,8 @@ The agent must not scrape hidden APIs, extract cookies, bypass login, or defeat 
 The agent must also call WideCast OpenAPI analytics or dashboard operations that provide overall account-level statistics, such as total views, follower growth, platform performance, or other aggregate metrics. These aggregate metrics should be stored and used for learning even when per-post data is incomplete.
 
 Do not invent metrics. If a platform hides likes, shares, comments, views, or follower data from the current agent/session, mark the metric as `unavailable` and explain why.
+
+In the suggested table formats below, the `Client` column is optional context for multi-client digests; the logs themselves are per-client files under the client's `analytics/` folder.
 
 Suggested `analytics/metrics_log.md` format:
 
@@ -279,3 +283,15 @@ Before claiming a weekly/monthly performance review or learning loop is complete
 - [ ] Did I extract new keyword candidates from comments, objections, questions, high-performing hooks, captions, hashtags, or lead signals?
 
 ### Final Hard Gate
+
+Measurement is not complete until:
+
+- Stage 5 was loaded in full (LOAD LEDGER);
+- yesterday's and the last-7-day published content were checked when published URLs exist, or `measurement_status: no_published_urls_yet` was recorded;
+- every metric shown is real or explicitly marked unavailable — never invented;
+- comment signals were reviewed and logged in the client's `analytics/comment_signal_log.md`;
+- learnings were written to the client's `analytics/learning_log.md` and fed into source priority, content pillars, hooks, CTAs, lead-gen angles, and future idea selection;
+- if any learning changes what a future scheduled run should do, Automation Resync was performed;
+- the report set and INTERNAL_REPORT reflect the measurement outcome honestly.
+
+Claiming measurement completion without these is a critical violation.

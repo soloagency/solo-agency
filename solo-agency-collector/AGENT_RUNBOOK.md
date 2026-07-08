@@ -45,9 +45,9 @@ The agent should:
 4. Extract bridge binaries into the absolute `solo-agency-local-collector/bin/` folder.
 5. Extract/copy the Chrome extension template into a per-client absolute `extensions/{client_slug}/` folder.
 6. Select the correct bridge binary for the user's OS/CPU.
-7. Ask for one-time human approval if the current AI environment requires permission before running a downloaded executable.
+7. Never run the downloaded executable itself. Prepare the files and give the human the one-line command to run outside the AI sandbox; the agent must not start the bridge or setup scripts, even with shell permissions.
 8. Prefer persistent scheduler mode for unattended private data source collection.
-9. Use on-demand mode only when the AI agent can safely start the bridge for a single run.
+9. Use on-demand mode only when a human-run process or OS startup service already has the bridge reachable for that run; the agent still does not start it.
 
 The user still needs to install the Chrome extension once using Chrome Developer Mode until the extension is available in Chrome Web Store.
 
@@ -174,13 +174,12 @@ The setup file must be idempotent:
 - It must stop any previous Local Collector app process for port `17321` when possible, then start the newest executable.
 - Re-running the setup/start file must restart the Local Collector app, not merely try to start a second copy. Otherwise an old collector can keep port `17321`, causing the Chrome extension to keep talking to stale config and report "no job" even after the agent wrote a new client config.
 - If the new bridge logs `address already in use`, the setup/start file is incomplete. Fix the script to detect the process holding port `17321` before asking the human to retry.
-- The restart order must be:
-  1. `POST http://127.0.0.1:17321/shutdown` when `curl` or an HTTP client is available.
-  2. Kill the PID stored in `collector.pid` if it is still alive.
-  3. Use `lsof -tiTCP:17321 -sTCP:LISTEN` on macOS/Linux to find any remaining process holding the port.
-  4. Kill only processes whose command line contains `collector-bridge`; if a non-collector process owns the port, stop and tell the human exactly what is blocking it.
-  5. Start the newest Local Collector app executable in background/detached mode.
-  6. Write the new PID to `collector.pid` and logs to `collector.log`.
+- The restart order must be (do not rely on `POST /shutdown`: the shipped bridge requires the per-run extension token, held only by the extension, and returns 401 when called tokenless, so a tokenless call is a no-op):
+  1. Kill the PID stored in `collector.pid` if it is still alive.
+  2. Use `lsof -tiTCP:17321 -sTCP:LISTEN` on macOS/Linux to find any remaining process holding the port.
+  3. Kill only processes whose command line contains `collector-bridge`; if a non-collector process owns the port, stop and tell the human exactly what is blocking it.
+  4. Start the newest Local Collector app executable in background/detached mode.
+  5. Write the new PID to `collector.pid` and logs to `collector.log`.
 - Keep PID/log files under `solo-agency-local-collector/`, for example `solo-agency-local-collector/collector.pid` and `solo-agency-local-collector/collector.log`.
 - Start the Local Collector app in background/detached mode, write PID/log files, then return control to the user. Do not require the user to keep Terminal or PowerShell open during normal operation.
 - Do not show the user a long multi-line script as the main instruction.
@@ -271,7 +270,7 @@ For first trials, test runs, "run now", "collect now", or any human-requested ma
 POST http://127.0.0.1:17321/jobs/run_now
 ```
 
-The job should include a unique `run_id`, `run_now: true`, `force: false` by default, `run_now_ttl_minutes` (default 30, max 120), `sources`, `pacing`, `client_slug`, and `allowed_extension_instance_ids`. The bridge queues the job and the matching Chrome extension claims it on its next poll. The bridge runs only one collector job at a time, then moves to the next queued client after `/complete`.
+The job should include a unique `run_id`, `run_now: true`, `force: false` by default, `run_now_ttl_minutes` (default 30, max 120), `sources`, `pacing`, `client_slug`, and `allowed_extension_instance_ids`. The bridge queues the job and the matching Chrome extension claims it on its next poll. The bridge runs jobs in parallel across different client identities and serializes only within the same client/profile; after `/complete` it moves to that client's next queued job.
 
 If an AI sandbox cannot call the human machine's localhost endpoint directly but can write local files, use the queue directory. Write one atomic JSON file per client/run:
 
@@ -325,7 +324,7 @@ In on-demand mode, the bridge auto-shuts down when the extension posts `/complet
 Poll:
 
 ```text
-daily-content-pipeline/collector/inbox/YYYY-MM/{run_id}/collector_status.json
+daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/{run_id}/collector_status.json
 ```
 
 Then read:
@@ -369,7 +368,7 @@ When `wrong_workspace_bridge` happens:
 
 After starting or restarting the bridge, wait and re-check `/status` for up to 75 seconds before reporting `no_extension_check_yet`, because Chrome's Manifest V3 service worker may be asleep until the next alarm.
 
-If the bridge is offline and the agent can run commands, start the bridge. If the agent is sandboxed, provide the human with the absolute-path command. If the extension is stale or missing, continue with public data sources, skip private data sources for this run, and notify the human through WideCast MCP / Telegram when available.
+If the bridge is offline, give the human the exact absolute-path start command to run outside the AI sandbox; the agent must not start it itself, even when it can run commands. If the extension is stale or missing, continue with public data sources, skip private data sources for this run, and notify the human through WideCast MCP / Telegram when available.
 
 ## Expected Extension Behavior
 

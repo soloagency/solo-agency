@@ -10,14 +10,27 @@ This is the **visual language layer**, not a replacement for the Universal Overl
 >
 > **Endpoint use.** For scene 2/opening poster, thumbnail sync, and final CTA, this file is mandatory. Pair one language here with one endpoint archetype from `40_thumbnail_cta.md` and print `Gate 4 ENDPOINT DESIGN VARIANT PROOF`. Do not let every endpoint become the same giant outlined title + red vertical side bar + red/double underline motif; those are only possible tokens inside a broader language, not a default template.
 
+<!-- SYNC_DEFAULT_POOL (machine-read by svg_skill_sync.py — the server's default
+     rotation when no vibe is known; edit freely, keep names backticked).
+     Curated "greatest hits": broadly tone-safe for ANY content yet visually
+     striking — includes premium gloss/chrome/foil/glass so the first-impression
+     poster is impressive, but excludes the niche kawaii/comic/y2k looks that
+     only fit a known youth vibe:
+     `flat_swiss_modern`, `soft_depth_floating_cards`, `liquid_glass_glossy`,
+     `editorial_magazine`, `corporate_duotone`, `data_lab_technical`,
+     `minimal_mono_premium`, `blue_cyan_fintech`, `modern_experimental_split`,
+     `embossed_3d_sticker`, `luxury_black_gloss`, `chrome_3d_glossy`,
+     `holographic_foil`, `kinetic_youth_creator`, `retro_futurist`,
+     `broadcast_serious_tv`, `warm_humanist`, `neo_brutalist_editorial` -->
+
 ## Selection Rules
 
-- Serious finance/legal/insurance/health/trust → `broadcast_serious_tv`, `luxury_authority`, `corporate_duotone`, `medical_clean`, `minimal_mono_premium`, `blue_cyan_fintech`.
-- Tech/data/security/AI → `data_lab_technical`, `cyan_hologram_interface`, `cyberpunk_neon`, `neon_laser_grid`, `retro_futurist`, `blue_cyan_fintech`.
-- Youth/creator/entertainment → `kinetic_youth_creator`, `cartoon_bold_pop`, `comic_halftone_pop`, `anime_speedline_hero`, `anime_cute_kawaii`, `acid_gradient_modern`.
-- Premium/luxury/authority → `luxury_authority`, `luxury_black_gloss`, `minimal_mono_premium`, `editorial_magazine`, `holographic_foil`, `chrome_3d_glossy`.
-- Warm education/care/community → `warm_humanist`, `organic_paper_cutout`, `soft_depth_floating_cards`, `social_proof_trust`, `medical_clean`.
-- Urgent/news/real-world warning → `broadcast_serious_tv`, `documentary_grit`, `neo_brutalist_editorial`, `sports_energy` only when energy fits.
+- Serious finance/legal/insurance/health/trust → `broadcast_serious_tv`, `luxury_authority`, `corporate_duotone`, `medical_clean`, `minimal_mono_premium`, `blue_cyan_fintech`, `liquid_glass_glossy`, `luxury_black_gloss`, `editorial_magazine`, `chrome_3d_glossy`, `holographic_foil`, `data_lab_technical`, `soft_depth_floating_cards`.
+- Tech/data/security/AI → `data_lab_technical`, `cyan_hologram_interface`, `cyberpunk_neon`, `neon_laser_grid`, `retro_futurist`, `blue_cyan_fintech`, `chrome_3d_glossy`, `liquid_glass_glossy`, `holographic_foil`, `acid_gradient_modern`, `modern_experimental_split`, `y2k_chrome_pop`.
+- Youth/creator/entertainment → `kinetic_youth_creator`, `cartoon_bold_pop`, `comic_halftone_pop`, `anime_speedline_hero`, `anime_cute_kawaii`, `acid_gradient_modern`, `y2k_chrome_pop`, `glossy_bubblegum_3d`, `toy_clay_3d`, `chrome_3d_glossy`, `holographic_foil`, `sports_energy`, `embossed_3d_sticker`.
+- Premium/luxury/authority → `luxury_authority`, `luxury_black_gloss`, `minimal_mono_premium`, `editorial_magazine`, `holographic_foil`, `chrome_3d_glossy`, `liquid_glass_glossy`, `soft_depth_floating_cards`, `blue_cyan_fintech`.
+- Warm education/care/community → `warm_humanist`, `organic_paper_cutout`, `soft_depth_floating_cards`, `social_proof_trust`, `medical_clean`, `toy_clay_3d`, `glossy_bubblegum_3d`, `cartoon_bold_pop`.
+- Urgent/news/real-world warning → `broadcast_serious_tv`, `documentary_grit`, `neo_brutalist_editorial`, `sports_energy`, `anime_speedline_hero`, `comic_halftone_pop`, `acid_gradient_modern`.
 
 ## Language Menu
 

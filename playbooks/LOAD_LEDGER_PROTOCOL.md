@@ -22,14 +22,15 @@ Every time you load a stage/module/dependency, print this **minimal** block **be
 LOAD LEDGER:
 File: <relative path, e.g. playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md>
 lines_read=<N>   manifest_lines=<M from LOAD_MANIFEST.md | manifest=absent>
-Full-read check: <PASS lines_read==manifest_lines
+Full-read check: <PASS lines_read>=manifest_lines (equal, or +1 from a trailing-newline reader)
                 | PASS(no manifest) manifest=absent — quote last line to prove EOF: last="<...>"
                 | FAIL lines_read<manifest_lines — truncated; re-read to EOF / re-fetch, then re-check>
 Dependencies this file names: <each MUST have its own LOAD LEDGER above>
 Verdict: <PASS loaded-in-full | BLOCKED>
 ```
 
-- **The required check is line count only.** Manifest present (the normal case — deploy regenerates it): `lines_read` MUST equal `manifest_lines`; a shortfall means the read was truncated. That single comparison catches the core "output too large" failure — nothing else is required per load.
+- **The required check is line count only.** Manifest present (the normal case — deploy regenerates it): `lines_read` MUST be at least `manifest_lines`; a shortfall means the read was truncated. That single comparison catches the core "output too large" failure — nothing else is required per load.
+- **Counting convention:** `manifest_lines` is the newline count (`wc -l` / `awk 'END{print NR}'`). Some file readers report one extra line for the final newline or a trailing blank line, so `lines_read` may legitimately be `manifest_lines` or `manifest_lines + 1` — both PASS as long as you reached the real last line (the manifest's `last_line`). Treat only `lines_read < manifest_lines` as truncated. A larger gap above the manifest means the file was edited/grew since the manifest was generated — re-run the deploy manifest or fall back to quoting the last line.
 - **No manifest (rare):** nothing to compare against, so quote the exact `last` line instead — you can only quote it after reading to EOF.
 - **`last_line` + `sha256` stay in the manifest as an OPTIONAL deeper check**, not a per-load requirement. Use them only when the line count matches but you suspect a stale/edited file, or for an occasional integrity spot-check. Do not quote them every load — extra ceremony makes agents drop real work.
 

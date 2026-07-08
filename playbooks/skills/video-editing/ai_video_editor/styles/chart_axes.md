@@ -90,7 +90,7 @@ A *selection rule*, not a render trick: `multicolor` = a different palette colou
 
 ## Axis: typography (chart labels)
 <!-- SYNC: typography = modern_sans, geometric_thin, rounded_friendly, elegant_serif, condensed_display -->
-Map → a heavy VN-safe family (see text_axes.md typeface table): `modern_sans`→Be Vietnam Pro/Inter Black · `geometric_thin`→Montserrat (lighter) · `rounded_friendly`→Be Vietnam Pro · `elegant_serif`→DejaVu Serif · `condensed_display`→Anton/Roboto Condensed.
+Map → a heavy VN-safe typography-v2 family (see text_axes.md typeface table): `modern_sans`→Be Vietnam Pro Black · `geometric_thin`→Montserrat Black · `rounded_friendly`→Baloo 2 · `elegant_serif`→Playfair Display · `condensed_display`→Anton/Barlow Condensed.
 
 ## Palettes (multi-colour, 4–5 swatches each)
 <!-- SYNC_PALETTES: CHART_PALETTES = sunset_warm, forest_earth, berry_jewel, autumn_spice, retro_editorial, candy_pop, muted_pastel, emerald_gold, mono_warm, tropical_punch, coral_reef, vineyard, moss_clay, raspberry_cream, pumpkin_spice, jade_sand, plum_gold, terracotta_sage, magenta_lime, charcoal_amber, rose_olive, crimson_cream, forest_berry, mustard_grape -->

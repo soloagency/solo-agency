@@ -55,7 +55,7 @@ Treat these as critical workflow violations:
 - An agent reads private data source output from another client's collector inbox.
 - A global `extension_health.status: recent` is used as proof that the target client's extension is healthy without checking the matching `client_slug + extension_instance_id`.
 - A private data source pass overwrites, regenerates, or summarizes away `{client-name}-public-data-sources-report.html`.
-- The report set is missing `{client-name}-daily-report.html` as the canonical handoff/index file.
+- The report set is missing `{client-name}-daily-report.html` as the staging index file.
 - A report run writes a new one-off Python/browser/PDF script instead of using or fixing the reusable report renderer.
 
 ## Source Preservation Rule
@@ -90,8 +90,9 @@ Minimum resync audit:
 - `daily-content-pipeline/automation/scheduled_run_prompt.md` updated.
 - Actual native AI automation/scheduled task prompt updated when accessible, or `automation_prompt_update_pending` clearly logged when not accessible.
 - `daily-content-pipeline/automation/github_issues.md` updated when a tracked GitHub issue, maintainer/community response, or issue-derived workaround affects future runs.
+- `daily-content-pipeline/automation/update_state.json` and `daily-content-pipeline/automation/update_log.md` updated when an update check or applied update affects future runs.
 - `daily-content-pipeline/automation/resync_log.md` updated.
-- Dry-read verification performed from the scheduled-run entrypoint, issue tracker when present, and latest local files.
+- Dry-read verification performed from the scheduled-run entrypoint, issue tracker when present, and latest local files. The dry read must enumerate and confirm the following 8 files: the scheduled entrypoint, `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/github_issues.md` issue tracker, `daily-content-pipeline/automation/update_state.json` update state, `daily-content-pipeline/provider_defaults.json` provider defaults/config when relevant, `daily-content-pipeline/schedule.md` schedule, the Client Intelligence Profile, and `daily-content-pipeline/collector/collector_config.json` collector config.
 - The human-facing progress block includes an `Automation freshness check` that answers whether the latest changes were synced into automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state.
 
 Completion wording must distinguish full vs partial sync:
@@ -377,6 +378,7 @@ Private data source activation rule:
 - The agent should proceed automatically as far as file preparation allows, but it must not run the one-time Local Collector setup/start command itself.
 - During one-time setup/update/repair, the agent must never execute `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI agent, even if shell permissions are available. Agent-run setup can be trapped in a sandbox/session and killed after the turn.
 - The agent must create the script/launcher file first and give the human exactly one short Terminal/PowerShell command or one double-clickable file path to run outside the AI sandbox, not a long multi-line script.
+- The Stage 8 Source Safety Pre-Check was run before the bridge command or `Load unpacked` path was given: the prepared extension JS, `bridge-go/main.go`, and `prepare_client_extension.sh` were read, every outbound request was confirmed to go only to the local `127.0.0.1` bridge, and the result was recorded in `INTERNAL_REPORT`. The install handoff was preceded by the one short plain-language safety confirmation line. If the pre-check did not pass, the install command was NOT given and the finding was raised to the operator instead.
 - The same setup handoff must include the Chrome extension install steps and the one absolute client-specific extension folder path under `extensions/{client_slug}/` for every new client, even when private data sources are not active yet.
 - The handoff must say which Chrome profile/account to open for that client and must show `chrome://extensions` -> Developer mode -> `Load unpacked` -> select the absolute `extensions/{client_slug}/` folder.
 - Saying only "I created the extension" or "extension folder exists" is incomplete.
@@ -627,43 +629,48 @@ For each daily run:
       - If the bridge is online but `/status.config_file`, `/status.output_dir`, or `/status.run_now_request_file` points outside the current setup's `daily-content-pipeline/collector/` tree, mark `wrong_workspace_bridge`, do not run private collection, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
       - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
       - If the workspace identity check passes and `extension_health.status` is `recent`, continue private collection.
-   11. Prepare the private data source queue if private data sources are available and collector health is acceptable:
+   10. Prepare the private data source queue if private data sources are available and collector health is acceptable:
       - keep the active daily queue around 20 sources or fewer per client by default;
       - prioritize sources most relevant to the client, target audience, target location, pain points, and content pillars;
       - classify extra sources as `weekly` or `optional` and rotate them across future runs;
       - do not run aggressive or parallel private data source scans for the same logged-in account.
-   12. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
-   13. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
-   14. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, or unavailable private data sources.
-   15. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
-   16. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
-   17. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
-   18. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
-   19. Detect direct, adjacent, and audience competitors, including profile URLs, post/current URLs, and positioning notes.
-   20. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from today's data into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`.
+   11. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
+   12. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
+   13. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, or unavailable private data sources.
+   14. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
+   15. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
+   16. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
+   17. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
+   18. Detect direct, adjacent, and audience competitors, including profile URLs, post/current URLs, and positioning notes.
+   19. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from today's data into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`.
       - Every idea must state the target audience pain point, viewer value/lesson, source signal, non-promotional angle, why it helps the audience, and soft business relevance.
       - Rewrite or reject ideas that mainly praise, position, or advertise the client's product/service as `promotional_not_value_first`.
-   21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
-   22. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
-   23. Select the best idea of the day only from ideas that pass the Audience Value-First Gate.
-   24. Write the configured production-ready draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the writing skill fallback if provider/account access is unavailable. Drafts must preserve the viewer-value lesson and must not become direct ads for the client's product/service. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
-   25. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
-   26. Generate the three-file HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   27. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the three HTML files, or record the exact PDF blocker/status.
-   28. Update or copy `outputs/latest/{client-name}-daily-report.html`.
-   29. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   30. Update `history/YYYY-MM/content_log.md`.
-   31. Update `history/YYYY-MM/data_sources_log.md`.
-   32. Update `history/YYYY-MM/lead_log.md`.
-   33. Update `history/YYYY-MM/competitor_log.md`.
+   20. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
+   21. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
+   22. Select the best idea of the day only from ideas that pass the Audience Value-First Gate.
+   23. Write the configured production-ready draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the writing skill fallback if provider/account access is unavailable. Drafts must preserve the viewer-value lesson and must not become direct ads for the client's product/service. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
+   24. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
+   25. Generate the three-file scrubbed staging HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html` (staging index).
+   26. Create or update the operator-only `{client-name}-INTERNAL_REPORT.html` and copy it to `outputs/latest/{client-name}-INTERNAL_REPORT.html`, labeled `INTERNAL_REPORT - Not for client sharing`.
+   27. Run the Client-Blind Scrub Gate on all client-facing files, confirming no Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT` mention remains.
+   28. Create or update `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` with reconciled public/private counts and statuses that match the report set.
+   29. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the three scrubbed staging HTML files, or record the exact PDF blocker/status.
+   30. Refresh `outputs/latest/{client-name}-client-report.html` as the default handoff/notification/latest link, pointing to the combined client-facing report, not a lane-specific or staging report.
+   31. Update or copy `outputs/latest/{client-name}-daily-report.html` as the latest staging index.
+   32. Update or copy the latest public/private lane HTML files when those lane reports exist.
+   33. Update `history/YYYY-MM/content_log.md`.
+   34. Update `history/YYYY-MM/data_sources_log.md`.
+   35. Update `history/YYYY-MM/lead_log.md`.
+   36. Update `history/YYYY-MM/competitor_log.md`.
+   37. Append `history/YYYY-MM/lead_competitor_opportunities.jsonl` with the run's lead/competitor opportunity records.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
 9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, upload the scrubbed client-facing HTML report first when an HTML-capable upload operation such as `uploadAsset` is available, upload the PDF companion too when the verified client provider supports PDF upload, then send a notification to the human/operator that includes the uploaded report URL, PDF companion path/status, INTERNAL_REPORT path/status, run status, clients processed, blockers, lead/competitor counts, and required actions. Treat provider-hosted URLs as operator handoff links, not client-share links.
-9. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
-10. Log the notification attempt in `notifications/notification_log.md`.
+10. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
+11. Log the notification attempt in `notifications/notification_log.md`.
 
 The daily run is complete only when every active client is processed or explicitly logged as skipped.
 
@@ -1426,6 +1433,7 @@ A daily run is complete when:
 22. Client-facing reports are written in the client's report language; operator notifications/internal reports are written in the human/operator language.
 23. The human/operator is notified through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback, with the `{client-name}-client-report.html` path/link plus PDF companion path/status plus `INTERNAL_REPORT` path/status. Public and private notifications are both allowed, but they should point to the same combined report path or uploaded operator-delivery URL. Daily/public/private staging links should be omitted unless requested for diagnostics. The Markdown report path must not be presented as a user-facing report link.
 24. Human approval options are shown.
+25. Stage 10 (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) was loaded IN FULL (LOAD LEDGER printed) before lead/competitor detection, or an explicit skip reason was recorded.
 
 An agency operating cycle is complete when:
 
@@ -1830,6 +1838,29 @@ Before claiming a weekly/monthly performance review or learning loop is complete
 - [ ] Did I store normalized metrics in `analytics/metrics_log.md`?
 - [ ] Did I mark hidden or unavailable metrics as `unavailable` instead of inventing numbers?
 - [ ] Did I use the measurements to update content pillar scoring, hook learnings, CTA learnings, source priority, and future idea selection?
+
+### Evidence-Based Audit Requirements
+
+Scope the self-audit to the reply being sent:
+
+- Before any completion claim or human handoff, run the full Response Self-Audit Checklist (§27) plus the relevant Output And Delivery, Measure-Learning, and stage checklists.
+- For an intermediate progress reply, check the core set: human language; the `**[ACTION REQUIRED]**` contract; no secrets/credentials/API keys leaked; and a progress block plus `Automation freshness check` when schedule/automation exists. Add the items relevant to the action just taken.
+
+For these five mechanical gates, the audit must paste real command output, not a self-declaration:
+
+- Client-blind scrub: run `grep -iE 'Solo Agency|WideCast|Telegram|INTERNAL_REPORT|api_key|OpenAPI|MCP|Local Collector'` over the extracted text of every client-facing HTML/PDF; the printed hit count must be `0`.
+- Report-set existence: `ls` the report-set files for the client/day and paste the listing.
+- report_state consistency: quote the status/count fields from `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json`.
+- LOAD LEDGER line counts: paste the printed ledgers for the stages loaded this run.
+- Notification record: paste the `notifications/notification_log.md` row for this run.
+
+Print the evidence as a compact block, one line per gate, in the form:
+
+```text
+gate | evidence | pass/miss
+```
+
+Honest misses are compliant: a miss with a stated reason is acceptable, but a rubber-stamped pass without pasted evidence is a critical violation.
 
 ### Final Hard Gate
 

@@ -14,7 +14,7 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
 - Scheduled runs must run research, private scans if active, analysis, production-ready draft options, final WideCast video-script skill pass before any video provider request, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification. Before report HTML/PDF work, scheduled runs must load `playbooks/skills/report-design/SKILL.md` and use `tools/solo_report_renderer.py` by default instead of writing ad hoc report/PDF scripts. Before any video provider request, scheduled runs must load and apply the existing WideCast video script-writing skill, treat report scripts as reference only, and if a report version/code is already selected or recommended, produce only that one final production script/brief with research and inline-media/direct-image/video-URL workflow. Generate a new five-version set only when no report version has been selected or recommended yet. Use only the skill-produced final artifact as the provider payload. If video provider setup is missing or blocked, scheduled runs must still save the final WideCast-grade script/storyboard/production-brief output and ask for PDNA setup; they must not create local video media with `ffmpeg`, Pillow, `moviepy`, Remotion, browser/canvas screenshots, slideshow export, or similar tools.
 - Scheduled runs must load Stage 10 and produce Lead & Competitor Opportunities, or explicitly mark them as not found, not scanned, pending activation, or unavailable.
-- Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, mark measurement as `no published URLs yet` instead of pretending it ran.
+- Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, record `measurement_status: no_published_urls_yet` instead of pretending it ran.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
 - Every scheduled-run human-facing reply, notification, or report handoff must include an updated progress block. If the agent sends multiple progress updates during the scheduled run, each update must show the current completed/current/remaining state.
 - If private collection is blocked, continue public data sources and notify the human. Do not fall back to Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser for private data sources.
@@ -37,11 +37,11 @@ Rules:
 - The task may use the shared Local Collector app/bridge, but private data source jobs must be routed by `client_slug` and bound to the claiming `extension_instance_id` when present.
 - If the AI automation environment cannot call `127.0.0.1`, it must use file-based job requests under `daily-content-pipeline/collector/jobs/pending/` and read bridge/extension health from local files.
 - With one shared Local Collector app/bridge, private data source collection is parallel across different client Chrome profiles/extensions. Multiple scheduled agents may enqueue jobs at the same time; the bridge should expose a separate active collector job per `client_slug`, bind it to the claiming extension instance, route each run to its own output folder, and serialize only jobs for the same client/profile after `/complete` or TTL expiry.
-- The task prompt must require one canonical combined client-facing report per client/day/run, built from three staging lane files:
+- The task prompt must require one canonical combined client-facing report per client/day/run: `{client-name}-client-report.html`, built from the three scrubbed staging lane files:
   - `{client-name}-public-data-sources-report.html`
   - `{client-name}-private-data-sources-report.html`
   - `{client-name}-daily-report.html`
-  - `{client-name}-client-report.html`
+  The combined `{client-name}-client-report.html` is the output built from those three staging files and is the default handoff link; the staging files are not the handoff.
 - If private data sources run after public data sources, the task must create/update only the private report and daily report, then rebuild the combined client report. It must not overwrite, regenerate, or summarize away the public report.
 - A setup/config session may instruct the human to run `AvenNgo - Solo Agency First Run`, but it must not generate the report inside the setup chat.
 - A setup/config session must not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` as a workaround for a human report request. The scheduled entrypoint belongs in the native automation task or a separate Automation Flow run, not inside Setup Flow.
@@ -66,15 +66,19 @@ At the start of every scheduled run, the agent must load or re-load the relevant
 1. Always load Stage 0: `00_CORE_CONTEXT_REQUIREMENTS.md`.
 2. Always load Stage 7: `07_STORAGE_SCHEMA_AND_HISTORY.md` to read profiles, logs, ledgers, and history.
 3. Always load Stage 4: `04_DAILY_SCHEDULE.md` for the scheduled daily-run contract.
-4. Load Stage 1 only if a profile is missing, incomplete, stale, or needs setup repair. Do not ask setup questions when the saved profile is complete.
+4. Load Stage 1 only if a profile is missing, incomplete, stale, or needs setup repair, or this is the first Automation Flow agency run/report for the client (Stage 1 holds the first-report contract). Do not ask setup questions when the saved profile is complete.
 5. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private data sources are active, pending, blocked, or being scanned.
 6. Load Stage 3 when drafts, production, publishing, provider setup, or notification provider actions are needed.
 7. Before any video provider creation request, load `playbooks/skills/video-script-writing/SKILL.md` and its required modules through the verified client provider when available or repo-local/static fallback when PDNA is missing. If a report version/code is already selected or recommended, apply that existing skill only to that selected version/code and continue into Stage 2 visual treatment/final handoff. Generate five options only when no version is selected or recommended. Do not edit/reimplement the skill and do not send report drafts unchanged.
-8. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
-9. Load Stage 6 and then `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or packaging the human-facing HTML/PDF report.
-10. Load Stage 10 whenever lead/competitor opportunities, comments, opportunity logs, or competitor monitoring are part of the run. This is normally every first run and every scheduled daily run.
-11. Load Stage 11 when the task is `Solo Agency - GitHub Update Watch`, when an update/upgrade/sync-latest request is being handled, or when blocker recovery checks GitHub for a newer Solo Agency version.
-12. Load Stage 9 before claiming the scheduled run is complete.
+8. Load Stage 3A: `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after any vendored writing/provider skill when provider or video actions are relevant to the run.
+9. Load Stage 3B: `playbooks/skills/video-editing/SKILL.md` after provider video creation returns reviewable scenes or when editing a provider video.
+10. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
+11. Load Stage 6 and then `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or packaging the human-facing HTML/PDF report.
+12. Load Stage 10 whenever lead/competitor opportunities, comments, opportunity logs, or competitor monitoring are part of the run. This is normally every first run and every scheduled daily run.
+13. Load Stage 11 when the task is `Solo Agency - GitHub Update Watch`, when an update/upgrade/sync-latest request is being handled, or when blocker recovery checks GitHub for a newer Solo Agency version.
+14. Load Stage 9 before claiming the scheduled run is complete.
+
+Every load in this contract requires a LOAD LEDGER entry per `playbooks/LOAD_LEDGER_PROTOCOL.md`, checked against `playbooks/LOAD_MANIFEST.md`.
 
 The difference between first setup and scheduled runs:
 
@@ -185,7 +189,7 @@ This is invalid because it hides the possibility that the scheduled prompt/task 
 
 ---
 
-## 20. Scheduling Rule
+## Scheduling Rule
 
 The agent must use the best scheduling mechanism available in the current environment.
 
@@ -247,13 +251,23 @@ Run the daily content pipeline for every active client in clients_index.md. Prod
 
 ---
 
-## 15. Daily Run Algorithm
+## Run Locking And Notification Dedup
+
+Scheduled runs can overlap (yesterday's run still finishing, a manual re-run, or a master/all-clients task and a client-specific task both touching one client). Protect against duplicate work and duplicate notifications:
+
+- Before starting a client's daily run, create or check `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-run_lock.json` (`started_at`, task name, session hint). If a fresh lock exists (younger than about 3 hours), do not start a duplicate run for that client — log it and stop. A stale lock (older than the window, or from a run that clearly died) may be taken over, with a note in the run record. Remove or close the lock on completion.
+- Master/all-clients digest tasks only READ client reports; they never rebuild `{client-name}-client-report.html` or the `outputs/latest/` client files. Only the client's own run rebuilds them.
+- Before sending any `public_report_ready` or `private_report_ready` notification, read `notifications/notification_log.md` and `{client-name}-report_state.json` for the same client/day. If an equivalent notification was already sent, do not re-send. A resumed run records `resumed_from` in the report state so retries stay idempotent.
+
+---
+
+## Daily Run Algorithm
 
 For each daily run:
 
 1. Load `clients_index.md`.
-2. Identify all clients with `active` status.
-3. For each active client:
+2. Identify all clients with `active` status. If the run has a pinned `target_client_slug`, restrict the loop to that client only; a client-named task must not process other clients.
+3. For each active client, processed in `clients_index.md` order unless `schedule.md` defines a different priority:
    1. Load the client's Client Intelligence Profile file.
    2. Validate required fields.
    3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
@@ -280,7 +294,7 @@ For each daily run:
    7. Before deciding whether to skip private data sources, perform Collector Runtime Verification whenever any of these are true:
       - private data sources are active, pending, requested, approved, present in the Client Intelligence Profile, or listed in any source approval/history file;
       - schedule/config says `public_data_sources_only`, `private sources postponed`, or `pending_private_activation`, but the workspace contains Local Collector files;
-      - `daily-content-pipeline/collector/inbox/bridge_health.json`, `daily-content-pipeline/collector/inbox/collector_status.json`, `daily-content-pipeline/collector/collector_setup_status.md`, or recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json` exists.
+      - `daily-content-pipeline/collector/inbox/bridge_health.json`, `daily-content-pipeline/collector/inbox/collector_status.json`, `daily-content-pipeline/collector/collector_setup_status.md`, or recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/*/collector_status.json` exists.
       Do not treat saved labels such as `pending_private_activation` or `public_data_sources_only` as final without this runtime check; those labels may be stale after a human later installed, repaired, or reconnected the Local Collector.
    8. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before any Collector Runtime Verification involving private data sources. Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser as a fallback.
    9. Try to check private collector health through `GET http://127.0.0.1:17321/status`.
@@ -292,7 +306,7 @@ For each daily run:
       - Read `daily-content-pipeline/collector/inbox/bridge_health.json` when present.
       - Read `daily-content-pipeline/collector/inbox/collector_status.json` when present.
       - Read `daily-content-pipeline/collector/collector_setup_status.md` when present.
-      - Inspect recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json` files.
+      - Inspect recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/*/collector_status.json` files.
       - Inspect recent consumed run-now status files such as `run_now_request_status.json`, `run_now_request.consumed.json`, or timestamped `run_now_request*.consumed.json` files when present.
       - If those local status files show a recent current-workspace bridge and recent extension check, use the Stage 8 file-based run-now queue by writing one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/` and waiting for collector output. Do not ask the human to restart the Local Collector just because the API was unreachable from the AI sandbox.
       - If the files are missing, stale, point to another workspace, or do not prove a recent extension check, mark the precise blocker: `collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, or `extension_status_unknown`.
@@ -320,11 +334,13 @@ For each daily run:
    26. Write the configured production-ready draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
    27. Before any video provider creation request, load Stage 3 and the existing WideCast video script-writing skill again, treat the report/draft script as reference only, and create the final WideCast-grade script/brief with research plus inline-media/direct-image/video-URL workflow where verifiable. If the report already has a selected/recommended version/code, process only that one selected version; do not create a second five-version set. Do not edit or reimplement the skill.
    28. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, create the approved video/blog/social asset according to provider approval gates. For video, use only the skill-produced final script/brief from the prior step as the provider payload. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`; for video, do not create local video media as a fallback.
+   28b. Load Stage 5 (`playbooks/05_MEASURE_LEARN_IMPROVE.md`) and run published-URL measurement when published URLs exist for this client; otherwise record `measurement_status: no_published_urls_yet`.
    29. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
    30. Generate the three scrubbed staging HTML report files under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
    31. Generate or update the operator-only `{client-name}-INTERNAL_REPORT.html`, clearly labeled `INTERNAL_REPORT - Not for client sharing`, and put Solo Agency/WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/automation/blocker/debug details there.
    32. Run the Client-Blind Scrub Gate on the staging HTML files and the final package. They must not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
    33. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, `outputs/latest/{client-name}-client-report.html`, and `outputs/latest/{client-name}-client-report.pdf` from the scrubbed three staging HTML files, or record the exact PDF blocker/status. The combined HTML is the only default report link to send/upload; it must not require the reader to open separate daily/public/private files.
+   33b. Write or update `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` and reconcile it with the three staging HTML files, the combined client report, the PDF companion, and the INTERNAL_REPORT (counts, per-lane statuses, timestamps). No artifact may say `scan in progress`/`partial` while another says `complete`.
    34. Update or copy `outputs/latest/{client-name}-daily-report.html` only as a staging/diagnostic convenience, not as the primary report handoff.
    35. Update or copy `outputs/latest/{client-name}-INTERNAL_REPORT.html`.
    36. Update or copy the latest public/private lane HTML files when those lane reports exist.
@@ -412,6 +428,7 @@ Exact schedule contract:
 }
 ```
 
+- Timezone definition: `"timezone": "local"` means the human machine's local timezone as recorded in `daily-content-pipeline/schedule.md`. All dates, `YYYY-MM-DD` folder keys, "yesterday", and 7-day measurement windows use that timezone. The AI scheduled-task environment may be a cloud/sandbox running at UTC; before computing any date key or window, the scheduled run must read the recorded timezone from `schedule.md` so a run does not split one logical day across two date folders or mis-window measurement.
 - For multiple scheduled runs per day, add multiple enabled items to `scheduled_windows`, for example `morning`, `midday`, and `afternoon`.
 - For manual-only mode, set all `scheduled_windows[].enabled` values to `false` and rely only on `/jobs/run_now`.
 - If the human has not activated private data source monitoring yet, configure the recurring schedule as public data sources only and clearly mark private data sources as `pending_private_activation`.
@@ -567,7 +584,7 @@ Health check sequence:
      - `daily-content-pipeline/collector/inbox/bridge_health.json`,
      - `daily-content-pipeline/collector/inbox/collector_status.json`,
      - `daily-content-pipeline/collector/collector_setup_status.md`,
-     - recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json`,
+     - recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/*/collector_status.json`,
      - recent `run_now_request_status.json` or `run_now_request*.consumed.json` files.
    - if those files show a recent current-workspace bridge and recent extension check, use the file-based run-now queue from Stage 8 rather than asking the human to restart the collector;
    - if the files are missing, stale, or point to another workspace, record the exact blocker such as `collector_status_unverified`, `collector_offline_or_unreachable`, or `wrong_workspace_bridge`;

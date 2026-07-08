@@ -2,6 +2,8 @@
 
 _Version: `modular-1.1` · module of the AI Video Editor Playbook (`SKILL.md`)._
 
+> **⚠ RETIRED (2026 lean model).** Endpoint/poster authoring — opening-poster scene 2, thumbnail-sync, closing-CTA design — is no longer an agent gate. WideCast produces the overlays (including the poster/cover/CTA), and scene 2 / the thumbnail / the final CTA are now routed exactly like any other scene: Gate 1 text, Gate 3 background fit (if it applies), Gate 4 image-gen typo (if it applies). Do NOT load this module, do NOT print an ENDPOINT DESIGN VARIANT PROOF, and do NOT run a thumbnail-sync gate. The content below is kept only for reference/history.
+
 > **Module of the AI Video Editor Playbook.** Master index + checklist + critical rules live in `SKILL.md`. **Load this when:** you are handling the first real scene after the thumbnail (usually scene 2 / the opening poster scene), its immediate static thumbnail sync, OR the last content/CTA scene.
 > Cross-refs: screenshot truth + geometry → `10_mechanics.md`; background plate evidence → `20_background.md`; SVG overlay rules → `30_overlay_core.md`; endpoint visual grammar → `styles/design_languages.md`; poster typography → `31_typography.md` + `styles/text_axes.md`.
 
@@ -32,7 +34,7 @@ Do **not** judge these endpoint scenes by the normal scene-overlay standard alon
 Example for an insurance deductible video:
 
 - Better thumbnail hook: `SAI DEDUCTIBLE?` / `MẤT NGHÌN ĐÔ`
-- Optional tiny subline: `MỖI NĂM`
+- Optional LARGE subline (≥48px, same size as any other support text): `MỖI NĂM`
 - Worse: `CHỌN SAI DEDUCTIBLE MẤT HÀNG NGHÌN ĐÔ/NĂM` as four small muddy lines.
 
 ### Endpoint visual style ladder
@@ -51,7 +53,7 @@ Pick **one** of these for scene 2, the synced thumbnail, and the final CTA. The 
 4. **Typographic collage:** one giant keyword plus 1-2 smaller supporting words, arranged asymmetrically but still readable in one glance.
 5. **Object-integrated title:** title wraps around or frames the narrator face, product, vehicle, document, or key prop without covering the important part.
 6. **Premium CTA poster:** giant action verb (`SAVE`, `COMMENT`, `DM`, `BOOK`) plus one support line, with a vertical side bar, editorial rule, seal, or bracket. Use this often for the final scene.
-7. **Minimal premium cover:** one huge word/number plus one tiny contextual label, lots of negative space, one elegant accent. Minimal is allowed; generic is not.
+7. **Minimal premium cover:** one huge word/number plus one LARGE (≥48px) secondary label — a real second reading level, never a tiny caption — lots of negative space, one elegant accent. Minimal is allowed; generic is not.
 
 Do **not** use the normal inside-scene recipe here: a neat rounded card with horizontal title + subtitle, a row of chips, a balanced info panel, or text centered in a box. Those are acceptable for interior explainer scenes, but endpoint scenes need poster energy.
 

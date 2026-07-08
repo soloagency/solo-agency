@@ -115,7 +115,7 @@ Required setup sequence, aligned to the visible 9-item roadmap. Do not introduce
 4. Select public data sources and build the keyword bank. Show only a compact `Pain-Point Keyword Sample`, not a generic industry keyword dump. Then show the complete setup summary, ask the human to correct only what is wrong, and save the Client Intelligence Profile after that correction chance.
 5. Configure the schedule/routine before the first agency run, using the best scheduling mechanism available in the environment, and create or verify the client-specific automation task. Configure the initial task as public data sources only unless active private data sources are already verified healthy.
    - The setup handoff must include the client-specific automation task name; task status; whether the task currently runs public data sources only or public plus activated private data sources; a visible `Solo Agency one-time setup process` progress roadmap; and the exact next action.
-6. Ask and resolve private data sources once, after the automation task exists. Explain plainly that private data sources mean logged-in/social/community places the human may want monitored later, such as competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities/subreddits, niche forums, and Facebook groups. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private data sources are requested, already provided, or discovery/Local Collector is relevant.
+6. Ask and resolve private data sources once, after the automation task exists. Explain plainly that private data sources mean logged-in/social/community places the human may want monitored later, such as competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities/subreddits, niche forums, and Facebook groups. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private data sources are requested, already provided, or discovery/Local Collector is relevant (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded).
    - If the human already provided private data sources in an earlier message, record them as `pending_private_review` and process them in this step only.
    - Ask for actual private data source URLs/lists or offer one optional private data source discovery pass from approved joined/followed/member spaces or Facebook keyword group search.
    - Get human approval before adding any discovered source; then guide Local Collector setup or record the exact pending blocker.
@@ -126,7 +126,7 @@ Required setup sequence, aligned to the visible 9-item roadmap. Do not introduce
    - If the human approves Facebook keyword group search discovery, infer client-relevant keywords, scan `https://www.facebook.com/search/groups/?q={url_encoded_keyword}` through the Solo Agency Local Collector, scroll 10 times per keyword, filter out UI noise/non-group results, and ask for approval before adding any recommended group.
    - If the human approves other platform discovery categories, use the private data source discovery platform starting URL registry and mark each approved category as `pending_private_activation` until the Local Collector is active and healthy.
    - After source intake or discovery, infer and show which private data sources are likely useful, which should be skipped or treated as optional, how they map to content pillars, and whether each source should be `daily`, `weekly`, or `optional` based on relevance and safe monitoring volume.
-7. If the human asks for production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 and complete the PDNA provider/capability setup gate only. Do not end the setup handoff with `Do you want me to make a video now?`, start scene editing/rendering, or create/publish assets from Setup Flow.
+7. If the human asks for production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded) and complete the PDNA provider/capability setup gate only. Do not end the setup handoff with `Do you want me to make a video now?`, start scene editing/rendering, or create/publish assets from Setup Flow.
 8. Record analytics as an Automation Flow concern. In Setup Flow, only save whether published URL history exists and whether future scheduled runs should load Stage 5.
 9. Record that reports, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, and PDNA production actions belong to Automation Flow. After any private scan or approved source-discovery scan in Automation Flow, analyze the collected private data and update the report there.
 
@@ -150,8 +150,10 @@ What I inferred from your last answer:
   - Lead-gen angle: why early legal guidance preserves options
 
 Next question:
-Do you want to provide competitor pages, Facebook groups, subreddits, or other private data sources to monitor for this client? Private data sources are logged-in/social/community places such as profiles, groups, pages, channels, forums, or communities that may require your account. You need to already be a member, follower, subscriber, logged in, or otherwise authorized to view those places in the Chrome profile where this client's Solo Agency Local Collector extension is installed. I recommend one separate Chrome profile per client, with that client's extension loaded and the relevant social accounts logged in there. If you do not know which sources to add yet, I can offer a one-time discovery pass from groups/subreddits/communities/pages/profiles/channels/feeds you approve, then I will filter candidates and ask you before monitoring anything. I will only activate private data source collection with your permission, using the Local Collector local app/extension so approved visible data stays on your computer by default. For account safety and platform-respectful monitoring, around 20 or fewer private data sources per client is a good daily default; if there are more, I will prioritize and rotate them.
+Did I read the pain points right? Please correct anything that is wrong in the list above, and confirm the target location: should I focus on Los Angeles only, or also cover nearby counties where your clients get stopped or go to court? The answer changes which local sources and keywords I select next.
 ```
+
+Note: private data sources are asked only at setup step 6, after the schedule/routine and the client-specific automation task exist; do not ask about them in this follow-up.
 
 ---
 
@@ -281,8 +283,7 @@ In First Client Setup Mode, ask only for the minimum information required to cre
 - Client name, if not already known.
 - Product/service, profession, expertise, business description, or public website/profile URL.
 - Target location only if location matters and cannot be inferred.
-- Optional private data sources to monitor.
-- Optional permission for private data source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
+- If the human volunteers private data sources early, record them as `pending_private_review` and resolve them only at setup step 6 (do not ask for them here).
 
 Do not create fake client pipelines. If the client name or enough business context is missing, ask for the missing information and keep the root pipeline ready. A public website/profile URL counts as business context if it is publicly accessible and gives enough information to infer the setup.
 
@@ -301,8 +302,7 @@ In Add Client Mode, ask only for missing critical information:
 - Client name.
 - Product/service, profession, expertise, business description, or public website/profile URL.
 - Target location only if location matters and cannot be inferred.
-- Optional private data sources to monitor.
-- Optional permission for private data source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs/channels, subscriptions, and platform recommendation feeds.
+- If the human volunteers private data sources early, record them as `pending_private_review` and resolve them only at setup step 6 (do not ask for them here).
 
 The agent must infer:
 
@@ -399,7 +399,7 @@ Do you want me to set up PDNA - Production (create real video/blog/social assets
 
 The automation agent must ask this question directly in the chat message or notification where it announces the first report result. It must not hide the question or setup steps inside a Markdown file.
 
-The same chat message must show the updated `Solo Agency automation process` progress roadmap or a compact progress summary. It must show that first report generation is complete and that production/provider setup, private data source activation, published-URL analytics status, and report/recommendation update status are still pending, completed, declined, blocked, or not applicable.
+The same chat message must show the updated `Solo Agency automation process` progress roadmap or a compact progress summary. It must show that first report generation is complete and that production/provider setup, private data source activation, published-URL analytics status, and report/recommendation update status are still pending, completed, declined, blocked, or not applicable. After any schedule/routine or client-specific automation task exists, every human-facing progress block must include the `Automation freshness check` line required by the root playbook.
 
 If PDNA setup - Production, Distribution, Notification, and Analytics - is already completed, declined, or blocked and private data source activation is pending, the final line must be:
 
@@ -442,6 +442,8 @@ This is the planned automation process for this client. You only need to reply w
 → 7. I help set up PDNA: Production, Distribution, Notification, and Analytics
 – 8. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
 ✓ 9. I created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft in Automation Flow
+
+Automation freshness check: ✓ Have the latest approved changes been synced into the automation/scheduled task prompt, contract, playbooks, source approvals, and state? If tomorrow's scheduled run starts, will it load the newest state: current.
 
 The operator-only `INTERNAL_REPORT` includes the PDNA/WideCast status and setup note. The client-facing report stays clean and does not mention Solo Agency, WideCast, provider tooling, Local Collector, automation, API keys, Telegram, or internal system details.
 
@@ -735,6 +737,7 @@ For each daily run:
    15. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
    16. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
    17. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
+   17b. Load `playbooks/10_LEAD_COMPETITOR_DETECTION.md` (Stage 10, print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md`) before detecting, scoring, or reporting any leads or competitors.
    18. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
    19. Detect direct, adjacent, and audience competitors, including profile URLs, post/current URLs, and positioning notes.
    20. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from today's data into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`.
@@ -745,10 +748,12 @@ For each daily run:
    23. Select the best idea of the day only from ideas that pass the Audience Value-First Gate.
    24. Write the configured production-ready draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the account-free writing skill fallback when provider/account access is unavailable. Drafts must preserve the same viewer-value lesson and must not become direct ads for the client's product/service. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
    25. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
-   26. Generate the three-file client-facing HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
+   25b. Before writing any client-facing report HTML, load `playbooks/06_AGENCY_REPORT_STANDARD.md` (Stage 6) and then `playbooks/skills/report-design/SKILL.md` (LOAD LEDGER for each). Render/package with `tools/solo_report_renderer.py` (`render` for staging HTML, `package` for the combined client report + PDF) rather than hand-writing one-off HTML/PDF scripts.
+   26. Generate the three-file scrubbed staging HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/` with `tools/solo_report_renderer.py render`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
    27. Generate or update the operator-only `{client-name}-INTERNAL_REPORT.html`, clearly labeled `INTERNAL_REPORT - Not for client sharing`, and put Solo Agency/WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/automation/blocker/debug details there.
    28. Run the Client-Blind Scrub Gate on the client-facing HTML files. They must not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
-   29. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the scrubbed three HTML files, or record the exact PDF blocker/status.
+   29. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the scrubbed three HTML files with `tools/solo_report_renderer.py package`, or record the exact PDF blocker/status.
+   29b. Write or update `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` and reconcile it with the staging HTML files, combined client report, PDF companion, and INTERNAL_REPORT (counts, per-lane statuses, timestamps).
    30. Update or copy `outputs/latest/{client-name}-daily-report.html`.
    31. Update or copy `outputs/latest/{client-name}-INTERNAL_REPORT.html`.
    32. Update or copy the latest public/private lane HTML files when those lane reports exist.
@@ -762,8 +767,8 @@ For each daily run:
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
 9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, send a notification to the human/operator that includes run status, client-facing HTML report path/link, PDF companion path/status, INTERNAL_REPORT path/status, clients processed, blockers, lead/competitor counts, and required actions.
-9. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
-10. Log the notification attempt in `notifications/notification_log.md`.
+10. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
+11. Log the notification attempt in `notifications/notification_log.md`.
 
 The daily run is complete only when every active client is processed or explicitly logged as skipped.
 

@@ -1,16 +1,23 @@
-# Per-Scene Definition of Done — 9 gates + all template blocks
+# Per-Scene Definition of Done — 5 gates + template blocks
 
-Load this module at the **START of every scene**. Every scene must pass through 9 gates before you may state `Scene N: PASS` and move to the next scene.
+Load this module at the **START of every scene**. Every scene must pass 5 gates before you may state `Scene N: PASS` and move on.
 
-The 9 gates are pass/fail; the actual work-recipes live in the topic modules (`10_mechanics`, `20_background`, `30_overlay_core`, `31_typography`, `32_charts`, `33_patterns`, `40_thumbnail_cta`). This module is the **checklist** + the **exact template blocks** that prove a gate ran.
+**What changed and why (read once):** WideCast now mechanically guarantees the things a blind server CAN compute — no overlay object enters a dead zone, no object covers the narrator face, every object stays inside the safe zone even after auto-fit, and whether a scene needs an overlay at all. **The agent must NOT re-verify any of those** (dead-zone proof, face-clearance, overlay-existence, A-roll layout ladder, final-composition tuning are all removed — trust the server). The agent's job is ONLY the two things WideCast is blind to:
+
+1. **Background semantic/logic/geo/context fit** — does the background clip actually suit what is being said, and match the target country/market. (Look: the background plate.)
+2. **Typos in image-model-generated text** — illustration/chart/diagram/object overlays whose text was baked by an image model (e.g. nano-banana) can misspell. **SVG typography overlays never misspell** (deterministic text render) — skip them entirely. (Look: the overlay poster.)
+
+Plus the always-cheap data checks: `text`/STT context correctness, and confirming an edit saved.
+
+**Image looks are now at most 3 per scene, often 0–1:** the background plate (Gate 3, only when it applies), the overlay poster (Gate 4, only image-gen-text scenes), and an AFTER screenshot (Gate 5, only if you actually edited). There is **no BEFORE screenshot** and **no per-scene final-composition look** — the server guarantees placement; you look only to judge the two blind spots and to confirm a fix.
 
 ---
 
-## LOAD LEDGER — mandatory proof-of-read before any write
+## LOAD LEDGER — proof-of-read before any write
 
-The guard against skipping a module that errored with "output too large" is **its line count**: `LOAD_MANIFEST.md` (shipped in the skill zip, auto-generated at build) publishes the expected line count per module. After loading a module, compare your actual `lines` to its manifest row — a shortfall means the read was truncated = NOT loaded, so re-read to EOF before writing. That one number is the required check. `last_line` + `sha256` also ride in the manifest but are OPTIONAL deeper checks (staleness/integrity), not something to quote every load — extra ceremony makes agents drop real work. If no manifest is present, quote the module's last line instead (you can only quote it after reading to EOF).
+`LOAD_MANIFEST.md` publishes the expected line count per module. After loading a module, compare your actual `lines` to its manifest row — a shortfall means truncated = NOT loaded; re-read to EOF before writing. That one number is the required check.
 
-**KICKOFF LOAD LEDGER — print BEFORE the first `modify_scene`/`upload_asset` of the run.** For each kickoff module report its line count and match it to `LOAD_MANIFEST.md`:
+**KICKOFF LOAD LEDGER — print BEFORE the first `modify_scene` of the run:**
 
 ```text
 KICKOFF LOAD LEDGER:
@@ -22,443 +29,181 @@ KICKOFF LOAD LEDGER:
 ☑ 05_quality_qa_priority lines=<N>  manifest=<M | absent>
 ☑ 10_mechanics           lines=<N>  manifest=<M | absent>
 Verdict: <PASS — every lines==manifest | BLOCKED — re-read <module> to EOF first>
-(no manifest? quote each module's last line instead to prove EOF)
 ```
 
-**SCENE LOAD LEDGER — print at the START of each scene** for the modules that scene type needs per the LOAD MAP (background→`20_background`; overlay-with-text→`30_overlay_core`+`31_typography`+`styles/text_axes`; chart→`32_charts`; endpoint→`40_thumbnail_cta`+`styles/design_languages`). Same `lines=` + `manifest=` per line.
+**SCENE LOAD LEDGER — print at the START of each scene** for the modules that scene needs: `20_background` when Gate 3 applies (non-grid, narrator not covering the frame); `30_overlay_core`/`31_typography`/`32_charts`/`33_patterns` only when you must fix an overlay defect. Same `lines=` + `manifest=` per line.
 
-**Rule:** a module whose `lines` falls short of its manifest row came back truncated = NOT loaded → BLOCKED from writing. "I read the preview" is not proof. A `modify_scene`/`upload_asset` with no valid LOAD LEDGER above it in the same transcript is an invalid edit; revert/redo.
+**Rule:** a module short of its manifest row = truncated = NOT loaded → BLOCKED from writing. **Context compaction voids ledgers:** if the conversation was compacted since a ledger was printed, re-load and reprint (Critical Rule 13c). **Delegation mode:** the coordinator prints the slimmer COORDINATOR LOAD LEDGER from `06_subagent_protocol`.
 
 ---
 
 ## Batch / gallery / script outputs are triage only
 
-Batch contact sheets, galleries, tables, scripts, bulk API results, multi-scene scans, or any "all scenes at once" artifact are useful only to **triage** likely problems. They are never DoD proof and never authorize `Scene N: PASS`.
+Batch contact sheets, galleries, tables, bulk API results, or any "all scenes at once" artifact are **triage only** — never DoD proof, never authorize `Scene N: PASS`. If the run used only batch triage or fixed a selected subset without closing every content scene, the status is `partial_triage_only` (or `partial_fix_only`). Do not ask for render/export, call `export_video`, or send completion notification while any content scene lacks its own `Scene N: PASS`.
 
-If the run used only batch triage, or fixed only a selected subset without closing every content scene, the required status is `partial_triage_only` (or `partial_fix_only` when edits were made but not all scenes have individual PASS). Do not ask for render/export, do not call `export_video`, and do not send completion notification while any content scene lacks its own `Scene N: PASS`.
+---
 
-`Scene N: PASS` requires that exact scene's own 9-gate evidence: BEFORE shown, Gate 4/5/6 completed as applicable, AFTER/final shown, server-saved confirmation, required module coverage, and §7 quality scan. A batch table saying a scene "looks OK" is not PASS.
+## DoD — the 5 gates
 
-### Per-scene Proof-of-Work Receipt — required before any `Scene N: PASS`
+Do NOT advance while any applicable gate is unchecked.
 
-Do NOT emit `Scene N: PASS` unless, in the SAME scene block, these literal artifacts appear in order, each with the local file path shown to the user:
+1. ☐ **Text / STT** — read `text` in whole-video context; fix STT/context/domain errors with `modify_scene` branch (K) (Step 1 below). WideCast cannot judge context — this is yours.
+2. ☐ **Role / route** — read `type` · `pattern`/`sub_mode` · `visual` · `keyword` · `quote` · `talking_point` · `show_narrator`/`active_roll` · `mediaType`. This decides which of Gate 3 / Gate 4 actually run (Step 2 below). No image look here — data only.
+3. ☐ **Background audit** — *applies ONLY when the scene is NOT a grid background AND the narrator does not cover most of the frame* (both read from data: `mediaType`/grid flag + `show_narrator`/narrator rect). When it applies: load `20_background`, pull the active background **plate** (`thumbnailUrl` first; fallback per `active_roll`/`mediaType`), show it locally, and print the **Gate 3 BACKGROUND PROOF**. When it does not apply (grid, or A-roll narrator fills the frame), mark `N/A — <grid | narrator fills frame>` and take no look.
+4. ☐ **Overlay text typo** — *applies ONLY when the overlay text was baked by an image model*: `pattern="illustration"` with `sub_mode` ≠ `photo_with_people`, or a chart/diagram/object pattern **containing image-generated text**. When it applies: pull the **overlay poster**, show it locally, and print the **Gate 4 OVERLAY TEXT TYPO CHECK** (per-string transcription table). **Skip entirely** for `typography_only` / SVG-text overlays (deterministic render never misspells), for scenes with no overlay text, and for photo overlays with no baked message text — mark `N/A — <reason>`.
+5. ☐ **Confirm & save** — if you made ANY edit: pull one **AFTER screenshot**, show it locally, confirm the fix reads as intended, then re-pull `video_data`/`scene_geometry` to confirm it persisted. If you made **no** edit, this gate is `N/A — no edit` (no look needed). Then print the **MODULE COVERAGE GATE**.
 
-```text
-Scene N plan            (vertical 9 gates)
-→ Gate 3 BEFORE: <local path>    (screenshot of THIS scene, taken WHEN scene N starts — NOT a batch shot pulled at run start)
-→ Gate 4 SCENE LOAD LEDGER + OVERLAY EXISTENCE/PRESERVE PROOF (+ A-ROLL/ENDPOINT/TITLE/SECONDARY when applicable)
-→ Gate 5 BACKGROUND PROOF (two local images: composite + active plate)
-→ Gate 6 DEAD-ZONE PROOF (scene_geometry after the latest layout)
-→ Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK (from overlay_poster) if any text
-→ Gate 8: re-pull video_data/scene_geometry — saved
-→ Gate 9 MODULE COVERAGE GATE
-Scene N: PASS — ✓1…✓9
-```
-
-**Anti-front-loading:** a batch of screenshots pulled at run start is triage only and does NOT satisfy Gate 3 or Gate 7 for any scene. Gate 3 for scene N must be a screenshot taken at the moment you START scene N. With only a batch/triage artifact, the run status is `partial_triage_only`: no PASS, no export.
-
-## DoD — finish EVERY gate below before moving to the next scene
-
-Do NOT advance while any gate is unchecked. Overlay review, background audit, screenshot-show, and final composition/dead-zone are the most-often-skipped checks — they are explicit gates here on purpose.
-
-1. ☐ **Text / STT** checked in whole-video context, fixed if wrong (Step 1, `modify_scene` branch K).
-2. ☐ **Role** understood — `type` · `pattern`/`sub_mode` · `visual` · `quote` · `talking_point` (Step 2).
-3. ☐ **BEFORE screenshot** pulled with MCP `screenshot_scene_280x498` → `result.screenshot.url` **downloaded locally with `curl` + SHOWN visibly to the user** → **only then evaluated** (`ai_video_editor/10_mechanics`). *Every screenshot you pull is shown, never just consumed silently. Remote URLs, base64, binary `ImageContent`, sidecar JSON, and request ids do not count.*
-4. ☐ **Load `ai_video_editor/30_overlay_core` FIRST, then handle the overlay.** Gate 4 starts with **overlay existence/preservation**, not drawing. Read `pattern`/`sub_mode`/`visual`/`quote`/`talking_point`/`remotion_spec` and the local-shown BEFORE screenshot, then print the Gate 4 OVERLAY EXISTENCE + PRESERVE PROOF below. For normal content scenes, if `pattern="narration_only"`, `visual` is empty, `remotion_spec=="none"`, no overlay is visible, or the scene is intentionally carried by narrator/background/caption, mark overlay audit **N/A** and do not add an overlay/title. **Endpoint exception:** scene 2/opening poster, the thumbnail sync, and final content/CTA are not normal scenes; they still load `ai_video_editor/40_thumbnail_cta` and decide whether poster/CTA overlay is required even when current overlay is missing or `remotion_spec=="none"`. If an existing map, realistic image, chart, diagram, or illustration is good enough and on-topic, preserve it; repair only serious defects. Background failure, failed search, geo mismatch, or grid fallback is **not** an overlay defect. Full replacement is forbidden unless the proof shows layout-only/additive/text-preserve/extract-reuse repairs are insufficient and the new overlay is strictly better than BEFORE. If this is an endpoint scene (scene 2/opening poster, thumbnail sync, or final content/CTA), also load `ai_video_editor/40_thumbnail_cta`, load `ai_video_editor/styles/design_languages`, and print `Gate 4 ENDPOINT DESIGN VARIANT PROOF` before approving, authoring, uploading, or applying the endpoint overlay. If this is A-roll (`show_narrator=true` / `active_roll="A"`), also load `ai_video_editor/10_mechanics` and run the A-roll layout priority ladder **inside Gate 4**, before deciding to leave, rebuild, upload, apply, or layout-fix the overlay. Gate 4 is where the overlay/narrator tradeoff is designed; Gate 6 only verifies/tunes the result. Print the Gate 4 A-ROLL LAYOUT PRIORITY PROOF below; if a normal A-roll scene is currently in a shrunken narrator layout, still test the full-canvas narrator option first. A-roll priority testing is a joint narrator + overlay + caption solve: the current overlay is movable/resizable/rebuildable, not fixed evidence, so full-canvas cannot be rejected until overlay move/resize/simplify/rebuild options have failed. Load `ai_video_editor/styles/design_languages` and choose one compact visual language **if authoring/rebuilding is needed or this is an endpoint scene**; style never overrides the Universal Overlay Design Standard or the preserve gate. If the overlay contains ANY text/title/label/value, or a needed repair will create/alter text, also load `ai_video_editor/31_typography`; then load the matching content module `31`/`32`/`33` and its `styles/*`. **Before authoring or rebuilding any overlay, print the Gate 4 MODULE LOAD PROOF template below; if any required module line is missing, STOP and load it before drawing.** If the overlay has or legitimately needs a title/hero line, also print **Gate 4 TITLE GATE PROOF** after drafting and before upload; missing title is not a defect by itself except where endpoint/poster/CTA rules explicitly require one. If the overlay has ANY non-title text/value/label/card copy, also print **Gate 4 SECONDARY TEXT GATE PROOF** after drafting and before upload. Loading typography without passing the relevant title, secondary-text, and copy-correctness gates is not enough. Repair decision follows the ladder in `30_overlay_core`: `LEAVE` → `layout-only fix` → `minor additive fix` → `text/style fix while preserving current visual` → `extract/reuse current visual then rebuild around it` → `full replace`. If rebuilt → authored as a **DIVERSE** overlay from the style lib (internally SVG, never flat-only), saved locally, optionally shown as a cheap **overlay preview** when the runtime already supports it, then applied, granular objects, A-roll face cleared. Do not homogenize all scenes into the same "big title + one object" template. Do not install tools, launch headless browsers, or spend time converting just to preview. **Preflight constraint:** before judging/rebuilding, pull `scene_geometry` to read face/caption/safe zones/object rects, but do NOT declare final composition PASS in this gate. **Copy correctness gate:** every visible overlay string must be spelled, punctuated, grammatical, in the correct language, and correct for numbers/currency/symbols/proper nouns/domain terms; any typo/grammar/diacritic error = overlay FAIL. **Overlay-poster text evidence:** when visible overlay/title/label/value/chart/document/UI/generated-image/message text exists, call MCP `widecast_scene_inspector` with `action="overlay_poster"`, the topic `id`, the scene `voice_file`, and `activate:true`; read the returned poster URL, download it with `curl -L -s -o <local>.png "<url>"`, show the local PNG before judging, and use that local poster as the primary proofread source for Gate 4 text checks and Gate 7 rendered text. Reuse that local evidence across Gate 4 Overlay Existence, Title, Secondary Text, and Gate 7 for the current `remotion_spec`; refresh only after overlay text/source/image-baked message text changes. Layout-only move/resize does not require a new poster. If the MCP poster result is unavailable, fall back to the composite screenshot and state the fallback; do not construct the poster URL manually and do not launch a browser or local converter just to create one. **Rendered image typo/grammar check:** read the actual words visible in the overlay poster, not only JSON/source fields or the busy composite; any pseudo-text, malformed glyph, typo, grammar error, missing/wrong diacritic, swallowed Vietnamese mark, wrong `Đ/đ`, or wrong number/currency/domain term = overlay FAIL. **Readability is the floor, not approval:** dark/muddy/thin-bodied title text, readable-but-timid title, title below 900-equivalent weight, title/hero/primary CTA/hero metric with fewer than 8 same-fill face copies, title over-thick/muddy/blobby/deformed from duplicate fill even inside 8–15, swallowed Vietnamese marks, closed counters/negative space, title without first-second punch, title boxed inside a card/chip/pill/panel/banner/black translucent rectangle, title stroke above 2px, tiny labels, **secondary text/labels with visible stroke/outline**, low-contrast callouts, card text that sinks into a dark panel, labels/values overlapped by another badge/object, text that only becomes legible when zoomed, or any text that touches/grazes/clips/laps a chip/card/bar border = overlay FAIL, even if the geometry is clean. A title PASS never compensates for unreadable, cramped, or misspelled labels.
-5. ☐ **Load `ai_video_editor/20_background` FIRST, then audit the BACKGROUND as its OWN pass immediately after overlay** — NOT folded into the overlay check. Use two local-visible images: the BEFORE composite screenshot (what actually renders) AND the current active background/media plate (`thumbnailUrl` first; fallback per `active_roll`/`mediaType`) downloaded locally + SHOWN before analysis. Decide grid-vs-real BY SIGHT; if real and visible, confirm: fits narration/`keyword`, **geo/location/currency context matches when the industry/scene is location-sensitive** (real estate, insurance, tax, legal, healthcare, local services, finance, etc.), natively portrait, not too bright/cluttered behind the text, no watermark/burned-in text, clean start frame, and actually VISIBLE in the composite. Also check whether the chosen overlay now makes the background too busy or causes text to sink. **Layer isolation:** Gate 5 may change only branch (A) `mediaUrl`/`mediaType`; background failure/search failure/geo mismatch/grid fallback must not rebuild, upload, disable, or restyle overlay/remotion. If the new background reveals an overlay issue, return to Gate 4/Gate 6 with an independent overlay FAIL proof and use the least destructive overlay repair. **Bypass content checks in two cases:** if the active media is grid/force-grid, do not evaluate subject matter or geo cues — only check the grid cap/shared-grid rule and readability; if an A-roll narrator fills/occludes the canvas, do not evaluate the hidden fallback/background content — the narrator is the visual. Apply background changes via branch (A) `mediaUrl`.
-6. ☐ **Final composition audited/tuned AFTER overlay/background decisions** (`scene_geometry`; Steps 3–4 in `ai_video_editor/10_mechanics`, plus verify step in `ai_video_editor/30_overlay_core`) — this single gate includes layout, safe zone, **the separate Gate 6 DEAD-ZONE PROOF below**, face clearance, caption coexistence, background fit, and visual balance. A-roll face clear, hero/title text bright, prominent, 900-weight/open typography, **not boxed in a card/panel**, thick-bodied from the documented 8–15x face stack without muddy/blobby over-thick duplicate fill, punchy in the first second, **all secondary text/labels/values readable on mobile, not overlapped, and not cramped against their container borders**, caption clear, background not fighting the overlay, and final overlay/media arrangement balanced. For A-roll scenes, Gate 6 verifies the Gate 4 A-ROLL LAYOUT PRIORITY PROOF was already printed and obeyed. If it is missing, return to Gate 4; do not invent the proof after the fact. A fallback/shrunken narrator layout cannot PASS unless the higher-priority full-canvas and shifted-full-canvas options were rejected with concrete narrator + overlay + caption reasons during Gate 4, including tried overlay move/resize/simplify/rebuild when relevant. If Gate 4 or Gate 5 changed anything, this is the first place composition can PASS. **B-roll safe-zone composition gate:** for `typography_only` / text-only overlays, prefer placing the text block near the vertical center of `safe_rect`, not top-safe by habit. For mixed text+object overlays, prefer a top-safe title/text band with objects/charts/cards below it, all inside `safe_rect` and visually connected. If the first placement covers a clearly important background face/product/prop, slide the group within `safe_rect` until the composition breathes. **Dead-zone is a separate hard proof, not a phrase inside composition:** no overlay object/text may intrude into `dead_top`/`dead_bottom`, and caption must not overflow `dead_bottom`. If you need to move only 1–12 individual overlay objects, use `layout.batch` + `remotion.object.rect`. If the whole overlay group is misplaced or decomposed into more than 12 objects, use `remotion.group.rect` on the Storyboard group: first try **move-only** `x/y`; if moving the group fixes one dead zone but pushes the opposite edge into another dead zone, try a **whole-group resize** (`w/h` with `resize_mode:"scale_children"`). Only rebuild/regenerate the SVG if the resized group makes title/body/secondary text too small, muddy, cramped, or otherwise fails the typography/readability/aesthetic-padding gates.
-7. ☐ **AFTER screenshot** pulled with MCP `screenshot_scene_280x498` → `result.screenshot.url` **downloaded locally with `curl` + SHOWN visibly to the user** → **only then evaluated** → confirms: face clear, hero/title text is bright/prominent, 900-weight/open typography, not boxed in a card/panel, thick from the 8–15x face stack but still crisp (not blobby/deformed/diacritic-swallowing), vivid/punchy in the first second, **every secondary label/value/card line is readable without zoom and has visible inner padding from its chip/card/bar border**, no dark/muddy/blurred text, no text-on-text or badge-over-label collision, no text touching/grazing/clipping/lapping a border, Gate 6 DEAD-ZONE PROOF already PASS, caption fits, background fits. If any overlay/chart/label/title/generated image/image-baked message text is visible, call MCP `widecast_scene_inspector` with `action="overlay_poster"` if a current local poster is not already shown, download/show the returned URL, then print and pass **Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK** below; poster text, not JSON fields or the busy composite, is the source of truth for typo/grammar/diacritic/glyph proof. If no edit was made, the already-shown BEFORE screenshot may serve as the final look only when the agent explicitly says "no edit, BEFORE screenshot is the AFTER evidence"; otherwise pull and show a fresh AFTER screenshot.
-8. ☐ **Server-saved** — re-pulled `video_data`/`scene_geometry` to confirm every edit persisted.
-9. ☐ **MODULE COVERAGE GATE** — print the module coverage proof below and PASS only if every required playbook for this scene/run was loaded at the correct step, or explicitly marked N/A with a reason.
-
-All nine checked → next scene. **Show ≠ pause:** present each screenshot, then keep working — the only stop is the very end of the video. **Scene transition gate:** if the user has not visibly seen the final local screenshot evidence for this scene, the scene is NOT done and the agent must not start the next scene.
+All applicable gates checked → `Scene N: PASS`. **Show ≠ pause:** present each image, then keep working.
 
 ---
 
 ## Announce the plan + report progress (mandatory)
 
-The user must be able to see, at any moment, **which steps you will do, which you are on, and which remain.** So:
-
-- **At the START of each scene**, post the **task list for THIS scene as a VERTICAL checklist** (one DoD gate per line). This is the plan the user audits up front. **Do NOT compress the 9 gates into one inline sentence** — inline checklists are easy for agents to skim past and hard for humans to audit.
-- **As you work**, announce each gate as you enter/finish it ("→ Gate 4: overlay review/rebuild…" then "✓ Gate 4 done"). Don't silently jump between gates.
-- **At the END of the scene**, repeat the checklist with ✓/✗ and a one-line note per gate, so the user sees exactly what was done and whether anything was skipped, BEFORE you move on.
-- **Announce ≠ pause** — report and keep working; do not wait for a reply. Skipping the announcement (working silently) is a process error: the user cannot audit what they cannot see.
+- **At the START of each scene**, post the 5-gate checklist VERTICALLY (one gate per line) — the plan the user audits up front. Do NOT compress it into one inline sentence.
+- **As you work**, announce each gate (`→ Gate 3…` then `✓ Gate 3`).
+- **At the END**, repeat the checklist with ✓/✗/N-A and a one-line note per gate, then the verdict.
+- **Announce ≠ pause** — report and keep working; do not wait for a reply.
 
 ---
 
 ## Exact template blocks — use these VERBATIM shapes
 
-Text markers are the source of truth (icons render differently across AI hosts).
-
-### Scene start (plan) — vertical only, never inline
+### Scene start (plan) — vertical only
 
 ```text
 Scene N plan:
 ☐ Gate 1 — Text / STT
-☐ Gate 2 — Role
-☐ Gate 3 — BEFORE screenshot shown
-☐ Gate 4 — Overlay review/rebuild
-☐ Gate 5 — Background audit
-☐ Gate 6 — Final composition audit/tune
-☐ Gate 7 — AFTER/final screenshot shown
-☐ Gate 8 — Server-saved confirmation
-☐ Gate 9 — Module coverage
+☐ Gate 2 — Role / route
+☐ Gate 3 — Background audit (or N/A)
+☐ Gate 4 — Overlay text typo (or N/A)
+☐ Gate 5 — Confirm & save (or N/A no edit)
 ```
 
-### Gate 5 BACKGROUND PROOF — during Gate 5, after Gate 4, before Gate 6
-
-This is the mechanical guard against skipping the background pass after the long overlay workstream.
+### Gate 3 BACKGROUND PROOF — only when Gate 3 applies
 
 ```text
-Gate 5 BACKGROUND PROOF:
-☑ 20_background.md — opened for this scene before judging background
-BEFORE composite evidence: <local file path shown to user>
+Gate 3 BACKGROUND PROOF:
+☑ 20_background.md — opened for this scene
+Applies check: <PASS applies | N/A grid | N/A A-roll narrator fills frame>
 Active plate evidence: <local file path shown to user>
 Active media: <mediaUrl or active thumbnail/media URL>
-Current background read: <what is actually visible in the plate/composite>
+Current background read: <what is actually visible in the plate>
 Scene context: <1-line text/talking_point/visual summary>
-Decision: <real background | grid | A-roll narrator is the visual | force-grid by design>
-Fit check: <PASS|FAIL> — relevant to narration/keyword/visual and visible in composite
-Geo/currency check: <PASS|FAIL|N/A> — if location-sensitive, country/region/currency/signage/road/form cues match the target market
-Technical check: <PASS|FAIL|N/A> — for visible real footage: portrait, not too bright/cluttered, no watermark/burned-in text, no duplicate real clip; N/A for grid or full-canvas A-roll
-Grid cap check: <PASS|FAIL|N/A> — grid scenes count <= 3 and share one grid
-Layer isolation check: <PASS|FAIL> — background action touches only mediaUrl/mediaType; overlay/remotion unchanged unless Gate 4 independent overlay FAIL proof exists
-Overlay preservation check: <PASS|N/A> — existing overlay, realistic image, map, chart, diagram, or illustration preserved during background/grid fallback
-Action: <keep current media | replace via mediaUrl | leave force-grid | no background action because A-roll narrator fills frame>
-Verdict: <PASS keep | PASS grid-by-design | FIXED + PASS | FAIL — continue background search>
+Fit check: <PASS|FAIL> — background relevant to narration/keyword/visual
+Geo/currency check: <PASS|FAIL|N/A> — if location-sensitive (insurance, tax, legal, real estate, healthcare, local services, finance…), country/region/currency/signage/language/road/form cues match the target market
+Technical check: <PASS|FAIL|N/A> — visible real footage is portrait, not too bright/cluttered, no watermark/burned-in text, no duplicate real clip
+Action: <keep current media | replace via mediaUrl>
+Verdict: <PASS keep | FIXED + PASS | FAIL — continue background search>
 ```
 
-**If this proof is missing, Gate 5 is BLOCKED.** Do not start Gate 6/final composition, do not declare `Scene N: PASS`, and do not final-handoff the video.
+Background changes touch ONLY `mediaUrl`/`mediaType` (branch A). A wrong background never authorizes touching the overlay.
 
-### Gate 4 MODULE LOAD PROOF — before authoring/rebuilding overlay
+**If Gate 3 applies and this proof is missing, the scene is not done.**
 
-Include only the modules required for this scene, but do not omit typography when the overlay has text.
+### Gate 4 OVERLAY TEXT TYPO CHECK — only when the overlay text was image-model-generated
+
+Pull the poster: call `widecast_scene_inspector` with `action="overlay_poster"`, the topic `id`, the scene `voice_file`, `activate:true`; download the returned URL with `curl -L -s -o <local>.png "<url>"`; show the local PNG. Do not construct the URL manually.
+
+**Order of operations is fixed: TRANSCRIBE FIRST, JUDGE AFTER.** Type out every visible string letter-by-letter like a proofreader BEFORE any other remark. The transcription IS the table; a one-line "text looks correct" without the table = the gate did not run.
 
 ```text
-Gate 4 MODULE LOAD PROOF:
-☑ 30_overlay_core.md — overlay object/upload rules
-☑ 10_mechanics.md — A-roll layout priority ladder (required when `show_narrator=true`)
-☑ 40_thumbnail_cta.md — endpoint scene rules (required only for scene 2/opening poster, thumbnail sync, or final CTA)
-☑ styles/design_languages.md — chosen language: <language_id>
-☑ 31_typography.md — title/label/readability rules (required because overlay has text)
-☑ <31_typography.md | 32_charts.md | 33_patterns.md> — content module for pattern=<pattern>
-☑ `styles/text_axes.md` or `styles/chart_axes.md` — style recipe library
-Decision: <overlay N/A | leave existing overlay | layout-only fix | minor additive fix | text/style preserve fix | extract/reuse current visual then rebuild | full replace>
+Gate 4 OVERLAY TEXT TYPO CHECK:
+Applies check: <PASS applies — image-gen text | N/A typography_only/SVG | N/A no overlay text | N/A photo, no baked message text>
+Overlay poster evidence: <MCP overlay_poster downloaded+shown> — local file path: <path>
+Per-string transcription table (one row per visible string — title, label, value, badge, card line, callout, baked image text; typed letter-by-letter FROM THE POSTER IMAGE, never pasted from JSON/source):
+| # | rendered string (as seen in poster) | intended copy (script/quote/talking_point/source) | char-level diff (for diacritic languages: if accent-stripped forms match but accented forms differ, that difference IS the spelling error) | verdict |
+| 1 | <...> | <...> | <none | exact diff> | <PASS|FAIL> |
+| … | | | | |
+Typo/grammar/diacritic/glyph check: <PASS|FAIL> — no typo, grammar error, missing/wrong diacritic, malformed glyph, pseudo-text, wrong language/casing, wrong number/currency/%/symbol, wrong domain term; for Vietnamese, every tone mark, accent, horn/breve/circumflex, vowel mark, and `Đ/đ` is visibly correct
+Action if FAIL: <regenerate/replace the image or its baked text | fix source text | N/A>
+Verdict: <PASS rendered text | FAIL — fix and re-pull the poster>
 ```
 
-**If a required module is not listed with ☑, Gate 4 is BLOCKED.** Do not draw, upload, or declare PASS. For scene 2/opening poster, thumbnail sync, or final CTA, the module proof is not enough by itself; also print `Gate 4 ENDPOINT DESIGN VARIANT PROOF` below before authoring/applying/approving the endpoint overlay.
+If a string FAILS, fix it (regenerate/replace the image or correct the source), then re-pull the poster and re-run the table. Layout-only changes never need a new poster.
 
-### Gate 4 ENDPOINT DESIGN VARIANT PROOF — before endpoint authoring/upload/apply
-
-This gate prevents all opening posters and CTAs from collapsing into one repeated template. Use it for scene 2/opening poster, the synced thumbnail, and the final content/CTA scene. The scene 2 + static thumbnail pair should intentionally share one poster identity; unrelated videos and final CTA scenes should not blindly share the same motif.
-
-```text
-Gate 4 ENDPOINT DESIGN VARIANT PROOF:
-Scene class: <scene 2 opening poster | thumbnail sync | final CTA>
-☑ 40_thumbnail_cta.md — opened before endpoint decision
-☑ styles/design_languages.md — opened before endpoint decision
-Chosen design language: <language_id> — why it fits the topic/audience/tone
-Endpoint archetype: <dynamic poster typography | magazine-cover thumbnail | kinetic stacked type | typographic collage | object-integrated title | premium CTA poster | minimal premium cover>
-Variant tokens: typography=<face/treatment>; composition=<placement/scale/asymmetry>; decoration=<bars/brackets/slashes/seal/none>; palette=<accent logic>; background integration=<face/product/prop/negative-space strategy>
-Anti-template check: <PASS|FAIL> — not the default giant outlined all-caps + red vertical side bar + red/double underline motif unless the selected design language/context specifically justifies it and the rest of the composition is distinct
-Cross-video uniqueness check: <PASS|FAIL|N/A> — if editing multiple unrelated videos, do not reuse the same endpoint recipe by habit; vary language/tokens by topic/tone
-Thumbnail sync check: <PASS same identity as scene 2 | N/A not thumbnail> — thumbnail may clone scene 2's poster identity, but only as the immediate sync pair
-CTA-specific check: <PASS|N/A> — final CTA is action-led and not a blind clone of scene 2; if it shares brand accents, hierarchy/placement/decoration still serve the closing action
-Verdict: <PASS endpoint variant | BLOCKED — choose a real design language/variant before authoring>
-```
-
-**Missing proof = Gate 4 BLOCKED** for endpoint overlays. Do not upload/apply/approve an endpoint overlay, sync thumbnail, or declare final CTA PASS without this proof.
-
-### Gate 4 OVERLAY EXISTENCE + PRESERVE PROOF — before overlay edit/upload
-
-This gate prevents forced overlays, forced titles, and unnecessary replacement of good visuals.
-
-```text
-Gate 4 OVERLAY EXISTENCE + PRESERVE PROOF:
-Scene class: <normal content | scene 2 opening poster | thumbnail sync | final CTA>
-Pattern/sub_mode: <pattern/sub_mode>
-Visual field: <empty | quoted visual summary>
-Existing overlay/spec: <none | visible | hidden | broken | unknown>
-BEFORE screenshot shown: <yes|no> — local file path: <path>
-Overlay poster evidence: <N/A no visible overlay text | MCP overlay_poster downloaded+shown | reused local poster | unavailable — composite fallback> — call `widecast_scene_inspector` with `action="overlay_poster"`, `id`, `voice_file`, `activate:true`; read returned URL → `curl -L -s -o <local>.png "<url>"` → show local file. Do not construct the poster URL manually. Reuse only for the current `remotion_spec`; refresh after overlay text/source/image-baked message text changes.
-Endpoint exception check: <PASS endpoint handled | N/A normal scene> — scene 2/opening poster, thumbnail sync, and final CTA must load 40_thumbnail_cta and cannot be skipped merely because overlay is missing/remotion_spec=="none"
-Overlay needed check: <N/A no overlay | PASS overlay needed> — for normal scenes, if pattern="narration_only", visual is empty, remotion_spec=="none", no overlay is visible, or narrator/background/caption already carries the scene, overlay is N/A and no overlay/title may be added
-Existing visual type: <map | realistic image/photo | chart | diagram | illustration | typography-only | mixed | none>
-Preserve current visual check: <PASS preserve | FAIL serious defect> — preserve good maps/photos/charts/diagrams/illustrations; missing title alone is not a defect
-Serious defects found: <none | typo/wrong data | unreadable | dead-zone | face/caption collision | off-topic | broken render | severe clutter | other>
-Rendered image typo/grammar check: <PASS|FAIL|N/A> — read exact words visible in the overlay poster itself, including overlay text and generated/image-baked text; do not rely only on JSON/source fields or the busy composite; for Vietnamese/diacritic languages, every mark and `Đ/đ` must be visibly correct
-Layer isolation check: <PASS|FAIL> — overlay edit is based on an overlay-owned defect; background failure/search failure/geo mismatch/grid fallback is not being used as the overlay rebuild reason
-Repair ladder decision: <LEAVE | layout-only fix | minor additive fix | text/style preserve fix | extract/reuse current visual then rebuild | full replace>
-Title creation check: <N/A no title needed | existing title only | title explicitly required by visual/pattern | endpoint title/CTA required> — do not invent a title just to satisfy style; endpoint rules may require poster/CTA title
-No-homogenization check: <PASS|FAIL> — decision preserves the scene's pattern/visual variety; not "big title + one object" by habit
-Verdict: <N/A overlay audit | PASS preserve/repair | BLOCKED — replacement not justified>
-```
-
-If `Repair ladder decision` is `full replace`, print this additional proof before authoring/uploading:
-
-```text
-Gate 4 FULL REPLACE PROOF:
-Current overlay value worth preserving: <map/photo/chart/diagram/illustration/text/none>
-Independent overlay-owned defect: <specific Gate 4 defect; cannot be background failure/search failure/geo mismatch/grid fallback>
-Why layout-only is insufficient: <specific reason>
-Why minor additive fix is insufficient: <specific reason>
-Why text/style preserve fix is insufficient: <specific reason>
-Why extract/reuse current visual is insufficient: <specific reason>
-Replacement risk check: <PASS|FAIL> — replacement will not simplify a good map/photo/chart/diagram into a worse homemade version
-Strictly-better claim: <PASS|FAIL> — new overlay will be both more correct and higher quality than the local-shown BEFORE screenshot
-Verdict: <PASS full replace allowed | BLOCKED — preserve/repair instead>
-```
-
-**If this proof is missing, Gate 4 is BLOCKED for any overlay upload that overwrites an existing overlay/spec.** Do not add an overlay to an N/A normal scene, do not invent a title for a scene that does not need one, and do not replace a good existing visual just to make the style consistent. Do not mark scene 2/opening poster, thumbnail sync, or final CTA as N/A until `40_thumbnail_cta` has been loaded and the endpoint exception check has passed.
-
-### Gate 4 A-ROLL LAYOUT PRIORITY PROOF — before overlay decision/authoring/upload on A-roll
-
-This gate exists because the overlay/narrator tradeoff is decided in Gate 4, not after the overlay has already been accepted.
-
-```text
-Gate 4 A-ROLL LAYOUT PRIORITY PROOF:
-☑ 10_mechanics.md — opened for the A-roll priority ladder before overlay decision
-Scene class: <normal | special_endpoint_or_trust>
-Narrator role: <primary | secondary>
-Overlay role: <support | main_subject>
-Current layout read: <full-canvas | shifted-full-canvas | shrunken/fallback | other>
-Starting layout bias check: <PASS|FAIL|N/A> — if current narrator is shrunken/fallback, reset design baseline to Priority 1 full-canvas before judging overlay; the small narrator is not the baseline
-Reset to full-canvas candidate before overlay judgment: <yes|no|N/A>
-Overlay adjustments tested: <move | resize | simplify | rebuild | N/A> — current overlay is not fixed evidence
-Full-canvas gate: <PASS|FAIL> — tested narrator full canvas first while moving/resizing/simplifying/rebuilding the overlay as needed; face clear, no dead zones, readable, caption clear
-Priority 2 check: <PASS|FAIL|N/A> — pull narrator down + overlay above head; reason if rejected
-Priority 3 check: <PASS|FAIL|N/A> — push narrator up + overlay over chest; reason if rejected
-Priority 4 fallback check: <PASS|FAIL|N/A> — allowed only after 1–3 fail; narrator as large as possible, face large/clear/in safe_rect, X inside canvas, Y overflow allowed if it improves face size
-Chosen priority: <1 | 2 | 3 | 4>
-Overlay plan: <overlay N/A | leave existing | layout-only fix | minor additive fix | text/style preserve fix | extract/reuse current visual then rebuild | full replace | disable overlay> with placement rationale
-Verdict: <PASS to continue Gate 4 | BLOCKED — revise overlay/narrator plan>
-```
-
-**If this is A-roll and this proof is missing, Gate 4 is BLOCKED.** Do not accept an existing shrunken narrator layout, draw/upload an overlay, or mark overlay review PASS. If the current narrator is shrunken/fallback and `Reset to full-canvas candidate before overlay judgment` is not `yes`, Gate 4 is BLOCKED. If choosing priority 4, the proof must show concrete reasons priorities 1–3 failed as joint narrator + overlay + caption compositions. Do not reject a full-canvas priority just because the old overlay placement touches the face/caption/dead zone; move/resize/simplify/rebuild the overlay first.
-
-### Gate 4 TITLE GATE PROOF — after drafting a title/hero line and before upload
-
-This gate exists because simply loading `31_typography.md` is not enough.
-
-```text
-Gate 4 TITLE GATE PROOF:
-Title copy: "<exact title text>"
-Takeaway source: <quote/talking_point words it encodes>
-Overlay poster text evidence: <MCP overlay_poster local file read | pending post-upload MCP poster | unavailable — composite fallback | N/A source-only pre-upload> — use the local PNG downloaded from `widecast_scene_inspector action="overlay_poster"` for rendered glyph/diacritic proof whenever the title is already server-rendered; if this is a new draft, call/read it after upload before final PASS
-Copy correctness check: <PASS|FAIL> — no typo/grammar/diacritic/casing/number/symbol/proper-noun/domain-term error; phrasing is natural for the scene language
-Semantic check: <PASS|FAIL> — states the scene takeaway, not just a panel label
-Hierarchy check: <PASS|FAIL> — title is stronger than badges/panel labels
-Weight/card check: <PASS|FAIL> — title uses 900-equivalent / Black typography and is open typography, NOT inside a card/chip/pill/panel/banner/black translucent box
-Face-stack count: <8–15 copies> — same-fill copies inside the same title object; state why this count fits the font/word length; >15 copies = FAIL
-Over-thick visual check: <PASS|FAIL> — rendered title keeps crisp letterforms, open counters/negative space, clean tracking, and visible Vietnamese diacritics; if duplicate fill makes it muddy/blobby/deformed, reduce count/offset or change font even inside 8–15
-First-second punch check: <PASS|FAIL> — title is not merely readable; it is thick, vivid, high-energy, and graspable immediately at 280×498
-Thickness/stroke check: <PASS|FAIL> — body is thick via 900-equivalent font + 8–15x face stack; visible text stroke is <=2px, thin/controlled, not over-stroked, and the face stack does not over-thicken the glyphs
-Overlay preview check: <shown cheaply | skipped — no cheap renderer | N/A> — if shown, preview appears title-led; if skipped, post-upload composite screenshot is the mandatory visual proof
-Rendered preview/poster text check: <PASS|FAIL|pending post-upload> — when poster evidence exists, the visible rendered title glyphs in the overlay poster exactly match the approved title and have no typo/grammar/diacritic/glyph error; if source is new, this remains pending until the post-upload poster is refreshed
-Verdict: <PASS to upload | REVISE title before upload>
-```
-
-**Any FAIL = title is not approved for upload.** Revise the overlay/title and repeat the gate. A skipped pre-upload preview is not a FAIL. After upload, the final screenshot gate must still PASS from the saved/shown 280×498 composite:
-
-```text
-Gate 6 TITLE SCREENSHOT CHECK:
-Composite screenshot shown: <yes|no>
-Screenshot check: <PASS|FAIL> — composite confirms title placement, visibility, hierarchy, face/caption coexistence, and first-second punch; typo/grammar/diacritic/glyph correctness comes from the overlay poster when available, not the busy composite
-Verdict: <PASS title | REVISE title/rebuild overlay>
-```
-
-### Gate 4 SECONDARY TEXT GATE PROOF — after drafting every non-title text/value/label/card line and before upload
-
-This gate is separate from title: a title can PASS while labels FAIL.
-
-```text
-Gate 4 SECONDARY TEXT GATE PROOF:
-Text inventory: <exact non-title strings: values, labels, card text, badge text, callouts>
-Overlay poster text evidence: <MCP overlay_poster local file read | pending post-upload MCP poster | unavailable — composite fallback | N/A source-only pre-upload> — use the local PNG downloaded from `widecast_scene_inspector action="overlay_poster"` for rendered label/value glyph proof whenever server-rendered; if this is a new draft, call/read it after upload before final PASS
-Copy correctness check: <PASS|FAIL> — every string is typo-free, grammar-correct, domain-correct, and preserves required numbers/currency/%/proper nouns/diacritics
-Size floor check: <PASS|FAIL> — each non-title text is >= ~30px on the 720 canvas OR deliberately simplified/removed; nothing depends on zoom
-Contrast check: <PASS|FAIL> — each line uses solid high-contrast fill on a clean chip/card/quiet area; **secondary text has NO visible stroke/outline**; no dark-on-dark card text
-Container/padding check: <PASS|FAIL> — every line fits inside its card/chip/bar area with generous interior padding; no clipped/overflowing words; no text touches, grazes, or visually crosses a border
-Collision/Z-order check: <PASS|FAIL> — labels/values/badges do not overlap or cover each other; badges never sit on top of value labels unless both remain readable
-Overlay preview check: <shown cheaply | skipped — no cheap renderer | N/A> — if shown, preview makes all secondary text appear readable; if skipped, post-upload composite screenshot is the mandatory visual proof
-Rendered preview/poster text check: <PASS|FAIL|pending post-upload> — when poster evidence exists, all visible rendered labels/values in the overlay poster match the approved strings and have no typo/grammar/diacritic/glyph error; if source is new, this remains pending until the post-upload poster is refreshed
-Verdict: <PASS to upload | REVISE labels before upload>
-```
-
-**Any FAIL = the overlay is not approved for upload**, even if the title gate passed. After upload/layout tuning, the final screenshot must pass:
-
-```text
-Gate 6 SECONDARY TEXT SCREENSHOT CHECK:
-Composite screenshot shown: <yes|no>
-Screenshot check: <PASS|FAIL> — composite confirms each secondary label/value/card line is visible, readable at 280×498 without zoom, has no visible outline/stroke, is not dark/muddy, is not overlapped/covered, and has breathing room; typo/grammar/diacritic/glyph correctness comes from the overlay poster when available
-Verdict: <PASS secondary text | REVISE labels/layout/rebuild overlay>
-```
-
-### Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK — after the final screenshot is shown
-
-This is the guard for text that is correct in data but wrong in the rendered image. It applies to overlay text, chart/map/document/UI labels, generated images, realistic image overlays, and any image-baked message text. Ignore tiny incidental background signage unless it is part of the message or visibly distracts.
-
-```text
-Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK:
-Composite screenshot shown: <yes|no> — local file path: <path>
-Overlay poster evidence: <MCP overlay_poster downloaded+shown | reused local poster | N/A no overlay/message text | unavailable — composite fallback> — local file path: <path>; call `widecast_scene_inspector` with `action="overlay_poster"`, `id`, `voice_file`, `activate:true`, then download the returned URL with `curl`; do not construct the URL manually. Use this local PNG as the primary text-proof image and refresh it after any overlay text/source/image-baked message change.
-Rendered text inventory from overlay poster: <exact visible words as they appear in the poster, not copied from JSON>
-Intended/source copy: <script/quote/talking_point/approved overlay strings or N/A>
-Source match check: <PASS|FAIL|N/A> — rendered words match intended copy; no stale old spec text
-Typo/grammar/diacritic/glyph check: <PASS|FAIL> — no typo, grammar error, missing/wrong diacritic, malformed glyph, pseudo-text, wrong language, wrong casing, wrong number/currency/%/symbol, or wrong domain term; for Vietnamese/diacritic languages, every tone mark, accent, horn/breve/circumflex, vowel mark, and `Đ/đ` is visibly correct
-Baked/generated image text check: <PASS|FAIL|N/A> — any text inside generated/realistic image assets is correct, or the image has no message text
-Action if FAIL: <fix source text | rebuild overlay | remove/replace baked text/image | layout-only not enough | N/A>
-Verdict: <PASS rendered text | FAIL — fix and repeat screenshot check>
-```
-
-**Missing proof = Gate 7 FAIL** whenever any visible overlay/image-baked message text exists. Do not declare `Scene N: PASS` until rendered overlay text has been read from the overlay poster itself, or the proof explicitly states poster unavailable and uses the composite fallback.
-
-### Gate 6 DEAD-ZONE PROOF — after overlay/background decisions, after every layout edit, before Scene PASS
-
-This proof is required whenever the scene has a visible overlay/remotion object, including no-edit/leave decisions. It is separate from aesthetic composition.
-
-```text
-Gate 6 DEAD-ZONE PROOF:
-scene_geometry pulled after latest overlay/layout action: <yes|no>
-Composite screenshot shown for this same state: <yes|no>
-Safe zones read: dead_top=<y range>, safe_rect=<y range>, dead_bottom=<y range>
-Overlay objects checked: <object ids/layout_ids or "none visible">
-Top dead-zone check: <PASS|FAIL|N/A> — no overlay object/text intersects dead_top
-Bottom dead-zone check: <PASS|FAIL|N/A> — no overlay object/text intersects dead_bottom
-Caption reserve check: <PASS|FAIL|N/A> — caption stays inside/owns dead_bottom; overlay does not compete with it
-Fix action if FAIL: <layout.batch object rect | remotion.group.rect move | remotion.group.rect resize | rebuild only after resize fails typography | N/A>
-Verdict: <PASS dead-zone | FAIL — fix and repeat Gate 6 DEAD-ZONE PROOF>
-```
-
-**Missing proof = Gate 6 FAIL.** Do not mark Scene PASS, do not start the next scene, and do not ask for render/export until this proof passes or is explicitly N/A because there is no visible overlay/remotion object. If any layout edit happens after the proof, the proof is invalidated and must be repeated.
-
-### Gate 9 MODULE COVERAGE GATE — before declaring Scene PASS and again before final video hand-off
+### MODULE COVERAGE GATE — before declaring Scene PASS
 
 ```text
 MODULE COVERAGE GATE:
-☑ 00_ENTRYPOINT.md — loaded for run kickoff
-☑ 01_critical_rules.md — loaded at run kickoff
-☑ 02_jump_prevention.md — loaded at run kickoff
-☑ 03_dod_gates.md — loaded at the start of this scene
-☑ 04_principles_workflow.md — loaded at run kickoff for the whole-video pass
-☑ 05_quality_qa_priority.md — loaded for §7 quality scan before declaring PASS
-☑ 10_mechanics.md — loaded for this scene's data/layout/screenshot mechanics
-☑ 30_overlay_core.md — loaded before Gate 4 overlay review/rebuild for this scene
-☑ 20_background.md — loaded before Gate 5 background audit for this scene
-☑ 31_typography.md — loaded because overlay has text OR N/A: <reason>
-☑ 32_charts.md — loaded because chart/diagram pattern=<pattern> OR N/A: <reason>
-☑ 33_patterns.md — loaded because non-chart pattern=<pattern> OR N/A: <reason>
-☑ styles/design_languages.md — loaded because overlay was authored/rebuilt OR endpoint scene OR N/A: <reason>
-☑ 40_thumbnail_cta.md — loaded because scene 2/thumbnail/final CTA endpoint OR N/A: <reason>
-Verdict: <PASS module coverage | FAIL — load missing module and resume earliest invalidated gate>
+☑ 00_ENTRYPOINT / 01_critical_rules / 02_jump_prevention / 03_dod_gates / 04_principles_workflow / 05_quality_qa_priority / 10_mechanics — loaded at kickoff
+☑ 20_background.md — loaded because Gate 3 applied OR N/A: <reason>
+☑ 30_overlay_core / 31_typography / 32_charts / 33_patterns — loaded because an overlay defect had to be fixed OR N/A: <reason>
+Verdict: <PASS module coverage | FAIL — load missing module and resume>
 ```
-
-**Missing required module = Gate 9 FAIL.** Loading a module once at the beginning does **not** mean the gate/work is complete; it only satisfies the coverage line. The actual gate still requires its proof, evidence, edit decision, and PASS verdict.
 
 ### Progress + verdict markers
 
-- Progress (each gate): `→ Gate K: <doing…>` then `✓ Gate K: <result>`
-- Scene end (verdict): `Scene N: PASS — ✓1…✓9` **or** `Scene N: FAIL — ✗K <what's missing>; fixing.`
+- Progress: `→ Gate K: <doing…>` then `✓ Gate K: <result>` (or `Gate K: N/A — <reason>`).
+- Scene end: `Scene N: PASS — ✓1…✓5` **or** `Scene N: FAIL — ✗K <what's missing>; fixing.`
 - Human must act (record A-roll / final hand-off): a standalone `**[ACTION REQUIRED]**` block.
 
 ---
 
 ## PASS / FAIL verdict — declare it before EVERY scene hand-off
 
-You may advance to the next scene ONLY after you state an explicit verdict:
+- To say **`Scene N: PASS`** you must scan all 5 gates and the §7 Quality Standard (`ai_video_editor/05_quality_qa_priority`) and confirm each applicable one is met (or justified N/A). PASS is earned by the scan, never from memory.
+- If Gate 3 applied, the PASS scan names its verdict (`PASS keep` / `FIXED + PASS`). If Gate 4 applied, the per-string table is present. If an edit was made, "AFTER shown: yes" is present.
+- Batch/gallery/table/script/bulk-API outputs are not PASS evidence.
+- Any unmet gate → `Scene N: FAIL — [gates]`, fix, re-scan, re-declare. Never advance on a FAIL or with no verdict.
 
-- To say **"Scene N: PASS"** you must FIRST **scan all 9 DoD gates above AND the §7 Quality Standard (`ai_video_editor/05_quality_qa_priority`)**, and confirm **every** one is met. PASS is *earned by the scan* — never declared from memory or assumption.
-- The PASS scan must include the local-visible screenshot evidence: "BEFORE shown: yes" and "AFTER/final shown: yes". If either is missing, PASS is forbidden.
-- Batch/contact-sheet/gallery/table/script/bulk API outputs are not PASS evidence. If that is the only evidence, the scene status is `triaged_only`, not `PASS`.
-- If any gate / §7 item is unmet → **"Scene N: FAIL — [list the failing gates]"**, fix them, then **re-scan and re-declare**. Loop until PASS.
-- **Never advance on a FAIL, and never advance with no verdict at all** (an un-verdicted scene = not done). The verdict line + its gate-by-gate ✓ is the last thing you post for a scene before starting the next.
+**Each scene is complete on its own** — there is no separate whole-video QA pass at the end. When a scene reaches PASS, it is done and not revisited.
 
 ---
 
 ## Final video hand-off — after the last content scene passes
 
-- First run the **Pre-summary completion scan** (Critical Rule 12d in `ai_video_editor/01_critical_rules`): every content scene has `Scene N: PASS`, Gate 1–9 checked, Module Coverage Gate PASS, Background Audit Ledger complete, scene 2 thumbnail sync complete, final CTA endpoint handling complete for the last content scene, and no unhandled `[ACTION REQUIRED]` item hidden.
-- If the scan finds missing major work, do that work now. Do not write a "done" summary as a substitute for completing it. If the user explicitly asked for only triage or only selected-scene fixes, hand off as `partial_triage_only` / `partial_fix_only`, not complete.
-- Do **not** revisit the thumbnail; it was completed by the immediate post-scene-2 sync gate.
-- Pull/keep the `review_url` for the video.
-- Send the user a Telegram/self-notification (WideCast self-notify tool, with email fallback if Telegram is not connected) saying the edit is complete and including the `review_url`.
-- In chat, give a short summary of what was changed/fixed. Keep it concise; do not replay every gate.
-- Ask exactly one export question only after every content scene has individual PASS: `Render/export the final MP4 now, or do you want to review the scenes first?`
-- Do **not** call `export_video` until the user explicitly confirms render/export in the current conversation turn.
+- Run the **Pre-summary completion scan** (Critical Rule 12d): `Read` the run_ledger file and count `Scene N: PASS` rows against the SCENE ROSTER total. Every roster row must have a PASS verdict (a blank/FAIL row = not done). No unhandled `[ACTION REQUIRED]` item hidden.
+- In delegation mode, `widecast_edit_session action='commit'` first (staged edits are not live until commit).
+- Pull/keep the `review_url`.
+- Send the user a Telegram/self-notification (WideCast self-notify tool, email fallback) with the `review_url`.
+- Short summary of what changed/fixed. Keep it concise; do not replay every gate.
+- Ask exactly one export question after every scene has individual PASS: `Render/export the final MP4 now, or do you want to review the scenes first?`
+- Do **not** call `export_video` until the user explicitly confirms in the current turn.
 
-If any content scene is not individually PASS, replace the completion hand-off with:
+If any content scene is not individually PASS:
 
 ```text
 Run status: <partial_triage_only | partial_fix_only>
 Scenes with individual PASS: <scene ids or none>
-Scenes not individually PASS: <scene ids + missing proof/gates>
+Scenes not individually PASS: <scene ids + missing gate>
 Export/render: blocked until every content scene has Scene N: PASS
 ```
 
-Do not ask the render/export question in this partial state.
-
 ---
 
-## Pre-checklist setup — determine 2 things
+## Pre-checklist setup — one thing to determine
 
-### (a) Video type — `faceless` or with a narrator?
+### Has the A-roll scene been recorded yet?
 
-- `faceless=true`: there is NO narrator → **drop the face-clearance condition**, but **still keep the safe-zone condition**. Place text based on **context + the current background visual**, and check that the text does not **sink into the same color tone as the background** (`ai_video_editor/31_typography`).
-- `faceless=false` (has a narrator): keep the `narrator_face` clearance condition as usual (Steps 3–4 in `ai_video_editor/10_mechanics`).
+If `arollUrl`/`mediaUrl` still points to a library placeholder (`statics/aroll_*.png`, `mediaType=image`) → **not recorded yet**. Leave the layout as produced, but **REMIND the user to complete the narrator** in a standalone `[ACTION REQUIRED]` block — each scene ≤20 seconds:
 
-### (b) Has the A-roll scene been recorded yet?
-
-If `arollUrl`/`mediaUrl` still points to a library placeholder image (`statics/aroll_*.png`, `mediaType=image`) → **not recorded yet**. Still edit layout/overlay normally (the placeholder is full-canvas, face in the upper part), but **REMIND the user to complete the narrator** via one of 3 ways — **each scene at most 20 seconds** (all 3 ways are capped at 20s, since each scene should only be ≤20s):
-
-1. **WideCast's built-in teleprompter** — available, convenient, high quality; **RECOMMENDED** to preserve authenticity.
+1. **WideCast's built-in teleprompter** — RECOMMENDED (authentic).
 2. **Upload a file** with the narrator's face + voice (`modify_scene` (I) `narrator.upload_video`).
-3. **AI generate from a single photo** — a feature available in WideCast.
+3. **AI generate from a single photo** — a WideCast feature.
+
+The narrator is fixed input: **never edit `narrator_face`, never resize/reposition the narrator.** The server keeps every overlay clear of the face and the safe zone automatically.
 
 ---
 
 ## Step 1 — Check Text and STT Errors
 
-Read the scene's `text` field in the context of the whole video.
+Read the scene's `text` field in the context of the whole video. Look for: spelling/typos, STT mishearing, wrong industry terminology, wrong proper names, wrong figures, missing/extra words, sentences grammatically fine but wrong in meaning for the topic, a caption that doesn't match the audio.
 
-Look for:
+If wrong, fix `text` with `modify_scene` branch (K) Segment text correction (keeps audio timing) before anything else.
 
-- spelling errors
-- typos
-- STT mishearing errors
-- wrong industry terminology
-- wrong proper names
-- wrong figures
-- sentences missing or having extra words
-- sentences that are grammatically correct but wrong in meaning for the topic
-- a caption that doesn't match the audio/context content
+If the correction is a domain term, proper noun, number, symbol, or entity (`Living Church` → `Living Trust`, `95` → `95%`, a company/person/product name), run a **semantic field sweep**: check/update `text`, `quote`, `talking_point`, `visual`, `keyword`, `pattern`/`sub_mode` when relevant; note any overlay text baked into an image that must be verified in Gate 4; re-pull `video_data` so later gates use the corrected context.
 
-If wrong, fix `text` with `modify_scene` branch (K) Segment text correction (keeping audio timing) before doing layout or visuals.
-
-If the correction is a domain term, proper noun, number, symbol, or entity (for example `Living Church` → `Living Trust`, `95` → `95%`, a company/person/product name), run a **semantic field sweep** before leaving Gate 1:
-
-- check/update `text`, `quote`, `talking_point`, `visual`, `keyword`, `pattern`/`sub_mode` when relevant;
-- note any overlay text that may still be baked into `remotion_spec` and must be verified in Gate 4/7 using the MCP `overlay_poster` local PNG when available;
-- re-pull `video_data` after metadata/text edits so later gates use the corrected context.
-
-Gate 1 does **not** clear overlay copy by itself. A caption may be fixed while a title/label/value baked into `remotion_spec`, generated image, realistic overlay, document mockup, chart, UI screenshot, or a newly authored overlay source still has a typo, grammar issue, missing diacritic, malformed glyph, pseudo-text, wrong currency, wrong number, or wrong term. Gate 4 must inventory and proofread the exact visible overlay strings again from the MCP `overlay_poster` local PNG when available, and Gate 7 must pass `Gate 7 RENDERED IMAGE TYPO/GRAMMAR CHECK` from that poster or a stated composite fallback.
-
-Do not let the caption fix become the whole task. A term fixed in `text` but still wrong in `quote`/`visual`/overlay is a Gate 1 failure, not a partial pass.
-
-Do not edit based on personal feeling if you're not sure of the context. Rely on the full script, the topic, `visual`, `keyword`, and the neighboring scenes.
+A term fixed in `text` but still wrong in `quote`/`visual`/overlay is a Gate 1 failure, not a partial pass. Do not edit from personal feeling — rely on the full script, topic, `visual`, `keyword`, and neighboring scenes.
 
 ---
 
-## Step 2 — Understand the Scene's Role
+## Step 2 — Understand the Scene's Role (routing)
 
-Before adjusting visual/layout, the agent must understand what job this scene is doing; read:
+Read `type` (HOOK / STAT / KEY POINT / DATA / FACT / CALL TO ACTION / thumbnail), `pattern` + `sub_mode`, `visual`, `keyword`, `quote`, `talking_point`, `text`, `show_narrator`/`active_roll`, `mediaUrl`/`mediaType`.
 
-- `type` (HOOK / STAT / KEY POINT / DATA / FACT / CALL TO ACTION / thumbnail)
-- `pattern` (15 values) **and** `sub_mode` (when `pattern=illustration`)
-- `visual`, `keyword`, `quote`, `talking_point`, `text`
-- `show_narrator` / `active_roll`
-- `mediaUrl` / `mediaType`, the thumbnails
-- `overlay.*` and `narrator_face`
+From these DATA fields alone, route the two conditional gates:
 
-The goal is to understand what idea the scene is trying to convey, whether the current visual serves that idea, and whether the scene wants a grid or a real background — **decided by sight, not by the pattern label** (`ai_video_editor/20_background`).
+- **Gate 3 (background) applies** if the scene is NOT a grid background AND the narrator does not fill/cover most of the frame. Grid or full-frame A-roll narrator → Gate 3 is N/A.
+- **Gate 4 (overlay typo) applies** if the overlay text was baked by an image model (`pattern="illustration"` sub_mode ≠ `photo_with_people`, or a chart/diagram/object pattern with image-generated text). `typography_only`/SVG text or no overlay text → Gate 4 is N/A.
 
-> **Step 3 (audit layout with `scene_geometry`) and Step 4 (the A-roll layout priority ladder) → `ai_video_editor/10_mechanics`.** Then the per-scene visual work: background → `20_background`; overlay → `30_overlay_core` (+ the matching style module).
+No screenshot here — routing is a pure data read. Then run the applicable gates in order. Layout mechanics + `modify_scene` branches → `ai_video_editor/10_mechanics`; background work → `20_background`; overlay-defect fixes → `30_overlay_core` (+ matching content/style module).

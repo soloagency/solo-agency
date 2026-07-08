@@ -44,6 +44,8 @@ CLIENT_BLIND_TERMS = [
     "scheduled task",
     "collector bridge",
     "agent debug",
+    "config file",
+    "debug",
 ]
 
 
@@ -297,6 +299,27 @@ tr:last-child td { border-bottom: 0; }
   background: var(--panel);
 }
 
+.draft-actions { margin: .4rem 0 .9rem; }
+.copy-btn {
+  padding: .5rem .95rem;
+  border: 1px solid var(--accent-ink);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.copy-btn:hover { background: var(--accent); color: #fff; }
+.copy-btn.copied { background: var(--accent); color: #fff; }
+.draft-editable {
+  padding: 14px 16px;
+  border: 1px dashed var(--accent-ink);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.draft-editable:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 @media (max-width: 860px) {
   .report-page { width: min(100% - 28px, 720px); padding-top: 12px; }
   .report-hero { min-height: auto; grid-template-columns: 1fr; padding: 34px 0 20px; }
@@ -339,6 +362,47 @@ tr:last-child td { border-bottom: 0; }
     word-break: break-all;
   }
 }
+"""
+
+
+COPY_SCRIPT = """
+(function () {
+  function textFor(target) {
+    if (!target) return "";
+    if (target.isContentEditable || target.tagName === "TEXTAREA" || target.tagName === "INPUT") {
+      return target.value !== undefined && target.value !== "" ? target.value : target.innerText;
+    }
+    return target.innerText || target.textContent || "";
+  }
+  document.addEventListener("click", function (event) {
+    var btn = event.target.closest("[data-copy-target]");
+    if (!btn) return;
+    var target = document.getElementById(btn.getAttribute("data-copy-target"));
+    var text = textFor(target);
+    var done = function () {
+      var label = btn.getAttribute("data-copy-label") || btn.textContent;
+      btn.setAttribute("data-copy-label", label);
+      btn.classList.add("copied");
+      btn.textContent = "Copied";
+      setTimeout(function () { btn.classList.remove("copied"); btn.textContent = label; }, 1400);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+    } else {
+      fallbackCopy(text, done);
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
 """
 
 
@@ -482,6 +546,18 @@ def render_markdown_body(markdown: str) -> tuple[str, list[tuple[str, str]]]:
     nav: list[tuple[str, str]] = []
     used_ids: set[str] = set()
     in_section = False
+    in_version_section = False
+    version_re = re.compile(r"^Version\s+\d+\b", re.IGNORECASE)
+
+    def close_current_section() -> None:
+        nonlocal in_section, in_version_section
+        if in_section:
+            if in_version_section:
+                out.append("</div>")
+                in_version_section = False
+            out.append("</section>")
+            in_section = False
+
     i = 0
     while i < len(lines):
         line = lines[i]
@@ -508,12 +584,24 @@ def render_markdown_body(markdown: str) -> tuple[str, list[tuple[str, str]]]:
             level = len(heading.group(1))
             text = heading.group(2).strip()
             if level == 2:
-                if in_section:
-                    out.append("</section>")
+                close_current_section()
                 sid = heading_id(text, used_ids)
                 nav.append((sid, strip_md(text)))
-                out.append(f'<section class="report-section" id="{sid}"><h2>{inline_md(text)}</h2>')
-                in_section = True
+                if version_re.match(strip_md(text)):
+                    # Draft version heading (e.g. "Version 1: VE — Value Explainer")
+                    # → editable review block with a working copy button.
+                    body_id = f"{sid}-draft"
+                    out.append(
+                        f'<section class="report-section" id="{sid}"><h2>{inline_md(text)}</h2>'
+                        f'<div class="draft-actions"><button type="button" class="copy-btn" '
+                        f'data-copy-target="{body_id}">Copy draft</button></div>'
+                        f'<div class="draft-editable" id="{body_id}" contenteditable="true" spellcheck="true">'
+                    )
+                    in_section = True
+                    in_version_section = True
+                else:
+                    out.append(f'<section class="report-section" id="{sid}"><h2>{inline_md(text)}</h2>')
+                    in_section = True
             elif level == 1:
                 out.append(f"<h2>{inline_md(text)}</h2>")
             else:
@@ -584,8 +672,7 @@ def render_markdown_body(markdown: str) -> tuple[str, list[tuple[str, str]]]:
         klass = ' class="lead-paragraph"' if len(out) < 3 else ""
         out.append(f"<p{klass}>{inline_md(' '.join(paragraph_lines))}</p>")
 
-    if in_section:
-        out.append("</section>")
+    close_current_section()
     return "\n".join(out), nav
 
 
@@ -662,6 +749,7 @@ def render_full_html(
     </main>
   </div>
 </div>
+<script>{COPY_SCRIPT}</script>
 </body>
 </html>
 """
@@ -703,21 +791,41 @@ def render_command(args: argparse.Namespace) -> int:
     )
 
     output_html = Path(args.output_html)
+    scrub_found = scrub_check(html_text) if args.client_facing else []
+    if args.client_facing and scrub_found and args.fail_on_scrub:
+        # Do NOT create/overwrite the real output name on a scrub failure — a
+        # downstream step keyed on file existence must not ship a contaminated
+        # report. Write to a .blocked.html sidecar and exit 3 instead.
+        blocked_html = output_html.with_name(output_html.stem + ".blocked" + output_html.suffix)
+        write_text(blocked_html, html_text)
+        status = {
+            "command": "render",
+            "input": str(input_path),
+            "output_html": str(output_html),
+            "blocked_output_html": str(blocked_html),
+            "generated_at": generated_at,
+            "client_blind_terms_found": scrub_found,
+            "scrub_status": "blocked",
+            "pdf_status": "not_generated_scrub_blocked",
+            "pdf_path": "",
+            "pdf_blocker": "",
+        }
+        write_status(blocked_html, status)
+        print(json.dumps(status, indent=2), file=sys.stderr)
+        return 3
+
     write_text(output_html, html_text)
     status = {
         "command": "render",
         "input": str(input_path),
         "output_html": str(output_html),
         "generated_at": generated_at,
-        "client_blind_terms_found": scrub_check(html_text) if args.client_facing else [],
+        "client_blind_terms_found": scrub_found,
+        "scrub_status": "clean" if args.client_facing else "not_checked",
         "pdf_status": "not_requested",
         "pdf_path": "",
         "pdf_blocker": "",
     }
-    if args.client_facing and status["client_blind_terms_found"] and args.fail_on_scrub:
-        write_status(output_html, status)
-        print(json.dumps(status, indent=2), file=sys.stderr)
-        return 3
 
     if args.output_pdf:
         pdf_status, blocker = export_pdf(output_html, Path(args.output_pdf))
@@ -824,7 +932,7 @@ def package_command(args: argparse.Namespace) -> int:
         if not path.exists():
             sections.append(
                 f'<section class="report-section" id="{section_id}"><h2>{html.escape(label)}</h2>'
-                f"<p>This report file was unavailable when the PDF companion package was prepared.</p></section>"
+                f"<p>This section was not available when this report was prepared.</p></section>"
             )
             continue
         fragment = extract_body_fragment(read_text(path))
@@ -851,6 +959,27 @@ def package_command(args: argparse.Namespace) -> int:
     )
 
     output_html = Path(args.output_html)
+    scrub_found = scrub_check(html_text) if args.client_facing else []
+    if args.client_facing and scrub_found and args.fail_on_scrub:
+        blocked_html = output_html.with_name(output_html.stem + ".blocked" + output_html.suffix)
+        write_text(blocked_html, html_text)
+        status = {
+            "command": "package",
+            "inputs": [str(path) for path in input_paths],
+            "missing_inputs": missing,
+            "output_html": str(output_html),
+            "blocked_output_html": str(blocked_html),
+            "generated_at": generated_at,
+            "client_blind_terms_found": scrub_found,
+            "scrub_status": "blocked",
+            "pdf_status": "not_generated_scrub_blocked",
+            "pdf_path": "",
+            "pdf_blocker": "",
+        }
+        write_status(blocked_html, status)
+        print(json.dumps(status, indent=2), file=sys.stderr)
+        return 3
+
     write_text(output_html, html_text)
     status = {
         "command": "package",
@@ -858,15 +987,12 @@ def package_command(args: argparse.Namespace) -> int:
         "missing_inputs": missing,
         "output_html": str(output_html),
         "generated_at": generated_at,
-        "client_blind_terms_found": scrub_check(html_text) if args.client_facing else [],
+        "client_blind_terms_found": scrub_found,
+        "scrub_status": "clean" if args.client_facing else "not_checked",
         "pdf_status": "not_requested",
         "pdf_path": "",
         "pdf_blocker": "",
     }
-    if args.client_facing and status["client_blind_terms_found"] and args.fail_on_scrub:
-        write_status(output_html, status)
-        print(json.dumps(status, indent=2), file=sys.stderr)
-        return 3
     if args.output_pdf:
         pdf_status, blocker = export_pdf(output_html, Path(args.output_pdf))
         status["pdf_status"] = pdf_status
@@ -1110,16 +1236,20 @@ def export_pdf_with_wkhtmltopdf(html_path: Path, pdf_path: Path) -> tuple[bool, 
 
 def export_pdf(html_path: Path, pdf_path: Path) -> tuple[str, str]:
     attempts = [
-        export_pdf_with_chrome,
-        export_pdf_with_weasyprint,
-        export_pdf_with_reportlab,
-        export_pdf_with_wkhtmltopdf,
+        ("chrome", export_pdf_with_chrome),
+        ("weasyprint", export_pdf_with_weasyprint),
+        ("reportlab", export_pdf_with_reportlab),
+        ("wkhtmltopdf", export_pdf_with_wkhtmltopdf),
     ]
     blockers: list[str] = []
-    for attempt in attempts:
+    for name, attempt in attempts:
         ok, blocker = attempt(html_path, pdf_path)
         if ok:
-            return "generated", ""
+            # reportlab is a text-only fallback: link URLs, table layout, and print
+            # CSS are lost. Flag it so INTERNAL_REPORT can record a degraded PDF.
+            return ("generated_degraded" if name == "reportlab" else "generated"), (
+                "reportlab_text_only_fallback" if name == "reportlab" else ""
+            )
         blockers.append(blocker)
     return "blocked", " | ".join(blockers)
 
