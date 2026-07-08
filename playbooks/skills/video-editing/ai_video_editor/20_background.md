@@ -13,14 +13,14 @@ Whether A-roll or B-roll, the agent must evaluate whether the background is appr
 
 > **Show ≠ ask.** Contact sheets, candidate thumbnails, and downloaded plates are shown so the run is auditable; they are not a request for the user to pick. At runtime the agent evaluates the visible evidence, chooses the best background itself, applies it, and reports the decision. Do not stop to ask "which clip/image should I use?"
 
-### 4.0. Layer isolation — Gate 5 is background-only
+### 4.0. Layer isolation — Gate 3 is background-only
 
-Gate 5 owns only the background/media plate. If the current background is wrong, no fitting background is found, the geo/context check fails, or the correct fallback is grid, the allowed edit is branch (A) `mediaUrl`/`mediaType` only.
+Gate 3 owns only the background/media plate. If the current background is wrong, no fitting background is found, the geo/context check fails, or the correct fallback is grid, the allowed edit is branch (A) `mediaUrl`/`mediaType` only.
 
 - Do **not** rebuild, replace, disable, restyle, or upload an overlay because the background failed.
 - Do **not** redraw an existing realistic overlay photo/map/entity image/complex visual just because the background changed or became grid.
-- If the new background makes the overlay harder to read, first finish Gate 5 as a background action, then return to Gate 4/Gate 6 with an independent overlay FAIL proof and the normal least-destructive repair ladder.
-- The reverse is also true: an overlay defect does not justify background replacement unless Gate 5 independently proves the background fails.
+- If the new background makes the overlay harder to read, first finish Gate 3 as a background action, then, only if the overlay text has an image-gen typo, fix that separately (Gate 4).
+- The reverse is also true: an overlay defect does not justify background replacement unless Gate 3 independently proves the background fails.
 
 ### 4.1. The first decision: GRID or a REAL background (image/video)
 
@@ -89,11 +89,9 @@ Two kinds; pick by whether motion matters.
 
 ⚠️ **Background ALWAYS uses `modify_scene` branch (A) `mediaUrl` (+`mediaType`). NEVER use branch (I) `narrator.upload_video` for a background** — that field is the A-roll NARRATOR's face video; putting a background there switches the scene to an A-roll narrator. Two different fields — never confuse them.
 
-### 4.2. Evaluate the CURRENT scene — BEFORE composite + active background/media plate
+### 4.2. Evaluate the CURRENT scene — the active background/media plate
 
-To judge the current background (and the whole scene), use the already shown **BEFORE composite screenshot** when available, or pull one now (`scene_inspector` / `widecast_scene_inspector` → `screenshot_scene_280x498`, §6), read `result.screenshot.url`, download it to a local file with `curl -L -s -o <local>.jpg "<url>"`, show it visibly in chat, and only then evaluate it. It composites the scene **as it actually renders** — background + narrator + overlay + caption — so it tells you whether the background is actually visible in the final scene.
-
-Then pull the **active background/media plate** separately, download it locally, show it visibly, and only then analyze it. This is required because the composite screenshot can make agents misattribute a background object (e.g. a wallet/card graphic) as an overlay, or wrongly think an overlay is hiding the background.
+The Gate 3 look is the **active background/media plate** — pull it, download it locally, show it (one user-visible render, Rule 0), and only then analyze it. The plate is the background in isolation, which is exactly what you're judging for semantic/geo/context fit. There is **no BEFORE composite look** — you are not auditing placement/composition (the server owns those), only whether the background clip fits. (If you replace the clip, Gate 5 pulls one AFTER composite to confirm the swap reads well.)
 
 **Which URL to pull for the active plate:**
 1. Prefer `thumbnailUrl` — it tracks the active runtime media (`mediaUrl`) and avoids accidentally judging an inactive lane.
@@ -101,7 +99,7 @@ Then pull the **active background/media plate** separately, download it locally,
 3. If still missing, fallback by active roll: `active_roll="B"`/`show_narrator=false` → `brollThumbnailUrl`; `active_roll="A"`/`show_narrator=true` → `arollThumbnailUrl`.
 4. Do **not** judge the current rendered background from an inactive lane. Example: an A-roll scene can have `brollThumbnailUrl` in data, but the viewer does not see it while `active_roll="A"`.
 
-From the two local-visible images decide:
+From the local-visible plate decide:
 1. What belongs to the active background/media plate vs what belongs to overlay/caption/narrator.
 2. Is the background appropriate for `text` / `talking_point` / `visual` / `keyword`, including geo/location/currency fit when §4.1c applies, and is it visible in the composite? **Skip this content-fit question for grid and for hidden plates behind a full-canvas A-roll narrator.**
 3. If it already fits → keep it.
@@ -157,7 +155,7 @@ This section describes the operational loop for reviewing and replacing the back
 1. Pull the entire video data first.
 2. For each target scene, save a baseline: `voice_file`, `id`, `text`, `talking_point`, `keyword`, `visual`, `type`, `pattern`, `sub_mode`, the current `mediaUrl`, `mediaType`, the current thumbnail. Note that `originalMediaUrl`/`originalThumbnailUrl` are already available as a restore point.
 3. Identify the target scenes: usually from `id=2` (after the thumbnail scene) to the last scene. Skip a scene only when the user explicitly asks.
-4. Create a **Background Audit Ledger** with a blank row for every target scene. Required columns: `scene`, `voice_file`, `composite_local_path`, `active_plate_local_path`, `geo_context_required`, `geo_verdict`, `decision`, `action`, `verdict`. Do not fill visual judgments during preparation; fill each row only inside that scene's Gate 5 after local-visible evidence has been shown.
+4. Track each scene's background verdict in the run_ledger roster row (there is no separate Background Audit Ledger).
 5. Audit each scene per §4.1 — decide grid vs a real background **by sight + topic vibe, not by the pattern label**; grid is the capped exception (≤3/video, §4.1a). A scene is not background-audited until its ledger row has a PASS/FIXED verdict.
 
 ### 11.2. Grid placeholder
@@ -171,8 +169,8 @@ Sending `modify_scene` (A) with the grid for one scene makes the editor auto-scr
 ### 11.3. The per-scene loop (in order)
 
 0. **BYPASS CHECKS — check FIRST.**
-   - **Force-grid / active grid:** if `segment.force_grid === true`, `stock_fallback_reason` ends in `_force_grid`, or the active media is already a grid background, the background is **grid by design** → **skip B–H entirely** (no `search_broll`, no real-footage content evaluation, no replace). This does **not** skip Gate 5 proof: still use the local-shown BEFORE composite + active plate, print `Gate 5 BACKGROUND PROOF`, update the Background Audit Ledger, and mark `Verdict: PASS grid-by-design` when the grid cap/shared-grid rule is satisfied. Then go straight to Gate 6 final composition.
-   - **Full-canvas A-roll:** if the narrator fills/occludes the frame, the narrator is the active visual → **do not evaluate the hidden fallback/background plate for content**. Still show the composite + active plate for auditability, print `Gate 5 BACKGROUND PROOF`, set `Decision: A-roll narrator is the visual`, `Action: no background action because A-roll narrator fills frame`, and continue.
+   - **Force-grid / active grid:** if `segment.force_grid === true`, `stock_fallback_reason` ends in `_force_grid`, or the active media is already a grid background, the background is **grid by design** → **skip B–H entirely** (no `search_broll`, no real-footage content evaluation, no replace). This does **not** skip Gate 3 proof: still show the active plate, print `Gate 3 BACKGROUND PROOF`, and mark `Verdict: PASS grid-by-design` when the grid cap/shared-grid rule is satisfied. Then record the verdict.
+   - **Full-canvas A-roll:** if the narrator fills/occludes the frame, the narrator is the active visual → **do not evaluate the hidden fallback/background plate for content**. Still show the active plate for auditability, print `Gate 3 BACKGROUND PROOF`, set `Decision: A-roll narrator is the visual`, `Action: no background action because A-roll narrator fills frame`, and continue.
 
 A. **Activate the scene with a grid request.** `modify_scene` branch (A), `by="voice_file"`, `value=scene.voice_file`, field `mediaUrl=GRID`, `mediaType="video"`. The editor auto-scrolls/activates the scene.
 
@@ -181,9 +179,9 @@ B. **Decide grid or a real background — by sight + topic vibe, not by `pattern
    - Special (`narration_only`/`real_entity`): handle per §4.1; `real_entity` image search is the agent's own (§5.0), no WideCast image API.
    - Photo-led scene (`photo_with_people`/`photo_no_people`): continue to B2–I.
 
-B2. **(real-background scene) Check the current background first** — from the **local-shown BEFORE screenshot + local-shown active background/media plate** (§4.2), evaluate what the asset is and how it actually renders under the overlay/caption. Then print the master `Gate 5 BACKGROUND PROOF` template and update the Background Audit Ledger row for this scene. If it already fits, keep it, mark the row `Verdict: PASS keep`, and move to Gate 6 final composition. Only proceed to C if it doesn't fit.
+B2. **(real-background scene) Check the current background** — from the **local-shown active background/media plate** (§4.2), evaluate what the asset is and whether it fits the narration + geo/context. Then print the master `Gate 3 BACKGROUND PROOF`. If it already fits, keep it and mark `Verdict: PASS keep`. Only proceed to C if it doesn't fit.
 
-B3. **Hard stop before final composition.** Gate 6 is blocked until the current scene has a filled ledger row and a printed proof verdict: `PASS keep`, `PASS grid-by-design`, or `FIXED + PASS`. If the proof is missing, the correct status is `Scene N: FAIL — Gate 5 incomplete; fixing`, not PASS.
+B3. **Gate 3 needs a printed proof verdict** (`PASS keep`, `PASS grid-by-design`, or `FIXED + PASS`) before the scene can be `PASS`. If the proof is missing, the status is `Scene N: FAIL — Gate 3 incomplete; fixing`.
 
 C. **State the keyword/context.** One short sentence explaining what keyword you'll search and why, based on `text`/`talking_point`. If §4.1c is on, include the target country/state/city/currency in the search phrase or explain why a neutral no-geo-cue visual is safer. (For a demo/recording, write this sentence in English.)
 
@@ -195,7 +193,7 @@ F. **Download the thumbnails locally & build a contact sheet.** Download the thu
 
 G. **Show the contact sheet BEFORE evaluating visually or applying the clip.** Display the local contact sheet first, then state clearly which clip number is chosen and why. Don't look privately, don't apply first, and don't show afterward.
 
-G1. **Contact sheet = candidate triage only.** A contact sheet can choose a candidate, but it does not prove Gate 5 PASS and it never proves `Scene N: PASS`. Gate 5 still needs the active background/media plate + composite screenshot evidence for this exact scene, and the scene still needs the full 9-gate DoD before PASS.
+G1. **Contact sheet = candidate triage only.** A contact sheet can choose a candidate, but it does not prove Gate 3 PASS and it never proves `Scene N: PASS`. Gate 3 still needs the active background/media plate + composite screenshot evidence for this exact scene, and the scene still needs the full 9-gate DoD before PASS.
 
 G2. **Evaluate for real & technical filter.** Now that the local contact sheet has been shown, drop off-topic clips; apply the §4.6 filter (natively portrait, not too bright for a text-heavy scene, no duplicates, no watermark). If poor, search again and repeat F→G→G2.
 
@@ -219,7 +217,7 @@ J. **Move to the next scene**, repeat.
 - Editing `segment.narrator_face` to adjust layout (wrong — use `overlay.narrator.rect`).
 - Scrolling the browser manually.
 - Looking at candidate thumbnails privately before showing the local contact sheet.
-- Treating a contact sheet as scene proof. It is triage/selection evidence only, not Gate 5 PASS and not `Scene N: PASS`.
+- Treating a contact sheet as scene proof. It is triage/selection evidence only, not Gate 3 PASS and not `Scene N: PASS`.
 - Applying the clip before showing the contact sheet.
 - Pasting raw HTML or just pasting an external thumbnail URL.
 - Always putting the chosen clip at #1.

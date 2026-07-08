@@ -2,6 +2,8 @@
 
 _Version: `modular-1.1` · module of the AI Video Editor Playbook (`SKILL.md`)._
 
+> **⚠ SCOPE (2026 lean model): load this ONLY when re-authoring a chart overlay to fix a real defect.** WideCast produces chart overlays and guarantees placement. If a chart's image-baked text has a typo (Gate 4), prefer regenerating/replacing it over a full hand-rebuild.
+
 > **Module of the AI Video Editor Playbook.** Master index + checklist + critical rules live in `SKILL.md`. **Load this when:** the scene pattern is single_metric, bar_chart, proportion_chart, trend_chart, or structural_diagram.
 > Cross-refs: style recipes (3D/glossy/metallic/pattern-fill/…) → `styles/chart_axes.md`; core SVG rules → `30_overlay_core.md`; general drawing rules also in `30_overlay_core.md`.
 

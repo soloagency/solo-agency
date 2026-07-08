@@ -31,8 +31,8 @@ This is the **diversity vocabulary for TEXT** (titles, labels, values, quotes). 
 | value | look | SVG recipe |
 |---|---|---|
 | `solid` | filled letters, no outline | Secondary text: `<text fill="#F4C61F">` on a calm/dark area. Title text: stack 8–15 same-fill copies first; one plain copy is too thin. |
-| `solid_outlined` | filled + thin dark contour (hero/title over footage) | Title: 8–15 same-fill face copies with tiny offsets, then a final top `<text fill="#FFF" stroke="#0C0F14" stroke-width="2" paint-order="stroke">` (use 1.5–2px). If the stack closes counters/diacritics or makes the face blobby, lower count/offset. Secondary text uses `solid` + chip/backplate, not stroke. |
-| `hollow_outline` | outline-only, transparent interior (rare display treatment) | Avoid for normal short-form titles because it often reads thin. If used as a deliberate display effect, still add an 8–15x filled/gradient body or shadow mass behind it; never use for labels/values. |
+| `solid_outlined` | filled + thin dark contour (hero/title over footage) | Title: 8–15 same-fill face copies with tiny offsets, then a final top `<text fill="#FFF" stroke="#0C0F14" stroke-width="2" paint-order="stroke">` (use 1.5–2px). If the stack closes counters/diacritics or makes the face blobby, lower count/offset. Secondary text uses `solid` + chip/backplate, not stroke. Do **not** classify this as hollow when the face is opaque and visually solid; it is the normal passing sticker/outlined title recipe. |
+| `hollow_outline` | outline-only, transparent interior (rare display treatment) | Avoid for normal short-form titles because it often reads thin. This means the letter interior is transparent/missing/too weak, not merely that the title has a contour. If used as a deliberate display effect, still add an 8–15x filled/gradient body or shadow mass behind it; never use for labels/values. |
 | `double_outline` | sticker/retro without thick text stroke | Stack 8–15 same-fill title copies, then one top copy with 1.5–2px face stroke, plus a separate sticker/backplate shape or soft shadow behind the group. Do **not** stack 7–14px text strokes; if it needs that much separation, the placement/backplate is wrong. |
 
 ## Axis: depth — z-dimension of the letters
@@ -60,10 +60,10 @@ cairosvg ignores numeric `font-weight` → **name the HEAVY family** (see overla
 
 | key | use family (heavy) |
 |---|---|
-| `bold_sans` | `Be Vietnam Pro Black` · `Inter Black` · `Montserrat Black` · `Open Sans Black` |
-| `condensed` | `Anton` (single-weight, already heavy) · `Roboto Condensed` · `Noto Sans Condensed` |
-| `slab_serif` | `DejaVu Serif` (heaviest VN-safe serif in the set) |
-| `rounded` | `Be Vietnam Pro Black` (rounded-ish) — no dedicated rounded VN family ships; prefer bold_sans |
+| `bold_sans` | `Be Vietnam Pro Black` · `Montserrat Black` · `Archivo Expanded` · `Bricolage Grotesque` |
+| `condensed` | `Anton` (single-weight, already heavy) · `Barlow Condensed` · `Oswald` · `Roboto Condensed Black` |
+| `slab_serif` | `Roboto Slab` (heavy VN-safe slab serif) |
+| `rounded` | `Baloo 2` (dedicated rounded VN family) · `Paytone One` |
 
 ## Axis: casing
 <!-- SYNC: casing = upper, title, sentence -->

@@ -21,7 +21,7 @@ contract, and the report-design skill controls visual quality.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
 - Every idea, best idea, comment, and draft must be audience-value-first: useful to the viewer before useful to the client's brand. Reject or rewrite direct product/service praise as `promotional_not_value_first`.
 - Do not create fake action buttons in static HTML.
-- Keep exactly one canonical client-facing report file per client/day/run. Daily/public/private HTML files may be generated as scrubbed staging inputs for lane isolation, but the file handed to the human/client or uploaded through a provider must be the combined `{client-name}-client-report.html`.
+- Keep exactly one canonical client-facing report file per client/day/run. Daily/public/private HTML files must be generated as scrubbed staging inputs for lane isolation — exactly three staging files per client/day/run — but the file handed to the human/client or uploaded through a provider must be the combined `{client-name}-client-report.html`.
 - Client-facing report files and the PDF companion must be client-blind: no Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled-task, API-key/config, Telegram, agent/tool/debug, or `INTERNAL_REPORT` details.
 - Every run must also create an operator-only `{client-name}-INTERNAL_REPORT.html` clearly labeled `INTERNAL_REPORT - Not for client sharing`.
 - Never let a later public/private pass overwrite or summarize away the other lane. Keep lane staging files separate for generation/state safety, then combine them into the one client-facing HTML report.
@@ -42,6 +42,8 @@ Each active client must have one daily output folder:
 ```text
 outputs/YYYY-MM/YYYY-MM-DD/
 ```
+
+Path definition note: unless stated otherwise, `outputs/...` paths in this file live under the per-client root `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/`. Some examples later in this file show the full nested form; both refer to the same per-client location.
 
 Markdown is the canonical internal output record. Client-facing HTML is the canonical rendered report. PDF is a mandatory companion derived from the client-facing HTML report set so the recipient can choose HTML or PDF. The operator-only `INTERNAL_REPORT` is a separate diagnostic/operations report and must not be sent to the client.
 
@@ -139,6 +141,11 @@ Required order for every client-facing report:
 4. Run the Client-Blind Scrub Gate on each client-facing HTML file.
 5. Build `{client-name}-client-report.html` and `{client-name}-client-report.pdf` with `tools/solo_report_renderer.py package` from the scrubbed daily/public/private HTML files. This package HTML is the only default human/client-facing report link.
 6. If PDF export is unavailable, keep the package HTML, write the renderer status JSON, update `report_state.json`, and record the exact blocker in `INTERNAL_REPORT`.
+7. Create or update the operator-only `{client-name}-INTERNAL_REPORT.html` (labeled `INTERNAL_REPORT - Not for client sharing`).
+8. Create or update `{client-name}-report_state.json` with reconciled counts, statuses, and timestamps on success — not only on the PDF-failure branch.
+9. Refresh the `outputs/latest/` copies: `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, `{client-name}-INTERNAL_REPORT.html`, and the staging files.
+10. Run the count/status reconciliation across all artifacts (staging lanes, combined client report, PDF, report state, INTERNAL_REPORT, notification log) so no artifact says `in progress`/`partial` while another says `complete`.
+11. Send the notification per the delivery rules (combined client report link plus PDF companion status plus INTERNAL_REPORT path/status).
 
 Default render command pattern:
 
@@ -172,10 +179,14 @@ python3 tools/solo_report_renderer.py package \
 Renderer behavior:
 
 - `render` creates standalone responsive HTML with a landing-page-like hero, navigation, polished sections, mobile-safe tables, and print CSS.
-- `package` combines scrubbed staging HTML files into the single client-facing HTML report and attempts PDF export from that same HTML through local browser print-to-PDF, WeasyPrint, or `wkhtmltopdf` when available.
+- `package` combines scrubbed staging HTML files into the single client-facing HTML report and attempts PDF export from that same HTML.
+- PDF export tries these engines in order: Chrome/Chromium headless print-to-PDF, then WeasyPrint, then reportlab, then `wkhtmltopdf`. The reportlab path is a TEXT-ONLY fallback: link URLs, table layout, and print CSS are lost. When it is used, the status JSON records `pdf_status: generated_degraded`; a degraded PDF must be flagged in `INTERNAL_REPORT` and handed off together with the print-friendly HTML, not passed off as a clean PDF.
+- Scrub gate: with `--client-facing --fail-on-scrub`, on a scrub failure the renderer writes the output to `{output-name}.blocked.html` and does NOT create or overwrite the real output filename (an older file at the real name is left untouched); it exits with code 3. A `.blocked.html` file must never be delivered, uploaded, or linked — fix the source content and re-run. Decide success from the exit code / `render_status.json`, never from file existence alone.
+- Copy buttons: both `render` and `package` embed a small inline copy-button script so `button[data-copy-target]` copy buttons stay real, working buttons in the browser (in the PDF they are naturally non-interactive). The agent must not hand-add its own scripts; the embedded script is the only sanctioned one.
 - `package` must not leave links that send the reader to sibling daily/public/private HTML files. Any such references must become internal anchors within `{client-name}-client-report.html` or plain section labels.
-- Every renderer run writes `{output_html}.render_status.json` so `INTERNAL_REPORT` and `report_state.json` can record generated/blocked PDF status without parsing terminal output.
-- The renderer uses no remote CSS, JavaScript, fonts, or external services.
+- `package` with a missing input file inserts a client-safe placeholder for that section and records the file in `missing_inputs` in the status JSON. The agent must check `missing_inputs` and create the missing staging file first when that section is required rather than shipping the placeholder.
+- Every renderer run writes `{output_html}.render_status.json` so `INTERNAL_REPORT` and `report_state.json` can record generated/`generated_degraded`/blocked PDF status without parsing terminal output.
+- The renderer uses no remote CSS, remote JavaScript, fonts, or external services; the only JavaScript is the inline copy-button script noted above.
 
 Fallback rule:
 
@@ -237,6 +248,10 @@ File responsibilities:
    - Must not require the reader to open `daily-report.html`, `public-data-sources-report.html`, or `private-data-sources-report.html`.
    - Must not contain sibling-file links to those staging files; rewrite them to internal anchors or section labels during packaging.
 
+This lane structure governs the two lane staging files (`{client-name}-public-data-sources-report.html` and `{client-name}-private-data-sources-report.html`).
+
+Before generating any Lead & Competitor Opportunities section in either lane, load `playbooks/10_LEAD_COMPETITOR_DETECTION.md` (Stage 10, print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md`).
+
 Both full lane reports must use the same structure:
 
 - Source coverage and data quality.
@@ -246,6 +261,8 @@ Both full lane reports must use the same structure:
 - Best idea for that lane.
 - Draft/recommendation for that lane.
 - Client-relevant blockers/limits, skipped public sources or safely summarized private coverage limits, and confidence notes.
+
+Every Idea Matrix entry and the best idea in each lane must pass the Audience Value-First Gate (teach something, prevent a mistake, improve a decision, or reduce a risk/cost/confusion for the audience). Direct client/product promotion without a standalone audience lesson is rejected or rewritten as `promotional_not_value_first`.
 
 The private lane usually has richer post/current URLs and copy-ready comments. Public data source opportunities should also include copy-ready comments when there is a concrete public post/context where a comment is safe and useful. If the public source does not support a safe comment action, keep the field and state `not available from this public data source` or the same meaning in the report language.
 
@@ -331,6 +348,8 @@ automation
 scheduled task
 collector bridge
 agent debug
+config file
+debug
 ```
 
 Do not include a footer such as `Powered by Solo Agency`, `Created with Solo Agency`, `Generated by WideCast`, or equivalent. If a footer is needed, keep it neutral or agency-owned, for example:
@@ -434,8 +453,8 @@ The state file must track at least:
   "counts_reconciled_at": "",
   "last_public_update_at": "",
   "last_private_update_at": "",
-  "public_notification_status": "not_sent|sent|skipped",
-  "private_notification_status": "not_sent|sent|skipped",
+  "public_notification_status": "not_sent|sent|failed|blocked|skipped",
+  "private_notification_status": "not_sent|sent|failed|blocked|skipped",
   "client_report_pdf_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf",
   "latest_client_pdf_path": "outputs/latest/{client-name}-client-report.pdf",
   "client_pdf_status": "pending|pending_review|generated|blocked",
@@ -481,7 +500,7 @@ Template:
 
 ## Internal Source Lane Order
 
-The sections below are mandatory for the internal source record. Public data source intelligence must appear first. Private data source intelligence must appear second. Internal operational details must appear only inside the `INTERNAL_REPORT` section. The detailed field templates later in this document are schemas to apply inside each lane. The client-facing HTML must still be split into `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`; do not render one mixed global HTML body that combines public data sources and private data sources.
+The sections below are mandatory for the internal source record. Public data source intelligence must appear first. Private data source intelligence must appear second. Internal operational details must appear only inside the `INTERNAL_REPORT` section. The detailed field templates later in this document are schemas to apply inside each lane. The three scrubbed STAGING files must stay split per lane (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`) — never one mixed staging body. The combined `{client-name}-client-report.html` built by `package` is the only place the lanes are deliberately combined into one client-facing file.
 
 <!-- SOLO_AGENCY_SECTION:PUBLIC_START -->
 ## Public Data Source Intelligence
@@ -1087,7 +1106,7 @@ The HTML report is not a data dump. It is a professional agency decision report.
 
 The report must feel like it came from a capable media strategist, not from a crawler. It should combine research, judgment, prioritization, production readiness, and clear client communication.
 
-Required report hierarchy:
+Required report hierarchy (this hierarchy governs the combined `{client-name}-client-report.html` and its PDF companion):
 
 1. `Executive Snapshot`
    - Client name.
@@ -1230,7 +1249,7 @@ Required report hierarchy:
    - Avoid guarantees, misleading claims, unsafe outreach, or pretending the client has performed services they have not performed.
    - If a CTA needs license number, phone number, disclaimer, location, or offer approval, list it under `Needs human detail`.
 
-11. `Next Action`
+13. `Next Action`
    - End with exactly one primary next action.
    - Secondary actions may be listed below, but they must not compete with the primary next action.
    - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
@@ -1298,7 +1317,7 @@ Professional presentation rules:
 - Label missing data honestly: `not scanned`, `pending activation`, `session expired`, `not detected`, or `low confidence`.
 - Do not pretend research from public data sources only has private lead coverage.
 
-Recommended HTML section order:
+Recommended HTML section order (this order applies to the combined `{client-name}-client-report.html`):
 
 ```text
 1. Executive Snapshot
@@ -1325,7 +1344,7 @@ When the client-facing report contains script, blog/article, or social-caption d
 
 This is a local review convenience, not a publishing or approval system.
 
-The editable blocks should be generated by the HTML renderer from Markdown version headings such as `## Version 1: VE — Value Explainer`. The AI must not hand-author a second long HTML version of the same script or blog draft.
+The editable blocks should be generated by the HTML renderer from Markdown version headings such as `## Version 1: VE — Value Explainer`. The AI must not hand-author a second long HTML version of the same script or blog draft. If the installed renderer lacks the editable-draft feature or it fails, record `editable_drafts_status: renderer_missing_feature` in `INTERNAL_REPORT` and ship plain draft sections — do not hand-author replacement HTML or scripts as a workaround.
 
 Rules:
 

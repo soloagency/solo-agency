@@ -313,11 +313,14 @@ Minimum `update_state.json`:
   "bridge_update_required": false,
   "extension_reload_required": false,
   "automation_prompt_update_pending": false,
+  "update_watch_task_prompt_pending": false,
   "clients_resynced": [],
   "automations_resynced": [],
   "human_actions_required": []
 }
 ```
+
+Set `update_watch_task_prompt_pending` to `true` when the `Solo Agency - GitHub Update Watch` task prompt could not be created or updated natively and `daily-content-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
 
 Minimum `update_log.md` table:
 

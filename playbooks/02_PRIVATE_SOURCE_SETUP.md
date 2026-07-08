@@ -114,6 +114,13 @@ Examples of private data sources:
 - Slack or Discord communities.
 - Client-owned dashboards.
 
+Classification tie-breaker (private vs public):
+
+- Any source already on the client's `private_data_sources` list is collector-only, regardless of whether it happens to load when logged out.
+- Any social-platform page, profile, group, or channel of the client, or of a monitored competitor, is collector-only, regardless of whether it happens to load when logged out.
+- "Public" for agent-browser research means the non-social web: websites, articles, docs, search results, and public news or forums that are not social-platform pages/profiles/groups/channels.
+- Reclassifying a source from collector-only to public (or vice versa) requires explicit human approval; the agent must not reclassify on its own.
+
 The agent must say:
 
 `Do you want to provide any private data sources for this client? Private data sources are logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require your account or membership. These are different from public data sources such as websites, Google/search results, public articles, and public pages I can access without your login. If you provide private data sources, you must already be a member, follower, subscriber, logged in, or otherwise authorized to view them in the Chrome profile where this client's Solo Agency Local Collector extension is installed. I recommend one separate Chrome profile per client, with that client's extension loaded and the relevant social accounts logged in there. I will only activate collection with your permission, using the Solo Agency Local Collector local app/extension on your computer. It uses your already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. Do not share credentials, cookies, passwords, OTPs, or tokens. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if you provide more, I will prioritize and rotate them.`
@@ -158,7 +165,7 @@ Do you want me to run private data source discovery from places you already join
 If the human says yes:
 
 1. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 8, and Stage 9 before any scan.
-2. Activate/setup the Local Collector if it is not installed and healthy. The agent must prepare files and give the human the one-line Terminal/PowerShell command and Chrome extension `Load unpacked` folder path; it must not run setup/start scripts itself.
+2. Activate/setup the Local Collector if it is not installed and healthy. The agent must prepare files and give the human the one-line Terminal/PowerShell command and Chrome extension `Load unpacked` folder path; it must not run setup/start scripts itself. Before giving that command or folder path, run the Stage 8 Source Safety Pre-Check and precede the handoff with one short plain-language safety confirmation line (for example: `I read through the collector's code and confirmed it only runs on your computer and does not send your data anywhere. It is safe to install.`). If the pre-check does not pass, do not give the install command; stop and raise it to the operator.
 3. Ask which broad discovery surfaces are approved if not already clear. Keep the question short and default to the most likely safe set for the client, for example Facebook joined groups and Reddit joined/subscribed communities for community-heavy businesses.
 4. Run only approved discovery URLs/surfaces.
 5. Use Source Discovery Mode: scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
@@ -198,6 +205,7 @@ If the human says no or not now:
 - Mark discovery as `discovery_declined_or_postponed`.
 - Continue with public data sources and any manually provided private data sources.
 - Include a report note that private community/lead/competitor coverage is limited until private data source discovery or manually provided private data sources are approved.
+- If a schedule/automation already exists, perform Automation Resync (Stage 4) recording the decision status (`discovery_declined_or_postponed` / `not_provided`) and the public-only coverage warning, so the scheduled task snapshot reflects the newest state.
 
 ### Facebook Member Groups Review
 
@@ -270,6 +278,7 @@ If the human declines:
 
 - Do not inspect Facebook groups.
 - Continue with other public and private data sources.
+- If a schedule/automation already exists, perform Automation Resync (Stage 4) recording the decision status (`discovery_declined_or_postponed` / `not_provided`) and the public-only coverage warning, so the scheduled task snapshot reflects the newest state.
 
 If the human provides no private data sources:
 
@@ -277,6 +286,7 @@ If the human provides no private data sources:
 - If the human declines or postpones discovery, continue with public data sources only.
 - Mark private monitoring as `not_provided` or `discovery_declined_or_postponed`.
 - Do not block the daily pipeline, but note that community, lead, and competitor coverage is limited.
+- If a schedule/automation already exists, perform Automation Resync (Stage 4) recording the decision status (`discovery_declined_or_postponed` / `not_provided`) and the public-only coverage warning, so the scheduled task snapshot reflects the newest state.
 
 If a private session expires:
 

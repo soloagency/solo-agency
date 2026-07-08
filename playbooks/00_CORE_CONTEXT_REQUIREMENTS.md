@@ -200,6 +200,13 @@ The checklist must not assume the human understands marketing or technical terms
 - `Lead & Competitor Opportunities`: report section where lead/competitor signals become reviewable opportunities with source links, context, and a suggested value-first comment the human can copy.
 - `PDNA`: Production creates real assets, Distribution posts/sends approved outputs, Notification sends reports/blockers, Analytics measures performance.
 - `learning loop`: using results to improve the next run.
+- `hot/warm lead`: a stronger/weaker potential-customer signal based on urgency and fit.
+- `competitor`: a direct competitor, alternative solution, adjacent option, or account whose positioning/hooks are useful to learn from.
+- `idea matrix`: a simple table that organizes content ideas by type and business purpose.
+- `HTML report`: a browser/mobile-friendly report file or link for the human to review.
+- `draft`: a proposed script, blog, or caption waiting for human review, not published content.
+- `analytics/statistics`: visible performance numbers such as views, likes, comments, shares, saves, clicks, followers, and unavailable metrics when a platform hides them.
+- `schedule/routine`: when and how often the agent runs automatically.
 
 Use this wording:
 
@@ -261,7 +268,7 @@ If the human explicitly asks to create or edit a video before setup is complete 
 
 - save the parent setup checkpoint before entering the branch;
 - state that this is a temporary branch and the agent will resume setup at the next checkpoint;
-- show a compact parent checkpoint, not the full 16-item setup list, while the branch is active;
+- show a compact parent checkpoint, not the full setup roadmap, while the branch is active;
 - after one natural checkpoint, gently resume the parent setup unless the human explicitly asks to continue the production branch.
 
 If the client-scoped provider is not verified, there is no video branch yet. Load Stage 3 and the video provider adapter, explain the PDNA setup requirement, use a `**[ACTION REQUIRED]**` block for the API key/provider action, and do not make a local MP4/slideshow/rough video.
@@ -399,7 +406,7 @@ Private data source setup or enrichment is complete only when the agent:
 6. updates the idea matrix;
 7. re-scores or updates the best idea;
 8. updates drafts/scripts/blogs if private data changes the recommendation;
-9. regenerates the HTML report;
+9. regenerates/updates only the private lane report (`{client-name}-private-data-sources-report.html`) and the daily staging index, then rebuilds the combined `{client-name}-client-report.html` + PDF companion + `{client-name}-INTERNAL_REPORT.html`, never overwriting `{client-name}-public-data-sources-report.html`, and reconciles `{client-name}-report_state.json` and `outputs/latest/` copies;
 10. shows the updated report to the human.
 
 Collector success alone is not completion.
@@ -493,7 +500,7 @@ The agent must follow these principles at all times:
 - When scanning private or logged-in sources, use conservative pacing: do not scan aggressively, do not run many private data source browser checks in parallel, and leave a 5 second delay between private data source scroll/read actions so platform feeds have time to load.
 - Warn the human not to add too many private data sources for one client. As a practical default, keep the daily private data source monitoring list around 20 sources or fewer per client. If the human provides more, prioritize the most relevant sources and rotate lower-priority sources across different days.
 - Do not use Claude Chrome Extension for automated private data source collection. It can require repeated human permission clicks and can trap the human in an approval-gated flow. For Claude, use the Solo Agency Local Collector extension plus the Local Collector app, a user-started Local Collector command, or an OS startup service.
-- If the conversation drifts and later returns to private data source work, the agent must treat that as a fresh private data source turn. Before scanning, opening, monitoring, or collecting any private data source, including logged-in groups, feeds, profiles, pages, communities, or sources, reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9.
+- If the conversation drifts and later returns to private data source work, the agent must treat that as a fresh private data source turn. Before scanning, opening, monitoring, or collecting any private data source, including logged-in groups, feeds, profiles, pages, communities, or sources, reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded).
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for private data source collection. Use only the Solo Agency Local Collector extension plus Local Collector app.
 - If an AI environment cannot browse private data sources reliably, cannot show a headed browser UI, cannot run downloaded executables, or requires per-run browser approvals, use the Solo Agency Local Collector extension plus the Local Collector app as the preferred private data collection layer instead of trying to bypass permission prompts.
 - During one-time Local Collector setup/update/repair, the AI agent must not run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if local shell permissions are available. Agent-run setup can happen inside a sandbox/session and be killed after the turn. The agent must prepare the files, then give the human the exact one-line Terminal/PowerShell command to run outside the AI sandbox.
@@ -505,7 +512,7 @@ The agent must follow these principles at all times:
 - If the human provided private data sources but Local Collector is not active, the first agency report must clearly say that private data source monitoring is not activated yet and requires the Solo Agency Local Collector extension plus Local Collector app.
 - Private data source activation gate: the agent must not claim private data source monitoring is active or run scheduled private collection until collector setup has either completed or been clearly documented as blocked in `collector_setup_status.md`.
 - Manual private data sources and optional private data source discovery are independent options. The human may provide private data source URLs, approve discovery from joined groups/subreddits/communities/followed profiles/feeds, do both, decline both, or postpone either option. If the human has no list, offer private data source discovery once before marking the private data source step resolved. Do not ask private data source discovery as a separate user-facing setup step.
-- Private data source completion gate in Automation Flow: after any private scan, the automation task must analyze the collected private data and regenerate the idea matrix, best idea, leads, competitors, drafts if needed, and human-facing HTML report. A private scan is not complete merely because the Local Collector successfully collected data.
+- Private data source completion gate in Automation Flow: after any private scan, the automation task must analyze the collected private data and regenerate the idea matrix, best idea, leads, competitors, and drafts if needed. For the report itself, regenerate/update only the private lane report (`{client-name}-private-data-sources-report.html`) and the daily staging index, then rebuild the combined `{client-name}-client-report.html` + PDF companion + `{client-name}-INTERNAL_REPORT.html`, never overwriting `{client-name}-public-data-sources-report.html`, and reconcile `{client-name}-report_state.json` and `outputs/latest/` copies. A private scan is not complete merely because the Local Collector successfully collected data.
 - The first report happens after the profile/source plan, schedule/routine, client-specific automation task, and step 6 Local Collector/private data source checkpoint are ready or honestly marked pending, and it must be launched through the client-specific automation task.
 - Ask about the recurring schedule during setup after the profile and source plan are known. If private data sources exist, do not promise scheduled private collection until the shared bridge and matching client extension are complete or clearly pending/blocked.
 - After schedule/routine setup, if private data sources exist and Local Collector is pending, do not ask to run a report in setup. Configure the automation task for public data sources only first, or guide activation so the task can include private data sources later.
@@ -529,7 +536,7 @@ The agent must follow these principles at all times:
 - Content output language should follow the target audience and intended publishing audience unless the human explicitly chooses another language. Reports and setup chat may stay in the human's language even when keywords and content drafts are in the audience language.
 - User-facing reports must be HTML. Do not show, send, link, or ask the human to open `.md` reports as the report experience. Markdown files are internal source-of-truth records for the agent, audit trail, history, and future learning.
 - Do not make the human open Markdown files to learn what to do next. Human-facing setup guidance, blockers, commands, and next actions must be shown directly in the current chat message, Telegram notification, HTML report, or another human-facing channel.
-- When a human action is required, provide a short `Action needed` block directly in chat: one clear purpose, one exact next step, and either one copy-paste command or one absolute folder/file path. Do not say only "see the report", "see the .md file", or "instructions are in collector_setup_status.md".
+- When a human action is required, provide a short `**[ACTION REQUIRED]**` block directly in chat: one clear purpose, one exact next step, and either one copy-paste command or one absolute folder/file path. Do not say only "see the report", "see the .md file", or "instructions are in collector_setup_status.md". Use at most three `**[ACTION REQUIRED]**` blocks per reply, and when no human action is needed say exactly `No action required right now.`
 - When delivering a report, show only the mobile-friendly HTML path or link in chat/notification. Do not show the `.md` report path as a user action. Mention Markdown only as an internal saved record if needed, not as the place the human must open.
 - After the first automation report is delivered, if private data sources are pending activation, keep that status visible and do not claim private scheduled monitoring is active. The next main post-report question is PDNA - Production, Distribution, Notification, and Analytics - not video creation.
 
@@ -1233,7 +1240,7 @@ This means the pipeline is both:
 - an idea engine, and
 - a lead discovery engine.
 
-Before presenting or storing lead opportunities, load Stage 10: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`.
+Before presenting or storing lead opportunities, load Stage 10: `playbooks/10_LEAD_COMPETITOR_DETECTION.md` (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded).
 
 The agent should classify detected leads into hot, warm, and watch opportunities. Hot and warm are the main daily report levels:
 
@@ -1291,7 +1298,7 @@ Detected leads should be stored in `history/YYYY-MM/lead_log.md` and, when possi
 
 While scanning public and private data sources, the agent must also detect competitors and competitor-like accounts, not only content ideas and leads.
 
-Before presenting or storing competitor opportunities, load Stage 10: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`.
+Before presenting or storing competitor opportunities, load Stage 10: `playbooks/10_LEAD_COMPETITOR_DETECTION.md` (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded).
 
 Competitor detection includes:
 
@@ -1461,6 +1468,8 @@ A bucket may contain zero, one, or many ideas on a given day. Put every credible
 
 Do not cap the matrix at six ideas and do not discard useful data merely because a bucket already has one idea. If a bucket becomes crowded, score, rank, or mark lower-priority ideas as watchlist, but keep the harvested idea visible unless it is irrelevant, unsupported, unsafe, or too weak. The agent must not invent fake news. If there is no credible data for a bucket, mark it as empty and explain why.
 
+- Every idea matrix entry must pass the Audience Value-First Gate: it must teach something, prevent a mistake, improve a decision, or reduce risk/cost/confusion for the audience. Entries that are direct client/product promotion without a standalone audience lesson are rejected or rewritten and logged as `promotional_not_value_first`.
+
 The `at least 3 new or newly angled candidate ideas` requirement is a novelty and selection-quality floor. It is not a maximum idea count for the matrix.
 
 The idea list must respect the primary/related industry content mix:
@@ -1622,6 +1631,7 @@ After generating the idea list, the agent must choose the best idea for that day
 
 The best idea is defined by:
 
+- Audience Value-First Gate (eligibility): An idea is ineligible for best-idea selection unless it passes the Audience Value-First Gate (teach something, prevent a mistake, improve a decision, or reduce risk/cost/confusion for the audience); direct client/product promotion without a standalone audience lesson is ineligible. Business relevance and lead potential are secondary to audience value.
 - Heat: Is this current, timely, or tied to a trend?
 - Novelty: Has this client already covered it recently?
 - Audience pain fit: Does it directly address `[pain_points]`?
@@ -1799,7 +1809,10 @@ After setup, run D, E, F, and G every day.
 The final goal is that every day the human receives:
 
 1. One idea list per active client.
-2. One complete WideCast-writing-skill draft per active client: default video script, blog/article when configured, or both if requested.
-3. Enough context to approve, revise, create the video, request a blog/video variant, or choose another idea.
+2. The Stage 1 five-format draft set (or the formats that honestly fit per the writing skill's fit rules) per active client, unless a version was already selected — then only that version continues: default video script, blog/article when configured, or both if requested.
+3. The report set per active client: the scrubbed staging lane files, the combined `{client-name}-client-report.html` client report, its PDF companion, and the `{client-name}-INTERNAL_REPORT.html`.
+4. Lane-specific Lead & Competitor Opportunities.
+5. The report/notification handoff: the combined `{client-name}-client-report.html` as the default handoff/notification/latest link.
+6. Enough context to approve, revise, create the video, request a blog/video variant, or choose another idea.
 
 ---

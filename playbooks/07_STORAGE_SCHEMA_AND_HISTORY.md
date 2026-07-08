@@ -55,7 +55,6 @@ The current canonical runtime/data layout is:
       collector_setup_status.md
       collector_config.json
       extension_registry.json
-      agent_registry.json
       jobs/
         pending/
         claimed/
@@ -159,111 +158,118 @@ Use one folder per client/business/location:
       popup.html
       popup.js
   daily-content-pipeline/              # data/config/output only
-  provider_defaults.json               # default OpenAPI provider catalog, no secrets
-  clients_index.md
-  schedule.md
-  automation/
-    automation_manifest.md
-    scheduled_run_prompt.md
-    resync_log.md
-    github_issues.md
-    update_state.json
-    update_log.md
-    update_notice.md
-    update_watch_prompt.md
-    backups/
-    github_issues.md
-    update_state.json
-    update_log.md
-    update_notice.md
-    update_watch_prompt.md
-    backups/
-      update_YYYY-MM-DD_HHMMSS/
-    issues/
-      YYYY-MM-DD_{blocker_slug}.md
-  notifications/
-    notification_log.md
-  collector/
-    collector_setup_status.md
-    collector_config.json
-    jobs/
+    provider_defaults.json             # default OpenAPI provider catalog, no secrets
+    clients_index.md
+    schedule.md
+    automation/
+      automation_manifest.md
+      scheduled_run_prompt.md
+      resync_log.md
+      github_issues.md
+      update_state.json
+      update_log.md
+      update_notice.md
+      update_watch_prompt.md
+      backups/
+        update_YYYY-MM-DD_HHMMSS/
+      issues/
+        YYYY-MM-DD_{blocker_slug}.md
+    notifications/
+      notification_log.md
+    collector/
+      collector_setup_status.md
+      collector_config.json
+      extension_registry.json
+      jobs/
+        pending/
+        claimed/
+        completed/
+        failed/
+      inbox/
+        YYYY-MM/
+          {client_slug}/
+            {run_id}/
+              collector_status.json
+              private_data_points.jsonl
+              leads.jsonl
+              competitors.jsonl
+              new_private_sources.jsonl
+              source_status.jsonl
+              snapshots/
+      logs/
+        bridge_events.jsonl
+        extension_health.jsonl
+        job_routing.jsonl
+        agent_handoff.jsonl
+    browser_profiles/
+      {source_slug}/
+    test_logs/
       YYYY-MM/
-        YYYY-MM-DD_client_slug.json
-    inbox/
+    outputs/
       YYYY-MM/
-        YYYY-MM-DD_client_slug/
-          collector_status.json
-          private_data_points.jsonl
-          leads.jsonl
-          competitors.jsonl
-          new_private_sources.jsonl
-          source_status.jsonl
-          snapshots/
-  browser_profiles/
-    {source_slug}/
-  outputs/
-    YYYY-MM/
-      YYYY-MM-DD_master_digest.md
-      YYYY-MM-DD_master_digest.html
-    latest_master_digest.md
-    latest_master_digest.html
-  clients/
+        YYYY-MM-DD_master_digest.md
+        YYYY-MM-DD_master_digest.html
+      latest_master_digest.md
+      latest_master_digest.html
+    clients/
       {client_slug}/
         {business_slug}_{location_slug}/
-        client_profile_{client_slug}_{business_slug}_{location_slug}.md
-        strategy/
-          offer_map.md
-          brand_voice.md
-          content_pillars.md
-          funnel_map.md
-        calendar/
-          content_calendar.md
-        approvals/
-          approval_log.md
-        assets/
-          asset_index.md
-        publishing/
-          publishing_log.md
-        analytics/
-          metrics_log.md
-        integrations/
-          providers/
-            provider_config.local.json
-            provider_capabilities.json
-            provider_openapi_cache.yaml
-            provider_calls.jsonl
-            provider_health.md
-        reports/
-          YYYY-MM_report.md
-        experiments/
-          experiment_backlog.md
-        history/
-          YYYY-MM/
-            content_log.md
-            data_sources_log.md
-            lead_log.md
-            competitor_log.md
-            lead_competitor_opportunities.jsonl
-            new_private_sources_log.md
-        outputs/
-          YYYY-MM/
-            YYYY-MM-DD/
-              {client-name}-daily-report.md
+          client_profile_{client_slug}_{business_slug}_{location_slug}.md
+          strategy/
+            offer_map.md
+            brand_voice.md
+            content_pillars.md
+            funnel_map.md
+          calendar/
+            content_calendar.md
+          approvals/
+            approval_log.md
+          assets/
+            asset_index.md
+          publishing/
+            publishing_log.md
+          analytics/
+            metrics_log.md
+            learning_log.md
+            comment_signal_log.md
+          integrations/
+            providers/
+              provider_config.local.json
+              provider_capabilities.json
+              provider_openapi_cache.yaml
+              provider_calls.jsonl
+              provider_health.md
+          reports/
+            YYYY-MM_report.md
+          experiments/
+            experiment_backlog.md
+          history/
+            YYYY-MM/
+              content_log.md
+              data_sources_log.md
+              lead_log.md
+              competitor_log.md
+              lead_competitor_opportunities.jsonl
+              new_private_sources_log.md
+          outputs/
+            YYYY-MM/
+              YYYY-MM-DD/
+                {client-name}-daily-report.md
+                {client-name}-public-data-sources-report.html
+                {client-name}-private-data-sources-report.html
+                {client-name}-daily-report.html
+                {client-name}-INTERNAL_REPORT.md
+                {client-name}-INTERNAL_REPORT.html
+                {client-name}-client-report.html
+                {client-name}-client-report.pdf
+                {client-name}-report_state.json
+            latest/
+              {client-name}-daily-report.html
               {client-name}-public-data-sources-report.html
               {client-name}-private-data-sources-report.html
-              {client-name}-daily-report.html
-              {client-name}-INTERNAL_REPORT.md
               {client-name}-INTERNAL_REPORT.html
               {client-name}-client-report.html
               {client-name}-client-report.pdf
-              {client-name}-report_state.json
-          latest/
-            {client-name}-daily-report.html
-            {client-name}-public-data-sources-report.html
-            {client-name}-private-data-sources-report.html
-            {client-name}-INTERNAL_REPORT.html
-            {client-name}-client-report.html
-            {client-name}-client-report.pdf
 ```
 
 Examples:
@@ -312,6 +318,8 @@ daily-content-pipeline/
           approval_log.md
         analytics/
           metrics_log.md
+          learning_log.md
+          comment_signal_log.md
         integrations/
           providers/
             provider_config.local.json
@@ -493,7 +501,7 @@ Minimum format:
 - provider_status_summary:
 - provider_capability_cache_status:
 - private_data_source_status_summary:
-- report_merge_contract: one_report_two_lanes | legacy_mixed_report | unknown
+- report_merge_contract: single_client_report_with_lane_staging | one_report_two_lanes | legacy_mixed_report | unknown  # single_client_report_with_lane_staging is the current default
 - report_notification_policy: same_report_public_private_notifications_allowed | single_final_notification | unknown
 - latest_user_change_summary:
 - actual_native_task_prompt_updated: true | false | not_applicable | unknown
@@ -591,11 +599,14 @@ Minimum schema:
   "bridge_update_required": false,
   "extension_reload_required": false,
   "automation_prompt_update_pending": false,
+  "update_watch_task_prompt_pending": false,
   "clients_resynced": [],
   "automations_resynced": [],
   "human_actions_required": []
 }
 ```
+
+Set `update_watch_task_prompt_pending` to `true` when the `Solo Agency - GitHub Update Watch` task prompt could not be created or updated natively and `daily-content-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
 
 Do not store secrets, private data source content, client-confidential report content, cookies, tokens, or raw provider responses in this file.
 
@@ -929,6 +940,47 @@ The agent must update this file before:
 - running a manual private data source scan,
 - configuring recurring private data source collection,
 - reporting that private collection is unavailable.
+
+### `collector/extension_registry.json`
+
+Maps each client to its per-client Chrome extension instance so scheduled runs can route collector jobs to the correct extension. Scheduled runs must read the client→`extension_instance_id` mapping from this file.
+
+Create or update this file when a per-client extension folder is prepared under `extensions/{client_slug}/`, when an extension is loaded or reloaded in Chrome, or when a client's collector status changes.
+
+Minimum fields:
+
+```json
+{
+  "schema_version": 1,
+  "clients": [
+    {
+      "client_slug": "avenngo",
+      "client_name": "AvenNgo",
+      "extension_instance_id": "ext_avenngo_default",
+      "extension_display_name": "AvenNgo - Solo Agency Collector",
+      "extension_path": "/ABSOLUTE/PATH/extensions/avenngo/",
+      "chrome_profile_hint": "Default",
+      "registered_at": "2026-06-20T09:00:00Z",
+      "last_health_at": "2026-06-20T09:05:00Z",
+      "status": "active"
+    }
+  ]
+}
+```
+
+Field notes:
+
+- `client_slug`: client slug used across the pipeline.
+- `client_name`: human-readable client name.
+- `extension_instance_id`: stable id for this client's extension instance; scheduled runs read the client→`extension_instance_id` mapping from this file.
+- `extension_display_name`: Chrome display name, client name first.
+- `extension_path`: absolute path to the client's `extensions/{client_slug}/` folder.
+- `chrome_profile_hint`: which Chrome profile the extension is loaded in.
+- `registered_at`: when the extension was registered.
+- `last_health_at`: last successful health check timestamp.
+- `status`: one of `active | pending_install | disabled`.
+
+Do not store secrets, cookies, tokens, or provider API keys in this file.
 
 ### `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json`
 
@@ -1649,225 +1701,8 @@ Allowed status:
 
 ---
 
-### 23.1 Client Strategy And Positioning
+## Analytics, Funnel, And Lead Classification Rules (Canonical Copy In Stage 9)
 
-For each client, the agent should maintain strategy files:
+The canonical maintained copy of §23.1/23.2/23.8/23.9 (offer/funnel mapping, lead classification, published URL measurement, and analytics log rules) lives in `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` and must not be duplicated here.
 
-- `strategy/offer_map.md`
-- `strategy/brand_voice.md`
-- `strategy/content_pillars.md`
-- `strategy/funnel_map.md`
-
-The agent must infer and maintain:
-
-- Core offer.
-- Secondary offers.
-- Ideal customer segments.
-- Lead magnets or conversion actions.
-- Trust signals.
-- Differentiators.
-- Proof points.
-- Objections.
-- Compliance boundaries.
-- Brand voice.
-- Content pillars.
-- Funnel stage mapping.
-
-Example funnel mapping:
-
-| Funnel Stage | Goal | Example Content |
-|---|---|---|
-| Awareness | Make the audience recognize the problem | "Why buyers are confused by rising inventory" |
-| Education | Explain options and consequences | "How property taxes change your real payment" |
-| Trust | Show expertise and perspective | "Why preparation beats prediction in this market" |
-| Lead-Gen | Prompt action | "Get pre-approved before you start touring" |
-
-### 23.2 Content Calendar And Cadence
-
-The agent should maintain:
-
-- `calendar/content_calendar.md`
-
-The calendar should include:
-
-- Planned publish date.
-- Platform.
-- Client.
-- Content pillar.
-- Funnel stage.
-- Topic.
-- Script/output file.
-- Approval status.
-- Publishing status.
-- Reference URLs.
-
-The agent should use daily ideas to populate the calendar, but must avoid overfilling it without approval. The daily best idea becomes a candidate for the calendar, not automatically a published post.
-
-Example calendar row:
-
-```md
-| Date | Platform | Pillar | Funnel Stage | Topic | Status | Output |
-|---|---|---|---|---|---|---|
-| 2026-06-20 | Reels / Shorts | Market timing | Education | Austin inventory is rising again | drafted | outputs/2026-06-20.md |
-```
-
-### 23.8 Analytics And Reporting
-
-The agent should maintain:
-
-- `analytics/metrics_log.md`
-- `reports/YYYY-MM_report.md`
-
-Track metrics when available:
-
-- Views.
-- Watch time.
-- Retention.
-- Likes.
-- Comments.
-- Shares.
-- Saves.
-- Clicks.
-- Leads.
-- Calls booked.
-- Cost or credits spent.
-- Published URL.
-- Content pillar.
-- Funnel stage.
-
-### WideCast OpenAPI Analytics Collection Rule
-
-When running weekly learning, monthly reporting, or any performance review, the agent must use available verified provider analytics capabilities before drawing conclusions. For WideCast, load the current client's provider config, discover or refresh `https://widecast.ai/openapi.yaml`, verify the account with `getAccount`, then call available analytics/library operations such as `getAnalytics`, `listVideos`, `getStatus`, and `getVideoData`.
-
-The agent should inspect the available WideCast OpenAPI operation list at runtime and call the relevant operations for:
-
-- Recently published content.
-- Published post/video URLs.
-- Title.
-- Description.
-- Caption.
-- Hashtags.
-- Platform.
-- Publish date.
-- Topic or video ID.
-- General account analytics.
-- View counts.
-- Follower counts.
-- Engagement trends.
-
-If WideCast OpenAPI exposes a list of published posts, recent videos, production history, publishing history, analytics dashboard, or platform statistics, the agent must use those sources first after verifying that the API key belongs to the current client.
-
-For each published content item from the last 7 days, the agent should measure it daily for up to 7 days after publishing:
-
-1. Retrieve the published URL and metadata through WideCast OpenAPI when available.
-2. Save URL, title, description, caption, hashtags, platform, publish date, and related script/output file.
-3. Use the Solo Agency Local Collector extension plus Local Collector app to capture visible metrics from each published URL when tools, permissions, and login state allow it.
-4. Measure or extract available engagement metrics, such as:
-   - views
-   - likes
-   - comments
-   - shares
-   - saves
-   - reposts
-   - reactions
-   - follower/subscriber count where relevant
-   - audience questions
-   - objections
-   - requests for help
-   - lead signals in comments
-5. If direct platform metrics are not accessible, record the limitation and use whatever WideCast OpenAPI analytics or visible public metrics are available.
-6. Store all results in `analytics/metrics_log.md`.
-7. Store audience questions, objections, and useful comment signals in `analytics/comment_signal_log.md`.
-8. Store strategic learnings in `analytics/learning_log.md`.
-9. Use the results to update reports, content pillar scoring, hook learnings, CTA learnings, source priority, lead-gen angles, and future idea selection.
-
-### Published URL Measurement Via Local Collector
-
-The Local Collector is not only for private data source idea discovery. It should also be reused for published URL measurement when possible.
-
-Reason:
-
-- Some platform metrics are visible only inside the logged-in browser session.
-- Some AI agents cannot reliably browse platform pages directly.
-- The Solo Agency Local Collector extension can capture visible page text, current URL, engagement hints, and source metadata in the same browser/profile where the human is logged in.
-
-When measuring published URLs:
-
-1. Build a temporary run-now collector job whose sources are the published URLs retrieved from the configured provider, such as WideCast OpenAPI.
-2. Mark these sources clearly, for example:
-   - `source_type: published_content_url`
-   - `purpose: performance_measurement`
-   - `platform: youtube | tiktok | instagram | facebook | x | linkedin | threads | pinterest | reddit | google_business_profile | other`
-3. Use conservative pacing and do not hammer platform pages.
-4. Capture visible text, current URL, page title, engagement hints, any visible metric labels/counts, and comments/questions when visible.
-5. Store raw collector output under the normal collector `inbox/YYYY-MM/{run_id}/` folder.
-6. Parse the captured visible text into normalized metrics when possible.
-7. Store normalized metrics in `analytics/metrics_log.md`.
-8. Store useful comment/question/objection/lead signals in `analytics/comment_signal_log.md`.
-9. Store strategic learnings in `analytics/learning_log.md`.
-10. If a metric is hidden, unavailable, or not visible in the logged-in session, write `unavailable` and explain why.
-
-The agent must not scrape hidden APIs, extract cookies, bypass login, or defeat platform restrictions to measure metrics. Use only authorized visible data or verified provider analytics.
-
-The agent must also call WideCast OpenAPI analytics or dashboard operations that provide overall account-level statistics, such as total views, follower growth, platform performance, or other aggregate metrics. These aggregate metrics should be stored and used for learning even when per-post data is incomplete.
-
-Do not invent metrics. If a platform hides likes, shares, comments, views, or follower data from the current agent/session, mark the metric as `unavailable` and explain why.
-
-Suggested `analytics/metrics_log.md` format:
-
-```md
-| Date Checked | Published Date | Client | Platform | URL | Title | Description | Hashtags | Content Pillar | Funnel Stage | Views | Likes | Comments | Shares | Saves | Followers/Subscribers | Source Of Metric | Notes |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | 2026-06-18 | Smith Law | TikTok | https://... | What to do after a DUI stop | Short DUI education video | #dui #california | Emergency first steps | Education | 1200 | 44 | 8 | 3 | unavailable | unavailable | WideCast OpenAPI + public URL check | Comments show license-suspension anxiety |
-```
-
-Suggested `analytics/comment_signal_log.md` format:
-
-```md
-| Date Checked | Client | Platform | URL | Comment/Question Summary | Signal Type | Pain Point | Lead Potential | Suggested Follow-Up Content | Notes |
-|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Smith Law | TikTok | https://... | Viewers asked what happens to a driver's license after a DUI arrest | question | license suspension fear | warm | Explain the DMV deadline after a DUI arrest | Use as future QA script |
-```
-
-Suggested `analytics/learning_log.md` format:
-
-```md
-| Date | Client | Evidence | Learning | Affected Pillar | Hook/CTA Impact | Future Action |
-|---|---|---|---|---|---|---|
-| 2026-06-20 | Smith Law | DUI deadline video got high comment rate | License-suspension anxiety drives comments | Emergency first steps | Use deadline hooks more often | Prioritize DMV-deadline Q&A ideas next week |
-```
-
-The agent should generate weekly or monthly reports when asked or scheduled:
-
-- What worked.
-- What did not work.
-- Best content pillars.
-- Best hooks.
-- Best platforms.
-- Recommended next experiments.
-- Content ideas to repeat or retire.
-
-### 23.9 Experiment Backlog
-
-The agent should maintain:
-
-- `experiments/experiment_backlog.md`
-
-Examples:
-
-- Test fear-based hook vs curiosity hook.
-- Test local news angle vs evergreen education.
-- Test direct CTA vs soft CTA.
-- Test face-on-camera vs faceless B-roll.
-- Test short 25-second version vs 60-second version.
-- Test competitor-response angle.
-
-Each experiment should include:
-
-- Hypothesis.
-- Client.
-- Content pillar.
-- Platform.
-- Success metric.
-- Result.
-- Next decision.
+Storage-schema note: the three per-client analytics logs written under each client's `analytics/` directory are `metrics_log.md`, `learning_log.md`, and `comment_signal_log.md`.

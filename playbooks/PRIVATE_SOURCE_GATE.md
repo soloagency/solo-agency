@@ -1,6 +1,6 @@
 # Private Data Source Gate
 
-Load this short gate immediately whenever the human asks to scan, monitor, review, collect, scrape, open, or read any private data source.
+Load this short gate immediately whenever a human request, scheduled task, automation prompt, or run step involves any private data source topic, including scanning, monitoring, reviewing, collecting, scraping, opening, or reading a private data source.
 
 This gate exists to prevent conversation drift. Even if the conversation moved through many unrelated topics, the moment private data source intent returns, the agent must reload this gate before opening any browser, extension, automation tool, or private URL.
 
@@ -19,6 +19,10 @@ Treat any of these as private data source triggers:
 - any request to use the human's logged-in account, membership, social graph, private feed, or browser session
 
 If unsure whether a source is public or private, treat it as private until proven public.
+
+Classification tie-breaker: any source already on the `private_data_sources` list, and any social-platform page/profile/group/channel of the client or of a monitored competitor, is collector-only regardless of whether it loads logged-out. "Public" for agent-browser research means the non-social web (websites, articles, docs, search results, public news/forums). Reclassifying a private/social source as public requires explicit human approval.
+
+Runtime verification before honoring saved flags: at every scheduled or manual run, perform Collector Runtime Verification (try `/status`; if localhost is unreachable from the AI sandbox, read the local collector health/status files) BEFORE honoring any saved `public_data_sources_only`, `private sources postponed`, or `pending_private_activation` flag. The saved flag may be a stale snapshot; the human may have activated the collector since it was written.
 
 ## Required Reload
 
@@ -57,7 +61,7 @@ Human's logged-in Chrome
   -> AI agent reads local output and analyzes it
 ```
 
-If the Local Collector app or extension is unavailable after Collector Runtime Verification, do not fall back to Claude in Chrome, Codex browser, Playwright, or another agent-controlled browser. Continue work with public data sources only and mark private data sources as `pending_private_activation`, `collector_status_unverified`, or `collector_unavailable` with the exact blocker.
+If the Local Collector app or extension is unavailable after Collector Runtime Verification, do not fall back to Claude in Chrome, Codex browser, Playwright, or another agent-controlled browser. Continue work with public data sources only and mark private data sources as `pending_private_activation`, `collector_status_unverified`, or `collector_offline_or_unreachable` with the exact blocker.
 
 ## Human-Facing Preflight Roadmap
 
@@ -110,5 +114,9 @@ A private data source scan is not complete until:
 - the Local Collector app was reachable;
 - the Solo Agency Local Collector extension was recent;
 - data was collected through approved sources only;
-- collected data was analyzed for ideas, leads, competitors, new sources, and evidence;
-- the report/idea matrix/drafts were updated or the blocker was honestly reported.
+- Stage 10 was loaded (LOAD LEDGER) before presenting any leads/competitors;
+- collected data was analyzed for data points, leads, competitors, newly discovered sources, and evidence;
+- the idea matrix, best idea, and drafts were updated;
+- the private lane report (`{client-name}-private-data-sources-report.html`) and the daily staging index were updated WITHOUT overwriting `{client-name}-public-data-sources-report.html`;
+- the combined `{client-name}-client-report.html` + PDF companion + `{client-name}-INTERNAL_REPORT.html` were rebuilt, and `{client-name}-report_state.json` plus `outputs/latest/` copies were reconciled;
+- or the blocker was honestly reported.

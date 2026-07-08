@@ -72,7 +72,6 @@ The safe zone is **the same percentage** in both spaces — only the absolute nu
 
 > The key consequence for image creation (§5): when the agent authors a 720×1280 overlay (SVG), the server reads it at 720 wide and then **keeps each object's position** and scales it ÷2.571 into the preview space. That means **wherever you draw an object in the image, the overlay lands at the same HORIZONTAL position in the layout** — placing main content right at the top/bottom edge of the image makes the overlay fall into the dead zone. So the image itself must respect the 720×1280 safe band (leave **128px at the top** and **320px at the bottom**). ⚠ Caveat: this holds exactly for the **horizontal** axis; **vertically** the server auto-fits a decomposed `upload_overlay` group into the safe zone (it places/centers the group inside canvas y 128→960) — see the position note in §5.1.
 
-- Exception for A-roll priority 4 fallback: the narrator is allowed to exceed the canvas along the **Y axis**, but the X axis always stays inside the canvas, and the face (`boxes.narrator.face`) must remain inside `safe_rect`.
 
 ### 0.4. `modify_scene` — 13 branches, each call picks EXACTLY ONE field family
 
@@ -94,136 +93,20 @@ The safe zone is **the same percentage** in both spaces — only the absolute nu
 
 After every `modify_scene`, **pull `video_data` again (and `scene_geometry` if it was a layout edit)** to confirm the value actually changed correctly on the server.
 
-### Step 3: Audit Layout with `scene_geometry` as the Measuring Tool
+### Layout is server-managed — the agent does NOT audit placement
 
-If the scene has a narrator (`show_narrator=true`, i.e. `active_roll="A"`) or has an overlay (`overlay.<sub>.visible=true`), the agent **calls `scene_geometry` to get the precomputed layout** for measurements. But this does **not** satisfy the visual gate: before choosing an A-roll layout priority, deciding an overlay/background is good, or editing from a visual judgment, the agent must pull the scene screenshot with MCP `scene_inspector` / `widecast_scene_inspector` `action="screenshot_scene_280x498"`, read `result.screenshot.url`, download that URL to a local file with `curl -L -s -o <local>.jpg "<url>"`, show the local file visibly in chat, and only then evaluate it. If `result.screenshot.url` is missing, the visual gate is not satisfied. Do not use base64, binary `ImageContent`, sidecar JSON, browser screenshots, or REST-auth workarounds for WideCast scene screenshots.
+**WideCast now guarantees the mechanical layout for you.** After any overlay upload/edit, the server auto-fits every overlay object so that: no object enters `dead_top`/`dead_bottom`, no object covers `boxes.narrator.face`, and everything stays inside the safe zone. **The agent must NOT re-verify any of this** — no dead-zone proof, no face-clearance check, no A-roll layout-priority ladder. Those checks are gone. Trust the server for placement.
 
-Read from the result:
+**The narrator is fixed input.** Never edit `segment.narrator_face`, and never resize/reposition the narrator (`overlay.narrator.rect`) to make room for an overlay — the server already keeps overlays clear of the face. If a scene genuinely needs a different narrator crop that only the user can decide, that is a user action, not an agent layout edit.
 
-- `boxes.narrator.face` and `face_center` — whether the narrator's face is occluded by an object/text (against `boxes.remotion.objects` and `boxes.caption`).
-- `safe_zones` — whether objects/overlays are inside `safe_rect`, and whether they overflow `dead_top`/`dead_bottom`. Use this to fill the mandatory **Gate 6 DEAD-ZONE PROOF** in `03_dod_gates`; do not bury the check inside a general composition verdict.
-- `boxes.remotion.object_layer.objects[].rect` — whether the overlay is large enough to read/see detail.
-- `boxes.caption.container_rect` — whether the caption covers the face or the main object.
-These checks are **yours to compute from the boxes above** (there are no pre-scored verdict arrays). For any **visual/aesthetic** judgment (does it look good, does text sink, is the icon right, is the narrator too small, is this the right A-roll layout priority) use a **local-shown screenshot from MCP `screenshot_scene_280x498`** (§6), not the geometry. Geometry-only approval is forbidden when screenshots are available.
+`scene_geometry` is therefore only a helper for the rare case where you must make a *targeted content fix* to an overlay object (e.g. read a `layout_id` to move one object via branch (C), or confirm an edit saved in Gate 5). It is not a per-scene audit step. You do not pull it to "check the layout is OK" — the layout is OK by construction.
 
-**For B-roll (`show_narrator=false`): IGNORE any overlap between an overlay and the narrator face/body** — even though `overlay.narrator` (PIP) exists in the data, the narrator is NOT the subject being shown, so "face occlusion" here is a false alarm. Only care about: safe zone, not overlapping the caption, a readable overlay. The face-clearance condition **only applies when `show_narrator=true`**.
-
-For an A-roll scene, the narrator's face is a high-priority element. If the face is covered, fix the overlay/narrator first with `modify_scene`:
-- move/resize an overlay object: branch (C) `remotion.object.rect` (read `layout_id` from `scene_geometry` first);
-- move/resize the whole overlay group: branch (D) `remotion.group.rect`;
-- move/resize the narrator: branch (E) `overlay.narrator.rect`;
-- move the caption: branch (F) `overlay.caption.y`;
-- multiple things at once: branch (G) `layout.batch`.
-
-**Whole-overlay dead-zone decision ladder:** when the overlay group itself is too high/low/tall, do not jump straight to rebuilding. First try move-only `remotion.group.rect` (`x/y`) to translate the whole group. If that solves one dead-zone violation but creates another on the opposite edge, try whole-group `remotion.group.rect` resize with `resize_mode:"scale_children"` so the group fits the safe band. Only if the resized result fails the visible typography/readability gates (title no longer feels like a title; secondary labels drop below mobile-readable size; text becomes muddy/cramped) should the agent rebuild/regenerate the SVG.
-
-**B-roll / faceless / non-face-critical safe-zone placement preference:** first identify whether the overlay is text-only or mixed text+objects. For `typography_only` / text-only overlays, prefer placing the text block near the vertical center of `safe_rect`, not automatically at the top-safe band. For mixed text+object overlays, prefer a top-safe title/text band with the object/chart/cards below it, still fully inside `safe_rect` and visually connected; do not let objects drift near the caption or detach from the title. These are starting preferences, not permission to cover an important background subject: if the local screenshot shows the text/object group sitting on a real person's face, product, or key prop, slide the group within `safe_rect` until the background and overlay both read.
-
-**Absolutely do not edit `segment.narrator_face` to adjust layout** — that is source data; adjust the narrator box via `overlay.narrator.rect`.
-
-The narrator's body may partially overlap an overlay in some layouts, but the face (`boxes.narrator.face`) must not be covered.
-
-### Step 4: Choose the A-Roll Layout Priority
-
-If the scene is A-roll (`show_narrator=true`, i.e. `active_roll="A"`), the agent MUST run the priority ladder below during **Gate 4 overlay review/rebuild**, before deciding to leave, rebuild, upload, apply, or layout-fix the overlay (adjusted via `overlay.narrator.rect` + `remotion.object.rect` / `remotion.group.rect`, 280×498 space). This is not a post-hoc Gate 6 cleanup. For normal scenes, a currently-small narrator / picture-in-picture layout is NOT automatically acceptable. The agent must first test whether the narrator can stay full canvas.
-
-This ladder is for normal A-roll scenes. Special endpoint / trust / CTA scenes keep their stricter rules below.
-
-**Starting-layout bias guard — reset the design baseline.** If the BEFORE screenshot or `scene_geometry` shows a shrunken / picture-in-picture / fallback narrator, treat that as a suspicious current state, not the design baseline. Before judging the overlay, the agent must mentally and operationally reset the candidate to **Priority 1: narrator full canvas**, then solve the overlay around that full-canvas narrator. The small narrator layout is evidence of what is currently on screen only; it is not permission to keep it, and it does not count as testing Priority 1.
-
-If the agent starts from a shrunken narrator and evaluates only whether the existing overlay fits that shrunken layout, Gate 4 has not run. Priority 1 is valid only when the narrator is actually treated as full canvas first, then the overlay is moved/resized/simplified/rebuilt around that full-canvas candidate.
-
-**Joint composition rule — do not freeze the overlay.** Each priority below is a `narrator + overlay + caption` composition attempt, not a narrator-only attempt. The current overlay position/size is only diagnostic; it is not a fixed constraint. Inside every priority, solve in this order:
-
-1. keep the narrator at the priority's target size/position;
-2. move overlay objects / the overlay group to a legal zone;
-3. resize the overlay group if the group is too tall/wide, then re-check typography;
-4. simplify or rebuild the overlay into a compact support shape if the existing shape cannot fit;
-5. only then mark that priority failed or move to a smaller narrator priority.
-
-Do **not** reject full-canvas priorities because the existing overlay currently touches `boxes.narrator.face`, the caption, or a dead zone. That is a layout problem to solve first. A full-canvas priority fails only after you prove no moved/resized/simplified/rebuilt overlay can clear the face, avoid caption/dead-zone collisions, preserve readability/padding, and still look balanced in the local-shown screenshot.
-
-> **⭐ REQUIRED GATE 4 A-ROLL LAYOUT DECLARATION — before ANY A-roll overlay decision or layout edit.** After the BEFORE screenshot has been saved locally and shown to the user, explicitly state:
-> - `scene_class`: `normal` / `special_endpoint_or_trust`
-> - `narrator_role`: `primary` / `secondary`
-> - `overlay_role`: `support` / `main_subject`
-> - `starting_layout_bias_reset`: `yes` when the current narrator is shrunken/fallback and the design baseline was reset to Priority 1 full canvas before overlay judgment; `N/A` only when the current narrator is already full-canvas/shifted-full-canvas
-> - `overlay_adjustments_tested`: `move` / `resize` / `simplify` / `rebuild` as applicable
-> - `full_canvas_gate`: `PASS` / `FAIL`
-> - chosen priority number (`1`–`4`)
-> - why each higher-priority option failed, if choosing priority 2–4
->
-> If the current narrator is shrunken/fallback and `starting_layout_bias_reset` is not `yes`, Gate 4 is BLOCKED. If the agent chooses priority 4 without proving priorities 1–3 failed, Gate 4 fails and Gate 6 cannot pass. Do not accept an existing shrunken narrator layout just because it is already on screen.
->
-> For **CTA, contact, trust, intro, outro, testimonial, or direct-address scenes**, the narrator is normally `primary`; prefer priorities **1–3** and keep the narrator large. **Priority 4 is forbidden for CTA/contact/trust scenes unless the overlay is detail-dense and truly the main subject** (e.g. a document, UI, chart, comparison table, product screenshot, or technical process diagram). Shrinking the narrator into a small picture-in-picture because it satisfies geometry is a defect, not a pass.
->
-> **⭐ FINAL A-ROLL / CTA SCENE — HUMAN CLOSE WINS, CTA TEXT STILL MATTERS.** If this is the **last non-thumbnail/content scene** and `show_narrator=true` / `active_roll="A"`, first `Read` `40_thumbnail_cta.md`, declare `narrator_role: primary` by default, and try to keep the narrator **full canvas**. The default close is: large human face + one short typography-led CTA that clears the face and caption. Do **not** rebuild a large checklist/chart/diagram just because `visual` asks for one if it would turn the closing A-roll into a cramped graphic scene. No-overlay is acceptable only when the visible narrator + caption already communicate the CTA clearly; otherwise use a small strong text support element (short CTA, badge, or one-line reminder). Priority 4 is effectively forbidden for a final A-roll/CTA scene unless the final beat truly depends on a detail-dense visual.
-
-> **⭐ NORMAL A-ROLL PRIORITY ORDER — try in THIS sequence and take the FIRST that works:**
-> 1. **Narrator full canvas.** Keep the narrator full canvas and choose the best legal overlay placement/rebuild: above the head, beside the head, over the chest/torso, or as a compact support element. This is the required first test. PASS only if the adjusted overlay clears `boxes.narrator.face`, stays out of `dead_top`/`dead_bottom`, remains readable at 280×498, does not collide with the caption, and the composition looks balanced in the local-shown screenshot.
-> 2. **Full canvas but pull narrator down + overlay above head.** Keep the narrator full-size, shift the narrator down to create usable top-safe space, and place the overlay above the head. PASS only if the face stays inside `safe_rect`, the crop still looks natural, the overlay clears the face, avoids dead zones, remains readable, and does not fight the caption.
-> 3. **Full canvas but push narrator up + overlay over chest.** Keep the narrator full-size, shift the narrator up to create a clearer chest/torso region, and place the overlay below the face. PASS only if the face stays inside `safe_rect`, the crop does not lose or crowd the face, the overlay clears the face, avoids dead zones, remains readable, and does not fight the caption.
-> 4. **Fallback: large top/safe overlay + optimally-small narrator.** Use this only after priorities 1–3 fail. The overlay becomes the main subject in the top/safe area, and the narrator is made as large as possible in the remaining lower space without blocking the overlay.
-
-#### 1. Narrator full canvas
-
-The narrator nearly fills the whole canvas. The overlay must be adapted to this priority, not kept frozen from the previous render. Place or rebuild the overlay in the most viable full-canvas position: above the head, beside the head, over the chest/torso, or as a compact support element. The point is that the narrator stays full canvas while the overlay is arranged around the face and caption.
-
-If the current scene starts with a small narrator, first set/plan the narrator as full canvas for this candidate. Only after that may the overlay be judged. Checking the old small-narrator layout, or keeping the old small narrator while moving the overlay, is not Priority 1.
-
-If the starting overlay is parked at the top safe zone and touches the face, that does **not** fail priority 1. First move it to the chest/side/lower legal band, resize the group if needed, or rebuild it as a shorter typography-led support.
-
-Hard conditions:
-
-- the overlay does not cover `boxes.narrator.face`
-- the overlay is large enough to read or see object detail at 280×498
-- the overlay stays out of `dead_top` and `dead_bottom`
-- the face remains clear
-- the caption doesn't break the layout
-- the composition looks balanced in the local-shown screenshot
-
-Suited to: a badge, icon, short stat, short quote, warning label, short headline, small/medium object, or light concept visual.
-
-#### 2. Full canvas but pull narrator down + overlay above head
-
-The narrator keeps full-canvas size but shifts down (via `overlay.narrator.y`), possibly cropping the lower body, creating empty space above the head for the overlay.
-
-Hard conditions: the face stays inside `safe_rect`; the overlay doesn't cover the face; the overlay is large enough; the overlay stays out of dead zones; the narrator crop still looks natural; the caption doesn't break the layout.
-
-Suited to when: the overlay needs to sit top/mid-top; the narrator's face is too high; you need to keep the narrator large while still ceding the upper region.
-
-#### 3. Full canvas but push narrator up + overlay over chest
-
-The narrator keeps full-canvas size but shifts up, possibly cropping the head/hair or slightly the upper torso, creating a clearer chest/torso area for the overlay.
-
-Hard conditions: the face stays inside `safe_rect`; the overlay doesn't cover the face; the overlay sits in the chest/torso area and is large enough; the overlay stays out of dead zones; the crop doesn't lose the face or push it too close to the edge; the caption doesn't break the layout.
-
-Suited to when: the overlay should sit below the face; the visual is a badge/stat/object tied to the speech; you need to keep the narrator large.
-
-#### 4. Fallback: large top/safe overlay + optimally-small narrator
-
-This is the last resort for normal A-roll scenes. Use it only when the overlay must be large and central/top-safe enough to communicate the beat, and no full-canvas or shifted-full-canvas arrangement can pass.
-
-The narrator must be as large as possible, not merely "small enough to fit." The narrator may exceed the canvas along the Y axis when that produces a better face size, but the X axis must stay inside the canvas. The goal is to preserve a clear human presence while giving the overlay enough room.
-
-Hard conditions:
-
-- `boxes.narrator.face` stays inside `safe_rect`
-- the face is covered by no overlay object, caption, or badge
-- the face remains large enough to read as a human face at 280×498
-- the narrator is not reduced to a decorative tiny picture-in-picture
-- the overlay remains the main subject, large enough to see detail
-- the overlay stays out of `dead_top` and `dead_bottom`
-- the caption still fits and does not cover the face or main overlay
-
-In this priority, the background should usually be a clean grid or quiet plate so the overlay and narrator do not fight visual clutter.
-
-Suited to: UI, code, a document, a chart, a product screenshot, a comparison table, a process diagram, or another detail-heavy visual that genuinely needs to be seen clearly.
+**What the agent still does with overlays is narrow:** fix a genuine defect the server can't judge — an image-model typo (Gate 4), or a background that doesn't fit (Gate 3, which touches `mediaUrl` only, never the overlay). Everything else about placement/composition is the server's job.
 
 ## 6. When to Use Screenshots
 
 > **⭐ To SEE/evaluate the CURRENT state of a scene's overlay there is exactly ONE correct method — pick by capability:**
-> - **Agent CAN see images** → pull a **screenshot**: `scene_inspector` / `widecast_scene_inspector` → `screenshot_scene_280x498`. It returns the **real server-composited view** (background footage + overlay poster + caption) at 280×498 — exactly what the viewer sees. There is exactly ONE valid transport for WideCast scene screenshots: read `result.screenshot.url`, download it with `curl -L -s -o scene.jpg "<url>"`, show `scene.jpg`, then evaluate. Sidecar JSON, base64, binary `ImageContent`, browser screenshots, REST-auth calls, and remote URL embeds do not count. **This screenshot path is THE way to look for composition/layout.** Narrow exception: for overlay typo/grammar/diacritic/glyph proof, call `widecast_scene_inspector` with `action="overlay_poster"`, the topic `id`, the scene `voice_file`, and `activate:true`; read the returned poster URL, download it with `curl -L -s -o overlay_poster.png "<url>"`, show the local PNG before judging, then read text there. Do not construct the poster URL manually from `voice_file`. The poster is not a substitute for the composite screenshot's layout/dead-zone/face/caption proof.
+> - **Agent CAN see images** → pull a **screenshot**: `scene_inspector` / `widecast_scene_inspector` → `screenshot_scene_280x498`. It returns the **real server-composited view** (background footage + overlay poster + caption) at 280×498 — exactly what the viewer sees. There is exactly ONE valid transport for WideCast scene screenshots: read `result.screenshot.url`, download it with `curl -L -s -o scene.jpg "<url>"`, show `scene.jpg`, then evaluate. Sidecar JSON, base64, binary `ImageContent`, browser screenshots, REST-auth calls, and remote URL embeds do not count. **This screenshot path is THE way to look for composition/layout.** Narrow exception: for overlay typo/grammar/diacritic/glyph proof, call `widecast_scene_inspector` with `action="overlay_poster"`, the topic `id`, the scene `voice_file`, and `activate:true`; read the returned poster URL, download it with `curl -L -s -o overlay_poster.png "<url>"`, show the local PNG before judging, then read text there. Do not construct the poster URL manually from `voice_file`. The poster (Gate 4) is the ONLY look on a preserve scene with image-gen text; the composite (Gate 5) is only for confirming an edit.
 > - **Agent CANNOT see images** (pure-LLM) → pull the **layout**: `scene_geometry`, and reason over the JSON boxes (object rects, narrator/caption boxes, safe zones).
 > - **DO NOT fetch the spec yourself and render/composite it locally** (PIL / canvas / headless browser). It is wasteful, non-canonical, and can diverge from the server's real render. The screenshot endpoint already composes the truthful view server-side — **including the `caption` layer, which a hand-rendered poster misses**. For text proof, use only the server URL returned by `widecast_scene_inspector action="overlay_poster"` as a clean overlay-text image; do not hand-composite it over the thumbnail/background, do not construct the poster URL manually, and do not launch a browser/local converter to recreate it.
 >
@@ -241,21 +124,16 @@ Suited to: UI, code, a document, a chart, a product screenshot, a comparison tab
 > ```
 > Then read the returned poster URL, run `curl -L -s -o overlay_poster.png "<url>"`, show the local file, and only then proofread the poster text. Do not derive the URL from `voice_file`.
 >
-> **⭐ EVERY screenshot you pull → DOWNLOAD LOCALLY FROM `result.screenshot.url` + SHOW it to the user BEFORE you reason or act on it.** The `scene_inspector` result must carry `result.screenshot.url`. Run `curl -L -s -o scene.jpg "<url>"`, then present the local file via the environment's local-file display (`SendUserFile` / `present_files` / local image attachment). Do **not** judge from the remote URL itself, and never embed the remote URL as evidence. Sidecar JSON (`returned_as`, `bytes`, `request_id`, `status`), base64 dumps, binary `ImageContent`, browser screenshots, REST-auth calls, and online `<img>` galleries do NOT count. Looking at the image yourself is NOT enough — the user must see what you saw so they can catch a wrong call early. This applies to the BEFORE look, the AFTER look, and any look in between. **Show ≠ pause:** present it, then keep working (don't wait for a reply — only the end of the video is a stop, §2). Skipping the show (silently consuming the screenshot) is a process error.
+> **⭐ EVERY screenshot you pull → DOWNLOAD LOCALLY FROM `result.screenshot.url` + SHOW it to the user BEFORE you reason or act on it.** The `scene_inspector` result must carry `result.screenshot.url`. Run `curl -L -s -o scene.jpg "<url>"`, then present the local file via the environment's local-file display (`SendUserFile` / `present_files` / local image attachment). Do **not** judge from the remote URL itself, and never embed the remote URL as evidence. Sidecar JSON (`returned_as`, `bytes`, `request_id`, `status`), base64 dumps, binary `ImageContent`, browser screenshots, REST-auth calls, and online `<img>` galleries do NOT count. Looking at the image yourself is NOT enough — the user must see what you saw. This applies to the plate look, the poster look, and the AFTER look. **Show ≠ pause:** present it, then keep working (don't wait for a reply — only the end of the video is a stop, §2). Skipping the show (silently consuming the screenshot) is a process error.
 
-> **⭐ THE SCREENSHOT IS MANDATORY — `scene_geometry` is NOT a substitute for LOOKING.** Geometry gives you rects/boxes (use it for the numeric dead-zone check + `layout_id`s) but says NOTHING about whether the scene *looks* right — text readability/sinking, colour, whether the background fits, whether the overlay is actually beautiful. **A vision-capable agent that evaluates from geometry alone — to avoid pulling a screenshot — has skipped the evaluation. A scene you did not LOOK at cannot be declared `PASS` (§3).** Pull the BEFORE and AFTER screenshots on every scene; geometry only *complements* the look, never replaces it. (Even if the geometry API is unavailable, you still screenshot — the screenshot is the primary tool, geometry is the optional helper.)
->
-> **The bytes are NOT hard to get — stop over-thinking it. The whole mechanic:** call `scene_inspector` `screenshot_scene_280x498` → read `result.screenshot.url` → `curl -L -s -o scene.jpg "<url>"` → show `scene.jpg`. Done. The URL may be public/signed/unguessable and short-lived; it is a transport only. Do not judge from the URL and do not embed the remote URL as the evidence. If no URL is returned or `curl` cannot download it, mark the scene `FAIL` and do not edit from that screenshot.
+> **The bytes are NOT hard to get — stop over-thinking it. The whole mechanic:** call `scene_inspector` `screenshot_scene_280x498` → read `result.screenshot.url` → `curl -L -s -o scene.jpg "<url>"` → show `scene.jpg`. Done. The URL may be public/signed/unguessable and short-lived; it is a transport only. Do not judge from the URL and do not embed the remote URL as the evidence.
 >
 > **Do NOT** substitute a browser screenshot, base64, binary ImageContent, local rendering, or REST-auth download. For WideCast scene screenshots, the temp URL → local file path is the only supported route.
 
-**Encouraged shape — roughly BEFORE and AFTER (not a forced count).**
+**The three looks — at most 3 per scene, often 0–1. There is NO BEFORE composite look.**
 
-1. **BEFORE screenshot — the composite render truth.** Pull it before editing, download `result.screenshot.url` to a local file, show it in chat, and only then see the scene as it actually renders: is the background visible in the composite (not hidden behind a full-canvas narrator)? is the overlay good? is the face clear? does the caption fit? Pair it with the Gate 5 active background/media plate (§4.2) when judging the background, so you can separate background objects from overlay/caption/narrator. Use `scene_geometry` for structure, but make visual calls from the local-visible images.
-2. **AFTER screenshot — confirm.** After your edits, pull it again, download `result.screenshot.url` to a local file, show it in chat, and only then verify the final: the face isn't covered, the overlay is readable, the caption doesn't cover the main content, the background fits, the layout is balanced, the scene feels professional. If it's not OK → fix → pull/show again. If no edit was made, the BEFORE screenshot may serve as AFTER evidence only if it was already shown visibly and you explicitly state that no edit was made.
+1. **Background plate (Gate 3)** — the active background thumbnail (`thumbnailUrl`/plate), shown locally, to judge semantic/logic/geo/context fit. Only when Gate 3 applies (non-grid, narrator not covering the frame).
+2. **Overlay poster (Gate 4)** — the isolated overlay on black, shown locally, to proofread image-model-baked text for typos. Only when Gate 4 applies (illustration/chart/diagram/object with image-generated text). Never for SVG typography.
+3. **AFTER composite (Gate 5)** — the full server render, shown locally, ONLY if you actually made an edit — to confirm the fix reads as intended. No edit → no AFTER look.
 
-> **The real rule is NOT a count — it is: don't pull a screenshot after every tiny tweak.** Each pull costs the user tokens (vision) + WideCast bandwidth, so **batch your edits and pull/save/show only when you genuinely need to see the result.** A simple scene is typically ~2 composite screenshots (before + after), plus the Gate 5 active background/media plate; a **complex** edit may legitimately need a few more between major changes — that's fine. Just never pull reflexively after each small adjustment, and never consume a pulled screenshot/media plate privately.
-
-**Crucially, the decision to regenerate/replace an overlay must be based on what the local-visible MCP screenshot SHOWS — never inferred from `scene_geometry` boxes or spec data alone** (geometry is structural only; only the screenshot reveals aesthetic/readability/render truth). Do not downgrade to geometry-only reasoning just because the tool also returned sidecar JSON; instead, save/download/show the screenshot image locally.
-
-If a screenshot reveals a problem the data doesn't show clearly, the agent goes back to fix it with data/layout then QAs again.
+You do NOT pull a composite screenshot to "check the layout/dead-zone/face/composition" — the server guarantees all of that. Pull an image only to judge the two blind spots (background fit, image-gen typo) or to confirm a fix. Never pull reflexively after each small tweak; batch edits, then one AFTER look. Never consume a pulled image privately — every look is one user-visible render (Critical Rule 0 / §1.9).

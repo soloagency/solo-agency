@@ -15,12 +15,43 @@ Load when installing, starting, stopping, checking, scheduling, updating, or tro
 - Setup scripts must preserve data/config and stop only old collector processes occupying port 17321.
 - When this stage is loaded for a private data source request, first reload `playbooks/PRIVATE_SOURCE_GATE.md` if it is not already loaded in the current private data source turn.
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for private data source collection.
-- During one-time Local Collector setup/update/repair, the AI agent must not execute `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if the agent has shell permissions. The human must run the setup/start command in their own Terminal/PowerShell outside the agent sandbox.
+- The AI agent must never launch the bridge binary or its setup/start scripts from inside the AI sandbox, in any flow (setup, update, repair, or normal runs). This includes `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, and the collector binary itself, even if the agent has shell permissions. The human, or an installed OS startup service, must run the setup/start command outside the agent sandbox. The agent's role is to prepare files and hand the human the exact one-line command.
+- Before handing the human any command to run the bridge or any Chrome `Load unpacked` path, the agent must run the Source Safety Pre-Check (see the section below) and only then give the install steps. A verified-fresh checkout is not enough on its own.
 - One-time setup must include both human actions: run the Local Collector app setup/start command, then install/load the Chrome extension from the absolute runtime extension folder.
 - No credentials, hidden APIs, DMs, inboxes, account pages, or contact scraping.
 - Private data source discovery jobs are allowed only after explicit human consent and must produce candidate sources for review, not automatically activated monitoring sources.
 - A reachable bridge is not automatically healthy. The agent must verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point elsewhere, mark `wrong_workspace_bridge` and require the human-run setup/start command for the current setup.
 - A normal machine should have one active shared Solo Agency Local Collector runtime/bridge for the current setup, and one client-specific Solo Agency Local Collector Chrome extension per client Chrome profile/account. When old installs are suspected, ask the human to remove/disable stale entries in `chrome://extensions` and keep only the current per-client extension entries under `extensions/{client_slug}/`.
+
+## Source Safety Pre-Check
+
+Before giving the human any bridge start command or any Chrome `Load unpacked` path, read the code that will actually run on the human's machine and confirm it does not send data anywhere off the local machine. This is a light "where do requests go" read, not a full security audit. It protects against the case where the upstream repo was hijacked and now ships code that exfiltrates the human's logged-in data — something the fresh-checkout verification alone cannot catch.
+
+Scan these three, in the exact copies that will be installed/run (the prepared per-client folder, not only the template):
+
+1. The per-client extension folder `extensions/{client_slug}/` — every `*.js` file.
+2. The bridge source `solo-agency-collector/bridge-go/main.go`.
+3. `solo-agency-collector/scripts/prepare_client_extension.sh`.
+
+What to look for (outbound requests only):
+
+- Network call sites: `fetch(`, `XMLHttpRequest` / `.open(`, `navigator.sendBeacon`, `new WebSocket(`, `new EventSource(`, image beacons (`new Image()` / `.src =` to a URL), and in the bridge any outbound HTTP client (`http.Get`/`http.Post`/`http.Client`/`net.Dial`) or `curl`/`wget` in the script.
+- For each real call site, confirm the destination is the local bridge only: `http://127.0.0.1:<port>` or `http://localhost:<port>` (the `bridgeBaseUrl`). If `client_binding.json` overrides `bridge_base_url`, confirm that override is also `127.0.0.1`/`localhost`.
+- Confirm the bridge binds to `127.0.0.1`/`localhost` (not `0.0.0.0`) and has no outbound/telemetry client.
+
+Known false positives — DO NOT flag these (read the whole line for context; never flag on a substring match alone):
+
+- `readability.js` is the vendored Mozilla Readability DOM parser. Its `XMLHttpRequest`/`_ajax` helper is defined but never called, and its many `http://` strings are license, attribution, and code-comment/docstring references. Not egress.
+- URLs inside comments or usage examples (e.g. a `https://www.facebook.com/...` line inside a `/* Usage: ... */` block).
+- A placeholder base URL such as `https://example.invalid/` passed into `new URL(href, base)` to resolve relative links — it is never fetched.
+- `fetch(chrome.runtime.getURL("client_binding.json"))` and any `chrome.runtime.getURL(...)` / `chrome-extension://` target — this reads a file packaged inside the extension, not the network.
+- Broad `host_permissions` like `http://*/*` and `https://*/*` in `manifest.json` — a page-reading collector needs read access to whatever site the human approved. Broad read scope is expected and is not exfiltration; judge only by where requests are sent.
+- Substring artifacts from a plain text search (e.g. `nc ` inside `func `, or `http` inside a comment). Confirm against the actual code line.
+
+Outcome:
+
+- If every real outbound request goes only to the local bridge and the bridge has no outbound client: the pre-check passes. Record the result (files/commit reviewed, call sites checked, destinations) in `INTERNAL_REPORT` only, and give the human exactly one short, calm confirmation line in plain language before the install steps, for example: `I read through the collector's code and confirmed it only runs on your computer and does not send your data anywhere. It is safe to install.` Do not list findings, severities, or technical terms to the human, and do not add extra warnings that could worry a non-technical user.
+- If a real request goes to any non-local destination, or the bridge opens an outbound connection, or code is obfuscated so the destination cannot be read: do NOT say it is safe and do NOT give the install command. Stop, record the exact finding (file, line, destination) in `INTERNAL_REPORT`, and raise it to the operator in an `**[ACTION REQUIRED]**` block, in calm plain language, so it can be checked against the latest verified GitHub source before any install.
 
 ## Latest Override: One Shared Bridge, Many Client Extensions
 
@@ -48,14 +79,17 @@ Select:
 
 Every Add Client or First Client Setup handoff must include this block with the real absolute path. The agent must not merely say that the extension was created. The human needs the path and steps because a new unpacked extension must be loaded into the matching client Chrome profile/account before private data source collection can work for that client.
 
-The agent must prepare `extensions/{client_slug}/manifest.json` with:
+The agent must run the Source Safety Pre-Check first and precede this handoff with the one short plain-language safety confirmation line (see the Source Safety Pre-Check section). Do not give the `Load unpacked` path or the bridge command until the pre-check has passed.
+
+The agent must prepare `extensions/{client_slug}/manifest.json` with at least:
 
 ```json
 {
-  "name": "{Client Name} - Solo Agency Collector",
-  "short_name": "{Client Name} Collector"
+  "name": "{Client Name} - Solo Agency Collector"
 }
 ```
+
+It may also set `"short_name": "{Client Name} Collector"` and a client-specific `"description"` / `"action.default_title"`. The helper `scripts/prepare_client_extension.sh` patches only `name`, `description`, and `action.default_title` (not `short_name`); its output is compliant. `short_name` is optional.
 
 The agent must also create `extensions/{client_slug}/client_binding.json` with `client_slug`, `client_name`, `extension_instance_id`, `extension_display_name`, and `bridge_base_url`.
 
@@ -246,6 +280,11 @@ Canonical local layout:
       background.js
       popup.html
       popup.js
+      filtering.js
+      readability.js
+      infinity_loops.js
+      collector_helpers.js
+      icons/
       client_binding.json
   daily-content-pipeline/              # data/config/output only
     collector/
@@ -255,6 +294,8 @@ Canonical local layout:
       jobs/
       inbox/
 ```
+
+The listing above is a minimum; the extension folder contains more files than shown. Always copy the FULL template folder (or use the helper script `scripts/prepare_client_extension.sh`) so nothing is missed.
 
 Chrome extension folder disambiguation:
 
@@ -384,7 +425,7 @@ Idempotent setup/update rule:
 - The setup script should keep PID/log files under `solo-agency-local-collector/`, for example `solo-agency-local-collector/collector.pid` and `solo-agency-local-collector/collector.log`.
 - Before starting the Local Collector app, the setup script must detect and restart any previous Local Collector app process for port `17321` when it can do so safely.
 - Re-running the setup script must not leave an older Local Collector app holding port `17321`. If an old collector keeps the port, the Chrome extension may keep talking to stale config and report `no job` even after the AI agent wrote new client sources.
-- The restart order must be: call `POST /shutdown` when possible, stop the PID in `collector.pid` if alive, inspect the process holding port `17321`, kill only collector processes such as `collector-bridge`, then start the newest executable and write a fresh PID/log. If a non-collector process owns the port, stop and show the human the blocking command instead of killing unrelated software.
+- The restart order must be: stop the PID in `collector.pid` if alive, inspect the process holding port `17321`, kill only collector processes such as `collector-bridge`, then start the newest executable and write a fresh PID/log. If a non-collector process owns the port, stop and show the human the blocking command instead of killing unrelated software. Do not rely on `POST /shutdown` to stop the bridge: in the shipped binary `/shutdown` requires the per-run extension token (held only by the extension) and returns 401 when called tokenless, so a tokenless call is a no-op. Use the PID-based/port-based stop instead.
 - The setup script must not simply run the bridge and hope the port is free. If the new bridge logs `address already in use`, the setup script is incomplete and must be fixed before asking the human to retry.
 - The setup script must not delete `daily-content-pipeline/collector/inbox/`, `daily-content-pipeline/clients/`, `history/`, `outputs/`, or reports.
 - The AI agent should generate the setup script from the templates below by replacing only the absolute path placeholders and, when needed, artifact version URLs.
@@ -478,9 +519,9 @@ esac
 chmod +x "$BRIDGE"
 
 stop_existing_bridge() {
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsS -m 2 -X POST "http://127.0.0.1:$PORT/shutdown" >/dev/null 2>&1 || true
-  fi
+  # Do not call POST /shutdown: the shipped bridge requires the per-run
+  # extension token and returns 401 when called tokenless, so it is a no-op.
+  # Stop the bridge by PID first, then by the process holding the port.
 
   if [ -f "$PID_FILE" ]; then
     OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
@@ -658,11 +699,9 @@ if (-not (Test-Path $ConfigPath)) {
 
 $Bridge = Join-Path $CollectorRuntimeRoot "bin\collector-bridge-windows-amd64.exe"
 
-try {
-  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$Port/shutdown" -TimeoutSec 2 | Out-Null
-} catch {
-  # Existing bridge may not be running yet. Continue.
-}
+# Do not call POST /shutdown: the shipped bridge requires the per-run
+# extension token and returns 401 when called tokenless, so it is a no-op.
+# Stop the bridge by PID first, then by the process holding the port.
 
 if (Test-Path $PidPath) {
   $OldPid = Get-Content $PidPath -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -739,7 +778,8 @@ set "COLLECTOR_DATA_ROOT=%PIPELINE_ROOT%\collector"
 set "PID_FILE=%COLLECTOR_RUNTIME_ROOT%\collector.pid"
 set "LOG_FILE=%COLLECTOR_RUNTIME_ROOT%\collector.out.log"
 set "ERR_LOG_FILE=%COLLECTOR_RUNTIME_ROOT%\collector.err.log"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:17321/shutdown' -TimeoutSec 2 | Out-Null } catch {}; if (Test-Path '%PID_FILE%') { $p = Get-Content '%PID_FILE%' -ErrorAction SilentlyContinue | Select-Object -First 1; if ($p) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }; Remove-Item '%PID_FILE%' -Force -ErrorAction SilentlyContinue }; try { Get-NetTCPConnection -LocalPort 17321 -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { $proc = Get-Process -Id $_ -ErrorAction SilentlyContinue; $path = ''; try { $path = $proc.Path } catch {}; if ($proc -and (($proc.ProcessName -like '*collector-bridge*') -or ($path -like '*collector-bridge*'))) { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } else { Write-Host ('Port 17321 is used by a non-collector process: ' + $proc.ProcessName + ' ' + $path); exit 1 } } } catch {}"
+REM Do not call POST /shutdown: the shipped bridge requires the per-run extension token and returns 401 when called tokenless, so it is a no-op. Stop by PID first, then by the process holding the port.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Test-Path '%PID_FILE%') { $p = Get-Content '%PID_FILE%' -ErrorAction SilentlyContinue | Select-Object -First 1; if ($p) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }; Remove-Item '%PID_FILE%' -Force -ErrorAction SilentlyContinue }; try { Get-NetTCPConnection -LocalPort 17321 -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { $proc = Get-Process -Id $_ -ErrorAction SilentlyContinue; $path = ''; try { $path = $proc.Path } catch {}; if ($proc -and (($proc.ProcessName -like '*collector-bridge*') -or ($path -like '*collector-bridge*'))) { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } else { Write-Host ('Port 17321 is used by a non-collector process: ' + $proc.ProcessName + ' ' + $path); exit 1 } } } catch {}"
 if errorlevel 1 exit /b 1
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath '%COLLECTOR_RUNTIME_ROOT%\bin\collector-bridge-windows-amd64.exe' -ArgumentList @('--host','127.0.0.1','--port','17321','--config-file','%COLLECTOR_DATA_ROOT%\collector_config.json','--output-dir','%COLLECTOR_DATA_ROOT%\inbox','--persistent') -RedirectStandardOutput '%LOG_FILE%' -RedirectStandardError '%ERR_LOG_FILE%' -WindowStyle Hidden -PassThru; Set-Content -Encoding ASCII -Path '%PID_FILE%' -Value $p.Id; Write-Host ('Local Collector app started. PID: ' + $p.Id); Write-Host 'You can close this window now.'"
 ```
@@ -1015,14 +1055,14 @@ When `run_mode` is `persistent_bridge_scheduler`, the bridge should start at use
 Typical run:
 
 1. Agent detects the operating system and CPU architecture.
-2. Agent selects the matching bridge binary from `solo-agency-local-collector/bin/`.
-3. Agent creates a collection job file.
-4. Agent starts the bridge on `127.0.0.1` with a short TTL.
+2. Agent confirms the matching bridge binary exists at `solo-agency-local-collector/bin/`.
+3. Agent creates a collection job file under `daily-content-pipeline/collector/jobs/pending/`.
+4. The human-run local process or installed startup service already has the bridge running on `127.0.0.1`. The agent must not start the bridge itself; if it is not reachable, the agent gives the human the one-line start command to run outside the AI sandbox and waits.
 5. Solo Agency Local Collector extension detects the bridge by polling localhost.
 6. Extension fetches the job, collects visible authorized data from configured private data sources, and posts results back to the bridge.
 7. Bridge writes JSONL/status/snapshot files.
 8. Agent reads the files.
-9. Agent stops the bridge or lets it auto-shutdown.
+9. In `agent_on_demand` mode the bridge auto-shuts down on completion or timeout; in `persistent_bridge_scheduler` mode it keeps running. The agent does not stop the bridge itself.
 
 Example bridge command shape:
 
@@ -1030,9 +1070,10 @@ Example bridge command shape:
 solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
   --host 127.0.0.1 \
   --port 17321 \
-  --run-id YYYY-MM-DD_client_slug \
-  --job-file daily-content-pipeline/collector/jobs/YYYY-MM-DD_client_slug.json \
-  --output-dir daily-content-pipeline/collector/inbox/YYYY-MM/YYYY-MM-DD_client_slug \
+  --run-id {run_id} \
+  --config-file daily-content-pipeline/collector/collector_config.json \
+  --jobs-dir daily-content-pipeline/collector/jobs \
+  --output-dir daily-content-pipeline/collector/inbox \
   --ttl-minutes 30
 ```
 
@@ -1120,6 +1161,13 @@ Required safeguards:
 - In persistent scheduler mode, stay running after `/complete`; `/complete` marks only the active scheduled window as completed.
 - Record bridge and extension health so AI agents can explain whether the bridge is running, whether the extension has checked in recently, and why private collection may be unavailable.
 
+#### Retention And PII Handling
+
+- Raw private captures under `daily-content-pipeline/collector/inbox/` stay local. They are never copied wholesale into reports or exports.
+- Client-facing reports use safe summaries only, not raw captured text dumps.
+- In any human-facing output, mask private-group member identities: use initials/role, never full names or profile URLs, unless the human explicitly approves showing more.
+- The operator may purge old `inbox/` months after the corresponding reports are finalized. Purging inbox data must not delete reports, history, or config.
+
 The bridge should expose only minimal endpoints, such as:
 
 ```text
@@ -1137,6 +1185,8 @@ POST /collect/snapshot
 POST /complete
 POST /shutdown
 ```
+
+`/shutdown` requires the per-run extension token (held only by the extension) and is not callable tokenless by the agent; a tokenless `POST /shutdown` returns 401. To stop the bridge, use the PID-based/port-based stop (read `collector.pid`, ask the human to stop that process outside the AI sandbox), not `/shutdown`.
 
 Health API:
 
@@ -1209,12 +1259,28 @@ Runtime verification fallback files:
 daily-content-pipeline/collector/inbox/bridge_health.json
 daily-content-pipeline/collector/inbox/collector_status.json
 daily-content-pipeline/collector/collector_setup_status.md
-daily-content-pipeline/collector/inbox/YYYY-MM/*/collector_status.json
+daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/{run_id}/collector_status.json
 daily-content-pipeline/collector/run_now_request_status.json
 daily-content-pipeline/collector/run_now_request*.consumed.json
 ```
 
 If these files show a recent current-workspace bridge, current-workspace output/config paths, and a recent extension check, the agent should use the file-based queue path (`daily-content-pipeline/collector/jobs/pending/{unique_job}.json`) and wait for collector output instead of asking the human to restart the collector. Use one unique file per client/run. If the files are missing, stale, or point to another setup folder, the agent must log the exact blocker (`collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, or `extension_status_unknown`) and continue with public data sources and previously collected private data when available.
+
+#### Canonical Collector Blocker-Status Enum
+
+These are the only allowed collector blocker statuses in reports and logs:
+
+| Status | Meaning |
+| --- | --- |
+| `collector_offline_or_unreachable` | Bridge not running or not reachable (localhost failed and no fresh local health/status files). |
+| `collector_status_unverified` | Reachability/health could not be confirmed either way. |
+| `wrong_workspace_bridge` | A bridge is running but its config/output/run-now paths point to another setup folder. |
+| `extension_status_unknown` | Bridge reachable, but the matching client extension check-in cannot be confirmed. |
+| `activation_declined_for_now` | Human declined/postponed activating the collector for this run. |
+| `collector_unavailable` | No compatible collector binary for this OS/CPU, or the collector is not installed at all (a build/install-availability status, distinct from a running bridge being offline). |
+| `installed_and_running` | Collector installed, reachable, and healthy for the current setup. |
+
+Do not invent other blocker-status values; map any situation to the closest value above.
 
 Every time the extension checks `/status`, the bridge should update the last extension check timestamp. This lets the AI agent distinguish between:
 
@@ -1235,20 +1301,27 @@ For each run, the bridge should write:
 ```text
 daily-content-pipeline/collector/
   jobs/
-    YYYY-MM/
-      YYYY-MM-DD_client_slug.json
+    pending/
+      {unique_job}.json          # queued jobs waiting to be claimed
+    claimed/
+      {unique_job}.json          # jobs claimed by a matching extension
+    completed/
+      {unique_job}.json          # finished jobs
   inbox/
     YYYY-MM/
-      YYYY-MM-DD_client_slug/
-        collector_status.json
-        private_data_points.jsonl
-        leads.jsonl
-        competitors.jsonl
-        new_private_sources.jsonl
-        source_status.jsonl
-        snapshots/
-          source_slug_post_or_thread.html
+      {client_slug}/
+        {run_id}/
+          collector_status.json
+          private_data_points.jsonl
+          leads.jsonl
+          competitors.jsonl
+          new_private_sources.jsonl
+          source_status.jsonl
+          snapshots/
+            source_slug_post_or_thread.html
 ```
+
+The job queue moves a job file from `jobs/pending/` to `jobs/claimed/` to `jobs/completed/` as it is claimed and finished (a `jobs/failed/` sibling is used when a run fails). Output for each run is written under `inbox/YYYY-MM/{client_slug}/{run_id}/`, consistent with the Latest Override near the top of this file.
 
 Every private data point must include:
 
@@ -1426,7 +1499,9 @@ Exact manual run-now contract:
 ```json
 {
   "run_id": "2026-06-20_client-slug_manual_150405",
+  "job_type": "run_now",
   "client_slug": "client-slug",
+  "allowed_extension_instance_ids": ["ext-inst-abc123"],
   "business_slug": "business-or-brand-slug",
   "industry": "life insurance",
   "sub_industry": "family protection and retirement planning",
@@ -1462,6 +1537,8 @@ Exact manual run-now contract:
 ```
 
 - `run_id` must be unique for every manual run. A recommended pattern is `YYYY-MM-DD_client-slug_manual_HHMMSS`.
+- `job_type` names the job kind, for example `run_now`, `scheduled`, or `private_data_source_discovery`.
+- `allowed_extension_instance_ids` must be included whenever the client's extension instance id is known. It restricts which extension may claim the job and prevents another client's extension from cross-claiming the run.
 - `run_now` must be `true`.
 - `force` must be `false` unless the human explicitly asks for a troubleshooting rerun and understands the same `run_id` may run again.
 - `run_now_ttl_minutes` should be 30 by default and must not exceed 120.
@@ -1568,6 +1645,7 @@ Exact schedule contract:
 - For manual-only mode, set all `scheduled_windows[].enabled` values to `false` and rely only on `/jobs/run_now`.
 - If the human has not activated private data source monitoring yet, configure the recurring schedule as public data sources only and clearly mark private data sources as `pending_private_activation`.
 - Only configure scheduled private data source collection after Local Collector activation is accepted and collector health is confirmed or explicitly documented as pending/blocker.
+- At every scheduled or manual run, perform Collector Runtime Verification BEFORE honoring any saved `public_data_sources_only`, `private sources postponed`, or `pending_private_activation` flag. Verification means: try `GET http://127.0.0.1:17321/status`; if localhost is unreachable from the AI sandbox, read the local collector health/status files (`inbox/bridge_health.json`, `inbox/collector_status.json`, `collector_setup_status.md`). The saved flag may be a stale snapshot from a previous run, so a live check must confirm the current collector state before the run acts on that flag.
 - The Local Collector app must run in persistent mode for unattended scheduled collection:
 
 ```text
@@ -1582,5 +1660,18 @@ solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
 - The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private data sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.
 - Scheduled run IDs are generated by the Local Collector app, usually using `YYYY-MM-DD_schedule-name`.
 - The agent must still write a human-readable `schedule.md` explaining the cadence, clients included, private data source limits, and notification behavior.
+
+## Post-Collection Completion Checklist
+
+Collector success alone is never completion. A finished collector job means data was captured, not that the run is done. After any collector job completes, the agent must confirm all of the following before treating the run as complete:
+
+- Stage 10 was loaded (LOAD LEDGER) before presenting any leads or competitors.
+- Collected data was analyzed for data points, leads, competitors, and newly discovered sources.
+- The idea matrix, best idea, and drafts were updated from the new data.
+- The private lane report (`{client-name}-private-data-sources-report.html`) and the daily staging index were updated, WITHOUT touching `{client-name}-public-data-sources-report.html`.
+- The combined `{client-name}-client-report.html`, its PDF companion, and the INTERNAL_REPORT were rebuilt.
+- `{client-name}-report_state.json` and the `outputs/latest/` copies were reconciled with the newest run.
+
+If any item is not done, the run is not complete regardless of collector status.
 
 ---

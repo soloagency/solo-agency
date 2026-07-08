@@ -2,6 +2,8 @@
 
 _Version: `modular-1.1` · module of the AI Video Editor Playbook (`SKILL.md`)._
 
+> **⚠ SCOPE (2026 lean model): load this ONLY when re-authoring an overlay to fix a real defect.** WideCast produces these overlays and guarantees placement. The agent's routine job on these patterns is limited to Gate 4 image-gen typo checks (illustration non-photo / diagram / object with baked text) and Gate 3 background fit — not authoring.
+
 > **Module of the AI Video Editor Playbook.** Master index + checklist + critical rules live in `SKILL.md`. **Load this when:** the scene pattern is NOT a chart and NOT pure typography — i.e. one of the patterns listed above.
 > Cross-refs: photo reuse (illustration/hybrid/real_entity) → §5.4 in `30_overlay_core.md`; chart half of hybrid → `32_charts.md`; text rules → `31_typography.md`.
 
