@@ -78,7 +78,7 @@ If you see an available module whose `title`/`summary` matches a step that this 
 Load the module for the full text + nuance. These headlines are reminders, not the rules themselves.
 
 0. **One user-visible render per image (anti-double AND anti-zero).** Any evidence image (background plate, overlay poster, AFTER composite) must be saved locally and produce EXACTLY ONE user-visible inline render before you judge from it — never two (don't view + also embed a markdown tag), never zero (a private `Read` the user only sees as a file card does NOT count as shown). Decide the host's render mechanism once per session.
-1. **Name the field, never guess.** Selector = `voice_file` (not `id`). After every `modify_scene`, re-pull `video_data`/`scene_geometry` to confirm saved.
+1. **Name the field, never guess.** Selector = `voice_file` (not `id`). A `modify_scene` 200 under the edit session is durable — the ONE Gate 5 AFTER look (poster/composite) is the save-confirmation; no separate re-pull.
 2. **Runtime = autonomous, end-to-end.** Work scene 2 → last content scene in ONE pass. Never pause to ask. No `A or B?` questions to the user.
 2a. **Decision protocol — choose, don't defer.** Priority: content correctness → background fit → image-gen text correctness → minimal necessary edit. Trust the server for placement; don't invent extra work.
 2b. **WideCast edit trigger = full autonomous run.** "edit this video" + a WideCast URL/`topic_id` = full audit + fix. Never ask scope.

@@ -47,15 +47,17 @@ The known bad default template is: **giant outlined all-caps title + red vertica
 
 Pick **one** of these for scene 2, the synced thumbnail, and the final CTA. The agent chooses; do not ask the user.
 
-1. **Dynamic poster typography:** oversized words with staggered baselines, angled/vertical word blocks, strong scale contrast, and a few motion slashes/brackets anchored to the title.
-2. **Magazine-cover thumbnail:** editorial masthead-like headline, one small cover-line/subline, a sticker/seal or side rule, and cover-style framing around the face/subject.
-3. **Kinetic stacked type:** 2-4 short words stacked like a trailer/poster beat, with stepped placement, directional underline bars, or staggered reveal-ready groups.
-4. **Typographic collage:** one giant keyword plus 1-2 smaller supporting words, arranged asymmetrically but still readable in one glance.
-5. **Object-integrated title:** title wraps around or frames the narrator face, product, vehicle, document, or key prop without covering the important part.
-6. **Premium CTA poster:** giant action verb (`SAVE`, `COMMENT`, `DM`, `BOOK`) plus one support line, with a vertical side bar, editorial rule, seal, or bracket. Use this often for the final scene.
-7. **Minimal premium cover:** one huge word/number plus one LARGE (≥48px) secondary label — a real second reading level, never a tiny caption — lots of negative space, one elegant accent. Minimal is allowed; generic is not.
+**Hard layout rule (applies to every archetype below): the poster is MAX 3 TEXT LINES TOTAL — hero line(s) and support/contact lines all counted; default is 1–2 lines. Each line is ONE full-width horizontal band spanning 70–100% of the safe width. Never a narrow column that wraps a sentence into 2-words-per-line stacks, never scattered word blocks — those collide with the hero and cannot be auto-fit. Everything beyond the 3 lines must be vector decoration, not text.**
 
-Do **not** use the normal inside-scene recipe here: a neat rounded card with horizontal title + subtitle, a row of chips, a balanced info panel, or text centered in a box. Those are acceptable for interior explainer scenes, but endpoint scenes need poster energy.
+1. **Dynamic poster typography:** oversized FULL-WIDTH title lines (max 3) with staggered baselines and strong scale contrast, and a few motion slashes/brackets anchored to the title — no word blocks or columns.
+2. **Magazine-cover thumbnail:** editorial masthead-like full-width headline plus ONE full-width cover-line below it, a sticker/seal or side rule, and cover-style framing around the face/subject.
+3. **Kinetic stacked type:** 2-3 FULL-WIDTH lines stacked like trailer beats (each line spans the safe width — never single floating words), with stepped baselines, directional underline bars, or staggered reveal-ready groups.
+4. **Typographic collage:** one giant full-width keyword line plus 1-2 full-width support lines with contrasting alignment, still readable in one glance.
+5. **Object-integrated title:** full-width title lines placed to frame the narrator face, product, vehicle, document, or key prop without covering the important part.
+6. **Premium CTA poster:** giant action verb (`SAVE`, `COMMENT`, `DM`, `BOOK`) as the full-width hero line plus ONE full-width support line, with a vertical side bar, editorial rule, seal, or bracket. Use this often for the final scene.
+7. **Minimal premium cover:** one huge word/number line plus ONE LARGE (≥48px) secondary label line — a real second reading level, never a tiny caption — lots of negative space, one elegant accent. Minimal is allowed; generic is not.
+
+Do **not** use the normal inside-scene recipe here: a neat rounded card with horizontal title + subtitle, a row of chips, a balanced info panel, or text centered in a box. Those are acceptable for interior explainer scenes, but endpoint scenes need poster energy — delivered as at most 3 full-width lines, not as a card of small text.
 
 Endpoint style still obeys all hard gates: face/subject clear, caption clear, safe zone, no dead-zone intrusion, copy correctness, title thickness, secondary text readability, and server-saved proof. Style is not an excuse for clutter.
 
@@ -76,7 +78,7 @@ Run this when you reach the first real scene after the thumbnail. **Before movin
 7. **Verify the video-scene version:** pull/show the final scene 2 composite screenshot. It must pass poster readability AND video-scene coexistence: face/subject clear, caption still readable, and the caption does not visually compete with or crowd the poster title.
 8. **If caption conflicts:** revise the poster layout, reserve a caption lane, simplify the poster text, or adjust caption placement when the tool supports it. Do not declare scene 2 PASS while the poster title and caption fight each other.
 9. **Save the poster identity:** record the selected frame/plate URL and the uploaded overlay URL; these become the source of truth for the static thumbnail scene.
-10. **Immediate thumbnail sync before scene 3:** identify the `type="thumbnail"` scene by stable `voice_file`, then apply the same uploaded poster overlay URL with `remotion.upload_overlay`. If the thumbnail background plate is not already scene 2's chosen frame/`thumbnailUrl`, set/check that too when the edit branch is available. Pull `screenshot_scene_280x498`, download `result.screenshot.url` locally with `curl`, show it, and evaluate the synced thumbnail. Re-pull `video_data`/`scene_geometry` to confirm the thumbnail scene now points to the synced spec/overlay. **Do not start scene 3 until this sync is server-saved and visually verified.**
+10. **Immediate thumbnail sync before scene 3:** identify the `type="thumbnail"` scene by stable `voice_file`, then apply the same uploaded poster overlay URL with `remotion.upload_overlay`. If the thumbnail background plate is not already scene 2's chosen frame/`thumbnailUrl`, set/check that too when the edit branch is available. Pull `screenshot_scene_280x498`, download `result.screenshot.url` locally with `curl`, show it, and evaluate the synced thumbnail. Re-pull `video_data`/`scene_geometry` to confirm the thumbnail scene now points to the synced spec/overlay. **Do not start scene 3 until this sync is server-saved and visually verified.** If your scene-2 change was a TEXT-ONLY fix applied via `overlay.text_edit` (no upload), sync the thumbnail the same way: apply the identical `overlay.text_edit` to the thumbnail scene's `voice_file` — its spec and overlay SVG are clones of the opening poster's.
 11. **No final thumbnail pass:** after this immediate sync gate passes, thumbnail is done for the run. At the end of the video, do not re-open or re-check the thumbnail unless the user explicitly asks.
 
 ---
