@@ -74,7 +74,9 @@ route from data. Gate 3 (if non-grid + narrator not filling frame): pull the pla
 print the Gate 3 BACKGROUND PROOF, fix via mediaUrl only. Gate 4 (if overlay text is
 image-model-generated — illustration non-photo / chart / diagram / object): pull the
 overlay poster, print the per-string transcription table (transcribe FIRST). Gate 5:
-if you edited, one AFTER look + re-pull to confirm saved. Do NOT audit dead-zone /
+if you edited, the ONE AFTER look (poster/composite) — it verifies the fix AND confirms
+the save (a modify_scene 200 under the edit session is durable; no separate re-pull).
+Do NOT audit dead-zone /
 face / placement / composition — the server guarantees those. Report: SCENE LOAD
 LEDGER, gate verdicts (with N/A + reason where a gate didn't apply), files list, and
 final `Scene <id>: PASS|FAIL — reasons`. Decide autonomously; ask no questions.

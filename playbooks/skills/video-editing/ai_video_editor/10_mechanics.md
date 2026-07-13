@@ -73,7 +73,7 @@ The safe zone is **the same percentage** in both spaces — only the absolute nu
 > The key consequence for image creation (§5): when the agent authors a 720×1280 overlay (SVG), the server reads it at 720 wide and then **keeps each object's position** and scales it ÷2.571 into the preview space. That means **wherever you draw an object in the image, the overlay lands at the same HORIZONTAL position in the layout** — placing main content right at the top/bottom edge of the image makes the overlay fall into the dead zone. So the image itself must respect the 720×1280 safe band (leave **128px at the top** and **320px at the bottom**). ⚠ Caveat: this holds exactly for the **horizontal** axis; **vertically** the server auto-fits a decomposed `upload_overlay` group into the safe zone (it places/centers the group inside canvas y 128→960) — see the position note in §5.1.
 
 
-### 0.4. `modify_scene` — 13 branches, each call picks EXACTLY ONE field family
+### 0.4. `modify_scene` — 14 branches, each call picks EXACTLY ONE field family
 
 | Branch | Task | Main field_name | Notes |
 |---|---|---|---|
@@ -89,9 +89,10 @@ The safe zone is **the same percentage** in both spaces — only the absolute nu
 | (J) A/B-roll switch | Turn the narrator A-roll on/off | — | Sync; keeps both lanes, swaps the active field. |
 | (K) Segment text correction | Fix the text while keeping audio timing | metadata `text` | Rebuilds word-timing, doesn't change duration. |
 | (L) Scene metadata | Edit `pattern` + `quote` | metadata | `pattern` is validated against the 15 canonical values; `type ∈ {HOOK,STAT,KEY POINT,DATA,FACT,CALL TO ACTION}`; setting `pattern=typography_only` will auto-clear `visual`. |
+| (N) **Text edit** (0-LLM, SVG overlays) | Retype the WORDS of an existing overlay object — visuals/layout untouched | `overlay.text_edit` | **FREE, sync. PREFER this over re-authoring (B) when the visuals are right and only the copy is wrong** (typo, better phrasing, translated line). `value={wc_object:"<g data-wc-object id>", lines?:["NEW LINE"], fill?:"#1E6091"}` — `lines` retypes, `fill` (hex) recolours the group's main text (either or both); one field per group, sent alone. Server rewrites `{voice_file}_overlay.svg` in place (face-stack copies update together; fewer lines delete slots, extra lines stack below), re-rasterizes ONLY the touched groups, patches the spec objects — narrator-fit shifts + your earlier `remotion.object.rect` moves survive. Requires `spec._source="svg2spec"` (endpoint posters + SVG overlays you uploaded via (B)); typography/image scenes return 422 `no_svg_overlay_source` — for those, edit `quote` via (L) and regenerate. Poster copy rules (≤3 lines, ≤4 words/line, uppercase) return as `applied.warnings` — heed them: long lines shrink to fit. Thumbnail clone is NOT auto-synced: apply the same edit to the thumbnail's `voice_file` (its spec/overlay.svg are clones). |
 | (M) **Add element** (add-only) | **Append** ONE text/stat/label/callout to the EXISTING spec **without overwriting it** | `remotion.add_element` | **FREE, sync, additive — does NOT touch the existing objects.** `value={kind, value?, label?, url?, position?, rect?, style_token?, emphasis?}` (or a bare string for `kind="text"`). Response returns the new `element_id`/`object_id`/`layout_id`/`rect`. Use ONLY in the **narrow preserve case** (§5.4): an existing realistic photo/overlay is already good and you ONLY need to ADD a missing label/stat/callout — this keeps the photo instead of re-authoring + overwriting. **NOT the default** — most fixes (wrong/ugly/off-message) = re-author the whole SVG via (B). |
 
-After every `modify_scene`, **pull `video_data` again (and `scene_geometry` if it was a layout edit)** to confirm the value actually changed correctly on the server.
+Under an edit session a `modify_scene` 200 is durable (per-topic lock + in-memory cache + WAL). Confirm a fix with the ONE Gate 5 AFTER look (the poster/composite renders from the saved state) — do NOT reflexively re-pull `video_data`/`scene_geometry` afterward; that costs an extra call and adds nothing.
 
 ### Layout is server-managed — the agent does NOT audit placement
 
