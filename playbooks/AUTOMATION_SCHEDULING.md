@@ -1,171 +1,284 @@
-# Daily Schedule
+# Automation & Daily Run Contract
 
-Stage: `04`
+Role: `AUTOMATION_SCHEDULING.md` — the scheduling and daily-run contract for OutreachCRM.
+
+Loaded by `playbooks/SETUP_FLOW_ENTRYPOINT.md` to configure the schedule and the
+client-specific automation task, and by `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` to
+execute an unattended daily run. This file defines the Daily Run order (DESIGN §15),
+the scheduling-mechanism-agnostic rule, the one-automation-task-per-client naming and
+pinning rule, the per-client `run_lock`, the Automation Resync machinery with its
+dry-read verification, and the inbound classifier ordering (DESIGN §12). It is not a
+numbered stage — Stage 4 is now `04_VERIFY_ENRICH.md`.
 
 ## Load Rule
 
-Load during one-time setup after the Client Intelligence Profile, public data source plan, and private data source status are known, so the routine and client-specific automation task can be configured before the first report. Also load during scheduled runs and whenever routine/schedule config is reviewed or repaired.
+Load during one-time setup after the client profile, sendboxes, and at least one campaign
+goal are known, so the schedule and the client-specific automation task can be configured
+**before** the first send. Also load at the start of every scheduled run, and whenever the
+schedule/automation config is reviewed, resynced, or repaired.
 
-## Hard Gates For This Stage
+This file is loaded, not summarized. A short read is NOT a load: register a LOAD LEDGER
+entry per `playbooks/LOAD_LEDGER_PROTOCOL.md`, checked against `playbooks/LOAD_MANIFEST.md`,
+before taking any side-effect action (sending, enriching, writing config, creating a task).
 
-- During one-time setup, configure schedule/routine and the client-specific automation task after the basic source plan is known.
-- After configuring the routine, do not run the first report in Setup Flow; verify the client-specific automation task and tell the human the exact task name to run for the first report.
-- If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, do not run it and do not ask whether to run it now. Treat the request as a handoff request: verify/resync the task, then tell the human the exact client-specific automation task name to run.
-- Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
-- Scheduled runs must run research, private scans if active, analysis, production-ready draft options, final WideCast video-script skill pass before any video provider request, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification. Before report HTML/PDF work, scheduled runs must load `playbooks/skills/report-design/SKILL.md` and use `tools/solo_report_renderer.py` by default instead of writing ad hoc report/PDF scripts. Before any video provider request, scheduled runs must load and apply the existing WideCast video script-writing skill, treat report scripts as reference only, and if a report version/code is already selected or recommended, produce only that one final production script/brief with research and inline-media/direct-image/video-URL workflow. Generate a new five-version set only when no report version has been selected or recommended yet. Use only the skill-produced final artifact as the provider payload. If video provider setup is missing or blocked, scheduled runs must still save the final WideCast-grade script/storyboard/production-brief output and ask for PDNA setup; they must not create local video media with `ffmpeg`, Pillow, `moviepy`, Remotion, browser/canvas screenshots, slideshow export, or similar tools.
-- Scheduled runs must load Stage 10 and produce Lead & Competitor Opportunities, or explicitly mark them as not found, not scanned, pending activation, or unavailable.
-- Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, record `measurement_status: no_published_urls_yet` instead of pretending it ran.
-- Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
-- Every scheduled-run human-facing reply, notification, or report handoff must include an updated progress block. If the agent sends multiple progress updates during the scheduled run, each update must show the current completed/current/remaining state.
-- If private collection is blocked, continue public data sources and notify the human. Do not fall back to Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser for private data sources.
-- Store schedule config and notification channel.
-- After any human-approved change made after the schedule/automation was created, perform Automation Resync before claiming the next scheduled run is updated.
-- Never say "the automation is updated" if only `collector_config.json`, only `schedule.md`, or only the Client Intelligence Profile was changed. The whole automation package must be synced or the remaining snapshot/update blocker must be stated.
-- Every schedule/routine question, native automation task creation/update instruction, scheduled prompt paste/replace instruction, report-request hard-stop handoff, and automation freshness blocker that needs the human must use the root playbook `**[ACTION REQUIRED]**` block.
+## Hard Gates For This Contract
 
-## Latest Override: Client-Specific Automation Tasks
+- **Setup Flow is the control plane only.** During one-time setup, configure the schedule
+  and the client-specific automation task after the profile, sendboxes, and first campaign
+  goal are known. Setup Flow **never sends an email, never enriches for send, and never runs
+  a campaign**. Its terminal state is `ready_for_automation_first_run`.
+- After configuring the schedule, do **not** run the first send/enrich pass inside Setup
+  Flow. Verify the client-specific automation task and tell the human the exact task name to
+  run for the first automation run.
+- If the human asks to run, send, enrich, generate, draft, refresh, or report during Setup
+  Flow, do **not** do it and do **not** ask whether to do it now. Treat the request as a
+  handoff: verify/resync the task, then give the human the exact client-specific automation
+  task name to run.
+- Support manual-only, daily, multiple-times-daily, weekly, and environment-specific
+  schedules. The playbook is scheduling-mechanism-agnostic (see Scheduling Rule).
+- Scheduled runs must execute the full Daily Run order (DESIGN §15): load contract → sync
+  inbox → pull tracking → semantic triage + apply-rules → follow-up advising → load new
+  pipeline (verify + enrich + draft) → send approved → assisted channels → Today View +
+  kanban → reports (incl. Monday weekly) → Telegram notify → Stage 9 audit → release
+  `run_lock`. No step may be silently skipped; a skipped step is recorded with its reason.
+- Before any report HTML/PDF work, scheduled runs must load
+  `playbooks/skills/report-design/SKILL.md` and use `tools/report_renderer.py` by default
+  instead of writing ad hoc report/PDF scripts.
+- Before any send, the send happens through `gmail_client.py send` with the full ordered
+  pre-send re-check chain in code (DESIGN §10). Playbook prose never replaces the in-code
+  gate. If the tracker pull has not succeeded within the configured window for a box,
+  **sending for that box is blocked** (opt-out compliance, DESIGN §16) — this is a gate,
+  not a warning.
+- Scheduled runs must load the needed playbooks again at run time; they must not rely on
+  memory from setup.
+- Every scheduled-run human-facing reply, notification, or report handoff must include an
+  updated progress block (see Scheduled Run Progress Display Contract). Multiple updates in
+  one run each show the current completed/current/remaining state.
+- Store the schedule config, chosen scheduling mechanism, timezone, and notification channel
+  in `outreach-pipeline/schedule.md`.
+- After any human-approved change made after the schedule/automation was created, perform
+  Automation Resync before claiming the next scheduled run is updated.
+- Never say "the automation is updated" if only the client profile, only `schedule.md`, or
+  only a single campaign config was changed. The whole automation package must be synced, or
+  the remaining resync blocker must be stated.
+- Take a per-client `run_lock` before starting a client's run; release it on completion.
+- Every schedule/routine question, native-automation-task creation/update instruction,
+  scheduled-prompt paste/replace instruction, report/send-request hard-stop handoff, and
+  automation-freshness blocker that needs the human must use the root playbook
+  `**[ACTION REQUIRED]**` block: one purpose, one exact next step, one command or path. When
+  nothing is needed, say `No action required right now.`
 
-The current Solo Agency model uses separate Setup Flow and Automation Flow.
+## Client-Specific Automation Tasks (Setup Flow vs Automation Flow)
 
-Setup Flow must create/update schedule and automation tasks, but must not run the first report directly. The first real report must be executed by a client-specific automation task.
+OutreachCRM keeps two distinct flows. **Setup Flow** creates config and the automation task
+but never sends, enriches, or runs a campaign. **Automation Flow** is the real, unattended
+daily run executed by the client-specific automation task.
 
 Rules:
 
-- Create one client-specific automation task per active client by default.
-- Every client-specific task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
-- The task prompt must pin `target_client_slug` and must not process other clients.
-- The task may use the shared Local Collector app/bridge, but private data source jobs must be routed by `client_slug` and bound to the claiming `extension_instance_id` when present.
-- If the AI automation environment cannot call `127.0.0.1`, it must use file-based job requests under `daily-content-pipeline/collector/jobs/pending/` and read bridge/extension health from local files.
-- With one shared Local Collector app/bridge, private data source collection is parallel across different client Chrome profiles/extensions. Multiple scheduled agents may enqueue jobs at the same time; the bridge should expose a separate active collector job per `client_slug`, bind it to the claiming extension instance, route each run to its own output folder, and serialize only jobs for the same client/profile after `/complete` or TTL expiry.
-- The task prompt must require one canonical combined client-facing report per client/day/run: `{client-name}-client-report.html`, built from the three scrubbed staging lane files:
-  - `{client-name}-public-data-sources-report.html`
-  - `{client-name}-private-data-sources-report.html`
-  - `{client-name}-daily-report.html`
-  The combined `{client-name}-client-report.html` is the output built from those three staging files and is the default handoff link; the staging files are not the handoff.
-- If private data sources run after public data sources, the task must create/update only the private report and daily report, then rebuild the combined client report. It must not overwrite, regenerate, or summarize away the public report.
-- A setup/config session may instruct the human to run `AvenNgo - Solo Agency First Run`, but it must not generate the report inside the setup chat.
-- A setup/config session must not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` as a workaround for a human report request. The scheduled entrypoint belongs in the native automation task or a separate Automation Flow run, not inside Setup Flow.
-- Automation Flow may accept config changes during a real run, but must immediately perform Automation Resync before claiming future runs are current.
+- Create **one client-specific automation task per active client** by default.
+- Every client-specific task name must begin with the client name, for example
+  `AvenNgo - OutreachCRM Daily Run`.
+- The task prompt must pin `target_client_slug` and must not process any other client. A
+  client-named task that touches a second client's data is a critical violation.
+- The task prompt runs the full Daily Run order (DESIGN §15) for that one client, loading the
+  needed stage files fresh at run time.
+- A setup/config session may instruct the human to run `AvenNgo - OutreachCRM Daily Run`, but
+  it must not send, enrich, or run the campaign inside the setup chat.
+- A setup/config session must **not** load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` as a
+  workaround for a human "run it now" request. The scheduled entrypoint belongs in the native
+  automation task or a separate Automation Flow run, never inside Setup Flow.
+- Automation Flow may accept config changes during a real run, but must immediately perform
+  Automation Resync before claiming that future runs are current.
+- Plus exactly one agency-wide maintenance task, `OutreachCRM - GitHub Update Watch`, which
+  is barred from every client-facing and send-capable channel (see GitHub Update Watch
+  Scheduling Rule).
 
-For multi-client daily operations, prefer separate client tasks plus an optional master digest task. The master digest task must not scan private data sources; it only reads existing client reports/outputs and summarizes them.
+For multi-client daily operations, prefer separate client tasks. An optional operator-only
+**master digest** task is allowed, but it is strictly read-only: it only reads existing
+per-client operator reports and summarizes them. It must never send email, enrich, run
+`apply-rules`, rebuild a client's Today View/kanban/reports, or notify a client. Only a
+client's own run mutates that client's data.
 
 ## Source Preservation Rule
 
-This file is detailed source material moved from the original monolithic `SOLO_AGENCY_PLAYBOOK.md`.
-
-Do not summarize away requirements, examples, checklists, schemas, protocols, URLs, edge cases, warnings, approval gates, or completion gates. If a downstream agent needs to shorten its response to the human, it may summarize the response, but it must still obey the full requirements in this file.
+This file is a detailed operating contract. Do not summarize away requirements, examples,
+checklists, schemas, ordered gates, protocols, edge cases, warnings, approval gates, or
+completion gates. A downstream agent may summarize its human-facing reply, but it must still
+obey the full requirements in this file.
 
 ---
 
 ## Scheduled Run Playbook Loading Contract
 
-A scheduled run is not a shortcut around the playbook. It is the same agency workflow executed with saved context instead of asking the human setup questions again.
+A scheduled run is not a shortcut around the playbook. It is the same OutreachCRM workflow
+executed with saved context instead of re-asking the human setup questions.
 
-At the start of every scheduled run, the agent must load or re-load the relevant stage files for the work it is about to do:
+At the start of every scheduled run, load or re-load the stage files for the work about to
+be done. Every load requires a LOAD LEDGER entry per `playbooks/LOAD_LEDGER_PROTOCOL.md`,
+checked against `playbooks/LOAD_MANIFEST.md`:
 
 1. Always load Stage 0: `00_CORE_CONTEXT_REQUIREMENTS.md`.
-2. Always load Stage 7: `07_STORAGE_SCHEMA_AND_HISTORY.md` to read profiles, logs, ledgers, and history.
-3. Always load Stage 4: `04_DAILY_SCHEDULE.md` for the scheduled daily-run contract.
-4. Load Stage 1 only if a profile is missing, incomplete, stale, or needs setup repair, or this is the first Automation Flow agency run/report for the client (Stage 1 holds the first-report contract). Do not ask setup questions when the saved profile is complete.
-5. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private data sources are active, pending, blocked, or being scanned.
-6. Load Stage 3 when drafts, production, publishing, provider setup, or notification provider actions are needed.
-7. Before any video provider creation request, load `playbooks/skills/video-script-writing/SKILL.md` and its required modules through the verified client provider when available or repo-local/static fallback when PDNA is missing. If a report version/code is already selected or recommended, apply that existing skill only to that selected version/code and continue into Stage 2 visual treatment/final handoff. Generate five options only when no version is selected or recommended. Do not edit/reimplement the skill and do not send report drafts unchanged.
-8. Load Stage 3A: `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after any vendored writing/provider skill when provider or video actions are relevant to the run.
-9. Load Stage 3B: `playbooks/skills/video-editing/SKILL.md` after provider video creation returns reviewable scenes or when editing a provider video.
-10. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
-11. Load Stage 6 and then `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or packaging the human-facing HTML/PDF report.
-12. Load Stage 10 whenever lead/competitor opportunities, comments, opportunity logs, or competitor monitoring are part of the run. This is normally every first run and every scheduled daily run.
-13. Load Stage 11 when the task is `Solo Agency - GitHub Update Watch`, when an update/upgrade/sync-latest request is being handled, or when blocker recovery checks GitHub for a newer Solo Agency version.
-14. Load Stage 9 before claiming the scheduled run is complete.
-
-Every load in this contract requires a LOAD LEDGER entry per `playbooks/LOAD_LEDGER_PROTOCOL.md`, checked against `playbooks/LOAD_MANIFEST.md`.
+2. Always load Stage 7: `07_STORAGE_SCHEMA_AND_HISTORY.md` to read profiles, CRM records,
+   logs, sent_log, suppression, and history through `crm_store.py` (direct file writes to CRM
+   collections are a critical violation).
+3. Always load this contract (`AUTOMATION_SCHEDULING.md`) for the daily-run order.
+4. Load Stage 1 (`01_CLIENT_SETUP_PROFILE.md`) only if the profile is missing, incomplete,
+   stale, or needs setup repair, or this is the first Automation Flow run for the client.
+   Do not re-ask setup questions when the saved profile is complete.
+5. Load Stage 10 (`10_FOLLOWUP_REPLY_MANAGEMENT.md`) for inbox sync, the deterministic
+   inbound classifier, semantic triage, and follow-up advising. This is loaded on every run.
+6. Load Stage 12 (`12_TRACKING_ANALYTICS.md`) to pull worker events (open/click, bot-filtered)
+   and update metrics/learning logs.
+7. Load Stage 13 (`13_CRM_CORE.md`) for `apply-rules`, deals/tasks, stage transitions,
+   dedupe/merge, and `resolve()` on every `lead_id` lookup path.
+8. Load Stage 14 (`14_TASKS_TODAY_VIEW.md`) for the task engine, SLA sweep, and Today View.
+9. Load Stage 4 (`04_VERIFY_ENRICH.md`) and skill `email-verify-enrich` before any
+   enrichment when loading new pipeline.
+10. Load Stage 5 (`05_CAMPAIGN_MANAGEMENT.md`) for campaign goal, audience, and sequence when
+    selecting/advancing campaigns.
+11. Load Stage 6 (`06_EMAIL_WRITING_STANDARD.md`) and skill `email-writing` before drafting
+    any email (step-1 or bump). A draft may contain only details present in the dossier with
+    an `evidence_url`.
+12. Load Stage 8 (`08_SEND_ENGINE_PROTOCOL.md`) before any send.
+13. Load Stage 15 (`15_CRM_REPORTING.md`) and then `playbooks/skills/report-design/SKILL.md`
+    whenever generating, reviewing, fixing, or packaging any HTML/PDF report — including the
+    Monday weekly client report.
+14. Load Stage 9 (`09_OPERATIONS_SAFETY_AUDIT.md`) before claiming the run is complete.
+15. Load Stage 11 (`11_UPDATE_AND_VERSION_WATCH.md`) only when the task is
+    `OutreachCRM - GitHub Update Watch`, an update/upgrade/sync-latest request is being
+    handled, or blocker recovery must check GitHub for a newer OutreachCRM version.
 
 The difference between first setup and scheduled runs:
 
-- First setup asks only the minimum setup questions because the profile does not exist yet.
-- Scheduled runs read the saved Client Intelligence Profile, source lists, collector config, content history, publishing ledger, and analytics logs, then continue automatically.
-- Scheduled runs must not re-ask industry, sub-industry, audience, pain points, content pillars, or private data source setup questions if those fields are already present.
-- Scheduled runs may ask the human only when an approval gate, blocker, missing critical field, expired private session, production/render/publish/credit decision, or lead outreach decision requires human input.
+- First setup asks only the minimum questions because config does not exist yet.
+- Scheduled runs read the saved profile, sendboxes, lists, campaign configs, CRM records,
+  suppression, sent_log, tracking, and analytics logs, then continue automatically.
+- Scheduled runs must not re-ask profile fields (voice, offer, compliance address, market,
+  timezone) that are already present.
+- Scheduled runs may ask the human only when an approval gate, a blocker, a missing critical
+  field, a sendbox re-auth, a guessed-send decision, a suppression-confirm task, or a merge
+  proposal requires human input — always through `**[ACTION REQUIRED]**`.
 
-Scheduled run completion requires the same end-to-end path as a manual daily run: public research, private scans if active, published-URL analytics when published content exists, data analysis, Lead & Competitor Opportunities, idea matrix, best idea, production-ready drafts, approved video/blog/social production when authorized, Stage 6 plus report-design-rendered HTML/PDF report, notification, and measurement/learning when measurement data exists.
+Scheduled-run completion requires the same end-to-end path as a manual daily run: inbox sync,
+tracking pull, triage + apply-rules, follow-up advising, new-pipeline drafting, sends within
+quota, assisted-channel drafts where allowed, Today View + kanban, operator reports (plus the
+Monday client-facing weekly report), Telegram notification, and the Stage 9 audit.
 
 ## Scheduled Run Progress Display Contract
 
-Scheduled runs are meant to be automatic, but the human still needs visible state whenever the agent speaks.
-
-Every scheduled-run reply, notification, or report handoff must include:
+Scheduled runs are meant to be automatic, but the human still needs visible state whenever
+the agent speaks. Every scheduled-run reply, notification, or report handoff must include:
 
 - completed steps;
 - current active step;
 - remaining steps;
-- blockers or human decisions required;
-- whether published-URL analytics was run or skipped because no published URLs/metrics exist yet.
-- an `Automation freshness check` stating whether the latest changes are synced into the configured automation/scheduled task and whether tomorrow's run will read the current contracts/prompts/playbooks/source approvals/state, not only the latest config file.
+- blockers or human decisions required (each as an `**[ACTION REQUIRED]**` block);
+- send/quota state (sends made, quota remaining per box, any box blocked or paused);
+- whether open/click tracking ran or was skipped (e.g. `plain_text_mode`, or track-pull
+  failed and sends were blocked).
+- an `Automation freshness check` stating whether the latest approved changes are synced into
+  the configured automation/scheduled task and whether tomorrow's run will read the current
+  contracts/prompts/playbooks/config/state, not only the latest config file.
 
 Use this title:
 
 ```text
-Solo Agency daily run progress
+OutreachCRM daily run progress
 ```
 
-The agent may use a compact form in notifications, but it must not send only a report link or summary while steps remain.
+The agent may use a compact form in notifications, but it must not send only a report link or
+a bare summary while steps remain.
 
-Use this compact automation freshness line in scheduled-run updates and setup/repair progress blocks after a schedule exists:
+Use this compact automation freshness line in scheduled-run updates and setup/repair progress
+blocks after a schedule exists:
 
 ```text
-Automation freshness check: {✓ current | → resync in progress | ! action needed | – not applicable yet} - latest approved changes synced into the automation/scheduled task, including prompt/contract/playbook/source state, not only config: {yes | in progress | needs human task prompt update | no schedule yet}.
+Automation freshness check: {✓ current | → resync in progress | ! action needed | – not applicable yet} - latest approved changes synced into the automation/scheduled task, including prompt/contract/playbook/config/state, not only a single config file: {yes | in progress | needs human task prompt update | no schedule yet}.
 ```
 
 ---
 
 ## Automation Resync Contract
 
-An automation/scheduled task can contain a stale prompt snapshot from the moment it was created. A later config edit is not enough if the scheduled task still points to old instructions, old source state, or old setup assumptions.
+An automation/scheduled task can hold a stale prompt snapshot from the moment it was created.
+A later config edit is not enough if the scheduled task still points to old instructions, old
+config state, or old setup assumptions.
 
-Trigger Automation Resync whenever a human-approved change happens after schedule/automation setup, including:
+Trigger Automation Resync whenever a human-approved change happens after schedule/automation
+setup, including:
 
-- private data source discovery was run, approved, rejected, postponed, or changed;
-- Local Collector was activated, repaired, moved to another folder, or found to be writing to the wrong workspace;
-- public data sources, public search keywords, client profile fields, pain points, content pillars, audience, location, or offer changed;
-- PDNA, production provider, WideCast API key/OpenAPI config, Telegram/email fallback, publishing, analytics, published URL history, or notification delivery changed;
-- schedule cadence, timezone, active clients, manual-only mode, or report delivery channel changed;
+- profile fields, voice, offer, compliance/physical address, market, or timezone changed;
+- a campaign was created/edited: goal, audience/segment, sequence steps or `gap_days`,
+  daily quota, guardrails, approval mode, or channel strategy changed;
+- sendboxes changed: added/removed a box, changed auth mode (app_password/oauth), quota,
+  warmup stage, or a box moved to `needs_reauth`/`paused`;
+- suppression, segments, pipelines, or CRM rules changed;
+- the tracker worker changed: `trk.{domain}`, HMAC secret rotation, `TRACKER_API_KEY`, or a
+  `wrangler deploy` was required;
+- WideCast provider notification config changed (`api_key_env`/`api_key_local`, OpenAPI
+  discovery, Telegram/email fallback), or the notification channel changed;
+- schedule cadence, timezone, active clients, manual-only mode, or notification channel
+  changed;
 - the playbook behavior changed in a way scheduled runs must follow;
-- Solo Agency update/version-watch state changed, an upstream update was applied, the update-watch task was created/changed, bridge rerun is required, or extension reload is required.
+- OutreachCRM update/version-watch state changed, an upstream update was applied, the
+  update-watch task was created/changed, `tracker_worker_deploy_required` was set, or
+  `storage_schema_migration_required` was set.
 
 Automation Resync requires updating every relevant layer:
 
-1. Client Intelligence Profile: current source status, approvals, profile fields, private monitoring activation, PDNA, analytics, and notification status.
-2. Source/history logs: discovery results, approved/rejected/pending private data sources, new public data sources, keyword bank changes, and approval timestamps.
-3. `daily-content-pipeline/provider_defaults.json`: provider catalog/discovery URL defaults, no secrets.
-4. The client provider files under `integrations/providers/`: provider config, OpenAPI cache/capability snapshot, provider health, and provider call log when relevant.
-5. `daily-content-pipeline/schedule.md`: cadence, included clients, notification channel, private data source status, PDNA/provider status, and last resync timestamp.
-6. `daily-content-pipeline/collector/collector_config.json` or `POST http://127.0.0.1:17321/config`: only when private data source collection schedule/sources/scan depth changed.
-7. `daily-content-pipeline/automation/automation_manifest.md`: current run contract, paths, active clients, prompt source, config source, provider config source, and last known state hash/summary.
-8. `daily-content-pipeline/automation/scheduled_run_prompt.md`: the exact prompt that the native AI automation/scheduled task should run.
-9. Native AI automation or scheduled task body: update it when the environment stores a separate prompt snapshot.
-10. `daily-content-pipeline/automation/update_state.json` and `update_log.md`: update-watch state, checked/applied commits, change classification, and human actions required.
-11. `daily-content-pipeline/automation/resync_log.md`: what changed, what files/tasks were updated, what could not be updated, and what the next scheduled run should see.
+1. **Client profile** (`clients/{slug}/.../client_profile_*.md`): current voice/offer/
+   compliance, active campaigns, sendbox status, notification status.
+2. **CRM + campaign config** (via `crm_store.py`): campaign configs, sendboxes.json,
+   suppression, segments, pipelines — the current state the run will read.
+3. **`outreach-pipeline/provider_defaults.json`**: WideCast notification catalog/discovery
+   defaults, no secrets.
+4. **Client provider files** (`integrations/providers/`): `provider_config.local.json`
+   (`api_key_env`/`api_key_local`, never a field named `api_key`), `provider_capabilities.json`,
+   `provider_openapi_cache.yaml`, `provider_health.md`, and `provider_calls.jsonl` when relevant.
+5. **`outreach-pipeline/schedule.md`**: cadence, scheduling mechanism, included clients,
+   timezone, notification channel, and last resync timestamp.
+6. **`outreach-pipeline/automation/automation_manifest.md`**: current run contract, data
+   paths, active clients, prompt source, config source, provider-config source, and last
+   known state hash/summary.
+7. **`outreach-pipeline/automation/scheduled_run_prompt.md`**: the exact prompt the native
+   AI automation/scheduled task should run (pins `target_client_slug`).
+8. **Native AI automation or scheduled task body**: update it when the environment stores a
+   separate prompt snapshot.
+9. **`outreach-pipeline/automation/update_state.json`** and `update_log.md`: update-watch
+   state, checked/applied commits, change classification (including
+   `tracker_worker_deploy_required`/`storage_schema_migration_required`), and human actions
+   required.
+10. **`outreach-pipeline/automation/resync_log.md`**: what changed, which files/tasks were
+    updated, what could not be updated, and what the next scheduled run should see.
 
 If the native AI automation task cannot be edited by the agent, the agent must:
 
-- write the exact replacement prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`;
+- write the exact replacement prompt to `outreach-pipeline/automation/scheduled_run_prompt.md`;
 - mark `automation_prompt_update_pending` in `automation_manifest.md` and `schedule.md`;
-- give the human one concrete instruction to paste/replace the scheduled task prompt in a `**[ACTION REQUIRED]**` block;
-- avoid claiming the scheduled run is fully updated until the human confirms the native task body was updated.
+- give the human one concrete instruction to paste/replace the scheduled task prompt in a
+  `**[ACTION REQUIRED]**` block;
+- not claim the scheduled run is fully updated until the human confirms the native task body
+  was updated.
 
-Automation Resync verification:
+### Automation Resync verification (dry-read)
 
-Before saying a post-schedule change is complete, do a dry-read as if tomorrow's scheduled run were starting:
+Before saying a post-schedule change is complete, do a dry-read **as if tomorrow's scheduled
+run were starting**:
 
 1. Read `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`.
-2. Read `daily-content-pipeline/automation/automation_manifest.md`.
-3. Read `daily-content-pipeline/provider_defaults.json` when present.
-4. Read `daily-content-pipeline/schedule.md`.
-5. Read each active Client Intelligence Profile.
-6. Read each relevant client's provider config/capability files when PDNA, notification, analytics, publishing, report delivery, or production was changed.
-7. Read `collector_config.json` when private data sources are active or pending.
-8. Read `daily-content-pipeline/automation/update_state.json` when update/version-watch or a GitHub-applied change affects future runs.
-9. Confirm the latest user-approved changes are visible from those files and from the scheduled prompt/task body.
+2. Read `outreach-pipeline/automation/automation_manifest.md`.
+3. Read `outreach-pipeline/provider_defaults.json` when present.
+4. Read `outreach-pipeline/schedule.md`.
+5. Read each active client profile.
+6. Read each relevant client's provider config/capability files when WideCast notification,
+   report delivery, or provider config changed.
+7. Read the changed campaign configs, `sendboxes/sendboxes.json`, and suppression state when
+   campaigns, sendboxes, or suppression changed.
+8. Read `outreach-pipeline/automation/update_state.json` when update/version-watch or a
+   GitHub-applied change affects future runs.
+9. Confirm the latest user-approved changes are visible from those files **and** from the
+   scheduled prompt/task body.
 
 The agent's human-facing completion message must say one of:
 
@@ -176,7 +289,7 @@ Automation Resync complete: the next scheduled run will read the latest approved
 or:
 
 ```text
-Automation Resync partially complete: config/profile are updated, but the native scheduled task prompt still needs the human to replace it with daily-content-pipeline/automation/scheduled_run_prompt.md.
+Automation Resync partially complete: config/profile are updated, but the native scheduled task prompt still needs the human to replace it with outreach-pipeline/automation/scheduled_run_prompt.md.
 ```
 
 Bad completion wording:
@@ -185,13 +298,16 @@ Bad completion wording:
 I updated the config, so tomorrow's automation is fixed.
 ```
 
-This is invalid because it hides the possibility that the scheduled prompt/task still has an old snapshot.
+This is invalid because it hides the possibility that the scheduled prompt/task still holds
+an old snapshot.
 
 ---
 
 ## Scheduling Rule
 
-The agent must use the best scheduling mechanism available in the current environment.
+The agent must use the best scheduling mechanism available in the current environment. The
+playbook does not mandate one scheduler because different environments have different
+capabilities.
 
 Possible scheduling methods:
 
@@ -199,7 +315,7 @@ Possible scheduling methods:
 - Native AI automation.
 - Local cron.
 - Windows Task Scheduler.
-- macOS launchd.
+- macOS launchd (LaunchAgent).
 - n8n.
 - Make.
 - Zapier.
@@ -208,430 +324,414 @@ Possible scheduling methods:
 - Desktop reminder.
 - Manual daily run instructions.
 
-The playbook does not require one specific scheduler because different AI services have different capabilities.
+The agent must record the chosen method in `outreach-pipeline/schedule.md`.
 
-The agent must record the chosen method in `schedule.md`.
+The agent must also record the **notification channel** in `schedule.md`:
 
-The agent must also record the notification channel in `schedule.md`. If the client has verified WideCast OpenAPI config and the discovered spec exposes `sendTelegramMessage`, record WideCast Telegram/email fallback as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email when the account supports it. If WideCast OpenAPI notification is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast API key + Telegram/email fallback or Gmail/email.
+- If the client has verified WideCast OpenAPI config and the discovered spec exposes
+  `sendTelegramMessage`, record WideCast Telegram (with email fallback) as the preferred
+  operator notification channel for scheduled runs — even if Telegram is not connected yet,
+  because WideCast can fall back to email when the account supports it. WideCast is the
+  operator-notification provider only (PDNA notification); it never sends anything to a client.
+- If WideCast notification is unavailable but Gmail/email is connected, record Gmail/email as
+  the secondary fallback notification channel.
+- If neither is available, record `notification_channel: local_path_only` and tell the human,
+  via `**[ACTION REQUIRED]**`, how to connect a WideCast API key with Telegram/email fallback
+  or Gmail/email.
 
-Scheduled runs should be designed as unattended runs. The human may not be watching the AI agent UI, so the agent must proactively notify the human when the run finishes or when human action is required.
+Scheduled runs are unattended runs. The human may not be watching the agent UI, so the agent
+must proactively notify the operator when the run finishes or when human action is required.
+
+**Timezone.** `schedule.md` records the human machine's local timezone. All date keys
+(`YYYY-MM-DD` folders), "yesterday", the 7-day metric windows, and "Monday" (weekly-report
+day) are computed in that recorded timezone. The AI scheduled-task environment may run at UTC;
+before computing any date key or window, read the recorded timezone from `schedule.md` so a
+run does not split one logical day across two date folders or mis-window a report. Note this
+is distinct from the per-recipient send-window gate in Stage 8, which uses each contact's own
+`tz`.
 
 ## GitHub Update Watch Scheduling Rule
 
-After the first schedule/automation has been configured, offer a separate maintenance automation:
+After the first schedule/automation is configured, offer a separate maintenance automation:
 
 ```text
-Solo Agency - GitHub Update Watch
+OutreachCRM - GitHub Update Watch
 ```
 
-This task exists because Solo Agency is updated frequently and older playbooks/code may be the cause of tomorrow's blocker.
+This task exists because OutreachCRM is updated frequently and an older playbook or tool may
+be the cause of tomorrow's blocker.
 
 Rules:
 
-- The task should run daily, preferably before client daily runs.
+- The task should run daily, preferably before the client daily runs.
 - It must load `playbooks/11_UPDATE_AND_VERSION_WATCH.md`.
-- It must check GitHub `main`, compare the installed version, classify the change, and update `daily-content-pipeline/automation/update_state.json` plus `update_log.md`.
-- It must not run client reports, public data source scans, private data source scans, production, publishing, or analytics.
-- It must not send Telegram, WideCast/email-fallback, provider notifications, social posts, or client notifications. GitHub update checks are internal user/agency maintenance; write `daily-content-pipeline/automation/update_notice.md` and surface the result in the setup/maintenance chat or native task output instead.
-- It may auto-apply updates only when the human has approved auto-apply in `update_state.json` or an equivalent operator setting.
-- Even when auto-apply is approved, bridge/runtime changes still require a human-run command outside the AI sandbox and extension changes still require Chrome reload/Load unpacked steps per client profile.
-- If the automation environment cannot create the native task directly, write the exact prompt from `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` to `daily-content-pipeline/automation/update_watch_prompt.md`, log `update_watch_task_prompt_pending`, and give the human the exact task name and prompt path.
+- It must check the OutreachCRM repo `main` (placeholder `https://github.com/OWNER/outreachcrm`),
+  compare the installed version, classify the change, and update
+  `outreach-pipeline/automation/update_state.json` plus `update_log.md`. Classification
+  includes `tracker_worker_deploy_required` (a `tracker/worker.js` change needing a
+  `wrangler deploy` rerun) and `storage_schema_migration_required` (a storage adapter /
+  `schema_version` change needing `crm_store.py migrate`).
+- It must **not** run client sends, enrichment, campaigns, tracking pulls, reports, or CRM
+  mutations under `clients/`.
+- It must **not** send Telegram, WideCast/email-fallback, or any client/operator campaign
+  notification. GitHub update checks are internal agency maintenance: write
+  `outreach-pipeline/automation/update_notice.md` and surface the result in the
+  setup/maintenance chat or native task output instead.
+- It may auto-apply updates only when the human has approved auto-apply in `update_state.json`
+  or an equivalent operator setting.
+- Even when auto-apply is approved, a tracker-worker change still requires a human-run
+  `wrangler deploy` outside the AI sandbox, and a storage-schema change still requires a
+  human-run `crm_store.py migrate` under the storage freeze flag. Both are surfaced as
+  `**[ACTION REQUIRED]**`, not silently applied.
+- If the automation environment cannot create the native task directly, write the exact
+  prompt from `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` to
+  `outreach-pipeline/automation/update_watch_prompt.md`, log `update_watch_task_prompt_pending`,
+  and give the human the exact task name and prompt path via `**[ACTION REQUIRED]**`.
 
 If no automation is available:
 
 1. Explain the limitation.
 2. Create manual run instructions.
-3. Provide the exact command or prompt the human should use each day.
+3. Provide the exact prompt the human should paste each day.
 
 Example manual run prompt:
 
 ```md
-Run the daily content pipeline for every active client in clients_index.md. Produce today's outputs and master digest.
+Run the OutreachCRM daily run for every active client in clients_index.md. Sync inboxes, pull tracking, triage replies, advise follow-ups, load new pipeline, send approved drafts within quota, refresh Today View and reports, and notify the operator.
 ```
 
 ---
 
 ## Run Locking And Notification Dedup
 
-Scheduled runs can overlap (yesterday's run still finishing, a manual re-run, or a master/all-clients task and a client-specific task both touching one client). Protect against duplicate work and duplicate notifications:
+Scheduled runs can overlap (yesterday's run still finishing, a manual re-run, or an optional
+master-digest task and a client-specific task both touching one client). Protect against
+duplicate work, duplicate sends, and duplicate notifications:
 
-- Before starting a client's daily run, create or check `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-run_lock.json` (`started_at`, task name, session hint). If a fresh lock exists (younger than about 3 hours), do not start a duplicate run for that client — log it and stop. A stale lock (older than the window, or from a run that clearly died) may be taken over, with a note in the run record. Remove or close the lock on completion.
-- Master/all-clients digest tasks only READ client reports; they never rebuild `{client-name}-client-report.html` or the `outputs/latest/` client files. Only the client's own run rebuilds them.
-- Before sending any `public_report_ready` or `private_report_ready` notification, read `notifications/notification_log.md` and `{client-name}-report_state.json` for the same client/day. If an equivalent notification was already sent, do not re-send. A resumed run records `resumed_from` in the report state so retries stay idempotent.
+- Before starting a client's daily run, create or check
+  `outputs/YYYY-MM/YYYY-MM-DD/{client}-run_lock.json` (`started_at`, task name, session hint,
+  `target_client_slug`). If a fresh lock exists (younger than about 3 hours), do **not** start
+  a duplicate run for that client — log it and stop. A stale lock (older than the window, or
+  from a run that clearly died) may be taken over, with a note in the run record. Remove or
+  close the lock on completion.
+- The `run_lock` is per client. It gates the whole client run, and it protects sends in
+  particular — combined with the in-code atomic quota reservation (`reserve(sendbox, day)`),
+  it prevents two concurrent runs from double-spending a box's daily quota.
+- The optional master/all-clients digest task only READS existing operator reports; it never
+  rebuilds a client's Today View, kanban, reports, or `outputs/latest/` files, and never
+  sends or enriches. Only the client's own run rebuilds them.
+- Before sending any run-complete or weekly-report-ready notification, read
+  `notifications/notification_log.md` and `outputs/.../{client}-report_state.json` for the
+  same client/day. If an equivalent notification was already sent, do not re-send. A resumed
+  run records `resumed_from` in the report state so retries stay idempotent.
 
 ---
 
-## Daily Run Algorithm
+## Daily Run Order (DESIGN §15)
 
-For each daily run:
+For each client, pinning `target_client_slug`, in this exact order:
+
+1. **Load contract + LOAD LEDGER.** Load Stage 0, Stage 7, and this file; read the automation
+   manifest and `outreach-pipeline/automation/update_state.json` (Update Watch is a separate
+   task and does not touch clients). Compute the date key in the recorded timezone. Take the
+   per-client `run_lock`.
+2. **Sync inbox** across all sendboxes (DESIGN §12, Stage 10): run the deterministic classifier
+   (see below), split personal mail off, and suppress bounces/unsubs immediately.
+3. **Pull tracking** from the worker (DESIGN §11, Stage 12): record open/click activities,
+   bot-filtered. Open/click never alone trigger a stage change or auto-action — only a reply
+   is conversion evidence.
+4. **Semantic triage + `apply-rules`** (DESIGN §7.6, Stage 13): triaged replies create/advance
+   deals and tasks; the SLA sweep creates nudge tasks; every stage change carries an
+   `evidence_activity_id`. Rules are deterministic and idempotent via guard keys — never
+   improvised by the model.
+5. **Follow-up advising** (deal-aware, Stage 10): triaged replies become reply drafts;
+   due-silent sequences get value-add bumps (never "just following up") → `pending_approval`.
+   Every bump micro-refreshes the person's best 1–2 sources to find a fresh hook and to
+   invalidate stale hooks before drafting.
+6. **Load new pipeline** (cold/trigger campaigns, JIT buffer 3–7 days, Stages 4/5/6): priority
+   pick → Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`.
+7. **Send** `outbox/approved/` within quota through `gmail_client.py send` (DESIGN §10). The
+   ordered pre-send re-check chain runs in code. Approval happens in chat, at any time — the
+   run sends only what is already approved.
+8. **Assisted channels:** draft SMS/Messenger/Zalo for no-email contacts only if the campaign
+   allows and consent/legal basis exists (DESIGN §9/§16) → Today View copy buttons. The human
+   sends and reports back → `assisted_sent` activity.
+9. **Compile Today View + regenerate kanban** via `tools/report_renderer.py`.
+10. **Reports:** daily ops HTML + Approval Report HTML + INTERNAL_REPORT (operator-only, not
+    scrubbed). On **Mondays**, additionally build the Weekly CRM Report, which is the only
+    client-facing output and must pass the Client-Blind Scrub Gate.
+11. **Notify the operator** via WideCast `sendTelegramMessage` (email fallback): counts +
+    report link → `notifications/notification_log.md`.
+12. **Stage 9 audit** → completion gates → release `run_lock`.
+
+---
+
+## Daily Run Algorithm (detailed)
+
+Pre-loop:
 
 1. Load `clients_index.md`.
-2. Identify all clients with `active` status. If the run has a pinned `target_client_slug`, restrict the loop to that client only; a client-named task must not process other clients.
-3. For each active client, processed in `clients_index.md` order unless `schedule.md` defines a different priority:
-   1. Load the client's Client Intelligence Profile file.
-   2. Validate required fields.
-   3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
-   4. Prepare the current month folder key `YYYY-MM`.
-   5. Load saved `public_data_sources` and visit/check active due public data sources before or alongside keyword search.
-      - Visit sources where `visit_in_scheduled_runs: true` and cadence is due today.
-      - Prioritize `active_public_source` daily sources, then due `weekly_public_source` sources, then relevant `occasional_public_source` sources when the topic/event matches.
-      - Record source status, useful URLs, useful signals, weak/noisy results, and whether the source should stay active, be promoted, or be demoted.
-   6. Use Google Search or an available equivalent search tool with rotating keywords from `public_search_keywords`.
-      - Do not use only generic industry keywords.
-      - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
-      - Use keywords in the target audience's likely search/comment language. Do not translate the keyword bank into the human's chat/report language unless the audience uses that language.
-      - Use at least 10 distinct public search keywords per public data source run unless search tooling is unavailable or the saved keyword bank has fewer than 10 usable entries after expansion.
-      - At least 7 of the 10 keywords should come from pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news groups. Generic industry keywords are only supporting context.
-      - Include at least one broad primary-industry keyword for context, at least one pain-point/problem keyword, at least one need/goal or buying-intent keyword, and local/location keywords when location matters.
-      - Use a smaller rotation of related-industry keywords only when the bridge back to the client's offer is clear.
-      - If results are weak, try a different pain-point/problem/need cluster before giving up.
-      - Continue keyword rotation until at least 3 source-backed candidate ideas are new or newly angled against `history/YYYY-MM/content_log.md`. If fewer than 3 qualify after 10+ distinct keywords and due public data sources have been checked, record the coverage limitation instead of fabricating weak ideas.
-      - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
-      - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
-      - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
-      - Include this record in the daily report section `Public Search Keywords Used Today`.
-      - If no search was possible, explicitly explain the blocker in that same section.
-   7. Before deciding whether to skip private data sources, perform Collector Runtime Verification whenever any of these are true:
-      - private data sources are active, pending, requested, approved, present in the Client Intelligence Profile, or listed in any source approval/history file;
-      - schedule/config says `public_data_sources_only`, `private sources postponed`, or `pending_private_activation`, but the workspace contains Local Collector files;
-      - `daily-content-pipeline/collector/inbox/bridge_health.json`, `daily-content-pipeline/collector/inbox/collector_status.json`, `daily-content-pipeline/collector/collector_setup_status.md`, or recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/*/collector_status.json` exists.
-      Do not treat saved labels such as `pending_private_activation` or `public_data_sources_only` as final without this runtime check; those labels may be stale after a human later installed, repaired, or reconnected the Local Collector.
-   8. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before any Collector Runtime Verification involving private data sources. Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser as a fallback.
-   9. Try to check private collector health through `GET http://127.0.0.1:17321/status`.
-      - If the request succeeds, record `bridge_status: running`, check `status.persistent`, `status.job_available`, `status.output_dir`, `status.counts`, and `status.extension_health`.
-      - If the bridge is online but `/status.config_file`, `/status.output_dir`, or `/status.run_now_request_file` points outside the current setup's `daily-content-pipeline/collector/` tree, mark `wrong_workspace_bridge`, do not run private collection, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
-      - If the bridge is online but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, mark private collection as unavailable for this run and notify the human.
-      - If the workspace identity check passes and `extension_health.status` is `recent`, continue private collection.
-   10. If `GET http://127.0.0.1:17321/status` fails, do not immediately conclude the Local Collector is inactive. In some scheduled-task environments, the AI sandbox's `127.0.0.1` is not the human computer's Local Collector localhost.
-      - Read `daily-content-pipeline/collector/inbox/bridge_health.json` when present.
-      - Read `daily-content-pipeline/collector/inbox/collector_status.json` when present.
-      - Read `daily-content-pipeline/collector/collector_setup_status.md` when present.
-      - Inspect recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/*/collector_status.json` files.
-      - Inspect recent consumed run-now status files such as `run_now_request_status.json`, `run_now_request.consumed.json`, or timestamped `run_now_request*.consumed.json` files when present.
-      - If those local status files show a recent current-workspace bridge and recent extension check, use the Stage 8 file-based run-now queue by writing one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/` and waiting for collector output. Do not ask the human to restart the Local Collector just because the API was unreachable from the AI sandbox.
-      - If the files are missing, stale, point to another workspace, or do not prove a recent extension check, mark the precise blocker: `collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, or `extension_status_unknown`.
-   11. If no private data sources are configured, and discovery was never offered or was postponed, do not block the scheduled run. Continue with public data sources, but include `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed` in the report/notification. Explain that public-only runs can still produce useful ideas but may miss community, lead, and competitor signals from logged-in/member spaces.
-   12. If private data sources remain unavailable after Collector Runtime Verification, continue with public data sources and previously collected private data when available. Log the exact verification outcome in the report and notification; do not merely say the config was public-only.
-   13. Prepare the private data source queue if private data sources are available and collector health is acceptable:
-      - keep the active daily queue around 20 sources or fewer per client by default;
-      - prioritize sources most relevant to the client, target audience, target location, pain points, and content pillars;
-      - classify extra sources as `weekly` or `optional` and rotate them across future runs;
-      - do not run aggressive or parallel private data source scans for the same logged-in account.
-   14. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
-      - After private collection reaches a terminal state, reconcile status and counts before report handoff: private scan status, completed timestamp, sources attempted/completed/blocked, data points kept, leads, competitors, recommended private data sources, noisy/skipped discovery candidates, notifications, and blockers must match across the private report, daily index, internal source record, report state JSON, and `outputs/latest/` copies.
-      - Do not leave stale `scan in progress`, `partial`, `pending`, or old recommended-source totals in one artifact after another artifact says the private scan is complete.
-   15. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
-   16. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, collector-status-unverified, wrong-workspace, or unavailable private data sources.
-   17. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
-   18. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
-   19. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
-   20. Load Stage 10 and detect hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors during the same research/private-scan pass. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private data source when safe; normal daily runs use 5 scrolls per approved private data source by default.
-   21. For every useful lead or competitor opportunity, preserve profile URLs and post/current URLs when available, safe context summaries, reasoning, suggested human action, and a copy-ready value-first comment in the same language as the post.
-   22. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from today's data into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`.
-   23. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
-   24. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
-   25. Select the best idea of the day.
-   26. Write the configured production-ready draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
-   27. Before any video provider creation request, load Stage 3 and the existing WideCast video script-writing skill again, treat the report/draft script as reference only, and create the final WideCast-grade script/brief with research plus inline-media/direct-image/video-URL workflow where verifiable. If the report already has a selected/recommended version/code, process only that one selected version; do not create a second five-version set. Do not edit or reimplement the skill.
-   28. If a production provider is connected and the human has explicitly approved creation/rendering/publishing for a selected draft, create the approved video/blog/social asset according to provider approval gates. For video, use only the skill-produced final script/brief from the prior step as the provider payload. If approval or provider setup is missing, keep the asset as `approval_required` or `provider_setup_required`; for video, do not create local video media as a fallback.
-   28b. Load Stage 5 (`playbooks/05_MEASURE_LEARN_IMPROVE.md`) and run published-URL measurement when published URLs exist for this client; otherwise record `measurement_status: no_published_urls_yet`.
-   29. Save `outputs/YYYY-MM/YYYY-MM-DD.md` as the canonical source-of-truth report.
-   30. Generate the three scrubbed staging HTML report files under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   31. Generate or update the operator-only `{client-name}-INTERNAL_REPORT.html`, clearly labeled `INTERNAL_REPORT - Not for client sharing`, and put Solo Agency/WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/automation/blocker/debug details there.
-   32. Run the Client-Blind Scrub Gate on the staging HTML files and the final package. They must not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
-   33. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, `outputs/latest/{client-name}-client-report.html`, and `outputs/latest/{client-name}-client-report.pdf` from the scrubbed three staging HTML files, or record the exact PDF blocker/status. The combined HTML is the only default report link to send/upload; it must not require the reader to open separate daily/public/private files.
-   33b. Write or update `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` and reconcile it with the three staging HTML files, the combined client report, the PDF companion, and the INTERNAL_REPORT (counts, per-lane statuses, timestamps). No artifact may say `scan in progress`/`partial` while another says `complete`.
-   34. Update or copy `outputs/latest/{client-name}-daily-report.html` only as a staging/diagnostic convenience, not as the primary report handoff.
-   35. Update or copy `outputs/latest/{client-name}-INTERNAL_REPORT.html`.
-   36. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   37. Update `history/YYYY-MM/content_log.md`.
-   38. Update `history/YYYY-MM/data_sources_log.md`.
-   39. Update `history/YYYY-MM/lead_log.md`.
-   40. Update `history/YYYY-MM/competitor_log.md`.
-   41. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
-4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
-5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
-6. Update or copy `outputs/latest_master_digest.md`.
-7. Update or copy `outputs/latest_master_digest.html`.
-8. Present the daily digest to the human.
-9. Load Stage 6 and run the Provider Report Delivery Capability Check before claiming the run is complete. This check must use each target client's provider config/OpenAPI identity first and must be recorded in `INTERNAL_REPORT`; a global MCP/native provider account in the current AI session is not proof that the client has notification/upload/analytics/publishing configured.
-10. Prepare a report-delivery record containing the local scrubbed `.html` report path, local PDF path/status, INTERNAL_REPORT path/status, client-facing scrub status, provider, provider discovery/account verification status, upload operation ID, upload attempt status, uploaded report URL if available, notification channel, final notification report link, and blockers.
-11. If WideCast OpenAPI notification/Telegram/email fallback is configured, inspect whether the discovered spec exposes an HTML-capable upload operation. For WideCast, use `uploadAsset` with `text/html` and `sendTelegramMessage`. If upload exists, upload the combined `{client-name}-client-report.html` to WideCast for operator delivery first, then send a notification to the human/operator that includes the uploaded report URL, PDF companion path/status, INTERNAL_REPORT path/status, run status, clients processed, blockers, lead/competitor counts, and required actions. Treat provider-hosted URLs as operator handoff links, not client-share links.
-12. If WideCast notification is available but HTML upload is unavailable or fails, log the exact upload blocker and still send a WideCast notification that includes the best available local/hosted combined `{client-name}-client-report.html` path/link plus PDF companion path/status plus INTERNAL_REPORT path/status.
-13. If provider config is missing, auth fails, OpenAPI discovery fails, account identity mismatches, the only visible provider account is a global MCP/native account that is not proven to match the client, or required operations are missing, log the exact provider-neutral blocker and provide the best available HTML path/link plus PDF companion path/status plus INTERNAL_REPORT path/status in chat or an authorized fallback channel.
-14. If another authorized channel can send the HTML file or link more conveniently only because provider notification is unavailable or blocked, use it.
-15. Log the upload attempt and notification attempt in `notifications/notification_log.md`.
+2. Identify all clients with `active` status. If the run has a pinned `target_client_slug`,
+   restrict the loop to that client only; a client-named task must never process another
+   client.
+3. Process active clients in `clients_index.md` order unless `schedule.md` defines a different
+   priority.
 
-The daily run is complete only when every active client is processed or explicitly logged as skipped.
+For each active client:
 
-When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
+### A. Client load, lock, and validation
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the scrubbed mobile-friendly client-facing HTML result plus PDF companion path/status plus INTERNAL_REPORT path/status, or a result-ready notification with those paths/statuses, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
+1. Load the client's profile file. Validate required fields (voice, offer, compliance/physical
+   address, timezone). If incomplete, enter setup-repair mode (Stage 1) instead of sending.
+2. Compute the current month folder key `YYYY-MM` and the day key `YYYY-MM-DD` in the recorded
+   timezone from `schedule.md`.
+3. Take/verify the per-client `run_lock` (Run Locking rule). If a fresh lock exists, log and
+   stop for this client.
 
-If this client's WideCast notification/Telegram/email fallback is connected and WideCast report upload supports HTML, the operator notification link should use the uploaded report URL, not only a local file path. Provider-hosted URLs are not client-share links. If upload fails, discovery fails, auth fails, account identity cannot be proven client-scoped, or the current provider spec does not support HTML upload, log the blocker and send the best available HTML path/link plus PDF companion path/status plus INTERNAL_REPORT path/status.
+### B. Sync inbox (Stage 10, DESIGN §12)
 
-If a WideCast upload/Telegram step is skipped because the agent did not inspect the configured client provider/OpenAPI capabilities, the scheduled run is incomplete. The agent must correct the omission by running the Provider Report Delivery Capability Check, updating `notification_log.md` and `INTERNAL_REPORT`, and sending a correction message with the HTML report URL/path, PDF companion path/status, INTERNAL_REPORT path/status, and blocker.
+4. For each sendbox, advance the cursor: `historyId` (oauth) or IMAP UID (app_password) plus
+   `last_successful_sync_ts`. OAuth fallback on an expired `historyId` is
+   `q="after:{last_sync_epoch}"` with overlap + dedupe by message id and `nextPageToken`
+   handling — never `newer_than:2d`.
+5. Run the **deterministic inbound classifier in this exact order** (order is load-bearing):
+   1. **DSN/bounce first.** From mailer-daemon/postmaster, or a
+      `multipart/report; report-type=delivery-status`, or a `message/delivery-status` part →
+      hard (5.x.x) / soft (4.x.x); map to the original via threadId + `rfc_message_id` +
+      recipient/sent_at window. DSN is checked **before** threadId because Gmail threads a DSN
+      bounce back into the original sent thread — a threadId-first classifier would misread a
+      bounce as a reply.
+   2. `Auto-Submitted: auto-replied` / out-of-office.
+   3. **Unsub alias, before any keyword check.** Any `To`/`Delivered-To` matching
+      `{box}+unsub-{token}@` → extract the token → unsubscribe the exact lead. This
+      deterministic plus-alias token match runs **before** keyword/semantic classification
+      because mailto one-click unsubs often arrive with empty bodies and no keyword to match.
+   4. threadId / `In-Reply-To` / `References` match against sent_log → campaign reply → mark
+      `reply_untriaged`.
+   5. From ∈ contacts but no thread match → `contact_message`.
+   6. Else → personal email: **count only, do not store the body, do not deep-read.**
+6. Immediately suppress on hard bounce and on any unsubscribe (worker `/u`, mailto plus-alias,
+   or explicit remove intent). Suppression is unioned across all identities and follows merge
+   chains via `resolve(lead_id)`.
+7. **Reply-freezes-sequence invariant:** any inbound reply for a contact freezes the remaining
+   bumps in that contact's sequence until triage completes. This invariant is enforced in code
+   at both draft-time and send-time, not only here.
 
-A notification that only says the report is ready but contains no HTML report URL/path is invalid. If this happens, immediately send a correction notification with the HTML report URL/path and log the correction.
+### C. Pull tracking (Stage 12, DESIGN §11)
 
----
+8. Pull worker events from `GET /events?since={seq}` (Bearer `TRACKER_API_KEY`) and reconcile
+   `unsub:{token}` state. Record open/click activities, bot-filtered (UA class, click-with-no-
+   prior-open, all-links-within-N-seconds, datacenter ASN). Opens are labeled "estimated."
+9. **Send-safety gate:** if the tracker pull has not succeeded within the configured window
+   for a box, block sending for that box this run (so worker/mailto unsubs cannot sit
+   unhonored beyond the window) and record the blocker.
 
-- During one-time setup, after the profile and source plan are known and before the client-specific automation task is marked ready, ask the human whether they want daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence.
-- Then write or update `schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md`, `daily-content-pipeline/automation/resync_log.md`, and the relevant collector/native automation config files.
+### D. Semantic triage + apply-rules (Stage 13, DESIGN §7.6)
 
-Exact schedule contract:
+10. Semantically triage each `reply_untriaged` → `positive | question | objection | negative |
+    remove_intent`. `negative`/`remove_intent` (even without the literal word "unsubscribe")
+    → suppression, or an `**[ACTION REQUIRED]**` confirm task that blocks further sends to
+    that contact until resolved.
+11. Run `crm_store.py apply-rules` (idempotent via `(rule_id, trigger_activity_id)` guard
+    keys): positive reply → create deal + reply-within-4h task + freeze sequence; question →
+    deal at `engaged` + draft reply for approval; negative/remove → suppress + close open
+    tasks; SLA sweep → nudge tasks + report flag; won → lifecycle=customer + onboarding task.
+    Every stage change carries an `evidence_activity_id`.
+12. Contacts with a pending merge proposal are excluded from every campaign queue until
+    resolved.
 
-- Scheduled runs are configured in `daily-content-pipeline/collector/collector_config.json`, or through `POST http://127.0.0.1:17321/config` when the Local Collector app is running.
-- Scheduled runs use `scheduled_windows`. They do not use `/jobs/run_now`.
-- A daily default schedule should look like this:
+### E. Follow-up advising (Stage 10)
 
-```json
-{
-  "version": "0.1.0",
-  "timezone": "local",
-  "run_mode": "persistent_bridge_scheduler",
-  "default_runs_per_day": 1,
-  "poll_interval_seconds": 5,
-  "max_sources_per_run": 20,
-  "max_scrolls_per_source": 5,
-  "max_scrolls_allowed": 10,
-  "scroll_delay_seconds": 5,
-  "duplicate_filter": {
-    "compare_against_previous_day": true,
-    "method": "visible_text_matching",
-    "parse_html": false
-  },
-  "scheduled_windows": [
-    {
-      "name": "daily_morning",
-      "enabled": true,
-      "local_time_start": "09:00",
-      "local_time_end": "09:30",
-      "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-    }
-  ],
-  "clients": [
-    {
-      "client_slug": "client-slug",
-      "enabled": true,
-      "sources": [
-        {
-          "name": "Competitor page or private group name",
-          "url": "https://www.facebook.com/groups/example",
-          "platform": "facebook",
-          "source_type": "private_group",
-          "priority": "high"
-        }
-      ]
-    }
-  ]
-}
-```
+13. For triaged replies needing a human-approved answer, draft the reply and place it in
+    `outbox/pending_approval/`.
+14. For due-silent sequences within a healthy assigned sendbox, micro-refresh the person's 1–2
+    best sources (freshness gate), draft a value-add bump carrying NEW value, and place it in
+    `pending_approval`. If the assigned box is broken, the bump **waits** (never reassigned) and
+    a `**[ACTION REQUIRED]**` re-auth is raised; the report shows "N follow-ups blocked."
 
-- Timezone definition: `"timezone": "local"` means the human machine's local timezone as recorded in `daily-content-pipeline/schedule.md`. All dates, `YYYY-MM-DD` folder keys, "yesterday", and 7-day measurement windows use that timezone. The AI scheduled-task environment may be a cloud/sandbox running at UTC; before computing any date key or window, the scheduled run must read the recorded timezone from `schedule.md` so a run does not split one logical day across two date folders or mis-window measurement.
-- For multiple scheduled runs per day, add multiple enabled items to `scheduled_windows`, for example `morning`, `midday`, and `afternoon`.
-- For manual-only mode, set all `scheduled_windows[].enabled` values to `false` and rely only on `/jobs/run_now`.
-- If the human has not activated private data source monitoring yet, configure the recurring schedule as public data sources only and clearly mark private data sources as `pending_private_activation`.
-- Only configure scheduled private data source collection after Local Collector activation is accepted and collector health is confirmed or explicitly documented as pending/blocker.
-- The Local Collector app must run in persistent mode for unattended scheduled collection:
+### F. Load new pipeline (Stages 4/5/6)
 
-```text
-solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
-  --host 127.0.0.1 \
-  --port 17321 \
-  --config-file daily-content-pipeline/collector/collector_config.json \
-  --output-dir daily-content-pipeline/collector/inbox \
-  --persistent
-```
+15. Maintain a JIT buffer of 3–7 days of drafts. Priority-pick from cold/trigger campaigns,
+    honoring cross-campaign rules: a contact in an active sequence of campaign A is not drafted
+    by B; a hook already used on a person may not open a second campaign.
+16. Tier-1 verify (check dossier TTL first; cheap subagent) → Tier-2 enrich (main model, visit
+    known URLs per the readability table, extract hooks with `evidence_url`, distill
+    `writing_brief`, score `personalization_confidence`).
+17. Draft step-1 through skill `email-writing` (goal_type → structure). A draft may contain
+    only details present in the dossier with an `evidence_url`; step-1 subjects must not begin
+    `Re:`/`Fwd:`. Place in `pending_approval`.
 
-- The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private data sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.
-- Scheduled run IDs are generated by the Local Collector app, usually using `YYYY-MM-DD_schedule-name`.
-- The agent must still write a human-readable `schedule.md` explaining the cadence, clients included, private data source limits, and notification behavior.
-- The agent must also write `daily-content-pipeline/automation/automation_manifest.md` and `daily-content-pipeline/automation/scheduled_run_prompt.md` so future agents can repair or resync the actual scheduled task prompt instead of relying on memory.
+### G. Send approved (Stage 8, DESIGN §10)
+
+18. Send `outbox/approved/` through `gmail_client.py send`, which runs the full ordered
+    pre-send re-check in code: `resolve(lead)` → global + client suppression (with fresh
+    track-pull) → `channels.email.status` → atomic quota reservation → warmup cap → two-tier
+    domain cap → send-window (recipient tz) → guessed cap + guessed-approval flag →
+    sequence-freeze check → step-1 subject lint. Sticky sender: rotation picks the box only on
+    step 1, then `assigned_sendbox` is fixed. Record `sent_log.jsonl`, append `email_sent`,
+    sleep jitter 30–180s. Approval itself happens in chat, any time; the run only sends what is
+    already approved.
+
+### H. Assisted channels (DESIGN §9/§16)
+
+19. For no-email contacts, draft SMS/Messenger/Zalo only when the campaign allows and a
+    documented legal basis exists (US SMS gated on `{optin_source, optin_at,
+    evidence_activity_id}` or existing relationship; Zalo cold-messaging strangers stays off by
+    default). Surface each draft with its legal basis in Today View copy buttons. The human
+    sends and reports back → `assisted_sent` activity.
+
+### I. Today View + kanban (Stage 14/15)
+
+20. Compile the Today View and regenerate the deal kanban with `tools/report_renderer.py`
+    (reusing its contenteditable + Copy-button blocks).
+
+### J. Reports (Stage 15 + report-design skill)
+
+21. Generate the operator-only outputs (NOT scrubbed): `{client}-daily-ops.html`,
+    `{client}-approval-report.html`, `{client}-today-view.html`, and
+    `{client}-INTERNAL_REPORT.html` (clearly labeled `INTERNAL_REPORT - Not for client
+    sharing`; keep OutreachCRM/WideCast/provider/Telegram/API-key/config/sendbox/tracker/
+    debug details here).
+22. **On Mondays only**, build the client-facing `{client}-weekly-client-report.html` (and its
+    `.pdf` companion) and run the Client-Blind Scrub Gate on it via
+    `tools/report_renderer.py` (`CLIENT_BLIND_TERMS`). It must not mention OutreachCRM,
+    WideCast, provider tooling, OpenAPI, MCP, sendbox, gmail_client, crm_store, tracker/`trk.`,
+    HMAC, token.json, sent_log, suppression, warmup, quota, guessed, automation/scheduled task,
+    API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`. The weekly report
+    is the only client-facing output.
+23. Write/update `outputs/.../{client}-report_state.json` and reconcile it with every rendered
+    artifact (counts, per-section status, timestamps). No artifact may say `in progress` while
+    another says `complete`. Update `outputs/latest/...` copies.
+
+### K. Notify the operator
+
+24. Run the Provider Report Delivery Capability Check using **this client's** provider
+    config/OpenAPI identity first — a global MCP/native provider account in the current session
+    is not proof the client has notification configured. Record it in `INTERNAL_REPORT`.
+25. If WideCast OpenAPI notification is configured and the discovered spec exposes an
+    HTML-capable `uploadAsset`, upload the operator report (`{client}-daily-ops.html`, or the
+    Monday weekly report link) with `text/html`, then send `sendTelegramMessage` (email
+    fallback) including: run status, counts (replies triaged, deals moved, drafts pending,
+    emails sent, bounces/unsubs suppressed), the report link/path, and any
+    `**[ACTION REQUIRED]**`. Provider-hosted URLs are operator handoff links, not client-share
+    links.
+26. If HTML upload is unavailable or fails, log the exact blocker and still notify with the
+    best available local/hosted report path plus the counts and required actions.
+27. If provider config is missing, auth fails, discovery fails, identity mismatches, or the
+    only visible account is an unproven global account, log the provider-neutral blocker and
+    hand off the report path/link in chat or an authorized fallback channel.
+28. A notification that only says "the run is complete" with no report link/path and no counts
+    is invalid; send a correction immediately and log it. Record every attempt in
+    `notifications/notification_log.md` (deduped per client/day).
+
+### L. Stage 9 audit + release
+
+29. Load Stage 9 (`09_OPERATIONS_SAFETY_AUDIT.md`) and pass the completion gates before
+    claiming the run is complete: suppression honored at every send-capable path; no draft
+    contains a detail without an `evidence_url`; step-1 subjects not `Re:`/`Fwd:`; quota/warmup
+    respected; sticky-sender preserved; sent_log/activities/report_state reconciled; scrub gate
+    passed on the weekly report; no direct CRM file writes outside `crm_store.py`.
+30. Release/close the per-client `run_lock`.
+
+The daily run is complete only when every active client is processed or explicitly logged as
+skipped, and the operator has been notified through the configured channel with counts and the
+report link/path.
 
 ---
 
-### Collector Schedule Configuration
+## Schedule Contract (`schedule.md` and automation files)
 
-The collector must use one shared local configuration format so AI agents, the bridge, and the Chrome extension control panel do not conflict.
+During one-time setup, after the profile, sendboxes, and first campaign goal are known and
+before the client-specific automation task is marked `ready_for_automation_first_run`, ask the
+human — via `**[ACTION REQUIRED]**` — whether they want daily, multiple-times-daily, weekly,
+manual-only, first-run-only, or another cadence.
 
-Required config file:
+Then write or update, at minimum:
+
+- `outreach-pipeline/schedule.md`
+- `outreach-pipeline/automation/automation_manifest.md`
+- `outreach-pipeline/automation/scheduled_run_prompt.md`
+- `outreach-pipeline/automation/resync_log.md`
+- the native automation/scheduled task body (or the pending-prompt handoff)
+
+OutreachCRM has no separate external scheduler config file of its own. The cadence is
+expressed in three places that the daily run reads at run time:
+
+- the **scheduling mechanism** (native task / cron / launchd / etc.), recorded in
+  `schedule.md` and instantiated in the environment;
+- each campaign's **`sequence[].gap_days`** in `campaign_config.json`, which determines when a
+  contact's next bump is due;
+- the JIT buffer target (3–7 days) that governs how far ahead the run drafts new pipeline.
+
+### `schedule.md` — human-readable, required fields
+
+`schedule.md` must record, in prose the next agent can repair from:
+
+- cadence (daily / multiple-times-daily / weekly / manual-only / first-run-only);
+- the chosen scheduling mechanism and how it is instantiated;
+- included clients and their per-client task names;
+- the recorded local timezone (see the timezone rule above);
+- the notification channel (WideCast Telegram/email fallback → Gmail/email → `local_path_only`);
+- the weekly-report day (default Monday, in the recorded timezone);
+- the last resync timestamp.
+
+Example schedule mechanisms recorded in `schedule.md`:
 
 ```text
-daily-content-pipeline/collector/collector_config.json
+scheduling_mechanism: native_ai_scheduled_task
+run_window: daily 09:00 local
+timezone: America/Chicago
+weekly_client_report_day: monday
+clients:
+  - slug: avenngo-realty-austin
+    task_name: "AvenNgo - OutreachCRM Daily Run"
+    target_client_slug: avenngo-realty-austin
+notification_channel: widecast_telegram_email_fallback
+last_resync: 2026-07-15T09:00:00-05:00
 ```
 
-Default config:
+For a cron-based environment, the same intent as a crontab entry (the agent records the entry
+in `schedule.md`; the human installs it):
 
-```json
-{
-  "version": "0.1.0",
-  "timezone": "local",
-  "run_mode": "persistent_bridge_scheduler",
-  "default_runs_per_day": 1,
-  "poll_interval_seconds": 5,
-  "max_sources_per_run": 20,
-  "max_scrolls_per_source": 5,
-  "max_scrolls_allowed": 10,
-  "scroll_delay_seconds": 5,
-  "duplicate_filter": {
-    "compare_against_previous_day": true,
-    "method": "visible_text_matching",
-    "parse_html": false
-  },
-  "scheduled_windows": [
-    {
-      "name": "daily_default",
-      "enabled": true,
-      "local_time_start": "09:00",
-      "local_time_end": "09:30",
-      "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-    }
-  ],
-  "clients": []
-}
+```text
+# OutreachCRM daily run — AvenNgo (09:00 America/Chicago)
+0 9 * * *  cd {agency_root} && CLIENT=avenngo-realty-austin run-outreachcrm-daily.sh
 ```
 
-The AI agent must create this file during first setup if it does not exist.
+For macOS launchd, record the LaunchAgent label and plist path in `schedule.md` and hand the
+human the install command via `**[ACTION REQUIRED]**`; do not install a LaunchAgent from
+inside the AI sandbox during setup.
 
-If the human wants multiple collection runs per day, the same file must be updated instead of creating another schedule format. Example:
+- For **multiple runs per day**, record several run windows (e.g. morning / midday /
+  afternoon) in `schedule.md` and the mechanism; each window re-checks the `run_lock` so a
+  slow earlier run is not duplicated.
+- For **manual-only** mode, record `cadence: manual_only`, provide the exact prompt the human
+  runs on demand, and rely on no unattended trigger.
+- For **weekly** cadence, still run inbox sync, tracking pull, triage, and suppression on the
+  configured days; the client-facing weekly report is produced on the weekly-report day.
 
-```json
-{
-  "scheduled_windows": [
-    { "name": "morning", "enabled": true, "local_time_start": "08:30", "local_time_end": "09:00", "days": ["mon", "tue", "wed", "thu", "fri"] },
-    { "name": "midday", "enabled": true, "local_time_start": "12:00", "local_time_end": "12:30", "days": ["mon", "tue", "wed", "thu", "fri"] },
-    { "name": "afternoon", "enabled": true, "local_time_start": "16:00", "local_time_end": "16:30", "days": ["mon", "tue", "wed", "thu", "fri"] }
-  ]
-}
-```
+### `automation_manifest.md` and `scheduled_run_prompt.md`
 
-The extension control panel may update this file by calling the bridge config endpoint. The AI agent may also update this file during setup when the human asks for a schedule. Both must preserve the same schema.
+Write `outreach-pipeline/automation/automation_manifest.md` and
+`outreach-pipeline/automation/scheduled_run_prompt.md` so a future agent can repair or resync
+the actual scheduled task prompt instead of relying on memory. The `scheduled_run_prompt.md`
+must pin `target_client_slug`, instruct the run to load the playbooks fresh at run time, and
+execute the full Daily Run order for that one client.
 
-When the Local Collector app is already running, it should check whether `collector_config.json` changed on each `/status` request and reload the file when its timestamp or size changes. To apply an intentional schedule change, prefer `POST http://127.0.0.1:17321/config` when available. If the agent cannot call the endpoint but can edit the config file, direct file edits are acceptable because the Local Collector app should auto-reload them through `/status`. Do not use schedule edits for manual run-now collection.
-
-### Persistent Bridge Scheduler Mode
-
-For fully unattended operation, especially with Claude or other sandboxed agents that cannot start a binary directly, use `run_mode: persistent_bridge_scheduler`.
-
-In this mode:
-
-- The bridge runs as a lightweight local background process.
-- The extension checks the bridge every `poll_interval_seconds` while Chrome is active and the extension service worker is awake.
-- The extension should also check immediately after install, browser startup, and settings save.
-- If Chrome suspends the extension service worker, Chrome alarms are the fallback and the practical check interval may be about 1 minute until the worker wakes again.
-- The bridge returns the current collection window and today's run status.
-- If the current local time is inside an enabled collection window and the run has not been completed for that window, the extension starts collecting automatically.
-- After collection, the extension posts results to the bridge.
-- The bridge marks that window as completed so the extension does not repeat it until the next scheduled window.
-- The human does not need to open the extension panel or click anything during normal daily runs.
-
-Default behavior:
-
-- One run per day.
-- One daily collection window.
-- 5 second extension bridge check interval when Chrome is active and the bridge is running.
-- About 60-75 second practical fallback window when Chrome has suspended the extension service worker.
-- 5 scrolls per private data source.
-- 5 seconds between scrolls.
-- Maximum configurable scrolls: 10.
-
-Panel visibility rule:
-
-- The extension panel must show the current collector status.
-- During a run, the panel should show:
-  - current client,
-  - current source/platform,
-  - current scroll number,
-  - maximum scroll count,
-  - data points collected,
-  - leads detected,
-  - competitors detected,
-  - new private data sources detected,
-  - last bridge contact time,
-  - last error or blocker.
-
-The panel is for visibility and configuration, not for required daily operation.
-
-### Private Collector Health Check Protocol
-
-Before every scheduled run, after every scheduled run, and whenever private data is missing, the AI agent must check the private collector health.
-
-Health check sequence:
-
-1. Do not decide from saved config alone. If private data sources exist in any state, or if collector health/output files exist in the workspace, perform this runtime verification before saying private data sources were skipped.
-2. Try `GET http://127.0.0.1:17321/status`.
-3. If the request succeeds:
-   - record `bridge_status: running`,
-   - record `status.persistent`,
-   - record `status.job_available`,
-   - record `status.output_dir`,
-   - record `status.counts`,
-   - inspect `status.extension_health`.
-4. If `extension_health.status` is `recent`, private collection infrastructure is currently healthy.
-5. If `extension_health.status` is `no_extension_check_yet` immediately after extension install, bridge restart, or settings save, wait and re-check for up to 75 seconds before declaring private collection unavailable.
-6. If `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second grace window, treat private collection as unavailable for now and identify likely causes:
-   - Chrome is closed,
-   - extension is not installed,
-   - extension is disabled or removed,
-   - Solo Agency Local Collector extension and Local Collector app URL/port mismatch,
-   - Chrome service worker is asleep and has not woken recently,
-   - browser profile is not the one where the extension was installed.
-7. If `/status` fails:
-   - do not immediately record `bridge_status: offline` as the final truth;
-   - first consider AI sandbox localhost isolation, where the agent's `127.0.0.1` is not the human machine's Local Collector localhost;
-   - read local collector status files before deciding:
-     - `daily-content-pipeline/collector/inbox/bridge_health.json`,
-     - `daily-content-pipeline/collector/inbox/collector_status.json`,
-     - `daily-content-pipeline/collector/collector_setup_status.md`,
-     - recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/*/collector_status.json`,
-     - recent `run_now_request_status.json` or `run_now_request*.consumed.json` files.
-   - if those files show a recent current-workspace bridge and recent extension check, use the file-based run-now queue from Stage 8 rather than asking the human to restart the collector;
-   - if the files are missing, stale, or point to another workspace, record the exact blocker such as `collector_status_unverified`, `collector_offline_or_unreachable`, or `wrong_workspace_bridge`;
-   - do not try to start the bridge from inside the AI agent sandbox during setup/repair;
-   - continue with public data sources and previously collected private data if live private collection remains unavailable.
-8. If the bridge is running but the extension is stale, do not keep retrying aggressively. Continue with public data sources, log the private data source blocker, and notify the human.
-9. If the extension is recent but a private data source fails due to login/captcha/checkpoint/session expiry, skip that source, log the platform-specific issue, and notify the human.
-
-The AI agent must surface this health information transparently in the daily report and in Telegram notifications when private data sources are unavailable.
-
-Example notification:
+Example `scheduled_run_prompt.md` body:
 
 ```md
-Agent: Claude Schedule
-Collector status: bridge_running, extension_stale
-Last extension check: 2026-06-20 08:52 local time
-Likely cause: Chrome is closed or the extension is disabled.
-Impact: Private Facebook/LinkedIn sources were skipped today. Public data sources still ran.
-Action: Open Chrome with the Solo Agency Local Collector extension enabled, stay logged in, or run the Local Collector app start command again if needed.
+Load playbooks/SCHEDULED_RUN_ENTRYPOINT.md, then run the OutreachCRM daily run for
+target_client_slug: avenngo-realty-austin only. Do not process any other client. Load the
+stage files fresh (0, 7, this automation contract, 10, 12, 13, 14, and 4/5/6/8/9/15 as needed)
+with LOAD LEDGER entries. Sync all sendbox inboxes, pull tracking, triage replies and run
+apply-rules, advise follow-ups, load new pipeline (verify + enrich + draft to pending_approval),
+send only outbox/approved within quota, draft assisted channels where allowed, refresh Today
+View + kanban, render operator reports (plus the Monday weekly client report through the scrub
+gate), notify the operator via WideCast Telegram/email fallback with counts and the report link,
+pass the Stage 9 audit, and release the run_lock.
 ```
 
-### OS Startup For Persistent Bridge
-
-If the human wants unattended collection after reboot, the AI agent should prepare or document an OS startup service for the bridge, but the human must approve/run the setup outside the AI sandbox. Do not install or start the service from the AI agent during one-time setup unless the user has explicitly moved beyond setup and asked for OS service automation with full awareness of the local action.
-
-Claude-specific rule:
-
-- Claude often cannot run downloaded binaries from inside its sandbox.
-- Claude must not try Claude Chrome Extension as a workaround for automated private collection.
-- Claude should provide the human with a one-time shell command or OS-specific setup instructions to start or install the bridge.
-- After the bridge is installed as a startup service, Claude can read collector output files and continue reasoning without controlling Chrome directly.
-
-Recommended startup methods:
-
-- macOS: LaunchAgent in `~/Library/LaunchAgents/`.
-- Windows: Task Scheduler with "At log on" trigger.
-- Linux: `systemd --user` service.
-
-The startup service should run the selected bridge binary with a persistent scheduler config, for example:
-
-```text
-solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
-  --host 127.0.0.1 \
-  --port 17321 \
-  --config-file daily-content-pipeline/collector/collector_config.json \
-  --output-dir daily-content-pipeline/collector/inbox \
-  --persistent
-```
-
-If the bridge is not installed as a startup service, the human must start it manually after reboot by running the prepared setup/start command outside the AI sandbox. The AI agent should not start it from inside the AI sandbox during setup or repair.
+If the client has no notification channel yet, still write these files, set
+`notification_channel: local_path_only`, and give the human one `**[ACTION REQUIRED]**`
+instruction to connect WideCast (API key + Telegram/email fallback) or Gmail/email.

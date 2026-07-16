@@ -1,17 +1,17 @@
-# Solo Agency Playbook
+# OutreachCRM Playbook
 
 Version: modular-router-1.0
 
-This root playbook is the thin router for a daily AI marketing agency workflow. It tells the agent what to load next, what gates must never be skipped, and how to avoid jumping ahead.
+This root playbook is the thin router for a local-first, multi-client cold-email + CRM system operated by an AI agent. It tells the agent what to load next, what gates must never be skipped, and how to avoid jumping ahead.
 
-Detailed protocols live in `playbooks/`. The root must stay small. Do not paste the full protocols back into this file.
+Detailed protocols live in `playbooks/`. The root must stay small. Do not paste the full protocols back into this file. The authoritative design (schemas, decisions, rules) is `docs/DESIGN.md`; when any file disagrees with it, `docs/DESIGN.md` wins.
 
 ## First Instruction To The Agent
 
 Before asking any setup question, load:
 
 1. `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`
-2. `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`
+2. `playbooks/01_CLIENT_SETUP_PROFILE.md`
 
 Only after those two files are loaded **IN FULL** — each with a printed LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` — may the agent ask the first setup question.
 
@@ -20,8 +20,8 @@ Only after those two files are loaded **IN FULL** — each with a printed LOAD L
 Before any action, obey `playbooks/LOAD_LEDGER_PROTOCOL.md`. Core rules:
 
 - A read that **errors, truncates, previews, 404s, times out, or returns fewer lines than the manifest** = the file is **NOT loaded**. Never act on a partial read; re-read to EOF (chunk large files with `offset`/`limit` or `sed -n 'A,Bp'`) first.
-- **Every time you load a stage/module/dependency, print a minimal LOAD LEDGER** (file path, `lines_read` vs the `LOAD_MANIFEST.md` line count, dependency list, verdict) **before acting on it**. A file whose `lines_read` falls short of the manifest is truncated = not loaded. (last line / sha256 are optional deeper checks, not required each load — extra ceremony makes agents drop real work.)
-- **Dependency-complete:** when a stage names dependencies (e.g. Stage 3 → 3A → 3B → skill modules → styles), each needs its own LOAD LEDGER; the parent is not loaded until every child is.
+- **Every time you load a stage/module/dependency, print a minimal LOAD LEDGER** (file path, `lines_read` vs the `LOAD_MANIFEST.md` line count, dependency list, verdict) **before acting on it**. A file whose `lines_read` falls short of the manifest is truncated = not loaded. (last line / sha256 are optional deeper checks, not required each load.)
+- **Dependency-complete:** when a stage names dependencies (e.g. Stage 4 → skill `email-verify-enrich` → its modules; Stage 6 → skill `email-writing` → its modules), each needs its own LOAD LEDGER; the parent is not loaded until every child is.
 - **No excuse** — "file too large", "save time/tokens", "running from schedule", "I remember it", "human wants it short" — justifies a partial read or a skipped ledger. Brevity applies only to the human-facing summary.
 - Everywhere a gate says "Stage X was loaded", it means **loaded IN FULL** (ledger printed, matches `playbooks/LOAD_MANIFEST.md` when present).
 
@@ -30,53 +30,39 @@ Before any action, obey `playbooks/LOAD_LEDGER_PROTOCOL.md`. Core rules:
 Ask only:
 
 ```text
-What product/service, profession, expertise, business description, or public website/profile URL should this pipeline focus on? If location matters, include the target location.
+What product/service, profession, or business does this outreach focus on, and who is the ideal customer? A website or profile URL is welcome. If location matters, include it.
 ```
 
-Do not ask for industry, sub-industry, target audience, pain points, content pillars, idea categories, public data sources, or private data sources in the first question. A public website/profile URL is acceptable as first setup input; the agent may read it for setup context when web access is available, but this is not an operational public data source scan or report run. Infer what can be inferred first. Private data sources are asked only after the schedule/routine and client-specific automation task have been configured; if the human approves or changes private data sources, resync the automation task afterward.
+Do not ask for industry, ICP details, pain points, value proposition, pipeline stages, or email copy in the first question. A website/profile URL is acceptable as first setup input; the agent may read it for setup context when web access is available, but this is not an operational enrichment run or a send. Infer what can be inferred first, then show it for correction.
 
 ## Plain-Language Human Communication Rule
 
-The human may not know marketing, analytics, or technical terms. In every human-facing setup question, progress roadmap, report handoff, notification, and next-step question, explain specialist terms in plain language the first time they appear. Prefer short parenthetical explanations over long footnotes.
+The human operator may know outreach but not every technical term. In every human-facing setup question, progress roadmap, report handoff, notification, and next-step question, explain specialist terms in plain language the first time they appear. Prefer short parenthetical explanations.
 
 Required plain-language meanings:
 
-- `public data sources`: websites, search engines, public news/articles, public forums, public docs, or public pages the agent can access without logging into the human's account.
-- `private data sources`: logged-in or membership-based sources the human allows the agent to monitor later, such as Facebook groups/pages, X, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require access, Discord/Slack communities, competitor profiles, newsletters, or private forums.
-- `Local Collector`: a local app plus Chrome extension running on the human's computer. It uses the human's already logged-in browser session to read only approved visible pages and writes data locally by default. It must not ask for passwords, cookies, OTPs, or tokens.
-- `offer`: the business promise, package, service, or reason someone would buy.
-- `pain points`: customer problems, worries, objections, or urgent questions.
-- `content pillars`: repeatable main content themes.
-- `lead`: a potential customer or buying-signal, not a person to contact automatically.
-- `hot/warm lead`: a stronger/weaker potential-customer signal based on urgency and fit.
-- `competitor`: a direct competitor, alternative solution, adjacent option, or account whose positioning/hooks are useful to learn from.
-- `idea matrix`: a simple table that organizes content ideas by type and business purpose.
-- `HTML report`: a browser/mobile-friendly report file or link for the human to review.
-- `draft`: a proposed script, blog, or caption waiting for human review, not published content.
-- `Production & Distribution & Notification & Analytics` / `PDNA`: production creates real assets such as video/blog/social outputs, distribution posts or sends approved outputs, notification sends reports/blockers, and analytics measures performance.
-- `analytics/statistics`: visible performance numbers such as views, likes, comments, shares, saves, clicks, followers, and unavailable metrics when a platform hides them.
-- `learning loop`: using yesterday and 7-day results to improve the next ideas, hooks, CTAs, sources, and content choices.
-- `schedule/routine`: when and how often the agent runs automatically.
-
-Canonical terminology rule:
-
-- In English human-facing text, always write `public data sources` and `private data sources`; do not shorten them, omit `data`, or combine them into slash terms.
-- If login or membership context matters, write it as an explanation after the canonical term, for example: `private data sources (logged-in/member/community places that may require your account)`.
-- Do not use `private data` as shorthand for `private data sources`; reserve `private data` for actual collected data, storage, privacy, or export discussions.
+- `sendbox`: one email account the system sends from (e.g. a dedicated Gmail). A client can have several, used in rotation.
+- `warmup`: gradually raising a sendbox's daily volume so mailbox providers trust it; new boxes start low.
+- `suppression`: the do-not-contact list (bounced, unsubscribed, complained). Checked before every send.
+- `lead` / `contact`: a person in the CRM. May have an email, or only a name + phone/social.
+- `dossier` / `enrichment`: the verified facts and recent hooks the agent gathered about a contact to personalize an email.
+- `hook`: a fresh, evidenced detail about the person (a new listing, a recent post, a review) that a personalized email can honestly reference.
+- `campaign`: a sequence of outreach with a stated goal (e.g. book a meeting) sent to a chosen segment.
+- `deal` / `pipeline` / `stage`: a CRM opportunity moving through named stages (new reply → engaged → meeting booked → …).
+- `Approval Report`: a browser/mobile report listing every drafted email for the operator to review; nothing sends until the operator approves in chat.
+- `tracking`: optional open/click detection (estimated). Reply, bounce, and unsubscribe are detected reliably from the mailbox.
+- `PDNA` (Notification only, in OutreachCRM): the provider path used to notify the operator (Telegram via WideCast, with email fallback). It does NOT create or publish content.
+- `schedule/routine`: when and how often the daily run executes automatically.
 
 ## Human Action Highlighting Contract
 
-Important human questions and instructions must be impossible to miss.
-
-Any human-facing reply, setup handoff, blocker, notification, report handoff, or next-step question that requires the human to answer, approve, paste, run, click, load an extension, connect a provider, edit an automation task, or confirm state must put that request in a standalone block.
-
-Do not bury required questions or actions inside long paragraphs, progress roadmaps, report links, Markdown files, or status summaries. If a required question appears in body text, repeat the final required ask in the action block. If no human action is needed, say:
+Important human questions and instructions must be impossible to miss. Any human-facing reply that requires the human to answer, approve, paste, run, click, connect a sendbox, connect a provider, edit an automation task, or confirm state must put that request in a standalone block. Do not bury required questions in long paragraphs or reports. If no human action is needed, say exactly:
 
 ```text
 No action required right now.
 ```
 
-Use this stable text marker exactly. A font/text icon such as `!`, `⚠`, or `✓` may appear before it, but the text marker is required because icons render differently across AI chat apps:
+Use this stable text marker exactly (an icon such as `!` may precede it, but the text is required because icons render differently across chat apps):
 
 ```text
 **[ACTION REQUIRED]**
@@ -109,711 +95,313 @@ one exact command
 **Why:** {one short reason}
 ````
 
-Chrome/extension format:
-
-```text
-**[ACTION REQUIRED]**
-
-**Client:** {Client Name}
-**Open this Chrome profile/account:** {profile/account hint}
-**Load unpacked folder:** `{absolute extensions/{client_slug}/ path}`
-**Then reply:** `done`
-**Why:** This binds the correct client extension to the correct logged-in account.
-```
-
 Approval format:
 
 ```text
 **[ACTION REQUIRED]**
 
 **Client:** {Client Name}
-**Approve one option:** `{option_a}` / `{option_b}` / `{option_c}`
-**What I will do after approval:** {one sentence}
-**Why:** {one short reason}
+**Approve which drafts:** e.g. `approve all` / `approve 1-20, 35` / `reject 7: reason` / `edit 12: ...`
+**What I will do after approval:** send the approved emails within quota
+**Why:** nothing sends without your approval
 ```
 
 Rules:
 
 - Put the most important required action at the end of the message.
-- Use at most three `**[ACTION REQUIRED]**` blocks in one reply. If more than three actions exist, group or prioritize them.
+- Use at most three `**[ACTION REQUIRED]**` blocks in one reply; group or prioritize if more.
 - Keep each block short enough to scan on mobile.
 - Do not use an icon as the only signal; the `**[ACTION REQUIRED]**` text marker is mandatory.
-- Do not ask for passwords, cookies, OTPs, browser session tokens, or social credentials. Provider setup blocks may ask only for the specific API key or OAuth/connection action the playbook allows.
-- Setup Flow report requests must end with an action block that names the exact client-specific automation task to run, not a question asking whether to run the report now.
-- Production, rendering, publishing, credit spending, face/voice clone, provider account connection, lead outreach, private data source discovery, private data source approval, Local Collector start/reload, Chrome extension loading, and native automation task edits always require this block.
-- Scheduled runs and notifications should use the block only when the human must act. Otherwise they should include `No action required right now.`
+- Do not ask for passwords, cookies, OTPs, or session tokens. Sendbox connection may ask only for the specific App Password or OAuth action the playbook allows; provider setup blocks may ask only for the specific API key.
+- Setup Flow "send now" requests must end with an action block naming the exact client-specific automation task to run, not a question asking whether to send now.
+- Any send, any outbound message on any channel, any credit spend, any provider connection, any schedule/automation task edit, and any assisted-channel send always require approval and use this block.
+- Scheduled runs and notifications use the block only when the human must act; otherwise they include `No action required right now.`
 
 ## Mission
 
-Turn an AI agent into a practical daily marketing agency operator for one owner or many clients.
+Turn an AI agent into a practical daily cold-email + CRM operator for one owner or many clients. The agency operates on behalf of clients; clients receive only a weekly report.
 
 Every active daily run must move through the full loop:
 
 ```text
-research -> evidence -> ideas -> leads -> competitor intelligence -> selected recommendation -> draft assets -> approval path -> production/distribution when approved -> measurement -> learning -> improved next run
+sync inbox -> classify replies/bounces/unsubscribes -> apply CRM rules -> advise follow-ups -> enrich new leads -> draft goal-driven emails -> operator approval -> send (multi-sendbox) -> track -> update pipeline -> report -> learn -> improved next run
 ```
 
-The human should not manage the workflow manually. The human should spend only a few minutes approving, correcting, or blocking actions that require judgment or authorization.
+The human should not manage the workflow manually. The human spends a few minutes reviewing the Approval Report and approving, editing, or rejecting drafts, plus handling replies that need judgment.
 
 ## Required Runtime
 
-Solo Agency is an agent-operated automation workflow, not a plain web-chat prompt.
+OutreachCRM is an agent-operated automation workflow, not a plain web-chat prompt. Tell the human to run it in Codex, Claude Desktop/Cowork, or a comparable desktop/local AI agent environment that can read/write workspace files, maintain scheduled automation, run local Python tools (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`), and coordinate parallel/sub-agent work. A web chat may review results but must not be the primary runtime.
 
-The agent must tell the human to run Solo Agency in Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or a comparable desktop/local AI agent environment that can read/write workspace files, maintain scheduled automation, coordinate multiple parallel/sub-agent work streams, and hand off Local Collector setup. A normal web chat may be useful for review, but it must not be presented as the primary runtime because it cannot reliably host the automation, file state, private data source collection handoff, and multi-agent work Solo Agency requires.
+## Storage And Mutation Rule
 
-## Client Tools First Rule
+All CRM data lives under `outreach-pipeline/` (see `docs/DESIGN.md` §5). Every CRM mutation MUST go through `tools/crm_store.py`, which enforces atomic writes, client-scoping, identity indexing, the pipeline rules engine, and the append-only activity log. Reading raw JSON is allowed only for debugging; writing CRM state directly to a file is a critical violation. The storage backend is pluggable (JSON now, Postgres later) via `outreach-pipeline/storage_config.json`; playbooks never depend on the backend.
 
-Whenever the agent checks whether production, video, video scene editing, blog, social, upload, notification, publishing, analytics, credits, connected platforms, or provider account tools are available, it must check Client tools first and global MCP/native tools second.
+## Client Isolation Rule
 
-`Client tools` means the current client's provider files and discovered API surface: `integrations/providers/provider_config.local.json`, the fetched OpenAPI spec/cache, verified account identity, `provider_capabilities.json`, `provider_health.md`, and redacted provider call logs. A global MCP/native tool list is only a compatibility surface after the agent proves that tool identity matches the current client's saved provider identity.
+The system is one agency serving many clients. Each client is a fully isolated workspace under `outreach-pipeline/clients/{client_slug}/`: its own contacts, deals, sendboxes, suppression, campaigns, and reports. The storage adapter is instantiated per client. The only agency-global collections are the global suppression tier, `secrets/`, `provider_defaults.json`, and the tracker key — enumerated explicitly and nothing else. A run pinned to `target_client_slug` must never read or write another client's data.
 
-The agent must not say "no video tool", "no WideCast tool", "no upload tool", "no notification tool", or similar until it has checked or refreshed the current client's Client tools and logged the exact blocker. If Client tools expose the needed OpenAPI operation but global MCP does not, use the Client tools path.
+## Evidence-Backed Personalization Rule
 
-## No Local DIY Video Production Fallback Rule
+Every personalized detail in a drafted email must correspond to a hook in the contact's dossier that carries an `evidence_url` and a `retrieved_at` timestamp. If a detail has no evidence in the dossier, it must not appear in the email. Before a follow-up, stale hooks must be re-checked and invalidated if the underlying fact changed (e.g. a listing that sold must not be referenced as active). This is the email equivalent of "do not invent metrics." Stage 9 audit checks it mechanically.
 
-If the human asks the agent to make, create, render, export, or prepare a video and the current client's PDNA provider is missing, unverified, mismatched, or missing the required video operation, the agent must stop at provider setup. The agent must not create any local video file, preview video, slideshow video, MP4, MOV, GIF, or "rough video" with local/system renderers such as `ffmpeg`, Pillow, `moviepy`, browser screenshots/canvas, Remotion, or similar tools.
+## Approval-Before-Send Rule
 
-Without a verified client-scoped provider, the agent may still produce a script, storyboard, shot list, visual notes, or production brief. It must not produce video media. Missing PDNA is a blocker for video production, not permission to make a lower-quality local substitute.
+Nothing leaves the system without explicit human approval given in chat. The agent drafts, renders an Approval Report (operator-only), and waits. The operator approves via chat grammar (`approve all` / `approve 1-20, 35` / `reject N: reason` / `edit N: ...` / `hold N`). Approved drafts send immediately in-session within quota. Default `approval_mode` is `manual_all` for every campaign and every step, including follow-up bumps. Assisted-channel messages (SMS/Messenger/Zalo) are also drafted for the human to send manually — the agent never sends them.
 
-The human-facing explanation must say plainly that high-quality videos over 1 minute, with a realistic chance of being platform-acceptable and viral-capable, require a specialized video production provider. The default maintained all-in-one PDNA path is WideCast (`https://widecast.ai`), which is already integrated with the Solo Agency PDNA model for production, distribution, notifications, analytics, and approval-aware publishing.
+## Conversion-Evidence Rule
 
-If the current Automation Flow can update this client's provider config, ask for the client's WideCast API key by default in the same session and continue PDNA setup there. If it cannot, send the human to the setup/maintenance session or exact automation task update path. Either way, use the root `**[ACTION REQUIRED]**` block and do not self-create video.
+Only an inbound reply is conversion evidence. Opens and clicks (estimated, bot-filtered) are informational signals and must NEVER, on their own, trigger a stage change, a deal creation, or any automated action. Any inbound reply on a campaign thread freezes the remaining sequence for that contact until the reply is triaged.
 
-## Final WideCast Video Script Skill Gate
+## Compliance Rule
 
-Any video script shown inside a report, Markdown source record, previous draft, or content history is reference context only. It is not a production provider payload.
+Every commercial email must carry a working opt-out and a physical mailing address (CAN-SPAM). Opt-out is honored immediately (well within 10 business days). Suppression is checked at every send-capable path — initial, follow-up, and assisted channels — and at import against all of a contact's identities. Step-1 subjects must not begin with `Re:`/`Fwd:` (deceptive); follow-up bumps are real in-thread replies. Guessed email addresses follow the guessed-email policy (third-party verification, catch-all handling, per-domain kill switch, ≤10%/day/box, never auto-send). Assisted-channel drafts must show their legal basis; US SMS requires documented consent or an existing relationship. Full detail in `docs/DESIGN.md` §16 and Stage 9.
 
-Before any `production.create_video`, `widecast_create_video`, or equivalent provider video request, the agent must load and apply the existing WideCast video script-writing skill to produce the final production script/brief from the selected idea/report draft. Use the verified client provider's writing-skill operation when available; otherwise use the repo-local/static fallback under `playbooks/skills/video-script-writing/`, even when PDNA is not connected yet. Do not edit, replace, summarize, or reimplement the WideCast skill.
+## Sendbox And Rotation Rule
 
-The five script versions in a report are suggestion options for human or automation selection. If a selected version/code already exists, or the human pasted an edited version from the report, the Solo Agency adapter may narrow the WideCast skill flow to that selected version only. Do not generate five new versions again during video production. Continue with the selected version/code into the skill's research, factual-core, Stage 2 visual treatment, inline image/video URL, media-pool, and production handoff standards. Generate the five-format Stage 1 set only when no version has been selected or recommended yet.
+A client may connect multiple sendboxes (priority path: `@gmail.com` via App Password + SMTP/IMAP; advanced: Google Workspace via OAuth Internal). Step-1 outreach rotates across healthy sendboxes by lowest `sent_today/quota_today` ratio; once a contact receives its first email, that sendbox is **sticky** for every later bump and reply (threading, reply routing, and anti-spam require it). Volume is capped two-tier: `min(remaining_box_quota, remaining_domain_cap)`. A broken sendbox (needs re-auth / rate-limited) is dropped from step-1 rotation, and its pending follow-ups wait (never reassigned) with an `[ACTION REQUIRED]` re-auth. See Stage 2 and Stage 8.
 
-The final script/brief must follow the loaded skill's research-first and Stage 2 inline-media workflow: ground facts with current research when tools allow it, pick or adapt the strongest script format, source/vet sparse direct image URLs for the beats that need real visuals, and produce a final script/production brief suitable for WideCast. If research or image vetting is unavailable in the current runtime, record that limitation and stop at a production brief/blocker unless the loaded WideCast skill explicitly routes that no-research case through a verified server-side research handoff with valid approval. Never fabricate facts or URLs.
+## Notification Provider Rule (WideCast, notification only)
 
-Manual/interactive flow: after the final WideCast-grade script and visual handoff are ready, stop and wait for explicit human confirmation before creating the provider video.
+OutreachCRM uses WideCast only to notify the operator (Telegram via `sendTelegramMessage`, email fallback, optional `uploadAsset` for the report link). It is NOT used for producing or publishing content. Provider setup is client-scoped: read the client's `integrations/providers/provider_config.local.json`, verify identity via the client's API key, and check the client's OpenAPI capabilities before claiming notification is available. Save the key only as `api_key_env` or `api_key_local` — never a field named `api_key` (the OpenAPI helper ignores that field). Notification is optional: with no provider configured, surface report links in chat and log the blocker. Use `https://widecast.ai/app/dashboard` as the server; treat `https://api.widecast.ai` as a disabled host.
 
-Scheduled Automation Flow: when the run already has valid approval for provider video creation, this final skill pass is not a second human-confirmation gate; send only the skill-produced final script/brief to the verified client-scoped provider. If approval is missing, stop at `approval_required`. If PDNA/provider setup is missing, still create/save the final WideCast-grade script/production brief from the skill, then stop at the PDNA setup blocker and do not create local video media.
+## Two-Lane Reporting Rule
 
-## Default PDNA Setup Rule
-
-When PDNA is not configured and the human asks whether the agent can configure PDNA, asks for instructions, asks to make a video, or otherwise wants production/notification/analytics setup, the default path is WideCast. Do not ask the human to choose provider, scope, account identity, spend-credit policy, publish policy, analytics policy, or notification scope before starting default setup.
-
-The agent's only required human ask for default setup is: register/log in to WideCast, generate the API key, and paste only that API key into the current chat. After that, the agent must infer the rest from the client context and the verified account/capability response, then write the provider config, fetch/cache OpenAPI, verify account identity, refresh capabilities, update health/logs, and resync automation.
-
-Default safe assumptions:
-
-- `active_provider`: `widecast`.
-- Setup discovers all PDNA capabilities, but it does not authorize video creation, render/export, publishing, credit spending, face/voice clone, or lead outreach.
-- Telegram should be recommended as the report/blocker/approval notification channel, but the agent should not ask a separate Telegram yes/no question during default setup.
-- Social accounts are optional inside WideCast and only enable later approval-aware publishing; the agent must not ask a publish yes/no question during default setup.
-- Specialist providers or MCP connector URLs are discussed only when the human explicitly rejects WideCast, asks for another provider, or says their AI host requires connector-based setup.
-
-## WideCast OpenAPI Server Selection Rule
-
-For WideCast, the current production OpenAPI server is `https://widecast.ai/app/dashboard`.
-
-Treat `https://api.widecast.ai` as a disabled/planned vanity host unless a future Solo Agency playbook explicitly enables it. If the discovered OpenAPI `servers` list includes both, choose `https://widecast.ai/app/dashboard`, skip `https://api.widecast.ai`, and record the correction in Client tools/capability logs when an older config or cache selected the disabled host.
-
-## Audience Value-First Content Rule
-
-Every idea, Idea Matrix entry, best idea, suggested comment, video script, blog draft, social caption, and production recommendation must be useful to the target audience before it is useful to the client's brand.
-
-The content premise must answer at least one of these questions:
-
-- What will the viewer learn?
-- What mistake will the viewer avoid?
-- What decision will the viewer make better?
-- What risk, cost, confusion, or wasted effort will the viewer reduce?
-
-Do not turn market or competitor signals into direct praise for the client's product/service. Do not make the client's brand, product name, or service claim the main value of an idea unless the idea also contains a standalone audience lesson. Avoid client-worship phrasing such as `{Client Product} wins`, `{Client Product} out-positions competitors`, `why our service is better`, or `choose us because...`.
-
-Client/product relevance belongs in a secondary field such as `soft business relevance`, `why this fits the client's offer`, or a gentle CTA after the educational value is already clear. If an idea cannot be rewritten into a viewer-value lesson without directly advertising the client, reject it as `promotional_not_value_first`.
-
-## Client-Blind Deliverable And Internal Report Rule
-
-Client-facing deliverables must be client-blind by default. There is no attribution opt-in path in the playbook. Reports, PDFs, videos, blogs, captions, comments, and other assets intended for the client's client/customer must not mention `Solo Agency`, `WideCast`, PDNA/provider tooling, `OpenAPI`, `MCP`, `Local Collector`, Chrome extensions, automation/scheduled tasks, API keys, Telegram, config files, agent/tool/debug details, or `INTERNAL_REPORT`.
-
-Client-facing output should read like work from a professional agency: market insight, evidence, audience pain points, idea matrix, recommendation, draft, and next action. Technical operations belong only in the operator/internal layer.
-
-Every client/day/run must also create an operator-only internal report with `INTERNAL_REPORT` in the filename:
-
-```text
-outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.html
-outputs/latest/{client-name}-INTERNAL_REPORT.html
-```
-
-When a Markdown internal report is useful, save it as:
-
-```text
-outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.md
-```
-
-The internal report must be clearly labeled `INTERNAL_REPORT - Not for client sharing` and must contain Solo Agency/WideCast/provider/PDNA status, Telegram/social-platform status, API-key/config status, Local Collector and extension health, private data source inventory, automation freshness, delivery-capability checks, blockers, issue/recovery details, and next operator action.
-
-## Latest Architecture Override: Setup Flow And Automation Flow
-
-Solo Agency has two independent human-facing flows. This override wins over any older wording in this repo that tells the setup agent to run the first report, first agency run, private scan, video creation, publishing, or production action inside the setup chat.
-
-### Setup Flow: control plane only
-
-The initial setup chat, and any later setup/configuration repair chat, is the control plane. It may create and update configuration, but it must not execute operational runs.
-
-In Setup Flow the agent must:
-
-- create or update client folders, Client Intelligence Profiles, public data sources, private data sources approval state, extension folders, collector config, schedule files, automation manifests, scheduled prompts, and resync logs;
-- create or update client-specific automation tasks whose names start with the client name, for example `AvenNgo - Solo Agency Daily Run`;
-- prepare per-client extension folders under `extensions/{client_slug}/`, with Chrome extension names formatted as `{Client Name} - Solo Agency Collector`;
-- perform Automation Resync after every approved setup/config change once any schedule/automation exists;
-- direct the human to run the configured automation task for the first report or daily report.
-
-In Setup Flow the agent must not:
-
-- run the first report or any report directly in the setup chat;
-- scan public data sources or private data sources as an operational run;
-- create video/blog/social production assets;
-- render, publish, spend credits, or start outreach;
-- branch into report review or production even if the human asks casually. Instead, ensure the correct automation task is configured and tell the human the task name to run.
-
-If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, treat it as a setup handoff request, not as permission to enter Automation Flow. The latest human request does not convert the setup chat into an automation run. Say plainly that Setup Flow only configures the system, then verify or create the client-specific automation task and instruct the human to run that task.
-
-Required response pattern:
-
-```text
-I will not run a report in this setup chat because Setup Flow is only for configuration. I will finish or resync the client-specific automation task instead. After setup is ready, run `{Client Name} - Solo Agency Daily Run` / `{Client Name} - Solo Agency First Run` for the report.
-```
-
-The agent must not continue with report generation in the same setup turn after saying this. The only allowed work after this response is setup/configuration work, Automation Resync, or a handoff that gives the exact automation task name.
-
-Forbidden Setup Flow follow-through:
-
-- Do not ask "Do you want me to run it now?" in Setup Flow.
-- Do not start public data source research, private data source collection, report writing, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery in Setup Flow.
-- Do not load the scheduled-run entrypoint as a workaround inside the same setup chat.
-- If the native automation task cannot be created or updated directly, write the exact scheduled prompt/update instructions to `daily-content-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and tell the human the one exact native automation task action needed. Do not simulate the task by running the report in setup.
-
-### Automation Flow: operations plane
-
-Scheduled/automation tasks are the operations plane. They run what Setup Flow configured.
-
-Automation Flow may:
-
-- run public data source research;
-- request private data source collection through the shared Local Collector app and the correct client-specific Chrome extension;
-- read collector output for the target client only;
-- generate reports, drafts, history, analytics, learning updates, notifications, and allowed provider actions;
-- accept practical user changes discovered during a report run, such as adding/removing sources or adjusting cadence.
-
-Every configuration change made during Automation Flow must be written back into the persistent setup state and resynced into future automation: Client Intelligence Profile, source approval state, `collector_config.json`, `extension_registry.json`, `schedule.md`, `automation_manifest.md`, `scheduled_run_prompt.md`, native task prompt when editable, and `resync_log.md`.
-
-### One Report Set, Three HTML Files
-
-Every client/day/run must have one canonical report set with three HTML files, not one merged public/private mega-report.
-
-Use these exact filename patterns, with `{client-name}` as a filesystem-safe client name/slug such as `angela-do` or `aven-ngo`:
-
-```text
-{client-name}-public-data-sources-report.html
-{client-name}-private-data-sources-report.html
-{client-name}-daily-report.html
-```
-
-The public report is the full report for public data sources only. The private report is the full report for private data sources only. The daily report is a concise index/overview that links to both, shows lane status, blockers, notification status, and the one next action.
-
-Each full lane report has its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation. Private data source runs often happen after the public report is already written; in that case the private pass must create/update only `{client-name}-private-data-sources-report.html` and `{client-name}-daily-report.html`. It must not overwrite, delete, reorder, or summarize away `{client-name}-public-data-sources-report.html`.
-
-The report set must use `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` so later automation passes can update only the intended lane. The three files above are scrubbed staging lane files; the combined `{client-name}-client-report.html` built from them (see below) is the default human-facing handoff. The `latest` human-facing link must point to `{client-name}-client-report.html`, not a lane-specific staging report unless explicitly requested.
-
-After a private data source scan completes, the agent must reconcile the whole report set before handoff: `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`, `{client-name}-daily-report.md` or source record, `{client-name}-report_state.json`, and `outputs/latest/` convenience copies must agree on private scan status, completed timestamps, sources attempted/completed, data point counts, lead counts, competitor counts, recommended-source counts, blocker counts, and notification/delivery status. Do not leave stale phrases such as `scan in progress`, `partial`, `pending`, or old recommended-source totals in one artifact after another artifact says the private scan is complete.
-
-Every run must also create/update `{client-name}-INTERNAL_REPORT.html` and `outputs/latest/{client-name}-INTERNAL_REPORT.html`. Client-facing report files and the PDF companion must stay free of Solo Agency, WideCast, provider, Local Collector, automation, API-key/config, Telegram, and debug/system details; put those details in `INTERNAL_REPORT` instead.
-
-Two notifications are acceptable: one when the public report is ready and one when the private report is ready or blocked. Notifications to the user/operator should normally point to the combined `{client-name}-client-report.html` or its uploaded operator-delivery URL, include the mandatory PDF companion path/status, include `{client-name}-INTERNAL_REPORT.html` path/status, and include lane-specific staging report links only as secondary links when useful.
-
-After creating or updating the three client-facing HTML files, run the Client-Blind Scrub Gate, then create or update the mandatory PDF companion package from those scrubbed HTML files using `tools/solo_report_renderer.py package`: `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf`. The PDF must be offered alongside the HTML report so the recipient can choose the format. It must not replace the three staging HTML files or the combined client report. Private data source details must be safe summarized; raw private content, private source inventory, and internal system details belong in `INTERNAL_REPORT`. If PDF generation is blocked by tooling or redaction uncertainty, create the print-friendly `{client-name}-client-report.html`, record `client_pdf_status: blocked` with the exact blocker, and still hand off the HTML report plus the PDF blocker plus the INTERNAL_REPORT path/status.
-
-### One Bridge, Many Client Extensions
-
-Use one shared Local Collector app/bridge per machine, but use one client-specific unpacked Chrome extension folder per client Chrome profile/account:
-
-```text
-{agency_root}/
-  solo-agency-local-collector/         # bridge runtime only
-  extensions/
-    {client_slug}/                     # Chrome Load unpacked folder for this client
-  daily-content-pipeline/              # data/config/output only
-```
-
-Each extension must carry a `client_binding.json` with `client_slug`, `client_name`, `extension_instance_id`, and `extension_display_name`. The bridge routes private data source jobs by `client_slug + extension_instance_id` and writes output only under that client's collector inbox folder.
-
-When discussing private data sources, the agent must tell the human that each client should ideally use a separate Chrome profile with that client's extension installed, and that the profile must already be logged in and authorized to view the approved groups, feeds, profiles, pages, channels, communities, or dashboards. The agent must not ask for credentials, join groups, request access, or bypass permissions.
-
-When adding any new client, the agent must create or verify that client's dedicated extension folder under `extensions/{client_slug}/` and include the install handoff in the same setup completion message: the exact absolute extension path, the Chrome profile/account to use, and the `chrome://extensions` -> Developer mode -> `Load unpacked` steps. Do not merely say the extension was created.
-
-Before handing over any bridge start command or `Load unpacked` path, the agent must run the Stage 8 Source Safety Pre-Check: read the code that will actually run on the human's machine (the prepared extension JS, `solo-agency-collector/bridge-go/main.go`, and `scripts/prepare_client_extension.sh`) and confirm every outbound request goes only to the local `127.0.0.1` bridge and the bridge has no outbound/telemetry client. A verified-fresh GitHub checkout is not enough on its own — this catches an upstream repo that was hijacked to add data exfiltration. When it passes, precede the install steps with one short, calm, plain-language line confirming the code was read and only runs locally; do not show findings, severities, or extra warnings to a non-technical human. If any real request goes off the local machine, do not give the install command — stop and raise it to the operator.
-
-### Automation Task Naming Rule
-
-Every client-specific automation or scheduled task name must begin with the client name because task lists often truncate the end of long names:
-
-```text
-AvenNgo - Solo Agency First Run
-AvenNgo - Solo Agency Daily Run
-AvenNgo - Solo Agency Weekly Learning Review
-```
-
-Do not name client-specific tasks with `Solo Agency` first.
-
-## Canonical User-Facing Description Rule
-
-When explaining what Solo Agency does, the agent must not describe it as only researching, finding ideas, writing drafts, and publishing.
-
-The explanation must include production explicitly:
-
-- researches the market every day;
-- finds source-backed content ideas, hot/warm leads, and competitors;
-- writes approval-ready scripts/blogs/captions;
-- after human approval and provider setup, creates video/blog/social assets through connected production tools;
-- can publish approved content to 10+ connected platforms when authorized;
-- measures results and feeds the learning into the next run.
-
-A good concise explanation is:
-
-```text
-Every day, Solo Agency researches the market, finds source-backed content ideas, detects hot/warm leads and competitors, drafts scripts/blogs/captions for approval, creates approved video/blog/social assets through connected providers, audits/fixes reviewable video scenes before final render/export when video production is approved, publishes approved content to 10+ platforms when authorized, measures results, and uses that learning to improve the next run.
-```
-
-Do not imply that production is only a manual copy/paste step. Also do not imply that rendering, publishing, spending credits, face clone, voice clone, or outreach happens without explicit human approval.
-
-## Fresh GitHub Source And Missing Playbook Download Rule
-
-For setup, repair, update, or Local Collector preparation, the agent must treat GitHub `main` as the source of truth unless it has verified that the current setup root is already a fresh clone of the same repo.
-
-Hard rules:
-
-- Do not reuse fixed shared fallback folders such as `/tmp/solo-agency`, `/var/tmp/solo-agency`, `/dev/shm/solo-agency`, or another path that could contain leftovers from a previous agent/session.
-- If a temporary checkout is needed, create a fresh unique directory with `mktemp -d`, clone `https://github.com/soloagency/solo-agency`, and verify the checkout before reading or copying from it.
-- Verification requires `.git` to exist, `origin` to point to `https://github.com/soloagency/solo-agency`, and `git rev-parse HEAD` to match `git ls-remote origin refs/heads/main` after clone/fetch.
-- A directory without `.git`, with the wrong owner, with an old timestamp, or after a failed delete/update is stale cache. Do not read from it, copy from it, or use it as fallback.
-- If sandbox or network limits block fresh GitHub access, request the needed permission or give the human one exact GitHub clone/download command. Do not continue by using unverified local code.
-- Before copying playbooks, collector artifacts, or extension templates into a setup, record the verified source path and commit hash in the setup notes/status when such a file exists.
-
-If the local `playbooks/` folder is unavailable, download the needed child playbook from:
-
-```text
-https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/
-```
-
-Load only the stage needed for the current action, plus any dependency named by that stage. **After any GitHub-raw download, verify it against `playbooks/LOAD_MANIFEST.md`** (line count; last line / sha256 only for a deeper check) via a LOAD LEDGER; a short/partial download must be re-fetched before use — never act on a partial download.
-
-## Last-Resort Recovery And GitHub Issue Escalation Rule
-
-Solo Agency changes frequently. When the agent encounters any blocker, repeated failure, confusing contradiction, tool/config mismatch, stale asset, missing capability, or operational dead end, it must first assume the local playbook/code may be old.
-
-Before saying "blocked" or asking the human to debug manually, the agent must run this recovery sequence:
-
-1. Perform a Fresh GitHub Source Check against `https://github.com/soloagency/solo-agency` `main`.
-2. Use a fresh unique checkout or raw GitHub playbook files; never use a shared `/tmp/solo-agency` cache.
-3. Record the local commit, GitHub `main` commit, and whether they match.
-4. Reload the relevant latest playbooks from GitHub/main and check whether a newer rule fixes the issue.
-5. If the latest playbook/code contains a fix or clearer protocol, follow it, update/resync the current client setup or automation state, and note the recovery in the human-facing progress/blocker message.
-6. If the latest GitHub version still leaves the agent stuck, create or draft a GitHub issue for `soloagency/solo-agency`.
-
-GitHub issue escalation rules:
-
-- The human does not need a GitHub account for blocker escalation. Do not make "please register for GitHub" the only recovery path.
-- Direct issue creation still requires an authorized GitHub identity. Prefer `gh issue create` only when `gh auth status` passes, `GITHUB_TOKEN`, `GH_TOKEN`, or `SOLO_AGENCY_GITHUB_ISSUE_TOKEN` is configured, a GitHub App/maintainer bot is available, and the environment permits issue creation.
-- Preferred operator setup is a dedicated maintainer bot token or GitHub App with the narrowest possible issue-writing access for `soloagency/solo-agency`, exposed only in trusted agent runtimes. Never store this token in client config, reports, issue drafts, or committed files.
-- If no authorized GitHub identity is available but a project support/intake channel is configured, send or queue the redacted issue draft through that channel.
-- If the agent cannot create or send the issue directly, write a ready-to-post issue draft under `daily-content-pipeline/automation/issues/`.
-- Track every opened/sent/drafted issue in `daily-content-pipeline/automation/github_issues.md` with issue URL/number, intake channel, or draft path, blocker fingerprint, affected client if safe to name, local commit, GitHub commit checked, current status, next check date, and latest response summary.
-- Check tracked open issues during later setup repair, scheduled runs, and blocker recovery; if a founder/community response gives a fix, apply it, resync automation, update the tracker, and tell the human.
-- Do not spam duplicate issues. Reuse or update an existing issue when the blocker fingerprint matches.
-- Never include secrets, API keys, cookies, browser session tokens, private data source raw content, client-confidential details, raw logged-in screenshots, or sensitive customer data in a public issue. Use redacted summaries and local paths only when safe.
-
-## Solo Agency Update Command And Version Watch Rule
-
-When the human says `update`, `upgrade`, `cập nhật`, `sync latest`, `pull latest`, or an equivalent short update command, load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` and treat the request as a Solo Agency update command, not a report request.
-
-The update command means: check the latest GitHub `main`, compare the local installed version against the verified latest source, inspect playbooks/contracts/collector bridge/Chrome extension/provider tooling/setup scripts/templates, apply safe updates while preserving secrets and client data, resync every client and automation/scheduled task, and update `daily-content-pipeline/automation/update_state.json` plus `update_log.md`.
-
-Do not run public research, private data source collection, reports, video/blog/social production, analytics, publishing, or outreach because the human asked for update. In Setup Flow, update remains control-plane work. In Automation Flow, update work must not leave a report run on partially mixed old/new instructions.
-
-After schedule/automation exists, recommend the daily `Solo Agency - GitHub Update Watch` task. This maintenance task checks GitHub for new versions, classifies changes, writes a local/internal update notice, and applies/resyncs updates only when the human has approved auto-apply. It must not send Telegram, WideCast/email-fallback, provider notifications, social posts, or client notifications because version maintenance is internal user/agency work. If bridge/runtime or extension code changed, the handoff must include exact bridge rerun and Chrome extension reload instructions for every affected client profile.
+Operator-only reports (Approval Report, Today View, daily ops, `INTERNAL_REPORT`) carry full internal detail and are NOT scrubbed. The **weekly client report** is the ONLY client-facing deliverable; it must pass the Client-Blind Scrub Gate (no OutreachCRM, WideCast, sendbox, crm_store, tracker domains, API keys, Telegram, automation, or debug details — see `tools/report_renderer.py` `CLIENT_BLIND_TERMS`). Render every report with `tools/report_renderer.py`; do not write one-off report scripts. Use `--client-facing --fail-on-scrub` only for the weekly client report.
 
 ## Stage Map
 
 > **Every load requires a LOAD LEDGER** (`playbooks/LOAD_LEDGER_PROTOCOL.md`): read the file to its end, print `lines_read` and match it to `playbooks/LOAD_MANIFEST.md` when present, and ledger each named dependency. A short line count = truncated = NOT loaded.
 
+> Stages marked `status: planned` are specified in `docs/DESIGN.md` and delivered in Phase 1–2. Until a planned file exists, load `docs/DESIGN.md` for its contract.
+
 | Stage | File | Load When |
 |---|---|---|
-| 0 | `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` | Always load first. Defines mission, reasoning rules, audience, sources, idea matrix, best-idea selection, lead/competitor logic, language rules, and non-negotiables. |
-| 1 | `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md` | Load during first setup, client setup, setup repair, and Automation Flow first agency run/report. In Setup Flow, its report instructions are superseded by the setup hard stop. |
-| Private Data Source Gate | `playbooks/PRIVATE_SOURCE_GATE.md` | Load immediately when any private data source scan, group scan, joined-groups review, social/community data source, or feed/profile requiring account context is mentioned, even if the conversation drifted through unrelated topics. |
-| 2 | `playbooks/02_PRIVATE_SOURCE_SETUP.md` | Load when private data sources, manual private data source input, Facebook joined groups, Facebook keyword group search, private data source discovery, or Local Collector activation are mentioned or pending. |
-| 3 | `playbooks/03_PRODUCTION_DISTRIBUTION.md` | Load only when writing drafts, creating video/blog/social assets, setting up a production provider, rendering/exporting, publishing, notifications, or approval gates are relevant. |
-| 3A | `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` | Load after any vendored writing/provider/video-editing skill when video creation, scene editing, credits, media upload, render/export, publishing, notification, analytics, or provider account actions are relevant. It overrides provider-specific MCP calls by resolving Client tools first: the current client's provider config, verified OpenAPI capabilities, and provider capability cache. |
-| 3B | `playbooks/skills/video-editing/SKILL.md` | Load after provider video creation returns reviewable scenes, or whenever a human asks to edit/finish/review a provider video. It audits and fixes scenes before final render/export. Load through the client-scoped provider `getEditingSkill` capability when available; otherwise use the local repo skill files. |
-| 4 | `playbooks/04_DAILY_SCHEDULE.md` | Load during routine setup after the profile/source plan is known, and during scheduled/manual run execution. |
-| 5 | `playbooks/05_MEASURE_LEARN_IMPROVE.md` | Load once any content has been published, and during yesterday/7-day analytics review. |
-| 6 | `playbooks/06_AGENCY_REPORT_STANDARD.md` | Load whenever generating, reviewing, or fixing a human-facing report. |
-| 6A | `playbooks/skills/report-design/SKILL.md` | Load immediately after Stage 6 before writing, fixing, or packaging report HTML/PDF. It adapts `leonxlnx/taste-skill` into Solo Agency's report design standard and requires the reusable renderer path. |
-| 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Load whenever creating files, updating profile/history/logs, adding clients, or reading prior context. |
-| 8 | `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` | Load when installing, running, checking, scheduling, or troubleshooting the Local Collector. |
-| 9 | `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` | Load before claiming setup, daily run, private scan, production, measurement, or schedule completion. |
-| 10 | `playbooks/10_LEAD_COMPETITOR_DETECTION.md` | Load whenever detecting, scoring, reporting, storing, or improving lead and competitor opportunities, including first runs and scheduled runs. |
-| 11 | `playbooks/11_UPDATE_AND_VERSION_WATCH.md` | Load when the human asks to update/upgrade/sync latest Solo Agency, during stale-version/blocker recovery, and for the daily GitHub update-watch task. |
-| Setup Entrypoint | `playbooks/SETUP_FLOW_ENTRYPOINT.md` | Use for setup/configuration sessions. Setup Flow configures clients, extensions, collector, schedules, automation prompts, and resync logs, but does not run reports. |
-| Scheduled Entrypoint | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | Use as the scheduler prompt for unattended daily runs. |
-| TODO | `playbooks/TODO.md` | Backlog for future improvements. Do not treat TODO items as daily questions to the human. |
+| 0 | `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` | Always load first. Mission, operating principles, isolation, compliance, non-negotiables. |
+| 1 | `playbooks/01_CLIENT_SETUP_PROFILE.md` | New client setup, setup repair, or Automation Flow first run. Defines the 9-step Setup Flow and the Client Intelligence Profile. |
+| 2 | `playbooks/02_SENDBOX_SETUP.md` *(planned)* | Connecting or checking a sendbox (App Password / OAuth), warmup, quota. |
+| 3 | `playbooks/03_IMPORT_LIST.md` *(planned)* | Importing a CSV/TXT/XLSX list; mapping, dedupe, suppression checks. |
+| 4 | `playbooks/04_VERIFY_ENRICH.md` *(planned)* + skill `email-verify-enrich` | Before any enrichment (verify still-active, gather evidenced hooks, distill writing brief). |
+| 5 | `playbooks/05_CAMPAIGN_MANAGEMENT.md` *(planned)* | Create/edit a campaign and its structured goal, sequence, segment, sendboxes. |
+| 6 | `playbooks/06_EMAIL_WRITING_STANDARD.md` *(planned)* + skill `email-writing` | Before drafting any email; goal_type → structure. |
+| 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Any file create, schema question, history/log write, adding a client, reading prior context. |
+| 8 | `playbooks/08_SEND_ENGINE_PROTOCOL.md` *(planned)* | Before any send: pre-send re-check chain, rotation, tracking, threading. |
+| 9 | `playbooks/09_OPERATIONS_SAFETY_AUDIT.md` | Before claiming setup, draft, send, daily-run, or report completion. |
+| 10 | `playbooks/10_FOLLOWUP_REPLY_MANAGEMENT.md` *(planned)* | Inbox sync, reply classification, deal-aware follow-up advising. |
+| 11 | `playbooks/11_UPDATE_AND_VERSION_WATCH.md` | Update/upgrade/sync-latest, stale-version/blocker recovery, the daily update-watch task. |
+| 12 | `playbooks/12_TRACKING_ANALYTICS.md` *(planned)* | Reading metrics, the learning loop. |
+| 13 | `playbooks/13_CRM_CORE.md` *(planned)* | Objects, lifecycle, stage rules, dedupe/merge. |
+| 14 | `playbooks/14_TASKS_TODAY_VIEW.md` *(planned)* | Task engine, SLA, Today View. |
+| 15 | `playbooks/15_CRM_REPORTING.md` *(planned)* | Pipeline report, forecast, weekly client report. |
+| 6A | `playbooks/skills/report-design/SKILL.md` | Immediately before rendering any report HTML/PDF. |
+| Setup Entrypoint | `playbooks/SETUP_FLOW_ENTRYPOINT.md` | Setup/configuration sessions. Setup Flow configures; it never sends. |
+| Scheduled Entrypoint | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | The scheduler prompt for unattended daily runs. |
+| TODO | `playbooks/TODO.md` | Backlog. Not a source of daily questions to the human. |
 
-## Mandatory Setup Flow
+## Latest Architecture: Setup Flow And Automation Flow
 
-The setup flow is fixed and must stay aligned with the 9-item `Solo Agency one-time setup process` roadmap. Do not introduce hidden setup steps 10+ in human-facing setup messages.
+OutreachCRM has two independent human-facing flows.
 
-1. Load Stage 0 and Stage 1, then ask only the first human question.
-2. Infer and show industry, sub-industry, related industries, target audience, offer, location dependency, and language assumptions before asking the next question.
-3. Infer and show pain points, content pillars, and the content mix rule. Ask target location only if location materially changes the plan and cannot be inferred.
-4. Select public data sources and build a public search keyword bank. The keyword bank must include broad industry keywords, but it must be driven primarily by the target audience's pain points, problems, objections, questions, needs, buying triggers, and local context. The public data source list is not fixed: after each run, useful recurring public data sources discovered through search or reading must be saved/promoted so future scheduled runs can visit them automatically.
-5. Configure the recurring schedule/routine and create or verify the client-specific automation task that will run the first report. The task name must begin with the client name, for example `AvenNgo - Solo Agency First Run` or `AvenNgo - Solo Agency Daily Run`. Configure it as public data sources only until any private data sources are approved and activated. Do not run the first report inside Setup Flow. After schedule/automation exists, offer the maintenance task `Solo Agency - GitHub Update Watch` as a separate update-watch automation, not as a new human-facing setup step.
-6. Ask and resolve the private data source checkpoint in one place. If the human wants private data sources, is unsure, already provided sources, or wants discovery, load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9. Ask for actual private data source URLs/lists or offer one optional discovery pass from approved joined/followed/member spaces or Facebook keyword group search, get human approval before adding sources, and guide Local Collector setup if the human wants the automation task to include those sources. If private data sources are approved, activated, declined, postponed, or blocked, update source state and perform Automation Resync so the already-created automation task has the newest source contract.
-7. Configure PDNA - Production, Distribution, Notification, and Analytics - as client-scoped provider configuration when the human wants it or when a requested video/production action is blocked by missing provider setup. The default provider is WideCast; ask only for the WideCast API key using the standard setup instructions, then let the agent do the rest. Do not ask the human to choose provider/scope/spend/publish/account identity for the default path. Do not treat a global MCP/native provider account as this client's PDNA connection. Do not create video/blog/social assets, render, publish, or spend credits inside Setup Flow.
-8. If published URL history exists, record that future Automation Flow should load Stage 5 and scan analytics/signals; if no published URL history exists, mark analytics as not available yet. Do not scan analytics inside Setup Flow.
-9. End Setup Flow only after setup/configuration state is current and the human has the exact client-specific automation task name to run for the first report. Do not update reports, idea matrices, best ideas, leads, competitors, drafts, or the learning loop inside Setup Flow; those belong to Automation Flow.
+### Setup Flow: control plane only
+
+The setup chat (and any later setup/repair chat) is the control plane. It may create and update configuration but must not execute operational work.
+
+In Setup Flow the agent must:
+
+- create or update client folders, the Client Intelligence Profile, pipelines, custom fields, sending identity, sendbox connections, imported lists, campaigns, schedule files, automation manifests, scheduled prompts, and resync logs;
+- create or update client-specific automation tasks whose names start with the client name, e.g. `Max Output - OutreachCRM Daily Run`;
+- perform Automation Resync after every approved change once any schedule/automation exists;
+- direct the human to run the configured automation task for the first daily run.
+
+In Setup Flow the agent must NOT:
+
+- send any email, run any campaign, enrich a lead for send, or draft-and-send;
+- generate an Approval Report of live drafts intended to send in the setup chat;
+- branch into a daily run even if the human asks casually.
+
+If the human asks to send or run a campaign during Setup Flow, treat it as a handoff request. Required response pattern:
+
+```text
+I will not send from this setup chat because Setup Flow only configures the system. I will finish or resync the client-specific automation task instead. After setup is ready, run `{Client Name} - OutreachCRM Daily Run` for the first run.
+```
+
+Do not continue with drafting-to-send in the same setup turn after saying this. If the native automation task cannot be created/updated directly, write the exact prompt to `outreach-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and tell the human the one exact task action needed.
+
+### Automation Flow: operations plane
+
+Scheduled/automation tasks run what Setup Flow configured: inbox sync, reply/bounce/unsubscribe classification, CRM rule application, follow-up advising, enrichment, drafting, the Approval Report, sending approved drafts within quota, tracking pull, reporting, and operator notification. Every configuration change discovered during a run (new sendbox state, campaign edit, cadence change) must be written back to persistent state and resynced into future automation.
+
+### Automation Task Naming Rule
+
+Every client-specific automation/scheduled task name must begin with the client name (task lists truncate long names):
+
+```text
+Max Output - OutreachCRM Daily Run
+Max Output - OutreachCRM Weekly Report
+```
+
+Do not name client-specific tasks with `OutreachCRM` first. One agency-wide maintenance task is `OutreachCRM - GitHub Update Watch`.
 
 ## Automation Resync Invariant
 
-Schedule/automation setup is not a one-time snapshot that can be forgotten. Humans often approve private data sources, connect PDNA, change notification channels, add clients, adjust pain points, or repair Local Collector after the schedule was already created.
+After any human-approved change that affects what a future scheduled run should do or read, perform an Automation Resync before claiming the change complete. This includes changes to: the Client Intelligence Profile (offer, ICP, value prop, proof points, sending identity, voice, custom fields); pipelines, stages, rules, or segments; sendbox roster, warmup, or auth state; campaigns, goals, sequences, or quotas; suppression policy; provider/notification config; schedule cadence, timezone, or active clients; tracker configuration; storage backend; and applied OutreachCRM updates.
 
-After any human-approved change that affects what a future scheduled run should do or read, the agent must perform an Automation Resync before claiming the change is complete. This includes changes to:
+Automation Resync means updating the full automation package, not one file:
 
-- approved, rejected, pending, or active private data sources;
-- private data source discovery results;
-- public data sources and public search keyword banks;
-- Client Intelligence Profile fields such as offer, audience, location, pain points, content pillars, brand voice, or compliance notes;
-- Local Collector status, bridge path, extension status, scan depth, or collector config;
-- PDNA provider setup, WideCast/OpenAPI/API key configuration, Telegram/email fallback notification status, publishing targets, analytics access, or published URL history;
-- schedule cadence, timezone, active clients, manual-only mode, or notification channel;
-- GitHub issue tracker status, maintainer/community fix guidance, or issue-derived workaround that future scheduled runs must remember;
-- playbook/instruction behavior that scheduled runs must obey;
-- Solo Agency update/version-watch state, applied update commit, update-watch task status, bridge rerun requirement, or extension reload requirement.
+1. Update the Client Intelligence Profile and relevant CRM config via `crm_store.py`.
+2. Update `outreach-pipeline/provider_defaults.json` and the client's `integrations/providers/` files when notification config changed.
+3. Update `outreach-pipeline/schedule.md`.
+4. Update sendbox/campaign config affected by the change.
+5. Update `outreach-pipeline/automation/automation_manifest.md`.
+6. Update `outreach-pipeline/automation/scheduled_run_prompt.md` and the actual native task prompt when that environment stores its own snapshot.
+7. Update `outreach-pipeline/automation/update_state.json` / `update_log.md` when an update affects future runs.
+8. Update `outreach-pipeline/automation/resync_log.md`.
+9. Run a dry-read verification: read the scheduled entrypoint, manifest, schedule, profile, campaign/sendbox config, and update state as tomorrow's scheduled agent would, and confirm the newest approved state is visible.
 
-Automation Resync means updating the full automation package, not only one JSON or Markdown file:
-
-1. Update the relevant Client Intelligence Profile and source approval state.
-2. Update discovery/source/history logs when source approvals changed.
-3. Update `daily-content-pipeline/provider_defaults.json` and the relevant client's `integrations/providers/` files when provider/PDNA/notification/analytics changed.
-4. Update `daily-content-pipeline/schedule.md`.
-5. Update `daily-content-pipeline/collector/collector_config.json` or `POST /config` when private data source collection is affected.
-6. Update `daily-content-pipeline/automation/automation_manifest.md`.
-7. Update `daily-content-pipeline/automation/scheduled_run_prompt.md` and the actual native AI automation/scheduled-task prompt when that environment stores its own prompt snapshot.
-8. Update `daily-content-pipeline/automation/github_issues.md` when a tracked issue, issue response, or issue-derived workaround affects future runs.
-9. Update `daily-content-pipeline/automation/update_state.json` and `update_log.md` when an update check or applied update affects future runs.
-10. Update `daily-content-pipeline/automation/resync_log.md`.
-11. Run a dry-read verification: read the scheduled entrypoint, manifest, issue tracker, update state, provider defaults/config when relevant, schedule, profile, and collector config as tomorrow's scheduled agent would, and confirm the newest approved state is visible.
-
-If the agent cannot edit the actual native AI automation task body directly, it must write the exact replacement scheduled prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and ask the human to update the native task. Do not say the schedule is fully updated until that prompt snapshot is updated or the limitation is clearly logged.
+If the agent cannot edit the native task body directly, write the exact replacement prompt to `scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and ask the human to update the native task. Do not say the schedule is fully updated until that snapshot is updated or the limitation is logged.
 
 ## Visible Setup Progress Roadmap
 
-Show and update this checklist during setup.
+Show and update this checklist during setup. It is a human-facing progress roadmap, not a questionnaire. Use `You` for actions the human provides/approves and `I` for actions the agent performs.
 
-This is a human-facing progress roadmap, not an internal agent instruction list and not a form for the human to answer line by line. Use `You` for the actions the human must provide or approve, and `I` for the actions the agent performs. Do not display internal verbs such as "Ask", "Infer", "Select", or "Run" as if the human were reading agent instructions.
-
-For human-facing progress, prefer font/text status icons over raw checkbox syntax:
-
-- `✓` done
-- `→` current step
-- `○` pending
-- `!` blocked or needs human action
-- `–` skipped, declined, or not applicable with a short reason
-
-Every progress block must include a short line explaining that this is the agent's planned progress/process, not a questionnaire for the human.
-
-Use this wording:
+Status icons: `✓` done · `→` current · `○` pending · `!` blocked/needs human action · `–` skipped/declined/not applicable (with a short reason).
 
 ```text
-Solo Agency one-time setup process
+OutreachCRM one-time setup process
 This is the planned setup process I am working through. You only need to reply when I ask one specific question.
 
-→ 1. You provide the product/service, profession, expertise, business description, or public website/profile URL
-○ 2. I infer the industry, sub-industry, related industries, audience, and offer
-○ 3. I infer pain points (customer problems) and content pillars (main repeatable content themes)
-○ 4. I find/select public data sources (websites, search, news, public forums, and public pages that do not require your account) and search keywords
-○ 5. I configure the automatic schedule/routine and create or verify the client-specific automation task that will run the first report in Automation Flow
-○ 6. I ask about private data sources once, after automation exists; if you approve sources or discovery, I update/resync the automation task so future runs include the newest source state
-○ 7. I help set up PDNA provider configuration only: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
-○ 8. In Automation Flow, from the second run onward, if PDNA is set up, the task scans analytics for published URLs from the last 7 days
-○ 9. In Automation Flow, the task updates the report, idea matrix, best idea, Lead & Competitor Opportunities, drafts, analytics/statistics, and learning loop
+→ 1. You provide the product/service or business, ideal customer, and (optional) website/URL
+○ 2. I infer the ideal-customer profile, value proposition, and email voice, then show them for correction; I propose a pipeline (stages) and custom fields
+○ 3. You confirm the sending identity: from-name, signature, physical mailing address, and unsubscribe method
+○ 4. You connect the first sendbox (a dedicated Gmail via App Password is the quickest path)
+○ 5. You give me a contact list (CSV/TXT/XLSX); I map columns, de-duplicate, and check suppression
+○ 6. We create the first campaign and its goal (e.g. book a meeting), sequence, and daily quota
+○ 7. I set up operator notifications (optional): Telegram via a WideCast API key
+○ 8. I record a baseline (nothing has been sent yet)
+○ 9. I create the client-specific daily automation task; from then on the daily run enriches, drafts, and shows you an Approval Report — nothing sends until you approve
 ```
 
 Progress roadmap integrity rule:
 
-- Every setup progress block must show all 9 numbered items in order.
-- Never hide steps 5-9 because they are pending, declined, blocked, or not applicable yet.
-- Use `○` for pending items, `→` for the current active item, `✓` for completed items, `!` for blocked or human-action-needed items, and `–` only after the human has explicitly declined or the item has been logged as not applicable with a reason.
-- Step 5 is the one-time schedule/routine plus client-specific automation task setup. It should happen before private data source intake so the system has a runnable public data sources baseline first.
-- Step 6 is the only private data source setup checkpoint. Do not ask private data source preference earlier as a separate step. In step 6, ask for actual private data source URLs/lists or offer one optional private data source discovery pass in plain language. If the human approves sources/discovery/Local Collector activation or declines/postpones them, update source state and perform Automation Resync so the already-created automation task has the newest state.
-- A declined or postponed discovery pass is valid, but the agent must record the status and explain that public-only runs may miss many lead/competitor/community signals.
-- Step 6 may be marked `–` only when no private data sources exist, the human declines/postpones Local Collector, or the human explicitly chooses a public data sources only first run. The reason must be shown in plain language, and the automation task must be resynced or confirmed current after the decision.
-- Step 7 is client-scoped provider/capability setup only: use WideCast as the default provider, ask only for the client's WideCast API key, connect or document the production/distribution/notification/analytics provider for the current client, verify the account through that client's provider config/OpenAPI credential, check notification/publishing/analytics availability, and save the setup status. Do not ask provider/scope/spend/publish/account-identity questions for the default path. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint, the client-scoped provider is verified, and the required operation exists.
-- Step 8 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 8 as `–` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
-- Step 9 is shown in the setup roadmap only to explain what Automation Flow will do later. It is not executed in Setup Flow. On the first automation run it uses report/draft content and data from activated private data sources; from the second automation run onward it can also include analytics/statistics from step 8.
+- Every setup progress block shows all 9 items in order; never hide pending/declined items.
+- Step 4 (sendbox) and Step 5 (list) may be marked `!` if the human must act (connect a box / provide a file).
+- Step 7 is optional; mark it `–` with a reason if the human declines notifications.
+- Setup never sends. Step 9 explains what Automation Flow will do; it does not run in Setup Flow.
 
 ## Progress And Next-Step Question Rule
 
-While setup, daily run, private data source activation, production setup, publishing, scheduling, or measurement is still incomplete, every human-facing reply that hands control back to the human must include a compact progress block.
-
-During scheduled runs, every human-facing progress update, notification, or report handoff must include `Solo Agency daily run progress`. If the scheduled run sends multiple updates, each update must refresh completed/current/remaining steps.
+While any workflow is incomplete and control is handed back to the human, include a compact progress block titled for the flow (`OutreachCRM one-time setup process`, `OutreachCRM daily run progress`, `OutreachCRM approval progress`). During scheduled runs, every human-facing update includes `OutreachCRM daily run progress` with completed/current/remaining steps.
 
 ## Automation Freshness Check In Every Progress Block
 
-After a schedule/automation has been configured, every human-facing reply that includes a setup, private data source, PDNA, schedule, report, measurement, or daily-run progress block must also include an `Automation freshness check` line.
+After a schedule/automation exists, every human-facing progress block must include an `Automation freshness check` line answering: (1) have the latest approved changes been synced into the automation/scheduled task, not only config files? (2) will tomorrow's scheduled run load the newest state? Statuses: `✓ current` · `→ resync in progress` · `! action needed` · `– not applicable yet`.
 
-This line must answer both questions explicitly:
+## Fresh GitHub Source And Missing Playbook Download Rule
 
-1. Have the latest approved changes been synced into the previously configured automation/scheduled task, not only into config files?
-2. If the scheduled run happens tomorrow, will it load the current contracts, prompts, playbooks, source approvals, and state instead of an older setup snapshot?
+For setup, repair, or update, treat GitHub `main` as the source of truth unless the current setup root is verified as a fresh clone of the same repo. Do not reuse fixed shared fallback folders (`/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`). If a temporary checkout is needed, `mktemp -d`, clone `https://github.com/OWNER/outreachcrm`, and verify `.git` exists, `origin` matches, and `git rev-parse HEAD` == `git ls-remote origin refs/heads/main`. A folder without `.git`, wrong owner, or failed update is stale cache. If sandbox/network limits block GitHub, request permission or give one exact command; do not proceed on unverified local code. If local `playbooks/` is unavailable, download the needed stage from `https://raw.githubusercontent.com/OWNER/outreachcrm/main/playbooks/` and verify it against `LOAD_MANIFEST.md` via a LOAD LEDGER before use.
 
-Use one of these statuses:
+## Last-Resort Recovery And Issue Escalation Rule
 
-- `✓ Automation freshness: current` - Automation Resync is complete; tomorrow's scheduled run should read the latest contracts and state.
-- `→ Automation freshness: resync in progress` - the agent is still updating manifest/prompt/task/config/logs.
-- `! Automation freshness: action needed` - local files are updated but the native scheduled task prompt or another external scheduler snapshot still needs human update.
-- `– Automation freshness: not applicable yet` - no schedule/automation exists yet.
+When the agent hits any blocker, repeated failure, contradiction, tool/config mismatch, stale asset, or dead end, first assume the local playbook/code may be old:
 
-Use this format:
+1. Fresh GitHub Source Check against `https://github.com/OWNER/outreachcrm` `main`.
+2. Use a fresh unique checkout or raw GitHub files; never a shared cache.
+3. Record local commit, GitHub `main` commit, and whether they match.
+4. Reload the relevant latest playbooks and check whether a newer rule fixes it.
+5. If it fixes it, follow it, resync state, and note the recovery in the progress/blocker message.
+6. If the latest version still leaves the agent stuck, create or draft a redacted issue for `OWNER/outreachcrm`.
 
-```text
-Automation freshness check: {✓/→/!/–} Have the latest approved changes been synced into the automation/scheduled task prompt, contract, playbooks, source approvals, and state? If tomorrow's scheduled run starts, will it load the newest state: {current | resync in progress | action needed | not applicable yet}.
-```
+Issue escalation: the human does not need a GitHub account. Prefer `gh issue create` only when an authorized identity exists (`gh auth status`, `GITHUB_TOKEN`, `GH_TOKEN`, `OUTREACHCRM_GITHUB_ISSUE_TOKEN`, or a maintainer bot). Otherwise send via a configured intake channel or write a ready-to-post draft under `outreach-pipeline/automation/issues/`. Track every issue in `outreach-pipeline/automation/github_issues.md`. Never include secrets, API keys, tokens, sendbox credentials, client-confidential data, or contact PII in an issue.
 
-Do not hide this check inside the report. It belongs in the chat/notification progress block whenever the agent hands control back to the human.
+## Update Command And Version Watch Rule
 
-### Production Branch Anti-Drift Rule
-
-Production/video work can become a tempting branch inside the larger Solo Agency setup. The agent must not let trial video creation, scene editing, rendering, or publishing cause the setup flow to be forgotten.
-
-Default behavior during the one-time setup process:
-
-- complete provider/capability setup first;
-- do not start open-ended trial video creation or editing while steps 8-9 are still pending;
-- do not start any trial video branch unless the client-scoped provider is already verified and the required operation exists;
-- if provider setup is missing or blocked, ask for PDNA setup instead of creating local video media;
-- after provider setup, gently return to the next setup step;
-- defer trial video creation/editing until after the one-time setup process unless the human explicitly insists.
-
-Good transition after provider setup:
-
-```text
-Production provider setup is connected. To keep the agency setup complete, I will finish the main setup path first: analytics history if there is published data, then the learning loop. After setup is complete, I can come back to a trial video or edits.
-```
-
-If the human explicitly asks to create or edit a video before setup is complete and the client-scoped provider is verified, treat it as a short controlled branch:
-
-- save the parent setup checkpoint before entering the branch;
-- state that this is a temporary branch and the agent will resume setup at the next checkpoint;
-- show a compact parent checkpoint, not the full setup roadmap, while the branch is active;
-- after one natural checkpoint, gently resume the parent setup unless the human explicitly asks to continue the production branch.
-
-If the client-scoped provider is not verified, there is no video branch yet. Load Stage 3 and the video provider adapter, explain the PDNA setup requirement, use a `**[ACTION REQUIRED]**` block for the API key/provider action, and do not make a local MP4/slideshow/rough video.
-
-Use this compact parent checkpoint format during an active production branch:
-
-```text
-Agency setup checkpoint: paused at step {N}; next setup step after this video branch is step {M}: {short label}.
-Active branch: video/blog/social production for {idea/title}.
-```
-
-After a natural checkpoint such as provider connected, draft approved, video created, scenes reviewed, final render/export/publish completed, branch blocked, or the human says they are done with the asset, the final question should usually return to the parent setup flow.
-
-Good final question after a branch checkpoint:
-
-```text
-This video branch reached a checkpoint. Should I return to the agency setup flow and finish the remaining setup steps now?
-```
-
-The progress block must show:
-
-- completed steps;
-- the current active step;
-- remaining required steps;
-- any blocker or human decision needed.
-
-For setup, use a title that clearly says this is a planned setup process, not a user questionnaire.
-
-Use:
-
-```text
-Solo Agency one-time setup process
-```
-
-Do not use bare internal stage names as human-facing progress titles. In particular:
-
-- Do not title a human-facing block with the internal private-data-source gate name alone; use `Private Data Source Gate planned preflight`.
-- Do not title a human-facing block with the old bare setup label; use the one-time setup process titles above.
-
-For other flows, use a specific progress title such as:
-
-```text
-Solo Agency daily run progress
-Solo Agency production progress
-Solo Agency private data source progress
-Solo Agency measurement progress
-```
-
-If any required step remains and the agent is waiting for the human, the final line of the message must be exactly one clear next-step question. Do not end with a passive summary, a report link, or a vague statement such as "let me know what you think."
-
-Good final lines:
-
-```text
-You provided private data sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so the client-specific automation task can include private data sources later, or mark private data sources pending so the task runs public data sources only until activation is complete?
-```
-
-```text
-PDNA provider is verified and Version 1 is approved. Do you want me to create the video from Version 1 through the connected provider now?
-```
-
-```text
-Do you want daily, multiple-times-daily, weekly, or manual-only runs?
-```
-
-Bad final lines:
-
-```text
-Here is the report.
-```
-
-```text
-Let me know if you need anything else.
-```
-
-```text
-Next steps are in the report.
-```
-
-The agent may omit the next-step question only when the entire requested workflow is complete and no human decision is required.
+When the human says `update`, `upgrade`, `cập nhật`, `sync latest`, `pull latest`, or equivalent, load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` and treat it as an OutreachCRM update command, not a report request. It means: check GitHub `main`, compare the installed version, inspect playbooks/tools/tracker worker/storage adapter/schema, apply safe updates while preserving secrets and client data, resync every client and automation task, and update `update_state.json` + `update_log.md`. Do not send emails, enrich, or run campaigns because of an update. After schedule/automation exists, recommend the daily `OutreachCRM - GitHub Update Watch` task; it must not use any client-facing channel and must not touch `clients/`.
 
 ## Non-Negotiable Summary
 
 - Preserve every requirement in the loaded playbooks.
-- Ask only for information that cannot be inferred, researched, discovered, or read from local files.
-- Ask the first setup question only for product/service, profession, expertise, business description, or a public website/profile URL.
-- Do not ask the human to define industry or sub-industry.
-- Show inference before asking the next question.
-- Configure schedule/routine and the client-specific automation task before asking about private data sources. After the private data source checkpoint, resync the task if sources were approved, activated, declined, postponed, or blocked.
-- If no private data sources are provided, offer optional private data source discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds before treating the private data source step as resolved.
-- Canonical client-facing reports are HTML and client-blind. Markdown is internal. A PDF companion is mandatory after the HTML report set is created or updated; it must be derived from the three scrubbed HTML files, offered alongside the HTML handoff, and recorded as generated or blocked with the exact blocker. The operator-only `INTERNAL_REPORT` path/status must be handed off alongside the client-ready files.
-- Ideas, best ideas, comments, scripts, blogs, captions, and recommendations must be audience-value-first. Reject or rewrite client/product praise as `promotional_not_value_first`.
-- Before declaring any blocker/dead end, check GitHub `main` for newer Solo Agency playbooks/code; if latest GitHub still does not resolve it, create, send, or draft a redacted issue without requiring the human to have a GitHub account, then track it in `automation/github_issues.md`.
-- When the human says `update` or asks to sync latest, load Stage 11, fetch/verify GitHub `main`, update playbooks/code/templates/collector/extension/provider contracts safely, resync every client and automation task, and give bridge rerun plus extension reload instructions when those components changed.
-- Private data stays local unless the human explicitly approves export.
-- Never ask for passwords, OTPs, cookies, tokens, or raw credentials.
-- Do not use approval-gated browser extensions for unattended private collection.
-- Use the Solo Agency Local Collector extension and Local Collector app for automated private data source collection.
-- Before treating an already-running Local Collector app as healthy, verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point to another setup folder, mark `wrong_workspace_bridge`, do not collect private data, ask the human to run the current setup's Local Collector setup/start command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
-- During scheduled/manual runs, do not skip private data sources only because saved config says `public_data_sources_only`, `private sources postponed`, or `pending_private_activation`. If private data sources exist in any state or collector status files exist, perform Collector Runtime Verification first: try `/status`, verify current-workspace identity, and if localhost is unreachable from the AI sandbox, read local collector health/status files before deciding.
-- When a human asks to scan or monitor private data sources (logged-in groups, feeds, profiles, communities, or sources) after any amount of conversation drift, reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before taking action.
-- Never use Claude in Chrome, Claude Chrome Extension, Codex built-in browser, Codex in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or a remote-debugging browser controlled by the AI agent for private data source collection. Those tools are allowed for public data sources or setup instructions only.
-- During one-time Local Collector setup/update/repair, never run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI agent, even if shell permissions are available. Create/prepare the setup files, then instruct the human to run the one-line command in their own Terminal/PowerShell and load the Chrome extension from the absolute runtime folder. Later scheduled runs use the already-running Local Collector app and do not require repeating setup.
-- Never call the collector a platform-specific collector.
-- Manual private data sources and optional private data source discovery are independent options. Do not ask private data source discovery as a separate user-facing setup step, but do offer private data source discovery once inside the private data source step when the human has no private data source list or is unsure what to add.
-- Collector success alone is not completion; collected data must be analyzed and the report updated.
-- Do not publish, render/export, spend credits, use face/voice clone, or contact leads without explicit human approval.
-- Do not self-create local video media when the client-scoped PDNA provider is missing or unverified. Missing provider setup must trigger a PDNA setup/action block, not a local `ffmpeg`/Pillow/`moviepy`/Remotion/canvas fallback.
-- Do not invent metrics. Mark unavailable metrics clearly.
-- Communicate with the human in the human's language.
-- Keyword language must follow the target audience's likely search/comment language, not automatically the human's chat language. If the human chats in one language but the target audience searches and comments in another, the keyword bank should prioritize the audience language.
-- If a workflow is not complete and the agent is handing control back to the human, show progress and end with exactly one next-step question.
+- Ask only for information that cannot be inferred, researched, or read from local files; show inference before asking the next question.
+- All CRM mutations go through `crm_store.py`. Never write CRM state directly to a file.
+- Client workspaces are isolated; a `target_client_slug` run touches only that client.
+- Every personalized email detail must have a dossier hook with an `evidence_url`. Re-check stale hooks before follow-ups.
+- Nothing sends without explicit chat approval. Default `approval_mode` is `manual_all`, including bumps and assisted channels.
+- Only a reply is conversion evidence; opens/clicks never trigger an automated action.
+- Suppression is checked at every send path and at import against all identities; opt-out is honored immediately.
+- Step-1 subjects must not begin `Re:`/`Fwd:`; bumps are real in-thread replies.
+- Sendbox rotation is step-1 only; sticky sender thereafter; two-tier box+domain caps.
+- Guessed emails: verify via API, handle catch-all, per-domain kill switch, ≤10%/day/box, never auto-send.
+- The weekly client report is the only client-facing output and must pass the scrub gate. Operator reports are not scrubbed.
+- Render all reports with `tools/report_renderer.py`; no one-off report scripts.
+- Do not invent facts, hooks, or metrics. Mark estimated metrics (opens) as estimated.
+- Communicate in the human's language.
+- Before declaring any blocker, check GitHub `main` for newer playbooks/code.
+- If a workflow is incomplete and control returns to the human, show progress and end with exactly one next-step question.
 
 ## Completion Gates
 
-> In every gate below, **"Stage X was loaded" means loaded IN FULL** per `playbooks/LOAD_LEDGER_PROTOCOL.md`: a LOAD LEDGER was printed with `Verdict: PASS loaded-in-full`, line count matches `LOAD_MANIFEST.md` when present, and every named dependency was ledgered. A partially-read stage does not satisfy any "was loaded" gate.
+> In every gate, **"Stage X was loaded" means loaded IN FULL** per `playbooks/LOAD_LEDGER_PROTOCOL.md` (LOAD LEDGER printed, `Verdict: PASS`, line count matches `LOAD_MANIFEST.md`, dependencies ledgered).
 
 Setup is not complete until:
 
 - Stage 0 and Stage 1 were loaded.
-- The first question followed the minimal-input rule.
-- Inference was shown to the human.
-- Public data sources and keyword strategy were selected.
-- The public keyword bank includes pain-point/problem/need keywords, not only generic industry keywords, uses the target audience's search language, and the full bank was saved for rotation.
-- Useful recurring public data sources discovered during runs were saved/promoted into `public_data_sources` with cadence so later scheduled runs can revisit them.
-- Schedule/routine and the client-specific automation task were configured before the private data source checkpoint, with a public data sources baseline if no private data sources were active yet.
-- The step 6 private data source intake/discovery/approval plus the Local Collector checkpoint were resolved, declined, postponed, or honestly marked pending, and the automation task was resynced or confirmed current afterward.
-- The automation task contract requires the first automation run to load Stage 10, generate the three-file client-facing HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), generate `{client-name}-INTERNAL_REPORT.html`, pass the Client-Blind Scrub Gate, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, reject direct-promo ideas as `promotional_not_value_first`, and create at least one useful audience-value-first draft script/blog/caption.
-- The setup handoff showed the exact task name the human should run for the first report.
-- PDNA - Production, Distribution, Notification, and Analytics - was treated as provider/configuration setup only, not report/video/publish execution inside Setup Flow.
-- After schedule/automation exists, the `Solo Agency - GitHub Update Watch` maintenance task was offered/configured or the exact pending prompt path/action was recorded.
+- The first question followed the minimal-input rule and inference was shown to the human.
+- The Client Intelligence Profile, pipeline, custom fields, and sending identity (from-name, signature, physical address, unsubscribe method) were saved via `crm_store.py`.
+- At least one sendbox was connected and its warmup/quota recorded, or the pending action was handed off in an `[ACTION REQUIRED]` block.
+- The first list was imported, deduped, and checked against suppression, or marked pending.
+- At least one campaign with a structured goal and a valid sequence exists.
+- Notification (WideCast) was configured or explicitly marked `–` (optional).
+- The client-specific `{Client} - OutreachCRM Daily Run` automation task was created (pinning `target_client_slug`) and, after schedule exists, the `OutreachCRM - GitHub Update Watch` task was offered/recorded.
+- Setup Flow sent nothing. Terminal state is `ready_for_automation_first_run`.
+- The setup handoff showed the exact task name to run.
 
-Solo Agency update is not complete until:
+Drafting is not complete until (Stages 4 + 6 loaded):
 
-- Stage 11 was loaded.
-- GitHub `main` was checked through a verified source checkout or safe remote commit check.
-- Local/installed commit and latest GitHub commit were recorded.
-- The diff scope covered playbooks, contracts, provider/OpenAPI tooling, Local Collector bridge/runtime, Chrome extension templates, setup scripts, templates, installed runtime copies, client extension folders, and automation contracts.
-- Backups were created for replaced runtime files/folders.
-- Secrets, client configs, private data source captures, history, approvals, reports, outputs, and extension `client_binding.json` values were preserved.
-- `daily-content-pipeline/automation/update_state.json` and `update_log.md` were updated.
-- Every configured client and automation/scheduled task was resynced or a precise blocker was logged.
-- Bridge rerun instructions and Chrome extension reload/Load unpacked steps were given when those files changed.
+- Every drafted email's personalized details map to dossier hooks with `evidence_url`s.
+- Step-1 subjects do not begin `Re:`/`Fwd:`.
+- Contacts below `min_confidence` were routed to `no_hook_fallback` (generic-honest opener or skip) per campaign config.
+- An Approval Report (operator-only, not scrubbed) was rendered grouping High confidence vs Review carefully.
 
-Private data source setup is not complete until:
+Send is not complete until (Stage 8 loaded):
 
-- Stage 2 and Stage 8 were loaded.
-- Manual sources and discovery were treated independently.
-- If private data sources were requested or the human was unsure, step 6 offered manual source intake and optional private data source discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds, or recorded that the human declined/postponed it.
-- Any approved discovery scan was filtered before activation.
-- The Local Collector status was checked or the blocker was documented.
-- Collected data was analyzed for data points, leads, competitors, new sources, idea matrix, best idea, and drafts.
-- Stage 10 was loaded before presenting lead and competitor opportunities.
-- The HTML report was regenerated.
+- Each send passed the ordered pre-send re-check in code (resolve → suppression incl. live unsub pull → channel status → atomic quota reservation → warmup cap → domain cap → send-window → guessed cap → sequence-freeze → subject lint).
+- The assigned sendbox was used (sticky sender); rotation applied only to step-1.
+- Each send was recorded in `sent_log` with the on-the-wire `rfc_message_id`, and an `email_sent` activity was appended.
+- No draft sent without an explicit chat approval logged in `approvals/approval_log.md`.
 
-Production/distribution is not complete until:
+Update is not complete until (Stage 11 loaded):
 
-- Stage 3 was loaded.
-- Drafts were shown to the human.
-- Explicit approval was received for any create/render/export/publish/credit-spending/clone action.
-- Any video media was created only through a verified client-scoped provider operation. No local DIY video fallback was used when PDNA/provider setup was missing, unverified, or blocked.
-- For provider video creation, reviewable scenes were followed by the video-editing skill pass or an explicit logged blocker/decline.
-- Final MP4 render/export was not called until the human gave a fresh explicit render/export approval after scene editing/review.
-- Publishing and notification outcomes were logged.
-
-Measurement is not complete until:
-
-- Stage 5 was loaded.
-- Yesterday and last-7-day published content were checked when available.
-- Metrics, comment signals, and learnings were logged.
-- Unavailable metrics were marked honestly.
-- Learnings were fed back into source priority, content pillars, hooks, CTAs, lead-gen angles, and future idea selection.
+- GitHub `main` was checked via a verified checkout; local and remote commits recorded.
+- The diff scope covered playbooks, tools (`crm_store.py`/`gmail_client.py`/`import_leads.py`/`email_verify.py`), `tracker/worker.js` + its deploy step, the storage adapter/schema, and automation contracts.
+- Backups were created; secrets, client data, suppression, history, and tokens were preserved.
+- `update_state.json` and `update_log.md` were updated; every client and automation task was resynced or a precise blocker logged.
+- `tracker_worker_deploy_required` / `storage_schema_migration_required` were surfaced with exact steps when relevant.
 
 Daily run is not complete until:
 
-- Every active client was processed or explicitly skipped.
-- Sources, keywords, data quality, leads, competitors, ideas, best idea, drafts, and blockers were recorded.
-- Stage 10 was loaded and lane-specific Lead & Competitor Opportunities were detected, skipped with a clear reason, or marked pending/private data sources unavailable.
-- A mobile-friendly HTML report exists.
-- An operator-only `{client-name}-INTERNAL_REPORT.html` exists and is clearly labeled `INTERNAL_REPORT - Not for client sharing`.
-- The mandatory PDF companion was generated from the three scrubbed HTML files, or the exact PDF blocker/status was recorded.
-- The human/operator received the HTML report path/link plus PDF companion path/status plus INTERNAL_REPORT path/status by chat or notification.
-- Client-facing HTML/PDF files passed the client-blind scrub gate: no Solo Agency, WideCast, provider tooling, Local Collector, automation, API-key/config, Telegram, or debug/system details.
-- Stage 6 Provider Report Delivery Capability Check was run with Client tools first and recorded in `INTERNAL_REPORT`: provider/OpenAPI discovery and account verification were inspected, the HTML report was uploaded and sent when operations existed, the PDF was uploaded when the verified client provider supported it, or the exact provider/upload/notification blocker was logged and the best available HTML path/link plus PDF companion path/status plus INTERNAL_REPORT path/status was delivered.
-- If WideCast OpenAPI notification is configured and WideCast HTML report upload is available, the client-facing HTML report was uploaded to WideCast for operator delivery and the human received the uploaded report URL plus PDF companion path/status. The client-facing files themselves still must not mention WideCast.
-- Stage 9 self-audit passes or misses are reported honestly.
+- The target client (and only that client) was processed, or explicitly skipped.
+- Inbox was synced across all sendboxes; replies/bounces/unsubscribes were classified in the correct order and suppression updated.
+- CRM rules were applied deterministically via `crm_store.py apply-rules`; stage changes carry evidence activities.
+- Follow-ups and new drafts were produced and an Approval Report handed off; nothing sent without approval.
+- Approved drafts were sent within quota and logged.
+- A Today View was compiled; the weekly client report was produced on its schedule and passed the scrub gate.
+- The operator was notified (Telegram or chat) with the report link, or the blocker was logged.
+- Stage 9 self-audit passes or misses were reported honestly.
 
 ## Jump-Prevention Rules
 
-- If a stage/module read **errored, truncated, or returned only a preview** ("output too large", partial, 404), STOP: that file is NOT loaded. Re-read it to its last line (chunk it) — or re-fetch from GitHub and compare to `LOAD_MANIFEST.md` — before acting.
-- If the agent is about to take any **side-effect action** (ask the first setup question, run a report/scan, render/export, publish, notify, write client/automation state, claim completion) without a `Verdict: PASS loaded-in-full` LOAD LEDGER for the needed stage(s) — with dependencies ledgered — STOP and complete the ledger first.
-- If the agent is about to ask setup questions but Stage 0 or Stage 1 is not loaded, load them first.
-- If the agent is about to discuss private data sources but the private data source gate and Stage 2 are not loaded, load `playbooks/PRIVATE_SOURCE_GATE.md` and Stage 2 first.
-- If the agent is about to scan, open, monitor, or collect from a private data source, stop and reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before opening any browser or URL.
-- If the agent is about to install or run collector tooling but Stage 8 is not loaded, load it first.
-- If the agent is about to detect, score, report, store, or improve leads or competitors, load Stage 10 first.
-- If the agent is about to answer an update/upgrade/sync-latest request, or is about to resolve a blocker by checking the latest GitHub version, load Stage 11 first.
-- If the agent is about to create, render, publish, or notify through a production provider but Stage 3 is not loaded, load it first.
-- If the agent is about to create local video media without a verified client-scoped provider, stop. Load Stage 3 and the video provider adapter, log the provider blocker, and ask for PDNA setup instead.
-- If the setup agent is about to run the first agency run/report directly, stop and prepare or resync the client-specific automation task instead.
-- If an automation agent is about to run the first report before private data source status, the step 6 Local Collector checkpoint, and schedule/routine are resolved or honestly marked pending, stop and load the needed stage.
-- If the agent is running from a schedule, it must still load the needed stage playbooks again at run time; schedule execution is the same workflow with saved context, not a memory-only shortcut.
-- If the agent is about to claim completion, load Stage 9 and run the relevant checklist.
+- If a stage/module read **errored, truncated, or returned only a preview**, STOP: that file is NOT loaded. Re-read to EOF (chunk it) or re-fetch and compare to `LOAD_MANIFEST.md` before acting.
+- If about to take any **side-effect action** (ask the first setup question, enrich, draft, send, write CRM state, notify, claim completion) without a `Verdict: PASS` LOAD LEDGER for the needed stage(s), STOP and complete the ledger first.
+- If about to ask setup questions but Stage 0 or Stage 1 is not loaded, load them first.
+- If about to enrich a lead but Stage 4 is not loaded, load it (and the `email-verify-enrich` skill) first.
+- If about to draft an email but Stage 6 is not loaded, load it (and the `email-writing` skill) first.
+- If about to send but Stage 8 is not loaded, load it first — then run the ordered pre-send re-check in code.
+- If about to move a CRM object, create a deal, or write any CRM state, do it through `crm_store.py`, never by editing a file directly.
+- If about to send anything without an explicit chat approval, STOP — approval is mandatory.
+- If an open or click tempts an automated action, STOP — only a reply is conversion evidence.
+- If the setup agent is about to send from the setup chat, STOP and prepare/resync the client-specific automation task instead.
+- If running from a schedule, still load the needed stage playbooks again at run time.
+- If about to answer an update/sync-latest request, or resolve a blocker by checking GitHub, load Stage 11 first.
+- If about to claim completion, load Stage 9 and run the relevant checklist.
 
 ## Self-Audit Summary
 
@@ -821,13 +409,14 @@ Before every reply, the agent must check:
 
 - Did I answer in the human's language?
 - Did I avoid asking for things I can infer or research?
-- Did I load the required stage files for the action I am taking?
-- Did I load them IN FULL — LOAD LEDGER printed, `lines_read` matching `LOAD_MANIFEST.md` when present, and every named dependency ledgered?
-- Did any file this session read error/truncate/return a preview? If yes, did I re-read it to EOF (or re-fetch) before acting, and not work from the partial text?
-- Did I avoid jumping past schedule/routine setup, client-specific automation readiness, the step 6 private data source/Local Collector checkpoint, approval gates, or measurement gates?
-- Did I give the human a short approval-ready decision instead of a long questionnaire?
-- Did I avoid presenting Markdown as the human-facing report?
-- Did I preserve safety, credentials, private-data, and approval rules?
-- If video production was requested, did I avoid local DIY video generation unless a verified client-scoped provider created the video through its approved operation?
+- Did I load the required stage files IN FULL — LOAD LEDGER printed, line count matching `LOAD_MANIFEST.md`, dependencies ledgered?
+- Did any file this session read error/truncate/preview? If yes, did I re-read to EOF before acting?
+- Did every CRM mutation go through `crm_store.py`, and did I stay within the pinned client's workspace?
+- Does every personalized email detail have a dossier hook with an `evidence_url`?
+- Did I keep the approval gate — nothing sent without explicit chat approval?
+- Did I avoid letting an open/click trigger an automated action?
+- Did I check suppression at every send path and honor opt-outs?
+- Did I keep the weekly client report scrubbed and leave operator reports unscrubbed?
+- Did I preserve safety, credential, and isolation rules?
 
 If any required stage was not loaded, load it before proceeding.
