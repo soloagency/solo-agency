@@ -50,13 +50,14 @@ before taking any side-effect action (sending, enriching, writing config, creati
   **sending for that box is blocked** (opt-out compliance, DESIGN §16) — this is a gate,
   not a warning.
 - The Phase-1 tools (`gmail_client.py`, `crm_store.py`, `import_leads.py`, `email_verify.py`)
-  **exist** — the sync, apply-rules, and send steps run for real. But the enrich/draft/
-  follow-up steps depend on Phase-2 `status: planned` stage files+skills (Stage 4 verify/enrich,
-  Stage 6 email-writing, Stage 10 follow-up); until those ship, record those steps as
-  `stage_file_pending` per DESIGN §22 R1 (load the covering `docs/DESIGN.md` section, do not
-  improvise, do not enter Last-Resort Recovery), and continue with the steps that are built.
-  A genuinely missing Phase-1 tool (partial install) is the DESIGN §22 R2 fallback: record
-  `skipped: tool_not_built`, raise one `**[ACTION REQUIRED]**`, continue.
+  **exist** — the sync, apply-rules, and send steps run for real. So do the Phase-2 stage
+  files+skills through milestone 2D: Stage 4 verify/enrich, Stage 5 campaign, Stage 6
+  email-writing, Stage 10 follow-up/reply, Stages 13/14 CRM core + Today View, and both skills
+  are **built**. Only Stage 12 (tracking/analytics) and Stage 15 (polished CRM reporting) remain
+  `status: planned` (Phase 3) — record those two steps as `stage_file_pending` per DESIGN §22 R1
+  (load the covering `docs/DESIGN.md` section, do not improvise, do not enter Last-Resort
+  Recovery), and continue. A genuinely missing tool (partial install) is the DESIGN §22 R2
+  fallback: record `skipped: tool_not_built`, raise one `**[ACTION REQUIRED]**`, continue.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on
   memory from setup.
 - Every scheduled-run human-facing reply, notification, or report handoff must include an
@@ -138,24 +139,25 @@ read and do not fetch it from the GitHub raw URL (DESIGN §22 R1).
 4. Load Stage 1 (`01_CLIENT_SETUP_PROFILE.md`) only if the profile is missing, incomplete,
    stale, or needs setup repair, or this is the first Automation Flow run for the client.
    Do not re-ask setup questions when the saved profile is complete.
-5. Load Stage 10 (`10_FOLLOWUP_REPLY_MANAGEMENT.md`) *(planned)* for inbox sync, the
+5. Load Stage 10 (`10_FOLLOWUP_REPLY_MANAGEMENT.md`) for inbox sync, the
    deterministic inbound classifier, semantic triage, and follow-up advising. This is loaded
    on every run.
-6. Load Stage 12 (`12_TRACKING_ANALYTICS.md`) *(planned)* to pull worker events (open/click,
-   bot-filtered) and update metrics/learning logs.
-7. Load Stage 13 (`13_CRM_CORE.md`) *(planned)* for `apply-rules`, deals/tasks, stage
+6. Load Stage 12 (`12_TRACKING_ANALYTICS.md`) *(planned — Phase 3)* to pull worker events
+   (open/click, bot-filtered) and update metrics/learning logs.
+7. Load Stage 13 (`13_CRM_CORE.md`) for `apply-rules`, deals/tasks, stage
    transitions, dedupe/merge, and `resolve()` on every `lead_id` lookup path.
-8. Load Stage 14 (`14_TASKS_TODAY_VIEW.md`) *(planned)* for the task engine, SLA sweep, and
+8. Load Stage 14 (`14_TASKS_TODAY_VIEW.md`) for the task engine, SLA sweep, and
    Today View.
-9. Load Stage 4 (`04_VERIFY_ENRICH.md`) *(planned)* and skill `email-verify-enrich`
-   *(planned)* before any enrichment when loading new pipeline.
-10. Load Stage 5 (`05_CAMPAIGN_MANAGEMENT.md`) *(planned)* for campaign goal, audience, and
+9. Load Stage 4 (`04_VERIFY_ENRICH.md`) and skill `email-verify-enrich`
+   before any enrichment when loading new pipeline.
+10. Load Stage 5 (`05_CAMPAIGN_MANAGEMENT.md`) for campaign goal, audience, and
     sequence when selecting/advancing campaigns.
-11. Load Stage 6 (`06_EMAIL_WRITING_STANDARD.md`) *(planned)* and skill `email-writing`
-    *(planned)* before drafting any email (step-1 or bump). A draft may contain only details
+11. Load Stage 6 (`06_EMAIL_WRITING_STANDARD.md`) and skill `email-writing`
+    before drafting any email (step-1 or bump). A draft may contain only details
     present in the dossier with an `evidence_url`.
-12. Load Stage 8 (`08_SEND_ENGINE_PROTOCOL.md`) *(planned)* before any send.
-13. Load Stage 15 (`15_CRM_REPORTING.md`) *(planned)* and then
+12. Load Stage 8 (`08_SEND_ENGINE_PROTOCOL.md`) before any send.
+13. Load Stage 15 (`15_CRM_REPORTING.md`) *(planned — Phase 3; the minimal weekly report lands
+    in 2E)* and then
     `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or
     packaging any HTML/PDF report — including the Monday weekly client report.
 14. Load Stage 9 (`09_OPERATIONS_SAFETY_AUDIT.md`) before claiming the run is complete.

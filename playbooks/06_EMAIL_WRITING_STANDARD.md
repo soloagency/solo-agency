@@ -57,7 +57,8 @@ the detail was decoration.
 ## Phase status
 
 2C (this stage's tooling — `crm_store.py draft write/list` + the `email-writing` skill) is
-**built**. The Approval Report render + chat-approve handler + follow-up (Stage 10) ship in 2D;
-where still `status: planned`, follow DESIGN §22 R1.
+**built**, and so is 2D — the Approval Report render + chat-approve handler
+(`crm_store.py approval-report` / `approve`) and follow-up/reply (Stage 10). The send itself is
+Stage 8 (Phase 1, built). Where a referenced row is still `status: planned`, follow DESIGN §22 R1.
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.
