@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -34,38 +33,29 @@ const (
 	maxHTMLBodyBytes = 3 * 1024 * 1024
 )
 
-// embeddedCapabilities is the default capability catalog compiled into the
-// binary, served at GET /capabilities when no --capabilities-file override is
-// present or readable.
-//
-//go:embed collector_capabilities.json
-var embeddedCapabilities []byte
-
 type config struct {
-	host             string
-	port             int
-	runID            string
-	jobFile          string
-	configFile       string
-	capabilitiesFile string
-	outputDir        string
-	ttl              time.Duration
-	extensionID      string
-	token            string
-	persistent       bool
-	verbose          bool
+	host        string
+	port        int
+	runID       string
+	jobFile     string
+	configFile  string
+	outputDir   string
+	ttl         time.Duration
+	extensionID string
+	token       string
+	persistent  bool
+	verbose     bool
 }
 
 type bridge struct {
-	cfg              config
-	token            string
-	startedAt        time.Time
-	job              map[string]any
-	runNowJob        map[string]any
-	configDoc        map[string]any
-	capabilitiesPath string
-	outputRoot       string
-	server           *http.Server
+	cfg        config
+	token      string
+	startedAt  time.Time
+	job        map[string]any
+	runNowJob  map[string]any
+	configDoc  map[string]any
+	outputRoot string
+	server     *http.Server
 
 	configFileModTime    time.Time
 	configFileSize       int64
@@ -148,7 +138,6 @@ func parseFlags() config {
 	flag.StringVar(&cfg.runID, "run-id", "", "run id, usually YYYY-MM-DD_client_slug")
 	flag.StringVar(&cfg.jobFile, "job-file", "", "path to collector job JSON")
 	flag.StringVar(&cfg.configFile, "config-file", "", "path to shared collector_config.json")
-	flag.StringVar(&cfg.capabilitiesFile, "capabilities-file", "", "path to collector_capabilities.json served at GET /capabilities; falls back to the embedded default when unset or unreadable")
 	flag.StringVar(&cfg.outputDir, "output-dir", "", "directory for collector output files")
 	flag.IntVar(&ttlMinutes, "ttl-minutes", int(defaultTTL/time.Minute), "auto-shutdown timeout in minutes")
 	flag.StringVar(&cfg.extensionID, "extension-id", "", "optional Chrome extension id allowed to use this bridge")
@@ -195,7 +184,6 @@ func newBridge(cfg config) (*bridge, error) {
 		startedAt:         time.Now().UTC(),
 		job:               job,
 		configDoc:         configDoc,
-		capabilitiesPath:  resolveCapabilitiesPath(cfg),
 		outputRoot:        cfg.outputDir,
 		configFileModTime: configModTime,
 		configFileSize:    configSize,
@@ -262,23 +250,6 @@ func defaultRunNowRequestPath(cfg config) string {
 		return filepath.Join(cfg.outputDir, "run_now_request.json")
 	}
 	return ""
-}
-
-// runIDMonthRe matches a leading YYYY-MM(-DD) date at the start of a run id.
-var runIDMonthRe = regexp.MustCompile(`^(\d{4})-(\d{2})(?:-\d{2})?(?:[_-]|$)`)
-
-// monthForRun returns the YYYY-MM output folder for a run. It prefers the run
-// id's own leading date (e.g. "2026-06-23_client" -> "2026-06") so a run's
-// output is deterministic and grouped by the run's date, not by whenever the
-// bridge happens to activate it. Falls back to the current month when the run
-// id has no leading YYYY-MM(-DD) date.
-func monthForRun(runID string, now time.Time) string {
-	if m := runIDMonthRe.FindStringSubmatch(runID); m != nil {
-		if mo := m[2]; mo >= "01" && mo <= "12" {
-			return m[1] + "-" + mo
-		}
-	}
-	return now.Format("2006-01")
 }
 
 func defaultCollectorConfig() map[string]any {
@@ -490,7 +461,6 @@ func (b *bridge) run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/status", b.withCORS(b.handleStatus))
 	mux.HandleFunc("/config", b.withCORS(b.handleConfig))
-	mux.HandleFunc("/capabilities", b.withCORS(b.handleCapabilities))
 	mux.HandleFunc("/jobs/current", b.withCORS(b.handleCurrentJob))
 	mux.HandleFunc("/jobs/run_now", b.withCORS(b.handleRunNowJob))
 	mux.HandleFunc("/collect/data_point", b.withCORS(b.requireToken(b.handleDataPoint)))
@@ -763,50 +733,6 @@ func (b *bridge) handleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// resolveCapabilitiesPath picks the on-disk catalog to serve: the explicit
-// --capabilities-file when given, otherwise collector_capabilities.json next to
-// the shared config file, otherwise "" (serve the embedded default).
-func resolveCapabilitiesPath(cfg config) string {
-	if cfg.capabilitiesFile != "" {
-		return cfg.capabilitiesFile
-	}
-	if cfg.configFile != "" {
-		return filepath.Join(filepath.Dir(cfg.configFile), "collector_capabilities.json")
-	}
-	return ""
-}
-
-// capabilitiesJSON returns the override file's bytes when it is set, readable,
-// and valid JSON, otherwise the catalog embedded at build time. Read fresh on
-// each call so the catalog can be edited without restarting the bridge.
-func (b *bridge) capabilitiesJSON() []byte {
-	if b.capabilitiesPath != "" {
-		if data, err := os.ReadFile(b.capabilitiesPath); err == nil && len(data) > 0 {
-			if json.Valid(data) {
-				return data
-			}
-			log.Printf("capabilities file is not valid JSON, serving embedded default: %s", b.capabilitiesPath)
-		}
-	}
-	return embeddedCapabilities
-}
-
-// handleCapabilities serves the read-only capability catalog (no token needed,
-// like /status and GET /config). Agents read this to discover which collection
-// capability to invoke for a request.
-func (b *bridge) handleCapabilities(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var doc any
-	if err := json.Unmarshal(b.capabilitiesJSON(), &doc); err != nil {
-		http.Error(w, "capabilities catalog invalid", http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, doc)
-}
-
 func (b *bridge) handleCurrentJob(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1034,7 +960,7 @@ func (b *bridge) activateRunNowJobForIdentity(job map[string]any, now time.Time,
 	if _, ok := job["collector_policy"]; !ok {
 		job["collector_policy"] = defaultCollectorPolicy()
 	}
-	month := monthForRun(runID, now)
+	month := now.Format("2006-01")
 	clientSlug := getString(job, "client_slug", "")
 	if clientSlug != "" {
 		outputDir := filepath.Join(b.outputRoot, month, safeFilename(clientSlug), safeFilename(runID))
@@ -1369,7 +1295,7 @@ func (b *bridge) currentPersistentJob(now time.Time, identity extensionIdentity)
 	maxSources := clampInt(getInt(doc, "max_sources_per_run", 20), 1, 20)
 	sourceConcurrency := clampInt(getInt(doc, "source_concurrency", 1), 1, 3)
 	scheduledTTL := clampInt(getInt(doc, "scheduled_job_ttl_minutes", 120), 15, 240)
-	month := monthForRun(runID, now)
+	month := now.Format("2006-01")
 	outputParts := []string{root, month}
 	if identity.clientSlug != "" {
 		outputParts = append(outputParts, safeFilename(identity.clientSlug))

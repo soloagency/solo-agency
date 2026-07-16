@@ -6,11 +6,13 @@ Load this module when you reach "the method" in `SKILL.md`. It carries the full 
 
 ## Stage 1 — research once, write five, hand off for a pick
 
-### 1 — Lock the audience + the angle (once, shared by every script)
+### 1 — Lock the narrator + the audience + the angle (once, shared by every script)
 
-Write one sentence: *"This is for **[who, by situation not job title]** who **[pain/desire]**, and the angle is **[the one surprising thing]**."* Situation-based targeting ("anyone who's ever rewritten a cold email five times") beats labels ("marketers"). If you can't name the ONE idea, stop and narrow. This audience + angle is shared across every script.
+**First the NARRATOR — who is speaking, by name and trade?** Pull their name, profession/business, services, and market from this conversation, brand context, or their WideCast profile, and write as that person throughout (full rules in *WHO IS SPEAKING*, `SKILL.md`). The narrator IS the professional — their stance, their composite cases, their CTA.
 
-**Infer this — don't interrogate the user.** The topic almost always implies the audience, the goal, and the angle, so decide them yourself and move on. **Do NOT ask obvious questions** like "who's the target audience?" — the topic already answers them. **Ask back ONLY when something essential is genuinely missing AND it would change the scripts** — e.g. the topic is a bare acronym with two meanings, or "my product" with no hint what it is. When you must ask, ask **one short, batched question (1–2 items max)**, never a questionnaire.
+Then write one sentence: *"This is for **[who, by situation not job title]** who **[pain/desire]**, and the angle is **[the one surprising thing]**."* Situation-based targeting ("anyone who's ever rewritten a cold email five times") beats labels ("marketers"). If you can't name the ONE idea, stop and narrow. This narrator + audience + angle is shared across every script.
+
+**Infer this — don't interrogate the user.** The topic almost always implies the audience, the goal, and the angle, so decide them yourself and move on. **Do NOT ask obvious questions** like "who's the target audience?" — the topic already answers them. **Ask back ONLY when something essential is genuinely missing AND it would change the scripts** — e.g. the topic is a bare acronym with two meanings, or "my product" with no hint what it is. When you must ask, ask **one short, batched question (1–2 items max)** — a missing-narrator item counts as one of the two — never a questionnaire.
 
 ### 2 — Research the FACTS (once, shared by every script)
 
@@ -18,9 +20,11 @@ Use your web search tool (ChatGPT `web.run` with `search_query`; Claude the `web
 
 **Go deeper than "general data."** Because QA/POV/CS/MB will wrap invented scenarios around real figures, harvest **representative numbers, ranges and rules** now: typical amounts, limits, statutory deadlines, average costs, common edge-cases. Apply the Credibility bar (in `SKILL.md`) to each. Write a 2–4 bullet research summary you'll show under `### Research`. Do not skip this even for a topic you think you know.
 
-### 3 — Write every fitting format (default all five; min 1) — compact narration, ~150–300 words each
+Research anchors the **public tier** of the CORE RULE (laws, rates, stats, real events). **Practitioner-experience figures** (typical client costs/outcomes in the narrator's book of business) may instead be composite and true-to-context — see the two-tier CORE RULE in `SKILL.md`.
 
-Write the same idea in **every format that genuinely fits** — default all five, but only the ones that work honestly for this topic (see *Which formats to write* in `SKILL.md`); minimum one, maximize. For any format you skip, you'll show its coded heading + a one-line fit reason in step 4 (not a script). Keep each script **short** (~150–300 words ≈ 60–90s at 3.14 words/second) so the user can compare formats quickly. **Do NOT inline images yet** — Stage 1 is bare narration so the formats are easy to scan; the image work happens in Stage 2 only for the picked script(s). Follow each format's opening rule and spine (full per-format playbooks in `formats.md`):
+### 3 — Write every fitting format (default all five; min 1) — compact narration, ~240–280 words each
+
+Write the same idea in **every format that genuinely fits** — default all five, but only the ones that work honestly for this topic (see *Which formats to write* in `SKILL.md`); minimum one, maximize. For any format you skip, you'll show its coded heading + a one-line fit reason in step 4 (not a script). Keep each script at **~240–280 words (≈75–95s at 3.14 words/second; hard cap 300)** so the user can compare formats quickly. **Do NOT inline images yet** — Stage 1 is bare narration so the formats are easy to scan; the image work happens in Stage 2 only for the picked script(s). Follow each format's opening rule and spine (full per-format playbooks in `formats.md`):
 
 - **VE — Value Explainer:** open with a 3-Layer Hook (10–22 words), then LIST or NORMAL body, then one CTA.
 - **QA — Client Q&A:** open with the customer's question verbatim (composite, signalled as common), then a crisp direct answer, then evidence/numbers, then the caveat/exception, then a soft CTA. No separate hook.
@@ -28,7 +32,7 @@ Write the same idea in **every format that genuinely fits** — default all five
 - **CS — Case Study:** open in the middle of a story (composite client), build the tension, resolve it, end on the transferable lesson.
 - **MB — Myth-Buster:** open by negating a costly false belief, explain why it's wrong, give the real answer with proof, then the CTA.
 
-Every number in all five obeys *Fictional frame, factual core* (see `SKILL.md` CORE RULE). Honour the shared craft: specific over clever, written for the ear, one idea per sentence, honest stats (Credibility ≥ 0.7 or soften/cut), anti-fluff.
+Every number in all five obeys *Fictional frame, factual core* (see `SKILL.md` two-tier CORE RULE). Honour the shared craft: the narrator persona (their first person, their stance, their CTA), specific over clever, written for the ear (spoken-voice spec in `SKILL.md`), one idea per sentence, each format's emotional arc (`formats.md`), the INSIDER BAR (≥1 practitioner-only detail per script), honest stats (Credibility ≥ 0.7 or soften/cut), anti-fluff.
 
 ### 4 — Hand off the scripts in ONE message, ask for a pick by code
 
@@ -43,6 +47,8 @@ Assemble the hand-off using this structure (sections required; exact wording fle
   - `### MB — Myth-Buster`
   Under each format you **wrote**, the clean spoken narration. Under each format you **skipped**, instead of a script put a one-line fit reason (e.g. `### MB — Myth-Buster` → *"skipped: no genuine misconception to bust here"*) so the user sees the menu and why it's shorter than five.
 - Close with: *"Reply with the code(s) you want me to produce — `VE`, `QA`, `POV`, `CS`, or `MB` (pick one or several). I'll then research the visuals, drop in real images, and walk you through producing it."*
+
+Before sending, run the **7-test self-check** from `SKILL.md` on each script — proud · spoken · safe · emotion · owner · budget · peer — and revise once wherever a test fails.
 
 Do NOT call `widecast_account`, estimate credits, ask the production question, or call `widecast_create_video` yet — all of that is Stage 2, after the pick. Writing **at least one** script is mandatory; dropping a format is fine **only with a fit-based reason** — skipping for effort, or returning zero scripts, is an invalid Stage-1 hand-off.
 

@@ -1,0 +1,537 @@
+/*
+ * gql_extract.js — Solo Agency Local Collector
+ *
+ * PHASE 1 (hybrid capture). Injected into the MAIN world ONLY while a collection
+ * job is running, AFTER the page has been scrolled by the collector. It reads
+ * the passive GraphQL captures left by gql_intercept.js on window.__soloGql and
+ * turns them into two things:
+ *
+ *   1. graphql_records  — a BEST-EFFORT, generic structured extraction (posts +
+ *      entities) found by walking the captured responses. This is deliberately
+ *      conservative and screen-agnostic: it grabs what it can confidently
+ *      recognize and ignores the rest. It is written ONLY into new data_point
+ *      fields; it never overwrites the existing HTML-derived fields. Per-screen
+ *      precision extractors are added in later phases.
+ *
+ *   2. graphql_manifest — a compact, privacy-safe description of WHICH queries
+ *      Facebook actually issued on this screen: friendly-name, doc_id, the
+ *      variable KEYS (not values), a count, and a shape SKELETON of the response
+ *      (keys + types only, no values). This is the raw material the team uses to
+ *      author a precise per-screen extractor in the next phase.
+ *
+ * Exposes window.__soloGqlExtract(opts) -> result object. Pure/read-only over
+ * the captures; never mutates the page and never throws (returns a safe empty
+ * shape on any failure).
+ */
+(function () {
+  "use strict";
+
+  var MAX_POSTS = 80;
+  var MAX_ENTITIES = 120;
+  var MAX_MANIFEST = 40;
+  var MAX_TEXT = 2000;
+  var WALK_DEPTH = 8;
+  var SKELETON_DEPTH = 9;      // deep enough to reveal node paths for authoring extractors
+  var SKELETON_KEYS = 30;      // per-level key cap
+  var SKELETON_BUDGET = 300;   // hard node budget per query (bounds payload size)
+
+  var ENTITY_TYPES = {
+    User: 1, Page: 1, Group: 1, Profile: 1, GroupMemberProfile: 1,
+    Event: 1, ProfilePlusEntity: 1
+  };
+
+  // ---- generic helpers ----------------------------------------------------
+
+  function isObj(v) { return v && typeof v === "object"; }
+
+  // Depth-bounded search for the first value at any key whose name is in `names`
+  // and whose value passes `ok`. Used to fish scalar fields out of unfamiliar
+  // node shapes without hardcoding full JSON paths.
+  function deepFind(obj, names, ok, depth, maxDepth) {
+    var md = maxDepth || WALK_DEPTH;
+    if (!isObj(obj) || depth > md) return undefined;
+    if (Array.isArray(obj)) {
+      for (var i = 0; i < obj.length && i < 200; i++) {
+        var r = deepFind(obj[i], names, ok, depth + 1, md);
+        if (r !== undefined) return r;
+      }
+      return undefined;
+    }
+    var keys = Object.keys(obj);
+    for (var j = 0; j < keys.length; j++) {
+      var k = keys[j], v = obj[k];
+      if (names[k] && (!ok || ok(v))) return v;
+    }
+    for (var m = 0; m < keys.length; m++) {
+      var vv = obj[keys[m]];
+      if (isObj(vv)) {
+        var rr = deepFind(vv, names, ok, depth + 1, md);
+        if (rr !== undefined) return rr;
+      }
+    }
+    return undefined;
+  }
+
+  var TEXT_HOLDER = { message: 1, body: 1, title: 1, preferred_body: 1, text_with_entities: 1 };
+  function deepText(obj, depth) {
+    if (!isObj(obj) || depth > WALK_DEPTH) return "";
+    if (Array.isArray(obj)) {
+      for (var i = 0; i < obj.length && i < 100; i++) {
+        var r = deepText(obj[i], depth + 1);
+        if (r) return r;
+      }
+      return "";
+    }
+    // A {text: "..."} under a message/body/title-ish parent is the usual shape.
+    if (typeof obj.text === "string" && obj.text.trim()) return obj.text;
+    var keys = Object.keys(obj);
+    for (var j = 0; j < keys.length; j++) {
+      if (TEXT_HOLDER[keys[j]] && isObj(obj[keys[j]])) {
+        var t = deepText(obj[keys[j]], depth + 1);
+        if (t) return t;
+      }
+    }
+    for (var m = 0; m < keys.length; m++) {
+      if (isObj(obj[keys[m]])) {
+        var tt = deepText(obj[keys[m]], depth + 1);
+        if (tt) return tt;
+      }
+    }
+    return "";
+  }
+
+  function firstString(obj, names) {
+    return deepFind(obj, names, function (v) { return typeof v === "string" && v.trim(); }, 0);
+  }
+  function firstNumber(obj, names) {
+    return deepFind(obj, names, function (v) { return typeof v === "number" && v > 0; }, 0);
+  }
+
+  // Recursively find every array named "edges" (with a few nodes) anywhere in a
+  // response. This is the one genuinely generic discovery mechanism; per-screen
+  // phases can replace it with exact paths.
+  function findEdgeArrays(obj, out, depth) {
+    if (!isObj(obj) || depth > WALK_DEPTH) return;
+    if (Array.isArray(obj)) {
+      for (var i = 0; i < obj.length && i < 200; i++) findEdgeArrays(obj[i], out, depth + 1);
+      return;
+    }
+    if (Array.isArray(obj.edges) && obj.edges.length > 0) out.push(obj.edges);
+    var keys = Object.keys(obj);
+    for (var j = 0; j < keys.length; j++) {
+      if (isObj(obj[keys[j]])) findEdgeArrays(obj[keys[j]], out, depth + 1);
+    }
+  }
+
+  // ---- record builders ----------------------------------------------------
+
+  function nodeLooksLikePost(node) {
+    if (!isObj(node) || !node.id) return false;
+    return !!(node.comet_sections || node.message || node.story ||
+      node.feedback || node.preferred_body || node.timeline_moments_info);
+  }
+
+  function buildPost(node) {
+    var text = deepText(node, 0);
+    var url = firstString(node, { wwwURL: 1, url: 1, permalink_url: 1, permalink: 1 });
+    var actorName = firstString(node, { name: 1 });
+    var created = firstNumber(node, { creation_time: 1, created_time: 1, publish_time: 1 });
+    var typename = typeof node.__typename === "string" ? node.__typename : "";
+    var post = {
+      id: String(node.id),
+      typename: typename,
+      text: text ? String(text).slice(0, MAX_TEXT) : "",
+      url: url ? String(url) : "",
+      actor: actorName ? String(actorName) : "",
+      created_time: created || 0
+    };
+    // Only keep it if it carries at least some substance.
+    if (!post.text && !post.url) return null;
+    return post;
+  }
+
+  // Entity identity must be read SHALLOWLY (the node's own fields). A deep search
+  // would let a container node absorb a descendant's name/url — e.g. a profile
+  // wrapper stealing the identity of a post actor nested inside it.
+  function shallowName(node) {
+    if (typeof node.name === "string" && node.name.trim()) return node.name;
+    if (isObj(node.name) && typeof node.name.text === "string" && node.name.text.trim()) return node.name.text;
+    if (typeof node.title === "string" && node.title.trim()) return node.title;
+    if (isObj(node.title) && typeof node.title.text === "string" && node.title.text.trim()) return node.title.text;
+    return "";
+  }
+  function shallowUrl(node) {
+    if (typeof node.url === "string" && node.url) return node.url;
+    if (typeof node.profile_url === "string" && node.profile_url) return node.profile_url;
+    if (typeof node.wwwURL === "string" && node.wwwURL) return node.wwwURL;
+    return "";
+  }
+
+  function buildEntity(node) {
+    if (!isObj(node) || !node.__typename || !ENTITY_TYPES[node.__typename]) return null;
+    var name = shallowName(node);
+    var url = shallowUrl(node);
+    if (!name && !url) return null;
+    return {
+      id: node.id ? String(node.id) : "",
+      type: String(node.__typename),
+      name: name ? String(name).slice(0, 300) : "",
+      url: url ? String(url) : ""
+    };
+  }
+
+  // Walk any object collecting entity-typed nodes (profiles/pages/groups) even
+  // when they are not inside an edges list (e.g. actors, owners, members).
+  function collectEntities(obj, into, seen, depth) {
+    if (!isObj(obj) || depth > WALK_DEPTH) return;
+    if (Array.isArray(obj)) {
+      for (var i = 0; i < obj.length && i < 300; i++) collectEntities(obj[i], into, seen, depth + 1);
+      return;
+    }
+    var ent = buildEntity(obj);
+    if (ent) {
+      var key = ent.id || (ent.type + "|" + ent.name + "|" + ent.url);
+      if (key && !seen[key] && into.length < MAX_ENTITIES) {
+        seen[key] = 1;
+        into.push(ent);
+      }
+    }
+    var keys = Object.keys(obj);
+    for (var j = 0; j < keys.length; j++) {
+      if (isObj(obj[keys[j]])) collectEntities(obj[keys[j]], into, seen, depth + 1);
+    }
+  }
+
+  // ---- manifest (shape skeleton, values stripped) -------------------------
+
+  // Structure-only description (no values). `budget` caps the total node count so
+  // even a huge, deeply nested feed response yields a bounded skeleton. maxDepth
+  // defaults to SKELETON_DEPTH; a deeper cap is used for on-demand debug dumps.
+  function skeletonize(v, depth, budget, maxDepth) {
+    var md = maxDepth || SKELETON_DEPTH;
+    if (depth > md || budget.n <= 0) return "…";
+    budget.n -= 1;
+    if (v === null) return "null";
+    if (Array.isArray(v)) {
+      return v.length ? ["[" + v.length + "]", skeletonize(v[0], depth + 1, budget, md)] : "[0]";
+    }
+    if (typeof v === "object") {
+      var out = {};
+      var keys = Object.keys(v).slice(0, SKELETON_KEYS);
+      for (var i = 0; i < keys.length; i++) out[keys[i]] = skeletonize(v[keys[i]], depth + 1, budget, md);
+      return out;
+    }
+    return typeof v; // "string" | "number" | "boolean"
+  }
+
+  // ---- main ---------------------------------------------------------------
+
+  window.__soloGqlExtract = function (opts) {
+    opts = opts || {};
+    var empty = { available: false, posts: [], entities: [], manifest: [], captureCount: 0 };
+    try {
+      var CAP = window.__soloGql;
+      if (!CAP || !Array.isArray(CAP.captures) || !CAP.captures.length) return empty;
+      var caps = CAP.captures;
+
+      var posts = [], entities = [];
+      var seenPost = {}, seenEnt = {};
+      var manifest = {}; // queryName -> entry
+
+      for (var c = 0; c < caps.length; c++) {
+        var cap = caps[c];
+        if (!cap) continue;
+
+        // --- manifest entry (always, even if response missing) ---
+        var qn = cap.queryName || ("doc_" + (cap.docId || "unknown"));
+        if (!manifest[qn]) {
+          manifest[qn] = {
+            queryName: cap.queryName || "",
+            docId: cap.docId || "",
+            variableKeys: cap.variables ? Object.keys(cap.variables).slice(0, 40) : [],
+            count: 0,
+            skeleton: null
+          };
+        }
+        manifest[qn].count += 1;
+
+        var chunks = Array.isArray(cap.response) ? cap.response : (cap.response ? [cap.response] : []);
+        for (var k = 0; k < chunks.length; k++) {
+          var chunk = chunks[k];
+          if (!isObj(chunk)) continue;
+          if (!manifest[qn].skeleton) {
+            try { manifest[qn].skeleton = skeletonize(chunk, 0, { n: SKELETON_BUDGET }); } catch (e) { /* ignore */ }
+          }
+
+          // posts from edge arrays
+          var edgeArrays = [];
+          try { findEdgeArrays(chunk, edgeArrays, 0); } catch (e) { edgeArrays = []; }
+          for (var e = 0; e < edgeArrays.length; e++) {
+            var edges = edgeArrays[e];
+            for (var i = 0; i < edges.length; i++) {
+              var node = edges[i] && (edges[i].node || edges[i]);
+              if (nodeLooksLikePost(node) && posts.length < MAX_POSTS) {
+                var pkey = String(node.id);
+                if (!seenPost[pkey]) {
+                  var p = buildPost(node);
+                  if (p) { seenPost[pkey] = 1; posts.push(p); }
+                }
+              }
+            }
+          }
+
+          // entities anywhere (profiles/pages/groups)
+          try { collectEntities(chunk, entities, seenEnt, 0); } catch (e2) { /* ignore */ }
+        }
+      }
+
+      var manifestList = [];
+      var mkeys = Object.keys(manifest);
+      for (var mi = 0; mi < mkeys.length && manifestList.length < MAX_MANIFEST; mi++) {
+        manifestList.push(manifest[mkeys[mi]]);
+      }
+
+      return {
+        available: true,
+        captureCount: caps.length,
+        posts: posts,
+        entities: entities,
+        manifest: manifestList
+      };
+    } catch (err) {
+      empty.error = String(err && err.message ? err.message : err);
+      return empty;
+    }
+  };
+
+  // =========================================================================
+  // Capability-specific extractors (PRECISE, per Facebook screen).
+  // Each maps ONE screen's exact GraphQL shape to a typed record set from the
+  // capability catalog (collector_capabilities.json). Registered in
+  // CAPABILITY_EXTRACTORS and dispatched by __soloGqlExtractCapability(id).
+  // =========================================================================
+
+  function getPath(obj, path) {
+    var parts = path.split(".");
+    var cur = obj;
+    for (var i = 0; i < parts.length; i++) {
+      if (!isObj(cur)) return undefined;
+      cur = cur[parts[i]];
+    }
+    return cur;
+  }
+
+  function actorRef(actor) {
+    if (!isObj(actor)) return null;
+    return {
+      type: "profile",
+      id: actor.id ? String(actor.id) : "",
+      name: typeof actor.name === "string" ? actor.name : "",
+      url: typeof actor.url === "string" ? actor.url : ""
+    };
+  }
+
+  function postAttachments(node) {
+    var out = [];
+    var atts = node && node.attachments;
+    if (!Array.isArray(atts)) return out;
+    for (var i = 0; i < atts.length && i < 10; i++) {
+      var a = atts[i];
+      if (!isObj(a)) continue;
+      var media = a.media;
+      out.push({
+        type: (isObj(media) && typeof media.__typename === "string") ? media.__typename : "",
+        url: firstString(a, { url: 1, uri: 1, wwwURL: 1 }) || ""
+      });
+    }
+    return out;
+  }
+
+  // Facebook stores engagement counts inconsistently: a plain number, a numeric
+  // string ("1,234"), or an object like { count: 42 }. Coerce all three.
+  function coerceCount(v) {
+    if (typeof v === "number" && isFinite(v)) return v;
+    if (typeof v === "string" && /^\d[\d,\.]*$/.test(v.trim())) {
+      return parseInt(v.replace(/[,\.]/g, ""), 10);
+    }
+    if (isObj(v) && typeof v.count === "number") return v.count;
+    return null;
+  }
+
+  function objCount(v) { return (isObj(v) && typeof v.count === "number") ? v.count : null; }
+
+  // Engagement lives DEEP inside comet_sections' UFI (unified feedback interface)
+  // subtree — well beyond the default WALK_DEPTH — so we target the known Comet
+  // path with a deep-search fallback. Verified against real group_feed nodes:
+  //   ufi = comet_sections.feedback.story.story_ufi_container.story
+  //         .feedback_context.feedback_target_with_context
+  //   reactions total = <ufi>...reaction_count.count  (the {count} object form;
+  //                     per-emoji counts under top_reactions.edges are bare nums)
+  //   comments  total = <ufi>.comment_rendering_instance.comments.total_count
+  function postEngagement(node) {
+    var cs = node.comet_sections;
+    if (!isObj(cs)) return null;
+    var ufi = getPath(cs, "feedback.story.story_ufi_container.story.feedback_context.feedback_target_with_context");
+    if (!isObj(ufi)) ufi = deepFind(cs, { feedback_target_with_context: 1 }, isObj, 0, 16);
+    if (!isObj(ufi)) return null;
+
+    // reactions: the {count:N} object form is the grand total (bare-number
+    // reaction_count values under top_reactions are per-emoji, so require {count}).
+    var reactions = objCount(deepFind(ufi, { reaction_count: 1 }, function (v) { return objCount(v) !== null; }, 0, 16));
+
+    // comments: direct total, with a deep fallback to a {comments:{total_count}}.
+    var comments = coerceCount(getPath(ufi, "comment_rendering_instance.comments.total_count"));
+    if (comments === null) {
+      var cObj = deepFind(ufi, { comments: 1 }, function (v) { return isObj(v) && typeof v.total_count === "number"; }, 0, 16);
+      comments = isObj(cObj) ? cObj.total_count : null;
+    }
+
+    // shares: best-effort (often absent on group posts).
+    var shares = coerceCount(deepFind(ufi, { i18n_share_count: 1, share_count: 1, reshare_count: 1 }, function (v) { return coerceCount(v) !== null; }, 0, 14));
+
+    if (reactions === null && comments === null && shares === null) return null;
+    return { reactions: reactions || 0, comments: comments || 0, shares: shares === null ? 0 : shares };
+  }
+
+  // Best-effort EntityRef for the group/page a post was posted to (node.to).
+  function groupRef(node) {
+    var to = node && node.to;
+    if (!isObj(to)) return null;
+    var name = shallowName(to);
+    var url = shallowUrl(to);
+    if (!name && !url && !to.id) return null;
+    return {
+      type: "group",
+      id: to.id ? String(to.id) : "",
+      name: name || "",
+      url: url || ""
+    };
+  }
+
+  // fb.group.posts — data.node.group_feed.edges[].node (validated shape).
+  function extractGroupPosts(caps, opts) {
+    opts = opts || {};
+    var items = [], seen = {}, sourceQuery = "", firstNode = null;
+    for (var c = 0; c < caps.length; c++) {
+      var cap = caps[c];
+      if (!cap) continue;
+      var chunks = Array.isArray(cap.response) ? cap.response : (cap.response ? [cap.response] : []);
+      for (var k = 0; k < chunks.length; k++) {
+        var edges = getPath(chunks[k], "data.node.group_feed.edges");
+        if (!Array.isArray(edges)) continue;
+        sourceQuery = cap.queryName || sourceQuery;
+        for (var i = 0; i < edges.length; i++) {
+          var node = edges[i] && edges[i].node;
+          if (!isObj(node) || !node.id) continue;
+          var id = String(node.id);
+          if (seen[id]) continue;
+          seen[id] = 1;
+          if (!firstNode) firstNode = node;
+          var actor = Array.isArray(node.actors) ? node.actors[0] : null;
+          items.push({
+            id: id,
+            post_id: node.post_id ? String(node.post_id) : "",
+            url: (typeof node.permalink_url === "string" && node.permalink_url)
+              ? node.permalink_url
+              : (firstString(node, { wwwURL: 1, url: 1, permalink_url: 1, permalink: 1 }) || ""),
+            actor: actorRef(actor),
+            text: (deepText(node.comet_sections, 0) || deepText(node, 0) || "").slice(0, 4000),
+            created_time: firstNumber(node, { creation_time: 1, created_time: 1, publish_time: 1 }) || 0,
+            attachments: postAttachments(node),
+            engagement: postEngagement(node),
+            group: groupRef(node)
+          });
+        }
+      }
+    }
+    var result = { capability: "fb.group.posts", schema: "PostRecord[]", source_query: sourceQuery, count: items.length, items: items };
+    // On-demand debug: a deep skeleton (shape only, no values) of one real node
+    // so we can pin down engagement/attachment paths without dumping raw data.
+    if (opts.debug && firstNode) {
+      try { result._debug_node_skeleton = skeletonize(firstNode, 0, { n: 1200 }, 16); } catch (e) { /* ignore */ }
+    }
+    return result;
+  }
+
+  // "12 mutual friends" / "12 bạn chung" -> 12. Only when the subtitle is a
+  // mutual-friends line (it can also be a job/tagline), else null.
+  function parseMutual(subtitle) {
+    if (!subtitle || !/mutual|chung|共同|친구/i.test(subtitle)) return null;
+    var m = String(subtitle).match(/[\d.,]+/);
+    return m ? parseInt(m[0].replace(/[.,]/g, ""), 10) : null;
+  }
+
+  // fb.profile.friends — data.node.pageItems.edges[] on a *Friends*List* query.
+  // `pageItems` is a generic profile-collection container (photos, groups, …),
+  // so we scope to captures whose query name contains "Friends".
+  function extractProfileFriends(caps, opts) {
+    opts = opts || {};
+    var items = [], seen = {}, sourceQuery = "", firstNode = null;
+    for (var c = 0; c < caps.length; c++) {
+      var cap = caps[c];
+      if (!cap) continue;
+      if (String(cap.queryName || "").indexOf("Friends") === -1) continue;
+      var chunks = Array.isArray(cap.response) ? cap.response : (cap.response ? [cap.response] : []);
+      for (var k = 0; k < chunks.length; k++) {
+        var edges = getPath(chunks[k], "data.node.pageItems.edges");
+        if (!Array.isArray(edges)) continue;
+        sourceQuery = cap.queryName || sourceQuery;
+        for (var i = 0; i < edges.length; i++) {
+          var li = edges[i] && edges[i].node; // list-item node
+          if (!isObj(li)) continue;
+          if (!firstNode) firstNode = li;
+          var ent = isObj(li.node) ? li.node : null; // the friend entity
+          var name = getPath(li, "title.text");
+          var url = (typeof li.url === "string" && li.url) ? li.url : (ent && typeof ent.url === "string" ? ent.url : "");
+          var id = ent && ent.id ? String(ent.id) : "";
+          var subtitle = getPath(li, "subtitle_text.text");
+          subtitle = typeof subtitle === "string" ? subtitle : "";
+          if (!name && !url) continue;
+          var key = id || url || name;
+          if (seen[key]) continue;
+          seen[key] = 1;
+          items.push({
+            id: id,
+            name: name ? String(name) : "",
+            url: url ? String(url) : "",
+            subtitle: subtitle,
+            mutual_friends: parseMutual(subtitle),
+            industry_hint: null
+          });
+        }
+      }
+    }
+    var result = { capability: "fb.profile.friends", schema: "ProfileSummary[]", source_query: sourceQuery, count: items.length, items: items };
+    if (opts.debug && firstNode) {
+      try { result._debug_node_skeleton = skeletonize(firstNode, 0, { n: 1200 }, 16); } catch (e) { /* ignore */ }
+    }
+    return result;
+  }
+
+  var CAPABILITY_EXTRACTORS = {
+    "fb.group.posts": extractGroupPosts,
+    "fb.profile.friends": extractProfileFriends
+  };
+
+  // Dispatch a capability id to its precise extractor. Returns { available,
+  // capability, schema, count, items, ... }; available=false (with a reason)
+  // when there is no capture, no extractor, or nothing matched — the caller
+  // then falls back to the generic/HTML layers. `inputs` are the job source's
+  // inputs (e.g. { debug: true }).
+  window.__soloGqlExtractCapability = function (capabilityId, inputs) {
+    var out = { available: false, capability: capabilityId || "", count: 0, items: [] };
+    try {
+      var CAP = window.__soloGql;
+      if (!CAP || !Array.isArray(CAP.captures) || !CAP.captures.length) { out.reason = "no_capture"; return out; }
+      var fn = CAPABILITY_EXTRACTORS[capabilityId];
+      if (!fn) { out.reason = "no_extractor"; return out; }
+      var res = fn(CAP.captures, inputs || {});
+      res.available = res.count > 0;
+      if (!res.available) res.reason = "no_match";
+      return res;
+    } catch (err) {
+      out.error = String(err && err.message ? err.message : err);
+      return out;
+    }
+  };
+})();

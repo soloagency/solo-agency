@@ -451,28 +451,9 @@ func TestQueuedJobRoutesOnlyToMatchingExtension(t *testing.T) {
 	if got := getString(job, "client_slug", ""); got != "avenngo" {
 		t.Fatalf("job client_slug = %q, want avenngo", got)
 	}
-	// The output month is derived from the run id's date (2026-06-23 -> 2026-06),
-	// so this is deterministic regardless of the wall clock when the test runs.
 	output := getString(job, "output_dir", "")
 	if !strings.Contains(output, filepath.Join("inbox", "2026-06", "avenngo", "2026-06-23_avenngo_001")) {
-		t.Fatalf("output_dir = %q, want inbox/2026-06/avenngo/2026-06-23_avenngo_001 (month from run id)", output)
-	}
-}
-
-func TestMonthForRun(t *testing.T) {
-	now := time.Date(2030, time.November, 9, 0, 0, 0, 0, time.UTC)
-	cases := []struct{ runID, want string }{
-		{"2026-06-23_avenngo_001", "2026-06"},        // full date prefix
-		{"2026-07_client", "2026-07"},                // year-month prefix
-		{"2026-12-31_x", "2026-12"},                  // december
-		{"graphql_test_aven_20260715_08", "2030-11"}, // no dashed date -> current month
-		{"manual_deep_scan", "2030-11"},              // no date -> current month
-		{"2026-13-01_bad", "2030-11"},                // invalid month -> current month
-	}
-	for _, c := range cases {
-		if got := monthForRun(c.runID, now); got != c.want {
-			t.Errorf("monthForRun(%q) = %q, want %q", c.runID, got, c.want)
-		}
+		t.Fatalf("output_dir = %q, want per-client output dir", output)
 	}
 }
 
