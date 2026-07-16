@@ -707,38 +707,41 @@ in AGENTS.md's blocker-recovery clause (it fires on any blocker, not just explic
 
 ---
 
-## 22. Phase-0 Interim Operating Rules (authoritative until Phase 1 ships)
+## 22. Interim Operating Rules (Phase-1 tools have shipped)
 
-Phase 0 delivers the playbook operating system but NOT the runtime tools
-(`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`), the tracker
-worker, or the Phase 1–2 stage files (02–06, 08, 10, 12–15) and skills. Any playbook rule
-that mandates one of those is subject to these interim rules. They exist so a real setup
-session degrades honestly instead of dead-locking. When a tool/file ships, its normal rule
-resumes automatically and the "critical violation" language applies again.
+**Status update:** the Phase-1 runtime tools — `crm_store.py`, `gmail_client.py`,
+`import_leads.py`, `email_verify.py`, and the storage adapter — **now exist and MUST be
+used**. The Phase-0 degradations that let setup proceed before they existed (direct `crm/`
+writes, the sendbox "pending_connectivity_check" path, "tool_not_built" skips for these
+tools) **no longer apply to them**. Setup writes CRM records through `crm_store.py`, connects
+sendboxes with `gmail_client.py auth`, and imports with `import_leads.py` for real. The
+critical-violation rule for a direct `crm/` write is back in force.
+
+What is still not built (Phase 2+): the stage FILES 04/05/06/10/12–15 and the
+`email-verify-enrich` / `email-writing` skills, and the tracker worker. Those are covered by
+R1 (they are stage files, not tools).
 
 **R1 — Planned stage files & skills are not "missing files".** A Stage Map row marked
 `status: planned` (or a skill not yet on disk) must NOT be treated as a truncated/404 read,
 must NOT trigger GitHub re-fetch or Last-Resort Recovery. Load `docs/DESIGN.md` (the section
 covering that stage) with its own LOAD LEDGER instead, and record `stage_file_pending` in
-the run/setup progress block.
+the run/setup progress block. This is the ONLY degradation still active for the core loop.
 
-**R2 — Missing tools are honest blockers, not recovery triggers.** If a required tool
-(`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`) does not exist,
-do NOT improvise a replacement script (the no-one-off-scripts rule still holds) and do NOT
-enter Last-Resort Recovery. Report it via one `**[ACTION REQUIRED]**` block naming the
-missing tool and the phase that delivers it, record the step as `skipped: tool_not_built`
-in the progress block and `INTERNAL_REPORT`, and continue with steps that need no missing tool.
+**R2 — A genuinely missing tool is an honest blocker, not a recovery trigger.** If a required
+tool is absent (should not happen post-Phase-1 in a full checkout, but can if a partial
+install lacks it), do NOT improvise a replacement script and do NOT enter Last-Resort
+Recovery. Report it via one `**[ACTION REQUIRED]**` block, record `skipped: tool_not_built`,
+and continue with steps that need no missing tool. This is a fallback, not the expected path.
 
-**R3 — Direct config/record writes are permitted in Phase 0.** Until `crm_store.py` ships,
-Setup Flow MAY create these by direct file write conforming exactly to the Stage 7 schema
-(stamping `schema_version`/`id`/`created_at`/`updated_at` where the schema requires them):
-the Client Intelligence Profile (a `.md` file, never a crm_store collection anyway),
-`crm/pipelines.json`, `crm/segments.json`, custom-field definitions, `sendboxes/sendboxes.json`,
-and `campaigns/{slug}/campaign_config.json`. Each direct write to a `crm/` collection must be
-logged as `phase0_direct_write` in `outreach-pipeline/automation/resync_log.md`; when
-`crm_store.py` lands it must re-validate those files. Stage 9 treats a logged `phase0_direct_write`
-as compliant during Phase 0. (Config files outside `crm/` — sendboxes, campaign_config, lists,
-analytics, the profile — are plain config writes and were never crm_store-only; see §6.)
+**R3 — Migrating a Phase-0 install.** An install whose CRM records were created by the
+Phase-0 direct-write path (logged `phase0_direct_write`) predates the identity reverse index,
+so `find_by_identity` — and therefore dedupe — would miss them. After updating to a checkout
+with the tools, run once per client:
+`python3 tools/crm_store.py --client-dir <DIR> validate --rebuild-index`
+which validates every `crm/` record against the Stage 7 schema and rebuilds
+`contact_identities.jsonl` from the existing contacts. Stage 9 treats a logged
+`phase0_direct_write` as compliant only until this migration runs; after it, all CRM writes
+go through `crm_store.py`.
 
 **R4 — When GitHub is unreachable, the local checkout is the source of truth.** The repo is
 `github.com/soloagency/outreach`. If GitHub cannot be verified — the repo is not yet
@@ -750,9 +753,10 @@ steps, and continue. Do not block setup or a run on a GitHub check that cannot p
 repo is published and reachable, normal Fresh-Source verification against
 `github.com/soloagency/outreach` resumes automatically.
 
-**R5 — What a Phase-0 setup CAN reach.** With R1–R4, a Setup Flow session can complete to
-`ready_for_automation_first_run` (profile + pipeline + campaign written directly, sendbox and
-list recorded as pending or written directly, notification configured or declined, automation
-task created). The first Daily Run will honestly report the send/sync/enrich steps as
-`skipped: tool_not_built` until Phase 1 lands — that is expected and correct, not a failure.
+**R5 — What a full setup reaches now.** With the Phase-1 tools present, a Setup Flow session
+completes to `ready_for_automation_first_run` for real: profile + pipeline + campaign written
+via `crm_store.py`, at least one sendbox authenticated with `gmail_client.py auth`, the first
+list imported with `import_leads.py`, notification configured or declined, automation task
+created. The first Daily Run performs real send/sync/enrich (no `tool_not_built` skips for the
+core loop). Only the Phase-2 stage files (04/05/06/10) are still `status: planned` and follow R1.
 ```
