@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"  # -P resolves symlinks to match `git rev-parse --show-toplevel`
 SOURCE_SKILLS_DIR="${OUTREACHCRM_SOURCE_SKILLS_DIR:-}"
 TARGET_SKILLS_DIR="$SCRIPT_DIR/playbooks/skills"
 MODE="all"
@@ -22,29 +22,37 @@ GIT_DRY_RUN="${OUTREACHCRM_GIT_DRY_RUN:-0}"
 usage() {
   cat >&2 <<'USAGE'
 Usage:
-  ./deploy-outreachcrm.sh [all|--skills-only|--check-only|--git-only] [--no-git] [--no-push] [--dry-run-git]
+  ./deploy-outreachcrm.sh [<git-remote-url>] [all|--skills-only|--check-only|--git-only] [--no-git] [--no-push] [--dry-run-git]
 
-Default/all:
+One-command deploy (first time — pass your GitHub repo URL once):
+  ./deploy-outreachcrm.sh https://github.com/<you>/outreachcrm.git
+  # or SSH:  ./deploy-outreachcrm.sh git@github.com:<you>/outreachcrm.git
+
+After the remote is set once, every later deploy is just:
+  ./deploy-outreachcrm.sh
+
+Default/all does, in order:
   - rebuild playbook skill zips
-  - generate playbooks/LOAD_MANIFEST.md (full-load ledger reference)
-  - clean generated junk files
-  - run upload preflight checks
-  - secret-scan the staged diff
-  - commit and push OutreachCRM repo updates
+  - generate playbooks/LOAD_MANIFEST.md (+ each skill's LOAD_MANIFEST canary)
+  - clean generated junk files (.DS_Store)
+  - run preflight checks (bash -n self-check, git diff --check)
+  - secret-scan the staged diff (blocks obvious pasted secrets / token files)
+  - commit (auto message) and push to your GitHub repo
 
-Environment:
-  OUTREACHCRM_SOURCE_SKILLS_DIR=/absolute/path/to/skills
-  OUTREACHCRM_AUTO_GIT_DEPLOY=1
-  OUTREACHCRM_GIT_PUSH=1
+Prerequisites:
+  - The GitHub repo must already exist (create it empty on github.com, or `gh repo create`).
+  - git must be able to push (SSH key loaded, or an HTTPS credential/token cached).
+
+Environment overrides (all optional):
+  OUTREACHCRM_GIT_REMOTE_URL=https://github.com/<you>/outreachcrm.git   # same as the positional URL
   OUTREACHCRM_GIT_REMOTE_NAME=origin
-  OUTREACHCRM_GIT_REMOTE_URL=https://github.com/OWNER/outreachcrm.git
   OUTREACHCRM_GIT_BRANCH=main
   OUTREACHCRM_GIT_USER_NAME="OutreachCRM"
   OUTREACHCRM_GIT_USER_EMAIL="outreachcrm-deploy@users.noreply.github.com"
-  OUTREACHCRM_DEEPSEEK_MODEL=deepseek-chat
-  OUTREACHCRM_DEEPSEEK_API_URL=https://api.deepseek.com/chat/completions
-  DEEPSEEK_API_KEY=sk-...
-  deepseek_api_key=sk-...
+  OUTREACHCRM_GIT_PUSH=1            # 0 = commit but do not push
+  OUTREACHCRM_AUTO_GIT_DEPLOY=1     # 0 = build only, no git
+  OUTREACHCRM_SOURCE_SKILLS_DIR=/absolute/path/to/skills   # sync external skills before zipping
+  DEEPSEEK_API_KEY=sk-...           # optional: nicer AI commit message; without it a clean templated message is used
 USAGE
 }
 
@@ -61,6 +69,15 @@ while [ "$#" -gt 0 ]; do
       ;;
     --dry-run-git)
       GIT_DRY_RUN=1
+      ;;
+    --remote)
+      shift
+      [ "$#" -gt 0 ] || { echo "ERROR: --remote needs a URL" >&2; usage; exit 1; }
+      GIT_REMOTE_URL="$1"
+      ;;
+    https://*|http://*|git@*|ssh://*|*.git)
+      # A bare git-remote URL positional: use it as the remote (handy for the first deploy).
+      GIT_REMOTE_URL="$1"
       ;;
     -h|--help)
       usage
@@ -160,7 +177,7 @@ ensure_git_remote() {
   local existing_url
   existing_url="$(git_cmd remote get-url "$GIT_REMOTE_NAME" 2>/dev/null || true)"
   if [ -z "$existing_url" ]; then
-    [ -n "$GIT_REMOTE_URL" ] || die "Missing git remote '$GIT_REMOTE_NAME'. Set OUTREACHCRM_GIT_REMOTE_URL once."
+    [ -n "$GIT_REMOTE_URL" ] || die "No git remote '$GIT_REMOTE_NAME' yet. Pass your repo URL once, e.g.: ./deploy-outreachcrm.sh https://github.com/<you>/outreachcrm.git"
     git_cmd remote add "$GIT_REMOTE_NAME" "$GIT_REMOTE_URL"
     return
   fi
@@ -462,6 +479,9 @@ generate_load_manifest() {
   local pb_dir="$SCRIPT_DIR/playbooks"
   local manifest="$pb_dir/LOAD_MANIFEST.md"
   [ -d "$pb_dir" ] || { log "No playbooks dir; skipping LOAD_MANIFEST"; return 0; }
+  # Regenerate per-skill canaries FIRST, so the root manifest below hashes their fresh
+  # content (otherwise the root manifest records a stale sha for each skill LOAD_MANIFEST).
+  generate_skill_manifests "$pb_dir"
   log "Generating playbooks/LOAD_MANIFEST.md (full-load ledger reference)"
   {
     echo "# LOAD_MANIFEST — full-load reference for OutreachCRM playbooks"
@@ -483,7 +503,6 @@ generate_load_manifest() {
     printf '| %s | %s | %s | %s |\n' "$rel" "$lines" "$sha" "$last" >> "$manifest"
   done < <( { [ -f "$SCRIPT_DIR/OUTREACHCRM_PLAYBOOK.md" ] && echo "$SCRIPT_DIR/OUTREACHCRM_PLAYBOOK.md"; find "$pb_dir" -type f -name '*.md'; } | sort )
   log "LOAD_MANIFEST.md written: $manifest"
-  generate_skill_manifests "$pb_dir"
 }
 
 echo "Deploying OutreachCRM toolkit from:"
