@@ -116,10 +116,11 @@ public/private "data sources" concepts, PDNA production/video/render/distributio
 | Setup | `playbooks/SETUP_FLOW_ENTRYPOINT.md` | setup sessions |
 | Sched | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | unattended daily runs |
 
-Phase 0 delivers: 0, 1, 7, 9, 11, AUTOMATION_SCHEDULING, root playbook, both entrypoints,
-LOAD_LEDGER, AGENTS.md, deploy script, README, renderer term-list swap, LOAD_MANIFEST. Stages
-2–6, 8, 10, 12–15 and the new tools/skills are built in Phase 1–2 (their Stage Map
-rows exist now; their files may be marked `status: planned` until built). Per §22 R1,
+Built so far: 0, 1, 7, 9, 11, AUTOMATION_SCHEDULING, root playbook, both entrypoints,
+LOAD_LEDGER, AGENTS.md, deploy script, README, renderer, LOAD_MANIFEST (Phase 0); **2, 3, 8
+plus tools `storage/`, `crm_store.py`, `import_leads.py`, `email_verify.py`, `gmail_client.py`
+and `tests/` (Phase 1)**. Still `status: planned` (Phase 2): 4, 5, 6, 10, 12–15, the
+`email-verify-enrich` / `email-writing` skills, and `tracker/worker.js`. Per §22 R1,
 a `status: planned` row is never a load failure — load this DESIGN section for its contract.
 
 ---
@@ -686,12 +687,16 @@ in AGENTS.md's blocker-recovery clause (it fires on any blocker, not just explic
 ---
 
 ## 21. Build phases
-- **Phase 0 (now):** clone+prune+rename (done); DESIGN.md; rewrite root playbook, AGENTS,
+- **Phase 0 (DONE):** clone+prune+rename; DESIGN.md; rewrite root playbook, AGENTS,
   both entrypoints, 00, 07, 09, 11, LOAD_LEDGER scrub; deploy surgery; renderer term list;
-  README; LOAD_MANIFEST; scrub verification. Review checkpoint with the user.
-- **Phase 1:** playbooks 02/03/08 + tools `gmail_client.py` (app_password first),
-  `import_leads.py`, `email_verify.py`, storage adapter + `crm_store.py` (contacts/activities),
-  suppression. Manual core loop.
+  README; LOAD_MANIFEST; scrub verification. 6-critic audit (48 findings) fixed.
+- **Phase 1 (DONE):** storage adapter (`tools/storage/`, json backend) + `crm_store.py`
+  (contacts/accounts/deals/activities/tasks/pipelines/suppression + idempotent rules engine +
+  merge/resolve) + `import_leads.py` + `email_verify.py` + `gmail_client.py` (App Password
+  SMTP/IMAP: auth/health/quota/send-with-gate-chain/sync-with-DSN-first-classifier) + playbooks
+  02/03/08 + `tests/test_phase1.py` (27 stdlib unittest cases, all green). Manual core loop:
+  a real @gmail.com send + reply-sync now works end to end. Open/click tracking and the
+  OAuth/Workspace mode remain Phase 2+.
 - **Phase 2:** playbooks 04/05/06/10/13/14 + skills email-verify-enrich & email-writing +
   deals/tasks/rules + Approval Report + Today View + WideCast notify + full Scheduled Run +
   `tracker/worker.js`. E2E runbook = Phase 2 acceptance.
