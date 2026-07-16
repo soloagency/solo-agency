@@ -43,15 +43,16 @@ python3 tools/gmail_client.py --client-dir "$CDIR" health --sendbox sb-a   # exp
 python3 tools/import_leads.py inspect --file tests/fixtures/max_output_list.csv
 python3 tools/import_leads.py import --client-dir "$CDIR" --file tests/fixtures/max_output_list.csv --list-slug max-output
 ```
-**Assert:** created 3 (the three real inboxes), skipped/normalized as expected; `tainguyenvdcc@`
-is imported now (it becomes suppressed only in Step 5).
+**Assert:** `contacts_created: 5` — the three real inboxes **plus** the no-email realtor
+(imported via its phone identity) **plus** `bounce-test@…invalid` (imported with email status
+`email_not_found`; MX-fail marks status but does not drop the row). `matched:0 suppressed:0`.
+`tainguyenvdcc@` is imported now (it becomes suppressed only in Step 5).
 
 ## Step 3 — Approve + send a step-1 email to inbox #1
 Build a draft (normally Stage 6 writes this; here we author it by hand), approve, send:
 ```bash
-LEAD=$(python3 tools/crm_store.py --client-dir "$CDIR" contact list --where identities.emails,contains,x 2>/dev/null; \
-  python3 -c "import sys;sys.path.insert(0,'tools');from crm_store import CrmStore;s=CrmStore('$CDIR');\
-import json;print([c['id'] for c in s.a.query('contacts') if any(e['address']=='huubinhnguyen81@gmail.com' for e in c['identities']['emails'])][0])")
+LEAD=$(python3 -c "import sys; sys.path.insert(0,'tools'); from crm_store import CrmStore; s=CrmStore('$CDIR'); print(next(c['id'] for c in s.a.query('contacts') if any(e['address']=='huubinhnguyen81@gmail.com' for e in c['identities']['emails'])))")
+echo "LEAD=$LEAD"
 mkdir -p "$CDIR/campaigns/demo/outbox/approved"
 cat > "$CDIR/campaigns/demo/outbox/approved/d1.json" <<JSON
 {"id":"draft_e2e_1","schema_version":1,"lead_id":"$LEAD","campaign_slug":"demo","step":1,
@@ -81,13 +82,18 @@ python3 tools/crm_store.py --client-dir "$CDIR" apply-rules --event reply_positi
 `apply-rules` is a no-op (idempotent).
 
 ## Step 5 — Unsubscribe path (inbox #3)
-Send a step-1 email to `tainguyenvdcc@gmail.com` (repeat Step 3 with that address), then from that
-inbox **reply with the word "unsubscribe"** (or click the mailto List-Unsubscribe). Sync:
+Send a step-1 email to `tainguyenvdcc@gmail.com` (repeat Step 3 with that address). Each sent
+email carries a `List-Unsubscribe: <mailto:{sendbox}+unsub-{token}@gmail.com>` header. In Phase 1
+the **deterministic** opt-out is that mailto alias: from `tainguyenvdcc@gmail.com`, **click the
+List-Unsubscribe link** (or send/reply to the `{sendbox}+unsub-{token}@gmail.com` address — the
+mail client's "Unsubscribe" button does exactly this). Then sync:
 ```bash
 python3 tools/gmail_client.py --client-dir "$CDIR" sync --sendbox sb-a
 python3 tools/crm_store.py --client-dir "$CDIR" suppress check --email tainguyenvdcc@gmail.com
 ```
-**Assert:** `suppressed: true`. Now attempt to send again to that address:
+**Assert:** `suppressed: true`. (A plain reply whose *body* says "unsubscribe" freezes the
+sequence but does not auto-suppress in Phase 1 — semantic remove-intent triage is Stage 10,
+Phase 2. The mailto alias is the deterministic Phase-1 path.) Now attempt to send again:
 ```bash
 # author a draft to tainguyenvdcc@ and try to send
 python3 tools/gmail_client.py --client-dir "$CDIR" send --draft <that draft> --dry-run

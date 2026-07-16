@@ -174,8 +174,14 @@ class CrmStore:
         def mut(win):
             li = win.setdefault("identities", {})
             lo = loser.get("identities", {})
-            li.setdefault("emails", []).extend(lo.get("emails", []) or [])
-            li.setdefault("phones", []).extend(lo.get("phones", []) or [])
+            have_e = {normalize_email(x.get("address")) for x in li.setdefault("emails", [])}
+            for e in lo.get("emails", []) or []:
+                if normalize_email(e.get("address")) not in have_e:
+                    li["emails"].append(e); have_e.add(normalize_email(e.get("address")))
+            have_p = {normalize_phone(x.get("number")) for x in li.setdefault("phones", [])}
+            for pp in lo.get("phones", []) or []:
+                if normalize_phone(pp.get("number")) not in have_p:
+                    li["phones"].append(pp); have_p.add(normalize_phone(pp.get("number")))
             for k, v in (lo.get("socials", {}) or {}).items():
                 if v and not (li.setdefault("socials", {}).get(k)):
                     li["socials"][k] = v
@@ -364,7 +370,10 @@ class CrmStore:
         for ev in events:
             etype = ev.get("type")
             cid = ev.get("contact_id")
-            aid = ev.get("activity_id", "") or new_ulid("evt_")
+            # A real triggering activity_id makes re-runs idempotent. When the caller
+            # supplies none, derive a STABLE key from (type, contact) instead of a random
+            # one, so re-running the same event does not double-create deals/tasks.
+            aid = ev.get("activity_id") or f"noact:{etype}:{cid}"
             for rule in rules:
                 triggers = set(rule.get("on", "").split("|"))
                 if etype not in triggers:
@@ -382,9 +391,14 @@ class CrmStore:
     def _do_action(self, action: str, rule_id: str, ev: dict, cid: str, aid: str, pending: list):
         name, args = _parse_action(action)
         if name == "create_deal_if_none":
-            if cid and not self.open_deal_for(cid):
-                d = self.create_deal(cid, args.get("stage", "new_reply"), by=f"rule:{rule_id}", evidence_activity_id=aid)
-                return {"deal_id": d["id"]}
+            if not cid:
+                return None
+            # atomic check-then-create per contact so two concurrent reply events
+            # cannot both create an open deal (TOCTOU); create_deal locks col_deals.
+            with self.a._lock(f"deal_contact_{self.resolve(cid)}"):
+                if not self.open_deal_for(cid):
+                    d = self.create_deal(cid, args.get("stage", "new_reply"), by=f"rule:{rule_id}", evidence_activity_id=aid)
+                    return {"deal_id": d["id"]}
             return None
         if name == "create_task":
             due = args.get("due", "")

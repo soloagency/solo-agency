@@ -21,6 +21,7 @@ import csv
 import hashlib
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -45,42 +46,99 @@ _SYNONYMS = {
 }
 
 
-def _rows_from_file(path: str) -> tuple[list[str], list[dict]]:
+def _looks_like_letters_header(headers) -> bool:
+    """Detect the owner's real double-header shape: row1 = 'A','B','C',... column letters."""
+    vals = [str(h).strip().upper() for h in (headers or []) if str(h).strip()]
+    return len(vals) >= 3 and all(re.fullmatch(r"[A-Z]{1,2}", v) for v in vals)
+
+
+def iter_rows(path: str):
+    """Yield (headers, row_iterator). STREAMS the file — never materializes all rows — so a
+    multi-million-row realtor export does not OOM. headers is the resolved header list."""
     ext = os.path.splitext(path)[1].lower()
     if ext in (".csv", ".txt", ".tsv"):
-        with open(path, "r", encoding="utf-8-sig", newline="") as fh:
-            sample = fh.read(4096)
-            fh.seek(0)
-            if ext == ".txt" and "," not in sample and "\t" not in sample:
-                # one-value-per-line (emails). Header-less.
-                headers = ["email"]
-                rows = [{"email": ln.strip()} for ln in fh if ln.strip()]
-                return headers, rows
+        fh = open(path, "r", encoding="utf-8-sig", newline="")
+        sample = fh.read(8192)
+        fh.seek(0)
+        # one-email-per-line only if the MAJORITY of sampled non-empty lines are a bare single token
+        lines = [ln.strip() for ln in sample.splitlines() if ln.strip()]
+        single = sum(1 for ln in lines if ("," not in ln and "\t" not in ln and ";" not in ln and " " not in ln.strip()))
+        if ext == ".txt" and lines and single >= max(1, int(0.8 * len(lines))):
+            def gen():
+                for ln in fh:
+                    ln = ln.strip()
+                    if ln:
+                        yield {"email": ln}
+                fh.close()
+            return ["email"], gen()
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=",\t;")
+        except csv.Error:
+            dialect = csv.excel
+        reader = csv.DictReader(fh, dialect=dialect)
+        headers = list(reader.fieldnames or [])
+        skip_first_data_row = _looks_like_letters_header(headers)
+        real_headers = headers
+        if skip_first_data_row:
+            # row1 was column letters; the NEXT row is the real header -> re-read using it
             try:
-                dialect = csv.Sniffer().sniff(sample, delimiters=",\t;")
-            except csv.Error:
-                dialect = csv.excel
-            reader = csv.DictReader(fh, dialect=dialect)
-            headers = reader.fieldnames or []
-            rows = [dict(r) for r in reader]
-            return headers, rows
+                first = next(reader)
+                real_headers = [str(first.get(h, "")).strip() for h in headers]
+            except StopIteration:
+                real_headers = headers
+
+        def gen2():
+            try:
+                for r in reader:
+                    if skip_first_data_row:
+                        # remap the letter-keyed dict onto the real header names
+                        yield {real_headers[i]: r.get(headers[i]) for i in range(len(headers)) if real_headers[i]}
+                    else:
+                        yield r
+            finally:
+                fh.close()
+        return real_headers, gen2()
     if ext == ".xlsx":
-        return _rows_from_xlsx(path)
+        headers, rows = _rows_from_xlsx(path)
+        return headers, iter(rows)
     raise SystemExit(f"unsupported file type {ext!r}; use csv/txt/xlsx")
 
 
+def _rows_from_file(path: str) -> tuple[list[str], list[dict]]:
+    """Eager variant (used by inspect + tests). Materializes rows — do not use on huge files."""
+    headers, gen = iter_rows(path)
+    return headers, list(gen)
+
+
 def _rows_from_xlsx(path: str):
-    """Minimal XLSX reader: first worksheet, first row = headers. Stdlib zip + XML."""
+    """Minimal XLSX reader (stdlib zip+XML): resolves the FIRST workbook sheet (not archive
+    order), reads shared AND inline strings, first row = headers."""
     import zipfile
     import xml.etree.ElementTree as ET
     ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    rns = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
     with zipfile.ZipFile(path) as z:
+        names = set(z.namelist())
         shared = []
-        if "xl/sharedStrings.xml" in z.namelist():
+        if "xl/sharedStrings.xml" in names:
             root = ET.fromstring(z.read("xl/sharedStrings.xml"))
             for si in root.findall(f"{ns}si"):
                 shared.append("".join(t.text or "" for t in si.iter(f"{ns}t")))
-        sheet_name = next((n for n in z.namelist() if n.startswith("xl/worksheets/sheet")), None)
+        # resolve the first sheet via workbook.xml + rels (fall back to archive order)
+        sheet_name = None
+        if "xl/workbook.xml" in names and "xl/_rels/workbook.xml.rels" in names:
+            wb = ET.fromstring(z.read("xl/workbook.xml"))
+            rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+            rid_to_target = {r.get("Id"): r.get("Target") for r in rels}
+            first = wb.find(f"{ns}sheets/{ns}sheet")
+            if first is not None:
+                rid = first.get(f"{rns}id")
+                tgt = rid_to_target.get(rid, "")
+                cand = "xl/" + tgt.lstrip("/") if tgt and not tgt.startswith("xl/") else tgt
+                if cand in names:
+                    sheet_name = cand
+        if not sheet_name:
+            sheet_name = next((n for n in sorted(names) if n.startswith("xl/worksheets/sheet")), None)
         if not sheet_name:
             raise SystemExit("xlsx has no worksheet")
         root = ET.fromstring(z.read(sheet_name))
@@ -90,23 +148,35 @@ def _rows_from_xlsx(path: str):
             for c in row.findall(f"{ns}c"):
                 ref = c.get("r", "")
                 col = "".join(ch for ch in ref if ch.isalpha())
-                v = c.find(f"{ns}v")
-                if v is None:
-                    val = ""
-                elif c.get("t") == "s":
-                    val = shared[int(v.text)]
+                t = c.get("t")
+                if t == "inlineStr":
+                    val = "".join(x.text or "" for x in c.iter(f"{ns}t"))
                 else:
-                    val = v.text or ""
+                    v = c.find(f"{ns}v")
+                    if v is None:
+                        val = ""
+                    elif t == "s":
+                        val = shared[int(v.text)] if v.text and v.text.isdigit() else ""
+                    else:
+                        val = v.text or ""
                 cells[col] = val
             grid.append(cells)
     if not grid:
         return [], []
-    cols = sorted({k for row in grid for k in row}, key=lambda s: (len(s), s))
+    cols = sorted({k for row in grid for k in row}, key=_col_key)
     headers = [grid[0].get(c, "") for c in cols]
     rows = []
     for row in grid[1:]:
         rows.append({headers[i]: row.get(cols[i], "") for i in range(len(cols)) if headers[i]})
     return headers, rows
+
+
+def _col_key(ref: str):
+    """Excel column letters -> integer order (A,B,...,Z,AA,...) so columns sort correctly."""
+    n = 0
+    for ch in ref:
+        n = n * 26 + (ord(ch) - 64)
+    return n
 
 
 def propose_mapping(headers: list[str]) -> dict:
@@ -122,8 +192,9 @@ def propose_mapping(headers: list[str]) -> dict:
 
 def _idempotency_key(path: str, mapping: dict) -> str:
     h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        h.update(fh.read())
+    with open(path, "rb") as fh:  # chunked so a multi-GB file is never read whole into RAM
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
     h.update(json.dumps(mapping, sort_keys=True).encode())
     return h.hexdigest()[:16]
 
@@ -131,7 +202,7 @@ def _idempotency_key(path: str, mapping: dict) -> str:
 def _normalize_row(raw: dict, mapping: dict) -> dict:
     def g(field):
         col = mapping.get(field)
-        return (raw.get(col, "") if col else "").strip()
+        return ((raw.get(col) if col else "") or "").strip()  # None-safe (short/ragged rows)
     full = g("full_name") or " ".join(x for x in [g("first_name"), g("last_name")] if x)
     socials = {}
     for s in ("facebook", "linkedin", "instagram"):
@@ -160,7 +231,7 @@ def _to_contact_fields(norm: dict) -> dict:
 
 def do_import(client_dir: str, file: str, list_slug: str, mapping: dict | None,
               mx_check: bool = True) -> dict:
-    headers, rows = _rows_from_file(file)
+    headers, rows = iter_rows(file)  # STREAMS — never materializes the whole file
     if mapping is None:
         mapping = propose_mapping(headers)
     if not mapping:
@@ -182,49 +253,52 @@ def do_import(client_dir: str, file: str, list_slug: str, mapping: dict | None,
         except (OSError, ValueError):
             pass
 
-    created = matched = suppressed = skipped = 0
+    created = matched = suppressed = skipped = errored = 0
     seq = 0
     with open(leads_path, "w", encoding="utf-8") as lf:
         for raw in rows:
             seq += 1
-            norm = _normalize_row(raw, mapping)
-            if not (norm["email"] or norm["phone"] or norm["socials"] or norm["full_name"]):
-                skipped += 1
-                lf.write(json.dumps({"seq": seq, "ts": now_iso(), "raw": raw, "normalized": norm,
-                                     "outcome": "skipped_invalid", "lead_id": None, "reason": "no identity or name"}) + "\n")
-                continue
-            # suppression check against ALL identities
-            supp = store.is_suppressed(email=norm["email"] or None, phone=norm["phone"] or None,
-                                       socials=list(norm["socials"].values()))
-            if supp:
-                suppressed += 1
-                lf.write(json.dumps({"seq": seq, "ts": now_iso(), "raw": raw, "normalized": norm,
-                                     "outcome": "suppressed", "lead_id": None, "reason": supp.get("reason")}) + "\n")
-                continue
-            # optional MX check (marks email status; does not block import)
-            if mx_check and norm["email"]:
-                v = email_verify.check(norm["email"])
-                if not v["mx_ok"]:
-                    norm["_email_status"] = "email_not_found"
-            fields = _to_contact_fields(norm)
-            if norm["email"] and norm.get("_email_status"):
-                fields["identities"]["emails"][0]["status"] = norm["_email_status"]
-            lead_id, outcome = store.add_contact(fields)
-            if outcome == "created":
-                created += 1
-                store.log_activity("imported", lead_id, summary=f"imported from {list_slug}", by="agent",
-                                   ref={"path": f"lists/{list_slug}"})
-            else:
-                matched += 1
-            lf.write(json.dumps({"seq": seq, "ts": now_iso(), "raw": raw, "normalized": norm,
-                                 "outcome": outcome, "lead_id": lead_id, "reason": ""}) + "\n")
+            try:
+                norm = _normalize_row(raw, mapping)
+                if not (norm["email"] or norm["phone"] or norm["socials"] or norm["full_name"]):
+                    skipped += 1
+                    lf.write(json.dumps({"seq": seq, "ts": now_iso(), "normalized": norm,
+                                         "outcome": "skipped_invalid", "lead_id": None, "reason": "no identity or name"}) + "\n")
+                    continue
+                supp = store.is_suppressed(email=norm["email"] or None, phone=norm["phone"] or None,
+                                           socials=list(norm["socials"].values()))
+                if supp:
+                    suppressed += 1
+                    lf.write(json.dumps({"seq": seq, "ts": now_iso(), "normalized": norm,
+                                         "outcome": "suppressed", "lead_id": None, "reason": supp.get("reason")}) + "\n")
+                    continue
+                if mx_check and norm["email"]:
+                    v = email_verify.check(norm["email"])
+                    if not v["mx_ok"]:
+                        norm["_email_status"] = "email_not_found"
+                fields = _to_contact_fields(norm)
+                if norm["email"] and norm.get("_email_status"):
+                    fields["identities"]["emails"][0]["status"] = norm["_email_status"]
+                lead_id, outcome = store.add_contact(fields)
+                if outcome == "created":
+                    created += 1
+                    store.log_activity("imported", lead_id, summary=f"imported from {list_slug}", by="agent",
+                                       ref={"path": f"lists/{list_slug}"})
+                else:
+                    matched += 1
+                lf.write(json.dumps({"seq": seq, "ts": now_iso(), "normalized": norm,
+                                     "outcome": outcome, "lead_id": lead_id, "reason": ""}) + "\n")
+            except Exception as e:  # noqa: BLE001 - one bad row must not abort the whole file
+                errored += 1
+                lf.write(json.dumps({"seq": seq, "ts": now_iso(), "outcome": "error",
+                                     "lead_id": None, "reason": f"{e.__class__.__name__}: {e}"}) + "\n")
 
     manifest = {
         "schema_version": 1, "list_slug": list_slug, "source_file": os.path.abspath(file),
         "source_format": os.path.splitext(file)[1].lstrip("."), "imported_at": now_iso(),
-        "idempotency_key": idem, "column_mapping": mapping, "row_count": len(rows),
+        "idempotency_key": idem, "column_mapping": mapping, "row_count": seq,
         "contacts_created": created, "contacts_matched_existing": matched,
-        "suppressed_at_import": suppressed, "rows_skipped": skipped, "notes": "",
+        "suppressed_at_import": suppressed, "rows_skipped": skipped, "rows_errored": errored, "notes": "",
     }
     with open(manifest_path, "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, ensure_ascii=False, indent=2)

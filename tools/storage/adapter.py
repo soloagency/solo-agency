@@ -84,13 +84,21 @@ def normalize_email(address: str) -> str:
 
 
 def normalize_phone(number: str) -> str:
-    """Best-effort E.164-ish: keep leading +, strip non-digits. US 10-digit -> +1."""
+    """Best-effort E.164-ish. Returns "" for anything that is NOT a plausible phone
+    number, so junk/placeholder values never become a dedupe identity that silently
+    merges distinct leads (e.g. '000-000-0000', '(555) 123', all-same-digit)."""
     if not number:
         return ""
-    s = number.strip()
-    plus = s.startswith("+")
+    s = number.split("x", 1)[0].split("ext", 1)[0]  # drop extensions
+    plus = s.strip().startswith("+")
     digits = re.sub(r"\D", "", s)
     if not digits:
+        return ""
+    # a real number needs >= 10 national digits (11-15 with country code)
+    if len(digits) < 10 or len(digits) > 15:
+        return ""
+    # reject obvious placeholders: all identical digits (0000000000, 5555555555)
+    if len(set(digits)) == 1:
         return ""
     if plus:
         return "+" + digits
@@ -147,7 +155,8 @@ class BaseAdapter:
     def reserve(self, sendbox_slug: str, day: str, cap: int) -> Optional[str]:
         raise NotImplementedError
 
-    # shared: evaluate a Cond list against a record (flat fields, dotted paths allowed)
+    # shared: evaluate a Cond list against a record (flat fields, dotted paths allowed).
+    # Type-mismatched comparisons never crash the scan — they simply do not match.
     @staticmethod
     def matches(record: dict, where) -> bool:
         for cond in where or []:
@@ -155,18 +164,21 @@ class BaseAdapter:
             if op not in _ALLOWED_OPS:
                 raise StorageError(f"unsupported op {op!r}")
             actual = _dig(record, field)
-            if op == "=" and not (actual == value):
-                return False
-            if op == "!=" and not (actual != value):
-                return False
-            if op == "<" and not (actual is not None and actual < value):
-                return False
-            if op == ">" and not (actual is not None and actual > value):
-                return False
-            if op == "contains" and not (actual is not None and value in actual):
-                return False
-            if op == "in" and not (actual in value):
-                return False
+            try:
+                if op == "=" and not (actual == value):
+                    return False
+                if op == "!=" and not (actual != value):
+                    return False
+                if op == "<" and not (actual is not None and actual < value):
+                    return False
+                if op == ">" and not (actual is not None and actual > value):
+                    return False
+                if op == "contains" and not (actual is not None and value in actual):
+                    return False
+                if op == "in" and not (_iterable(value) and actual in value):
+                    return False
+            except TypeError:
+                return False  # incomparable types -> not a match, never a crash
         return True
 
 
@@ -178,6 +190,14 @@ def _dig(record: dict, dotted: str):
         else:
             return None
     return cur
+
+
+def _iterable(value) -> bool:
+    try:
+        iter(value)
+        return not isinstance(value, (str, bytes)) or True  # str is iterable, fine for 'in'
+    except TypeError:
+        return False
 
 
 def get_adapter(client_root: str, backend: Optional[str] = None) -> BaseAdapter:
