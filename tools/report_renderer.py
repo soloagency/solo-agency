@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reusable Solo Agency report renderer.
+"""Reusable OutreachCRM report renderer.
 
 The tool intentionally uses Python's standard library so scheduled agents can
 render reports without installing dependencies. It has two commands:
@@ -26,26 +26,38 @@ from pathlib import Path
 from typing import Iterable
 
 
+# Terms that must never appear in a client-facing deliverable (only the weekly
+# client report is client-facing). Keep this list in sync with docs/DESIGN.md §19.
 CLIENT_BLIND_TERMS = [
-    "Solo Agency",
+    "OutreachCRM",
     "WideCast",
     "INTERNAL_REPORT",
-    "Local Collector",
-    "Chrome extension",
     "MCP",
     "OpenAPI",
     "API key",
     "Telegram",
-    "PDNA provider",
+    "PDNA",
     "provider_config",
     "Client tools",
     "global MCP",
     "automation",
     "scheduled task",
-    "collector bridge",
     "agent debug",
     "config file",
     "debug",
+    # OutreachCRM internal vocabulary
+    "sendbox",
+    "gmail_client",
+    "crm_store",
+    "storage_config",
+    "trk.",
+    "HMAC",
+    "token.json",
+    "sent_log",
+    "suppression",
+    "warmup",
+    "quota",
+    "guessed",
 ]
 
 
@@ -1255,7 +1267,7 @@ def export_pdf(html_path: Path, pdf_path: Path) -> tuple[str, str]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Render Solo Agency reports to standalone HTML/PDF.")
+    parser = argparse.ArgumentParser(description="Render OutreachCRM reports to standalone HTML/PDF.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     render = subparsers.add_parser("render", help="Render a Markdown/source report to standalone HTML.")

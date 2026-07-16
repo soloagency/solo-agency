@@ -5,6 +5,7 @@
   "providers": {
     "widecast": {
       "type": "openapi",
+      "role": "notification_only",
       "discovery_url": "https://widecast.ai/openapi.yaml",
       "provider_home_url": "https://widecast.ai/",
       "preferred_server_url": "https://widecast.ai/app/dashboard",
@@ -23,25 +24,7 @@
         "connected_platforms": []
       },
       "pdna": {
-        "production": "not_configured",
-        "video_editing": "not_configured",
-        "render_export": "not_configured",
-        "distribution": "not_configured",
-        "notification": "not_configured",
-        "analytics": "not_configured"
-      },
-      "video_editing": {
-        "enabled": false,
-        "preferred_skill_operation_id": "getEditingSkill",
-        "preferred_video_data_operation_id": "getVideoData",
-        "preferred_scene_geometry_operation_id": "sceneGeometry",
-        "preferred_scene_inspector_operation_id": "sceneInspector",
-        "preferred_modify_scene_operation_id": "modifyScene"
-      },
-      "render_export": {
-        "enabled": false,
-        "preferred_operation_id": "exportVideo",
-        "requires_fresh_human_approval": true
+        "notification": "not_configured"
       },
       "notification": {
         "enabled": false,
@@ -52,7 +35,7 @@
         "enabled": false,
         "preferred_operation_id": "uploadAsset",
         "content_type": "text/html",
-        "ttl_hours_note": "WideCast uploadAsset URLs may be short-lived. Use for report notifications, not permanent archives."
+        "ttl_hours_note": "WideCast uploadAsset URLs may be short-lived. Use for the operator report-link notification, not as a permanent archive; the local report file is the archive."
       }
     }
   }
