@@ -119,9 +119,12 @@ public/private "data sources" concepts, PDNA production/video/render/distributio
 Built so far: 0, 1, 7, 9, 11, AUTOMATION_SCHEDULING, root playbook, both entrypoints,
 LOAD_LEDGER, AGENTS.md, deploy script, README, renderer, LOAD_MANIFEST (Phase 0); **2, 3, 8
 plus tools `storage/`, `crm_store.py`, `import_leads.py`, `email_verify.py`, `gmail_client.py`
-and `tests/` (Phase 1)**. Still `status: planned` (Phase 2): 4, 5, 6, 10, 12–15, the
-`email-verify-enrich` / `email-writing` skills, and `tracker/worker.js`. Per §22 R1,
-a `status: planned` row is never a load failure — load this DESIGN section for its contract.
+and `tests/` (Phase 1)**; **4, 5, 6, 10, 13, 14 plus the `email-verify-enrich` /
+`email-writing` skills, the Approval Report + chat-approve handler, follow-up/reply, and the
+Today View / kanban (Phase 2, milestones 2A–2D)**. Still `status: planned`: 12 and 15 (metrics /
+polished CRM reporting) and `tracker/worker.js` — Phase 3; the minimal weekly report + full
+Scheduled-Run wiring land in 2E. Per §22 R1, a `status: planned` row is never a load failure —
+load this DESIGN section for its contract.
 
 ---
 
@@ -705,11 +708,12 @@ in AGENTS.md's blocker-recovery clause (it fires on any blocker, not just explic
   the whole JIT batch**; (4) the daily run stops at the **Approval Report and waits** — the
   operator approves in chat, and only then does the send step run (approve-and-send is a separate
   operator-triggered pass, `approval_mode: manual_all`).
-  Milestones: **2A** campaigns + segments + enrich queue (05); **2B** verify & enrich (04 + skill
-  `email-verify-enrich`, dossier TTL + cross-campaign inheritance, no guessing); **2C** goal-driven
-  email writing (06 + skill `email-writing`) → drafts in `pending_approval`; **2D** Approval Report
-  render + chat-approve handler + follow-up/reply (10) + Today View/kanban (13/14); **2E** full
-  Scheduled Run wiring + WideCast notify + minimal weekly report. E2E runbook = Phase 2 acceptance.
+  Milestones: **2A ✅** campaigns + segments + enrich queue (05); **2B ✅** verify & enrich (04 +
+  skill `email-verify-enrich`, dossier TTL + cross-campaign inheritance, no guessing); **2C ✅**
+  goal-driven email writing (06 + skill `email-writing`) → drafts in `pending_approval`; **2D ✅**
+  Approval Report render + chat-approve handler + follow-up/reply (10) + Today View/kanban (13/14);
+  **2E** (next) full Scheduled Run wiring + WideCast notify + minimal weekly report. E2E runbook =
+  Phase 2 acceptance.
 - **Phase 3:** playbook 12/15, kanban/timeline/**polished** weekly report/forecast/segments,
   the Cloudflare tracker worker (open/click) + OAuth/Workspace sending, Postgres adapter.
 - **Phase 4:** Local Collector + lead-engine (Facebook enrichment) re-imported.

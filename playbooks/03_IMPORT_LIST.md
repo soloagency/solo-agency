@@ -27,7 +27,7 @@ This file is the detailed source material for list import. Do not summarize away
 
 ## Phase Status — These Tools Exist
 
-`tools/import_leads.py`, `tools/crm_store.py`, and `tools/email_verify.py` ship in Phase 1 and are present in this checkout. The DESIGN §22 R2 `tool_not_built` honest-blocker path therefore does **not** apply to them: importing a list is a real, required step here, not something to record as `skipped: tool_not_built`. (That degradation still applies to the planned Phase-2 stages this stage hands off to — Stage 4 verify/enrich, Stage 5 campaign, Stage 6 email writing, Stage 10 follow-up — whose files may still be `status: planned`. Do not attempt enrichment or drafting from this stage on their behalf; import, dedupe, suppression-check, and MX-mark only.)
+`tools/import_leads.py`, `tools/crm_store.py`, and `tools/email_verify.py` ship in Phase 1 and are present in this checkout. The DESIGN §22 R2 `tool_not_built` honest-blocker path therefore does **not** apply to them: importing a list is a real, required step here, not something to record as `skipped: tool_not_built`. (Stages 4 verify/enrich, 5 campaign, 6 email writing, and 10 follow-up that this stage hands off to are now **built** (Phase 2, 2A–2D); only Stages 12/15 remain `status: planned` — Phase 3. Regardless, do not attempt enrichment or drafting from this stage on their behalf; import, dedupe, suppression-check, and MX-mark only, then hand off.)
 
 ---
 

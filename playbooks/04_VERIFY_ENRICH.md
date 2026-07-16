@@ -62,7 +62,7 @@ wins.
 
 The enrich storage/TTL/validation tooling (`crm_store.py enrich`, 2B) is **built**. The web
 verify/enrich itself is agent behavior driven by the `email-verify-enrich` skill. Downstream Stage
-6 (email writing) ships in 2C and Stage 10 (follow-up) in 2D; where still `status: planned`, follow
-DESIGN §22 R1.
+6 (email writing, 2C) and Stage 10 (follow-up/reply, 2D) are **built** too. Only Stages 12/15
+remain `status: planned` (Phase 3); where a referenced row is still planned, follow DESIGN §22 R1.
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.

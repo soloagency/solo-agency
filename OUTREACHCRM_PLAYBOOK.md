@@ -189,11 +189,11 @@ Operator-only reports (Approval Report, Today View, daily ops, `INTERNAL_REPORT`
 | 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Any file create, schema question, history/log write, adding a client, reading prior context. |
 | 8 | `playbooks/08_SEND_ENGINE_PROTOCOL.md` | Before any send: pre-send re-check chain, rotation, tracking, threading. (tool: `tools/gmail_client.py`; mutations via `tools/crm_store.py`) |
 | 9 | `playbooks/09_OPERATIONS_SAFETY_AUDIT.md` | Before claiming setup, draft, send, daily-run, or report completion. |
-| 10 | `playbooks/10_FOLLOWUP_REPLY_MANAGEMENT.md` *(planned)* | Inbox sync, reply classification, deal-aware follow-up advising. |
+| 10 | `playbooks/10_FOLLOWUP_REPLY_MANAGEMENT.md` | Inbox sync, reply classification, deal-aware follow-up advising. |
 | 11 | `playbooks/11_UPDATE_AND_VERSION_WATCH.md` | Update/upgrade/sync-latest, stale-version/blocker recovery, the daily update-watch task. |
 | 12 | `playbooks/12_TRACKING_ANALYTICS.md` *(planned)* | Reading metrics, the learning loop. |
-| 13 | `playbooks/13_CRM_CORE.md` *(planned)* | Objects, lifecycle, stage rules, dedupe/merge. |
-| 14 | `playbooks/14_TASKS_TODAY_VIEW.md` *(planned)* | Task engine, SLA, Today View. |
+| 13 | `playbooks/13_CRM_CORE.md` | Objects, lifecycle, stage rules, dedupe/merge. |
+| 14 | `playbooks/14_TASKS_TODAY_VIEW.md` | Task engine, SLA, Today View. |
 | 15 | `playbooks/15_CRM_REPORTING.md` *(planned)* | Pipeline report, forecast, weekly client report. |
 | 6A | `playbooks/skills/report-design/SKILL.md` | Immediately before rendering any report HTML/PDF. |
 | Auto | `playbooks/AUTOMATION_SCHEDULING.md` | Configuring the schedule or any automation task in Setup Flow; the start of every scheduled run; any Automation Resync. Defines the Daily Run order, run_lock, and resync machinery. |

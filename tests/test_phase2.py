@@ -190,5 +190,71 @@ class TestDraftWriting(unittest.TestCase):
         self.assertIn("bump_step", r["warnings"])
 
 
+class TestApprovalAndFollowup(unittest.TestCase):
+    def setUp(self):
+        self.cdir = _client()
+        self.s = CrmStore(self.cdir)
+        import gmail_client as g
+        g.save_sendbox(self.cdir, {"slug": "sb-a", "email": "me@gmail.com", "domain": "gmail.com", "quota_today": 40, "status": "healthy", "imap_uid_cursor": 0})
+        self.s.create_campaign("demo", {"audience": {"segment": "x"}, "sendboxes": ["sb-a"]})
+        self.leads = []
+        for i, hook in enumerate([True, True, False]):
+            lead, _ = self.s.add_contact({"name": {"full": f"L{i}"}, "identities": {"emails": [{"address": f"l{i}@x.com", "is_primary": True}]}})
+            self.leads.append(lead)
+            if hook:
+                self.s.enrich_write(lead, {"identity": {"still_active": "confirmed"}, "hooks": [{"type": "new_listing", "summary": "x", "evidence_url": f"https://z/{i}", "observed_date": "2026-07-14", "confidence": 0.9, "analysis": {"sensitivity": "public_business"}}], "writing_brief": {"personalization_confidence": 0.85}}, campaign_slug="demo")
+                self.s.draft_write(lead, "demo", 1, f"Idea {i}", "Hi", hooks_used=[{"type": "new_listing", "evidence_url": f"https://z/{i}"}])
+            else:
+                self.s.enrich_write(lead, {"identity": {"still_active": "confirmed"}, "hooks": [], "writing_brief": {"personalization_confidence": 0.3}}, campaign_slug="demo")
+                self.s.draft_write(lead, "demo", 1, f"Hello {i}", "generic")
+
+    def test_approval_report_groups_and_numbers(self):
+        md, index = self.s.build_approval()
+        self.assertEqual(len(index), 3)
+        self.assertIn("High confidence (2)", md)
+        self.assertIn("Review carefully (1)", md)
+
+    def test_approve_moves_to_approved_and_logs(self):
+        self.s.render_approval_report()
+        res = self.s.approve_apply({"approve": "1,2", "reject": [{"n": 3, "reason": "too generic"}]})
+        self.assertEqual(len(res["approved"]), 2)
+        self.assertEqual(len(res["rejected"]), 1)
+        self.assertEqual(len(self.s.list_pending_drafts()), 0)          # all decided
+        approved = [f for f in os.listdir(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved")) if f.endswith(".json")]
+        self.assertEqual(len(approved), 2)
+        d = json.load(open(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved", approved[0])))
+        self.assertEqual(d["status"], "approved")                        # send engine can now send it
+        self.assertIn("too generic", open(os.path.join(self.cdir, "analytics", "learning_log.md")).read())
+
+    def test_approve_all(self):
+        self.s.render_approval_report()
+        res = self.s.approve_apply({"approve": "all"})
+        self.assertEqual(len(res["approved"]), 3)
+
+    def test_edit_then_approve_uses_new_body(self):
+        self.s.render_approval_report()
+        self.s.approve_apply({"edit": [{"n": 1, "body_text": "edited body"}], "approve": "1"})
+        approved = [f for f in os.listdir(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved")) if f.endswith(".json")]
+        bodies = [json.load(open(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved", f)))["body_text"] for f in approved]
+        self.assertIn("edited body", bodies)
+
+    def test_followups_due_and_reply_freeze(self):
+        import datetime as dt
+        lead = self.leads[0]
+        sa = (dt.datetime.now(dt.timezone.utc).replace(microsecond=0) - dt.timedelta(days=5)).isoformat().replace("+00:00", "Z")
+        d = os.path.join(self.cdir, "campaigns", "demo", "sent", sa[:7]); os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "sent_log.jsonl"), "a") as fh:
+            fh.write(json.dumps({"seq": 1, "ts": sa, "lead_id": lead, "campaign": "demo", "step": 1, "sendbox": "sb-a", "rfc_message_id": "<x>", "sent_at": sa}) + "\n")
+        due = self.s.followups_due("demo")
+        self.assertEqual([x["lead_id"] for x in due], [lead])           # step-1 5d ago, gap 4 elapsed
+        self.assertEqual(due[0]["next_step"], 2)
+        self.s.set_contact(lead, {"sequence_state": "frozen"})           # they replied
+        self.assertEqual(self.s.followups_due("demo"), [])              # a reply freezes the bump
+
+    def test_today_view_and_kanban_render(self):
+        self.assertTrue(self.s.render_today_view()["html_rendered"])
+        self.assertTrue(self.s.render_kanban()["html_rendered"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

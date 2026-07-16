@@ -584,7 +584,8 @@ class CrmStore:
                 "warnings": warnings, "path": os.path.join(d, f"{did}.json")}
 
     def list_pending_drafts(self, campaign_slug: str | None = None) -> list:
-        """Every pending_approval draft (across campaigns unless one is named), newest first."""
+        """Every draft still `pending_approval`, deterministically ordered (campaign, created_at,
+        id) with a `_path`, so the Approval Report and the approve handler agree on numbering."""
         out = []
         camp_root = os.path.join(self.client_dir, "campaigns")
         camps = [campaign_slug] if campaign_slug else (sorted(os.listdir(camp_root)) if os.path.isdir(camp_root) else [])
@@ -596,13 +597,325 @@ class CrmStore:
                 dd = os.path.join(base, day)
                 if os.path.isdir(dd):
                     for name in sorted(os.listdir(dd)):
-                        if name.endswith(".json"):
-                            try:
-                                with open(os.path.join(dd, name), "r", encoding="utf-8") as fh:
-                                    out.append(json.load(fh))
-                            except (OSError, ValueError):
-                                pass
+                        if not name.endswith(".json"):
+                            continue
+                        p = os.path.join(dd, name)
+                        try:
+                            with open(p, "r", encoding="utf-8") as fh:
+                                rec = json.load(fh)
+                        except (OSError, ValueError):
+                            continue
+                        if rec.get("status") == "pending_approval":
+                            rec["_path"] = p
+                            out.append(rec)
+        out.sort(key=lambda r: (r.get("campaign_slug", ""), r.get("created_at", ""), r.get("id", "")))
         return out
+
+    # --- Approval Report + chat approval -------------------------------------
+
+    def build_approval(self, campaign_slug: str | None = None, now: str | None = None) -> tuple[str, list]:
+        """Return (markdown, index). Numbered cards grouped High confidence / Review carefully;
+        the index [{n, draft_id, path}] is the stable number->draft map the approve handler reads."""
+        now = now or now_iso()
+        drafts = self.list_pending_drafts(campaign_slug)
+        index = [{"n": i + 1, "draft_id": d["id"], "path": d["_path"], "campaign": d["campaign_slug"]}
+                 for i, d in enumerate(drafts)]
+        high = [(i + 1, d) for i, d in enumerate(drafts) if d.get("confidence_band") == "high"]
+        review = [(i + 1, d) for i, d in enumerate(drafts) if d.get("confidence_band") != "high"]
+
+        def card(n, d):
+            c = self.get_contact(d["lead_id"]) or {}
+            en = c.get("enrichment") or {}
+            name = (c.get("name") or {}).get("full", "") or d["to"]
+            lines = [f"## {n}. {name} — {d['to']}",
+                     f"- **Campaign/step:** {d['campaign_slug']} / step {d['step']}  ·  **Sendbox:** {d['sendbox']}"]
+            if d.get("warnings"):
+                lines.append(f"- **Flags:** {', '.join(d['warnings'])}")
+            hooks = en.get("hooks", [])
+            if hooks:
+                lines.append("- **Evidence:** " + "  ·  ".join(f"[{h.get('type','hook')}]({h['evidence_url']})"
+                             for h in hooks if h.get("evidence_url")))
+            lines.append("")
+            lines.append(f"**Subject:** {d.get('subject','')}")
+            lines.append("")
+            lines.append("> " + (d.get("body_text", "").replace("\n", "\n> ")))
+            lines.append("")
+            return "\n".join(lines)
+
+        md = [f"# Approval Report — {now[:10]}",
+              f"{len(drafts)} draft(s) awaiting your approval. Reply in chat: "
+              "`approve all` · `approve 1-20, 35` · `reject 7: reason` · `edit 12: ...` · `hold 5`.",
+              "", f"## High confidence ({len(high)})",
+              "*(verified email + strong evidenced hook)*", ""]
+        md += [card(n, d) for n, d in high] or ["*(none)*", ""]
+        md += ["", f"## Review carefully ({len(review)})", "*(weak/no hook or fallback opener — read before approving)*", ""]
+        md += [card(n, d) for n, d in review] or ["*(none)*", ""]
+        return "\n".join(md), index
+
+    def render_approval_report(self, campaign_slug: str | None = None, now: str | None = None) -> dict:
+        """Write the Approval Report markdown + index + (best-effort) HTML under outputs/."""
+        now = now or now_iso()
+        md, index = self.build_approval(campaign_slug, now)
+        out_dir = os.path.join(self.client_dir, "outputs", today_str(now))
+        os.makedirs(out_dir, exist_ok=True)
+        slug = self._client_slug()
+        md_path = os.path.join(out_dir, f"{slug}-approval-report.md")
+        idx_path = os.path.join(out_dir, "approval_index.json")
+        html_path = os.path.join(out_dir, f"{slug}-approval-report.html")
+        JsonAdapter._atomic_write(md_path, md)
+        JsonAdapter._atomic_write(idx_path, json.dumps({"generated_at": now, "index": index}, ensure_ascii=False, indent=2))
+        # operator-only report -> render WITHOUT --client-facing (not scrubbed)
+        rendered = False
+        try:
+            import subprocess
+            r = subprocess.run(["python3", os.path.join(os.path.dirname(os.path.abspath(__file__)), "report_renderer.py"),
+                                "render", "--input", md_path, "--output-html", html_path,
+                                "--title", "Approval Report", "--report-kind", "Approval Report"],
+                               capture_output=True, text=True, timeout=60)
+            rendered = r.returncode == 0
+        except Exception:  # noqa: BLE001
+            rendered = False
+        return {"drafts": len(index), "md": md_path, "index": idx_path,
+                "html": html_path if rendered else None, "html_rendered": rendered}
+
+    def _approval_index(self) -> list:
+        p = os.path.join(self.client_dir, "outputs", today_str(), "approval_index.json")
+        if os.path.isfile(p):
+            try:
+                with open(p, "r", encoding="utf-8") as fh:
+                    return json.load(fh).get("index", [])
+            except (OSError, ValueError):
+                return []
+        return []
+
+    def _resolve_numbers(self, spec) -> list:
+        """'all' | '1-20, 35' | [1,3,5] -> list of {n, draft_id, path} from the last report."""
+        idx = self._approval_index()
+        by_n = {e["n"]: e for e in idx}
+        if spec == "all":
+            return idx
+        nums = set()
+        if isinstance(spec, str):
+            for part in spec.replace(" ", "").split(","):
+                if not part:
+                    continue
+                if "-" in part:
+                    a, b = part.split("-", 1)
+                    nums.update(range(int(a), int(b) + 1))
+                else:
+                    nums.add(int(part))
+        else:
+            nums = set(int(x) for x in spec)
+        return [by_n[n] for n in sorted(nums) if n in by_n]
+
+    def approve_apply(self, actions: dict, by: str = "human") -> dict:
+        """Apply the operator's chat decision. `actions` is the agent's parse of the chat message:
+        {"approve": "all"|"1-20,35"|[..], "reject":[{"n":7,"reason":"..."}],
+         "hold":[5], "edit":[{"n":12,"subject":?,"body_text":?}]}. Numbers reference the last
+         Approval Report. Approved drafts move to outbox/approved/ (the send engine's inbox)."""
+        result = {"approved": [], "rejected": [], "held": [], "edited": [], "not_found": []}
+        now = now_iso()
+
+        def load(path):
+            with open(path, "r", encoding="utf-8") as fh:
+                return json.load(fh)
+
+        # edits first (so a subsequent approve picks up the edited body)
+        for e in actions.get("edit", []) or []:
+            hits = self._resolve_numbers([e["n"]])
+            if not hits:
+                result["not_found"].append(e["n"]); continue
+            entry = hits[0]; d = load(entry["path"])
+            if "subject" in e:
+                d["subject"] = e["subject"]
+            if "body_text" in e:
+                d["body_text"] = e["body_text"]
+            d["updated_at"] = now
+            JsonAdapter._atomic_write(entry["path"], json.dumps(d, ensure_ascii=False, indent=2))
+            result["edited"].append(entry["draft_id"])
+        for r in actions.get("reject", []) or []:
+            hits = self._resolve_numbers([r["n"]])
+            if not hits:
+                result["not_found"].append(r["n"]); continue
+            entry = hits[0]; d = load(entry["path"])
+            d.update({"status": "rejected", "decided_at": now, "decided_by": by, "reject_reason": r.get("reason", "")})
+            JsonAdapter._atomic_write(entry["path"], json.dumps(d, ensure_ascii=False, indent=2))
+            self._approval_log(d, "reject", by, r.get("reason", ""))
+            self._learning_log(d, r.get("reason", ""))  # reject reasons feed the writing learning loop
+            result["rejected"].append(entry["draft_id"])
+        for h in self._resolve_numbers(actions.get("hold", []) or []):
+            d = load(h["path"]); d.update({"status": "hold", "decided_at": now, "decided_by": by})
+            JsonAdapter._atomic_write(h["path"], json.dumps(d, ensure_ascii=False, indent=2))
+            result["held"].append(h["draft_id"])
+        approve_spec = actions.get("approve")
+        if approve_spec:
+            for a in self._resolve_numbers(approve_spec):
+                if a["draft_id"] in result["rejected"] + result["held"]:
+                    continue
+                d = load(a["path"])
+                if d.get("status") != "pending_approval":
+                    continue
+                d.update({"status": "approved", "decided_at": now, "decided_by": by})
+                approved_dir = os.path.join(self.campaign_dir(a["campaign"]), "outbox", "approved")
+                os.makedirs(approved_dir, exist_ok=True)
+                dest = os.path.join(approved_dir, f"{a['draft_id']}.json")
+                JsonAdapter._atomic_write(dest, json.dumps(d, ensure_ascii=False, indent=2))
+                try:
+                    os.remove(a["path"])  # leave pending_approval
+                except OSError:
+                    pass
+                self._approval_log(d, "approve", by, "")
+                result["approved"].append({"draft_id": a["draft_id"], "path": dest})
+        return result
+
+    def _approval_log(self, draft, decision, by, reason):
+        p = os.path.join(self.client_dir, "approvals", "approval_log.md")
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        new = not os.path.isfile(p)
+        with open(p, "a", encoding="utf-8") as fh:
+            if new:
+                fh.write("# Approval Log\n\n| Date | Draft | Campaign/Step | Decision | By | Reason |\n|---|---|---|---|---|---|\n")
+            fh.write(f"| {now_iso()} | {draft['id']} | {draft['campaign_slug']}/{draft['step']} | "
+                     f"{decision} | {by} | {reason or '—'} |\n")
+
+    def _learning_log(self, draft, reason):
+        if not reason:
+            return
+        p = os.path.join(self.client_dir, "analytics", "learning_log.md")
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        new = not os.path.isfile(p)
+        with open(p, "a", encoding="utf-8") as fh:
+            if new:
+                fh.write("# Learning Log\n\n| Date | Source | Signal | Note |\n|---|---|---|---|\n")
+            fh.write(f"| {now_iso()} | draft_rejected | {draft['campaign_slug']}/step{draft['step']} | {reason} |\n")
+
+    def _client_slug(self) -> str:
+        # {client_slug}/{business_slug}_{location_slug} -> a filesystem-safe report prefix
+        return os.path.basename(os.path.dirname(self.client_dir)) or "client"
+
+    # --- follow-ups (silent-lead bumps) --------------------------------------
+
+    def followups_due(self, campaign_slug: str, now: str | None = None) -> list:
+        """Contacts due for a bump: sent step N in this campaign, gap_days for step N+1 elapsed,
+        no reply (not frozen), sequence not exhausted. Stage 10 drafts these."""
+        now = now or now_iso()
+        cfg = self.get_campaign(campaign_slug)
+        if not cfg:
+            raise StorageError(f"campaign {campaign_slug!r} not found")
+        seq = cfg.get("sequence", [])
+        gap_by_step = {int(s["step"]): int(s.get("gap_days", 0)) for s in seq}
+        max_step = max(gap_by_step) if gap_by_step else 1
+        # group sent_log by lead: max step + last sent_at
+        state = {}
+        for p in self._all_sent_logs(only_campaign=campaign_slug):
+            with open(p, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    if not r.get("rfc_message_id"):
+                        continue
+                    lid = r["lead_id"]; st = int(r.get("step", 1)); sa = r.get("sent_at", "")
+                    cur = state.get(lid, {"step": 0, "sent_at": ""})
+                    if st > cur["step"] or (st == cur["step"] and sa > cur["sent_at"]):
+                        state[lid] = {"step": st, "sent_at": sa}
+        due = []
+        for lid, s in state.items():
+            c = self.get_contact(lid)
+            if not c or c.get("sequence_state") == "frozen":
+                continue  # replied / mid-handling
+            next_step = s["step"] + 1
+            if next_step > max_step:
+                continue  # sequence exhausted (breakup already sent)
+            gap = gap_by_step.get(next_step, 0)
+            if s["sent_at"] and s["sent_at"] <= _iso_days_ago_from(gap, now):
+                due.append({"lead_id": lid, "next_step": next_step, "last_step": s["step"],
+                            "last_sent_at": s["sent_at"]})
+        return due
+
+    # --- Today View + kanban (operator-only) ---------------------------------
+
+    def today_view_data(self, now: str | None = None) -> dict:
+        now = now or now_iso()
+        tasks = [t for t in self._latest_tasks() if t.get("status") == "open"]
+        due_tasks = [t for t in tasks if t.get("due_at") and t["due_at"] <= now]
+        deals = self.a.query("deals", where=[Cond("status", "=", "open")])
+        sla = []
+        stage_sla = {s["id"]: s.get("sla_days") for p in self.get_pipelines().get("pipelines", []) for s in p.get("stages", [])}
+        for d in deals:
+            hist = d.get("stage_history", [])
+            entered = hist[-1]["at"] if hist else d.get("created_at", "")
+            sd = stage_sla.get(d.get("stage"))
+            if sd and entered and entered <= _iso_days_ago_from(int(sd), now):
+                sla.append({"deal_id": d["id"], "stage": d["stage"], "since": entered, "sla_days": sd})
+        hot = [a for a in self.a.read_log("activities") if a.get("type") == "email_reply"][-20:]
+        return {"generated_at": now,
+                "tasks_due": due_tasks, "open_tasks": len(tasks),
+                "deals_open": len(deals), "sla_breaches": sla,
+                "hot_replies": [{"lead_id": a.get("contact_id"), "at": a.get("ts")} for a in hot],
+                "drafts_pending": len(self.list_pending_drafts())}
+
+    def _latest_tasks(self) -> list:
+        latest = {}
+        for t in self.a.read_log("tasks"):
+            latest[t["id"]] = t  # last write per id wins
+        return list(latest.values())
+
+    def render_today_view(self, now: str | None = None) -> dict:
+        d = self.today_view_data(now)
+        md = [f"# Today — {d['generated_at'][:16].replace('T',' ')}",
+              f"**{d['drafts_pending']}** drafts awaiting approval  ·  **{len(d['tasks_due'])}** tasks due  ·  "
+              f"**{len(d['sla_breaches'])}** deals past SLA  ·  **{d['deals_open']}** open deals", ""]
+        md += ["## Tasks due", ""]
+        md += [f"- {t.get('title','')}  (due {t.get('due_at','')[:16]})" for t in d["tasks_due"]] or ["*(none)*"]
+        md += ["", "## Deals past SLA", ""]
+        md += [f"- deal {b['deal_id'][:10]} stuck at `{b['stage']}` since {b['since'][:10]} (SLA {b['sla_days']}d)"
+               for b in d["sla_breaches"]] or ["*(none)*"]
+        md += ["", "## Hot replies (respond fast)", ""]
+        md += [f"- reply from {r['lead_id']} at {r['at'][:16]}" for r in d["hot_replies"]] or ["*(none)*"]
+        return self._render_operator(md, "today-view", "Today View", now)
+
+    def render_kanban(self, now: str | None = None) -> dict:
+        now = now or now_iso()
+        pipelines = self.get_pipelines().get("pipelines", [])
+        deals = self.a.query("deals", where=[Cond("status", "=", "open")])
+        md = [f"# Pipeline — {now[:10]}", ""]
+        forecast = 0.0
+        for p in pipelines:
+            for st in p.get("stages", []):
+                if st["id"] in ("won", "lost"):
+                    continue
+                col = [d for d in deals if d.get("stage") == st["id"]]
+                md.append(f"## {st['id']} ({len(col)})")
+                for d in col:
+                    v = float(d.get("value", 0)); prob = float(d.get("probability", 0))
+                    forecast += v * prob
+                    md.append(f"- {d.get('name') or d['id'][:10]} — ${v:.0f} × {prob:.0%}")
+                md.append("")
+        md.insert(1, f"**Weighted forecast:** ${forecast:,.0f}  ·  {len(deals)} open deals\n")
+        return self._render_operator(md, "kanban", "Pipeline Kanban", now)
+
+    def _render_operator(self, md_lines: list, slug_suffix: str, title: str, now: str | None) -> dict:
+        now = now or now_iso()
+        out_dir = os.path.join(self.client_dir, "outputs", today_str(now))
+        os.makedirs(out_dir, exist_ok=True)
+        md_path = os.path.join(out_dir, f"{self._client_slug()}-{slug_suffix}.md")
+        html_path = os.path.join(out_dir, f"{self._client_slug()}-{slug_suffix}.html")
+        JsonAdapter._atomic_write(md_path, "\n".join(md_lines))
+        rendered = False
+        try:
+            import subprocess
+            r = subprocess.run(["python3", os.path.join(os.path.dirname(os.path.abspath(__file__)), "report_renderer.py"),
+                                "render", "--input", md_path, "--output-html", html_path, "--title", title],
+                               capture_output=True, text=True, timeout=60)
+            rendered = r.returncode == 0
+        except Exception:  # noqa: BLE001
+            rendered = False
+        return {"md": md_path, "html": html_path if rendered else None, "html_rendered": rendered}
 
     # --- contacts + identity + merge -----------------------------------------
 
@@ -1107,6 +1420,11 @@ def main(argv=None) -> int:
     en.add_argument("--contact"); en.add_argument("--campaign"); en.add_argument("--json"); en.add_argument("--limit", type=int, default=100)
     dr = sub.add_parser("draft"); dr.add_argument("op", choices=["write", "list"])
     dr.add_argument("--contact"); dr.add_argument("--campaign"); dr.add_argument("--json")
+    aprt = sub.add_parser("approval-report"); aprt.add_argument("--campaign")
+    apy = sub.add_parser("approve"); apy.add_argument("--json", required=True)
+    fu = sub.add_parser("followups"); fu.add_argument("op", choices=["due"]); fu.add_argument("--campaign", required=True)
+    tv = sub.add_parser("today-view")
+    kb = sub.add_parser("kanban")
 
     args = p.parse_args(argv)
 
@@ -1161,6 +1479,16 @@ def main(argv=None) -> int:
                                           tracking=d.get("tracking", "plain_text")))
         if args.op == "list":
             return _out(store.list_pending_drafts(args.campaign))
+    if args.cmd == "approval-report":
+        return _out(store.render_approval_report(args.campaign))
+    if args.cmd == "approve":
+        return _out(store.approve_apply(json.loads(args.json)))
+    if args.cmd == "followups":
+        return _out(store.followups_due(args.campaign))
+    if args.cmd == "today-view":
+        return _out(store.render_today_view())
+    if args.cmd == "kanban":
+        return _out(store.render_kanban())
     if args.cmd == "contact":
         if args.op == "add":
             lead_id, outcome = store.add_contact(json.loads(args.json))
