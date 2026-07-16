@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal OpenAPI provider adapter for Solo Agency.
+"""Minimal OpenAPI provider adapter for OutreachCRM (operator notification provider).
 
 This utility intentionally uses only Python's standard library so scheduled
 agents can run it without installing dependencies. It supports the subset Solo
@@ -29,7 +29,7 @@ DEFAULT_DISABLED_SERVER_URLS = {
     "widecast": {"https://api.widecast.ai"},
 }
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
-USER_AGENT = "SoloAgencyOpenAPIAdapter/1.0"
+USER_AGENT = "OutreachCRMOpenAPIAdapter/1.0"
 
 KNOWN_OPERATION_CANDIDATES = {
     "account": ["getAccount"],
@@ -99,7 +99,7 @@ def _active_provider(config: dict[str, Any], fallback: str = "widecast") -> str:
 
 def _api_key(config: dict[str, Any], provider: str) -> str:
     block = _provider_block(config, provider)
-    generic = os.environ.get("SOLO_AGENCY_PROVIDER_API_KEY")
+    generic = os.environ.get("OUTREACHCRM_PROVIDER_API_KEY") or os.environ.get("SOLO_AGENCY_PROVIDER_API_KEY")
     if generic:
         return generic
     env_name = block.get("api_key_env")
@@ -468,9 +468,9 @@ def cmd_upload_report(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Solo Agency OpenAPI provider adapter")
+    parser = argparse.ArgumentParser(description="OutreachCRM OpenAPI provider adapter")
     parser.add_argument("--config", help="Path to per-client provider_config.local.json")
-    parser.add_argument("--defaults", help="Path to daily-content-pipeline/provider_defaults.json")
+    parser.add_argument("--defaults", help="Path to outreach-pipeline/provider_defaults.json")
     parser.add_argument("--provider", default="widecast")
     parser.add_argument("--discovery-url")
     sub = parser.add_subparsers(dest="cmd", required=True)
