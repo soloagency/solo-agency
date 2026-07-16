@@ -1,0 +1,27 @@
+# Channel reality — what is actually readable (MVP)
+
+Be honest about what a stdlib agent with WebSearch/WebFetch (and a browser tool where noted) can
+truly read. Promising a hook from a source you cannot read produces an embarrassing "personalized"
+email (a months-old listing, a wrong person). Per hook type, use the reachable source + a fallback.
+
+| Source | Readable now? | How | Notes |
+|---|---|---|---|
+| Personal website / blog | ✅ full | WebFetch | Best source for a real, current hook. |
+| YouTube | ✅ title/description | WebFetch/WebSearch | |
+| Instagram / X (public) | ⚠️ best-effort | WebSearch snippet; WebFetch often walled | Store URL if unreadable. |
+| Zillow / realtor.com listings | ⚠️ snippet mainly | WebSearch snippet; direct fetch often bot-blocked | A "new listing" hook needs a **date in the snippet** — a dateless snippet may be months old; don't claim "just listed". |
+| Google Business Profile reviews | ⚠️ JS-rendered | browser tool (Claude in Chrome), not WebFetch | A recent review is a strong hook when you can read it. |
+| State license / registry | ⚠️ varies | WebFetch for GET pages; browser tool for ASP.NET/POST forms | Proves "still active"; some states expose a public email. |
+| Brokerage roster (e.g. kw.com) | ⚠️ SPA | often an empty shell on WebFetch → browser tool | Presence on the roster ⇒ still there; email domain is a hint, not a guess. |
+| Facebook posts | ❌ logged-out wall | store the URL only | Reading these is the Phase-4 Local Collector's job (operator's own logged-in Chrome). |
+| LinkedIn | ❌ logged-out wall | store the URL only | Career-change hooks live here but are unreadable now. |
+
+## Consequences to encode
+
+- Realistically only **personal websites + occasional dated snippets + readable reviews** yield a
+  verifiable fresh hook, so plan for a **~30–50% deep-personalization hit-rate**, not 100%. The
+  campaign's volume assumptions and the `no_hook_fallback` exist because of this.
+- A source marked ❌ here must **never** produce a hook — store the profile URL for later and move
+  on. Do not paraphrase a search snippet's guess about a Facebook post as if you read it.
+- When a source needs a browser tool and none is available in the run, record it as unreadable
+  this pass (it may become a hook on a later refresh), not a fabricated hook.

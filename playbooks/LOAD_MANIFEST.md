@@ -5,11 +5,12 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 431 | f4470736520e3778128c2388e3ddf1e89073ede73d289e7d404d0ae01fc3ee79 | If any required stage was not loaded, load it before proceeding. |
+| OUTREACHCRM_PLAYBOOK.md | 431 | d021771f213cfeb1c2fa5c143e7efc5cbe57a0a8c4a773d6d526c34f2c4a18c7 | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 473 | 426487396fa878ba388bc55d0cc66a948e3381a47308b11f798c3c545d6adcd6 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 631 | 603a08e60a853ed2b4d863d1006ea15543b639e999ced67430ad3a52cfa3dec8 | --- |
 | playbooks/02_SENDBOX_SETUP.md | 245 | 899a1dae9c53f94dfaf6c2348b294441ccdb7f91c1a546459049e43b25609253 | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/03_IMPORT_LIST.md | 319 | 62f64c00ce555305affb6474bdf6da2e05ed44b67e623c8923ffd018d6dd1b4c | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
+| playbooks/04_VERIFY_ENRICH.md | 68 | 6df0301e583839c750d947e0d05738846effc85353ef6552315f08db94f5d139 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/05_CAMPAIGN_MANAGEMENT.md | 110 | 14441891d2884383d4f981710cdeb8ca4801525c4afece25de4da4bcc8524aaa | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1380 | ea88f86972a73a32657b28ee106a7ac28cc05f5da87c1e8a205cccbd5f0f3a11 | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, say `No action required right now.` |
 | playbooks/08_SEND_ENGINE_PROTOCOL.md | 171 | 4c6b6755ed8ceea34ecacf2efbb75115bf931cdf6b4560df9cb27a63a44f8d7b | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
@@ -20,5 +21,9 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/SCHEDULED_RUN_ENTRYPOINT.md | 133 | 7eb78d50d86636460b8d0d336db6dd65ff56fc98afc1551b08923f0511619291 | Notification is operator-facing status only, never outbound marketing to a contact. |
 | playbooks/SETUP_FLOW_ENTRYPOINT.md | 98 | f5c1075a9096ac2ab79a3952f38fe41ded5acf06d121300247f6ce1c678889c0 | Do not ask whether to send now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not enrich, draft-to-send, or notify in Setup Flow. |
 | playbooks/TODO.md | 40 | 87386192e3acc1c91a8ff234e4ce7a1d49e84e1420a34ab5c1fc1ca22a771459 | - Second sending domain support for scale (domain-level warmup already in the sendbox schema). |
+| playbooks/skills/email-verify-enrich/LOAD_MANIFEST.md | 10 | 4b11a176d5bdde79e7582cd8348d5092c55c4e4188be686e898764eaf9fe3d4e | \| etiquette.md \| 32 \| 75056e0dac856fc62041877e3b1052b1ddff474093675cf429ebfcad2ffcfa33 \| When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. \| |
+| playbooks/skills/email-verify-enrich/SKILL.md | 89 | 3b74d8f9d5ffe4a0e4b40e11f160c02e4dd00eec49e46d6f80cdd9b1bc33b046 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/skills/email-verify-enrich/channel_reality.md | 27 | 32178cd3280223e63c737cb491cf71f49c3b09a15c8984b1231f8f329950f257 |   this pass (it may become a hook on a later refresh), not a fabricated hook. |
+| playbooks/skills/email-verify-enrich/etiquette.md | 32 | 75056e0dac856fc62041877e3b1052b1ddff474093675cf429ebfcad2ffcfa33 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/skills/report-design/LOAD_MANIFEST.md | 8 | 2ced1ec35662b0eca342802bbc1ff3215e19cd8e598a3b75a7f00e6b35ac1cda | \| SKILL.md \| 134 \| a14096d96c008f66f28e603e80cd228bcb7da61f6f532be095e07005fce65f9c \| - [ ] No fake buttons, remote dependencies, raw Markdown dump, or mobile body overflow. \| |
 | playbooks/skills/report-design/SKILL.md | 134 | a14096d96c008f66f28e603e80cd228bcb7da61f6f532be095e07005fce65f9c | - [ ] No fake buttons, remote dependencies, raw Markdown dump, or mobile body overflow. |
