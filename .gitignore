@@ -19,6 +19,9 @@ outreach-pipeline/
 backup/
 backups/
 
+# Local maintainer tooling (not part of the public product — like soloagency kept its deploy script private)
+deploy-outreachcrm.sh
+
 # Logs and local environment/secrets
 *.log
 .env
