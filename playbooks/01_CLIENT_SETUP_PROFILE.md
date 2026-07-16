@@ -1,179 +1,173 @@
-# Basic Profile And Public Report
+# Client Setup And Profile
 
 Stage: `01`
 
 ## Load Rule
 
-Load during first setup, add-client flow, setup repair, and Automation Flow first agency run/report generation. This stage must be loaded together with Stage 0 before the first setup question. In Setup Flow, the report-generation parts of this stage are superseded by the Setup Flow hard stop.
+Load this stage during first-client setup, the add-client flow, setup repair, and the Automation Flow first agency run. It must be loaded together with Stage 0 (`playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`) before the first setup question, and every load needs a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` (read to the last line; compare `playbooks/LOAD_MANIFEST.md` when present).
+
+In Setup Flow, the send/enrich/campaign parts of the workflow this stage points at are superseded by the Setup Flow hard stop. Setup Flow configures OutreachCRM so a client-specific automation task can send later. It never sends an email, never enriches for send, and never runs a campaign.
+
+The Client Intelligence Profile that this stage builds is written using the canonical schema in Stage 7 (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`); this stage owns the interview that fills it, not the schema itself.
 
 ## Hard Gates For This Stage
 
-- First question asks only for product/service, profession, expertise, business description, or a public website/profile URL.
-- Do not ask for industry or sub-industry.
-- Show inference before asking the next question.
-- Explain any marketing/tech term in plain language when asking the human for input.
-- Configure schedule/routine and the client-specific automation task once the basic source plan is known.
-- Do not ask the private data source question before schedule/automation setup. Ask and resolve private data sources once after the task exists, then resync the task if source state changes.
-- If private data sources exist and Local Collector is not installed/running/healthy, resolve or record the step 6 checkpoint after automation exists: guide Local Collector setup, or clearly mark private data sources as pending and resync the automation run contract.
-- The first report must be produced by the client-specific automation task, not by the Setup Flow chat.
-- Load Stage 10 before reporting leads, competitors, comment opportunities, or lead/competitor logs.
-- PDNA setup - Production, Distribution, Notification, and Analytics - is a setup/config provider gate; do not start production or ask "make a video now?" inside Setup Flow.
-- If the human asks to run, create, generate, show, refresh, or update a report while this stage is being used for Setup Flow, do not run the report. Finish or resync the client-specific automation task and tell the human the exact task name to run.
+- The first setup question asks only one open thing: what the client sells and to whom (a product/service description, a website or profile URL, and target location only if it matters). Do not ask a dozen questions.
+- Do not ask the human to define ICP, pain points, value proposition, brand voice, offer, or audience by hand. The agent infers these from the one opening answer and shows them for correction.
+- Show the inference before asking the next question. The human sees the agent's reasoning evolve after every answer.
+- Explain any marketing/deliverability/compliance term in plain language when asking the human for input.
+- Setup Flow NEVER sends an email, NEVER enriches a contact for send, NEVER runs a campaign, and NEVER previews-then-sends. It only creates config and the client-specific automation task.
+- Terminal state for Setup Flow is `ready_for_automation_first_run` (or `ready_for_next_automation_run` for an already-live client), never `first_send_completed`.
+- If the human asks to send, enrich-and-send, run a campaign, "email them now", or "just send the first batch" while this stage is being used for Setup Flow, do not send. Refuse with the exact wording in the Setup Flow Send Refusal section, finish or resync the client-specific automation task, and tell the human the exact task name to run.
+- The first send, enrichment pass, and approval batch happen in Automation Flow, driven by a client-specific task whose name begins with the client name, for example `AvenNgo - OutreachCRM First Run` or `AvenNgo - OutreachCRM Daily Run`.
+- Nothing leaves the system without an explicit chat `approve`. Even in Automation Flow the send is gated by the Preview & chat-approval step (Stage 5 / Stage 8). Setup Flow does not reach that gate at all.
+- Every human step in this stage — every question, approval request, API-key request, one-line command, and native automation task edit — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. When nothing is needed, say `No action required right now.`
+- Load the referenced stages (2 sendbox, 3 import, 5 campaign, 7 storage schema, 12 analytics) with their own LOAD LEDGER before writing the config those stages own. Do not hand-write sendbox, list, campaign, pipeline, or analytics files from prose.
+- Configure the recurring schedule and the client-specific automation task once the profile and first campaign goal are known. Then offer the agency-wide maintenance task `OutreachCRM - GitHub Update Watch` as a separate update-watch automation.
 
-## Latest Override: Setup Flow Does Not Run Reports
+## Latest Override: Setup Flow Does Not Send
 
-This stage contains older first-run/report instructions for the previous workflow. The current Solo Agency control-plane model supersedes those instructions:
+The current OutreachCRM control-plane model supersedes any older "run the first report from setup" instruction:
 
-- In Setup Flow, do not run the first agency run, first report, public scan, private data source scan, draft generation, video creation, publishing, or PDNA actions.
-- Setup Flow must finish by creating or updating the client-specific automation task and all persistent config needed for that task to run correctly.
-- The first report must run in Automation Flow, using a client-specific task whose name begins with the client name, for example `AvenNgo - Solo Agency First Run` or `AvenNgo - Solo Agency Daily Run`.
-- If the human asks to run, create, generate, show, refresh, or update a report while still in Setup Flow, verify/resync the automation task instead and tell the human the exact task name to run. Do not ask whether to run the report now, do not load the scheduled-run entrypoint in the setup chat, and do not perform public research, private data source collection, report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or report notifications.
-- Any later setup/config change in this session must update the Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled prompt, native task prompt when editable, and resync log.
+- In Setup Flow, do not run the first agency run, first inbox sync, first enrichment pass, first draft batch, first send, tracking pull, or notification delivery.
+- Setup Flow must finish by creating or resyncing the client-specific automation task and all persistent config that task reads to run correctly.
+- The first send/enrich/draft/approval cycle must run in Automation Flow, using a client-specific task whose name begins with the client name, for example `AvenNgo - OutreachCRM First Run`.
+- If the human asks to send, enrich, run a campaign, generate drafts, or "start emailing" while still in Setup Flow, verify/resync the automation task instead and tell the human the exact task name to run. Do not ask whether to send now, do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` in the setup chat, and do not perform enrichment, drafting, sending, tracking, or notification.
+- Any later setup/config change in this session must resync the Client Intelligence Profile, sendbox registry, list/campaign config, `schedule.md`, the automation manifest, the scheduled-run prompt, the native task body when editable, and `resync_log.md` (Automation Resync).
 
-Updated setup completion means `ready_for_automation_first_run`, not `first_report_completed`.
+Setup completion means `ready_for_automation_first_run`, not `first_send_completed`.
 
 ## Source Preservation Rule
 
-This file is detailed source material moved from the original monolithic `SOLO_AGENCY_PLAYBOOK.md`.
-
-Do not summarize away requirements, examples, checklists, schemas, protocols, URLs, edge cases, warnings, approval gates, or completion gates. If a downstream agent needs to shorten its response to the human, it may summarize the response, but it must still obey the full requirements in this file.
+This file is detailed source material for the Stage 1 setup interview. Do not summarize away requirements, examples, checklists, schemas, protocols, edge cases, warnings, approval gates, or completion gates. If a downstream agent needs to shorten its response to the human, it may summarize the human-facing reply, but it must still obey the full requirements in this file.
 
 ---
 
-## 3. Minimal Human Input Rule
+## The Setup Flow Send Refusal (exact wording)
 
-At setup, the agent must ask only for:
+When the human asks to send, enrich-and-send, run a campaign, or "email them now" while Setup Flow is active, the only valid response is to refuse the send, keep the session in Setup Flow, and hand off to the automation task. Use this wording (adapt the client name and task name only):
+
+```text
+I will not send email or run a campaign from this setup session. Setup Flow only
+configures OutreachCRM — it never sends, never enriches a contact for send, and never
+runs a campaign. Sending happens only in Automation Flow, and even there nothing leaves
+until you approve the drafts in chat.
+
+I will finish or resync `{Client Name} - OutreachCRM Daily Run` (or
+`{Client Name} - OutreachCRM First Run` for the very first pass) instead. Once setup
+reaches `ready_for_automation_first_run`, run that task. It will sync the inbox, enrich
+the first batch, draft emails against the campaign goal, and post the drafts for your
+review. I will send only the drafts you `approve`.
+```
+
+Then end the reply with an `**[ACTION REQUIRED]**` block that names the exact client-specific automation task to run, or `No action required right now.` if the task is already ready and the human only needs to run it. Never end a send-request handoff with "let me know" or a bare report link.
+
+Do not ask "Do you want me to send it now?". Do not load the Scheduled Run entrypoint in the setup chat. Do not enrich, draft, send, pull tracking, or notify in Setup Flow.
+
+---
+
+## Minimal Human Input Rule
+
+At setup, the agent asks only for:
 
 - Client name, if not already known.
-- The client's product/service, profession, expertise, business description, or public website/profile URL.
-- Target location only if location matters and cannot be inferred.
+- What the client sells and to whom: a product/service description, the client's expertise or business description, or a public website/profile URL.
+- Target location only if location matters (local service area, jurisdiction, geo-limited offer) and cannot be inferred.
 
-The agent must not ask for `output_formats` by default. If no output format is specified, default to `video_script`. If the human asks for blog, article, newsletter, SEO content, or long-form content, add `blog_article`. If the human asks for platform captions, add `social_caption`.
+The agent must not ask the human to define, list, or fill in:
 
-The agent must not ask the human to define:
-
-- `industry`
-- `sub_industry`
-- `related_industries`
-- `target_audience`
+- `icp` (ideal customer profile — the people OutreachCRM will email on the client's behalf)
 - `pain_points`
-- `content_pillars`
-- `public_data_sources`
-- `private_data_sources`
-- `idea categories`
-- `content angles`
-- `daily matrix`
+- `value_proposition`
+- `offer`
+- `proof_points`
+- `brand_voice`
+- `target_audience`
+- `do_not_mention` / `negative_topics`
+- `language` assumptions
+- pipeline stages, custom fields, or the campaign goal shape
 
-The agent must infer these first.
+The agent infers all of these first, then shows them for correction.
 
 Good first setup question:
 
-`What product/service, profession, expertise, business description, or public website/profile URL should this pipeline focus on? If location matters, include the target location.`
+```text
+What does this client sell, and to whom? A product/service description, a website or
+profile URL, and the target audience or service area (if location matters) is enough —
+I will infer the ideal customer, their pain points, the value proposition, and the
+sending voice, then show you to correct.
+```
 
 Good add-client question:
 
-`Please provide the new client's name and product/service, profession, expertise, business description, or public website/profile URL. Include target location if known.`
-
-Do not mention private data sources in the first setup or add-client question. Ask about private data sources once, after schedule/routine and the client-specific automation task have been configured. That private data source checkpoint is where the agent asks for actual private data source URLs/lists, offers discovery, gets approval, handles Local Collector activation when needed, and resyncs the automation task afterward.
+```text
+Please give me the new client's name and what they sell — a product/service
+description, expertise, or a public website/profile URL — plus the service area if
+location matters. I will infer the rest and show you to correct.
+```
 
 Bad setup questions:
 
 - "What industry are you in?"
-- "What sub-industry should I use?"
-- "Please list your target audience."
-- "Please list all pain points."
-- "Please define your content pillars."
-- "Please provide all public data sources."
+- "Please list your ideal customer profile."
+- "Please list all the pain points."
+- "Please define your value proposition."
+- "Please choose your pipeline stages and custom fields."
+- "What should the campaign goal be?"
 
-Exception:
-
-If the agent cannot infer a critical field after reasonable research and the field changes the direction materially, it may ask one concise follow-up question.
+Exception: if the agent cannot infer a critical field after reasonable research (for example, whether the offer is B2B or B2C, or whether the service is geo-limited) and the field changes the direction materially, it may ask one concise follow-up question.
 
 ### Step-By-Step Setup Interview Rule
 
-Setup must be conducted step by step, not as one long questionnaire.
+Setup is conducted step by step, not as one long questionnaire. The agent follows this loop:
 
-The agent must follow this loop:
-
-1. Ask one minimal setup question.
+1. Ask one minimal setup question (or advance to the next of the nine setup steps).
 2. Wait for the human's answer.
 3. Immediately infer everything that can be inferred from that answer.
-4. Show the inference to the human.
-5. Ask the next minimal setup question only after showing the inference.
+4. Show the inference to the human, marked with its status and rationale.
+5. Ask the next minimal question only after showing the inference.
 
-The agent must not collect all setup answers first and only show reasoning at the end. The human should see the agent's reasoning evolve after every answer.
+The agent must not collect all setup answers first and only show reasoning at the end. Every follow-up question includes a short `What I inferred from your last answer` section before the next question.
 
-When showing initial public search keywords, do not show only broad industry terms and do not dump the full keyword bank into chat. The agent must generate and save a broad `public_search_keywords` bank, then show only a compact `Pain-Point Keyword Sample` with 5-12 keywords from pain-point/problem/need groups plus a line such as `+200 more saved in the keyword bank for daily rotation`.
+The ICP the agent infers is the client's ideal customer — the recipients OutreachCRM will email — not the client themselves. Distilled ICP, pain points, value proposition, offer, proof points, and brand voice feed the email-writing skill (Stage 6) as the client-profile half of every draft (voice, offer, compliance).
 
-Keyword language must follow the target audience's likely search/comment language, not automatically the human's chat language. The human-facing explanation may be in the human's language while the actual keyword strings remain in the audience language. If the audience is multilingual, create and label multilingual keyword variants.
-
-Required setup sequence, aligned to the visible 9-item roadmap. Do not introduce setup steps 10+.
-
-1. Ask for the client's product/service, profession, expertise, business description, or public website/profile URL.
-2. Infer and show `industry`, `sub_industry`, `related_industries`, `business_offer`, likely `target_audience`, language assumptions, and whether the business is location-dependent. If the target location is required and cannot be inferred, ask only for `target_location`.
-3. Infer and show `pain_points`, `content_pillars`, how each pillar maps to pain points and the business offer, which pillars are `primary_industry` vs `related_industry`, and the planned content mix rule.
-4. Select public data sources and build the keyword bank. Show only a compact `Pain-Point Keyword Sample`, not a generic industry keyword dump. Then show the complete setup summary, ask the human to correct only what is wrong, and save the Client Intelligence Profile after that correction chance.
-5. Configure the schedule/routine before the first agency run, using the best scheduling mechanism available in the environment, and create or verify the client-specific automation task. Configure the initial task as public data sources only unless active private data sources are already verified healthy.
-   - The setup handoff must include the client-specific automation task name; task status; whether the task currently runs public data sources only or public plus activated private data sources; a visible `Solo Agency one-time setup process` progress roadmap; and the exact next action.
-6. Ask and resolve private data sources once, after the automation task exists. Explain plainly that private data sources mean logged-in/social/community places the human may want monitored later, such as competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities/subreddits, niche forums, and Facebook groups. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private data sources are requested, already provided, or discovery/Local Collector is relevant (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded).
-   - If the human already provided private data sources in an earlier message, record them as `pending_private_review` and process them in this step only.
-   - Ask for actual private data source URLs/lists or offer one optional private data source discovery pass from approved joined/followed/member spaces or Facebook keyword group search.
-   - Get human approval before adding any discovered source; then guide Local Collector setup or record the exact pending blocker.
-   - After the human approves, declines, postpones, or blocks private data sources, update source state and perform Automation Resync so the already-created task has the newest contract.
-   - Do not ask a separate private data source discovery checklist question. Discovery stays inside step 6.
-   - Do not label the collector by platform. Even if the provided sources are all Facebook, call it the Solo Agency Local Collector extension and Local Collector app.
-   - If the human approves Facebook member-groups discovery, scan the joined-groups discovery page through the Solo Agency Local Collector: `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added`.
-   - If the human approves Facebook keyword group search discovery, infer client-relevant keywords, scan `https://www.facebook.com/search/groups/?q={url_encoded_keyword}` through the Solo Agency Local Collector, scroll 10 times per keyword, filter out UI noise/non-group results, and ask for approval before adding any recommended group.
-   - If the human approves other platform discovery categories, use the private data source discovery platform starting URL registry and mark each approved category as `pending_private_activation` until the Local Collector is active and healthy.
-   - After source intake or discovery, infer and show which private data sources are likely useful, which should be skipped or treated as optional, how they map to content pillars, and whether each source should be `daily`, `weekly`, or `optional` based on relevance and safe monitoring volume.
-7. If the human asks for production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded) and complete the PDNA provider/capability setup gate only. Do not end the setup handoff with `Do you want me to make a video now?`, start scene editing/rendering, or create/publish assets from Setup Flow.
-8. Record analytics as an Automation Flow concern. In Setup Flow, only save whether published URL history exists and whether future scheduled runs should load Stage 5.
-9. Record that reports, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, and PDNA production actions belong to Automation Flow. After any private scan or approved source-discovery scan in Automation Flow, analyze the collected private data and update the report there.
-
-Every follow-up question must include a short `What I inferred from your last answer` section before the next question.
-
-Example:
+Example inference block:
 
 ```md
 What I inferred from your last answer:
-- Industry: Legal
-- Sub-industry: DUI / Criminal Defense
-- Related industries: auto insurance, DMV/license rules, employment background checks, immigration consequences, local traffic enforcement
-- Target audience: drivers in Los Angeles facing DUI stops, arrests, court dates, or license suspension risk
-- Pain points: fear of losing license, uncertainty about court, fear of criminal record, not knowing what to say after a stop
-- Content mix: roughly 80% DUI/criminal defense, 20% related consequences such as insurance, license, job, or immigration impact when the bridge is clear
-- Content pillars:
-  - Emergency first steps
-  - License and court consequence clarity
-  - Mistake prevention after a DUI stop
-  - Los Angeles / California process education
-  - Lead-gen angle: why early legal guidance preserves options
+- Business: residential mortgage brokerage
+- Ideal customer (ICP): first-time home buyers, rate shoppers, and homeowners weighing
+  a refinance, in and around Austin, TX
+- Pain points: unclear affordability, fear of over-paying on rate, confusion about
+  pre-approval, uncertainty about monthly payment
+- Value proposition: a broker who shops many lenders for you, gives a real pre-approval
+  fast, and explains the monthly-payment math plainly
+- Offer: free rate quote + pre-approval consult
+- Proof points (to verify): "we compare 20+ lenders", local Austin closings
+- Brand voice: plain, reassuring, numbers-first, low-pressure
+- Do-not-mention: none inferred yet
+- Language: English (audience and reports)
 
 Next question:
-Did I read the pain points right? Please correct anything that is wrong in the list above, and confirm the target location: should I focus on Los Angeles only, or also cover nearby counties where your clients get stopped or go to court? The answer changes which local sources and keywords I select next.
+Did I read the ideal customer and the offer right? Correct anything wrong above, and
+confirm the service area: Austin only, or the wider Central Texas region your clients
+buy in? That changes how tightly I geo-target the first list.
 ```
-
-Note: private data sources are asked only at setup step 6, after the schedule/routine and the client-specific automation task exist; do not ask about them in this follow-up.
 
 ---
 
-## 4. Inference-First Rule
+## Inference-First Rule
 
-The agent must think, infer, and research before asking.
+The agent thinks, infers, and researches before asking. The agent must:
 
-The agent must:
-
-- Use existing files first.
+- Use existing files first (a prior profile, an earlier `pending` note).
 - Use the client description or public website/profile URL.
-- Use public web research if available.
-- Use the client's website or public profile if available.
-- Use known industry patterns.
-- Use target location context.
-- Draft assumptions instead of blocking.
+- Use public web research (WebSearch/WebFetch/browser tool) when available.
+- Use known market patterns for the offer type.
+- Use target-location context.
+- Draft assumptions instead of blocking; proceed with reasonable assumptions when optional fields are missing.
 
-The agent should proceed with reasonable assumptions when optional fields are missing.
-
-Each inferred setup field must include:
+Each inferred setup field carries:
 
 - `value`
 - `status`
@@ -189,606 +183,454 @@ Allowed status values:
 Example:
 
 ```md
-## target_audience
-value: First-time home buyers, mortgage shoppers, and homeowners considering refinancing in Austin.
+## icp
+value: First-time home buyers, rate shoppers, and refinance-curious homeowners in Austin, TX.
 status: inferred_by_agent
-rationale: The client provides mortgage services in Austin. These groups are the most likely to have urgent questions about affordability, rates, pre-approval, and monthly payments.
+rationale: The client is a residential mortgage broker in Austin. These groups carry the
+most urgent, time-sensitive questions about affordability, rate, pre-approval, and monthly
+payment, which makes them the highest-intent cold-email audience.
 ```
 
+Research honesty: do not invent proof points, awards, closings, or claims the client has not confirmed. Anything the agent could not verify is marked `to_verify` and surfaced in the correction step. A draft (later, in Automation Flow) may contain only claims the client confirmed or a contact dossier supports with an `evidence_url`; that discipline starts at the profile.
+
 ---
 
-## 5. Show Inference And Research Rule
+## Show Inference And Research Rule
 
-Anything inferred or researched by the agent must be shown to the human before being saved as stable setup context.
+Anything inferred or researched must be shown to the human before it is saved as stable setup context. The agent shows:
 
-The agent must show:
-
-- Inferred `industry`
-- Inferred `sub_industry`
-- Inferred `target_audience`
-- Inferred or discovered `target_location`
+- Inferred `icp`
 - Inferred `pain_points`
-- Inferred `content_pillars`
-- Inferred `business_offer`
-- Discovered public data sources
-- Suggested public monitoring sources
-- Requested private data source categories
+- Inferred `value_proposition` and `offer`
+- Inferred or discovered `target_location`
+- Inferred `proof_points` (marked `to_verify` where unconfirmed)
+- Inferred `brand_voice`
+- Inferred `language` assumptions
+- Any inferred `do_not_mention` / `negative_topics`
+- Compliance notes (sending identity gaps, opt-out method)
 - Assumptions and rationale
-- Compliance notes
-- Negative topics if any are inferred
 
-The agent should ask:
+The agent then asks, in an `**[ACTION REQUIRED]**` block:
 
-`Please correct anything that is wrong. If this looks right, I will save it and use it for future daily runs.`
+```text
+**[ACTION REQUIRED]**
 
-The agent must not ask the human to fill every field manually.
+**Client:** {Client Name}
+**I need you to:** correct anything wrong in the profile above. If it looks right, I will
+save it as the Client Intelligence Profile and use it for every future automation run.
+**Reply with:** `looks right` or the specific corrections
+**Why:** This profile becomes the client-side half of every email OutreachCRM drafts.
+```
+
+The agent must not ask the human to fill every field manually. It corrects on feedback, marks corrected fields `human_corrected`, and saves.
 
 ---
 
-## 12. Multi-Client Batch Mode
+## The 9-Step Setup Flow Interview
 
-The pipeline must support many clients across many industries.
+Setup follows exactly nine steps, aligned to the visible setup roadmap. Do not introduce steps 10+. Steps that own another stage's config (sendbox, list, campaign, analytics) load that stage in full first (LOAD LEDGER) and write through its tooling — never by hand.
 
-If the human already has multiple clients, the agent should accept a compact list.
+### Step 1 — Business, ICP, pain points, value proposition, and voice (one question, then infer)
+
+Ask the single opening question. From the answer plus research, infer and show for correction:
+
+- `business` (what the client sells) and `offer`
+- `icp` (who OutreachCRM will email)
+- `pain_points` of the ICP
+- `value_proposition` and candidate `proof_points` (mark unconfirmed ones `to_verify`)
+- `brand_voice` (tone, formality, do/don't)
+- `language` (audience language, report language)
+- `do_not_mention` / `negative_topics`
+- `target_location` (ask only if it matters and cannot be inferred)
+
+Show the inference block, take corrections, and hold the corrected values for the profile save at the end of Step 1. This is the only place the human describes the business in prose; every later step is a short confirm.
+
+### Step 2 — Pipeline template + custom fields
+
+Propose the default sales pipeline (six stages) and ask only whether to customize. The default `pipelines.json` (`default_sales`) carries per-stage `probability` and `sla_days`:
+
+```json
+{"pipelines":[{"id":"default_sales","stages":[
+   {"id":"new_reply","probability":0.10,"sla_days":1},
+   {"id":"engaged","probability":0.25,"sla_days":7},
+   {"id":"meeting_booked","probability":0.50,"sla_days":7},
+   {"id":"proposal_sent","probability":0.70,"sla_days":10},
+   {"id":"won"},{"id":"lost"}]}]}
+```
+
+The full pipeline object (including the deterministic rules `r1`–`r6`) lives in Stage 13; at setup, write the pipeline via `crm_store.py`, never as a hand-edited file. Ask whether the client wants to rename or add stages, and whether they track any custom fields on contacts, accounts, or deals (for example `loan_type`, `brokerage`, `renewal_month`). Custom fields land in `contact.custom_fields` / account `custom_fields` / deal fields per the Stage 7 schema.
+
+```text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name}
+**Approve one option:** `use default pipeline` / `rename/add stages` / `add custom fields`
+**What I will do after approval:** save the pipeline and any custom fields to this
+client's CRM config through `crm_store.py`.
+**Why:** The pipeline decides how replies become deals and when nudge tasks fire.
+```
+
+Default is fine for almost every client — do not force customization.
+
+### Step 3 — Sending identity (from-name, signature, physical address, unsubscribe method)
+
+Capture the identity that appears on every email and the CAN-SPAM footer. This is the one step where the agent must ask, because the values are the client's real-world facts and are legally load-bearing:
+
+- `from_name` — the display name recipients see (a real person is best; "The {Client} Team" is acceptable).
+- `signature` — name, role, client business name, reply-to, optional phone/site.
+- `physical_postal_address` — a valid physical mailing address (street or registered PO box). **Required for CAN-SPAM:** every commercial email must include a physical address. Setup cannot mark sending identity complete without it.
+- `unsubscribe_method` — how recipients opt out. For the priority `@gmail.com` (App Password) path, sendboxes default to `plain_text_mode` (no open pixel, no link rewrite), so the baseline opt-out is a plain footer opt-out line plus a `List-Unsubscribe` mailto alias (`{box}+unsub-{token}@…`); a one-click HTTPS `/u/` unsubscribe requires the tracker worker on a domain the client controls (Workspace/custom-domain path, wired in Stage 8/Stage 11, later phase). Record which method applies.
+
+```text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name}
+**I need you to:** confirm the sending identity — from-name, one-line signature, and a
+valid physical mailing address for the legal footer. Tell me the reply-to address too.
+**Reply with:** the from-name, signature, physical address, and reply-to
+**Why:** US CAN-SPAM requires a physical address and a working opt-out in every
+commercial email. I cannot mark the client ready to send without them.
+```
+
+Encode, do not merely note: the profile stores the address and opt-out method; the send engine (Stage 8) injects the footer opt-out and `List-Unsubscribe` header on every send, and Stage 9 audits their presence. Step-1 subjects must be truthful (no fake `Re:`/`Fwd:`) — recorded here as a guardrail, enforced at draft and pre-send.
+
+### Step 4 — Connect the first sendbox
+
+Load Stage 2 (`playbooks/02_SENDBOX_SETUP.md`) in full (LOAD LEDGER) before writing any sendbox config. Two auth modes, one interface:
+
+- **`app_password` — the priority path for `@gmail.com`.** SMTP send + IMAP read via Python stdlib; no OAuth, no 7-day token expiry, preserves our Message-ID. Requires 2-Step Verification on the Google account and an App Password. Consumer `@gmail.com` limits are documented and accepted: `plain_text_mode` (measure by reply, no pixel), roughly 20–50 cold emails/day/box, never the operator's primary Gmail, cold bulk risks suspension at volume — start low with tight personalization.
+- **`oauth` — advanced (Google Workspace / custom domain).** Gmail API with scopes `gmail.send + gmail.readonly` only. The OAuth app must be **Internal** to avoid the 7-day refresh-token expiry; if forced External/testing, weekly re-auth becomes a scheduled day-6 `**[ACTION REQUIRED]**`, not an error.
+
+Never ask for the Google password, cookies, or OTP. The App Password request is allowed because it is a scoped app credential, not the account password:
+
+```text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name}
+**I need you to:** turn on 2-Step Verification for the sending Gmail account, create an
+App Password (Google Account → Security → App passwords), and paste the 16-character App
+Password plus the sending address.
+**Reply with:** `sendbox: {address}@gmail.com` and the App Password
+**Why:** OutreachCRM sends and reads that mailbox over SMTP/IMAP with the App Password.
+It is scoped to this app and never your main Google password.
+```
+
+Store credentials under `sendboxes/{sendbox_slug}/credentials.json` (gitignored, chmod 600) and register the box in `sendboxes/sendboxes.json` with `auth_mode`, `email`, `domain`, `quota_today`, `warmup_stage: week_1`, `status: healthy`. Setup connects and verifies the box; it does not send a test cold email. A connectivity check that authenticates SMTP/IMAP without sending outbound mail is allowed; sending a real message is not.
+
+### Step 5 — Import the first list
+
+Load Stage 3 (`playbooks/03_IMPORT_LIST.md`) in full (LOAD LEDGER) before importing. Accept a CSV/TXT/XLSX list. The importer mints a ULID `lead_id` per row (email is NOT required — a contact may be name + a profile URL only), maps and normalizes fields, dedupes across identities, and checks every identity against global and client suppression at import time. Output lands under `lists/{list_slug}/` (`list_manifest.json`, `leads.jsonl`, `import_log.md`) and creates contacts through `crm_store.py`.
+
+```text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name}
+**I need you to:** give me the first list — a CSV/TXT/XLSX path or paste the rows. Any
+columns you have (name, email, company, phone, profile URL, city) are fine; email is not
+required.
+**Reply with:** the file path or the pasted list
+**Why:** This becomes the client's first contact set. I import and dedupe it now; I do
+not enrich or email anyone in Setup Flow.
+```
+
+Setup imports and dedupes only. It does not verify-enrich for send (Stage 4) and does not draft or send. Enrichment and drafting begin in the first automation run.
+
+### Step 6 — Create the first campaign with a structured goal
+
+Load Stage 5 (`playbooks/05_CAMPAIGN_MANAGEMENT.md`) in full (LOAD LEDGER) before writing `campaign_config.json`. The goal is the writing blueprint, not a label — it drives what the agent writes. Infer a proposed goal from the profile and show it for correction rather than asking the human to author JSON:
+
+```json
+{"campaign_slug":"",
+ "goal":{"goal_type":"book_meeting|get_reply|direct_sale|reactivation|nurture_upsell|event_invite",
+   "objective":"","offer":"","value_proposition":"",
+   "proof_points":[{"claim":"","evidence_url":""}],
+   "cta":{"type":"reply_yes|link|calendar","text":""},
+   "success_event":{"on":"reply_positive","create_deal_stage":"new_reply"}},
+ "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,
+   "no_hook_fallback":"generic_honest_opener|skip"}},
+ "sequence":[{"step":1,"intent":"hook + offer, one CTA","tracking":"plain_text"},
+   {"step":2,"gap_days":4,"intent":"deliver new value"},
+   {"step":3,"gap_days":5,"intent":"social proof"},
+   {"step":4,"gap_days":7,"intent":"breakup"}],
+ "sendboxes":[],"daily_quota":40,"approval_mode":"manual_all",
+ "guardrails":{"banned_claims":["guarantees"],"no_fake_re":true},
+ "channel_strategy":"email_first"}
+```
+
+`goal_type` shapes the email: `book_meeting` → short, one time-bound CTA; `get_reply` → ends with a question, no link; `direct_sale` → value + one offer link; `reactivation` → evidence of a prior relationship. Every final step is a breakup. `success_event` wires straight into the CRM rules engine (a positive reply creates a deal at `new_reply`). Default `approval_mode: manual_all` even for bumps.
+
+```text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name}
+**Approve one option:** `use this goal` / `change goal_type` / `edit offer or CTA`
+**What I will do after approval:** save the first campaign config. I will NOT enrich,
+draft, or send in this session.
+**Why:** The campaign goal decides what every email in this sequence tries to achieve.
+```
+
+Setup writes the campaign config only. It does not build the enrich queue, draft, preview, or send.
+
+### Step 7 — PDNA notification (WideCast API key only)
+
+In OutreachCRM, PDNA is **notification-only**. There is no production, rendering, or distribution stage — WideCast is used solely to deliver operator notifications: a Telegram message (`sendTelegramMessage`) with the report link, an email fallback when Telegram is unavailable, and an optional `uploadAsset` call to host the report file behind the link. This is the one provider setup in Setup Flow, and it is client-scoped.
+
+Ask only for the client's WideCast API key; the agent configures, verifies, discovers, and resyncs the rest. Provider config lives per client under `integrations/providers/provider_config.local.json`. The key is referenced by `api_key_env` (an environment-variable name) or `api_key_local` (a path/handle) — **never a field literally named `api_key`**. Capability discovery uses the OpenAPI helper `tools/provider_openapi.py`, caching to `provider_openapi_cache.yaml` and recording capabilities in `provider_capabilities.json`.
+
+```text
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name}
+**I need you to:** paste this client's WideCast API key so operator notifications
+(Telegram + email fallback) work.
+**Reply with:** `widecast key: {key}`
+**Why:** After a run, OutreachCRM sends you the run summary and report link via WideCast
+`sendTelegramMessage`. It is notification-only — no video, rendering, or distribution.
+```
+
+Do not ask provider/scope/spend/publish/account-identity questions — those belong to a non-default stack the human must explicitly request. Do not treat a global MCP/native provider account as this client's notification connection. If the current session cannot write provider config, hand the API-key action to the setup/automation task via an `**[ACTION REQUIRED]**` block. WideCast is operator-only; it never appears in client-facing output (the scrub gate strips it).
+
+### Step 8 — Baseline analytics (nothing sent)
+
+Load Stage 12 (`playbooks/12_TRACKING_ANALYTICS.md`) reference and initialize the client's analytics baseline with everything zeroed, because nothing has been sent. Create `analytics/metrics_log.md` and an empty `analytics/learning_log.md`. Record the honest metric model up front: reply / bounce / unsubscribe are exact; open is an estimate (labeled "estimated"); click is fairly reliable after bot filtering. For `@gmail.com` `plain_text_mode` boxes there is no open pixel at all, so the baseline is reply-measured.
+
+Setup only records that no sends exist yet and that the learning loop starts empty; it runs no tracking pull and computes no rates.
+
+### Step 9 — Create the automation task(s)
+
+This is where Setup Flow ends. Create or resync:
+
+- **One client-specific automation task**, name beginning with the client name, for example `AvenNgo - OutreachCRM First Run` (or `AvenNgo - OutreachCRM Daily Run`). Its prompt pins `target_client_slug` so it can never touch another client. Configure the schedule/cadence the human wants (daily, weekday, manual-only, first-run-only).
+- **One agency-wide maintenance task** `OutreachCRM - GitHub Update Watch`, offered after the client task exists. It is barred from client-facing channels and does not touch client data (Stage 11).
+
+Write every persistent state file the next automation run reads: the Client Intelligence Profile, `sendboxes/sendboxes.json`, list/campaign config, `outreach-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt, the native task body when editable, and `resync_log.md`. Then run the dry-read Automation Resync verification.
+
+End with an `**[ACTION REQUIRED]**` block naming the exact task to run for the first pass and stating that setup is `ready_for_automation_first_run`. Do not send, do not run the task from the setup chat, and do not ask "run it now?".
+
+---
+
+## Client Intelligence Profile
+
+The Client Intelligence Profile is the durable, client-scope record that every automation run reads and every draft is built from. Its canonical field schema lives in Stage 7 (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`); this stage owns the interview that fills it. Path (per the on-disk layout, `outreach-pipeline/`):
+
+```text
+outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/
+  client_profile_{client_slug}_{business_slug}_{location_slug}.md
+```
+
+Stage-1-relevant fields the interview must fill (each with `value` / `status` / `rationale` where inferred):
+
+- `client_name`, `client_slug`, `business_slug`, `location_slug`
+- `business`, `offer`, `value_proposition`, `proof_points[]` (each `to_verify` until confirmed)
+- `icp`, `pain_points[]`, `target_location`
+- `brand_voice`, `language` (audience language, report language)
+- `do_not_mention[]` / `negative_topics[]`
+- `sending_identity`: `from_name`, `signature`, `physical_postal_address`, `reply_to`, `unsubscribe_method`
+- `pipeline_id` (default `default_sales`) and any `custom_fields`
+- `sendbox_refs[]` (slugs into `sendboxes/sendboxes.json`)
+- `default_campaign`: `campaign_slug` + goal summary
+- `notification`: WideCast provider reference (`api_key_env`/`api_key_local`, capabilities), notification-only
+- `analytics_baseline`: nothing sent; metric-honesty note
+- `setup_state`: `ready_for_automation_first_run`
+- `automation_task_name`: `{Client Name} - OutreachCRM Daily Run` (or First Run)
+
+Slug rules: lowercase, hyphens, no punctuation or spaces. The client folder key is `{client_slug}/{business_slug}_{location_slug}`. All monthly artifacts (activities, sent log, campaign history, reports, inbox sync, outputs) use `YYYY-MM/` folders. The profile is written through `crm_store.py`/the Stage 7 tooling where the schema requires it; do not hand-edit CRM record files, which is a critical violation.
+
+---
+
+## Multi-Client Batch Mode
+
+OutreachCRM supports many clients across many offers. If the human already has several clients, accept a compact list.
 
 Example human input:
 
 ```md
-I manage 10 clients. Set up one daily content pipeline for each:
+I manage 5 clients. Set up one workspace for each:
 
-1. Smith Law - DUI lawyer - Los Angeles - private data sources: competitor FB pages A, B
-2. Austin Home Group - real estate agent - Austin, TX - private data sources: none yet
-3. Bright Mortgage - home loans - Texas - private data sources: competitor TikTok X
-4. Miami Shield Insurance - home and auto insurance - Miami - private data sources: local FB group Y
-5. Vienna AI Ops - AI automation agency - Vienna - private data sources: LinkedIn competitors
+1. Smith Law - DUI defense - Los Angeles - list: dui-leads.csv - goal: book_meeting
+2. Austin Home Group - real estate - Austin, TX - list: buyers.csv - goal: get_reply
+3. Bright Mortgage - home loans - Texas - list: refi-list.xlsx - goal: direct_sale
+4. Miami Shield Insurance - home + auto - Miami - list: renewals.csv - goal: reactivation
+5. Vienna AI Ops - automation agency - Vienna - list: saas-founders.csv - goal: book_meeting
 ```
 
 The agent must:
 
-1. Create one pipeline folder per client.
-2. Infer all setup fields for each client.
-3. Show a setup summary for each client.
-4. Ask the human to correct only what is wrong.
-5. Save one Client Intelligence Profile file per client.
-6. Add all clients to `clients_index.md`.
-7. Configure or document the daily schedule/routine.
-8. Ensure daily runs process every active client.
+1. Create one client workspace folder per client under `outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/`.
+2. Infer the full profile (ICP, pain points, value proposition, offer, voice) for each client and show a per-client summary.
+3. Ask the human to correct only what is wrong (one `**[ACTION REQUIRED]**` block, batched).
+4. Save one Client Intelligence Profile per client.
+5. Add every client to `clients_index.md`.
+6. Configure each client's sendbox, list, first campaign goal, sending identity, and notification per the nine steps — each client gets its own sendbox(es), suppression, and data (no shared quota, no cross-client visibility).
+7. Configure the schedule and create one automation task per client, each pinning its own `target_client_slug`.
+8. Reach `ready_for_automation_first_run` for each client. Send nothing.
 
-If the human provides incomplete entries, infer what is possible and ask only for missing critical information.
+If entries are incomplete, infer what is possible and ask only for the missing critical items (a sendbox to send from, a physical address for the footer, a list). Never fabricate a workspace: if the client name or enough business context is missing, ask for it and keep the root ready.
 
 ---
 
-## 13. Incremental Client Onboarding Rule
+## Incremental Client Onboarding Rule
 
-The pipeline must support starting with zero clients and adding clients over time.
+OutreachCRM supports starting with zero clients and adding clients over time. The human is not required to provide all clients at once.
 
-The human is not required to provide all clients at once.
-
-If there are no clients yet, create only:
+If there are no clients yet, create only the data root scaffold and enter First Client Setup Mode:
 
 ```text
-daily-content-pipeline/
+outreach-pipeline/
   clients_index.md
   schedule.md
+  storage_config.json          # {"backend":"json"}
+  provider_defaults.json       # WideCast notification catalog, no secrets
+  suppression/global_suppression.jsonl
   clients/
-  outputs/
+  automation/
+  notifications/
 ```
 
-Then immediately enter First Client Setup Mode.
+First Client Setup Mode is the same as Add Client Mode, triggered automatically during the first run when `clients_index.md` has no real client rows. Proceed as far as possible toward setting up the first client instead of stopping after root creation.
 
-First Client Setup Mode is the same as Add Client Mode, but it is triggered automatically during the first run when `clients_index.md` has no real client rows. The agent must proceed as far as possible toward setting up the first client instead of stopping after root folder creation.
-
-In First Client Setup Mode, ask only for the minimum information required to create the first client pipeline:
+In First Client Setup Mode, ask only:
 
 - Client name, if not already known.
-- Product/service, profession, expertise, business description, or public website/profile URL.
-- Target location only if location matters and cannot be inferred.
-- If the human volunteers private data sources early, record them as `pending_private_review` and resolve them only at setup step 6 (do not ask for them here).
+- What the client sells and to whom (product/service, expertise, or public website/profile URL).
+- Target location only if it matters and cannot be inferred.
 
-Do not create fake client pipelines. If the client name or enough business context is missing, ask for the missing information and keep the root pipeline ready. A public website/profile URL counts as business context if it is publicly accessible and gives enough information to infer the setup.
+Do not create fake client workspaces. A public website/profile URL counts as business context if it is publicly accessible and gives enough to infer the profile.
 
-Whenever the human says something like:
+Whenever the human says something like "Add a new client", "Add this client", "We just got a new client", or "Add client: …", enter Add Client Mode. In Add Client Mode ask only for missing critical information (name; what they sell; location if it matters), then infer `icp`, `pain_points`, `value_proposition`, `offer`, `proof_points`, `brand_voice`, `language`, `do_not_mention`, and a proposed pipeline + campaign goal.
 
-- "Add a new client"
-- "Add this client to the pipeline"
-- "We just got a new client"
-- "Start monitoring content ideas for this business"
-- "Add client: ..."
+Then follow the same nine-step setup model. Do not introduce Add Client setup steps 10+.
 
-The agent must enter Add Client Mode.
-
-In Add Client Mode, ask only for missing critical information:
-
-- Client name.
-- Product/service, profession, expertise, business description, or public website/profile URL.
-- Target location only if location matters and cannot be inferred.
-- If the human volunteers private data sources early, record them as `pending_private_review` and resolve them only at setup step 6 (do not ask for them here).
-
-The agent must infer:
-
-- `industry`
-- `sub_industry`
-- `target_audience`
-- `pain_points`
-- `content_pillars`
-- `business_offer`
-- `public_data_sources`
-- `brand_voice`
-- `language`, including `human_report_language`, `target_audience_language`, `keyword_language`, and `content_output_language`
-- `platforms`
-- `compliance_notes`
-- `negative_topics`
-
-Then the agent must follow the same 9-item setup model. Do not introduce Add Client setup steps 10+.
-
-1. Show the inferred setup summary to the human and ask them to correct only what is wrong.
-2. Create or update the client pipeline folder, Client Intelligence Profile, history folder, outputs folder, and `clients_index.md` row.
-3. Save the inferred pain points, content pillars, business offer, language assumptions, and compliance notes.
-4. Save the public data source plan and keyword bank.
-5. Configure the recurring schedule/routine once the basic source plan is known, prepare or verify the client-specific extension folder under `extensions/{client_slug}/`, and create/resync the client-specific automation task with the task name beginning with the client name, for example `Nguyen Law - Solo Agency First Run` or `Nguyen Law - Solo Agency Daily Run`. Configure the initial task as public data sources only unless active private data sources are already verified.
-6. Ask and resolve private data sources once after automation exists: record provided sources as `pending_private_review`, declined/no sources, pending Local Collector activation, private data source discovery approved/pending, or `discovery_declined_or_postponed`. If private data sources exist or discovery is approved/pending, guide Local Collector setup now, or record private data sources as `pending_private_activation` so the first automation run can continue with public data sources only if needed. Update the Client Intelligence Profile, `schedule.md`, collector config, extension registry, automation manifest, scheduled-run prompt/task body, and resync log so the already-created task has the newest source state. Finish the setup handoff by telling the human the exact automation task name to run for the first report, the absolute extension folder path, the matching Chrome profile/account to use when private data sources are active/pending, exact `chrome://extensions` -> Developer mode -> `Load unpacked` steps when needed, and whether private data sources are active, pending, stale, declined, or not requested. Do not merely say "extension created."
-7. If the human asks for production/video/blog/social, publishing, notifications, analytics, or "full automatic" during Setup Flow, load `playbooks/03_PRODUCTION_DISTRIBUTION.md` only as a provider/configuration gate. Do not create or publish assets from Setup Flow.
-8. Record analytics as an Automation Flow concern only.
-9. Do not run the first agency run, first report, public scan, private data source scan, report updates, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, video creation, publishing, or PDNA production actions inside Setup Flow.
+1. Show the inferred profile summary and ask the human to correct only what is wrong.
+2. Create/update the client workspace folder, Client Intelligence Profile, CRM folders (`accounts/`, `contacts/`, `deals/`, `activities/YYYY-MM/`, `tasks/`, `pipelines.json`, `suppression.jsonl`), `lists/`, `campaigns/`, `analytics/`, `reports/`, `outputs/`, and the `clients_index.md` row.
+3. Save the inferred ICP, pain points, value proposition, offer, brand voice, language, and compliance notes.
+4. Save the pipeline (default six-stage) and any custom fields, plus the first campaign goal.
+5. Connect the first sendbox (Stage 2), import the first list (Stage 3), and capture the sending identity (from-name, signature, physical address, unsubscribe method).
+6. Configure the recurring schedule and create/resync the client-specific automation task whose name begins with the client name, for example `Nguyen Law - OutreachCRM First Run` or `Nguyen Law - OutreachCRM Daily Run`.
+7. Set up PDNA notification (WideCast API key only, notification-only) when the human provides the key; otherwise mark it pending and hand the API-key action to the automation task.
+8. Initialize the analytics baseline (nothing sent).
+9. Reach `ready_for_automation_first_run`. Do not enrich, draft, send, pull tracking, or notify inside Setup Flow.
 
 Example:
 
 Human:
 
 ```md
-Add this client to the daily content pipeline: Nguyen Law, immigration lawyer in San Jose. Private data sources to monitor: [links].
+Add this client: Nguyen Law, immigration lawyer in San Jose. Goal: book consults.
+Sendbox: intake@gmail.com (App Password). List: sj-immigration-leads.csv.
 ```
 
-Agent must create:
+Agent creates:
 
 ```text
-daily-content-pipeline/
+outreach-pipeline/
   clients/
     nguyen-law/
       immigration-law_san-jose/
         client_profile_nguyen-law_immigration-law_san-jose.md
-        history/
-          content_log.md
-          data_sources_log.md
-        outputs/
+        sendboxes/sendboxes.json
+        lists/{list_slug}/list_manifest.json  leads.jsonl  import_log.md
+        crm/{accounts,contacts,deals,activities/YYYY-MM,tasks,pipelines.json,suppression.jsonl}
+        campaigns/{campaign_slug}/campaign_config.json
+        analytics/metrics_log.md  learning_log.md
+        approvals/approval_log.md
+        reports/  outputs/YYYY-MM/  outputs/latest/
+        integrations/providers/provider_config.local.json
 ```
 
-The agent must configure the routine, prepare the `Nguyen Law - ...` automation task, then resolve/resync step 6 if private data sources are pending, and tell the human to run that client-specific task for the first report. Setup Flow must not run Nguyen Law's report directly.
+The agent configures the schedule, prepares the `Nguyen Law - OutreachCRM First Run` task pinning `target_client_slug: nguyen-law`, runs Automation Resync, and tells the human the exact task name to run for the first pass. Setup Flow does not enrich, draft, or send Nguyen Law's first batch.
 
 ---
 
-## 14. Mandatory Automation Readiness Protocol
+## Mandatory Automation Readiness Protocol
 
-This protocol applies after the first client setup, after adding a new client, and after repairing an incomplete Client Intelligence Profile.
-
-The setup flow is not a menu of optional next steps. The agent must not ask the human to choose between:
-
-- providing private data sources,
-- configuring the schedule,
-- running the first agency run/report,
-- creating a video.
-
-The one allowed private data source choice is operational, not a new menu: after the automation task exists, if private data sources exist and Local Collector is pending, ask whether to activate Local Collector now so future automation can include data from private data sources, or mark private data sources pending so the automation task can run public data sources only until the blocker is resolved.
+This protocol applies after the first client setup, after adding a new client, and after repairing an incomplete Client Intelligence Profile. Setup Flow is not a menu of optional next steps. The agent must not ask the human to choose between connecting a sendbox, importing a list, configuring the schedule, running the first send, or sending "just one test".
 
 The correct order is fixed:
 
-1. Finish setup context and save the Client Intelligence Profile.
-2. Configure the schedule/routine once the basic source plan is known.
-3. Prepare or verify the client-specific extension folder under `extensions/{client_slug}/`.
-4. Create or resync the client-specific automation task. The task name must begin with the client name.
-5. Ask and resolve the step 6 private data source intake/discovery/approval and Local Collector activation when applicable.
-6. Update every persistent state file that the next automation run reads: Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled prompt/task body, and resync log.
-7. If the human wants PDNA setup - Production, Distribution, Notification, and Analytics - complete only the provider/configuration gate in Setup Flow.
-8. Record analytics as an Automation Flow concern only.
-9. End Setup Flow with `ready_for_automation_first_run`, not `first_report_completed`; reports, drafts, analytics, production, publishing, and private data source scans run only in Automation Flow.
+1. Finish the profile interview and save the Client Intelligence Profile.
+2. Save the pipeline (default six-stage) and any custom fields.
+3. Capture the sending identity (from-name, signature, physical address, unsubscribe method).
+4. Connect and verify the first sendbox (Stage 2). No cold send.
+5. Import and dedupe the first list (Stage 3). No enrich-for-send.
+6. Save the first campaign goal (Stage 5).
+7. Configure PDNA notification (WideCast API key only, notification-only), or mark it pending.
+8. Initialize the analytics baseline (nothing sent).
+9. Configure the schedule and create/resync the client-specific automation task (name begins with the client name; prompt pins `target_client_slug`), then offer the agency-wide `OutreachCRM - GitHub Update Watch` maintenance task.
 
-First automation report rule:
+Every persistent state file the next automation run reads must be current before completion: Client Intelligence Profile, `sendboxes/sendboxes.json`, list/campaign config, `provider_config.local.json`, `outreach-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt/task body, and `resync_log.md`. Run the dry-read Automation Resync verification before calling setup complete.
 
-- The first report happens in the client-specific automation task, after routine setup, task creation, the step 6 private data source checkpoint, and human action to run or schedule that task.
-- Setup Flow must not create `/jobs/run_now`, must not scan public data sources, and must not scan private data sources merely to produce a report.
-- The first automation task should use public data sources, public search, client context, inferred pain points, inferred content pillars, related industries, and any previously collected local data.
-- If private data sources were provided but are not active, the automation report must include a section called `Private Data Sources Pending Activation`.
-- If private data source discovery was approved but not yet run, the automation report must include `Private Data Source Discovery Pending Activation`.
-- That section must list the private data source URLs or discovery categories, explain that they were not scanned yet, and say that activation requires the Solo Agency Local Collector extension plus Local Collector app.
-- The automation report must include at least one draft script/blog/caption or a clear report section containing the draft.
-- The automation report must ask a clear next-step question after delivering the useful output. Unless PDNA setup - Production, Distribution, Notification, and Analytics - was already completed or explicitly declined, the next-step question should be:
+End Setup Flow with `ready_for_automation_first_run`, not `first_send_completed`. Enrichment, drafting, preview, sending, tracking, and notification run only in Automation Flow.
 
-```md
-Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
-```
+### First Automation Run Contract
 
-The automation agent must ask this question directly in the chat message or notification where it announces the first report result. It must not hide the question or setup steps inside a Markdown file.
+The first send/enrich/draft/approval cycle happens in the client-specific automation task, after profile save, sendbox connect, list import, campaign-goal save, schedule setup, task creation, and a human action to run or schedule that task.
 
-The same chat message must show the updated `Solo Agency automation process` progress roadmap or a compact progress summary. It must show that first report generation is complete and that production/provider setup, private data source activation, published-URL analytics status, and report/recommendation update status are still pending, completed, declined, blocked, or not applicable. After any schedule/routine or client-specific automation task exists, every human-facing progress block must include the `Automation freshness check` line required by the root playbook.
+- Setup Flow must not build an enrich queue, draft, preview, or send merely to "get started".
+- The first automation run follows the Daily Run order (orchestrated by `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, not by this stage): sync inbox → pull tracking → triage + apply CRM rules → follow-up advising → load new pipeline (verify → enrich → step-1 draft into `pending_approval`) → send only `outbox/approved/` within quota → compile Today View → reports → notify → Stage 9 audit.
+- Nothing is sent until the operator reviews the Approval Report and replies `approve …` in chat. `approval_mode` defaults to `manual_all`, even for bumps. Rejections feed `learning_log` for the next batch.
+- Suppression is checked at every send-capable path (initial, follow-up) and at import against all identities. If the tracker pull has not succeeded within the configured window, sending for that box is blocked so opt-outs cannot sit unhonored.
+- The first automation run's operator notification (WideCast `sendTelegramMessage`, email fallback) reports run status, drafts awaiting review, the report link, blockers, and any required action, and is logged in `notifications/notification_log.md`. The client-facing weekly report (the only scrubbed, client-facing output) is not produced in Setup Flow.
 
-If PDNA setup - Production, Distribution, Notification, and Analytics - is already completed, declined, or blocked and private data source activation is pending, the final line must be:
+The automation-run handoff message must show a compact progress roadmap and end with a concrete next-step `**[ACTION REQUIRED]**` (approve the drafts, re-auth a box, or paste a missing API key). Do not end with only a report link, a summary, or "let me know".
+
+Good first-automation-run chat pattern:
 
 ```md
-Private data sources (logged-in/social/community places such as groups, profiles, pages, channels, or forums) are not activated yet because they require the Local Collector app and Chrome extension on your computer. Do you want me to prepare the setup files and then give you the two required local steps: run one Terminal/PowerShell command yourself and load the Chrome extension from the folder I show you?
+The first automation run for {Client Name} is done.
+
+Drafts awaiting your review: {N}  (High confidence {H} / Review carefully {R})
+Approval Report (operator-only): {absolute path or link}
+
+OutreachCRM setup + automation progress
+✓ 1. Profile: business, ICP, pain points, value proposition, voice
+✓ 2. Pipeline (default six-stage) + custom fields
+✓ 3. Sending identity (from-name, signature, physical address, opt-out)
+✓ 4. First sendbox connected ({address}@gmail.com, App Password)
+✓ 5. First list imported and deduped ({M} contacts)
+✓ 6. First campaign goal saved ({goal_type})
+✓ 7. PDNA notification (WideCast) connected — notification-only
+✓ 8. Analytics baseline set (nothing sent before this run)
+✓ 9. Automation task created: `{Client Name} - OutreachCRM Daily Run`
+→ First run drafted {N} emails; none sent yet — waiting for your approval.
+
+Automation freshness check: ✓ latest approved changes synced into the automation/
+scheduled task prompt, config, and state; tomorrow's scheduled run will load the newest state.
 ```
-
-If there are no private data sources and discovery was declined or not requested, the final line must ask the next required decision, usually:
-
-```md
-Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
-```
-
-or, if production was already declined:
-
-```md
-Do you want me to keep the saved routine as-is for tomorrow's automatic run?
-```
-
-Do not end the report handoff with only a report link, a summary, or "let me know."
-
-Good first automation report chat pattern:
-
-```md
-The first automation report is ready.
-
-Best idea today: {best idea}
-Report for mobile: {absolute HTML path or URL}
-First draft: {script/blog/caption title}
-
-Solo Agency automation process
-This is the planned automation process for this client. You only need to reply when I ask one specific question.
-
-✓ 1. You provided the product/service, profession, expertise, business description, or public website/profile URL
-✓ 2. I inferred the industry, sub-industry, related industries, audience, and offer
-✓ 3. I inferred pain points and content pillars
-✓ 4. I selected public data sources and search keywords
-✓ 5. I configured the automatic schedule/routine and client-specific automation task
-– 6. Private data sources/Local Collector are pending or postponed; this automation run uses public data sources only
-→ 7. I help set up PDNA: Production, Distribution, Notification, and Analytics
-– 8. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
-✓ 9. I created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft in Automation Flow
-
-Automation freshness check: ✓ Have the latest approved changes been synced into the automation/scheduled task prompt, contract, playbooks, source approvals, and state? If tomorrow's scheduled run starts, will it load the newest state: current.
-
-The operator-only `INTERNAL_REPORT` includes the PDNA/WideCast status and setup note. The client-facing report stays clean and does not mention Solo Agency, WideCast, provider tooling, Local Collector, automation, API keys, Telegram, or internal system details.
-
-This run used public data sources only. I have {N} private data sources waiting, including:
-- {source name or URL}
-- {source name or URL}
-
-Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
-```
-
-Bad first automation report chat pattern:
-
-```md
-Private data sources were not scanned. Instructions are in collector/collector_setup_status.md.
-Now choose a schedule.
-```
-
-Also bad:
-
-```md
-The first automation report is ready.
-Report: {html path}
-Let me know what you want to do next.
-```
-
-This is bad because it does not show progress and does not end with a concrete next-step question.
-
-Private data source activation rule:
-
-- If the human agrees to activate private data sources, collector setup becomes mandatory at that point.
-- The agent should proceed automatically as far as file preparation allows, but it must not run the one-time Local Collector setup/start command itself.
-- During one-time setup/update/repair, the agent must never execute `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary from inside the AI agent, even if shell permissions are available. Agent-run setup can be trapped in a sandbox/session and killed after the turn.
-- The agent must create the script/launcher file first and give the human exactly one short Terminal/PowerShell command or one double-clickable file path to run outside the AI sandbox, not a long multi-line script.
-- The same setup handoff must include the Chrome extension install steps and the one absolute client-specific extension folder path under `extensions/{client_slug}/` for every new client, even when private data sources are not active yet.
-- The handoff must say which Chrome profile/account to open for that client and must show `chrome://extensions` -> Developer mode -> `Load unpacked` -> select the absolute `extensions/{client_slug}/` folder.
-- Saying only "I created the extension" or "extension folder exists" is incomplete.
-- The exact human action must be shown directly in chat. The agent may also save it in `collector_setup_status.md`, but the saved file is only the agent's record and must not be the only place where the human receives the instruction.
-- The agent must not label the collector by the current platform, such as `Facebook collector`.
-- The agent must create or update `daily-content-pipeline/collector/collector_setup_status.md` when private data source activation begins.
-- If the AI environment can write local files, the agent should download/update/extract the collector artifacts and create/update the setup script/launcher, but it must not run that setup script or start/restart the Local Collector app from inside the AI sandbox during one-time setup.
-- After the human confirms they ran the setup/start command and loaded the Chrome extension, the agent may check `GET http://127.0.0.1:17321/status`.
-- If the Solo Agency Local Collector extension is not loaded, the agent must show the absolute extension folder path and the exact Chrome `Load unpacked` steps.
-- The extension path shown to the human must be the runtime workspace path under `extensions/{client_slug}/`, not any toolkit/source path under `solo-agency/solo-agency-collector/chrome-extension/`.
-- After collector setup succeeds in Setup Flow, the agent should update the automation task and mark private data sources as ready for the next Automation Flow run. Do not run a private data source activation scan inside Setup Flow.
-- The agent must not claim private data source monitoring is active until collector health confirms the Local Collector app and Solo Agency Local Collector extension are working.
-- The agent must not configure a recurring schedule that promises private data source collection until collector setup is either `installed_and_running` or explicitly documented as pending/blocked with a human action.
-
-Automation run-now rule:
-
-- Setup Flow must not create `/jobs/run_now` or run an equivalent manual report path. It must prepare or resync the client-specific automation task instead.
-- In Automation Flow, a human request such as `run now`, `manual run`, `test run`, `trial run`, `collect now`, or `scan now` should bypass recurring schedule windows for the target client only.
-- If the Local Collector app is already installed, running, healthy, and matched to the target client's extension identity, the Automation Flow agent may include private data sources by creating a run-now job.
-- If the Local Collector app is not installed/running/healthy or the matching extension is stale, the Automation Flow agent should run public data sources and list private data sources as pending activation.
-- The automation report output must include a mobile-friendly HTML report, a concise summary, and at least one useful draft script/blog/caption.
-- If the client's WideCast/OpenAPI provider config is not connected and verified, the operator-only `INTERNAL_REPORT` and operator handoff must include the PDNA/WideCast setup note so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup. Client-facing reports must not include this note.
-
-Manual run / run-now rule:
-
-- Any human request such as `run now`, `manual run`, `test run`, `trial run`, `collect now`, or `scan now` must bypass recurring schedule windows.
-- The agent must not wait for `scheduled_windows` when the human requested a manual run.
-- If the Local Collector app is reachable, the agent must create a run-now job and call `POST http://127.0.0.1:17321/jobs/run_now`.
-- The run-now job must include:
-  - unique `run_id`,
-  - `run_now: true`,
-  - `force: false` by default,
-  - `run_now_ttl_minutes`, default 30 and maximum 120,
-  - private `sources`,
-  - pacing rules,
-  - client/business/location metadata when available.
-- To run again, the agent should create a new unique `run_id` instead of forcing the same run id repeatedly.
-- The run-now job must expire automatically if it is not completed, so the extension cannot keep seeing the same manual job all day.
-- The Solo Agency Local Collector extension should see `job_available: true` on the next `/status` poll and run immediately.
-- If the Local Collector app is not reachable, the agent must not try to start it from inside the AI sandbox during setup/repair. Provide the one-line Local Collector app setup/start command for the human to run outside the sandbox, then retry the run-now job only after the app is reachable.
-- Recurring schedule windows are only for unattended scheduled runs. They must not block manual runs.
-- Do not simulate a manual run by editing `scheduled_windows` or creating a temporary schedule window. Manual runs must use `/jobs/run_now`.
-- If the agent cannot call `http://127.0.0.1:17321` from its own sandbox but can write local files, it must write one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`. The Local Collector app claims matching pending jobs on `/status`, moves claimed files into `jobs/claimed/`, writes output for that client, then moves completed files into `jobs/completed/`.
-- `daily-content-pipeline/collector/run_now_request.json` is a legacy/batch shim only. It may contain one job or `{"jobs":[...]}` and the bridge converts it into `jobs/pending/` queue files. Do not use this single filename when multiple agents or scheduled tasks may write concurrently.
-- If the agent cannot call HTTP and cannot write the local queue file, only then create a local run-now helper script or launcher and give the human exactly one short command/path to run it. The helper script must POST `/jobs/run_now` with the correct payload, then optionally poll `/status`.
-- Do not ask the human to restart the Local Collector app merely to make a manually edited schedule file take effect. Restarting is only appropriate for updating the Local Collector app itself, recovering a stuck/offline process, or applying an intentional recurring schedule change when both `/config` and file auto-reload are unavailable.
-- If a legacy collector without `/jobs/run_now` forces a temporary schedule fallback, the agent must clearly label it as a fallback, back up the original config, create a short unique temporary window, restart or reload only through an already-running service or a human-run setup/start command when required, restore the original config immediately after completion/timeout, and report that fallback to the human. This fallback must not be used when `/jobs/run_now` exists.
-
-Exact manual run-now contract:
-
-- Health-check the Local Collector app first with plain `GET http://127.0.0.1:17321/status`.
-- Do not send `X-Collector-Extension` when the AI agent checks health. That header is for the Solo Agency Local Collector extension only. If the AI agent fakes it, `extension_health` can become misleading.
-- If `/status` is reachable, call `POST http://127.0.0.1:17321/jobs/run_now`.
-- The minimum payload should look like this:
-
-```json
-{
-  "run_id": "2026-06-20_client-slug_manual_150405",
-  "client_slug": "client-slug",
-  "business_slug": "business-or-brand-slug",
-  "industry": "life insurance",
-  "sub_industry": "family protection and retirement planning",
-  "target_location": "California, United States",
-  "run_now": true,
-  "force": false,
-  "run_now_ttl_minutes": 30,
-  "sources": [
-    {
-      "name": "Competitor page or private group name",
-      "url": "https://www.facebook.com/groups/example",
-      "platform": "facebook",
-      "source_type": "private_group",
-      "purpose": "monitor audience questions, competitor positioning, leads, and content ideas",
-      "priority": "high"
-    }
-  ],
-  "pacing": {
-    "min_delay_seconds": 5,
-    "max_delay_seconds": 5,
-    "max_sources": 20,
-    "scroll_steps": 5,
-    "max_text_chars": 12000
-  },
-  "collector_policy": {
-    "read_only": true,
-    "do_not_comment": true,
-    "do_not_message": true,
-    "do_not_react": true,
-    "do_not_scrape_contact_details": true
-  }
-}
-```
-
-- `run_id` must be unique for every manual run. A recommended pattern is `YYYY-MM-DD_client-slug_manual_HHMMSS`.
-- `run_now` must be `true`.
-- `force` must be `false` unless the human explicitly asks for a troubleshooting rerun and understands the same `run_id` may run again.
-- `run_now_ttl_minutes` should be 30 by default and must not exceed 120.
-- `sources` must contain the private data sources for that client if private data sources exist. If there are no private data sources, the agent should still run public research without the Local Collector app.
-- `pacing.scroll_steps` defaults to 5 and must not exceed 10.
-- If the agent cannot make this POST itself but can write local files, it should write the JSON payload to one unique per-client queue file:
 
 ```text
-daily-content-pipeline/collector/jobs/pending/{timestamp}_{client_slug}_{run_id}.json
+**[ACTION REQUIRED]**
+
+**Client:** {Client Name}
+**I need you to:** review the drafts and approve what should send.
+**Reply with:** `approve all`, `approve 1-20, 35`, `reject 7: reason`, `edit 12: ...`, or `hold 5`
+**Why:** Nothing leaves OutreachCRM without your explicit approval.
 ```
 
-The agent should write this file atomically: write a temporary file in the same folder first, then rename it into `jobs/pending/` only after the JSON is complete.
+Bad patterns (all forbidden): ending with only a report link; asking "Do you want me to send it now?" in Setup Flow; sending before an `approve`; hiding the required question inside a Markdown file or a long paragraph.
 
-The running Local Collector app should pick up queued files on the next `/status` check from the matching Chrome extension, usually within a few seconds while Chrome is active. The bridge must:
+### Automation Resync Rule
 
-- write `run_now_request_status.json`;
-- move claimed files into `jobs/claimed/`;
-- move completed files into `jobs/completed/`;
-- clear the active run-now job on `/complete`;
-- expire the active run-now job after `run_now_ttl_minutes` if `/complete` never arrives, then allow the next queued client job to proceed.
+Any post-setup configuration change (new sendbox, changed schedule, edited campaign goal, new physical address, added custom field, provider key change) must re-sync the profile, `schedule.md`, the automation manifest, the scheduled-run prompt, the native task body when editable, and `resync_log.md`, then verify with a dry read that the next scheduled run will load the newest state — before the change is called complete. A change that updates one file but not the task the scheduler runs is not complete.
 
-The single file `daily-content-pipeline/collector/run_now_request.json` remains supported only as a legacy/batch shim. It is safe for one agent to write a batch object with `{"jobs":[...]}`; it is not safe for multiple writers to race on the same filename.
+### Schedule Rule
 
-After loading the request, the Local Collector app should write:
-
-```text
-daily-content-pipeline/collector/run_now_request_status.json
-```
-
-Only if the agent cannot write the request file should it create one of these helper files:
-  - macOS/Linux: `daily-content-pipeline/collector/run_private_now.sh`
-  - Windows: `daily-content-pipeline/collector/Run Private Collector Now.cmd`
-- The human-facing instruction should be one line, for example:
-
-```bash
-bash "/ABSOLUTE/PATH/TO/daily-content-pipeline/collector/run_private_now.sh"
-```
-
-- After posting `/jobs/run_now` or writing a queue file, do not fake extension headers. Plain `GET /status` is only a bridge health check; `job_available` is scoped to the real client extension identity.
-- Track progress through `run_now_request_status.json`, `bridge_health.json`, `collector_status.json`, `jobs/claimed/`, `jobs/completed/`, and new output files under the run output directory until the job completes or TTL expires.
-
-Schedule rule:
-
-- Ask schedule/routine questions after the profile and source plan are known and before the client-specific automation task is marked ready.
-- Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence.
-- Then write or update `schedule.md`, the automation manifest, the scheduled-run prompt/task body, and the relevant automation/config files.
-- During Setup Flow, do not ask to run the first agency run immediately and do not run a report. Finish by preparing or resyncing the client-specific automation task whose task name begins with the client name.
-- After schedule/routine setup and automation task creation, ask/resolve private data sources once. If private data sources exist and Local Collector is pending, handle step 6: guide Local Collector setup or clearly mark private data sources as `pending_private_activation` in the automation contract so the first automation run can continue with public data sources only if needed, then resync the task.
-
-Exact schedule contract:
-
-- Scheduled runs are configured in `daily-content-pipeline/collector/collector_config.json`, or through `POST http://127.0.0.1:17321/config` when the Local Collector app is running.
-- Scheduled runs use `scheduled_windows`. They do not use `/jobs/run_now`.
-- A daily default schedule should look like this:
-
-```json
-{
-  "version": "0.1.0",
-  "timezone": "local",
-  "run_mode": "persistent_bridge_scheduler",
-  "default_runs_per_day": 1,
-  "poll_interval_seconds": 5,
-  "max_sources_per_run": 20,
-  "max_scrolls_per_source": 5,
-  "max_scrolls_allowed": 10,
-  "scroll_delay_seconds": 5,
-  "duplicate_filter": {
-    "compare_against_previous_day": true,
-    "method": "visible_text_matching",
-    "parse_html": false
-  },
-  "scheduled_windows": [
-    {
-      "name": "daily_morning",
-      "enabled": true,
-      "local_time_start": "09:00",
-      "local_time_end": "09:30",
-      "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-    }
-  ],
-  "clients": [
-    {
-      "client_slug": "client-slug",
-      "enabled": true,
-      "sources": [
-        {
-          "name": "Competitor page or private group name",
-          "url": "https://www.facebook.com/groups/example",
-          "platform": "facebook",
-          "source_type": "private_group",
-          "priority": "high"
-        }
-      ]
-    }
-  ]
-}
-```
-
-- For multiple scheduled runs per day, add multiple enabled items to `scheduled_windows`, for example `morning`, `midday`, and `afternoon`.
-- For manual-only mode, set all `scheduled_windows[].enabled` values to `false` and rely only on `/jobs/run_now`.
-- If the human has not activated private data source monitoring yet, configure the recurring schedule as public data sources only and clearly mark private data sources as `pending_private_activation`.
-- Only configure scheduled private data source collection after Local Collector activation is accepted and collector health is confirmed or explicitly documented as pending/blocker.
-- The Local Collector app must run in persistent mode for unattended scheduled collection:
-
-```text
-solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
-  --host 127.0.0.1 \
-  --port 17321 \
-  --config-file daily-content-pipeline/collector/collector_config.json \
-  --output-dir daily-content-pipeline/collector/inbox \
-  --persistent
-```
-
-- The Solo Agency Local Collector extension polls `/status`; when the current local time is inside an enabled `scheduled_windows` item and private data sources exist, `/status` should expose a scheduled job with `current_job_type: scheduled` and `job_available: true`.
-- Scheduled run IDs are generated by the Local Collector app, usually using `YYYY-MM-DD_schedule-name`.
-- The agent must still write a human-readable `schedule.md` explaining the cadence, clients included, private data source limits, and notification behavior.
+Ask cadence questions after the profile, sendbox, list, and campaign goal are known and before the client-specific automation task is marked ready. Ask whether the human wants daily, weekday-only, multiple-times-daily, manual-only, first-run-only, or another cadence, then write `outreach-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt/task body, and the relevant config. During Setup Flow, do not offer to run the first pass immediately; finish by preparing or resyncing the client-specific automation task whose name begins with the client name. A `run now` / `manual run` / `test run` request is honored only in Automation Flow (it bypasses the schedule window for the target client only) — never as a way to send from the setup chat.
 
 ---
 
-## 15. Daily Run Algorithm
+## Setup Repair Mode
 
-For each daily run:
-
-1. Load `clients_index.md`.
-2. Identify all clients with `active` status.
-3. For each active client:
-   1. Load the client's Client Intelligence Profile file.
-   2. Validate required fields.
-   3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
-   4. Prepare the current month folder key `YYYY-MM`.
-   5. Load saved `public_data_sources` and visit/check active due public data sources before or alongside keyword search.
-      - Visit sources where `visit_in_scheduled_runs: true` and cadence is due today.
-      - Prioritize `active_public_source` daily sources, then due `weekly_public_source` sources, then relevant `occasional_public_source` sources when the topic/event matches.
-      - Record source status, useful URLs, useful signals, weak/noisy results, and whether the source should stay active, be promoted, or be demoted.
-   6. Use Google Search or an available equivalent search tool with rotating keywords from `public_search_keywords`.
-      - Do not use only generic industry keywords.
-      - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
-      - Use keywords in the target audience's likely search/comment language. Do not translate the keyword bank into the human's chat/report language unless the audience uses that language.
-      - Use at least 10 distinct public search keywords per public data source run unless search tooling is unavailable or the saved keyword bank has fewer than 10 usable entries after expansion.
-      - At least 7 of the 10 keywords should come from pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news groups.
-      - Include at least one broad primary-industry keyword for context, at least one pain-point/problem keyword, at least one need/goal or buying-intent keyword, and local/location keywords when location matters.
-      - Use a smaller rotation of related-industry keywords only when the bridge back to the client's offer is clear.
-      - If results are weak, try a different pain-point/problem/need cluster before giving up.
-      - Continue keyword rotation until at least 3 source-backed candidate ideas are new or newly angled against `history/YYYY-MM/content_log.md`. If fewer than 3 qualify after 10+ distinct keywords and due public data sources have been checked, record the coverage limitation instead of fabricating weak ideas.
-      - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
-      - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
-      - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
-      - Include this record in the daily report section `Public Search Keywords Used Today`.
-      - If no search was possible, explicitly explain the blocker in that same section.
-   7. Before deciding whether to skip private data sources, follow Stage 4 and Stage 8 Collector Runtime Verification. Do not trust saved labels such as `pending_private_activation`, `public_data_sources_only`, or `private sources postponed` alone. If `/status` is unreachable from the AI sandbox, read local collector health/status files before claiming the Local Collector is inactive.
-   8. If private data sources remain unavailable after Collector Runtime Verification, mark the exact blocker, include the activation/repair CTA in the report, and continue with public data sources and previously collected private data when available.
-   9. If private data sources are available, connect to the already-running Local Collector app according to `collector_config.run_mode` or use the Stage 8 file-based run-now path when localhost is isolated but local health files prove a recent current-workspace collector.
-   10. Check private collector health according to Stage 4/Stage 8 before collection and before claiming private data sources were skipped.
-   11. Prepare the private data source queue if private data sources are available and collector health is acceptable:
-      - keep the active daily queue around 20 sources or fewer per client by default;
-      - prioritize sources most relevant to the client, target audience, target location, pain points, and content pillars;
-      - classify extra sources as `weekly` or `optional` and rotate them across future runs;
-      - do not run aggressive or parallel private data source scans for the same logged-in account.
-   12. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
-      - After private collection reaches a terminal state, reconcile status and counts before report handoff: private scan status, completed timestamp, sources attempted/completed/blocked, data points kept, leads, competitors, recommended private data sources, noisy/skipped discovery candidates, notifications, and blockers must match across the private report, daily index, internal source record, report state JSON, and `outputs/latest/` copies.
-      - Do not leave stale `scan in progress`, `partial`, `pending`, or old recommended-source totals in one artifact after another artifact says the private scan is complete.
-   13. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
-   14. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, or unavailable private data sources.
-   15. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
-   16. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
-   17. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
-   17b. Load `playbooks/10_LEAD_COMPETITOR_DETECTION.md` (Stage 10, print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md`) before detecting, scoring, or reporting any leads or competitors.
-   18. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
-   19. Detect direct, adjacent, and audience competitors, including profile URLs, post/current URLs, and positioning notes.
-   20. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from today's data into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`.
-      - Every idea must pass the Audience Value-First Gate: it must state the target audience pain point, the viewer value/lesson, the source signal, the non-promotional angle, why it helps the audience, and only then the soft business relevance.
-      - Do not make the client's product/service name the premise of the idea. If an idea only says the client/product wins, out-positions, is better, or should be chosen, rewrite it into an educational viewer lesson or reject it as `promotional_not_value_first`.
-   21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
-   22. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
-   23. Select the best idea of the day only from ideas that pass the Audience Value-First Gate.
-   24. Write the configured production-ready draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the account-free writing skill fallback when provider/account access is unavailable. Drafts must preserve the same viewer-value lesson and must not become direct ads for the client's product/service. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
-   25. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
-   25b. Before writing any client-facing report HTML, load `playbooks/06_AGENCY_REPORT_STANDARD.md` (Stage 6) and then `playbooks/skills/report-design/SKILL.md` (LOAD LEDGER for each). Render/package with `tools/solo_report_renderer.py` (`render` for staging HTML, `package` for the combined client report + PDF) rather than hand-writing one-off HTML/PDF scripts.
-   26. Generate the three-file scrubbed staging HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/` with `tools/solo_report_renderer.py render`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-   27. Generate or update the operator-only `{client-name}-INTERNAL_REPORT.html`, clearly labeled `INTERNAL_REPORT - Not for client sharing`, and put Solo Agency/WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/automation/blocker/debug details there.
-   28. Run the Client-Blind Scrub Gate on the client-facing HTML files. They must not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
-   29. Generate or update `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, and `outputs/latest/{client-name}-client-report.pdf` from the scrubbed three HTML files with `tools/solo_report_renderer.py package`, or record the exact PDF blocker/status.
-   29b. Write or update `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` and reconcile it with the staging HTML files, combined client report, PDF companion, and INTERNAL_REPORT (counts, per-lane statuses, timestamps).
-   30. Update or copy `outputs/latest/{client-name}-daily-report.html`.
-   31. Update or copy `outputs/latest/{client-name}-INTERNAL_REPORT.html`.
-   32. Update or copy the latest public/private lane HTML files when those lane reports exist.
-   33. Update `history/YYYY-MM/content_log.md`.
-   34. Update `history/YYYY-MM/data_sources_log.md`.
-   35. Update `history/YYYY-MM/lead_log.md`.
-   36. Update `history/YYYY-MM/competitor_log.md`.
-4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
-5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
-6. Update or copy `outputs/latest_master_digest.md`.
-7. Update or copy `outputs/latest_master_digest.html`.
-8. Present the daily digest to the human.
-9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, send a notification to the human/operator that includes run status, client-facing HTML report path/link, PDF companion path/status, INTERNAL_REPORT path/status, clients processed, blockers, lead/competitor counts, and required actions.
-10. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
-11. Log the notification attempt in `notifications/notification_log.md`.
-
-The daily run is complete only when every active client is processed or explicitly logged as skipped.
-
-When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
-
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the scrubbed mobile-friendly client-facing HTML result plus PDF companion path/status plus INTERNAL_REPORT path/status, or a result-ready notification with those paths/statuses, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
-
----
-
-## 16. Setup Repair Mode
-
-If a Client Intelligence Profile file exists but is incomplete, stale, or inconsistent:
+If a Client Intelligence Profile exists but is incomplete, stale, or inconsistent:
 
 1. Infer missing values where possible.
 2. Research missing values where possible.
-3. Show proposed repairs to the human.
+3. Show proposed repairs to the human in an `**[ACTION REQUIRED]**` block.
 4. Ask the human to correct only what is wrong.
-5. Update the Client Intelligence Profile file.
-6. Continue the daily run.
+5. Update the Client Intelligence Profile (through the Stage 7 tooling where the schema requires it).
+6. Run Automation Resync so the client-specific automation task reads the repaired state.
+7. Continue toward `ready_for_automation_first_run` — do not send from repair mode.
 
-Do not discard existing user-provided values unless the human confirms.
+Do not discard existing human-provided values unless the human confirms. If repair suspects stale playbooks or code, load Stage 11 (`playbooks/11_UPDATE_AND_VERSION_WATCH.md`) with a LOAD LEDGER and follow the fresh-source protocol before trusting local files.
 
 ---
