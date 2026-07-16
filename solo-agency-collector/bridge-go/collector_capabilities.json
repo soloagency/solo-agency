@@ -1,0 +1,348 @@
+{
+  "object": "collector_capabilities",
+  "version": "0.1.0",
+  "updated_at": "2026-07-15",
+  "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
+  "usage": {
+    "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
+    "how_to_invoke": "POST /jobs/run_now with sources[] where each source is { \"url\": \"<screen url>\", \"capability\": \"<capability id>\", \"inputs\": { ... } }. Read results from the run's private_data_points.jsonl; typed output is in the record's 'records' field, keyed by the capability's output_schema.",
+    "orchestration_note": "Multi-step work (visiting many profiles, friend-of-friend traversal, filtering by industry, writing reports) is the playbook agent's job. Each capability only reads ONE screen into typed data.",
+    "status_meaning": "stable=live-verified; beta=unit-verified, live pending; planned=not built; not_graphql=this screen is not served by GraphQL interception (server-rendered / interaction-gated) and needs a DOM/HTML approach or an alternative capability.",
+    "pagination": "Deep collection via cursor replay: set inputs.max_pages (default 8, max 40) on any paginated capability (group.posts, group.search_posts, groups.search, people.search, profile.posts, profile.friends, newsfeed). Instead of relying on scroll to load more, the collector replays the captured query with each end_cursor to pull further pages directly. Example: fb.group.search_posts with max_pages:10 returned 66 posts vs 6 without."
+  },
+  "record_schemas": {
+    "EntityRef": {
+      "type": "string — one of profile | group | page | event",
+      "id": "string — platform id when available",
+      "name": "string — display name",
+      "url": "string — canonical url"
+    },
+    "PostRecord": {
+      "id": "string",
+      "post_id": "string — numeric post id when present",
+      "url": "string — permalink to the post",
+      "actor": "EntityRef — the posting actor (named 'actor', NOT 'author': the bridge redacts any field whose name contains 'auth')",
+      "text": "string — post body text",
+      "created_time": "number — unix seconds when available",
+      "attachments": "array of { type, url } — photos/videos/links",
+      "engagement": "object { reactions, comments, shares } | null — counts when visible, null when not surfaced",
+      "group": "EntityRef | null — the containing group/page when applicable"
+    },
+    "ProfileSummary": {
+      "id": "string",
+      "name": "string",
+      "url": "string",
+      "subtitle": "string — tagline/work line shown on the row when present",
+      "mutual_friends": "number | null",
+      "industry_hint": "string | null — coarse hint if surfaced on the row"
+    },
+    "AboutRecord": {
+      "profile": "EntityRef",
+      "work": "array of { employer, position, current }",
+      "education": "array of { school, degree }",
+      "current_city": "string",
+      "hometown": "string",
+      "contact": "object — public contact fields the profile shares",
+      "bio_text": "string — free-text bio/intro"
+    },
+    "ReelRecord": {
+      "reel_id": "string",
+      "reel_url": "string",
+      "creator": "{ name, url } | null — the reel author",
+      "caption": "string — visible caption text (includes creator name + hashtags)",
+      "hashtags": "array of #tags parsed from the caption"
+    },
+    "WebResult": {
+      "title": "string",
+      "url": "string — real destination url (empty for ads)",
+      "display_url": "string — the shown domain/path",
+      "snippet": "string",
+      "is_ad": "boolean"
+    }
+  },
+  "capabilities": [
+    {
+      "id": "fb.group.posts",
+      "title": "Facebook group posts (feed)",
+      "when_to_use": "Read recent posts from a Facebook group the logged-in user can access — for lead scanning, idea mining, or monitoring discussion inside a group.",
+      "inputs": {
+        "group_url": "string (required) — e.g. https://www.facebook.com/groups/<id>",
+        "max_scroll": "int (optional) — how many feed pages to load",
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+      },
+      "output_schema": "PostRecord[]",
+      "provider": "facebook-graphql",
+      "coverage": "logged-in user's accessible view of the group",
+      "status": "stable",
+      "_impl": {
+        "screen": "group_feed",
+        "url_match": [
+          "facebook.com/groups/<id>"
+        ],
+        "graphql_query": "GroupsCometFeedRegularStoriesPaginationQuery",
+        "edge_path": "data.node.group_feed.edges",
+        "node_fields": {
+          "actor": "node.actors[0].{id,name,url}",
+          "text": "node.comet_sections.content.story.message.text",
+          "url": "node.permalink_url",
+          "post_id": "node.post_id",
+          "group": "node.to.{id,name,url}",
+          "attachments": "node.attachments[].{media.__typename,url}",
+          "reactions": "node.comet_sections.feedback.story.story_ufi_container.story.feedback_context.feedback_target_with_context ...reaction_count.count",
+          "comments": "...feedback_target_with_context.comment_rendering_instance.comments.total_count"
+        },
+        "validated_on": "2026-07-15 (aven-ngo, real group feed)",
+        "fallback": "html"
+      }
+    },
+    {
+      "id": "fb.group.search_posts",
+      "title": "Search posts inside a Facebook group (by keyword)",
+      "when_to_use": "Find all posts inside ONE group that match a keyword — search a community group for posts expressing a need/intent/product/service, to mine leads. Returns the matching posts.",
+      "inputs": {
+        "group_search_url": "string (required) — https://www.facebook.com/groups/<id>/search/?q=<keyword> (URL-encode the keyword)",
+        "max_scroll": "int (optional)",
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+      },
+      "output_schema": "PostRecord[]",
+      "provider": "facebook-graphql",
+      "coverage": "posts in the group matching the keyword, visible to the logged-in user",
+      "status": "stable",
+      "_impl": {
+        "screen": "group_search_posts",
+        "url_match": [
+          "facebook.com/groups/<id>/search/?q=<keyword>"
+        ],
+        "graphql_query": "SearchCometResultsPaginatedResultsQuery (shared SERP query)",
+        "edge_path": "data.serpResponse.results.edges → rendering_strategy.view_model.click_model.story (identical story-node shape as group_feed; reuses postRecordFromStoryNode)",
+        "note": "Use the /search/?q= form, NOT /search/posts/. Entity results (groups/people) excluded by requiring click_model.story.",
+        "validated_on": "2026-07-15 (live verified on aven-ngo — keywords nha, cho thue, all matched)",
+        "fallback": "html"
+      }
+    },
+    {
+      "id": "fb.profile.friends",
+      "title": "Facebook profile friend list",
+      "when_to_use": "Read the friend list of a given profile (subject to that profile's privacy). Use as the first step of friend / friend-of-friend audits and network mapping.",
+      "inputs": {
+        "profile_url": "string (required) — the profile whose friends to read",
+        "max_scroll": "int (optional)",
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+      },
+      "output_schema": "ProfileSummary[]",
+      "provider": "facebook-graphql",
+      "coverage": "only visible when the target profile shares its friend list",
+      "status": "stable",
+      "_impl": {
+        "screen": "profile_friends",
+        "url_match": [
+          "facebook.com/<user>/friends",
+          "facebook.com/profile.php?id=<id>&sk=friends"
+        ],
+        "graphql_query": "ProfileCometAppCollectionNonSelfFriendsListRendererPaginationQuery (also the Self variant); scoped to captures whose query name contains 'Friends'",
+        "edge_path": "data.node.pageItems.edges",
+        "node_fields": {
+          "id": "edge.node.node.id",
+          "name": "edge.node.title.text",
+          "url": "edge.node.url",
+          "subtitle": "edge.node.subtitle_text.text",
+          "mutual_friends": "parsed from subtitle when it is a mutual-friends line"
+        },
+        "validated_on": "2026-07-15 (aven-ngo, nhu.white.75/friends)",
+        "fallback": "html"
+      }
+    },
+    {
+      "id": "fb.profile.about",
+      "title": "Facebook profile About / bio",
+      "when_to_use": "Read a single profile's About section — work, education, current city, hometown, public contact, bio text — to classify a person (e.g. infer industry).",
+      "inputs": {
+        "profile_url": "string (required)"
+      },
+      "output_schema": "AboutRecord",
+      "provider": "facebook-graphql",
+      "coverage": "only fields the profile makes visible to the logged-in user",
+      "status": "not_graphql",
+      "_impl": {
+        "screen": "profile_about",
+        "url_match": [
+          "facebook.com/<user>/about",
+          "facebook.com/profile.php?id=<id>&sk=about"
+        ],
+        "graphql_query": null,
+        "note": "About is a single-node response (not an edges connection); several sections load lazily and need their own queries.",
+        "fallback": "html",
+        "finding": "2026-07-15: structured About fields (work/education/city) are NOT available via GraphQL interception — server-rendered. The captured ProfileCometAppSectionFeedPaginationQuery carries only nav sections + pageItems urls, no field text. Needs a dedicated About-tab DOM parser.",
+        "recommended_alternative": "For inferring a person industry (e.g. FoF lead filtering), call fb.people.search with the person name — the SERP row returns their occupation subtitle + industry_hint. Also the friend vanity url often encodes the trade (e.g. edsocalrealtor)."
+      }
+    },
+    {
+      "id": "fb.groups.search",
+      "title": "Facebook group search results",
+      "when_to_use": "Find Facebook groups matching a keyword — for discovering communities to join and scan.",
+      "inputs": {
+        "query": "string (required) — search keywords",
+        "max_scroll": "int (optional)",
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+      },
+      "output_schema": "EntityRef[]",
+      "provider": "facebook-graphql",
+      "coverage": "public search results",
+      "status": "stable",
+      "_impl": {
+        "screen": "groups_search",
+        "url_match": [
+          "facebook.com/search/groups/?q=<query>"
+        ],
+        "graphql_query": "SearchCometResultsPaginatedResultsQuery (shared SERP; scope by name containing SearchComet)",
+        "fallback": "html",
+        "edge_path": "data.serpResponse.results.edges → rendering_strategy.view_model.profile (filter __typename Group / /groups/ url)",
+        "validated_on": "2026-07-15 (live verified on aven-ngo)"
+      }
+    },
+    {
+      "id": "fb.people.search",
+      "title": "Facebook people search results",
+      "when_to_use": "Find people matching keywords (persona-based lead discovery). Returns row-level summaries, not full profiles.",
+      "inputs": {
+        "query": "string (required)",
+        "max_scroll": "int (optional)",
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+      },
+      "output_schema": "ProfileSummary[]",
+      "provider": "facebook-graphql",
+      "coverage": "public search results",
+      "status": "stable",
+      "_impl": {
+        "screen": "people_search",
+        "url_match": [
+          "facebook.com/search/people/?q=<query>",
+          "facebook.com/search/top/?q=<query>"
+        ],
+        "graphql_query": "SearchCometResultsPaginatedResultsQuery (shared SERP)",
+        "fallback": "html",
+        "edge_path": "data.serpResponse.results.edges → rendering_strategy.view_model.profile (filter __typename User); subtitle=primary_snippet_text_with_entities.text",
+        "validated_on": "2026-07-15 (live verified on aven-ngo)"
+      }
+    },
+    {
+      "id": "fb.profile.posts",
+      "title": "Facebook profile posts (timeline)",
+      "when_to_use": "Read a profile's or page's own posts (timeline feed) — for monitoring a person, competitor, or page.",
+      "inputs": {
+        "profile_url": "string (required)",
+        "max_scroll": "int (optional)",
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+      },
+      "output_schema": "PostRecord[]",
+      "provider": "facebook-graphql",
+      "coverage": "logged-in user's accessible view of the timeline",
+      "status": "stable",
+      "_impl": {
+        "screen": "profile_timeline",
+        "url_match": [
+          "facebook.com/<user>",
+          "facebook.com/profile.php?id=<id>"
+        ],
+        "graphql_query": "ProfileCometTimelineFeedRefetchQuery (+ initial variant)",
+        "edge_path": "data.node.timeline_list_feed_units.edges[].node (same PostRecord helpers as group.posts)",
+        "fallback": "html",
+        "validated_on": "2026-07-15 (live verified on aven-ngo)"
+      }
+    },
+    {
+      "id": "fb.newsfeed",
+      "title": "Facebook home newsfeed",
+      "when_to_use": "Read the logged-in user's home feed. Note the feed mixes many story types (ads, suggestions, reels, memories); expect noisier output.",
+      "inputs": {
+        "max_scroll": "int (optional)",
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+      },
+      "output_schema": "PostRecord[]",
+      "provider": "facebook-graphql",
+      "coverage": "logged-in user's personalized feed",
+      "status": "stable",
+      "_impl": {
+        "screen": "home_feed",
+        "url_match": [
+          "facebook.com/",
+          "facebook.com/?sk=h_chr"
+        ],
+        "graphql_query": "CometNewsFeedPaginationQuery",
+        "fallback": "html",
+        "edge_path": "data.viewer.news_feed.edges[].node (skip ads/suggestions: require comet_sections + story message)",
+        "validated_on": "2026-07-15 (live verified on aven-ngo)"
+      }
+    },
+    {
+      "id": "fb.post.comments",
+      "title": "Facebook post comments",
+      "when_to_use": "Read the comments on a specific post — for mining leads or sentiment from a discussion thread.",
+      "inputs": {
+        "post_url": "string (required) — a permalink to the post",
+        "max_scroll": "int (optional)"
+      },
+      "output_schema": "{ post: PostRecord, comments: [{ author: EntityRef, text, created_time }] }",
+      "provider": "facebook-graphql",
+      "coverage": "comments visible to the logged-in user",
+      "status": "not_graphql",
+      "_impl": {
+        "screen": "post_comments",
+        "url_match": [
+          "facebook.com/.../posts/<id>",
+          "facebook.com/permalink.php"
+        ],
+        "graphql_query": null,
+        "fallback": "html",
+        "finding": "2026-07-15: no comment GraphQL query fires on a passive permalink scroll. The first page of comments is server-rendered (initial document/RSC payload); only load-more PAGINATION uses GraphQL (CometUFICommentsProviderQuery), which needs enough comments to trigger. Needs HTML/RSC parsing of first-page comments, or a comment-pagination trigger."
+      }
+    },
+    {
+      "id": "fb.reels.feed",
+      "title": "Facebook Reels feed (creator + caption + hashtags)",
+      "when_to_use": "Collect people from the Reels feed by industry: the agent reads each reel caption/hashtags to detect a trade (real estate, insurance, mortgage, ...) and collects the creator. NOTE: DOM-driven (creator/caption are NOT in GraphQL) — it advances the Reels player and scrapes each displayed reel.",
+      "inputs": {
+        "reel_url": "string (required) — a https://www.facebook.com/reel/<id> to enter the feed",
+        "max_reels": "int (optional, default 20, max 80) — how many reels to advance through and scrape",
+        "debug": "bool (optional) — include a DOM sample for tuning"
+      },
+      "output_schema": "ReelRecord[]",
+      "provider": "html-dom",
+      "coverage": "reels shown in the logged-in user's personalized reels feed while advancing",
+      "status": "beta",
+      "_impl": {
+        "screen": "reels_player",
+        "url_match": [
+          "facebook.com/reel/ID"
+        ],
+        "method": "DOM: advance player via ArrowDown + scroll, scrape reel-link cards for creator link + caption text + hashtags",
+        "note": "GraphQL FBUnifiedVideoContainerQuery paginates reel URLs but carries NO caption/creator (deferred render module, confirmed across 16 chunks), so this is DOM-based.",
+        "fallback": "html",
+        "validated_on": "2026-07-15 (live: advancing works, 10 reels/12 steps; creators captured incl. Meres Mortgage/insurance/real estate/immigration — industry often in the name). Caption/hashtag extraction is WEAK (overlay loads after scan; many reels have no hashtags) — creator name+url is the reliable signal; caption is a TODO refinement."
+      }
+    },
+    {
+      "id": "web.search",
+      "title": "Web search (DuckDuckGo) — result links + snippets",
+      "when_to_use": "Search the OPEN WEB (beyond Facebook) for a query — a person, email, business, or topic — and get organic result links + titles + snippets. Use to find someone's public web presence (personal site, social profiles, listings, directories) for enrichment, or general research. Ads are filtered out by default.",
+      "inputs": {
+        "url": "string (required) — https://html.duckduckgo.com/html/?q=<URL-ENCODED query>. Build this from the search query; the collector opens the page and the extractor parses it.",
+        "include_ads": "bool (optional, default false) — keep sponsored results too"
+      },
+      "output_schema": "WebResult[]",
+      "provider": "web-dom",
+      "coverage": "public web search results (DuckDuckGo HTML endpoint)",
+      "status": "beta",
+      "_impl": {
+        "screen": "ddg_html_serp",
+        "url_match": [
+          "html.duckduckgo.com/html/?q="
+        ],
+        "method": "DOM: .result rows → .result__a (title + uddg-decoded destination url), .result__url (display), .result__snippet; drop bing-aclick/y.js ads unless include_ads.",
+        "note": "DuckDuckGo HTML chosen for clean, parseable markup + low bot-detection vs Google. First result page only (no pagination yet). To read a RESULT PAGE's content, submit its url with NO capability — the generic HTML engine returns readable text (raw_visible_text_excerpt).",
+        "validated_on": "2026-07-15 (in-app browser DOM inspect: 12 results, 2 ads filtered, 10 organic clean urls)",
+        "fallback": "html"
+      }
+    }
+  ]
+}

@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.29-websearch";
+const EXTENSION_BUILD = "0.1.16-no-window-focus";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -432,17 +432,6 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
   });
 }
 
-// Phase 1 hybrid capture (Facebook GraphQL) is ADDITIVE and ON by default.
-// Disable per job/config with collector_policy.graphql_capture=false (or a
-// top-level graphql_capture=false). When off, collection behaves exactly as
-// before this feature existed.
-function graphqlCaptureEnabled(job) {
-  if (!job || typeof job !== "object") return true;
-  if (job.graphql_capture === false) return false;
-  if (job.collector_policy && job.collector_policy.graphql_capture === false) return false;
-  return true;
-}
-
 async function collectSource(source, job, settings, binding, sourceIndex) {
   if (!source.url || !/^https?:\/\//i.test(source.url)) {
     throw new Error("source url must start with http:// or https://");
@@ -487,54 +476,6 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     }), captureTimeoutMs, "capture_timeout_needs_visible_collector_window_or_site_access");
 
     const cap = result && result.result ? result.result : {};
-
-    // PHASE 1 hybrid: additively read Facebook's internal GraphQL captures that
-    // gql_intercept.js recorded in the MAIN world while the page was scrolling.
-    // This is purely additive: results go ONLY into new graphql_* fields below;
-    // every existing HTML-derived field is untouched. On any failure, or on a
-    // non-Facebook page, we simply skip and behave exactly as before.
-    let gql = null;
-    if (graphqlCaptureEnabled(job) && /facebook\.com/i.test(String(source.url || cap.url || ""))) {
-      try {
-        await withTimeout(chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          world: "MAIN",
-          files: ["gql_extract.js"]
-        }), 8000, "inject_gql_extract_timeout");
-        const [gres] = await withTimeout(chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          world: "MAIN",
-          func: () => (typeof window.__soloGqlExtract === "function" ? window.__soloGqlExtract({}) : null)
-        }), 8000, "gql_extract_timeout");
-        gql = gres && gres.result ? gres.result : null;
-      } catch (error) {
-        gql = null; // GraphQL layer is best-effort; never fail the HTML collection.
-      }
-    }
-    const gqlAvailable = !!(gql && gql.available);
-
-    // If the job's source names a capability (catalog id like "fb.group.posts"),
-    // run its precise, typed extractor on top of the generic layer. Typed output
-    // lands in the new `records` field; still additive and best-effort.
-    let gqlRecords = null;
-    if (gqlAvailable && source.capability) {
-      try {
-        const [cres] = await withTimeout(chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          world: "MAIN",
-          func: async (capId, capInputs) => {
-            if (typeof window.__soloGqlPaginate === "function") return await window.__soloGqlPaginate(capId, capInputs);
-            if (typeof window.__soloGqlExtractCapability === "function") return window.__soloGqlExtractCapability(capId, capInputs);
-            return null;
-          },
-          args: [String(source.capability), source.inputs && typeof source.inputs === "object" ? source.inputs : {}]
-        }), 45000, "gql_capability_timeout");
-        gqlRecords = cres && cres.result ? cres.result : null;
-      } catch (error) {
-        gqlRecords = null; // capability extraction is best-effort; never fail collection.
-      }
-    }
-
     const now = new Date().toISOString();
     const runId = String(job.run_id || "");
     const maxChars = Number(job.pacing?.max_text_chars || settings.maxTextChars || 12000);
@@ -608,15 +549,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
         capture_overlay: activateCollectionTab,
         capture_overlay_text: activateCollectionTab ? captureOverlayText : "",
-        read_only: true,
-        // --- Phase 1 hybrid GraphQL layer (additive; null/empty when absent) ---
-        graphql_available: gqlAvailable,
-        graphql_capture_count: gql && typeof gql.captureCount === "number" ? gql.captureCount : 0,
-        graphql_records: gqlAvailable ? { posts: gql.posts || [], entities: gql.entities || [] } : null,
-        graphql_manifest: gqlAvailable ? (gql.manifest || []) : [],
-        // --- Phase 2 capability layer (typed, per-screen; null when no capability) ---
-        capability: source.capability || "",
-        records: gqlRecords && gqlRecords.available ? gqlRecords : null
+        read_only: true
       },
       newPrivateSources: entityItems
         .filter((it) => it && /group|community|page|channel|profile|account/i.test(String(it.type || "")))
