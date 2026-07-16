@@ -33,6 +33,8 @@ Ask only:
 What product/service, profession, or business does this outreach focus on, and who is the ideal customer? A website or profile URL is welcome. If location matters, include it.
 ```
 
+This exact wording is canonical; Stage 1 must use it verbatim and must not rephrase it.
+
 Do not ask for industry, ICP details, pain points, value proposition, pipeline stages, or email copy in the first question. A website/profile URL is acceptable as first setup input; the agent may read it for setup context when web access is available, but this is not an operational enrichment run or a send. Infer what can be inferred first, then show it for correction.
 
 ## Plain-Language Human Communication Rule
@@ -194,6 +196,7 @@ Operator-only reports (Approval Report, Today View, daily ops, `INTERNAL_REPORT`
 | 14 | `playbooks/14_TASKS_TODAY_VIEW.md` *(planned)* | Task engine, SLA, Today View. |
 | 15 | `playbooks/15_CRM_REPORTING.md` *(planned)* | Pipeline report, forecast, weekly client report. |
 | 6A | `playbooks/skills/report-design/SKILL.md` | Immediately before rendering any report HTML/PDF. |
+| Auto | `playbooks/AUTOMATION_SCHEDULING.md` | Configuring the schedule or any automation task in Setup Flow; the start of every scheduled run; any Automation Resync. Defines the Daily Run order, run_lock, and resync machinery. |
 | Setup Entrypoint | `playbooks/SETUP_FLOW_ENTRYPOINT.md` | Setup/configuration sessions. Setup Flow configures; it never sends. |
 | Scheduled Entrypoint | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | The scheduler prompt for unattended daily runs. |
 | TODO | `playbooks/TODO.md` | Backlog. Not a source of daily questions to the human. |
@@ -237,10 +240,10 @@ Every client-specific automation/scheduled task name must begin with the client 
 
 ```text
 Max Output - OutreachCRM Daily Run
-Max Output - OutreachCRM Weekly Report
+Max Output - OutreachCRM Weekly Report   (optional additional task)
 ```
 
-Do not name client-specific tasks with `OutreachCRM` first. One agency-wide maintenance task is `OutreachCRM - GitHub Update Watch`.
+The standard, canonical client task is `{Client} - OutreachCRM Daily Run` — one per client. A separate `{Client} - OutreachCRM Weekly Report` task is optional and only exists when explicitly created; do not assume it exists. Do not name client-specific tasks with `OutreachCRM` first. One agency-wide maintenance task is `OutreachCRM - GitHub Update Watch`.
 
 ## Automation Resync Invariant
 
@@ -300,6 +303,10 @@ After a schedule/automation exists, every human-facing progress block must inclu
 
 For setup, repair, or update, treat GitHub `main` as the source of truth unless the current setup root is verified as a fresh clone of the same repo. Do not reuse fixed shared fallback folders (`/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`). If a temporary checkout is needed, `mktemp -d`, clone `https://github.com/OWNER/outreachcrm`, and verify `.git` exists, `origin` matches, and `git rev-parse HEAD` == `git ls-remote origin refs/heads/main`. A folder without `.git`, wrong owner, or failed update is stale cache. If sandbox/network limits block GitHub, request permission or give one exact command; do not proceed on unverified local code. If local `playbooks/` is unavailable, download the needed stage from `https://raw.githubusercontent.com/OWNER/outreachcrm/main/playbooks/` and verify it against `LOAD_MANIFEST.md` via a LOAD LEDGER before use.
 
+Stages marked `status: planned` in the Stage Map are not missing files — do not fetch them from GitHub raw; load `docs/DESIGN.md` for their contract instead (DESIGN §22 R1).
+
+If the repo is not yet published — `OUTREACHCRM_GIT_REMOTE_URL` unset or still containing the `OWNER` placeholder — treat THIS local working copy as the verified source, record `fresh_source_check: skipped_local_phase0` in `resync_log.md` (or `update_state.json` for updates), skip the clone/remote-verify/GitHub-fetch steps, and continue. Do not block setup or a run on a GitHub check that cannot pass yet (DESIGN §22 R4).
+
 ## Last-Resort Recovery And Issue Escalation Rule
 
 When the agent hits any blocker, repeated failure, contradiction, tool/config mismatch, stale asset, or dead end, first assume the local playbook/code may be old:
@@ -310,6 +317,8 @@ When the agent hits any blocker, repeated failure, contradiction, tool/config mi
 4. Reload the relevant latest playbooks and check whether a newer rule fixes it.
 5. If it fixes it, follow it, resync state, and note the recovery in the progress/blocker message.
 6. If the latest version still leaves the agent stuck, create or draft a redacted issue for `OWNER/outreachcrm`.
+
+If the repo is not yet published — `OUTREACHCRM_GIT_REMOTE_URL` unset or still containing the `OWNER` placeholder — treat THIS local working copy as the verified source, record `fresh_source_check: skipped_local_phase0` in `resync_log.md` (or `update_state.json` for updates), skip the clone/remote-verify/GitHub-fetch steps, and continue. Do not block setup or a run on a GitHub check that cannot pass yet (DESIGN §22 R4).
 
 Issue escalation: the human does not need a GitHub account. Prefer `gh issue create` only when an authorized identity exists (`gh auth status`, `GITHUB_TOKEN`, `GH_TOKEN`, `OUTREACHCRM_GITHUB_ISSUE_TOKEN`, or a maintainer bot). Otherwise send via a configured intake channel or write a ready-to-post draft under `outreach-pipeline/automation/issues/`. Track every issue in `outreach-pipeline/automation/github_issues.md`. Never include secrets, API keys, tokens, sendbox credentials, client-confidential data, or contact PII in an issue.
 
@@ -345,7 +354,7 @@ Setup is not complete until:
 
 - Stage 0 and Stage 1 were loaded.
 - The first question followed the minimal-input rule and inference was shown to the human.
-- The Client Intelligence Profile, pipeline, custom fields, and sending identity (from-name, signature, physical address, unsubscribe method) were saved via `crm_store.py`.
+- The Client Intelligence Profile saved as its `.md` file at the correct path; pipeline, custom fields, and segments saved via `crm_store.py` WHEN IT EXISTS, otherwise written directly per the Stage 7 schema and logged as `phase0_direct_write` in `resync_log.md` (per DESIGN §22 R3). Sending identity (from-name, signature, physical address, unsubscribe method) is recorded on the profile/config the same way.
 - At least one sendbox was connected and its warmup/quota recorded, or the pending action was handed off in an `[ACTION REQUIRED]` block.
 - The first list was imported, deduped, and checked against suppression, or marked pending.
 - At least one campaign with a structured goal and a valid sequence exists.

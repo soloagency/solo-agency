@@ -123,7 +123,7 @@ query(collection, where: [Cond], sort=None, limit=None, offset=None) -> [dict]
 append(log, record) -> None                          # append-only, stamps ts + monotonic seq
 read_log(log, since_seq=None, where=None) -> [dict]  # ordered by seq (backend-independent)
 find_by_identity(kind, normalized_value) -> id | None  # backed by unique reverse index
-reserve(sendbox_slug, day) -> token | None           # atomic quota reservation (see §8 / Stage 8)
+reserve(sendbox_slug, day) -> token | None           # atomic quota reservation (see §6.3, §7.5 / Stage 8)
 ```
 
 ### 2.2 Cond DSL — deliberately small
@@ -217,7 +217,7 @@ Field notes:
 
 - **`identities.emails[].status`** enum: `unverified | mx_ok | delivered | bounced | guessed_only | catch_all | email_not_found`. `is_primary` marks the address a send routes to. `source` ∈ `import | enrich | guess`.
 - **`channels.email.status`** enum: `usable | needs_data | opted_out | bounced`. A contact with no verified email is `needs_data` and cannot be emailed; it may still be `usable` on an assisted channel if consent exists.
-- **`channels.sms.status`** ∈ `needs_optin | usable | opted_out`, always `mode: assisted`; the `optin` object records `{source, at, evidence_activity_id}` (compliance basis, see Stage 16 / DESIGN §16).
+- **`channels.sms.status`** ∈ `needs_optin | usable | opted_out`, always `mode: assisted`; the `optin` object records `{source, at, evidence_activity_id}` (compliance basis, see DESIGN §16 — compliance is encoded in the send/import code, Stages 8/3).
 - **`lifecycle_stage`** enum: `lead | engaged | opportunity | customer | evangelist | lost | do_not_contact`.
 - **`tz`** feeds the send-window gate; inferred from state/area code.
 - **`custom_fields`** keys are defined per client in the Client Intelligence Profile `custom_field_definitions` block (§8.1). Do not invent custom-field keys that the profile does not define.
@@ -505,10 +505,10 @@ Client-level intent to enrich, deduped by `lead_id` (one job even if two campaig
 
 ### 7.4 Drafts (`campaigns/{campaign_slug}/outbox/…`)
 
-A draft is written to `outbox/pending_approval/YYYY-MM-DD/{draft_id}.json` and, once approved in chat (§9), moved to `outbox/approved/{draft_id}.json` and sent in-session. Editing the HTML report never persists — chat is the write path.
+A draft is written to `outbox/pending_approval/YYYY-MM-DD/{draft_id}.json` and, once approved in chat (§9), moved to `outbox/approved/{draft_id}.json` and sent in-session. Editing the HTML report never persists — chat is the write path. The `{draft_id}` path token **is** the record's `id` value (a `draft_`+ULID, §3); the record keys it as `id` and carries `created_at`/`updated_at` per the record invariant (§2.3).
 
 ```json
-{"draft_id":"","schema_version":1,"created_at":"","lead_id":"c_...","campaign_slug":"","step":1,
+{"id":"","schema_version":1,"created_at":"","updated_at":"","lead_id":"c_...","campaign_slug":"","step":1,
  "sendbox":"sb-a","to":"","subject":"","body_text":"","body_html":"",
  "confidence_band":"high|review_carefully",
  "hooks_used":[{"type":"","evidence_url":""}],
@@ -528,12 +528,13 @@ A draft is written to `outbox/pending_approval/YYYY-MM-DD/{draft_id}.json` and, 
 Append-only, monthly, `seq`-stamped. Written by `gmail_client.py send` after a successful send; also holds the `send_reserved` marker appended under the sent_log lock during atomic quota reservation (so there is no count-then-send race).
 
 ```json
-{"seq":1,"lead_id":"","campaign":"","step":1,"sendbox":"","provider_id":"","thread_id":"",
+{"seq":1,"ts":"","lead_id":"","campaign":"","step":1,"sendbox":"","provider_id":"","thread_id":"",
  "rfc_message_id":"","token":"","links":{},"sent_at":""}
 ```
 
+- `ts` is the append-time stamp; `append()` stamps `ts` + the monotonic `seq`, while `sent_at` is the domain timestamp of the actual send — both are present per the append-only log invariant (§2.4 / this stage's Hard Gates).
 - `rfc_message_id` is the on-the-wire Message-ID (our own only when we control the domain; otherwise fetched after send). Bumps/replies thread via `In-Reply-To`+`References` off the prior `rfc_message_id`.
-- `token` is the tracker token; `links` is the map of rewritten click tokens. Track-pull accepts only click URLs matching this stored `links{}` (injection defense, Stage 11/12).
+- `token` is the tracker token; `links` is the map of rewritten click tokens. Track-pull accepts only click URLs matching this stored `links{}` (injection defense, DESIGN §11–12; Stages 10/12).
 
 ### 7.6 Campaign history (`campaigns/{campaign_slug}/history/YYYY-MM/`)
 
@@ -938,9 +939,9 @@ The root index of all client pipelines.
 ```md
 # Clients Index
 
-| Client | Client Slug | Pipeline Folder | Client Profile File | Status | Added Date | Schedule | Sendboxes | Active Campaigns | Notes |
-|---|---|---|---|---|---|---|---|---|---|
-| Angela Do Realty | angela-do | clients/angela-do/realestate_austin | client_profile_angela-do_realestate_austin.md | active | 2026-07-15 | daily | sb-a, sb-b | austin-sellers-q3 | Austin listing agents |
+| Client | Client Slug | Pipeline Folder | Client Profile File | Status | Added Date | Schedule | Sendboxes | Sendbox Health | Active Campaigns | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Angela Do Realty | angela-do | clients/angela-do/realestate_austin | client_profile_angela-do_realestate_austin.md | active | 2026-07-15 | daily | sb-a, sb-b | all healthy | austin-sellers-q3 | Austin listing agents |
 ```
 
 Allowed status:
@@ -950,7 +951,8 @@ Allowed status:
 - `active`
 - `paused`
 - `archived`
-- `needs_reauth`  # a sendbox needs re-auth; blocks its assigned follow-ups
+
+The client-level `status` **never** encodes sendbox health — there is no `needs_reauth` client status, because a broken sendbox must not halt a whole client. Sendbox health lives ONLY in `sendboxes/sendboxes.json` `status` (`healthy | needs_reauth | paused`, §6.1 / DESIGN §8) and the automation manifest's per-client **Sendbox Health** column (§11.7). Per DESIGN §8, a broken box is dropped from step-1 rotation and its assigned pending follow-ups **wait** (never reassigned) with an `[ACTION REQUIRED]` re-auth — the client stays `active` in daily runs; only that box's follow-ups pause. The **Sendbox Health** column above is a non-excluding per-client visibility signal only (e.g. `all healthy` / `sb-b needs_reauth`); it does NOT remove the client from active daily runs.
 
 Daily runs process every client with `active` status. A `ready_for_automation_first_run` client flips to `active` on/after its first successful automation run.
 
@@ -1112,9 +1114,11 @@ Tracks the installed OutreachCRM version, latest GitHub check, auto-apply prefer
   "last_change_classification": "",
   "tracker_worker_deploy_required": false,
   "storage_schema_migration_required": false,
+  "sendbox_reauth_required": [],
   "automation_prompt_update_pending": false,
   "update_watch_task_prompt_pending": false,
   "clients_resynced": [],
+  "clients_pending_resync": [],
   "automations_resynced": [],
   "human_actions_required": []
 }
@@ -1122,7 +1126,10 @@ Tracks the installed OutreachCRM version, latest GitHub check, auto-apply prefer
 
 - `tracker_worker_deploy_required` → an update changed `tracker/worker.js` and the Worker must be re-deployed (`wrangler deploy`) before tracking/unsub events are trustworthy.
 - `storage_schema_migration_required` → a bumped `schema_version` needs `crm_store.py migrate`/upgrade before runs continue.
+- `sendbox_reauth_required` → list of sendbox slugs whose token/auth compatibility changed and must be re-authenticated before they send again; Stage 11 keeps them listed until the human confirms re-auth and a clean sync.
+- `clients_pending_resync` → clients the scheduled `OutreachCRM - GitHub Update Watch` task recorded as needing resync **without** writing under `clients/`; a maintenance session or each client's own daily run self-heals them.
 - Set `update_watch_task_prompt_pending: true` when the `OutreachCRM - GitHub Update Watch` task prompt could not be created/updated natively and `outreach-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
+- The canonical `update_state.json` schema lives in Stage 11 (`11_UPDATE_AND_VERSION_WATCH.md`, "Minimum `update_state.json`"); keep this block byte-identical to it.
 - Do not store secrets, tokens, client-confidential report content, or raw provider responses here.
 
 #### `automation/update_log.md`
@@ -1134,16 +1141,16 @@ Tracks the installed OutreachCRM version, latest GitHub check, auto-apply prefer
 |---|---|---|---|---|---|---|---|---|---|---|---|
 ```
 
-Recommended change classifications:
+Change classification values (the canonical enum lives in Stage 11 — `11_UPDATE_AND_VERSION_WATCH.md`, "Change classification values"; keep identical):
 
 - `no_change`
 - `playbook_only`
 - `provider_tooling`
-- `storage_adapter_or_schema`
-- `crm_tooling`            # crm_store.py / import_leads.py / email_verify.py
-- `send_engine`           # gmail_client.py / send gate chain
-- `tracker_worker`        # tracker/worker.js (requires wrangler deploy)
-- `sendbox_auth`          # sendbox token / OAuth scope compatibility
+- `crm_core_tooling`
+- `storage_schema_migration`
+- `tracker_worker`
+- `send_or_sendbox_compat`
+- `renderer_or_report_format`
 - `setup_or_schedule_contract`
 - `breaking_or_major_behavior`
 - `unknown`
@@ -1273,7 +1280,7 @@ Credential rules:
 
 ### 12.2 `provider_capabilities.json`
 
-Snapshot of discovered OpenAPI operations — the main Client-tools inventory, safe without secrets. Refresh with `tools/provider_openapi.py discover --config <client provider_config.local.json> --defaults outreach-pipeline/provider_defaults.json --out-dir <client integrations/providers folder>`. Because the role is notification-only, only the notification/upload/account operations matter.
+Snapshot of discovered OpenAPI operations — the main Client-tools inventory, safe without secrets. Refresh with `python3 tools/provider_openapi.py --config <client provider_config.local.json> --defaults outreach-pipeline/provider_defaults.json discover --out-dir <client integrations/providers folder>` (`--config`/`--defaults` are global flags that must PRECEDE the `discover` subcommand). Because the role is notification-only, only the notification/upload/account operations matter.
 
 ```json
 {

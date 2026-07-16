@@ -19,7 +19,7 @@ The Client Intelligence Profile that this stage builds is written using the cano
 - Setup Flow NEVER sends an email, NEVER enriches a contact for send, NEVER runs a campaign, and NEVER previews-then-sends. It only creates config and the client-specific automation task.
 - Terminal state for Setup Flow is `ready_for_automation_first_run` (or `ready_for_next_automation_run` for an already-live client), never `first_send_completed`.
 - If the human asks to send, enrich-and-send, run a campaign, "email them now", or "just send the first batch" while this stage is being used for Setup Flow, do not send. Refuse with the exact wording in the Setup Flow Send Refusal section, finish or resync the client-specific automation task, and tell the human the exact task name to run.
-- The first send, enrichment pass, and approval batch happen in Automation Flow, driven by a client-specific task whose name begins with the client name, for example `AvenNgo - OutreachCRM First Run` or `AvenNgo - OutreachCRM Daily Run`.
+- The first send, enrichment pass, and approval batch happen in Automation Flow, driven by a client-specific task whose name begins with the client name, for example `AvenNgo - OutreachCRM Daily Run`. The first run is simply that task's first execution, not a separate task.
 - Nothing leaves the system without an explicit chat `approve`. Even in Automation Flow the send is gated by the Preview & chat-approval step (Stage 5 / Stage 8). Setup Flow does not reach that gate at all.
 - Every human step in this stage — every question, approval request, API-key request, one-line command, and native automation task edit — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. When nothing is needed, say `No action required right now.`
 - Load the referenced stages (2 sendbox, 3 import, 5 campaign, 7 storage schema, 12 analytics) with their own LOAD LEDGER before writing the config those stages own. Do not hand-write sendbox, list, campaign, pipeline, or analytics files from prose.
@@ -31,7 +31,7 @@ The current OutreachCRM control-plane model supersedes any older "run the first 
 
 - In Setup Flow, do not run the first agency run, first inbox sync, first enrichment pass, first draft batch, first send, tracking pull, or notification delivery.
 - Setup Flow must finish by creating or resyncing the client-specific automation task and all persistent config that task reads to run correctly.
-- The first send/enrich/draft/approval cycle must run in Automation Flow, using a client-specific task whose name begins with the client name, for example `AvenNgo - OutreachCRM First Run`.
+- The first send/enrich/draft/approval cycle must run in Automation Flow, using a client-specific task whose name begins with the client name, for example `AvenNgo - OutreachCRM Daily Run`. The first run is that task's first execution.
 - If the human asks to send, enrich, run a campaign, generate drafts, or "start emailing" while still in Setup Flow, verify/resync the automation task instead and tell the human the exact task name to run. Do not ask whether to send now, do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` in the setup chat, and do not perform enrichment, drafting, sending, tracking, or notification.
 - Any later setup/config change in this session must resync the Client Intelligence Profile, sendbox registry, list/campaign config, `schedule.md`, the automation manifest, the scheduled-run prompt, the native task body when editable, and `resync_log.md` (Automation Resync).
 
@@ -53,8 +53,8 @@ configures OutreachCRM — it never sends, never enriches a contact for send, an
 runs a campaign. Sending happens only in Automation Flow, and even there nothing leaves
 until you approve the drafts in chat.
 
-I will finish or resync `{Client Name} - OutreachCRM Daily Run` (or
-`{Client Name} - OutreachCRM First Run` for the very first pass) instead. Once setup
+I will finish or resync `{Client Name} - OutreachCRM Daily Run` instead (the very first
+pass is just that same task's first execution). Once setup
 reaches `ready_for_automation_first_run`, run that task. It will sync the inbox, enrich
 the first batch, draft emails against the campaign goal, and post the drafts for your
 review. I will send only the drafts you `approve`.
@@ -91,12 +91,7 @@ The agent infers all of these first, then shows them for correction.
 
 Good first setup question:
 
-```text
-What does this client sell, and to whom? A product/service description, a website or
-profile URL, and the target audience or service area (if location matters) is enough —
-I will infer the ideal customer, their pain points, the value proposition, and the
-sending voice, then show you to correct.
-```
+Ask the exact canonical question from `OUTREACHCRM_PLAYBOOK.md` "First Human Question" verbatim (do not rephrase); then infer ICP/value-prop/voice and show for correction.
 
 Good add-client question:
 
@@ -258,7 +253,7 @@ Propose the default sales pipeline (six stages) and ask only whether to customiz
    {"id":"won"},{"id":"lost"}]}]}
 ```
 
-The full pipeline object (including the deterministic rules `r1`–`r6`) lives in Stage 13; at setup, write the pipeline via `crm_store.py`, never as a hand-edited file. Ask whether the client wants to rename or add stages, and whether they track any custom fields on contacts, accounts, or deals (for example `loan_type`, `brokerage`, `renewal_month`). Custom fields land in `contact.custom_fields` / account `custom_fields` / deal fields per the Stage 7 schema.
+The full pipeline object (including the deterministic rules `r1`–`r6`) lives in Stage 13; at setup, write the pipeline via `crm_store.py`, never as a hand-edited file. Until `tools/crm_store.py` ships (Phase 1), write these directly per the Stage 7 schema (stamping `schema_version`/`id`/`created_at`/`updated_at` where required) and log `phase0_direct_write` in `outreach-pipeline/automation/resync_log.md`; `crm_store.py` re-validates them when it lands. The critical-violation rule resumes once `crm_store.py` exists (DESIGN §22 R3). Ask whether the client wants to rename or add stages, and whether they track any custom fields on contacts, accounts, or deals (for example `loan_type`, `brokerage`, `renewal_month`). Custom fields land in `contact.custom_fields` / account `custom_fields` / deal fields per the Stage 7 schema.
 
 ```text
 **[ACTION REQUIRED]**
@@ -315,7 +310,7 @@ Password plus the sending address.
 It is scoped to this app and never your main Google password.
 ```
 
-Store credentials under `sendboxes/{sendbox_slug}/credentials.json` (gitignored, chmod 600) and register the box in `sendboxes/sendboxes.json` with `auth_mode`, `email`, `domain`, `quota_today`, `warmup_stage: week_1`, `status: healthy`. Setup connects and verifies the box; it does not send a test cold email. A connectivity check that authenticates SMTP/IMAP without sending outbound mail is allowed; sending a real message is not.
+Store credentials under `sendboxes/{sendbox_slug}/credentials.json` (gitignored, chmod 600) and register the box in `sendboxes/sendboxes.json` with `auth_mode`, `email`, `domain`, `quota_today`, `warmup_stage: week_1`. Until `gmail_client.py` ships (Phase 1) there is no sanctioned tool to authenticate the box, so take the DESIGN §22 R2 pending path: collect the App Password, write the sendbox with `status: pending_connectivity_check`, record `gmail_client_auth_pending` in `outreach-pipeline/automation/resync_log.md`, and do NOT improvise a one-off connectivity script (the no-one-off-scripts rule holds). `gmail_client.py` runs the real connectivity check — authenticating SMTP/IMAP without sending outbound mail — when it lands, and flips the box to `status: healthy`. Setup never sends a test cold email either way.
 
 ### Step 5 — Import the first list
 
@@ -400,7 +395,7 @@ Setup only records that no sends exist yet and that the learning loop starts emp
 
 This is where Setup Flow ends. Create or resync:
 
-- **One client-specific automation task**, name beginning with the client name, for example `AvenNgo - OutreachCRM First Run` (or `AvenNgo - OutreachCRM Daily Run`). Its prompt pins `target_client_slug` so it can never touch another client. Configure the schedule/cadence the human wants (daily, weekday, manual-only, first-run-only).
+- **One client-specific automation task**, name beginning with the client name, for example `AvenNgo - OutreachCRM Daily Run` (the first pass is this task's first execution, not a separate task). Its prompt pins `target_client_slug` so it can never touch another client. Configure the schedule/cadence the human wants (daily, weekday, manual-only, first-run-only).
 - **One agency-wide maintenance task** `OutreachCRM - GitHub Update Watch`, offered after the client task exists. It is barred from client-facing channels and does not touch client data (Stage 11).
 
 Write every persistent state file the next automation run reads: the Client Intelligence Profile, `sendboxes/sendboxes.json`, list/campaign config, `outreach-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt, the native task body when editable, and `resync_log.md`. Then run the dry-read Automation Resync verification.
@@ -432,9 +427,9 @@ Stage-1-relevant fields the interview must fill (each with `value` / `status` / 
 - `notification`: WideCast provider reference (`api_key_env`/`api_key_local`, capabilities), notification-only
 - `analytics_baseline`: nothing sent; metric-honesty note
 - `setup_state`: `ready_for_automation_first_run`
-- `automation_task_name`: `{Client Name} - OutreachCRM Daily Run` (or First Run)
+- `automation_task_name`: `{Client Name} - OutreachCRM Daily Run` (the first pass is this task's first execution)
 
-Slug rules: lowercase, hyphens, no punctuation or spaces. The client folder key is `{client_slug}/{business_slug}_{location_slug}`. All monthly artifacts (activities, sent log, campaign history, reports, inbox sync, outputs) use `YYYY-MM/` folders. The profile is written through `crm_store.py`/the Stage 7 tooling where the schema requires it; do not hand-edit CRM record files, which is a critical violation.
+Slug rules: lowercase, hyphens, no punctuation or spaces. The client folder key is `{client_slug}/{business_slug}_{location_slug}`. All monthly artifacts (activities, sent log, campaign history, reports, inbox sync, outputs) use `YYYY-MM/` folders. The profile is written through `crm_store.py`/the Stage 7 tooling where the schema requires it; do not hand-edit CRM record files, which is a critical violation. Until `tools/crm_store.py` ships (Phase 1), write these directly per the Stage 7 schema (stamping `schema_version`/`id`/`created_at`/`updated_at` where required) and log `phase0_direct_write` in `outreach-pipeline/automation/resync_log.md`; `crm_store.py` re-validates them when it lands. The critical-violation rule resumes once `crm_store.py` exists (DESIGN §22 R3). (The Client Intelligence Profile itself is a `.md` file, never a crm_store collection, so it was always a direct write.)
 
 ---
 
@@ -506,7 +501,7 @@ Then follow the same nine-step setup model. Do not introduce Add Client setup st
 3. Save the inferred ICP, pain points, value proposition, offer, brand voice, language, and compliance notes.
 4. Save the pipeline (default six-stage) and any custom fields, plus the first campaign goal.
 5. Connect the first sendbox (Stage 2), import the first list (Stage 3), and capture the sending identity (from-name, signature, physical address, unsubscribe method).
-6. Configure the recurring schedule and create/resync the client-specific automation task whose name begins with the client name, for example `Nguyen Law - OutreachCRM First Run` or `Nguyen Law - OutreachCRM Daily Run`.
+6. Configure the recurring schedule and create/resync the client-specific automation task whose name begins with the client name, for example `Nguyen Law - OutreachCRM Daily Run`.
 7. Set up PDNA notification (WideCast API key only, notification-only) when the human provides the key; otherwise mark it pending and hand the API-key action to the automation task.
 8. Initialize the analytics baseline (nothing sent).
 9. Reach `ready_for_automation_first_run`. Do not enrich, draft, send, pull tracking, or notify inside Setup Flow.
@@ -538,7 +533,7 @@ outreach-pipeline/
         integrations/providers/provider_config.local.json
 ```
 
-The agent configures the schedule, prepares the `Nguyen Law - OutreachCRM First Run` task pinning `target_client_slug: nguyen-law`, runs Automation Resync, and tells the human the exact task name to run for the first pass. Setup Flow does not enrich, draft, or send Nguyen Law's first batch.
+The agent configures the schedule, prepares the `Nguyen Law - OutreachCRM Daily Run` task pinning `target_client_slug: nguyen-law`, runs Automation Resync, and tells the human the exact task name to run for the first pass. Setup Flow does not enrich, draft, or send Nguyen Law's first batch.
 
 ---
 
