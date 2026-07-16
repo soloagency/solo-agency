@@ -147,5 +147,48 @@ class TestEnrich(unittest.TestCase):
         self.assertFalse(any(d["lead_id"] == self.lead for d in due_after))  # now fresh -> not due
 
 
+class TestDraftWriting(unittest.TestCase):
+    def setUp(self):
+        self.cdir = _client()
+        self.s = CrmStore(self.cdir)
+        import gmail_client as g
+        self.lead, _ = self.s.add_contact({"name": {"full": "Susan"}, "identities": {"emails": [{"address": "s@kw.com", "is_primary": True}]}})
+        g.save_sendbox(self.cdir, {"slug": "sb-a", "email": "me@gmail.com", "domain": "gmail.com", "quota_today": 40, "status": "healthy", "imap_uid_cursor": 0})
+        g.save_sendbox(self.cdir, {"slug": "sb-b", "email": "me2@gmail.com", "domain": "gmail.com", "quota_today": 40, "status": "needs_reauth", "imap_uid_cursor": 0})
+        self.s.create_campaign("demo", {"audience": {"segment": "x"}, "sendboxes": ["sb-a", "sb-b"]})
+        self.s.enrich_write(self.lead, {"identity": {"still_active": "confirmed"},
+                            "hooks": [{"type": "new_listing", "summary": "listed 123 Main St", "evidence_url": "https://z/1",
+                                       "observed_date": "2026-07-14", "confidence": 0.9, "analysis": {"sensitivity": "public_business"}}],
+                            "writing_brief": {"personalization_confidence": 0.85}}, campaign_slug="demo")
+
+    def test_draft_ok_and_rotation_skips_unhealthy(self):
+        r = self.s.draft_write(self.lead, "demo", 1, "Idea for your listing", "Hi...", hooks_used=[{"type": "new_listing", "evidence_url": "https://z/1"}])
+        self.assertEqual(r["sendbox"], "sb-a")     # sb-b is needs_reauth
+        self.assertEqual(r["confidence_band"], "high")
+        self.assertEqual(r["warnings"], [])
+
+    def test_draft_rejects_unsourced_hook(self):
+        with self.assertRaises(Exception):
+            self.s.draft_write(self.lead, "demo", 1, "x", "y", hooks_used=[{"type": "new_listing", "evidence_url": "https://FAKE"}])
+
+    def test_draft_rejects_step1_fake_reply(self):
+        with self.assertRaises(Exception):
+            self.s.draft_write(self.lead, "demo", 1, "Re: following up", "y")
+
+    def test_hook_marked_used_in(self):
+        self.s.draft_write(self.lead, "demo", 1, "Idea", "Hi", hooks_used=[{"type": "new_listing", "evidence_url": "https://z/1"}])
+        self.assertIn("demo/step1", self.s.get_contact(self.lead)["enrichment"]["hooks"][0]["used_in"])
+
+    def test_generic_opener_warning_when_no_hook(self):
+        r = self.s.draft_write(self.lead, "demo", 1, "Hello", "Hi, generic opener")
+        self.assertIn("generic_opener", r["warnings"])
+
+    def test_sticky_sender_on_draft(self):
+        self.s.set_contact(self.lead, {"assigned_sendbox": "sb-b"})  # already assigned (even if 'unhealthy')
+        r = self.s.draft_write(self.lead, "demo", 2, "Re: Idea", "bump", hooks_used=[{"type": "new_listing", "evidence_url": "https://z/1"}])
+        self.assertEqual(r["sendbox"], "sb-b")     # sticky sender wins over rotation for a bump
+        self.assertIn("bump_step", r["warnings"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

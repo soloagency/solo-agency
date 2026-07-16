@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import glob
 
@@ -476,6 +477,132 @@ class CrmStore:
         self.set_contact(lead_id, patch)
         return {"lead_id": lead_id, "usable_hooks": len(usable_hooks), "confidence_band": band,
                 "do_not_mention": len(do_not_mention), "problems": problems}
+
+    # --- drafts (Stage 6 writes emails; validated + stored here) -------------
+
+    def _sendboxes(self) -> list:
+        p = os.path.join(self.client_dir, "sendboxes", "sendboxes.json")
+        if os.path.isfile(p):
+            with open(p, "r", encoding="utf-8") as fh:
+                return json.load(fh).get("sendboxes", [])
+        return []
+
+    def _sent_today(self, sendbox_slug: str, day: str) -> int:
+        n = 0
+        for p in self._all_sent_logs():
+            for line in open(p, "r", encoding="utf-8"):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                if r.get("sendbox") == sendbox_slug and (r.get("sent_at", "") or "")[:10] == day and r.get("rfc_message_id"):
+                    n += 1
+        return n
+
+    def pick_sendbox(self, campaign_cfg: dict, contact: dict, day: str | None = None) -> str | None:
+        """Sticky sender: a contact keeps its assigned box for every bump/reply. Step-1 rotates
+        across the campaign's healthy boxes by lowest sent_today/quota_today ratio (DESIGN §8)."""
+        if contact.get("assigned_sendbox"):
+            return contact["assigned_sendbox"]
+        day = day or today_str()
+        refs = set(campaign_cfg.get("sendboxes", []))
+        boxes = [b for b in self._sendboxes() if b.get("status") == "healthy" and (not refs or b["slug"] in refs)]
+        if not boxes:
+            return None
+        def load(b):
+            q = max(1, int(b.get("quota_today", 1)))
+            return self._sent_today(b["slug"], day) / q
+        boxes.sort(key=lambda b: (load(b), b["slug"]))
+        return boxes[0]["slug"]
+
+    def draft_write(self, contact_id: str, campaign_slug: str, step: int, subject: str,
+                    body_text: str, hooks_used: list | None = None, body_html: str = "",
+                    tracking: str = "plain_text") -> dict:
+        """Validate and store a draft in outbox/pending_approval. Rejects a step-1 fake Re:/Fwd:
+        subject and any hook_used that isn't in the contact's dossier WITH an evidence_url."""
+        lead_id = self.resolve(contact_id)
+        contact = self.get_contact(lead_id)
+        if not contact:
+            raise StorageError("contact_not_found")
+        cfg = self.get_campaign(campaign_slug)
+        if not cfg:
+            raise StorageError(f"campaign {campaign_slug!r} not found")
+        step = int(step)
+        if step == 1 and re.match(r"^\s*(re|fwd)\s*:", subject or "", re.I):
+            raise StorageError("step-1 subject must not begin with Re:/Fwd: (deceptive, CAN-SPAM)")
+        # recipient must be a real found email (no guessing)
+        emails = [e for e in contact.get("identities", {}).get("emails", []) if e.get("address")]
+        primary = next((e for e in emails if e.get("is_primary")), emails[0] if emails else None)
+        if not primary:
+            raise StorageError("contact has no email to draft to")
+        # every referenced hook must exist in the dossier WITH an evidence_url
+        dossier_hooks = (contact.get("enrichment") or {}).get("hooks", [])
+        evidence_by_url = {h.get("evidence_url"): h for h in dossier_hooks if h.get("evidence_url")}
+        clean_hooks = []
+        for h in hooks_used or []:
+            url = h.get("evidence_url")
+            if not url or url not in evidence_by_url:
+                raise StorageError(f"hook {h.get('type','?')!r} has no matching evidenced dossier hook — "
+                                   "every personalized detail must trace to a dossier hook with an evidence_url")
+            clean_hooks.append({"type": h.get("type") or evidence_by_url[url].get("type"), "evidence_url": url})
+        sendbox = self.pick_sendbox(cfg, contact)
+        if not sendbox:
+            raise StorageError("no healthy sendbox available for this campaign")
+        band = (contact.get("enrichment") or {}).get("confidence_band", "review_carefully")
+        warnings = []
+        if not clean_hooks:
+            warnings.append("generic_opener")
+        if step > 1:
+            warnings.append("bump_step")
+        did = new_ulid("draft_")
+        now = now_iso()
+        draft = {"id": did, "schema_version": 1, "created_at": now, "updated_at": now,
+                 "lead_id": lead_id, "campaign_slug": campaign_slug, "step": step,
+                 "sendbox": sendbox, "to": primary["address"], "subject": subject,
+                 "body_text": body_text, "body_html": body_html,
+                 "confidence_band": band, "hooks_used": clean_hooks, "tracking": tracking,
+                 "warnings": warnings, "guessed_approved": False,
+                 "status": "pending_approval", "decided_at": "", "decided_by": "", "reject_reason": "", "blocker": ""}
+        d = os.path.join(self.campaign_dir(campaign_slug), "outbox", "pending_approval", today_str(now))
+        os.makedirs(d, exist_ok=True)
+        JsonAdapter._atomic_write(os.path.join(d, f"{did}.json"), json.dumps(draft, ensure_ascii=False, indent=2))
+        # mark the used hooks so another campaign won't open with the same one
+        if clean_hooks:
+            used_urls = {h["evidence_url"] for h in clean_hooks}
+            def mut(rec):
+                for hk in (rec.get("enrichment") or {}).get("hooks", []):
+                    if hk.get("evidence_url") in used_urls:
+                        tag = f"{campaign_slug}/step{step}"
+                        if tag not in hk.setdefault("used_in", []):
+                            hk["used_in"].append(tag)
+                return rec
+            self.a.update("contacts", lead_id, mut)
+        return {"draft_id": did, "sendbox": sendbox, "to": primary["address"], "confidence_band": band,
+                "warnings": warnings, "path": os.path.join(d, f"{did}.json")}
+
+    def list_pending_drafts(self, campaign_slug: str | None = None) -> list:
+        """Every pending_approval draft (across campaigns unless one is named), newest first."""
+        out = []
+        camp_root = os.path.join(self.client_dir, "campaigns")
+        camps = [campaign_slug] if campaign_slug else (sorted(os.listdir(camp_root)) if os.path.isdir(camp_root) else [])
+        for camp in camps:
+            base = os.path.join(self.client_dir, "campaigns", camp, "outbox", "pending_approval")
+            if not os.path.isdir(base):
+                continue
+            for day in sorted(os.listdir(base)):
+                dd = os.path.join(base, day)
+                if os.path.isdir(dd):
+                    for name in sorted(os.listdir(dd)):
+                        if name.endswith(".json"):
+                            try:
+                                with open(os.path.join(dd, name), "r", encoding="utf-8") as fh:
+                                    out.append(json.load(fh))
+                            except (OSError, ValueError):
+                                pass
+        return out
 
     # --- contacts + identity + merge -----------------------------------------
 
@@ -978,6 +1105,8 @@ def main(argv=None) -> int:
     sg.add_argument("--json"); sg.add_argument("--id")
     en = sub.add_parser("enrich"); en.add_argument("op", choices=["status", "due", "write", "get"])
     en.add_argument("--contact"); en.add_argument("--campaign"); en.add_argument("--json"); en.add_argument("--limit", type=int, default=100)
+    dr = sub.add_parser("draft"); dr.add_argument("op", choices=["write", "list"])
+    dr.add_argument("--contact"); dr.add_argument("--campaign"); dr.add_argument("--json")
 
     args = p.parse_args(argv)
 
@@ -1023,6 +1152,15 @@ def main(argv=None) -> int:
         if args.op == "get":
             c = store.get_contact(args.contact) or {}
             return _out(c.get("enrichment") or {})
+    if args.cmd == "draft":
+        if args.op == "write":
+            d = json.loads(args.json)
+            return _out(store.draft_write(args.contact, args.campaign, d.get("step", 1),
+                                          d.get("subject", ""), d.get("body_text", ""),
+                                          hooks_used=d.get("hooks_used"), body_html=d.get("body_html", ""),
+                                          tracking=d.get("tracking", "plain_text")))
+        if args.op == "list":
+            return _out(store.list_pending_drafts(args.campaign))
     if args.cmd == "contact":
         if args.op == "add":
             lead_id, outcome = store.add_contact(json.loads(args.json))

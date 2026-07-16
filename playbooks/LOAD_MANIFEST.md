@@ -5,13 +5,14 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 431 | d021771f213cfeb1c2fa5c143e7efc5cbe57a0a8c4a773d6d526c34f2c4a18c7 | If any required stage was not loaded, load it before proceeding. |
+| OUTREACHCRM_PLAYBOOK.md | 431 | 4febd41cb71020e51940d06a3f6af908700d8995b370b64e5ed5928f09206df2 | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 473 | 426487396fa878ba388bc55d0cc66a948e3381a47308b11f798c3c545d6adcd6 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 631 | 603a08e60a853ed2b4d863d1006ea15543b639e999ced67430ad3a52cfa3dec8 | --- |
 | playbooks/02_SENDBOX_SETUP.md | 245 | 899a1dae9c53f94dfaf6c2348b294441ccdb7f91c1a546459049e43b25609253 | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/03_IMPORT_LIST.md | 319 | 62f64c00ce555305affb6474bdf6da2e05ed44b67e623c8923ffd018d6dd1b4c | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/04_VERIFY_ENRICH.md | 68 | 6df0301e583839c750d947e0d05738846effc85353ef6552315f08db94f5d139 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/05_CAMPAIGN_MANAGEMENT.md | 110 | 14441891d2884383d4f981710cdeb8ca4801525c4afece25de4da4bcc8524aaa | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/06_EMAIL_WRITING_STANDARD.md | 63 | 205126f0227d5a27db2c1c958c00273fd738db343f74b89931465dfc7fe4b0f2 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1380 | ea88f86972a73a32657b28ee106a7ac28cc05f5da87c1e8a205cccbd5f0f3a11 | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, say `No action required right now.` |
 | playbooks/08_SEND_ENGINE_PROTOCOL.md | 171 | 4c6b6755ed8ceea34ecacf2efbb75115bf931cdf6b4560df9cb27a63a44f8d7b | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/09_OPERATIONS_SAFETY_AUDIT.md | 627 | 0ec7a2e1c466757136d88affee03a1529f7a9faa16c06effc6d7a1bb388d9892 | This is the intended operating model. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
@@ -25,5 +26,9 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/skills/email-verify-enrich/SKILL.md | 89 | 3b74d8f9d5ffe4a0e4b40e11f160c02e4dd00eec49e46d6f80cdd9b1bc33b046 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/skills/email-verify-enrich/channel_reality.md | 27 | 32178cd3280223e63c737cb491cf71f49c3b09a15c8984b1231f8f329950f257 |   this pass (it may become a hook on a later refresh), not a fabricated hook. |
 | playbooks/skills/email-verify-enrich/etiquette.md | 32 | 75056e0dac856fc62041877e3b1052b1ddff474093675cf429ebfcad2ffcfa33 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/skills/email-writing/LOAD_MANIFEST.md | 10 | 6f5419da3882192e7cb9863004ac67c64e8b0ec623be432276fde14410a345bc | \| structures.md \| 22 \| 83f002a3b930b5e65b0463fe4c8ef03d5040484d3df61c66d49bf35afefbd42f \| - Subject: specific and honest, tied to the hook or the value; not clickbait, not `Re:`. \| |
+| playbooks/skills/email-writing/SKILL.md | 71 | 3337799f9c62a1338257c1f5dec9a7336bf3d158048754a9a6cb301bdd64cf0f | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/skills/email-writing/followup.md | 32 | 8e092b61fc89e98b03a4d10ea0401d1ffd4f5e01fe55f11c22ee8145536e7b1b | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/skills/email-writing/structures.md | 22 | 83f002a3b930b5e65b0463fe4c8ef03d5040484d3df61c66d49bf35afefbd42f | - Subject: specific and honest, tied to the hook or the value; not clickbait, not `Re:`. |
 | playbooks/skills/report-design/LOAD_MANIFEST.md | 8 | 2ced1ec35662b0eca342802bbc1ff3215e19cd8e598a3b75a7f00e6b35ac1cda | \| SKILL.md \| 134 \| a14096d96c008f66f28e603e80cd228bcb7da61f6f532be095e07005fce65f9c \| - [ ] No fake buttons, remote dependencies, raw Markdown dump, or mobile body overflow. \| |
 | playbooks/skills/report-design/SKILL.md | 134 | a14096d96c008f66f28e603e80cd228bcb7da61f6f532be095e07005fce65f9c | - [ ] No fake buttons, remote dependencies, raw Markdown dump, or mobile body overflow. |
