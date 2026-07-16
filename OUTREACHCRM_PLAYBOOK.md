@@ -185,7 +185,7 @@ Operator-only reports (Approval Report, Today View, daily ops, `INTERNAL_REPORT`
 | 3 | `playbooks/03_IMPORT_LIST.md` | Importing a CSV/TXT/XLSX list; mapping, dedupe, suppression checks. (tools: `tools/import_leads.py`, `tools/email_verify.py`) |
 | 4 | `playbooks/04_VERIFY_ENRICH.md` + skill `email-verify-enrich` | Before any enrichment (verify still-active, gather evidenced hooks, distill writing brief). (tool: `crm_store.py enrich`) |
 | 5 | `playbooks/05_CAMPAIGN_MANAGEMENT.md` | Create/edit a campaign, define a segment, populate the enrich queue. (tool: `tools/crm_store.py` campaign/segment/queue) |
-| 6 | `playbooks/06_EMAIL_WRITING_STANDARD.md` *(planned)* + skill `email-writing` | Before drafting any email; goal_type → structure. |
+| 6 | `playbooks/06_EMAIL_WRITING_STANDARD.md` + skill `email-writing` | Before drafting any email; goal_type → structure. (tool: `crm_store.py draft`) |
 | 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Any file create, schema question, history/log write, adding a client, reading prior context. |
 | 8 | `playbooks/08_SEND_ENGINE_PROTOCOL.md` | Before any send: pre-send re-check chain, rotation, tracking, threading. (tool: `tools/gmail_client.py`; mutations via `tools/crm_store.py`) |
 | 9 | `playbooks/09_OPERATIONS_SAFETY_AUDIT.md` | Before claiming setup, draft, send, daily-run, or report completion. |
