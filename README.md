@@ -1,6 +1,6 @@
 # OutreachCRM
 
-Tell your AI agent: **"Setup https://github.com/OWNER/outreachcrm now"** to turn it into a local-first, multi-client cold-email + CRM operator that works every day: it enriches your leads, drafts personalized emails, shows you every draft for approval, sends only what you approve, tracks replies, and moves opportunities through your pipeline.
+Tell your AI agent: **"Setup https://github.com/soloagency/outreachcrm now"** to turn it into a local-first, multi-client cold-email + CRM operator that works every day: it enriches your leads, drafts personalized emails, shows you every draft for approval, sends only what you approve, tracks replies, and moves opportunities through your pipeline.
 
 Open source (MIT). Runs on your machine through Codex or Claude Desktop/Cowork — your contact data and email accounts stay local.
 
@@ -33,7 +33,7 @@ Nothing sends without your explicit approval in chat. The agent drafts and waits
 ## Best first prompt
 
 ```text
-Setup https://github.com/OWNER/outreachcrm now.
+Setup https://github.com/soloagency/outreachcrm now.
 ```
 
 The root playbook (`OUTREACHCRM_PLAYBOOK.md`) tells the agent which detailed stage playbook to load next. If the `playbooks/` folder is not local, the agent fetches the needed stage from this repo.

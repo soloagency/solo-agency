@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"  # -P resolves sym
 SOURCE_SKILLS_DIR="${OUTREACHCRM_SOURCE_SKILLS_DIR:-}"
 TARGET_SKILLS_DIR="$SCRIPT_DIR/playbooks/skills"
 MODE="all"
-DEFAULT_GIT_REMOTE_URL="https://github.com/OWNER/outreachcrm.git"
+DEFAULT_GIT_REMOTE_URL="https://github.com/soloagency/outreachcrm.git"
 AUTO_GIT_DEPLOY="${OUTREACHCRM_AUTO_GIT_DEPLOY:-1}"
 GIT_PUSH="${OUTREACHCRM_GIT_PUSH:-1}"
 GIT_REMOTE_NAME="${OUTREACHCRM_GIT_REMOTE_NAME:-origin}"
@@ -141,7 +141,7 @@ Detected git root: ${detected_root:-none}
 OutreachCRM must be committed into its own repo, not any parent workspace it may
 be nested inside. Run once with the OutreachCRM GitHub remote URL, for example:
 
-  OUTREACHCRM_GIT_REMOTE_URL=https://github.com/OWNER/outreachcrm.git bash deploy-outreachcrm.sh --git-only
+  OUTREACHCRM_GIT_REMOTE_URL=https://github.com/soloagency/outreachcrm.git bash deploy-outreachcrm.sh --git-only
 
 By default deploy uses:
 

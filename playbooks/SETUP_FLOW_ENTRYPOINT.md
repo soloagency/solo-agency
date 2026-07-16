@@ -42,7 +42,7 @@ Follow `playbooks/01_CLIENT_SETUP_PROFILE.md` for detail. Summary:
 
 Before copying playbooks, tools, or templates into the human's setup, verify the source repo:
 
-- Use the current setup root if it is already a verified clone of `https://github.com/OWNER/outreachcrm`; otherwise clone into a fresh unique `mktemp -d`.
+- Use the current setup root if it is already a verified clone of `https://github.com/soloagency/outreachcrm`; otherwise clone into a fresh unique `mktemp -d`.
 - Do not use fixed shared fallback folders such as `/tmp/outreachcrm`, `/var/tmp/outreachcrm`, or `/dev/shm/outreachcrm`.
 - Do not trust a folder that lacks `.git`, has the wrong owner, has an old timestamp, or could not be removed/updated.
 - Verify `git remote get-url origin`, `git rev-parse HEAD`, and `git ls-remote origin refs/heads/main`; local `HEAD` must match GitHub `main` before reading/copying.

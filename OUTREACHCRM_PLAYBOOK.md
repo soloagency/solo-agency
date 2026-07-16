@@ -301,7 +301,7 @@ After a schedule/automation exists, every human-facing progress block must inclu
 
 ## Fresh GitHub Source And Missing Playbook Download Rule
 
-For setup, repair, or update, treat GitHub `main` as the source of truth unless the current setup root is verified as a fresh clone of the same repo. Do not reuse fixed shared fallback folders (`/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`). If a temporary checkout is needed, `mktemp -d`, clone `https://github.com/OWNER/outreachcrm`, and verify `.git` exists, `origin` matches, and `git rev-parse HEAD` == `git ls-remote origin refs/heads/main`. A folder without `.git`, wrong owner, or failed update is stale cache. If sandbox/network limits block GitHub, request permission or give one exact command; do not proceed on unverified local code. If local `playbooks/` is unavailable, download the needed stage from `https://raw.githubusercontent.com/OWNER/outreachcrm/main/playbooks/` and verify it against `LOAD_MANIFEST.md` via a LOAD LEDGER before use.
+For setup, repair, or update, treat GitHub `main` as the source of truth unless the current setup root is verified as a fresh clone of the same repo. Do not reuse fixed shared fallback folders (`/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`). If a temporary checkout is needed, `mktemp -d`, clone `https://github.com/soloagency/outreachcrm`, and verify `.git` exists, `origin` matches, and `git rev-parse HEAD` == `git ls-remote origin refs/heads/main`. A folder without `.git`, wrong owner, or failed update is stale cache. If sandbox/network limits block GitHub, request permission or give one exact command; do not proceed on unverified local code. If local `playbooks/` is unavailable, download the needed stage from `https://raw.githubusercontent.com/soloagency/outreachcrm/main/playbooks/` and verify it against `LOAD_MANIFEST.md` via a LOAD LEDGER before use.
 
 Stages marked `status: planned` in the Stage Map are not missing files — do not fetch them from GitHub raw; load `docs/DESIGN.md` for their contract instead (DESIGN §22 R1).
 
@@ -311,12 +311,12 @@ If the repo is not yet published — `OUTREACHCRM_GIT_REMOTE_URL` unset or still
 
 When the agent hits any blocker, repeated failure, contradiction, tool/config mismatch, stale asset, or dead end, first assume the local playbook/code may be old:
 
-1. Fresh GitHub Source Check against `https://github.com/OWNER/outreachcrm` `main`.
+1. Fresh GitHub Source Check against `https://github.com/soloagency/outreachcrm` `main`.
 2. Use a fresh unique checkout or raw GitHub files; never a shared cache.
 3. Record local commit, GitHub `main` commit, and whether they match.
 4. Reload the relevant latest playbooks and check whether a newer rule fixes it.
 5. If it fixes it, follow it, resync state, and note the recovery in the progress/blocker message.
-6. If the latest version still leaves the agent stuck, create or draft a redacted issue for `OWNER/outreachcrm`.
+6. If the latest version still leaves the agent stuck, create or draft a redacted issue for `soloagency/outreachcrm`.
 
 If the repo is not yet published — `OUTREACHCRM_GIT_REMOTE_URL` unset or still containing the `OWNER` placeholder — treat THIS local working copy as the verified source, record `fresh_source_check: skipped_local_phase0` in `resync_log.md` (or `update_state.json` for updates), skip the clone/remote-verify/GitHub-fetch steps, and continue. Do not block setup or a run on a GitHub check that cannot pass yet (DESIGN §22 R4).
 
