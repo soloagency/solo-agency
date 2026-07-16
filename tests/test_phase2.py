@@ -87,5 +87,65 @@ def _yesterday():
     return (dt.datetime.now(dt.timezone.utc).replace(microsecond=0) - dt.timedelta(days=1)).isoformat().replace("+00:00", "Z")
 
 
+class TestEnrich(unittest.TestCase):
+    def setUp(self):
+        self.cdir = _client()
+        self.s = CrmStore(self.cdir)
+        self.lead, _ = self.s.add_contact({"name": {"full": "Susan"}, "identities": {"emails": [{"address": "s@kw.com"}]}})
+        self.s.create_campaign("demo", {"audience": {"segment": "x"}})
+
+    def _dossier(self):
+        return {"identity": {"still_active": "confirmed", "current_company": "KW",
+                             "channels_found": {"emails": ["s.alt@kw.com"], "phones": []}},
+                "context": {"market": "AL"},
+                "hooks": [
+                    {"type": "new_listing", "summary": "listed 123 Main St", "evidence_url": "https://z/1",
+                     "observed_date": "2026-07-14", "confidence": 0.9, "analysis": {"sensitivity": "public_business"}},
+                    {"type": "social_post", "summary": "no source", "confidence": 0.5, "analysis": {"sensitivity": "public_business"}},
+                    {"type": "social_post", "summary": "kid birthday", "evidence_url": "https://fb/x", "analysis": {"sensitivity": "personal"}},
+                ],
+                "writing_brief": {"one_liner": "listing agent", "ranked_angles": ["new_listing"], "personalization_confidence": 0.85}}
+
+    def test_hook_without_evidence_is_dropped(self):
+        r = self.s.enrich_write(self.lead, self._dossier(), campaign_slug="demo")
+        self.assertEqual(r["usable_hooks"], 1)      # only the evidenced public hook
+        self.assertTrue(any("no evidence_url" in p for p in r["problems"]))
+
+    def test_personal_hook_barred_to_do_not_mention(self):
+        r = self.s.enrich_write(self.lead, self._dossier(), campaign_slug="demo")
+        self.assertGreaterEqual(r["do_not_mention"], 1)
+        en = self.s.get_contact(self.lead)["enrichment"]
+        self.assertNotIn("kid birthday", [h["summary"] for h in en["hooks"]])  # never a usable hook
+        self.assertIn("kid birthday", en["writing_brief"]["do_not_mention"])
+
+    def test_confidence_band(self):
+        r = self.s.enrich_write(self.lead, self._dossier(), campaign_slug="demo")
+        self.assertEqual(r["confidence_band"], "high")
+
+    def test_found_email_stored_as_enrich_source(self):
+        self.s.enrich_write(self.lead, self._dossier(), campaign_slug="demo")
+        emails = {e["address"]: e for e in self.s.get_contact(self.lead)["identities"]["emails"]}
+        self.assertIn("s.alt@kw.com", emails)
+        self.assertEqual(emails["s.alt@kw.com"]["source"], "enrich")  # found, never 'guess'
+
+    def test_status_ttl_and_inheritance(self):
+        self.assertEqual(self.s.enrich_status(self.lead)["needs"], "enrich")
+        self.s.enrich_write(self.lead, self._dossier(), campaign_slug="demo")
+        self.assertEqual(self.s.enrich_status(self.lead)["needs"], "skip")   # fresh -> reused (inheritance)
+        # hooks age out after HOOK_TTL_DAYS while identity stays fresh -> refresh, not full re-enrich
+        future = crm_store._iso_days_ago(-(CrmStore.HOOK_TTL_DAYS + 1))       # now + (TTL+1) days
+        self.assertEqual(self.s.enrich_status(self.lead, now=future)["needs"], "refresh")
+
+    def test_enrich_due_lists_only_stale(self):
+        self.s.set_segment({"id": "all", "name": "all", "where": [["lifecycle_stage", "=", "lead"]]})
+        self.s.create_campaign("c2", {"audience": {"segment": "all"}})
+        self.s.queue_campaign("c2")
+        due_before = self.s.enrich_due("c2")
+        self.assertTrue(any(d["lead_id"] == self.lead for d in due_before))
+        self.s.enrich_write(self.lead, self._dossier(), campaign_slug="c2")
+        due_after = self.s.enrich_due("c2")
+        self.assertFalse(any(d["lead_id"] == self.lead for d in due_after))  # now fresh -> not due
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

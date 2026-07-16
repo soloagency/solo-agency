@@ -371,6 +371,112 @@ class CrmStore:
             report["identities_indexed"] = n
         return report
 
+    # --- enrichment (dossier storage + TTL + inheritance) --------------------
+
+    IDENTITY_TTL_DAYS = 90
+    HOOK_TTL_DAYS = 10
+    NEG_RETRY_DAYS = 30
+
+    def enrich_status(self, contact_id: str, now: str | None = None) -> dict:
+        """Does this contact have a fresh-enough dossier? Drives whether the daily run
+        enriches, cheaply refreshes hooks, or reuses (cross-campaign inheritance, DESIGN §9.1)."""
+        now = now or now_iso()
+        c = self.get_contact(contact_id)
+        if not c:
+            return {"needs": "skip", "reason": "contact_not_found"}
+        en = c.get("enrichment") or {}
+        ident_fresh = bool(en.get("identity", {}).get("enriched_at")) and \
+            en["identity"]["enriched_at"] >= _iso_days_ago_from(self.IDENTITY_TTL_DAYS, now)
+        hooks_fresh = bool(en.get("hooks_refreshed_at")) and \
+            en["hooks_refreshed_at"] >= _iso_days_ago_from(self.HOOK_TTL_DAYS, now)
+        # negative caches (inherited): don't re-burn a dead end before its retry window
+        nf = en.get("email_not_found_at")
+        if en.get("identity", {}).get("still_active") == "inactive" and ident_fresh:
+            return {"needs": "skip", "reason": "known_inactive"}
+        if not ident_fresh:
+            return {"needs": "enrich", "reason": "identity_stale_or_missing"}
+        if not hooks_fresh:
+            return {"needs": "refresh", "reason": "hooks_stale"}
+        return {"needs": "skip", "reason": "dossier_fresh", "confidence_band": en.get("confidence_band")}
+
+    def enrich_due(self, campaign_slug: str, limit: int = 100, now: str | None = None) -> list:
+        """Queued leads that still need enrich/refresh (skip the already-fresh ones)."""
+        qp = self._enrich_queue_path(campaign_slug)
+        out = []
+        if os.path.isfile(qp):
+            for line in open(qp, "r", encoding="utf-8"):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                st = self.enrich_status(row["lead_id"], now=now)
+                if st["needs"] in ("enrich", "refresh"):
+                    out.append({"lead_id": row["lead_id"], "needs": st["needs"], "reason": st["reason"]})
+                    if len(out) >= limit:
+                        break
+        return out
+
+    def enrich_write(self, contact_id: str, dossier: dict, campaign_slug: str | None = None) -> dict:
+        """Validate a dossier and store it. HARD validation (DESIGN §9): every USABLE hook must
+        carry an evidence_url; a `personal` sensitivity hook is never usable (it only feeds
+        do_not_mention); found emails are stored as identities (source 'enrich', never 'guess')."""
+        lead_id = self.resolve(contact_id)
+        now = now_iso()
+        problems = []
+        usable_hooks, do_not_mention = [], list((dossier.get("writing_brief") or {}).get("do_not_mention", []))
+        for h in dossier.get("hooks", []) or []:
+            sens = (h.get("analysis") or {}).get("sensitivity", "public_business")
+            if sens == "personal":
+                if h.get("summary"):
+                    do_not_mention.append(h["summary"])
+                continue  # personal-life details never become email copy
+            if not h.get("evidence_url"):
+                problems.append(f"hook {h.get('type','?')!r} dropped: no evidence_url")
+                continue
+            usable_hooks.append({"type": h.get("type"), "summary": h.get("summary", ""),
+                                 "evidence_url": h["evidence_url"], "observed_date": h.get("observed_date", ""),
+                                 "confidence": float(h.get("confidence", 0.0)), "sensitivity": sens,
+                                 "used_in": h.get("used_in", [])})
+        ident = dossier.get("identity", {}) or {}
+        conf = float((dossier.get("writing_brief") or {}).get("personalization_confidence", 0.0))
+        band = "high" if conf >= 0.7 else ("review_carefully" if conf >= 0.4 else "fallback")
+        prev_en = (self.get_contact(lead_id) or {}).get("enrichment") or {}
+
+        # full dossier -> campaign enriched/ (audit); distilled -> contact.enrichment (inherited)
+        if campaign_slug:
+            d = os.path.join(self.campaign_dir(campaign_slug), "queue", "enriched", today_str(now))
+            os.makedirs(d, exist_ok=True)
+            JsonAdapter._atomic_write(os.path.join(d, f"{lead_id}.json"),
+                                      json.dumps({**dossier, "lead_id": lead_id, "enriched_at": now}, ensure_ascii=False, indent=2))
+        enrichment = {
+            "identity": {**{k: ident.get(k) for k in ("still_active", "current_company", "role", "profiles", "evidence")},
+                         "enriched_at": now},
+            "context": dossier.get("context", {}),
+            "hooks": usable_hooks, "hooks_refreshed_at": now,
+            "writing_brief": {"one_liner": (dossier.get("writing_brief") or {}).get("one_liner", ""),
+                              "ranked_angles": (dossier.get("writing_brief") or {}).get("ranked_angles", []),
+                              "do_not_mention": do_not_mention, "personalization_confidence": conf},
+            "confidence_band": band,
+            # negative cache is inherited; set only when this pass explicitly reports a dead end
+            "email_not_found_at": now if dossier.get("mark_email_not_found") else prev_en.get("email_not_found_at"),
+            "no_verifiable_hook_at": now if (not usable_hooks and dossier.get("mark_no_hook")) else prev_en.get("no_verifiable_hook_at"),
+        }
+        patch = {"enrichment": enrichment}
+        # store any FOUND (never guessed) email/phone the agent discovered
+        found = ident.get("channels_found", {}) or {}
+        emails = [{"address": e, "source": "enrich", "status": "unverified"} for e in found.get("emails", []) if e]
+        phones = [{"number": p, "type": "cell", "source": "enrich"} for p in found.get("phones", []) if p]
+        if emails or phones:
+            patch["identities"] = {"emails": emails, "phones": phones}
+        if ident.get("still_active") == "confirmed":
+            patch.setdefault("channels", {}).setdefault("email", {})
+        self.set_contact(lead_id, patch)
+        return {"lead_id": lead_id, "usable_hooks": len(usable_hooks), "confidence_band": band,
+                "do_not_mention": len(do_not_mention), "problems": problems}
+
     # --- contacts + identity + merge -----------------------------------------
 
     def resolve(self, lead_id: str) -> str:
@@ -800,6 +906,13 @@ def _iso_days_ago(days: int) -> str:
     return (_dt.datetime.now(_dt.timezone.utc).replace(microsecond=0) - _dt.timedelta(days=days)).isoformat().replace("+00:00", "Z")
 
 
+def _iso_days_ago_from(days: int, now_iso_str: str) -> str:
+    """The ISO timestamp `days` before the given now (honors an injected clock)."""
+    import datetime as _dt
+    base = _dt.datetime.fromisoformat(now_iso_str.replace("Z", "+00:00"))
+    return (base - _dt.timedelta(days=days)).isoformat().replace("+00:00", "Z")
+
+
 def _append_jsonl_seq(path: str) -> int:
     n = 0
     if os.path.isfile(path):
@@ -863,6 +976,8 @@ def main(argv=None) -> int:
     cm.add_argument("--slug"); cm.add_argument("--json"); cm.add_argument("--limit", type=int, default=100)
     sg = sub.add_parser("segment"); sg.add_argument("op", choices=["set", "get", "resolve", "list"])
     sg.add_argument("--json"); sg.add_argument("--id")
+    en = sub.add_parser("enrich"); en.add_argument("op", choices=["status", "due", "write", "get"])
+    en.add_argument("--contact"); en.add_argument("--campaign"); en.add_argument("--json"); en.add_argument("--limit", type=int, default=100)
 
     args = p.parse_args(argv)
 
@@ -898,6 +1013,16 @@ def main(argv=None) -> int:
             return _out(store.get_segments())
         if args.op == "resolve":
             return _out([{"id": c["id"], "name": c.get("name", {}).get("full", "")} for c in store.resolve_segment(args.id)])
+    if args.cmd == "enrich":
+        if args.op == "status":
+            return _out(store.enrich_status(args.contact))
+        if args.op == "due":
+            return _out(store.enrich_due(args.campaign, args.limit))
+        if args.op == "write":
+            return _out(store.enrich_write(args.contact, json.loads(args.json), campaign_slug=args.campaign))
+        if args.op == "get":
+            c = store.get_contact(args.contact) or {}
+            return _out(c.get("enrichment") or {})
     if args.cmd == "contact":
         if args.op == "add":
             lead_id, outcome = store.add_contact(json.loads(args.json))
