@@ -5,11 +5,12 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 431 | ba29ea120013f5691aefffef578d0c497f4dcabf0290fd0ca58614b0d53c3eb0 | If any required stage was not loaded, load it before proceeding. |
+| OUTREACHCRM_PLAYBOOK.md | 431 | f4470736520e3778128c2388e3ddf1e89073ede73d289e7d404d0ae01fc3ee79 | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 473 | 426487396fa878ba388bc55d0cc66a948e3381a47308b11f798c3c545d6adcd6 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 631 | 603a08e60a853ed2b4d863d1006ea15543b639e999ced67430ad3a52cfa3dec8 | --- |
 | playbooks/02_SENDBOX_SETUP.md | 245 | 899a1dae9c53f94dfaf6c2348b294441ccdb7f91c1a546459049e43b25609253 | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/03_IMPORT_LIST.md | 319 | 62f64c00ce555305affb6474bdf6da2e05ed44b67e623c8923ffd018d6dd1b4c | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
+| playbooks/05_CAMPAIGN_MANAGEMENT.md | 110 | 14441891d2884383d4f981710cdeb8ca4801525c4afece25de4da4bcc8524aaa | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1380 | ea88f86972a73a32657b28ee106a7ac28cc05f5da87c1e8a205cccbd5f0f3a11 | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, say `No action required right now.` |
 | playbooks/08_SEND_ENGINE_PROTOCOL.md | 171 | 4c6b6755ed8ceea34ecacf2efbb75115bf931cdf6b4560df9cb27a63a44f8d7b | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/09_OPERATIONS_SAFETY_AUDIT.md | 627 | 0ec7a2e1c466757136d88affee03a1529f7a9faa16c06effc6d7a1bb388d9892 | This is the intended operating model. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |

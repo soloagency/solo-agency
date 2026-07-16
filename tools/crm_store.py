@@ -99,6 +99,217 @@ class CrmStore:
             self.set_pipelines(DEFAULT_PIPELINES)
         return self.get_pipelines()
 
+    # --- segments (saved filters; a config file under crm/) -------------------
+
+    def segments_path(self) -> str:
+        return os.path.join(self.crm_root, "segments.json")
+
+    def get_segments(self) -> dict:
+        p = self.segments_path()
+        if os.path.isfile(p):
+            with open(p, "r", encoding="utf-8") as fh:
+                return json.load(fh)
+        return {"segments": []}
+
+    def set_segment(self, seg: dict) -> dict:
+        data = self.get_segments()
+        segs = [s for s in data.get("segments", []) if s.get("id") != seg["id"]]
+        segs.append(seg)
+        data["segments"] = segs
+        JsonAdapter._atomic_write(self.segments_path(), json.dumps(data, ensure_ascii=False, indent=2))
+        return seg
+
+    def resolve_segment(self, seg_id: str) -> list:
+        """Contacts matching a saved segment's `where`, excluding merged tombstones,
+        do_not_contact, and any suppressed identity. Segment `where` is a list of
+        [field, op, value] using the flat Cond DSL (§6)."""
+        seg = next((s for s in self.get_segments().get("segments", []) if s.get("id") == seg_id), None)
+        if not seg:
+            raise StorageError(f"segment {seg_id!r} not found")
+        where = [Cond(*c) for c in seg.get("where", [])]
+        out = []
+        for c in self.a.query("contacts", where=where):
+            if (c.get("merge") or {}).get("status") == "merged":
+                continue
+            if c.get("lifecycle_stage") == "do_not_contact":
+                continue
+            if (c.get("merge") or {}).get("status") != "merged" and self._contact_suppressed(c):
+                continue
+            out.append(c)
+        return out
+
+    def _contact_suppressed(self, contact: dict) -> bool:
+        for kind, val in self._identity_pairs(contact):
+            if kind == "email" and self.is_suppressed(email=val):
+                return True
+            if kind == "phone" and self.is_suppressed(phone=val):
+                return True
+            if kind == "social" and self.is_suppressed(socials=[val]):
+                return True
+        return False
+
+    # --- campaigns (config file per campaign, outside crm/) -------------------
+
+    def campaign_dir(self, slug: str) -> str:
+        return os.path.join(self.client_dir, "campaigns", slug)
+
+    def campaign_config_path(self, slug: str) -> str:
+        return os.path.join(self.campaign_dir(slug), "campaign_config.json")
+
+    def get_campaign(self, slug: str) -> dict | None:
+        p = self.campaign_config_path(slug)
+        if os.path.isfile(p):
+            with open(p, "r", encoding="utf-8") as fh:
+                return json.load(fh)
+        return None
+
+    def list_campaigns(self) -> list:
+        root = os.path.join(self.client_dir, "campaigns")
+        out = []
+        if os.path.isdir(root):
+            for slug in sorted(os.listdir(root)):
+                cfg = self.get_campaign(slug)
+                if cfg:
+                    out.append(cfg)
+        return out
+
+    _GOAL_TYPES = {"book_meeting", "get_reply", "direct_sale", "reactivation", "nurture_upsell", "event_invite"}
+
+    def create_campaign(self, slug: str, config: dict) -> dict:
+        goal = config.get("goal", {})
+        gt = goal.get("goal_type")
+        if gt and gt not in self._GOAL_TYPES:
+            raise StorageError(f"goal_type {gt!r} not in {sorted(self._GOAL_TYPES)}")
+        cfg = {
+            "schema_version": 1, "campaign_slug": slug,
+            "goal": {"goal_type": gt or "get_reply", "objective": "", "offer": "",
+                     "value_proposition": "", "proof_points": [],
+                     "cta": {"type": "reply_yes", "text": ""},
+                     "success_event": {"on": "reply_positive", "create_deal_stage": "new_reply"}},
+            "audience": {"segment": "", "personalization": {"required_hook_types": [],
+                         "min_confidence": 0.7, "no_hook_fallback": "generic_honest_opener"}},
+            "sequence": [{"step": 1, "intent": "hook + offer, one CTA", "tracking": "plain_text"},
+                         {"step": 2, "gap_days": 4, "intent": "deliver new value"},
+                         {"step": 3, "gap_days": 5, "intent": "social proof"},
+                         {"step": 4, "gap_days": 7, "intent": "breakup"}],
+            "sendboxes": [], "daily_quota": 40, "approval_mode": "manual_all",
+            "channel_strategy": "email_first",
+            "min_days_between_touches_across_campaigns": 7,
+            "guardrails": {"banned_claims": ["guarantees"], "no_fake_re": True},
+            "status": "active",
+        }
+        _deep_update(cfg, config)
+        cfg["campaign_slug"] = slug
+        os.makedirs(os.path.join(self.campaign_dir(slug), "queue", "enriched"), exist_ok=True)
+        os.makedirs(os.path.join(self.campaign_dir(slug), "outbox", "pending_approval"), exist_ok=True)
+        os.makedirs(os.path.join(self.campaign_dir(slug), "outbox", "approved"), exist_ok=True)
+        os.makedirs(os.path.join(self.campaign_dir(slug), "history"), exist_ok=True)
+        JsonAdapter._atomic_write(self.campaign_config_path(slug), json.dumps(cfg, ensure_ascii=False, indent=2))
+        return cfg
+
+    # --- enrich queue (JIT buffer) -------------------------------------------
+
+    def _enrich_queue_path(self, slug: str) -> str:
+        return os.path.join(self.campaign_dir(slug), "queue", "enrich_queue.jsonl")
+
+    def _queued_or_sent_leads(self, slug: str) -> set:
+        """lead_ids already queued or already sent in THIS campaign (any step)."""
+        out = set()
+        qp = self._enrich_queue_path(slug)
+        if os.path.isfile(qp):
+            for line in open(qp, "r", encoding="utf-8"):
+                line = line.strip()
+                if line:
+                    try:
+                        out.add(json.loads(line)["lead_id"])
+                    except (ValueError, KeyError):
+                        pass
+        for p in self._all_sent_logs(only_campaign=slug):
+            for line in open(p, "r", encoding="utf-8"):
+                line = line.strip()
+                if line:
+                    try:
+                        out.add(json.loads(line)["lead_id"])
+                    except (ValueError, KeyError):
+                        pass
+        return out
+
+    def _all_sent_logs(self, only_campaign: str | None = None):
+        root = os.path.join(self.client_dir, "campaigns")
+        files = []
+        if os.path.isdir(root):
+            for camp in os.listdir(root):
+                if only_campaign and camp != only_campaign:
+                    continue
+                base = os.path.join(root, camp, "sent")
+                if os.path.isdir(base):
+                    for month in sorted(os.listdir(base)):
+                        fp = os.path.join(base, month, "sent_log.jsonl")
+                        if os.path.isfile(fp):
+                            files.append(fp)
+        return files
+
+    def _last_touch_other_campaign(self, lead_id: str, this_campaign: str) -> str:
+        """Most recent sent_at for this lead from ANY OTHER campaign, or ''."""
+        latest = ""
+        for p in self._all_sent_logs():
+            for line in open(p, "r", encoding="utf-8"):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                if r.get("lead_id") == lead_id and r.get("campaign") != this_campaign:
+                    sa = r.get("sent_at", "")
+                    if sa > latest:
+                        latest = sa
+        return latest
+
+    def queue_campaign(self, slug: str, limit: int = 100) -> dict:
+        """Populate the enrich queue (JIT buffer) for a campaign from its audience segment,
+        applying the don't-double-touch guards. Idempotent-ish: never re-queues a lead already
+        queued or sent in this campaign."""
+        cfg = self.get_campaign(slug)
+        if not cfg:
+            raise StorageError(f"campaign {slug!r} not found")
+        seg_id = cfg.get("audience", {}).get("segment")
+        if not seg_id:
+            raise StorageError(f"campaign {slug!r} has no audience.segment")
+        min_days = int(cfg.get("min_days_between_touches_across_campaigns", 7))
+        cutoff = _iso_days_ago(min_days)
+        already = self._queued_or_sent_leads(slug)
+        candidates = self.resolve_segment(seg_id)
+        added, skipped = 0, {"already_in_campaign": 0, "recently_touched_elsewhere": 0,
+                             "in_active_sequence": 0, "no_email": 0}
+        qp = self._enrich_queue_path(slug)
+        os.makedirs(os.path.dirname(qp), exist_ok=True)
+        with open(qp, "a", encoding="utf-8") as qf:
+            for c in candidates:
+                if added >= limit:
+                    break
+                lead_id = c["id"]
+                if lead_id in already:
+                    skipped["already_in_campaign"] += 1
+                    continue
+                # email_first campaigns need a real found email (no guessing in MVP)
+                if cfg.get("channel_strategy", "email_first") == "email_first" and \
+                        not [e for e in c.get("identities", {}).get("emails", []) if e.get("address")]:
+                    skipped["no_email"] += 1
+                    continue
+                if c.get("sequence_state") == "frozen":
+                    skipped["in_active_sequence"] += 1
+                    continue
+                last = self._last_touch_other_campaign(lead_id, slug)
+                if last and last >= cutoff:
+                    skipped["recently_touched_elsewhere"] += 1
+                    continue
+                qf.write(json.dumps({"lead_id": lead_id, "campaign": slug, "queued_at": now_iso(),
+                                     "status": "queued", "step": 1}) + "\n")
+                added += 1
+        return {"campaign": slug, "queued": added, "skipped": skipped, "segment": seg_id}
+
     # --- validation / migration ----------------------------------------------
 
     def validate(self, rebuild_index: bool = False) -> dict:
@@ -584,6 +795,11 @@ def _due_to_iso(due: str) -> str:
     return due
 
 
+def _iso_days_ago(days: int) -> str:
+    import datetime as _dt
+    return (_dt.datetime.now(_dt.timezone.utc).replace(microsecond=0) - _dt.timedelta(days=days)).isoformat().replace("+00:00", "Z")
+
+
 def _append_jsonl_seq(path: str) -> int:
     n = 0
     if os.path.isfile(path):
@@ -643,6 +859,10 @@ def main(argv=None) -> int:
     ar = sub.add_parser("apply-rules"); ar.add_argument("--event"); ar.add_argument("--contact"); ar.add_argument("--activity", default=""); ar.add_argument("--events")
     rc = sub.add_parser("reset-client"); rc.add_argument("--confirm", action="store_true")
     va = sub.add_parser("validate"); va.add_argument("--rebuild-index", action="store_true")
+    cm = sub.add_parser("campaign"); cm.add_argument("op", choices=["create", "get", "list", "queue"])
+    cm.add_argument("--slug"); cm.add_argument("--json"); cm.add_argument("--limit", type=int, default=100)
+    sg = sub.add_parser("segment"); sg.add_argument("op", choices=["set", "get", "resolve", "list"])
+    sg.add_argument("--json"); sg.add_argument("--id")
 
     args = p.parse_args(argv)
 
@@ -662,6 +882,22 @@ def main(argv=None) -> int:
 
     if args.cmd == "validate":
         return _out(store.validate(rebuild_index=args.rebuild_index))
+    if args.cmd == "campaign":
+        if args.op == "create":
+            return _out(store.create_campaign(args.slug, json.loads(args.json) if args.json else {}))
+        if args.op == "get":
+            return _out(store.get_campaign(args.slug) or {"error": "not found"})
+        if args.op == "list":
+            return _out(store.list_campaigns())
+        if args.op == "queue":
+            return _out(store.queue_campaign(args.slug, args.limit))
+    if args.cmd == "segment":
+        if args.op == "set":
+            return _out(store.set_segment(json.loads(args.json)))
+        if args.op == "get" or args.op == "list":
+            return _out(store.get_segments())
+        if args.op == "resolve":
+            return _out([{"id": c["id"], "name": c.get("name", {}).get("full", "")} for c in store.resolve_segment(args.id)])
     if args.cmd == "contact":
         if args.op == "add":
             lead_id, outcome = store.add_contact(json.loads(args.json))

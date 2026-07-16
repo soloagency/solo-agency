@@ -697,11 +697,21 @@ in AGENTS.md's blocker-recovery clause (it fires on any blocker, not just explic
   02/03/08 + `tests/test_phase1.py` (27 stdlib unittest cases, all green). Manual core loop:
   a real @gmail.com send + reply-sync now works end to end. Open/click tracking and the
   OAuth/Workspace mode remain Phase 2+.
-- **Phase 2:** playbooks 04/05/06/10/13/14 + skills email-verify-enrich & email-writing +
-  deals/tasks/rules + Approval Report + Today View + WideCast notify + full Scheduled Run +
-  `tracker/worker.js`. E2E runbook = Phase 2 acceptance.
-- **Phase 3:** playbook 12/15, kanban/timeline/weekly report/forecast/segments, open-click
-  fully wired, Postgres adapter.
+- **Phase 2 (in progress):** the intelligence + automation loop, ending at the Approval Report.
+  Locked decisions: (1) tracker worker deferred to Phase 3 — MVP is @gmail.com `plain_text_mode`,
+  measured by reply/bounce/unsub; (2) **no guessed-email path** — enrichment never guesses an
+  address; drafts only ever target a found email that has a source (the `guessed_only` send gate
+  stays as a safety net but nothing produces guessed addresses); (3) the daily run **auto-enriches
+  the whole JIT batch**; (4) the daily run stops at the **Approval Report and waits** — the
+  operator approves in chat, and only then does the send step run (approve-and-send is a separate
+  operator-triggered pass, `approval_mode: manual_all`).
+  Milestones: **2A** campaigns + segments + enrich queue (05); **2B** verify & enrich (04 + skill
+  `email-verify-enrich`, dossier TTL + cross-campaign inheritance, no guessing); **2C** goal-driven
+  email writing (06 + skill `email-writing`) → drafts in `pending_approval`; **2D** Approval Report
+  render + chat-approve handler + follow-up/reply (10) + Today View/kanban (13/14); **2E** full
+  Scheduled Run wiring + WideCast notify + minimal weekly report. E2E runbook = Phase 2 acceptance.
+- **Phase 3:** playbook 12/15, kanban/timeline/**polished** weekly report/forecast/segments,
+  the Cloudflare tracker worker (open/click) + OAuth/Workspace sending, Postgres adapter.
 - **Phase 4:** Local Collector + lead-engine (Facebook enrichment) re-imported.
 - **Phase 5 (optional):** local web UI over crm_store.
 

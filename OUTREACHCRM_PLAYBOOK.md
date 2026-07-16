@@ -184,7 +184,7 @@ Operator-only reports (Approval Report, Today View, daily ops, `INTERNAL_REPORT`
 | 2 | `playbooks/02_SENDBOX_SETUP.md` | Connecting or checking a sendbox (App Password / OAuth), warmup, quota. (tool: `tools/gmail_client.py`) |
 | 3 | `playbooks/03_IMPORT_LIST.md` | Importing a CSV/TXT/XLSX list; mapping, dedupe, suppression checks. (tools: `tools/import_leads.py`, `tools/email_verify.py`) |
 | 4 | `playbooks/04_VERIFY_ENRICH.md` *(planned)* + skill `email-verify-enrich` | Before any enrichment (verify still-active, gather evidenced hooks, distill writing brief). |
-| 5 | `playbooks/05_CAMPAIGN_MANAGEMENT.md` *(planned)* | Create/edit a campaign and its structured goal, sequence, segment, sendboxes. |
+| 5 | `playbooks/05_CAMPAIGN_MANAGEMENT.md` | Create/edit a campaign, define a segment, populate the enrich queue. (tool: `tools/crm_store.py` campaign/segment/queue) |
 | 6 | `playbooks/06_EMAIL_WRITING_STANDARD.md` *(planned)* + skill `email-writing` | Before drafting any email; goal_type → structure. |
 | 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Any file create, schema question, history/log write, adding a client, reading prior context. |
 | 8 | `playbooks/08_SEND_ENGINE_PROTOCOL.md` | Before any send: pre-send re-check chain, rotation, tracking, threading. (tool: `tools/gmail_client.py`; mutations via `tools/crm_store.py`) |
