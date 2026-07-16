@@ -1,141 +1,67 @@
-<p align="center">
-  <img src="assets/logo.svg" alt="Solo Agency logo" width="112">
-</p>
+# OutreachCRM
 
-# Solo Agency
+Tell your AI agent: **"Setup https://github.com/OWNER/outreachcrm now"** to turn it into a local-first, multi-client cold-email + CRM operator that works every day: it enriches your leads, drafts personalized emails, shows you every draft for approval, sends only what you approve, tracks replies, and moves opportunities through your pipeline.
 
-Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" to turn it into a real marketing team that works every morning: research, lead and competitor opportunities, videos, blogs, distribution, analytics, and improvements, ready for your approval.
+Open source (MIT). Runs on your machine through Codex or Claude Desktop/Cowork — your contact data and email accounts stay local.
 
-## The Point
+## The idea
 
-I learned the hard way: when you are solo, the hardest problem is attention. Attention Is All You Need, but attention has to be earned with content people actually care about. That means daily research, production, distribution, measurement, and improvement, not another blank prompt.
+Cold email changed. Sending 10,000 shallow emails a day is a losing game against modern spam filters and a saturated inbox. The winning game is fewer, better emails: verify the person is real and active, personalize with a fresh, *evidenced* detail, send from a warmed sendbox inside normal limits, and put your energy into follow-up. An AI agent is very good at exactly that work — verifying, finding the one honest hook, drafting, and tracking — while you stay in control of what actually sends.
 
-- Content without research is guessing.
-- Research without production is wasted.
-- Production without distribution is invisible.
-- Distribution without measurement is gambling.
-- Measurement without learning is busywork.
-- Learning without improvement is entertainment.
+OutreachCRM is that agent's operating playbook, plus the local tools it drives.
 
-This playbook connects the full agency loop: research, ideas, lead and competitor opportunities, scripts, production, distribution, measurement, learning, and improvement.
+## What it does
 
-![Solo Agency full marketing agency loop](assets/agency-loop.svg)
+- **One agency → many clients.** Each client is an isolated workspace: its own pipeline, sendboxes, suppression list, campaigns, and reports. You operate on their behalf; they receive a weekly report.
+- **Import any list.** CSV / TXT / XLSX. The agent infers the column mapping, de-duplicates, and checks suppression. Email is optional — a contact can be just a name + phone/social, and enrichment (or you) can fill in a channel later.
+- **Verify + enrich before writing.** A cheap pass confirms the person is still active and gathers profile URLs; a deeper pass finds a fresh, evidenced hook (a new listing, a recent post, a review) and drafts the email. Every personalized detail must carry a source URL — no invented facts.
+- **Goal-driven campaigns.** Each campaign declares a goal (book a meeting, get a reply, direct sale, reactivation, …) that drives how the email is written and how a reply converts into a pipeline deal.
+- **Approve, then send.** Every daily run produces an Approval Report: one card per lead with the dossier, clickable evidence, and the drafted email, grouped by confidence. You approve in chat (`approve all`, `approve 1-20, 35`, `reject 7: reason`, `edit 12: ...`). Only approved emails send.
+- **Multi-sendbox rotation.** Add several sendboxes per client; step-1 emails rotate across healthy boxes, and each contact then sticks to its sendbox for every follow-up and reply.
+- **Tracking that's honest about limits.** Replies, bounces, and unsubscribes are detected reliably from the mailbox. Opens/clicks are optional and clearly labeled as estimates; they never trigger an automated action — only a reply does.
+- **A real CRM underneath.** Contacts, accounts, deals, activities, and tasks; a per-client pipeline with deterministic rules; a Today View and kanban; a weekly client report.
+- **Notifications + follow-up.** Optional Telegram notification (via WideCast) tells you what happened and what's waiting. The system knows how many emails a person has received, what they replied, and what to say next — and drafts it for you.
 
-## What This Is
+## Priority path: @gmail.com sendboxes
 
-- An AI-agent operating playbook for daily content intelligence across one client or an entire client roster.
-- A marketing workflow: research -> insight -> content pillar -> idea -> script/blog/social -> approval -> production -> distribution -> analytics -> learning.
-- A public data source + private data source intelligence system across Google, industry sites, FB, IG, YT, TT, X, LinkedIn, Reddit, groups, pages, creators, and communities.
-- Helps scan and evaluate private data sources you already have, such as joined Facebook groups, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, and community feeds.
-- A pain-point-to-content-pillar engine that turns real audience problems into daily content angles.
-- A lead and competitor opportunity engine built directly into the research process: it finds relevant posts, preserves source links, explains why each signal matters, and drafts value-first comments for human review.
-- A production layer for idea-to-video, blog/social creation, auto-posting, notifications, analytics, and build-measure-learn-improve loops.
-- A multi-client workflow for freelancers and agencies that need repeatable output without rebuilding strategy from scratch every morning.
+You can start with a dedicated Gmail account and an App Password — no Google Cloud project, no OAuth app verification. Send via SMTP, read replies via IMAP, all local. For custom-domain sending with full open/click tracking, connect a Google Workspace mailbox (OAuth, Internal app) — the schema supports both side by side. Either way, use a dedicated account, never your primary inbox, and keep volume in the 20–50/day per box range for cold outreach.
 
-## What You Get Every Day
+## What stays in your control
 
-- A client-ready HTML report with insights, proof, recommendations, and next actions.
-- Source-backed content ideas with URLs, not generic AI brainstorming.
-- The best idea of the day, selected by freshness, audience pain, lead potential, business impact, and offer relevance.
-- A global/local idea matrix across Hot / Trend / News, Evergreen / Foundation, and Lead-Gen / Conversion.
-- Related-industry angles clearly labeled and connected back to the client's offer.
-- 5 production-ready draft angles: Value Explainer, Client Q&A, POV, Case Study, and Myth-Buster.
-- When approved and connected, the agent can turn those drafts into actual video, blog, and social assets through production tools.
-- Lead & Competitor Opportunities with source links, post URLs when visible, context, why it matters, and a copy-ready value-first comment for each opportunity.
-- Hot/warm/watch lead signals, including direct needs, indirect pain signals, objections, complaints, buying triggers, and adjacent needs.
-- Competitor intelligence across direct, indirect, adjacent, attention, and authority/KOL competitors, including hooks, offers, positioning, audience overlap, and useful places to show up.
-- New source opportunities, such as groups, pages, creators, communities, or competitor profiles worth monitoring.
-- A clear production path: approve, revise, choose another idea, create a video, publish, schedule, reconnect, or measure.
+Nothing sends without your explicit approval in chat. The agent drafts and waits. Suppression (bounces, unsubscribes, complaints) is checked before every send. Opt-outs are honored immediately. Assisted-channel messages (SMS / Messenger) are drafted for *you* to send manually. Compliance guardrails (CAN-SPAM address + opt-out, truthful subjects, no fake `Re:`) are built into the send path.
 
-## Built For Solo Operators, Useful For Agencies
-
-- Serve more clients without opening a blank doc every morning.
-- Build content from real market demand, not vibes.
-- Convert audience pain points into content pillars, scripts, blogs, and social angles.
-- Turn private community chatter into lead-gen angles, objections to answer, and timely comments.
-- Use competitor activity to understand positioning, offers, audience overlap, and useful places to show up.
-- Spot hot/warm/watch leads during normal content research, with source links and copy-ready value-first comments.
-- Keep each client separated by profile, sources, reports, history, analytics, and learning.
-- Add clients one by one as the agency grows.
-- Run one client, ten clients, or every active client on a schedule.
-- Keep humans in control of approvals, publishing, rendering, outreach, and spending.
-
-## Private Data Source Intelligence
-
-Important: the Local Collector is not the setup entrypoint. It is a private data source module used only after the main playbook reaches the private data source stage and the human approves collector activation.
-
-- Monitors logged-in private data sources such as FB groups/pages, IG profiles, YT channels/comments, TT accounts, X accounts, LinkedIn pages, Reddit communities, competitor pages, fanpages, and niche forums.
-- If the user has no list yet, recommends private data source discovery instead of silently skipping this layer. The agent can review candidate Facebook groups, subreddits, communities, followed KOLs/pages, creator profiles, subscribed channels, and recommendation feeds the user approves.
-- Lets the user provide private data sources manually, approve AI-discovered candidates, or do both.
-- Filters candidate sources by relevance, activity, pain-point match, target-audience fit, lead potential, competitor intelligence value, noise, and account-safety risk before asking the user to approve them.
-- Uses the user's existing logged-in Chrome session through the Solo Agency Local Collector extension and Local Collector app. Private data stays local on the user's computer by default.
-- Does not use Claude in Chrome, Codex/browser tools, Playwright, or agent-controlled browsers to read logged-in private data sources.
-- Never asks for passwords, cookies, OTPs, tokens, or raw credentials.
-- Updates the report, idea matrix, best idea, Lead & Competitor Opportunities, and drafts after private scans, instead of stopping at "collector succeeded."
-
-## Production, Distribution, And Learning
-
-- Turns approved ideas or scripts into videos through connected production tools.
-- Creates approved video, blog, and social assets when the production provider is configured and the human has approved the action.
-- Supports faceless, face-clone, and teleprompter-style production when configured.
-- Repurposes one approved idea into video, blog, and social formats.
-- Publishes approved content to connected channels when authorized by the human.
-- Sends report, blocker, approval, publishing, and session-refresh notifications through available notification providers.
-- Encourages a free WideCast + Telegram setup so daily report links and blockers can reach the human remotely, without sitting in front of the computer.
-- Measures content through connected analytics tools and visible platform metrics when available.
-- Tracks views, likes, comments, shares, saves, clicks, follower growth, and unavailable metrics honestly.
-- Updates hook learnings, CTA learnings, content-pillar scores, source priority, experiment backlog, and future idea selection.
-- Completes the loop: build -> measure -> learn -> improve.
-
-## Media Tool Integrations
-
-Connect specialist tools such as Google Veo, Seedance, Kling, Nano Banana, Shutterstock, Pexels, Pixabay, HeyGen, and similar media services for production assets.
-
-WideCast can be used as one maintained all-in-one OpenAPI provider path for writing, video production, publishing, notifications, analytics, and learning loops. It is not required for research, idea generation, lead detection, report generation, or account-free draft writing. In multi-client setups, each client should use its own WideCast API key/provider config so billing, social accounts, notifications, and analytics stay isolated.
-
-## Best First Prompt
+## Best first prompt
 
 ```text
-Setup https://github.com/soloagency/solo-agency now.
+Setup https://github.com/OWNER/outreachcrm now.
 ```
 
-The main playbook tells the agent which detailed stage playbook to load next. If the `playbooks/` folder is not local, the agent can fetch the needed stage file from this GitHub repo.
+The root playbook (`OUTREACHCRM_PLAYBOOK.md`) tells the agent which detailed stage playbook to load next. If the `playbooks/` folder is not local, the agent fetches the needed stage from this repo.
 
-## Best New Client Prompt
+## Best new-client prompt
 
 ```text
 Add a new client: [client name].
-They provide [product/service/profession/expertise].
-Their target market is [location if known].
-Here are optional private data sources to monitor: [URLs].
-You may also ask me whether to discover private data sources from my joined groups, subreddits, followed profiles/KOLs, subscriptions, and feeds.
-Set up the client-specific automation task for the first report using public data sources. Do not run the report inside the setup chat.
+They sell [product/service] to [ideal customer].
+Their website/profile: [URL].
+Target market: [location if it matters].
+Set up the client-specific daily automation task. Do not send anything in this setup chat.
 ```
 
-## Agent Compatibility
+## Agent entry point
 
-Tested with Claude Desktop, Codex, Hermes, and OpenClaw.
+If you are an AI agent setting up this repo:
 
-Community testing on other AI agents is welcome, especially around playbook loading, local collector setup, scheduled runs, progress display, and HTML report delivery.
+1. Read `OUTREACHCRM_PLAYBOOK.md` first, then `docs/DESIGN.md` (the authoritative design).
+2. Follow the Stage Map and the LOAD LEDGER full-load discipline (`playbooks/LOAD_LEDGER_PROTOCOL.md`).
+3. Setup Flow only configures — it never sends. Sending happens in the scheduled daily run, and only after the operator approves drafts in chat.
+4. All CRM data lives under `outreach-pipeline/` and every mutation goes through `tools/crm_store.py`.
+5. Keep each client's workspace isolated; a `target_client_slug` run touches only that client.
 
-No vision model is required. Solo Agency is designed to run with an LLM-only agent.
+## Status
 
-## Agent Entry Point
+Under active construction. Phase 0 (this commit) delivers the inherited operating system — router, load discipline, setup/automation split, storage/schema contract, safety audit, update watch, deploy tooling — transformed for OutreachCRM. The email/CRM tools (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`), the tracker worker, and the Phase 1–2 stage playbooks are built next. See `docs/DESIGN.md` §21 for the phase plan.
 
-If you are an AI agent setting up this repo, start here:
+## Agent compatibility
 
-1. Read `SOLO_AGENCY_PLAYBOOK.md` first.
-2. Follow the checklist in that file in order.
-3. Do not install, start, or configure `solo-agency-collector/` first.
-4. The Local Collector is activated only later if the playbook reaches the private data source stage and the human approves it.
-5. Use the canonical terms `public data sources` and `private data sources`. Do not shorten them, omit `data`, or use slash labels.
-6. During Setup Flow, if the human asks to run, create, generate, show, refresh, or update a report, do not run it. Verify/resync the client-specific automation task and tell the human the exact task name to run instead.
-7. If the human asks to scan or monitor private data sources (logged-in groups, feeds, profiles, communities, or social sources) after the conversation has drifted, reload `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before taking action.
-8. Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read private data sources. Use only the Solo Agency Local Collector extension plus the Local Collector app.
-9. During Local Collector activation, do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent. Prepare the files, then give the human the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension `Load unpacked` folder path.
-10. When checking an already-running Local Collector app, do not trust `ready` alone. Verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point to another setup, treat it as `wrong_workspace_bridge`, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
-11. After a schedule/automation exists, every later approved change must trigger Automation Resync across the whole automation package, not only one config file. Update profile/source state, provider config/capability cache when relevant, `schedule.md`, collector config when relevant, automation manifest, scheduled-run prompt/task body, and the resync log before saying the next scheduled run is updated.
-12. Every human-facing progress block after schedule/automation exists must include an Automation freshness check: whether the latest changes were synced into the automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's scheduled run will load the newest state.
-13. Every scheduled/manual report handoff must include a Provider Report Delivery Capability Check outcome: configured provider/OpenAPI checked, account verified or blocker logged, HTML upload/notification attempted when available, uploaded URL or exact blocker logged, and final HTML report path/link delivered.
-
-The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
+Designed for Codex and Claude Desktop/Cowork. No vision model required.

@@ -1,87 +1,97 @@
-# Solo Agency Setup Flow Entrypoint
+# OutreachCRM Setup Flow Entrypoint
 
 Use this file as the entrypoint for setup/configuration sessions.
 
-Setup Flow is the control plane. It configures Solo Agency so automation tasks run correctly later. It does not run operational reports.
+Setup Flow is the control plane. It configures OutreachCRM so the daily automation runs correctly later. **It never sends an email, runs a campaign, enriches a lead for send, or drafts-and-sends.**
 
 ## Runtime Requirement
 
-Before setup proceeds, verify or explain that Solo Agency needs Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or a comparable desktop/local AI agent runtime with workspace file access, automation/scheduled tasks, and multiple parallel/sub-agent work streams. Do not present a plain web chat as the primary runtime. Web chat can review results, but it cannot reliably host the file state, Local Collector handoff, scheduled automation, and multi-agent work this setup configures.
+Before setup proceeds, verify or explain that OutreachCRM needs Codex, Claude Desktop/Cowork, or a comparable desktop/local AI agent runtime with workspace file access, scheduled/automation tasks, local Python execution, and parallel/sub-agent work. Do not present a plain web chat as the primary runtime.
 
 ## Setup Flow Contract
 
-1. Load `SOLO_AGENCY_PLAYBOOK.md` and `playbooks/LOAD_LEDGER_PROTOCOL.md`. **Full-load discipline applies to every file below: each load needs a LOAD LEDGER (read to the last line; compare `playbooks/LOAD_MANIFEST.md` when present; ledger each named dependency). A truncated / "output too large" / partial read = NOT loaded — re-read in chunks before acting. No side-effect step without a PASS ledger for the stage(s) it needs.**
-2. Load `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`, `playbooks/04_DAILY_SCHEDULE.md`, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`.
-3. Load `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, and `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` when private data sources, client Chrome profiles, client extensions, or Local Collector setup are involved.
-4. Load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` when the human asks for update/upgrade/sync latest, when setup repair suspects stale playbooks/code, or when configuring the `Solo Agency - GitHub Update Watch` maintenance task.
-5. Create or update client setup, public data sources, private data sources approval state, extension folders, collector config, schedule files, automation manifests, scheduled prompts, update-watch state, and resync logs.
-6. Do not run public scans, private data source scans, reports, first agency runs, production, rendering, publishing, analytics scans, or outreach in Setup Flow.
-7. If the human asks to run, create, generate, show, refresh, or update a report inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow; the request does not become Automation Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and tell the human the exact task name to run instead.
-8. If the human says only `update`, `upgrade`, `cập nhật`, `sync latest`, or `pull latest`, treat that as the Stage 11 Solo Agency update command, not as `update a report`.
-9. Every client-specific automation task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
-10. Every per-client Chrome extension display name must begin with the client name, for example `AvenNgo - Solo Agency Collector`.
-11. PDNA provider setup must be client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming production, distribution, notification, analytics, credits, or connected platforms are available. Default setup is WideCast API-key setup: ask only for the client's WideCast API key, then let the agent configure/verify/discover/resync the rest. Do not ask provider/scope/spend/publish/account-identity questions unless the human explicitly requests a non-default provider or specialist stack. Do not use a global MCP/native provider account as proof of this client's PDNA status.
-12. After any approved config change or applied Solo Agency update, perform Automation Resync if a schedule/automation already exists.
-13. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`.
-14. Every human question, approval request, one-line Terminal/PowerShell command, Chrome `Load unpacked` instruction, provider/API-key setup request, and native automation task edit must use the `**[ACTION REQUIRED]**` block from `SOLO_AGENCY_PLAYBOOK.md`. If setup continues without needing the human, say `No action required right now.`
+1. Load `OUTREACHCRM_PLAYBOOK.md` and `playbooks/LOAD_LEDGER_PROTOCOL.md`. **Full-load discipline applies to every file below: each load needs a LOAD LEDGER (read to the last line; compare `playbooks/LOAD_MANIFEST.md` when present; ledger each named dependency). A truncated / "output too large" / partial read = NOT loaded — re-read in chunks before acting. No side-effect step without a PASS ledger for the stage(s) it needs.**
+2. Load `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, `playbooks/01_CLIENT_SETUP_PROFILE.md`, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, and `playbooks/09_OPERATIONS_SAFETY_AUDIT.md`.
+3. Load `playbooks/02_SENDBOX_SETUP.md` when connecting a sendbox, `playbooks/03_IMPORT_LIST.md` when importing a list, and `playbooks/05_CAMPAIGN_MANAGEMENT.md` when creating the first campaign. (If a planned stage file does not exist yet, load `docs/DESIGN.md` for its contract.)
+4. Load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` when the human asks for update/upgrade/sync-latest, when setup repair suspects stale playbooks/code, or when configuring the `OutreachCRM - GitHub Update Watch` maintenance task.
+5. Create or update client setup, the Client Intelligence Profile, pipelines and custom fields, sending identity, sendbox connections, imported lists, campaigns, schedule files, automation manifests, scheduled prompts, update-watch state, and resync logs — all CRM state through `tools/crm_store.py`.
+6. Do not send any email, run any campaign, enrich a lead for send, generate a live-send Approval Report, or start outreach in Setup Flow.
+7. If the human asks to send, run a campaign, or draft-and-send inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and tell the human the exact task name to run instead.
+8. If the human says only `update`, `upgrade`, `cập nhật`, `sync latest`, or `pull latest`, treat that as the Stage 11 OutreachCRM update command, not as `send now`.
+9. Every client-specific automation task name must begin with the client name, e.g. `Max Output - OutreachCRM Daily Run`.
+10. Notification setup (optional) is client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming notification is available. Default is WideCast: ask only for the client's WideCast API key. Do not treat a global MCP/native provider account as this client's connection. Notification is optional; mark it `–` if declined.
+11. After any approved config change or applied OutreachCRM update, perform Automation Resync if a schedule/automation already exists.
+12. Setup Flow completion means `ready_for_automation_first_run`.
+13. Every human question, approval request, one-line command, sendbox-connection step, provider/API-key setup request, and native automation task edit must use the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. If setup continues without needing the human, say `No action required right now.`
+
+## The 9-step Setup Sequence
+
+Follow `playbooks/01_CLIENT_SETUP_PROFILE.md` for detail. Summary:
+
+1. One opening question (product/service or business + ideal customer + optional URL). Agent infers ICP, value proposition, and email voice, then shows them for correction.
+2. Propose a pipeline (default 6 stages) and custom fields; the human adjusts.
+3. Confirm the sending identity: from-name, signature, physical mailing address (CAN-SPAM), unsubscribe method.
+4. Connect the first sendbox (Stage 2). `@gmail.com` App Password is the quick path; Workspace OAuth is advanced.
+5. Import the first list (Stage 3): inspect + confirm column mapping, then normalize, dedupe, and check suppression.
+6. Create the first campaign and its structured goal (Stage 5).
+7. Notification (optional): WideCast API key only.
+8. Record a baseline (nothing sent).
+9. Create the `{Client} - OutreachCRM Daily Run` automation task (pinning `target_client_slug`) and, once a schedule exists, offer `OutreachCRM - GitHub Update Watch`. Explain what Automation Flow will do; it does not run in Setup Flow.
 
 ## Fresh Source Acquisition Hard Gate
 
-Before copying playbooks, `solo-agency-collector/` artifacts, extension templates, scripts, or zipped assets into the human's setup, the setup agent must verify the source repo.
+Before copying playbooks, tools, or templates into the human's setup, verify the source repo:
 
-Required behavior:
-
-- Use the current setup root if it is already a verified clone of `https://github.com/soloagency/solo-agency`; otherwise clone into a fresh unique `mktemp -d` directory.
-- Do not use fixed shared fallback folders such as `/tmp/solo-agency`, `/var/tmp/solo-agency`, or `/dev/shm/solo-agency`.
+- Use the current setup root if it is already a verified clone of `https://github.com/OWNER/outreachcrm`; otherwise clone into a fresh unique `mktemp -d`.
+- Do not use fixed shared fallback folders such as `/tmp/outreachcrm`, `/var/tmp/outreachcrm`, or `/dev/shm/outreachcrm`.
 - Do not trust a folder that lacks `.git`, has the wrong owner, has an old timestamp, or could not be removed/updated.
-- Verify `git remote get-url origin`, `git rev-parse HEAD`, and `git ls-remote origin refs/heads/main`; local `HEAD` must match GitHub `main` before the agent reads or copies files from that checkout.
-- If GitHub access fails because of network or sandbox restrictions, request the needed permission or give the human one exact clone/download command. Do not proceed with stale local code.
-- Record the verified source path and commit hash in `daily-content-pipeline/collector/collector_setup_status.md` or `daily-content-pipeline/automation/resync_log.md` when those files exist.
-- For a full update command, record the verified source path, commit hash, change classification, backup path, client resync state, bridge action requirement, and extension reload requirement in `daily-content-pipeline/automation/update_state.json` and `update_log.md`.
+- Verify `git remote get-url origin`, `git rev-parse HEAD`, and `git ls-remote origin refs/heads/main`; local `HEAD` must match GitHub `main` before reading/copying.
+- If GitHub access fails, request permission or give the human one exact clone/download command. Do not proceed with stale local code.
+- Record the verified source path and commit hash in `outreach-pipeline/automation/resync_log.md` (or `update_state.json`/`update_log.md` for a full update).
 
 ## Setup Blocker Recovery
 
-If setup hits any unexpected blocker, old/corrupt artifact, missing file, permission mismatch, stale extension/collector behavior, instruction conflict, or dead end:
+If setup hits any unexpected blocker, old/corrupt artifact, missing file, permission mismatch, instruction conflict, or dead end:
 
-1. Assume the setup agent may be using an old Solo Agency version.
+1. Assume the setup agent may be using an old OutreachCRM version.
 2. Re-run the Fresh Source Acquisition Hard Gate against GitHub `main`.
-3. Reload `SOLO_AGENCY_PLAYBOOK.md` plus the relevant child playbooks from the verified latest source.
+3. Reload `OUTREACHCRM_PLAYBOOK.md` plus the relevant child playbooks from the verified latest source.
 4. If the newest playbook fixes the setup path, continue from the latest rule and resync the client setup/automation state.
-5. If the newest GitHub version still leaves the setup blocked, escalate without requiring the human to have a GitHub account: create a redacted GitHub issue when the agent/runtime has an authorized GitHub identity, send/queue it through a configured support/intake channel when available, or write a ready-to-post issue draft.
+5. If the newest version still leaves setup blocked, escalate without requiring the human to have a GitHub account: create a redacted issue when an authorized identity exists, send/queue via a configured intake channel, or write a ready-to-post draft.
 
-Do not include private client data, secrets, cookies, tokens, raw private data source captures, or logged-in screenshots in GitHub issues. If direct issue creation/sending is unavailable, write the draft under `daily-content-pipeline/automation/issues/`, track it in `daily-content-pipeline/automation/github_issues.md`, and tell the human the path.
+Do not include secrets, API keys, tokens, sendbox credentials, or contact PII in issues. Write drafts under `outreach-pipeline/automation/issues/`, track them in `outreach-pipeline/automation/github_issues.md`, and tell the human the path.
 
 ## Required Setup Output
 
-For each configured client, Setup Flow must leave these current:
+For each configured client, Setup Flow must leave these current (all CRM writes via `crm_store.py`):
 
 - Client Intelligence Profile.
-- public data sources and keyword bank.
-- private data sources approval state.
-- `extensions/{client_slug}/manifest.json`.
-- `extensions/{client_slug}/client_binding.json`.
-- `daily-content-pipeline/collector/extension_registry.json`.
-- `daily-content-pipeline/collector/collector_config.json`.
-- `daily-content-pipeline/schedule.md`.
-- `daily-content-pipeline/automation/automation_manifest.md`.
-- `daily-content-pipeline/automation/scheduled_run_prompt.md`.
-- `daily-content-pipeline/automation/update_state.json` and `update_log.md` when update/watch has been checked, configured, or applied.
-- `daily-content-pipeline/automation/resync_log.md`.
+- `crm/pipelines.json` and custom field definitions.
+- Sending identity (from-name, signature, physical address, unsubscribe method) in the profile.
+- `sendboxes/sendboxes.json` with at least one connected sendbox (or a recorded pending action).
+- At least one imported list (`lists/{list_slug}/`) or a recorded pending action.
+- At least one `campaigns/{campaign_slug}/campaign_config.json` with a structured goal.
+- `integrations/providers/provider_config.local.json` when notification was configured.
+- `outreach-pipeline/schedule.md`.
+- `outreach-pipeline/automation/automation_manifest.md`.
+- `outreach-pipeline/automation/scheduled_run_prompt.md`.
+- `outreach-pipeline/automation/update_state.json` and `update_log.md` when update/watch has been checked/configured.
+- `outreach-pipeline/automation/resync_log.md`.
 
 If the native automation task prompt cannot be updated directly, mark `automation_prompt_update_pending` in the manifest and schedule, then give the human one concrete instruction to update the task prompt.
 
-For every new client, the setup handoff must include the dedicated extension install instructions, not just a status line. Show the absolute `extensions/{client_slug}/` folder path and the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account inside a `**[ACTION REQUIRED]**` block. Before showing that path or the bridge start command, run the Stage 8 Source Safety Pre-Check and precede the install block with one short plain-language line confirming the collector's code was read and only runs locally (safe to install). If the pre-check does not pass, do not show the install steps; raise it to the operator instead.
+For sendbox connection, the setup handoff must include the exact connection steps in an `**[ACTION REQUIRED]**` block (App Password creation + `python3 tools/gmail_client.py auth --client {slug} --sendbox {sendbox_slug}`, or the OAuth flow), not just a status line.
 
-After schedule/automation exists, offer the separate maintenance task `Solo Agency - GitHub Update Watch`. If the runtime cannot create it directly, write the exact prompt to `daily-content-pipeline/automation/update_watch_prompt.md`, tell the human the task name to create, and record `update_watch_task_prompt_pending` in the automation/update state.
+After schedule/automation exists, offer the maintenance task `OutreachCRM - GitHub Update Watch`. If the runtime cannot create it directly, write the exact prompt to `outreach-pipeline/automation/update_watch_prompt.md`, tell the human the task name to create, and record `update_watch_task_prompt_pending` in the automation/update state.
 
-## Report Request Hard Stop
+## Send Request Hard Stop
 
-When the human asks for a report/run while this entrypoint is active, the only valid response is:
+When the human asks to send / run a campaign / draft-and-send while this entrypoint is active, the only valid response is:
 
-1. State that Setup Flow does not run reports.
+1. State that Setup Flow does not send.
 2. Finish or resync the client-specific automation task.
-3. Provide the exact task name and whether it will run public data sources only or public plus activated private data sources.
+3. Provide the exact task name to run for the first daily run.
 4. If the native automation UI requires human action, provide that one exact action in a `**[ACTION REQUIRED]**` block.
-5. End with a `**[ACTION REQUIRED]**` block naming the exact client-specific automation task to run for the report, or say `No action required right now.` when no action is needed.
+5. End with a `**[ACTION REQUIRED]**` block naming the exact automation task to run, or say `No action required right now.`
 
-Do not ask whether to run the report now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not perform public research, private data source collection, report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery in Setup Flow.
+Do not ask whether to send now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not enrich, draft-to-send, or notify in Setup Flow.
