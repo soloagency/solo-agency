@@ -73,7 +73,7 @@ Run OutreachCRM GitHub update watch now.
 
 Load OUTREACHCRM_PLAYBOOK.md, playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md, playbooks/09_OPERATIONS_SAFETY_AUDIT.md, and playbooks/11_UPDATE_AND_VERSION_WATCH.md.
 Read outreach-pipeline/automation/update_state.json, automation_manifest.md, scheduled_run_prompt.md, github_issues.md, and outreach-pipeline/schedule.md when present.
-Check https://github.com/soloagency/outreachcrm main using the Stage 11 Fresh GitHub Checkout Protocol or a safe remote commit check.
+Check https://github.com/soloagency/outreach main using the Stage 11 Fresh GitHub Checkout Protocol or a safe remote commit check.
 Compare the installed/local commit with GitHub main.
 If there is no new commit, update update_state.json and update_log.md with the check result, then stop.
 If there is a new commit, compare root instructions, playbooks, tools (crm_store.py/gmail_client.py/import_leads.py/email_verify.py and the storage adapter), tracker/worker.js, storage schema/schema_version, setup scripts, templates, and automation contracts.

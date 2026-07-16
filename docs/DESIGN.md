@@ -78,7 +78,7 @@ scrubbed report.
 | `tools/solo_report_renderer.py` | `tools/report_renderer.py` |
 | task `{Client} - Solo Agency Daily Run` | `{Client} - OutreachCRM Daily Run` |
 | `Solo Agency - GitHub Update Watch` | `OutreachCRM - GitHub Update Watch` |
-| GitHub `github.com/soloagency/solo-agency` | the OutreachCRM repo URL (TBD; placeholder `github.com/soloagency/outreachcrm`) |
+| GitHub `github.com/soloagency/solo-agency` | `github.com/soloagency/outreach` (repo name is `outreach`; product name stays OutreachCRM) |
 
 **Deleted components** (must have zero surviving references anywhere except this row):
 `solo-agency-collector/`, Local Collector / bridge / Chrome extension / `client_binding.json`
@@ -736,14 +736,14 @@ as compliant during Phase 0. (Config files outside `crm/` — sendboxes, campaig
 analytics, the profile — are plain config writes and were never crm_store-only; see §6.)
 
 **R4 — When GitHub is unreachable, the local checkout is the source of truth.** The repo is
-`github.com/soloagency/outreachcrm`. If GitHub cannot be verified — the repo is not yet
+`github.com/soloagency/outreach`. If GitHub cannot be verified — the repo is not yet
 published, `git ls-remote` fails, network/sandbox blocks it, or `OUTREACHCRM_GIT_REMOTE_URL`
 is unset — the Fresh GitHub Source gate and Last-Resort Recovery must treat THIS local working
 copy as the verified source: record `fresh_source_check: skipped_local_unreachable` in
 `resync_log.md` (or `update_state.json` for updates), skip the clone/remote-verify/GitHub-fetch
 steps, and continue. Do not block setup or a run on a GitHub check that cannot pass. Once the
 repo is published and reachable, normal Fresh-Source verification against
-`github.com/soloagency/outreachcrm` resumes automatically.
+`github.com/soloagency/outreach` resumes automatically.
 
 **R5 — What a Phase-0 setup CAN reach.** With R1–R4, a Setup Flow session can complete to
 `ready_for_automation_first_run` (profile + pipeline + campaign written directly, sendbox and

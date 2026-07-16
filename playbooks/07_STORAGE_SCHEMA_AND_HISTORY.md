@@ -1092,7 +1092,7 @@ Tracks GitHub issues / intake submissions / drafts opened when the latest GitHub
 
 | Date | Agent | Client Slug | Blocker Fingerprint | Local Commit | GitHub Main Commit Checked | Issue URL / Intake Channel / Draft Path | Status | Next Check | Latest Response / Next Action |
 |---|---|---|---|---|---|---|---|---|---|
-| 2026-07-15 | Codex | angela-do | sendbox_oauth_invalid_grant_after_fresh_check | abc123 | def456 | https://github.com/soloagency/outreachcrm/issues/123 | opened_by_agent | 2026-07-16 | Waiting for maintainer response |
+| 2026-07-15 | Codex | angela-do | sendbox_oauth_invalid_grant_after_fresh_check | abc123 | def456 | https://github.com/soloagency/outreach/issues/123 | opened_by_agent | 2026-07-16 | Waiting for maintainer response |
 ```
 
 Issue drafts live under `outreach-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md`. Recommended status values: `opened_by_agent`, `sent_to_intake`, `queued_for_intake`, `draft_waiting_for_support_channel`, `draft_waiting_for_human`, `answered`, `fix_applied`, `resolved`, `closed`. Every issue/draft must be redacted — no API keys, tokens, OAuth refresh tokens, `token.json` contents, recipient PII, or raw provider responses; include only safe reproduction steps, expected/actual behavior, local commit, GitHub main commit checked, runtime, blocker names, and redacted logs.
