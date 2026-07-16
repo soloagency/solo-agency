@@ -9,7 +9,7 @@ DEFAULT_GIT_REMOTE_URL="https://github.com/OWNER/outreachcrm.git"
 AUTO_GIT_DEPLOY="${OUTREACHCRM_AUTO_GIT_DEPLOY:-1}"
 GIT_PUSH="${OUTREACHCRM_GIT_PUSH:-1}"
 GIT_REMOTE_NAME="${OUTREACHCRM_GIT_REMOTE_NAME:-origin}"
-GIT_REMOTE_URL="${OUTREACHCRM_GIT_REMOTE_URL:-$DEFAULT_GIT_REMOTE_URL}"
+GIT_REMOTE_URL="${OUTREACHCRM_GIT_REMOTE_URL:-}"  # empty until the owner sets it (placeholder repo not yet published)
 GIT_DEFAULT_BRANCH="${OUTREACHCRM_GIT_BRANCH:-main}"
 GIT_AUTHOR_NAME="${OUTREACHCRM_GIT_USER_NAME:-OutreachCRM}"
 GIT_AUTHOR_EMAIL="${OUTREACHCRM_GIT_USER_EMAIL:-outreachcrm-deploy@users.noreply.github.com}"
@@ -154,6 +154,9 @@ ensure_git_identity() {
 }
 
 ensure_git_remote() {
+  case "$GIT_REMOTE_URL" in
+    *github.com/OWNER/*) die "OUTREACHCRM_GIT_REMOTE_URL still contains the OWNER placeholder ('$GIT_REMOTE_URL'). Set the real repository URL before deploying." ;;
+  esac
   local existing_url
   existing_url="$(git_cmd remote get-url "$GIT_REMOTE_NAME" 2>/dev/null || true)"
   if [ -z "$existing_url" ]; then
@@ -173,7 +176,10 @@ current_git_branch() {
 scan_staged_secrets() {
   log "Checking staged diff for obvious secrets"
   local secret_hits
-  secret_hits="$(git_cmd diff --cached --text --unified=0 | grep -E 'wc_live_[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|api_key_local\"[[:space:]]*:[[:space:]]*\"[^\"]+|\"refresh_token\"[[:space:]]*:|\"client_secret\"[[:space:]]*:|TRACKER_API_KEY' || true)"
+  # Scan only ADDED lines, and require a non-empty literal value so that
+  # documentation/env-name mentions (TRACKER_API_KEY, "refresh_token": examples) and
+  # secret REMOVALS do not block the commit — only a real pasted secret does.
+  secret_hits="$(git_cmd diff --cached --text --unified=0 | grep -E '^\+' | grep -E 'wc_live_[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|api_key_local\"[[:space:]]*:[[:space:]]*\"[^\"]+|\"refresh_token\"[[:space:]]*:[[:space:]]*\"[^\"]+|\"client_secret\"[[:space:]]*:[[:space:]]*\"[^\"]+|TRACKER_API_KEY[[:space:]]*[=:][[:space:]]*[\"'"'"']?[A-Za-z0-9_-]{8,}' || true)"
   if [ -n "$secret_hits" ]; then
     echo "$secret_hits" >&2
     die "Refusing to commit because staged diff appears to contain a secret. Move secrets into env/local ignored config."

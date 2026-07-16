@@ -699,10 +699,19 @@ def infer_subtitle(markdown: str) -> str:
     return "A concise intelligence report with evidence, recommendations, and next actions."
 
 
+# Common-English terms use word-boundary matching so innocent copy like
+# "quotations" or "home automation" does not false-positive; technical tokens
+# (trk., token.json, sent_log, ...) keep substring matching.
+NATURAL_WORD_TERMS = {"quota", "automation", "debug", "guessed", "warmup", "suppression"}
+
+
 def scrub_check(text: str) -> list[str]:
     found: list[str] = []
     for term in CLIENT_BLIND_TERMS:
-        if re.search(re.escape(term), text, flags=re.IGNORECASE):
+        pattern = re.escape(term)
+        if term.lower() in NATURAL_WORD_TERMS:
+            pattern = r"\b" + pattern + r"\b"
+        if re.search(pattern, text, flags=re.IGNORECASE):
             found.append(term)
     return found
 
@@ -1038,7 +1047,7 @@ def export_pdf_with_chrome(html_path: Path, pdf_path: Path) -> tuple[bool, str]:
     for chrome in chrome_candidates():
         for headless_flag in ("--headless=new", "--headless"):
             pdf_path.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.TemporaryDirectory(prefix="solo-report-chrome-") as tmp:
+            with tempfile.TemporaryDirectory(prefix="outreachcrm-report-chrome-") as tmp:
                 cmd = [
                     chrome,
                     headless_flag,

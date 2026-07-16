@@ -2,9 +2,11 @@
 """Minimal OpenAPI provider adapter for OutreachCRM (operator notification provider).
 
 This utility intentionally uses only Python's standard library so scheduled
-agents can run it without installing dependencies. It supports the subset Solo
-Agency needs first: discover operation IDs, verify account, call JSON endpoints,
-and upload HTML reports through a provider operation such as WideCast uploadAsset.
+agents can run it without installing dependencies. It supports the subset
+OutreachCRM needs: discover operation IDs, verify the account, send the operator
+notification (e.g. WideCast sendTelegramMessage), and upload the HTML report link
+through a provider operation such as WideCast uploadAsset. Production/video
+operations are intentionally not part of OutreachCRM's provider role.
 """
 
 from __future__ import annotations
@@ -31,43 +33,20 @@ DEFAULT_DISABLED_SERVER_URLS = {
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
 USER_AGENT = "OutreachCRMOpenAPIAdapter/1.0"
 
+# OutreachCRM's provider role is notification only (plus report-link upload and
+# account verification). No production/video/publish operations.
 KNOWN_OPERATION_CANDIDATES = {
     "account": ["getAccount"],
-    "analytics": ["getAnalytics"],
-    "list_videos": ["listVideos"],
+    "send_notification": ["sendTelegramMessage"],
     "upload_asset": ["uploadAsset"],
     "upload_html_report": ["uploadAsset"],
-    "send_notification": ["sendTelegramMessage"],
-    "publish": ["publish"],
-    "create_video": ["createVideo"],
-    "export_video": ["exportVideo"],
-    "get_status": ["getStatus", "waitForVideo"],
-    "get_video_data": ["getVideoData", "videoData"],
-    "get_writing_skill": ["getWritingSkill"],
-    "get_editing_skill": ["getEditingSkill"],
-    "create_content": ["createContent"],
-    "create_image": ["createImage"],
-    "search_broll": ["searchBroll"],
-    "collect_ideas": ["collectIdeas"],
-    "scene_geometry": ["sceneGeometry", "getSceneGeometry"],
-    "scene_inspector": ["sceneInspector", "inspectScene", "getSceneInspector"],
-    "modify_scene": ["modifyScene"],
+    "analytics": ["getAnalytics"],
 }
 
 CAPABILITY_GROUP_ALIASES = {
-    "production": ["create_video", "get_status"],
-    "video_editing": [
-        "get_editing_skill",
-        "get_video_data",
-        "scene_geometry",
-        "scene_inspector",
-        "modify_scene",
-    ],
-    "render_export": ["export_video"],
-    "media": ["upload_asset", "create_image", "search_broll"],
-    "distribution": ["publish"],
     "notification": ["send_notification"],
-    "analytics": ["account", "analytics", "list_videos", "get_status", "get_video_data"],
+    "media": ["upload_asset"],
+    "analytics": ["account", "analytics"],
 }
 
 
