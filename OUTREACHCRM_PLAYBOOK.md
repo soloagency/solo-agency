@@ -181,13 +181,13 @@ Operator-only reports (Approval Report, Today View, daily ops, `INTERNAL_REPORT`
 |---|---|---|
 | 0 | `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` | Always load first. Mission, operating principles, isolation, compliance, non-negotiables. |
 | 1 | `playbooks/01_CLIENT_SETUP_PROFILE.md` | New client setup, setup repair, or Automation Flow first run. Defines the 9-step Setup Flow and the Client Intelligence Profile. |
-| 2 | `playbooks/02_SENDBOX_SETUP.md` *(planned)* | Connecting or checking a sendbox (App Password / OAuth), warmup, quota. |
-| 3 | `playbooks/03_IMPORT_LIST.md` *(planned)* | Importing a CSV/TXT/XLSX list; mapping, dedupe, suppression checks. |
+| 2 | `playbooks/02_SENDBOX_SETUP.md` | Connecting or checking a sendbox (App Password / OAuth), warmup, quota. (tool: `tools/gmail_client.py`) |
+| 3 | `playbooks/03_IMPORT_LIST.md` | Importing a CSV/TXT/XLSX list; mapping, dedupe, suppression checks. (tools: `tools/import_leads.py`, `tools/email_verify.py`) |
 | 4 | `playbooks/04_VERIFY_ENRICH.md` *(planned)* + skill `email-verify-enrich` | Before any enrichment (verify still-active, gather evidenced hooks, distill writing brief). |
 | 5 | `playbooks/05_CAMPAIGN_MANAGEMENT.md` *(planned)* | Create/edit a campaign and its structured goal, sequence, segment, sendboxes. |
 | 6 | `playbooks/06_EMAIL_WRITING_STANDARD.md` *(planned)* + skill `email-writing` | Before drafting any email; goal_type → structure. |
 | 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Any file create, schema question, history/log write, adding a client, reading prior context. |
-| 8 | `playbooks/08_SEND_ENGINE_PROTOCOL.md` *(planned)* | Before any send: pre-send re-check chain, rotation, tracking, threading. |
+| 8 | `playbooks/08_SEND_ENGINE_PROTOCOL.md` | Before any send: pre-send re-check chain, rotation, tracking, threading. (tool: `tools/gmail_client.py`; mutations via `tools/crm_store.py`) |
 | 9 | `playbooks/09_OPERATIONS_SAFETY_AUDIT.md` | Before claiming setup, draft, send, daily-run, or report completion. |
 | 10 | `playbooks/10_FOLLOWUP_REPLY_MANAGEMENT.md` *(planned)* | Inbox sync, reply classification, deal-aware follow-up advising. |
 | 11 | `playbooks/11_UPDATE_AND_VERSION_WATCH.md` | Update/upgrade/sync-latest, stale-version/blocker recovery, the daily update-watch task. |
