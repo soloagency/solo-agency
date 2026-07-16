@@ -10,7 +10,7 @@ Also load during blocker recovery, setup repair, storage-adapter or schema-versi
 
 ## Hard Gates For This Stage
 
-- GitHub `main` for `https://github.com/soloagency/outreachcrm` is the source of truth.
+- GitHub `main` for `https://github.com/soloagency/outreach` is the source of truth.
 - Do not use fixed shared fallback folders such as `/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`, or any old checkout left by another session.
 - Use a fresh unique `mktemp -d` checkout unless the current setup root is already proven to be a verified clone of the OutreachCRM GitHub repo.
 - Verify `.git`, `origin`, local `HEAD`, and remote `refs/heads/main` before reading or copying from the source checkout.
@@ -42,7 +42,7 @@ This is not a request to update a client report. In Setup Flow, it stays control
 Use this sequence before reading, diffing, or copying source files:
 
 1. Create a fresh unique temporary folder with `mktemp -d`.
-2. Clone `https://github.com/soloagency/outreachcrm` into that folder.
+2. Clone `https://github.com/soloagency/outreach` into that folder.
 3. Verify the source checkout:
    - `.git` exists.
    - `git remote get-url origin` resolves to the OutreachCRM GitHub repo.
@@ -58,7 +58,7 @@ Valid sources:
 
 - A freshly cloned and verified `mktemp -d` checkout.
 - The current setup root only when it is a verified clone matching GitHub `main`.
-- Raw GitHub files from `https://raw.githubusercontent.com/soloagency/outreachcrm/main/` only for instruction reload when a full clone is blocked.
+- Raw GitHub files from `https://raw.githubusercontent.com/soloagency/outreach/main/` only for instruction reload when a full clone is blocked.
 
 Invalid sources:
 

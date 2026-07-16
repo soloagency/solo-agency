@@ -128,7 +128,7 @@ Run this check before saying an update command, update-watch run, setup-repair u
 Minimum update audit:
 
 - Stage 11 `playbooks/11_UPDATE_AND_VERSION_WATCH.md` was loaded IN FULL.
-- The source was GitHub `main` from the OutreachCRM repo (`https://github.com/soloagency/outreachcrm`).
+- The source was GitHub `main` from the OutreachCRM repo (`https://github.com/soloagency/outreach`).
 - The agent used the current verified setup root or a fresh unique `mktemp -d` checkout. No fixed shared fallback folder (such as `/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`) was used.
 - `.git`, `origin`, local `HEAD`, and remote `refs/heads/main` were verified before reading or copying source files.
 - The update check covered: root instructions, all playbooks, provider/OpenAPI tooling (`tools/provider_openapi.py`), the report renderer (`tools/report_renderer.py`), the storage adapter + `schema_version`, `crm_store.py` / `gmail_client.py` / `import_leads.py` / `email_verify.py`, `tracker/worker.js` (+ its `wrangler deploy` rerun step), sendbox token compatibility, the deploy script, and skills.

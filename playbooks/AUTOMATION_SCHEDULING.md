@@ -376,7 +376,7 @@ Rules:
 
 - The task should run daily, preferably before the client daily runs.
 - It must load `playbooks/11_UPDATE_AND_VERSION_WATCH.md`.
-- It must check the OutreachCRM repo `main` (placeholder `https://github.com/soloagency/outreachcrm`),
+- It must check the OutreachCRM repo `main` (placeholder `https://github.com/soloagency/outreach`),
   compare the installed version, classify the change, and update
   `outreach-pipeline/automation/update_state.json` plus `update_log.md`. Classification
   includes `tracker_worker_deploy_required` (a `tracker/worker.js` change needing a

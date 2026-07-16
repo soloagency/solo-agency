@@ -142,10 +142,10 @@ Resync updates the full package, not one file: the client profile + relevant sta
 
 ### 0.7 Fresh GitHub source + missing-playbook download
 
-For setup, repair, update, or copying playbooks into a human's install, GitHub `main` is the source of truth unless the current root is a verified fresh clone of the same repo. Clone/download from `https://github.com/soloagency/outreachcrm` into the current root or a fresh unique `mktemp -d`; never reuse fixed shared caches; verify `.git`, `origin`, and that local `HEAD` matches `git ls-remote origin refs/heads/main` before reading/copying; treat non-`.git`, wrong-owner, or stale-timestamp folders as bad cache; never fall back to unverified local code. If the local `playbooks/` folder is missing a stage, download it from:
+For setup, repair, update, or copying playbooks into a human's install, GitHub `main` is the source of truth unless the current root is a verified fresh clone of the same repo. Clone/download from `https://github.com/soloagency/outreach` into the current root or a fresh unique `mktemp -d`; never reuse fixed shared caches; verify `.git`, `origin`, and that local `HEAD` matches `git ls-remote origin refs/heads/main` before reading/copying; treat non-`.git`, wrong-owner, or stale-timestamp folders as bad cache; never fall back to unverified local code. If the local `playbooks/` folder is missing a stage, download it from:
 
 ```text
-https://raw.githubusercontent.com/soloagency/outreachcrm/main/playbooks/
+https://raw.githubusercontent.com/soloagency/outreach/main/playbooks/
 ```
 
 After any GitHub-raw download, verify it against `playbooks/LOAD_MANIFEST.md` via a LOAD LEDGER; a short/partial download must be re-fetched before use.
@@ -154,7 +154,7 @@ Carve-out (DESIGN §22 R1): Stages marked `status: planned` are not missing file
 
 ### 0.8 Last-resort recovery + GitHub issue escalation
 
-Because the repo changes frequently, treat any blocker, repeated failure, contradiction, tool/config mismatch, stale asset, or dead end as a possible old-playbook/code problem first: do a Fresh GitHub Source Check, record local vs `main` commits, reload the relevant latest stage, and follow it if it fixes the issue (resync afterward). If still blocked, open or draft a GitHub issue for `soloagency/outreachcrm`:
+Because the repo changes frequently, treat any blocker, repeated failure, contradiction, tool/config mismatch, stale asset, or dead end as a possible old-playbook/code problem first: do a Fresh GitHub Source Check, record local vs `main` commits, reload the relevant latest stage, and follow it if it fixes the issue (resync afterward). If still blocked, open or draft a GitHub issue for `soloagency/outreach`:
 
 - The human does not need a GitHub account; do not make registration the required next step.
 - Direct creation requires an authorized identity: `gh issue create` only when `gh auth status` passes and `GITHUB_TOKEN`, `GH_TOKEN`, or `OUTREACHCRM_GITHUB_ISSUE_TOKEN` is configured, or a maintainer bot/App is available. Never store this token in client config, reports, or committed files.
