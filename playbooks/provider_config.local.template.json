@@ -29,7 +29,8 @@
       "notification": {
         "enabled": false,
         "preferred_operation_id": "sendTelegramMessage",
-        "delivery": "telegram_or_email_fallback"
+        "delivery": "telegram_or_email_fallback",
+        "text_field": "text"
       },
       "report_upload": {
         "enabled": false,

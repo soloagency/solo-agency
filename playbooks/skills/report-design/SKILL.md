@@ -66,7 +66,10 @@ Report dials:
 
 ## Required Report Shapes
 
-**Weekly client report:**
+**Weekly client report:** the minimal, data-driven version is generated in one step by
+`python3 tools/crm_store.py --client-dir DIR weekly-report --client-name "…"`, which assembles a
+scrubbed Markdown source from CRM state and renders it client-facing (see the Renderer Contract
+below). Use this skill to review/upgrade its visual polish; the required content shape is:
 1. Hero: reporting period, headline outcome (e.g. "3 new opportunities, 1 won"), next step.
 2. Executive snapshot: what moved this week, why it matters, what to do next.
 3. Pipeline snapshot: deals by stage, values, forecast (Σ value×probability).

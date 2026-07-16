@@ -256,5 +256,155 @@ class TestApprovalAndFollowup(unittest.TestCase):
         self.assertTrue(self.s.render_kanban()["html_rendered"])
 
 
+class TestInjectableClock(unittest.TestCase):
+    """2E — OUTREACHCRM_FAKE_NOW, gated behind OUTREACHCRM_TEST_MODE (DESIGN §17)."""
+
+    def setUp(self):
+        self._saved = {k: os.environ.get(k) for k in ("OUTREACHCRM_TEST_MODE", "OUTREACHCRM_FAKE_NOW")}
+
+    def tearDown(self):
+        for k, v in self._saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    def test_fake_now_ignored_without_test_mode(self):
+        os.environ.pop("OUTREACHCRM_TEST_MODE", None)
+        os.environ["OUTREACHCRM_FAKE_NOW"] = "2000-01-01T00:00:00Z"
+        self.assertFalse(now_iso().startswith("2000"))     # production is never shifted
+
+    def test_fake_now_applies_under_test_mode(self):
+        os.environ["OUTREACHCRM_TEST_MODE"] = "1"
+        os.environ["OUTREACHCRM_FAKE_NOW"] = "2026-08-15T09:00:00Z"
+        from storage import today_str, month_str
+        self.assertEqual(now_iso(), "2026-08-15T09:00:00Z")
+        self.assertEqual(today_str(), "2026-08-15")         # derives from now_iso
+        self.assertEqual(month_str(), "2026-08")
+        os.environ["OUTREACHCRM_FAKE_NOW"] = "2026-08-15"   # date-only -> midnight
+        self.assertEqual(now_iso(), "2026-08-15T00:00:00Z")
+
+    def test_malformed_fake_now_raises_only_in_test_mode(self):
+        from storage import StorageError
+        os.environ["OUTREACHCRM_TEST_MODE"] = "1"
+        os.environ["OUTREACHCRM_FAKE_NOW"] = "not-a-date"
+        with self.assertRaises(StorageError):
+            now_iso()
+        os.environ.pop("OUTREACHCRM_TEST_MODE", None)        # inert (real now) outside test mode
+        self.assertFalse(now_iso().startswith("not"))
+
+    def test_time_advance_makes_bump_due(self):
+        os.environ["OUTREACHCRM_TEST_MODE"] = "1"
+        cdir = _client(); s = CrmStore(cdir)
+        s.create_campaign("demo", {"audience": {"segment": "x"},
+                                   "sequence": [{"step": 1, "gap_days": 0}, {"step": 2, "gap_days": 4}]})
+        lead, _ = s.add_contact({"identities": {"emails": [{"address": "a@x.com"}]}})
+        os.environ["OUTREACHCRM_FAKE_NOW"] = "2026-07-10T09:00:00Z"
+        _write_sent(cdir, "demo", lead, now_iso())
+        self.assertEqual(s.followups_due("demo"), [])        # gap not elapsed at day 0
+        os.environ["OUTREACHCRM_FAKE_NOW"] = "2026-07-15T09:00:00Z"
+        self.assertEqual(len(s.followups_due("demo")), 1)    # gap elapsed after +5d
+
+
+class TestWeeklyReport(unittest.TestCase):
+    """2E — minimal client-facing weekly report (scrub-gated)."""
+
+    def setUp(self):
+        os.environ["OUTREACHCRM_TEST_MODE"] = "1"
+        os.environ["OUTREACHCRM_FAKE_NOW"] = "2026-07-16T10:00:00Z"
+        self.cdir = _client(); self.s = CrmStore(self.cdir)
+        self.s.create_campaign("demo", {"audience": {"segment": "x"}})
+
+    def tearDown(self):
+        for k in ("OUTREACHCRM_TEST_MODE", "OUTREACHCRM_FAKE_NOW"):
+            os.environ.pop(k, None)
+
+    def _seed(self, name="Jane Smith"):
+        lead, _ = self.s.add_contact({"name": {"full": name}, "identities": {"emails": [{"address": f"{name.split()[0].lower()}@x.com"}]}})
+        for _ in range(10):
+            self.s.log_activity("email_sent", lead, "sent")
+        self.s.log_activity("email_reply", lead, "reply")
+        self.s.apply_rules([{"type": "reply_positive", "contact_id": lead, "activity_id": f"a-{name}"}])
+        return lead
+
+    def test_clean_render_is_client_facing(self):
+        self._seed()
+        r = self.s.render_weekly_report(client_name="Acme Inc")
+        self.assertFalse(r["blocked"])
+        self.assertTrue(r["html_rendered"])
+        md = open(r["md"]).read()
+        self.assertIn("Acme Inc — Weekly Outreach Report", md)
+        self.assertIn("Emails delivered", md)
+        for term in ("sendbox", "crm_store", "WideCast", "OutreachCRM", "campaign"):
+            self.assertNotIn(term, md)                       # source is built clean
+
+    def test_scrub_gate_blocks_blind_term(self):
+        self._seed("WideCast Holdings")                       # a blind term reaches a movement line
+        r = self.s.render_weekly_report(client_name="Acme Inc")
+        self.assertTrue(r["blocked"])
+        self.assertIn("WideCast", r["blind_terms"])
+        self.assertIsNone(r["html"])                          # contaminated report is never shipped
+
+    def test_data_counts(self):
+        self._seed()
+        d = self.s.weekly_report_data()
+        self.assertEqual(d["delivered"], 10)
+        self.assertEqual(d["replies"], 1)
+        self.assertEqual(d["new_conversations"], 1)
+        self.assertEqual(d["period_start"], "2026-07-09")
+
+
+class TestNotify(unittest.TestCase):
+    """2E — composed operator notification (offline/degraded paths)."""
+
+    def setUp(self):
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        import provider_openapi  # noqa: E402
+        self.po = provider_openapi
+        self.tmp = tempfile.mkdtemp()
+
+    def _run(self, argv):
+        import io, contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = self.po.main(argv)
+        return rc, json.loads(buf.getvalue())
+
+    def _cfg(self, block):
+        p = os.path.join(self.tmp, f"cfg_{len(os.listdir(self.tmp))}.json")
+        json.dump({"active_provider": "widecast", "providers": {"widecast": block}}, open(p, "w"))
+        return p
+
+    def test_missing_config_is_local_path_only(self):
+        rc, j = self._run(["notify", "--message", "done"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(j["status"], "local_path_only")
+        self.assertEqual(j["blocker"], "provider_config_missing")
+
+    def test_disabled_notification_is_degraded_not_fatal(self):
+        cfg = self._cfg({"notification": {"enabled": False}, "api_key_local": "wc_live_x"})
+        rc, j = self._run(["--config", cfg, "notify", "--message", "done"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(j["blocker"], "provider_notification_not_configured")
+
+    def test_enabled_without_key_is_auth_missing(self):
+        cfg = self._cfg({"notification": {"enabled": True}, "api_key_env": "UNSET_X", "api_key_local": ""})
+        rc, j = self._run(["--config", cfg, "notify", "--message", "done"])
+        self.assertEqual(j["blocker"], "provider_auth_missing")
+
+    def test_dry_run_writes_log_and_no_send(self):
+        cfg = self._cfg({"notification": {"enabled": True}, "api_key_local": "wc_live_x"})
+        log = os.path.join(self.tmp, "notifications", "notification_log.md")
+        rc, j = self._run(["--config", cfg, "notify", "--message", "done", "--dry-run",
+                           "--event", "weekly_client_report_ready", "--log", log])
+        self.assertEqual(rc, 0)
+        self.assertEqual(j["status"], "dry_run")
+        self.assertTrue(j["dry_run"])
+        body = open(log).read()
+        self.assertIn("# Notification Log", body)
+        self.assertIn("weekly_client_report_ready", body)
+        self.assertIn("dry_run", body)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

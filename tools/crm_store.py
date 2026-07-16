@@ -899,6 +899,101 @@ class CrmStore:
         md.insert(1, f"**Weighted forecast:** ${forecast:,.0f}  ·  {len(deals)} open deals\n")
         return self._render_operator(md, "kanban", "Pipeline Kanban", now)
 
+    # --- weekly client report (CLIENT-FACING, scrubbed, Mondays) -------------
+
+    _STAGE_LABELS = {"new_reply": "New replies", "engaged": "In conversation",
+                     "meeting_booked": "Meeting booked", "proposal_sent": "Proposal sent",
+                     "won": "Won", "lost": "Closed out"}
+
+    def _contact_display(self, lead_id: str) -> str:
+        c = self.get_contact(self.resolve(lead_id)) if lead_id else None
+        if not c:
+            return "A prospect"
+        nm = (c.get("name") or {}).get("full") or ""
+        return nm.strip() or "A prospect"
+
+    def weekly_report_data(self, now: str | None = None, days: int = 7) -> dict:
+        """Aggregate the last `days` of CRM state into client-facing figures. Pure counts and
+        names — never internal identifiers, campaign slugs, or provider/tooling terms (the scrub
+        gate is the backstop, but the source is built clean)."""
+        now = now or now_iso()
+        cutoff = _iso_days_ago_from(days, now)
+        acts = [a for a in self.a.read_log("activities") if (a.get("ts") or "") >= cutoff]
+        delivered = sum(1 for a in acts if a.get("type") == "email_sent")
+        replies = sum(1 for a in acts if a.get("type") == "email_reply")
+        deals = self.a.query("deals", where=[Cond("status", "=", "open")])
+        forecast = 0.0
+        by_stage = {}
+        for d in deals:
+            v = float(d.get("value", 0)); prob = float(d.get("probability", 0))
+            forecast += v * prob
+            st = d.get("stage", "")
+            agg = by_stage.setdefault(st, {"count": 0, "value": 0.0})
+            agg["count"] += 1; agg["value"] += v
+        # movements: any stage entered within the window (across open + closed deals)
+        movements = []
+        for d in self.a.query("deals", where=[]):
+            name = self._contact_display((d.get("contact_ids") or [None])[0])
+            for h in d.get("stage_history", []):
+                if (h.get("at") or "") >= cutoff:
+                    movements.append({"name": name, "stage": h.get("stage", ""),
+                                      "at": h.get("at", ""), "value": float(d.get("value", 0)),
+                                      "status": d.get("status", "open")})
+        movements.sort(key=lambda m: m["at"])
+        meetings = sum(1 for m in movements if m["stage"] == "meeting_booked")
+        won = [m for m in movements if m["stage"] == "won"]
+        # next steps: open deals in the two closing stages
+        next_steps = [{"name": self._contact_display((d.get("contact_ids") or [None])[0]),
+                       "stage": d.get("stage", "")}
+                      for d in deals if d.get("stage") in ("meeting_booked", "proposal_sent")]
+        return {"generated_at": now, "period_start": cutoff[:10], "period_end": now[:10], "days": days,
+                "delivered": delivered, "replies": replies,
+                "reply_rate": (replies / delivered) if delivered else None,
+                "new_conversations": sum(1 for m in movements if m["stage"] == "new_reply"),
+                "meetings": meetings, "open_deals": len(deals), "forecast": forecast,
+                "by_stage": by_stage, "movements": movements, "won": won, "next_steps": next_steps}
+
+    def render_weekly_report(self, now: str | None = None, client_name: str = "", days: int = 7) -> dict:
+        """Build + render the client-facing weekly report (scrub-gated). Returns the render
+        status incl. `blocked` + `blind_terms` if the scrub gate fired."""
+        d = self.weekly_report_data(now, days)
+        cname = client_name.strip() or self._client_slug().replace("-", " ").replace("_", " ").title()
+        rr = "—" if d["reply_rate"] is None else f"{d['reply_rate']:.0%}"
+        md = [f"# {cname} — Weekly Outreach Report",
+              f"### {d['period_start']} to {d['period_end']}", "",
+              f"**This week:** {d['delivered']} emails delivered · {d['replies']} replies · "
+              f"{d['new_conversations']} new conversations · ${d['forecast']:,.0f} in active pipeline", "",
+              "## Snapshot", "",
+              f"- Emails delivered: **{d['delivered']}**",
+              f"- Replies received: **{d['replies']}** ({rr})",
+              f"- New conversations started: **{d['new_conversations']}**",
+              f"- Meetings booked: **{d['meetings']}**",
+              f"- Active opportunities: **{d['open_deals']}**", "",
+              "## Pipeline", "",
+              f"**Weighted pipeline value: ${d['forecast']:,.0f}** across {d['open_deals']} opportunities", "",
+              "| Stage | Opportunities | Value |", "|---|---:|---:|"]
+        for st in ("new_reply", "engaged", "meeting_booked", "proposal_sent"):
+            agg = d["by_stage"].get(st)
+            if agg:
+                md.append(f"| {self._STAGE_LABELS[st]} | {agg['count']} | ${agg['value']:,.0f} |")
+        md += ["", "## What moved this week", ""]
+        moved = []
+        for m in d["movements"]:
+            label = self._STAGE_LABELS.get(m["stage"], m["stage"])
+            if m["stage"] == "won":
+                moved.append(f"- **Won** — {m['name']} (${m['value']:,.0f})")
+            elif m["stage"] == "lost":
+                moved.append(f"- Closed out — {m['name']}")
+            else:
+                moved.append(f"- {m['name']} → {label}")
+        md += moved or ["Conversations are progressing; no stage changes to report this week."]
+        md += ["", "## What's next", ""]
+        md += [f"- {n['name']} — {self._STAGE_LABELS.get(n['stage'], n['stage']).lower()} in progress"
+               for n in d["next_steps"]] or ["We continue outreach and follow-ups on the active list."]
+        md += ["", "---", f"Prepared by your outreach team · {d['period_end']}"]
+        return self._render_client_facing(md, "weekly-client-report", f"{cname} — Weekly Report",
+                                          cname, "Weekly Client Report", now)
+
     def _render_operator(self, md_lines: list, slug_suffix: str, title: str, now: str | None) -> dict:
         now = now or now_iso()
         out_dir = os.path.join(self.client_dir, "outputs", today_str(now))
@@ -916,6 +1011,38 @@ class CrmStore:
         except Exception:  # noqa: BLE001
             rendered = False
         return {"md": md_path, "html": html_path if rendered else None, "html_rendered": rendered}
+
+    def _render_client_facing(self, md_lines: list, slug_suffix: str, title: str,
+                              client_name: str, report_kind: str, now: str | None) -> dict:
+        """Render through the Client-Blind Scrub Gate. On a blind-term hit the renderer exits 3
+        and writes only a `.blocked.html` sidecar — we surface `blocked: True` + the offending
+        terms and never present the real path, so a contaminated report is never shipped."""
+        now = now or now_iso()
+        out_dir = os.path.join(self.client_dir, "outputs", today_str(now))
+        os.makedirs(out_dir, exist_ok=True)
+        md_path = os.path.join(out_dir, f"{self._client_slug()}-{slug_suffix}.md")
+        html_path = os.path.join(out_dir, f"{self._client_slug()}-{slug_suffix}.html")
+        JsonAdapter._atomic_write(md_path, "\n".join(md_lines))
+        try:
+            import subprocess
+            r = subprocess.run(["python3", os.path.join(os.path.dirname(os.path.abspath(__file__)), "report_renderer.py"),
+                                "render", "--input", md_path, "--output-html", html_path,
+                                "--title", title, "--client-name", client_name,
+                                "--report-kind", report_kind, "--report-date", now[:10],
+                                "--client-facing", "--fail-on-scrub"],
+                               capture_output=True, text=True, timeout=60)
+        except Exception as e:  # noqa: BLE001
+            return {"md": md_path, "html": None, "html_rendered": False, "blocked": False, "error": str(e)}
+        if r.returncode == 3:
+            blind = []
+            try:
+                blind = json.loads(r.stderr).get("client_blind_terms_found", [])
+            except Exception:  # noqa: BLE001
+                pass
+            return {"md": md_path, "html": None, "html_rendered": False, "blocked": True, "blind_terms": blind}
+        rendered = r.returncode in (0, 2)  # 2 = html clean but PDF engine unavailable
+        return {"md": md_path, "html": html_path if rendered else None,
+                "html_rendered": rendered, "blocked": False}
 
     # --- contacts + identity + merge -----------------------------------------
 
@@ -1337,13 +1464,13 @@ def _due_to_iso(due: str) -> str:
         except ValueError:
             return ""
         delta = _dt.timedelta(hours=n) if due[-1] == "h" else _dt.timedelta(days=n)
-        return (_dt.datetime.now(_dt.timezone.utc).replace(microsecond=0) + delta).isoformat().replace("+00:00", "Z")
+        base = _dt.datetime.fromisoformat(now_iso().replace("Z", "+00:00"))
+        return (base + delta).isoformat().replace("+00:00", "Z")
     return due
 
 
 def _iso_days_ago(days: int) -> str:
-    import datetime as _dt
-    return (_dt.datetime.now(_dt.timezone.utc).replace(microsecond=0) - _dt.timedelta(days=days)).isoformat().replace("+00:00", "Z")
+    return _iso_days_ago_from(days, now_iso())
 
 
 def _iso_days_ago_from(days: int, now_iso_str: str) -> str:
@@ -1425,6 +1552,7 @@ def main(argv=None) -> int:
     fu = sub.add_parser("followups"); fu.add_argument("op", choices=["due"]); fu.add_argument("--campaign", required=True)
     tv = sub.add_parser("today-view")
     kb = sub.add_parser("kanban")
+    wr = sub.add_parser("weekly-report"); wr.add_argument("--client-name", default=""); wr.add_argument("--days", type=int, default=7)
 
     args = p.parse_args(argv)
 
@@ -1489,6 +1617,8 @@ def main(argv=None) -> int:
         return _out(store.render_today_view())
     if args.cmd == "kanban":
         return _out(store.render_kanban())
+    if args.cmd == "weekly-report":
+        return _out(store.render_weekly_report(client_name=args.client_name, days=args.days))
     if args.cmd == "contact":
         if args.op == "add":
             lead_id, outcome = store.add_contact(json.loads(args.json))

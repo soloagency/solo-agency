@@ -446,6 +446,124 @@ def cmd_upload_report(args: argparse.Namespace) -> int:
     return cmd_call(args)
 
 
+# --- composed operator notification (discover -> verify -> upload -> send) ----
+
+_NOTIFY_LOG_COLUMNS = [
+    "Date", "Agent", "Event", "Channel", "Status", "Report Path", "Report Link Sent",
+    "Provider", "Provider Discovery Checked", "Upload Operation", "Notification Operation",
+    "Upload Attempted", "Uploaded Report URL", "Notification Attempted", "Blocker", "Action Needed",
+]
+
+
+def _append_notification_log(log_path: str, row: dict[str, str]) -> None:
+    """Append one row to notifications/notification_log.md (creating the header if absent),
+    matching the 16-column format documented in playbooks/07 §11.8."""
+    p = Path(log_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    if not p.exists() or not p.read_text(encoding="utf-8").strip():
+        header = "# Notification Log\n\n| " + " | ".join(_NOTIFY_LOG_COLUMNS) + " |\n" \
+                 + "|" + "|".join(["---"] * len(_NOTIFY_LOG_COLUMNS)) + "|\n"
+        p.write_text(header, encoding="utf-8")
+    cells = [str(row.get(c, "") or "").replace("|", "\\|").replace("\n", " ") for c in _NOTIFY_LOG_COLUMNS]
+    with p.open("a", encoding="utf-8") as fh:
+        fh.write("| " + " | ".join(cells) + " |\n")
+
+
+def _notification_enabled(config: dict[str, Any], provider: str) -> bool:
+    return bool(_provider_block(config, provider).get("notification", {}).get("enabled"))
+
+
+def cmd_notify(args: argparse.Namespace) -> int:
+    """Compose the operator notification in one deterministic step:
+    config check -> (dry-run/degraded short-circuit) -> discover -> getAccount ->
+    optional uploadAsset(report) -> sendTelegramMessage -> notification_log.md row.
+    A missing/disabled provider is a valid degraded outcome (`local_path_only`, exit 0),
+    never a run failure. `--dry-run` does everything except touch the network or send."""
+    config = _read_json(args.config)
+    defaults = _read_json(args.defaults)
+    provider = _active_provider(config, args.provider)
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    row = {"Date": now[:10], "Agent": args.agent, "Event": args.event,
+           "Channel": "WideCast Telegram/email fallback", "Provider": provider,
+           "Report Path": args.report_path or (args.report_file or ""),
+           "Action Needed": args.action_needed,
+           "Provider Discovery Checked": "no", "Upload Attempted": "no",
+           "Notification Attempted": "no", "Report Link Sent": "no"}
+
+    def finish(status: str, blocker: str = "", exit_code: int = 0, **extra) -> int:
+        row["Status"] = status
+        row["Blocker"] = blocker or "none"
+        row.update(extra)
+        if args.log:
+            _append_notification_log(args.log, row)
+        out = {"status": status, "blocker": blocker or None, "provider": provider,
+               "event": args.event, "dry_run": bool(args.dry_run)}
+        out.update({k.lower().replace(" ", "_"): v for k, v in extra.items()})
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+        return exit_code
+
+    # 1. Configuration gates — a degraded state is honest and non-fatal.
+    if not config or not _provider_block(config, provider):
+        return finish("local_path_only", "provider_config_missing")
+    if not _notification_enabled(config, provider):
+        return finish("local_path_only", "provider_notification_not_configured")
+    try:
+        _api_key(config, provider)
+    except ProviderError:
+        return finish("local_path_only", "provider_auth_missing")
+
+    # 2. Dry-run: report the plan, no network, no send.
+    if args.dry_run:
+        return finish("dry_run", "",
+                      **{"Notification Operation": "sendTelegramMessage",
+                         "Upload Operation": "uploadAsset" if args.report_file else ""})
+
+    # 3. Real path: discover -> verify -> upload -> send.
+    try:
+        _, parsed, _ = _load_spec(args, config, defaults)
+    except ProviderError as exc:
+        return finish("blocked", str(exc).split(":")[0] or "provider_discovery_failed", 1)
+    row["Provider Discovery Checked"] = "yes"
+    aliases = _operation_aliases(parsed["operations"])
+    if "send_notification" not in aliases:
+        return finish("blocked", "provider_required_operation_missing", 1)
+    key = _api_key(config, provider)
+    row["Notification Operation"] = aliases["send_notification"]
+
+    uploaded_url = ""
+    if args.report_file:
+        row["Upload Operation"] = aliases.get("upload_asset", "uploadAsset")
+        if "upload_asset" not in aliases:
+            row["Blocker"] = "provider_required_operation_missing"  # upload op absent; send text-only
+        elif not Path(args.report_file).exists():
+            row["Blocker"] = "provider_upload_failed"
+        else:
+            row["Upload Attempted"] = "yes"
+            up = parsed["operations"][aliases["upload_asset"]]
+            body = {"file_data": base64.b64encode(Path(args.report_file).read_bytes()).decode("ascii"),
+                    "filename": Path(args.report_file).name, "content_type": "text/html"}
+            st, _, resp = _request_json(up["method"], _url_for(parsed["server_url"], up["path"]), key, body)
+            if st < 400 and isinstance(resp, dict):
+                uploaded_url = str(resp.get("url") or resp.get("asset_url") or resp.get("link") or "")
+            if not uploaded_url:
+                row["Blocker"] = "provider_upload_failed"
+
+    op = parsed["operations"][aliases["send_notification"]]
+    text = args.message + (f"\n\nReport: {uploaded_url}" if uploaded_url else "")
+    # The message body property name is provider-schema-specific; default "text", overridable in
+    # provider_config notification.text_field so a live schema can be matched without a code change.
+    text_field = _provider_block(config, provider).get("notification", {}).get("text_field") or "text"
+    row["Notification Attempted"] = "yes"
+    st, _, resp = _request_json(op["method"], _url_for(parsed["server_url"], op["path"]), key, {text_field: text})
+    _write_call_log(args.config, provider, aliases["send_notification"], st,
+                    "" if st < 400 else "provider_notification_failed")
+    if st >= 400:
+        return finish("blocked", "provider_notification_failed", 1,
+                      **{"Uploaded Report URL": uploaded_url, "Report Link Sent": "yes" if uploaded_url else "no"})
+    return finish("sent", row.get("Blocker", "") if row.get("Blocker") not in (None, "", "none") else "",
+                  **{"Uploaded Report URL": uploaded_url, "Report Link Sent": "yes" if uploaded_url else "no"})
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="OutreachCRM OpenAPI provider adapter")
     parser.add_argument("--config", help="Path to per-client provider_config.local.json")
@@ -476,6 +594,18 @@ def build_parser() -> argparse.ArgumentParser:
     upload.add_argument("--content-type", default="text/html")
     upload.add_argument("--no-auth", action="store_true")
     upload.set_defaults(func=cmd_upload_report)
+
+    notify = sub.add_parser("notify", help="Composed operator notification: verify -> optional upload -> send -> log")
+    notify.add_argument("--message", required=True, help="Operator-facing status text (counts + report link).")
+    notify.add_argument("--event", default="daily_run_completed",
+                        choices=["daily_run_completed", "weekly_client_report_ready"])
+    notify.add_argument("--report-file", help="HTML report to uploadAsset for the report link.")
+    notify.add_argument("--report-path", help="Human-readable report path to log (defaults to --report-file).")
+    notify.add_argument("--log", help="Path to notifications/notification_log.md to append a row.")
+    notify.add_argument("--agent", default="Claude Schedule", help="Agent column for the log row.")
+    notify.add_argument("--action-needed", default="", help="Action Needed column for the log row.")
+    notify.add_argument("--dry-run", action="store_true", help="Resolve + report the plan; no network, no send.")
+    notify.set_defaults(func=cmd_notify)
     return parser
 
 

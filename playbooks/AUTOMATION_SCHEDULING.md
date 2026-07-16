@@ -624,29 +624,45 @@ For each active client:
     and `{client}-INTERNAL_REPORT.html` (clearly labeled `INTERNAL_REPORT - Not for client
     sharing`; keep OutreachCRM/WideCast/provider/Telegram/API-key/config/sendbox/tracker/
     debug details here).
-22. **On Mondays only**, build the client-facing `{client}-weekly-client-report.html` (and its
-    `.pdf` companion) and run the Client-Blind Scrub Gate on it via
-    `tools/report_renderer.py` (`CLIENT_BLIND_TERMS`). It must not mention OutreachCRM,
-    WideCast, provider tooling, OpenAPI, MCP, sendbox, gmail_client, crm_store, tracker/`trk.`,
-    HMAC, token.json, sent_log, suppression, warmup, quota, guessed, automation/scheduled task,
-    API key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`. The weekly report
-    is the only client-facing output.
+22. **On Mondays only**, build the client-facing `{client}-weekly-client-report.html` with
+    `python3 tools/crm_store.py --client-dir DIR weekly-report --client-name "{Client Name}"`.
+    That command assembles the scrubbed Markdown source (snapshot, pipeline, movements, next
+    steps — counts and prospect names only, never internal identifiers) and renders it through
+    the Client-Blind Scrub Gate (`report_renderer.py render --client-facing --fail-on-scrub`,
+    `CLIENT_BLIND_TERMS`). It must not mention OutreachCRM, WideCast, provider tooling, OpenAPI,
+    MCP, sendbox, gmail_client, crm_store, tracker/`trk.`, HMAC, token.json, sent_log,
+    suppression, warmup, quota, guessed, automation/scheduled task, API key/config, Telegram,
+    agent/tool/debug details, or `INTERNAL_REPORT`. **A blind-term hit returns `blocked:true`
+    with a `.blocked.html` sidecar and no real HTML — never ship it; fix the source and re-run.**
+    The weekly report is the only client-facing output.
 23. Write/update `outputs/.../{client}-report_state.json` and reconcile it with every rendered
     artifact (counts, per-section status, timestamps). No artifact may say `in progress` while
     another says `complete`. Update `outputs/latest/...` copies.
 
 ### K. Notify the operator
 
-24. Run the Provider Report Delivery Capability Check using **this client's** provider
+The composed step is one command — it verifies **this client's** provider config, optionally
+uploads the report, sends the Telegram (email-fallback) message, and appends the log row:
+
+```sh
+python3 tools/provider_openapi.py --config DIR/integrations/providers/provider_config.local.json \
+  --defaults outreach-pipeline/provider_defaults.json \
+  notify --event daily_run_completed --message "<run status + counts + [ACTION REQUIRED]>" \
+  --report-file DIR/outputs/YYYY-MM/YYYY-MM-DD/{client}-daily-ops.html \
+  --log DIR/notifications/notification_log.md
+```
+
+24. `notify` runs the Provider Report Delivery Capability Check against **this client's** provider
     config/OpenAPI identity first — a global MCP/native provider account in the current session
-    is not proof the client has notification configured. Record it in `INTERNAL_REPORT`.
-25. If WideCast OpenAPI notification is configured and the discovered spec exposes an
-    HTML-capable `uploadAsset`, upload the operator report (`{client}-daily-ops.html`, or the
-    Monday weekly report link) with `text/html`, then send `sendTelegramMessage` (email
-    fallback) including: run status, counts (replies triaged, deals moved, drafts pending,
-    emails sent, bounces/unsubs suppressed), the report link/path, and any
-    `**[ACTION REQUIRED]**`. Provider-hosted URLs are operator handoff links, not client-share
-    links.
+    is not proof the client has notification configured. A missing/disabled/keyless provider
+    returns `status:"local_path_only"` (exit 0) — **not a run failure**; hand off the report path
+    in chat instead. Record it in `INTERNAL_REPORT`.
+25. When configured, `notify` uploads the operator report (`{client}-daily-ops.html`, or the
+    Monday weekly report) via `uploadAsset` (`text/html`) and sends `sendTelegramMessage` (email
+    fallback) with the run status, counts (replies triaged, deals moved, drafts pending, emails
+    sent, bounces/unsubs suppressed), the report link/path, and any `**[ACTION REQUIRED]**`.
+    Compose the `--message` yourself; provider-hosted URLs are operator handoff links, not
+    client-share links. Use `--dry-run` to rehearse the composition without sending.
 26. If HTML upload is unavailable or fails, log the exact blocker and still notify with the
     best available local/hosted report path plus the counts and required actions.
 27. If provider config is missing, auth fails, discovery fails, identity mismatches, or the
