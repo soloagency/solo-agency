@@ -626,8 +626,12 @@ Fixture list `tests/fixtures/max_output_list.csv` (5 rows):
 5. synthetic `bounce-test@nonexistent-...invalid` — MX fail at verify; send re-check must
    **block** it (inverted assertion: send refused, draft stays pending). No live forced bounce.
 
-**Injectable clock**, not backdating: a single `now()` overridable via
-`OUTREACHCRM_FAKE_NOW`, effective only for test-listed clients; E2E advances time forward.
+**Injectable clock**, not backdating: the single `now_iso()` in `tools/storage/adapter.py`
+(from which `today_str`/`month_str` derive) honors `OUTREACHCRM_FAKE_NOW`
+(`YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SSZ`) **only when `OUTREACHCRM_TEST_MODE` is truthy** — so a
+real scheduled run can never have its send timestamps or quota-day shifted by a stray env var
+(`OUTREACHCRM_TEST_MODE` must never be set in a live automation task). A malformed value raises
+loudly *while in test mode* and is inert otherwise. E2E advances time forward with it. **Built (2E).**
 
 **Unit tests (pytest, offline, Gmail/SMTP/IMAP mocked):** import mapping+dedupe+ULID+idempotency;
 email_verify MX ok/fail; **adapter contract suite parametrized over [json, postgres]** covering
@@ -712,8 +716,11 @@ in AGENTS.md's blocker-recovery clause (it fires on any blocker, not just explic
   skill `email-verify-enrich`, dossier TTL + cross-campaign inheritance, no guessing); **2C ✅**
   goal-driven email writing (06 + skill `email-writing`) → drafts in `pending_approval`; **2D ✅**
   Approval Report render + chat-approve handler + follow-up/reply (10) + Today View/kanban (13/14);
-  **2E** (next) full Scheduled Run wiring + WideCast notify + minimal weekly report. E2E runbook =
-  Phase 2 acceptance.
+  **2E ✅** Scheduled-Run wiring + injectable clock (`OUTREACHCRM_FAKE_NOW`/`TEST_MODE`) +
+  composed WideCast `notify` (`provider_openapi.py notify`, dry-run + `local_path_only` degrade) +
+  minimal client-facing `weekly-report` (scrub-gated) + expanded E2E acceptance runbook (~25
+  assertions). **Phase 2 complete** — E2E runbook is the acceptance gate; Stages 12/15 + the
+  tracker worker are Phase 3.
 - **Phase 3:** playbook 12/15, kanban/timeline/**polished** weekly report/forecast/segments,
   the Cloudflare tracker worker (open/click) + OAuth/Workspace sending, Postgres adapter.
 - **Phase 4:** Local Collector + lead-engine (Facebook enrichment) re-imported.

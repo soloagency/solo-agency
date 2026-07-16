@@ -43,8 +43,42 @@ _ALLOWED_OPS = {"=", "!=", "<", ">", "contains", "in"}
 
 # --- timestamps ---------------------------------------------------------------
 
+def _env_truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _fake_now_override() -> Optional[str]:
+    """Test-only injectable clock (DESIGN §17). Honored **only** when OUTREACHCRM_TEST_MODE
+    is truthy, so a real scheduled run can never have its send timestamps or quota-day shifted
+    by a stray env var. Reads OUTREACHCRM_FAKE_NOW (`YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SSZ`) and
+    returns a normalized `YYYY-MM-DDTHH:MM:SSZ`. Returns None when not in test mode or unset.
+    Raises loudly on a malformed value *while in test mode* — a silent fall-through to real
+    time would make E2E assertions mysterious."""
+    if not _env_truthy("OUTREACHCRM_TEST_MODE"):
+        return None
+    raw = os.environ.get("OUTREACHCRM_FAKE_NOW", "").strip()
+    if not raw:
+        return None
+    s = raw + "T00:00:00Z" if re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw) else raw
+    s = s.replace("Z", "+00:00")
+    try:
+        d = dt.datetime.fromisoformat(s)
+    except ValueError:
+        raise StorageError(
+            f"OUTREACHCRM_FAKE_NOW is not a valid ISO-8601 timestamp: {raw!r} "
+            "(expected YYYY-MM-DD or YYYY-MM-DDTHH:MM:SSZ)"
+        )
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=dt.timezone.utc)
+    return d.astimezone(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 def now_iso() -> str:
-    """UTC ISO-8601 with a trailing Z, second precision."""
+    """UTC ISO-8601 with a trailing Z, second precision. Under OUTREACHCRM_TEST_MODE this
+    honors the OUTREACHCRM_FAKE_NOW injectable clock (DESIGN §17); otherwise it is real UTC."""
+    fake = _fake_now_override()
+    if fake is not None:
+        return fake
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 

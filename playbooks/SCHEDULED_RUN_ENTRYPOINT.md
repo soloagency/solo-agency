@@ -123,11 +123,9 @@ First setup asks the minimum setup questions because profile/config/history do n
 
 If the target client's notification provider is configured:
 
-1. Produce the operator reports (Approval Report, Today View, daily ops, INTERNAL_REPORT) and, on schedule, the scrubbed weekly client report via `tools/report_renderer.py`.
-2. Load the client's provider config and `outreach-pipeline/provider_defaults.json`; fetch/cache the OpenAPI spec if needed; verify the account (WideCast `getAccount`).
-3. Check Client tools for `sendTelegramMessage` (and optional `uploadAsset` for the report link). Upload the report link when supported; provider-hosted URLs may be short-lived operator handoff links, not the archive.
-4. Send the notification with the run summary, counts, drafts-awaiting-approval count, and report link.
-5. Log the attempt to `outreach-pipeline/notifications/notification_log.md`.
-6. If provider config is missing/auth fails/operation missing, do not pretend it succeeded; log the exact blocker and surface the local report path/link in chat.
+1. Produce the operator reports (Approval Report, Today View, daily ops, INTERNAL_REPORT) via `crm_store.py` (`approval-report`/`today-view`/`kanban`) and, on the weekly day, the scrubbed weekly client report via `crm_store.py weekly-report --client-name "…"` (which renders through `report_renderer.py --client-facing --fail-on-scrub`; a blind-term hit blocks the ship).
+2. Send the notification in one composed step: `provider_openapi.py --config <client provider_config.local.json> --defaults <provider_defaults.json> notify --message "<summary + counts>" --report-file <daily-ops or weekly html> --log outreach-pipeline/.../notifications/notification_log.md`. It verifies the account (`getAccount`), uploads the report (`uploadAsset`) when supported, sends `sendTelegramMessage` (email fallback), and appends the log row.
+3. Compose the `--message` yourself: run summary, counts, drafts-awaiting-approval count, report link, and any `**[ACTION REQUIRED]**`. Provider-hosted URLs are short-lived operator handoff links, not the archive.
+4. A missing/disabled/keyless provider makes `notify` return `status:"local_path_only"` (exit 0) — do not pretend it succeeded and do not fail the run; surface the local report path/link in chat. Every attempt (incl. degraded and `--dry-run`) is logged with its exact blocker.
 
 Notification is operator-facing status only, never outbound marketing to a contact.
