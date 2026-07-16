@@ -364,6 +364,22 @@ class TestAuditRegressions(unittest.TestCase):
         self.assertTrue(self.s.a.release("sb-x", now_short(), t))
         self.assertEqual(self.s.a.reservation_count("sb-x", now_short()), 0)
 
+    # --- Phase-0 install migration (validate --rebuild-index) ---------------
+    def test_validate_rebuilds_identity_index(self):
+        # a contact written directly (Phase-0 path) is NOT in the identity index
+        import storage as _st
+        cid = "c_LEGACY0000000000000000000A"
+        os.makedirs(os.path.join(self.cdir, "crm", "contacts"), exist_ok=True)
+        rec = {"id": cid, "schema_version": 2, "created_at": _st.now_iso(), "updated_at": _st.now_iso(),
+               "name": {"full": "Legacy"}, "identities": {"emails": [{"address": "legacy@x.com"}], "phones": [], "socials": {}},
+               "merge": {"status": "active", "merged_into": None}}
+        with open(os.path.join(self.cdir, "crm", "contacts", cid + ".json"), "w") as fh:
+            json.dump(rec, fh)
+        self.assertIsNone(self.s.a.find_by_identity("email", "legacy@x.com"))  # index empty -> dedupe broken
+        rep = self.s.validate(rebuild_index=True)
+        self.assertTrue(rep["index_rebuilt"]); self.assertEqual(rep["problems"], [])
+        self.assertEqual(CrmStore(self.cdir).a.find_by_identity("email", "legacy@x.com"), cid)  # fixed + persisted
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

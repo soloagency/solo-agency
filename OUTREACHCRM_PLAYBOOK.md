@@ -354,7 +354,7 @@ Setup is not complete until:
 
 - Stage 0 and Stage 1 were loaded.
 - The first question followed the minimal-input rule and inference was shown to the human.
-- The Client Intelligence Profile saved as its `.md` file at the correct path; pipeline, custom fields, and segments saved via `crm_store.py` WHEN IT EXISTS, otherwise written directly per the Stage 7 schema and logged as `phase0_direct_write` in `resync_log.md` (per DESIGN §22 R3). Sending identity (from-name, signature, physical address, unsubscribe method) is recorded on the profile/config the same way.
+- The Client Intelligence Profile saved as its `.md` file at the correct path; pipeline, custom fields, segments, and contacts saved via `crm_store.py` (it exists, Phase 1 — a direct `crm/` write is a critical violation). Sending identity (from-name, signature, physical address, unsubscribe method) is recorded on the profile. A workspace carried over from an older Phase-0 install runs `crm_store.py validate --rebuild-index` once (DESIGN §22 R3).
 - At least one sendbox was connected and its warmup/quota recorded, or the pending action was handed off in an `[ACTION REQUIRED]` block.
 - The first list was imported, deduped, and checked against suppression, or marked pending.
 - At least one campaign with a structured goal and a valid sequence exists.

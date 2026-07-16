@@ -49,11 +49,14 @@ before taking any side-effect action (sending, enriching, writing config, creati
   gate. If the tracker pull has not succeeded within the configured window for a box,
   **sending for that box is blocked** (opt-out compliance, DESIGN §16) — this is a gate,
   not a warning.
-- If a required tool (`gmail_client.py`, `crm_store.py`, `import_leads.py`, `email_verify.py`)
-  does not exist yet, do NOT improvise a replacement script and do NOT enter Last-Resort
-  Recovery; record the step as `skipped: tool_not_built` in the run record and
-  `INTERNAL_REPORT`, raise one `**[ACTION REQUIRED]**` naming the missing tool and its delivery
-  phase, and continue with steps that need no missing tool (DESIGN §22 R2).
+- The Phase-1 tools (`gmail_client.py`, `crm_store.py`, `import_leads.py`, `email_verify.py`)
+  **exist** — the sync, apply-rules, and send steps run for real. But the enrich/draft/
+  follow-up steps depend on Phase-2 `status: planned` stage files+skills (Stage 4 verify/enrich,
+  Stage 6 email-writing, Stage 10 follow-up); until those ship, record those steps as
+  `stage_file_pending` per DESIGN §22 R1 (load the covering `docs/DESIGN.md` section, do not
+  improvise, do not enter Last-Resort Recovery), and continue with the steps that are built.
+  A genuinely missing Phase-1 tool (partial install) is the DESIGN §22 R2 fallback: record
+  `skipped: tool_not_built`, raise one `**[ACTION REQUIRED]**`, continue.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on
   memory from setup.
 - Every scheduled-run human-facing reply, notification, or report handoff must include an
@@ -482,12 +485,13 @@ For each client, pinning `target_client_slug`, in this exact order:
 
 ## Daily Run Algorithm (detailed)
 
-Missing-tool rule (applies to every step below): if a required tool (`gmail_client.py`,
-`crm_store.py`, `import_leads.py`, `email_verify.py`) does not exist yet, do NOT improvise a
-replacement script and do NOT enter Last-Resort Recovery; record the step as
-`skipped: tool_not_built` in the run record and `INTERNAL_REPORT`, raise one
-`**[ACTION REQUIRED]**` naming the missing tool and its delivery phase, and continue with the
-steps that need no missing tool (DESIGN §22 R2).
+Build-state rule (applies to every step below): the Phase-1 tools (`gmail_client.py`,
+`crm_store.py`, `import_leads.py`, `email_verify.py`) exist — sync, apply-rules, and send run
+for real. Steps needing a Phase-2 `status: planned` stage/skill (Stage 4 enrich, Stage 6
+draft, Stage 10 follow-up) are recorded as `stage_file_pending` (DESIGN §22 R1): load the
+covering `docs/DESIGN.md` section, do not improvise, do not enter Last-Resort Recovery, and
+continue with the built steps. A genuinely absent Phase-1 tool (partial install only) falls
+back to `skipped: tool_not_built` with one `**[ACTION REQUIRED]**` (DESIGN §22 R2).
 
 Pre-loop:
 

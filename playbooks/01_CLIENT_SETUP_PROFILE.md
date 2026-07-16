@@ -310,7 +310,7 @@ Password plus the sending address.
 It is scoped to this app and never your main Google password.
 ```
 
-Store credentials under `sendboxes/{sendbox_slug}/credentials.json` (gitignored, chmod 600) and register the box in `sendboxes/sendboxes.json` with `auth_mode`, `email`, `domain`, `quota_today`, `warmup_stage: week_1`. Until `gmail_client.py` ships (Phase 1) there is no sanctioned tool to authenticate the box, so take the DESIGN §22 R2 pending path: collect the App Password, write the sendbox with `status: pending_connectivity_check`, record `gmail_client_auth_pending` in `outreach-pipeline/automation/resync_log.md`, and do NOT improvise a one-off connectivity script (the no-one-off-scripts rule holds). `gmail_client.py` runs the real connectivity check — authenticating SMTP/IMAP without sending outbound mail — when it lands, and flips the box to `status: healthy`. Setup never sends a test cold email either way.
+`gmail_client.py auth` (Phase 1, present) does this for real: the human sets `OUTREACHCRM_APP_PASSWORD` in their shell, then runs `python3 tools/gmail_client.py --client-dir <DIR> auth --sendbox <slug> --email <you@gmail.com>`, which verifies SMTP+IMAP, writes `sendboxes/{sendbox_slug}/credentials.json` (gitignored, chmod 600), registers the box in `sendboxes/sendboxes.json` (`auth_mode`, `email`, `domain`, `quota_today`, `warmup_stage: week_1`), baselines the IMAP cursor, and flips the box to `status: healthy`. Do not improvise a one-off connectivity script, and never ask for the App Password in chat or as a CLI argument (env var only). Setup never sends a test cold email.
 
 ### Step 5 — Import the first list
 
