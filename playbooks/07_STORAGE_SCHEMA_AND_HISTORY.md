@@ -4,1118 +4,559 @@ Stage: `07`
 
 ## Load Rule
 
-Load when creating folders, saving profiles, updating logs, reading history, avoiding duplicate ideas, adding clients, or tracking published content and analytics.
+Load when creating any folder or file, minting an id, saving a Client Intelligence Profile, importing a list, writing a contact/account/deal/activity/task, drafting or sending, appending to any log, reconciling a report, adding a client, or reading history. Any step that touches disk MUST first load this stage IN FULL.
+
+This stage is the **constitution**: it defines every on-disk structure OutreachCRM is allowed to write, the storage adapter that all mutations must go through, and every record schema with its field enums. When any other playbook describes where or how something is stored, this file is authoritative; when this file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.
 
 ## Hard Gates For This Stage
 
-- Use the dedicated root folder `daily-content-pipeline/`.
-- Use `client_intelligence_profile.md` as the canonical profile concept; do not use `ABC.md`.
-- Store Markdown internally and HTML for humans.
-- Track history to avoid duplicate ideas.
-- Keep analytics, comments, learning, lead, competitor, source, and published-content logs.
-
-## Latest Override: Shared Bridge, Per-Client Extension Folders
-
-The current canonical runtime/data layout is:
-
-```text
-{agency_root}/
-  solo-agency/                         # toolkit/source repo, no client data
-  solo-agency-local-collector/         # shared Local Collector app/bridge runtime only
-    downloads/
-    bin/
-    setup_collector.sh
-    collector.pid
-    collector.log
-  extensions/                          # per-client Chrome Load unpacked folders
-    {client_slug}/
-      manifest.json
-      background.js
-      popup.html
-      popup.js
-      client_binding.json
-  daily-content-pipeline/              # data/config/output only
-    clients_index.md
-    schedule.md
-    provider_defaults.json             # public/provider-neutral catalog, no secrets
-    automation/
-      automation_manifest.md
-      scheduled_run_prompt.md
-      resync_log.md
-      github_issues.md
-      update_state.json
-      update_log.md
-      update_notice.md
-      update_watch_prompt.md
-      backups/
-        update_YYYY-MM-DD_HHMMSS/
-      issues/
-        YYYY-MM-DD_{blocker_slug}.md
-    collector/
-      collector_setup_status.md
-      collector_config.json
-      extension_registry.json
-      jobs/
-        pending/
-        claimed/
-        completed/
-        failed/
-      inbox/
-        YYYY-MM/
-          {client_slug}/
-            YYYY-MM-DD_{client_slug}_{run_id}/
-              collector_status.json
-              private_data_points.jsonl
-              leads.jsonl
-              competitors.jsonl
-              new_private_sources.jsonl
-              source_status.jsonl
-              snapshots/
-      logs/
-        bridge_events.jsonl
-        extension_health.jsonl
-        job_routing.jsonl
-        agent_handoff.jsonl
-    clients/
-      {client_slug}/
-        {business_slug}_{location_slug}/
-          client_profile_{client_slug}_{business_slug}_{location_slug}.md
-          integrations/
-            providers/
-              provider_config.local.json
-              provider_capabilities.json
-              provider_openapi_cache.yaml
-              provider_calls.jsonl
-              provider_health.md
-          ...
-```
-
-Older references to a single `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` folder are legacy. New setup must prepare one extension folder per client under `extensions/{client_slug}/`.
-
-Per-client extension naming:
-
-```text
-{Client Name} - Solo Agency Collector
-```
-
-The client name must appear first because Chrome and task lists may truncate long names at the end.
-
-Each `extensions/{client_slug}/client_binding.json` must include:
-
-```json
-{
-  "client_slug": "avenngo",
-  "client_name": "AvenNgo",
-  "extension_instance_id": "ext_avenngo_default",
-  "extension_display_name": "AvenNgo - Solo Agency Collector",
-  "bridge_base_url": "http://127.0.0.1:17321"
-}
-```
+- Use the dedicated data root `outreach-pipeline/`. The toolkit/source repo (`outreachcrm/`) holds no client data.
+- Use `client_profile_{client_slug}_{business_slug}_{location_slug}.md` (the Client Intelligence Profile) as the canonical profile. Never use a vague name such as `ABC.md`.
+- **All CRM mutations go through `crm_store.py`.** Direct file writes to any `crm/` collection are a critical violation (inherited "no one-off scripts" rule). Reading raw JSON is allowed only for debugging.
+- Every record carries `schema_version`, `id`, `created_at`, `updated_at`; every append-only log row carries `ts` and a monotonic `seq`.
+- Slug rules and monthly `YYYY-MM/` folders apply to every daily/append artifact.
+- This stage must be loaded IN FULL (LOAD LEDGER printed with `Verdict: PASS`, matching `LOAD_MANIFEST.md` when present) before any side-effect write. A partial read = NOT loaded. See `playbooks/LOAD_LEDGER_PROTOCOL.md`.
 
 ## Source Preservation Rule
 
-This file is detailed source material moved from the original monolithic `SOLO_AGENCY_PLAYBOOK.md`.
-
-Do not summarize away requirements, examples, checklists, schemas, protocols, URLs, edge cases, warnings, approval gates, or completion gates. If a downstream agent needs to shorten its response to the human, it may summarize the response, but it must still obey the full requirements in this file.
+This file is the detailed on-disk source material. Do not summarize away requirements, examples, checklists, schemas, field enums, protocols, URLs, edge cases, warnings, approval gates, or completion gates. A downstream agent may summarize its human-facing *response*, but it must still obey the full requirements in this file. If you cannot fit a schema, load the schema — do not reconstruct it from memory.
 
 ---
 
-## Canonical Profile Name Clarification
+## 1. The On-Disk Layout (`outreach-pipeline/`)
 
-Use `client_intelligence_profile.md` as the canonical profile concept and schema name.
-
-For multi-client slugged folders, a slugged profile filename may still be used when needed for uniqueness, but it must represent the Client Intelligence Profile schema. Do not use vague names such as `ABC.md`.
-
----
-
-## 7. Folder Structure
-
-Use one agency root folder:
+There is one **agency root**. Inside it live two siblings: the toolkit/source repo (`outreachcrm/`, no client data) and the data root (`outreach-pipeline/`, data/config/output only). This is the complete, authoritative tree. Nothing outside it may be created without amending this stage.
 
 ```text
 {agency_root}/
-```
-
-Use one folder per client/business/location:
-
-```text
-{agency_root}/
-  solo-agency/                         # downloaded toolkit/source repo, no client data
-  solo-agency-local-collector/         # shared bridge runtime app only
-    downloads/
-      collector-bridge-binaries-0.1.0.zip
-      SHA256SUMS
-    bin/
-      collector-bridge-{os}-{arch}
-    setup_collector.sh
-    collector.pid
-    collector.log
-  extensions/                          # one Chrome extension folder per client
-    {client_slug}/
-      manifest.json                    # name starts with client name
-      client_binding.json
-      background.js
-      popup.html
-      popup.js
-  daily-content-pipeline/              # data/config/output only
-    provider_defaults.json             # default OpenAPI provider catalog, no secrets
+  outreachcrm/                         # this repo (toolkit/source), no client data
+  outreach-pipeline/                   # data/config/output only
     clients_index.md
     schedule.md
+    storage_config.json                # {"backend":"json"}  (or postgres)
+    provider_defaults.json             # WideCast notification catalog, no secrets
+    secrets/                           # gitignored; agency-wide secrets (OAuth client, tracker key)
+    suppression/
+      global_suppression.jsonl         # agency-tier suppression (checked before every send)
     automation/
-      automation_manifest.md
-      scheduled_run_prompt.md
-      resync_log.md
-      github_issues.md
-      update_state.json
-      update_log.md
-      update_notice.md
-      update_watch_prompt.md
-      backups/
-        update_YYYY-MM-DD_HHMMSS/
-      issues/
-        YYYY-MM-DD_{blocker_slug}.md
-    notifications/
-      notification_log.md
-    collector/
-      collector_setup_status.md
-      collector_config.json
-      extension_registry.json
-      jobs/
-        pending/
-        claimed/
-        completed/
-        failed/
-      inbox/
-        YYYY-MM/
-          {client_slug}/
-            {run_id}/
-              collector_status.json
-              private_data_points.jsonl
-              leads.jsonl
-              competitors.jsonl
-              new_private_sources.jsonl
-              source_status.jsonl
-              snapshots/
-      logs/
-        bridge_events.jsonl
-        extension_health.jsonl
-        job_routing.jsonl
-        agent_handoff.jsonl
-    browser_profiles/
-      {source_slug}/
-    test_logs/
-      YYYY-MM/
-    outputs/
-      YYYY-MM/
-        YYYY-MM-DD_master_digest.md
-        YYYY-MM-DD_master_digest.html
-      latest_master_digest.md
-      latest_master_digest.html
-    clients/
-      {client_slug}/
-        {business_slug}_{location_slug}/
-          client_profile_{client_slug}_{business_slug}_{location_slug}.md
-          strategy/
-            offer_map.md
-            brand_voice.md
-            content_pillars.md
-            funnel_map.md
-          calendar/
-            content_calendar.md
-          approvals/
-            approval_log.md
-          assets/
-            asset_index.md
-          publishing/
-            publishing_log.md
-          analytics/
-            metrics_log.md
-            learning_log.md
-            comment_signal_log.md
-          integrations/
-            providers/
-              provider_config.local.json
-              provider_capabilities.json
-              provider_openapi_cache.yaml
-              provider_calls.jsonl
-              provider_health.md
-          reports/
-            YYYY-MM_report.md
-          experiments/
-            experiment_backlog.md
-          history/
-            YYYY-MM/
-              content_log.md
-              data_sources_log.md
-              lead_log.md
-              competitor_log.md
-              lead_competitor_opportunities.jsonl
-              new_private_sources_log.md
-          outputs/
-            YYYY-MM/
-              YYYY-MM-DD/
-                {client-name}-daily-report.md
-                {client-name}-public-data-sources-report.html
-                {client-name}-private-data-sources-report.html
-                {client-name}-daily-report.html
-                {client-name}-INTERNAL_REPORT.md
-                {client-name}-INTERNAL_REPORT.html
-                {client-name}-client-report.html
-                {client-name}-client-report.pdf
-                {client-name}-report_state.json
-            latest/
-              {client-name}-daily-report.html
-              {client-name}-public-data-sources-report.html
-              {client-name}-private-data-sources-report.html
-              {client-name}-INTERNAL_REPORT.html
-              {client-name}-client-report.html
-              {client-name}-client-report.pdf
+      automation_manifest.md  scheduled_run_prompt.md  resync_log.md  github_issues.md
+      update_state.json  update_log.md  update_notice.md  update_watch_prompt.md
+      backups/update_YYYY-MM-DD_HHMMSS/
+      issues/YYYY-MM-DD_{blocker_slug}.md
+    notifications/notification_log.md
+    clients/{client_slug}/{business_slug}_{location_slug}/
+      client_profile_{client_slug}_{business_slug}_{location_slug}.md
+      sendboxes/
+        sendboxes.json
+        {sendbox_slug}/credentials.json  {sendbox_slug}/token.json   # gitignored, chmod 600
+      lists/{list_slug}/list_manifest.json  leads.jsonl  import_log.md
+      crm/
+        accounts/{account_id}.json
+        contacts/{lead_id}.json
+        contact_identities.jsonl        # reverse index: (kind,value)->lead_id, unique
+        deals/{deal_id}.json
+        activities/YYYY-MM/activities.jsonl   # append-only, each row has monotonic seq
+        tasks/tasks.jsonl
+        pipelines.json
+        segments.json
+        suppression.jsonl               # client-tier suppression
+      campaigns/{campaign_slug}/
+        campaign_config.json
+        queue/enrich_queue.jsonl
+        queue/enriched/YYYY-MM-DD/{lead_id}.json
+        outbox/pending_approval/YYYY-MM-DD/{draft_id}.json
+        outbox/approved/{draft_id}.json
+        sent/YYYY-MM/sent_log.jsonl
+        history/YYYY-MM/campaign_log.md  reply_log.md
+      assets/
+        asset_index.md
+        proposals/{slug}/v001/...   flyers/{slug}/v001/...
+      approvals/approval_log.md
+      analytics/metrics_log.md  learning_log.md
+      inbox_sync/YYYY-MM/sync_log.jsonl
+      reports/YYYY-MM_report.md
+      outputs/YYYY-MM/YYYY-MM-DD/
+        {client}-approval-report.html          # operator-only, NOT scrubbed
+        {client}-today-view.html               # operator-only
+        {client}-daily-ops.html  {client}-INTERNAL_REPORT.html
+        {client}-weekly-client-report.html     # CLIENT-FACING, scrubbed, Mondays
+        {client}-weekly-client-report.pdf
+        {client}-report_state.json
+      outputs/latest/...
+      integrations/providers/
+        provider_config.local.json  provider_capabilities.json
+        provider_openapi_cache.yaml  provider_calls.jsonl  provider_health.md
 ```
 
-Examples:
+**Client-scope is structural, not disciplinary.** The storage adapter is instantiated per client rooted at `clients/{slug}/crm/`. Agency-tier collections — `outreach-pipeline/suppression/global_suppression.jsonl`, `outreach-pipeline/secrets/`, `outreach-pipeline/provider_defaults.json`, and the tracker HMAC key — are the **only** things allowed to be global, and they are enumerated exactly here. A client rooted at `clients/A/` can never read or write `clients/B/`.
 
-```text
-daily-content-pipeline/
-  clients_index.md
-  schedule.md
-  provider_defaults.json
-  automation/
-    automation_manifest.md
-    scheduled_run_prompt.md
-    resync_log.md
-  notifications/
-    notification_log.md
-  collector/
-    downloads/
-    bin/
-      collector-bridge-darwin-arm64
-      collector-bridge-windows-amd64.exe
-      collector-bridge-linux-amd64
-    chrome-extension/
-    jobs/
-      YYYY-MM/
-    inbox/
-      YYYY-MM/
-  browser_profiles/
-    facebook/
-    linkedin/
-  outputs/
-    2026-06/
-      2026-06-19_master_digest.md
-      2026-06-19_master_digest.html
-    latest_master_digest.md
-    latest_master_digest.html
-  clients/
-    smith-law/
-      dui_los-angeles/
-        client_profile_smith-law_dui_los-angeles.md
-        strategy/
-          content_pillars.md
-          funnel_map.md
-        calendar/
-          content_calendar.md
-        approvals/
-          approval_log.md
-        analytics/
-          metrics_log.md
-          learning_log.md
-          comment_signal_log.md
-        integrations/
-          providers/
-            provider_config.local.json
-            provider_capabilities.json
-            provider_openapi_cache.yaml
-            provider_calls.jsonl
-            provider_health.md
-        reports/
-          2026-06_report.md
-        history/
-          2026-06/
-            content_log.md
-            data_sources_log.md
-            lead_log.md
-            competitor_log.md
-            lead_competitor_opportunities.jsonl
-        outputs/
-          2026-06/
-            2026-06-19/
-              smith-law-public-data-sources-report.html
-              smith-law-private-data-sources-report.html
-              smith-law-daily-report.html
-              smith-law-INTERNAL_REPORT.md
-              smith-law-INTERNAL_REPORT.html
-              smith-law-client-report.html
-              smith-law-client-report.pdf
-              smith-law-report_state.json
-          latest/
-            smith-law-daily-report.html
-            smith-law-INTERNAL_REPORT.html
-            smith-law-client-report.pdf
-    austin-home-group/
-      realestate_austin/
-        client_profile_austin-home-group_realestate_austin.md
-        history/
-          2026-06/
-            content_log.md
-            data_sources_log.md
-        outputs/
-          2026-06/
-            2026-06-19/
-              austin-home-group-daily-report.html
-    bright-mortgage/
-      mortgage_texas/
-        client_profile_bright-mortgage_mortgage_texas.md
-        history/
-          2026-06/
-            content_log.md
-            data_sources_log.md
-        outputs/
-          2026-06/
-            2026-06-19.md
-```
-
-Slug rules:
+### Slug rules
 
 - Use lowercase letters.
 - Replace spaces with hyphens.
 - Remove punctuation when possible.
 - Keep slugs short but recognizable.
 
-Monthly organization rule:
+`client_slug`, `business_slug`, `location_slug`, `list_slug`, `campaign_slug`, `sendbox_slug`, and asset `{slug}` all follow these rules. Ids (`c_…`, `a_…`, `d_…`, `act_…`, `draft_…`) are minted, not slugged (see §3).
 
-- Any file created daily must be stored under a `YYYY-MM/` folder.
-- This applies to client outputs, master digests, collector jobs, collector inboxes, history logs, data points, leads, competitors, and new private data source logs.
-- Keep `outputs/latest/{client-name}-client-report.html` as the default client-ready report pointer/copy, `outputs/latest/{client-name}-client-report.pdf` when PDF export is available and safe, `outputs/latest/{client-name}-INTERNAL_REPORT.html` for the operator, and daily/public/private latest files only as staging/diagnostic convenience copies. Also keep `latest_master_digest.md` and `latest_master_digest.html` for operator/master reporting.
-- Keep report state beside the dated report set as `YYYY-MM-DD/{client-name}-report_state.json`.
-- Do not allow long-running pipelines to accumulate hundreds or thousands of daily files directly in one folder.
+### Monthly organization rule (`YYYY-MM/`)
+
+- Any file created daily or appended continuously must live under a `YYYY-MM/` folder (and, where dated per day, a `YYYY-MM-DD/` folder inside it).
+- This applies to: `crm/activities/YYYY-MM/activities.jsonl`, `campaigns/*/queue/enriched/YYYY-MM-DD/`, `campaigns/*/outbox/pending_approval/YYYY-MM-DD/`, `campaigns/*/sent/YYYY-MM/sent_log.jsonl`, `campaigns/*/history/YYYY-MM/`, `inbox_sync/YYYY-MM/sync_log.jsonl`, `outputs/YYYY-MM/YYYY-MM-DD/`, `automation/backups/update_YYYY-MM-DD_HHMMSS/`, and `automation/issues/YYYY-MM-DD_{blocker_slug}.md`.
+- Keep `outputs/latest/` as the stable pointer/copy set for the operator and (for the weekly report only) the client-facing handoff link. Keep report state beside the dated set as `outputs/YYYY-MM/YYYY-MM-DD/{client}-report_state.json`.
+- Do not let long-running pipelines accumulate hundreds or thousands of daily files directly in one folder. Month partitioning is the mechanism.
 
 ---
 
-## 8. Root Files
+## 2. Storage Adapter (pluggable JSON → Postgres)
 
-### `clients_index.md`
+`tools/storage/adapter.py` defines the interface; `tools/storage/json_adapter.py` is the default backend; `tools/storage/postgres_adapter.py` comes later and must pass the **same parametrized contract tests**. The backend in force is read from `outreach-pipeline/storage_config.json`.
 
-The root index of all client pipelines.
-
-Format:
-
-```md
-# Clients Index
-
-| Client | Client Slug | Pipeline Folder | Client Profile File | Status | Added Date | Schedule | Notes |
-|---|---|---|---|---|---|---|---|
-| Smith Law | smith-law | clients/smith-law/dui_los-angeles | client_profile_smith-law_dui_los-angeles.md | active | 2026-06-19 | daily | DUI lawyer in Los Angeles |
-```
-
-Allowed status:
-
-- `active`
-- `paused`
-- `archived`
-- `needs_setup`
-- `needs_login`
-
-Daily runs must process every client with `active` status.
-
-### `schedule.md`
-
-Records how daily runs happen in the current AI environment.
-
-The schedule may use:
-
-- Native AI automations.
-- Reminders.
-- Cron.
-- Task Scheduler.
-- n8n.
-- Make.
-- GitHub Actions.
-- Local desktop routine.
-- Manual run instructions.
-
-If true automation is unavailable, create manual instructions.
-
-### `provider_defaults.json`
-
-Public, provider-neutral catalog for default production/distribution/notification/analytics providers. This file must not contain API keys, MCP tokens, OAuth tokens, cookies, passwords, or client account secrets.
-
-Create or update this file when PDNA provider setup is introduced:
-
-```json
-{
-  "schema_version": 1,
-  "default_production_provider": "widecast",
-  "providers": {
-    "widecast": {
-      "type": "openapi",
-      "provider_home_url": "https://widecast.ai/",
-      "discovery_url": "https://widecast.ai/openapi.yaml",
-      "preferred_server_url": "https://widecast.ai/app/dashboard",
-      "disabled_server_urls": ["https://api.widecast.ai"],
-      "auth_type": "bearer_api_key",
-      "api_key_prefix": "wc_live_",
-      "secret_storage": "per_client_local_config",
-      "notes": "Default all-in-one OpenAPI provider for production, distribution, notification, and analytics. Client secrets live only in each client's provider_config.local.json or the user's secret manager."
-    }
-  }
-}
-```
-
-Rules:
-
-- Agents must use `discovery_url` to fetch the OpenAPI spec instead of hard-coding endpoint paths.
-- Agents must read the OpenAPI `servers` list and operation schemas before calling provider APIs.
-- For WideCast, agents must select `https://widecast.ai/app/dashboard` as the current production server and skip `https://api.widecast.ai` as a disabled/planned vanity host unless a future playbook explicitly enables it.
-- The provider home URL is only a human-facing setup link and fallback discovery root.
-- A new provider can be added beside `widecast` if it exposes an equivalent OpenAPI spec and supports the needed PDNA capability groups.
-- Do not commit real API keys or account-specific provider state into this file.
-
-### `automation/automation_manifest.md`
-
-Records the current automation package that scheduled runs must obey. This file exists because native AI automations and schedulers may store their own prompt snapshot at creation time. If the human changes anything after schedule setup, the agent must update this manifest during Automation Resync.
-
-Create this file when any schedule/automation/routine is configured.
-
-Minimum format:
-
-```md
-# Automation Manifest
-
-- manifest_version: 1
-- created_at:
-- last_resynced_at:
-- resync_status: current | automation_prompt_update_pending | partial | blocked
-- scheduler_type: native_ai_automation | native_ai_scheduled_task | cron | launchd | task_scheduler | n8n | make | zapier | github_actions | server_job | manual
-- scheduler_name:
-- scheduler_location_or_url:
-- timezone:
-- schedule_file: daily-content-pipeline/schedule.md
-- scheduled_prompt_file: daily-content-pipeline/automation/scheduled_run_prompt.md
-- scheduled_entrypoint: playbooks/SCHEDULED_RUN_ENTRYPOINT.md
-- root_playbook: SOLO_AGENCY_PLAYBOOK.md
-- clients_index: daily-content-pipeline/clients_index.md
-- collector_config: daily-content-pipeline/collector/collector_config.json
-- provider_defaults: daily-content-pipeline/provider_defaults.json
-- notification_channel:
-- pdna_status:
-- provider_status_summary:
-- provider_capability_cache_status:
-- private_data_source_status_summary:
-- report_merge_contract: single_client_report_with_lane_staging | one_report_two_lanes | legacy_mixed_report | unknown  # single_client_report_with_lane_staging is the current default
-- report_notification_policy: same_report_public_private_notifications_allowed | single_final_notification | unknown
-- latest_user_change_summary:
-- actual_native_task_prompt_updated: true | false | not_applicable | unknown
-- automation_prompt_update_pending_reason:
-- automation_freshness_status: current | resync_in_progress | action_needed | not_applicable
-- automation_freshness_summary: whether latest changes are synced into automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state
-
-## Active Clients
-
-| Client | Client Slug | Profile Path | Status | Private Data Source Status | PDNA Status | Notes |
-|---|---|---|---|---|---|---|
-
-## Current Run Contract
-
-- Scheduled runs must load the latest local playbooks at run time.
-- Scheduled runs must read this manifest, schedule.md, provider_defaults.json, clients_index.md, active Client Intelligence Profiles, per-client provider config, and collector_config.json when private data sources are active or pending.
-- Scheduled runs must not rely only on the prompt snapshot from the day the automation was created.
-
-## Last Dry-Read Verification
-
-- verified_at:
-- verified_by_agent:
-- result: pass | fail | partial
-- next_scheduled_run_will_see:
-- blockers:
-```
-
-### `automation/scheduled_run_prompt.md`
-
-Stores the exact prompt that should be used by the native AI automation or scheduler. This should normally mirror `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` while pointing to the local workspace.
-
-The agent must update this file during Automation Resync whenever a future scheduled run needs new behavior or newly approved state.
-
-If the AI environment stores a separate prompt inside a native scheduled task and the agent cannot edit it directly, write the replacement prompt here and set `resync_status: automation_prompt_update_pending` in `automation_manifest.md`.
-
-### `automation/resync_log.md`
-
-Tracks all post-schedule changes and whether the automation package was fully synced.
-
-Format:
-
-```md
-# Automation Resync Log
-
-| Date | Agent | Human Change | Files Updated | Native Task Prompt Updated | Dry-Read Result | Remaining Blocker | Next Scheduled Run Expected Behavior |
-|---|---|---|---|---|---|---|---|
-| 2026-06-23 | Claude | Approved 12 Facebook groups as private data sources | profile, schedule.md, collector_config.json, automation_manifest.md, scheduled_run_prompt.md | yes | pass | none | Scan approved groups via Local Collector |
-```
-
-### `automation/github_issues.md`
-
-Tracks GitHub issues, support/intake submissions, or issue drafts created when latest GitHub playbooks/code still do not resolve a blocker.
-
-Create or update this file when Last-Resort Recovery opens, sends, queues, or drafts an issue. The human does not need a GitHub account; direct GitHub creation uses an authorized agent/runtime identity when available, and otherwise falls back to a configured intake channel or local draft.
-
-Format:
-
-```md
-# GitHub Issue Tracker
-
-| Date | Agent | Client Slug | Blocker Fingerprint | Local Commit | GitHub Main Commit Checked | Issue URL / Intake Channel / Draft Path | Status | Next Check | Latest Response / Next Action |
-|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-24 | Codex | smith-law | collector_wrong_workspace_bridge_after_fresh_check | abc123 | def456 | https://github.com/soloagency/solo-agency/issues/123 | opened_by_agent | 2026-06-25 | Waiting for maintainer response |
-```
-
-Issue draft files belong under:
+### 2.1 Interface
 
 ```text
-daily-content-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md
+get(collection, id) -> dict | None
+put(collection, id, record) -> None                 # atomic (temp+rename), bumps updated_at
+update(collection, id, mutate_fn) -> dict            # read-modify-write under the collection lock
+delete(collection, id) -> None                       # rarely used; prefer tombstones
+query(collection, where: [Cond], sort=None, limit=None, offset=None) -> [dict]
+append(log, record) -> None                          # append-only, stamps ts + monotonic seq
+read_log(log, since_seq=None, where=None) -> [dict]  # ordered by seq (backend-independent)
+find_by_identity(kind, normalized_value) -> id | None  # backed by unique reverse index
+reserve(sendbox_slug, day) -> token | None           # atomic quota reservation (see §8 / Stage 8)
 ```
 
-Recommended status values: `opened_by_agent`, `sent_to_intake`, `queued_for_intake`, `draft_waiting_for_support_channel`, `draft_waiting_for_human`, `answered`, `fix_applied`, `resolved`, `closed`.
+### 2.2 Cond DSL — deliberately small
 
-Each issue, intake submission, or draft must be redacted. Do not include API keys, cookies, tokens, passwords, raw private data source content, client-confidential details, raw logged-in screenshots, or sensitive customer data. Include only safe reproduction steps, expected/actual behavior, local commit, GitHub main commit checked, runtime, relevant blocker names, and redacted logs.
+- `Cond = (field, op, value)`, `op ∈ {=, !=, <, >, contains, in}`.
+- **This DSL covers flat fields only.** Identity lookups do **NOT** use it — they use `find_by_identity` over a maintained unique reverse index (`contact_identities`). Do **not** claim Cond translates arbitrary nested-array matches to SQL; it does not.
 
-### `automation/update_state.json`
+### 2.3 Record invariants + schema upgrades
 
-Tracks the installed Solo Agency version, latest GitHub check, auto-apply preference, bridge/extension action requirements, and resync state.
+- Every record carries `schema_version`, `id`, `created_at`, `updated_at`.
+- The adapter holds a per-collection `{from_version: fn}` upgrade registry, applied on read and persisted on the next write. A record is upgraded lazily; a migration (§2.6) forces all records current first.
 
-Create this file when the first update check runs, when the `Solo Agency - GitHub Update Watch` task is created, or when Stage 11 applies an update.
+### 2.4 JSON backend
 
-Minimum schema:
+- One file per record; logs are monthly JSONL.
+- Atomic writes via temp+rename.
+- Per-collection `fcntl` lockfile guards `update()` read-modify-write and mutual exclusion.
+- A per-log counter file, incremented **under the log lock**, supplies the monotonic `seq`. This makes `read_log(since_seq=…)` deterministic and backend-independent.
+
+### 2.5 Postgres backend
+
+- Table per collection: `(client_id, id, payload jsonb, created_at, updated_at, <generated index cols>)`.
+- `client_id` is **mandatory in every table and every generated WHERE** — this is how multi-client isolation survives the move off the filesystem.
+- `contact_identities(client_id, kind, value UNIQUE, contact_id)` enforces identity uniqueness at the database level.
+- Logs get a `seq bigserial`. Index columns are GENERATED from `payload` so the Cond DSL maps to real indexed columns.
+
+### 2.6 Migration
+
+- `crm_store.py migrate --to postgres` runs under a **storage freeze flag**.
+- It upgrades all records to the current `schema_version` first.
+- It verifies the move with **per-record content hashes** (not row counts) — count parity is not proof of a faithful copy.
+
+### 2.7 The one write path
+
+**All CRM mutations go through `crm_store.py`.** Direct file writes are a critical violation of the inherited "no one-off scripts" rule and are caught by the Stage 9 audit. Reading raw JSON for debugging is fine; writing it by hand is not. The adapter, not prose, is the source of truth for atomicity, locking, and `seq`.
+
+---
+
+## 3. Id Minting
+
+| Record | Id form | Minted when |
+|---|---|---|
+| Contact (a.k.a. `lead_id`) | `c_` + ULID | at import (NOT a hash of email — email may be absent) |
+| Account | `a_` + ULID | on first company/office reference |
+| Deal | `d_` + ULID | when a rule creates a deal |
+| Activity | `act_` + ULID | on every event append |
+| Task | task id (ULID) | when a rule/human/agent creates a task |
+| Draft | `draft_` + ULID | when a step is drafted into `pending_approval` |
+
+`lead_id` **is** the contact's `id`; the two names refer to the same value (paths use `crm/contacts/{lead_id}.json`). A ULID is used because it is minted at import, before we know whether the person has a verifiable email — email-as-key would fail the email-optional model (§4.1).
+
+---
+
+## 4. CRM Data Model (`crm/…`)
+
+Every collection below lives under `clients/{client_slug}/{business_slug}_{location_slug}/crm/` and is mutated only through `crm_store.py`.
+
+### 4.1 Contact (`crm/contacts/{lead_id}.json`) — email is NOT required
+
+`lead_id` = ULID minted at import. A contact may have zero verified emails (name + a Facebook URL is a valid contact that flows to assisted channels).
 
 ```json
 {
-  "schema_version": 1,
-  "installed_commit": "",
-  "latest_checked_commit": "",
-  "last_checked_at": "",
-  "last_applied_commit": "",
-  "last_applied_at": "",
-  "auto_apply_approved": false,
-  "update_watch_task_name": "Solo Agency - GitHub Update Watch",
-  "last_change_classification": "",
-  "bridge_update_required": false,
-  "extension_reload_required": false,
-  "automation_prompt_update_pending": false,
-  "update_watch_task_prompt_pending": false,
-  "clients_resynced": [],
-  "automations_resynced": [],
-  "human_actions_required": []
-}
-```
-
-Set `update_watch_task_prompt_pending` to `true` when the `Solo Agency - GitHub Update Watch` task prompt could not be created or updated natively and `daily-content-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
-
-Do not store secrets, private data source content, client-confidential report content, cookies, tokens, or raw provider responses in this file.
-
-### `automation/update_log.md`
-
-Tracks every GitHub update check and every applied update.
-
-Format:
-
-```md
-# Solo Agency Update Log
-
-| Date | Agent | Local Commit Before | GitHub Main Commit | Change Classification | Applied | Backup Path | Clients Resynced | Automations Resynced | Bridge Action Required | Extension Reload Required | Blocker / Next Action |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-```
-
-Recommended change classifications:
-
-- `no_change`
-- `playbook_only`
-- `provider_tooling`
-- `collector_bridge`
-- `chrome_extension`
-- `collector_bridge_and_extension`
-- `setup_or_schedule_contract`
-- `breaking_or_major_behavior`
-- `unknown`
-
-### `automation/update_notice.md`
-
-Internal/local notice for the latest GitHub update-watch outcome.
-
-Use this file when a new Solo Agency version is available, an update was applied, auto-apply is disabled and the human needs to decide, or bridge/extension human action is required.
-
-Do not send update-watch notices through Telegram, WideCast/email fallback, provider notification channels, social posting, or client notification channels. Version checks and applied updates are internal user/agency maintenance, not client delivery. Do not put update-watch rows in `notifications/notification_log.md`; that log is for report/result delivery and related operational notifications.
-
-Minimum content:
-
-```md
-# Solo Agency Update Notice
-
-- checked_at:
-- installed_commit:
-- latest_github_commit:
-- change_classification:
-- auto_apply_approved:
-- update_applied:
-- bridge_action_required:
-- extension_reload_required:
-- automation_prompt_update_pending:
-- next_human_action:
-```
-
-### `automation/update_watch_prompt.md`
-
-Stores the exact prompt for the native maintenance automation task named `Solo Agency - GitHub Update Watch` when the current AI runtime cannot create or edit that task directly.
-
-The prompt must come from `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` and must load Stage 11. It must not include client report-generation instructions beyond explicitly saying not to run reports/scans/production.
-
-### `automation/backups/`
-
-Stores timestamped update backups:
-
-```text
-daily-content-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/
-```
-
-Use it for runtime files or folders that Stage 11 replaces. Do not use it as a long-term archive for private data source captures, client reports, secrets, cookies, tokens, or provider API keys.
-
-### `notifications/notification_log.md`
-
-Tracks notifications sent to the human through the configured provider notification channel, WideCast OpenAPI/Telegram/email fallback, or any other authorized notification channel.
-
-Format:
-
-```md
-# Notification Log
-
-| Date | Agent | Event | Lane Status | Channel | Status | HTML Report Path | PDF Report Path | PDF Status | Provider | Provider Discovery Checked | Upload Operation | Notification Operation | Upload Attempted | Uploaded HTML URL | Uploaded PDF URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude Schedule | daily_run_completed | public_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | outputs/2026-06/2026-06-20/angela-do-client-report.pdf | generated | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... |  | yes | https://... | none | Await private report or review approvals |
-| 2026-06-20 | Claude Schedule | daily_run_completed | private_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | outputs/2026-06/2026-06-20/angela-do-client-report.pdf | generated | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... |  | yes | https://... | none | Review daily report index and lane reports |
-```
-
-Use this log so scheduled runs do not silently complete or fail while the human is away.
-
-Each provider-backed notification row or adjacent structured record should also preserve `provider_identity_source` and `mcp_compatibility_status` when available. For client-scoped OpenAPI delivery, `provider_identity_source` should be `per_client_openapi`. If a global MCP/native provider account was visible but not proven to match the client, record `mcp_compatibility_status: not_client_scoped` and blocker `global_mcp_not_client_scoped`.
-
-If provider upload or notification cannot be used, the log must distinguish:
-
-- `provider_config_missing`: no per-client provider config exists.
-- `provider_auth_missing`: provider config exists but the client has not supplied an API key or supported auth value.
-- `provider_auth_failed`: the provider rejected the client credential.
-- `provider_discovery_failed`: OpenAPI discovery URL could not be fetched or parsed.
-- `provider_required_operation_missing`: the OpenAPI spec lacks the operation needed for the requested action.
-- `provider_account_mismatch`: provider account verification does not match the saved client/account identity.
-- `global_mcp_not_client_scoped`: an MCP/native provider tool is visible in the AI session, but it is not proven to be authenticated as the current client's configured provider account.
-- `provider_upload_failed`: upload operation exists but the upload call failed.
-- `provider_notification_failed`: notification operation exists but send failed.
-- `provider_notification_not_configured`: provider account is valid but Telegram/email/notification destination is not configured and no fallback was sent.
-
-WideCast-specific aliases may still be logged for backward compatibility:
-
-- `widecast_report_upload_unavailable` means the current provider/OpenAPI capability check or legacy connector path exposed no HTML-capable upload operation.
-- `widecast_notification_tool_unavailable` means the current provider/OpenAPI capability check or legacy connector path exposed no WideCast notification send operation.
-- `widecast_upload_failed`, `widecast_notification_failed`, and `widecast_telegram_not_connected` keep their legacy meaning but should be accompanied by the provider-neutral blocker when possible.
-
-Do not use `unavailable` generically when the actual issue is missing config, failed auth, missing provider operation, expired credentials, or a provider account mismatch.
-
-### Per-Client Provider Integration Files
-
-Each client that uses PDNA provider actions must keep provider state under:
-
-```text
-daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/integrations/providers/
-```
-
-#### `provider_config.local.json`
-
-Client-local configuration. Treat this file as sensitive local state. Do not include it in a public repo, zip, screenshot, report, or support bundle unless secrets are removed.
-
-Minimum WideCast OpenAPI example:
-
-```json
-{
-  "schema_version": 1,
-  "client_slug": "angela-do",
-  "active_provider": "widecast",
-  "providers": {
-    "widecast": {
-      "type": "openapi",
-      "discovery_url": "https://widecast.ai/openapi.yaml",
-      "provider_home_url": "https://widecast.ai/",
-      "preferred_server_url": "https://widecast.ai/app/dashboard",
-      "disabled_server_urls": ["https://api.widecast.ai"],
-      "auth_type": "bearer_api_key",
-      "api_key_env": "SOLO_AGENCY_WIDECAST_API_KEY_ANGELA_DO",
-      "api_key_local": "",
-      "provider_identity_source": "per_client_openapi",
-      "mcp_compatibility_status": "not_used",
-      "pdna_setup_blocker": "",
-      "account_verified_at": "",
-      "account_identity": {
-        "company_id": "",
-        "email_masked": "",
-        "name": "",
-        "connected_platforms": []
-      },
-      "pdna": {
-        "production": "not_configured",
-        "video_editing": "not_configured",
-        "render_export": "not_configured",
-        "distribution": "not_configured",
-        "notification": "not_configured",
-        "analytics": "not_configured"
-      },
-      "video_editing": {
-        "enabled": false,
-        "preferred_skill_operation_id": "getEditingSkill",
-        "preferred_video_data_operation_id": "getVideoData",
-        "preferred_scene_geometry_operation_id": "sceneGeometry",
-        "preferred_scene_inspector_operation_id": "sceneInspector",
-        "preferred_modify_scene_operation_id": "modifyScene"
-      },
-      "render_export": {
-        "enabled": false,
-        "preferred_operation_id": "exportVideo",
-        "requires_fresh_human_approval": true
-      },
-      "notification": {
-        "enabled": false,
-        "preferred_operation_id": "sendTelegramMessage",
-        "delivery": "telegram_or_email_fallback"
-      },
-      "report_upload": {
-        "enabled": false,
-        "preferred_operation_id": "uploadAsset",
-        "content_type": "text/html",
-        "ttl_hours_note": "WideCast uploadAsset URLs are currently short-lived. Use for report notifications, not permanent archives."
-      }
-    }
-  }
-}
-```
-
-Credential rules:
-
-- Prefer `api_key_env` or the user's secret manager when available.
-- If a local API key is saved in `api_key_local`, keep it only in this per-client local file and redact it in all logs and reports.
-- Do not create or use a field named `api_key` in `provider_config.local.json`. The official helper reads `api_key_env` and `api_key_local`; a stray `api_key` field is ignored and will cause `provider_auth_missing`.
-- Never store passwords, OTPs, browser cookies, social session tokens, or raw OAuth refresh tokens here.
-- Before any provider action, verify the active provider account with the provider account operation, such as WideCast `getAccount`.
-- Before checking global MCP/native tools, check this per-client provider config plus OpenAPI/cache/capability files as Client tools. Global MCP/native tools are only compatibility after identity match.
-- If the verified account identity changes unexpectedly, stop provider actions and log `provider_account_mismatch`.
-- `provider_identity_source` must be `per_client_openapi` before PDNA is considered connected. `global_mcp_compat` is allowed only when the MCP/native tool identity has been compared to the saved client provider identity and matches exactly.
-- `mcp_compatibility_status` may be `not_used`, `identity_matched`, `identity_mismatch`, or `not_client_scoped`. If it is `identity_mismatch` or `not_client_scoped`, do not use MCP/native account data for this client's PDNA status.
-- `pdna_setup_blocker` should use provider-neutral blocker names such as `provider_config_missing`, `provider_auth_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_account_mismatch`, or `global_mcp_not_client_scoped`.
-- For WideCast, `preferred_server_url` must stay `https://widecast.ai/app/dashboard` and `disabled_server_urls` must include `https://api.widecast.ai` until a future playbook explicitly enables that host.
-
-#### `provider_capabilities.json`
-
-Snapshot of the OpenAPI operations discovered for the active provider. This is the main Client tools inventory for provider actions and is safe to keep without secrets.
-
-When local Python execution is available, agents may create or refresh this file with `tools/provider_openapi.py discover --config <client provider_config.local.json> --defaults daily-content-pipeline/provider_defaults.json --out-dir <client integrations/providers folder>`.
-
-Whenever the human or automation asks to check tools, check this Client tools file first. Only inspect global MCP/native tools after this file and the verified provider identity are current.
-
-Minimum shape:
-
-```json
-{
-  "schema_version": 1,
-  "provider": "widecast",
-  "discovered_at": "",
-  "discovery_url": "https://widecast.ai/openapi.yaml",
-  "server_url": "https://widecast.ai/app/dashboard",
-  "server_urls_discovered": [],
-  "server_urls_skipped_disabled": ["https://api.widecast.ai"],
-  "auth_scheme": "bearerAuth",
-  "operation_ids": {
-    "createVideo": {"method": "POST", "path": "/..."},
-    "getAccount": {"method": "GET", "path": "/..."}
+  "id": "c_01J...", "schema_version": 2, "created_at": "", "updated_at": "",
+  "name": {"full": "", "first": "", "last": ""},
+  "account_id": "a_...",
+  "identities": {
+    "emails": [{"address": "", "source": "import|enrich|guess", "status": "unverified|mx_ok|delivered|bounced|guessed_only|catch_all|email_not_found", "is_primary": true}],
+    "phones": [{"number": "+1...", "type": "cell|office", "source": ""}],
+    "socials": {"facebook": null, "instagram": null, "linkedin": null, "zalo": null, "x": null},
+    "website": null
   },
-  "operation_aliases": {
-    "account": "getAccount",
-    "analytics": "getAnalytics",
-    "upload_asset": "uploadAsset",
-    "upload_html_report": "uploadAsset",
-    "send_notification": "sendTelegramMessage",
-    "publish": "publish",
-    "create_video": "createVideo",
-    "export_video": "exportVideo",
-    "get_status": "getStatus",
-    "get_video_data": "getVideoData",
-    "get_writing_skill": "getWritingSkill",
-    "get_editing_skill": "getEditingSkill",
-    "scene_geometry": "sceneGeometry",
-    "scene_inspector": "sceneInspector",
-    "modify_scene": "modifyScene",
-    "create_content": "createContent",
-    "create_image": "createImage",
-    "search_broll": "searchBroll",
-    "collect_ideas": "collectIdeas",
-    "list_videos": "listVideos"
+  "channels": {
+    "email":     {"status": "usable|needs_data|opted_out|bounced"},
+    "sms":       {"status": "needs_optin|usable|opted_out", "mode": "assisted", "optin": {"source":"", "at":"", "evidence_activity_id":""}},
+    "messenger": {"status": "usable|needs_data", "mode": "assisted"},
+    "zalo":      {"status": "needs_data", "mode": "assisted"}
   },
-  "capability_status": {
-    "production": "available | partial | unavailable",
-    "video_editing": "available | partial | unavailable",
-    "render_export": "available | partial | unavailable",
-    "media": "available | partial | unavailable",
-    "distribution": "available | partial | unavailable",
-    "notification": "available | partial | unavailable",
-    "analytics": "available | partial | unavailable"
-  },
-  "missing_capability_aliases": {},
-  "identity": {
-    "provider_identity_source": "per_client_openapi | global_mcp_compat | unknown",
-    "account_verified": true,
-    "mcp_compatibility_status": "not_used | identity_matched | identity_mismatch | not_client_scoped"
-  },
-  "blockers": []
-}
-```
-
-#### `provider_openapi_cache.yaml`
-
-Raw OpenAPI spec cache for repeatable automation. Refresh it when:
-
-- the file is missing;
-- the cache is older than the configured refresh policy;
-- `provider_defaults.json` changes;
-- the provider action fails because an operation/schema appears stale;
-- the human changes provider configuration.
-
-#### `provider_calls.jsonl`
-
-Append-only provider audit log. Each line should include timestamp, agent, client_slug, provider, operationId, redacted request summary, response status, request_id if present, and blocker if any. Never log full API keys or private data source raw content.
-
-#### `provider_health.md`
-
-Human-readable provider status:
-
-```md
-# Provider Health
-
-| Date | Agent | Provider | Identity Source | MCP Compatibility | Account Verified | Production | Distribution | Notification | Analytics | Credits | Connected Platforms | Blocker | Next Action |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-```
-
-### `collector/collector_setup_status.md`
-
-Tracks whether the Solo Agency Local Collector extension and Local Collector app are installed, reachable, blocked, pending activation, writing to the wrong setup folder, or waiting for human action.
-
-This file is mandatory after the human agrees to activate private data source monitoring, when configuring a schedule that includes private data sources, or when the agent needs to report a private data source collector blocker.
-
-It is not required when no private data sources are active. Before activation, the automation contract and automation report should simply list private data sources under `Private Data Sources Pending Activation`.
-
-Format:
-
-```md
-# Collector Setup Status
-
-| Date | Agent | Status | Setup Command Given | Human Ran Setup Command | Chrome Extension Folder | Human Loaded Extension | Local Collector App | Health Endpoint | Last Health Check | Blocker | Required Human Action |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude | needs_user_action | bash "/ABSOLUTE/PATH/solo-agency-local-collector/setup_collector.sh" | no | /ABSOLUTE/PATH/extensions/{client_slug}/ | no | /ABSOLUTE/PATH/solo-agency-local-collector/bin/collector-bridge-darwin-arm64 | http://127.0.0.1:17321/status | unavailable | Client-specific extension not loaded in Chrome yet | Run the setup command in Terminal/PowerShell outside the AI sandbox, then Chrome -> chrome://extensions -> Load unpacked -> select only the absolute client-specific extension folder |
-```
-
-Allowed status:
-
-- `not_needed_no_private_sources`
-- `pending_private_activation`
-- `setup_files_prepared_waiting_for_human_command`
-- `setup_command_given_waiting_for_human_run`
-- `setup_command_ran_waiting_for_extension`
-- `activation_declined_for_now`
-- `installed_and_running`
-- `installed_not_running`
-- `needs_user_action`
-- `blocked_by_sandbox`
-- `blocked_by_os_permission`
-- `extension_not_loaded`
-- `extension_stale`
-- `bridge_offline`
-- `wrong_workspace_bridge`
-- `session_expired`
-- `failed`
-
-The agent must update this file before:
-
-- claiming private data source monitoring is active,
-- running a manual private data source scan,
-- configuring recurring private data source collection,
-- reporting that private collection is unavailable.
-
-### `collector/extension_registry.json`
-
-Maps each client to its per-client Chrome extension instance so scheduled runs can route collector jobs to the correct extension. Scheduled runs must read the client→`extension_instance_id` mapping from this file.
-
-Create or update this file when a per-client extension folder is prepared under `extensions/{client_slug}/`, when an extension is loaded or reloaded in Chrome, or when a client's collector status changes.
-
-Minimum fields:
-
-```json
-{
-  "schema_version": 1,
-  "clients": [
-    {
-      "client_slug": "avenngo",
-      "client_name": "AvenNgo",
-      "extension_instance_id": "ext_avenngo_default",
-      "extension_display_name": "AvenNgo - Solo Agency Collector",
-      "extension_path": "/ABSOLUTE/PATH/extensions/avenngo/",
-      "chrome_profile_hint": "Default",
-      "registered_at": "2026-06-20T09:00:00Z",
-      "last_health_at": "2026-06-20T09:05:00Z",
-      "status": "active"
-    }
-  ]
+  "lifecycle_stage": "lead|engaged|opportunity|customer|evangelist|lost|do_not_contact",
+  "tz": "America/Chicago",              // for send-window gate; inferred from state/area code
+  "tags": [], "custom_fields": {},
+  "owner": "agency",
+  "enrichment": { /* distilled copy of the dossier — see §7 */ },
+  "assigned_sendbox": null,             // sticky sender, set on first send (see §6)
+  "merge": {"status": "active|merged", "merged_into": null},
+  "next_action": {"task_id": null}
 }
 ```
 
 Field notes:
 
-- `client_slug`: client slug used across the pipeline.
-- `client_name`: human-readable client name.
-- `extension_instance_id`: stable id for this client's extension instance; scheduled runs read the client→`extension_instance_id` mapping from this file.
-- `extension_display_name`: Chrome display name, client name first.
-- `extension_path`: absolute path to the client's `extensions/{client_slug}/` folder.
-- `chrome_profile_hint`: which Chrome profile the extension is loaded in.
-- `registered_at`: when the extension was registered.
-- `last_health_at`: last successful health check timestamp.
-- `status`: one of `active | pending_install | disabled`.
+- **`identities.emails[].status`** enum: `unverified | mx_ok | delivered | bounced | guessed_only | catch_all | email_not_found`. `is_primary` marks the address a send routes to. `source` ∈ `import | enrich | guess`.
+- **`channels.email.status`** enum: `usable | needs_data | opted_out | bounced`. A contact with no verified email is `needs_data` and cannot be emailed; it may still be `usable` on an assisted channel if consent exists.
+- **`channels.sms.status`** ∈ `needs_optin | usable | opted_out`, always `mode: assisted`; the `optin` object records `{source, at, evidence_activity_id}` (compliance basis, see Stage 16 / DESIGN §16).
+- **`lifecycle_stage`** enum: `lead | engaged | opportunity | customer | evangelist | lost | do_not_contact`.
+- **`tz`** feeds the send-window gate; inferred from state/area code.
+- **`custom_fields`** keys are defined per client in the Client Intelligence Profile `custom_field_definitions` block (§8.1). Do not invent custom-field keys that the profile does not define.
+- **`enrichment`** is a distilled copy of the dossier (§7.2); the canonical dossier lives under `campaigns/*/queue/enriched/`.
+- **`assigned_sendbox`** is null until the first send, then fixed (sticky sender, §6.2).
+- **`merge`** carries the tombstone pointer (§4.7).
 
-Do not store secrets, cookies, tokens, or provider API keys in this file.
+### 4.2 Account (`crm/accounts/{account_id}.json`)
 
-### `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json`
-
-Tracks the state for the canonical combined client report and the three staging files used to build it. It prevents a later public or private data source pass from overwriting or summarizing away the other lane's full HTML report, and it ensures the combined HTML/PDF are rebuilt after lane updates.
-
-Minimum format:
+A company/office (e.g. a brokerage). Contacts point up at their account.
 
 ```json
 {
-  "client_slug": "",
-  "run_id": "",
-  "report_date": "",
-  "report_dir": "outputs/YYYY-MM/YYYY-MM-DD/",
-  "report_md_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md",
-  "public_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html",
-  "private_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html",
-  "daily_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html",
-  "client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.html",
-  "latest_client_html_path": "outputs/latest/{client-name}-client-report.html",
-  "latest_daily_html_path": "outputs/latest/{client-name}-daily-report.html",
-  "latest_public_html_path": "outputs/latest/{client-name}-public-data-sources-report.html",
-  "latest_private_html_path": "outputs/latest/{client-name}-private-data-sources-report.html",
-  "internal_report_md_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.md",
-  "internal_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-INTERNAL_REPORT.html",
-  "latest_internal_report_html_path": "outputs/latest/{client-name}-INTERNAL_REPORT.html",
-  "client_report_pdf_path": "outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf",
-  "latest_client_pdf_path": "outputs/latest/{client-name}-client-report.pdf",
-  "internal_report_status": "pending",
-  "client_facing_scrub_status": "pending",
-  "client_facing_scrub_blocker": "",
-  "client_pdf_status": "pending",
-  "client_pdf_redaction_status": "not_needed",
-  "client_pdf_generated_at": "",
-  "client_pdf_blocker": "",
-  "public_section_status": "missing",
-  "private_section_status": "missing",
-  "last_public_update_at": "",
-  "last_private_update_at": "",
-  "public_data_sources_count": 0,
-  "private_data_sources_count": 0,
-  "public_sources_attempted": 0,
-  "public_sources_completed": 0,
-  "public_sources_blocked_or_skipped": 0,
-  "private_sources_attempted": 0,
-  "private_sources_completed": 0,
-  "private_sources_blocked_or_skipped": 0,
-  "public_data_points_kept": 0,
-  "private_data_points_kept": 0,
-  "public_lead_count": 0,
-  "private_lead_count": 0,
-  "public_watch_lead_count": 0,
-  "private_watch_lead_count": 0,
-  "public_competitor_count": 0,
-  "private_competitor_count": 0,
-  "public_new_sources_recommended_count": 0,
-  "private_new_sources_recommended_count": 0,
-  "private_noisy_or_skipped_discovery_candidates_count": 0,
-  "counts_reconciled_at": "",
-  "public_notification_status": "not_sent",
-  "private_notification_status": "not_sent",
-  "last_notification_report_path": "",
-  "last_notification_lane": "daily",
-  "last_notification_report_url": "",
-  "last_update_agent": "",
-  "last_update_note": ""
+  "id": "a_...", "schema_version": 1, "created_at": "", "updated_at": "",
+  "name": "", "domain": "", "type": "brokerage|firm|team|independent|other",
+  "location": {"city": "", "state": "", "country": ""},
+  "contact_ids": [], "custom_fields": {}, "tags": []
 }
 ```
 
-Allowed section status:
+Minimal required set (DESIGN §7.2): `{id, name, domain, type, location, contact_ids[], custom_fields}`. `domain` is used to group contacts, to detect same-company clustering, and to apply the guessed-email per-domain kill switch.
 
-- `missing`
-- `pending`
-- `complete`
-- `complete_live_scan`
-- `skipped`
-- `failed`
-- `blocked`
+### 4.3 Deal (`crm/deals/{deal_id}.json`)
 
-Allowed notification status:
+```json
+{"id":"d_...","schema_version":1,"name":"","contact_ids":[],"account_id":"",
+ "pipeline":"default_sales","stage":"new_reply","value":0,"currency":"USD","probability":0.1,
+ "expected_close":"","source_campaign":"",
+ "stage_history":[{"stage":"new_reply","at":"","by":"rule:r1","evidence_activity_id":""}],
+ "status":"open|won|lost","lost_reason":null,"next_action":{"task_id":null}}
+```
 
-- `not_sent`
-- `sent`
-- `skipped`
-- `failed`
+- `pipeline` names a pipeline id from `pipelines.json`; `stage` is a stage id inside it.
+- `probability` is copied from the stage definition; `value` × `probability` drives forecast (Stage 15).
+- **`stage_history`** is append-only; every entry carries `at`, `by` (`rule:{id}` / `human` / `agent`), and an `evidence_activity_id` pointing at the activity that justified the change. A stage change with no evidence is a Stage 9 audit failure.
+- `status` ∈ `open | won | lost`; `lost_reason` is required when `status = lost`.
 
-Allowed `client_pdf_status`:
+### 4.4 Activity (`crm/activities/YYYY-MM/activities.jsonl`) — append-only, the event backbone
 
-- `pending`
-- `generated`
-- `pending_review`
-- `blocked`
+The activity log is the spine of the whole CRM. A contact timeline is this log filtered by `contact_id` (following merge chains via `resolve()`). It is append-only and monthly-partitioned; each row has a monotonic `seq`.
 
-Rules:
+```json
+{"seq":123,"ts":"","id":"act_...","contact_id":"","deal_id":null,
+ "type":"email_sent|email_reply|email_open|email_click|email_bounce|unsubscribe|call|meeting|note|stage_change|task_done|enriched|imported|merged|assisted_sent",
+ "summary":"","ref":{"message_id":"","url":"","path":""},"by":"agent|human|rule"}
+```
 
-- Public data source pass may write only `{client-name}-public-data-sources-report.html`, public source records, `{client-name}-daily-report.html` status metadata, and the rebuilt combined `{client-name}-client-report.html`/PDF package. It must preserve any existing private report.
-- Private data source pass may write only `{client-name}-private-data-sources-report.html`, private source records, `{client-name}-daily-report.html` status metadata, and the rebuilt combined `{client-name}-client-report.html`/PDF package. It must preserve any existing public report.
-- After a public or private data source pass reaches a terminal state, the state file counts must be reconciled with the lane report, daily index, internal source record, notification log, and latest copies. Do not leave stale `partial`, `pending`, `scan in progress`, or old recommended-source totals in one artifact when another artifact reports completion.
-- `latest/{client-name}-client-report.html` must point to or copy the combined client-facing HTML report and is the default human/client report link.
-- `latest/{client-name}-daily-report.html` may point to or copy the daily staging index, not a lane-specific artifact, but it must not be the primary report handoff link.
-- `latest/{client-name}-INTERNAL_REPORT.html` must point to or copy the operator-only internal report and must be clearly labeled `INTERNAL_REPORT - Not for client sharing`.
-- Client-facing files and the client PDF must pass the client-blind scrub gate before handoff. If not, keep `client_facing_scrub_status: failed` or `blocked`, record the blocker, and do not present the file as client-ready.
-- `latest/{client-name}-client-report.pdf` is required when PDF export is available and safe, and must point to or copy a PDF generated from `{client-name}-client-report.html`, which itself is assembled from the three staging HTML reports. If PDF export is unavailable or unsafe, keep `client_pdf_status: blocked` and record `client_pdf_blocker`.
-- If a client-share PDF includes private data source findings, record `client_pdf_redaction_status` as `redacted`, `approved_exact_sources`, or `needs_human_review`.
-- If two notifications are sent, both should reference the same combined client report path or uploaded URL, with lane status recorded in `notification_log.md`. Lane-specific staging links should be omitted unless requested for diagnostics.
+- **`type`** enum (complete): `email_sent | email_reply | email_open | email_click | email_bounce | unsubscribe | call | meeting | note | stage_change | task_done | enriched | imported | merged | assisted_sent`.
+- **`by`** ∈ `agent | human | rule`.
+- `ref` carries whichever of `{message_id, url, path}` applies (e.g. `rfc_message_id` for a send, the tracker URL for a click, the sent_log path for a send).
+- Open/click activities are recorded but **never alone trigger a stage change or auto-action** — only a reply is conversion evidence (DESIGN §11).
 
-### `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`
+### 4.5 Task (`crm/tasks/tasks.jsonl`)
 
-Daily summary across all active clients.
+```json
+{"id":"","schema_version":1,"contact_id":null,"deal_id":null,"title":"","due_at":"",
+ "status":"open|done|cancelled","created_by":"rule|human|agent","guard_key":""}
+```
 
-It should include:
+Minimal required set (DESIGN §7.5): `{id, contact_id?, deal_id?, title, due_at, status, created_by, guard_key}`. `status` ∈ `open | done | cancelled`; `created_by` ∈ `rule | human | agent`. `guard_key` makes rule-created tasks idempotent (§4.6). The Task engine, SLA sweep, and Today View live in Stage 14.
 
-- Date.
-- Clients processed.
-- Clients skipped.
-- For each client:
-  - Top ideas.
-  - Best idea.
-  - Script file path.
-  - Reference URLs for top ideas and the selected best idea.
-  - Sources skipped.
-  - Required human action.
+### 4.6 Pipelines + rules (`crm/pipelines.json`)
+
+Stages carry `probability` + `sla_days`. Rules are **deterministic**, executed by `crm_store.py apply-rules`, and are **never improvised by the LLM**.
+
+```json
+{"pipelines":[{"id":"default_sales","stages":[
+   {"id":"new_reply","probability":0.10,"sla_days":1},
+   {"id":"engaged","probability":0.25,"sla_days":7},
+   {"id":"meeting_booked","probability":0.50,"sla_days":7},
+   {"id":"proposal_sent","probability":0.70,"sla_days":10},
+   {"id":"won"},{"id":"lost"}]}],
+ "rules":[
+   {"id":"r1","on":"reply_positive","do":["create_deal_if_none(stage=new_reply)","create_task(title=Reply within 4h,due=+4h)","freeze_sequence"]},
+   {"id":"r2","on":"reply_question","do":["create_deal_if_none(stage=engaged)","freeze_sequence","draft_reply_for_approval"]},
+   {"id":"r3","on":"reply_negative|remove_intent","do":["suppress(contact)","freeze_sequence","close_open_tasks"]},
+   {"id":"r4","on":"stage_age_exceeds_sla","do":["create_task(nudge)","flag_in_report"]},
+   {"id":"r5","on":"deal_won","do":["set_lifecycle(customer)","enroll_segment(customers)","create_task(onboarding)"]},
+   {"id":"r6","on":"hard_bounce|unsubscribe","do":["suppress(contact)","close_open_tasks"]}
+ ]}
+```
+
+**Guard keys** `(rule_id, trigger_activity_id)` make `apply-rules` idempotent and re-runnable — re-processing the same activity does not double-create deals or tasks. Stage transitions are validated against the pipeline's stage list; an invalid transition is blocked in code (Stage 13). The full rule engine and stage rules live in Stage 13.
+
+### 4.7 Contact identities reverse index (`crm/contact_identities.jsonl`)
+
+The unique reverse index that backs `find_by_identity` and deterministic merge. One row per identity; `(kind, value)` is unique within the client.
+
+```json
+{"kind":"email|phone|social|website","value":"<normalized>","lead_id":"c_...","added_at":""}
+```
+
+- Normalization is fixed per kind: email lowercased/trimmed; phone → E.164; social → canonical profile URL; website → host without scheme/`www.`
+- A collision (two contacts claiming the same normalized identity) is exactly what triggers auto-merge (§4.8). In Postgres this is `contact_identities(client_id, kind, value UNIQUE, contact_id)`.
+
+### 4.8 Merge / tombstone / resolve (deterministic)
+
+- **Auto-merge** on exact email / E.164 phone / canonical social URL match.
+- **Fuzzy** name+company → *propose* only; a human approves. Contacts with a **pending merge proposal are excluded from every campaign queue** until resolved.
+- The **losing record becomes a permanent tombstone** — never deleted:
+  ```json
+  {"merge": {"status": "merged", "merged_into": "c_SURVIVOR"}}
+  ```
+- On merge, identities, channel statuses, and suppression are **unioned** into the survivor.
+- Every `lead_id` lookup path — the sync classifier, track-pull, unsub handler, `apply-rules`, and drafting — calls `resolve(lead_id)` to follow merge chains to the active survivor. Skipping `resolve()` anywhere is a correctness bug; the audit checks for it.
+
+### 4.9 Segments (`crm/segments.json`)
+
+Named audiences, referenced by campaign `audience.segment` and by rule `r5` (`enroll_segment(customers)`).
+
+```json
+{"segments":[
+  {"id":"customers","name":"Customers","kind":"dynamic",
+   "definition":{"where":[["lifecycle_stage","=","customer"]]},
+   "static_member_ids":[],"created_at":"","updated_at":""}]}
+```
+
+- `kind: dynamic` segments are computed from `definition.where` (a Cond list, §2.2); `kind: static` segments enumerate `static_member_ids`.
+- Segment ids referenced by a Client Intelligence Profile `icp.segments[].segment_id` must exist here.
+
+### 4.10 Suppression (two tiers)
+
+Suppression is checked at **every send-capable path** and at **import against ALL identities**; it is unioned on merge; pending-merge contacts are excluded from queues (DESIGN §16). There are exactly two tiers:
+
+- **Agency tier** — `outreach-pipeline/suppression/global_suppression.jsonl` (global; applies to all clients).
+- **Client tier** — `crm/suppression.jsonl` (this client only).
+
+Both are append-only JSONL with a monotonic `seq`. A send is blocked if the recipient matches **either** tier. Record shape:
+
+```json
+{"seq":1,"ts":"","tier":"global|client","match":{"kind":"email|phone|social|domain","value":"<normalized>"},
+ "reason":"unsubscribe|hard_bounce|reply_negative|remove_intent|manual|complaint|guessed_domain_kill",
+ "scope":"all_clients|{client_slug}","source_activity_id":"","added_by":"agent|human|rule","tags":[]}
+```
+
+- **`reason`** enum: `unsubscribe | hard_bounce | reply_negative | remove_intent | manual | complaint | guessed_domain_kill`. `guessed_domain_kill` is the per-domain kill switch — the first hard bounce on a guessed pattern at domain X suppresses all other guessed addresses at X (DESIGN §9.6).
+- **`match.kind`** ∈ `email | phone | social | domain`. A `domain` match suppresses every address at that host (used by the guessed kill switch and by existing-customer or do-not-contact-domain carve-outs from the profile suppression policy).
+- **`tags`** may include `test_fixture` so the E2E `reset-client` step can wipe only test-created suppression (DESIGN §17).
+- The pre-send re-check order (Stage 8) is: `resolve(lead)` → global + client suppression → `channels.email.status` → atomic quota reservation → warmup cap → domain cap → send-window → guessed cap → sequence-freeze → subject lint. Suppression is checked before quota is reserved so we never burn quota on a suppressed contact.
 
 ---
 
-## 9. Client Intelligence Profile Schema
+## 5. Lists & Import (`lists/{list_slug}/…`)
 
-Each client pipeline must have one Client Intelligence Profile file.
+A list is one imported source file. Import maps columns, dedupes against existing contacts (via `find_by_identity`), mints `lead_id` ULIDs, and is idempotent (re-importing the same file does not double-create). Suppression is checked at import against ALL identities.
 
-Filename:
+### 5.1 `lists/{list_slug}/list_manifest.json`
+
+```json
+{
+  "schema_version": 1,
+  "list_slug": "",
+  "source_file": "",
+  "source_format": "csv|txt|xlsx",
+  "imported_at": "",
+  "idempotency_key": "",
+  "column_mapping": {"email": "Email", "full_name": "Name", "company": "Company", "phone": "Phone", "website": "Website"},
+  "row_count": 0,
+  "contacts_created": 0,
+  "contacts_matched_existing": 0,
+  "suppressed_at_import": 0,
+  "rows_skipped": 0,
+  "notes": ""
+}
+```
+
+- `idempotency_key` is derived from the source file content + mapping; a second import with the same key is a no-op.
+- `source_format` ∈ `csv | txt | xlsx`.
+
+### 5.2 `lists/{list_slug}/leads.jsonl`
+
+Append-only record of each imported row and what became of it (contact created / matched existing / suppressed / skipped), so an import is auditable and re-runnable.
+
+```json
+{"seq":1,"ts":"","raw":{"Email":"","Name":"","Company":""},"normalized":{"email":"","full_name":"","company":""},
+ "outcome":"created|matched|suppressed|skipped_invalid","lead_id":"c_...","reason":""}
+```
+
+### 5.3 `lists/{list_slug}/import_log.md`
+
+Human-readable import summary (one table row per import run): date, agent, source file, rows in, created, matched, suppressed, skipped, blockers. Surface any blocker with the `[ACTION REQUIRED]` contract (one purpose, one exact next step, one path); say `No action required right now.` when the import is clean.
+
+---
+
+## 6. Sendboxes (`sendboxes/…`) & multi-sendbox rotation
+
+### 6.1 `sendboxes/sendboxes.json`
+
+```json
+{"sendboxes":[
+  {"slug":"sb-a","auth_mode":"app_password|oauth","email":"...","domain":"gmail.com",
+   "quota_today":40,"warmup_stage":"week_1|week_2|mature","status":"healthy|needs_reauth|paused",
+   "historyId":null,"imap_uid_cursor":null,"last_successful_sync_ts":""}]}
+```
+
+- **`auth_mode`** ∈ `app_password | oauth`; **`warmup_stage`** ∈ `week_1 | week_2 | mature`; **`status`** ∈ `healthy | needs_reauth | paused`.
+- Cursors: `historyId` (OAuth) or `imap_uid_cursor` (app_password), plus `last_successful_sync_ts`. Inbound sync (Stage 10) advances these.
+
+### 6.2 Credentials (gitignored, `chmod 600`)
+
+Per-sendbox secrets live beside the box and are **never committed**:
+
+- `sendboxes/{sendbox_slug}/credentials.json` — App Password or OAuth client reference.
+- `sendboxes/{sendbox_slug}/token.json` — OAuth token (mode `oauth` only).
+
+Both are gitignored and `chmod 600`. The deploy script blocks staging of `token.json` / `client_secret*.json` and secret-scans the staged diff (`refresh_token`, `client_secret`, `TRACKER_API_KEY`). Do not put these values in any log, report, or profile.
+
+### 6.3 Rotation, sticky sender, caps (the storage-visible rules)
+
+- **Two auth modes, one interface.** `app_password` (priority for `@gmail.com`): SMTP send + IMAP read via Python stdlib (`smtplib`/`imaplib`), no OAuth, no 7-day expiry, preserves our Message-ID. `oauth` (Workspace/custom domain): Gmail API, scopes `gmail.send + gmail.readonly` only (drop `gmail.modify`); the OAuth app should be **Internal** to avoid the 7-day refresh-token expiry — if forced External/testing, weekly re-auth becomes a scheduled day-6 `[ACTION REQUIRED]`, not an error path.
+- **Rotation is step-1 only; sticky sender thereafter.** First outreach picks the healthy referenced sendbox with the lowest `sent_today/quota_today` ratio (round-robin on ties); `contact.assigned_sendbox` is then fixed. Every bump/reply goes from the assigned box (threading + reply routing + anti-spam require it).
+- **Two-tier cap.** Effective cap = `min(remaining_box_quota, remaining_domain_cap)` — several boxes on one domain share domain reputation; domain volume ramps too.
+- **Broken box:** dropped from step-1 rotation; its assigned pending follow-ups **wait** (never reassigned) + `[ACTION REQUIRED]` re-auth; report shows "N follow-ups blocked".
+- **Consumer `@gmail.com` limits (documented, accepted):** From is gmail.com → tracking links live on an unrelated domain → default `plain_text_mode` (no pixel, no link rewrite), measure by reply; no custom Message-ID domain; ~20–50 cold/day/box; never the operator's primary Gmail; App Password requires 2FA. Keep OAuth mode available as fallback.
+
+The atomic quota reservation (`reserve(sendbox_slug, day)`) and the ordered pre-send gate chain are implemented in `gmail_client.py send` (Stage 8) — not in playbook prose.
+
+---
+
+## 7. Campaigns, Enrichment & Drafts (`campaigns/{campaign_slug}/…`)
+
+### 7.1 `campaign_config.json` — the goal is the writing blueprint, not a label
+
+```json
+{"campaign_slug":"","goal":{"goal_type":"book_meeting|get_reply|direct_sale|reactivation|nurture_upsell|event_invite",
+   "objective":"","offer":"","value_proposition":"","proof_points":[{"claim":"","evidence_url":""}],
+   "cta":{"type":"reply_yes|link|calendar","text":""},
+   "success_event":{"on":"reply_positive","create_deal_stage":"new_reply"}},
+ "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,"no_hook_fallback":"generic_honest_opener|skip"}},
+ "sequence":[{"step":1,"intent":"hook + offer, one CTA","tracking":"plain_text"},
+   {"step":2,"gap_days":4,"intent":"deliver new value"},
+   {"step":3,"gap_days":5,"intent":"social proof"},
+   {"step":4,"gap_days":7,"intent":"breakup"}],
+ "sendboxes":[],"daily_quota":40,"approval_mode":"manual_all",
+ "guardrails":{"banned_claims":["guarantees"],"no_fake_re":true},
+ "channel_strategy":"email_first|any_channel"}
+```
+
+Field notes:
+
+- **`goal.goal_type`** enum: `book_meeting | get_reply | direct_sale | reactivation | nurture_upsell | event_invite`. This drives the email structure (Stage 6): `book_meeting`→short, one time-bound CTA; `get_reply`→ends with a question, no link; `direct_sale`→value + one offer link (the only place click tracking is on by default); `reactivation`→evidence of prior relationship + "still doing X?"; every final step→breakup.
+- **`goal.proof_points[]`** = `{claim, evidence_url}` — evidence-backed; a draft may only cite proof that has an `evidence_url`.
+- **`goal.cta.type`** ∈ `reply_yes | link | calendar`.
+- **`goal.success_event`** wires straight into the rules engine (§4.6): `{on: reply_positive, create_deal_stage: new_reply}`.
+- **`audience.personalization.min_confidence`** gates drafting (≥0.7 High); `no_hook_fallback` ∈ `generic_honest_opener | skip`.
+- **`sequence[].tracking`** default `plain_text`; a bump/reply threads on the prior send.
+- **`approval_mode`** default `manual_all` even for bumps — nothing leaves without an explicit chat approval (§9).
+- **`sendboxes[]`** references `sendbox_slug`s from `sendboxes.json`; `daily_quota` is the campaign's share.
+- **`guardrails.no_fake_re`** enforces the truthful-subject rule (step-1 subjects must not begin `Re:`/`Fwd:`).
+
+### 7.2 Dossier (`campaigns/{campaign_slug}/queue/enriched/YYYY-MM-DD/{lead_id}.json`)
+
+The dossier belongs to the **contact** (client-scope); a distilled copy lands in `contact.enrichment`. Campaigns reference `lead_id`; the enrich queue is client-level, deduped by `lead_id`. The email-writing skill consumes `writing_brief`, not raw data.
+
+```json
+{"lead_id":"","identity":{"still_active":"confirmed|inactive|unknown",
+   "evidence":[{"fact":"","url":"","retrieved_at":""}],"current_company":"","role":"",
+   "profiles":{"zillow":"","website":"","facebook":"","instagram":"","gbp":""},
+   "channels_found":{"emails":[],"phones":[]}},
+ "context":{"market":"","volume_signals":"","specialty":"","content_style":""},
+ "hooks":[{"type":"new_listing|social_post|review|award|market_view|website_update",
+   "summary":"","analysis":{"topic":"","angle":"","sensitivity":"public_business|personal"},
+   "evidence_url":"","observed_date":"","confidence":0.0,"used_in":[]}],
+ "writing_brief":{"one_liner":"","ranked_angles":[],"do_not_mention":[],"personalization_confidence":0.0}}
+```
+
+- **`identity.still_active`** ∈ `confirmed | inactive | unknown`; `inactive/unknown` stops enrichment before hooks.
+- **`hooks[].type`** enum: `new_listing | social_post | review | award | market_view | website_update`.
+- **`hooks[].analysis.sensitivity`** ∈ `public_business | personal`. Etiquette hard rule: `public_business` signals are fair game; `personal` signals (family, health, vacations, children) are **default-banned from email copy** and go only into `do_not_mention`.
+- **`hooks[].used_in`** tracks `["campaign/step"]`; a second campaign may not open with a hook already used on that person.
+- **`writing_brief.personalization_confidence`**: ≥0.7 High, 0.4–0.7 Review carefully, <0.4 → `no_hook_fallback`.
+- A draft may contain **only** details present in the dossier with an `evidence_url`; the Stage 9 audit checks this mechanically. TTL tiers (durable ~90d identity/context vs fresh 7–14d hooks), the negative cache (`email_not_found`, `no_verifiable_hook`), and the freshness gate live in Stage 4.
+
+### 7.3 Enrich queue (`campaigns/{campaign_slug}/queue/enrich_queue.jsonl`)
+
+Client-level intent to enrich, deduped by `lead_id` (one job even if two campaigns want the same person). Append-only with `seq`.
+
+```json
+{"seq":1,"ts":"","lead_id":"c_...","tier":"verify|profile|refresh",
+ "requested_by":["{campaign_slug}/step1"],"status":"queued|in_progress|done|failed|inactive",
+ "result":"dossier_written|no_hook|email_not_found|inactive|refreshed","dossier_path":"","started_at":"","completed_at":""}
+```
+
+- `tier` ∈ `verify | profile | refresh`; `status` ∈ `queued | in_progress | done | failed | inactive`.
+
+### 7.4 Drafts (`campaigns/{campaign_slug}/outbox/…`)
+
+A draft is written to `outbox/pending_approval/YYYY-MM-DD/{draft_id}.json` and, once approved in chat (§9), moved to `outbox/approved/{draft_id}.json` and sent in-session. Editing the HTML report never persists — chat is the write path.
+
+```json
+{"draft_id":"","schema_version":1,"created_at":"","lead_id":"c_...","campaign_slug":"","step":1,
+ "sendbox":"sb-a","to":"","subject":"","body_text":"","body_html":"",
+ "confidence_band":"high|review_carefully",
+ "hooks_used":[{"type":"","evidence_url":""}],
+ "tracking":"plain_text|pixel_and_links",
+ "warnings":["guessed_email","generic_opener","bump_step"],
+ "guessed_approved":false,
+ "status":"pending_approval|approved|rejected|hold|sent|blocked",
+ "decided_at":"","decided_by":"","reject_reason":"","blocker":""}
+```
+
+- **`confidence_band`** ∈ `high | review_carefully` — drives which section of the Approval Report the card lands in.
+- **`guessed_approved`** must be `true` before a `guessed_only` address may send; the flag is enforced **in `gmail_client.py send`** plus a daily guessed-send cap, never only in prose.
+- **`status`** ∈ `pending_approval | approved | rejected | hold | sent | blocked`. A send error returns the draft to `approved` with a `blocker` (Stage 8).
+
+### 7.5 Sent log (`campaigns/{campaign_slug}/sent/YYYY-MM/sent_log.jsonl`)
+
+Append-only, monthly, `seq`-stamped. Written by `gmail_client.py send` after a successful send; also holds the `send_reserved` marker appended under the sent_log lock during atomic quota reservation (so there is no count-then-send race).
+
+```json
+{"seq":1,"lead_id":"","campaign":"","step":1,"sendbox":"","provider_id":"","thread_id":"",
+ "rfc_message_id":"","token":"","links":{},"sent_at":""}
+```
+
+- `rfc_message_id` is the on-the-wire Message-ID (our own only when we control the domain; otherwise fetched after send). Bumps/replies thread via `In-Reply-To`+`References` off the prior `rfc_message_id`.
+- `token` is the tracker token; `links` is the map of rewritten click tokens. Track-pull accepts only click URLs matching this stored `links{}` (injection defense, Stage 11/12).
+
+### 7.6 Campaign history (`campaigns/{campaign_slug}/history/YYYY-MM/`)
+
+- **`campaign_log.md`** — one row per send/step event for human review: date, `lead_id`, step, sendbox, subject, confidence band, tracking mode, outcome, notes.
+- **`reply_log.md`** — one row per inbound reply tied to this campaign: date, `lead_id`, triage class (`positive|question|objection|negative|remove_intent`), action taken (deal/task/reply draft/suppress), evidence activity id.
+
+---
+
+## 8. The Client Intelligence Profile
+
+Each client pipeline has exactly one Client Intelligence Profile file:
 
 ```text
 client_profile_{client_slug}_{business_slug}_{location_slug}.md
 ```
 
-Template:
+It is the canonical, human-and-agent-readable brief that every draft is built from: draft = **client profile** (voice, offer, compliance, sending identity) + **campaign goal** (objective, CTA, proof) + **contact dossier** (hooks + evidence) + **step intent**. It keeps the inherited **value / status / rationale** discipline on every asserted field, so confidence and provenance travel with each fact. Slugged filenames provide uniqueness across multi-client folders; the schema name is always "Client Intelligence Profile."
+
+### 8.0 Setup Flow note
+
+The profile is authored in **Setup Flow**, which is the control plane: it creates config + the automation task and **never sends an email, never enriches for send, never runs a campaign**. The profile's terminal setup state is `ready_for_automation_first_run` (Metadata `status`). It flips to `active` on/after the first automation run. Any post-setup change to this profile triggers **Automation Resync** (the `automation_sync` block below plus `resync_log.md` + `automation_manifest.md`), verified by a dry-read before it is called complete.
+
+### 8.1 Template
 
 ```md
 # Client Intelligence Profile: {client_name}
@@ -1128,23 +569,13 @@ Template:
 - location_slug:
 - created_date:
 - last_reviewed_date:
-- status: active
+- status: needs_setup | ready_for_automation_first_run | active | paused | archived
 
 ## business_description
 
 value:
 status:
 rationale:
-
-## output_formats
-
-status:
-default: video_script
-items:
-- format: video_script | blog_article | social_caption
-  cadence: daily | weekly | on_request
-  widecast_skill_format: video | blog | social
-  notes:
 
 ## industry
 
@@ -1158,245 +589,134 @@ value:
 status:
 rationale:
 
-## related_industries
+## offer
 
 status:
 rationale:
-content_mix_rule: approximately 80% primary industry / 20% related industries
 items:
 - name:
-  relationship_to_primary_industry:
-  why_it_matters_to_target_audience:
-  example_content_bridges:
-  allowed_use: signal_source | content_angle | data_source | lead_signal | competitor_context
+  description:
+  price_point:
+  fulfillment:
+  primary: true | false
+
+## icp   # ideal customer profile — who campaigns target
+
+status:
+rationale:
+firmographics:
+  company_types:
+  company_size:
+  industries:
+  geography:
+roles:
+  titles:
+  seniority:
+  departments:
+disqualifiers:
+segments:
+- name:
+  segment_id:            # must exist in crm/segments.json
+  definition_summary:
   priority: high | medium | low
 
-## target_audience
+## value_prop
 
 value:
 status:
 rationale:
-
-## target_location
-
-value:
-status:
-rationale:
-
-## location_dependency
-
-value: high | medium | low
-status:
-rationale:
-
-## business_offer
-
-value:
-status:
-rationale:
-
-## pain_points
-
-status:
-rationale:
-items:
+supporting_points:
 -
 
-## content_pillars
+## proof_points   # claims we may cite; each needs evidence
 
 status:
 rationale:
-content_mix_rule: approximately 80% primary industry / 20% related industries
 items:
-- name:
-  industry_scope: primary_industry | related_industry
-  related_industry:
-  mapped_pain_points:
-  strategic_purpose:
-  example_angles:
-  bridge_back_to_primary_offer:
-  lead_gen_connection:
+- claim:
+  evidence_url:
+  strength: strong | medium | weak
+  usable_in: cold_open | body | breakup
 
-## public_data_sources
-
-items:
-- name:
-  url:
-  type: public
-  platform:
-  source_status: candidate_public_source | active_public_source | weekly_public_source | occasional_public_source | weak_public_source | blocked_or_unreliable
-  source_kind: official | regulator | government | news | specialist_blog | public_forum | public_social | public_video_channel | competitor_public | data_dashboard | newsletter_archive | association | local_community | search_result | other
-  language:
-  scan_cadence: daily | weekly | occasional | event_based | paused
-  visit_in_scheduled_runs: true | false
-  location_relevance:
-  related_pain_points:
-  related_content_pillars:
-  related_keywords:
-  why_this_source_matters:
-  source_or_reason_added:
-  discovered_from:
-  first_discovered_date:
-  last_checked_date:
-  useful_count:
-  weak_count:
-  usefulness_score:
-  promoted_date:
-  demoted_date:
-  access_method:
-  collection_notes:
-
-## public_search_keywords
-
-summary:
-  total_keywords:
-  hidden_keywords_saved:
-  primary_keyword_language:
-  secondary_keyword_languages:
-  needs_expansion: true | false
-  last_expanded_date:
-  expansion_sources:
-    - setup_inference
-    - public_search_results
-    - private_source_scan
-    - competitor_hooks
-    - report_comments
-    - analytics_learning
-    - human_feedback
-
-items:
-- keyword:
-  language:
-  status: unused | used | useful | weak | retry_later
-  keyword_group: industry_general | pain_point | need_or_goal | buying_intent | local_context | related_industry | trend_news | objection | comparison | question | problem_issue
-  scope: global | local
-  industry_scope: primary_industry | related_industry
-  related_industry:
-  related_content_pillar:
-  related_pain_point:
-  related_customer_need:
-  source_or_reason_added:
-  discovered_from:
-  first_added_date:
-  last_used_date:
-  use_count:
-  useful_count:
-  weak_count:
-  result_quality:
-  promoted: true | false
-  demoted: true | false
-  notes:
-
-## private_monitoring_activation
-
-status: not_provided | pending_private_activation | activation_declined_for_now | activation_requested | setup_files_prepared_waiting_for_human_command | setup_command_given_waiting_for_human_run | setup_command_ran_waiting_for_extension | installed_and_running | wrong_workspace_bridge | blocked
-first_trial_policy: public_first_small_win
-last_prompted_date:
-human_decision:
-collector_setup_status_file:
-notes:
-
-## private_data_source_discovery
-
-status: not_asked | recommended | declined | postponed | partially_approved | approved | pending_human_approval | pending_private_activation | active | blocked | completed | discovery_declined_or_postponed
-reassurance_shown:
-  professional_setup_once: true | false
-  local_data_only: true | false
-  daily_scan_prevents_missed_signals: true | false
-why_recommended:
-coverage_limitation_if_skipped:
-categories:
-  membership_sources:
-    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
-    platforms:
-    - platform:
-      discovery_urls:
-      - url:
-        status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
-        last_scanned_at:
-  following_sources:
-    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
-    platforms:
-    - platform:
-      discovery_urls:
-      - url:
-        status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
-        last_scanned_at:
-  recommendation_feed_sources:
-    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
-    platforms:
-    - platform:
-      discovery_urls:
-      - url:
-        status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
-        last_scanned_at:
-  keyword_search_sources:
-    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
-    platforms:
-    - platform:
-      search_keywords:
-      - keyword:
-        search_url:
-        scroll_steps:
-        candidate_count:
-        recommended_count:
-        skipped_noisy_count:
-        status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
-        last_scanned_at:
-candidate_source_review_policy:
-  require_human_approval_before_activating: true
-  max_daily_sources_default: 20
-  feed_surfaces_are_discovery_only: true
-last_discovery_report:
-
-## private_data_sources
-
-items:
-- name:
-  url:
-  type: private
-  platform:
-  source_type: manually_provided | joined_group | facebook_group_search_result | followed_profile | followed_page | subscribed_channel | followed_company | subreddit | community | discovered_from_feed
-  discovery_category: manually_provided | membership_sources | following_sources | recommendation_feed_sources | keyword_search_sources
-  discovery_url:
-  search_keyword:
-  search_url:
-  result_rank:
-  membership_status: unknown | joined | not_joined | public_visible | requires_join | unavailable
-  approval_status: pending_human_approval | approved | rejected
-  priority: high | medium | low
-  scan_cadence: daily | weekly | optional
-  location_relevance:
-  why_this_source_matters:
-  access_method:
-  collection_notes:
-  activation_status: pending_private_activation | active | declined_for_now | unavailable
-  login_status: unknown | available | expired | unavailable
-
-## collector_config
+## sending_identity
 
 status:
-run_mode: agent_on_demand | persistent_bridge_scheduler | manual
-default_runs_per_day: 1
-scheduled_windows:
-- name: morning
-  enabled: true
-  local_time_start: "09:00"
-  local_time_end: "09:30"
-  timezone:
-max_sources_per_run: 20
-max_scrolls_per_source: 5
-max_scrolls_allowed: 10
-scroll_delay_seconds: 5
-duplicate_filter:
-  compare_against_previous_day: true
-  method: visible_text_matching
-  parse_html: false
-collector_panel:
-  show_current_source: true
-  show_scroll_count: true
-  show_data_point_count: true
-  show_status: true
+rationale:
+from_name:
+from_title:
+reply_to:
+signature_block:
+physical_mailing_address:      # REQUIRED — appears in the CAN-SPAM footer of every commercial email
+sending_domains:
+- domain:
+  purpose: primary | variant
+sendboxes:                     # references sendboxes/sendboxes.json slugs
+- slug:
+  email:
+persona_notes:
+
+## target_triggers   # what qualifies a lead; seeds JIT pipeline + hooks
+
+status:
+rationale:
+items:
+- trigger: new_listing | social_post | review | award | market_view | website_update | job_change | funding | event | list_membership | manual
+  why_it_qualifies:
+  freshness_ttl_days:
+  maps_to_hook_type: new_listing | social_post | review | award | market_view | website_update
+  default_goal_type: book_meeting | get_reply | direct_sale | reactivation | nurture_upsell | event_invite
+
+## brand_voice
+
+value:
+status:
+rationale:
+do:
+-
+dont:
+-
+
+## language
+
+human_report_language:
+recipient_language:
+status:
+rationale:
+
+## custom_field_definitions   # defines the keys allowed in contact/account/deal custom_fields
+
+status:
+items:
+- key:
+  label:
+  applies_to: contact | account | deal
+  type: text | number | enum | date | bool
+  allowed_values:              # for type=enum
+  required: true | false
+  description:
+
+## suppression_policy
+
+status:
+client_suppression_file: crm/suppression.jsonl
+honor_global_suppression: true
+never_contact_domains:         # added to client suppression as domain matches
+-
+notes:                         # e.g. existing-customer carve-outs, do-not-contact domains
+
+## compliance_notes
+
+value:
+status:
+rationale:
+can_spam_physical_address_present: true | false
+opt_out_honor_window: same_run
+sms_posture: inbound_initiated_only | documented_consent_required | off
+zalo_cold_messaging: off
+negative_topics:
+-
+do_not_mention:
+-
 
 ## automation_sync
 
@@ -1405,50 +725,16 @@ last_profile_change_at:
 last_profile_change_summary:
 last_resynced_at:
 last_resynced_by_agent:
-automation_manifest_file: daily-content-pipeline/automation/automation_manifest.md
-scheduled_prompt_file: daily-content-pipeline/automation/scheduled_run_prompt.md
-schedule_file: daily-content-pipeline/schedule.md
-collector_config_file: daily-content-pipeline/collector/collector_config.json
+automation_manifest_file: outreach-pipeline/automation/automation_manifest.md
+scheduled_prompt_file: outreach-pipeline/automation/scheduled_run_prompt.md
+schedule_file: outreach-pipeline/schedule.md
+native_task_name: {client_name} - OutreachCRM Daily Run
 native_task_prompt_updated: true | false | not_applicable | unknown
 dry_read_verification:
   verified_at:
   result: pass | fail | partial
   scheduled_run_will_see:
   blockers:
-
-## brand_voice
-
-value:
-status:
-rationale:
-
-## language
-
-human_report_language:
-target_audience_language:
-keyword_language:
-secondary_keyword_languages:
-content_output_language:
-status:
-rationale:
-
-## platforms
-
-value:
-status:
-rationale:
-
-## compliance_notes
-
-value:
-status:
-rationale:
-
-## negative_topics
-
-value:
-status:
-rationale:
 
 ## assumptions
 
@@ -1459,250 +745,629 @@ rationale:
 -
 ```
 
+### 8.2 Field discipline
+
+- Every `value / status / rationale` field records **what we believe, how sure we are, and why**. `status` should read like `confirmed | inferred | assumed | needs_human` so downstream drafting knows what it may lean on. Do not assert a `value` with no `rationale`.
+- **`sending_identity.physical_mailing_address` is required** — it is the CAN-SPAM footer address. A commercial campaign cannot be marked ready while `can_spam_physical_address_present` is `false`; surface it as `[ACTION REQUIRED]`.
+- **`custom_field_definitions`** is the *only* place custom-field keys are declared. `contact.custom_fields`, `account.custom_fields`, and deal custom fields must use keys defined here (with the declared `type`/`allowed_values`).
+- **`target_triggers`** seed the JIT pipeline (which cold/trigger leads to load 3–7 days ahead) and constrain which hook types a campaign may open on.
+- **`icp.segments[].segment_id`** must resolve to an id in `crm/segments.json`.
+- **`automation_sync`** is the per-client half of Automation Resync; the agency-wide half is `automation/automation_manifest.md` + `resync_log.md`. `native_task_name` pins the one automation task for this client; that task's prompt pins `target_client_slug` and must not touch another client.
+
 ---
 
-## 10. History Files
+## 9. Approvals & Analytics (per-client)
 
-### `history/YYYY-MM/content_log.md`
+### 9.1 `approvals/approval_log.md`
 
-Purpose:
-
-- Avoid repeating the same idea too often.
-- Track selected ideas, scripts, approvals, videos, and outcomes.
-- Track whether each selected idea was `primary_industry` or `related_industry` so the agent can maintain the 80/20 content mix over time.
-- Track idea signatures, angles, and novelty decisions so future runs can reuse a topic only when the angle is materially different.
-
-Format:
+Every approval decision (from the chat approval grammar — `approve`, `reject`, `edit`, `hold`) is logged. Nothing leaves without an explicit `approve`.
 
 ```md
-# Content Log
+# Approval Log
 
-| Date | Idea | Idea Signature | Angle | Category | Scope | Industry Scope | Related Industry | Content Pillar | Prior Related Idea/Date | Novelty Decision | Script Path | Status | Notes |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-19 | Austin inventory is rising again | austin-inventory-buyer-strategy | rising inventory changes buyer offer strategy | Hot / Trend / News | Local | primary_industry |  | Local market intelligence |  | new | outputs/2026-06/2026-06-19.md | drafted | Not yet approved |
-| 2026-06-20 | Why rising insurance premiums change your homebuying budget | insurance-premiums-homebuying-budget | insurance costs change affordability math | Hot / Trend / News | Local | related_industry | P&C insurance | Affordability clarity | 2026-06-12: monthly payment shock | new_angle | outputs/2026-06/2026-06-20.md | drafted | Related-industry idea connected back to buyer affordability |
+| Date | Agent | Draft ID | Lead ID | Campaign | Step | Decision | Reason / Edit | Sent At | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-07-15 | Claude | draft_01J... | c_01J... | austin-sellers-q3 | 1 | approved | — | 2026-07-15T15:12Z | High confidence |
+| 2026-07-15 | Claude | draft_01K... | c_01K... | austin-sellers-q3 | 1 | rejected | hook stale, listing sold | — | Reason fed to learning_log |
 ```
 
-Allowed status:
+Decision enum: `approved | rejected | edited | hold`. Rejection reasons feed `analytics/learning_log.md`.
 
-- `drafted`
-- `approved`
-- `scenes_created`
-- `scene_editing_complete`
-- `scene_editing_blocked`
-- `render_ready`
-- `rendered`
-- `video_created`
-- `published`
-- `rejected`
-- `revised`
-- `skipped`
+### 9.2 `analytics/metrics_log.md`
 
-### `history/YYYY-MM/data_sources_log.md`
-
-Purpose:
-
-- Track source checks.
-- Track unavailable sources.
-- Track private login/session failures.
-- Track platform warnings, rate limits, checkpoints, and conservative pacing decisions.
-- Avoid silently losing coverage.
-
-Format:
+Rolling record of campaign performance with **honest metric labels**: reply / bounce / unsubscribe are exact; **open is estimated** (Gmail image proxy, Apple MPP prefetch, image blocking); click is fairly reliable after bot filtering. Reports must label opens "estimated."
 
 ```md
-# Data Sources Log
+# Metrics Log
 
-| Date | Source | Type | Source URL | Status | Data Collected | Issue | Next Action |
-|---|---|---|---|---|---|---|---|
-| 2026-06-19 | Competitor FB Page A | private | https://www.facebook.com/... | skipped | no | session expired | Human must log in manually |
-```
-
-Allowed status:
-
-- `checked`
-- `collected`
-- `skipped`
-- `blocked`
-- `session_expired`
-- `rate_limited`
-- `platform_warning`
-- `collector_unavailable`
-- `extension_unavailable`
-- `extension_stale`
-- `bridge_offline`
-- `captcha_or_checkpoint`
-- `chrome_not_running`
-- `not_relevant_today`
-- `unavailable`
-
-### `history/YYYY-MM/lead_log.md`
-
-Purpose:
-
-- Track potential hot and warm leads discovered during public/private data source scanning.
-- Preserve source URLs and reasoning for why the lead may be relevant.
-- Avoid losing sales opportunities discovered during content research.
-
-Format:
-
-```md
-# Lead Log
-
-| Date | Lead Level | Source | Source Type | Profile URL | Post/Current URL | Safe Lead Summary | Related Offer | Related Pain Point | Suggested Next Action | Copy-Ready Suggested Comment | Status | Notes |
+| Date | Campaign | Step | Sent | Replies (exact) | Positive | Bounces (exact) | Unsub (exact) | Opens (est.) | Clicks | Guessed Sent | Guessed Bounces | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | hot | Facebook Group | private | https://www.facebook.com/profile.php?id=... | https://www.facebook.com/groups/.../posts/... | Person asked for a DUI lawyer in Los Angeles | DUI legal consultation | Fear of license/court consequences | Human should review and decide whether to respond | Short value-first comment in the post language | needs_review | Do not contact automatically |
 ```
 
-Allowed status:
+The guessed cohort bounce rate is reported separately (its own columns) so it never contaminates the verified cohort's numbers.
 
-- `needs_review`
-- `approved_for_outreach`
-- `contacted`
-- `not_relevant`
-- `do_not_contact`
-- `converted`
-- `skipped`
+### 9.3 `analytics/learning_log.md`
 
-### `history/YYYY-MM/competitor_log.md`
+Captures what the batch taught us — rejected-draft reasons, hook types that landed vs flopped, subject patterns, cohort bounce signals — so the next drafting pass improves. Free-form dated entries plus a signal table.
 
-Purpose:
+### 9.4 `inbox_sync/YYYY-MM/sync_log.jsonl`
 
-- Track direct, adjacent, and audience competitors discovered during source scanning.
-- Preserve competitor URLs, positioning notes, content patterns, and engagement signals.
-- Help the agent improve positioning, content pillars, and idea selection over time.
+Append-only record of every inbound message the sync classifier processed (Stage 10), monthly and `seq`-stamped. The classifier runs in a fixed, load-bearing order (DSN → auto-reply → unsub alias → thread match → contact message → personal).
 
-Format:
-
-```md
-# Competitor Log
-
-| Date | Competitor Type | Name/Page | Platform | Profile URL | Post/Current URL | Location Relevance | Audience Overlap | Offer/Positioning | Content Themes | Engagement Signal | Threat Level | Opportunity | Copy-Ready Suggested Comment | Status |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | direct | Example DUI Law Firm | Facebook | https://www.facebook.com/exampleduilaw | https://www.facebook.com/exampleduilaw/posts/... | Los Angeles | Drivers facing DUI/legal issues | Free consultation for DUI cases | License suspension, court mistakes | Repeated comments asking for help | medium | Create clearer local process education | Short respectful value-first comment in the post language | monitoring |
+```json
+{"seq":1,"ts":"","sendbox":"sb-a","message_uid":"",
+ "classification":"dsn_hard|dsn_soft|auto_reply|unsub_alias|campaign_reply|contact_message|personal",
+ "lead_id":"c_...","rfc_message_id_matched":"",
+ "triage":"positive|question|objection|negative|remove_intent|untriaged|na",
+ "action":"suppressed|deal_created|reply_drafted|counted_only|frozen_sequence|none","by":"agent"}
 ```
 
-Allowed status:
+- **`classification`** enum: `dsn_hard | dsn_soft | auto_reply | unsub_alias | campaign_reply | contact_message | personal`.
+- **Personal email is `counted_only`** — do not store body, do not deep-read.
+- **`triage`** enum: `positive | question | objection | negative | remove_intent | untriaged | na`. `negative`/`remove_intent` (even without the word "unsubscribe") → suppression. **Any inbound reply freezes the remaining sequence** for that contact until triage completes — enforced in code at both draft-time and send-time.
 
-- `monitoring`
-- `high_priority`
-- `not_relevant`
-- `archived`
+### 9.5 `assets/`
 
-### `history/YYYY-MM/lead_competitor_opportunities.jsonl`
+- `asset_index.md` — index of generated proposals/flyers with version + path + status.
+- `proposals/{slug}/v001/…`, `flyers/{slug}/v001/…` — versioned asset folders (never overwrite a version; bump `vNNN`).
 
-Purpose:
+### 9.6 `reports/YYYY-MM_report.md`
 
-- Store every report-ready lead and competitor opportunity in one machine-readable ledger.
-- Preserve the post/current URL, safe context, classification, suggested human action, and copy-ready comment.
-- Support future learning about which sources, pain points, competitor posts, and comment styles create the best opportunities.
-- Keep lead and competitor opportunity analysis separate from raw private collector text.
+Rolling monthly operator narrative for the client (pipeline movement, notable replies, deals, blockers). This is the operator's month-view, distinct from the dated HTML outputs and the weekly client-facing report.
 
-Use this ledger in addition to `lead_log.md` and `competitor_log.md` when the environment can write JSONL.
+---
 
-Format:
+## 10. Outputs & the Report Reconciliation Ledger (`outputs/…`)
+
+Two lanes, one rule: **only the weekly client report is client-facing** (scrubbed through the Client-Blind Scrub Gate, generated Mondays). Every other output is **operator-only and NOT scrubbed**. All HTML is rendered by `tools/report_renderer.py` (stdlib only).
+
+Dated set under `outputs/YYYY-MM/YYYY-MM-DD/`:
+
+| File | Lane | Scrubbed? |
+|---|---|---|
+| `{client}-approval-report.html` | operator | no |
+| `{client}-today-view.html` | operator | no |
+| `{client}-daily-ops.html` | operator | no |
+| `{client}-INTERNAL_REPORT.html` | operator | no |
+| `{client}-weekly-client-report.html` | **client-facing** | **yes (scrub gate)** |
+| `{client}-weekly-client-report.pdf` | **client-facing** | **yes** |
+| `{client}-report_state.json` | ledger | — |
+
+`outputs/latest/` holds the stable pointer/copy of each (the weekly client report + PDF are the client handoff links; the rest are operator convenience copies). Anything in `latest/` that is operator-only must be clearly labeled `INTERNAL_REPORT — Not for client sharing`.
+
+### 10.1 `outputs/YYYY-MM/YYYY-MM-DD/{client}-report_state.json`
+
+The reconciliation ledger. It records every output path + status, the scrub gate result for the weekly report, PDF status, and the run's reconciled counts, so a later pass cannot silently overwrite or contradict an earlier artifact and so counts stay consistent across the sent log, activities, approval log, sync log, deals/tasks, notification log, and the `latest/` copies.
 
 ```json
 {
-  "date": "2026-06-20",
-  "client_slug": "example-client",
-  "opportunity_type": "lead",
-  "classification": "hot_lead",
-  "source": "Facebook Group",
-  "source_type": "private",
-  "platform": "facebook",
-  "profile_url": "https://www.facebook.com/profile.php?id=...",
-  "post_url": "https://www.facebook.com/groups/.../posts/...",
-  "captured_at": "2026-06-20T09:00:00-07:00",
-  "safe_context_summary": "Person asked what to do after receiving an insurance non-renewal notice.",
-  "evidence_snippet": "Short visible snippet when safe",
-  "why_it_matters": "This is a direct need signal tied to the client's offer.",
-  "related_offer": "Home insurance review",
-  "related_pain_point": "Confusion after non-renewal notice",
-  "confidence": "high",
-  "suggested_action": "Human reviews the post and decides whether to leave the suggested value-first comment.",
-  "suggested_comment": "Short natural comment in the same language as the post",
-  "comment_language": "en",
-  "comment_style_notes": "natural, short, no direct pitch",
-  "status": "needs_review"
+  "client_slug": "",
+  "run_id": "",
+  "report_date": "",
+  "report_dir": "outputs/YYYY-MM/YYYY-MM-DD/",
+  "is_weekly_report_day": false,
+
+  "approval_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client}-approval-report.html",
+  "today_view_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client}-today-view.html",
+  "daily_ops_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client}-daily-ops.html",
+  "internal_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client}-INTERNAL_REPORT.html",
+  "weekly_client_report_html_path": "outputs/YYYY-MM/YYYY-MM-DD/{client}-weekly-client-report.html",
+  "weekly_client_report_pdf_path": "outputs/YYYY-MM/YYYY-MM-DD/{client}-weekly-client-report.pdf",
+
+  "latest_approval_report_html_path": "outputs/latest/{client}-approval-report.html",
+  "latest_today_view_html_path": "outputs/latest/{client}-today-view.html",
+  "latest_daily_ops_html_path": "outputs/latest/{client}-daily-ops.html",
+  "latest_internal_report_html_path": "outputs/latest/{client}-INTERNAL_REPORT.html",
+  "latest_weekly_client_report_html_path": "outputs/latest/{client}-weekly-client-report.html",
+  "latest_weekly_client_report_pdf_path": "outputs/latest/{client}-weekly-client-report.pdf",
+
+  "approval_report_status": "pending",
+  "today_view_status": "pending",
+  "daily_ops_status": "pending",
+  "internal_report_status": "pending",
+  "weekly_client_report_status": "not_due",
+  "client_facing_scrub_status": "not_due",
+  "client_facing_scrub_blocker": "",
+  "weekly_pdf_status": "not_due",
+  "weekly_pdf_blocker": "",
+
+  "counts": {
+    "inbox_synced": 0,
+    "replies_positive": 0,
+    "replies_question": 0,
+    "replies_objection": 0,
+    "replies_negative": 0,
+    "remove_intent": 0,
+    "hard_bounces": 0,
+    "soft_bounces": 0,
+    "unsubscribes": 0,
+    "opens_estimated": 0,
+    "clicks": 0,
+    "drafts_created": 0,
+    "drafts_high_confidence": 0,
+    "drafts_review_carefully": 0,
+    "drafts_approved": 0,
+    "drafts_rejected": 0,
+    "emails_sent": 0,
+    "guessed_sent": 0,
+    "guessed_bounces": 0,
+    "assisted_drafts": 0,
+    "assisted_sent_by_human": 0,
+    "deals_created": 0,
+    "deals_advanced": 0,
+    "deals_won": 0,
+    "deals_lost": 0,
+    "tasks_created": 0,
+    "tasks_overdue": 0,
+    "followups_blocked_broken_sendbox": 0,
+    "suppressed_total": 0
+  },
+  "counts_reconciled_at": "",
+
+  "notification_status": "not_sent",
+  "last_notification_event": "",
+  "last_notification_report_path": "",
+  "last_notification_report_url": "",
+
+  "last_update_agent": "",
+  "last_update_note": ""
 }
 ```
 
-Allowed `opportunity_type`:
+Allowed per-output status: `pending | complete | skipped | failed | blocked | not_due`.
+Allowed `client_facing_scrub_status`: `not_due | pending | passed | failed | blocked`.
+Allowed `weekly_pdf_status`: `not_due | pending | generated | blocked`.
+Allowed `notification_status`: `not_sent | sent | skipped | failed`.
 
-- `lead`
-- `competitor`
-- `both`
+Rules:
 
-Allowed lead classifications:
+- **Operator outputs are never scrubbed and never client-facing.** The weekly client report + PDF are the only client-facing artifacts and MUST pass the Client-Blind Scrub Gate before handoff. If they do not, keep `client_facing_scrub_status: failed | blocked`, record `client_facing_scrub_blocker`, and do not present the file as client-ready.
+- On a **non-Monday** run, `weekly_client_report_status`, `client_facing_scrub_status`, and `weekly_pdf_status` stay `not_due`.
+- After a run reaches a terminal state, `counts` must be **reconciled** against the sent log, `activities.jsonl`, `approval_log.md`, `sync_log.jsonl`, deals/tasks, and `notification_log.md`, and `counts_reconciled_at` stamped. Do not leave one artifact reporting "in progress" while another reports completion.
+- `latest/` pointers must be updated to the current dated set after each artifact reaches `complete`. Operator-only `latest/` files stay clearly labeled internal.
+- The Stage 9 completion gates read this ledger: a run cannot be claimed complete with a required output still `pending`/`failed`, with counts unreconciled, or with a client-facing artifact that failed the scrub gate.
 
-- `hot_lead`
-- `warm_lead`
-- `watch_lead`
-- `direct_need`
-- `indirect_need`
-- `pain_signal`
-- `buying_trigger`
-- `objection`
-- `comparison`
-- `complaint`
-- `adjacent_need`
+---
 
-Allowed competitor classifications:
+## 11. Root Files (`outreach-pipeline/…`)
 
-- `direct_competitor`
-- `indirect_competitor`
-- `adjacent_solution`
-- `attention_competitor`
-- `authority_or_kol_competing_for_trust`
-- `market_hypothesis`
+### 11.1 `clients_index.md`
 
-Allowed status:
-
-- `needs_review`
-- `copied_by_human`
-- `approved_for_comment`
-- `commented_by_human`
-- `not_relevant`
-- `monitoring`
-- `archived`
-
-Privacy rule:
-
-- Do not store unnecessary personal data.
-- Prefer safe summaries, source URLs, and short evidence snippets.
-- Do not store scraped contact details, DMs, hidden account data, or raw private personal data.
-
-### `history/YYYY-MM/new_private_sources_log.md`
-
-Purpose:
-
-- Track new private data source candidates discovered while scanning private platforms.
-- Preserve Facebook-recommended groups, pages, communities, profiles, or similar source suggestions.
-- Let the human review new sources before they become part of the active daily private data source queue.
-
-Format:
+The root index of all client pipelines.
 
 ```md
-# New Private Data Sources Log
+# Clients Index
 
-| Date | Platform | Source Type | Source Name | Profile/Group URL | Current Recommendation URL | Detected While Scanning | Why Relevant | Related Content Pillar | Estimated Priority | Suggested Cadence | Status | Notes |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Facebook | group | Los Angeles DUI Support Questions | https://www.facebook.com/groups/... | https://www.facebook.com/groups/... | Competitor group scan | Repeated questions about DUI court and license issues | Local process education | medium | weekly | needs_human_review | Do not join automatically |
+| Client | Client Slug | Pipeline Folder | Client Profile File | Status | Added Date | Schedule | Sendboxes | Active Campaigns | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| Angela Do Realty | angela-do | clients/angela-do/realestate_austin | client_profile_angela-do_realestate_austin.md | active | 2026-07-15 | daily | sb-a, sb-b | austin-sellers-q3 | Austin listing agents |
 ```
 
 Allowed status:
 
-- `needs_human_review`
-- `added`
-- `skipped`
-- `not_relevant`
-- `blocked`
+- `needs_setup`
+- `ready_for_automation_first_run`  # Setup Flow finished; first automation run not yet done
+- `active`
+- `paused`
+- `archived`
+- `needs_reauth`  # a sendbox needs re-auth; blocks its assigned follow-ups
+
+Daily runs process every client with `active` status. A `ready_for_automation_first_run` client flips to `active` on/after its first successful automation run.
+
+### 11.2 `schedule.md`
+
+Records how daily runs happen in the current AI environment. May use: native AI automations, reminders, cron, launchd, Task Scheduler, n8n, Make, GitHub Actions, or a local desktop routine. If true automation is unavailable, create manual run instructions. Each client has **one** automation task named `{Client} - OutreachCRM Daily Run`; there is also one agency-wide `OutreachCRM - GitHub Update Watch` task (Stage 11). A client's task prompt pins `target_client_slug` and cannot touch another client.
+
+### 11.3 `storage_config.json`
+
+Selects the storage backend the adapter uses (§2). Minimal:
+
+```json
+{"schema_version": 1, "backend": "json"}
+```
+
+`backend` ∈ `json | postgres`. When `postgres`, add the connection reference (never inline credentials — point at a secret in `secrets/` or the user's secret manager). Changing this file is a migration event (`crm_store.py migrate`, §2.6), not a hand edit.
+
+### 11.4 `provider_defaults.json`
+
+Provider-neutral catalog for the **operator notification** provider only. WideCast is used **exclusively** as the notification provider (Telegram via `sendTelegramMessage` with email fallback, plus optional `uploadAsset` for the report link). It is not used for production, video, or publishing. This file must contain **no** API keys, tokens, cookies, passwords, or client secrets.
+
+```json
+{
+  "schema_version": 1,
+  "default_notification_provider": "widecast",
+  "providers": {
+    "widecast": {
+      "type": "openapi",
+      "role": "notification_only",
+      "provider_home_url": "https://widecast.ai/",
+      "discovery_url": "https://widecast.ai/openapi.yaml",
+      "preferred_server_url": "https://widecast.ai/app/dashboard",
+      "disabled_server_urls": ["https://api.widecast.ai"],
+      "auth_type": "bearer_api_key",
+      "api_key_prefix": "wc_live_",
+      "secret_storage": "per_client_local_config",
+      "notes": "OutreachCRM uses WideCast ONLY as the operator-notification provider (Telegram via sendTelegramMessage with email fallback, plus optional uploadAsset for the report link). Use https://widecast.ai/app/dashboard as the server; do not call https://api.widecast.ai unless a future release enables it. Do not put API keys here. Notification is optional: with no provider configured, the daily run surfaces report links in chat and logs the blocker."
+    }
+  }
+}
+```
+
+Rules:
+
+- Agents use `discovery_url` to fetch the OpenAPI spec (via `tools/provider_openapi.py`) rather than hard-coding endpoint paths, and read the `servers` list + operation schemas before calling.
+- For WideCast, select `https://widecast.ai/app/dashboard`; skip `https://api.widecast.ai` (disabled/planned host) unless a future playbook enables it.
+- Never commit real API keys or account-specific state into this file.
+
+### 11.5 `secrets/` (gitignored)
+
+Agency-wide secrets only: the OAuth client (for `oauth`-mode sendboxes) and the tracker HMAC key (`TRACKER_API_KEY`). Gitignored; never staged (the deploy secret-scan blocks `refresh_token`, `client_secret`, `TRACKER_API_KEY`). Per-sendbox tokens live beside their box (§6.2), not here.
+
+### 11.6 `suppression/global_suppression.jsonl`
+
+Agency-tier suppression, checked before **every** send across all clients. Same record shape as §4.10 with `tier: global`, `scope: all_clients`.
+
+### 11.7 `automation/` package
+
+The automation package that scheduled runs must obey. Native schedulers may snapshot their own prompt at creation time; if the human changes anything afterward, the agent updates this package during **Automation Resync** and verifies with a dry-read.
+
+#### `automation/automation_manifest.md`
+
+```md
+# Automation Manifest
+
+- manifest_version: 1
+- created_at:
+- last_resynced_at:
+- resync_status: current | automation_prompt_update_pending | partial | blocked
+- scheduler_type: native_ai_automation | native_ai_scheduled_task | cron | launchd | task_scheduler | n8n | make | zapier | github_actions | server_job | manual
+- scheduler_name:
+- scheduler_location_or_url:
+- timezone:
+- schedule_file: outreach-pipeline/schedule.md
+- scheduled_prompt_file: outreach-pipeline/automation/scheduled_run_prompt.md
+- scheduled_entrypoint: playbooks/SCHEDULED_RUN_ENTRYPOINT.md
+- root_playbook: OUTREACHCRM_PLAYBOOK.md
+- clients_index: outreach-pipeline/clients_index.md
+- storage_config: outreach-pipeline/storage_config.json
+- provider_defaults: outreach-pipeline/provider_defaults.json
+- global_suppression: outreach-pipeline/suppression/global_suppression.jsonl
+- notification_channel:
+- notification_provider_status:
+- provider_capability_cache_status:
+- tracker_worker_status:
+- report_lane_contract: operator_lane_plus_weekly_client_lane | unknown   # operator_lane_plus_weekly_client_lane is the current default
+- report_notification_policy: single_run_completion_notification | weekly_client_report_notification | unknown
+- latest_user_change_summary:
+- actual_native_task_prompt_updated: true | false | not_applicable | unknown
+- automation_prompt_update_pending_reason:
+- automation_freshness_status: current | resync_in_progress | action_needed | not_applicable
+- automation_freshness_summary: whether latest changes are synced into automation/scheduled task prompt/contract/playbook/state, not only config, and whether tomorrow's run will load the newest state
+
+## Active Clients
+
+| Client | Client Slug | Profile Path | Status | Sendbox Health | Active Campaigns | Notification Status | Notes |
+|---|---|---|---|---|---|---|---|
+
+## Current Run Contract
+
+- Scheduled runs must load the latest local playbooks at run time.
+- Scheduled runs must read this manifest, schedule.md, storage_config.json, provider_defaults.json, clients_index.md, global_suppression.jsonl, each active Client Intelligence Profile, per-client sendboxes.json, each active campaign_config.json, and per-client provider config.
+- Each client's automation task pins its target_client_slug and must not touch another client.
+- Scheduled runs must not rely only on the prompt snapshot from the day the automation was created.
+
+## Last Dry-Read Verification
+
+- verified_at:
+- verified_by_agent:
+- result: pass | fail | partial
+- next_scheduled_run_will_see:
+- blockers:
+```
+
+#### `automation/scheduled_run_prompt.md`
+
+The exact prompt the native automation/scheduler should use; it mirrors `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` while pointing at the local workspace. The agent updates it during Automation Resync whenever a future run needs new behavior or newly approved state. If the runtime stores a separate native prompt the agent cannot edit, write the replacement here and set `resync_status: automation_prompt_update_pending` in the manifest.
+
+#### `automation/resync_log.md`
+
+Tracks every post-schedule change and whether the automation package was fully synced.
+
+```md
+# Automation Resync Log
+
+| Date | Agent | Human Change | Files Updated | Native Task Prompt Updated | Dry-Read Result | Remaining Blocker | Next Scheduled Run Expected Behavior |
+|---|---|---|---|---|---|---|---|
+| 2026-07-15 | Claude | Added campaign austin-sellers-q3, raised daily_quota to 40 | profile, schedule.md, campaign_config.json, automation_manifest.md, scheduled_run_prompt.md | yes | pass | none | Run new campaign at 40/day within sendbox caps |
+```
+
+#### `automation/github_issues.md`
+
+Tracks GitHub issues / intake submissions / drafts opened when the latest GitHub playbooks/code still do not resolve a blocker. The human does not need a GitHub account; direct creation uses an authorized agent/runtime identity when available, else a configured intake channel or local draft.
+
+```md
+# GitHub Issue Tracker
+
+| Date | Agent | Client Slug | Blocker Fingerprint | Local Commit | GitHub Main Commit Checked | Issue URL / Intake Channel / Draft Path | Status | Next Check | Latest Response / Next Action |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-07-15 | Codex | angela-do | sendbox_oauth_invalid_grant_after_fresh_check | abc123 | def456 | https://github.com/OWNER/outreachcrm/issues/123 | opened_by_agent | 2026-07-16 | Waiting for maintainer response |
+```
+
+Issue drafts live under `outreach-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md`. Recommended status values: `opened_by_agent`, `sent_to_intake`, `queued_for_intake`, `draft_waiting_for_support_channel`, `draft_waiting_for_human`, `answered`, `fix_applied`, `resolved`, `closed`. Every issue/draft must be redacted — no API keys, tokens, OAuth refresh tokens, `token.json` contents, recipient PII, or raw provider responses; include only safe reproduction steps, expected/actual behavior, local commit, GitHub main commit checked, runtime, blocker names, and redacted logs.
+
+#### `automation/update_state.json`
+
+Tracks the installed OutreachCRM version, latest GitHub check, auto-apply preference, tracker/schema action requirements, and resync state. Created when the first update check runs, when the `OutreachCRM - GitHub Update Watch` task is created, or when Stage 11 applies an update.
+
+```json
+{
+  "schema_version": 1,
+  "installed_commit": "",
+  "latest_checked_commit": "",
+  "last_checked_at": "",
+  "last_applied_commit": "",
+  "last_applied_at": "",
+  "auto_apply_approved": false,
+  "update_watch_task_name": "OutreachCRM - GitHub Update Watch",
+  "last_change_classification": "",
+  "tracker_worker_deploy_required": false,
+  "storage_schema_migration_required": false,
+  "automation_prompt_update_pending": false,
+  "update_watch_task_prompt_pending": false,
+  "clients_resynced": [],
+  "automations_resynced": [],
+  "human_actions_required": []
+}
+```
+
+- `tracker_worker_deploy_required` → an update changed `tracker/worker.js` and the Worker must be re-deployed (`wrangler deploy`) before tracking/unsub events are trustworthy.
+- `storage_schema_migration_required` → a bumped `schema_version` needs `crm_store.py migrate`/upgrade before runs continue.
+- Set `update_watch_task_prompt_pending: true` when the `OutreachCRM - GitHub Update Watch` task prompt could not be created/updated natively and `outreach-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
+- Do not store secrets, tokens, client-confidential report content, or raw provider responses here.
+
+#### `automation/update_log.md`
+
+```md
+# OutreachCRM Update Log
+
+| Date | Agent | Local Commit Before | GitHub Main Commit | Change Classification | Applied | Backup Path | Clients Resynced | Automations Resynced | Tracker Worker Deploy Required | Storage Schema Migration Required | Blocker / Next Action |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+```
+
+Recommended change classifications:
+
+- `no_change`
+- `playbook_only`
+- `provider_tooling`
+- `storage_adapter_or_schema`
+- `crm_tooling`            # crm_store.py / import_leads.py / email_verify.py
+- `send_engine`           # gmail_client.py / send gate chain
+- `tracker_worker`        # tracker/worker.js (requires wrangler deploy)
+- `sendbox_auth`          # sendbox token / OAuth scope compatibility
+- `setup_or_schedule_contract`
+- `breaking_or_major_behavior`
+- `unknown`
+
+#### `automation/update_notice.md`
+
+Internal/local notice for the latest update-watch outcome.
+
+```md
+# OutreachCRM Update Notice
+
+- checked_at:
+- installed_commit:
+- latest_github_commit:
+- change_classification:
+- auto_apply_approved:
+- update_applied:
+- tracker_worker_deploy_required:
+- storage_schema_migration_required:
+- automation_prompt_update_pending:
+- next_human_action:
+```
+
+Do **not** send update-watch notices through Telegram/WideCast/email or any client channel, and do not put update-watch rows in `notifications/notification_log.md` — version checks and applied updates are internal maintenance, not report delivery.
+
+#### `automation/update_watch_prompt.md`
+
+The exact prompt for the native maintenance task `OutreachCRM - GitHub Update Watch`, used when the runtime cannot create/edit that task directly. It comes from `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, loads Stage 11, and must **not** run campaigns, sends, enrichment, or client reports — it explicitly says not to. The update-watch task is barred from client-facing channels.
+
+#### `automation/backups/`
+
+Timestamped update backups: `outreach-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/`. Used for runtime files/folders that Stage 11 replaces (backup-and-safe-apply: merge config, never overwrite secrets/history). Not a long-term archive for reports, secrets, tokens, or provider keys.
+
+### 11.8 `notifications/notification_log.md`
+
+Tracks operator notifications sent through the WideCast Telegram / email-fallback channel (optional `uploadAsset` for the report link). This log is for report/result delivery, not update-watch (§11.7).
+
+```md
+# Notification Log
+
+| Date | Agent | Event | Channel | Status | Report Path | Report Link Sent | Provider | Provider Discovery Checked | Upload Operation | Notification Operation | Upload Attempted | Uploaded Report URL | Notification Attempted | Blocker | Action Needed |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-07-15 | Claude Schedule | daily_run_completed | WideCast Telegram/email fallback | sent | outputs/2026-07/2026-07-15/angela-do-daily-ops.html | yes | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... | yes | none | Review approvals in chat |
+| 2026-07-20 | Claude Schedule | weekly_client_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-07/2026-07-20/angela-do-weekly-client-report.html | yes | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... | yes | none | Client report scrubbed and ready |
+```
+
+Event enum: `daily_run_completed | weekly_client_report_ready`. Notification is **optional** — with no provider configured, the run surfaces the report links in chat and logs the blocker; it does not fail the run. Distinguish blockers precisely:
+
+- `provider_config_missing` — no per-client provider config.
+- `provider_auth_missing` — config exists but no API key/supported auth value.
+- `provider_auth_failed` — provider rejected the credential.
+- `provider_discovery_failed` — OpenAPI discovery URL could not be fetched/parsed.
+- `provider_required_operation_missing` — spec lacks the needed operation (`sendTelegramMessage`/`uploadAsset`).
+- `provider_account_mismatch` — verified account does not match the saved client identity.
+- `global_mcp_not_client_scoped` — an MCP/native tool is visible but not proven authenticated as this client's provider account.
+- `provider_upload_failed` — `uploadAsset` exists but the call failed.
+- `provider_notification_failed` — `sendTelegramMessage` exists but send failed.
+- `provider_notification_not_configured` — account valid but Telegram/email destination not configured and no fallback sent.
+
+Preserve `provider_identity_source: per_client_openapi` for client-scoped delivery; if a global MCP/native provider account was visible but not proven to match, record `mcp_compatibility_status: not_client_scoped` and blocker `global_mcp_not_client_scoped`. Do not log `unavailable` generically when the real issue is missing config, failed auth, a missing operation, expired credentials, or an account mismatch.
 
 ---
 
-## Analytics, Funnel, And Lead Classification Rules (Canonical Copy In Stage 9)
+## 12. Per-Client Provider Integration (`integrations/providers/…`)
 
-The canonical maintained copy of §23.1/23.2/23.8/23.9 (offer/funnel mapping, lead classification, published URL measurement, and analytics log rules) lives in `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` and must not be duplicated here.
+Each client that uses the notification provider keeps provider state under `clients/{client_slug}/{business_slug}_{location_slug}/integrations/providers/`. WideCast here is **notification-only**.
 
-Storage-schema note: the three per-client analytics logs written under each client's `analytics/` directory are `metrics_log.md`, `learning_log.md`, and `comment_signal_log.md`.
+### 12.1 `provider_config.local.json`
+
+Client-local, sensitive. Never include it in a public repo, zip, screenshot, report, or support bundle unless secrets are removed.
+
+```json
+{
+  "schema_version": 1,
+  "client_slug": "angela-do",
+  "active_provider": "widecast",
+  "providers": {
+    "widecast": {
+      "type": "openapi",
+      "role": "notification_only",
+      "discovery_url": "https://widecast.ai/openapi.yaml",
+      "provider_home_url": "https://widecast.ai/",
+      "preferred_server_url": "https://widecast.ai/app/dashboard",
+      "disabled_server_urls": ["https://api.widecast.ai"],
+      "auth_type": "bearer_api_key",
+      "api_key_env": "OUTREACHCRM_WIDECAST_API_KEY_ANGELA_DO",
+      "api_key_local": "",
+      "provider_identity_source": "per_client_openapi",
+      "mcp_compatibility_status": "not_used",
+      "pdna_setup_blocker": "",
+      "account_verified_at": "",
+      "account_identity": {
+        "company_id": "",
+        "email_masked": "",
+        "name": "",
+        "connected_platforms": []
+      },
+      "pdna": {
+        "notification": "not_configured"
+      },
+      "notification": {
+        "enabled": false,
+        "preferred_operation_id": "sendTelegramMessage",
+        "delivery": "telegram_or_email_fallback"
+      },
+      "report_upload": {
+        "enabled": false,
+        "preferred_operation_id": "uploadAsset",
+        "content_type": "text/html",
+        "ttl_hours_note": "WideCast uploadAsset URLs may be short-lived. Use for the operator report-link notification, not as a permanent archive; the local report file is the archive."
+      }
+    }
+  }
+}
+```
+
+Credential rules:
+
+- Prefer `api_key_env` or the user's secret manager. If a local key is saved in `api_key_local`, keep it only in this per-client file and redact it in all logs and reports.
+- **Do not create or use a field named `api_key`.** The official helper reads `api_key_env` and `api_key_local`; a stray `api_key` field is ignored and causes `provider_auth_missing`.
+- Never store passwords, OTPs, cookies, session tokens, or raw OAuth refresh tokens here.
+- Before any provider action, verify the active account with the provider account operation (`getAccount`). If the verified identity changes unexpectedly, stop and log `provider_account_mismatch`.
+- Check this per-client config + OpenAPI cache/capability files as **Client tools** before checking any global MCP/native tool. `global_mcp_compat` is allowed only after the MCP/native identity is compared to the saved client identity and matches exactly.
+- `mcp_compatibility_status` ∈ `not_used | identity_matched | identity_mismatch | not_client_scoped`; on `identity_mismatch`/`not_client_scoped`, do not use MCP/native account data for this client.
+- `pdna_setup_blocker` uses provider-neutral names: `provider_config_missing`, `provider_auth_missing`, `provider_auth_failed`, `provider_discovery_failed`, `provider_account_mismatch`, `global_mcp_not_client_scoped`.
+- Keep `preferred_server_url` = `https://widecast.ai/app/dashboard` and `disabled_server_urls` including `https://api.widecast.ai` until a future playbook enables that host.
+
+### 12.2 `provider_capabilities.json`
+
+Snapshot of discovered OpenAPI operations — the main Client-tools inventory, safe without secrets. Refresh with `tools/provider_openapi.py discover --config <client provider_config.local.json> --defaults outreach-pipeline/provider_defaults.json --out-dir <client integrations/providers folder>`. Because the role is notification-only, only the notification/upload/account operations matter.
+
+```json
+{
+  "schema_version": 1,
+  "provider": "widecast",
+  "role": "notification_only",
+  "discovered_at": "",
+  "discovery_url": "https://widecast.ai/openapi.yaml",
+  "server_url": "https://widecast.ai/app/dashboard",
+  "server_urls_discovered": [],
+  "server_urls_skipped_disabled": ["https://api.widecast.ai"],
+  "auth_scheme": "bearerAuth",
+  "operation_ids": {
+    "getAccount": {"method": "GET", "path": "/..."},
+    "sendTelegramMessage": {"method": "POST", "path": "/..."},
+    "uploadAsset": {"method": "POST", "path": "/..."}
+  },
+  "operation_aliases": {
+    "account": "getAccount",
+    "send_notification": "sendTelegramMessage",
+    "upload_asset": "uploadAsset",
+    "upload_html_report": "uploadAsset"
+  },
+  "capability_status": {
+    "notification": "available | partial | unavailable"
+  },
+  "missing_capability_aliases": {},
+  "identity": {
+    "provider_identity_source": "per_client_openapi | global_mcp_compat | unknown",
+    "account_verified": true,
+    "mcp_compatibility_status": "not_used | identity_matched | identity_mismatch | not_client_scoped"
+  },
+  "blockers": []
+}
+```
+
+Whenever the human or automation asks to check tools, check this Client-tools file first; inspect global MCP/native tools only after this file and the verified provider identity are current.
+
+### 12.3 `provider_openapi_cache.yaml`
+
+Raw OpenAPI spec cache for repeatable automation. Refresh when: the file is missing; the cache is older than the refresh policy; `provider_defaults.json` changes; a provider action fails on a stale operation/schema; or the human changes provider configuration.
+
+### 12.4 `provider_calls.jsonl`
+
+Append-only provider audit log. Each line: timestamp, agent, client_slug, provider, `operationId`, redacted request summary, response status, `request_id` if present, blocker if any. Never log full API keys or raw secrets.
+
+### 12.5 `provider_health.md`
+
+```md
+# Provider Health
+
+| Date | Agent | Provider | Role | Identity Source | MCP Compatibility | Account Verified | Notification | Report Upload | Credits | Blocker | Next Action |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+```
+
+---
+
+## 13. History Model — where "history" lives now
+
+OutreachCRM's history is not one content log; it is a set of append-only, `seq`-stamped ledgers plus per-record `stage_history`, all reconciled by `report_state.json`:
+
+| History concern | Where it lives |
+|---|---|
+| Every event (the backbone / contact timeline) | `crm/activities/YYYY-MM/activities.jsonl` |
+| What was sent | `campaigns/{slug}/sent/YYYY-MM/sent_log.jsonl` |
+| What came back | `inbox_sync/YYYY-MM/sync_log.jsonl`, `campaigns/{slug}/history/YYYY-MM/reply_log.md` |
+| Per-send/step narrative | `campaigns/{slug}/history/YYYY-MM/campaign_log.md` |
+| Approval decisions | `approvals/approval_log.md` |
+| Import provenance | `lists/{list_slug}/leads.jsonl`, `import_log.md` |
+| Deal movement | `deals/{deal_id}.json` → `stage_history[]` |
+| Performance + learning | `analytics/metrics_log.md`, `analytics/learning_log.md` |
+| Provider calls | `integrations/providers/provider_calls.jsonl` |
+| Run reconciliation | `outputs/YYYY-MM/YYYY-MM-DD/{client}-report_state.json` |
+
+Rules that make history trustworthy:
+
+- Append-only logs are never rewritten in place; corrections are new rows referencing the prior `seq`.
+- Every log row carries `ts` + monotonic `seq`; every record carries `created_at`/`updated_at`.
+- A timeline is always read through `resolve(lead_id)` so merged contacts show one continuous history.
+- Open/click history is recorded but is **never** conversion evidence on its own — only a reply is.
+- No side-effect write (send, suppress, stage change, notify, claim completion) happens without this stage loaded IN FULL and the relevant Stage's LOAD LEDGER `PASS` earlier in the transcript.
+
+---
+
+## 14. Completion Gates (cross-reference Stage 9)
+
+A run that touches storage cannot be claimed complete until the Stage 9 audit confirms, against this stage's structures:
+
+- Every write went through `crm_store.py` (no hand-written CRM JSON).
+- Every draft that sent had an explicit chat `approve` in `approval_log.md`, and every send passed the ordered pre-send gate chain (suppression both tiers → quota reservation → warmup/domain caps → send-window → guessed cap → sequence-freeze → subject lint).
+- Every deal `stage_history` entry has an `evidence_activity_id`; no stage change was improvised by the LLM.
+- Every draft cited only dossier facts that carry an `evidence_url`.
+- `report_state.json` counts are reconciled; required outputs are `complete`; the weekly client report (Mondays only) passed the Client-Blind Scrub Gate before being presented as client-ready.
+- Suppression was checked at import (all identities) and at every send path; merges unioned identities/channels/suppression into the survivor; pending-merge contacts stayed out of queues.
+- The client's Metadata `status` and `clients_index.md` row reflect reality; any post-setup change was carried through Automation Resync with a passing dry-read.
+
+Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, say `No action required right now.`
