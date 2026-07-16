@@ -1,8 +1,8 @@
 # Load Ledger Protocol — read every stage/module IN FULL before acting
 
-This module is the source of truth for **full-load discipline**. Master (`SOLO_AGENCY_PLAYBOOK.md`) and both entrypoints (`SETUP_FLOW_ENTRYPOINT.md`, `SCHEDULED_RUN_ENTRYPOINT.md`) reference it. Load it at the very start of any run, and obey it every time you load a stage/module/dependency.
+This module is the source of truth for **full-load discipline**. Master (`OUTREACHCRM_PLAYBOOK.md`) and both entrypoints (`SETUP_FLOW_ENTRYPOINT.md`, `SCHEDULED_RUN_ENTRYPOINT.md`) reference it. Load it at the very start of any run, and obey it every time you load a stage/module/dependency.
 
-Reason it exists: Solo Agency playbooks are large (several are 1000–1900 lines) and are loaded on demand. A large file can be returned **truncated** ("output too large", "persisted output", preview-only), or a GitHub-raw download can be **partial/stale**. Acting on a half-read stage silently drops rules. This protocol makes acting on a partially-read file impossible.
+Reason it exists: OutreachCRM playbooks are large (several are 1000–1900 lines) and are loaded on demand. A large file can be returned **truncated** ("output too large", "persisted output", preview-only), or a GitHub-raw download can be **partial/stale**. Acting on a half-read stage silently drops rules. This protocol makes acting on a partially-read file impossible.
 
 ---
 
@@ -36,11 +36,11 @@ Verdict: <PASS loaded-in-full | BLOCKED>
 
 ## Rule 4 — Dependency-complete
 
-When a stage's "Load When" (Stage Map) or its own text names dependencies (e.g. Stage 3 → 3A adapter → 3B `skills/video-editing/SKILL.md` → `ai_video_editor/*` → `styles/*`), each named dependency needs its **own** LOAD LEDGER. The parent is not "loaded" until every named child is ledgered in full. Loading the parent and skipping a child is the multi-tier version of the same miss.
+When a stage's "Load When" (Stage Map) or its own text names dependencies (e.g. Stage 4 → skill `email-verify-enrich/SKILL.md` → its modules, or Stage 6 → skill `email-writing/SKILL.md` → its modules), each named dependency needs its **own** LOAD LEDGER. The parent is not "loaded" until every named child is ledgered in full. Loading the parent and skipping a child is the multi-tier version of the same miss.
 
 ## Rule 5 — Verify GitHub-raw downloads against the manifest
 
-If a stage is missing locally and fetched from `https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/…`, the download itself can be partial/stale. After fetching, run the LOAD LEDGER against `LOAD_MANIFEST.md`. Mismatch = bad download → re-fetch; never act on a partial download.
+If a stage is missing locally and fetched from the OutreachCRM GitHub raw URL (`https://raw.githubusercontent.com/OWNER/outreachcrm/main/playbooks/…`), the download itself can be partial/stale. After fetching, run the LOAD LEDGER against `LOAD_MANIFEST.md`. Mismatch = bad download → re-fetch; never act on a partial download.
 
 ## Rule 6 — No side-effect action without a PASS ledger above it
 
@@ -58,4 +58,4 @@ Everywhere a gate or checklist says "Stage X was loaded", read it as **"Stage X 
 
 ## LOAD_MANIFEST.md (Tier B, auto-generated)
 
-`playbooks/LOAD_MANIFEST.md` lists every `playbooks/**/*.md` with `path | lines | last_line | sha256`. It is regenerated automatically by `deploy-soloagency.sh` on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection.
+`playbooks/LOAD_MANIFEST.md` lists every `playbooks/**/*.md` with `path | lines | last_line | sha256`. It is regenerated automatically by `deploy-outreachcrm.sh` on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection.

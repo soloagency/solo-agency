@@ -1,0 +1,692 @@
+# OutreachCRM — Authoritative Design (source of truth)
+
+> This document is the single source of truth for OutreachCRM. Every playbook, tool,
+> and skill must conform to it. It was produced by transforming the Solo Agency
+> playbook architecture into a multi-client cold-email + CRM system, then hardening
+> the design against a 6-reviewer adversarial pass (42 findings integrated).
+> When any file disagrees with this document, this document wins.
+
+Status: Phase 0 (scaffold). Snapshot date: 2026-07-15.
+
+---
+
+## 1. What OutreachCRM is
+
+A **local-first, multi-client cold-email + CRM system** operated by an AI agent
+(Claude Desktop / Codex) via markdown playbooks. It inherits Solo Agency's operating
+system — thin router + Stage Map, lazy-load with LOAD_LEDGER full-load discipline,
+Setup Flow vs Automation Flow split, one automation task per client, Automation
+Resync, Stage 11 GitHub Update Watch, provider adapter (WideCast for Telegram
+notification), and the standalone HTML report renderer — and replaces the
+content/video/collector business layer with: list import → verify → enrich →
+goal-driven email drafting → **preview & chat-approval** → send (multi-sendbox
+rotation) → tracking (reply/bounce always; open/click optional) → follow-up →
+CRM pipeline (accounts/contacts/deals/activities/tasks) → weekly client report.
+
+**Model:** 1 agency → N clients; each client = one isolated CRM workspace with its
+own pipelines, sendboxes, suppression, and data; each client → N campaigns, each
+campaign declaring its own **goal** that drives what the agent writes.
+
+**Positioning:** open source (MIT), English playbooks, @gmail.com sendboxes are the
+priority path, agency operates on behalf of clients, clients receive only a weekly
+scrubbed report.
+
+---
+
+## 2. Non-negotiable inherited mechanisms (keep verbatim or near-verbatim)
+
+1. **Thin router + Stage Map.** `OUTREACHCRM_PLAYBOOK.md` is a dispatch table only;
+   business logic lives in numbered stage playbooks loaded on demand.
+2. **Full-load discipline.** `playbooks/LOAD_LEDGER_PROTOCOL.md` (kept ~verbatim) +
+   auto-generated `playbooks/LOAD_MANIFEST.md` (path | lines | sha256 | last_line).
+   A short read = NOT loaded. No side-effect action without a PASS ledger. This is
+   the machinery the whole architecture exists to enforce — do not weaken it.
+3. **Setup Flow vs Automation Flow split.** Setup Flow is the control plane: it
+   creates config + the automation task and **never sends an email, never runs a
+   campaign, never enriches for send**. Terminal state: `ready_for_automation_first_run`.
+4. **One automation task per client**, name begins with the client name, prompt pins
+   `target_client_slug`, cannot touch another client. Plus one agency-wide
+   `OutreachCRM - GitHub Update Watch` task.
+5. **Automation Resync.** Any post-setup config change re-syncs the profile, schedule,
+   automation manifest, scheduled-run prompt, and native task body, with a dry-read
+   verification, before it is called complete.
+6. **Stage 11 Update & Version Watch.** Fresh GitHub checkout protocol, `update_state.json`,
+   backup-and-safe-apply (merge config, never overwrite secrets/history), change
+   classification, update-watch task barred from client-facing channels.
+7. **Provider adapter + PDNA (Telegram only).** Per-client `provider_config.local.json`
+   (`api_key_env`/`api_key_local`, never a field literally named `api_key`), OpenAPI
+   discovery via `tools/provider_openapi.py`, notification via WideCast
+   `sendTelegramMessage` with email fallback. Kept for operator notification only.
+8. **Two-lane reporting.** Operator-only (`INTERNAL_REPORT`, full detail) vs
+   client-facing (through the Client-Blind Scrub Gate). Rendered by
+   `tools/report_renderer.py` (stdlib only). Only the **weekly** report is client-facing.
+9. **`[ACTION REQUIRED]` contract.** One purpose, one exact next step, one command or
+   path. Say `No action required right now.` when nothing is needed.
+10. **Slug rules** (lowercase, hyphens, no punctuation) and monthly `YYYY-MM/` folders.
+11. **Deploy script discipline:** auto-generate LOAD_MANIFEST, secret-scan staged diff
+    before commit, refuse to commit into the wrong git root.
+
+---
+
+## 3. Naming / path map (Solo Agency → OutreachCRM)
+
+| Solo Agency | OutreachCRM |
+|---|---|
+| `SOLO_AGENCY_PLAYBOOK.md` | `OUTREACHCRM_PLAYBOOK.md` |
+| `deploy-soloagency.sh` | `deploy-outreachcrm.sh` |
+| data root `daily-content-pipeline/` | `outreach-pipeline/` |
+| `tools/solo_report_renderer.py` | `tools/report_renderer.py` |
+| task `{Client} - Solo Agency Daily Run` | `{Client} - OutreachCRM Daily Run` |
+| `Solo Agency - GitHub Update Watch` | `OutreachCRM - GitHub Update Watch` |
+| GitHub `github.com/soloagency/solo-agency` | the OutreachCRM repo URL (TBD; placeholder `github.com/OWNER/outreachcrm`) |
+
+**Deleted components** (must have zero surviving references anywhere except this row):
+`solo-agency-collector/`, Local Collector / bridge / Chrome extension / `client_binding.json`
+/ `127.0.0.1:17321`, `PRIVATE_SOURCE_GATE.md`, `02_PRIVATE_SOURCE_SETUP.md`,
+`08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, `SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md`,
+video/blog/social skills, `10_LEAD_COMPETITOR_DETECTION.md` (folded into CRM),
+public/private "data sources" concepts, PDNA production/video/render/distribution
+(only PDNA **notification** survives).
+
+---
+
+## 4. Stage Map (new)
+
+| Stage | File | Load when |
+|---|---|---|
+| 0 | `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` | always first |
+| — | `playbooks/LOAD_LEDGER_PROTOCOL.md` | referenced by every load |
+| 1 | `playbooks/01_CLIENT_SETUP_PROFILE.md` | new client setup / first run |
+| 2 | `playbooks/02_SENDBOX_SETUP.md` | connect/check a sendbox |
+| 3 | `playbooks/03_IMPORT_LIST.md` | import a CSV/TXT/XLSX list |
+| 4 | `playbooks/04_VERIFY_ENRICH.md` (+ skill `email-verify-enrich`) | before any enrichment |
+| 5 | `playbooks/05_CAMPAIGN_MANAGEMENT.md` | create/edit a campaign, define goal |
+| 6 | `playbooks/06_EMAIL_WRITING_STANDARD.md` (+ skill `email-writing`) | before drafting any email |
+| 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | any file create / history write |
+| 8 | `playbooks/08_SEND_ENGINE_PROTOCOL.md` | before any send |
+| 9 | `playbooks/09_OPERATIONS_SAFETY_AUDIT.md` | before claiming completion |
+| 10 | `playbooks/10_FOLLOWUP_REPLY_MANAGEMENT.md` | inbox sync, follow-up advising |
+| 11 | `playbooks/11_UPDATE_AND_VERSION_WATCH.md` | update/upgrade/sync-latest |
+| 12 | `playbooks/12_TRACKING_ANALYTICS.md` | read metrics, learning loop |
+| 13 | `playbooks/13_CRM_CORE.md` | objects, lifecycle, stage rules, dedupe/merge |
+| 14 | `playbooks/14_TASKS_TODAY_VIEW.md` | task engine, SLA, Today View |
+| 15 | `playbooks/15_CRM_REPORTING.md` | pipeline report, forecast, weekly client report |
+| 6A | `playbooks/skills/report-design/SKILL.md` | report rendering (kept) |
+| Setup | `playbooks/SETUP_FLOW_ENTRYPOINT.md` | setup sessions |
+| Sched | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | unattended daily runs |
+
+Phase 0 delivers: 0, 1, 7, 9, 11, root playbook, both entrypoints, LOAD_LEDGER,
+AGENTS.md, deploy script, README, renderer term-list swap, LOAD_MANIFEST. Stages
+2–6, 8, 10, 12–15 and the new tools/skills are built in Phase 1–2 (their Stage Map
+rows exist now; their files may be marked `status: planned` until built).
+
+---
+
+## 5. On-disk layout (`outreach-pipeline/`)
+
+```text
+{agency_root}/
+  outreachcrm/                         # this repo (toolkit/source), no client data
+  outreach-pipeline/                   # data/config/output only
+    clients_index.md
+    schedule.md
+    storage_config.json                # {"backend":"json"}  (or postgres)
+    provider_defaults.json             # WideCast notification catalog, no secrets
+    secrets/                           # gitignored; agency-wide secrets (OAuth client, tracker key)
+    suppression/
+      global_suppression.jsonl         # agency-tier suppression (checked before every send)
+    automation/
+      automation_manifest.md  scheduled_run_prompt.md  resync_log.md  github_issues.md
+      update_state.json  update_log.md  update_notice.md  update_watch_prompt.md
+      backups/update_YYYY-MM-DD_HHMMSS/
+      issues/YYYY-MM-DD_{blocker_slug}.md
+    notifications/notification_log.md
+    clients/{client_slug}/{business_slug}_{location_slug}/
+      client_profile_{client_slug}_{business_slug}_{location_slug}.md
+      sendboxes/
+        sendboxes.json
+        {sendbox_slug}/credentials.json  {sendbox_slug}/token.json   # gitignored, chmod 600
+      lists/{list_slug}/list_manifest.json  leads.jsonl  import_log.md
+      crm/
+        accounts/{account_id}.json
+        contacts/{lead_id}.json
+        contact_identities.jsonl        # reverse index: (kind,value)->lead_id, unique
+        deals/{deal_id}.json
+        activities/YYYY-MM/activities.jsonl   # append-only, each row has monotonic seq
+        tasks/tasks.jsonl
+        pipelines.json
+        segments.json
+        suppression.jsonl               # client-tier suppression
+      campaigns/{campaign_slug}/
+        campaign_config.json
+        queue/enrich_queue.jsonl
+        queue/enriched/YYYY-MM-DD/{lead_id}.json
+        outbox/pending_approval/YYYY-MM-DD/{draft_id}.json
+        outbox/approved/{draft_id}.json
+        sent/YYYY-MM/sent_log.jsonl
+        history/YYYY-MM/campaign_log.md  reply_log.md
+      assets/
+        asset_index.md
+        proposals/{slug}/v001/...   flyers/{slug}/v001/...
+      approvals/approval_log.md
+      analytics/metrics_log.md  learning_log.md
+      inbox_sync/YYYY-MM/sync_log.jsonl
+      reports/YYYY-MM_report.md
+      outputs/YYYY-MM/YYYY-MM-DD/
+        {client}-approval-report.html          # operator-only, NOT scrubbed
+        {client}-today-view.html               # operator-only
+        {client}-daily-ops.html  {client}-INTERNAL_REPORT.html
+        {client}-weekly-client-report.html     # CLIENT-FACING, scrubbed, Mondays
+        {client}-weekly-client-report.pdf
+        {client}-report_state.json
+      outputs/latest/...
+      integrations/providers/
+        provider_config.local.json  provider_capabilities.json
+        provider_openapi_cache.yaml  provider_calls.jsonl  provider_health.md
+```
+
+**Client-scope is structural, not disciplinary.** The storage adapter is instantiated
+per client rooted at `clients/{slug}/crm/`. Agency-tier collections (global
+suppression, `secrets/`, `provider_defaults.json`, tracker key) are the only things
+allowed to be global and are enumerated explicitly.
+
+---
+
+## 6. Storage adapter (pluggable JSON → Postgres)
+
+`tools/storage/adapter.py` defines the interface; `json_adapter.py` is default;
+`postgres_adapter.py` comes later and must pass the same parametrized contract tests.
+
+Interface:
+```
+get(collection, id) -> dict | None
+put(collection, id, record) -> None                 # atomic (temp+rename), bumps updated_at
+update(collection, id, mutate_fn) -> dict            # read-modify-write under the collection lock
+delete(collection, id) -> None                       # rarely used; prefer tombstones
+query(collection, where: [Cond], sort=None, limit=None, offset=None) -> [dict]
+append(log, record) -> None                          # append-only, stamps ts + monotonic seq
+read_log(log, since_seq=None, where=None) -> [dict]  # ordered by seq (backend-independent)
+find_by_identity(kind, normalized_value) -> id | None  # backed by unique reverse index
+reserve(sendbox_slug, day) -> token | None           # atomic quota reservation (see §10)
+```
+- `Cond = (field, op, value)`, `op ∈ {=, !=, <, >, contains, in}`. This DSL covers
+  flat fields only; **identity lookups do NOT use it** — they use `find_by_identity`
+  over a maintained unique reverse index (`contact_identities`). Do not claim Cond
+  translates arbitrary nested-array matches to SQL.
+- Every record: `schema_version`, `id`, `created_at`, `updated_at`. Adapter holds a
+  per-collection `{from_version: fn}` upgrade registry applied on read, persisted on
+  next write.
+- JSON adapter: one file per record; logs are monthly JSONL; atomic writes via
+  temp+rename; per-collection `fcntl` lockfile; a per-log counter file (under the log
+  lock) supplies the monotonic `seq`.
+- Postgres adapter: table per collection `(client_id, id, payload jsonb, created_at,
+  updated_at, <generated index cols>)`; `client_id` mandatory in every table and every
+  generated WHERE; `contact_identities(client_id, kind, value UNIQUE, contact_id)`;
+  logs get a `seq bigserial`; index columns are GENERATED from payload.
+- `crm_store.py migrate --to postgres` runs under a storage freeze flag, verifies with
+  **per-record content hashes** (not counts), upgrades all records to current
+  schema_version first.
+
+**All CRM mutations go through `crm_store.py`.** Direct file writes are a critical
+violation (inherited "no one-off scripts" rule). Reading raw JSON is allowed only for
+debugging.
+
+---
+
+## 7. CRM data model
+
+### 7.1 Contact (`crm/contacts/{lead_id}.json`) — email NOT required
+`lead_id` = ULID minted at import (not a hash of email, because email may be absent).
+```json
+{
+  "id": "c_01J...", "schema_version": 2, "created_at": "", "updated_at": "",
+  "name": {"full": "", "first": "", "last": ""},
+  "account_id": "a_...",
+  "identities": {
+    "emails": [{"address": "", "source": "import|enrich|guess", "status": "unverified|mx_ok|delivered|bounced|guessed_only|catch_all|email_not_found", "is_primary": true}],
+    "phones": [{"number": "+1...", "type": "cell|office", "source": ""}],
+    "socials": {"facebook": null, "instagram": null, "linkedin": null, "zalo": null, "x": null},
+    "website": null
+  },
+  "channels": {
+    "email":     {"status": "usable|needs_data|opted_out|bounced"},
+    "sms":       {"status": "needs_optin|usable|opted_out", "mode": "assisted", "optin": {"source":"", "at":"", "evidence_activity_id":""}},
+    "messenger": {"status": "usable|needs_data", "mode": "assisted"},
+    "zalo":      {"status": "needs_data", "mode": "assisted"}
+  },
+  "lifecycle_stage": "lead|engaged|opportunity|customer|evangelist|lost|do_not_contact",
+  "tz": "America/Chicago",              // for send-window gate; inferred from state/area code
+  "tags": [], "custom_fields": {},
+  "owner": "agency",
+  "enrichment": { /* distilled copy of the dossier — see §9 */ },
+  "assigned_sendbox": null,             // sticky sender, set on first send (see §10)
+  "merge": {"status": "active|merged", "merged_into": null},
+  "next_action": {"task_id": null}
+}
+```
+
+### 7.2 Account (`crm/accounts/{account_id}.json`)
+Company/office (e.g. a brokerage). `{id, name, domain, type, location, contact_ids[], custom_fields}`.
+
+### 7.3 Deal (`crm/deals/{deal_id}.json`)
+```json
+{"id":"d_...","schema_version":1,"name":"","contact_ids":[],"account_id":"",
+ "pipeline":"default_sales","stage":"new_reply","value":0,"currency":"USD","probability":0.1,
+ "expected_close":"","source_campaign":"",
+ "stage_history":[{"stage":"new_reply","at":"","by":"rule:r1","evidence_activity_id":""}],
+ "status":"open|won|lost","lost_reason":null,"next_action":{"task_id":null}}
+```
+
+### 7.4 Activity (`crm/activities/YYYY-MM/activities.jsonl`) — append-only, the event backbone
+```json
+{"seq":123,"ts":"","id":"act_...","contact_id":"","deal_id":null,
+ "type":"email_sent|email_reply|email_open|email_click|email_bounce|unsubscribe|call|meeting|note|stage_change|task_done|enriched|imported|merged|assisted_sent",
+ "summary":"","ref":{"message_id":"","url":"","path":""},"by":"agent|human|rule"}
+```
+A contact timeline = filter this by `contact_id` (following merge chains via `resolve()`).
+
+### 7.5 Task (`crm/tasks/tasks.jsonl`)
+`{id, contact_id?, deal_id?, title, due_at, status: open|done|cancelled, created_by: rule|human|agent, guard_key}`.
+
+### 7.6 Pipelines + rules (`crm/pipelines.json`)
+Stages carry `probability` + `sla_days`. Rules are **deterministic**, executed by
+`crm_store.py apply-rules`, never improvised by the LLM.
+```json
+{"pipelines":[{"id":"default_sales","stages":[
+   {"id":"new_reply","probability":0.10,"sla_days":1},
+   {"id":"engaged","probability":0.25,"sla_days":7},
+   {"id":"meeting_booked","probability":0.50,"sla_days":7},
+   {"id":"proposal_sent","probability":0.70,"sla_days":10},
+   {"id":"won"},{"id":"lost"}]}],
+ "rules":[
+   {"id":"r1","on":"reply_positive","do":["create_deal_if_none(stage=new_reply)","create_task(title=Reply within 4h,due=+4h)","freeze_sequence"]},
+   {"id":"r2","on":"reply_question","do":["create_deal_if_none(stage=engaged)","freeze_sequence","draft_reply_for_approval"]},
+   {"id":"r3","on":"reply_negative|remove_intent","do":["suppress(contact)","freeze_sequence","close_open_tasks"]},
+   {"id":"r4","on":"stage_age_exceeds_sla","do":["create_task(nudge)","flag_in_report"]},
+   {"id":"r5","on":"deal_won","do":["set_lifecycle(customer)","enroll_segment(customers)","create_task(onboarding)"]},
+   {"id":"r6","on":"hard_bounce|unsubscribe","do":["suppress(contact)","close_open_tasks"]}
+ ]}
+```
+Guard keys `(rule_id, trigger_activity_id)` make `apply-rules` idempotent/re-runnable.
+
+### 7.7 Merge semantics (deterministic)
+Auto-merge on exact email / E.164 phone / canonical social URL match. Fuzzy
+name+company → propose, human approves. Losing record becomes a permanent tombstone
+`{merge:{status:"merged", merged_into:A}}` (never deleted); identities, channel
+statuses, and suppression are **unioned** into the survivor. Every `lead_id` lookup
+path (sync classifier, track-pull, unsub handler, apply-rules, drafting) calls
+`resolve(lead_id)` to follow merge chains. Contacts with a pending merge proposal are
+excluded from every campaign queue until resolved.
+
+---
+
+## 8. Sendboxes & multi-sendbox rotation
+
+`sendboxes/sendboxes.json`:
+```json
+{"sendboxes":[
+  {"slug":"sb-a","auth_mode":"app_password|oauth","email":"...","domain":"gmail.com",
+   "quota_today":40,"warmup_stage":"week_1|week_2|mature","status":"healthy|needs_reauth|paused",
+   "historyId":null,"imap_uid_cursor":null,"last_successful_sync_ts":""}]}
+```
+- **Two auth modes, one interface.** `app_password` (priority for @gmail.com): SMTP
+  send + IMAP read via Python stdlib (`smtplib`/`imaplib`), no OAuth, no 7-day expiry,
+  preserves our Message-ID. `oauth` (Workspace/custom domain): Gmail API, scopes
+  `gmail.send + gmail.readonly` only (drop `gmail.modify`), OAuth app must be
+  **Internal** to avoid the 7-day refresh-token expiry; if forced External/testing,
+  weekly re-auth becomes a scheduled day-6 `[ACTION REQUIRED]`, not an error path.
+- **Rotation is step-1 only; sticky sender thereafter.** First outreach picks the
+  healthy referenced sendbox with the lowest `sent_today/quota_today` ratio
+  (round-robin on ties); `contact.assigned_sendbox` is then fixed. Every bump/reply
+  goes from the assigned box (threading + reply routing + anti-spam require it).
+- **Two-tier cap.** `min(remaining_box_quota, remaining_domain_cap)` — several boxes on
+  one domain share domain reputation; domain volume ramps too. Real scale = 2–3
+  variant domains, 1–2 boxes each, each warmed independently.
+- **Broken box:** dropped from step-1 rotation; its assigned pending follow-ups **wait**
+  (never reassigned) + `[ACTION REQUIRED]` re-auth; report shows "N follow-ups blocked".
+- **Consumer @gmail.com limits (documented, accepted):** From is gmail.com → tracking
+  links live on an unrelated domain → default `plain_text_mode` (no pixel, no link
+  rewrite), measure by reply; no custom Message-ID domain; ~20–50 cold/day/box; never
+  the operator's primary Gmail; cold bulk risks account suspension (accepted at low
+  volume with tight personalization). App Password requires 2FA and is a
+  Google-tightened surface — keep the OAuth mode available as fallback.
+
+---
+
+## 9. Enrichment (Stage 4 + skill `email-verify-enrich`)
+
+### 9.1 Cross-campaign inheritance
+The dossier belongs to the **contact** (client-scope), campaigns reference `lead_id`.
+Enrich queue is client-level, deduped by `lead_id` (one job even if two campaigns want
+the same person). Two TTL tiers:
+- **Durable (identity + context), TTL ~90d:** still-active, license, current company,
+  profile URLs, found emails/phones, market, content style. Inherited as-is by other
+  campaigns.
+- **Fresh (hooks), TTL 7–14d:** new listing, new post, new review, recent event. Other
+  campaigns run a cheap **refresh** (revisit known URLs), not full re-discovery.
+- **Negative cache inherited too:** `email_not_found` (retry after 30d then stop),
+  `no_verifiable_hook` (with last-tried date) — don't re-burn the same dead end.
+- Each hook carries `used_in: ["campaign/step"]`; a second campaign may not open with a
+  hook already used on that person. A contact in an active sequence of campaign A is
+  not drafted by B (`min_days_between_touches_across_campaigns`).
+
+### 9.2 Dossier (`queue/enriched/YYYY-MM-DD/{lead_id}.json`; distilled copy into `contact.enrichment`)
+```json
+{"lead_id":"","identity":{"still_active":"confirmed|inactive|unknown",
+   "evidence":[{"fact":"","url":"","retrieved_at":""}],"current_company":"","role":"",
+   "profiles":{"zillow":"","website":"","facebook":"","instagram":"","gbp":""},
+   "channels_found":{"emails":[],"phones":[]}},
+ "context":{"market":"","volume_signals":"","specialty":"","content_style":""},
+ "hooks":[{"type":"new_listing|social_post|review|award|market_view|website_update",
+   "summary":"","analysis":{"topic":"","angle":"","sensitivity":"public_business|personal"},
+   "evidence_url":"","observed_date":"","confidence":0.0,"used_in":[]}],
+ "writing_brief":{"one_liner":"","ranked_angles":[],"do_not_mention":[],"personalization_confidence":0.0}}
+```
+The email-writing skill consumes `writing_brief` (ranked by freshness × goal-fit ×
+confidence), not raw data.
+
+### 9.3 Channel reality (be honest about what is readable)
+Readable now (MVP, WebSearch/WebFetch/browser tool): personal website/blog (best),
+YouTube title/desc, Instagram/X public (best-effort), Zillow/GBP reviews (browser tool
+or snippet). **Not readable logged-out: Facebook, LinkedIn** — store URL only.
+Reading Facebook posts (`fb.profile.posts`) is exactly what a future **Phase 4 Local
+Collector** (inherited from Solo Agency, using the operator's own logged-in Chrome)
+would solve. Do not promise reading logged-in-only content in the MVP.
+
+### 9.4 Social post analysis + etiquette
+Where readable, analyze the 3–5 latest posts: `{date, topic, summary, what it reveals,
+angle, sensitivity}`. Etiquette hard rule: `public_business` signals (listings, work
+posts, reviews, awards, market opinions) are fair game; `personal` signals (family,
+health, vacations, children) are **default-banned from email copy** and go only into
+`do_not_mention`.
+
+### 9.5 Two-tier flow + freshness gate
+- **Tier 1 Verify (cheap subagent):** check existing dossier first; if identity in TTL,
+  skip to hooks. Else: name+company+location search → license → roster → Zillow snippet
+  → collect profile URLs + emails/phones. `inactive/unknown` → mark, stop (no Tier 2).
+- **Tier 2 Profile & hooks (main model):** visit known URLs per readability table →
+  extract hooks with evidence → analyze social content → distill `writing_brief` → score
+  `personalization_confidence` (≥0.7 High; 0.4–0.7 Review carefully; <0.4 →
+  `no_hook_fallback`).
+- **Freshness gate at write time:** before step-1 draft, hooks must be within TTL (else
+  refresh known URLs); before every follow-up, micro-refresh the person's 1–2 best
+  sources to (a) find a fresh bump hook and (b) **invalidate stale hooks** (a sold
+  listing must not be referenced as active). Hard rule: a draft may contain only
+  details present in the dossier with an `evidence_url`; Stage 9 audit checks this
+  mechanically.
+
+### 9.6 Guessed email
+MX check is near-meaningless (catch-all domains accept any RCPT). Guessed/unverified
+addresses go through a **third-party verification API** (MillionVerifier/NeverBounce,
+cheap, called from local Python). `catch_all` → excluded from guessed quota or capped
+~2%. Per-domain kill switch: first hard bounce on a guessed pattern at domain X →
+suppress all other guessed addresses at X. `guessed_only` status enforced **in
+`gmail_client.py send`** (requires explicit guessed-approval flag on the draft + a
+daily guessed-send cap read from sent_log), never only in prose. Guessed cohort bounce
+rate is reported separately.
+
+---
+
+## 10. Send engine (Stage 8)
+
+`gmail_client.py send` per draft, in code (do not trust playbook prose):
+1. **Pre-send re-check, ordered:** resolve(lead) → global+client suppression (live: also
+   pull new unsubscribes from the tracker `/events` + the `+unsub` mailbox before any
+   batch; if track-pull failed > N hours, **block** the box) → `channels.email.status`
+   → **atomic quota reservation** (`reserve(sendbox, day)`; append `send_reserved` under
+   the sent_log lock before releasing — no count-then-send race) → warmup cap →
+   two-tier domain cap → send-window (recipient tz) → guessed cap (10%/day/box, and
+   guessed requires its approval flag) → sequence-freeze check (any inbound reply
+   freezes remaining bumps) → step-1 subject lint (reject `^(Re|Fwd):`).
+2. **Build MIME multipart/alternative:** text/plain primary + minimal text/html. For
+   continuation sends (bump step>1, replies): set `threadId` (OAuth) / thread via
+   `In-Reply-To`+`References` from the prior `rfc_message_id` in sent_log, with a
+   consistent `Re:` subject.
+3. **Tracking (only when the box's mode allows and the campaign enables it):** open pixel
+   `https://trk.{domain}/o/{token}.gif` (Cache-Control: no-store); links rewritten to
+   `https://trk.{domain}/c/{token}/{sig}/{b64url}` with `sig = HMAC(secret, token||url)`;
+   `token = base32(hmac(secret, lead_id|message_uid))[:12]`. In `plain_text_mode`:
+   **no pixel, no rewrite, but always keep** `List-Unsubscribe` (mailto + https) and the
+   footer opt-out — `/u/` is compliance, not tracking.
+4. **Headers:** `List-Unsubscribe: <mailto:{box}+unsub-{token}@...>, <https://trk.{domain}/u/{token}>`
+   + `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. No `X-Campaign` fingerprint.
+   Message-ID: our own only when we control the domain (OAuth/Workspace) — after send,
+   fetch the on-the-wire Message-ID (`messages.get` metadata for OAuth; SMTP preserves
+   ours) and store it as `rfc_message_id`.
+5. **Send**, record `sent/YYYY-MM/sent_log.jsonl`
+   `{lead_id, campaign, step, sendbox, provider_id, thread_id, rfc_message_id, token,
+   links:{}, sent_at, seq}`, append activity `email_sent`, sleep jitter 30–180s.
+6. **Errors:** 429/quota → pause box today; invalid_grant → `needs_reauth` +
+   `[ACTION REQUIRED]`; other → draft returns to `approved` with a blocker.
+
+---
+
+## 11. Tracker worker (`tracker/worker.js`, Cloudflare)
+
+One Worker on `trk.{domain}`, **D1** (SQLite, strongly consistent — not KV, whose
+eventual consistency can lose unsubscribe events → CAN-SPAM risk). Endpoints:
+- `GET /o/{token}.gif` → 1×1 gif, `Cache-Control: no-store`, log open.
+- `GET /c/{token}/{sig}/{b64url}` → verify `HMAC(secret, token||url)`, 302 to the URL, log click.
+- `GET /u/{token}` → renders a confirm page, **does not change state** (scanners fetch
+  GET links). `POST /u/{token}` body `List-Unsubscribe=One-Click` → unsubscribe now,
+  idempotent, 200 no redirect (RFC 8058). POST from the page button → unsubscribe.
+- `GET /events?since={seq}` (Bearer `TRACKER_API_KEY`) → events for agent pull; also a
+  reconcilable `unsub:{token}` state key so unsubscribe reconciliation doesn't depend on
+  the cursor.
+- **Injection defense:** never store raw User-Agent (attacker-controlled, later read by
+  the agent); store only a classification (`gmail-proxy|safelinks|browser|unknown`).
+  Track-pull accepts only click URLs matching the token's stored `links{}` in sent_log.
+- **Bot filter (unified):** UA class (GoogleImageProxy = reliable open signal; scanner
+  list), click-with-no-prior-open, all-links-within-N-seconds regardless of timing,
+  datacenter ASN from `request.cf`. **Open/click never alone trigger a stage change or
+  auto-action — only a reply is conversion evidence.**
+
+**Metric honesty:** reply/bounce/unsubscribe are exact (IMAP/Gmail + DSN + worker);
+open is an estimate (Gmail image proxy, Apple MPP prefetch, image-blocking); click is
+fairly reliable after bot filtering. Reports label opens "estimated."
+
+---
+
+## 12. Inbound sync + classification (Stage 10)
+
+Per sendbox, cursor = `historyId` (OAuth) or IMAP UID (app_password) + `last_successful_sync_ts`.
+OAuth fallback on expired historyId is `q="after:{last_sync_epoch}"` (overlap + dedupe
+by message id, handle `nextPageToken`) — never `newer_than:2d`. **Deterministic
+classifier, in this exact order** (order is load-bearing — Gmail threads DSN bounces
+into the original thread, so DSN must be checked before threadId):
+1. **DSN/bounce:** From mailer-daemon/postmaster, `multipart/report; report-type=delivery-status`,
+   or a `message/delivery-status` part → hard(5.x.x)/soft(4.x.x); map to the original via
+   threadId + `rfc_message_id` + recipient/sent_at window.
+2. `Auto-Submitted: auto-replied` / OOO.
+3. **Unsub alias (deterministic):** any To/Delivered-To matches `{box}+unsub-{token}@` →
+   extract token → unsubscribe for the exact lead (mailto unsubs often have empty bodies).
+4. threadId / In-Reply-To match sent_log → campaign reply → mark `reply_untriaged`.
+5. From ∈ contacts but no thread match → `contact_message`.
+6. Else → personal email: **count only, do not store body, do not deep-read.**
+
+Then semantic triage of `reply_untriaged` → `positive|question|objection|negative|remove_intent`;
+`negative`/`remove_intent` (even without the word "unsubscribe") → suppression (or an
+`[ACTION REQUIRED]` confirm task that blocks further sends). Invariant enforced in code
+at both draft-time and send-time: **any inbound reply freezes the remaining sequence**
+for that contact until triage completes.
+
+---
+
+## 13. Campaigns & goal-driven writing (Stage 5 + 6)
+
+`campaign_config.json` (goal is the writing blueprint, not a label):
+```json
+{"campaign_slug":"","goal":{"goal_type":"book_meeting|get_reply|direct_sale|reactivation|nurture_upsell|event_invite",
+   "objective":"","offer":"","value_proposition":"","proof_points":[{"claim":"","evidence_url":""}],
+   "cta":{"type":"reply_yes|link|calendar","text":""},
+   "success_event":{"on":"reply_positive","create_deal_stage":"new_reply"}},
+ "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,"no_hook_fallback":"generic_honest_opener|skip"}},
+ "sequence":[{"step":1,"intent":"hook + offer, one CTA","tracking":"plain_text"},
+   {"step":2,"gap_days":4,"intent":"deliver new value"},
+   {"step":3,"gap_days":5,"intent":"social proof"},
+   {"step":4,"gap_days":7,"intent":"breakup"}],
+ "sendboxes":[],"daily_quota":40,"approval_mode":"manual_all",
+ "guardrails":{"banned_claims":["guarantees"],"no_fake_re":true},
+ "channel_strategy":"email_first|any_channel"}
+```
+`goal_type → email structure` table (skill `email-writing`, modeled on the video-script
+skill's format table): `book_meeting`→short, one time-bound CTA; `get_reply`→ends with a
+question, no link; `direct_sale`→value + one offer link (the only place click tracking
+is on by default); `reactivation`→evidence of prior relationship + "still doing X?";
+every final step→breakup. A draft = client profile (voice, offer, compliance) + campaign
+goal (objective, CTA, proof) + contact dossier (hooks + evidence) + step intent (bumps
+carry NEW value, never "just following up"). `success_event` wires straight into the
+rules engine.
+
+---
+
+## 14. Preview & chat-approval (the gate before any send)
+
+At the end of the drafting pass, the agent renders an **Approval Report**
+(`outputs/.../{client}-approval-report.html`, operator-only, NOT scrubbed) via the
+inherited renderer (reusing its contenteditable + Copy-button blocks):
+- Header: total drafts by campaign/step, split into **High confidence** (verified email,
+  ≥0.7 hook) and **Review carefully** (weak hook, guessed email, fallback opener).
+- One card per lead: `#id` · name/company/email + verify status · hooks with **clickable
+  evidence URLs** · subject + editable body + warning flags (guessed, generic, bump step).
+Telegram: "N drafts awaiting review" + path.
+
+**Chat approval grammar** (chat is the write path; editing the HTML does not persist):
+```
+approve all
+approve 1-20, 35, 41
+reject 7: hook is stale, that listing sold
+edit 12: change CTA to "Worth a quick look?"
+hold 5
+```
+Approved → `outbox/approved/` → **sent immediately in-session** (within quota, jitter,
+full in-code re-check chain); rejected → logged with reason → reason feeds
+`learning_log` for the next batch; edit → agent patches, re-confirms, then approves.
+Every decision → `approvals/approval_log.md`. Nothing leaves without an explicit
+"approve". Default `approval_mode: manual_all` even for bumps.
+
+---
+
+## 15. Daily Run order (per client, pins `target_client_slug`)
+1. Load contract + LOAD LEDGER; read automation manifest + `update_state.json` (Update
+   Watch is a separate task, doesn't touch clients); take per-client `run_lock`.
+2. **Sync inbox** across all sendboxes (§12): classify, split personal, suppress
+   bounces/unsubs immediately.
+3. **Pull tracking** from the worker (§11): record open/click activities (bot-filtered).
+4. **Semantic triage + `apply-rules`** (§7.6): replies → deals/tasks; SLA sweep → nudge
+   tasks; every stage change carries evidence.
+5. **Follow-up advising (deal-aware, Stage 10):** replies → reply drafts; due-silent →
+   value-add bumps → `pending_approval`.
+6. **Load new pipeline** (cold/trigger campaigns, JIT buffer 3–7 days): priority pick →
+   Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`.
+7. **Send** `outbox/approved/` within quota (§10). (Approval happens in chat, any time.)
+8. **Assisted channels:** draft SMS/Messenger for no-email contacts if the campaign
+   allows + consent exists (§9/§16) → Today View copy buttons; human sends, reports back
+   → activity.
+9. **Compile Today View + regenerate kanban** (renderer).
+10. **Reports:** daily ops + Approval Report + INTERNAL_REPORT; **Mondays** add the
+    Weekly CRM Report (client-facing, through the scrub gate).
+11. **Notify Telegram** via WideCast `sendTelegramMessage`: counts + report link →
+    `notification_log.md`.
+12. **Stage 9 audit** → completion gates → release `run_lock`.
+
+---
+
+## 16. Compliance (encoded, not just prose)
+- **CAN-SPAM:** physical address + working opt-out in every commercial email; honor
+  opt-out (default 10 business days, we do it same-run); truthful subjects — step-1
+  subjects must not begin `Re:`/`Fwd:` (linted in Stage 9 audit + pre-send); bumps must
+  be real in-thread replies (truthful `Re:`).
+- **Opt-out reach:** suppression checked at every send-capable path — initial, follow-up,
+  assisted channels, and at import against ALL identities; unioned on merge; pending-merge
+  contacts excluded from queues. If track-pull hasn't succeeded within N hours, sending
+  for that box is blocked (so worker/mailto unsubs can't sit unhonored > window).
+- **Assisted channels:** manual send reduces automation/platform-detection risk but does
+  NOT change the legality of the solicitation. US SMS gated on documented consent
+  `{optin_source, optin_at, evidence_activity_id}` or existing relationship; default SMS
+  = inbound-initiated only; each assisted draft in Today View shows its legal basis. Zalo
+  cold-messaging strangers stays off by default (Vietnam Decree 91/2020 + ToS).
+- **Guessed email** policy per §9.6.
+
+---
+
+## 17. Testing (client "Max Output")
+Fixture list `tests/fixtures/max_output_list.csv` (5 rows):
+1. `huubinhnguyen81@gmail.com` — happy path: receive→(open)→click→reply positive→deal+task+follow-up draft.
+2. `leadup@livechatwith.us` — own domain: MX check; no open/reply → bump due at day 4 (via injectable clock).
+3. `tainguyenvdcc@gmail.com` — reply "unsubscribe" → suppression + close tasks + never re-drafted.
+4. synthetic "Nguyen No-Email" (name + facebook URL only) — no-email flow: enrich fails
+   to find email (controlled) → assisted messenger draft → human "sent" → reply pasted → activities.
+5. synthetic `bounce-test@nonexistent-...invalid` — MX fail at verify; send re-check must
+   **block** it (inverted assertion: send refused, draft stays pending). No live forced bounce.
+
+**Injectable clock**, not backdating: a single `now()` overridable via
+`OUTREACHCRM_FAKE_NOW`, effective only for test-listed clients; E2E advances time forward.
+
+**Unit tests (pytest, offline, Gmail/SMTP/IMAP mocked):** import mapping+dedupe+ULID+idempotency;
+email_verify MX ok/fail; **adapter contract suite parametrized over [json, postgres]** covering
+all methods, every Cond op, atomicity, lock mutual-exclusion; crm_store CRUD + blocked invalid
+stage transition + merge + resolve(); each rule (fixture events); suppression blocks send;
+quota/warmup math + **ordered pre-send gate chain**; token HMAC sign/verify + link rewrite;
+sync classifier over real MIME fixtures (reply, **DSN inside a sent thread**, DNS-fail DSN,
+550 5.1.1, OOO, empty-body plus-alias unsub, personal); scrub gate; timezone inference;
+multi-client isolation (2nd synthetic client: A invisible to B, client vs global suppression,
+no cross-client quota); resync-from-backups + "update-watch writes nothing under clients/".
+
+**Worker tests** (miniflare/vitest-pool-workers, D1 in-memory): valid token→302; tampered
+sig→refused, no redirect; `/events` wrong Bearer→401; cursor pagination; `POST /u`→unsub;
+`GET /u` does not mutate.
+
+**E2E runbook** (`tests/E2E_RUNBOOK.md`, one real sendbox): mandatory **step 0 =
+`crm_store.py reset-client max-output --confirm`** (wipes test client data +
+`test_fixture`-tagged suppression + sendbox cursor + worker events by run prefix);
+subjects/campaign slugs salted per run-id (avoid Gmail thread collisions); ~25 assertions;
+open = soft assertion (design admits it's estimated), hard-assert click/reply/unsub.
+
+---
+
+## 18. Deploy script surgery (`deploy-outreachcrm.sh`)
+- Hardcoded fallback API key **removed** (already stripped pre-commit; fail-closed).
+- Remove unconditional `die` checks requiring collector/bridge/extension dirs, and their
+  blocks in `run_static_checks`/`sync_and_zip_skills`.
+- New concrete `GIT_REMOTE_URL`/`GIT_REMOTE_NAME`/`GIT_AUTHOR_*` for the outreachcrm repo
+  (drop the `github.com-soloagency` SSH alias + soloagency author identity).
+- Extend `scan_staged_secrets` regex: add `"refresh_token"\s*:`, `"client_secret"\s*:`,
+  `TRACKER_API_KEY`, and block staging of `token.json`/`client_secret*.json`.
+- `.gitignore`: add `sendboxes/*/token.json`, `secrets/`, `.dev.vars`, keep
+  `provider_config.local.json`.
+- Keep: `generate_load_manifest`, git-root safety, secret scan framework, skills zip.
+
+## 19. Renderer scrub term list (`tools/report_renderer.py`, `CLIENT_BLIND_TERMS`)
+Drop WideCast/Local-Collector-only terms; keep "Telegram", "MCP", "automation",
+"scheduled task", "API key", "config file", "debug", "agent debug", "PDNA",
+"provider_config"; add "OutreachCRM", "sendbox", "gmail_client", "crm_store",
+"storage_config", "trk.", "HMAC", "token.json", "sent_log", "suppression", "warmup",
+"quota", "guessed", "INTERNAL_REPORT". (Weekly client report is the only scrubbed output.)
+
+## 20. Update Watch (Stage 11) — rewritten scope
+Diff scope + change-classification enum rebuilt around OutreachCRM components: storage
+adapter/schema_version, `crm_store.py`/`gmail_client.py`/`import_leads.py`/`email_verify.py`,
+`tracker/worker.js` + its `wrangler deploy` rerun step, sendbox token compat. Replace
+`bridge_update_required`/`extension_reload_required` in `update_state.json` with
+`tracker_worker_deploy_required`/`storage_schema_migration_required`. Repo-wide there must
+be **no surviving `soloagency`/`solo-agency`/`github.com/soloagency` literal**, especially
+in AGENTS.md's blocker-recovery clause (it fires on any blocker, not just explicit updates).
+
+---
+
+## 21. Build phases
+- **Phase 0 (now):** clone+prune+rename (done); DESIGN.md; rewrite root playbook, AGENTS,
+  both entrypoints, 00, 07, 09, 11, LOAD_LEDGER scrub; deploy surgery; renderer term list;
+  README; LOAD_MANIFEST; scrub verification. Review checkpoint with the user.
+- **Phase 1:** playbooks 02/03/08 + tools `gmail_client.py` (app_password first),
+  `import_leads.py`, `email_verify.py`, storage adapter + `crm_store.py` (contacts/activities),
+  suppression. Manual core loop.
+- **Phase 2:** playbooks 04/05/06/10/13/14 + skills email-verify-enrich & email-writing +
+  deals/tasks/rules + Approval Report + Today View + WideCast notify + full Scheduled Run +
+  `tracker/worker.js`. E2E runbook = Phase 2 acceptance.
+- **Phase 3:** playbook 12/15, kanban/timeline/weekly report/forecast/segments, open-click
+  fully wired, Postgres adapter.
+- **Phase 4:** Local Collector + lead-engine (Facebook enrichment) re-imported.
+- **Phase 5 (optional):** local web UI over crm_store.
+```
