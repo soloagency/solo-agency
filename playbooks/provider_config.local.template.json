@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "client_slug": "",
+  "active_provider": "widecast",
+  "providers": {
+    "widecast": {
+      "type": "openapi",
+      "discovery_url": "https://widecast.ai/openapi.yaml",
+      "provider_home_url": "https://widecast.ai/",
+      "preferred_server_url": "https://widecast.ai/app/dashboard",
+      "disabled_server_urls": ["https://api.widecast.ai"],
+      "auth_type": "bearer_api_key",
+      "api_key_env": "",
+      "api_key_local": "",
+      "provider_identity_source": "per_client_openapi",
+      "mcp_compatibility_status": "not_used",
+      "pdna_setup_blocker": "",
+      "account_verified_at": "",
+      "account_identity": {
+        "company_id": "",
+        "email_masked": "",
+        "name": "",
+        "connected_platforms": []
+      },
+      "pdna": {
+        "production": "not_configured",
+        "video_editing": "not_configured",
+        "render_export": "not_configured",
+        "distribution": "not_configured",
+        "notification": "not_configured",
+        "analytics": "not_configured"
+      },
+      "video_editing": {
+        "enabled": false,
+        "preferred_skill_operation_id": "getEditingSkill",
+        "preferred_video_data_operation_id": "getVideoData",
+        "preferred_scene_geometry_operation_id": "sceneGeometry",
+        "preferred_scene_inspector_operation_id": "sceneInspector",
+        "preferred_modify_scene_operation_id": "modifyScene"
+      },
+      "render_export": {
+        "enabled": false,
+        "preferred_operation_id": "exportVideo",
+        "requires_fresh_human_approval": true
+      },
+      "notification": {
+        "enabled": false,
+        "preferred_operation_id": "sendTelegramMessage",
+        "delivery": "telegram_or_email_fallback"
+      },
+      "report_upload": {
+        "enabled": false,
+        "preferred_operation_id": "uploadAsset",
+        "content_type": "text/html",
+        "ttl_hours_note": "WideCast uploadAsset URLs may be short-lived. Use for report notifications, not permanent archives."
+      }
+    }
+  }
+}
