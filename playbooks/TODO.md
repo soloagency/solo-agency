@@ -29,7 +29,7 @@ This TODO sits beside the detailed child playbooks as an optimization backlog. D
 - Open/click fully wired; Postgres adapter (must pass the adapter contract test suite).
 
 ### Phase 4 — enrichment reach
-- Re-import a Local Collector (from the parent architecture) to read the operator's own logged-in Facebook/LinkedIn for hooks that are unreadable logged-out.
+- Add an opt-in local logged-in-session collector (operator's own Chrome, read-only, consent-gated) so enrichment can read Facebook/LinkedIn posts that are unreadable when logged out. Design lives in `docs/DESIGN.md` §9.3.
 
 ### Phase 5 (optional)
 - Local web UI reading/writing through `crm_store.py`.

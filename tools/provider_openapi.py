@@ -99,7 +99,7 @@ def _active_provider(config: dict[str, Any], fallback: str = "widecast") -> str:
 
 def _api_key(config: dict[str, Any], provider: str) -> str:
     block = _provider_block(config, provider)
-    generic = os.environ.get("OUTREACHCRM_PROVIDER_API_KEY") or os.environ.get("SOLO_AGENCY_PROVIDER_API_KEY")
+    generic = os.environ.get("OUTREACHCRM_PROVIDER_API_KEY")
     if generic:
         return generic
     env_name = block.get("api_key_env")
