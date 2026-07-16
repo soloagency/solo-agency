@@ -20,6 +20,11 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
+
+def now_short():
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d")
+
 from storage import get_adapter, Cond, new_ulid, normalize_email, normalize_phone, normalize_social  # noqa: E402
 import crm_store  # noqa: E402
 from crm_store import CrmStore  # noqa: E402
@@ -204,9 +209,11 @@ class TestGmailPresendAndClassifier(unittest.TestCase):
             json.dump(d, fh)
         return p
 
-    def test_happy_dryrun(self):
+    def test_happy_dryrun_reserves_nothing(self):
         r = gmail_client.cmd_send(self.cdir, self._draft(), dry_run=True)
-        self.assertTrue(r["ok"]); self.assertIn("list_unsubscribe", r); self.assertTrue(r["reserved_token"])
+        self.assertTrue(r["ok"]); self.assertIn("list_unsubscribe", r)
+        # dry-run must NOT consume quota (audit fix)
+        self.assertEqual(self.s.a.reservation_count("sb-a", now_short()), 0)
 
     def test_gate_not_approved(self):
         r = gmail_client.cmd_send(self.cdir, self._draft(status="pending_approval"), dry_run=True)
@@ -249,6 +256,113 @@ class TestGmailPresendAndClassifier(unittest.TestCase):
             self.cdir, email.message_from_string("From: t@x.com\nTo: s@gmail.com\nIn-Reply-To: <orig@gmail.com>\n\nyes!"),
             "s@gmail.com", known)
         self.assertEqual(c["kind"], "campaign_reply"); self.assertEqual(c["lead_id"], self.lead)
+
+
+class TestAuditRegressions(unittest.TestCase):
+    """Locks in the fixes for the Phase-1 adversarial code audit (each was an executed bug)."""
+
+    def setUp(self):
+        self.cdir = _new_client()
+        self.s = CrmStore(self.cdir)
+
+    # --- suppression completeness -------------------------------------------
+    def test_suppression_checks_all_identities_and_recipient(self):
+        lead, _ = self.s.add_contact({"identities": {"emails": [
+            {"address": "primary@x.com", "is_primary": True}, {"address": "secondary@x.com"}]},
+            "channels": {"email": {"status": "usable"}}})
+        self.s.suppress("email", "secondary@x.com", "unsubscribe", tier="client")
+        gmail_client.save_sendbox(self.cdir, {"slug": "sb-a", "email": "s@gmail.com", "domain": "gmail.com",
+                                              "quota_today": 5, "status": "healthy", "imap_uid_cursor": 0})
+        d = os.path.join(self.cdir, "draft.json")
+        json.dump({"lead_id": lead, "campaign_slug": "c", "step": 1, "sendbox": "sb-a",
+                   "to": "secondary@x.com", "subject": "hi", "body_text": "b", "status": "approved"}, open(d, "w"))
+        r = gmail_client.cmd_send(self.cdir, d, dry_run=True)
+        self.assertEqual(r["blocker"], "suppressed")  # a suppressed SECONDARY identity blocks
+
+    def test_recipient_must_be_a_contact_identity(self):
+        lead, _ = self.s.add_contact({"identities": {"emails": [{"address": "real@x.com", "is_primary": True}]},
+                                      "channels": {"email": {"status": "usable"}}})
+        gmail_client.save_sendbox(self.cdir, {"slug": "sb-a", "email": "s@gmail.com", "domain": "gmail.com",
+                                              "quota_today": 5, "status": "healthy", "imap_uid_cursor": 0})
+        d = os.path.join(self.cdir, "draft.json")
+        json.dump({"lead_id": lead, "campaign_slug": "c", "step": 1, "sendbox": "sb-a",
+                   "to": "attacker@evil.com", "subject": "hi", "body_text": "b", "status": "approved"}, open(d, "w"))
+        r = gmail_client.cmd_send(self.cdir, d, dry_run=True)
+        self.assertEqual(r["blocker"], "recipient_not_a_contact_identity")
+
+    # --- rules idempotency without an activity_id ---------------------------
+    def test_rules_idempotent_without_activity_id(self):
+        lead, _ = self.s.add_contact({"identities": {"emails": [{"address": "r@x.com"}]}})
+        self.s.apply_rules([{"type": "reply_positive", "contact_id": lead}])  # no activity_id
+        self.s.apply_rules([{"type": "reply_positive", "contact_id": lead}])  # re-run
+        self.assertEqual(len(self.s.a.query("deals")), 1)  # not doubled
+
+    # --- phone normalization no longer collapses placeholders ---------------
+    def test_placeholder_phones_are_not_a_dedupe_key(self):
+        a, o1 = self.s.add_contact({"name": {"full": "A"}, "identities": {"phones": [{"number": "000-000-0000"}]}})
+        b, o2 = self.s.add_contact({"name": {"full": "B"}, "identities": {"phones": [{"number": "000-000-0000"}]}})
+        self.assertEqual(o1, "created"); self.assertEqual(o2, "created"); self.assertNotEqual(a, b)
+        self.assertEqual(self.s.get_contact(a)["identities"]["phones"], [])  # junk phone dropped
+
+    # --- import robustness --------------------------------------------------
+    def test_import_ragged_row_does_not_crash(self):
+        tmp = tempfile.mkdtemp(); csvp = os.path.join(tmp, "r.csv")
+        with open(csvp, "w") as fh:
+            fh.write("Email,Full Name,Website\n")
+            fh.write("a@b.com,Alice,https://a.com\n")
+            fh.write("b@b.com,Bob\n")  # ragged: missing trailing Website -> None
+        r = import_leads.do_import(self.cdir, csvp, "r", None, mx_check=False)["manifest"]
+        self.assertEqual(r["contacts_created"], 2)  # both imported, no crash
+
+    def test_import_double_header_letters_row(self):
+        tmp = tempfile.mkdtemp(); csvp = os.path.join(tmp, "r.csv")
+        with open(csvp, "w") as fh:
+            fh.write('"A","B","C"\n')                    # the owner's real column-letters row
+            fh.write('"Email","Full Name","Cell Phone"\n')
+            fh.write('"real@x.com","Real Agent","205-369-0520"\n')
+        headers, rows = import_leads._rows_from_file(csvp)
+        self.assertIn("Email", headers)                 # real header row detected
+        r = import_leads.do_import(self.cdir, csvp, "r", None, mx_check=False)["manifest"]
+        self.assertEqual(r["contacts_created"], 1)      # 1 real agent, not a junk 'Email' contact
+
+    # --- DSN bounce with Message-ID in the structured part ------------------
+    def test_dsn_message_id_from_rfc822_part(self):
+        lead, _ = self.s.add_contact({"identities": {"emails": [{"address": "gone@x.com", "is_primary": True}]}})
+        known = {"<orig@gmail.com>": {"lead_id": lead, "campaign": "c"}}
+        dsn = email.message_from_string(
+            "From: mailer-daemon@googlemail.com\nContent-Type: multipart/report; "
+            "report-type=delivery-status; boundary=b\n\n"
+            "--b\nContent-Type: text/plain\n\nDelivery to gone@x.com failed permanently.\n"
+            "--b\nContent-Type: message/delivery-status\n\n"
+            "Final-Recipient: rfc822; gone@x.com\nStatus: 5.1.1\n"
+            "--b\nContent-Type: message/rfc822\n\nMessage-ID: <orig@gmail.com>\nSubject: hi\n\nbody\n--b--\n")
+        c = gmail_client.classify_message(self.cdir, dsn, "s@gmail.com", known)
+        self.assertEqual(c["kind"], "bounce"); self.assertTrue(c["hard"])
+        self.assertEqual(c["bounced_message_id"], "<orig@gmail.com>")
+        self.assertEqual(c["final_recipient"], "gone@x.com")
+
+    # --- reply with no In-Reply-To still detected via From address ----------
+    def test_reply_without_in_reply_to_via_from_fallback(self):
+        lead, _ = self.s.add_contact({"identities": {"emails": [{"address": "who@x.com", "is_primary": True}]}})
+        resolver = lambda addr: ({"lead_id": self.s.a.find_by_identity("email", normalize_email(addr))}
+                                 if self.s.a.find_by_identity("email", normalize_email(addr)) else None)
+        msg = email.message_from_string("From: Who <who@x.com>\nTo: s@gmail.com\nSubject: got it\n\nyes")
+        c = gmail_client.classify_message(self.cdir, msg, "s@gmail.com", {}, from_resolver=resolver)
+        self.assertEqual(c["kind"], "campaign_reply"); self.assertEqual(c["lead_id"], lead)
+        self.assertEqual(c["matched_by"], "from_address")
+
+    # --- Cond type-mismatch never crashes -----------------------------------
+    def test_query_type_mismatch_no_crash(self):
+        i = new_ulid("c_"); self.s.a.put("contacts", i, {"id": i, "schema_version": 2})
+        # int field vs str value must not raise
+        self.assertEqual(self.s.a.query("contacts", where=[Cond("schema_version", "<", "5")]), [])
+
+    # --- quota release on failure / dry-run ---------------------------------
+    def test_reserve_and_release(self):
+        t = self.s.a.reserve("sb-x", now_short(), 2)
+        self.assertEqual(self.s.a.reservation_count("sb-x", now_short()), 1)
+        self.assertTrue(self.s.a.release("sb-x", now_short(), t))
+        self.assertEqual(self.s.a.reservation_count("sb-x", now_short()), 0)
 
 
 if __name__ == "__main__":

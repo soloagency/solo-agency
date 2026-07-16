@@ -564,7 +564,9 @@ For these mechanical gates, the audit must paste real command output, not a self
 
 - **Client-blind scrub (weekly report only):** the renderer owns the single term source (its `CLIENT_BLIND_TERMS`, defined by DESIGN §19) — do not hand-maintain a separate grep pattern here that can silently drift from it and miss terms. Render the weekly report through the renderer's own scrub gate and paste its result:
   ```bash
-  python3 tools/report_renderer.py --client-facing --fail-on-scrub <render inputs> -o <path>/{client}-weekly-client-report.html
+  python3 tools/report_renderer.py package --inputs <staging.html ...> \
+    --output-html <path>/{client}-weekly-client-report.html --client-facing --fail-on-scrub
+  # (or `render --input REPORT.md --output-html <path>.html --client-facing --fail-on-scrub`)
   ```
   Paste the `client_blind_terms_found` and `scrub_status` fields from that output: `client_blind_terms_found` must be empty and `scrub_status` must be `pass` (a scrub hit is a non-zero exit that blocks the render). On a scrub hit, reword the flagged sentence and re-render — never bypass the gate or hand-edit the blocked output. (Per DESIGN §19 the renderer's `CLIENT_BLIND_TERMS`, this playbook's prose list, and this check must all resolve to exactly that one set — the renderer output is the authority, so this gate reads it rather than re-listing the terms.)
 - **Draft evidence check:** for each draft, confirm every personalization detail appears in the contact dossier with an `evidence_url`; paste the mismatch count (must be `0`).
