@@ -5,10 +5,13 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 431 | 89007063e56f82f3e2d37fce3ace4aeb94f2389f7916ecd3af0ff2e823fe5dea | If any required stage was not loaded, load it before proceeding. |
+| OUTREACHCRM_PLAYBOOK.md | 431 | 21a1b910b3e5ee27e077cfc929dae84baddb2f3a3f196c73178ca0eb2a0ac242 | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 473 | 426487396fa878ba388bc55d0cc66a948e3381a47308b11f798c3c545d6adcd6 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 631 | 62f19d285aae3860911454c67163edc3b8b4eb44d849af5761f40c75a57b20a6 | --- |
+| playbooks/02_SENDBOX_SETUP.md | 245 | 899a1dae9c53f94dfaf6c2348b294441ccdb7f91c1a546459049e43b25609253 | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/03_IMPORT_LIST.md | 319 | 62f64c00ce555305affb6474bdf6da2e05ed44b67e623c8923ffd018d6dd1b4c | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1380 | ea88f86972a73a32657b28ee106a7ac28cc05f5da87c1e8a205cccbd5f0f3a11 | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, say `No action required right now.` |
+| playbooks/08_SEND_ENGINE_PROTOCOL.md | 171 | 4c6b6755ed8ceea34ecacf2efbb75115bf931cdf6b4560df9cb27a63a44f8d7b | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/09_OPERATIONS_SAFETY_AUDIT.md | 625 | 3fd1a15f6b9cd3904c0fda03f2f84c19d04103777a2b84c2714e6bbd26b5adb4 | This is the intended operating model. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/11_UPDATE_AND_VERSION_WATCH.md | 406 | a0d9b7aaee9bcd62190e7bac3c3f58aade8bd8cf684413fa3f0545aaa51d05af | - If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And GitHub Issue Escalation Rule. |
 | playbooks/AUTOMATION_SCHEDULING.md | 782 | e8b30453ffb7a1ccbe947eae09f11af51a4f73ef74d8e9623ed3d58109bf9b3c | instruction to connect WideCast (API key + Telegram/email fallback) or Gmail/email. |
