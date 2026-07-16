@@ -2,7 +2,7 @@
 
 This module is the source of truth for **full-load discipline**. Master (`OUTREACHCRM_PLAYBOOK.md`) and both entrypoints (`SETUP_FLOW_ENTRYPOINT.md`, `SCHEDULED_RUN_ENTRYPOINT.md`) reference it. Load it at the very start of any run, and obey it every time you load a stage/module/dependency.
 
-Reason it exists: OutreachCRM playbooks are large (several are 1000–1900 lines) and are loaded on demand. A large file can be returned **truncated** ("output too large", "persisted output", preview-only), or a GitHub-raw download can be **partial/stale**. Acting on a half-read stage silently drops rules. This protocol makes acting on a partially-read file impossible.
+Reason it exists: OutreachCRM playbooks are large (several are 600-1400 lines) and are loaded on demand. A large file can be returned **truncated** ("output too large", "persisted output", preview-only), or a GitHub-raw download can be **partial/stale**. Acting on a half-read stage silently drops rules. This protocol makes acting on a partially-read file impossible.
 
 ---
 
@@ -20,7 +20,7 @@ Every time you load a stage/module/dependency, print this **minimal** block **be
 
 ```text
 LOAD LEDGER:
-File: <relative path, e.g. playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md>
+File: <relative path, e.g. playbooks/09_OPERATIONS_SAFETY_AUDIT.md>
 lines_read=<N>   manifest_lines=<M from LOAD_MANIFEST.md | manifest=absent>
 Full-read check: <PASS lines_read>=manifest_lines (equal, or +1 from a trailing-newline reader)
                 | PASS(no manifest) manifest=absent — quote last line to prove EOF: last="<...>"
@@ -58,4 +58,4 @@ Everywhere a gate or checklist says "Stage X was loaded", read it as **"Stage X 
 
 ## LOAD_MANIFEST.md (Tier B, auto-generated)
 
-`playbooks/LOAD_MANIFEST.md` lists every `playbooks/**/*.md` with `path | lines | last_line | sha256`. It is regenerated automatically by `deploy-outreachcrm.sh` on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection.
+`playbooks/LOAD_MANIFEST.md` lists `OUTREACHCRM_PLAYBOOK.md` plus every `playbooks/**/*.md` with `path | lines | sha256 | last_line`. It is regenerated automatically by `deploy-outreachcrm.sh` on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection.

@@ -49,6 +49,11 @@ before taking any side-effect action (sending, enriching, writing config, creati
   gate. If the tracker pull has not succeeded within the configured window for a box,
   **sending for that box is blocked** (opt-out compliance, DESIGN §16) — this is a gate,
   not a warning.
+- If a required tool (`gmail_client.py`, `crm_store.py`, `import_leads.py`, `email_verify.py`)
+  does not exist yet, do NOT improvise a replacement script and do NOT enter Last-Resort
+  Recovery; record the step as `skipped: tool_not_built` in the run record and
+  `INTERNAL_REPORT`, raise one `**[ACTION REQUIRED]**` naming the missing tool and its delivery
+  phase, and continue with steps that need no missing tool (DESIGN §22 R2).
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on
   memory from setup.
 - Every scheduled-run human-facing reply, notification, or report handoff must include an
@@ -94,11 +99,10 @@ Rules:
   is barred from every client-facing and send-capable channel (see GitHub Update Watch
   Scheduling Rule).
 
-For multi-client daily operations, prefer separate client tasks. An optional operator-only
-**master digest** task is allowed, but it is strictly read-only: it only reads existing
-per-client operator reports and summarizes them. It must never send email, enrich, run
-`apply-rules`, rebuild a client's Today View/kanban/reports, or notify a client. Only a
-client's own run mutates that client's data.
+For multi-client daily operations, prefer separate client tasks. Only a client's own run
+mutates that client's data. OutreachCRM defines exactly two automation task kinds: one
+client-specific Daily Run task per active client and the single agency-wide
+`OutreachCRM - GitHub Update Watch` task — there is no agency-wide client-processing task.
 
 ## Source Preservation Rule
 
@@ -118,6 +122,11 @@ At the start of every scheduled run, load or re-load the stage files for the wor
 be done. Every load requires a LOAD LEDGER entry per `playbooks/LOAD_LEDGER_PROTOCOL.md`,
 checked against `playbooks/LOAD_MANIFEST.md`:
 
+If a stage file or skill listed below is still status: planned and does not exist, load
+docs/DESIGN.md (the section covering that stage) with its own LOAD LEDGER and record
+stage_file_pending in the run record — do not treat the missing file as a truncated/failed
+read and do not fetch it from the GitHub raw URL (DESIGN §22 R1).
+
 1. Always load Stage 0: `00_CORE_CONTEXT_REQUIREMENTS.md`.
 2. Always load Stage 7: `07_STORAGE_SCHEMA_AND_HISTORY.md` to read profiles, CRM records,
    logs, sent_log, suppression, and history through `crm_store.py` (direct file writes to CRM
@@ -126,24 +135,26 @@ checked against `playbooks/LOAD_MANIFEST.md`:
 4. Load Stage 1 (`01_CLIENT_SETUP_PROFILE.md`) only if the profile is missing, incomplete,
    stale, or needs setup repair, or this is the first Automation Flow run for the client.
    Do not re-ask setup questions when the saved profile is complete.
-5. Load Stage 10 (`10_FOLLOWUP_REPLY_MANAGEMENT.md`) for inbox sync, the deterministic
-   inbound classifier, semantic triage, and follow-up advising. This is loaded on every run.
-6. Load Stage 12 (`12_TRACKING_ANALYTICS.md`) to pull worker events (open/click, bot-filtered)
-   and update metrics/learning logs.
-7. Load Stage 13 (`13_CRM_CORE.md`) for `apply-rules`, deals/tasks, stage transitions,
-   dedupe/merge, and `resolve()` on every `lead_id` lookup path.
-8. Load Stage 14 (`14_TASKS_TODAY_VIEW.md`) for the task engine, SLA sweep, and Today View.
-9. Load Stage 4 (`04_VERIFY_ENRICH.md`) and skill `email-verify-enrich` before any
-   enrichment when loading new pipeline.
-10. Load Stage 5 (`05_CAMPAIGN_MANAGEMENT.md`) for campaign goal, audience, and sequence when
-    selecting/advancing campaigns.
-11. Load Stage 6 (`06_EMAIL_WRITING_STANDARD.md`) and skill `email-writing` before drafting
-    any email (step-1 or bump). A draft may contain only details present in the dossier with
-    an `evidence_url`.
-12. Load Stage 8 (`08_SEND_ENGINE_PROTOCOL.md`) before any send.
-13. Load Stage 15 (`15_CRM_REPORTING.md`) and then `playbooks/skills/report-design/SKILL.md`
-    whenever generating, reviewing, fixing, or packaging any HTML/PDF report — including the
-    Monday weekly client report.
+5. Load Stage 10 (`10_FOLLOWUP_REPLY_MANAGEMENT.md`) *(planned)* for inbox sync, the
+   deterministic inbound classifier, semantic triage, and follow-up advising. This is loaded
+   on every run.
+6. Load Stage 12 (`12_TRACKING_ANALYTICS.md`) *(planned)* to pull worker events (open/click,
+   bot-filtered) and update metrics/learning logs.
+7. Load Stage 13 (`13_CRM_CORE.md`) *(planned)* for `apply-rules`, deals/tasks, stage
+   transitions, dedupe/merge, and `resolve()` on every `lead_id` lookup path.
+8. Load Stage 14 (`14_TASKS_TODAY_VIEW.md`) *(planned)* for the task engine, SLA sweep, and
+   Today View.
+9. Load Stage 4 (`04_VERIFY_ENRICH.md`) *(planned)* and skill `email-verify-enrich`
+   *(planned)* before any enrichment when loading new pipeline.
+10. Load Stage 5 (`05_CAMPAIGN_MANAGEMENT.md`) *(planned)* for campaign goal, audience, and
+    sequence when selecting/advancing campaigns.
+11. Load Stage 6 (`06_EMAIL_WRITING_STANDARD.md`) *(planned)* and skill `email-writing`
+    *(planned)* before drafting any email (step-1 or bump). A draft may contain only details
+    present in the dossier with an `evidence_url`.
+12. Load Stage 8 (`08_SEND_ENGINE_PROTOCOL.md`) *(planned)* before any send.
+13. Load Stage 15 (`15_CRM_REPORTING.md`) *(planned)* and then
+    `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or
+    packaging any HTML/PDF report — including the Monday weekly client report.
 14. Load Stage 9 (`09_OPERATIONS_SAFETY_AUDIT.md`) before claiming the run is complete.
 15. Load Stage 11 (`11_UPDATE_AND_VERSION_WATCH.md`) only when the task is
     `OutreachCRM - GitHub Update Watch`, an update/upgrade/sync-latest request is being
@@ -388,25 +399,24 @@ Rules:
   `outreach-pipeline/automation/update_watch_prompt.md`, log `update_watch_task_prompt_pending`,
   and give the human the exact task name and prompt path via `**[ACTION REQUIRED]**`.
 
-If no automation is available:
+If no automation is available for the update watch:
 
 1. Explain the limitation.
-2. Create manual run instructions.
-3. Provide the exact prompt the human should paste each day.
-
-Example manual run prompt:
-
-```md
-Run the OutreachCRM daily run for every active client in clients_index.md. Sync inboxes, pull tracking, triage replies, advise follow-ups, load new pipeline, send approved drafts within quota, refresh Today View and reports, and notify the operator.
-```
+2. Create manual update-watch instructions.
+3. Provide the human the exact GitHub Update Watch prompt to run on demand — the
+   "GitHub Update Watch Task Prompt" in `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` (which loads
+   `11_UPDATE_AND_VERSION_WATCH.md`, processes no client, syncs no inbox, and never sends) —
+   via a `**[ACTION REQUIRED]**` block naming the task `OutreachCRM - GitHub Update Watch` and
+   the prompt path. This maintenance prompt is not a client daily-run prompt; the manual
+   daily-run prompt lives in the Schedule Contract's manual-only cadence.
 
 ---
 
 ## Run Locking And Notification Dedup
 
-Scheduled runs can overlap (yesterday's run still finishing, a manual re-run, or an optional
-master-digest task and a client-specific task both touching one client). Protect against
-duplicate work, duplicate sends, and duplicate notifications:
+Scheduled runs can overlap (yesterday's run still finishing, or a manual re-run of a
+client-specific task touching a client already being processed). Protect against duplicate
+work, duplicate sends, and duplicate notifications:
 
 - Before starting a client's daily run, create or check
   `outputs/YYYY-MM/YYYY-MM-DD/{client}-run_lock.json` (`started_at`, task name, session hint,
@@ -417,9 +427,8 @@ duplicate work, duplicate sends, and duplicate notifications:
 - The `run_lock` is per client. It gates the whole client run, and it protects sends in
   particular — combined with the in-code atomic quota reservation (`reserve(sendbox, day)`),
   it prevents two concurrent runs from double-spending a box's daily quota.
-- The optional master/all-clients digest task only READS existing operator reports; it never
-  rebuilds a client's Today View, kanban, reports, or `outputs/latest/` files, and never
-  sends or enriches. Only the client's own run rebuilds them.
+- Only a client's own run rebuilds that client's Today View, kanban, reports, or
+  `outputs/latest/` files; no other task may rebuild, send, or enrich on its behalf.
 - Before sending any run-complete or weekly-report-ready notification, read
   `notifications/notification_log.md` and `outputs/.../{client}-report_state.json` for the
   same client/day. If an equivalent notification was already sent, do not re-send. A resumed
@@ -449,7 +458,11 @@ For each client, pinning `target_client_slug`, in this exact order:
    Every bump micro-refreshes the person's best 1–2 sources to find a fresh hook and to
    invalidate stale hooks before drafting.
 6. **Load new pipeline** (cold/trigger campaigns, JIT buffer 3–7 days, Stages 4/5/6): priority
-   pick → Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`.
+   pick → Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`. At the **END of
+   this drafting pass** — after all new-pipeline drafting and **before** any send — render the
+   **Approval Report** (`{client}-approval-report.html`, operator-only, NOT scrubbed) per
+   DESIGN §14 so the operator can approve in chat; it is **refreshed** in the reports phase
+   (step 10) per DESIGN §15.
 7. **Send** `outbox/approved/` within quota through `gmail_client.py send` (DESIGN §10). The
    ordered pre-send re-check chain runs in code. Approval happens in chat, at any time — the
    run sends only what is already approved.
@@ -457,7 +470,8 @@ For each client, pinning `target_client_slug`, in this exact order:
    allows and consent/legal basis exists (DESIGN §9/§16) → Today View copy buttons. The human
    sends and reports back → `assisted_sent` activity.
 9. **Compile Today View + regenerate kanban** via `tools/report_renderer.py`.
-10. **Reports:** daily ops HTML + Approval Report HTML + INTERNAL_REPORT (operator-only, not
+10. **Reports:** daily ops HTML + **refreshed** Approval Report HTML (first rendered at the end
+    of the drafting pass in step 6, per DESIGN §14) + INTERNAL_REPORT (operator-only, not
     scrubbed). On **Mondays**, additionally build the Weekly CRM Report, which is the only
     client-facing output and must pass the Client-Blind Scrub Gate.
 11. **Notify the operator** via WideCast `sendTelegramMessage` (email fallback): counts +
@@ -467,6 +481,13 @@ For each client, pinning `target_client_slug`, in this exact order:
 ---
 
 ## Daily Run Algorithm (detailed)
+
+Missing-tool rule (applies to every step below): if a required tool (`gmail_client.py`,
+`crm_store.py`, `import_leads.py`, `email_verify.py`) does not exist yet, do NOT improvise a
+replacement script and do NOT enter Last-Resort Recovery; record the step as
+`skipped: tool_not_built` in the run record and `INTERNAL_REPORT`, raise one
+`**[ACTION REQUIRED]**` naming the missing tool and its delivery phase, and continue with the
+steps that need no missing tool (DESIGN §22 R2).
 
 Pre-loop:
 
@@ -559,7 +580,11 @@ For each active client:
     `writing_brief`, score `personalization_confidence`).
 17. Draft step-1 through skill `email-writing` (goal_type → structure). A draft may contain
     only details present in the dossier with an `evidence_url`; step-1 subjects must not begin
-    `Re:`/`Fwd:`. Place in `pending_approval`.
+    `Re:`/`Fwd:`. Place in `pending_approval`. At the **END of this drafting pass** — after all
+    new-pipeline drafting and **before** the Send step (section G) — render the **Approval
+    Report** (`{client}-approval-report.html`, operator-only, NOT scrubbed) per DESIGN §14 so
+    the operator can approve in chat; it is **refreshed** in the reports phase (step 21) per
+    DESIGN §15.
 
 ### G. Send approved (Stage 8, DESIGN §10)
 
@@ -587,9 +612,10 @@ For each active client:
 
 ### J. Reports (Stage 15 + report-design skill)
 
-21. Generate the operator-only outputs (NOT scrubbed): `{client}-daily-ops.html`,
-    `{client}-approval-report.html`, `{client}-today-view.html`, and
-    `{client}-INTERNAL_REPORT.html` (clearly labeled `INTERNAL_REPORT - Not for client
+21. Generate the operator-only outputs (NOT scrubbed): `{client}-daily-ops.html`, the
+    **refreshed** `{client}-approval-report.html` (first rendered at the end of the drafting
+    pass in step 17, per DESIGN §14; refreshed here per DESIGN §15), `{client}-today-view.html`,
+    and `{client}-INTERNAL_REPORT.html` (clearly labeled `INTERNAL_REPORT - Not for client
     sharing`; keep OutreachCRM/WideCast/provider/Telegram/API-key/config/sendbox/tracker/
     debug details here).
 22. **On Mondays only**, build the client-facing `{client}-weekly-client-report.html` (and its
@@ -690,12 +716,16 @@ notification_channel: widecast_telegram_email_fallback
 last_resync: 2026-07-15T09:00:00-05:00
 ```
 
-For a cron-based environment, the same intent as a crontab entry (the agent records the entry
-in `schedule.md`; the human installs it):
+For a cron-based environment, record the intended cadence in `schedule.md`, but be honest
+about what cron can and cannot do:
 
 ```text
 # OutreachCRM daily run — AvenNgo (09:00 America/Chicago)
-0 9 * * *  cd {agency_root} && CLIENT=avenngo-realty-austin run-outreachcrm-daily.sh
+# cron cannot launch the agent runtime by itself; a human-created wrapper must invoke the
+# agent (e.g. codex CLI) with the scheduled_run_prompt.md contents. OutreachCRM does not ship
+# a runner script. Prefer a native AI scheduled task or macOS launchd (below), which can drive
+# the agent directly.
+0 9 * * *  # -> human wrapper that invokes the agent with automation/scheduled_run_prompt.md
 ```
 
 For macOS launchd, record the LaunchAgent label and plist path in `schedule.md` and hand the
@@ -706,7 +736,22 @@ inside the AI sandbox during setup.
   afternoon) in `schedule.md` and the mechanism; each window re-checks the `run_lock` so a
   slow earlier run is not duplicated.
 - For **manual-only** mode, record `cadence: manual_only`, provide the exact prompt the human
-  runs on demand, and rely on no unattended trigger.
+  runs on demand, and rely on no unattended trigger. Pin the prompt to one
+  `target_client_slug` (or clearly label it the multi-client manual variant that loops every
+  active client in `clients_index.md`, one per `run_lock`). The prompt must run the full Daily
+  Run order, render the Approval Report and hold at the chat approval gate before any send
+  (nothing leaves without an explicit "approve"), pass the Stage 9 audit, and release the
+  per-client `run_lock` on completion.
+
+  Example manual daily-run prompt (single client, pinned slug):
+
+  ```md
+  Run the OutreachCRM daily run for target_client_slug: avenngo-realty-austin only. Load the stage files fresh with LOAD LEDGER entries. Sync inboxes, pull tracking, triage replies, run apply-rules, advise follow-ups, load new pipeline, render the Approval Report and hold at the chat approval gate — send only outbox/approved drafts within quota after I approve — draft assisted channels where allowed, refresh Today View + kanban and the reports (plus the Monday weekly client report through the scrub gate), notify the operator with counts and the report link, pass the Stage 9 audit, and release the run_lock.
+  ```
+
+  For the multi-client manual variant, replace the pinned slug with "every active client in
+  clients_index.md, one per run_lock," keeping the same approval-gate, Stage 9, and
+  run_lock-release requirements.
 - For **weekly** cadence, still run inbox sync, tracking pull, triage, and suppression on the
   configured days; the client-facing weekly report is produced on the weekly-report day.
 

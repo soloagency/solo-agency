@@ -12,9 +12,9 @@ Before setup proceeds, verify or explain that OutreachCRM needs Codex, Claude De
 
 1. Load `OUTREACHCRM_PLAYBOOK.md` and `playbooks/LOAD_LEDGER_PROTOCOL.md`. **Full-load discipline applies to every file below: each load needs a LOAD LEDGER (read to the last line; compare `playbooks/LOAD_MANIFEST.md` when present; ledger each named dependency). A truncated / "output too large" / partial read = NOT loaded — re-read in chunks before acting. No side-effect step without a PASS ledger for the stage(s) it needs.**
 2. Load `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, `playbooks/01_CLIENT_SETUP_PROFILE.md`, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, and `playbooks/09_OPERATIONS_SAFETY_AUDIT.md`.
-3. Load `playbooks/02_SENDBOX_SETUP.md` when connecting a sendbox, `playbooks/03_IMPORT_LIST.md` when importing a list, and `playbooks/05_CAMPAIGN_MANAGEMENT.md` when creating the first campaign. (If a planned stage file does not exist yet, load `docs/DESIGN.md` for its contract.)
+3. Load `playbooks/02_SENDBOX_SETUP.md` when connecting a sendbox, `playbooks/03_IMPORT_LIST.md` when importing a list, `playbooks/05_CAMPAIGN_MANAGEMENT.md` when creating the first campaign, and `playbooks/AUTOMATION_SCHEDULING.md` when configuring the schedule or creating/resyncing the automation task. (If a planned stage file does not exist yet, load `docs/DESIGN.md` for its contract.)
 4. Load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` when the human asks for update/upgrade/sync-latest, when setup repair suspects stale playbooks/code, or when configuring the `OutreachCRM - GitHub Update Watch` maintenance task.
-5. Create or update client setup, the Client Intelligence Profile, pipelines and custom fields, sending identity, sendbox connections, imported lists, campaigns, schedule files, automation manifests, scheduled prompts, update-watch state, and resync logs — all CRM state through `tools/crm_store.py`.
+5. Create or update client setup, the Client Intelligence Profile, pipelines and custom fields, sending identity, sendbox connections, imported lists, campaigns, schedule files, automation manifests, scheduled prompts, update-watch state, and resync logs — all CRM state through `tools/crm_store.py`. Until `tools/crm_store.py` ships (Phase 1), Setup Flow may create the Client Intelligence Profile (.md), `crm/pipelines.json`, `crm/segments.json`, and custom-field definitions by direct file write conforming to the Stage 7 schema, logging `phase0_direct_write` in `outreach-pipeline/automation/resync_log.md`; crm_store.py re-validates them when it lands (DESIGN §22 R3).
 6. Do not send any email, run any campaign, enrich a lead for send, generate a live-send Approval Report, or start outreach in Setup Flow.
 7. If the human asks to send, run a campaign, or draft-and-send inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and tell the human the exact task name to run instead.
 8. If the human says only `update`, `upgrade`, `cập nhật`, `sync latest`, or `pull latest`, treat that as the Stage 11 OutreachCRM update command, not as `send now`.
@@ -47,6 +47,7 @@ Before copying playbooks, tools, or templates into the human's setup, verify the
 - Do not trust a folder that lacks `.git`, has the wrong owner, has an old timestamp, or could not be removed/updated.
 - Verify `git remote get-url origin`, `git rev-parse HEAD`, and `git ls-remote origin refs/heads/main`; local `HEAD` must match GitHub `main` before reading/copying.
 - If GitHub access fails, request permission or give the human one exact clone/download command. Do not proceed with stale local code.
+- If `OUTREACHCRM_GIT_REMOTE_URL` is unset or still contains the `OWNER` placeholder, treat this local working copy as the verified source, record `fresh_source_check: skipped_local_phase0` in `resync_log.md`, skip the GitHub clone/verify/fetch steps, and continue (DESIGN §22 R4).
 - Record the verified source path and commit hash in `outreach-pipeline/automation/resync_log.md` (or `update_state.json`/`update_log.md` for a full update).
 
 ## Setup Blocker Recovery
@@ -54,7 +55,7 @@ Before copying playbooks, tools, or templates into the human's setup, verify the
 If setup hits any unexpected blocker, old/corrupt artifact, missing file, permission mismatch, instruction conflict, or dead end:
 
 1. Assume the setup agent may be using an old OutreachCRM version.
-2. Re-run the Fresh Source Acquisition Hard Gate against GitHub `main`.
+2. Re-run the Fresh Source Acquisition Hard Gate against GitHub `main`. If `OUTREACHCRM_GIT_REMOTE_URL` is unset or still contains the `OWNER` placeholder, treat this local working copy as the verified source, record `fresh_source_check: skipped_local_phase0` in `resync_log.md`, skip the GitHub clone/verify/fetch steps, and continue (DESIGN §22 R4).
 3. Reload `OUTREACHCRM_PLAYBOOK.md` plus the relevant child playbooks from the verified latest source.
 4. If the newest playbook fixes the setup path, continue from the latest rule and resync the client setup/automation state.
 5. If the newest version still leaves setup blocked, escalate without requiring the human to have a GitHub account: create a redacted issue when an authorized identity exists, send/queue via a configured intake channel, or write a ready-to-post draft.
@@ -63,7 +64,7 @@ Do not include secrets, API keys, tokens, sendbox credentials, or contact PII in
 
 ## Required Setup Output
 
-For each configured client, Setup Flow must leave these current (all CRM writes via `crm_store.py`):
+For each configured client, Setup Flow must leave these current (all CRM writes via `crm_store.py`). Until `tools/crm_store.py` ships (Phase 1), Setup Flow may create the Client Intelligence Profile (.md), `crm/pipelines.json`, `crm/segments.json`, and custom-field definitions by direct file write conforming to the Stage 7 schema, logging `phase0_direct_write` in `outreach-pipeline/automation/resync_log.md`; crm_store.py re-validates them when it lands (DESIGN §22 R3).
 
 - Client Intelligence Profile.
 - `crm/pipelines.json` and custom field definitions.
@@ -80,7 +81,7 @@ For each configured client, Setup Flow must leave these current (all CRM writes 
 
 If the native automation task prompt cannot be updated directly, mark `automation_prompt_update_pending` in the manifest and schedule, then give the human one concrete instruction to update the task prompt.
 
-For sendbox connection, the setup handoff must include the exact connection steps in an `**[ACTION REQUIRED]**` block (App Password creation + `python3 tools/gmail_client.py auth --client {slug} --sendbox {sendbox_slug}`, or the OAuth flow), not just a status line.
+For sendbox connection, the setup handoff must present the connection steps in an `**[ACTION REQUIRED]**` block, not just a status line. When `tools/gmail_client.py` exists, the handoff must include the exact auth command. Until Phase 1 delivers it (DESIGN §22 R2), give the human only the App Password creation steps (Google Account → Security → 2-Step Verification → App passwords), write `sendboxes/sendboxes.json` with the box registered as status `pending_connectivity_check`, and record `gmail_client_auth_pending` in `resync_log.md` — do NOT hand out a gmail_client.py command that will error.
 
 After schedule/automation exists, offer the maintenance task `OutreachCRM - GitHub Update Watch`. If the runtime cannot create it directly, write the exact prompt to `outreach-pipeline/automation/update_watch_prompt.md`, tell the human the task name to create, and record `update_watch_task_prompt_pending` in the automation/update state.
 

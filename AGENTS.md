@@ -14,7 +14,7 @@ Automation Flow (the scheduled daily run) is the only place operational work hap
 
 ## Storage and mutation
 
-All CRM data lives under `outreach-pipeline/`. Every CRM mutation (contacts, accounts, deals, activities, tasks, pipelines, campaigns, sendboxes, suppression) MUST go through `tools/crm_store.py`. Writing CRM state directly to a file is a critical violation. Reading raw JSON is allowed only for debugging. The storage backend is pluggable (JSON now, Postgres later) via `outreach-pipeline/storage_config.json`; do not hardcode backend assumptions in playbooks.
+All CRM data lives under `outreach-pipeline/`. Every mutation of a `crm/` collection (contacts, accounts, deals, activities, tasks, pipelines, segments, suppression — the files under `clients/{slug}/crm/`) MUST go through `tools/crm_store.py`; writing those directly is a critical violation. `sendboxes/sendboxes.json`, `campaigns/{slug}/campaign_config.json`, `lists/`, `analytics/`, and the Client Intelligence Profile are plain config/profile files written directly per the Stage 7 schemas. Reading raw JSON is allowed only for debugging. The storage backend is pluggable (JSON now, Postgres later) via `outreach-pipeline/storage_config.json`; do not hardcode backend assumptions in playbooks. **Phase 0:** until `tools/crm_store.py` ships, `crm/` records (pipelines.json, segments.json, contacts, the profile) may be written directly per the Stage 7 schema and logged as `phase0_direct_write` in `outreach-pipeline/automation/resync_log.md` (DESIGN §22 R3); the critical-violation rule resumes when the tool exists.
 
 ## Client isolation
 

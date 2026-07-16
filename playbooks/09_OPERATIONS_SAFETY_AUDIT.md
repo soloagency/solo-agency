@@ -6,7 +6,7 @@ Stage: `09`
 
 Load this stage IN FULL before claiming completion of any of: client setup, a daily run, list import, verification/enrichment, campaign creation, drafting, send, inbound sync, follow-up, tracking pull, CRM mutation, reporting, notification, schedule/automation change, or update/upgrade work. Any "done", "complete", "ready", "sent", or hand-back-to-human claim requires the relevant checklist in this file to have been run first.
 
-This file is the audit and completion-gate layer. It does not replace the stage that owns a behavior (Stage 8 owns send mechanics, Stage 13 owns CRM lifecycle, Stage 16-compliance rules live in the send/import code); it confirms those stages were loaded and their rules honored before you claim the work is finished.
+This file is the audit and completion-gate layer. It does not replace the stage that owns a behavior (Stage 8 owns send mechanics, Stage 13 owns CRM lifecycle, and compliance rules live in the send/import code per DESIGN §16 (compliance encoded in send/import code) — there is no "Stage 16"); it confirms those stages were loaded and their rules honored before you claim the work is finished.
 
 ## Hard Gates For This Stage
 
@@ -155,6 +155,8 @@ Treat these as critical workflow violations:
 ## Completion Gates
 
 Run the gate that matches what you are about to claim. Each gate is a mechanical checklist: every line must be satisfied, or the miss must be reported honestly (see Final Hard Gate).
+
+> **Phase-0 note (read these gates against DESIGN §22).** Phase 0 ships this playbook operating system but not the runtime tools (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`) or the Phase 1–2 stage files, so the gates below must be applied through the Phase-0 Interim Operating Rules — a Phase-0 setup that follows them is **not** an audit failure. Per DESIGN §22 R3, until `crm_store.py` ships a direct write to a `crm/` collection that conforms exactly to the Stage 7 schema and is logged as `phase0_direct_write` in `outreach-pipeline/automation/resync_log.md` is **compliant** here — it does not trip the "direct write to `crm/` is a critical workflow violation" hard gate. Per DESIGN §22 R2, a step that needs a not-yet-built tool is recorded as `skipped: tool_not_built` (with an `**[ACTION REQUIRED]**` naming the missing tool and its delivering phase) — an honest blocker, **not** a gate failure; only a rubber-stamped pass claiming the tool ran would be a violation, and no one-off replacement script may be improvised. Per DESIGN §22 R1/R4/R5, a `status: planned` stage file is not a missing-file/recovery trigger (load the covering DESIGN section instead), the local checkout is the source of truth until the repo is published, and a Phase-0 Setup Flow can legitimately reach `ready_for_automation_first_run` with the first Daily Run's send/sync/enrich steps reported as `tool_not_built`. When a tool or stage file ships, its normal rule resumes automatically and the critical-violation language applies again.
 
 ### Setup completion gate
 
@@ -332,7 +334,7 @@ Two-lane reporting: operator-only (`INTERNAL_REPORT`, full detail) vs client-fac
 
 The weekly client report is the sole scrubbed, client-facing output. Run the scrub gate on `{client}-weekly-client-report.html` (and the `.pdf`) only. The operator-only outputs are never scrubbed and never sent to the client.
 
-Confirm the extracted text of the weekly client report contains **none** of the internal terms in `tools/report_renderer.py` `CLIENT_BLIND_TERMS`: `OutreachCRM`, `WideCast`, `Telegram`, `MCP`, `automation`, `scheduled task`, `API key`, `config file`, `debug`, `agent debug`, `PDNA`, `provider_config`, `sendbox`, `gmail_client`, `crm_store`, `storage_config`, `trk.`, `HMAC`, `token.json`, `sent_log`, `suppression`, `warmup`, `quota`, `guessed`, `INTERNAL_REPORT`.
+Confirm the extracted text of the weekly client report contains **none** of the internal terms in `tools/report_renderer.py` `CLIENT_BLIND_TERMS` (per DESIGN §19 this prose list must enumerate exactly that set): `OutreachCRM`, `WideCast`, `Telegram`, `MCP`, `OpenAPI`, `automation`, `scheduled task`, `API key`, `config file`, `debug`, `agent debug`, `PDNA`, `provider_config`, `Client tools`, `global MCP`, `sendbox`, `gmail_client`, `crm_store`, `storage_config`, `trk.`, `HMAC`, `token.json`, `sent_log`, `suppression`, `warmup`, `quota`, `guessed`, `INTERNAL_REPORT`. The mechanical scrub gate (see Evidence-Based Audit Requirements) does not re-list these — it reads the renderer's own scrub result so there is one authoritative term source.
 
 The weekly client report communicates results in the client's language: pipeline movement, replies and meetings booked, deals created/advanced, and recommended next actions — never sendbox mechanics, suppression counts, quota/warmup, guessed cohorts, provider tooling, or agent internals.
 
@@ -560,11 +562,11 @@ Scope the self-audit to the reply being sent:
 
 For these mechanical gates, the audit must paste real command output, not a self-declaration:
 
-- **Client-blind scrub (weekly report only):** run
+- **Client-blind scrub (weekly report only):** the renderer owns the single term source (its `CLIENT_BLIND_TERMS`, defined by DESIGN §19) — do not hand-maintain a separate grep pattern here that can silently drift from it and miss terms. Render the weekly report through the renderer's own scrub gate and paste its result:
   ```bash
-  grep -iE 'OutreachCRM|WideCast|Telegram|INTERNAL_REPORT|api_key|API key|MCP|PDNA|provider_config|sendbox|gmail_client|crm_store|storage_config|trk\.|HMAC|token\.json|sent_log|suppression|warmup|quota|guessed' <extracted text of {client}-weekly-client-report.html/.pdf>
+  python3 tools/report_renderer.py --client-facing --fail-on-scrub <render inputs> -o <path>/{client}-weekly-client-report.html
   ```
-  The printed hit count must be `0`.
+  Paste the `client_blind_terms_found` and `scrub_status` fields from that output: `client_blind_terms_found` must be empty and `scrub_status` must be `pass` (a scrub hit is a non-zero exit that blocks the render). On a scrub hit, reword the flagged sentence and re-render — never bypass the gate or hand-edit the blocked output. (Per DESIGN §19 the renderer's `CLIENT_BLIND_TERMS`, this playbook's prose list, and this check must all resolve to exactly that one set — the renderer output is the authority, so this gate reads it rather than re-listing the terms.)
 - **Draft evidence check:** for each draft, confirm every personalization detail appears in the contact dossier with an `evidence_url`; paste the mismatch count (must be `0`).
 - **Pre-send gate chain:** paste the ordered gate result for the batch (each of the ten gates → pass/blocked), proving it ran in code.
 - **Approval consistency:** for each send, quote the `approvals/approval_log.md` line whose decision `approve` names that `draft_id`.

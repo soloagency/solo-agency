@@ -52,6 +52,8 @@ Use this sequence before reading, diffing, or copying source files:
 4. Record `source_checkout_path`, `source_commit`, `remote_main_commit`, and `verified_at` in the update log.
 5. If network or sandbox access blocks GitHub, request permission or give the human one exact clone/download command. Do not fall back to unverified local code.
 
+**Phase-0 escape (DESIGN §22 R4).** If `OUTREACHCRM_GIT_REMOTE_URL` is unset or still contains the OWNER placeholder (repo not yet published), record `fresh_source_check: skipped_local_phase0` in `update_state.json`, treat the local working copy as authoritative, and skip the remote check rather than hard-stopping (DESIGN §22 R4). This escape applies only while the repo is unpublished; once `OUTREACHCRM_GIT_REMOTE_URL` is a real URL, the full protocol above resumes and unverified local code is no longer a valid source.
+
 Valid sources:
 
 - A freshly cloned and verified `mktemp -d` checkout.
@@ -292,7 +294,7 @@ Update-watch task algorithm:
 9. If `auto_apply_approved: true`, apply the agency-tier toolkit update and resync `outreach-pipeline/automation/` state, record each affected client in `clients_pending_resync` without writing under `clients/`, and still require human tracker-deploy, storage-migration, or sendbox re-auth actions when those files changed.
 10. If `auto_apply_approved: false`, ask the human whether to apply the update.
 
-Change classification values:
+Change classification values (canonical enum — this Stage 11 list is the authority; Stage 07 aligns to exactly this set, do not diverge):
 
 - `no_change`
 - `playbook_only`
@@ -332,7 +334,7 @@ outreach-pipeline/automation/update_notice.md
 outreach-pipeline/automation/backups/
 ```
 
-Minimum `update_state.json`:
+Minimum `update_state.json` (canonical schema — this Stage 11 shape is the authority, including `sendbox_reauth_required` and `clients_pending_resync`; Stage 07 aligns to this set and must not drop these fields):
 
 ```json
 {

@@ -106,10 +106,11 @@ These are the machinery the whole architecture exists to enforce. Keep them near
 | 14 | `playbooks/14_TASKS_TODAY_VIEW.md` | task engine, SLA, Today View |
 | 15 | `playbooks/15_CRM_REPORTING.md` | pipeline report, forecast, weekly client report |
 | 6A | `playbooks/skills/report-design/SKILL.md` | report rendering |
+| Auto | `playbooks/AUTOMATION_SCHEDULING.md` | configuring the schedule/automation task in Setup Flow; the start of every scheduled run; any Automation Resync. Defines the Daily Run order, run_lock, and resync machinery. |
 | Setup | `playbooks/SETUP_FLOW_ENTRYPOINT.md` | setup sessions |
 | Sched | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | unattended daily runs |
 
-Some stages/tools/skills may be marked `status: planned` until built; their Stage Map rows still exist. Load only the stage needed for the current action plus any dependency that stage names, each with its own LOAD LEDGER.
+Some stages/tools/skills may be marked `status: planned` until built; their Stage Map rows still exist. Load only the stage needed for the current action plus any dependency that stage names, each with its own LOAD LEDGER. Until a planned file exists, load `docs/DESIGN.md` for its contract (DESIGN §22 R1).
 
 ### 0.2 Full-load discipline (LOAD_LEDGER)
 
@@ -121,14 +122,13 @@ Stated in full in the override above. The control-plane / operations-plane split
 
 ### 0.4 One automation task per client
 
-Client-specific task name begins with the client name (task lists truncate long names), pins `target_client_slug`, and cannot touch another client. Example names:
+Client-specific task name begins with the client name (task lists truncate long names), pins `target_client_slug`, and cannot touch another client. Example name (there is exactly one client-specific task):
 
 ```text
 Acme Realty - OutreachCRM Daily Run
-Acme Realty - OutreachCRM First Run
 ```
 
-Plus one agency-wide `OutreachCRM - GitHub Update Watch` task (§0.6), barred from every client-facing channel.
+The first run is just that `{Client} - OutreachCRM Daily Run` task's first execution — there is no separate `First Run` task. Plus one agency-wide `OutreachCRM - GitHub Update Watch` task (§0.6), barred from every client-facing channel.
 
 ### 0.5 Automation Resync
 
@@ -149,6 +149,8 @@ https://raw.githubusercontent.com/OWNER/outreachcrm/main/playbooks/
 ```
 
 After any GitHub-raw download, verify it against `playbooks/LOAD_MANIFEST.md` via a LOAD LEDGER; a short/partial download must be re-fetched before use.
+
+Carve-out (DESIGN §22 R1): Stages marked `status: planned` are not missing files — do not GitHub-fetch them and do not enter Last-Resort Recovery for them; load `docs/DESIGN.md` for their contract instead.
 
 ### 0.8 Last-resort recovery + GitHub issue escalation
 
@@ -194,17 +196,18 @@ During Setup Flow, show and keep updating a human-facing roadmap so the human ca
 OutreachCRM one-time setup process
 This is the planned setup process I am working through. You only need to reply when I ask one specific question.
 
-→ 1. You provide the client's business, offer, and target-prospect profile (or a public website/profile URL I can read)
-○ 2. I infer the industry, offer, value proposition, sending identity and voice, and the compliance basics (a real physical mailing address and sender name for the email footer)
-○ 3. I connect and verify at least one sendbox (the mailbox we send from; @gmail.com app-password is the priority path, Workspace/custom-domain OAuth is the fallback)
-○ 4. I import your prospect list(s) (CSV/TXT/XLSX) into isolated contacts, deduped and checked against suppression
-○ 5. I configure the schedule/routine and create the client-specific automation task ({Client} - OutreachCRM Daily Run) that will run the pipeline in Automation Flow
-○ 6. I set up at least one campaign with its goal (the goal is the writing blueprint), audience/segment, follow-up sequence, daily quota, and approval mode
-○ 7. I set up operator notification (Telegram with email fallback) so you get run summaries and the report link
-○ 8. In Automation Flow the task then verifies/enriches, drafts for your chat approval, sends approved drafts, tracks replies/bounces, advises follow-ups, updates the CRM, and (Mondays) produces the scrubbed weekly client report
+→ 1. You provide the product/service or business, ideal customer, and (optional) website/URL
+○ 2. I infer the ideal-customer profile, value proposition, and email voice, then show them for correction; I propose a pipeline (stages) and custom fields
+○ 3. You confirm the sending identity: from-name, signature, physical mailing address, and unsubscribe method (the compliance basics for the email footer)
+○ 4. You connect the first sendbox (the mailbox we send from; a dedicated Gmail via App Password is the quickest/priority path, Workspace/custom-domain OAuth is the fallback)
+○ 5. You give me a contact list (CSV/TXT/XLSX); I map columns, de-duplicate, and check suppression (the do-not-contact list)
+○ 6. We create the first campaign and its goal (e.g. book a meeting — the goal is the writing blueprint), sequence, and daily quota
+○ 7. I set up operator notifications (optional): Telegram via a WideCast API key, with email fallback, so you get run summaries and the report link
+○ 8. I record a baseline (nothing has been sent yet)
+○ 9. I create the client-specific daily automation task ({Client} - OutreachCRM Daily Run); from then on the daily run enriches, drafts, and shows you an Approval Report — nothing sends until you approve
 ```
 
-Roadmap integrity: always show all items in order; never hide later items because they are pending; mark `–` only after an explicit human decline or a logged not-applicable reason; verify/enrich/draft/send/track/report (item 8) never run in Setup Flow. After any approved config change once a schedule exists, run Automation Resync and show an `Automation freshness` line (`current` / `resync in progress` / `action needed` / `not applicable yet`).
+Roadmap integrity: always show all items in order (all 9); never hide later items because they are pending; mark `–` only after an explicit human decline or a logged not-applicable reason; the automation task is created LAST (item 9), and the verify/enrich/draft/send/track/report work it runs (item 9) never runs in Setup Flow. After any approved config change once a schedule exists, run Automation Resync and show an `Automation freshness` line (`current` / `resync in progress` / `action needed` / `not applicable yet`).
 
 ### 0.15 Progress + next-step question rule
 
@@ -393,7 +396,7 @@ Compliance is a code-enforced backbone, not a disclaimer. It binds every send-ca
 
 ## 5. Storage & CRM Mutation Discipline (`crm_store.py`)
 
-- **All CRM mutations go through `crm_store.py`.** Direct file writes under `clients/{slug}/crm/` are a critical violation (the inherited "no one-off scripts" rule). Reading raw JSON is allowed only for debugging. There is no "quick fix by editing the JSON" path; there is only the store.
+- **All CRM mutations go through `crm_store.py`.** Direct file writes under `clients/{slug}/crm/` are a critical violation (the inherited "no one-off scripts" rule). Reading raw JSON is allowed only for debugging. There is no "quick fix by editing the JSON" path; there is only the store. Scope note: the store owns only files under `clients/{slug}/crm/` (contacts, accounts, deals, activities, tasks, `pipelines.json`, `segments.json`, `suppression.jsonl`). Files outside `crm/` — `sendboxes/sendboxes.json`, `campaigns/{slug}/campaign_config.json`, `lists/`, `analytics/`, and the Client Intelligence Profile `.md` — are plain config/profile writes, never crm_store-only (DESIGN §6; §22 R3).
 - The store is backed by a pluggable adapter (`tools/storage/adapter.py`): `json_adapter.py` is default, `postgres_adapter.py` comes later and must pass the same parametrized contract tests. Interface includes `get/put/update/delete/query/append/read_log/find_by_identity/reserve`. `query` uses a flat-field `Cond` DSL (`= != < > contains in`); identity lookups do NOT use it — they use `find_by_identity` over the maintained unique reverse index `contact_identities`.
 - Every record carries `schema_version`, `id`, `created_at`, `updated_at`; a per-collection `{from_version: fn}` upgrade registry is applied on read and persisted on next write. JSON adapter: one file per record, monthly JSONL logs, atomic temp+rename, per-collection `fcntl` lock, a per-log counter (under the log lock) supplying the monotonic `seq`. Migration to Postgres runs under a storage-freeze flag, verified with per-record content hashes (not counts), upgrading all records to current `schema_version` first.
 - Client scope is enforced by rooting the adapter per client; the Postgres adapter carries a mandatory `client_id` in every table and every generated WHERE. Never bypass this to "peek across clients."
