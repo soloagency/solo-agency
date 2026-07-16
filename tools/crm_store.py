@@ -22,6 +22,8 @@ CLI (JSON to stdout):
   task add      --json '{...}' | task done --id ID
   reserve       --sendbox sb-a --day 2026-07-16 --cap 40
   apply-rules   --event TYPE --contact ID [--activity ID] | apply-rules --events file.json
+  validate      [--rebuild-index]              (schema check; rebuilds the identity index —
+                                                run once when migrating a Phase-0 install, DESIGN §22 R3)
   reset-client  --client-dir DIR --confirm     (test helper; DESIGN §17)
 """
 
@@ -96,6 +98,67 @@ class CrmStore:
         if not os.path.isfile(self.pipelines_path()):
             self.set_pipelines(DEFAULT_PIPELINES)
         return self.get_pipelines()
+
+    # --- validation / migration ----------------------------------------------
+
+    def validate(self, rebuild_index: bool = False) -> dict:
+        """Validate every crm/ record against the Stage 7 minimum schema and, when
+        rebuild_index is set, rebuild contact_identities.jsonl from the contacts on disk.
+        This is the migration for a workspace whose records were created by the Phase-0
+        direct-write path (before the identity reverse index existed): without it,
+        find_by_identity/dedupe would miss those contacts (DESIGN §22 R3)."""
+        report = {"contacts": 0, "problems": [], "index_rebuilt": False, "identities_indexed": 0}
+        req = ("id", "schema_version", "created_at", "updated_at")
+        contacts_dir = os.path.join(self.crm_root, "contacts")
+        contacts = []
+        if os.path.isdir(contacts_dir):
+            for name in sorted(os.listdir(contacts_dir)):
+                if not name.endswith(".json"):
+                    continue
+                path = os.path.join(contacts_dir, name)
+                try:
+                    with open(path, "r", encoding="utf-8") as fh:
+                        rec = json.load(fh)
+                except (OSError, ValueError) as e:
+                    report["problems"].append(f"{name}: unreadable ({e.__class__.__name__})")
+                    continue
+                report["contacts"] += 1
+                for k in req:
+                    if not rec.get(k):
+                        report["problems"].append(f"{name}: missing/empty {k}")
+                if rec.get("id") and rec["id"] != name[:-5]:
+                    report["problems"].append(f"{name}: id {rec['id']!r} != filename")
+                contacts.append(rec)
+        for coll in ("accounts", "deals"):
+            d = os.path.join(self.crm_root, coll)
+            if os.path.isdir(d):
+                for name in sorted(os.listdir(d)):
+                    if name.endswith(".json"):
+                        try:
+                            with open(os.path.join(d, name), "r", encoding="utf-8") as fh:
+                                json.load(fh)
+                        except (OSError, ValueError) as e:
+                            report["problems"].append(f"{coll}/{name}: unreadable ({e.__class__.__name__})")
+        if rebuild_index:
+            idx_path = os.path.join(self.crm_root, "contact_identities.jsonl")
+            tmp = idx_path + ".rebuild.tmp"
+            n = 0
+            with open(tmp, "w", encoding="utf-8") as fh:
+                seq = 0
+                for rec in contacts:
+                    if (rec.get("merge") or {}).get("status") == "merged":
+                        continue  # tombstones don't own live identities
+                    for kind, val in self._identity_pairs(rec):
+                        seq += 1
+                        fh.write(json.dumps({"seq": seq, "ts": now_iso(), "kind": kind,
+                                             "value": val, "contact_id": rec["id"], "removed": False}) + "\n")
+                        n += 1
+            os.replace(tmp, idx_path)
+            self.a._identity_cache = None  # force a rebuild on next lookup
+            self.a._identity_cache_sig = None
+            report["index_rebuilt"] = True
+            report["identities_indexed"] = n
+        return report
 
     # --- contacts + identity + merge -----------------------------------------
 
@@ -579,6 +642,7 @@ def main(argv=None) -> int:
     r = sub.add_parser("reserve"); r.add_argument("--sendbox", required=True); r.add_argument("--day", required=True); r.add_argument("--cap", type=int, required=True)
     ar = sub.add_parser("apply-rules"); ar.add_argument("--event"); ar.add_argument("--contact"); ar.add_argument("--activity", default=""); ar.add_argument("--events")
     rc = sub.add_parser("reset-client"); rc.add_argument("--confirm", action="store_true")
+    va = sub.add_parser("validate"); va.add_argument("--rebuild-index", action="store_true")
 
     args = p.parse_args(argv)
 
@@ -596,6 +660,8 @@ def main(argv=None) -> int:
     cdir = resolve_client_dir(args.pipeline, args.client, args.client_dir)
     store = CrmStore(cdir)
 
+    if args.cmd == "validate":
+        return _out(store.validate(rebuild_index=args.rebuild_index))
     if args.cmd == "contact":
         if args.op == "add":
             lead_id, outcome = store.add_contact(json.loads(args.json))
