@@ -112,13 +112,15 @@ public/private "data sources" concepts, PDNA production/video/render/distributio
 | 14 | `playbooks/14_TASKS_TODAY_VIEW.md` | task engine, SLA, Today View |
 | 15 | `playbooks/15_CRM_REPORTING.md` | pipeline report, forecast, weekly client report |
 | 6A | `playbooks/skills/report-design/SKILL.md` | report rendering (kept) |
+| Auto | `playbooks/AUTOMATION_SCHEDULING.md` | configuring the schedule/automation task in Setup Flow; the start of every scheduled run; any Automation Resync. Defines the Daily Run order, run_lock, and resync machinery. |
 | Setup | `playbooks/SETUP_FLOW_ENTRYPOINT.md` | setup sessions |
 | Sched | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | unattended daily runs |
 
-Phase 0 delivers: 0, 1, 7, 9, 11, root playbook, both entrypoints, LOAD_LEDGER,
-AGENTS.md, deploy script, README, renderer term-list swap, LOAD_MANIFEST. Stages
+Phase 0 delivers: 0, 1, 7, 9, 11, AUTOMATION_SCHEDULING, root playbook, both entrypoints,
+LOAD_LEDGER, AGENTS.md, deploy script, README, renderer term-list swap, LOAD_MANIFEST. Stages
 2–6, 8, 10, 12–15 and the new tools/skills are built in Phase 1–2 (their Stage Map
-rows exist now; their files may be marked `status: planned` until built).
+rows exist now; their files may be marked `status: planned` until built). Per §22 R1,
+a `status: planned` row is never a load failure — load this DESIGN section for its contract.
 
 ---
 
@@ -658,11 +660,19 @@ open = soft assertion (design admits it's estimated), hard-assert click/reply/un
 - Keep: `generate_load_manifest`, git-root safety, secret scan framework, skills zip.
 
 ## 19. Renderer scrub term list (`tools/report_renderer.py`, `CLIENT_BLIND_TERMS`)
-Drop WideCast/Local-Collector-only terms; keep "Telegram", "MCP", "automation",
-"scheduled task", "API key", "config file", "debug", "agent debug", "PDNA",
-"provider_config"; add "OutreachCRM", "sendbox", "gmail_client", "crm_store",
-"storage_config", "trk.", "HMAC", "token.json", "sent_log", "suppression", "warmup",
-"quota", "guessed", "INTERNAL_REPORT". (Weekly client report is the only scrubbed output.)
+This is the single source for the term list; `tools/report_renderer.py`, playbook 09's
+prose list, and 09's mechanical scrub grep must all enumerate exactly this set.
+**Keep** (must never reach a client): "OutreachCRM", "WideCast" (the notification provider's
+name must never appear in a client report), "INTERNAL_REPORT", "MCP", "OpenAPI", "API key",
+"PDNA", "Telegram", "automation", "scheduled task", "config file", "debug", "agent debug",
+"provider_config", "Client tools", "global MCP". **Add** (OutreachCRM internal vocabulary):
+"sendbox", "gmail_client", "crm_store", "storage_config", "trk.", "HMAC", "token.json",
+"sent_log", "suppression", "warmup", "quota", "guessed". Natural-English terms (`quota`,
+`automation`, `debug`, `guessed`, `warmup`, `suppression`) are matched with word boundaries so
+innocent copy ("quotations", "home automation") does not false-positive; technical tokens keep
+substring matching. On a scrub hit the recovery is to reword the flagged sentence and
+re-render — never bypass the gate or hand-edit the blocked output. (Weekly client report is
+the only scrubbed output.)
 
 ## 20. Update Watch (Stage 11) — rewritten scope
 Diff scope + change-classification enum rebuilt around OutreachCRM components: storage
@@ -689,4 +699,53 @@ in AGENTS.md's blocker-recovery clause (it fires on any blocker, not just explic
   fully wired, Postgres adapter.
 - **Phase 4:** Local Collector + lead-engine (Facebook enrichment) re-imported.
 - **Phase 5 (optional):** local web UI over crm_store.
+
+---
+
+## 22. Phase-0 Interim Operating Rules (authoritative until Phase 1 ships)
+
+Phase 0 delivers the playbook operating system but NOT the runtime tools
+(`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`), the tracker
+worker, or the Phase 1–2 stage files (02–06, 08, 10, 12–15) and skills. Any playbook rule
+that mandates one of those is subject to these interim rules. They exist so a real setup
+session degrades honestly instead of dead-locking. When a tool/file ships, its normal rule
+resumes automatically and the "critical violation" language applies again.
+
+**R1 — Planned stage files & skills are not "missing files".** A Stage Map row marked
+`status: planned` (or a skill not yet on disk) must NOT be treated as a truncated/404 read,
+must NOT trigger GitHub re-fetch or Last-Resort Recovery. Load `docs/DESIGN.md` (the section
+covering that stage) with its own LOAD LEDGER instead, and record `stage_file_pending` in
+the run/setup progress block.
+
+**R2 — Missing tools are honest blockers, not recovery triggers.** If a required tool
+(`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`) does not exist,
+do NOT improvise a replacement script (the no-one-off-scripts rule still holds) and do NOT
+enter Last-Resort Recovery. Report it via one `**[ACTION REQUIRED]**` block naming the
+missing tool and the phase that delivers it, record the step as `skipped: tool_not_built`
+in the progress block and `INTERNAL_REPORT`, and continue with steps that need no missing tool.
+
+**R3 — Direct config/record writes are permitted in Phase 0.** Until `crm_store.py` ships,
+Setup Flow MAY create these by direct file write conforming exactly to the Stage 7 schema
+(stamping `schema_version`/`id`/`created_at`/`updated_at` where the schema requires them):
+the Client Intelligence Profile (a `.md` file, never a crm_store collection anyway),
+`crm/pipelines.json`, `crm/segments.json`, custom-field definitions, `sendboxes/sendboxes.json`,
+and `campaigns/{slug}/campaign_config.json`. Each direct write to a `crm/` collection must be
+logged as `phase0_direct_write` in `outreach-pipeline/automation/resync_log.md`; when
+`crm_store.py` lands it must re-validate those files. Stage 9 treats a logged `phase0_direct_write`
+as compliant during Phase 0. (Config files outside `crm/` — sendboxes, campaign_config, lists,
+analytics, the profile — are plain config writes and were never crm_store-only; see §6.)
+
+**R4 — Unpublished repo: the local checkout is the source of truth.** Until the repo is
+published and `OUTREACHCRM_GIT_REMOTE_URL` is set to a real URL (the placeholder is
+`github.com/OWNER/outreachcrm`), the Fresh GitHub Source gate and Last-Resort Recovery must
+treat THIS local working copy as the verified source: record `fresh_source_check:
+skipped_local_phase0` in `resync_log.md` (or `update_state.json` for updates), skip the clone/
+remote-verify/GitHub-fetch steps, and continue. Do not block setup or a run on a GitHub check
+that cannot pass yet.
+
+**R5 — What a Phase-0 setup CAN reach.** With R1–R4, a Setup Flow session can complete to
+`ready_for_automation_first_run` (profile + pipeline + campaign written directly, sendbox and
+list recorded as pending or written directly, notification configured or declined, automation
+task created). The first Daily Run will honestly report the send/sync/enrich steps as
+`skipped: tool_not_built` until Phase 1 lands — that is expected and correct, not a failure.
 ```
