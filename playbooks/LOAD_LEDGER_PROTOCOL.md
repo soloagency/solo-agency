@@ -40,7 +40,7 @@ When a stage's "Load When" (Stage Map) or its own text names dependencies (e.g. 
 
 ## Rule 5 — Verify GitHub-raw downloads against the manifest
 
-If a stage is missing locally and fetched from the OutreachCRM GitHub raw URL (`https://raw.githubusercontent.com/OWNER/outreachcrm/main/playbooks/…`), the download itself can be partial/stale. After fetching, run the LOAD LEDGER against `LOAD_MANIFEST.md`. Mismatch = bad download → re-fetch; never act on a partial download.
+If a stage is missing locally and fetched from the OutreachCRM GitHub raw URL (`https://raw.githubusercontent.com/soloagency/outreachcrm/main/playbooks/…`), the download itself can be partial/stale. After fetching, run the LOAD LEDGER against `LOAD_MANIFEST.md`. Mismatch = bad download → re-fetch; never act on a partial download.
 
 ## Rule 6 — No side-effect action without a PASS ledger above it
 
