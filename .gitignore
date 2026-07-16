@@ -38,3 +38,7 @@ provider_config.local.json
 
 # Keep committed zip artifacts.
 !playbooks/skills/*.zip
+
+# Session backup copies (git history is the backup)
+*_2026-*.md
+*_2026-*.sh
