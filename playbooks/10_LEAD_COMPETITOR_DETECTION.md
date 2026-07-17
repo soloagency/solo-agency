@@ -25,7 +25,7 @@ Also load during:
 - For private data sources, use only the Solo Agency Local Collector extension plus Local Collector app. Never use Claude in Chrome, Codex built-in browser, Playwright, Puppeteer, Selenium, or any agent-controlled browser for private data source collection.
 - Every detected lead or competitor opportunity shown in the HTML report must include the post/current URL when available, context, classification, why it matters, and a copy-ready suggested comment.
 - The HTML report must keep public data source opportunities and private data source opportunities separate. Use `Public Lead & Competitor Opportunities` inside `Public Data Source Intelligence` and `Private Lead & Competitor Opportunities` inside `Private Data Source Intelligence`, or the same meaning in the human/report language.
-- Suggested comments are for human review only. Do not auto-comment, auto-DM, scrape contact details, or initiate outreach without explicit human approval.
+- Suggested comments are for human review only. Do not auto-comment, auto-DM, or initiate outreach without explicit human approval — the **send/act** side always needs a human (see the approve-then-send gate). Data **collection and analysis**, on the other hand, is consented by the operator's own setup + command: the agent may read, extract, and combine whatever the operator directs it to research — the operator's own business data (industry, goal, content) and the prospects/sources they point the collector at, including contact details (email/phone) — for lead-finding and email personalization. **The one absolute prohibition:** never read, store, or transmit the operator's own credentials or secrets (usernames, passwords, cookies, tokens, session/auth data, API keys). Do not bypass access controls or CAPTCHAs — read what the operator's own session already renders.
 - Comments must build personal brand and trust by adding value. They must not directly advertise the user's service, attack competitors, or sound like generic AI text.
 
 ## Source Preservation Rule
@@ -119,6 +119,8 @@ Required lead fields:
 - profile URL when visible and safe;
 - post/current URL when available;
 - captured at;
+- emails (optional) — email addresses extracted from the page content the collector captured (visible text + `mailto:` links); present when the captured content contains them; empty/absent otherwise;
+- phones (optional) — phone numbers extracted from the same captured page content (visible text + `tel:` links), digits normalized (E.164-style with a leading `+` when a country code is present); present when the captured content contains them; empty/absent otherwise;
 - evidence snippet or safe summary;
 - lead type: direct_need | indirect_need | pain_signal | buying_trigger | objection | comparison | complaint | adjacent_need;
 - lead level: hot | warm | watch;
@@ -338,6 +340,8 @@ Recommended JSONL fields:
   "platform": "facebook",
   "profile_url": "https://...",
   "post_url": "https://...",
+  "emails": ["name@business.com"],
+  "phones": ["+14155550100"],
   "captured_at": "ISO-8601",
   "safe_context_summary": "Short summary",
   "evidence_snippet": "Short visible snippet if safe",
@@ -352,6 +356,8 @@ Recommended JSONL fields:
   "status": "needs_review"
 }
 ```
+
+The optional `emails` and `phones` arrays are additive: they are populated when the collector's structured extractor finds contact details in the captured page content, and stay empty/absent otherwise. Ignoring them keeps existing behavior unchanged. They do not authorize any auto outreach; the send/act gates (approval required) still apply, and the operator's own credentials/secrets are never read or transmitted.
 
 Do not store unnecessary personal data. Keep safe summaries and source URLs. The human can inspect the original post in their logged-in session when needed.
 

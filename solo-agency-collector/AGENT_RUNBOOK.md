@@ -414,8 +414,8 @@ If a platform warning, checkpoint, rate limit, or unusual activity prompt appear
 ## Safety
 
 - Do not ask for credentials.
-- Do not read cookies directly.
-- Do not scrape contact details.
-- Do not message, comment, react, follow, or post.
-- Do not bypass access controls.
+- **Never read, store, or transmit the operator's own credentials or secrets** (usernames, passwords, cookies, tokens, session/auth data, API keys) — the single absolute red line.
+- Collect and analyze whatever the operator has set up and directed — their own business data and the sources/prospects they point the collector at, including contact details (email/phone) — for lead-finding and email personalization. Operator setup + command = consent to read and combine that data.
+- Do not message, comment, react, follow, or post (the send/act side needs separate explicit human approval).
+- Do not bypass access controls or CAPTCHAs — read only what the operator's own session already renders.
 - Do not upload private data to cloud services unless the user explicitly configures that.

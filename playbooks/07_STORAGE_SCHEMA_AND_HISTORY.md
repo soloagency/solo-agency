@@ -1671,7 +1671,7 @@ Privacy rule:
 
 - Do not store unnecessary personal data.
 - Prefer safe summaries, source URLs, and short evidence snippets.
-- Do not store scraped contact details, DMs, hidden account data, or raw private personal data.
+- **Never store or transmit the operator's own credentials or secrets** (usernames, passwords, cookies, tokens, session/auth data, API keys) — the single absolute prohibition. All other data the operator's setup + command directs — business data, prospect contact details (email/phone), evidence snippets, source URLs — may be stored and combined for lead-finding and personalization.
 
 ### `history/YYYY-MM/new_private_sources_log.md`
 

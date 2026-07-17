@@ -1397,11 +1397,11 @@ func (b *bridge) currentPersistentJob(now time.Time, identity extensionIdentity)
 			"max_text_chars":     12000,
 		},
 		"collector_policy": map[string]any{
-			"read_only":                     true,
-			"do_not_message":                true,
-			"do_not_comment":                true,
-			"do_not_react":                  true,
-			"do_not_scrape_contact_details": true,
+			"read_only":                 true,
+			"do_not_message":            true,
+			"do_not_comment":            true,
+			"do_not_react":              true,
+			"do_not_exfiltrate_secrets": true,
 		},
 	}
 	if identity.clientSlug != "" {
@@ -1586,11 +1586,11 @@ func pacingForJob(doc map[string]any, job map[string]any) map[string]any {
 
 func defaultCollectorPolicy() map[string]any {
 	return map[string]any{
-		"read_only":                     true,
-		"do_not_message":                true,
-		"do_not_comment":                true,
-		"do_not_react":                  true,
-		"do_not_scrape_contact_details": true,
+		"read_only":                 true,
+		"do_not_message":            true,
+		"do_not_comment":            true,
+		"do_not_react":              true,
+		"do_not_exfiltrate_secrets": true,
 	}
 }
 

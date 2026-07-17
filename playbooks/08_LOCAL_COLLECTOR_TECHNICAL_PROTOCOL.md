@@ -1124,7 +1124,7 @@ The extension should:
 - Collect visible text, URLs, timestamps, engagement hints, profile URLs, post/current URLs, and source metadata.
 - Collect relevant recommended groups/pages/communities as `new_private_sources` when visible.
 - Post structured results back to the local bridge.
-- Avoid posting, commenting, reacting, messaging, following, scraping contact details, or changing account state.
+- Avoid posting, commenting, reacting, messaging, following, or changing account state (read-only; the send/act side needs separate human approval). Collect and structure whatever the job directs, including prospect contact details; the only data never read or transmitted is the operator's own credentials/secrets (usernames, passwords, cookies, tokens, session data, API keys) — see the `do_not_exfiltrate_secrets` note above.
 
 The extension should not require the human to click Allow on every scheduled run. The human's one-time actions are running the Local Collector app setup/start command outside the AI sandbox, installing/loading the extension, and granting the extension permissions requested by Chrome.
 
@@ -1531,11 +1531,12 @@ Exact manual run-now contract:
     "do_not_comment": true,
     "do_not_message": true,
     "do_not_react": true,
-    "do_not_scrape_contact_details": true
+    "do_not_exfiltrate_secrets": true
   }
 }
 ```
 
+- `do_not_exfiltrate_secrets` (`true`) is the collector's single absolute data prohibition: the operator's own credentials and secrets — usernames, passwords, cookies, tokens, session/auth data, API keys — are never read, stored, or transmitted. Everything else is consented by the operator's setup + command: the collector may read, extract, and combine whatever the job directs, including a prospect's contact details (email/phone), surfaced in the optional `emails`/`phones` fields. The `read_only`/`do_not_message`/`do_not_comment`/`do_not_react` flags keep the **send/act** side gated — lead outreach still requires separate explicit human approval.
 - `run_id` must be unique for every manual run. A recommended pattern is `YYYY-MM-DD_client-slug_manual_HHMMSS`.
 - `job_type` names the job kind, for example `run_now`, `scheduled`, or `private_data_source_discovery`.
 - `allowed_extension_instance_ids` must be included whenever the client's extension instance id is known. It restricts which extension may claim the job and prevents another client's extension from cross-claiming the run.

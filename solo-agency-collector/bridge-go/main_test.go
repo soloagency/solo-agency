@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -600,5 +602,79 @@ func TestRejectsWritesFromWrongExtensionClient(t *testing.T) {
 	b.handleDataPoint(rightRec, rightReq)
 	if rightRec.Code != http.StatusOK {
 		t.Fatalf("right extension write status = %d, want %d; body=%s", rightRec.Code, http.StatusOK, rightRec.Body.String())
+	}
+}
+
+// TestDataPointContactsSurviveToRecord locks in the additive contract for the
+// collector's new structured email/phone extraction: the bridge is a pass-through
+// of arbitrary data-point JSON, so the optional `contacts` object (plus flat
+// emails/phones, if ever sent) posted by the extension must survive sanitize and
+// land verbatim in the written private_data_points.jsonl record.
+func TestDataPointContactsSurviveToRecord(t *testing.T) {
+	root := t.TempDir()
+	outputDir := filepath.Join(root, "inbox")
+	b, err := newBridge(config{
+		host:      defaultHost,
+		port:      defaultPort,
+		outputDir: outputDir,
+		ttl:       defaultTTL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := b.activateRunNowJob(map[string]any{
+		"run_id": "2026-07-16_contacts_test",
+		"sources": []any{
+			map[string]any{"name": "Example", "url": "https://example.com/contact"},
+		},
+	}, time.Now(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runOutputDir := getString(resp, "output_dir", "")
+	if runOutputDir == "" {
+		t.Fatal("activateRunNowJob returned empty output_dir")
+	}
+
+	body := `{"run_id":"2026-07-16_contacts_test","source_name":"Example",` +
+		`"contacts":{"emails":["jane@acme.com","sales@acme.com"],"phones":["+14155550100"]},` +
+		`"emails":["jane@acme.com"],"phones":["+14155550100"]}`
+	req := httptest.NewRequest(http.MethodPost, "/collect/data_point", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	b.handleDataPoint(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("data_point status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	data, err := os.ReadFile(filepath.Join(runOutputDir, "private_data_points.jsonl"))
+	if err != nil {
+		t.Fatalf("read data points: %v", err)
+	}
+	var record map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(data), &record); err != nil {
+		t.Fatalf("decode record: %v; data=%s", err, string(data))
+	}
+
+	contacts, ok := record["contacts"].(map[string]any)
+	if !ok {
+		t.Fatalf("record has no structured contacts object; record=%s", string(data))
+	}
+	emails, _ := contacts["emails"].([]any)
+	if len(emails) != 2 || fmt.Sprint(emails[0]) != "jane@acme.com" || fmt.Sprint(emails[1]) != "sales@acme.com" {
+		t.Fatalf("contacts.emails = %v, want [jane@acme.com sales@acme.com]", contacts["emails"])
+	}
+	phones, _ := contacts["phones"].([]any)
+	if len(phones) != 1 || fmt.Sprint(phones[0]) != "+14155550100" {
+		t.Fatalf("contacts.phones = %v, want [+14155550100]", contacts["phones"])
+	}
+
+	// Flat top-level arrays must also pass through untouched (arbitrary additive keys).
+	flatEmails, _ := record["emails"].([]any)
+	if len(flatEmails) != 1 || fmt.Sprint(flatEmails[0]) != "jane@acme.com" {
+		t.Fatalf("record.emails = %v, want [jane@acme.com]", record["emails"])
+	}
+	flatPhones, _ := record["phones"].([]any)
+	if len(flatPhones) != 1 || fmt.Sprint(flatPhones[0]) != "+14155550100" {
+		t.Fatalf("record.phones = %v, want [+14155550100]", record["phones"])
 	}
 }
