@@ -274,8 +274,9 @@ class TestAuditRegressions(unittest.TestCase):
         gmail_client.save_sendbox(self.cdir, {"slug": "sb-a", "email": "s@gmail.com", "domain": "gmail.com",
                                               "quota_today": 5, "status": "healthy", "imap_uid_cursor": 0})
         d = os.path.join(self.cdir, "draft.json")
-        json.dump({"lead_id": lead, "campaign_slug": "c", "step": 1, "sendbox": "sb-a",
-                   "to": "secondary@x.com", "subject": "hi", "body_text": "b", "status": "approved"}, open(d, "w"))
+        with open(d, "w") as fh:
+            json.dump({"lead_id": lead, "campaign_slug": "c", "step": 1, "sendbox": "sb-a",
+                       "to": "secondary@x.com", "subject": "hi", "body_text": "b", "status": "approved"}, fh)
         r = gmail_client.cmd_send(self.cdir, d, dry_run=True)
         self.assertEqual(r["blocker"], "suppressed")  # a suppressed SECONDARY identity blocks
 
@@ -285,8 +286,9 @@ class TestAuditRegressions(unittest.TestCase):
         gmail_client.save_sendbox(self.cdir, {"slug": "sb-a", "email": "s@gmail.com", "domain": "gmail.com",
                                               "quota_today": 5, "status": "healthy", "imap_uid_cursor": 0})
         d = os.path.join(self.cdir, "draft.json")
-        json.dump({"lead_id": lead, "campaign_slug": "c", "step": 1, "sendbox": "sb-a",
-                   "to": "attacker@evil.com", "subject": "hi", "body_text": "b", "status": "approved"}, open(d, "w"))
+        with open(d, "w") as fh:
+            json.dump({"lead_id": lead, "campaign_slug": "c", "step": 1, "sendbox": "sb-a",
+                       "to": "attacker@evil.com", "subject": "hi", "body_text": "b", "status": "approved"}, fh)
         r = gmail_client.cmd_send(self.cdir, d, dry_run=True)
         self.assertEqual(r["blocker"], "recipient_not_a_contact_identity")
 

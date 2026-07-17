@@ -424,7 +424,9 @@ class CrmStore:
         qp = self._enrich_queue_path(campaign_slug)
         out = []
         if os.path.isfile(qp):
-            for line in open(qp, "r", encoding="utf-8"):
+            with open(qp, "r", encoding="utf-8") as fh:
+                _lines = fh.readlines()
+            for line in _lines:
                 line = line.strip()
                 if not line:
                     continue
@@ -528,7 +530,9 @@ class CrmStore:
     def _sent_today(self, sendbox_slug: str, day: str) -> int:
         n = 0
         for p in self._all_sent_logs():
-            for line in open(p, "r", encoding="utf-8"):
+            with open(p, "r", encoding="utf-8") as fh:
+                _lines = fh.readlines()
+            for line in _lines:
                 line = line.strip()
                 if not line:
                     continue
@@ -1494,7 +1498,9 @@ class CrmStore:
         rows = list(self.a.read_log("suppression"))
         gp = self._global_suppression_path()
         if os.path.isfile(gp):
-            for line in open(gp, "r", encoding="utf-8"):
+            with open(gp, "r", encoding="utf-8") as fh:
+                _lines = fh.readlines()
+            for line in _lines:
                 line = line.strip()
                 if line:
                     try:
@@ -1757,7 +1763,9 @@ def _iso_days_ago_from(days: int, now_iso_str: str) -> str:
 def _append_jsonl_seq(path: str) -> int:
     n = 0
     if os.path.isfile(path):
-        for line in open(path, "r", encoding="utf-8"):
+        with open(path, "r", encoding="utf-8") as fh:
+            _lines = fh.readlines()
+        for line in _lines:
             if line.strip():
                 n += 1
     return n + 1
@@ -1922,7 +1930,8 @@ def main(argv=None) -> int:
         if args.op == "ensure-default":
             return _out(store.ensure_default_pipelines())
         if args.op == "set":
-            store.set_pipelines(json.load(open(args.file)))
+            with open(args.file) as fh:
+                store.set_pipelines(json.load(fh))
             return _out({"ok": True})
     if args.cmd == "suppress":
         if args.op == "add":
@@ -1950,7 +1959,8 @@ def main(argv=None) -> int:
         return _out({"token": tok, "granted": bool(tok), "count": store.a.reservation_count(args.sendbox, args.day)})
     if args.cmd == "apply-rules":
         if args.events:
-            events = json.load(open(args.events))
+            with open(args.events) as fh:
+                events = json.load(fh)
         elif args.event and args.contact:
             events = [{"type": args.event, "contact_id": args.contact, "activity_id": args.activity}]
         else:
