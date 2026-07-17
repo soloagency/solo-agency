@@ -44,7 +44,9 @@ run Tier 2 (don't spend the hook pass on a dead lead).
 
 **Tier 2 — Profile & hooks.** Visit the URLs Tier 1 found (see `channel_reality.md` for what
 each actually yields). Extract 1–3 hooks, each with `type`, `summary`, `evidence_url`,
-`observed_date`, `confidence`, and `analysis.sensitivity`. Analyze the 3–5 latest readable posts
+`observed_date`, `confidence`, and `analysis.sensitivity`. **Always set `observed_date`** — a
+usable hook missing it is kept but `enrich write` flags a `problems` note (recency unverified),
+and recency is what makes proof-of-life real. Analyze the 3–5 latest readable posts
 where possible. Distill a `writing_brief`: a one-liner, ranked angles (freshness × goal-fit ×
 confidence), a `do_not_mention` list, and a `personalization_confidence` (drives the band:
 ≥0.7 high, 0.4–0.7 review_carefully, <0.4 fallback).
@@ -83,7 +85,18 @@ distilled copy into `contact.enrichment` (inherited by other campaigns). It retu
 
 Realistic hit-rate for a deeply-personalized hook is ~30–50% (see `channel_reality.md`). When no
 verifiable hook is found, set `mark_no_hook: true` and let the campaign's `no_hook_fallback`
-decide: a generic-but-honest opener grounded only in license/roster facts, or skip the contact.
-Do not pad a thin dossier with unsourced guesses.
+decide: the default `skip` (a hookless step-1 draft is rejected by `draft write` — recent
+evidenced activity is the reason an email exists), or the explicit opt-in `generic_honest_opener`
+(a generic-but-honest opener grounded only in license/roster facts). Do not pad a thin dossier
+with unsourced guesses.
+
+## No-email branch (email discovery)
+
+A lead an `email_first` campaign queued with no email is here so you can FIND one — check the
+website, a license/registry record, a brokerage roster, Google, other public channels. Store any
+real address as a found identity (`source: enrich`). If discovery genuinely fails, set
+`mark_email_not_found: true` — this writes a 30-day negative cache so a later campaign does not
+re-burn the same dead end, and the contact becomes an **assisted-channel candidate** (manual
+SMS/Messenger/Zalo). Never fabricate a `first.last@domain` guess.
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.

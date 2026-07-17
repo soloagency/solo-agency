@@ -5,6 +5,6 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 
 | module | lines | sha256 | last_line |
 |---|---|---|---|
-| SKILL.md | 71 | 3337799f9c62a1338257c1f5dec9a7336bf3d158048754a9a6cb301bdd64cf0f | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| SKILL.md | 73 | bb7d5ca41fded97939d5340574b6091405bf2f49a6ec288462fcf1e21d81ed85 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | followup.md | 32 | 8e092b61fc89e98b03a4d10ea0401d1ffd4f5e01fe55f11c22ee8145536e7b1b | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | structures.md | 22 | 83f002a3b930b5e65b0463fe4c8ef03d5040484d3df61c66d49bf35afefbd42f | - Subject: specific and honest, tied to the hook or the value; not clickbait, not `Re:`. |

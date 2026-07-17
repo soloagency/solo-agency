@@ -59,7 +59,8 @@ scrubbed report.
    `sendTelegramMessage` with email fallback. Kept for operator notification only.
 8. **Two-lane reporting.** Operator-only (`INTERNAL_REPORT`, full detail) vs
    client-facing (through the Client-Blind Scrub Gate). Rendered by
-   `tools/report_renderer.py` (stdlib only). Only the **weekly** report is client-facing.
+   `tools/report_renderer.py` (stdlib only). The client-facing reports are the **weekly**
+   report and the **monthly** report; every other output is operator-only.
 9. **`[ACTION REQUIRED]` contract.** One purpose, one exact next step, one command or
    path. Say `No action required right now.` when nothing is needed.
 10. **Slug rules** (lowercase, hyphens, no punctuation) and monthly `YYYY-MM/` folders.
@@ -184,6 +185,7 @@ load this DESIGN section for its contract.
         {client}-daily-ops.html  {client}-INTERNAL_REPORT.html
         {client}-weekly-client-report.html     # CLIENT-FACING, scrubbed, Mondays
         {client}-weekly-client-report.pdf
+        {client}-monthly-client-report.html    # CLIENT-FACING, scrubbed, first run each month
         {client}-report_state.json
       outputs/latest/...
       integrations/providers/
@@ -372,6 +374,15 @@ the same person). Two TTL tiers:
   campaigns run a cheap **refresh** (revisit known URLs), not full re-discovery.
 - **Negative cache inherited too:** `email_not_found` (retry after 30d then stop),
   `no_verifiable_hook` (with last-tried date) — don't re-burn the same dead end.
+- **No-email leads are queued for email DISCOVERY, not skipped.** Under an `email_first`
+  campaign, a contact with no (or invalid) email is still QUEUED so enrichment can find one
+  (visit the profile, the website, license/roster records, Google, other channels) — a missing
+  email is the reason to search, not a reason to skip. It is skipped at queue time ONLY when a
+  recent negative cache says discovery already failed: `enrichment.email_not_found_at` within
+  `NEG_RETRY_DAYS` (30d). The email requirement still hard-gates at draft/send time (`_valid_email`
+  in `draft write` + the pre-send chain). After a failed discovery the agent marks
+  `mark_email_not_found` (→ 30d negative cache) and the lead becomes an **assisted-channel
+  candidate** (manual SMS/Messenger/Zalo), never emailed at a guessed address.
 - Each hook carries `used_in: ["campaign/step"]`; a second campaign may not open with a
   hook already used on that person. A contact in an active sequence of campaign A is
   not drafted by B (`min_days_between_touches_across_campaigns`).
@@ -526,7 +537,7 @@ for that contact until triage completes.
    "objective":"","offer":"","value_proposition":"","proof_points":[{"claim":"","evidence_url":""}],
    "cta":{"type":"reply_yes|link|calendar","text":""},
    "success_event":{"on":"reply_positive","create_deal_stage":"new_reply"}},
- "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,"no_hook_fallback":"generic_honest_opener|skip"}},
+ "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,"no_hook_fallback":"skip|generic_honest_opener"}},
  "sequence":[{"step":1,"intent":"hook + offer, one CTA","tracking":"plain_text"},
    {"step":2,"gap_days":4,"intent":"deliver new value"},
    {"step":3,"gap_days":5,"intent":"social proof"},
@@ -535,6 +546,14 @@ for that contact until triage completes.
  "guardrails":{"banned_claims":["guarantees"],"no_fake_re":true},
  "channel_strategy":"email_first|any_channel"}
 ```
+`no_hook_fallback` defaults to **`skip`** (proof-of-life). Recent evidenced activity is the reason
+an email exists, so `draft write` REJECTS a step-1 draft that has no evidenced hook
+(`no_evidenced_hook`) unless the campaign explicitly opts into `generic_honest_opener` (which then
+still flags a `generic_opener` warning). Step>1 drafts (bumps/replies) are exempt — an existing
+conversation is its own justification, governed by the no-"just following up" rule.
+`daily_quota` doubles as the **daily draft budget**: the daily run drafts while
+`crm_store.py draft budget --campaign <slug>` reports `remaining > 0`, then stops.
+
 `goal_type → email structure` table (skill `email-writing`, modeled on the video-script
 skill's format table): `book_meeting`→short, one time-bound CTA; `get_reply`→ends with a
 question, no link; `direct_sale`→value + one offer link (the only place click tracking
@@ -551,8 +570,12 @@ rules engine.
 At the end of the drafting pass, the agent renders an **Approval Report**
 (`outputs/.../{client}-approval-report.html`, operator-only, NOT scrubbed) via the
 inherited renderer (reusing its contenteditable + Copy-button blocks):
-- Header: total drafts by campaign/step, split into **High confidence** (verified email,
-  ≥0.7 hook) and **Review carefully** (weak hook, guessed email, fallback opener).
+- **Three sections.** New step-1 drafts split into **High confidence** (verified email, ≥0.7
+  hook) and **Review carefully** (weak hook, guessed email, fallback opener) — both computed
+  over step-1 drafts only. Step>1 drafts (bumps + reply drafts) go to a dedicated
+  **Follow-ups due** section (*bumps and reply drafts — threaded onto an existing conversation*).
+  Numbering is stable and unique across all three sections.
+- Header: total drafts by campaign/step.
 - One card per lead: `#id` · name/company/email + verify status · hooks with **clickable
   evidence URLs** · subject + editable body + warning flags (guessed, generic, bump step).
 Telegram: "N drafts awaiting review" + path.
@@ -584,14 +607,22 @@ Every decision → `approvals/approval_log.md`. Nothing leaves without an explic
 5. **Follow-up advising (deal-aware, Stage 10):** replies → reply drafts; due-silent →
    value-add bumps → `pending_approval`.
 6. **Load new pipeline** (cold/trigger campaigns, JIT buffer 3–7 days): priority pick →
-   Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`.
+   Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`. The drafting pass is
+   **bounded by each campaign's `daily_quota`** (its daily draft budget): query
+   `crm_store.py draft budget --campaign <slug>` and draft while `remaining > 0`. **Stop
+   contract** (the loop is agent-driven): if the operator says "stop"/"ngưng" mid-loop, finish
+   the current lead and halt — nothing already in `pending_approval` is lost; an unattended run
+   drafts up to budget and stops.
 7. **Send** `outbox/approved/` within quota (§10). (Approval happens in chat, any time.)
 8. **Assisted channels:** draft SMS/Messenger for no-email contacts if the campaign
    allows + consent exists (§9/§16) → Today View copy buttons; human sends, reports back
    → activity.
 9. **Compile Today View + regenerate kanban** (renderer).
 10. **Reports:** daily ops + Approval Report + INTERNAL_REPORT; **Mondays** add the
-    Weekly CRM Report (client-facing, through the scrub gate).
+    Weekly CRM Report; the **first daily run of a new month** additionally builds the prior
+    month's **Monthly Client Report** (`crm_store.py monthly-report --month <prior YYYY-MM>`).
+    Both the weekly and monthly reports are client-facing, through the scrub gate; their
+    pipeline snapshot is point-in-time "as of report date".
 11. **Notify Telegram** via WideCast `sendTelegramMessage`: counts + report link →
     `notification_log.md`.
 12. **Stage 9 audit** → completion gates → release `run_lock`.
@@ -679,8 +710,8 @@ name must never appear in a client report), "INTERNAL_REPORT", "MCP", "OpenAPI",
 `automation`, `debug`, `guessed`, `warmup`, `suppression`) are matched with word boundaries so
 innocent copy ("quotations", "home automation") does not false-positive; technical tokens keep
 substring matching. On a scrub hit the recovery is to reword the flagged sentence and
-re-render — never bypass the gate or hand-edit the blocked output. (Weekly client report is
-the only scrubbed output.)
+re-render — never bypass the gate or hand-edit the blocked output. (The weekly and monthly
+client reports are the only scrubbed, client-facing outputs; both pass this same gate.)
 
 ## 20. Update Watch (Stage 11) — rewritten scope
 Diff scope + change-classification enum rebuilt around OutreachCRM components: storage
@@ -723,7 +754,9 @@ in AGENTS.md's blocker-recovery clause (it fires on any blocker, not just explic
   tracker worker are Phase 3.
 - **Phase 3:** playbook 12/15, kanban/timeline/**polished** weekly report/forecast/segments,
   the Cloudflare tracker worker (open/click) + OAuth/Workspace sending, Postgres adapter.
-- **Phase 4:** Local Collector + lead-engine (Facebook enrichment) re-imported.
+- **Phase 4:** Local Collector + lead-engine (Facebook enrichment) re-imported **+
+  assisted-channel distribution (DM/comment) via the collector**. No voice channel is planned —
+  non-email channels stay assisted (the agent drafts, the human sends by hand): SMS / Messenger / Zalo.
 - **Phase 5 (optional):** local web UI over crm_store.
 
 ---

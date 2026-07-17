@@ -14,9 +14,14 @@ campaign, or the daily "load new pipeline" step). Print a LOAD LEDGER per
 - **One audience segment per campaign.** A segment is a saved flat-field filter; it is resolved
   through `crm_store.py`, which already excludes suppressed identities, merged tombstones, and
   `do_not_contact` — never hand-roll audience selection.
-- **No guessing.** In the MVP nothing produces a guessed email address. An `email_first` campaign
-  only queues contacts that already have a **found** email; a contact with no email is skipped
-  (or handled via assisted channels later), never emailed at a guessed address.
+- **No guessing.** In the MVP nothing produces a guessed email address, and no draft ever targets
+  one. An `email_first` campaign still **queues a contact with no (or invalid) email so enrichment
+  can DISCOVER one** (the profile, website, license/roster records, Google, other channels) — a
+  missing email is the reason to search, not a reason to skip. Such a lead is skipped at queue time
+  ONLY when a recent negative cache says discovery already failed (`enrichment.email_not_found_at`
+  within the 30-day retry window). The email requirement still hard-gates at draft/send time: a
+  lead with no found address is never drafted, and after a failed discovery it becomes an
+  assisted-channel candidate — never emailed at a guessed address.
 - **Don't double-touch.** The enrich-queue populator skips a contact that is already queued/sent
   in this campaign, is mid-sequence (frozen after a reply) anywhere, or was emailed by **another**
   campaign within `min_days_between_touches_across_campaigns` (default 7).
@@ -67,15 +72,25 @@ python3 tools/crm_store.py --client-dir DIR segment resolve --id al-realtors-act
 ```sh
 python3 tools/crm_store.py --client-dir DIR campaign create --slug demo-outreach --json \
   '{"goal":{"goal_type":"book_meeting","objective":"book a demo","cta":{"type":"reply_yes","text":"Reply YES"}},
-    "audience":{"segment":"al-realtors-active","personalization":{"min_confidence":0.7,"no_hook_fallback":"generic_honest_opener"}},
+    "audience":{"segment":"al-realtors-active","personalization":{"min_confidence":0.7,"no_hook_fallback":"skip"}},
     "sendboxes":["sb-a"],"daily_quota":40,"channel_strategy":"email_first"}'
 ```
 
 Defaults are filled in for any field you omit: a 4-step sequence (step 1 cold + 3 bumps with
 `gap_days` 4/5/7, the last a breakup), `approval_mode: manual_all`,
-`min_days_between_touches_across_campaigns: 7`, `guardrails.no_fake_re: true`. `campaign get` /
-`campaign list` read them back. Creating a campaign makes its `queue/`, `outbox/pending_approval/`,
-`outbox/approved/`, and `history/` folders.
+`min_days_between_touches_across_campaigns: 7`, `guardrails.no_fake_re: true`, and
+**`no_hook_fallback: skip`** (proof-of-life). `campaign get` / `campaign list` read them back.
+Creating a campaign makes its `queue/`, `outbox/pending_approval/`, `outbox/approved/`, and
+`history/` folders.
+
+- **`no_hook_fallback` defaults to `skip`.** A step-1 draft with no evidenced hook is REJECTED by
+  `draft write` (`no_evidenced_hook`); recent evidenced activity is the reason an email exists. Set
+  `no_hook_fallback: "generic_honest_opener"` only to explicitly opt a campaign into a
+  generic-but-honest opener (grounded in license/roster facts, flagged `generic_opener`). Bumps and
+  reply drafts (step>1) are exempt.
+- **`daily_quota` doubles as the daily draft budget.** The daily run drafts while
+  `crm_store.py draft budget --campaign <slug>` reports `remaining > 0`
+  (`{daily_quota, used_today, remaining}`), then stops; it is also the campaign's per-day send share.
 
 ## 4. Populate the enrich queue (the JIT buffer)
 
@@ -87,7 +102,9 @@ python3 tools/crm_store.py --client-dir DIR campaign queue --slug demo-outreach 
 ```
 
 Output reports `queued` plus a `skipped` breakdown (`already_in_campaign`,
-`recently_touched_elsewhere`, `in_active_sequence`, `no_email`). Re-running is safe — an
+`recently_touched_elsewhere`, `in_active_sequence`, `no_email`). `no_email` now fires only when a
+recent `email_not_found` negative cache says discovery already failed within 30 days — a plain
+missing email is **queued for email discovery**, not skipped. Re-running is safe — an
 already-queued or already-sent lead is never re-queued. The queued leads then flow into Stage 4
 (verify + enrich) and Stage 6 (draft) during the daily run.
 
@@ -97,7 +114,8 @@ already-queued or already-sent lead is never re-queued. The queued leads then fl
 - The segment was previewed with `segment resolve` and looks right to the operator (surface it
   in an `**[ACTION REQUIRED]**` for confirmation on first setup).
 - The enrich queue was populated via `campaign queue` (never by editing `enrich_queue.jsonl`).
-- No campaign targets guessed addresses; `email_first` campaigns skip no-email contacts.
+- No campaign targets guessed addresses; `email_first` campaigns queue no-email contacts for email
+  discovery (skipping only a lead whose discovery already failed within the 30-day negative-cache window).
 
 ## Phase status
 

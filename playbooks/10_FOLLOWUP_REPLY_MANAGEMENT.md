@@ -142,10 +142,13 @@ left open); after it, the sequence ends for that contact. Every bump is a distin
 
 ## 5. The approval gate (cross-ref Stage 8)
 
-Reply drafts and bumps are drafts like any other: they collect in `pending_approval`, appear in the
-next **Approval Report** (`crm_store.py approval-report`), and are approved in chat with the
-approval grammar (`approve all` / `approve 1-20,35` / `reject 7: reason` / `hold 5` / `edit 12: …`)
-via `crm_store.py approve`. Approval flips `status: approved` and moves the draft to
+Reply drafts and bumps are drafts like any other: they collect in `pending_approval` and appear in
+the next **Approval Report** (`crm_store.py approval-report`) — specifically in its dedicated
+**`## Follow-ups due (n)`** section (*bumps and reply drafts — threaded onto an existing
+conversation*). Because they are step>1, they are grouped apart from new step-1 leads, which stay
+in **High confidence** / **Review carefully**; numbering is stable and unique across all sections.
+They are approved in chat with the approval grammar (`approve all` / `approve 1-20,35` /
+`reject 7: reason` / `hold 5` / `edit 12: …`) via `crm_store.py approve`. Approval flips `status: approved` and moves the draft to
 `outbox/approved/`; only then may Stage 8 send it. The full gate chain is Stage 8 §2–§3.
 
 ## Completion Gates For An Inbound Pass
