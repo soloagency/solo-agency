@@ -40,6 +40,8 @@ provider_config.local.json
 AUDIT_FINDINGS_*.md
 *_HARDENING_PLAN.md
 PROPOSED_ADDITIONS_*.md
+TODO.md
+handoff.md
 
 # Keep committed zip artifacts.
 !playbooks/skills/*.zip
