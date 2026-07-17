@@ -9,6 +9,11 @@ campaign, or the daily "load new pipeline" step). Print a LOAD LEDGER per
 
 ## Hard Gates For This Stage
 
+- **Back-fill missing prerequisites — do not fail.** A campaign cannot be queued or sent without
+  at least one healthy sendbox (`email_first`) and a source list. If the human asks to create a
+  campaign for a client that has no connected sendbox and/or no imported list yet, do NOT error out:
+  back-fill first — run Stage 2 (sendbox setup) then Stage 3 (import list) for that client, then
+  create the campaign here. Ordering stays Stage 2 (sendbox) → Stage 3 (import) → Stage 5 (campaign).
 - A campaign's **goal is the writing blueprint, not a label**: `goal_type` drives the email
   structure Stage 6 produces and the `success_event` that Stage 10 / the rules engine fire.
 - **One audience segment per campaign.** A segment is a saved flat-field filter; it is resolved

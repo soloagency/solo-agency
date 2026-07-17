@@ -401,6 +401,7 @@ Daily run is not complete until:
 - If a stage/module read **errored, truncated, or returned only a preview**, STOP: that file is NOT loaded. Re-read to EOF (chunk it) or re-fetch and compare to `LOAD_MANIFEST.md` before acting.
 - If about to take any **side-effect action** (ask the first setup question, enrich, draft, send, write CRM state, notify, claim completion) without a `Verdict: PASS` LOAD LEDGER for the needed stage(s), STOP and complete the ledger first.
 - If about to ask setup questions but Stage 0 or Stage 1 is not loaded, load them first.
+- If asked to create a campaign for a client with no connected sendbox and/or no imported list, do NOT fail — back-fill first (Stage 2 sendbox setup, then Stage 3 import list) for that client, then create the campaign in Stage 5.
 - If about to enrich a lead but Stage 4 is not loaded, load it (and the `email-verify-enrich` skill) first.
 - If about to draft an email but Stage 6 is not loaded, load it (and the `email-writing` skill) first.
 - If about to send but Stage 8 is not loaded, load it first — then run the ordered pre-send re-check in code.
