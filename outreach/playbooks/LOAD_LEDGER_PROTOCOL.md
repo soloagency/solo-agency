@@ -40,7 +40,7 @@ When a stage's "Load When" (Stage Map) or its own text names dependencies (e.g. 
 
 ## Rule 5 — Verify GitHub-raw downloads against the manifest
 
-If a stage is missing locally and fetched from the OutreachCRM GitHub raw URL (`https://raw.githubusercontent.com/soloagency/outreach/main/playbooks/…`), the download itself can be partial/stale. After fetching, run the LOAD LEDGER against `LOAD_MANIFEST.md`. Mismatch = bad download → re-fetch; never act on a partial download.
+If a stage is missing locally and fetched from the OutreachCRM GitHub raw URL (`https://raw.githubusercontent.com/soloagency/solo-agency/main/outreach/playbooks/…`), the download itself can be partial/stale. After fetching, run the LOAD LEDGER against `LOAD_MANIFEST.md`. Mismatch = bad download → re-fetch; never act on a partial download.
 
 ## Rule 6 — No side-effect action without a PASS ledger above it
 
@@ -58,4 +58,4 @@ Everywhere a gate or checklist says "Stage X was loaded", read it as **"Stage X 
 
 ## LOAD_MANIFEST.md (Tier B, auto-generated)
 
-`playbooks/LOAD_MANIFEST.md` lists `OUTREACHCRM_PLAYBOOK.md` plus every `playbooks/**/*.md` with `path | lines | sha256 | last_line`. It is regenerated automatically by `deploy-outreachcrm.sh` on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection.
+`playbooks/LOAD_MANIFEST.md` lists `OUTREACHCRM_PLAYBOOK.md` plus every `playbooks/**/*.md` with `path | lines | sha256 | last_line`. It is regenerated automatically by the root `deploy-soloagency.sh` `generate_outreach_artifacts` step (`--outreach-only`) on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection.

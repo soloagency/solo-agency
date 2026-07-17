@@ -15,7 +15,7 @@ This stage documents the send engine as it is **actually implemented in code** (
 - **The approval invariant is absolute.** `gmail_client.py send` refuses any draft whose record `status` is not exactly `"approved"` (returns `blocker: draft_not_approved`). Nothing leaves the system without an explicit chat `approve` recorded in `approvals/approval_log.md`. Default `approval_mode` is `manual_all` — **bumps and replies are approved too**, never auto-sent.
 - **All CRM mutations go through `tools/crm_store.py`.** The send engine's suppression writes and its `email_sent` / `email_bounce` / `unsubscribe` activity writes are made through `crm_store` (`gmail_client.py` imports `CrmStore`). The `sent_log.jsonl` and `sync_log.jsonl` are campaign/client append-only artifacts (not `crm/` collections) and are appended with a monotonic `seq`. Never hand-write a `crm/` collection to fake a send.
 - **The ordered pre-send re-check runs IN CODE, not in prose.** Do not reorder, skip, or approximate it in a hand-run. If a gate blocks a draft, the draft does not send — surface the blocker, do not work around it.
-- **Data root is `outreach-pipeline/`.** Drafts, sent logs, approvals, and suppression all live under `outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/…`. The toolkit repo holds no client data and no secrets.
+- **Data root is `daily-content-pipeline/`.** Drafts, sent logs, approvals, and suppression all live under `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/…`. The toolkit repo holds no client data and no secrets.
 - **Phase 1 is `plain_text_mode`.** No open pixel, no link rewrite, no tracker `/events` pull. Open/click tracking and the tracker-based unsubscribe pull are Phase 2/3. The `List-Unsubscribe` mailto is always present for CAN-SPAM. Do not claim opens/clicks are measured in Phase 1.
 - **Only a reply is conversion evidence.** Opens and clicks (when they exist in a later phase) never trigger a stage change or auto-action. The send engine records; it does not infer intent from delivery signals.
 - Every human step in this stage — a re-auth request, a blocked-send handoff, an approval request — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md` (one purpose, one exact next step, one command or path). When nothing is needed, say `No action required right now.`
@@ -34,7 +34,7 @@ Sending is one draft per invocation:
 python3 tools/gmail_client.py --client-dir <CLIENT_DIR> send --draft <path/to/draft.json> [--dry-run]
 ```
 
-- `--client-dir` is the **global** argument (before the subcommand); it points at the client workspace `outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/`.
+- `--client-dir` is the **global** argument (before the subcommand); it points at the client workspace `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/`.
 - `--draft` is the path to a single draft record (see §5 / Stage 7 §7.4), normally under `campaigns/{campaign_slug}/outbox/approved/{draft_id}.json`.
 - `--dry-run` runs the **full** pre-send re-check (including the atomic quota reservation) and then stops before SMTP. See the dry-run caution in §3.
 
@@ -66,7 +66,7 @@ Default `approval_mode: manual_all` (campaign_config, Stage 7 §7.1) means **eve
 
 **0. Resolve the contact.** `store.resolve(draft.lead_id)` follows merge chains to the surviving contact (Stage 7 §4.8). If the contact does not exist → `blocker: contact_not_found`. Every later check runs against the resolved survivor, never a tombstone.
 
-**1. Suppression — client tier + agency tier.** Checks the resolved contact's primary email (and that email's **domain**) and phone against **both** `crm/suppression.jsonl` (client tier) and `outreach-pipeline/suppression/global_suppression.jsonl` (agency tier). Any match → `blocker: suppressed`. Suppression is checked **before** quota is reserved, so a suppressed contact never burns a quota slot. (DESIGN §16 target is "all identities"; Phase-1 `send` checks the primary email + its domain + phone — broaden secondary emails/socials as that lands. Import-time suppression already checks all identities, Stage 3.)
+**1. Suppression — client tier + agency tier.** Checks the resolved contact's primary email (and that email's **domain**) and phone against **both** `crm/suppression.jsonl` (client tier) and `daily-content-pipeline/suppression/global_suppression.jsonl` (agency tier). Any match → `blocker: suppressed`. Suppression is checked **before** quota is reserved, so a suppressed contact never burns a quota slot. (DESIGN §16 target is "all identities"; Phase-1 `send` checks the primary email + its domain + phone — broaden secondary emails/socials as that lands. Import-time suppression already checks all identities, Stage 3.)
 
 **2. Email channel status.** If `channels.email.status ∈ {opted_out, bounced}` → `blocker: email_channel_not_usable`. A contact whose email channel is `needs_data` also cannot be emailed (no usable address).
 

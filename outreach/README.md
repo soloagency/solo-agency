@@ -1,6 +1,6 @@
 # OutreachCRM
 
-Tell your AI agent: **"Setup https://github.com/soloagency/outreach now"** to turn it into a local-first, multi-client cold-email + CRM operator that works every day: it enriches your leads, drafts personalized emails, shows you every draft for approval, sends only what you approve, tracks replies, and moves opportunities through your pipeline.
+Tell your AI agent: **"Setup https://github.com/soloagency/solo-agency now"** to turn it into a local-first, multi-client cold-email + CRM operator that works every day: it enriches your leads, drafts personalized emails, shows you every draft for approval, sends only what you approve, tracks replies, and moves opportunities through your pipeline.
 
 Open source (MIT). Runs on your machine through Codex or Claude Desktop/Cowork — your contact data and email accounts stay local.
 
@@ -33,10 +33,10 @@ Nothing sends without your explicit approval in chat. The agent drafts and waits
 ## Best first prompt
 
 ```text
-Setup https://github.com/soloagency/outreach now.
+Setup https://github.com/soloagency/solo-agency now.
 ```
 
-The root playbook (`OUTREACHCRM_PLAYBOOK.md`) tells the agent which detailed stage playbook to load next. If the `playbooks/` folder is not local, the agent fetches the needed stage from this repo.
+The root playbook (`OUTREACHCRM_PLAYBOOK.md`) tells the agent which detailed stage playbook to load next. If the `playbooks/` folder is not local, the agent fetches the needed stage from this module (the `outreach/` directory of the Solo Agency repo).
 
 ## Best new-client prompt
 
@@ -50,12 +50,12 @@ Set up the client-specific daily automation task. Do not send anything in this s
 
 ## Agent entry point
 
-If you are an AI agent setting up this repo:
+If you are an AI agent setting up this module (the `outreach/` directory of the Solo Agency repo):
 
 1. Read `OUTREACHCRM_PLAYBOOK.md` first, then `docs/DESIGN.md` (the authoritative design).
 2. Follow the Stage Map and the LOAD LEDGER full-load discipline (`playbooks/LOAD_LEDGER_PROTOCOL.md`).
 3. Setup Flow only configures — it never sends. Sending happens in the scheduled daily run, and only after the operator approves drafts in chat.
-4. All CRM data lives under `outreach-pipeline/` and every mutation goes through `tools/crm_store.py`.
+4. All CRM data lives under `daily-content-pipeline/` and every mutation goes through `tools/crm_store.py`.
 5. Keep each client's workspace isolated; a `target_client_slug` run touches only that client.
 
 ## Status

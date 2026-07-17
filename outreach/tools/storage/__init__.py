@@ -1,7 +1,7 @@
 """OutreachCRM pluggable storage.
 
 `get_adapter(client_root)` returns the backend named in
-`outreach-pipeline/storage_config.json` (default: json). All CRM mutations go
+`daily-content-pipeline/storage_config.json` (default: json). All CRM mutations go
 through `tools/crm_store.py`, which is the only sanctioned writer; this package is
 the storage mechanism it drives. Stdlib-only so scheduled agents need no install.
 """

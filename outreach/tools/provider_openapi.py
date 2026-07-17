@@ -590,7 +590,7 @@ def cmd_notify(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="OutreachCRM OpenAPI provider adapter")
     parser.add_argument("--config", help="Path to per-client provider_config.local.json")
-    parser.add_argument("--defaults", help="Path to outreach-pipeline/provider_defaults.json")
+    parser.add_argument("--defaults", help="Path to daily-content-pipeline/provider_defaults.json")
     parser.add_argument("--provider", default="widecast")
     parser.add_argument("--discovery-url")
     sub = parser.add_subparsers(dest="cmd", required=True)

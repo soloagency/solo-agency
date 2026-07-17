@@ -42,13 +42,13 @@ Follow `playbooks/01_CLIENT_SETUP_PROFILE.md` for detail. Summary:
 
 Before copying playbooks, tools, or templates into the human's setup, verify the source repo:
 
-- Use the current setup root if it is already a verified clone of `https://github.com/soloagency/outreach`; otherwise clone into a fresh unique `mktemp -d`.
+- Use the current setup root if it is already a verified clone of `https://github.com/soloagency/solo-agency` (the OutreachCRM module is its `outreach/` subpath); otherwise clone into a fresh unique `mktemp -d`.
 - Do not use fixed shared fallback folders such as `/tmp/outreachcrm`, `/var/tmp/outreachcrm`, or `/dev/shm/outreachcrm`.
 - Do not trust a folder that lacks `.git`, has the wrong owner, has an old timestamp, or could not be removed/updated.
-- Verify `git remote get-url origin`, `git rev-parse HEAD`, and `git ls-remote origin refs/heads/main`; local `HEAD` must match GitHub `main` before reading/copying.
+- Verify `git remote get-url origin`, `git rev-parse HEAD`, and `git ls-remote origin refs/heads/main` on the parent checkout (the `outreach/` module has no `.git` of its own); local `HEAD` must match GitHub `main` before reading/copying.
 - If GitHub access fails, request permission or give the human one exact clone/download command. Do not proceed with stale local code.
 - If `OUTREACHCRM_GIT_REMOTE_URL` is unset or still contains the `OWNER` placeholder, treat this local working copy as the verified source, record `fresh_source_check: skipped_local_phase0` in `resync_log.md`, skip the GitHub clone/verify/fetch steps, and continue (DESIGN §22 R4).
-- Record the verified source path and commit hash in `outreach-pipeline/automation/resync_log.md` (or `update_state.json`/`update_log.md` for a full update).
+- Record the verified source path and commit hash in `daily-content-pipeline/automation/resync_log.md` (or `update_state.json`/`update_log.md` for a full update).
 
 ## Setup Blocker Recovery
 
@@ -60,7 +60,7 @@ If setup hits any unexpected blocker, old/corrupt artifact, missing file, permis
 4. If the newest playbook fixes the setup path, continue from the latest rule and resync the client setup/automation state.
 5. If the newest version still leaves setup blocked, escalate without requiring the human to have a GitHub account: create a redacted issue when an authorized identity exists, send/queue via a configured intake channel, or write a ready-to-post draft.
 
-Do not include secrets, API keys, tokens, sendbox credentials, or contact PII in issues. Write drafts under `outreach-pipeline/automation/issues/`, track them in `outreach-pipeline/automation/github_issues.md`, and tell the human the path.
+Do not include secrets, API keys, tokens, sendbox credentials, or contact PII in issues. Write drafts under `daily-content-pipeline/automation/issues/`, track them in `daily-content-pipeline/automation/github_issues.md`, and tell the human the path.
 
 ## Required Setup Output
 
@@ -73,17 +73,17 @@ For each configured client, Setup Flow must leave these current (all CRM writes 
 - At least one imported list (`lists/{list_slug}/`) or a recorded pending action.
 - At least one `campaigns/{campaign_slug}/campaign_config.json` with a structured goal.
 - `integrations/providers/provider_config.local.json` when notification was configured.
-- `outreach-pipeline/schedule.md`.
-- `outreach-pipeline/automation/automation_manifest.md`.
-- `outreach-pipeline/automation/scheduled_run_prompt.md`.
-- `outreach-pipeline/automation/update_state.json` and `update_log.md` when update/watch has been checked/configured.
-- `outreach-pipeline/automation/resync_log.md`.
+- `daily-content-pipeline/schedule.md`.
+- `daily-content-pipeline/automation/automation_manifest.md`.
+- `daily-content-pipeline/automation/scheduled_run_prompt.md`.
+- `daily-content-pipeline/automation/update_state.json` and `update_log.md` when update/watch has been checked/configured.
+- `daily-content-pipeline/automation/resync_log.md`.
 
 If the native automation task prompt cannot be updated directly, mark `automation_prompt_update_pending` in the manifest and schedule, then give the human one concrete instruction to update the task prompt.
 
 For sendbox connection, the setup handoff must present the connection steps in an `**[ACTION REQUIRED]**` block, not just a status line. `tools/gmail_client.py` exists (Phase 1): the handoff includes the App Password creation steps (Google Account → Security → 2-Step Verification → App passwords) plus the exact command — set `OUTREACHCRM_APP_PASSWORD` in the human's shell, then `python3 tools/gmail_client.py --client-dir <DIR> auth --sendbox <slug> --email <you@gmail.com>`, which verifies SMTP+IMAP and writes the box as `status: healthy`.
 
-After schedule/automation exists, offer the maintenance task `OutreachCRM - GitHub Update Watch`. If the runtime cannot create it directly, write the exact prompt to `outreach-pipeline/automation/update_watch_prompt.md`, tell the human the task name to create, and record `update_watch_task_prompt_pending` in the automation/update state.
+After schedule/automation exists, offer the maintenance task `OutreachCRM - GitHub Update Watch`. If the runtime cannot create it directly, write the exact prompt to `daily-content-pipeline/automation/update_watch_prompt.md`, tell the human the task name to create, and record `update_watch_task_prompt_pending` in the automation/update state.
 
 ## Send Request Hard Stop
 

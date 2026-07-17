@@ -246,7 +246,7 @@ def get_adapter(client_root: str, backend: Optional[str] = None) -> BaseAdapter:
 
 
 def _read_backend(client_root: str) -> str:
-    # storage_config.json lives at the pipeline root: outreach-pipeline/storage_config.json,
+    # storage_config.json lives at the pipeline root: daily-content-pipeline/storage_config.json,
     # i.e. two levels above clients/{slug}/... — search upward for it.
     d = os.path.abspath(client_root)
     for _ in range(8):

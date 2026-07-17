@@ -101,7 +101,7 @@ Run `import` with the confirmed mapping. Import needs the client workspace direc
 
 ```bash
 python3 tools/import_leads.py import \
-  --client-dir outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug} \
+  --client-dir daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach \
   --file /path/to/list.csv \
   --list-slug {list-slug} \
   --mapping '{"email":"Email","full_name":"Full Name","company":"Office Name","phone":"Cell/Office Phone","website":"Website","city":"City","state":"State"}'
@@ -109,7 +109,7 @@ python3 tools/import_leads.py import \
 
 Flags:
 
-- `--client-dir` — the client workspace root: `outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/`. The importer writes the list under this directory and routes contact creation to that client's `crm/` through `crm_store`.
+- `--client-dir` — the client workspace root: `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/`. The importer writes the list under this directory and routes contact creation to that client's `crm/` through `crm_store`.
 - `--file` — the source file (csv/txt/tsv/xlsx).
 - `--list-slug` — a slug for this list (lowercase, hyphens, no punctuation), e.g. `austin-realtors-2026-07`. Output lands in `lists/{list-slug}/`.
 - `--mapping` — the confirmed mapping JSON. If omitted, the importer falls back to the auto-proposed mapping; only omit it when `inspect` already mapped every column you need and the human confirmed that.
@@ -178,7 +178,7 @@ Auto-mapping recognizes `Email → email`, `Full Name → full_name`, `Office Na
 
 ```bash
 python3 tools/import_leads.py import \
-  --client-dir outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug} \
+  --client-dir daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach \
   --file ~/lists/al-realtors.csv \
   --list-slug al-realtors \
   --mapping '{"email":"Email","full_name":"Full Name","company":"Office Name","phone":"Cell/Office Phone","website":"Website","city":"City","state":"State"}'
@@ -192,7 +192,7 @@ Result: each realtor becomes a contact with the email (if present) `source: impo
 
 Before creating a contact, the importer checks the row against suppression. It matches on the row's email, phone, and social URLs, **plus the email's domain**, against:
 
-- **Agency tier** — `outreach-pipeline/suppression/global_suppression.jsonl`.
+- **Agency tier** — `daily-content-pipeline/suppression/global_suppression.jsonl`.
 - **Client tier** — `crm/suppression.jsonl`.
 
 Any hit records the row `suppressed` with the suppression `reason` (e.g. `unsubscribe`, `hard_bounce`, `guessed_domain_kill`); no contact is created and no email is ever queued for that identity. A `domain`-tier suppression (for example a killed guessed domain, or a do-not-contact domain from the profile suppression policy) blocks every address at that host. This is the opt-out reach guarantee (DESIGN §16): suppression is honored at import, not only at send.
@@ -282,7 +282,7 @@ Example clean summary:
 
 ```text
 Imported al-realtors: 412 rows → 380 created, 18 matched (already known), 9 suppressed, 5 skipped (no identity).
-List: outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/lists/al-realtors/
+List: daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/lists/al-realtors/
 No action required right now.
 ```
 

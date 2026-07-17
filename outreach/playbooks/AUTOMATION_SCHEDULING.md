@@ -64,7 +64,7 @@ before taking any side-effect action (sending, enriching, writing config, creati
   updated progress block (see Scheduled Run Progress Display Contract). Multiple updates in
   one run each show the current completed/current/remaining state.
 - Store the schedule config, chosen scheduling mechanism, timezone, and notification channel
-  in `outreach-pipeline/schedule.md`.
+  in `daily-content-pipeline/schedule.md`.
 - After any human-approved change made after the schedule/automation was created, perform
   Automation Resync before claiming the next scheduled run is updated.
 - Never say "the automation is updated" if only the client profile, only `schedule.md`, or
@@ -249,30 +249,30 @@ Automation Resync requires updating every relevant layer:
    compliance, active campaigns, sendbox status, notification status.
 2. **CRM + campaign config** (via `crm_store.py`): campaign configs, sendboxes.json,
    suppression, segments, pipelines — the current state the run will read.
-3. **`outreach-pipeline/provider_defaults.json`**: WideCast notification catalog/discovery
+3. **`daily-content-pipeline/provider_defaults.json`**: WideCast notification catalog/discovery
    defaults, no secrets.
 4. **Client provider files** (`integrations/providers/`): `provider_config.local.json`
    (`api_key_env`/`api_key_local`, never a field named `api_key`), `provider_capabilities.json`,
    `provider_openapi_cache.yaml`, `provider_health.md`, and `provider_calls.jsonl` when relevant.
-5. **`outreach-pipeline/schedule.md`**: cadence, scheduling mechanism, included clients,
+5. **`daily-content-pipeline/schedule.md`**: cadence, scheduling mechanism, included clients,
    timezone, notification channel, and last resync timestamp.
-6. **`outreach-pipeline/automation/automation_manifest.md`**: current run contract, data
+6. **`daily-content-pipeline/automation/automation_manifest.md`**: current run contract, data
    paths, active clients, prompt source, config source, provider-config source, and last
    known state hash/summary.
-7. **`outreach-pipeline/automation/scheduled_run_prompt.md`**: the exact prompt the native
+7. **`daily-content-pipeline/automation/scheduled_run_prompt.md`**: the exact prompt the native
    AI automation/scheduled task should run (pins `target_client_slug`).
 8. **Native AI automation or scheduled task body**: update it when the environment stores a
    separate prompt snapshot.
-9. **`outreach-pipeline/automation/update_state.json`** and `update_log.md`: update-watch
+9. **`daily-content-pipeline/automation/update_state.json`** and `update_log.md`: update-watch
    state, checked/applied commits, change classification (including
    `tracker_worker_deploy_required`/`storage_schema_migration_required`), and human actions
    required.
-10. **`outreach-pipeline/automation/resync_log.md`**: what changed, which files/tasks were
+10. **`daily-content-pipeline/automation/resync_log.md`**: what changed, which files/tasks were
     updated, what could not be updated, and what the next scheduled run should see.
 
 If the native AI automation task cannot be edited by the agent, the agent must:
 
-- write the exact replacement prompt to `outreach-pipeline/automation/scheduled_run_prompt.md`;
+- write the exact replacement prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`;
 - mark `automation_prompt_update_pending` in `automation_manifest.md` and `schedule.md`;
 - give the human one concrete instruction to paste/replace the scheduled task prompt in a
   `**[ACTION REQUIRED]**` block;
@@ -285,15 +285,15 @@ Before saying a post-schedule change is complete, do a dry-read **as if tomorrow
 run were starting**:
 
 1. Read `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`.
-2. Read `outreach-pipeline/automation/automation_manifest.md`.
-3. Read `outreach-pipeline/provider_defaults.json` when present.
-4. Read `outreach-pipeline/schedule.md`.
+2. Read `daily-content-pipeline/automation/automation_manifest.md`.
+3. Read `daily-content-pipeline/provider_defaults.json` when present.
+4. Read `daily-content-pipeline/schedule.md`.
 5. Read each active client profile.
 6. Read each relevant client's provider config/capability files when WideCast notification,
    report delivery, or provider config changed.
 7. Read the changed campaign configs, `sendboxes/sendboxes.json`, and suppression state when
    campaigns, sendboxes, or suppression changed.
-8. Read `outreach-pipeline/automation/update_state.json` when update/version-watch or a
+8. Read `daily-content-pipeline/automation/update_state.json` when update/version-watch or a
    GitHub-applied change affects future runs.
 9. Confirm the latest user-approved changes are visible from those files **and** from the
    scheduled prompt/task body.
@@ -307,7 +307,7 @@ Automation Resync complete: the next scheduled run will read the latest approved
 or:
 
 ```text
-Automation Resync partially complete: config/profile are updated, but the native scheduled task prompt still needs the human to replace it with outreach-pipeline/automation/scheduled_run_prompt.md.
+Automation Resync partially complete: config/profile are updated, but the native scheduled task prompt still needs the human to replace it with daily-content-pipeline/automation/scheduled_run_prompt.md.
 ```
 
 Bad completion wording:
@@ -342,7 +342,7 @@ Possible scheduling methods:
 - Desktop reminder.
 - Manual daily run instructions.
 
-The agent must record the chosen method in `outreach-pipeline/schedule.md`.
+The agent must record the chosen method in `daily-content-pipeline/schedule.md`.
 
 The agent must also record the **notification channel** in `schedule.md`:
 
@@ -383,9 +383,9 @@ Rules:
 
 - The task should run daily, preferably before the client daily runs.
 - It must load `playbooks/11_UPDATE_AND_VERSION_WATCH.md`.
-- It must check the OutreachCRM repo `main` (placeholder `https://github.com/soloagency/outreach`),
+- It must check the Solo Agency repo `main` (module subpath `outreach/`, placeholder `https://github.com/soloagency/solo-agency`),
   compare the installed version, classify the change, and update
-  `outreach-pipeline/automation/update_state.json` plus `update_log.md`. Classification
+  `daily-content-pipeline/automation/update_state.json` plus `update_log.md`. Classification
   includes `tracker_worker_deploy_required` (a `tracker/worker.js` change needing a
   `wrangler deploy` rerun) and `storage_schema_migration_required` (a storage adapter /
   `schema_version` change needing `crm_store.py migrate`).
@@ -393,7 +393,7 @@ Rules:
   mutations under `clients/`.
 - It must **not** send Telegram, WideCast/email-fallback, or any client/operator campaign
   notification. GitHub update checks are internal agency maintenance: write
-  `outreach-pipeline/automation/update_notice.md` and surface the result in the
+  `daily-content-pipeline/automation/update_notice.md` and surface the result in the
   setup/maintenance chat or native task output instead.
 - It may auto-apply updates only when the human has approved auto-apply in `update_state.json`
   or an equivalent operator setting.
@@ -403,7 +403,7 @@ Rules:
   `**[ACTION REQUIRED]**`, not silently applied.
 - If the automation environment cannot create the native task directly, write the exact
   prompt from `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` to
-  `outreach-pipeline/automation/update_watch_prompt.md`, log `update_watch_task_prompt_pending`,
+  `daily-content-pipeline/automation/update_watch_prompt.md`, log `update_watch_task_prompt_pending`,
   and give the human the exact task name and prompt path via `**[ACTION REQUIRED]**`.
 
 If no automation is available for the update watch:
@@ -448,7 +448,7 @@ work, duplicate sends, and duplicate notifications:
 For each client, pinning `target_client_slug`, in this exact order:
 
 1. **Load contract + LOAD LEDGER.** Load Stage 0, Stage 7, and this file; read the automation
-   manifest and `outreach-pipeline/automation/update_state.json` (Update Watch is a separate
+   manifest and `daily-content-pipeline/automation/update_state.json` (Update Watch is a separate
    task and does not touch clients). Compute the date key in the recorded timezone. Take the
    per-client `run_lock`.
 2. **Sync inbox** across all sendboxes (DESIGN §12, Stage 10): run the deterministic classifier
@@ -666,7 +666,7 @@ uploads the report, sends the Telegram (email-fallback) message, and appends the
 
 ```sh
 python3 tools/provider_openapi.py --config DIR/integrations/providers/provider_config.local.json \
-  --defaults outreach-pipeline/provider_defaults.json \
+  --defaults daily-content-pipeline/provider_defaults.json \
   notify --event daily_run_completed --message "<run status + counts + [ACTION REQUIRED]>" \
   --report-file DIR/outputs/YYYY-MM/YYYY-MM-DD/{client}-daily-ops.html \
   --log DIR/notifications/notification_log.md
@@ -717,10 +717,10 @@ manual-only, first-run-only, or another cadence.
 
 Then write or update, at minimum:
 
-- `outreach-pipeline/schedule.md`
-- `outreach-pipeline/automation/automation_manifest.md`
-- `outreach-pipeline/automation/scheduled_run_prompt.md`
-- `outreach-pipeline/automation/resync_log.md`
+- `daily-content-pipeline/schedule.md`
+- `daily-content-pipeline/automation/automation_manifest.md`
+- `daily-content-pipeline/automation/scheduled_run_prompt.md`
+- `daily-content-pipeline/automation/resync_log.md`
 - the native automation/scheduled task body (or the pending-prompt handoff)
 
 OutreachCRM has no separate external scheduler config file of its own. The cadence is
@@ -800,8 +800,8 @@ inside the AI sandbox during setup.
 
 ### `automation_manifest.md` and `scheduled_run_prompt.md`
 
-Write `outreach-pipeline/automation/automation_manifest.md` and
-`outreach-pipeline/automation/scheduled_run_prompt.md` so a future agent can repair or resync
+Write `daily-content-pipeline/automation/automation_manifest.md` and
+`daily-content-pipeline/automation/scheduled_run_prompt.md` so a future agent can repair or resync
 the actual scheduled task prompt instead of relying on memory. The `scheduled_run_prompt.md`
 must pin `target_client_slug`, instruct the run to load the playbooks fresh at run time, and
 execute the full Daily Run order for that one client.

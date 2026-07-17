@@ -1771,8 +1771,11 @@ def resolve_client_dir(pipeline: str | None, client: str | None, client_dir: str
     if not (pipeline and client):
         raise SystemExit("need --client-dir, or --pipeline and --client")
     base = os.path.join(os.path.abspath(pipeline), "clients", client)
+    # OutreachCRM data nests under an `outreach/` product subtree of the shared per-client
+    # workspace (`clients/{slug}/{business}_{location}/outreach/`) so it never collides with
+    # the Solo Agency content subtrees that live directly under the same workspace.
     if create:
-        ws = os.path.join(base, f"{business or 'main'}_{location or 'main'}")
+        ws = os.path.join(base, f"{business or 'main'}_{location or 'main'}", "outreach")
         os.makedirs(ws, exist_ok=True)
         # ensure storage_config at pipeline root
         cfg = os.path.join(os.path.abspath(pipeline), "storage_config.json")
@@ -1781,9 +1784,9 @@ def resolve_client_dir(pipeline: str | None, client: str | None, client_dir: str
             with open(cfg, "w", encoding="utf-8") as fh:
                 json.dump({"backend": "json"}, fh)
         return ws
-    matches = [d for d in glob.glob(os.path.join(base, "*")) if os.path.isdir(d)]
+    matches = [d for d in glob.glob(os.path.join(base, "*", "outreach")) if os.path.isdir(d)]
     if not matches:
-        raise SystemExit(f"no workspace under {base}; run init-client first")
+        raise SystemExit(f"no outreach workspace under {base}; run init-client first")
     if len(matches) > 1:
         raise SystemExit(f"multiple workspaces under {base}; pass --client-dir explicitly")
     return matches[0]
