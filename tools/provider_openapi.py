@@ -60,7 +60,13 @@ def _read_json(path: str | None) -> dict[str, Any]:
     p = Path(path)
     if not p.exists():
         return {}
-    return json.loads(p.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as e:
+        # a corrupted/hand-edited config is a ProviderError (caught by main -> exit 2),
+        # never an uncaught crash; notify's own gates then degrade to local_path_only.
+        raise ProviderError(f"provider_config_unreadable: {e}")
+    return data if isinstance(data, dict) else {}
 
 
 def _write_json(path: Path, data: Any) -> None:
@@ -69,7 +75,9 @@ def _write_json(path: Path, data: Any) -> None:
 
 
 def _provider_block(config: dict[str, Any], provider: str) -> dict[str, Any]:
-    return config.get("providers", {}).get(provider, {})
+    providers = config.get("providers", {})
+    block = providers.get(provider, {}) if isinstance(providers, dict) else {}
+    return block if isinstance(block, dict) else {}  # a non-dict block degrades, never crashes
 
 
 def _active_provider(config: dict[str, Any], fallback: str = "widecast") -> str:
@@ -469,8 +477,13 @@ def _append_notification_log(log_path: str, row: dict[str, str]) -> None:
         fh.write("| " + " | ".join(cells) + " |\n")
 
 
+def _notification_block(config: dict[str, Any], provider: str) -> dict[str, Any]:
+    block = _provider_block(config, provider).get("notification", {})
+    return block if isinstance(block, dict) else {}
+
+
 def _notification_enabled(config: dict[str, Any], provider: str) -> bool:
-    return bool(_provider_block(config, provider).get("notification", {}).get("enabled"))
+    return bool(_notification_block(config, provider).get("enabled"))
 
 
 def cmd_notify(args: argparse.Namespace) -> int:
@@ -530,11 +543,18 @@ def cmd_notify(args: argparse.Namespace) -> int:
     key = _api_key(config, provider)
     row["Notification Operation"] = aliases["send_notification"]
 
+    notif_cfg = _notification_block(config, provider)
+    upload_cfg = _provider_block(config, provider).get("report_upload", {})
+    upload_cfg = upload_cfg if isinstance(upload_cfg, dict) else {}
+    # provider response-URL keys are schema-specific; overridable so a live schema matches w/o a code change
+    url_fields = upload_cfg.get("url_fields") or ["url", "asset_url", "link", "download_url"]
     uploaded_url = ""
     if args.report_file:
         row["Upload Operation"] = aliases.get("upload_asset", "uploadAsset")
         if "upload_asset" not in aliases:
-            row["Blocker"] = "provider_required_operation_missing"  # upload op absent; send text-only
+            # the OPTIONAL upload op is absent; distinct from the hard send-op-missing failure —
+            # send text-only, note softly (a monitor for real failures must not fire here)
+            row["Blocker"] = "provider_upload_operation_missing"
         elif not Path(args.report_file).exists():
             row["Blocker"] = "provider_upload_failed"
         else:
@@ -543,16 +563,19 @@ def cmd_notify(args: argparse.Namespace) -> int:
             body = {"file_data": base64.b64encode(Path(args.report_file).read_bytes()).decode("ascii"),
                     "filename": Path(args.report_file).name, "content_type": "text/html"}
             st, _, resp = _request_json(up["method"], _url_for(parsed["server_url"], up["path"]), key, body)
-            if st < 400 and isinstance(resp, dict):
-                uploaded_url = str(resp.get("url") or resp.get("asset_url") or resp.get("link") or "")
-            if not uploaded_url:
-                row["Blocker"] = "provider_upload_failed"
+            if st >= 400:
+                row["Blocker"] = "provider_upload_failed"  # the HTTP upload itself failed
+            elif isinstance(resp, dict):
+                uploaded_url = next((str(resp[k]) for k in url_fields if resp.get(k)), "")
+                if not uploaded_url:
+                    # upload SUCCEEDED but the URL key wasn't recognized — distinct from a real failure
+                    row["Blocker"] = "provider_upload_url_unrecognized"
 
     op = parsed["operations"][aliases["send_notification"]]
     text = args.message + (f"\n\nReport: {uploaded_url}" if uploaded_url else "")
     # The message body property name is provider-schema-specific; default "text", overridable in
     # provider_config notification.text_field so a live schema can be matched without a code change.
-    text_field = _provider_block(config, provider).get("notification", {}).get("text_field") or "text"
+    text_field = notif_cfg.get("text_field") or "text"
     row["Notification Attempted"] = "yes"
     st, _, resp = _request_json(op["method"], _url_for(parsed["server_url"], op["path"]), key, {text_field: text})
     _write_call_log(args.config, provider, aliases["send_notification"], st,

@@ -716,6 +716,14 @@ def scrub_check(text: str) -> list[str]:
     return found
 
 
+def scrub_check_rendered(html_text: str) -> list[str]:
+    """Scrub the final HTML AND a tag-stripped, whitespace-collapsed copy of it, so a blind term
+    split across inline markup (e.g. `API <strong>key</strong> Ventures`) is still caught — a
+    literal substring search on the raw HTML alone would miss it."""
+    stripped = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", html_text))
+    return sorted(set(scrub_check(html_text)) | set(scrub_check(stripped)))
+
+
 def render_full_html(
     body_html: str,
     nav: list[tuple[str, str]],
@@ -812,7 +820,7 @@ def render_command(args: argparse.Namespace) -> int:
     )
 
     output_html = Path(args.output_html)
-    scrub_found = scrub_check(html_text) if args.client_facing else []
+    scrub_found = scrub_check_rendered(html_text) if args.client_facing else []
     if args.client_facing and scrub_found and args.fail_on_scrub:
         # Do NOT create/overwrite the real output name on a scrub failure — a
         # downstream step keyed on file existence must not ship a contaminated
@@ -980,7 +988,7 @@ def package_command(args: argparse.Namespace) -> int:
     )
 
     output_html = Path(args.output_html)
-    scrub_found = scrub_check(html_text) if args.client_facing else []
+    scrub_found = scrub_check_rendered(html_text) if args.client_facing else []
     if args.client_facing and scrub_found and args.fail_on_scrub:
         blocked_html = output_html.with_name(output_html.stem + ".blocked" + output_html.suffix)
         write_text(blocked_html, html_text)

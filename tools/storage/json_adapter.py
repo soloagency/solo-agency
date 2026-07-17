@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import uuid
 from contextlib import contextmanager
 from typing import Callable, Optional
 
@@ -92,7 +94,9 @@ class JsonAdapter(BaseAdapter):
     @staticmethod
     def _atomic_write(path: str, text: str) -> None:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        tmp = f"{path}.tmp.{os.getpid()}"
+        # unique per call (pid + thread + random) so two concurrent writers to the SAME path
+        # never share a temp file and race on os.replace (a per-pid name is not enough).
+        tmp = f"{path}.tmp.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}"
         with open(tmp, "w", encoding="utf-8") as fh:
             fh.write(text)
             fh.flush()

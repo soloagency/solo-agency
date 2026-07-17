@@ -227,11 +227,9 @@ def _dig(record: dict, dotted: str):
 
 
 def _iterable(value) -> bool:
-    try:
-        iter(value)
-        return not isinstance(value, (str, bytes)) or True  # str is iterable, fine for 'in'
-    except TypeError:
-        return False
+    """True for a real collection to use as an 'in' membership set — NOT a str/bytes, so an
+    'in' condition whose value was mistyped as a string does membership, never substring match."""
+    return not isinstance(value, (str, bytes)) and hasattr(value, "__iter__")
 
 
 def get_adapter(client_root: str, backend: Optional[str] = None) -> BaseAdapter:
