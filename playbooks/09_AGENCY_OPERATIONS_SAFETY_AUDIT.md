@@ -467,7 +467,7 @@ Exact manual run-now contract:
     "do_not_comment": true,
     "do_not_message": true,
     "do_not_react": true,
-    "do_not_scrape_contact_details": true
+    "do_not_exfiltrate_secrets": true
   }
 }
 ```

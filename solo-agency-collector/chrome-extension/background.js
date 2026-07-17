@@ -18,7 +18,7 @@ const COMPLETED_RUNS_KEY = "collector_completed_runs";
 const ACTIVE_RUN_KEY = "collector_active_run";
 const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
-const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js"];
+const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
 const EXTENSION_BUILD = "0.1.29-websearch";
 const NORMAL_SCROLL_CAP = 10;
@@ -555,6 +555,14 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
       seenProfileCandidates.add(key);
       profileCandidates.push(url);
     }
+    // Structured contacts parsed in-page from the already-captured public text +
+    // mailto:/tel: anchors (additive optional field; empty arrays when none found).
+    const contacts = cap.contacts && typeof cap.contacts === "object"
+      ? {
+          emails: Array.isArray(cap.contacts.emails) ? cap.contacts.emails : [],
+          phones: Array.isArray(cap.contacts.phones) ? cap.contacts.phones : []
+        }
+      : { emails: [], phones: [] };
     const pageLike = {
       current_url: cap.url || "",
       title: cap.title || "",
@@ -616,7 +624,10 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         graphql_manifest: gqlAvailable ? (gql.manifest || []) : [],
         // --- Phase 2 capability layer (typed, per-screen; null when no capability) ---
         capability: source.capability || "",
-        records: gqlRecords && gqlRecords.available ? gqlRecords : null
+        records: gqlRecords && gqlRecords.available ? gqlRecords : null,
+        // --- Structured contact layer (additive; emails/phones parsed from the
+        // already-captured public page text + mailto:/tel: anchors) ---
+        contacts: contacts
       },
       newPrivateSources: entityItems
         .filter((it) => it && /group|community|page|channel|profile|account/i.test(String(it.type || "")))
@@ -1375,6 +1386,16 @@ async function collectCleanPage(opts) {
     last.accountUrls = accountUrls;
     last.postUrls = postUrls;
     last.entityItems = entityItems;
+    // ADDITIVE: structured business email/phone extraction over the cleaned
+    // visible text plus live mailto:/tel: anchors. Best-effort and self-contained
+    // (contact_extract.js is injected via CAPTURE_FILES); never blocks capture.
+    try {
+      if (typeof window.__soloExtractContacts === "function") {
+        last.contacts = window.__soloExtractContacts(last.mergedDisplay || last.merged || prev || "", document);
+      }
+    } catch (error) {
+      // Contact extraction is optional; ignore and keep the rest of the capture.
+    }
   }
   updateCollectorOverlay({
     phase: "completed",

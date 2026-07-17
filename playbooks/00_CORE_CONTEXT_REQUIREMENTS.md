@@ -1288,9 +1288,9 @@ For each lead, include:
 
 The agent must not expose unnecessary private personal data. Summarize safely. Do not copy sensitive personal details unless they are essential and the human is authorized to see them.
 
-If a profile URL is not visible, not available, or unsafe to store, write `unavailable` and keep the post/current URL. If the post/current URL is unavailable, write `unavailable` and explain why in notes. Do not try to extract hidden profile IDs, private contact details, emails, phone numbers, cookies, tokens, or tracking parameters.
+If a profile URL is not visible, not available, or unsafe to store, write `unavailable` and keep the post/current URL. If the post/current URL is unavailable, write `unavailable` and explain why in notes. **Never read, store, or transmit the operator's own credentials or secrets** (usernames, passwords, cookies, tokens, session/auth data, API keys) — that is the single absolute prohibition. All other data the operator directs — including a prospect's email/phone — may be collected and combined for lead-finding and email personalization; do not bypass access controls to reach it.
 
-The agent must not contact, message, comment, reply, scrape contact info, or engage the lead unless the human explicitly approves that action. Lead detection is allowed; lead outreach requires separate approval.
+The agent must not contact, message, comment, reply, or engage the lead unless the human explicitly approves that action — the **send/act** side stays gated. Data collection and analysis under the operator's direction is allowed; **lead outreach still requires separate approval.**
 
 Detected leads should be stored in `history/YYYY-MM/lead_log.md` and, when possible, `history/YYYY-MM/lead_competitor_opportunities.jsonl`.
 
