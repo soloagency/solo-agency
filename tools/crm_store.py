@@ -189,7 +189,7 @@ class CrmStore:
                      "cta": {"type": "reply_yes", "text": ""},
                      "success_event": {"on": "reply_positive", "create_deal_stage": "new_reply"}},
             "audience": {"segment": "", "personalization": {"required_hook_types": [],
-                         "min_confidence": 0.7, "no_hook_fallback": "generic_honest_opener"}},
+                         "min_confidence": 0.7, "no_hook_fallback": "skip"}},
             "sequence": [{"step": 1, "intent": "hook + offer, one CTA", "tracking": "plain_text"},
                          {"step": 2, "gap_days": 4, "intent": "deliver new value"},
                          {"step": 3, "gap_days": 5, "intent": "social proof"},
@@ -305,11 +305,15 @@ class CrmStore:
                     if lead_id in already:
                         skipped["already_in_campaign"] += 1
                         continue
-                    # email_first campaigns need a real, well-formed found email (no guessing in MVP)
+                    # email_first still QUEUES a no-email lead so enrichment can DISCOVER an email
+                    # (profile / Google / other channels) — "thiếu email thì đi tìm email". Skip only
+                    # when a recent negative cache says discovery already failed within the retry window.
                     if email_first and not [e for e in c.get("identities", {}).get("emails", [])
                                             if _valid_email(e.get("address"))]:
-                        skipped["no_email"] += 1
-                        continue
+                        nf = (c.get("enrichment") or {}).get("email_not_found_at")
+                        if nf and nf >= _iso_days_ago(self.NEG_RETRY_DAYS):
+                            skipped["no_email"] += 1
+                            continue
                     if c.get("sequence_state") == "frozen":
                         skipped["in_active_sequence"] += 1
                         continue
@@ -456,6 +460,10 @@ class CrmStore:
             if hc is None:
                 problems.append(f"hook {h.get('type','?')!r}: non-numeric confidence, treated as 0.0")
                 hc = 0.0
+            # proof-of-life: a usable hook with no observed_date can't attest recency — keep it,
+            # but flag it so the writer/operator knows the "why now" is unverified.
+            if not h.get("observed_date"):
+                problems.append(f"hook {h.get('type','?')!r}: no observed_date (recency unverified)")
             usable_hooks.append({"type": h.get("type"), "summary": h.get("summary", ""),
                                  "evidence_url": h["evidence_url"].strip(), "observed_date": h.get("observed_date", ""),
                                  "confidence": hc, "sensitivity": sens,
@@ -584,6 +592,13 @@ class CrmStore:
             # the hook TYPE always comes from the dossier, never the caller — so a real evidence
             # URL can't be relabeled with a fabricated claim (e.g. new_listing -> award_won)
             clean_hooks.append({"type": evidence_by_url[url].get("type"), "evidence_url": url})
+        # proof-of-life gate: a step-1 email needs a recent evidenced hook (the reason to reach out
+        # now). A campaign may opt back into a generic opener via no_hook_fallback; default is skip.
+        if step == 1 and not clean_hooks:
+            fallback = ((cfg.get("audience") or {}).get("personalization") or {}).get("no_hook_fallback", "skip")
+            if fallback != "generic_honest_opener":
+                raise StorageError("no_evidenced_hook: this campaign requires a recent evidenced hook "
+                                   "(proof-of-life) for a step-1 email; no_hook_fallback=skip")
         sendbox = self.pick_sendbox(cfg, contact)
         if not sendbox:
             raise StorageError("no healthy sendbox available for this campaign")
@@ -647,11 +662,42 @@ class CrmStore:
         out.sort(key=lambda r: (r.get("campaign_slug", ""), r.get("created_at", ""), r.get("id", "")))
         return out
 
+    def draft_budget(self, campaign_slug: str, day: str | None = None) -> dict:
+        """The campaign's daily drafting budget (decision D): how many draft slots are used vs.
+        remaining today. `used_today` = draft records created today for this campaign, counted
+        across outbox/pending_approval/** and outbox/approved/ — a sent draft stays in approved/
+        (status 'sent'), so it still counts against the day's budget. daily_quota is the same
+        number the operator set at campaign create; remaining never goes negative."""
+        cfg = self.get_campaign(campaign_slug)
+        if not cfg:
+            raise StorageError(f"campaign {campaign_slug!r} not found")
+        day = day or today_str()
+        daily_quota = int(cfg.get("daily_quota", 40))
+        base = os.path.join(self.campaign_dir(campaign_slug), "outbox")
+        used = 0
+        for scan in (os.path.join(base, "pending_approval"), os.path.join(base, "approved")):
+            if not os.path.isdir(scan):
+                continue
+            for root, _dirs, files in os.walk(scan):
+                for name in files:
+                    if not name.endswith(".json"):
+                        continue
+                    try:
+                        with open(os.path.join(root, name), "r", encoding="utf-8") as fh:
+                            rec = json.load(fh)
+                    except (OSError, ValueError):
+                        continue
+                    if (rec.get("created_at", "") or "")[:10] == day:
+                        used += 1
+        return {"campaign": campaign_slug, "daily_quota": daily_quota,
+                "used_today": used, "remaining": max(0, daily_quota - used)}
+
     # --- Approval Report + chat approval -------------------------------------
 
     def build_approval(self, campaign_slug: str | None = None, now: str | None = None,
                        number_by_draft: dict | None = None) -> tuple[str, list]:
-        """Return (markdown, index). Numbered cards grouped High confidence / Review carefully;
+        """Return (markdown, index). Numbered cards grouped High confidence / Review carefully
+        (new step-1 leads) plus a Follow-ups due section (step>1 bumps + reply drafts);
         the index [{n, draft_id, path}] is the number->draft map the approve handler reads.
         `number_by_draft` (draft_id->n from the prior report) keeps a draft's number STABLE
         across re-renders, so approving by a number never silently hits a renumbered draft."""
@@ -669,8 +715,11 @@ class CrmStore:
         numbered.sort(key=lambda t: t[0])
         index = [{"n": n, "draft_id": d["id"], "path": d["_path"], "campaign": d["campaign_slug"]}
                  for n, d in numbered]
-        high = [(n, d) for n, d in numbered if d.get("confidence_band") == "high"]
-        review = [(n, d) for n, d in numbered if d.get("confidence_band") != "high"]
+        # step-1 drafts split into High/Review; step>1 (bumps + reply drafts) get their own section
+        new = [(n, d) for n, d in numbered if int(d.get("step", 1)) == 1]
+        followups = [(n, d) for n, d in numbered if int(d.get("step", 1)) > 1]
+        high = [(n, d) for n, d in new if d.get("confidence_band") == "high"]
+        review = [(n, d) for n, d in new if d.get("confidence_band") != "high"]
 
         def card(n, d):
             c = self.get_contact(d["lead_id"]) or {}
@@ -699,6 +748,9 @@ class CrmStore:
         md += [card(n, d) for n, d in high] or ["*(none)*", ""]
         md += ["", f"## Review carefully ({len(review)})", "*(weak/no hook or fallback opener — read before approving)*", ""]
         md += [card(n, d) for n, d in review] or ["*(none)*", ""]
+        md += ["", f"## Follow-ups due ({len(followups)})",
+               "*(bumps and reply drafts — threaded onto an existing conversation)*", ""]
+        md += [card(n, d) for n, d in followups] or ["*(none)*", ""]
         return "\n".join(md), index
 
     def render_approval_report(self, campaign_slug: str | None = None, now: str | None = None) -> dict:
@@ -1022,15 +1074,20 @@ class CrmStore:
         nm = (c.get("name") or {}).get("full") or ""
         return nm.strip() or "A prospect"
 
-    def weekly_report_data(self, now: str | None = None, days: int = 7) -> dict:
-        """Aggregate the last `days` of CRM state into client-facing figures. Pure counts and
-        names — never internal identifiers, campaign slugs, or provider/tooling terms (the scrub
-        gate is the backstop, but the source is built clean)."""
+    def _report_window_data(self, start_iso: str, end_iso_exclusive: str | None = None,
+                            now: str | None = None) -> dict:
+        """Aggregate CRM state for a [start, end) window into client-facing figures. Activities
+        and stage movements are filtered start <= ts (and, when end is given, ts < end); open
+        deals / forecast / next steps stay point-in-time 'as of now' (a pipeline snapshot, same
+        as the weekly). Pure counts and names — never internal identifiers, campaign slugs, or
+        provider/tooling terms (the scrub gate is the backstop, but the source is built clean)."""
         now = now or now_iso()
-        # Floor the cutoff to midnight UTC so the displayed date-only period_start is truthfully
-        # inclusive of the whole day (activity earlier the same day is not silently dropped).
-        cutoff = _iso_days_ago_from(days, now)[:10] + "T00:00:00Z"
-        acts = [a for a in self.a.read_log("activities") if (a.get("ts") or "") >= cutoff]
+        def _in_window(ts: str) -> bool:
+            ts = ts or ""
+            if ts < start_iso:
+                return False
+            return end_iso_exclusive is None or ts < end_iso_exclusive
+        acts = [a for a in self.a.read_log("activities") if _in_window(a.get("ts") or "")]
         delivered = sum(1 for a in acts if a.get("type") == "email_sent")
         replies = sum(1 for a in acts if a.get("type") == "email_reply")
         deals = self.a.query("deals", where=[Cond("status", "=", "open")])
@@ -1047,7 +1104,7 @@ class CrmStore:
         for d in self.a.query("deals", where=[]):
             name = self._contact_display((d.get("contact_ids") or [None])[0])
             for h in d.get("stage_history", []):
-                if (h.get("at") or "") >= cutoff:
+                if _in_window(h.get("at") or ""):
                     movements.append({"name": name, "stage": h.get("stage", ""),
                                       "at": h.get("at", ""), "value": _as_float(d.get("value")),
                                       "status": d.get("status", "open")})
@@ -1058,23 +1115,51 @@ class CrmStore:
         next_steps = [{"name": self._contact_display((d.get("contact_ids") or [None])[0]),
                        "stage": d.get("stage", "")}
                       for d in deals if d.get("stage") in ("meeting_booked", "proposal_sent")]
-        return {"generated_at": now, "period_start": cutoff[:10], "period_end": now[:10], "days": days,
+        return {"generated_at": now,
                 "delivered": delivered, "replies": replies,
-                # cap at 100%: replies this week may answer sends from before the window
+                # cap at 100%: replies this window may answer sends from before it
                 "reply_rate": min(replies / delivered, 1.0) if delivered else None,
                 "new_conversations": sum(1 for m in movements if m["stage"] == "new_reply"),
                 "meetings": meetings, "open_deals": len(deals), "forecast": forecast,
                 "by_stage": by_stage, "movements": movements, "won": won, "next_steps": next_steps}
 
-    def render_weekly_report(self, now: str | None = None, client_name: str = "", days: int = 7) -> dict:
-        """Build + render the client-facing weekly report (scrub-gated). Returns the render
-        status incl. `blocked` + `blind_terms` if the scrub gate fired."""
-        d = self.weekly_report_data(now, days)
-        cname = client_name.strip() or self._client_slug().replace("-", " ").replace("_", " ").title()
+    def weekly_report_data(self, now: str | None = None, days: int = 7) -> dict:
+        """Aggregate the last `days` of CRM state into client-facing figures (delegates to
+        _report_window_data with a midnight-floored cutoff and no end bound)."""
+        now = now or now_iso()
+        # Floor the cutoff to midnight UTC so the displayed date-only period_start is truthfully
+        # inclusive of the whole day (activity earlier the same day is not silently dropped).
+        cutoff = _iso_days_ago_from(days, now)[:10] + "T00:00:00Z"
+        d = self._report_window_data(cutoff, None, now)
+        d["period_start"] = cutoff[:10]; d["period_end"] = now[:10]; d["days"] = days
+        return d
+
+    def monthly_report_data(self, month: str | None = None, now: str | None = None) -> dict:
+        """Aggregate one calendar month [YYYY-MM-01, next-month-01) of CRM state. Default month is
+        the current month (month-to-date): the end bound is `now` when the window is the current
+        month, else the first day of the following month. Open deals stay point-in-time as now."""
+        now = now or now_iso()
+        month = month or now[:7]
+        start = f"{month}-01T00:00:00Z"
+        current = month == now[:7]
+        # current month is month-to-date: leave the window open-ended (as-of-now, like the weekly)
+        # so activity timestamped exactly `now` is included; a past month is bounded to its calendar.
+        nxt = _month_end_exclusive(month)
+        d = self._report_window_data(start, None if current else nxt, now)
+        d["period_start"] = start[:10]
+        d["period_end"] = now[:10] if current else nxt[:10]
+        d["month"] = month
+        return d
+
+    def _client_report_md(self, d: dict, cname: str, title_kind: str) -> list:
+        """Shared client-facing report body for both the weekly and monthly renders. `title_kind`
+        ('Weekly'/'Monthly') sets the title and the period wording so the two reports keep an
+        identical structure — the weekly output stays byte-identical to the pre-refactor version."""
+        period = "week" if title_kind == "Weekly" else "month"
         rr = "—" if d["reply_rate"] is None else f"{d['reply_rate']:.0%}"
-        md = [f"# {cname} — Weekly Outreach Report",
+        md = [f"# {cname} — {title_kind} Outreach Report",
               f"### {d['period_start']} to {d['period_end']}", "",
-              f"**This week:** {d['delivered']} emails delivered · {d['replies']} replies · "
+              f"**This {period}:** {d['delivered']} emails delivered · {d['replies']} replies · "
               f"{d['new_conversations']} new conversations · ${d['forecast']:,.0f} in active pipeline", "",
               "## Snapshot", "",
               f"- Emails delivered: **{d['delivered']}**",
@@ -1089,7 +1174,7 @@ class CrmStore:
             agg = d["by_stage"].get(st)
             if agg:
                 md.append(f"| {self._STAGE_LABELS[st]} | {agg['count']} | ${agg['value']:,.0f} |")
-        md += ["", "## What moved this week", ""]
+        md += ["", f"## What moved this {period}", ""]
         moved = []
         for m in d["movements"]:
             label = self._STAGE_LABELS.get(m["stage"], m["stage"])
@@ -1099,13 +1184,31 @@ class CrmStore:
                 moved.append(f"- Closed out — {m['name']}")
             else:
                 moved.append(f"- {m['name']} → {label}")
-        md += moved or ["Conversations are progressing; no stage changes to report this week."]
+        md += moved or [f"Conversations are progressing; no stage changes to report this {period}."]
         md += ["", "## What's next", ""]
         md += [f"- {n['name']} — {self._STAGE_LABELS.get(n['stage'], n['stage']).lower()} in progress"
                for n in d["next_steps"]] or ["We continue outreach and follow-ups on the active list."]
         md += ["", "---", f"Prepared by your outreach team · {d['period_end']}"]
+        return md
+
+    def render_weekly_report(self, now: str | None = None, client_name: str = "", days: int = 7) -> dict:
+        """Build + render the client-facing weekly report (scrub-gated). Returns the render
+        status incl. `blocked` + `blind_terms` if the scrub gate fired."""
+        d = self.weekly_report_data(now, days)
+        cname = client_name.strip() or self._client_slug().replace("-", " ").replace("_", " ").title()
+        md = self._client_report_md(d, cname, "Weekly")
         return self._render_client_facing(md, "weekly-client-report", f"{cname} — Weekly Report",
                                           cname, "Weekly Client Report", now)
+
+    def render_monthly_report(self, now: str | None = None, client_name: str = "",
+                              month: str | None = None) -> dict:
+        """Build + render the client-facing MONTHLY report (scrub-gated, same machinery as the
+        weekly). The pipeline snapshot is point-in-time 'as of the report date' (like the weekly)."""
+        d = self.monthly_report_data(month, now)
+        cname = client_name.strip() or self._client_slug().replace("-", " ").replace("_", " ").title()
+        md = self._client_report_md(d, cname, "Monthly")
+        return self._render_client_facing(md, "monthly-client-report", f"{cname} — Monthly Report",
+                                          cname, "Monthly Client Report", now)
 
     def _render_operator(self, md_lines: list, slug_suffix: str, title: str, now: str | None) -> dict:
         now = now or now_iso()
@@ -1632,6 +1735,14 @@ def _due_to_iso(due: str) -> str:
     return due
 
 
+def _month_end_exclusive(month: str) -> str:
+    """First day of the month AFTER `month` (YYYY-MM), as a midnight-UTC ISO timestamp — the
+    end-exclusive bound of that calendar month's window."""
+    y, m = int(month[:4]), int(month[5:7])
+    y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return f"{y:04d}-{m:02d}-01T00:00:00Z"
+
+
 def _iso_days_ago(days: int) -> str:
     return _iso_days_ago_from(days, now_iso())
 
@@ -1708,14 +1819,15 @@ def main(argv=None) -> int:
     sg.add_argument("--json"); sg.add_argument("--id")
     en = sub.add_parser("enrich"); en.add_argument("op", choices=["status", "due", "write", "get"])
     en.add_argument("--contact"); en.add_argument("--campaign"); en.add_argument("--json"); en.add_argument("--limit", type=int, default=100)
-    dr = sub.add_parser("draft"); dr.add_argument("op", choices=["write", "list"])
-    dr.add_argument("--contact"); dr.add_argument("--campaign"); dr.add_argument("--json")
+    dr = sub.add_parser("draft"); dr.add_argument("op", choices=["write", "list", "budget"])
+    dr.add_argument("--contact"); dr.add_argument("--campaign"); dr.add_argument("--json"); dr.add_argument("--day")
     aprt = sub.add_parser("approval-report"); aprt.add_argument("--campaign")
     apy = sub.add_parser("approve"); apy.add_argument("--json", required=True)
     fu = sub.add_parser("followups"); fu.add_argument("op", choices=["due"]); fu.add_argument("--campaign", required=True)
     tv = sub.add_parser("today-view")
     kb = sub.add_parser("kanban")
     wr = sub.add_parser("weekly-report"); wr.add_argument("--client-name", default=""); wr.add_argument("--days", type=int, default=7)
+    mr = sub.add_parser("monthly-report"); mr.add_argument("--client-name", default=""); mr.add_argument("--month")
 
     args = p.parse_args(argv)
 
@@ -1770,6 +1882,8 @@ def main(argv=None) -> int:
                                           tracking=d.get("tracking", "plain_text")))
         if args.op == "list":
             return _out(store.list_pending_drafts(args.campaign))
+        if args.op == "budget":
+            return _out(store.draft_budget(args.campaign, args.day))
     if args.cmd == "approval-report":
         return _out(store.render_approval_report(args.campaign))
     if args.cmd == "approve":
@@ -1782,6 +1896,8 @@ def main(argv=None) -> int:
         return _out(store.render_kanban())
     if args.cmd == "weekly-report":
         return _out(store.render_weekly_report(client_name=args.client_name, days=args.days))
+    if args.cmd == "monthly-report":
+        return _out(store.render_monthly_report(client_name=args.client_name, month=args.month))
     if args.cmd == "contact":
         if args.op == "add":
             lead_id, outcome = store.add_contact(json.loads(args.json))

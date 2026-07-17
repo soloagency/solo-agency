@@ -32,9 +32,11 @@ This is an INDEX. Load `structures.md` (goal_type → email shape) when you draf
 2. **Campaign goal** — `objective`, `offer`, `value_proposition`, `proof_points` (evidenced),
    `cta`. `goal_type` picks the structure (`structures.md`).
 3. **Contact dossier** — `writing_brief.ranked_angles` (already ranked by freshness × goal-fit ×
-   confidence). Open with the top angle's hook. If `confidence_band` is `fallback` / there are no
-   usable hooks, use the campaign's `no_hook_fallback` (a generic-but-honest opener grounded only
-   in license/roster facts) — don't fake a hook.
+   confidence). Open with the top angle's hook. A step-1 draft needs a recent evidenced hook: with
+   no usable hooks (`confidence_band` is `fallback`), `draft write` rejects it
+   (`no_evidenced_hook`) unless the campaign opts into `no_hook_fallback: "generic_honest_opener"`
+   (the default is `skip`). When it opts in, the fallback is a generic-but-honest opener grounded
+   only in license/roster facts — don't fake a hook.
 3. **Step intent** — step 1 = hook + offer + one CTA; bumps carry NEW value, never "just
    following up" (`followup.md`).
 

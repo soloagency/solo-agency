@@ -446,7 +446,7 @@ The atomic quota reservation (`reserve(sendbox_slug, day)`) and the ordered pre-
    "objective":"","offer":"","value_proposition":"","proof_points":[{"claim":"","evidence_url":""}],
    "cta":{"type":"reply_yes|link|calendar","text":""},
    "success_event":{"on":"reply_positive","create_deal_stage":"new_reply"}},
- "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,"no_hook_fallback":"generic_honest_opener|skip"}},
+ "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,"no_hook_fallback":"skip|generic_honest_opener"}},
  "sequence":[{"step":1,"intent":"hook + offer, one CTA","tracking":"plain_text"},
    {"step":2,"gap_days":4,"intent":"deliver new value"},
    {"step":3,"gap_days":5,"intent":"social proof"},
@@ -462,7 +462,7 @@ Field notes:
 - **`goal.proof_points[]`** = `{claim, evidence_url}` — evidence-backed; a draft may only cite proof that has an `evidence_url`.
 - **`goal.cta.type`** ∈ `reply_yes | link | calendar`.
 - **`goal.success_event`** wires straight into the rules engine (§4.6): `{on: reply_positive, create_deal_stage: new_reply}`.
-- **`audience.personalization.min_confidence`** gates drafting (≥0.7 High); `no_hook_fallback` ∈ `generic_honest_opener | skip`.
+- **`audience.personalization.min_confidence`** gates drafting (≥0.7 High); `no_hook_fallback` ∈ `skip | generic_honest_opener` (default `skip` — a hookless step-1 draft is rejected unless the campaign explicitly opts into the generic opener).
 - **`sequence[].tracking`** default `plain_text`; a bump/reply threads on the prior send.
 - **`approval_mode`** default `manual_all` even for bumps — nothing leaves without an explicit chat approval (§9).
 - **`sendboxes[]`** references `sendbox_slug`s from `sendboxes.json`; `daily_quota` is the campaign's share.
@@ -832,9 +832,13 @@ Dated set under `outputs/YYYY-MM/YYYY-MM-DD/`:
 | `{client}-INTERNAL_REPORT.html` | operator | no |
 | `{client}-weekly-client-report.html` | **client-facing** | **yes (scrub gate)** |
 | `{client}-weekly-client-report.pdf` | **client-facing** | **yes** |
+| `{client}-monthly-client-report.html` | **client-facing** | **yes (scrub gate)** |
+| `{client}-monthly-client-report.pdf` | **client-facing** | **yes** |
 | `{client}-report_state.json` | ledger | — |
 
-`outputs/latest/` holds the stable pointer/copy of each (the weekly client report + PDF are the client handoff links; the rest are operator convenience copies). Anything in `latest/` that is operator-only must be clearly labeled `INTERNAL_REPORT — Not for client sharing`.
+The monthly report is built on the first run of a new month for the prior calendar month
+(`crm_store.py monthly-report --month <prior YYYY-MM>`), same scrub gate and shape as the weekly.
+`outputs/latest/` holds the stable pointer/copy of each (the weekly/monthly client reports + PDFs are the client handoff links; the rest are operator convenience copies). Anything in `latest/` that is operator-only must be clearly labeled `INTERNAL_REPORT — Not for client sharing`.
 
 ### 10.1 `outputs/YYYY-MM/YYYY-MM-DD/{client}-report_state.json`
 

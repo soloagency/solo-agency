@@ -39,7 +39,7 @@ before taking any side-effect action (sending, enriching, writing config, creati
 - Scheduled runs must execute the full Daily Run order (DESIGN §15): load contract → sync
   inbox → pull tracking → semantic triage + apply-rules → follow-up advising → load new
   pipeline (verify + enrich + draft) → send approved → assisted channels → Today View +
-  kanban → reports (incl. Monday weekly) → Telegram notify → Stage 9 audit → release
+  kanban → reports (incl. Monday weekly + first-run-of-month monthly) → Telegram notify → Stage 9 audit → release
   `run_lock`. No step may be silently skipped; a skipped step is recorded with its reason.
 - Before any report HTML/PDF work, scheduled runs must load
   `playbooks/skills/report-design/SKILL.md` and use `tools/report_renderer.py` by default
@@ -159,7 +159,8 @@ read and do not fetch it from the GitHub raw URL (DESIGN §22 R1).
 13. Load Stage 15 (`15_CRM_REPORTING.md`) *(planned — Phase 3; the minimal weekly report lands
     in 2E)* and then
     `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or
-    packaging any HTML/PDF report — including the Monday weekly client report.
+    packaging any HTML/PDF report — including the Monday weekly client report and the
+    first-run-of-month monthly client report.
 14. Load Stage 9 (`09_OPERATIONS_SAFETY_AUDIT.md`) before claiming the run is complete.
 15. Load Stage 11 (`11_UPDATE_AND_VERSION_WATCH.md`) only when the task is
     `OutreachCRM - GitHub Update Watch`, an update/upgrade/sync-latest request is being
@@ -179,7 +180,8 @@ The difference between first setup and scheduled runs:
 Scheduled-run completion requires the same end-to-end path as a manual daily run: inbox sync,
 tracking pull, triage + apply-rules, follow-up advising, new-pipeline drafting, sends within
 quota, assisted-channel drafts where allowed, Today View + kanban, operator reports (plus the
-Monday client-facing weekly report), Telegram notification, and the Stage 9 audit.
+Monday client-facing weekly report and, on the first run of a new month, the monthly client
+report), Telegram notification, and the Stage 9 audit.
 
 ## Scheduled Run Progress Display Contract
 
@@ -359,8 +361,8 @@ Scheduled runs are unattended runs. The human may not be watching the agent UI, 
 must proactively notify the operator when the run finishes or when human action is required.
 
 **Timezone.** `schedule.md` records the human machine's local timezone. All date keys
-(`YYYY-MM-DD` folders), "yesterday", the 7-day metric windows, and "Monday" (weekly-report
-day) are computed in that recorded timezone. The AI scheduled-task environment may run at UTC;
+(`YYYY-MM-DD` folders), "yesterday", the 7-day metric windows, "Monday" (weekly-report day), and
+"the first run of a new month" (monthly-report trigger) are computed in that recorded timezone. The AI scheduled-task environment may run at UTC;
 before computing any date key or window, read the recorded timezone from `schedule.md` so a
 run does not split one logical day across two date folders or mis-window a report. Note this
 is distinct from the per-recipient send-window gate in Stage 8, which uses each contact's own
@@ -463,10 +465,14 @@ For each client, pinning `target_client_slug`, in this exact order:
    Every bump micro-refreshes the person's best 1–2 sources to find a fresh hook and to
    invalidate stale hooks before drafting.
 6. **Load new pipeline** (cold/trigger campaigns, JIT buffer 3–7 days, Stages 4/5/6): priority
-   pick → Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`. At the **END of
-   this drafting pass** — after all new-pipeline drafting and **before** any send — render the
-   **Approval Report** (`{client}-approval-report.html`, operator-only, NOT scrubbed) per
-   DESIGN §14 so the operator can approve in chat; it is **refreshed** in the reports phase
+   pick → Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`. The drafting pass is
+   **bounded by each campaign's `daily_quota`** (its daily draft budget): read
+   `crm_store.py draft budget --campaign <slug>` and draft while `remaining > 0`. **Stop
+   contract:** if the operator says "stop"/"ngưng" mid-loop, finish the current lead and halt —
+   nothing already in `pending_approval` is lost; an unattended run drafts up to budget and stops.
+   At the **END of this drafting pass** — after all new-pipeline drafting and **before** any send —
+   render the **Approval Report** (`{client}-approval-report.html`, operator-only, NOT scrubbed)
+   per DESIGN §14 so the operator can approve in chat; it is **refreshed** in the reports phase
    (step 10) per DESIGN §15.
 7. **Send** `outbox/approved/` within quota through `gmail_client.py send` (DESIGN §10). The
    ordered pre-send re-check chain runs in code. Approval happens in chat, at any time — the
@@ -477,8 +483,10 @@ For each client, pinning `target_client_slug`, in this exact order:
 9. **Compile Today View + regenerate kanban** via `tools/report_renderer.py`.
 10. **Reports:** daily ops HTML + **refreshed** Approval Report HTML (first rendered at the end
     of the drafting pass in step 6, per DESIGN §14) + INTERNAL_REPORT (operator-only, not
-    scrubbed). On **Mondays**, additionally build the Weekly CRM Report, which is the only
-    client-facing output and must pass the Client-Blind Scrub Gate.
+    scrubbed). On **Mondays**, additionally build the Weekly CRM Report; on the **first daily run
+    of a new month**, additionally build the prior month's Monthly Client Report
+    (`crm_store.py monthly-report --month <prior YYYY-MM>`). The weekly and monthly reports are
+    the client-facing outputs and must pass the Client-Blind Scrub Gate.
 11. **Notify the operator** via WideCast `sendTelegramMessage` (email fallback): counts +
     report link → `notifications/notification_log.md`.
 12. **Stage 9 audit** → completion gates → release `run_lock`.
@@ -580,7 +588,12 @@ For each active client:
 
 15. Maintain a JIT buffer of 3–7 days of drafts. Priority-pick from cold/trigger campaigns,
     honoring cross-campaign rules: a contact in an active sequence of campaign A is not drafted
-    by B; a hook already used on a person may not open a second campaign.
+    by B; a hook already used on a person may not open a second campaign. **Bound the drafting
+    pass by each campaign's `daily_quota`** (its daily draft budget):
+    `crm_store.py draft budget --campaign <slug>` returns `{daily_quota, used_today, remaining}` —
+    draft while `remaining > 0`, then stop. **Stop contract:** on an operator "stop"/"ngưng"
+    mid-loop, finish the current lead and halt; nothing already in `pending_approval` is lost, and
+    an unattended run simply drafts up to budget and stops.
 16. Tier-1 verify (check dossier TTL first; cheap subagent) → Tier-2 enrich (main model, visit
     known URLs per the readability table, extract hooks with `evidence_url`, distill
     `writing_brief`, score `personalization_confidence`).
@@ -634,7 +647,14 @@ For each active client:
     suppression, warmup, quota, guessed, automation/scheduled task, API key/config, Telegram,
     agent/tool/debug details, or `INTERNAL_REPORT`. **A blind-term hit returns `blocked:true`
     with a `.blocked.html` sidecar and no real HTML — never ship it; fix the source and re-run.**
-    The weekly report is the only client-facing output.
+
+    **On the first daily run of a new month**, additionally build the prior month's client-facing
+    `{client}-monthly-client-report.html` with
+    `python3 tools/crm_store.py --client-dir DIR monthly-report --client-name "{Client Name}" --month <prior YYYY-MM>`
+    (report kind "Monthly Client Report"). The month window is the full calendar month; the
+    pipeline snapshot stays point-in-time "as of report date" (same as the weekly). It is scrubbed
+    through the same Client-Blind Scrub Gate with the same block-on-hit behavior. The weekly and
+    monthly reports are the only client-facing outputs.
 23. Write/update `outputs/.../{client}-report_state.json` and reconcile it with every rendered
     artifact (counts, per-section status, timestamps). No artifact may say `in progress` while
     another says `complete`. Update `outputs/latest/...` copies.
@@ -658,9 +678,10 @@ python3 tools/provider_openapi.py --config DIR/integrations/providers/provider_c
     returns `status:"local_path_only"` (exit 0) — **not a run failure**; hand off the report path
     in chat instead. Record it in `INTERNAL_REPORT`.
 25. When configured, `notify` uploads the operator report (`{client}-daily-ops.html`, or the
-    Monday weekly report) via `uploadAsset` (`text/html`) and sends `sendTelegramMessage` (email
-    fallback) with the run status, counts (replies triaged, deals moved, drafts pending, emails
-    sent, bounces/unsubs suppressed), the report link/path, and any `**[ACTION REQUIRED]**`.
+    Monday weekly / first-of-month monthly report) via `uploadAsset` (`text/html`) and sends
+    `sendTelegramMessage` (email fallback) with the run status, counts (replies triaged, deals
+    moved, drafts pending, emails sent, bounces/unsubs suppressed), the report link/path (mention
+    the weekly or monthly client-report link when one was built), and any `**[ACTION REQUIRED]**`.
     Compose the `--message` yourself; provider-hosted URLs are operator handoff links, not
     client-share links. Use `--dry-run` to rehearse the composition without sending.
 26. If HTML upload is unavailable or fails, log the exact blocker and still notify with the

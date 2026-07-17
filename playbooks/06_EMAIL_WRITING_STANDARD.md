@@ -14,6 +14,11 @@ dependency is the skill `playbooks/skills/email-writing/` (SKILL.md + `structure
 - **Every personalized detail traces to a dossier hook with an `evidence_url`.** Pass those hooks
   as `hooks_used`; `crm_store.py draft write` rejects any that isn't an evidenced dossier hook,
   and Stage 9 greps for it.
+- **Step-1 proof-of-life.** A step-1 draft needs a recent evidenced hook — recent activity is the
+  reason an email exists. `draft write` REJECTS a hookless step-1 (`no_evidenced_hook`) unless the
+  campaign explicitly opts into `no_hook_fallback: "generic_honest_opener"` (the default is
+  `skip`). Bumps and reply drafts (step>1) are exempt — an existing conversation is its own
+  justification.
 - **Never mention `writing_brief.do_not_mention`** (personal-life details).
 - **Step-1 subject not `Re:`/`Fwd:`** (deceptive). Bumps thread and may keep `Re:` (truthful).
 - **The draft never sends.** It lands in `pending_approval`; the operator approves in chat, then
@@ -30,8 +35,11 @@ Drafts are written through `crm_store.py draft write`. When any instruction here
 1. For each enriched, due lead (Stage 4), load the skill and write the email from four inputs:
    client profile (voice/offer), campaign goal (objective/CTA/proof), the contact dossier's
    ranked angles + hooks, and the step intent.
-2. Below `min_confidence` / no usable hooks → the campaign's `no_hook_fallback` (generic honest
-   opener grounded only in license/roster facts, or skip) — never a faked hook.
+2. Below `min_confidence` / no usable hooks → the campaign's `no_hook_fallback`. Default is
+   **`skip`**: `draft write` rejects the hookless step-1 draft (`no_evidenced_hook`). Only a
+   campaign that explicitly opts into `generic_honest_opener` gets the generic-but-honest opener
+   (grounded only in license/roster facts, flagged `generic_opener`) — never a faked hook. Step>1
+   bumps/replies are exempt.
 3. Write it:
    ```sh
    python3 tools/crm_store.py --client-dir DIR draft write --contact <lead_id> --campaign <slug> --json \

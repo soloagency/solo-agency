@@ -342,7 +342,7 @@ Load Stage 5 (`playbooks/05_CAMPAIGN_MANAGEMENT.md`) in full (LOAD LEDGER) befor
    "cta":{"type":"reply_yes|link|calendar","text":""},
    "success_event":{"on":"reply_positive","create_deal_stage":"new_reply"}},
  "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,
-   "no_hook_fallback":"generic_honest_opener|skip"}},
+   "no_hook_fallback":"skip|generic_honest_opener"}},
  "sequence":[{"step":1,"intent":"hook + offer, one CTA","tracking":"plain_text"},
    {"step":2,"gap_days":4,"intent":"deliver new value"},
    {"step":3,"gap_days":5,"intent":"social proof"},

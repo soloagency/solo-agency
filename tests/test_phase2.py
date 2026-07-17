@@ -57,8 +57,18 @@ class TestCampaignsSegmentsQueue(unittest.TestCase):
         self.assertNotIn(self.a, resolved)          # suppressed excluded
         self.assertIn(self.b, resolved)
 
-    def test_queue_email_first_skips_no_email(self):
+    def test_queue_email_first_queues_no_email_for_discovery(self):
+        # email_first QUEUES a no-email lead so enrichment can DISCOVER an email — it is not an
+        # up-front has-email gate. All four lifecycle=lead contacts are queued.
         r = self.s.queue_campaign("demo")
+        self.assertEqual(r["queued"], 4)            # a, b, c, and the no-email lead
+        self.assertEqual(r["skipped"]["no_email"], 0)
+
+    def test_queue_no_email_skipped_when_recent_negative_cache(self):
+        # a recent email_not_found_at means discovery already failed within the retry window -> skip
+        self.s.set_contact(self.noemail, {"enrichment": {"email_not_found_at": now_iso()}})
+        self.s.create_campaign("demo2", {"audience": {"segment": "leads"}, "channel_strategy": "email_first"})
+        r = self.s.queue_campaign("demo2")
         self.assertEqual(r["queued"], 3)            # a, b, c
         self.assertEqual(r["skipped"]["no_email"], 1)
 
@@ -66,20 +76,20 @@ class TestCampaignsSegmentsQueue(unittest.TestCase):
         self.s.queue_campaign("demo")
         r2 = self.s.queue_campaign("demo")
         self.assertEqual(r2["queued"], 0)
-        self.assertEqual(r2["skipped"]["already_in_campaign"], 3)
+        self.assertEqual(r2["skipped"]["already_in_campaign"], 4)
 
     def test_queue_skips_recently_touched_by_other_campaign(self):
         # A was emailed by campaign 'other' yesterday -> within the 7-day guard -> skip for 'demo'
         _write_sent(self.cdir, "other", self.a, _yesterday())
         r = self.s.queue_campaign("demo")
         self.assertEqual(r["skipped"]["recently_touched_elsewhere"], 1)
-        self.assertEqual(r["queued"], 2)            # b, c only
+        self.assertEqual(r["queued"], 3)            # b, c, and the no-email lead
 
     def test_queue_skips_frozen_sequence(self):
         self.s.set_contact(self.b, {"sequence_state": "frozen"})  # replied, mid-handling
         r = self.s.queue_campaign("demo")
         self.assertEqual(r["skipped"]["in_active_sequence"], 1)
-        self.assertEqual(r["queued"], 2)            # a, c
+        self.assertEqual(r["queued"], 3)            # a, c, and the no-email lead
 
 
 def _yesterday():
@@ -155,7 +165,8 @@ class TestDraftWriting(unittest.TestCase):
         self.lead, _ = self.s.add_contact({"name": {"full": "Susan"}, "identities": {"emails": [{"address": "s@kw.com", "is_primary": True}]}})
         g.save_sendbox(self.cdir, {"slug": "sb-a", "email": "me@gmail.com", "domain": "gmail.com", "quota_today": 40, "status": "healthy", "imap_uid_cursor": 0})
         g.save_sendbox(self.cdir, {"slug": "sb-b", "email": "me2@gmail.com", "domain": "gmail.com", "quota_today": 40, "status": "needs_reauth", "imap_uid_cursor": 0})
-        self.s.create_campaign("demo", {"audience": {"segment": "x"}, "sendboxes": ["sb-a", "sb-b"]})
+        # this campaign OPTS IN to a generic opener so the hookless step-1 cases below are allowed
+        self.s.create_campaign("demo", {"audience": {"segment": "x", "personalization": {"no_hook_fallback": "generic_honest_opener"}}, "sendboxes": ["sb-a", "sb-b"]})
         self.s.enrich_write(self.lead, {"identity": {"still_active": "confirmed"},
                             "hooks": [{"type": "new_listing", "summary": "listed 123 Main St", "evidence_url": "https://z/1",
                                        "observed_date": "2026-07-14", "confidence": 0.9, "analysis": {"sensitivity": "public_business"}}],
@@ -183,6 +194,29 @@ class TestDraftWriting(unittest.TestCase):
         r = self.s.draft_write(self.lead, "demo", 1, "Hello", "Hi, generic opener")
         self.assertIn("generic_opener", r["warnings"])
 
+    def test_step1_hookless_rejected_on_default_campaign(self):
+        # a default campaign (no_hook_fallback=skip) rejects a step-1 email with no evidenced hook
+        self.s.create_campaign("proof", {"audience": {"segment": "x"}, "sendboxes": ["sb-a"]})
+        with self.assertRaises(Exception) as ctx:
+            self.s.draft_write(self.lead, "proof", 1, "Hello", "no hook body")
+        self.assertIn("no_evidenced_hook", str(ctx.exception))
+
+    def test_step1_hookless_allowed_with_generic_optin(self):
+        # the SAME hookless draft is accepted (with the generic_opener flag) when the campaign opts in
+        self.s.create_campaign("proof_generic", {"audience": {"segment": "x", "personalization": {"no_hook_fallback": "generic_honest_opener"}}, "sendboxes": ["sb-a"]})
+        r = self.s.draft_write(self.lead, "proof_generic", 1, "Hello", "generic opener body")
+        self.assertIn("generic_opener", r["warnings"])
+
+    def test_draft_budget_remaining_math(self):
+        self.s.create_campaign("budgeted", {"audience": {"segment": "x", "personalization": {"no_hook_fallback": "generic_honest_opener"}}, "sendboxes": ["sb-a"], "daily_quota": 2})
+        b0 = self.s.draft_budget("budgeted")
+        self.assertEqual(b0["daily_quota"], 2)
+        self.assertEqual(b0["remaining"], 2)
+        self.s.draft_write(self.lead, "budgeted", 1, "Hello", "generic")   # one draft created today
+        b1 = self.s.draft_budget("budgeted")
+        self.assertEqual(b1["used_today"], 1)
+        self.assertEqual(b1["remaining"], 1)
+
     def test_sticky_sender_on_draft(self):
         self.s.set_contact(self.lead, {"assigned_sendbox": "sb-b"})  # already assigned (even if 'unhealthy')
         r = self.s.draft_write(self.lead, "demo", 2, "Re: Idea", "bump", hooks_used=[{"type": "new_listing", "evidence_url": "https://z/1"}])
@@ -196,7 +230,8 @@ class TestApprovalAndFollowup(unittest.TestCase):
         self.s = CrmStore(self.cdir)
         import gmail_client as g
         g.save_sendbox(self.cdir, {"slug": "sb-a", "email": "me@gmail.com", "domain": "gmail.com", "quota_today": 40, "status": "healthy", "imap_uid_cursor": 0})
-        self.s.create_campaign("demo", {"audience": {"segment": "x"}, "sendboxes": ["sb-a"]})
+        # opt in to a generic opener so the third (hookless) step-1 lead below can be drafted
+        self.s.create_campaign("demo", {"audience": {"segment": "x", "personalization": {"no_hook_fallback": "generic_honest_opener"}}, "sendboxes": ["sb-a"]})
         self.leads = []
         for i, hook in enumerate([True, True, False]):
             lead, _ = self.s.add_contact({"name": {"full": f"L{i}"}, "identities": {"emails": [{"address": f"l{i}@x.com", "is_primary": True}]}})
@@ -213,6 +248,16 @@ class TestApprovalAndFollowup(unittest.TestCase):
         self.assertEqual(len(index), 3)
         self.assertIn("High confidence (2)", md)
         self.assertIn("Review carefully (1)", md)
+
+    def test_approval_report_followups_section(self):
+        # a step-2 bump lands in the dedicated Follow-ups section; step-1 drafts stay in High/Review
+        self.s.draft_write(self.leads[0], "demo", 2, "Re: Idea 0", "just following up",
+                           hooks_used=[{"type": "new_listing", "evidence_url": "https://z/0"}])
+        md, index = self.s.build_approval()
+        self.assertEqual(len(index), 4)                     # 3 step-1 + 1 step-2
+        self.assertIn("High confidence (2)", md)            # step-1 grouping unchanged
+        self.assertIn("Review carefully (1)", md)
+        self.assertIn("Follow-ups due (1)", md)
 
     def test_approve_moves_to_approved_and_logs(self):
         self.s.render_approval_report()
@@ -352,6 +397,22 @@ class TestWeeklyReport(unittest.TestCase):
         self.assertEqual(d["replies"], 1)
         self.assertEqual(d["new_conversations"], 1)
         self.assertEqual(d["period_start"], "2026-07-09")
+
+    def test_monthly_report_renders_and_windows(self):
+        self._seed()                                          # July (current-month) activity
+        r = self.s.render_monthly_report(client_name="Acme Inc")
+        self.assertFalse(r["blocked"])
+        self.assertTrue(r["html_rendered"])
+        self.assertIn("Monthly Outreach Report", open(r["md"]).read())
+        # a prior-month window excludes this month's activity
+        june = self.s.monthly_report_data(month="2026-06")
+        self.assertEqual(june["delivered"], 0)
+        self.assertEqual(june["period_start"], "2026-06-01")
+        self.assertEqual(june["period_end"], "2026-07-01")   # end-exclusive = first day of next month
+        # the current month is month-to-date (window ends at now)
+        july = self.s.monthly_report_data()
+        self.assertEqual(july["delivered"], 10)
+        self.assertEqual(july["period_start"], "2026-07-01")
 
 
 class TestNotify(unittest.TestCase):
@@ -506,13 +567,17 @@ class TestAuditFixes(unittest.TestCase):
         d = json.load(open(r["path"]))
         self.assertEqual(d["hooks_used"][0]["type"], "new_listing")     # dossier type wins
 
-    def test_email_first_rejects_garbage_email(self):
+    def test_email_first_queues_garbage_email_but_draft_still_rejects(self):
+        # a garbage-email contact is QUEUED for email discovery (queued=1), but the email
+        # requirement still hard-gates at draft time — draft_write to it raises (no usable email).
         self.s.create_campaign("c2", {"audience": {"segment": "seg"}, "channel_strategy": "email_first"})
-        self.s.add_contact({"name": {"full": "Bad"}, "identities": {"emails": [{"address": "not-an-email"}]}})
+        bad, _ = self.s.add_contact({"name": {"full": "Bad"}, "identities": {"emails": [{"address": "not-an-email"}]}})
         self.s.set_segment({"id": "seg", "where": [["lifecycle_stage", "=", "lead"]]})
         r = self.s.queue_campaign("c2")
-        self.assertEqual(r["queued"], 0)
-        self.assertEqual(r["skipped"]["no_email"], 1)
+        self.assertEqual(r["queued"], 1)
+        self.assertEqual(r["skipped"]["no_email"], 0)
+        with self.assertRaises(Exception):
+            self.s.draft_write(bad, "c2", 1, "Hi", "body")
 
     # --- merge integrity ---
     def test_queue_does_not_requeue_merged_winner(self):

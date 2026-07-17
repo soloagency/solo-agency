@@ -36,10 +36,18 @@ wins.
    `writing_brief`.
 3. Write it: `crm_store.py enrich write --contact <lead_id> --campaign <slug> --json '<dossier>'`.
    It stores the full dossier under `campaigns/{slug}/queue/enriched/YYYY-MM-DD/` and a distilled
-   copy into `contact.enrichment`, and returns `usable_hooks` / `confidence_band` / `problems`.
-4. No-hook leads: set `mark_no_hook` and let the campaign's `no_hook_fallback` decide (generic
-   honest opener grounded in license/roster facts, or skip). Inactive leads: `still_active:
-   inactive`, stop — do not draft.
+   copy into `contact.enrichment`, and returns `usable_hooks` / `confidence_band` / `problems`. A
+   usable hook that lacks an `observed_date` is **kept but flagged** in `problems` (recency
+   unverified) — always set `observed_date`, since recency is what makes proof-of-life real.
+4. No-hook leads: set `mark_no_hook` and let the campaign's `no_hook_fallback` decide — default
+   `skip` (a hookless step-1 draft is rejected), or the explicit opt-in `generic_honest_opener`
+   (grounded in license/roster facts). Inactive leads: `still_active: inactive`, stop — do not draft.
+5. **No-email leads (email discovery):** a lead an `email_first` campaign queued with no email is
+   here precisely so Tier 1 can DISCOVER one (website, license/roster, Google, other public
+   channels). Store any real address found (`source: enrich`). If discovery genuinely fails, set
+   `mark_email_not_found` → a 30-day negative cache (so a later campaign does not re-burn the dead
+   end) and the contact becomes an **assisted-channel candidate** (manual SMS/Messenger/Zalo).
+   Never invent a guessed address.
 
 ## TTL, inheritance, negative cache (all in `enrich status`)
 
