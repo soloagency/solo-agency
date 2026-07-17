@@ -267,9 +267,11 @@ class TestApprovalAndFollowup(unittest.TestCase):
         self.assertEqual(len(self.s.list_pending_drafts()), 0)          # all decided
         approved = [f for f in os.listdir(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved")) if f.endswith(".json")]
         self.assertEqual(len(approved), 2)
-        d = json.load(open(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved", approved[0])))
+        with open(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved", approved[0])) as fh:
+            d = json.load(fh)
         self.assertEqual(d["status"], "approved")                        # send engine can now send it
-        self.assertIn("too generic", open(os.path.join(self.cdir, "analytics", "learning_log.md")).read())
+        with open(os.path.join(self.cdir, "analytics", "learning_log.md")) as fh:
+            self.assertIn("too generic", fh.read())
 
     def test_approve_all(self):
         self.s.render_approval_report()
@@ -280,7 +282,10 @@ class TestApprovalAndFollowup(unittest.TestCase):
         self.s.render_approval_report()
         self.s.approve_apply({"edit": [{"n": 1, "body_text": "edited body"}], "approve": "1"})
         approved = [f for f in os.listdir(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved")) if f.endswith(".json")]
-        bodies = [json.load(open(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved", f)))["body_text"] for f in approved]
+        bodies = []
+        for f in approved:
+            with open(os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved", f)) as fh:
+                bodies.append(json.load(fh)["body_text"])
         self.assertIn("edited body", bodies)
 
     def test_followups_due_and_reply_freeze(self):
@@ -377,7 +382,8 @@ class TestWeeklyReport(unittest.TestCase):
         r = self.s.render_weekly_report(client_name="Acme Inc")
         self.assertFalse(r["blocked"])
         self.assertTrue(r["html_rendered"])
-        md = open(r["md"]).read()
+        with open(r["md"]) as fh:
+            md = fh.read()
         self.assertIn("Acme Inc — Weekly Outreach Report", md)
         self.assertIn("Emails delivered", md)
         for term in ("sendbox", "crm_store", "WideCast", "OutreachCRM", "campaign"):
@@ -403,7 +409,8 @@ class TestWeeklyReport(unittest.TestCase):
         r = self.s.render_monthly_report(client_name="Acme Inc")
         self.assertFalse(r["blocked"])
         self.assertTrue(r["html_rendered"])
-        self.assertIn("Monthly Outreach Report", open(r["md"]).read())
+        with open(r["md"]) as fh:
+            self.assertIn("Monthly Outreach Report", fh.read())
         # a prior-month window excludes this month's activity
         june = self.s.monthly_report_data(month="2026-06")
         self.assertEqual(june["delivered"], 0)
@@ -433,7 +440,8 @@ class TestNotify(unittest.TestCase):
 
     def _cfg(self, block):
         p = os.path.join(self.tmp, f"cfg_{len(os.listdir(self.tmp))}.json")
-        json.dump({"active_provider": "widecast", "providers": {"widecast": block}}, open(p, "w"))
+        with open(p, "w") as fh:
+            json.dump({"active_provider": "widecast", "providers": {"widecast": block}}, fh)
         return p
 
     def test_missing_config_is_local_path_only(self):
@@ -461,7 +469,8 @@ class TestNotify(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(j["status"], "dry_run")
         self.assertTrue(j["dry_run"])
-        body = open(log).read()
+        with open(log) as fh:
+            body = fh.read()
         self.assertIn("# Notification Log", body)
         self.assertIn("weekly_client_report_ready", body)
         self.assertIn("dry_run", body)
@@ -513,11 +522,13 @@ class TestAuditFixes(unittest.TestCase):
 
     def test_approval_numbering_stable_across_rerender(self):
         self._prep_draft(n=3); self.s.render_approval_report()
-        idx1 = json.load(open(self._idx()))["index"]
+        with open(self._idx()) as fh:
+            idx1 = json.load(fh)["index"]
         first_id = next(e["draft_id"] for e in idx1 if e["n"] == 1)
         self.s.approve_apply({"approve": "1"})                          # remove #1
         self.s.render_approval_report()                                 # re-render
-        idx2 = {e["n"]: e["draft_id"] for e in json.load(open(self._idx()))["index"]}
+        with open(self._idx()) as fh:
+            idx2 = {e["n"]: e["draft_id"] for e in json.load(fh)["index"]}
         self.assertNotIn(first_id, idx2.values())
         self.assertNotIn(1, idx2)                                       # #1 retired, not reused
         for n, did in idx2.items():
@@ -538,7 +549,8 @@ class TestAuditFixes(unittest.TestCase):
         self._prep_draft(); self.s.render_approval_report()
         r = self.s.approve_apply({"reject": [{"n": 1, "reason": "x"}], "hold": [1]})
         self.assertTrue(r["rejected"]); self.assertFalse(r["held"])  # hold on same n skipped, reject won
-        d = json.load(open(self.s._resolve_numbers([1])[0]["path"]))
+        with open(self.s._resolve_numbers([1])[0]["path"]) as fh:
+            d = json.load(fh)
         self.assertEqual(d["status"], "rejected")
 
     # --- safety gates ---
@@ -564,7 +576,8 @@ class TestAuditFixes(unittest.TestCase):
         self._prep_draft(write=False)
         r = self.s.draft_write(self.lead, "demo", 1, "Idea", "b",
                                hooks_used=[{"type": "FABRICATED_AWARD", "evidence_url": "https://z/1"}])
-        d = json.load(open(r["path"]))
+        with open(r["path"]) as fh:
+            d = json.load(fh)
         self.assertEqual(d["hooks_used"][0]["type"], "new_listing")     # dossier type wins
 
     def test_email_first_queues_garbage_email_but_draft_still_rejects(self):
@@ -588,7 +601,8 @@ class TestAuditFixes(unittest.TestCase):
         self.s.merge(loser, winner)
         self.s.set_segment({"id": "seg", "where": [["lifecycle_stage", "=", "lead"]]})
         r = self.s.queue_campaign("demo")
-        rows = [json.loads(l) for l in open(os.path.join(self.cdir, "campaigns", "demo", "queue", "enrich_queue.jsonl"))]
+        with open(os.path.join(self.cdir, "campaigns", "demo", "queue", "enrich_queue.jsonl")) as fh:
+            rows = [json.loads(l) for l in fh]
         self.assertNotIn(winner, [x["lead_id"] for x in rows])         # winner already touched via loser
 
     def test_followups_due_dedupes_merged_ids(self):
@@ -693,7 +707,8 @@ class TestAuditFixes(unittest.TestCase):
         ts = [threading.Thread(target=w, args=(i,)) for i in range(8)]
         [t.start() for t in ts]; [t.join() for t in ts]
         self.assertEqual(errors, [])                                    # no shared-temp-file race
-        json.load(open(path))                                          # final file is valid JSON
+        with open(path) as fh:
+            json.load(fh)                                              # final file is valid JSON
 
     def _idx(self):
         return os.path.join(self.cdir, "outputs", now_iso()[:10], "approval_index.json")

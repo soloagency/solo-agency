@@ -168,7 +168,9 @@ def sent_count_today(client_dir, slug, day) -> int:
         return 0
     for camp in os.listdir(camp_root):
         for p in _sent_log_files(client_dir, camp):  # all months (a day near a month boundary)
-            for line in open(p, "r", encoding="utf-8"):
+            with open(p, "r", encoding="utf-8") as fh:
+                _lines = fh.readlines()
+            for line in _lines:
                 line = line.strip()
                 if not line:
                     continue
@@ -260,7 +262,9 @@ def presend_check(store: CrmStore, client_dir, sb: dict, draft: dict, day: str,
 
 def _already_sent(client_dir, campaign_slug, lead_id, step) -> bool:
     for camp_month in _sent_log_files(client_dir, campaign_slug):
-        for line in open(camp_month, "r", encoding="utf-8"):
+        with open(camp_month, "r", encoding="utf-8") as fh:
+            _lines = fh.readlines()
+        for line in _lines:
             line = line.strip()
             if not line:
                 continue
@@ -396,7 +400,9 @@ def _append_sent_log(client_dir, campaign_slug, record):
 def _prior_message_id(client_dir, campaign_slug, lead_id) -> str | None:
     last = None
     for p in _sent_log_files(client_dir, campaign_slug):  # all months, chronological
-        for line in open(p, "r", encoding="utf-8"):
+        with open(p, "r", encoding="utf-8") as fh:
+            _lines = fh.readlines()
+        for line in _lines:
             line = line.strip()
             if line:
                 try:
@@ -554,7 +560,9 @@ def _load_known_message_ids(client_dir) -> dict:
         for month in os.listdir(sent_base):
             p = os.path.join(sent_base, month, "sent_log.jsonl")
             if os.path.isfile(p):
-                for line in open(p, "r", encoding="utf-8"):
+                with open(p, "r", encoding="utf-8") as fh:
+                    _lines = fh.readlines()
+                for line in _lines:
                     line = line.strip()
                     if line:
                         try:
@@ -659,7 +667,9 @@ def _lookup_token(client_dir, token) -> dict | None:
         for month in os.listdir(sent_base):
             p = os.path.join(sent_base, month, "sent_log.jsonl")
             if os.path.isfile(p):
-                for line in open(p, "r", encoding="utf-8"):
+                with open(p, "r", encoding="utf-8") as fh:
+                    _lines = fh.readlines()
+                for line in _lines:
                     line = line.strip()
                     if line:
                         try:
