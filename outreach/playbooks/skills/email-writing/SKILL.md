@@ -10,8 +10,11 @@ description: >-
 
 # Email Writing (Stage 6 skill)
 
-This is an INDEX. Load `structures.md` (goal_type → email shape) when you draft a step-1, and
-`followup.md` (bumps + reply drafts) for Stage 10 follow-ups.
+This is an INDEX. The engine is **`weave.md`** — the rhetorical method (the four pillars, the
+fact→conclusion move, tension→release, the arc, the 3 data-richness modes). **Load it whenever you
+draft.** Then load `structures.md` (goal_type → emotional landing + release move) for a step-1,
+`channels.md` (email vs messenger packaging — same weave, different wrapper) for the channel you're
+sending on, and `followup.md` (bumps + reply drafts) for Stage 10 follow-ups.
 
 ## Hard gates
 
@@ -24,6 +27,10 @@ This is an INDEX. Load `structures.md` (goal_type → email shape) when you draf
   the send engine (Stage 8) runs. Do not call `gmail_client.py send` from this stage.
 - **No guessing / no invented facts / no fabricated proof.** Proof points come from the campaign
   goal (each with its own evidence). If a claim has no source, don't make it.
+- **Facts vs conclusions.** A *fact* must trace to a dossier hook with an `evidence_url` (what you
+  observed). A *conclusion* is your honest INFERENCE from that fact ("people are already passing
+  your content along" from an evidenced share count) — stated as inference, never invented as a new
+  fact. Reason freely from evidenced facts; never manufacture one. (See `weave.md`.)
 
 ## Compose from four inputs
 
@@ -32,7 +39,9 @@ This is an INDEX. Load `structures.md` (goal_type → email shape) when you draf
 2. **Campaign goal** — `objective`, `offer`, `value_proposition`, `proof_points` (evidenced),
    `cta`. `goal_type` picks the structure (`structures.md`).
 3. **Contact dossier** — `writing_brief.ranked_angles` (already ranked by freshness × goal-fit ×
-   confidence). Open with the top angle's hook. A step-1 draft needs a recent evidenced hook: with
+   confidence). **Weave** the angles — each fact earning a conclusion (`weave.md`), not one hook read
+   out flat; lead with the load-bearing signal and demote vanity metrics. A step-1 draft needs a
+   recent evidenced hook: with
    no usable hooks (`confidence_band` is `fallback`), `draft write` rejects it
    (`no_evidenced_hook`) unless the campaign opts into `no_hook_fallback: "generic_honest_opener"`
    (the default is `skip`). When it opts in, the fallback is a generic-but-honest opener grounded
@@ -47,11 +56,31 @@ reader will smell it as scraped. A good hook is the *reason the email exists*: n
 your new listing, btw I make videos", but "your Main St listing has been up 40 days with
 photo-only — video tours are closing comparable Alabaster homes in 18 days."
 
-## Form
+This is the weave's **cut rule**: every fact must earn a conclusion that advances the goal, or it
+gets dropped (`weave.md`, Pillar 1). It is *not* "use fewer facts" — you may weave several — it is
+"every fact does rhetorical work." That is also the **anti-creepy** line: a peer who did their
+homework references public professional signals that each do work; a surveillant reads out a dated,
+itemized list. Reference only public, professional signals; never personal-life details
+(`do_not_mention`). The full stance is stated verbatim in `weave.md`.
 
-Short and deliberately plain: 3–5 sentences, plain text (Phase-1 `plain_text_mode`), one
-load-bearing observation + one evidenced value line + one near-zero-friction CTA (reply a word,
-not "book a 30-min call"). Longer + "hyper-personalized" reads as machine-made.
+## Form — the adaptive weave (not a fixed length)
+
+Plain text (Phase-1 `plain_text_mode`). The shape is the `weave.md` arc — observation → conclusion →
+reframe into the latent gap → defuse the likely objection → ROI anchor to their real numbers →
+release into the offer → near-zero-friction CTA — and its **length scales with the dossier's Layer-B
+richness**, not a fixed sentence count:
+
+- **RICH** (≥3 solid Layer-B points) → full weave, multiple fact→conclusion moves.
+- **MEDIUM** (1–2 points) → tight arc: one strong observation → one reframe → offer.
+- **THIN** (1 weak point / fallback) → the short honest opener. **This is the only place the old
+  "3–5 sentences" guidance applies** — it is a THIN-data mode, not a universal law. (The prior "3–5
+  sentences / longer reads as machine-made" rule contradicted the operator's proven method and is
+  retired as a universal.)
+
+Multi-point weaving is the norm. What still reads as machine-made is a *flat list of facts* (a
+scrape), not length — so every fact must earn a conclusion (the cut rule above). The CTA stays
+near-zero-friction (reply a word, not "book a 30-min call"). The wrapper — subject, length ceiling,
+footer — adapts to the channel (`channels.md`).
 
 ## Write the draft
 

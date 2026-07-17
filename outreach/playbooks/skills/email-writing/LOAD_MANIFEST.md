@@ -5,6 +5,8 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 
 | module | lines | sha256 | last_line |
 |---|---|---|---|
-| SKILL.md | 73 | bb7d5ca41fded97939d5340574b6091405bf2f49a6ec288462fcf1e21d81ed85 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| SKILL.md | 102 | f8f153070b6e714b3b80d6ec5265dd1d50f417e86c202d0298b13b5d27482e85 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| channels.md | 68 | 0ab3473094a64c2e5e088a4244cd01b25311e173366adba016d09645129d5877 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | followup.md | 32 | 8e092b61fc89e98b03a4d10ea0401d1ffd4f5e01fe55f11c22ee8145536e7b1b | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| structures.md | 22 | 83f002a3b930b5e65b0463fe4c8ef03d5040484d3df61c66d49bf35afefbd42f | - Subject: specific and honest, tied to the hook or the value; not clickbait, not `Re:`. |
+| structures.md | 37 | be76077722951ea71d472a0d4e2c1e17acada653fb086e85cf6fd1c612c58cc2 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| weave.md | 233 | 57117a7ae244dc6e8ae42fb36e0161044a1eb3e6c85f5dd5923974a15513b9cf | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |

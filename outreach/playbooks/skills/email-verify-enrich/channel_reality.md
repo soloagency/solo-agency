@@ -20,7 +20,10 @@ email (a months-old listing, a wrong person). Per hook type, use the reachable s
 
 - Realistically only **personal websites + occasional dated snippets + readable reviews** yield a
   verifiable fresh hook, so plan for a **~30–50% deep-personalization hit-rate**, not 100%. The
-  campaign's volume assumptions and the `no_hook_fallback` exist because of this.
+  campaign's volume assumptions and the `no_hook_fallback` exist because of this. (That rate is for
+  Layer-B **recent activity** (#1); **reputation / positioning / scale** signals (#2–#4) are more
+  often readable from the site/snippet/reviews and also clear the ≥1 Layer-B floor — so a lead is
+  usually write-ready even when the freshest post is walled.)
 - A source marked ❌ here must **never** produce a hook — store the profile URL for later and move
   on. Do not paraphrase a search snippet's guess about a Facebook post as if you read it.
 - When a source needs a browser tool and none is available in the run, record it as unreadable

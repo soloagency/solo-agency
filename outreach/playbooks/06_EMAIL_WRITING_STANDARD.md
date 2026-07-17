@@ -3,8 +3,9 @@
 ## Load Rule
 
 Load before drafting ANY email (the daily run's draft step, or a Stage 10 follow-up). Its
-dependency is the skill `playbooks/skills/email-writing/` (SKILL.md + `structures.md` +
-`followup.md`) — each needs its own LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md`.
+dependency is the skill `playbooks/skills/email-writing/` (SKILL.md + **`weave.md`** (the rhetorical
+engine) + `structures.md` + `channels.md` + `followup.md`) — each needs its own LOAD LEDGER per
+`playbooks/LOAD_LEDGER_PROTOCOL.md`.
 
 ## Hard Gates For This Stage
 
@@ -19,6 +20,11 @@ dependency is the skill `playbooks/skills/email-writing/` (SKILL.md + `structure
   campaign explicitly opts into `no_hook_fallback: "generic_honest_opener"` (the default is
   `skip`). Bumps and reply drafts (step>1) are exempt — an existing conversation is its own
   justification.
+- **Weave, don't list; facts vs conclusions.** Weave the Layer-B points so each earns a conclusion
+  that advances the goal (`weave.md`) — multi-point weaving is the norm, not one flat hook. A *fact*
+  traces to an `evidence_url`; a *conclusion* is your honest inference from it, never a new invented
+  fact. Reference only public, professional signals — a peer who did their homework, not a
+  surveillant (anti-creepy stance).
 - **Never mention `writing_brief.do_not_mention`** (personal-life details).
 - **Step-1 subject not `Re:`/`Fwd:`** (deceptive). Bumps thread and may keep `Re:` (truthful).
 - **The draft never sends.** It lands in `pending_approval`; the operator approves in chat, then
@@ -32,9 +38,10 @@ Drafts are written through `crm_store.py draft write`. When any instruction here
 
 ## The run
 
-1. For each enriched, due lead (Stage 4), load the skill and write the email from four inputs:
-   client profile (voice/offer), campaign goal (objective/CTA/proof), the contact dossier's
-   ranked angles + hooks, and the step intent.
+1. For each enriched, due lead (Stage 4), load the skill and **weave** the email (`weave.md`) from
+   four inputs: client profile (voice/offer), campaign goal (objective/CTA/proof), the contact
+   dossier's ranked angles + hooks, and the step intent. Match depth to the dossier's Layer-B
+   richness (RICH/MEDIUM/THIN), and package for the channel (`channels.md`).
 2. Below `min_confidence` / no usable hooks → the campaign's `no_hook_fallback`. Default is
    **`skip`**: `draft write` rejects the hookless step-1 draft (`no_evidenced_hook`). Only a
    campaign that explicitly opts into `generic_honest_opener` gets the generic-but-honest opener
@@ -49,11 +56,17 @@ Drafts are written through `crm_store.py draft write`. When any instruction here
    `confidence_band`, flags `generic_opener`/`bump_step` warnings, marks the hooks `used_in`, and
    stores the draft in `pending_approval`.
 
-## Form
+## Form — the adaptive weave
 
-Short, plain-text, one load-bearing observation + one evidenced value line + a near-zero-friction
-CTA. The "load-bearing-detail test": delete the personalized sentence — if the email still stands,
-the detail was decoration.
+Plain-text. The shape is the skill's weave arc (`weave.md`): observation → conclusion → reframe into
+the latent gap → defuse the objection → ROI anchor to their real numbers → release into the offer →
+near-zero-friction CTA. **Length scales with the dossier's Layer-B richness** — RICH = full weave /
+MEDIUM = tight arc / THIN = the short honest opener; the old "always 3–5 sentences" is retired to the
+THIN mode only, not a universal cap. The weave is channel-agnostic — same argument on email vs
+messenger, different wrapper (`channels.md`). The "load-bearing-detail test" still governs every
+fact: delete the personalized sentence — if the email still stands, the detail was decoration. Every
+fact must earn a conclusion (the cut rule); the writer is a peer who did their homework, never a
+surveillant.
 
 ## Completion Gates
 

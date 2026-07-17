@@ -371,6 +371,60 @@ excluded from every campaign queue until resolved.
 
 ## 9. Enrichment (Stage 4 + skill `email-verify-enrich`)
 
+**The "Write-Ready Lead" model (source of truth; the enrich stage exists to satisfy it).** A lead
+is write-ready for a deeply personalized message only when enrichment has produced three layers:
+- **Layer A — Reachability (≥1 required):** at least one deliverable channel — a real found email
+  (→ email), or a DM-capable social profile / phone (→ messenger/assisted). Maps to
+  `identity.channels_found` + `identity.profiles`.
+- **Layer B — Proof-of-Life (≥1 required; MORE IS BETTER — do NOT cap):** evidenced, recent public
+  PROFESSIONAL signals — the personalization fuel. Each point is one basis for a conclusion the
+  writer weaves (fact → tension/release → the campaign goal). The taxonomy is universal and
+  industry-AGNOSTIC; enrichment INFERS which sources fit the lead's field — do NOT hardcode a
+  per-industry source list:
+  1. **Recent activity/output** (strongest — proves alive AND gives a hook): a new post / video /
+     article / release / listing / project / menu, etc.
+  2. **Reputation / social proof:** review count + substance, ratings, testimonials, awards, press,
+     verified badge, follower / engagement figures.
+  3. **Positioning / identity:** website tagline, bio, "since 20xx", stated specialty / mission.
+  4. **Scale / momentum:** volume figures, team / locations, growth story, price range.
+
+  Freshness matters: prefer #1/#2 with a recent `observed_date`; #3/#4 support the reframe.
+- **Layer C — The Opening (DERIVED by the writer at write time, NOT collected here):** the specific
+  sub-optimal thing / gap the campaign's offer resolves, inferred from Layer B + the offer ("their
+  videos read as one-off moments, not a system"). It lives in the writer's head, never in the
+  dossier — the enrich stage does not produce it.
+
+**The floor / gate.**
+- **≥1 Layer-B point → write-ready** (deep personalization). The COUNT + quality of Layer-B points
+  scales `personalization_confidence`: one thin point → review-carefully band; ≥3 solid, fresh,
+  on-goal → high.
+- **Springboard exhausted, still 0 Layer-B → NOT write-ready** → default `no_hook_fallback: skip`
+  (or the campaign-opt-in `generic_honest_opener`, or a downgrade to a lighter assisted touch).
+  "Use what you have" applies to the CHANNEL (Layer A) and the degraded path — the personalization
+  floor stays ≥1 Layer-B.
+- **Layer A fails (no channel) → assisted or skip.**
+
+**Springboard method (industry-agnostic, iterative).** From ANY seed (a name, an email, one URL),
+pivot to find the rest and loop until returns diminish: social → website (email + tagline) →
+industry / directory page (volume, reviews) → reverse search (email / name → other profiles).
+Enrichment REASONS about which sources fit the lead's trade — there is no fixed per-industry list.
+Direct the loop until Layers A+B are satisfied; then stop.
+
+**Anti-creepy stance (collect only public professional signals).** The writer this dossier feeds is
+a dedicated peer in the same service space who did their homework before a professional approach —
+NOT a surveillant. Enrichment collects ONLY public, professional signals (Layer B). Personal
+signals are barred (`sensitivity: personal → do_not_mention`) and never reach the writer. Gather
+many Layer-B points, but the dossier records public professional facts a peer would naturally
+notice — never a dated, itemized log of someone's life. This is why "gather as many as you can" and
+"never feed creepy material to the writer" are not in tension: quantity of *public professional*
+proof-of-life is good; surveillance detail is barred at the source.
+
+**Facts vs conclusions (keeps the no-fabrication gate intact).** A *fact* traces to a hook
+`evidence_url`. A *conclusion* is the writer's honest inference from that fact ("people are already
+passing your content along" from an evidenced share count) — stated downstream as inference, never
+invented here as a new fact. The evidence gate is unchanged: enrichment stores evidenced facts;
+the writer derives conclusions.
+
 ### 9.1 Cross-campaign inheritance
 The dossier belongs to the **contact** (client-scope), campaigns reference `lead_id`.
 Enrich queue is client-level, deduped by `lead_id` (one job even if two campaigns want
@@ -407,8 +461,11 @@ the same person). Two TTL tiers:
    "evidence_url":"","observed_date":"","confidence":0.0,"used_in":[]}],
  "writing_brief":{"one_liner":"","ranked_angles":[],"do_not_mention":[],"personalization_confidence":0.0}}
 ```
-The email-writing skill consumes `writing_brief` (ranked by freshness × goal-fit ×
-confidence), not raw data.
+`hooks[]` is **not capped** — gather as many evidenced Layer-B proof-of-life points as you can
+find; each is a conclusion-basis the writer weaves, and `analysis.angle` records the conclusion
+that hook supports. The email-writing skill consumes `writing_brief` (ranked by freshness ×
+goal-fit × confidence), not raw data, and `personalization_confidence` is set by the COUNT +
+freshness + goal-fit of those Layer-B points.
 
 ### 9.3 Channel reality (be honest about what is readable)
 Readable now (MVP, WebSearch/WebFetch/browser tool): personal website/blog (best),
@@ -427,12 +484,17 @@ health, vacations, children) are **default-banned from email copy** and go only 
 
 ### 9.5 Two-tier flow + freshness gate
 - **Tier 1 Verify (cheap subagent):** check existing dossier first; if identity in TTL,
-  skip to hooks. Else: name+company+location search → license → roster → Zillow snippet
-  → collect profile URLs + emails/phones. `inactive/unknown` → mark, stop (no Tier 2).
-- **Tier 2 Profile & hooks (main model):** visit known URLs per readability table →
-  extract hooks with evidence → analyze social content → distill `writing_brief` → score
-  `personalization_confidence` (≥0.7 High; 0.4–0.7 Review carefully; <0.4 →
-  `no_hook_fallback`).
+  skip to hooks. Else run the **springboard** from the seed: name+company+location search →
+  license → roster → directory/listing snippet → collect profile URLs + emails/phones
+  (Layer A). These sources are ILLUSTRATIVE of a real-estate lead — GENERALIZE the springboard
+  to whatever the lead's field is; there is no fixed per-industry source list.
+  `inactive/unknown` → mark, stop (no Tier 2).
+- **Tier 2 Profile & hooks (main model):** visit known URLs per readability table → gather as
+  MANY evidenced Layer-B proof-of-life points as you can find (do NOT cap — each is a
+  conclusion-basis) → analyze social content → distill `writing_brief` → score
+  `personalization_confidence` by the COUNT + freshness + goal-fit of those points (≥0.7 High;
+  0.4–0.7 Review carefully; <0.4 → `no_hook_fallback`). The floor: ≥1 Layer-B point = write-ready;
+  0 after the springboard = not write-ready.
 - **Freshness gate at write time:** before step-1 draft, hooks must be within TTL (else
   refresh known URLs); before every follow-up, micro-refresh the person's 1–2 best
   sources to (a) find a fresh bump hook and (b) **invalidate stale hooks** (a sold
