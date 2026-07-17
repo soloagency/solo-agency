@@ -18,7 +18,7 @@ This file is loaded, not summarized. A short read is NOT a load: register a LOAD
 - **`gmail_client.py` is the only sanctioned way to authenticate a box.** Do NOT improvise a one-off `smtplib`/`imaplib` connectivity script (the no-one-off-scripts rule holds). The tool verifies SMTP+IMAP without sending outbound mail and writes the registry entry atomically.
 - **Setup Flow never sends.** Connecting and health-checking a sendbox is a connectivity check, not a cold send. Setup Flow does not send a test email, cold or otherwise; its terminal state stays `ready_for_automation_first_run`.
 - **The `@gmail.com` App Password path is the priority path**; OAuth/Workspace is the advanced fallback. Do not push a client onto OAuth unless they run Google Workspace on a custom domain and explicitly want it.
-- **Data root is `outreach-pipeline/`.** Every sendbox artifact lives under `outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/sendboxes/`. The toolkit/source repo holds no sendbox data or secrets.
+- **Data root is `daily-content-pipeline/`.** Every sendbox artifact lives under `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/sendboxes/`. The toolkit/source repo holds no sendbox data or secrets.
 - Every human step in this stage — the App Password creation request, the re-auth request, any blocker — uses the `**[ACTION REQUIRED]**` contract from `OUTREACHCRM_PLAYBOOK.md`: one purpose, one exact next step, one command or path. When nothing is needed, say `No action required right now.`
 - This stage must be loaded IN FULL (LOAD LEDGER printed with `Verdict: PASS`, matching `LOAD_MANIFEST.md` when present) before any side-effect write.
 
@@ -40,7 +40,7 @@ The pre-send re-check chain, atomic quota reservation, and inbound classifier ar
 `--client-dir DIR` below always means the client pipeline directory:
 
 ```text
-outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/
+daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/
 ```
 
 **Command form (verified):** `--client-dir DIR` is a global flag that comes **before** the subcommand. `gmail_client.py auth --client-dir DIR …` (subcommand first) is rejected by the parser.

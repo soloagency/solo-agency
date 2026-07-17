@@ -137,11 +137,11 @@ OutreachCRM is an agent-operated automation workflow, not a plain web-chat promp
 
 ## Storage And Mutation Rule
 
-All CRM data lives under `outreach-pipeline/` (see `docs/DESIGN.md` §5). Every CRM mutation MUST go through `tools/crm_store.py`, which enforces atomic writes, client-scoping, identity indexing, the pipeline rules engine, and the append-only activity log. Reading raw JSON is allowed only for debugging; writing CRM state directly to a file is a critical violation. The storage backend is pluggable (JSON now, Postgres later) via `outreach-pipeline/storage_config.json`; playbooks never depend on the backend.
+All CRM data lives under `daily-content-pipeline/` (see `docs/DESIGN.md` §5). Every CRM mutation MUST go through `tools/crm_store.py`, which enforces atomic writes, client-scoping, identity indexing, the pipeline rules engine, and the append-only activity log. Reading raw JSON is allowed only for debugging; writing CRM state directly to a file is a critical violation. The storage backend is pluggable (JSON now, Postgres later) via `daily-content-pipeline/storage_config.json`; playbooks never depend on the backend.
 
 ## Client Isolation Rule
 
-The system is one agency serving many clients. Each client is a fully isolated workspace under `outreach-pipeline/clients/{client_slug}/`: its own contacts, deals, sendboxes, suppression, campaigns, and reports. The storage adapter is instantiated per client. The only agency-global collections are the global suppression tier, `secrets/`, `provider_defaults.json`, and the tracker key — enumerated explicitly and nothing else. A run pinned to `target_client_slug` must never read or write another client's data.
+The system is one agency serving many clients. Each client is a fully isolated workspace under `daily-content-pipeline/clients/{client_slug}/`: its own contacts, deals, sendboxes, suppression, campaigns, and reports. The storage adapter is instantiated per client. The only agency-global collections are the global suppression tier, `secrets/`, `provider_defaults.json`, and the tracker key — enumerated explicitly and nothing else. A run pinned to `target_client_slug` must never read or write another client's data.
 
 ## Evidence-Backed Personalization Rule
 
@@ -228,7 +228,7 @@ If the human asks to send or run a campaign during Setup Flow, treat it as a han
 I will not send from this setup chat because Setup Flow only configures the system. I will finish or resync the client-specific automation task instead. After setup is ready, run `{Client Name} - OutreachCRM Daily Run` for the first run.
 ```
 
-Do not continue with drafting-to-send in the same setup turn after saying this. If the native automation task cannot be created/updated directly, write the exact prompt to `outreach-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and tell the human the one exact task action needed.
+Do not continue with drafting-to-send in the same setup turn after saying this. If the native automation task cannot be created/updated directly, write the exact prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and tell the human the one exact task action needed.
 
 ### Automation Flow: operations plane
 
@@ -252,13 +252,13 @@ After any human-approved change that affects what a future scheduled run should 
 Automation Resync means updating the full automation package, not one file:
 
 1. Update the Client Intelligence Profile and relevant CRM config via `crm_store.py`.
-2. Update `outreach-pipeline/provider_defaults.json` and the client's `integrations/providers/` files when notification config changed.
-3. Update `outreach-pipeline/schedule.md`.
+2. Update `daily-content-pipeline/provider_defaults.json` and the client's `integrations/providers/` files when notification config changed.
+3. Update `daily-content-pipeline/schedule.md`.
 4. Update sendbox/campaign config affected by the change.
-5. Update `outreach-pipeline/automation/automation_manifest.md`.
-6. Update `outreach-pipeline/automation/scheduled_run_prompt.md` and the actual native task prompt when that environment stores its own snapshot.
-7. Update `outreach-pipeline/automation/update_state.json` / `update_log.md` when an update affects future runs.
-8. Update `outreach-pipeline/automation/resync_log.md`.
+5. Update `daily-content-pipeline/automation/automation_manifest.md`.
+6. Update `daily-content-pipeline/automation/scheduled_run_prompt.md` and the actual native task prompt when that environment stores its own snapshot.
+7. Update `daily-content-pipeline/automation/update_state.json` / `update_log.md` when an update affects future runs.
+8. Update `daily-content-pipeline/automation/resync_log.md`.
 9. Run a dry-read verification: read the scheduled entrypoint, manifest, schedule, profile, campaign/sendbox config, and update state as tomorrow's scheduled agent would, and confirm the newest approved state is visible.
 
 If the agent cannot edit the native task body directly, write the exact replacement prompt to `scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and ask the human to update the native task. Do not say the schedule is fully updated until that snapshot is updated or the limitation is logged.
@@ -301,7 +301,7 @@ After a schedule/automation exists, every human-facing progress block must inclu
 
 ## Fresh GitHub Source And Missing Playbook Download Rule
 
-For setup, repair, or update, treat GitHub `main` as the source of truth unless the current setup root is verified as a fresh clone of the same repo. Do not reuse fixed shared fallback folders (`/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`). If a temporary checkout is needed, `mktemp -d`, clone `https://github.com/soloagency/outreach`, and verify `.git` exists, `origin` matches, and `git rev-parse HEAD` == `git ls-remote origin refs/heads/main`. A folder without `.git`, wrong owner, or failed update is stale cache. If sandbox/network limits block GitHub, request permission or give one exact command; do not proceed on unverified local code. If local `playbooks/` is unavailable, download the needed stage from `https://raw.githubusercontent.com/soloagency/outreach/main/playbooks/` and verify it against `LOAD_MANIFEST.md` via a LOAD LEDGER before use.
+For setup, repair, or update, treat GitHub `main` as the source of truth unless the current setup root is verified as a fresh clone of the same repo. Do not reuse fixed shared fallback folders (`/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`). If a temporary checkout is needed, `mktemp -d`, clone `https://github.com/soloagency/solo-agency` (the OutreachCRM module is its `outreach/` subpath), and verify `.git` exists, `origin` matches, and `git rev-parse HEAD` == `git ls-remote origin refs/heads/main` on that parent checkout (the `outreach/` module has no `.git` of its own). A folder without `.git`, wrong owner, or failed update is stale cache. If sandbox/network limits block GitHub, request permission or give one exact command; do not proceed on unverified local code. If local `playbooks/` is unavailable, download the needed stage from `https://raw.githubusercontent.com/soloagency/solo-agency/main/outreach/playbooks/` and verify it against `LOAD_MANIFEST.md` via a LOAD LEDGER before use.
 
 Stages marked `status: planned` in the Stage Map are not missing files — do not fetch them from GitHub raw; load `docs/DESIGN.md` for their contract instead (DESIGN §22 R1).
 
@@ -311,16 +311,16 @@ If the repo is not yet published — `OUTREACHCRM_GIT_REMOTE_URL` unset or still
 
 When the agent hits any blocker, repeated failure, contradiction, tool/config mismatch, stale asset, or dead end, first assume the local playbook/code may be old:
 
-1. Fresh GitHub Source Check against `https://github.com/soloagency/outreach` `main`.
+1. Fresh GitHub Source Check against `https://github.com/soloagency/solo-agency` `main` (module subpath `outreach/`).
 2. Use a fresh unique checkout or raw GitHub files; never a shared cache.
 3. Record local commit, GitHub `main` commit, and whether they match.
 4. Reload the relevant latest playbooks and check whether a newer rule fixes it.
 5. If it fixes it, follow it, resync state, and note the recovery in the progress/blocker message.
-6. If the latest version still leaves the agent stuck, create or draft a redacted issue for `soloagency/outreach`.
+6. If the latest version still leaves the agent stuck, create or draft a redacted issue for `soloagency/solo-agency` (prefix the title `outreach:` for triage).
 
 If the repo is not yet published — `OUTREACHCRM_GIT_REMOTE_URL` unset or still containing the `OWNER` placeholder — treat THIS local working copy as the verified source, record `fresh_source_check: skipped_local_phase0` in `resync_log.md` (or `update_state.json` for updates), skip the clone/remote-verify/GitHub-fetch steps, and continue. Do not block setup or a run on a GitHub check that cannot pass yet (DESIGN §22 R4).
 
-Issue escalation: the human does not need a GitHub account. Prefer `gh issue create` only when an authorized identity exists (`gh auth status`, `GITHUB_TOKEN`, `GH_TOKEN`, `OUTREACHCRM_GITHUB_ISSUE_TOKEN`, or a maintainer bot). Otherwise send via a configured intake channel or write a ready-to-post draft under `outreach-pipeline/automation/issues/`. Track every issue in `outreach-pipeline/automation/github_issues.md`. Never include secrets, API keys, tokens, sendbox credentials, client-confidential data, or contact PII in an issue.
+Issue escalation: the human does not need a GitHub account. Prefer `gh issue create` only when an authorized identity exists (`gh auth status`, `GITHUB_TOKEN`, `GH_TOKEN`, `OUTREACHCRM_GITHUB_ISSUE_TOKEN`, or a maintainer bot). Otherwise send via a configured intake channel or write a ready-to-post draft under `daily-content-pipeline/automation/issues/`. Track every issue in `daily-content-pipeline/automation/github_issues.md`. Never include secrets, API keys, tokens, sendbox credentials, client-confidential data, or contact PII in an issue.
 
 ## Update Command And Version Watch Rule
 

@@ -398,7 +398,7 @@ This is where Setup Flow ends. Create or resync:
 - **One client-specific automation task**, name beginning with the client name, for example `AvenNgo - OutreachCRM Daily Run` (the first pass is this task's first execution, not a separate task). Its prompt pins `target_client_slug` so it can never touch another client. Configure the schedule/cadence the human wants (daily, weekday, manual-only, first-run-only).
 - **One agency-wide maintenance task** `OutreachCRM - GitHub Update Watch`, offered after the client task exists. It is barred from client-facing channels and does not touch client data (Stage 11).
 
-Write every persistent state file the next automation run reads: the Client Intelligence Profile, `sendboxes/sendboxes.json`, list/campaign config, `outreach-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt, the native task body when editable, and `resync_log.md`. Then run the dry-read Automation Resync verification.
+Write every persistent state file the next automation run reads: the Client Intelligence Profile, `sendboxes/sendboxes.json`, list/campaign config, `daily-content-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt, the native task body when editable, and `resync_log.md`. Then run the dry-read Automation Resync verification.
 
 End with an `**[ACTION REQUIRED]**` block naming the exact task to run for the first pass and stating that setup is `ready_for_automation_first_run`. Do not send, do not run the task from the setup chat, and do not ask "run it now?".
 
@@ -406,10 +406,10 @@ End with an `**[ACTION REQUIRED]**` block naming the exact task to run for the f
 
 ## Client Intelligence Profile
 
-The Client Intelligence Profile is the durable, client-scope record that every automation run reads and every draft is built from. Its canonical field schema lives in Stage 7 (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`); this stage owns the interview that fills it. Path (per the on-disk layout, `outreach-pipeline/`):
+The Client Intelligence Profile is the durable, client-scope record that every automation run reads and every draft is built from. Its canonical field schema lives in Stage 7 (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`); this stage owns the interview that fills it. Path (per the on-disk layout, `daily-content-pipeline/`):
 
 ```text
-outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/
+daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/
   client_profile_{client_slug}_{business_slug}_{location_slug}.md
 ```
 
@@ -451,7 +451,7 @@ I manage 5 clients. Set up one workspace for each:
 
 The agent must:
 
-1. Create one client workspace folder per client under `outreach-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/`.
+1. Create one client workspace folder per client under `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/`.
 2. Infer the full profile (ICP, pain points, value proposition, offer, voice) for each client and show a per-client summary.
 3. Ask the human to correct only what is wrong (one `**[ACTION REQUIRED]**` block, batched).
 4. Save one Client Intelligence Profile per client.
@@ -471,7 +471,7 @@ OutreachCRM supports starting with zero clients and adding clients over time. Th
 If there are no clients yet, create only the data root scaffold and enter First Client Setup Mode:
 
 ```text
-outreach-pipeline/
+daily-content-pipeline/
   clients_index.md
   schedule.md
   storage_config.json          # {"backend":"json"}
@@ -518,19 +518,20 @@ Sendbox: intake@gmail.com (App Password). List: sj-immigration-leads.csv.
 Agent creates:
 
 ```text
-outreach-pipeline/
+daily-content-pipeline/
   clients/
     nguyen-law/
       immigration-law_san-jose/
-        client_profile_nguyen-law_immigration-law_san-jose.md
-        sendboxes/sendboxes.json
-        lists/{list_slug}/list_manifest.json  leads.jsonl  import_log.md
-        crm/{accounts,contacts,deals,activities/YYYY-MM,tasks,pipelines.json,suppression.jsonl}
-        campaigns/{campaign_slug}/campaign_config.json
-        analytics/metrics_log.md  learning_log.md
-        approvals/approval_log.md
-        reports/  outputs/YYYY-MM/  outputs/latest/
-        integrations/providers/provider_config.local.json
+        outreach/
+          client_profile_nguyen-law_immigration-law_san-jose.md
+          sendboxes/sendboxes.json
+          lists/{list_slug}/list_manifest.json  leads.jsonl  import_log.md
+          crm/{accounts,contacts,deals,activities/YYYY-MM,tasks,pipelines.json,suppression.jsonl}
+          campaigns/{campaign_slug}/campaign_config.json
+          analytics/metrics_log.md  learning_log.md
+          approvals/approval_log.md
+          reports/  outputs/YYYY-MM/  outputs/latest/
+          integrations/providers/provider_config.local.json
 ```
 
 The agent configures the schedule, prepares the `Nguyen Law - OutreachCRM Daily Run` task pinning `target_client_slug: nguyen-law`, runs Automation Resync, and tells the human the exact task name to run for the first pass. Setup Flow does not enrich, draft, or send Nguyen Law's first batch.
@@ -553,7 +554,7 @@ The correct order is fixed:
 8. Initialize the analytics baseline (nothing sent).
 9. Configure the schedule and create/resync the client-specific automation task (name begins with the client name; prompt pins `target_client_slug`), then offer the agency-wide `OutreachCRM - GitHub Update Watch` maintenance task.
 
-Every persistent state file the next automation run reads must be current before completion: Client Intelligence Profile, `sendboxes/sendboxes.json`, list/campaign config, `provider_config.local.json`, `outreach-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt/task body, and `resync_log.md`. Run the dry-read Automation Resync verification before calling setup complete.
+Every persistent state file the next automation run reads must be current before completion: Client Intelligence Profile, `sendboxes/sendboxes.json`, list/campaign config, `provider_config.local.json`, `daily-content-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt/task body, and `resync_log.md`. Run the dry-read Automation Resync verification before calling setup complete.
 
 End Setup Flow with `ready_for_automation_first_run`, not `first_send_completed`. Enrichment, drafting, preview, sending, tracking, and notification run only in Automation Flow.
 
@@ -610,7 +611,7 @@ Any post-setup configuration change (new sendbox, changed schedule, edited campa
 
 ### Schedule Rule
 
-Ask cadence questions after the profile, sendbox, list, and campaign goal are known and before the client-specific automation task is marked ready. Ask whether the human wants daily, weekday-only, multiple-times-daily, manual-only, first-run-only, or another cadence, then write `outreach-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt/task body, and the relevant config. During Setup Flow, do not offer to run the first pass immediately; finish by preparing or resyncing the client-specific automation task whose name begins with the client name. A `run now` / `manual run` / `test run` request is honored only in Automation Flow (it bypasses the schedule window for the target client only) — never as a way to send from the setup chat.
+Ask cadence questions after the profile, sendbox, list, and campaign goal are known and before the client-specific automation task is marked ready. Ask whether the human wants daily, weekday-only, multiple-times-daily, manual-only, first-run-only, or another cadence, then write `daily-content-pipeline/schedule.md`, the automation manifest, the scheduled-run prompt/task body, and the relevant config. During Setup Flow, do not offer to run the first pass immediately; finish by preparing or resyncing the client-specific automation task whose name begins with the client name. A `run now` / `manual run` / `test run` request is honored only in Automation Flow (it bypasses the schedule window for the target client only) — never as a way to send from the setup chat.
 
 ---
 

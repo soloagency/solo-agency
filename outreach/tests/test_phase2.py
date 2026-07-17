@@ -20,7 +20,7 @@ from storage import now_iso  # noqa: E402
 
 def _client():
     tmp = tempfile.mkdtemp()
-    pipe = os.path.join(tmp, "outreach-pipeline")
+    pipe = os.path.join(tmp, "daily-content-pipeline")
     crm_store.resolve_client_dir(pipe, "c", None, "b", "l", create=True)
     cdir = crm_store.resolve_client_dir(pipe, "c", None)
     CrmStore(cdir).init_tree()

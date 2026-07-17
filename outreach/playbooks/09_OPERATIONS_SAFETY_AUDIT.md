@@ -46,7 +46,7 @@ Before claiming **Automation Flow (Daily Run)** completion for a client:
 - Confirm every send came out of `outbox/approved/` through `gmail_client.py` within quota, with the full in-code pre-send chain, and that every sent `draft_id` has a matching `approve` in `approvals/approval_log.md`.
 - Confirm the operator-only outputs exist for the day: `{client}-approval-report.html`, `{client}-today-view.html`, `{client}-daily-ops.html`, `{client}-INTERNAL_REPORT.html`, and `{client}-report_state.json`, each labeled operator-only where applicable.
 - On Mondays, confirm the client-facing `{client}-weekly-client-report.html` (+ `.pdf`) was generated through the Client-Blind Scrub Gate and that the scrub grep returned zero internal-term hits.
-- Confirm the operator was notified (WideCast `sendTelegramMessage` with email fallback) with counts + report path/link, and that the attempt was logged in `outreach-pipeline/notifications/notification_log.md`.
+- Confirm the operator was notified (WideCast `sendTelegramMessage` with email fallback) with counts + report path/link, and that the attempt was logged in `daily-content-pipeline/notifications/notification_log.md`.
 - Confirm the per-client `run_lock` was taken and released, and that changes discovered during the run were written back to persistent config and resynced.
 
 Treat these as **critical multi-client isolation violations**:
@@ -76,7 +76,7 @@ Run this check before saying any setup repair, sendbox change, provider/notifica
 
 Ask:
 
-1. Did this change happen after `outreach-pipeline/schedule.md` or a native automation/scheduled task was created?
+1. Did this change happen after `daily-content-pipeline/schedule.md` or a native automation/scheduled task was created?
 2. Would tomorrow's scheduled run need to know about this change?
 3. Could the scheduled task have an old prompt snapshot, old sendbox/quota state, old suppression state, old campaign contract, old approval mode, or old provider/notification config?
 
@@ -86,17 +86,17 @@ Minimum resync audit:
 
 - Client profile (`client_profile_{client_slug}_{business_slug}_{location_slug}.md`) updated.
 - Sendbox registry (`sendboxes/sendboxes.json`) and any campaign `campaign_config.json` updated when send/quota/sequence config changed.
-- Suppression state reconciled when contacts opted out or bounced (client `suppression.jsonl`, and `outreach-pipeline/suppression/global_suppression.jsonl` for agency-tier entries).
-- `outreach-pipeline/provider_defaults.json` updated when the WideCast notification catalog/discovery defaults changed.
+- Suppression state reconciled when contacts opted out or bounced (client `suppression.jsonl`, and `daily-content-pipeline/suppression/global_suppression.jsonl` for agency-tier entries).
+- `daily-content-pipeline/provider_defaults.json` updated when the WideCast notification catalog/discovery defaults changed.
 - The client's `integrations/providers/` config, OpenAPI cache, capabilities, health, and provider call log updated when the notification provider config changed.
-- `outreach-pipeline/schedule.md` updated.
-- `outreach-pipeline/automation/automation_manifest.md` updated.
-- `outreach-pipeline/automation/scheduled_run_prompt.md` updated.
+- `daily-content-pipeline/schedule.md` updated.
+- `daily-content-pipeline/automation/automation_manifest.md` updated.
+- `daily-content-pipeline/automation/scheduled_run_prompt.md` updated.
 - The actual native scheduled-task prompt updated when accessible, or `automation_prompt_update_pending` clearly logged when not accessible.
-- `outreach-pipeline/automation/github_issues.md` updated when a tracked GitHub issue, maintainer/community response, or issue-derived workaround affects future runs.
-- `outreach-pipeline/automation/update_state.json` and `outreach-pipeline/automation/update_log.md` updated when an update check or applied update affects future runs.
-- `outreach-pipeline/automation/resync_log.md` updated.
-- Dry-read verification performed from the scheduled-run entrypoint and the latest local files. The dry read must enumerate and confirm these 8 sources: the scheduled entrypoint (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`), `outreach-pipeline/automation/automation_manifest.md`, `outreach-pipeline/automation/github_issues.md`, `outreach-pipeline/automation/update_state.json`, `outreach-pipeline/provider_defaults.json` (when relevant), `outreach-pipeline/schedule.md`, the client profile, and `sendboxes/sendboxes.json`.
+- `daily-content-pipeline/automation/github_issues.md` updated when a tracked GitHub issue, maintainer/community response, or issue-derived workaround affects future runs.
+- `daily-content-pipeline/automation/update_state.json` and `daily-content-pipeline/automation/update_log.md` updated when an update check or applied update affects future runs.
+- `daily-content-pipeline/automation/resync_log.md` updated.
+- Dry-read verification performed from the scheduled-run entrypoint and the latest local files. The dry read must enumerate and confirm these 8 sources: the scheduled entrypoint (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`), `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/github_issues.md`, `daily-content-pipeline/automation/update_state.json`, `daily-content-pipeline/provider_defaults.json` (when relevant), `daily-content-pipeline/schedule.md`, the client profile, and `sendboxes/sendboxes.json`.
 - The human-facing progress block includes an `Automation freshness check` that answers whether the latest changes were synced into the automation/scheduled-task prompt/contract/source state, not only config, and whether tomorrow's run will read the newest state.
 
 Completion wording must distinguish full vs partial sync:
@@ -128,12 +128,12 @@ Run this check before saying an update command, update-watch run, setup-repair u
 Minimum update audit:
 
 - Stage 11 `playbooks/11_UPDATE_AND_VERSION_WATCH.md` was loaded IN FULL.
-- The source was GitHub `main` from the OutreachCRM repo (`https://github.com/soloagency/outreach`).
+- The source was GitHub `main` from the Solo Agency repo — OutreachCRM's `outreach/` module (`https://github.com/soloagency/solo-agency`).
 - The agent used the current verified setup root or a fresh unique `mktemp -d` checkout. No fixed shared fallback folder (such as `/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`) was used.
-- `.git`, `origin`, local `HEAD`, and remote `refs/heads/main` were verified before reading or copying source files.
+- `.git`, `origin`, local `HEAD`, and remote `refs/heads/main` were verified on the parent checkout (the `outreach/` module has no `.git` of its own) before reading or copying source files.
 - The update check covered: root instructions, all playbooks, provider/OpenAPI tooling (`tools/provider_openapi.py`), the report renderer (`tools/report_renderer.py`), the storage adapter + `schema_version`, `crm_store.py` / `gmail_client.py` / `import_leads.py` / `email_verify.py`, `tracker/worker.js` (+ its `wrangler deploy` rerun step), sendbox token compatibility, the deploy script, and skills.
-- `outreach-pipeline/automation/update_state.json` and `update_log.md` were created or updated. The state enum uses `tracker_worker_deploy_required` and `storage_schema_migration_required`.
-- Runtime files/folders replaced by the update were backed up under `outreach-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/` or an equivalent logged backup path.
+- `daily-content-pipeline/automation/update_state.json` and `update_log.md` were created or updated. The state enum uses `tracker_worker_deploy_required` and `storage_schema_migration_required`.
+- Runtime files/folders replaced by the update were backed up under `daily-content-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/` or an equivalent logged backup path.
 - Secrets and local client state were preserved (merge config, never overwrite secrets/history): provider API keys, `provider_config.local.json`, `secrets/`, sendbox `credentials.json`/`token.json`, the tracker key, client profiles, suppression, CRM data (contacts/accounts/deals/activities/tasks), approvals, sent logs, reports, outputs, and analytics.
 - Every active/configured client was checked for required `schema_version` / template updates. If any collection needs a migration, `storage_schema_migration_required` was set and the human received the exact `crm_store.py migrate` step (run under the storage freeze flag, verified by per-record content hashes).
 - If `tracker/worker.js` changed, `tracker_worker_deploy_required` was set and the human received the exact `wrangler deploy` command to run outside the AI sandbox.
@@ -166,8 +166,8 @@ Claim `ready_for_automation_first_run` only when:
 2. The client profile exists at `clients/{client_slug}/{business_slug}_{location_slug}/client_profile_{client_slug}_{business_slug}_{location_slug}.md` and all slugs obey the slug rules (lowercase, hyphens, no punctuation).
 3. The client folder tree exists (`crm/`, `lists/`, `campaigns/`, `sendboxes/`, `approvals/`, `analytics/`, `inbox_sync/`, `reports/`, `outputs/`, `integrations/providers/`), and monthly folders use the `YYYY-MM/` convention.
 4. At least one sendbox is connected and verified through Stage 2, or explicitly recorded as pending; `credentials.json` / `token.json` are gitignored and `chmod 600`; `sendboxes.json` records `auth_mode`, `quota_today`, `warmup_stage`, and `status`.
-5. The client row is added to `outreach-pipeline/clients_index.md`.
-6. The recurring schedule/cadence is configured or explicitly marked manual-only, and `outreach-pipeline/schedule.md` records it plus the notification channel.
+5. The client row is added to `daily-content-pipeline/clients_index.md`.
+6. The recurring schedule/cadence is configured or explicitly marked manual-only, and `daily-content-pipeline/schedule.md` records it plus the notification channel.
 7. The client-specific automation task exists or is proposed, its name begins with the client name, and its prompt pins `target_client_slug` and cannot touch another client.
 8. The agency-wide `OutreachCRM - GitHub Update Watch` task exists or is proposed and is barred from client-facing channels.
 9. Any post-schedule config change triggered Automation Resync (see the Automation Resync Safety Check).
@@ -189,7 +189,7 @@ Claim a daily run complete only when, for every active client processed (or expl
 9. Assisted-channel drafts (SMS/Messenger/Zalo) were produced only where the campaign allows AND documented consent exists; each Today-View draft shows its legal basis; the human sends and reports back → `assisted_sent` activity.
 10. The Today View and kanban were regenerated by `tools/report_renderer.py`.
 11. Operator-only reports were produced: `{client}-daily-ops.html`, `{client}-approval-report.html`, `{client}-INTERNAL_REPORT.html`, `{client}-report_state.json`. On Mondays, the client-facing `{client}-weekly-client-report.html` (+ `.pdf`) was produced through the Client-Blind Scrub Gate.
-12. The operator was notified via WideCast `sendTelegramMessage` (email fallback) with counts + report path/link; the attempt was logged in `outreach-pipeline/notifications/notification_log.md`.
+12. The operator was notified via WideCast `sendTelegramMessage` (email fallback) with counts + report path/link; the attempt was logged in `daily-content-pipeline/notifications/notification_log.md`.
 13. Every active client was processed or explicitly logged as skipped; this Stage 9 audit + completion gates ran before the `run_lock` was released.
 
 ### Drafting completion gate
@@ -348,7 +348,7 @@ WideCast is the operator notification provider only.
 - Provider discovery is via `tools/provider_openapi.py` against the client's `integrations/providers/provider_config.local.json`. That file references the secret with `api_key_env` (environment variable name) or `api_key_local` (local path) — never a field literally named `api_key`.
 - WideCast is used for notification only. There is no WideCast production, publishing, or analytics call.
 - Every report-ready notification includes: run status, clients processed, blockers, counts (sends, replies, bounces, unsubscribes, deals created/advanced, tasks due), and the report path/link + `INTERNAL_REPORT` path/status. A bare "report ready" with no path/link is invalid — send a correction if that happens.
-- If WideCast notification is unavailable, fall back to Gmail/email if connected; if neither is available, record `notification_channel: local_path_only` and give the human the exact path plus how to connect a channel. Log every attempt in `outreach-pipeline/notifications/notification_log.md`.
+- If WideCast notification is unavailable, fall back to Gmail/email if connected; if neither is available, record `notification_channel: local_path_only` and give the human the exact path plus how to connect a channel. Log every attempt in `daily-content-pipeline/notifications/notification_log.md`.
 
 ---
 
@@ -375,7 +375,7 @@ For reference during the Daily Run completion gate. The scheduled-run entrypoint
 
 ### Initial setup is complete when
 
-1. The root data tree (`outreach-pipeline/` with `clients_index.md`, `schedule.md`, `clients/`, `outputs/`, `automation/`, `suppression/`, `notifications/`) exists.
+1. The root data tree (`daily-content-pipeline/` with `clients_index.md`, `schedule.md`, `clients/`, `outputs/`, `automation/`, `suppression/`, `notifications/`) exists.
 2. Each configured client has a pipeline folder and a client profile file at the correct path with valid slugs.
 3. Each configured client has at least one sendbox connected/verified or explicitly pending, with secrets gitignored and `chmod 600`.
 4. Inferred/researched setup context was shown to the human step by step; human corrections were applied.
@@ -447,7 +447,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I mentioned a report, did I provide the `.html` path/link (never `.md`) and, for the weekly report, confirm the scrub gate?
 - [ ] Before reporting a blocker, repeated failure, contradiction, stale artifact, or dead end, did I run Last-Resort Recovery — check GitHub `main` for newer OutreachCRM playbooks/code and reload the latest relevant instructions?
-- [ ] If the latest GitHub version still did not resolve the blocker, did I record it in `outreach-pipeline/automation/github_issues.md` and tell the human how it is tracked, without requiring them to have a GitHub account?
+- [ ] If the latest GitHub version still did not resolve the blocker, did I record it in `daily-content-pipeline/automation/github_issues.md` and tell the human how it is tracked, without requiring them to have a GitHub account?
 - [ ] Did I avoid asking for credentials, cookies, passwords, OTPs, or tokens?
 - [ ] Did I mention blockers clearly, with the next action if any?
 
@@ -535,7 +535,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] Did the notification include status, counts, blockers, report path/link, and `INTERNAL_REPORT` status (never a bare "report ready")?
 - [ ] Did I avoid any WideCast production/publishing/analytics call — notification only?
 - [ ] If WideCast was unavailable, did I fall back to Gmail/email, or record `notification_channel: local_path_only` with the exact human action?
-- [ ] Did I log the attempt in `outreach-pipeline/notifications/notification_log.md`?
+- [ ] Did I log the attempt in `daily-content-pipeline/notifications/notification_log.md`?
 
 ### Multi-Client Isolation Self-Audit Checklist
 
@@ -574,7 +574,7 @@ For these mechanical gates, the audit must paste real command output, not a self
 - **Approval consistency:** for each send, quote the `approvals/approval_log.md` line whose decision `approve` names that `draft_id`.
 - **report_state consistency:** quote the status/count fields from `outputs/YYYY-MM/YYYY-MM-DD/{client}-report_state.json`.
 - **LOAD LEDGER line counts:** paste the printed ledgers for the stages loaded this run.
-- **Notification record:** paste the `outreach-pipeline/notifications/notification_log.md` row for this run.
+- **Notification record:** paste the `daily-content-pipeline/notifications/notification_log.md` row for this run.
 
 Print the evidence as a compact block, one line per gate:
 

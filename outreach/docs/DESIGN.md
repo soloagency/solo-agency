@@ -74,12 +74,12 @@ scrubbed report.
 | Solo Agency | OutreachCRM |
 |---|---|
 | `SOLO_AGENCY_PLAYBOOK.md` | `OUTREACHCRM_PLAYBOOK.md` |
-| `deploy-soloagency.sh` | `deploy-outreachcrm.sh` |
-| data root `daily-content-pipeline/` | `outreach-pipeline/` |
+| `deploy-soloagency.sh` | same `deploy-soloagency.sh` `generate_outreach_artifacts` (`--outreach-only`); no separate module deploy script |
+| data root `daily-content-pipeline/` | same `daily-content-pipeline/` (shared root); per-client data under `clients/{slug}/{business}_{location}/outreach/` |
 | `tools/solo_report_renderer.py` | `tools/report_renderer.py` |
 | task `{Client} - Solo Agency Daily Run` | `{Client} - OutreachCRM Daily Run` |
 | `Solo Agency - GitHub Update Watch` | `OutreachCRM - GitHub Update Watch` |
-| GitHub `github.com/soloagency/solo-agency` | `github.com/soloagency/outreach` (repo name is `outreach`; product name stays OutreachCRM) |
+| GitHub `github.com/soloagency/solo-agency` | same repo `github.com/soloagency/solo-agency`; the module lives at the `outreach/` subpath (no separate `outreach` repo; product name stays OutreachCRM) |
 
 **Deleted components** (must have zero surviving references anywhere except this row):
 `solo-agency-collector/`, Local Collector / bridge / Chrome extension / `client_binding.json`
@@ -129,26 +129,34 @@ load this DESIGN section for its contract.
 
 ---
 
-## 5. On-disk layout (`outreach-pipeline/`)
+## 5. On-disk layout (`daily-content-pipeline/`)
+
+OutreachCRM data lives in the `outreach/` subtree of the shared per-client workspace
+(`daily-content-pipeline/clients/{slug}/{business}_{location}/outreach/`) so it sits beside — and
+never collides with — Solo Agency's content data for the same client. Agency-global files
+(clients_index, schedule, suppression, secrets, provider defaults, automation state, notifications)
+sit at the shared data root.
 
 ```text
-{agency_root}/
-  outreachcrm/                         # this repo (toolkit/source), no client data
-  outreach-pipeline/                   # data/config/output only
-    clients_index.md
-    schedule.md
-    storage_config.json                # {"backend":"json"}  (or postgres)
-    provider_defaults.json             # WideCast notification catalog, no secrets
-    secrets/                           # gitignored; agency-wide secrets (OAuth client, tracker key)
-    suppression/
-      global_suppression.jsonl         # agency-tier suppression (checked before every send)
-    automation/
-      automation_manifest.md  scheduled_run_prompt.md  resync_log.md  github_issues.md
-      update_state.json  update_log.md  update_notice.md  update_watch_prompt.md
-      backups/update_YYYY-MM-DD_HHMMSS/
-      issues/YYYY-MM-DD_{blocker_slug}.md
-    notifications/notification_log.md
-    clients/{client_slug}/{business_slug}_{location_slug}/
+soloagency/                          # Solo Agency monorepo (.git at this repo root)
+  outreach/                          # this module (OutreachCRM toolkit/source), no client data
+  ...                                # other Solo Agency modules (content pipeline, collector, …)
+daily-content-pipeline/              # shared Solo Agency data root — data/config/output only
+  clients_index.md
+  schedule.md
+  storage_config.json                # {"backend":"json"}  (or postgres)
+  provider_defaults.json             # WideCast notification catalog, no secrets
+  secrets/                           # gitignored; agency-wide secrets (OAuth client, tracker key)
+  suppression/
+    global_suppression.jsonl         # agency-tier suppression (checked before every send)
+  automation/
+    automation_manifest.md  scheduled_run_prompt.md  resync_log.md  github_issues.md
+    update_state.json  update_log.md  update_notice.md  update_watch_prompt.md
+    backups/update_YYYY-MM-DD_HHMMSS/
+    issues/YYYY-MM-DD_{blocker_slug}.md
+  notifications/notification_log.md
+  clients/{client_slug}/{business_slug}_{location_slug}/
+    outreach/                        # OutreachCRM's per-client subtree (sits beside content data)
       client_profile_{client_slug}_{business_slug}_{location_slug}.md
       sendboxes/
         sendboxes.json
@@ -686,12 +694,16 @@ open = soft assertion (design admits it's estimated), hard-assert click/reply/un
 
 ---
 
-## 18. Deploy script surgery (`deploy-outreachcrm.sh`)
+## 18. Deploy artifacts (`deploy-soloagency.sh` `generate_outreach_artifacts`, `--outreach-only`)
+The module has no standalone deploy script; the root `deploy-soloagency.sh` `generate_outreach_artifacts`
+step (mode `--outreach-only`) builds it — it regenerates `outreach/playbooks/LOAD_MANIFEST.md`, rezips the
+skills, and runs the module's 103-test suite as a preflight. The historical surgery that folded the
+inherited deploy logic into that step:
 - Hardcoded fallback API key **removed** (already stripped pre-commit; fail-closed).
 - Remove unconditional `die` checks requiring collector/bridge/extension dirs, and their
   blocks in `run_static_checks`/`sync_and_zip_skills`.
-- New concrete `GIT_REMOTE_URL`/`GIT_REMOTE_NAME`/`GIT_AUTHOR_*` for the outreachcrm repo
-  (drop the `github.com-soloagency` SSH alias + soloagency author identity).
+- Git remote/author identity is the Solo Agency monorepo's (`github.com/soloagency/solo-agency`);
+  the module is not a separate repo and carries no per-module SSH alias or author identity.
 - Extend `scan_staged_secrets` regex: add `"refresh_token"\s*:`, `"client_secret"\s*:`,
   `TRACKER_API_KEY`, and block staging of `token.json`/`client_secret*.json`.
 - `.gitignore`: add `sendboxes/*/token.json`, `secrets/`, `.dev.vars`, keep
@@ -718,9 +730,11 @@ Diff scope + change-classification enum rebuilt around OutreachCRM components: s
 adapter/schema_version, `crm_store.py`/`gmail_client.py`/`import_leads.py`/`email_verify.py`,
 `tracker/worker.js` + its `wrangler deploy` rerun step, sendbox token compat. Replace
 `bridge_update_required`/`extension_reload_required` in `update_state.json` with
-`tracker_worker_deploy_required`/`storage_schema_migration_required`. Repo-wide there must
-be **no surviving `soloagency`/`solo-agency`/`github.com/soloagency` literal**, especially
-in AGENTS.md's blocker-recovery clause (it fires on any blocker, not just explicit updates).
+`tracker_worker_deploy_required`/`storage_schema_migration_required`. Repo-wide the canonical
+GitHub literal is now `github.com/soloagency/solo-agency` (OutreachCRM is its `outreach/` subpath),
+so those references are expected; what must **not** survive is any fork-era `soloagency/outreach`
+separate-repo literal, especially in AGENTS.md's blocker-recovery clause (it fires on any blocker,
+not just explicit updates).
 
 ---
 
@@ -798,14 +812,14 @@ which validates every `crm/` record against the Stage 7 schema and rebuilds
 go through `crm_store.py`.
 
 **R4 — When GitHub is unreachable, the local checkout is the source of truth.** The repo is
-`github.com/soloagency/outreach`. If GitHub cannot be verified — the repo is not yet
+`github.com/soloagency/solo-agency` (OutreachCRM is its `outreach/` subpath). If GitHub cannot be verified — the repo is not yet
 published, `git ls-remote` fails, network/sandbox blocks it, or `OUTREACHCRM_GIT_REMOTE_URL`
 is unset — the Fresh GitHub Source gate and Last-Resort Recovery must treat THIS local working
 copy as the verified source: record `fresh_source_check: skipped_local_unreachable` in
 `resync_log.md` (or `update_state.json` for updates), skip the clone/remote-verify/GitHub-fetch
 steps, and continue. Do not block setup or a run on a GitHub check that cannot pass. Once the
 repo is published and reachable, normal Fresh-Source verification against
-`github.com/soloagency/outreach` resumes automatically.
+`github.com/soloagency/solo-agency` resumes automatically.
 
 **R5 — What a full setup reaches now.** With the Phase-1 tools present, a Setup Flow session
 completes to `ready_for_automation_first_run` for real: profile + pipeline + campaign written

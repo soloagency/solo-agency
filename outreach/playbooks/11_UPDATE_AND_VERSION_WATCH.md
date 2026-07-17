@@ -10,16 +10,16 @@ Also load during blocker recovery, setup repair, storage-adapter or schema-versi
 
 ## Hard Gates For This Stage
 
-- GitHub `main` for `https://github.com/soloagency/outreach` is the source of truth.
+- GitHub `main` for `https://github.com/soloagency/solo-agency` (OutreachCRM is its `outreach/` module) is the source of truth.
 - Do not use fixed shared fallback folders such as `/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`, or any old checkout left by another session.
-- Use a fresh unique `mktemp -d` checkout unless the current setup root is already proven to be a verified clone of the OutreachCRM GitHub repo.
-- Verify `.git`, `origin`, local `HEAD`, and remote `refs/heads/main` before reading or copying from the source checkout.
+- Use a fresh unique `mktemp -d` checkout unless the current setup root is already proven to be a verified clone of the Solo Agency GitHub repo (module subpath `outreach/`).
+- Verify `.git`, `origin`, local `HEAD`, and remote `refs/heads/main` on the parent checkout (the `outreach/` module has no `.git` of its own) before reading or copying from the source checkout.
 - Treat a failed delete/update, wrong owner, missing `.git`, mismatched remote, or old timestamp as stale cache.
 - Never overwrite human/client data or secrets while applying an update: agency and client `secrets/`, sendbox `credentials.json` and `token.json`, provider API keys (`api_key_local`), `TRACKER_API_KEY` / `.dev.vars`, CRM records under `clients/{client_slug}/crm/`, `sent_log.jsonl`, `activities.jsonl`, `approvals/`, global and client `suppression`, `analytics/`, `inbox_sync/`, imported `lists/*/leads.jsonl`, reports, and outputs.
 - Back up changed runtime files before replacing them.
 - An update is incomplete until playbooks, contracts, templates, tools (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`, `report_renderer.py`, `provider_openapi.py`), the storage adapter, `tracker/worker.js`, provider defaults, client setup state, and automation/scheduled task prompts have all been checked and resynced.
 - If `tracker/worker.js` (or its D1 schema), the storage adapter `schema_version`, or sendbox token/auth compatibility changed, tell the human the exact command to run outside the AI sandbox (`wrangler deploy`, `crm_store.py migrate`) and exactly which sendboxes must be re-authenticated.
-- The scheduled `OutreachCRM - GitHub Update Watch` task must never write under `outreach-pipeline/clients/` and must never use a client-facing channel. It updates only the agency-tier toolkit and `outreach-pipeline/automation/` state, and records per-client resync as pending for a maintenance session or each client's own daily automation task.
+- The scheduled `OutreachCRM - GitHub Update Watch` task must never write under `daily-content-pipeline/clients/` and must never use a client-facing channel. It updates only the agency-tier toolkit and `daily-content-pipeline/automation/` state, and records per-client resync as pending for a maintenance session or each client's own daily automation task.
 
 ## Update Trigger Command
 
@@ -42,10 +42,10 @@ This is not a request to update a client report. In Setup Flow, it stays control
 Use this sequence before reading, diffing, or copying source files:
 
 1. Create a fresh unique temporary folder with `mktemp -d`.
-2. Clone `https://github.com/soloagency/outreach` into that folder.
+2. Clone `https://github.com/soloagency/solo-agency` (operate on its `outreach/` subpath) into that folder.
 3. Verify the source checkout:
    - `.git` exists.
-   - `git remote get-url origin` resolves to the OutreachCRM GitHub repo.
+   - `git remote get-url origin` resolves to the Solo Agency GitHub repo (`soloagency/solo-agency`).
    - `git rev-parse HEAD` succeeds.
    - `git ls-remote origin refs/heads/main` succeeds.
    - local `HEAD` matches GitHub `main`.
@@ -58,7 +58,7 @@ Valid sources:
 
 - A freshly cloned and verified `mktemp -d` checkout.
 - The current setup root only when it is a verified clone matching GitHub `main`.
-- Raw GitHub files from `https://raw.githubusercontent.com/soloagency/outreach/main/` only for instruction reload when a full clone is blocked.
+- Raw GitHub files from `https://raw.githubusercontent.com/soloagency/solo-agency/main/outreach/` only for instruction reload when a full clone is blocked.
 
 Invalid sources:
 
@@ -75,7 +75,7 @@ An update check must compare at least these areas:
 - Root instructions and router:
   - `AGENTS.md`
   - `OUTREACHCRM_PLAYBOOK.md`
-  - `README.md`, `deploy-outreachcrm.sh`, and `.gitignore` when present
+  - `README.md`, `.gitignore`, and the root `deploy-soloagency.sh` (`generate_outreach_artifacts`, `--outreach-only`) when present
   - `playbooks/SETUP_FLOW_ENTRYPOINT.md` and `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`
 - Playbooks and load discipline:
   - `playbooks/*.md` (Stages 00 through 15)
@@ -86,7 +86,7 @@ An update check must compare at least these areas:
   - `tools/provider_openapi.py`
   - `provider_defaults.template.json` and `provider_config.local.template.json`
   - the client's `integrations/providers/provider_capabilities.json`, `provider_openapi_cache.yaml`, and `provider_health.md` schema expectations
-  - `outreach-pipeline/provider_defaults.json` (WideCast notification catalog, no secrets)
+  - `daily-content-pipeline/provider_defaults.json` (WideCast notification catalog, no secrets)
 - CRM and email engine tools:
   - `tools/crm_store.py` (the only sanctioned CRM write path)
   - `tools/gmail_client.py`
@@ -96,7 +96,7 @@ An update check must compare at least these areas:
 - Storage adapter and schema:
   - `tools/storage/adapter.py`, `tools/storage/json_adapter.py`, `tools/storage/postgres_adapter.py`
   - per-collection `schema_version` definitions and the read-time upgrade registry (`{from_version: fn}`)
-  - `outreach-pipeline/storage_config.json` (`{"backend":"json"}` or `postgres`)
+  - `daily-content-pipeline/storage_config.json` (`{"backend":"json"}` or `postgres`)
   - the parametrized adapter contract tests as the compatibility signal
 - Tracker worker:
   - `tracker/worker.js`
@@ -107,12 +107,12 @@ An update check must compare at least these areas:
   - `sendboxes/sendboxes.json` schema fields (`warmup_stage`, `historyId`, `imap_uid_cursor`, `last_successful_sync_ts`, `status`)
   - `token.json` / `credentials.json` format compatibility and the OAuth scope set (`gmail.send` + `gmail.readonly` only)
 - Installed runtime copies and automation:
-  - `outreach-pipeline/provider_defaults.json`
-  - `outreach-pipeline/storage_config.json`
+  - `daily-content-pipeline/provider_defaults.json`
+  - `daily-content-pipeline/storage_config.json`
   - each client's `integrations/providers/` capability/cache/health schema files
-  - `outreach-pipeline/schedule.md`
-  - `outreach-pipeline/automation/automation_manifest.md` and `scheduled_run_prompt.md`
-  - `outreach-pipeline/automation/update_state.json` and `update_log.md`
+  - `daily-content-pipeline/schedule.md`
+  - `daily-content-pipeline/automation/automation_manifest.md` and `scheduled_run_prompt.md`
+  - `daily-content-pipeline/automation/update_state.json` and `update_log.md`
 
 Do not decide "no update needed" after checking only one file or only the root playbook.
 
@@ -123,7 +123,7 @@ Before applying changes, create a timestamped backup of every runtime file or fo
 Recommended backup location:
 
 ```text
-outreach-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/
+daily-content-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/
 ```
 
 The backup manifest must include:
@@ -144,8 +144,8 @@ Never copy these into public support bundles or GitHub issues:
 
 Safe apply follows three tiers. Never blur them.
 
-- Replace from the verified source: playbooks, `OUTREACHCRM_PLAYBOOK.md`, `AGENTS.md`, both entrypoints, `LOAD_LEDGER_PROTOCOL.md`, `tools/*.py` (including the storage adapter), `tracker/worker.js` and its wrangler config, skills, `deploy-outreachcrm.sh`, `README.md`, `.gitignore`, and the `*.template.json` provider files. Regenerate `playbooks/LOAD_MANIFEST.md` after replacing playbooks.
-- Merge config schemas without deleting local values: `outreach-pipeline/provider_defaults.json`, `outreach-pipeline/storage_config.json`, each client's `integrations/providers/provider_capabilities.json` / `provider_openapi_cache.yaml` / `provider_health.md`, `campaign_config.json`, `pipelines.json`, `sendboxes.json` (schema fields only), and the automation manifest/schedule.
+- Replace from the verified source: playbooks, `OUTREACHCRM_PLAYBOOK.md`, `AGENTS.md`, both entrypoints, `LOAD_LEDGER_PROTOCOL.md`, `tools/*.py` (including the storage adapter), `tracker/worker.js` and its wrangler config, skills, `README.md`, `.gitignore`, and the `*.template.json` provider files. The root `deploy-soloagency.sh` `generate_outreach_artifacts` step (mode `--outreach-only`) regenerates `outreach/playbooks/LOAD_MANIFEST.md`, rezips the skills, and runs the module's 103-test suite as a preflight.
+- Merge config schemas without deleting local values: `daily-content-pipeline/provider_defaults.json`, `daily-content-pipeline/storage_config.json`, each client's `integrations/providers/provider_capabilities.json` / `provider_openapi_cache.yaml` / `provider_health.md`, `campaign_config.json`, `pipelines.json`, `sendboxes.json` (schema fields only), and the automation manifest/schedule.
 - Never overwrite secrets, history, or client data: `secrets/`, sendbox `credentials.json` / `token.json`, `provider_config.local.json` auth values, `TRACKER_API_KEY` / `.dev.vars`, everything under `clients/{client_slug}/crm/`, `sent/YYYY-MM/sent_log.jsonl`, `activities/YYYY-MM/activities.jsonl`, global and client `suppression`, `approvals/`, `analytics/`, `inbox_sync/`, `lists/*/leads.jsonl`, `reports/`, and `outputs/`.
 
 Additional safe-apply rules:
@@ -168,20 +168,20 @@ For every active or configured client, check and update:
 - `sendboxes.json` schema fields when Stage 8/10 changed, without ever touching `credentials.json` or `token.json`.
 - the client's `integrations/providers/provider_capabilities.json`, `provider_openapi_cache.yaml`, and `provider_health.md` schema expectations when provider tooling changed.
 - `crm/` record `schema_version` through the adapter's read-time upgrade registry or `crm_store.py migrate`, never by hand.
-- `outreach-pipeline/provider_defaults.json`.
-- `outreach-pipeline/storage_config.json`.
-- `outreach-pipeline/schedule.md`.
-- `outreach-pipeline/automation/automation_manifest.md`.
-- `outreach-pipeline/automation/scheduled_run_prompt.md`.
+- `daily-content-pipeline/provider_defaults.json`.
+- `daily-content-pipeline/storage_config.json`.
+- `daily-content-pipeline/schedule.md`.
+- `daily-content-pipeline/automation/automation_manifest.md`.
+- `daily-content-pipeline/automation/scheduled_run_prompt.md`.
 - the native AI automation/scheduled task body (`{Client} - OutreachCRM Daily Run`) when the environment exposes it.
-- `outreach-pipeline/automation/update_state.json` and `update_log.md`.
-- `outreach-pipeline/automation/resync_log.md`.
+- `daily-content-pipeline/automation/update_state.json` and `update_log.md`.
+- `daily-content-pipeline/automation/resync_log.md`.
 
-**Update-watch boundary on client writes.** When the update is applied interactively (a human `update` command in a setup/maintenance chat), the agent may perform the per-client resync directly, including a `crm_store.py migrate` under a storage freeze. When the update is applied by the scheduled `OutreachCRM - GitHub Update Watch` task, that task must not write under `outreach-pipeline/clients/`: it applies only the agency-tier toolkit and `outreach-pipeline/automation/` state, records each affected client in `clients_pending_resync`, and lets a maintenance session or each client's own daily automation task self-heal its client folder on the next run.
+**Update-watch boundary on client writes.** When the update is applied interactively (a human `update` command in a setup/maintenance chat), the agent may perform the per-client resync directly, including a `crm_store.py migrate` under a storage freeze. When the update is applied by the scheduled `OutreachCRM - GitHub Update Watch` task, that task must not write under `daily-content-pipeline/clients/`: it applies only the agency-tier toolkit and `daily-content-pipeline/automation/` state, records each affected client in `clients_pending_resync`, and lets a maintenance session or each client's own daily automation task self-heal its client folder on the next run.
 
 If the agent cannot edit the native scheduled task body directly, it must:
 
-1. write the exact replacement prompt to `outreach-pipeline/automation/scheduled_run_prompt.md`;
+1. write the exact replacement prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`;
 2. mark `automation_prompt_update_pending` in `automation_manifest.md` and `schedule.md`;
 3. give the human one exact instruction to replace the native task prompt;
 4. say `Automation Resync partially complete`, not `complete`.
@@ -203,13 +203,13 @@ When tracker-worker changes are applied:
 - Give the human the one-line deploy command, run from the current setup's `tracker/` directory, not the source checkout:
 
   ```bash
-  cd "{agency_root}/outreachcrm/tracker" && npx wrangler deploy
+  cd "{repo_root}/outreach/tracker" && npx wrangler deploy
   ```
 
 - If the D1 schema changed, the human must apply migrations before or with the deploy:
 
   ```bash
-  cd "{agency_root}/outreachcrm/tracker" && npx wrangler d1 migrations apply outreachcrm_tracker --remote
+  cd "{repo_root}/outreach/tracker" && npx wrangler d1 migrations apply outreachcrm_tracker --remote
   ```
 
 - After the human deploys, verify: `GET https://trk.{domain}/events?since=0` with the `TRACKER_API_KEY` Bearer returns 200, and a fresh `/o/{token}.gif` responds. Record `tracker_worker_deploy_required: true` until this passes.
@@ -270,28 +270,28 @@ The agent should explain in plain language:
 OutreachCRM is updated often. A small daily update-watch task can check GitHub, write an internal update notice when a new version changes behavior, and, if you approve auto-apply, resync playbooks, tools, the storage adapter, the tracker worker, provider contracts, and scheduled tasks before the daily client runs.
 ```
 
-The task must load this Stage 11 playbook and run only update/version-check work. It must not sync inboxes, pull tracking, verify/enrich, draft or send email, run rules, or generate client reports. It must never write under `outreach-pipeline/clients/`.
+The task must load this Stage 11 playbook and run only update/version-check work. It must not sync inboxes, pull tracking, verify/enrich, draft or send email, run rules, or generate client reports. It must never write under `daily-content-pipeline/clients/`.
 
 Update-watch notification boundary:
 
 - Do not send Telegram for update checks or update completion.
 - Do not use WideCast `sendTelegramMessage`, the WideCast email fallback, provider notification channels, or any client notification channel for update checks.
 - Update/version-watch is internal user/agency maintenance, not client delivery.
-- Record update outcomes in `outreach-pipeline/automation/update_state.json`, `update_log.md`, and `update_notice.md`.
+- Record update outcomes in `daily-content-pipeline/automation/update_state.json`, `update_log.md`, and `update_notice.md`.
 - Surface the update result in the current setup/maintenance chat or native task output when available.
 - Only client daily/weekly report runs may use the configured report notification channel.
 
 Update-watch task algorithm:
 
 1. Load `OUTREACHCRM_PLAYBOOK.md`, Stage 7, Stage 9, and Stage 11.
-2. Read `outreach-pipeline/automation/update_state.json` when present.
+2. Read `daily-content-pipeline/automation/update_state.json` when present.
 3. Check GitHub `main` using the Fresh GitHub Checkout Protocol or a remote commit check.
 4. Compare `installed_commit` and `latest_checked_commit`.
 5. If no change, update `last_checked_at` and stop.
 6. If a new commit exists, perform the Required Diff Scope.
 7. Classify the change.
 8. Write a local/internal update notice. Do not use Telegram, the WideCast/email fallback, provider notification, or any client notification channel.
-9. If `auto_apply_approved: true`, apply the agency-tier toolkit update and resync `outreach-pipeline/automation/` state, record each affected client in `clients_pending_resync` without writing under `clients/`, and still require human tracker-deploy, storage-migration, or sendbox re-auth actions when those files changed.
+9. If `auto_apply_approved: true`, apply the agency-tier toolkit update and resync `daily-content-pipeline/automation/` state, record each affected client in `clients_pending_resync` without writing under `clients/`, and still require human tracker-deploy, storage-migration, or sendbox re-auth actions when those files changed.
 10. If `auto_apply_approved: false`, ask the human whether to apply the update.
 
 Change classification values (canonical enum — this Stage 11 list is the authority; Stage 07 aligns to exactly this set, do not diverge):
@@ -321,17 +321,17 @@ Notification content must include:
 - whether an automation/scheduled task prompt update is required
 - exact next human action
 
-Write this content to `outreach-pipeline/automation/update_notice.md` and include it in the setup/maintenance chat or native task output when that surface is available.
+Write this content to `daily-content-pipeline/automation/update_notice.md` and include it in the setup/maintenance chat or native task output when that surface is available.
 
 ## Update Logs And State
 
 Maintain:
 
 ```text
-outreach-pipeline/automation/update_log.md
-outreach-pipeline/automation/update_state.json
-outreach-pipeline/automation/update_notice.md
-outreach-pipeline/automation/backups/
+daily-content-pipeline/automation/update_log.md
+daily-content-pipeline/automation/update_state.json
+daily-content-pipeline/automation/update_notice.md
+daily-content-pipeline/automation/backups/
 ```
 
 Minimum `update_state.json` (canonical schema — this Stage 11 shape is the authority, including `sendbox_reauth_required` and `clients_pending_resync`; Stage 07 aligns to this set and must not drop these fields):
@@ -359,7 +359,7 @@ Minimum `update_state.json` (canonical schema — this Stage 11 shape is the aut
 }
 ```
 
-Set `update_watch_task_prompt_pending` to `true` when the `OutreachCRM - GitHub Update Watch` task prompt could not be created or updated natively and `outreach-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
+Set `update_watch_task_prompt_pending` to `true` when the `OutreachCRM - GitHub Update Watch` task prompt could not be created or updated natively and `daily-content-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
 
 Minimum `update_log.md` table:
 
@@ -373,7 +373,7 @@ Minimum `update_log.md` table:
 If an update produces conflicts, create:
 
 ```text
-outreach-pipeline/automation/issues/YYYY-MM-DD_update_conflict.md
+daily-content-pipeline/automation/issues/YYYY-MM-DD_update_conflict.md
 ```
 
 or an equivalent local `update_conflict` record, then track it in `update_log.md`.

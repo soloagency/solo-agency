@@ -1,6 +1,6 @@
 """JSON storage backend (default).
 
-Layout, rooted at a client dir `outreach-pipeline/clients/{slug}/`:
+Layout, rooted at a client dir `daily-content-pipeline/clients/{slug}/{business}_{location}/outreach/`:
   crm/{collection}/{id}.json        record collections: contacts, accounts, deals
   crm/activities/{YYYY-MM}/activities.jsonl   monthly append log
   crm/tasks/tasks.jsonl             append log

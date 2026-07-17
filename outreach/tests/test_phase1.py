@@ -35,7 +35,7 @@ import gmail_client  # noqa: E402
 
 def _new_client():
     tmp = tempfile.mkdtemp()
-    pipe = os.path.join(tmp, "outreach-pipeline")
+    pipe = os.path.join(tmp, "daily-content-pipeline")
     crm_store.resolve_client_dir(pipe, "max-output", None, "ai", "hcmc", create=True)
     cdir = crm_store.resolve_client_dir(pipe, "max-output", None)
     CrmStore(cdir).init_tree()

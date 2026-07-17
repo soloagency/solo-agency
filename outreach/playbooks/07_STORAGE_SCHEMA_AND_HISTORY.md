@@ -10,7 +10,7 @@ This stage is the **constitution**: it defines every on-disk structure OutreachC
 
 ## Hard Gates For This Stage
 
-- Use the dedicated data root `outreach-pipeline/`. The toolkit/source repo (`outreachcrm/`) holds no client data.
+- Use the dedicated data root `daily-content-pipeline/` (the shared Solo Agency per-client root). The toolkit/source is the `outreach/` module of the Solo Agency repo (`soloagency/outreach/`); it holds no client data.
 - Use `client_profile_{client_slug}_{business_slug}_{location_slug}.md` (the Client Intelligence Profile) as the canonical profile. Never use a vague name such as `ABC.md`.
 - **All CRM mutations go through `crm_store.py`.** Direct file writes to any `crm/` collection are a critical violation (inherited "no one-off scripts" rule). Reading raw JSON is allowed only for debugging.
 - Every record carries `schema_version`, `id`, `created_at`, `updated_at`; every append-only log row carries `ts` and a monotonic `seq`.
@@ -23,28 +23,30 @@ This file is the detailed on-disk source material. Do not summarize away require
 
 ---
 
-## 1. The On-Disk Layout (`outreach-pipeline/`)
+## 1. The On-Disk Layout (`daily-content-pipeline/`)
 
-There is one **agency root**. Inside it live two siblings: the toolkit/source repo (`outreachcrm/`, no client data) and the data root (`outreach-pipeline/`, data/config/output only). This is the complete, authoritative tree. Nothing outside it may be created without amending this stage.
+The toolkit/source is the `outreach/` module of the Solo Agency repo (`soloagency/outreach/`, no client data). Its data lives in the shared Solo Agency data root, `daily-content-pipeline/` (data/config/output only): OutreachCRM data lives in the `outreach/` subtree of the shared per-client workspace (`daily-content-pipeline/clients/{slug}/{business}_{location}/outreach/`) so it sits beside — and never collides with — Solo Agency's content data for the same client. This is the complete, authoritative tree. Nothing outside it may be created without amending this stage.
 
 ```text
-{agency_root}/
-  outreachcrm/                         # this repo (toolkit/source), no client data
-  outreach-pipeline/                   # data/config/output only
-    clients_index.md
-    schedule.md
-    storage_config.json                # {"backend":"json"}  (or postgres)
-    provider_defaults.json             # WideCast notification catalog, no secrets
-    secrets/                           # gitignored; agency-wide secrets (OAuth client, tracker key)
-    suppression/
-      global_suppression.jsonl         # agency-tier suppression (checked before every send)
-    automation/
-      automation_manifest.md  scheduled_run_prompt.md  resync_log.md  github_issues.md
-      update_state.json  update_log.md  update_notice.md  update_watch_prompt.md
-      backups/update_YYYY-MM-DD_HHMMSS/
-      issues/YYYY-MM-DD_{blocker_slug}.md
-    notifications/notification_log.md
-    clients/{client_slug}/{business_slug}_{location_slug}/
+soloagency/                          # Solo Agency monorepo (.git at this repo root)
+  outreach/                          # this module (OutreachCRM toolkit/source), no client data
+  ...                                # other Solo Agency modules (content pipeline, collector, …)
+daily-content-pipeline/              # shared Solo Agency data root — data/config/output only
+  clients_index.md
+  schedule.md
+  storage_config.json                # {"backend":"json"}  (or postgres)
+  provider_defaults.json             # WideCast notification catalog, no secrets
+  secrets/                           # gitignored; agency-wide secrets (OAuth client, tracker key)
+  suppression/
+    global_suppression.jsonl         # agency-tier suppression (checked before every send)
+  automation/
+    automation_manifest.md  scheduled_run_prompt.md  resync_log.md  github_issues.md
+    update_state.json  update_log.md  update_notice.md  update_watch_prompt.md
+    backups/update_YYYY-MM-DD_HHMMSS/
+    issues/YYYY-MM-DD_{blocker_slug}.md
+  notifications/notification_log.md
+  clients/{client_slug}/{business_slug}_{location_slug}/
+    outreach/                        # OutreachCRM's per-client subtree (sits beside content data)
       client_profile_{client_slug}_{business_slug}_{location_slug}.md
       sendboxes/
         sendboxes.json
@@ -88,7 +90,7 @@ There is one **agency root**. Inside it live two siblings: the toolkit/source re
         provider_openapi_cache.yaml  provider_calls.jsonl  provider_health.md
 ```
 
-**Client-scope is structural, not disciplinary.** The storage adapter is instantiated per client rooted at `clients/{slug}/crm/`. Agency-tier collections — `outreach-pipeline/suppression/global_suppression.jsonl`, `outreach-pipeline/secrets/`, `outreach-pipeline/provider_defaults.json`, and the tracker HMAC key — are the **only** things allowed to be global, and they are enumerated exactly here. A client rooted at `clients/A/` can never read or write `clients/B/`.
+**Client-scope is structural, not disciplinary.** The storage adapter is instantiated per client rooted at `clients/{slug}/crm/`. Agency-tier collections — `daily-content-pipeline/suppression/global_suppression.jsonl`, `daily-content-pipeline/secrets/`, `daily-content-pipeline/provider_defaults.json`, and the tracker HMAC key — are the **only** things allowed to be global, and they are enumerated exactly here. A client rooted at `clients/A/` can never read or write `clients/B/`.
 
 ### Slug rules
 
@@ -110,7 +112,7 @@ There is one **agency root**. Inside it live two siblings: the toolkit/source re
 
 ## 2. Storage Adapter (pluggable JSON → Postgres)
 
-`tools/storage/adapter.py` defines the interface; `tools/storage/json_adapter.py` is the default backend; `tools/storage/postgres_adapter.py` comes later and must pass the **same parametrized contract tests**. The backend in force is read from `outreach-pipeline/storage_config.json`.
+`tools/storage/adapter.py` defines the interface; `tools/storage/json_adapter.py` is the default backend; `tools/storage/postgres_adapter.py` comes later and must pass the **same parametrized contract tests**. The backend in force is read from `daily-content-pipeline/storage_config.json`.
 
 ### 2.1 Interface
 
@@ -342,7 +344,7 @@ Named audiences, referenced by campaign `audience.segment` and by rule `r5` (`en
 
 Suppression is checked at **every send-capable path** and at **import against ALL identities**; it is unioned on merge; pending-merge contacts are excluded from queues (DESIGN §16). There are exactly two tiers:
 
-- **Agency tier** — `outreach-pipeline/suppression/global_suppression.jsonl` (global; applies to all clients).
+- **Agency tier** — `daily-content-pipeline/suppression/global_suppression.jsonl` (global; applies to all clients).
 - **Client tier** — `crm/suppression.jsonl` (this client only).
 
 Both are append-only JSONL with a monotonic `seq`. A send is blocked if the recipient matches **either** tier. Record shape:
@@ -726,9 +728,9 @@ last_profile_change_at:
 last_profile_change_summary:
 last_resynced_at:
 last_resynced_by_agent:
-automation_manifest_file: outreach-pipeline/automation/automation_manifest.md
-scheduled_prompt_file: outreach-pipeline/automation/scheduled_run_prompt.md
-schedule_file: outreach-pipeline/schedule.md
+automation_manifest_file: daily-content-pipeline/automation/automation_manifest.md
+scheduled_prompt_file: daily-content-pipeline/automation/scheduled_run_prompt.md
+schedule_file: daily-content-pipeline/schedule.md
 native_task_name: {client_name} - OutreachCRM Daily Run
 native_task_prompt_updated: true | false | not_applicable | unknown
 dry_read_verification:
@@ -934,7 +936,7 @@ Rules:
 
 ---
 
-## 11. Root Files (`outreach-pipeline/…`)
+## 11. Root Files (`daily-content-pipeline/…`)
 
 ### 11.1 `clients_index.md`
 
@@ -1030,14 +1032,14 @@ The automation package that scheduled runs must obey. Native schedulers may snap
 - scheduler_name:
 - scheduler_location_or_url:
 - timezone:
-- schedule_file: outreach-pipeline/schedule.md
-- scheduled_prompt_file: outreach-pipeline/automation/scheduled_run_prompt.md
+- schedule_file: daily-content-pipeline/schedule.md
+- scheduled_prompt_file: daily-content-pipeline/automation/scheduled_run_prompt.md
 - scheduled_entrypoint: playbooks/SCHEDULED_RUN_ENTRYPOINT.md
 - root_playbook: OUTREACHCRM_PLAYBOOK.md
-- clients_index: outreach-pipeline/clients_index.md
-- storage_config: outreach-pipeline/storage_config.json
-- provider_defaults: outreach-pipeline/provider_defaults.json
-- global_suppression: outreach-pipeline/suppression/global_suppression.jsonl
+- clients_index: daily-content-pipeline/clients_index.md
+- storage_config: daily-content-pipeline/storage_config.json
+- provider_defaults: daily-content-pipeline/provider_defaults.json
+- global_suppression: daily-content-pipeline/suppression/global_suppression.jsonl
 - notification_channel:
 - notification_provider_status:
 - provider_capability_cache_status:
@@ -1099,7 +1101,7 @@ Tracks GitHub issues / intake submissions / drafts opened when the latest GitHub
 | 2026-07-15 | Codex | angela-do | sendbox_oauth_invalid_grant_after_fresh_check | abc123 | def456 | https://github.com/soloagency/outreach/issues/123 | opened_by_agent | 2026-07-16 | Waiting for maintainer response |
 ```
 
-Issue drafts live under `outreach-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md`. Recommended status values: `opened_by_agent`, `sent_to_intake`, `queued_for_intake`, `draft_waiting_for_support_channel`, `draft_waiting_for_human`, `answered`, `fix_applied`, `resolved`, `closed`. Every issue/draft must be redacted — no API keys, tokens, OAuth refresh tokens, `token.json` contents, recipient PII, or raw provider responses; include only safe reproduction steps, expected/actual behavior, local commit, GitHub main commit checked, runtime, blocker names, and redacted logs.
+New issues are filed against `soloagency/solo-agency` (prefix the title `outreach:` for triage); the dated row above predates the monorepo merge and is kept only as a format example. Issue drafts live under `daily-content-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md`. Recommended status values: `opened_by_agent`, `sent_to_intake`, `queued_for_intake`, `draft_waiting_for_support_channel`, `draft_waiting_for_human`, `answered`, `fix_applied`, `resolved`, `closed`. Every issue/draft must be redacted — no API keys, tokens, OAuth refresh tokens, `token.json` contents, recipient PII, or raw provider responses; include only safe reproduction steps, expected/actual behavior, local commit, GitHub main commit checked, runtime, blocker names, and redacted logs.
 
 #### `automation/update_state.json`
 
@@ -1132,7 +1134,7 @@ Tracks the installed OutreachCRM version, latest GitHub check, auto-apply prefer
 - `storage_schema_migration_required` → a bumped `schema_version` needs `crm_store.py migrate`/upgrade before runs continue.
 - `sendbox_reauth_required` → list of sendbox slugs whose token/auth compatibility changed and must be re-authenticated before they send again; Stage 11 keeps them listed until the human confirms re-auth and a clean sync.
 - `clients_pending_resync` → clients the scheduled `OutreachCRM - GitHub Update Watch` task recorded as needing resync **without** writing under `clients/`; a maintenance session or each client's own daily run self-heals them.
-- Set `update_watch_task_prompt_pending: true` when the `OutreachCRM - GitHub Update Watch` task prompt could not be created/updated natively and `outreach-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
+- Set `update_watch_task_prompt_pending: true` when the `OutreachCRM - GitHub Update Watch` task prompt could not be created/updated natively and `daily-content-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
 - The canonical `update_state.json` schema lives in Stage 11 (`11_UPDATE_AND_VERSION_WATCH.md`, "Minimum `update_state.json`"); keep this block byte-identical to it.
 - Do not store secrets, tokens, client-confidential report content, or raw provider responses here.
 
@@ -1186,7 +1188,7 @@ The exact prompt for the native maintenance task `OutreachCRM - GitHub Update Wa
 
 #### `automation/backups/`
 
-Timestamped update backups: `outreach-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/`. Used for runtime files/folders that Stage 11 replaces (backup-and-safe-apply: merge config, never overwrite secrets/history). Not a long-term archive for reports, secrets, tokens, or provider keys.
+Timestamped update backups: `daily-content-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/`. Used for runtime files/folders that Stage 11 replaces (backup-and-safe-apply: merge config, never overwrite secrets/history). Not a long-term archive for reports, secrets, tokens, or provider keys.
 
 ### 11.8 `notifications/notification_log.md`
 
@@ -1284,7 +1286,7 @@ Credential rules:
 
 ### 12.2 `provider_capabilities.json`
 
-Snapshot of discovered OpenAPI operations — the main Client-tools inventory, safe without secrets. Refresh with `python3 tools/provider_openapi.py --config <client provider_config.local.json> --defaults outreach-pipeline/provider_defaults.json discover --out-dir <client integrations/providers folder>` (`--config`/`--defaults` are global flags that must PRECEDE the `discover` subcommand). Because the role is notification-only, only the notification/upload/account operations matter.
+Snapshot of discovered OpenAPI operations — the main Client-tools inventory, safe without secrets. Refresh with `python3 tools/provider_openapi.py --config <client provider_config.local.json> --defaults daily-content-pipeline/provider_defaults.json discover --out-dir <client integrations/providers folder>` (`--config`/`--defaults` are global flags that must PRECEDE the `discover` subcommand). Because the role is notification-only, only the notification/upload/account operations matter.
 
 ```json
 {

@@ -54,7 +54,7 @@ Send/report request hard stop in Setup Flow:
 - Do not ask "Do you want me to run it now?" in Setup Flow.
 - Do not load the scheduled-run entrypoint as a workaround inside the same setup chat.
 - Do not start inbox sync, tracking pulls, enrichment for send, drafting for send, sending, or client notification inside Setup Flow.
-- If the native automation task cannot be updated by the agent, mark `automation_prompt_update_pending`, write the exact prompt/update instructions to `outreach-pipeline/automation/scheduled_run_prompt.md`, and ask the human to update/run the native task.
+- If the native automation task cannot be updated by the agent, mark `automation_prompt_update_pending`, write the exact prompt/update instructions to `daily-content-pipeline/automation/scheduled_run_prompt.md`, and ask the human to update/run the native task.
 
 Required response pattern in Setup Flow when asked to operate:
 
@@ -68,7 +68,7 @@ I will not send or run a campaign in this setup chat because Setup Flow is only 
 
 OutreachCRM must run in an AI agent runtime that supports:
 
-- local workspace file reads/writes (the entire data root `outreach-pipeline/` lives on the operator's machine);
+- local workspace file reads/writes (the entire data root `daily-content-pipeline/` lives on the operator's machine);
 - scheduled automation or native tasks (one per client, plus the update-watch task);
 - multiple parallel/sub-agent work streams for verify/enrich, drafting, inbox sync, tracking, reporting, and resync verification;
 - outbound email and inbox read for at least one sendbox (SMTP+IMAP for `app_password`, or the Gmail API for `oauth`);
@@ -134,18 +134,18 @@ The first run is just that `{Client} - OutreachCRM Daily Run` task's first execu
 
 Any post-setup change that affects what a future scheduled run should do or read triggers an Automation Resync before the change is called complete. This includes: client profile fields (offer, sending identity, voice, physical address, compliance notes), sendbox add/remove/warmup/auth-mode, imported lists and segments, campaign definitions and goals, suppression policy, schedule cadence/timezone/active-clients, provider (notification) config, tracker configuration, and update/version-watch state.
 
-Resync updates the full package, not one file: the client profile + relevant state, `outreach-pipeline/schedule.md`, `outreach-pipeline/automation/automation_manifest.md`, `outreach-pipeline/automation/scheduled_run_prompt.md` (and the native task prompt when editable), `outreach-pipeline/automation/resync_log.md`, plus provider/tracker/update files when relevant. Finish with a **dry-read verification**: read the scheduled entrypoint, manifest, schedule, profile, and provider/tracker config as tomorrow's scheduled agent would, and confirm the newest approved state is visible. If the native task body cannot be edited by the agent, write the exact replacement prompt to `scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and ask the human to update the native task.
+Resync updates the full package, not one file: the client profile + relevant state, `daily-content-pipeline/schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md` (and the native task prompt when editable), `daily-content-pipeline/automation/resync_log.md`, plus provider/tracker/update files when relevant. Finish with a **dry-read verification**: read the scheduled entrypoint, manifest, schedule, profile, and provider/tracker config as tomorrow's scheduled agent would, and confirm the newest approved state is visible. If the native task body cannot be edited by the agent, write the exact replacement prompt to `scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and ask the human to update the native task.
 
 ### 0.6 Stage 11 Update & Version Watch
 
-`update`/`upgrade`/`sync latest`/`pull latest` is an update command, not a report request: load `playbooks/11_UPDATE_AND_VERSION_WATCH.md`, do a fresh verified GitHub checkout, compare local `HEAD` against `main`, classify changes (storage adapter / `schema_version`, `crm_store.py` / `gmail_client.py` / `import_leads.py` / `email_verify.py`, `tracker/worker.js` + its `wrangler deploy` rerun, sendbox token compat), back up and safe-apply (merge config, never overwrite secrets/history/suppression), and write `outreach-pipeline/automation/update_state.json` + `update_log.md`. The daily `OutreachCRM - GitHub Update Watch` task performs this maintenance and must not send Telegram/email, provider notifications, or any client-facing message — version maintenance is internal agency work and writes nothing under `clients/`.
+`update`/`upgrade`/`sync latest`/`pull latest` is an update command, not a report request: load `playbooks/11_UPDATE_AND_VERSION_WATCH.md`, do a fresh verified GitHub checkout, compare local `HEAD` against `main`, classify changes (storage adapter / `schema_version`, `crm_store.py` / `gmail_client.py` / `import_leads.py` / `email_verify.py`, `tracker/worker.js` + its `wrangler deploy` rerun, sendbox token compat), back up and safe-apply (merge config, never overwrite secrets/history/suppression), and write `daily-content-pipeline/automation/update_state.json` + `update_log.md`. The daily `OutreachCRM - GitHub Update Watch` task performs this maintenance and must not send Telegram/email, provider notifications, or any client-facing message — version maintenance is internal agency work and writes nothing under `clients/`.
 
 ### 0.7 Fresh GitHub source + missing-playbook download
 
-For setup, repair, update, or copying playbooks into a human's install, GitHub `main` is the source of truth unless the current root is a verified fresh clone of the same repo. Clone/download from `https://github.com/soloagency/outreach` into the current root or a fresh unique `mktemp -d`; never reuse fixed shared caches; verify `.git`, `origin`, and that local `HEAD` matches `git ls-remote origin refs/heads/main` before reading/copying; treat non-`.git`, wrong-owner, or stale-timestamp folders as bad cache; never fall back to unverified local code. If the local `playbooks/` folder is missing a stage, download it from:
+For setup, repair, update, or copying playbooks into a human's install, GitHub `main` is the source of truth unless the current root is a verified fresh clone of the same repo. Clone/download from `https://github.com/soloagency/solo-agency` (the OutreachCRM module is its `outreach/` subpath) into the current root or a fresh unique `mktemp -d`; never reuse fixed shared caches; verify `.git`, `origin`, and that local `HEAD` matches `git ls-remote origin refs/heads/main` on the parent checkout (the `outreach/` module has no `.git` of its own) before reading/copying; treat non-`.git`, wrong-owner, or stale-timestamp folders as bad cache; never fall back to unverified local code. If the local `playbooks/` folder is missing a stage, download it from:
 
 ```text
-https://raw.githubusercontent.com/soloagency/outreach/main/playbooks/
+https://raw.githubusercontent.com/soloagency/solo-agency/main/outreach/playbooks/
 ```
 
 After any GitHub-raw download, verify it against `playbooks/LOAD_MANIFEST.md` via a LOAD LEDGER; a short/partial download must be re-fetched before use.
@@ -154,12 +154,12 @@ Carve-out (DESIGN §22 R1): Stages marked `status: planned` are not missing file
 
 ### 0.8 Last-resort recovery + GitHub issue escalation
 
-Because the repo changes frequently, treat any blocker, repeated failure, contradiction, tool/config mismatch, stale asset, or dead end as a possible old-playbook/code problem first: do a Fresh GitHub Source Check, record local vs `main` commits, reload the relevant latest stage, and follow it if it fixes the issue (resync afterward). If still blocked, open or draft a GitHub issue for `soloagency/outreach`:
+Because the repo changes frequently, treat any blocker, repeated failure, contradiction, tool/config mismatch, stale asset, or dead end as a possible old-playbook/code problem first: do a Fresh GitHub Source Check, record local vs `main` commits, reload the relevant latest stage, and follow it if it fixes the issue (resync afterward). If still blocked, open or draft a GitHub issue for `soloagency/solo-agency` (prefix the title `outreach:` for triage):
 
 - The human does not need a GitHub account; do not make registration the required next step.
 - Direct creation requires an authorized identity: `gh issue create` only when `gh auth status` passes and `GITHUB_TOKEN`, `GH_TOKEN`, or `OUTREACHCRM_GITHUB_ISSUE_TOKEN` is configured, or a maintainer bot/App is available. Never store this token in client config, reports, or committed files.
 - If no authorized identity but an intake channel is configured, send/queue the redacted draft there.
-- Otherwise write a ready-to-post draft under `outreach-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md` and track it in `outreach-pipeline/automation/github_issues.md`.
+- Otherwise write a ready-to-post draft under `daily-content-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md` and track it in `daily-content-pipeline/automation/github_issues.md`.
 - Include a redacted blocker fingerprint, safe repro steps, expected/actual, local commit, `main` commit checked, runtime, and redacted logs. Never include API keys, tokens, OAuth secrets, the tracker key, credentials, raw prospect PII, or client-confidential data. Reuse an existing issue when the fingerprint matches; do not duplicate.
 
 ### 0.9 Provider adapter + PDNA notification (Telegram only)
@@ -176,7 +176,7 @@ Any human-facing reply, setup handoff, blocker, notification, or next-step quest
 
 ### 0.12 Slug rules + monthly folders + deploy discipline
 
-Slugs are lowercase, hyphenated, no punctuation. History and time-partitioned data live in monthly `YYYY-MM/` folders. Internal field names and schemas are English. Deploy (`deploy-outreachcrm.sh`) auto-generates `LOAD_MANIFEST.md`, secret-scans the staged diff before commit (`refresh_token`, `client_secret`, `TRACKER_API_KEY`, `token.json`, `client_secret*.json`), and refuses to commit into the wrong git root.
+Slugs are lowercase, hyphenated, no punctuation. History and time-partitioned data live in monthly `YYYY-MM/` folders. Internal field names and schemas are English. Deploy is the root `deploy-soloagency.sh` `generate_outreach_artifacts` step (mode `--outreach-only`): it regenerates `outreach/playbooks/LOAD_MANIFEST.md`, rezips the skills, runs the module's 103-test suite as a preflight, secret-scans the staged diff before commit (`refresh_token`, `client_secret`, `TRACKER_API_KEY`, `token.json`, `client_secret*.json`), and refuses to commit into the wrong git root.
 
 ### 0.13 Canonical user-facing description
 
@@ -255,16 +255,16 @@ The storage adapter is instantiated per client, rooted at `clients/{client_slug}
 
 Enumerated explicitly — nothing else may be global:
 
-- `outreach-pipeline/suppression/global_suppression.jsonl` — agency-tier suppression, checked before every send in every client.
-- `outreach-pipeline/secrets/` — gitignored agency-wide secrets (OAuth client, tracker key).
-- `outreach-pipeline/provider_defaults.json` — WideCast notification catalog, no secrets.
+- `daily-content-pipeline/suppression/global_suppression.jsonl` — agency-tier suppression, checked before every send in every client.
+- `daily-content-pipeline/secrets/` — gitignored agency-wide secrets (OAuth client, tracker key).
+- `daily-content-pipeline/provider_defaults.json` — WideCast notification catalog, no secrets.
 - The tracker key used to sign/verify tracking tokens.
 
 Everything else is per-client. Global suppression is checked in addition to (never instead of) the client's own `crm/suppression.jsonl`.
 
 ### 2.4 On-disk shape (reference)
 
-The data root is `outreach-pipeline/` (the repo itself holds no client data). Per client: `client_profile_*.md`, `sendboxes/`, `lists/`, `crm/` (accounts, contacts, `contact_identities.jsonl`, deals, monthly `activities/`, tasks, `pipelines.json`, `segments.json`, `suppression.jsonl`), `campaigns/{slug}/` (config, enrich queue, `outbox/pending_approval` → `outbox/approved`, monthly `sent/`, history), `assets/`, `approvals/`, `analytics/`, `inbox_sync/`, `reports/`, `outputs/YYYY-MM/YYYY-MM-DD/` (approval report, Today View, daily ops, `INTERNAL_REPORT`, and the Monday weekly client report + PDF), and `integrations/providers/`. Full schema lives in Stage 7; do not re-derive it here.
+The data root is `daily-content-pipeline/` (the repo itself holds no client data). Per client: `client_profile_*.md`, `sendboxes/`, `lists/`, `crm/` (accounts, contacts, `contact_identities.jsonl`, deals, monthly `activities/`, tasks, `pipelines.json`, `segments.json`, `suppression.jsonl`), `campaigns/{slug}/` (config, enrich queue, `outbox/pending_approval` → `outbox/approved`, monthly `sent/`, history), `assets/`, `approvals/`, `analytics/`, `inbox_sync/`, `reports/`, `outputs/YYYY-MM/YYYY-MM-DD/` (approval report, Today View, daily ops, `INTERNAL_REPORT`, and the Monday weekly client report + PDF), and `integrations/providers/`. Full schema lives in Stage 7; do not re-derive it here.
 
 ---
 
@@ -363,7 +363,7 @@ Load Stage 15 (`15_CRM_REPORTING.md`) for reporting and Stage 7 (`07_STORAGE_SCH
 
 - **Two-lane, weekly-only client output.** Operator outputs (approval report, Today View, daily ops, `INTERNAL_REPORT`) are full-detail and never shared. The **weekly** CRM report (Mondays) is the only client-facing output and passes through the Client-Blind Scrub Gate before it is rendered (HTML + PDF) by `tools/report_renderer.py`. Reports label opens "estimated" and report the guessed cohort's bounce rate separately.
 - **Storage discipline.** All CRM mutations go through `crm_store.py` (§1). Records are one-file-per-record JSON (logs are monthly JSONL with a monotonic `seq`), atomic via temp+rename, per-collection lock. The adapter is pluggable (JSON default → Postgres later, same contract tests); identity lookups use `find_by_identity` over the unique reverse index (`contact_identities`), not the flat-field query DSL.
-- **Notify.** After the run, notify the operator via WideCast `sendTelegramMessage` (email fallback): counts + the report link → `outreach-pipeline/notifications/notification_log.md`. A report-ready notification without the link is invalid.
+- **Notify.** After the run, notify the operator via WideCast `sendTelegramMessage` (email fallback): counts + the report link → `daily-content-pipeline/notifications/notification_log.md`. A report-ready notification without the link is invalid.
 
 ### Daily Run order (reference; per client, pins `target_client_slug`)
 
