@@ -32,6 +32,15 @@ backups/
 provider_config.local.json
 **/provider_config.local.json
 
+# Session/backup copies anywhere (git history is the backup)
+*_20[2-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]-[0-9][0-9]-[0-9][0-9].*
+*.bak
+
+# Internal working docs — never ship to the public product repo
+AUDIT_FINDINGS_*.md
+*_HARDENING_PLAN.md
+PROPOSED_ADDITIONS_*.md
+
 # Keep committed zip artifacts.
 !playbooks/skills/*.zip
 !solo-agency-collector/dist/*.zip

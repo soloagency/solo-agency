@@ -6,11 +6,7 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 | module | lines | sha256 | last_line |
 |---|---|---|---|
 | SKILL.md | 105 | 1bde8069cf55b15291600864cd3f2bcaaa27f3686df2f894727e4a44009b7c05 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| SKILL_2026-07-17_08-54-22.md | 102 | f8f153070b6e714b3b80d6ec5265dd1d50f417e86c202d0298b13b5d27482e85 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | channels.md | 70 | 0f5277b2778d80110ed1e5b7ab0b621efb667f72341fa424ec1188b99c270c5a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| channels_2026-07-17_08-54-22.md | 68 | 0ab3473094a64c2e5e088a4244cd01b25311e173366adba016d09645129d5877 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | followup.md | 158 | 7126c146b4d5dc6f98b0595f63c30a98ac9114131c6f6eb83cddf044e0fda67f | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| followup_2026-07-17_12-08-48.md | 32 | 8e092b61fc89e98b03a4d10ea0401d1ffd4f5e01fe55f11c22ee8145536e7b1b | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | structures.md | 37 | be76077722951ea71d472a0d4e2c1e17acada653fb086e85cf6fd1c612c58cc2 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | weave.md | 280 | a0bf76a6a94993e15ee131d1b4361c1dda29f9a6c18e9ad0bc65ada5381f18b2 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| weave_2026-07-17_08-54-22.md | 233 | 57117a7ae244dc6e8ae42fb36e0161044a1eb3e6c85f5dd5923974a15513b9cf | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
