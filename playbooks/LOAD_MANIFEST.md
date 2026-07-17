@@ -26,7 +26,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/TODO.md | 207 | e7e62cfff6a719cadf5d9e87ec59097f0ad489753a49c26581ac6c49e2ba9316 | - Does it pass Stage 9 self-audit before claiming completion? |
 | playbooks/skills/blog-writing/LOAD_MANIFEST.md | 8 | 6253f6b6c0903a2ca96c27fe0f8f8c6373dc675c37900485fa0a488fce89cc9d | \| SKILL.md \| 166 \| 00643a1ca8fe4f78575974baf46b504012accba8dd9cba16d2fc86983c51a27f \| user is technical and asks. \| |
 | playbooks/skills/blog-writing/SKILL.md | 166 | 00643a1ca8fe4f78575974baf46b504012accba8dd9cba16d2fc86983c51a27f | user is technical and asks. |
-| playbooks/skills/lead-engine/LOAD_MANIFEST.md | 9 | 53f46dbe1856e1af9e8d299dda94d1ae3c907c4a289f13a596ffb828bafa6df5 | \| safety.md \| 82 \| 055aba4e55999fbd4677ed446df4359f233c94e3a8558139acba4872534e2d56 \| ``` \| |
+| playbooks/skills/lead-engine/LOAD_MANIFEST.md | 10 | 0e7ed12506624ba015402c20f4686ff38cacea20d89d4ecbedcbeead6c87c33e | \| safety.md \| 82 \| 055aba4e55999fbd4677ed446df4359f233c94e3a8558139acba4872534e2d56 \| ``` \| |
 | playbooks/skills/lead-engine/SKILL.md | 119 | 0e00bde10eef9e5cb5f76f30b3aebda4d251a4c43a8003f4cdcbf35a579bf5c1 |   (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) — authoritative, do not duplicate. |
 | playbooks/skills/lead-engine/recipes.md | 84 | e9b62cdaf9d52c04fe956cb22a2bf377be622fe851d514f875267c7661ec542e | creator name/url as the reliable signal. |
 | playbooks/skills/lead-engine/safety.md | 82 | 055aba4e55999fbd4677ed446df4359f233c94e3a8558139acba4872534e2d56 | ``` |
