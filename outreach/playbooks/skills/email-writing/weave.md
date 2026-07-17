@@ -30,6 +30,30 @@ is a **beat in the arc**, never a readout. The count is fine; the *purpose* of e
 
 ---
 
+## HOUSE STYLE: never use an em dash (—)
+
+**Hard rule: no `—` anywhere in a message you write.** The em dash now reads as a strong "a machine
+wrote this" tell, and a cold message that trips it loses trust in the first line. It is banned in
+every draft, every channel, every language, RICH to THIN.
+
+Where the reflex reaches for a `—`, use one of these instead (usually the sentence gets stronger):
+- a **comma** for a light aside: "the number that matters is not the 715 followers, it is the
+  6,376-view Reel";
+- a **colon** when the second half explains the first: "the gap is narrow: the engine still runs on you";
+- a **full stop** to split into two sentences (most often the best fix);
+- **parentheses** for a true aside;
+- for a range write "to" ($125K to $1.1M), never a dash.
+
+Hyphens stay: compound modifiers and number-noun phrases are fine (30-day plan, first-time buyer,
+workers'-comp, 5-minute record). This rule bans the em dash `—` (and a spaced en dash ` – ` used the
+same way), not the hyphen.
+
+Every gold example body below already obeys this: each uses commas, colons, and periods exactly where
+a lazier draft would splash em dashes. Match the example bodies, not the annotation labels (the
+bracketed `[...]` notes are editorial and never ship).
+
+---
+
 ## FACTS vs CONCLUSIONS (keeps the no-fabrication gate intact)
 
 A **fact** must trace to a dossier hook with an `evidence_url` — it is what you literally observed
@@ -37,6 +61,24 @@ A **fact** must trace to a dossier hook with an `evidence_url` — it is what yo
 ("people are already passing your version along") — stated as inference, never invented as a new
 fact. You may reason freely from evidenced facts; you may never manufacture a fact. The evidence
 gate is unchanged: only `contact.enrichment.hooks` facts may appear, passed as `hooks_used`.
+
+---
+
+## Two sources: the lead's data + the campaign's message bank
+
+Every email weaves TWO kinds of material:
+- **The lead's DATA** (Layer-B hooks, evidenced) — the personal, this-person-only signal that makes
+  the email feel written for them.
+- **The campaign's MESSAGE BANK** (`goal.message_bank`, see `05_CAMPAIGN_MANAGEMENT.md` §1c) — the
+  operator's key messages (USPs, benefits, lessons, values), the same reservoir every lead's sequence
+  draws from. It carries what you actually want to say.
+
+Each email mixes **one data point × 1–2 bank messages**, and each still earns a conclusion (Pillar 1).
+Pull only 1–2 bank messages per email and rotate them across the sequence (`followup.md`) so touches
+do not repeat a color. Never recite the whole bank in one email — that is the "kể lể" failure the cut
+rule exists to prevent. Treat the bank as a menu, not a checklist: **skip any message the lead's own
+data contradicts** (a "camera-shy / teleprompter" message is dead for a heavily-on-camera lead), and
+never force a message in just to use it.
 
 ---
 
@@ -71,6 +113,9 @@ The proven arc, in order. Every beat is optional-by-data (see the 3 modes) but t
 1. **Observation** — open on the *load-bearing* signal, reframed. Demote the vanity metric out
    loud when it helps ("the thing that jumped out is not the 710 followers — it is the Reels with
    77K views"). Lead with the asset or the buried asset, never the follower count for its own sake.
+   Lead with the ONE load-bearing signal and **reserve the secondary evidenced signals for the
+   follow-up bumps** (`followup.md`) instead of enumerating them all here; a step-1 that lists every
+   number leaves the bumps nothing fresh to open with.
 2. **Conclusion** — turn that observation into an implication (Pillar 1) so it means something.
 3. **Reframe into the latent gap (Layer C, derived HERE)** — the tension. The good-but-scattered
    present state becomes a named, resolvable gap: "individual moments, not a system." Layer C is not
@@ -229,5 +274,7 @@ and the ROI unit come from the dossier.
 - Does the mode (RICH/MEDIUM/THIN) match the dossier's Layer-B count — not a habit of length?
 - Would a busy peer read this as a colleague's courtesy, or as a scrape? (Anti-creepy stance.)
 - Every referenced fact is in `hooks_used` with an `evidence_url`; nothing in `do_not_mention`.
+- **No em dash (`—`) anywhere** (House Style). Scan the finished draft; replace each `—` with a
+  comma, colon, period, or parentheses (ranges use "to"). Hyphens in compounds are fine.
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.

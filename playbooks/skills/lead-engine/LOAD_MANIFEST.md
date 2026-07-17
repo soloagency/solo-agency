@@ -1,0 +1,9 @@
+# LOAD_MANIFEST — full-load reference (canary) for this skill
+
+Auto-generated on deploy. After loading any module below, its actual LINE COUNT must match its row here. A shortfall = truncated = NOT loaded; re-read to EOF before acting. last_line + sha256 are OPTIONAL deeper checks.
+
+| module | lines | sha256 | last_line |
+|---|---|---|---|
+| SKILL.md | 119 | 0e00bde10eef9e5cb5f76f30b3aebda4d251a4c43a8003f4cdcbf35a579bf5c1 |   (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) — authoritative, do not duplicate. |
+| recipes.md | 84 | e9b62cdaf9d52c04fe956cb22a2bf377be622fe851d514f875267c7661ec542e | creator name/url as the reliable signal. |
+| safety.md | 82 | 055aba4e55999fbd4677ed446df4359f233c94e3a8558139acba4872534e2d56 | ``` |

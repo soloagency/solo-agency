@@ -922,6 +922,62 @@
     return out;
   }
 
+  // fb.profile.videos — a page's Videos tab (PagesCometChannelTabAllVideosCard…
+  // PaginationQuery). Per video: title, VIEW count (play_count), reactions,
+  // caption, url. This is the "your video X with 77K views / 52 shares" data the
+  // outreach emails open with. Paginated (data.node.all_videos.page_info).
+  function extractProfileVideos(caps, opts) {
+    opts = opts || {};
+    var items = [], seen = {}, sourceQuery = "", firstNode = null;
+    for (var c = 0; c < caps.length; c++) {
+      var cap = caps[c];
+      if (!cap) continue;
+      if (String(cap.queryName || "").indexOf("AllVideos") === -1) continue;
+      var chunks = Array.isArray(cap.response) ? cap.response : (cap.response ? [cap.response] : []);
+      for (var k = 0; k < chunks.length; k++) {
+        var edges = getPath(chunks[k], "data.node.all_videos.edges");
+        if (!Array.isArray(edges)) continue;
+        sourceQuery = cap.queryName || sourceQuery;
+        for (var i = 0; i < edges.length; i++) {
+          var v = getPath(edges[i], "node.channel_tab_thumbnail_renderer.video");
+          if (!isObj(v)) continue;
+          var id = v.id ? String(v.id) : "";
+          if (!id) continue;
+          if (seen[id]) continue;
+          seen[id] = 1;
+          if (!firstNode) firstNode = v;
+          var vcaption = (deepText(v.creation_story, 0) || "").slice(0, 1000);
+          var title = firstString(v, { savable_title: 1 }) || "";
+          if (!title) {
+            var vt = deepFind(v, { video_title: 1 }, function (x) { return (typeof x === "string" && x.trim()) || (isObj(x) && typeof x.text === "string"); }, 0, 12);
+            if (typeof vt === "string") title = vt; else if (isObj(vt)) title = vt.text;
+          }
+          if (!title) title = vcaption.slice(0, 120);
+          var views = coerceCount(v.play_count);
+          if (views === null) views = coerceCount(v.post_play_count);
+          var fb = isObj(v.feedback) ? v.feedback : null;
+          var reactions = fb ? coerceCount(fb.reaction_count) : null;
+          if (reactions === null && fb) reactions = coerceCount(fb.i18n_reaction_count);
+          var shares = coerceCount(deepFind(v, { share_count: 1, i18n_share_count: 1, reshare_count: 1 }, function (x) { return coerceCount(x) !== null; }, 0, 12));
+          var acts = getPath(v, "creation_story.actors");
+          items.push({
+            id: id,
+            title: title ? String(title).slice(0, 300) : "",
+            views: views,
+            reactions: reactions,
+            shares: shares,
+            caption: vcaption,
+            url: (typeof v.permalink_url === "string" && v.permalink_url) ? v.permalink_url : ("https://www.facebook.com/watch/?v=" + id),
+            actor: actorRef(Array.isArray(acts) ? acts[0] : (isObj(v.owner) ? v.owner : null))
+          });
+        }
+      }
+    }
+    var result = { capability: "fb.profile.videos", schema: "VideoRecord[]", source_query: sourceQuery, count: items.length, items: items };
+    if (opts.debug && firstNode) { try { result._debug_node_skeleton = skeletonize(firstNode, 0, { n: 1200 }, 16); } catch (e) { /* ignore */ } }
+    return result;
+  }
+
   var CAPABILITY_EXTRACTORS = {
     "fb.group.posts": extractGroupPosts,
     "fb.group.search_posts": extractGroupSearchPosts,
@@ -929,6 +985,7 @@
     "fb.groups.search": extractGroupsSearch,
     "fb.people.search": extractPeopleSearch,
     "fb.profile.posts": extractProfileTimeline,
+    "fb.profile.videos": extractProfileVideos,
     "fb.newsfeed": extractNewsfeed,
     "_discover.deep": discoverDeep
   };
@@ -972,6 +1029,7 @@
     "fb.groups.search":      { scope: "SearchComet",        pageInfoPath: "data.serpResponse.results.page_info" },
     "fb.people.search":      { scope: "SearchComet",        pageInfoPath: "data.serpResponse.results.page_info" },
     "fb.profile.posts":      { scope: "ProfileCometTimeline", pageInfoPath: "data.node.timeline_list_feed_units.page_info" },
+    "fb.profile.videos":     { scope: "AllVideos",           pageInfoPath: "data.node.all_videos.page_info" },
     "fb.profile.friends":    { scope: "Friends",            pageInfoPath: "data.node.pageItems.page_info" },
     "fb.newsfeed":           { scope: "CometNewsFeed",       pageInfoPath: "data.viewer.news_feed.page_info" }
   };
@@ -1072,9 +1130,68 @@
     if (!id && !creator) return null;
     return { reel_id: id, reel_url: id ? absUrl("/reel/" + id) : location.href, creator: creator, caption: caption, hashtags: tags.slice(0, 30) };
   }
+  // A profile REELS TAB (/…/reels/) renders a thumbnail GRID, not the immersive
+  // one-reel player — each card is an <a href*="/reel/<id>"> with a view-count
+  // overlay. currentReel() only works inside /reel/<id>, so on the grid it found
+  // nothing (id from the URL was empty). Grid mode scrapes the cards directly.
+  function reelIdFromHref(href) { var m = String(href || "").match(/\/reel\/(\d+)/); return m ? m[1] : ""; }
+  function gridReels() {
+    var out = [], seen = {};
+    var links = document.querySelectorAll('a[href*="/reel/"]');
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      var id = reelIdFromHref(a.getAttribute("href") || a.href || "");
+      if (!id || seen[id]) continue;
+      seen[id] = 1;
+      var txt = (a.innerText || "").replace(/\s+/g, " ").trim();
+      // view overlay: a short count token like "1.2M" / "45K" / "1,234" on the card
+      var vm = txt.match(/(\d[\d.,]*\s*[KMB])\b/i) || txt.match(/(\d[\d.,]{2,})/);
+      // the grid card usually shows ONLY the view count — strip it so caption is
+      // the real text if any, else empty (captions live in the player/GraphQL).
+      var capText = vm ? txt.replace(vm[1], "").replace(/\s+/g, " ").trim() : txt;
+      out.push({
+        reel_id: id, reel_url: absUrl("/reel/" + id),
+        views: vm ? parseCount(vm[1]) : null, view_text: vm ? vm[1].replace(/\s+/g, "") : "",
+        caption: capText.slice(0, 200), creator: null, hashtags: []
+      });
+    }
+    return out;
+  }
+  function reelsGridDebug() {
+    var links = document.querySelectorAll('a[href*="/reel/"]'), samples = [];
+    for (var i = 0; i < links.length && samples.length < 6; i++) {
+      samples.push({ href: (links[i].getAttribute("href") || "").slice(0, 70), text: (links[i].innerText || "").replace(/\s+/g, " ").trim().slice(0, 90) });
+    }
+    var gqlNames = [];
+    try {
+      var caps = (window.__soloGql && window.__soloGql.captures) || [];
+      for (var c = Math.max(0, caps.length - 25); c < caps.length; c++) { if (caps[c] && caps[c].queryName) gqlNames.push(caps[c].queryName); }
+    } catch (e) { /* ignore */ }
+    return { mode: "grid", url: location.href, reel_links: links.length, samples: samples, gql_recent: gqlNames };
+  }
   function reelsCollect(inputs) {
     inputs = inputs || {};
-    var maxSteps = Math.max(1, Math.min(80, inputs.max_reels || 20));
+    var maxSteps = Math.max(1, Math.min(80, inputs.max_reels || inputs.max_pages || 20));
+
+    // GRID MODE — a reels tab / any page that is not a single /reel/<id> player.
+    if (!/\/reel\/\d+/.test(location.pathname)) {
+      var grec = [], gseen = {}, gstep = 0, dry = 0;
+      function harvest() { var g = gridReels(); for (var i = 0; i < g.length; i++) { if (!gseen[g[i].reel_id]) { gseen[g[i].reel_id] = 1; grec.push(g[i]); } } }
+      harvest();
+      function gloop() {
+        if (gstep >= maxSteps || dry >= 2) return Promise.resolve();
+        gstep++;
+        try { window.scrollBy(0, Math.round((window.innerHeight || 800) * 0.9)); } catch (e) { /* ignore */ }
+        return wait(850).then(function () { var before = grec.length; harvest(); dry = (grec.length === before) ? dry + 1 : 0; return gloop(); });
+      }
+      return gloop().then(function () {
+        var out = { capability: "fb.reels.feed", schema: "ReelRecord[]", available: true, count: grec.length, items: grec, steps: gstep, mode: "grid" };
+        if (inputs.debug) out._debug = reelsGridDebug();
+        return out;
+      });
+    }
+
+    // PLAYER MODE — the immersive /reel/<id> viewer; advance and scrape each reel.
     var records = [], seen = {}, dbg = [];
     function scan() {
       var reel = currentReel();
@@ -1093,7 +1210,7 @@
       return wait(900).then(function () { scan(); return loop(); });
     }
     return loop().then(function () {
-      var out = { capability: "fb.reels.feed", schema: "ReelRecord[]", available: true, count: records.length, items: records, steps: step };
+      var out = { capability: "fb.reels.feed", schema: "ReelRecord[]", available: true, count: records.length, items: records, steps: step, mode: "player" };
       if (inputs.debug) out._debug = { reels_tab_links: document.querySelectorAll('a[href*="reels_tab"]').length, hashtag_links: document.querySelectorAll('a[href*="/hashtag/"]').length, samples: dbg };
       return out;
     });
@@ -1108,7 +1225,10 @@
     inputs = inputs || {};
     var includeAds = !!inputs.include_ads;
     function clean(e) { return e ? (e.innerText || "").replace(/\s+/g, " ").trim() : ""; }
-    function scrape() {
+    function hostOf(u) { var m = String(u).match(/^https?:\/\/([^\/]+)/); return m ? m[1] : ""; }
+
+    // DuckDuckGo HTML (html.duckduckgo.com/html/) — clean, low bot-detection.
+    function scrapeDDG() {
       var results = document.querySelectorAll(".result, .web-result");
       var items = [], seen = {};
       for (var i = 0; i < results.length; i++) {
@@ -1123,30 +1243,187 @@
         var title = clean(a);
         if (!title && !real) continue;
         var key = (isAd ? "" : real) || title;
-        if (seen[key]) continue;
-        seen[key] = 1;
-        items.push({
-          title: title.slice(0, 300),
-          url: (isAd ? "" : String(real)).slice(0, 600),
-          display_url: clean(r.querySelector(".result__url")).slice(0, 300),
-          snippet: clean(r.querySelector(".result__snippet")).slice(0, 500),
-          is_ad: isAd
-        });
+        if (seen[key]) continue; seen[key] = 1;
+        items.push({ title: title.slice(0, 300), url: (isAd ? "" : String(real)).slice(0, 600), display_url: clean(r.querySelector(".result__url")).slice(0, 300), snippet: clean(r.querySelector(".result__snippet")).slice(0, 500), is_ad: isAd });
       }
       return items;
     }
-    function pack(items) {
+
+    // Google — an organic result is an external <a href> wrapping an <h3>. Keys
+    // off that semantic structure (not Google's churning class names) and skips
+    // google/gstatic/ad/redirect links. Richer results, but higher CAPTCHA risk
+    // at volume — best for targeted enrichment, not bulk.
+    function scrapeGoogle() {
+      var anchors = document.querySelectorAll('a[href^="http"]');
+      var items = [], seen = {};
+      for (var i = 0; i < anchors.length; i++) {
+        var a = anchors[i], href = a.getAttribute("href") || "";
+        if (/(^|\.)(google|gstatic|googleadservices|googlesyndication)\.|\/aclk|\/url\?|youtube\.com\/results|webcache\./.test(href)) continue;
+        var h3 = a.querySelector("h3");
+        if (!h3) continue;
+        if (seen[href]) continue; seen[href] = 1;
+        var title = clean(h3);
+        if (!title) continue;
+        var c = a;
+        for (var up = 0; up < 4 && c.parentElement; up++) c = c.parentElement;
+        var snip = clean(c).replace(title, "").replace(/https?:\/\/\S+/g, "").replace(/\s+/g, " ").trim().slice(0, 400);
+        items.push({ title: title.slice(0, 300), url: href.slice(0, 600), display_url: hostOf(href), snippet: snip, is_ad: false });
+      }
+      return items;
+    }
+
+    // Bing — organic results in li.b_algo.
+    function scrapeBing() {
+      var results = document.querySelectorAll("li.b_algo");
+      var items = [], seen = {};
+      for (var i = 0; i < results.length; i++) {
+        var r = results[i], a = r.querySelector("h2 a") || r.querySelector("a[href^='http']");
+        if (!a) continue;
+        var href = a.getAttribute("href") || "";
+        if (!/^https?:/.test(href) || /bing\.com\/aclick/.test(href)) continue;
+        if (seen[href]) continue; seen[href] = 1;
+        items.push({ title: clean(r.querySelector("h2")).slice(0, 300), url: href.slice(0, 600), display_url: hostOf(href), snippet: clean(r.querySelector(".b_caption p") || r.querySelector("p")).slice(0, 500), is_ad: false });
+      }
+      return items;
+    }
+
+    // Route by the SERP host so the agent just submits the engine's search URL.
+    function scrape() {
+      var host = location.hostname || "";
+      if (/duckduckgo\./.test(host)) return { engine: "duckduckgo", items: scrapeDDG() };
+      if (/(^|\.)google\./.test(host)) return { engine: "google", items: scrapeGoogle() };
+      if (/bing\./.test(host)) return { engine: "bing", items: scrapeBing() };
+      var d = scrapeDDG(); if (d.length) return { engine: "duckduckgo", items: d };
+      return { engine: "google", items: scrapeGoogle() };
+    }
+    function pack(res) {
       var q = "";
       try { q = new URLSearchParams(location.search).get("q") || ""; } catch (e) { /* ignore */ }
-      return { capability: "web.search", schema: "WebResult[]", provider: "duckduckgo-html", query: q, available: items.length > 0, count: items.length, items: items };
+      return { capability: "web.search", schema: "WebResult[]", provider: res.engine, query: q, available: res.items.length > 0, count: res.items.length, items: res.items };
     }
     var first = scrape();
-    if (first.length) return Promise.resolve(pack(first));
+    if (first.items.length) return Promise.resolve(pack(first));
     // SERP may render a touch late — one short retry.
     return wait(1200).then(function () { return pack(scrape()); });
   }
 
-  var DOM_CAPABILITIES = { "fb.reels.feed": reelsCollect, "web.search": webSearch };
+  // "10K" / "1.2M" / "710" -> integer.
+  function parseCount(s) {
+    if (!s) return null;
+    var m = String(s).replace(/,/g, "").match(/([\d.]+)\s*([KMB])?/i);
+    if (!m) return null;
+    var n = parseFloat(m[1]);
+    var u = (m[2] || "").toUpperCase();
+    if (u === "K") n *= 1e3; else if (u === "M") n *= 1e6; else if (u === "B") n *= 1e9;
+    return Math.round(n);
+  }
+  // fb.profile.header — DOM/SSR scrape of a profile/page header: follower count,
+  // verified badge, category, external website, CTA buttons, and whether the
+  // profile has Reels/Videos tabs. These are server-rendered (no clean GraphQL,
+  // like About), so we read text + links — robust to Facebook's class churn.
+  // Returns ONE record: the profile header. (This is the top opener of ~every
+  // hand-written outreach email: "your page has N followers, a verified badge…")
+  function profileHeader(inputs) {
+    inputs = inputs || {};
+    // Defense-in-depth: if the tab landed on the operator's OWN profile (bare
+    // profile.php with no id, or /me), do NOT return self as if it were the lead.
+    try {
+      var _p = location.pathname.replace(/\/+$/, "").toLowerCase();
+      if ((_p === "/profile.php" && !new URLSearchParams(location.search).get("id")) || _p === "/me") {
+        return { capability: "fb.profile.header", available: false, count: 0, items: [], error: "resolved to the logged-in operator (ambiguous URL); need profile.php?id=<id> or a vanity URL", _debug: { href: location.href } };
+      }
+    } catch (e) { /* ignore */ }
+    var body = (document.body ? document.body.innerText : "").replace(/ /g, " ");
+    var html = document.body ? document.body.innerHTML : "";
+    var flat = body.replace(/\s+/g, " ");
+    function m1(re) { var m = flat.match(re); return m ? m[1] : null; }
+
+    var followersRaw = m1(/([\d.,]+\s*[KMB]?)\s*followers/i);
+    var likesRaw = m1(/([\d.,]+\s*[KMB]?)\s*likes/i);
+    // name: a level-1 heading in the profile that is not Facebook chrome (the
+    // logged-in tab title is just "(N) Facebook"; og:title is often generic).
+    var GENERIC = /^(Notifications|Facebook|Menu|Search|Marketplace|Home|Watch|Groups|Gaming|Messenger|Reels|Videos|Photos|About|Profile|Friends|Create|Feed|Pages)$/i;
+    var name = "";
+    var heads = document.querySelectorAll('h1, [role="heading"][aria-level="1"]');
+    for (var hi = 0; hi < heads.length; hi++) {
+      var ht = (heads[hi].innerText || "").replace(/\s+/g, " ").trim();
+      if (ht.length >= 2 && ht.length <= 70 && !GENERIC.test(ht)) { name = ht; break; }
+    }
+    if (!name) { var og = document.querySelector('meta[property="og:title"]'); if (og) { var ogt = String(og.getAttribute("content") || "").trim(); if (ogt && !GENERIC.test(ogt)) name = ogt; } }
+    // the display name is often only in the self-link (an <a> back to the profile slug).
+    if (!name) {
+      var slug = (location.pathname.split("/").filter(Boolean)[0] || "");
+      if (slug && slug !== "profile.php") {
+        var pls = document.querySelectorAll('a[href^="/' + slug + '"], a[href*="facebook.com/' + slug + '"]');
+        for (var pi = 0; pi < pls.length; pi++) {
+          var pt = (pls[pi].innerText || "").replace(/\s+/g, " ").trim();
+          if (pt.length >= 2 && pt.length <= 70 && !GENERIC.test(pt) && !/^\d/.test(pt) && !/^https?:/i.test(pt)) { name = pt; break; }
+        }
+      }
+    }
+    var titleName = (document.title || "").replace(/^\(\d+\)\s*/, "").replace(/\s*[|·].*$/, "").trim();
+    if (!name && titleName && !GENERIC.test(titleName)) name = titleName;
+    if (GENERIC.test(name)) name = ""; // never ship "Facebook"/"Notifications" as a name
+    var verified = /verified account/i.test(html) || /aria-label="[^"]*[Vv]erified/.test(html);
+
+    // website: Facebook wraps a profile's declared site in l.php?u=<enc>. Decode
+    // those, skip maps/embeds, and prefer the link whose VISIBLE TEXT is a bare
+    // domain (that is the profile's own website, not an embedded map/share link).
+    var website = "", fallbackExt = "";
+    var links = document.querySelectorAll('a[href^="http"]');
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i], h = a.getAttribute("href") || "";
+      var atext = (a.innerText || "").replace(/\s+/g, " ").trim();
+      if (/\/l\.php\?|l\.facebook\.com\/l\.php/.test(h)) {
+        var um = h.match(/[?&]u=([^&]+)/);
+        if (um) {
+          try {
+            var real = decodeURIComponent(um[1]).split("?")[0];
+            if (real && !/facebook\.com|instagram\.com|threads\.net|messenger\.com|\bmaps\.|\/maps|bing\.com|google\.[a-z.]+\/maps/.test(real)) {
+              if (/^[\w-]+(\.[\w-]+)+\/?$/.test(atext.replace(/^https?:\/\//, ""))) { website = real; break; } // anchor text is a domain
+              if (!fallbackExt) fallbackExt = real;
+            }
+          } catch (e) { /* skip */ }
+        }
+        continue;
+      }
+      if (/facebook\.com|fbcdn|fb\.com|messenger\.com|instagram\.com|threads\.net|bing\.com|\/maps/.test(h)) continue;
+      if (!fallbackExt) fallbackExt = h.split("?")[0];
+    }
+    if (!website) website = fallbackExt;
+
+    var hasReels = /\/reels(\/|\?|")/i.test(html) || />Reels</.test(html);
+    var hasVideos = /\/videos(\/|\?|")/i.test(html) || />Videos</.test(html);
+
+    var cta = [], seenC = {};
+    var btns = document.querySelectorAll('[role="button"], a[role="button"]');
+    for (var b = 0; b < btns.length && cta.length < 5; b++) {
+      var t = (btns[b].innerText || btns[b].getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+      if (/^(Book Now|Send Message|Message|Call Now|Contact|Contact Us|Learn More|Sign Up|Shop Now|Get Quote|View Shop|WhatsApp)$/i.test(t) && !seenC[t.toLowerCase()]) { seenC[t.toLowerCase()] = 1; cta.push(t); }
+    }
+
+    var category = m1(/\b(Real Estate Agent|Realtor|Real Estate Company|Real Estate Service|Estate Agent|Mortgage Broker|Loan Officer|Insurance Agent|Insurance Broker|Real Estate)\b/i) || "";
+
+    var header = {
+      name: name,
+      url: (location.href || "").split("?")[0],
+      follower_count: parseCount(followersRaw),
+      follower_text: followersRaw ? followersRaw.replace(/\s+/g, "") : "",
+      like_count: parseCount(likesRaw),
+      verified: !!verified,
+      category: category,
+      website: website,
+      cta: cta,
+      has_reels_tab: !!hasReels,
+      has_videos_tab: !!hasVideos
+    };
+    var ok = !!(header.name || header.follower_count);
+    var out = { capability: "fb.profile.header", schema: "ProfileHeader", available: ok, count: ok ? 1 : 0, items: [header] };
+    if (inputs.debug) out._debug = { body_len: body.length, followersRaw: followersRaw, likesRaw: likesRaw, external_link_count: links.length };
+    return Promise.resolve(out);
+  }
+
+  var DOM_CAPABILITIES = { "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader };
 
   // Extract page-1 from natural captures, then replay forward until has_next_page
   // is false or max_pages is reached. inputs.max_pages (default 8, cap 40).

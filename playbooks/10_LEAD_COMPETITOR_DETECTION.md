@@ -377,4 +377,4 @@ Before claiming lead/competitor work is complete, verify:
 - Comments are value-first, same-language, short, natural, and not direct ads.
 - One or two small natural imperfections are allowed only when they help the comment sound human and do not reduce trust.
 - Logs were updated.
-- No auto outreach, auto DM, contact scraping, or credential collection occurred.
+- No auto outreach, auto DM, credential/secret collection, or access-control/CAPTCHA bypass occurred. (Collecting publicly-rendered contact details under the operator's command is permitted per the collection-consent rule above; the send/act side still needs human approval.)

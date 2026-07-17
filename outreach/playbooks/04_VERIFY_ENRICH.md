@@ -22,7 +22,9 @@ follow-up's micro-refresh. Its dependency is the skill `playbooks/skills/email-v
 - **Inherit before you enrich.** The dossier belongs to the contact and is reused across that
   client's campaigns. Always check `crm_store.py enrich status` first and act on its verdict.
 - **Read-only, logged-out.** WebSearch/WebFetch (+ browser tool only where `channel_reality.md`
-  says). Never log into an account; Facebook/LinkedIn store URL only (Phase-4 Local Collector).
+  says). Never log into an account. **Facebook is now readable via the Local Collector**
+  (`fb.profile.header` → real name/category, then `fb.profile.posts`/`fb.profile.videos`): read the
+  header to get the real name BEFORE searching, and never search from the URL slug. LinkedIn: store URL only.
 
 ## The Write-Ready gate (what this stage must produce)
 

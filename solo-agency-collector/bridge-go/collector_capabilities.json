@@ -1,7 +1,7 @@
 {
   "object": "collector_capabilities",
   "version": "0.1.0",
-  "updated_at": "2026-07-15",
+  "updated_at": "2026-07-17",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
@@ -58,6 +58,48 @@
       "display_url": "string — the shown domain/path",
       "snippet": "string",
       "is_ad": "boolean"
+    },
+    "ProfileHeader": {
+      "name": "string",
+      "url": "string",
+      "follower_count": "number | null",
+      "follower_text": "string — raw e.g. '10K'",
+      "like_count": "number | null",
+      "verified": "boolean",
+      "category": "string — e.g. Realtor / Real Estate Agent",
+      "website": "string — external site link when shown",
+      "cta": "array of button labels (Book Now, Send Message, ...)",
+      "has_reels_tab": "boolean",
+      "has_videos_tab": "boolean"
+    },
+    "VideoRecord": {
+      "id": "string",
+      "title": "string",
+      "views": "number | null (play_count)",
+      "reactions": "number | null",
+      "shares": "number | null",
+      "caption": "string",
+      "url": "string",
+      "actor": "EntityRef"
+    },
+    "ReactionResult": {
+      "capability": "string (fb.post.react)",
+      "status": "string — done | already | dry_run | not_found | error",
+      "reaction": "string — like | love | care | haha | wow | sad | angry",
+      "verified": "boolean — reaction confirmed present after the click",
+      "target_preview": "{author, snippet, url} — so the report can confirm the right post",
+      "error": "string | null",
+      "ts": "ISO8601"
+    },
+    "CommentResult": {
+      "capability": "string (fb.post.comment)",
+      "status": "string — done | dry_run | not_found | error",
+      "text": "string — the comment that was posted",
+      "verified": "boolean — composer cleared after submit (post confirmed)",
+      "appeared": "boolean — the text was found in the on-page comment list",
+      "target_preview": "{actor, snippet, url}",
+      "error": "string | null",
+      "ts": "ISO8601"
     }
   },
   "capabilities": [
@@ -318,30 +360,133 @@
         "method": "DOM: advance player via ArrowDown + scroll, scrape reel-link cards for creator link + caption text + hashtags",
         "note": "GraphQL FBUnifiedVideoContainerQuery paginates reel URLs but carries NO caption/creator (deferred render module, confirmed across 16 chunks), so this is DOM-based.",
         "fallback": "html",
-        "validated_on": "2026-07-15 (live: advancing works, 10 reels/12 steps; creators captured incl. Meres Mortgage/insurance/real estate/immigration — industry often in the name). Caption/hashtag extraction is WEAK (overlay loads after scan; many reels have no hashtags) — creator name+url is the reliable signal; caption is a TODO refinement."
+        "validated_on": "2026-07-17 absellsaz/reels/ → 60 reels with views (2.8K…190K) via grid mode",
+        "grid_mode": "profile reels TAB (/…/reels/) → scrape a[href*=\"/reel/<id>\"] cards: reel_id + view count overlay (parseCount) + url; infinite-scroll, stop after 2 dry scrolls. Player mode (/reel/<id>) still advances + scrapes caption/creator.",
+        "graphql_for_captions": "ProfileCometAppCollectionReelsRendererPaginationQuery (captured; future extractor for captions like fb.profile.videos)"
       }
     },
     {
       "id": "web.search",
-      "title": "Web search (DuckDuckGo) — result links + snippets",
+      "title": "Web search (DuckDuckGo / Google / Bing) — result links + snippets",
       "when_to_use": "Search the OPEN WEB (beyond Facebook) for a query — a person, email, business, or topic — and get organic result links + titles + snippets. Use to find someone's public web presence (personal site, social profiles, listings, directories) for enrichment, or general research. Ads are filtered out by default.",
       "inputs": {
-        "url": "string (required) — https://html.duckduckgo.com/html/?q=<URL-ENCODED query>. Build this from the search query; the collector opens the page and the extractor parses it.",
+        "url": "string (required) — the search engine results URL. DuckDuckGo (default, safest): https://html.duckduckgo.com/html/?q=<enc>. Google (richer, but higher CAPTCHA risk at volume — use for targeted enrichment): https://www.google.com/search?q=<enc>. Bing: https://www.bing.com/search?q=<enc>. The extractor auto-detects the engine by host.",
         "include_ads": "bool (optional, default false) — keep sponsored results too"
       },
       "output_schema": "WebResult[]",
       "provider": "web-dom",
       "coverage": "public web search results (DuckDuckGo HTML endpoint)",
-      "status": "beta",
+      "status": "stable",
       "_impl": {
         "screen": "ddg_html_serp",
         "url_match": [
           "html.duckduckgo.com/html/?q="
         ],
-        "method": "DOM: .result rows → .result__a (title + uddg-decoded destination url), .result__url (display), .result__snippet; drop bing-aclick/y.js ads unless include_ads.",
+        "method": "DOM, engine auto-detected by host: DuckDuckGo (.result rows, uddg-decoded url), Google (external a[href] wrapping an h3 — robust to class churn), Bing (li.b_algo). Ads filtered.",
         "note": "DuckDuckGo HTML chosen for clean, parseable markup + low bot-detection vs Google. First result page only (no pagination yet). To read a RESULT PAGE's content, submit its url with NO capability — the generic HTML engine returns readable text (raw_visible_text_excerpt).",
-        "validated_on": "2026-07-15 (in-app browser DOM inspect: 12 results, 2 ads filtered, 10 organic clean urls)",
+        "validated_on": "2026-07-16 (live DDG 10 results; Google DOM parses 9 organic in in-app browser)",
+        "fallback": "html",
+        "engines_note": "DuckDuckGo default = clean markup + low bot-detection (best for bulk). Google = best coverage but can trigger 'unusual traffic' CAPTCHA when hit at volume; prefer for low-volume, high-value lookups. Runs in the user's real logged-in Chrome, which lowers (but does not remove) that risk."
+      }
+    },
+    {
+      "id": "fb.profile.header",
+      "title": "Facebook profile/page header (followers, verified, website, CTA)",
+      "when_to_use": "Read a profile/PAGE header — follower count, verified badge, category, external website, CTA buttons, and whether it has Reels/Videos tabs. This is the TOP opener for outreach personalization ('your page has N followers, a verified badge…'). Submit the profile's main URL.",
+      "inputs": {
+        "profile_url": "string (required) — https://www.facebook.com/<user-or-page>"
+      },
+      "output_schema": "ProfileHeader",
+      "provider": "facebook-dom",
+      "coverage": "the logged-in user's view of the public profile/page header",
+      "status": "beta",
+      "_impl": {
+        "screen": "profile_header",
+        "url_match": [
+          "facebook.com/<user-or-page>"
+        ],
+        "method": "DOM/SSR (no clean GraphQL header query, like About): text patterns for 'N followers'/'N likes', verified marker, category words; first external non-FB link = website; /reels + /videos link presence; CTA from role=button labels.",
+        "note": "Server-rendered; robust to class churn by keying off text/links. One record = the profile.",
+        "validated_on": "2026-07-16 discovery on absellsaz (followers 10K, verified, Realtor, hasReels confirmed in DOM)",
         "fallback": "html"
+      }
+    },
+    {
+      "id": "fb.profile.videos",
+      "title": "Facebook page Videos tab (title, views, reactions)",
+      "when_to_use": "Read a page's Videos tab — per video: title, VIEW count, reactions, caption, url. Use for 'your video X with 77K views' outreach hooks and to find a page's best-performing content. Submit the page's /videos URL.",
+      "inputs": {
+        "videos_url": "string (required) — https://www.facebook.com/<page>/videos",
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+      },
+      "output_schema": "VideoRecord[]",
+      "provider": "facebook-graphql",
+      "coverage": "the logged-in user's view of the page's videos",
+      "status": "beta",
+      "_impl": {
+        "screen": "profile_videos",
+        "url_match": [
+          "facebook.com/<page>/videos"
+        ],
+        "graphql_query": "PagesCometChannelTabAllVideosCardImplPaginationQuery",
+        "edge_path": "data.node.all_videos.edges → node.channel_tab_thumbnail_renderer.video",
+        "node_fields": {
+          "title": "video.savable_title / creation_story…video_title",
+          "views": "video.play_count (fallback post_play_count)",
+          "reactions": "video.feedback.reaction_count.count",
+          "caption": "video.creation_story.message",
+          "url": "constructed /watch/?v=<video.id>"
+        },
+        "validated_on": "2026-07-16 discovery on absellsaz/videos (raw text shows 2.3K–12.7K views per video)",
+        "fallback": "html"
+      }
+    },
+    {
+      "id": "fb.post.react",
+      "title": "React to a Facebook post/video/reel (like, love, …)",
+      "when_to_use": "WRITE ACTION. Add a reaction (default love/like) to a single post, video, or reel. Submit the post PERMALINK as the url. Approval is handled upstream by the daily report — only create this job for content the operator has approved. Idempotent: if the post is already reacted, it is left unchanged.",
+      "inputs": {
+        "post_url": "string (required) — permalink: /watch/?v=, /<user>/posts/<id>, /permalink.php?..., /reel/<id>, story_fbid",
+        "reaction": "string (optional, default like) — like | love | care | haha | wow | sad | angry",
+        "dry_run": "bool (optional) — locate + preview the target WITHOUT clicking (debug only; not the approval gate)"
+      },
+      "output_schema": "ReactionResult",
+      "provider": "facebook-dom",
+      "coverage": "the logged-in operator reacts as themselves via the real UI",
+      "status": "beta",
+      "write": true,
+      "_impl": {
+        "screen": "post_permalink",
+        "method": "DOM automation (MAIN world, gql_actions.js): locate the main post UFI react toggle by locale-aware aria-label (EN+VI); for a non-like reaction, hover to open the flyout and click the option; real pointer+mouse event chain; verify via aria-pressed / Remove-label after click.",
+        "idempotent": "if already reacted, no-op (clicking Like again would REMOVE it); P1 does not switch an existing reaction to a different one.",
+        "note": "One action per job. Pacing/caps/approval live in the flow layer + daily report, not in this capability.",
+        "audit": "result appended to outbox/actions_log.jsonl by the bridge",
+        "fallback": "none (write action)",
+        "validated_on": "2026-07-17 real like on reel/4524074751166406 → done/verified; drift-guard + scrollSteps=0 for writes"
+      }
+    },
+    {
+      "id": "fb.post.comment",
+      "title": "Comment on a Facebook post / video / reel",
+      "when_to_use": "PAUSED (2026-07-17) — being redone as a dedicated multi-platform (Facebook/X/Reddit) commenting module focused on DOM editors + text-input mechanics. The current DOM impl works on reels/permalinks (execCommand insertText + Enter), but match_caption profile-targeting is flaky (use direct permalinks). Do not rely on it in the daily-report flow yet.",
+      "inputs": {
+        "post_url": "string (required) — permalink: /watch/?v=, /<user>/posts/<id>, /permalink.php?..., /reel/<id>; OR a profile URL when using match_caption",
+        "text": "string (required) — the comment body",
+        "match_caption": "string (optional) — when post_url is a profile/timeline, scroll to the post whose caption contains this text and comment on THAT post",
+        "dry_run": "bool (optional) — locate composer + preview WITHOUT posting (debug only; not the approval gate)"
+      },
+      "output_schema": "CommentResult",
+      "provider": "facebook-dom",
+      "coverage": "the logged-in operator comments as themselves via the real UI",
+      "status": "paused",
+      "write": true,
+      "_impl": {
+        "screen": "post_permalink | reel | timeline(match_caption)",
+        "method": "DOM automation (gql_actions.js): resolve scope (whole page, or the article matching match_caption); find the comment composer (contenteditable[role=textbox], EN+VI aria-labels), open it if collapsed; type via execCommand insertText (fallback beforeinput/input); submit with Enter; verify the composer cleared.",
+        "note": "One comment per job. Pacing/caps/approval live in the flow layer + daily report.",
+        "audit": "result appended to outbox/actions_log.jsonl by the bridge",
+        "fallback": "none (write action)",
+        "paused": "2026-07-17 — pending dedicated multi-platform text-input module (FB/X/Reddit)"
       }
     }
   ]
