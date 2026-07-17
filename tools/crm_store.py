@@ -35,6 +35,7 @@ import os
 import re
 import sys
 import glob
+import unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from storage import (  # noqa: E402
@@ -152,7 +153,7 @@ class CrmStore:
     # --- campaigns (config file per campaign, outside crm/) -------------------
 
     def campaign_dir(self, slug: str) -> str:
-        return os.path.join(self.client_dir, "campaigns", slug)
+        return os.path.join(self.client_dir, "campaigns", _safe_slug(slug, "campaign slug"))
 
     def campaign_config_path(self, slug: str) -> str:
         return os.path.join(self.campaign_dir(slug), "campaign_config.json")
@@ -214,25 +215,29 @@ class CrmStore:
         return os.path.join(self.campaign_dir(slug), "queue", "enrich_queue.jsonl")
 
     def _queued_or_sent_leads(self, slug: str) -> set:
-        """lead_ids already queued or already sent in THIS campaign (any step)."""
+        """Resolved lead_ids already queued or already sent in THIS campaign (any step).
+        Every id is passed through resolve() so a merged-away id collapses onto the live
+        contact — otherwise a merge winner looks un-touched and gets re-queued/re-emailed."""
         out = set()
         qp = self._enrich_queue_path(slug)
         if os.path.isfile(qp):
-            for line in open(qp, "r", encoding="utf-8"):
-                line = line.strip()
-                if line:
-                    try:
-                        out.add(json.loads(line)["lead_id"])
-                    except (ValueError, KeyError):
-                        pass
+            with open(qp, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line:
+                        try:
+                            out.add(self.resolve(json.loads(line)["lead_id"]))
+                        except (ValueError, KeyError):
+                            pass
         for p in self._all_sent_logs(only_campaign=slug):
-            for line in open(p, "r", encoding="utf-8"):
-                line = line.strip()
-                if line:
-                    try:
-                        out.add(json.loads(line)["lead_id"])
-                    except (ValueError, KeyError):
-                        pass
+            with open(p, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line:
+                        try:
+                            out.add(self.resolve(json.loads(line)["lead_id"]))
+                        except (ValueError, KeyError):
+                            pass
         return out
 
     def _all_sent_logs(self, only_campaign: str | None = None):
@@ -251,21 +256,23 @@ class CrmStore:
         return files
 
     def _last_touch_other_campaign(self, lead_id: str, this_campaign: str) -> str:
-        """Most recent sent_at for this lead from ANY OTHER campaign, or ''."""
+        """Most recent sent_at for this (resolved) lead from ANY OTHER campaign, or ''."""
+        target = self.resolve(lead_id)
         latest = ""
         for p in self._all_sent_logs():
-            for line in open(p, "r", encoding="utf-8"):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    r = json.loads(line)
-                except ValueError:
-                    continue
-                if r.get("lead_id") == lead_id and r.get("campaign") != this_campaign:
-                    sa = r.get("sent_at", "")
-                    if sa > latest:
-                        latest = sa
+            with open(p, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    if self.resolve(r.get("lead_id")) == target and r.get("campaign") != this_campaign:
+                        sa = r.get("sent_at", "")
+                        if sa > latest:
+                            latest = sa
         return latest
 
     def queue_campaign(self, slug: str, limit: int = 100) -> dict:
@@ -280,35 +287,40 @@ class CrmStore:
             raise StorageError(f"campaign {slug!r} has no audience.segment")
         min_days = int(cfg.get("min_days_between_touches_across_campaigns", 7))
         cutoff = _iso_days_ago(min_days)
-        already = self._queued_or_sent_leads(slug)
         candidates = self.resolve_segment(seg_id)
         added, skipped = 0, {"already_in_campaign": 0, "recently_touched_elsewhere": 0,
                              "in_active_sequence": 0, "no_email": 0}
         qp = self._enrich_queue_path(slug)
         os.makedirs(os.path.dirname(qp), exist_ok=True)
-        with open(qp, "a", encoding="utf-8") as qf:
-            for c in candidates:
-                if added >= limit:
-                    break
-                lead_id = c["id"]
-                if lead_id in already:
-                    skipped["already_in_campaign"] += 1
-                    continue
-                # email_first campaigns need a real found email (no guessing in MVP)
-                if cfg.get("channel_strategy", "email_first") == "email_first" and \
-                        not [e for e in c.get("identities", {}).get("emails", []) if e.get("address")]:
-                    skipped["no_email"] += 1
-                    continue
-                if c.get("sequence_state") == "frozen":
-                    skipped["in_active_sequence"] += 1
-                    continue
-                last = self._last_touch_other_campaign(lead_id, slug)
-                if last and last >= cutoff:
-                    skipped["recently_touched_elsewhere"] += 1
-                    continue
-                qf.write(json.dumps({"lead_id": lead_id, "campaign": slug, "queued_at": now_iso(),
-                                     "status": "queued", "step": 1}) + "\n")
-                added += 1
+        email_first = cfg.get("channel_strategy", "email_first") == "email_first"
+        # Lock the read-dedupe-then-append as one unit so two overlapping runs can't both
+        # append the same candidate (the already-queued snapshot would otherwise be stale).
+        with self.a._lock(f"queue_{_safe_slug(slug, 'campaign slug')}"):
+            already = self._queued_or_sent_leads(slug)
+            with open(qp, "a", encoding="utf-8") as qf:
+                for c in candidates:
+                    if added >= limit:
+                        break
+                    lead_id = self.resolve(c["id"])
+                    if lead_id in already:
+                        skipped["already_in_campaign"] += 1
+                        continue
+                    # email_first campaigns need a real, well-formed found email (no guessing in MVP)
+                    if email_first and not [e for e in c.get("identities", {}).get("emails", [])
+                                            if _valid_email(e.get("address"))]:
+                        skipped["no_email"] += 1
+                        continue
+                    if c.get("sequence_state") == "frozen":
+                        skipped["in_active_sequence"] += 1
+                        continue
+                    last = self._last_touch_other_campaign(lead_id, slug)
+                    if last and last >= cutoff:
+                        skipped["recently_touched_elsewhere"] += 1
+                        continue
+                    qf.write(json.dumps({"lead_id": lead_id, "campaign": slug, "queued_at": now_iso(),
+                                         "status": "queued", "step": 1}) + "\n")
+                    already.add(lead_id)
+                    added += 1
         return {"campaign": slug, "queued": added, "skipped": skipped, "segment": seg_id}
 
     # --- validation / migration ----------------------------------------------
@@ -396,6 +408,9 @@ class CrmStore:
             return {"needs": "skip", "reason": "known_inactive"}
         if not ident_fresh:
             return {"needs": "enrich", "reason": "identity_stale_or_missing"}
+        # a recent email-not-found result is a dead end within its retry window — don't re-chase
+        if nf and nf >= _iso_days_ago_from(self.NEG_RETRY_DAYS, now):
+            return {"needs": "skip", "reason": "email_not_found_recent"}
         if not hooks_fresh:
             return {"needs": "refresh", "reason": "hooks_stale"}
         return {"needs": "skip", "reason": "dossier_fresh", "confidence_band": en.get("confidence_band")}
@@ -434,15 +449,22 @@ class CrmStore:
                 if h.get("summary"):
                     do_not_mention.append(h["summary"])
                 continue  # personal-life details never become email copy
-            if not h.get("evidence_url"):
-                problems.append(f"hook {h.get('type','?')!r} dropped: no evidence_url")
+            if not _valid_evidence_url(h.get("evidence_url")):
+                problems.append(f"hook {h.get('type','?')!r} dropped: evidence_url missing or not a valid http(s) URL")
                 continue
+            hc = _as_float(h.get("confidence", 0.0), None)
+            if hc is None:
+                problems.append(f"hook {h.get('type','?')!r}: non-numeric confidence, treated as 0.0")
+                hc = 0.0
             usable_hooks.append({"type": h.get("type"), "summary": h.get("summary", ""),
-                                 "evidence_url": h["evidence_url"], "observed_date": h.get("observed_date", ""),
-                                 "confidence": float(h.get("confidence", 0.0)), "sensitivity": sens,
+                                 "evidence_url": h["evidence_url"].strip(), "observed_date": h.get("observed_date", ""),
+                                 "confidence": hc, "sensitivity": sens,
                                  "used_in": h.get("used_in", [])})
         ident = dossier.get("identity", {}) or {}
-        conf = float((dossier.get("writing_brief") or {}).get("personalization_confidence", 0.0))
+        conf = _as_float((dossier.get("writing_brief") or {}).get("personalization_confidence", 0.0), None)
+        if conf is None:
+            problems.append("personalization_confidence non-numeric, treated as 0.0")
+            conf = 0.0
         band = "high" if conf >= 0.7 else ("review_carefully" if conf >= 0.4 else "fallback")
         prev_en = (self.get_contact(lead_id) or {}).get("enrichment") or {}
 
@@ -452,9 +474,17 @@ class CrmStore:
             os.makedirs(d, exist_ok=True)
             JsonAdapter._atomic_write(os.path.join(d, f"{lead_id}.json"),
                                       json.dumps({**dossier, "lead_id": lead_id, "enriched_at": now}, ensure_ascii=False, indent=2))
+        # Identity is MERGED against the prior dossier, not rebuilt: a cheap hooks-only refresh
+        # (no `identity` block) must not null out still_active/current_company/etc. or reset the
+        # 90-day identity TTL — that would silently un-mark a known_inactive contact.
+        prev_ident = prev_en.get("identity", {}) or {}
+        has_identity = bool(ident)
+        merged_ident = {}
+        for k in ("still_active", "current_company", "role", "profiles", "evidence"):
+            merged_ident[k] = ident.get(k) if ident.get(k) is not None else prev_ident.get(k)
+        merged_ident["enriched_at"] = now if has_identity else (prev_ident.get("enriched_at") or now)
         enrichment = {
-            "identity": {**{k: ident.get(k) for k in ("still_active", "current_company", "role", "profiles", "evidence")},
-                         "enriched_at": now},
+            "identity": merged_ident,
             "context": dossier.get("context", {}),
             "hooks": usable_hooks, "hooks_refreshed_at": now,
             "writing_brief": {"one_liner": (dossier.get("writing_brief") or {}).get("one_liner", ""),
@@ -509,11 +539,15 @@ class CrmStore:
             return contact["assigned_sendbox"]
         day = day or today_str()
         refs = set(campaign_cfg.get("sendboxes", []))
-        boxes = [b for b in self._sendboxes() if b.get("status") == "healthy" and (not refs or b["slug"] in refs)]
+        # exclude boxes with no capacity today (quota_today<=0) — matching gmail_client's
+        # unclamped cap check, so we never pin a draft to a box send will immediately refuse.
+        boxes = [b for b in self._sendboxes()
+                 if b.get("status") == "healthy" and int(b.get("quota_today", 0)) > 0
+                 and (not refs or b["slug"] in refs)]
         if not boxes:
             return None
         def load(b):
-            q = max(1, int(b.get("quota_today", 1)))
+            q = int(b.get("quota_today", 1))
             return self._sent_today(b["slug"], day) / q
         boxes.sort(key=lambda b: (load(b), b["slug"]))
         return boxes[0]["slug"]
@@ -531,23 +565,25 @@ class CrmStore:
         if not cfg:
             raise StorageError(f"campaign {campaign_slug!r} not found")
         step = int(step)
-        if step == 1 and re.match(r"^\s*(re|fwd)\s*:", subject or "", re.I):
+        if step == 1 and re.match(r"^\s*(re|fwd)\s*:", _subject_gate_normalized(subject), re.I):
             raise StorageError("step-1 subject must not begin with Re:/Fwd: (deceptive, CAN-SPAM)")
-        # recipient must be a real found email (no guessing)
-        emails = [e for e in contact.get("identities", {}).get("emails", []) if e.get("address")]
+        # recipient must be a real, well-formed found email (no guessing)
+        emails = [e for e in contact.get("identities", {}).get("emails", []) if _valid_email(e.get("address"))]
         primary = next((e for e in emails if e.get("is_primary")), emails[0] if emails else None)
         if not primary:
-            raise StorageError("contact has no email to draft to")
-        # every referenced hook must exist in the dossier WITH an evidence_url
+            raise StorageError("contact has no usable email to draft to")
+        # every referenced hook must trace to a dossier hook that carries a VALID evidence_url
         dossier_hooks = (contact.get("enrichment") or {}).get("hooks", [])
-        evidence_by_url = {h.get("evidence_url"): h for h in dossier_hooks if h.get("evidence_url")}
+        evidence_by_url = {h.get("evidence_url"): h for h in dossier_hooks if _valid_evidence_url(h.get("evidence_url"))}
         clean_hooks = []
         for h in hooks_used or []:
             url = h.get("evidence_url")
             if not url or url not in evidence_by_url:
                 raise StorageError(f"hook {h.get('type','?')!r} has no matching evidenced dossier hook — "
                                    "every personalized detail must trace to a dossier hook with an evidence_url")
-            clean_hooks.append({"type": h.get("type") or evidence_by_url[url].get("type"), "evidence_url": url})
+            # the hook TYPE always comes from the dossier, never the caller — so a real evidence
+            # URL can't be relabeled with a fabricated claim (e.g. new_listing -> award_won)
+            clean_hooks.append({"type": evidence_by_url[url].get("type"), "evidence_url": url})
         sendbox = self.pick_sendbox(cfg, contact)
         if not sendbox:
             raise StorageError("no healthy sendbox available for this campaign")
@@ -613,15 +649,28 @@ class CrmStore:
 
     # --- Approval Report + chat approval -------------------------------------
 
-    def build_approval(self, campaign_slug: str | None = None, now: str | None = None) -> tuple[str, list]:
+    def build_approval(self, campaign_slug: str | None = None, now: str | None = None,
+                       number_by_draft: dict | None = None) -> tuple[str, list]:
         """Return (markdown, index). Numbered cards grouped High confidence / Review carefully;
-        the index [{n, draft_id, path}] is the stable number->draft map the approve handler reads."""
+        the index [{n, draft_id, path}] is the number->draft map the approve handler reads.
+        `number_by_draft` (draft_id->n from the prior report) keeps a draft's number STABLE
+        across re-renders, so approving by a number never silently hits a renumbered draft."""
         now = now or now_iso()
         drafts = self.list_pending_drafts(campaign_slug)
-        index = [{"n": i + 1, "draft_id": d["id"], "path": d["_path"], "campaign": d["campaign_slug"]}
-                 for i, d in enumerate(drafts)]
-        high = [(i + 1, d) for i, d in enumerate(drafts) if d.get("confidence_band") == "high"]
-        review = [(i + 1, d) for i, d in enumerate(drafts) if d.get("confidence_band") != "high"]
+        prior = dict(number_by_draft or {})
+        used = set(prior.values())
+        nxt = (max(used) + 1) if used else 1
+        numbered = []
+        for d in drafts:
+            n = prior.get(d["id"])
+            if n is None:
+                n = nxt; nxt += 1
+            numbered.append((n, d))
+        numbered.sort(key=lambda t: t[0])
+        index = [{"n": n, "draft_id": d["id"], "path": d["_path"], "campaign": d["campaign_slug"]}
+                 for n, d in numbered]
+        high = [(n, d) for n, d in numbered if d.get("confidence_band") == "high"]
+        review = [(n, d) for n, d in numbered if d.get("confidence_band") != "high"]
 
         def card(n, d):
             c = self.get_contact(d["lead_id"]) or {}
@@ -655,7 +704,9 @@ class CrmStore:
     def render_approval_report(self, campaign_slug: str | None = None, now: str | None = None) -> dict:
         """Write the Approval Report markdown + index + (best-effort) HTML under outputs/."""
         now = now or now_iso()
-        md, index = self.build_approval(campaign_slug, now)
+        # keep numbers stable across re-renders within the day: reuse the prior index's map
+        prior = {e["draft_id"]: e["n"] for e in self._approval_index()}
+        md, index = self.build_approval(campaign_slug, now, number_by_draft=prior)
         out_dir = os.path.join(self.client_dir, "outputs", today_str(now))
         os.makedirs(out_dir, exist_ok=True)
         slug = self._client_slug()
@@ -699,9 +750,14 @@ class CrmStore:
             for part in spec.replace(" ", "").split(","):
                 if not part:
                     continue
-                if "-" in part:
+                if "-" in part.lstrip("-"):  # a range (not just a leading minus)
                     a, b = part.split("-", 1)
-                    nums.update(range(int(a), int(b) + 1))
+                    a, b = int(a), int(b)
+                    if a > b:  # tolerate a reversed range like '20-1'
+                        a, b = b, a
+                    if b - a > 100_000:  # guard against a fat-fingered/adversarial huge span
+                        raise StorageError(f"range {part!r} too wide (max span 100000)")
+                    nums.update(range(a, b + 1))
                 else:
                     nums.add(int(part))
         else:
@@ -713,19 +769,26 @@ class CrmStore:
         {"approve": "all"|"1-20,35"|[..], "reject":[{"n":7,"reason":"..."}],
          "hold":[5], "edit":[{"n":12,"subject":?,"body_text":?}]}. Numbers reference the last
          Approval Report. Approved drafts move to outbox/approved/ (the send engine's inbox)."""
-        result = {"approved": [], "rejected": [], "held": [], "edited": [], "not_found": []}
+        result = {"approved": [], "rejected": [], "held": [], "edited": [], "not_found": [],
+                  "already_processed": []}
         now = now_iso()
+        decided = set()  # numbers with a TERMINAL decision (reject/hold/approve are mutually exclusive)
 
         def load(path):
-            with open(path, "r", encoding="utf-8") as fh:
-                return json.load(fh)
+            """Return the draft dict, or None if the pending file is already gone (moved/decided) —
+            so re-applying a number is a safe no-op, never an uncaught FileNotFoundError."""
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    return json.load(fh)
+            except FileNotFoundError:
+                return None
 
-        # edits first (so a subsequent approve picks up the edited body)
+        # edits first (so a subsequent approve picks up the edited body); edit is not terminal
         for e in actions.get("edit", []) or []:
             hits = self._resolve_numbers([e["n"]])
-            if not hits:
+            if not hits or (d := load(hits[0]["path"])) is None:
                 result["not_found"].append(e["n"]); continue
-            entry = hits[0]; d = load(entry["path"])
+            entry = hits[0]
             if "subject" in e:
                 d["subject"] = e["subject"]
             if "body_text" in e:
@@ -737,36 +800,70 @@ class CrmStore:
             hits = self._resolve_numbers([r["n"]])
             if not hits:
                 result["not_found"].append(r["n"]); continue
+            if r["n"] in decided:
+                continue  # already given a terminal decision earlier in this batch
             entry = hits[0]; d = load(entry["path"])
+            if d is None or d.get("status") != "pending_approval":
+                result["already_processed"].append(entry["draft_id"]); decided.add(r["n"]); continue
             d.update({"status": "rejected", "decided_at": now, "decided_by": by, "reject_reason": r.get("reason", "")})
             JsonAdapter._atomic_write(entry["path"], json.dumps(d, ensure_ascii=False, indent=2))
             self._approval_log(d, "reject", by, r.get("reason", ""))
             self._learning_log(d, r.get("reason", ""))  # reject reasons feed the writing learning loop
-            result["rejected"].append(entry["draft_id"])
+            result["rejected"].append(entry["draft_id"]); decided.add(r["n"])
         for h in self._resolve_numbers(actions.get("hold", []) or []):
-            d = load(h["path"]); d.update({"status": "hold", "decided_at": now, "decided_by": by})
+            if h["n"] in decided:
+                continue
+            d = load(h["path"])
+            if d is None or d.get("status") != "pending_approval":
+                result["already_processed"].append(h["draft_id"]); decided.add(h["n"]); continue
+            d.update({"status": "hold", "decided_at": now, "decided_by": by})
             JsonAdapter._atomic_write(h["path"], json.dumps(d, ensure_ascii=False, indent=2))
-            result["held"].append(h["draft_id"])
+            result["held"].append(h["draft_id"]); decided.add(h["n"])
         approve_spec = actions.get("approve")
         if approve_spec:
-            for a in self._resolve_numbers(approve_spec):
-                if a["draft_id"] in result["rejected"] + result["held"]:
+            hits = self._resolve_numbers(approve_spec)
+            if approve_spec != "all":  # report explicitly-named numbers that didn't resolve
+                by_n = {e["n"]: e for e in self._approval_index()}
+                for n in self._requested_numbers(approve_spec):
+                    if n not in by_n:
+                        result["not_found"].append(n)
+            for a in hits:
+                if a["n"] in decided:
                     continue
                 d = load(a["path"])
-                if d.get("status") != "pending_approval":
-                    continue
+                if d is None or d.get("status") != "pending_approval":
+                    result["already_processed"].append(a["draft_id"]); decided.add(a["n"]); continue
                 d.update({"status": "approved", "decided_at": now, "decided_by": by})
                 approved_dir = os.path.join(self.campaign_dir(a["campaign"]), "outbox", "approved")
                 os.makedirs(approved_dir, exist_ok=True)
                 dest = os.path.join(approved_dir, f"{a['draft_id']}.json")
-                JsonAdapter._atomic_write(dest, json.dumps(d, ensure_ascii=False, indent=2))
-                try:
-                    os.remove(a["path"])  # leave pending_approval
-                except OSError:
-                    pass
+                # write the approved content back into the pending file, then ATOMICALLY move it to
+                # outbox/approved — so a draft can never exist as both 'pending' and 'approved'.
+                JsonAdapter._atomic_write(a["path"], json.dumps(d, ensure_ascii=False, indent=2))
+                os.replace(a["path"], dest)
                 self._approval_log(d, "approve", by, "")
+                decided.add(a["n"])
                 result["approved"].append({"draft_id": a["draft_id"], "path": dest})
         return result
+
+    def _requested_numbers(self, spec) -> set:
+        """The set of individual numbers an approve/reject spec names (for not_found reporting)."""
+        nums = set()
+        if isinstance(spec, str):
+            for part in spec.replace(" ", "").split(","):
+                if not part:
+                    continue
+                if "-" in part.lstrip("-"):
+                    a, b = part.split("-", 1); a, b = int(a), int(b)
+                    if a > b:
+                        a, b = b, a
+                    if b - a <= 100_000:
+                        nums.update(range(a, b + 1))
+                else:
+                    nums.add(int(part))
+        else:
+            nums = set(int(x) for x in spec)
+        return nums
 
     def _approval_log(self, draft, decision, by, reason):
         p = os.path.join(self.client_dir, "approvals", "approval_log.md")
@@ -819,7 +916,8 @@ class CrmStore:
                         continue
                     if not r.get("rfc_message_id"):
                         continue
-                    lid = r["lead_id"]; st = int(r.get("step", 1)); sa = r.get("sent_at", "")
+                    # resolve merged ids so one real contact isn't tracked as two due rows
+                    lid = self.resolve(r["lead_id"]); st = int(r.get("step", 1)); sa = r.get("sent_at", "")
                     cur = state.get(lid, {"step": 0, "sent_at": ""})
                     if st > cur["step"] or (st == cur["step"] and sa > cur["sent_at"]):
                         state[lid] = {"step": st, "sent_at": sa}
@@ -831,7 +929,9 @@ class CrmStore:
             next_step = s["step"] + 1
             if next_step > max_step:
                 continue  # sequence exhausted (breakup already sent)
-            gap = gap_by_step.get(next_step, 0)
+            if next_step not in gap_by_step:
+                continue  # no defined cadence for this step (non-contiguous config) -> never auto-due
+            gap = gap_by_step[next_step]
             if s["sent_at"] and s["sent_at"] <= _iso_days_ago_from(gap, now):
                 due.append({"lead_id": lid, "next_step": next_step, "last_step": s["step"],
                             "last_sent_at": s["sent_at"]})
@@ -850,14 +950,24 @@ class CrmStore:
             hist = d.get("stage_history", [])
             entered = hist[-1]["at"] if hist else d.get("created_at", "")
             sd = stage_sla.get(d.get("stage"))
-            if sd and entered and entered <= _iso_days_ago_from(int(sd), now):
-                sla.append({"deal_id": d["id"], "stage": d["stage"], "since": entered, "sla_days": sd})
+            if not sd:
+                continue
+            # a deal with no known entered-time (hand-edited / migrated) is treated as maximally
+            # overdue and flagged, rather than silently excluded from the breach list
+            if not entered or entered <= _iso_days_ago_from(int(sd), now):
+                sla.append({"deal_id": d["id"], "stage": d["stage"],
+                            "since": entered or "unknown", "sla_days": sd})
         hot = [a for a in self.a.read_log("activities") if a.get("type") == "email_reply"][-20:]
         return {"generated_at": now,
                 "tasks_due": due_tasks, "open_tasks": len(tasks),
                 "deals_open": len(deals), "sla_breaches": sla,
                 "hot_replies": [{"lead_id": a.get("contact_id"), "at": a.get("ts")} for a in hot],
                 "drafts_pending": len(self.list_pending_drafts())}
+
+    def _has_open_task(self, contact_id: str, title: str) -> bool:
+        rc = self.resolve(contact_id)
+        return any(t.get("status") == "open" and t.get("title") == title and t.get("contact_id") == rc
+                   for t in self._latest_tasks())
 
     def _latest_tasks(self) -> list:
         latest = {}
@@ -892,7 +1002,7 @@ class CrmStore:
                 col = [d for d in deals if d.get("stage") == st["id"]]
                 md.append(f"## {st['id']} ({len(col)})")
                 for d in col:
-                    v = float(d.get("value", 0)); prob = float(d.get("probability", 0))
+                    v = _as_float(d.get("value")); prob = _as_float(d.get("probability"))
                     forecast += v * prob
                     md.append(f"- {d.get('name') or d['id'][:10]} — ${v:.0f} × {prob:.0%}")
                 md.append("")
@@ -917,7 +1027,9 @@ class CrmStore:
         names — never internal identifiers, campaign slugs, or provider/tooling terms (the scrub
         gate is the backstop, but the source is built clean)."""
         now = now or now_iso()
-        cutoff = _iso_days_ago_from(days, now)
+        # Floor the cutoff to midnight UTC so the displayed date-only period_start is truthfully
+        # inclusive of the whole day (activity earlier the same day is not silently dropped).
+        cutoff = _iso_days_ago_from(days, now)[:10] + "T00:00:00Z"
         acts = [a for a in self.a.read_log("activities") if (a.get("ts") or "") >= cutoff]
         delivered = sum(1 for a in acts if a.get("type") == "email_sent")
         replies = sum(1 for a in acts if a.get("type") == "email_reply")
@@ -925,7 +1037,7 @@ class CrmStore:
         forecast = 0.0
         by_stage = {}
         for d in deals:
-            v = float(d.get("value", 0)); prob = float(d.get("probability", 0))
+            v = _as_float(d.get("value")); prob = _as_float(d.get("probability"))
             forecast += v * prob
             st = d.get("stage", "")
             agg = by_stage.setdefault(st, {"count": 0, "value": 0.0})
@@ -937,7 +1049,7 @@ class CrmStore:
             for h in d.get("stage_history", []):
                 if (h.get("at") or "") >= cutoff:
                     movements.append({"name": name, "stage": h.get("stage", ""),
-                                      "at": h.get("at", ""), "value": float(d.get("value", 0)),
+                                      "at": h.get("at", ""), "value": _as_float(d.get("value")),
                                       "status": d.get("status", "open")})
         movements.sort(key=lambda m: m["at"])
         meetings = sum(1 for m in movements if m["stage"] == "meeting_booked")
@@ -948,7 +1060,8 @@ class CrmStore:
                       for d in deals if d.get("stage") in ("meeting_booked", "proposal_sent")]
         return {"generated_at": now, "period_start": cutoff[:10], "period_end": now[:10], "days": days,
                 "delivered": delivered, "replies": replies,
-                "reply_rate": (replies / delivered) if delivered else None,
+                # cap at 100%: replies this week may answer sends from before the window
+                "reply_rate": min(replies / delivered, 1.0) if delivered else None,
                 "new_conversations": sum(1 for m in movements if m["stage"] == "new_reply"),
                 "meetings": meetings, "open_deals": len(deals), "forecast": forecast,
                 "by_stage": by_stage, "movements": movements, "won": won, "next_steps": next_steps}
@@ -1005,7 +1118,8 @@ class CrmStore:
         try:
             import subprocess
             r = subprocess.run(["python3", os.path.join(os.path.dirname(os.path.abspath(__file__)), "report_renderer.py"),
-                                "render", "--input", md_path, "--output-html", html_path, "--title", title],
+                                "render", "--input", md_path, "--output-html", html_path, "--title", title,
+                                "--report-date", now[:10]],  # honor the (possibly injected) clock
                                capture_output=True, text=True, timeout=60)
             rendered = r.returncode == 0
         except Exception:  # noqa: BLE001
@@ -1348,8 +1462,13 @@ class CrmStore:
                     return {"deal_id": d["id"]}
             return None
         if name == "create_task":
+            title = args.get("title", "Follow up")
+            # don't create a second identical OPEN task for the same real contact (e.g. the same
+            # rule fired under a pre-merge alias id) — mirror create_deal_if_none's resolved guard
+            if cid and self._has_open_task(cid, title):
+                return None
             due = args.get("due", "")
-            return {"task_id": self.add_task(args.get("title", "Follow up"), contact_id=cid,
+            return {"task_id": self.add_task(title, contact_id=cid,
                                              due_at=_due_to_iso(due), created_by=f"rule:{rule_id}",
                                              guard_key=f"{rule_id}:{aid}")["id"]}
         if name == "freeze_sequence":
@@ -1379,6 +1498,50 @@ class CrmStore:
 
 
 # --- helpers ------------------------------------------------------------------
+
+def _as_float(value, default: float = 0.0) -> float:
+    """Coerce to float, never raising: JSON null, missing, or a non-numeric string
+    (e.g. an LLM-produced confidence of 'high') all fall back to `default`."""
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+_EVIDENCE_URL_RE = re.compile(r"^https?://[^\s/]+", re.I)  # scheme + a host — rejects 'N/A', bare words, blanks
+
+
+def _valid_evidence_url(url) -> bool:
+    """A hook's evidence_url must be a real http(s) URL with a host — not 'N/A',
+    whitespace, or a bare word — so a fabricated 'source' can't reach an outbound email."""
+    return isinstance(url, str) and bool(_EVIDENCE_URL_RE.match(url.strip()))
+
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _valid_email(address) -> bool:
+    """A real, well-formed address — so a garbage string ('not-an-email') can't pass the
+    email_first 'has a usable email' guard and burn a sendbox slot on a guaranteed bounce."""
+    return isinstance(address, str) and bool(_EMAIL_RE.match(address.strip()))
+
+
+def _subject_gate_normalized(subject: str) -> str:
+    """NFKC-fold + strip Unicode format/control chars so the step-1 Re:/Fwd: anti-deception
+    gate can't be bypassed with a zero-width space or a fullwidth colon."""
+    norm = unicodedata.normalize("NFKC", subject or "")
+    return "".join(ch for ch in norm if unicodedata.category(ch) != "Cf")
+
+
+def _safe_slug(slug: str, what: str = "slug") -> str:
+    """Reject path-traversal / separator tricks in a user-supplied slug (mirrors
+    JsonAdapter._safe_id) before it is used to build a filesystem path."""
+    if not slug or "/" in slug or "\\" in slug or slug in (".", "..") or slug.startswith("."):
+        raise StorageError(f"unsafe {what} {slug!r}")
+    return slug
+
 
 def _contact_skeleton(lead_id: str) -> dict:
     return {

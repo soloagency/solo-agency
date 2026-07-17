@@ -109,7 +109,7 @@ class TestEnrich(unittest.TestCase):
     def test_hook_without_evidence_is_dropped(self):
         r = self.s.enrich_write(self.lead, self._dossier(), campaign_slug="demo")
         self.assertEqual(r["usable_hooks"], 1)      # only the evidenced public hook
-        self.assertTrue(any("no evidence_url" in p for p in r["problems"]))
+        self.assertTrue(any("evidence_url" in p for p in r["problems"]))
 
     def test_personal_hook_barred_to_do_not_mention(self):
         r = self.s.enrich_write(self.lead, self._dossier(), campaign_slug="demo")
@@ -404,6 +404,234 @@ class TestNotify(unittest.TestCase):
         self.assertIn("# Notification Log", body)
         self.assertIn("weekly_client_report_ready", body)
         self.assertIn("dry_run", body)
+
+
+class TestAuditFixes(unittest.TestCase):
+    """Regressions for the adversarial-audit findings (32 confirmed). One assertion per fix."""
+
+    def setUp(self):
+        self.cdir = _client(); self.s = CrmStore(self.cdir)
+        import gmail_client as g
+        self.g = g
+
+    def _sb(self, slug="sb-a", quota=40, status="healthy"):
+        self.g.save_sendbox(self.cdir, {"slug": slug, "email": f"{slug}@gmail.com", "domain": "gmail.com",
+                                        "quota_today": quota, "status": status, "imap_uid_cursor": 0})
+
+    def _deal(self, extra):
+        c, _ = self.s.add_contact({"name": {"full": "P"}, "identities": {"emails": [{"address": "p@x.com"}]}})
+        return self.s.create_deal(c, "new_reply", extra=extra)
+
+    # --- blocker / crashes ---
+    def test_null_value_deal_does_not_crash_kanban_or_weekly(self):
+        self._deal({"value": None})
+        self.assertTrue(self.s.render_kanban()["html_rendered"])       # no TypeError
+        self.assertIsInstance(self.s.weekly_report_data()["forecast"], float)
+
+    def test_enrich_non_numeric_confidence_does_not_crash(self):
+        c, _ = self.s.add_contact({"identities": {"emails": [{"address": "a@x.com"}]}})
+        r = self.s.enrich_write(c, {"hooks": [{"type": "x", "evidence_url": "https://z/1", "confidence": "high",
+                                               "analysis": {"sensitivity": "public_business"}}],
+                                    "writing_brief": {"personalization_confidence": "very"}})
+        self.assertEqual(r["usable_hooks"], 1)                          # coerced, not crashed
+
+    # --- approval gate ---
+    def test_approve_is_idempotent_on_reapply(self):
+        self._prep_draft(); self.s.render_approval_report()
+        self.s.approve_apply({"approve": "1"})
+        r2 = self.s.approve_apply({"approve": "1"})                     # must not raise FileNotFoundError
+        self.assertEqual(r2["approved"], [])
+        self.assertIn("draft", r2["already_processed"][0] if r2["already_processed"] else "")
+
+    def test_approve_atomic_move_no_duplicate_pending(self):
+        self._prep_draft(); self.s.render_approval_report()
+        self.s.approve_apply({"approve": "1"})
+        pend = os.path.join(self.cdir, "campaigns", "demo", "outbox", "pending_approval")
+        left = [f for _, _, fs in os.walk(pend) for f in fs if f.endswith(".json")]
+        self.assertEqual(left, [])                                      # no stale pending copy
+
+    def test_approval_numbering_stable_across_rerender(self):
+        self._prep_draft(n=3); self.s.render_approval_report()
+        idx1 = json.load(open(self._idx()))["index"]
+        first_id = next(e["draft_id"] for e in idx1 if e["n"] == 1)
+        self.s.approve_apply({"approve": "1"})                          # remove #1
+        self.s.render_approval_report()                                 # re-render
+        idx2 = {e["n"]: e["draft_id"] for e in json.load(open(self._idx()))["index"]}
+        self.assertNotIn(first_id, idx2.values())
+        self.assertNotIn(1, idx2)                                       # #1 retired, not reused
+        for n, did in idx2.items():
+            self.assertEqual(n, next(e["n"] for e in idx1 if e["draft_id"] == did))  # numbers held
+
+    def test_resolve_numbers_reversed_and_bounded(self):
+        self._prep_draft(n=3); self.s.render_approval_report()
+        self.assertEqual(len(self.s._resolve_numbers("3-1")), 3)        # reversed tolerated
+        with self.assertRaises(Exception):
+            self.s._resolve_numbers("1-99999999")                      # huge span rejected
+
+    def test_approve_reports_not_found(self):
+        self._prep_draft(); self.s.render_approval_report()
+        r = self.s.approve_apply({"approve": [1, 99]})
+        self.assertIn(99, r["not_found"])
+
+    def test_reject_then_hold_same_number_consistent(self):
+        self._prep_draft(); self.s.render_approval_report()
+        r = self.s.approve_apply({"reject": [{"n": 1, "reason": "x"}], "hold": [1]})
+        self.assertTrue(r["rejected"]); self.assertFalse(r["held"])  # hold on same n skipped, reject won
+        d = json.load(open(self.s._resolve_numbers([1])[0]["path"]))
+        self.assertEqual(d["status"], "rejected")
+
+    # --- safety gates ---
+    def test_step1_re_bypass_unicode_blocked(self):
+        self._prep_draft(write=False)
+        for subj in ["​Re: hi", "Re： hi", "Ｒｅ: hi"]:
+            with self.assertRaises(Exception):
+                self.s.draft_write(self.lead, "demo", 1, subj, "b",
+                                   hooks_used=[{"type": "t", "evidence_url": "https://z/1"}])
+
+    def test_campaign_slug_traversal_rejected(self):
+        with self.assertRaises(Exception):
+            self.s.create_campaign("../../evil", {"audience": {"segment": "x"}})
+
+    def test_evidence_url_placeholder_rejected(self):
+        c, _ = self.s.add_contact({"identities": {"emails": [{"address": "a@x.com"}]}})
+        r = self.s.enrich_write(c, {"hooks": [{"type": "x", "evidence_url": "N/A",
+                                               "analysis": {"sensitivity": "public_business"}}],
+                                    "writing_brief": {"personalization_confidence": 0.9}})
+        self.assertEqual(r["usable_hooks"], 0)
+
+    def test_draft_uses_dossier_hook_type_not_caller(self):
+        self._prep_draft(write=False)
+        r = self.s.draft_write(self.lead, "demo", 1, "Idea", "b",
+                               hooks_used=[{"type": "FABRICATED_AWARD", "evidence_url": "https://z/1"}])
+        d = json.load(open(r["path"]))
+        self.assertEqual(d["hooks_used"][0]["type"], "new_listing")     # dossier type wins
+
+    def test_email_first_rejects_garbage_email(self):
+        self.s.create_campaign("c2", {"audience": {"segment": "seg"}, "channel_strategy": "email_first"})
+        self.s.add_contact({"name": {"full": "Bad"}, "identities": {"emails": [{"address": "not-an-email"}]}})
+        self.s.set_segment({"id": "seg", "where": [["lifecycle_stage", "=", "lead"]]})
+        r = self.s.queue_campaign("c2")
+        self.assertEqual(r["queued"], 0)
+        self.assertEqual(r["skipped"]["no_email"], 1)
+
+    # --- merge integrity ---
+    def test_queue_does_not_requeue_merged_winner(self):
+        self.s.create_campaign("demo", {"audience": {"segment": "seg"}})
+        loser, _ = self.s.add_contact({"identities": {"emails": [{"address": "l@x.com"}]}})
+        winner, _ = self.s.add_contact({"identities": {"emails": [{"address": "w@x.com"}]}})
+        _write_sent(self.cdir, "demo", loser, now_iso())               # loser was emailed
+        self.s.merge(loser, winner)
+        self.s.set_segment({"id": "seg", "where": [["lifecycle_stage", "=", "lead"]]})
+        r = self.s.queue_campaign("demo")
+        rows = [json.loads(l) for l in open(os.path.join(self.cdir, "campaigns", "demo", "queue", "enrich_queue.jsonl"))]
+        self.assertNotIn(winner, [x["lead_id"] for x in rows])         # winner already touched via loser
+
+    def test_followups_due_dedupes_merged_ids(self):
+        self.s.create_campaign("demo", {"audience": {"segment": "x"},
+                                        "sequence": [{"step": 1, "gap_days": 0}, {"step": 2, "gap_days": 0}]})
+        loser, _ = self.s.add_contact({"identities": {"emails": [{"address": "l@x.com"}]}})
+        winner, _ = self.s.add_contact({"identities": {"emails": [{"address": "w@x.com"}]}})
+        _write_sent(self.cdir, "demo", loser, now_iso())
+        _write_sent(self.cdir, "demo", winner, now_iso())
+        self.s.merge(loser, winner)
+        due = self.s.followups_due("demo")
+        self.assertEqual(len({d["lead_id"] for d in due}), 1)          # one real contact, one row
+
+    def test_apply_rules_no_duplicate_task_across_merged_ids(self):
+        loser, _ = self.s.add_contact({"identities": {"emails": [{"address": "l@x.com"}]}})
+        winner, _ = self.s.add_contact({"identities": {"emails": [{"address": "w@x.com"}]}})
+        self.s.apply_rules([{"type": "reply_positive", "contact_id": loser, "activity_id": "a1"}])
+        self.s.merge(loser, winner)
+        self.s.apply_rules([{"type": "reply_positive", "contact_id": winner, "activity_id": "a2"}])
+        open_tasks = [t for t in self.s._latest_tasks() if t.get("status") == "open"
+                      and t.get("contact_id") == self.s.resolve(winner)]
+        self.assertEqual(len(open_tasks), 1)                            # not duplicated
+
+    # --- enrich integrity ---
+    def test_hooks_only_refresh_preserves_identity(self):
+        c, _ = self.s.add_contact({"identities": {"emails": [{"address": "a@x.com"}]}})
+        self.s.enrich_write(c, {"identity": {"still_active": "inactive"},
+                                "hooks": [], "writing_brief": {"personalization_confidence": 0.5}})
+        self.s.enrich_write(c, {"hooks": [{"type": "x", "evidence_url": "https://z/1",
+                                           "analysis": {"sensitivity": "public_business"}}],
+                                "writing_brief": {"personalization_confidence": 0.8}})  # no identity key
+        ident = self.s.get_contact(c)["enrichment"]["identity"]
+        self.assertEqual(ident["still_active"], "inactive")            # not wiped
+
+    def test_neg_cache_email_not_found_recent_is_skipped(self):
+        import datetime as dt
+        c, _ = self.s.add_contact({"identities": {"phones": [{"number": "+15551230000"}]}})
+        recent = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=11)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        self.s.set_contact(c, {"enrichment": {"identity": {"still_active": "confirmed", "enriched_at": now_iso()},
+                                              "hooks_refreshed_at": now_iso(), "email_not_found_at": recent}})
+        self.assertEqual(self.s.enrich_status(c)["reason"], "email_not_found_recent")
+
+    # --- segment DSL / sendbox ---
+    def test_cond_in_string_value_is_not_substring(self):
+        c, _ = self.s.add_contact({"identities": {"emails": [{"address": "a@x.com"}]}})
+        self.s.set_segment({"id": "seg", "where": [["lifecycle_stage", "in", "leadership"]]})
+        self.assertEqual(self.s.resolve_segment("seg"), [])            # 'lead' not substring-matched
+
+    def test_pick_sendbox_excludes_exhausted_box(self):
+        self._sb("sb-full", quota=0); self._sb("sb-ok", quota=40)
+        c, _ = self.s.add_contact({"identities": {"emails": [{"address": "a@x.com"}]}})
+        box = self.s.pick_sendbox({"sendboxes": ["sb-full", "sb-ok"]}, self.s.get_contact(c))
+        self.assertEqual(box, "sb-ok")
+
+    # --- today view / weekly ---
+    def test_today_view_flags_deal_missing_timestamps(self):
+        d = self._deal({"value": 100})
+        # strip stage_history + created_at to simulate a migrated record
+        self.s.a.update("deals", d["id"], lambda x: {**x, "stage_history": [], "created_at": ""})
+        self.assertTrue(any(b["deal_id"] == d["id"] for b in self.s.today_view_data()["sla_breaches"]))
+
+    def test_reply_rate_capped_at_100(self):
+        c, _ = self.s.add_contact({"identities": {"emails": [{"address": "a@x.com"}]}})
+        self.s.log_activity("email_sent", c, "s")
+        for _ in range(3):
+            self.s.log_activity("email_reply", c, "r")
+        self.assertLessEqual(self.s.weekly_report_data()["reply_rate"], 1.0)
+
+    def test_scrub_gate_catches_term_split_across_markup(self):
+        import report_renderer as rr
+        # 'API key' broken across a <strong> tag must still be caught
+        html = "<p>API <strong>key</strong> Ventures reached out</p>"
+        self.assertIn("API key", rr.scrub_check_rendered(html))
+
+    # --- helpers ---
+    def _prep_draft(self, n=1, write=True):
+        self.s.create_campaign("demo", {"audience": {"segment": "x"}, "sendboxes": ["sb-a"]})
+        self._sb()
+        self.lead = None
+        for i in range(n):
+            lead, _ = self.s.add_contact({"name": {"full": f"L{i}"}, "identities": {"emails": [{"address": f"l{i}@x.com", "is_primary": True}]}})
+            self.lead = self.lead or lead
+            self.s.enrich_write(lead, {"identity": {"still_active": "confirmed"},
+                                       "hooks": [{"type": "new_listing", "summary": "s", "evidence_url": "https://z/1",
+                                                  "observed_date": "2026-07-14", "confidence": 0.9,
+                                                  "analysis": {"sensitivity": "public_business"}}],
+                                       "writing_brief": {"personalization_confidence": 0.85}}, campaign_slug="demo")
+            if write:
+                self.s.draft_write(lead, "demo", 1, f"Idea {i}", "Hi",
+                                   hooks_used=[{"type": "new_listing", "evidence_url": "https://z/1"}])
+
+    def test_atomic_write_survives_concurrent_writers(self):
+        import threading
+        from storage.json_adapter import JsonAdapter
+        path = os.path.join(self.cdir, "crm", "pipelines.json"); errors = []
+        def w(i):
+            try:
+                for _ in range(30):
+                    JsonAdapter._atomic_write(path, '{"i": %d}' % i)
+            except Exception as e:  # noqa: BLE001
+                errors.append(repr(e))
+        ts = [threading.Thread(target=w, args=(i,)) for i in range(8)]
+        [t.start() for t in ts]; [t.join() for t in ts]
+        self.assertEqual(errors, [])                                    # no shared-temp-file race
+        json.load(open(path))                                          # final file is valid JSON
+
+    def _idx(self):
+        return os.path.join(self.cdir, "outputs", now_iso()[:10], "approval_index.json")
 
 
 if __name__ == "__main__":
