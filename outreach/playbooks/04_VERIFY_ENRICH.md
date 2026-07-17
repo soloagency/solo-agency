@@ -14,12 +14,39 @@ follow-up's micro-refresh. Its dependency is the skill `playbooks/skills/email-v
   and never sent.
 - **No guessing.** Enrichment never fabricates an email address (MVP decision). Store only real
   found addresses (`source: enrich`); if none is found, set `mark_email_not_found`.
-- **No personal-life mining.** `public_business` signals are hooks; `personal` signals go to
-  `do_not_mention` only (see the skill's `etiquette.md`).
+- **No personal-life mining (anti-creepy stance).** Collect ONLY public, professional signals —
+  this dossier feeds a writer who is a dedicated peer that did their homework, not a surveillant.
+  `public_business` signals are hooks; `personal` signals go to `do_not_mention` only (see the
+  skill's `etiquette.md`). Gather MANY public-professional points, but never a dated, itemized log
+  of a person's life.
 - **Inherit before you enrich.** The dossier belongs to the contact and is reused across that
   client's campaigns. Always check `crm_store.py enrich status` first and act on its verdict.
 - **Read-only, logged-out.** WebSearch/WebFetch (+ browser tool only where `channel_reality.md`
   says). Never log into an account; Facebook/LinkedIn store URL only (Phase-4 Local Collector).
+
+## The Write-Ready gate (what this stage must produce)
+
+This stage exists to make each lead **write-ready** for a deeply personalized message (DESIGN §9).
+Three layers, with a hard floor:
+
+- **Layer A — Reachability (≥1 required):** at least one deliverable channel — a real found email
+  (→ email) or a DM-capable social profile / phone (→ messenger/assisted). This is
+  `identity.channels_found` + `identity.profiles`.
+- **Layer B — Proof-of-Life (≥1 required; MORE IS BETTER — do NOT cap):** evidenced, recent public
+  PROFESSIONAL signals — the personalization fuel; each point is one basis for a conclusion the
+  writer weaves. Universal, industry-AGNOSTIC taxonomy (INFER the sources that fit the lead's field
+  — do NOT work from a hardcoded per-industry list): (1) recent activity/output, (2) reputation /
+  social proof, (3) positioning / identity, (4) scale / momentum.
+- **Layer C — The Opening (NOT collected here):** the specific gap the offer resolves; the WRITER
+  derives it at write time. Your job is only to make Layers A+B rich.
+
+**The floor gate.** ≥1 Layer-B point → write-ready; the COUNT + freshness + goal-fit of Layer-B
+points scales `personalization_confidence`. Springboard exhausted and still 0 Layer-B → NOT
+write-ready → `mark_no_hook` (`no_hook_fallback` decides). Layer A fails → assisted or skip. "Use
+what you have" applies to the CHANNEL and the degraded path — the personalization floor stays ≥1
+Layer-B. **The springboard:** from ANY seed (name / email / one URL), pivot and loop until returns
+diminish (social → website → industry/directory page → reverse search), reasoning about which
+sources fit the trade, until Layers A+B are satisfied.
 
 ## Source Preservation Rule
 
@@ -31,17 +58,20 @@ wins.
 
 1. Get the batch: `crm_store.py enrich due --campaign <slug> --limit N` returns queued leads that
    need enrich or refresh (already-fresh ones are skipped — that is cross-campaign inheritance).
-2. Load the skill (`email-verify-enrich`) and run its two-tier flow per lead: Tier 1 verify
-   (still active? profile URLs), Tier 2 hooks (evidenced, `public_business` only), distill a
-   `writing_brief`.
+2. Load the skill (`email-verify-enrich`) and run its two-tier flow per lead: Tier 1 verify +
+   reachability (still active? profile URLs + any real channel = Layer A), Tier 2 proof-of-life
+   (gather as MANY evidenced Layer-B points as you can find — `public_business` only, do NOT cap;
+   each is a conclusion-basis the writer weaves), distill a `writing_brief`.
 3. Write it: `crm_store.py enrich write --contact <lead_id> --campaign <slug> --json '<dossier>'`.
    It stores the full dossier under `campaigns/{slug}/queue/enriched/YYYY-MM-DD/` and a distilled
    copy into `contact.enrichment`, and returns `usable_hooks` / `confidence_band` / `problems`. A
    usable hook that lacks an `observed_date` is **kept but flagged** in `problems` (recency
    unverified) — always set `observed_date`, since recency is what makes proof-of-life real.
-4. No-hook leads: set `mark_no_hook` and let the campaign's `no_hook_fallback` decide — default
+4. No-hook leads (the ≥1 Layer-B floor failed — 0 proof-of-life after the springboard is
+   exhausted): set `mark_no_hook` and let the campaign's `no_hook_fallback` decide — default
    `skip` (a hookless step-1 draft is rejected), or the explicit opt-in `generic_honest_opener`
-   (grounded in license/roster facts). Inactive leads: `still_active: inactive`, stop — do not draft.
+   (grounded in license/roster facts). One evidenced Layer-B point already clears the floor — only
+   mark no-hook at genuine zero. Inactive leads: `still_active: inactive`, stop — do not draft.
 5. **No-email leads (email discovery):** a lead an `email_first` campaign queued with no email is
    here precisely so Tier 1 can DISCOVER one (website, license/roster, Google, other public
    channels). Store any real address found (`source: enrich`). If discovery genuinely fails, set
