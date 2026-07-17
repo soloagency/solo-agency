@@ -1,0 +1,27 @@
+#!/bin/sh
+# Solo Agency — ensure Claude + Codex co-author trailers on every commit.
+# Idempotent: keyed on the co-author email, so it never duplicates a trailer
+# that is already present (e.g. one an agent added by hand).
+#
+# Activate for this clone with:
+#   git config core.hooksPath tools/git-hooks
+
+msg_file="$1"
+[ -n "$msg_file" ] && [ -f "$msg_file" ] || exit 0
+
+have_claude=0
+have_codex=0
+grep -qiF 'noreply@anthropic.com' "$msg_file" && have_claude=1
+grep -qiF 'security@openai.com' "$msg_file" && have_codex=1
+
+[ "$have_claude" = 1 ] && [ "$have_codex" = 1 ] && exit 0
+
+# No co-author trailer yet → separate the trailer block from the body.
+if [ "$have_claude" = 0 ] && [ "$have_codex" = 0 ]; then
+  printf '\n' >> "$msg_file"
+fi
+
+[ "$have_claude" = 0 ] && printf 'Co-Authored-By: Claude <noreply@anthropic.com>\n' >> "$msg_file"
+[ "$have_codex" = 0 ] && printf 'Co-Authored-By: Codex <security@openai.com>\n' >> "$msg_file"
+
+exit 0

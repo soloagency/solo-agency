@@ -4,7 +4,9 @@
 
 # Solo Agency
 
-Solo Agency is for solo founders who want an AI agent that goes to work every morning — winning clients, finding prospects (leads), writing max-personalized outreach, producing videos and blogs, and generating source-backed content ideas — all ready for your approval.
+Solo Agency is for solo founders who want an AI agent that goes to work every morning — winning clients, finding prospects (leads), writing max-personalized outreach, producing videos and blogs, and generating source-backed content ideas.
+
+I built it for myself and use it every day.
 
 Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" and it runs the full loop for you: research, lead and competitor opportunities, videos, blogs, distribution, analytics, and daily improvement.
 
