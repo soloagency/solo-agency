@@ -31,6 +31,9 @@ sending on, and `followup.md` (bumps + reply drafts) for Stage 10 follow-ups.
   observed). A *conclusion* is your honest INFERENCE from that fact ("people are already passing
   your content along" from an evidenced share count) — stated as inference, never invented as a new
   fact. Reason freely from evidenced facts; never manufacture one. (See `weave.md`.)
+- **No em dash (`—`).** Never use `—` in a draft, on any channel, in any language; it reads as
+  machine-written and costs trust on the first line. Use a comma, colon, period, or parentheses
+  instead; ranges use "to". Hyphens in compounds (30-day, first-time) are fine. (`weave.md` → House Style.)
 
 ## Compose from four inputs
 

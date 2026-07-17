@@ -17,6 +17,8 @@ creepy stance) apply on **every** channel without exception.
 - The data-richness mode (RICH / MEDIUM / THIN) — set by Layer-B count, not by channel.
 - The anti-creepy stance: a peer who did their homework, never a surveillant.
 - Facts vs conclusions, and the evidence gate.
+- **House style: no em dash (`—`)** on any channel or language. Use comma / colon / period /
+  parentheses; ranges use "to"; hyphens in compounds stay. (`weave.md` → House Style.)
 
 ## What CHANGES by channel (packaging only)
 

@@ -470,10 +470,13 @@ freshness + goal-fit of those Layer-B points.
 ### 9.3 Channel reality (be honest about what is readable)
 Readable now (MVP, WebSearch/WebFetch/browser tool): personal website/blog (best),
 YouTube title/desc, Instagram/X public (best-effort), Zillow/GBP reviews (browser tool
-or snippet). **Not readable logged-out: Facebook, LinkedIn** — store URL only.
-Reading Facebook posts (`fb.profile.posts`) is exactly what a future **Phase 4 Local
-Collector** (inherited from Solo Agency, using the operator's own logged-in Chrome)
-would solve. Do not promise reading logged-in-only content in the MVP.
+or snippet). **Facebook is now readable via the Local Collector** (the Phase-4 collector,
+inherited from Solo Agency, is LIVE — operator's own logged-in Chrome, bridge
+`127.0.0.1:17321`): `fb.profile.header` yields name/category/followers/verified/website,
+and `fb.profile.posts`/`fb.profile.videos` yield captions + view counts. For a bare
+Facebook/social URL, read `fb.profile.header` FIRST and seed the search from the real
+name+category+location — never from the URL slug. **Still not readable logged-out:
+LinkedIn** — store URL only. Do not promise reading other logged-in-only content in the MVP.
 
 ### 9.4 Social post analysis + etiquette
 Where readable, analyze the 3–5 latest posts: `{date, topic, summary, what it reveals,
@@ -484,7 +487,9 @@ health, vacations, children) are **default-banned from email copy** and go only 
 
 ### 9.5 Two-tier flow + freshness gate
 - **Tier 1 Verify (cheap subagent):** check existing dossier first; if identity in TTL,
-  skip to hooks. Else run the **springboard** from the seed: name+company+location search →
+  skip to hooks. Else run the **springboard** from the seed — but resolve a REAL identity first:
+  for a bare Facebook/social URL, read `fb.profile.header` (Local Collector) to get
+  name+category+location and seed from THOSE, never from the URL slug. Then: name+company+location search →
   license → roster → directory/listing snippet → collect profile URLs + emails/phones
   (Layer A). These sources are ILLUSTRATIVE of a real-estate lead — GENERALIZE the springboard
   to whatever the lead's field is; there is no fixed per-industry source list.

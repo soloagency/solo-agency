@@ -68,6 +68,18 @@ fresh, on-goal → high). Springboard exhausted and still 0 Layer-B → **NOT wr
 "Use what you have" applies to the CHANNEL and the degraded path — the personalization floor stays
 ≥1 Layer-B.
 
+**Seed normalization — resolve a REAL identity before the first search.** A search query is built
+from a real person/business, NEVER from a URL. If the only seed is a Facebook/social URL (or the CRM
+`name` is blank), FIRST read the profile with the Local Collector's `fb.profile.header` — the Phase-4
+collector is now LIVE (operator's own logged-in Chrome; bridge `127.0.0.1:17321`, enqueue capability
+`fb.profile.header` with the profile URL; see `solo-agency-collector`). Take its `name` + `category`
++ a location signal (city from the header/intro) and build the first query as `"<name>" <category>
+<city>`. **Do NOT build a query from a URL path/slug** (e.g. `absellsaz`, or "videos/reels insurance
+agent" stitched from URL words) — slug queries return directory junk, not the person. If the header
+yields no usable name, pull the person's own words + place-names from `fb.profile.videos` /
+`fb.profile.posts` captions before ever falling back to a slug. Pass a `profile.php` URL only WITH
+its `?id=<numeric_id>` — a bare `profile.php` resolves to the operator, not the lead.
+
 **The springboard (industry-agnostic, iterative).** From ANY seed — a name, an email, a single URL
 — pivot to find the rest and loop until returns diminish: social → website (email + tagline) →
 industry / directory page (volume, reviews) → reverse search (email / name → other profiles).

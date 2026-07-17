@@ -5,18 +5,18 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| SOLO_AGENCY_PLAYBOOK.md | 834 | 84c9e81e645368489b35962eb37737540dc4b6472d42d9470231575bf4031e86 | If any required stage was not loaded, load it before proceeding. |
-| playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1818 | 79bd8242e6acde898142d79951e1db8baca7a553b049cf618a5683b8de3dcf0d | --- |
-| playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md | 794 | b6e0c65ae8d3912aaea13217d454382365497c275cad8f580b0bb4d876c584b4 | --- |
+| SOLO_AGENCY_PLAYBOOK.md | 837 | 909a7a89ef7bd85a724f90c75816669acf756a2482e8f5dad3c300f17874480e | If any required stage was not loaded, load it before proceeding. |
+| playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1818 | f431bd524e2ceb37ca0e64cb7676c17bf3c2c3dadd017fbfbec3a3781c49cef1 | --- |
+| playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md | 794 | 1247f7e887894609397e62428c753570db9430dcbd7b9392444b9e2bce7bfbab | --- |
 | playbooks/02_PRIVATE_SOURCE_SETUP.md | 628 | 129401888e5b6a9bd5eae5dd5b79364d337e8c483df0fb9c1eb9315e08fb7a20 | --- |
 | playbooks/03_PRODUCTION_DISTRIBUTION.md | 1061 | e9bbeb91f3584dc2a91401b33d02eb8853ac1b15900add67eab5e84739c4a387 | Competitor analysis must be used for strategy, positioning, and original content ideas. The agent must not copy competitor posts, scripts, captions, offers, or creative assets. |
 | playbooks/04_DAILY_SCHEDULE.md | 637 | bae0f87b6229f1cb5d12f73140987f09230b4e62d399a41e0433187ad804f4bd | If the bridge is not installed as a startup service, the human must start it manually after reboot by running the prepared setup/start command outside the AI sandbox. The AI agent should not start it from inside the AI sandbox during setup or repair. |
 | playbooks/05_MEASURE_LEARN_IMPROVE.md | 297 | 8723db725c45b240b2bdf97886d08622be14163c64d2d8edacf1836eb8f7c096 | Claiming measurement completion without these is a critical violation. |
 | playbooks/06_AGENCY_REPORT_STANDARD.md | 1522 | 78a99ce481d595ec002ee4979e3e4ada24ab5e080c457c3f6d5c4bda5906af6b | --- |
-| playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1708 | 0b7ca1c8000d22c38c1fcd339b58d64e659025f2bba8b96e0abc074f8c9c366a | Storage-schema note: the three per-client analytics logs written under each client's `analytics/` directory are `metrics_log.md`, `learning_log.md`, and `comment_signal_log.md`. |
-| playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md | 1677 | 42c4f2247f92882cbfc5ec887fcbc8c3b2ec645ddb6b57fbb20115ffa275ea98 | --- |
-| playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md | 1924 | a7e8c3a353eb46761ab364b7093b8bfbb3dfc12eff7411ff9cd3445aa02aa61b | This is the intended operating model. |
-| playbooks/10_LEAD_COMPETITOR_DETECTION.md | 374 | 0b0c0869e311b3d713313a6d89bbb74d2292edd4e2eee7c5168e7ba4a9ffaccc | - No auto outreach, auto DM, contact scraping, or credential collection occurred. |
+| playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1708 | c8ea0a5f8b5ad7888ef03e97d95dd21698e4b9f84bb4d05388849e709a07ee5b | Storage-schema note: the three per-client analytics logs written under each client's `analytics/` directory are `metrics_log.md`, `learning_log.md`, and `comment_signal_log.md`. |
+| playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md | 1678 | 8a49ab2a3f593e3fd5730f24072b772f8e23eec5699582c8b66ea005414e084e | --- |
+| playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md | 1924 | 4bc99c71c85eeaa4b712eef02cfa50116dde2537c33361c442585a35702292fc | This is the intended operating model. |
+| playbooks/10_LEAD_COMPETITOR_DETECTION.md | 380 | aec42c6edf8731c68b25263d4a6240862eb226d7ad547579a29080bf174d6634 | - No auto outreach, auto DM, credential/secret collection, or access-control/CAPTCHA bypass occurred. (Collecting publicly-rendered contact details under the operator's command is permitted per the collection-consent rule above; the send/act side still needs human approval.) |
 | playbooks/11_UPDATE_AND_VERSION_WATCH.md | 366 | 5416b8ae96dcd76a4c91c2c7c7749c17e1d34006267c58b5885ec41cc7c82ee0 | - If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And GitHub Issue Escalation Rule. |
 | playbooks/LOAD_LEDGER_PROTOCOL.md | 61 | af1fd8b7d00598490324118b69fe6c9d5470b22674bcad93975e6b967e6878d8 | `playbooks/LOAD_MANIFEST.md` lists every `playbooks/**/*.md` with `path \| lines \| last_line \| sha256`. It is regenerated automatically by `deploy-soloagency.sh` on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection. |
 | playbooks/PRIVATE_SOURCE_GATE.md | 122 | 5f085be204e27a7614d9ec97f2b83745c521426d027c7a1c5257c2534e775eca | - or the blocker was honestly reported. |
@@ -26,6 +26,10 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/TODO.md | 207 | e7e62cfff6a719cadf5d9e87ec59097f0ad489753a49c26581ac6c49e2ba9316 | - Does it pass Stage 9 self-audit before claiming completion? |
 | playbooks/skills/blog-writing/LOAD_MANIFEST.md | 8 | 6253f6b6c0903a2ca96c27fe0f8f8c6373dc675c37900485fa0a488fce89cc9d | \| SKILL.md \| 166 \| 00643a1ca8fe4f78575974baf46b504012accba8dd9cba16d2fc86983c51a27f \| user is technical and asks. \| |
 | playbooks/skills/blog-writing/SKILL.md | 166 | 00643a1ca8fe4f78575974baf46b504012accba8dd9cba16d2fc86983c51a27f | user is technical and asks. |
+| playbooks/skills/lead-engine/LOAD_MANIFEST.md | 9 | 53f46dbe1856e1af9e8d299dda94d1ae3c907c4a289f13a596ffb828bafa6df5 | \| safety.md \| 82 \| 055aba4e55999fbd4677ed446df4359f233c94e3a8558139acba4872534e2d56 \| ``` \| |
+| playbooks/skills/lead-engine/SKILL.md | 119 | 0e00bde10eef9e5cb5f76f30b3aebda4d251a4c43a8003f4cdcbf35a579bf5c1 |   (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) — authoritative, do not duplicate. |
+| playbooks/skills/lead-engine/recipes.md | 84 | e9b62cdaf9d52c04fe956cb22a2bf377be622fe851d514f875267c7661ec542e | creator name/url as the reliable signal. |
+| playbooks/skills/lead-engine/safety.md | 82 | 055aba4e55999fbd4677ed446df4359f233c94e3a8558139acba4872534e2d56 | ``` |
 | playbooks/skills/report-design/LOAD_MANIFEST.md | 8 | 4cc3d25d5d6f43c3b4c4eea730e9d377633d7eabfee1f0e14bd32fd0e295cd07 | \| SKILL.md \| 115 \| c43c7b61ba9400b6c17c3d7054693d6eb6b53c8c33e2eb89ad0c8b7ab9b1d4f5 \| - [ ] No fake buttons, remote dependencies, raw Markdown dump, or mobile body overflow. \| |
 | playbooks/skills/report-design/SKILL.md | 115 | c43c7b61ba9400b6c17c3d7054693d6eb6b53c8c33e2eb89ad0c8b7ab9b1d4f5 | - [ ] No fake buttons, remote dependencies, raw Markdown dump, or mobile body overflow. |
 | playbooks/skills/social-post-writing/LOAD_MANIFEST.md | 8 | 936f2ac0b32256560488ae1363f6713cc35d1532a65bf1d8a621fda65db754e5 | \| SKILL.md \| 109 \| 3d4058d2aed5ca0a07004c78ed8e5193bc678cc05124a0f21106c5cc70f6c43d \| ending with a watch CTA. \| |

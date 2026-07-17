@@ -13,7 +13,8 @@ email (a months-old listing, a wrong person). Per hook type, use the reachable s
 | Google Business Profile reviews | ⚠️ JS-rendered | browser tool (Claude in Chrome), not WebFetch | A recent review is a strong hook when you can read it. |
 | State license / registry | ⚠️ varies | WebFetch for GET pages; browser tool for ASP.NET/POST forms | Proves "still active"; some states expose a public email. |
 | Brokerage roster (e.g. kw.com) | ⚠️ SPA | often an empty shell on WebFetch → browser tool | Presence on the roster ⇒ still there; email domain is a hint, not a guess. |
-| Facebook posts | ❌ logged-out wall | store the URL only | Reading these is the Phase-4 Local Collector's job (operator's own logged-in Chrome). |
+| Facebook header | ✅ via Local Collector | `fb.profile.header` (name, category, followers, verified, website) | Collector is LIVE (operator's logged-in Chrome, `127.0.0.1:17321`). Read the header FIRST to get the real name/category, THEN search — never from the URL slug. Bare `profile.php` (no `?id=`) resolves to the operator, not the lead. |
+| Facebook posts/videos | ✅ via Local Collector | `fb.profile.posts` / `fb.profile.videos` (captions, view counts) | Logged-out fetch still walled — use the Local Collector, not WebFetch. Captions carry the person's own words + place names. |
 | LinkedIn | ❌ logged-out wall | store the URL only | Career-change hooks live here but are unreadable now. |
 
 ## Consequences to encode

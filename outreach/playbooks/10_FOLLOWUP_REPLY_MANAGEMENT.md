@@ -133,9 +133,12 @@ python3 tools/crm_store.py --client-dir <CLIENT_DIR> followups due --campaign <s
 
 `followups due` returns, per campaign, each lead whose latest sent step N has passed its
 step-(N+1) `gap_days`, who is **not** frozen (no reply), and whose sequence is **not** exhausted
-(the breakup step is the last one). For each, Stage 4 micro-refreshes the person's 1–2 best sources
-so the bump carries a **fresh** hook (a new listing since the last touch) or **retires a stale**
-one — then Stage 6 drafts the bump (`step > 1`): sticky sendbox, threads off the prior
+(the breakup step is the last one). For each, the bump draws first on the **reserved** Layer-B from the
+initial enrichment plus the campaign's `message_bank` — no new collector call needed. A **micro-refresh
+is opportunistic**: run it only when the reserved points are used up and the collector has spare
+capacity, gated by the send budget, never as a per-bump requirement (enrichment must not scale with the
+in-flight bump count). Retire a stale hook (a sold listing) whenever you do refresh. Then Stage 6 drafts
+the bump (`step > 1`): sticky sendbox, threads off the prior
 `rfc_message_id`, subject may keep a truthful `Re:`. The final step is the breakup (easy out, door
 left open); after it, the sequence ends for that contact. Every bump is a distinct evidenced angle
 — never a repeat of step 1 (Stage 6 `followup.md`).

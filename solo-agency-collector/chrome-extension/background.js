@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.29-websearch";
+const EXTENSION_BUILD = "0.1.43-scroll0-fix";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -443,9 +443,28 @@ function graphqlCaptureEnabled(job) {
   return true;
 }
 
+// A bare `profile.php` (no id), `/me`, etc. resolve to the LOGGED-IN operator,
+// not the target — collecting it would pollute leads with the operator's own
+// profile. Reject before navigating so the source errors cleanly instead.
+function isSelfOrAmbiguousFbUrl(rawUrl) {
+  let u;
+  try { u = new URL(String(rawUrl)); } catch (e) { return false; }
+  if (!/(^|\.)facebook\.com$/i.test(u.hostname)) return false;
+  const path = u.pathname.replace(/\/+$/, "").toLowerCase();
+  if (path === "/profile.php" && !u.searchParams.get("id")) return true; // the reported bug
+  if (path === "/me") return true;
+  return false;
+}
+
 async function collectSource(source, job, settings, binding, sourceIndex) {
   if (!source.url || !/^https?:\/\//i.test(source.url)) {
     throw new Error("source url must start with http:// or https://");
+  }
+  if (isSelfOrAmbiguousFbUrl(source.url)) {
+    throw new Error(
+      "ambiguous Facebook URL resolves to the logged-in operator, not the target: " +
+      source.url + " — use profile.php?id=<numeric_id> or the vanity URL facebook.com/<username>"
+    );
   }
 
   const activateCollectionTab = shouldActivateCollectionTab(job, source);
@@ -469,10 +488,15 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
       20000,
       "inject_capture_files_timeout_needs_site_access"
     );
+    // Write actions must NOT pre-scroll: on a reels/immersive player, scrolling
+    // ADVANCES to the next (recommended) reel, drifting the write off-target; on
+    // a permalink it just wastes time. Force 0 scroll steps for write actions.
+    const WRITE_ACTIONS = new Set(["fb.post.react", "fb.post.comment", "fb.message.send"]);
+    const wantAction = !!source.capability && WRITE_ACTIONS.has(String(source.capability));
     const discoveryMode = isDiscoveryCollection(job, source);
-    const maxScrollSteps = maxScrollStepsForCollection(job, source);
+    const maxScrollSteps = wantAction ? 0 : maxScrollStepsForCollection(job, source);
     const collectOptions = {
-      scrollSteps: Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
+      scrollSteps: wantAction ? 0 : Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
       maxScrollSteps,
       scrollMode: discoveryMode ? "discovery" : "standard",
       stopAfterNoMoveScrolls: discoveryMode ? 3 : 0,
@@ -494,46 +518,82 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // every existing HTML-derived field is untouched. On any failure, or on a
     // non-Facebook page, we simply skip and behave exactly as before.
     let gql = null;
-    if (graphqlCaptureEnabled(job) && /facebook\.com/i.test(String(source.url || cap.url || ""))) {
+    let gqlRecords = null;
+    const isFbPage = /facebook\.com/i.test(String(source.url || cap.url || ""));
+    const wantCapability = !!source.capability;
+    // Inject the extractor library when we need the Facebook GraphQL layer (FB
+    // pages) OR when a capability is requested. Capabilities can be DOM-based and
+    // run on ANY site (e.g. web.search on DuckDuckGo, fb.reels.feed), so the
+    // dispatch must NOT be gated behind Facebook GraphQL availability. The lib
+    // reads window.__soloGql only lazily inside GraphQL extractors, so injecting
+    // it on a non-Facebook page is safe.
+    // Write actions (react/comment/DM) drive the real UI via DOM through a
+    // separate lib. Approval is handled upstream by the daily report — a created
+    // job is meant to execute — so this path is not gated on GraphQL capture.
+    // (WRITE_ACTIONS / wantAction are defined above so the capture can skip scroll.)
+    if ((graphqlCaptureEnabled(job) && (isFbPage || wantCapability)) || wantAction) {
       try {
-        await withTimeout(chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          world: "MAIN",
-          files: ["gql_extract.js"]
-        }), 8000, "inject_gql_extract_timeout");
-        const [gres] = await withTimeout(chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          world: "MAIN",
-          func: () => (typeof window.__soloGqlExtract === "function" ? window.__soloGqlExtract({}) : null)
-        }), 8000, "gql_extract_timeout");
-        gql = gres && gres.result ? gres.result : null;
+        if (wantAction) {
+          // Surface action failures instead of letting them fall through as a
+          // silent null (which reads as "nothing happened" in the report).
+          try {
+            await withTimeout(chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              world: "MAIN",
+              files: ["gql_actions.js"]
+            }), 8000, "inject_gql_actions_timeout");
+            // Pass the REQUESTED url so the action can verify the page didn't get
+            // redirected to different content before it writes (FB reels/permalinks
+            // can drift to a recommended item; a write must never hit the wrong one).
+            const actionInputs = Object.assign({}, (source.inputs && typeof source.inputs === "object" ? source.inputs : {}), { _target_url: String(source.url || "") });
+            const [ares] = await withTimeout(chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              world: "MAIN",
+              func: async (capId, capInputs) => (typeof window.__soloActRun === "function" ? await window.__soloActRun(capId, capInputs) : { __nolib: true }),
+              args: [String(source.capability), actionInputs]
+            }), 60000, "gql_action_timeout");
+            const ar = ares && ares.result;
+            if (ar && ar.__nolib) gqlRecords = { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: "action lib not present (frame navigated before inject?)" }], _debug: { href: source.url } };
+            else gqlRecords = ar || { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: "action returned no result" }], _debug: { href: source.url } };
+          } catch (actErr) {
+            gqlRecords = { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: String(actErr && actErr.message || actErr) }], _debug: { href: source.url } };
+          }
+        } else {
+          await withTimeout(chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            world: "MAIN",
+            files: ["gql_extract.js"]
+          }), 8000, "inject_gql_extract_timeout");
+          // Facebook-only generic layer (graphql_records + graphql_manifest).
+          if (isFbPage) {
+            const [gres] = await withTimeout(chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              world: "MAIN",
+              func: () => (typeof window.__soloGqlExtract === "function" ? window.__soloGqlExtract({}) : null)
+            }), 8000, "gql_extract_timeout");
+            gql = gres && gres.result ? gres.result : null;
+          }
+          // Capability dispatch (GraphQL or DOM) — runs on any page. Typed output
+          // lands in the new `records` field; additive and best-effort.
+          if (wantCapability) {
+            const [cres] = await withTimeout(chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              world: "MAIN",
+              func: async (capId, capInputs) => {
+                if (typeof window.__soloGqlPaginate === "function") return await window.__soloGqlPaginate(capId, capInputs);
+                if (typeof window.__soloGqlExtractCapability === "function") return window.__soloGqlExtractCapability(capId, capInputs);
+                return null;
+              },
+              args: [String(source.capability), source.inputs && typeof source.inputs === "object" ? source.inputs : {}]
+            }), 45000, "gql_capability_timeout");
+            gqlRecords = cres && cres.result ? cres.result : null;
+          }
+        }
       } catch (error) {
-        gql = null; // GraphQL layer is best-effort; never fail the HTML collection.
+        // GraphQL/capability + action layer is best-effort; never fail HTML collection.
       }
     }
     const gqlAvailable = !!(gql && gql.available);
-
-    // If the job's source names a capability (catalog id like "fb.group.posts"),
-    // run its precise, typed extractor on top of the generic layer. Typed output
-    // lands in the new `records` field; still additive and best-effort.
-    let gqlRecords = null;
-    if (gqlAvailable && source.capability) {
-      try {
-        const [cres] = await withTimeout(chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          world: "MAIN",
-          func: async (capId, capInputs) => {
-            if (typeof window.__soloGqlPaginate === "function") return await window.__soloGqlPaginate(capId, capInputs);
-            if (typeof window.__soloGqlExtractCapability === "function") return window.__soloGqlExtractCapability(capId, capInputs);
-            return null;
-          },
-          args: [String(source.capability), source.inputs && typeof source.inputs === "object" ? source.inputs : {}]
-        }), 45000, "gql_capability_timeout");
-        gqlRecords = cres && cres.result ? cres.result : null;
-      } catch (error) {
-        gqlRecords = null; // capability extraction is best-effort; never fail collection.
-      }
-    }
 
     const now = new Date().toISOString();
     const runId = String(job.run_id || "");
@@ -1070,8 +1130,11 @@ function captureTimeoutMsForCollection(job, source, settings, options) {
 async function collectCleanPage(opts) {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const maxSteps = clamp(Number(opts.maxScrollSteps) || 10, 1, 80);
-  const steps = clamp(Number(opts.scrollSteps) || 5, 0, maxSteps);
+  // NOTE: use Number.isFinite, NOT `|| default` — an explicit 0 (write actions,
+  // which must NOT scroll a reel player off-target) is falsy and would wrongly
+  // fall back to the default, causing exactly the reel-drift bug.
+  const maxSteps = clamp(Number.isFinite(Number(opts.maxScrollSteps)) ? Number(opts.maxScrollSteps) : 10, 0, 80);
+  const steps = clamp(Number.isFinite(Number(opts.scrollSteps)) ? Number(opts.scrollSteps) : 5, 0, maxSteps);
   const scrollMode = String(opts.scrollMode || "standard");
   const stopAfterNoMoveScrolls = clamp(Number(opts.stopAfterNoMoveScrolls) || 0, 0, 10);
   const minD = clamp(Number(opts.minDelaySeconds) || 5, 1, 30);
