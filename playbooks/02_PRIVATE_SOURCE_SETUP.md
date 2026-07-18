@@ -6,6 +6,8 @@ Stage: `02`
 
 Load when private data sources, manual private URLs, joined groups, Facebook keyword group search, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, private data source discovery, or Local Collector activation are requested, approved, pending, or blocked.
 
+Also load this stage BEFORE asking the step-6 private data source checkpoint question of the one-time setup: the required checkpoint content and its two-part delivery rule live in §6 of this file, so the question cannot be asked correctly without this stage loaded.
+
 If this stage was triggered by a human request to scan, monitor, collect, review, or open a private data source after any amount of conversation drift, first reload `playbooks/PRIVATE_SOURCE_GATE.md`, then reload Stage 8 and Stage 9 before taking action.
 
 ## Hard Gates For This Stage
@@ -15,6 +17,7 @@ If this stage was triggered by a human request to scan, monitor, collect, review
 - Ask explicitly whether the human wants to discover candidate private data sources from joined/member communities and followed/subscribed sources, such as Facebook groups, subreddits, Discord/Slack communities, LinkedIn groups/pages, YouTube channels, X lists/communities, and followed KOLs/pages.
 - Explain private data sources in plain language before asking for them.
 - Explain Local Collector in plain language before asking the human to install or activate it.
+- The step-6 checkpoint question uses the two-part delivery in §6: the plain-language explanation FIRST (as normal prose/bullets), then one compact `**[ACTION REQUIRED]**` question with the three reply options. Translated versions must pass the §6 content-completeness checklist; shortening away any checklist item is a Source Preservation violation even if the shorter question reads better.
 - Use the Facebook joined-groups URL only with explicit consent.
 - Do not use automated approval-gated browser extension flows for unattended collection.
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for private data source collection.
@@ -121,9 +124,29 @@ Classification tie-breaker (private vs public):
 - "Public" for agent-browser research means the non-social web: websites, articles, docs, search results, and public news or forums that are not social-platform pages/profiles/groups/channels.
 - Reclassifying a source from collector-only to public (or vice versa) requires explicit human approval; the agent must not reclassify on its own.
 
-The agent must say:
+The checkpoint is delivered in TWO parts, in this order, in the human's language. Translation is required when the human is not chatting in English; dropping content is not allowed — the delivery must stay content-complete per the checklist below.
 
-`Do you want to provide any private data sources for this client? Private data sources are logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require your account or membership. These are different from public data sources such as websites, Google/search results, public articles, and public pages I can access without your login. If you provide private data sources, you must already be a member, follower, subscriber, logged in, or otherwise authorized to view them in the Chrome profile where this client's Solo Agency Local Collector extension is installed. I recommend one separate Chrome profile per client, with that client's extension loaded and the relevant social accounts logged in there. I will only activate collection with your permission, using the Solo Agency Local Collector local app/extension on your computer. It uses your already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. Do not share credentials, cookies, passwords, OTPs, or tokens. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if you provide more, I will prioritize and rotate them.`
+**Part 1 — plain-language explanation, BEFORE the question, as normal prose or short bullets (not inside the `[ACTION REQUIRED]` block):** the agent must convey ALL of the following, briefly:
+
+- Private data sources are logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require the human's account or membership.
+- They are different from public data sources such as websites, Google/search results, public articles, and public pages the agent can access without the human's login (already configured and ready to run).
+- Collection uses the Solo Agency Local Collector: a local app plus Chrome extension on the human's computer. It uses the already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. It never asks for credentials, cookies, passwords, OTPs, or tokens.
+- The human must already be a member, follower, subscriber, logged in, or otherwise authorized to view any source they provide, in the Chrome profile where this client's Solo Agency Local Collector extension is installed; one separate Chrome profile per client is recommended, with that client's extension loaded and the relevant social accounts logged in there.
+- Collection activates only with the human's permission. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if the human provides more, the agent prioritizes and rotates them.
+
+**Part 2 — the question, immediately after the explanation, as ONE compact `**[ACTION REQUIRED]**` block** (root playbook format), asking which of the three options the human wants:
+
+- provide private data source URLs/lists now, or
+- allow one optional discovery pass from places they already joined/follow (the agent filters candidates and asks approval before anything is monitored), or
+- postpone and run public data sources only for now.
+
+Content-completeness checklist for this checkpoint (audited in Stage 9 — a checkpoint question missing any item is non-compliant, even if the shorter version reads better):
+
+1. Definition of private data sources with a couple of concrete examples.
+2. Contrast with public data sources (what the system can already read without login).
+3. What the Local Collector is + data stays local + never asks for passwords/cookies/OTPs/tokens.
+4. The already-a-member/logged-in requirement and the per-client Chrome profile recommendation.
+5. The three reply options: provide sources / allow discovery / postpone.
 
 ### Private Data Source Discovery When The Human Has No List
 
