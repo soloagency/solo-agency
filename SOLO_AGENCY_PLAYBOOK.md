@@ -70,11 +70,7 @@ Important human questions and instructions must be impossible to miss.
 
 Any human-facing reply, setup handoff, blocker, notification, report handoff, or next-step question that requires the human to answer, approve, paste, run, click, load an extension, connect a provider, edit an automation task, or confirm state must put that request in a standalone block.
 
-Do not bury required questions or actions inside long paragraphs, progress roadmaps, report links, Markdown files, or status summaries. If a required question appears in body text, repeat the final required ask in the action block. If no human action is needed, say:
-
-```text
-No action required right now.
-```
+Do not bury required questions or actions inside long paragraphs, progress roadmaps, report links, Markdown files, or status summaries. If a required question appears in body text, repeat the final required ask in the action block. If no human action is required, do NOT write `No action required right now.` - end with next-action guidance instead (see the Next-Action Guidance Rule below).
 
 Use this stable text marker exactly. A font/text icon such as `!`, `⚠`, or `✓` may appear before it, but the text marker is required because icons render differently across AI chat apps:
 
@@ -141,7 +137,22 @@ Rules:
 - Do not ask for passwords, cookies, OTPs, browser session tokens, or social credentials. Provider setup blocks may ask only for the specific API key or OAuth/connection action the playbook allows.
 - Setup Flow report requests must end with an action block that names the exact client-specific automation task to run, not a question asking whether to run the report now.
 - Production, rendering, publishing, credit spending, face/voice clone, provider account connection, lead outreach, private data source discovery, private data source approval, Local Collector start/reload, Chrome extension loading, and native automation task edits always require this block.
-- Scheduled runs and notifications should use the block only when the human must act. Otherwise they should include `No action required right now.`
+- Scheduled runs and notifications should use the block only when the human must act. Otherwise they end with next-action guidance per the Next-Action Guidance Rule below.
+
+## Next-Action Guidance Rule (supersedes `No action required right now.`)
+
+The agent must NEVER end a human-facing reply, notification, or report handoff with `No action required right now.`, a passive summary, or any ending that leaves the human without a suggested next move. Assume the human is completely new to Solo Agency: the agent is the tour guide and user guide.
+
+Every human-facing reply ends with next-action guidance:
+
+1. If a required human action exists, end with the `**[ACTION REQUIRED]**` block(s) as specified in this contract - unchanged.
+2. Otherwise, end with 1-3 concrete suggested next actions plus exactly ONE closing question asking which one the human wants.
+   - The FIRST suggestion must resume the current workflow at its exact pending step - especially a flow that was interrupted by unrelated questions (for example: continue private data source discovery, approve the pending discovery shortlist, resume setup at the current roadmap step).
+   - The other suggestions must be REAL Solo Agency capabilities actually available in the current state - for example: run today's report via the client-specific automation task, review Lead & Competitor Opportunities, set up PDNA (WideCast API key) so approved drafts become video/blog/social assets, create an OutreachCRM campaign for this client, or review analytics once published URLs exist. Never invent a capability; if a suggestion has unmet prerequisites, say what setup it needs first.
+   - Phrase each suggestion in plain language for a first-time user and include the exact reply/command that triggers it.
+3. Scheduled-run notifications follow the same rule: when nothing is blocked, end with the suggested next action (review the report, approve the shortlist, run the named task), never `No action required right now.`
+
+Override: anywhere any playbook, entrypoint, skill, template, or older text still says to end with or include `No action required right now.`, this rule supersedes it - deliver next-action guidance instead. The `**[ACTION REQUIRED]**` contract itself is unchanged.
 
 ## Mission
 
@@ -694,7 +705,7 @@ Let me know if you need anything else.
 Next steps are in the report.
 ```
 
-The agent may omit the next-step question only when the entire requested workflow is complete and no human decision is required.
+Even when the entire requested workflow is complete and no human decision is required, the agent still closes with next-action guidance per the Next-Action Guidance Rule: suggest 1-3 real, currently-available next steps and ask which one the human wants.
 
 ## Non-Negotiable Summary
 

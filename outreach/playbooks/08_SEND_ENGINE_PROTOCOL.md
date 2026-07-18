@@ -18,7 +18,7 @@ This stage documents the send engine as it is **actually implemented in code** (
 - **Data root is `daily-content-pipeline/`.** Drafts, sent logs, approvals, and suppression all live under `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/…`. The toolkit repo holds no client data and no secrets.
 - **Phase 1 is `plain_text_mode`.** No open pixel, no link rewrite, no tracker `/events` pull. Open/click tracking and the tracker-based unsubscribe pull are Phase 2/3. The `List-Unsubscribe` mailto is always present for CAN-SPAM. Do not claim opens/clicks are measured in Phase 1.
 - **Only a reply is conversion evidence.** Opens and clicks (when they exist in a later phase) never trigger a stage change or auto-action. The send engine records; it does not infer intent from delivery signals.
-- Every human step in this stage — a re-auth request, a blocked-send handoff, an approval request — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md` (one purpose, one exact next step, one command or path). When nothing is needed, say `No action required right now.`
+- Every human step in this stage — a re-auth request, a blocked-send handoff, an approval request — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md` (one purpose, one exact next step, one command or path). When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule.
 
 ## Source Preservation Rule
 
@@ -177,7 +177,7 @@ Before claiming a send pass complete:
 - Every draft that did **not** send has an honest disposition: an explicit blocker recorded, or it remains `pending_approval`/`approved` awaiting the next pass. No draft was silently dropped.
 - No send occurred for a draft whose `status` was not `"approved"`; every approval is in `approvals/approval_log.md`.
 - No send occurred for a suppressed, frozen, opted-out, or unapproved-guessed contact — the pre-send blockers hold.
-- Any blocked box or blocked follow-up was surfaced with an `**[ACTION REQUIRED]**` block; when nothing is needed, `No action required right now.`
+- Any blocked box or blocked follow-up was surfaced with an `**[ACTION REQUIRED]**` block; when nothing is needed, next-action guidance per the Next-Action Guidance Rule.
 - Counts (emails sent, guessed sent, blocked follow-ups) feed the run's reconciliation ledger (Stage 7 §10) and, on a scheduled run, the Stage 9 audit reads them before any completion claim.
 
 ---

@@ -62,7 +62,9 @@ scrubbed report.
    `tools/report_renderer.py` (stdlib only). The client-facing reports are the **weekly**
    report and the **monthly** report; every other output is operator-only.
 9. **`[ACTION REQUIRED]` contract.** One purpose, one exact next step, one command or
-   path. Say `No action required right now.` when nothing is needed.
+   path. When nothing is needed, end with next-action guidance (the Next-Action Guidance Rule
+   in `OUTREACHCRM_PLAYBOOK.md`): suggest 1-3 real available next actions and ask which one
+   the operator wants - never `No action required right now.`
 10. **Slug rules** (lowercase, hyphens, no punctuation) and monthly `YYYY-MM/` folders.
 11. **Deploy script discipline:** auto-generate LOAD_MANIFEST, secret-scan staged diff
     before commit, refuse to commit into the wrong git root.

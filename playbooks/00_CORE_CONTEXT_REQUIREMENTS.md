@@ -342,7 +342,7 @@ Let me know if you need anything else.
 Next steps are in the report.
 ```
 
-The agent may omit the next-step question only when the entire requested workflow is complete and no human decision is required.
+Even when the entire requested workflow is complete and no human decision is required, the agent still closes with next-action guidance per the root Next-Action Guidance Rule: suggest 1-3 real, currently-available next steps and ask which one the human wants.
 
 ### Manual Private Data Sources And Discovery Are Independent
 
@@ -536,7 +536,7 @@ The agent must follow these principles at all times:
 - Content output language should follow the target audience and intended publishing audience unless the human explicitly chooses another language. Reports and setup chat may stay in the human's language even when keywords and content drafts are in the audience language.
 - User-facing reports must be HTML. Do not show, send, link, or ask the human to open `.md` reports as the report experience. Markdown files are internal source-of-truth records for the agent, audit trail, history, and future learning.
 - Do not make the human open Markdown files to learn what to do next. Human-facing setup guidance, blockers, commands, and next actions must be shown directly in the current chat message, Telegram notification, HTML report, or another human-facing channel.
-- When a human action is required, provide a short `**[ACTION REQUIRED]**` block directly in chat: one clear purpose, one exact next step, and either one copy-paste command or one absolute folder/file path. Do not say only "see the report", "see the .md file", or "instructions are in collector_setup_status.md". Use at most three `**[ACTION REQUIRED]**` blocks per reply, and when no human action is needed say exactly `No action required right now.`
+- When a human action is required, provide a short `**[ACTION REQUIRED]**` block directly in chat: one clear purpose, one exact next step, and either one copy-paste command or one absolute folder/file path. Do not say only "see the report", "see the .md file", or "instructions are in collector_setup_status.md". Use at most three `**[ACTION REQUIRED]**` blocks per reply, and when no human action is needed end with next-action guidance per the root Next-Action Guidance Rule (1-3 real available next steps plus one closing question), never `No action required right now.`
 - When delivering a report, show only the mobile-friendly HTML path or link in chat/notification. Do not show the `.md` report path as a user action. Mention Markdown only as an internal saved record if needed, not as the place the human must open.
 - After the first automation report is delivered, if private data sources are pending activation, keep that status visible and do not claim private scheduled monitoring is active. The next main post-report question is PDNA - Production, Distribution, Notification, and Analytics - not video creation.
 

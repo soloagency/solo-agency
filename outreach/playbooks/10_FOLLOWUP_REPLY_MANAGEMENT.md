@@ -170,7 +170,7 @@ They are approved in chat with the approval grammar (`approve all` / `approve 1-
 - Due-silent bumps came from `followups due` (not a hand-scan), each carries a NEW evidenced angle,
   and no exhausted sequence was re-bumped.
 - Any ambiguous intent or blocked action was surfaced with an `**[ACTION REQUIRED]**` block; when
-  nothing is needed, `No action required right now.`
+  nothing is needed, next-action guidance per the Next-Action Guidance Rule.
 
 ## Phase status
 

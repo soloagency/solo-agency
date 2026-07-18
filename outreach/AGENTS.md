@@ -2,7 +2,7 @@
 
 When the user asks to set up this module (the `outreach/` directory of the Solo Agency repo), always read `OUTREACHCRM_PLAYBOOK.md` first and follow its checklist in order. The authoritative design is `docs/DESIGN.md`; when any file disagrees with it, `docs/DESIGN.md` wins.
 
-Human-facing required actions must use the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. Do not bury questions, approvals, commands, sendbox-connection steps, provider/API-key setup, or automation task edits in paragraphs or reports. If no human action is needed, say `No action required right now.`
+Human-facing required actions must use the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. Do not bury questions, approvals, commands, sendbox-connection steps, provider/API-key setup, or automation task edits in paragraphs or reports. If no human action is needed, end with next-action guidance per the OutreachCRM Next-Action Guidance Rule (1-3 real available next steps plus one closing question); never end with `No action required right now.`
 
 OutreachCRM is a local-first, multi-client cold-email + CRM system. It must run in an AI agent runtime with local workspace file access, scheduled/automation tasks, local Python execution (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`), and parallel/sub-agent work streams, such as Codex or Claude Desktop/Cowork. Do not present a plain web chat as the primary runtime; it can review outputs but cannot host the automation, file state, and mail/tool work the playbook requires.
 

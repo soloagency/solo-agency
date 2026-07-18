@@ -23,7 +23,7 @@ Before setup proceeds, verify or explain that Solo Agency needs Codex, Claude De
 11. PDNA provider setup must be client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming production, distribution, notification, analytics, credits, or connected platforms are available. Default setup is WideCast API-key setup: ask only for the client's WideCast API key, then let the agent configure/verify/discover/resync the rest. Do not ask provider/scope/spend/publish/account-identity questions unless the human explicitly requests a non-default provider or specialist stack. Do not use a global MCP/native provider account as proof of this client's PDNA status.
 12. After any approved config change or applied Solo Agency update, perform Automation Resync if a schedule/automation already exists.
 13. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`.
-14. Every human question, approval request, one-line Terminal/PowerShell command, Chrome `Load unpacked` instruction, provider/API-key setup request, and native automation task edit must use the `**[ACTION REQUIRED]**` block from `SOLO_AGENCY_PLAYBOOK.md`. If setup continues without needing the human, say `No action required right now.`
+14. Every human question, approval request, one-line Terminal/PowerShell command, Chrome `Load unpacked` instruction, provider/API-key setup request, and native automation task edit must use the `**[ACTION REQUIRED]**` block from `SOLO_AGENCY_PLAYBOOK.md`. If setup continues without needing the human, end the reply with next-action guidance per the root Next-Action Guidance Rule instead of `No action required right now.`
 
 ## Fresh Source Acquisition Hard Gate
 
@@ -82,6 +82,6 @@ When the human asks for a report/run while this entrypoint is active, the only v
 2. Finish or resync the client-specific automation task.
 3. Provide the exact task name and whether it will run public data sources only or public plus activated private data sources.
 4. If the native automation UI requires human action, provide that one exact action in a `**[ACTION REQUIRED]**` block.
-5. End with a `**[ACTION REQUIRED]**` block naming the exact client-specific automation task to run for the report, or say `No action required right now.` when no action is needed.
+5. End with a `**[ACTION REQUIRED]**` block naming the exact client-specific automation task to run for the report, or, when no action is needed, end with next-action guidance per the root Next-Action Guidance Rule.
 
 Do not ask whether to run the report now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not perform public research, private data source collection, report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery in Setup Flow.

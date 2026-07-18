@@ -62,11 +62,7 @@ Required plain-language meanings:
 
 ## Human Action Highlighting Contract
 
-Important human questions and instructions must be impossible to miss. Any human-facing reply that requires the human to answer, approve, paste, run, click, connect a sendbox, connect a provider, edit an automation task, or confirm state must put that request in a standalone block. Do not bury required questions in long paragraphs or reports. If no human action is needed, say exactly:
-
-```text
-No action required right now.
-```
+Important human questions and instructions must be impossible to miss. Any human-facing reply that requires the human to answer, approve, paste, run, click, connect a sendbox, connect a provider, edit an automation task, or confirm state must put that request in a standalone block. Do not bury required questions in long paragraphs or reports. If no human action is required, do NOT write `No action required right now.` - end with next-action guidance instead (see the Next-Action Guidance Rule below).
 
 Use this stable text marker exactly (an icon such as `!` may precede it, but the text is required because icons render differently across chat apps):
 
@@ -121,7 +117,18 @@ Rules:
 - Do not ask for passwords, cookies, OTPs, or session tokens. Sendbox connection may ask only for the specific App Password or OAuth action the playbook allows; provider setup blocks may ask only for the specific API key.
 - Setup Flow "send now" requests must end with an action block naming the exact client-specific automation task to run, not a question asking whether to send now.
 - Any send, any outbound message on any channel, any credit spend, any provider connection, any schedule/automation task edit, and any assisted-channel send always require approval and use this block.
-- Scheduled runs and notifications use the block only when the human must act; otherwise they include `No action required right now.`
+- Scheduled runs and notifications use the block only when the human must act; otherwise they end with next-action guidance per the Next-Action Guidance Rule below.
+
+## Next-Action Guidance Rule (supersedes `No action required right now.`)
+
+The agent must NEVER end a human-facing reply, notification, or report handoff with `No action required right now.`, a passive summary, or any ending that leaves the human without a suggested next move. Assume the human is completely new to OutreachCRM: the agent is the tour guide and user guide.
+
+1. If a required human action exists, end with the `**[ACTION REQUIRED]**` block(s) - unchanged.
+2. Otherwise, end with 1-3 concrete suggested next actions plus exactly ONE closing question asking which one the human wants. The FIRST suggestion must resume the current or interrupted workflow at its exact pending step (for example: approve the pending drafts in the Approval Report, resume setup at the current roadmap step). The others must be REAL OutreachCRM capabilities available in the current state - run `{Client} - OutreachCRM Daily Run`, import another list, connect an additional sendbox, create or adjust a campaign goal, review the weekly client report - phrased in plain language with the exact reply/command. Never invent a capability; if a suggestion has unmet prerequisites, say what setup it needs first.
+3. Scheduled-run notifications follow the same rule: end with the suggested next action, never `No action required right now.`
+
+Override: anywhere any OutreachCRM playbook, entrypoint, skill, template, or older text still says to end with or include `No action required right now.`, this rule supersedes it - deliver next-action guidance instead.
+
 
 ## Mission
 

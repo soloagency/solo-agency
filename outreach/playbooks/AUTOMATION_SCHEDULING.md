@@ -75,7 +75,7 @@ before taking any side-effect action (sending, enriching, writing config, creati
   scheduled-prompt paste/replace instruction, report/send-request hard-stop handoff, and
   automation-freshness blocker that needs the human must use the root playbook
   `**[ACTION REQUIRED]**` block: one purpose, one exact next step, one command or path. When
-  nothing is needed, say `No action required right now.`
+  nothing is needed, end with next-action guidance per the Next-Action Guidance Rule.
 
 ## Client-Specific Automation Tasks (Setup Flow vs Automation Flow)
 

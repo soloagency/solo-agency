@@ -19,7 +19,7 @@ Import creates the contact set. It does **not** verify-enrich for send, does **n
 - **No guessed addresses here.** Import only records addresses *found in the file* (`source: import`). It never guesses or patterns an address — guessed/unverified addresses are a Stage 4 concern with its own third-party verification and send-time gate.
 - **Import is idempotent.** Re-running the same file with the same mapping under the same list slug is a no-op (matched by an idempotency key over file content + mapping). Do not "force" a duplicate import to make counts look busier.
 - Load Stage 7 IN FULL (LOAD LEDGER printed with `Verdict: PASS`, matching `LOAD_MANIFEST.md` when present) before writing any list artifact. A partial read = NOT loaded.
-- Every human step in this stage — the mapping confirmation and any blocker — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`: one purpose, one exact next step, one command or path. When the import is clean, say `No action required right now.`
+- Every human step in this stage — the mapping confirmation and any blocker — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`: one purpose, one exact next step, one command or path. When the import is clean, end with next-action guidance per the Next-Action Guidance Rule (for example suggest creating the first campaign for this list or running the daily task).
 
 ## Source Preservation Rule
 
@@ -269,7 +269,7 @@ Reconciliation check: `row_count == contacts_created + contacts_matched_existing
 
 ## 10. The Import Summary (only an ACTION REQUIRED on a blocker)
 
-After a clean import, report the counts and end with `No action required right now.` — the human does not need to do anything for a normal import.
+After a clean import, report the counts and end with next-action guidance — the human does not need to fix anything for a normal import, so suggest the natural next step (create or adjust the campaign for this list, or run `{Client} - OutreachCRM Daily Run` to enrich and draft) and ask which one they want.
 
 Raise a single `**[ACTION REQUIRED]**` block only when there is a real blocker, for example:
 
@@ -283,7 +283,7 @@ Example clean summary:
 ```text
 Imported al-realtors: 412 rows → 380 created, 18 matched (already known), 9 suppressed, 5 skipped (no identity).
 List: daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/lists/al-realtors/
-No action required right now.
+Next: I can create the first campaign for this list, or you can run `{Client} - OutreachCRM Daily Run` to enrich and draft against it. Which would you like?
 ```
 
 Example blocker:
@@ -312,7 +312,7 @@ Before calling a list import complete:
 - The manifest counts reconcile: `row_count == created + matched + suppressed + skipped`.
 - Suppression was checked at import against all identities and both tiers (it is, by the tool) and no suppressed identity became a contact.
 - No enrichment, guessing, drafting, or sending was performed in this stage — those are Stages 4/6/8.
-- A blocker, if any, was surfaced with one `**[ACTION REQUIRED]**` block; otherwise the reply ends with `No action required right now.`
+- A blocker, if any, was surfaced with one `**[ACTION REQUIRED]**` block; otherwise the reply ends with next-action guidance per the Next-Action Guidance Rule.
 
 ---
 

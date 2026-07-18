@@ -27,7 +27,7 @@ This file is an INDEX, not the manual. **Opening a module is a REQUIRED ACTION**
 
 - `[ACTION REQUIRED]` — a standalone block whenever the human must do something (record A-roll, approve, run a command, final hand-off).
 - `Scene N: PASS` / `Scene N: FAIL — …` — the per-scene verdict.
-- `No action required.` — when a hand-off needs nothing from the human.
+- When a hand-off needs nothing from the human, end with next-action guidance per the root Next-Action Guidance Rule (for example suggest the render/export approval or the next pending step) instead of `No action required.`
 
 ### Run kickoff — load these 5 core modules FIRST, before scene 1
 

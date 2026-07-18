@@ -1472,7 +1472,7 @@ Before replying to the human, verify:
 - [ ] If I am handing control back to the human while required steps remain, is the final line exactly one concrete next-step question?
 - [ ] If human action is needed, did I show the exact action directly in chat or notification?
 - [ ] If human action is needed, did I use the root playbook `**[ACTION REQUIRED]**` block instead of burying the question/action in paragraphs, reports, file links, or progress text?
-- [ ] If no human action is needed, did I say `No action required right now.` instead of ending with an ambiguous prompt?
+- [ ] If no human action was required, did I end with next-action guidance per the Next-Action Guidance Rule - 1-3 real, currently-available next steps (the first resuming the current or interrupted flow) plus exactly one closing question - instead of `No action required right now.` or a passive ending?
 - [ ] Did I keep the most important required action at the end of the reply, with no more than three `**[ACTION REQUIRED]**` blocks?
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I am about to report a blocker, repeated failure, unclear contradiction, stale artifact, missing capability, or dead end, did I first run Last-Resort Recovery by checking GitHub `main` for newer Solo Agency playbooks/code and reloading the latest relevant instructions?
