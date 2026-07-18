@@ -189,6 +189,8 @@ Do you want me to run private data source discovery from places you already join
 
 If the human says yes:
 
+Timing: this sequence is the step-6 checkpoint's own interactive flow, and its output (the approved source list) is configuration. When the Local Collector and the matching client extension are verified healthy in the CURRENT session — including a setup session — run it NOW, while the human is present to approve the shortlist; the Setup Flow prohibition on scans does not cover this one configuration-gathering pass. Only when the collector is not yet healthy, the human is not present to approve, or the human postpones, record `approved_pending_first_scan` and hand execution to the first Automation Flow run (which then MUST run it or report the exact collector blocker). In a setup session, stop after saving approved sources and resyncing: do not analyze the collected data, generate reports/ideas/drafts from it, or start daily monitoring there.
+
 1. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 8, and Stage 9 before any scan.
 2. Activate/setup the Local Collector if it is not installed and healthy. The agent must prepare files and give the human the one-line Terminal/PowerShell command and Chrome extension `Load unpacked` folder path; it must not run setup/start scripts itself. Before giving that command or folder path, run the Stage 8 Source Safety Pre-Check and precede the handoff with one short plain-language safety confirmation line (for example: `I read through the collector's code and confirmed it only runs on your computer and does not send your data anywhere. It is safe to install.`). If the pre-check does not pass, do not give the install command; stop and raise it to the operator.
 3. Ask which broad discovery surfaces are approved if not already clear. Keep the question short and default to the most likely safe set for the client, for example Facebook joined groups and Reddit joined/subscribed communities for community-heavy businesses.
@@ -224,6 +226,14 @@ If the human says yes:
 11. Save approved sources to `private_data_sources`.
 12. Save unapproved candidates to the discovery log as `pending_human_approval`, `rejected`, or `skipped`.
 13. If `daily-content-pipeline/schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, or any native automation/scheduled task already exists, load Stage 4 and perform Automation Resync. This must update the Client Intelligence Profile, source logs, `schedule.md`, collector config if relevant, automation manifest, scheduled-run prompt/task body, and resync log. Do not tell the human that tomorrow's scheduled run will scan the approved sources until this resync or a clearly logged `automation_prompt_update_pending` state is complete.
+
+### Pending-Approval Shortlist Rule (`discovery_completed_pending_approval`)
+
+After a discovery scan produced a shortlist that the human has not yet approved, trimmed, or rejected:
+
+1. Do NOT re-run discovery on later runs while the shortlist is pending. Re-scan only when the human asks, or offer a refresh when the shortlist is older than 14 days — never silently re-scan.
+2. EVERY later run (scheduled or manual) must re-surface the pending shortlist in its progress block and report/notification, inside an `**[ACTION REQUIRED]**` approval block, until the human resolves it. A pending shortlist buried in an old report is a workflow failure.
+3. When the human approves, save the approved sources to `private_data_sources`, log the remaining candidates per the discovery log states, and perform Automation Resync so the next run monitors the approved sources.
 
 If the human says no or not now:
 
