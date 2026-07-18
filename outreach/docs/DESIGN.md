@@ -56,7 +56,7 @@ scrubbed report.
 7. **Provider adapter + PDNA (Telegram only).** Per-client `provider_config.local.json`
    (`api_key_env`/`api_key_local`, never a field literally named `api_key`), OpenAPI
    discovery via `tools/provider_openapi.py`, notification via WideCast
-   `sendTelegramMessage` with email fallback. Kept for operator notification only.
+   `sendNotification` (email always, plus Telegram when connected). Kept for operator notification only.
 8. **Two-lane reporting.** Operator-only (`INTERNAL_REPORT`, full detail) vs
    client-facing (through the Client-Blind Scrub Gate). Rendered by
    `tools/report_renderer.py` (stdlib only). The client-facing reports are the **weekly**
@@ -729,7 +729,7 @@ Every decision → `approvals/approval_log.md`. Nothing leaves without an explic
     month's **Monthly Client Report** (`crm_store.py monthly-report --month <prior YYYY-MM>`).
     Both the weekly and monthly reports are client-facing, through the scrub gate; their
     pipeline snapshot is point-in-time "as of report date".
-11. **Notify Telegram** via WideCast `sendTelegramMessage`: counts + report link →
+11. **Notify Telegram** via WideCast `sendNotification`: counts + report link →
     `notification_log.md`.
 12. **Stage 9 audit** → completion gates → release `run_lock`.
 

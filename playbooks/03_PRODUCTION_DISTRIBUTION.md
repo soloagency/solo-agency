@@ -480,7 +480,7 @@ If WideCast is not configured for this client, the agent must:
    - Video scene editing: `getEditingSkill`, `getVideoData`, `sceneGeometry` or `getSceneGeometry`, `sceneInspector` or equivalent, `modifyScene`.
    - Final video output: `getStatus`, `exportVideo`.
    - Distribution: `publish`, `listAccounts`, `getPlatformSettings`, `setPlatformSettings`.
-   - Notification: `uploadAsset`, `sendTelegramMessage`.
+   - Notification: `uploadAsset`, `sendNotification`.
    - Analytics: `getAccount`, `getAnalytics`, `listVideos`, `getStatus`, `getVideoData`.
 12. Save provider capability status for the automation task.
 13. Automation Resync must update the scheduled task/prompt with the active provider, client provider config path, provider capability cache path, verified account status, and the rule: `check Client tools first, then global MCP/native tools`.
@@ -677,7 +677,7 @@ The agent may use available WideCast OpenAPI operations, native tools, or option
 - After video creation returns reviewable scenes, load the video-editing skill and run the scene audit/fix pass before final render/export.
 - Get explicit confirmation before rendering/exporting/publishing/spending credits.
 - Check whether this client's discovered OpenAPI capabilities expose the video-editing operations needed for the pass: `getEditingSkill`, `getVideoData`, scene geometry, scene inspector, and `modifyScene`.
-- Check whether this client's provider config and discovered OpenAPI capabilities expose `uploadAsset` and `sendTelegramMessage`.
+- Check whether this client's provider config and discovered OpenAPI capabilities expose `uploadAsset` and `sendNotification`.
 - Check connected publishing platforms and credits through this client's verified OpenAPI/account operations, not through a global MCP account.
 - Use WideCast OpenAPI notifications for scheduled-run results, blockers, login/session issues, and approval requests when available.
 
@@ -794,7 +794,7 @@ Provider/internal reporting must include:
 
 ### WideCast Telegram Notification Protocol
 
-If this client's WideCast provider config is verified and OpenAPI discovery exposes `sendTelegramMessage`, the agent must use it for important user-facing communication during scheduled or unattended runs.
+If this client's WideCast provider config is verified and OpenAPI discovery exposes `sendNotification`, the agent must use it for important user-facing communication during scheduled or unattended runs.
 
 Use WideCast OpenAPI notification/Telegram/email fallback for:
 
@@ -832,7 +832,7 @@ Before sending any report-ready notification, the agent must create a delivery r
 - `provider`: normally `widecast`;
 - `provider_discovery_checked`: true/false;
 - `upload_operation_id`: normally `uploadAsset`;
-- `notification_operation_id`: normally `sendTelegramMessage`;
+- `notification_operation_id`: normally `sendNotification`;
 - `provider_upload_attempted`: true/false;
 - `provider_uploaded_report_url`, if available;
 - `provider_uploaded_pdf_url`, if available;
@@ -848,11 +848,11 @@ Required sequence:
 4. Generate or update `{client-name}-client-report.html` and `{client-name}-client-report.pdf` from that scrubbed staging set, or record the exact PDF blocker. The combined HTML is the only default report URL/path to upload or send.
 5. Load the current client's provider config and fetch/cache the provider OpenAPI spec if needed.
 6. Verify the provider account with `getAccount` before using account actions.
-7. Inspect Client tools first for HTML/PDF-capable upload operations and report/Telegram notification send capability. For WideCast, require `uploadAsset` and `sendTelegramMessage` for the HTML path.
+7. Inspect Client tools first for HTML/PDF-capable upload operations and report/Telegram notification send capability. For WideCast, require `uploadAsset` and `sendNotification` for the HTML path.
 8. If such an endpoint exists, upload `{client-name}-client-report.html` to WideCast as `text/html` for operator delivery.
 9. Capture the returned uploaded report URL.
 10. If PDF upload is supported by the verified client provider, upload the PDF companion and capture its URL; otherwise keep the local PDF path/status.
-11. Send the uploaded WideCast report URL plus PDF companion URL/path/status plus INTERNAL_REPORT path/status through WideCast Telegram/email fallback.
+11. Send the uploaded WideCast report URL plus PDF companion URL/path/status plus INTERNAL_REPORT path/status through WideCast email+Telegram.
 12. If no HTML-capable upload endpoint exists or upload fails, log the blocker and send the best available local/hosted `.html` report path/link plus PDF companion path/status plus INTERNAL_REPORT path/status through WideCast notification anyway when notification is available.
 13. Include the run summary, blockers, lead/competitor counts, and the next action in the Telegram/email message.
 14. Log both the upload attempt and the notification in `daily-content-pipeline/notifications/notification_log.md`.

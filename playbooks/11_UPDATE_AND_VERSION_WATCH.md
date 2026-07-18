@@ -254,7 +254,7 @@ The task must load this Stage 11 playbook and run only update/version-check work
 Update-watch notification boundary:
 
 - Do not send Telegram for update checks or update completion.
-- Do not use WideCast `sendTelegramMessage`, WideCast email fallback, provider notification channels, social posting, or any client notification channel for update checks.
+- Do not use WideCast `sendNotification`/`sendNotification`, WideCast email fallback, provider notification channels, social posting, or any client notification channel for update checks.
 - Update/version-watch is internal user/agency maintenance, not client delivery.
 - Record update outcomes in `daily-content-pipeline/automation/update_state.json`, `update_log.md`, and `update_notice.md`.
 - Surface the update result in the current setup/maintenance chat or native task output when available.

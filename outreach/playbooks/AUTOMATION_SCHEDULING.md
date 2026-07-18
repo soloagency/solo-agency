@@ -347,7 +347,7 @@ The agent must record the chosen method in `daily-content-pipeline/schedule.md`.
 The agent must also record the **notification channel** in `schedule.md`:
 
 - If the client has verified WideCast OpenAPI config and the discovered spec exposes
-  `sendTelegramMessage`, record WideCast Telegram (with email fallback) as the preferred
+  `sendNotification`, record WideCast Telegram (with email fallback) as the preferred
   operator notification channel for scheduled runs — even if Telegram is not connected yet,
   because WideCast can fall back to email when the account supports it. WideCast is the
   operator-notification provider only (PDNA notification); it never sends anything to a client.
@@ -488,7 +488,7 @@ For each client, pinning `target_client_slug`, in this exact order:
     of a new month**, additionally build the prior month's Monthly Client Report
     (`crm_store.py monthly-report --month <prior YYYY-MM>`). The weekly and monthly reports are
     the client-facing outputs and must pass the Client-Blind Scrub Gate.
-11. **Notify the operator** via WideCast `sendTelegramMessage` (email fallback): counts +
+11. **Notify the operator** via WideCast `sendNotification` (email + Telegram when connected): counts +
     report link → `notifications/notification_log.md`.
 12. **Stage 9 audit** → completion gates → release `run_lock`.
 
@@ -690,7 +690,7 @@ python3 tools/provider_openapi.py --config DIR/integrations/providers/provider_c
     in chat instead. Record it in `INTERNAL_REPORT`.
 25. When configured, `notify` uploads the operator report (`{client}-daily-ops.html`, or the
     Monday weekly / first-of-month monthly report) via `uploadAsset` (`text/html`) and sends
-    `sendTelegramMessage` (email fallback) with the run status, counts (replies triaged, deals
+    `sendNotification` (email + Telegram when connected) with the run status, counts (replies triaged, deals
     moved, drafts pending, emails sent, bounces/unsubs suppressed), the report link/path (mention
     the weekly or monthly client-report link when one was built), and any `**[ACTION REQUIRED]**`.
     Compose the `--message` yourself; provider-hosted URLs are operator handoff links, not
@@ -751,7 +751,7 @@ expressed in three places that the daily run reads at run time:
 - the chosen scheduling mechanism and how it is instantiated;
 - included clients and their per-client task names;
 - the recorded local timezone (see the timezone rule above);
-- the notification channel (WideCast Telegram/email fallback → Gmail/email → `local_path_only`);
+- the notification channel (WideCast email+Telegram → Gmail/email → `local_path_only`);
 - the weekly-report day (default Monday, in the recorded timezone);
 - the last resync timestamp.
 
@@ -827,7 +827,7 @@ with LOAD LEDGER entries. Sync all sendbox inboxes, pull tracking, triage replie
 apply-rules, advise follow-ups, load new pipeline (verify + enrich + draft to pending_approval),
 send only outbox/approved within quota, draft assisted channels where allowed, refresh Today
 View + kanban, render operator reports (plus the Monday weekly client report through the scrub
-gate), notify the operator via WideCast Telegram/email fallback with counts and the report link,
+gate), notify the operator via WideCast email+Telegram with counts and the report link,
 pass the Stage 9 audit, and release the run_lock.
 ```
 

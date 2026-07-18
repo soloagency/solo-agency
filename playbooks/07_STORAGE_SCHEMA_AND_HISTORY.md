@@ -687,8 +687,8 @@ Format:
 
 | Date | Agent | Event | Lane Status | Channel | Status | HTML Report Path | PDF Report Path | PDF Status | Provider | Provider Discovery Checked | Upload Operation | Notification Operation | Upload Attempted | Uploaded HTML URL | Uploaded PDF URL | Notification Attempted | Final Report Link Sent | Blocker | Action Needed |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-06-20 | Claude Schedule | daily_run_completed | public_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | outputs/2026-06/2026-06-20/angela-do-client-report.pdf | generated | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... |  | yes | https://... | none | Await private report or review approvals |
-| 2026-06-20 | Claude Schedule | daily_run_completed | private_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | outputs/2026-06/2026-06-20/angela-do-client-report.pdf | generated | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... |  | yes | https://... | none | Review daily report index and lane reports |
+| 2026-06-20 | Claude Schedule | daily_run_completed | public_report_ready | WideCast email+Telegram | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | outputs/2026-06/2026-06-20/angela-do-client-report.pdf | generated | widecast | yes | uploadAsset | sendNotification | yes | https://... |  | yes | https://... | none | Await private report or review approvals |
+| 2026-06-20 | Claude Schedule | daily_run_completed | private_report_ready | WideCast email+Telegram | sent | outputs/2026-06/2026-06-20/angela-do-daily-report.html | outputs/2026-06/2026-06-20/angela-do-client-report.pdf | generated | widecast | yes | uploadAsset | sendNotification | yes | https://... |  | yes | https://... | none | Review daily report index and lane reports |
 ```
 
 Use this log so scheduled runs do not silently complete or fail while the human is away.
@@ -778,7 +778,7 @@ Minimum WideCast OpenAPI example:
       },
       "notification": {
         "enabled": false,
-        "preferred_operation_id": "sendTelegramMessage",
+        "preferred_operation_id": "sendNotification",
         "delivery": "telegram_or_email_fallback"
       },
       "report_upload": {
@@ -835,7 +835,7 @@ Minimum shape:
     "analytics": "getAnalytics",
     "upload_asset": "uploadAsset",
     "upload_html_report": "uploadAsset",
-    "send_notification": "sendTelegramMessage",
+    "send_notification": "sendNotification",
     "publish": "publish",
     "create_video": "createVideo",
     "export_video": "exportVideo",
