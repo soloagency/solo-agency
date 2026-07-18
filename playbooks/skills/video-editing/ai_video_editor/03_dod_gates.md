@@ -51,6 +51,7 @@ Do NOT advance while any applicable gate is unchecked.
 2. ☐ **Role / route** — read `type` · `pattern`/`sub_mode` · `visual` · `keyword` · `quote` · `talking_point` · `show_narrator`/`active_roll` · `mediaType`. This decides which of Gate 3 / Gate 4 actually run (Step 2 below). No image look here — data only.
 3. ☐ **Background audit** — *applies ONLY when the scene is NOT a grid background AND the narrator does not cover most of the frame* (both read from data: `mediaType`/grid flag + `show_narrator`/narrator rect). When it applies: load `20_background`, pull the active background **plate** (`thumbnailUrl` first; fallback per `active_roll`/`mediaType`), show it locally, and print the **Gate 3 BACKGROUND PROOF**. When it does not apply (grid, or A-roll narrator fills the frame), mark `N/A — <grid | narrator fills frame>` and take no look.
 4. ☐ **Overlay text typo** — *applies ONLY when the overlay text was baked by an image model*: `pattern="illustration"` with `sub_mode` ≠ `photo_with_people`, or a chart/diagram/object pattern **containing image-generated text**. When it applies: pull the **overlay poster**, show it locally, and print the **Gate 4 OVERLAY TEXT TYPO CHECK** (per-string transcription table). **Skip entirely** for `typography_only` / SVG-text overlays (deterministic render never misspells), for scenes with no overlay text, and for photo overlays with no baked message text — mark `N/A — <reason>`.
+   - **⭐ OPENING-SCENE EXCEPTION** (the ONE roster row marked `opening` — the first content scene after the thumbnail): this frame is the video's hook and platforms may auto-extract it, so it gets an extra aesthetic pass. **ALWAYS pull the overlay poster here — even for `typography_only`/SVG** — and run the **Gate 4 OPENING POSTER CHECK** below (in addition to the typo check when that also applies). If the poster fails the bar, **rebuild it** (load `30_overlay_core` + `31_typography` + styles; cap **1 rebuild**, preserve-biased — a "good enough" opening is kept, not chased). If the opening scene has **no overlay at all**, author a hook poster for it — this is the ONLY scene where the agent may add an overlay the pipeline did not create. This exception is opening-scene-only; every other scene keeps the normal conditional Gate 4.
 5. ☐ **Confirm & save** — if you made ANY edit: pull the **ONE AFTER look** that verifies the fix — the overlay **poster** for a text fix (re-run the per-string table), or the **AFTER composite** for a background fix — and show it locally. **That look IS the save-confirmation**: it renders from the saved state under the edit session, so a corrected poster / a swapped composite proves the write persisted. Do NOT also re-pull `video_data` and `scene_geometry` separately — that is redundant (a `modify_scene` 200 under the edit session is already durable). If you made **no** edit, this gate is `N/A — no edit` (no look). Then print the **MODULE COVERAGE GATE**.
 
 All applicable gates checked → `Scene N: PASS`. **Show ≠ pause:** present each image, then keep working.
@@ -120,6 +121,24 @@ Verdict: <PASS rendered text | FAIL — fix and re-pull the poster>
 ```
 
 If a string FAILS, fix it (regenerate/replace the image or correct the source), then re-pull the poster and re-run the table. Layout-only changes never need a new poster.
+
+### Gate 4 OPENING POSTER CHECK — only for the `opening` roster row
+
+The first content scene is the hook. Judge the poster as a whole (aesthetics, not just spelling) and keep it unless it clearly falls short.
+
+```text
+Gate 4 OPENING POSTER CHECK:
+Opening poster evidence: <MCP overlay_poster downloaded+shown | no overlay present> — local file path: <path>
+Overlay present: <yes | no>
+Hook-in-1s: <PASS|FAIL> — a title/hook line reads and lands the video's core hook within ~1 second at 280×498
+Not-a-flat-card: <PASS|FAIL> — not a plain centered card / horizontal text-bar; has real opening-poster presence
+Copy/diacritics: <PASS|FAIL> — hook copy is correct, on-message for the whole video, Vietnamese marks/`Đ/đ` correct
+Verdict: <PASS keep | REBUILD — <which checks failed> | AUTHOR — no overlay present, build a hook poster>
+```
+
+- **PASS keep** when the poster clears all three checks, OR is only marginally improvable — do NOT rebuild a decent opening just to chase prettiness.
+- **REBUILD** (cap 1) when a check clearly fails: load `30_overlay_core` + `31_typography` + styles, re-author the overlay source, upload, and re-run this check on the AFTER poster. If the rebuild is still weak, keep whichever poster is better and note it — no second rebuild loop.
+- **AUTHOR** when the opening scene has no overlay: build a short hook poster (this is the only scene where adding an overlay is allowed). The narrator stays fixed; the server places the overlay off the face.
 
 ### MODULE COVERAGE GATE — before declaring Scene PASS
 
@@ -204,6 +223,6 @@ Read `type` (HOOK / STAT / KEY POINT / DATA / FACT / CALL TO ACTION / thumbnail)
 From these DATA fields alone, route the two conditional gates:
 
 - **Gate 3 (background) applies** if the scene is NOT a grid background AND the narrator does not fill/cover most of the frame. Grid or full-frame A-roll narrator → Gate 3 is N/A.
-- **Gate 4 (overlay typo) applies** if the overlay text was baked by an image model (`pattern="illustration"` sub_mode ≠ `photo_with_people`, or a chart/diagram/object pattern with image-generated text). `typography_only`/SVG text or no overlay text → Gate 4 is N/A.
+- **Gate 4 (overlay typo) applies** if the overlay text was baked by an image model (`pattern="illustration"` sub_mode ≠ `photo_with_people`, or a chart/diagram/object pattern with image-generated text). `typography_only`/SVG text or no overlay text → Gate 4 is N/A. **Exception:** if this is the `opening` roster row (first content scene), Gate 4 ALWAYS runs — pull the poster and run the OPENING POSTER CHECK regardless of pattern.
 
 No screenshot here — routing is a pure data read. Then run the applicable gates in order. Layout mechanics + `modify_scene` branches → `ai_video_editor/10_mechanics`; background work → `20_background`; overlay-defect fixes → `30_overlay_core` (+ matching content/style module).

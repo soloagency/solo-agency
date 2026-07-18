@@ -132,7 +132,7 @@ Print this 5-gate checklist VERTICALLY at the start of every scene; tick ✓/✗
 1. ☐ **Text / STT** — read `text` in whole-video context, fix STT/context/domain errors (branch K). No look.
 2. ☐ **Role / route** — read `type`/`pattern`/`sub_mode`/`show_narrator`/`mediaType` to decide whether Gate 3 and Gate 4 apply. No look.
 3. ☐ **Background audit** — *only if non-grid AND narrator doesn't fill the frame.* Load `20_background`, pull the plate, print Gate 3 BACKGROUND PROOF (semantic/geo/context). Else `N/A`.
-4. ☐ **Overlay text typo** — *only if overlay text was image-model-generated.* Pull the overlay poster, print the per-string transcription table. SVG/typography or no overlay text → `N/A`.
+4. ☐ **Overlay text typo** — *only if overlay text was image-model-generated.* Pull the overlay poster, print the per-string transcription table. SVG/typography or no overlay text → `N/A`. **Opening-scene exception:** the first content row (`opening`) ALWAYS pulls the poster + runs the OPENING POSTER CHECK (aesthetic hook pass) even for typography — rebuild if it clearly falls short (cap 1), author one if none exists.
 5. ☐ **Confirm & save** — if you edited: one AFTER look + re-pull to confirm saved. If no edit → `N/A`. Then print MODULE COVERAGE GATE.
 
 All applicable gates met + §7 (`05_quality_qa_priority`) scan → `Scene N: PASS`. Otherwise `Scene N: FAIL — ✗K …`; fix and re-scan. The server guarantees placement/dead-zone/face/composition — do NOT add gates to re-verify them.
