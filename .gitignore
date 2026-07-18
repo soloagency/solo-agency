@@ -43,6 +43,11 @@ PROPOSED_ADDITIONS_*.md
 TODO.md
 handoff.md
 
-# Keep committed zip artifacts.
+# Build artifacts — rebuilt by deploy-soloagency.sh every run; NOT committed.
+# The collector-bridge binaries zip is ~11 MB and changes each build, so committing
+# it repeatedly bloated .git to ~700 MB. Distribute binaries via GitHub Releases,
+# not git. (Existing tracked copies were removed with `git rm --cached`.)
+solo-agency-collector/dist/
+
+# Keep the small, content-versioned playbook/skill zip packages committed.
 !playbooks/skills/*.zip
-!solo-agency-collector/dist/*.zip
