@@ -119,6 +119,17 @@ domain expert would include (adjacent benefits, the standard objections and thei
 category's proven angles), then **show the full bank back to the operator to approve or trim**, and
 flag which you added. A 4-bullet answer should become a 10-plus-bullet bank with the operator's nod.
 
+**Bootstrap Mode (Stage 1 "Solo Agency Profile Bootstrap"):** when the client's OutreachCRM profile
+was bootstrapped from the sibling Solo Agency content-pipeline profile, do not open the goal intake
+with blank questions. First PROPOSE: the full goal JSON (§1) inferred from the bootstrapped profile,
+and a seed message bank drawn from the profile's value proposition, pain points, and the
+content-pipeline positioning/themes — every proposed entry tagged `source: "agent"`. Then run the
+same intake as confirmation: the goal question becomes *"here is the proposed goal — approve or
+correct"*; the companion-doc question (§1b) is still asked normally (operator knowledge, never
+inferable); the message-bank question becomes *"here is the proposed bank — approve, trim, or add
+your own"*. The hard gate above is unchanged: the operator approves every agent-added entry before
+the campaign is created.
+
 Store it on the goal (persists verbatim; extra keys are kept):
 
 ```json

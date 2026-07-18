@@ -15,6 +15,8 @@ Before asking any setup question, load:
 
 Only after those two files are loaded **IN FULL** — each with a printed LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` — may the agent ask the first setup question.
 
+Then, before asking it, check for the sibling Solo Agency content-pipeline profile (Stage 1 "Solo Agency Profile Bootstrap"): `daily-content-pipeline/clients/{client_slug}/*/client_profile_*.md`, one level above the `outreach/` subtree. If it exists, Stage 1 opens with the pre-filled inference block instead of the first setup question.
+
 ## Full-Load Discipline
 
 Before any action, obey `playbooks/LOAD_LEDGER_PROTOCOL.md`. Core rules:
@@ -34,6 +36,8 @@ What product/service, profession, or business does this outreach focus on, and w
 ```
 
 This exact wording is canonical; Stage 1 must use it verbatim and must not rephrase it.
+
+Exception — Bootstrap Mode: when the sibling Solo Agency content-pipeline profile exists for this client (Stage 1 "Solo Agency Profile Bootstrap"), do not ask this question at all. Open with the full pre-filled Step-1 inference block and a single confirmation `**[ACTION REQUIRED]**` instead; the human confirms or corrects rather than re-describing the business.
 
 Do not ask for industry, ICP details, pain points, value proposition, pipeline stages, or email copy in the first question. A website/profile URL is acceptable as first setup input; the agent may read it for setup context when web access is available, but this is not an operational enrichment run or a send. Infer what can be inferred first, then show it for correction.
 
@@ -142,6 +146,8 @@ All CRM data lives under `daily-content-pipeline/` (see `docs/DESIGN.md` §5). E
 ## Client Isolation Rule
 
 The system is one agency serving many clients. Each client is a fully isolated workspace under `daily-content-pipeline/clients/{client_slug}/`: its own contacts, deals, sendboxes, suppression, campaigns, and reports. The storage adapter is instantiated per client. The only agency-global collections are the global suppression tier, `secrets/`, `provider_defaults.json`, and the tracker key — enumerated explicitly and nothing else. A run pinned to `target_client_slug` must never read or write another client's data.
+
+Product-level note: the Solo Agency content pipeline shares the same per-client workspace one level above `outreach/`. OutreachCRM may READ that same client's content-pipeline Client Intelligence Profile for the Stage-1 bootstrap (one-way, read-only) — that is not a cross-client read. Reading ANOTHER client's data, content or outreach, remains forbidden.
 
 ## Evidence-Backed Personalization Rule
 
@@ -273,7 +279,7 @@ Status icons: `✓` done · `→` current · `○` pending · `!` blocked/needs 
 OutreachCRM one-time setup process
 This is the planned setup process I am working through. You only need to reply when I ask one specific question.
 
-→ 1. You provide the product/service or business, ideal customer, and (optional) website/URL
+→ 1. You provide the product/service or business, ideal customer, and (optional) website/URL — or I bootstrap all of it from this client's existing Solo Agency content-pipeline profile and you only confirm
 ○ 2. I infer the ideal-customer profile, value proposition, and email voice, then show them for correction; I propose a pipeline (stages) and custom fields
 ○ 3. You confirm the sending identity: from-name, signature, physical mailing address, and unsubscribe method
 ○ 4. You connect the first sendbox (a dedicated Gmail via App Password is the quickest path)
@@ -287,6 +293,7 @@ This is the planned setup process I am working through. You only need to reply w
 Progress roadmap integrity rule:
 
 - Every setup progress block shows all 9 items in order; never hide pending/declined items.
+- When Bootstrap Mode is active, item 1 reads as bootstrapped (e.g. `✓ 1. Bootstrapped from this client's Solo Agency profile; you confirmed/corrected it`) — still 9 items, never a 10th.
 - Step 4 (sendbox) and Step 5 (list) may be marked `!` if the human must act (connect a box / provide a file).
 - Step 7 is optional; mark it `–` with a reason if the human declines notifications.
 - Setup never sends. Step 9 explains what Automation Flow will do; it does not run in Setup Flow.
@@ -354,6 +361,7 @@ Setup is not complete until:
 
 - Stage 0 and Stage 1 were loaded.
 - The first question followed the minimal-input rule and inference was shown to the human.
+- If Bootstrap Mode was used, every pre-filled field was shown with `status: discovered_from_source` and confirmed or corrected by the human before the profile save, and the profile's `bootstrap` block records the source path and date.
 - The Client Intelligence Profile saved as its `.md` file at the correct path; pipeline, custom fields, segments, and contacts saved via `crm_store.py` (it exists, Phase 1 — a direct `crm/` write is a critical violation). Sending identity (from-name, signature, physical address, unsubscribe method) is recorded on the profile. A workspace carried over from an older Phase-0 install runs `crm_store.py validate --rebuild-index` once (DESIGN §22 R3).
 - At least one sendbox was connected and its warmup/quota recorded, or the pending action was handed off in an `[ACTION REQUIRED]` block.
 - The first list was imported, deduped, and checked against suppression, or marked pending.

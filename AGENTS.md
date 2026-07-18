@@ -69,6 +69,6 @@ When explaining WideCast/API-key setup, give the exact human steps: register at 
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
 
-Cold-email / CRM work is the separate OutreachCRM module at `outreach/` — see the OutreachCRM row in the `SOLO_AGENCY_PLAYBOOK.md` Stage Map; it has its own Stage Map, gates, and approve-then-send flow, and is not the Stage-10 lead-`outreach` action gated in Solo Agency's own pipeline.
+Cold-email / CRM work is the separate OutreachCRM module at `outreach/` — see the OutreachCRM row in the `SOLO_AGENCY_PLAYBOOK.md` Stage Map; it has its own Stage Map, gates, and approve-then-send flow, and is not the Stage-10 lead-`outreach` action gated in Solo Agency's own pipeline. Its Stage-1 setup may bootstrap (read-only, one-way) from a client's existing Solo Agency Client Intelligence Profile; Solo Agency never reads the client's `outreach/` subtree.
 
 ## Imported Claude Cowork project instructions
