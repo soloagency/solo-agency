@@ -37,16 +37,14 @@ https://raw.githubusercontent.com/soloagency/solo-agency/dist/chrome-extension-c
 https://raw.githubusercontent.com/soloagency/solo-agency/dist/SHA256SUMS
 ```
 
-### Recommended: use the canonical `setup_collector.sh` (do NOT hand-write the download/checksum step)
+### Recommended: use the canonical setup script (do NOT hand-write the download/checksum step)
 
-There is ONE supported installer. Download it and have the human run it — it downloads the
-bundle, verifies the checksum (matched by BASENAME, so it works regardless of the
-`SHA256SUMS` path format), extracts the right binary for the machine, and prints the
-launch command. It never starts the bridge and is safe to re-run.
+There is ONE supported installer, in two equivalent forms — pick by the user's OS. Each
+downloads the bundle, verifies the checksum (matched by BASENAME, so it works regardless
+of the `SHA256SUMS` path format), extracts the right binary for the machine, and prints
+the launch command. Neither starts the bridge; both are safe to re-run.
 
-```text
-https://raw.githubusercontent.com/soloagency/solo-agency/dist/setup_collector.sh
-```
+**macOS / Linux (and Windows with Git Bash / WSL):**
 
 ```bash
 # from the agency root (the folder that contains daily-content-pipeline/):
@@ -54,9 +52,18 @@ curl -fsSL -o setup_collector.sh https://raw.githubusercontent.com/soloagency/so
 bash setup_collector.sh
 ```
 
-Do NOT reimplement the checksum parsing yourself: a hand-written parser that assumed a
-bare filename dead-ended a real setup because `SHA256SUMS` can list a full path. The
-canonical script already handles bare-name, `*name`, and full-path formats.
+**Windows (native PowerShell — no Git Bash needed; ships with Windows 10/11):**
+
+```powershell
+# from the agency root, in PowerShell:
+Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/soloagency/solo-agency/dist/setup_collector.ps1 -OutFile setup_collector.ps1
+powershell -ExecutionPolicy Bypass -File setup_collector.ps1
+```
+
+Pick the script for the user's OS (the agent may also read either one and adapt it to the
+environment). Do NOT reimplement the checksum parsing yourself: a hand-written parser that
+assumed a bare filename dead-ended a real setup because `SHA256SUMS` can list a full path.
+Both canonical scripts already handle bare-name, `*name`, and full-path formats.
 
 The manual steps below are the fallback only if the script cannot be used:
 
