@@ -197,7 +197,7 @@ Timing: this sequence is the step-6 checkpoint's own interactive flow, and its o
 4. Run only approved discovery URLs/surfaces.
 5. Use Source Discovery Mode: scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
 6. Extract candidate source names, URLs, platform, visible description/context, activity hints, topic hints, audience fit, location fit, and risk/noise signals.
-7. Filter and classify candidates:
+7. Filter and classify candidates. A candidate may be classified `recommended_daily`, `recommended_weekly`, `optional`, or `watch_once` ONLY after its relevance to the client's industry/sub-industry, target audience, target location (per the location-weighting rule in Stage 0), and pain points has been scored and recorded in the Discovery Data Model (`target_audience_fit`, `location_fit`, `matched_pain_points`, `industry_scope`). An unscored candidate defaults to `skip_not_relevant` — it must never reach the approval shortlist unscored. Buckets:
    - `recommended_daily`
    - `recommended_weekly`
    - `optional`
@@ -608,6 +608,8 @@ captured_at:
 why_relevant:
 matched_pain_points:
 matched_content_pillars:
+target_audience_fit: strong | partial | weak | none
+location_fit: match | national_or_location_independent | wrong_location | not_applicable
 industry_scope: primary_industry | related_industry
 related_industry:
 bridge_back_to_primary_offer:
