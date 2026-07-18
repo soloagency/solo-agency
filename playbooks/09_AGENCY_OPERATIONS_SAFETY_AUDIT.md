@@ -1461,6 +1461,7 @@ Before replying to the human, verify:
 
 - [ ] Did I answer in the same language the human used?
 - [ ] Did I explain marketing/tech terms in plain language when they appear in human-facing text, especially public data sources, private data sources, Local Collector, offer, pain points, content pillars, lead, competitor, idea matrix, HTML report, draft, PDNA, analytics, and learning loop?
+- [ ] If this reply asked the step-6 private data source checkpoint question, did I load Stage 2 first and deliver it in two parts (plain-language explanation BEFORE the `**[ACTION REQUIRED]**` question), content-complete per the Stage-2 §6 checklist: private definition + examples, public contrast, Local Collector + local-only + never asks passwords/cookies/OTPs/tokens, already-a-member requirement, and the three reply options?
 - [ ] Did I separate human/report language from target-audience keyword/content language when they differ?
 - [ ] Did I avoid asking for information I can infer, research, or discover myself?
 - [ ] If I asked a question, did I first show what I inferred from the previous answer?
@@ -1515,6 +1516,7 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I treat step 5 as schedule/routine plus client-specific automation task setup, not as a private data source preference gate?
 - [ ] Did I avoid asking for private data source URLs/lists, discovery details, or Local Collector setup until step 6 after automation exists?
 - [ ] If the human wanted private data sources or was unsure, did I handle actual source intake/discovery/approval in step 6, including the optional discovery pass from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds, then resync the automation task?
+- [ ] Before asking the step-6 checkpoint question, did I load `playbooks/PRIVATE_SOURCE_GATE.md` and Stage 2 in full, and follow the Stage-2 §6 two-part delivery rule instead of compressing the explanation away?
 - [ ] If this was Add Client Mode or First Client Setup Mode, did I create or verify a dedicated `extensions/{client_slug}/` folder, patch the Chrome extension name to `{Client Name} - Solo Agency Collector`, and show the absolute folder path plus exact `chrome://extensions` -> Developer mode -> `Load unpacked` steps for the matching client Chrome profile/account?
 - [ ] Did I avoid merely saying "I created the extension" or "extension folder exists" without the path and install steps?
 - [ ] Did I build a public keyword bank from pain points, problems, needs, objections, buying triggers, and local context, not only generic industry terms?
