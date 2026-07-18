@@ -1461,7 +1461,7 @@ Before replying to the human, verify:
 
 - [ ] Did I answer in the same language the human used?
 - [ ] Did I explain marketing/tech terms in plain language when they appear in human-facing text, especially public data sources, private data sources, Local Collector, offer, pain points, content pillars, lead, competitor, idea matrix, HTML report, draft, PDNA, analytics, and learning loop?
-- [ ] If this reply asked the step-6 private data source checkpoint question, did I load Stage 2 first and deliver it in two parts (plain-language explanation BEFORE the `**[ACTION REQUIRED]**` question), content-complete per the Stage-2 §6 checklist: private definition + examples, public contrast, Local Collector + local-only + never asks passwords/cookies/OTPs/tokens, already-a-member requirement, and the three reply options?
+- [ ] If this reply asked the step-6 private data source checkpoint question, did I load Stage 2 first and deliver it in two parts (plain-language explanation BEFORE the `**[ACTION REQUIRED]**` question), content-complete per the Stage-2 §6 checklist: private definition + examples, public contrast, Local Collector + local-only + never asks passwords/cookies/OTPs/tokens, already-a-member requirement, the hands-free discovery option (no hand-compiled list needed), and the three reply options?
 - [ ] Did I separate human/report language from target-audience keyword/content language when they differ?
 - [ ] Did I avoid asking for information I can infer, research, or discover myself?
 - [ ] If I asked a question, did I first show what I inferred from the previous answer?

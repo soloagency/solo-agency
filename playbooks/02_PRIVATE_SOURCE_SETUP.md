@@ -130,6 +130,7 @@ The checkpoint is delivered in TWO parts, in this order, in the human's language
 
 - Private data sources are logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require the human's account or membership.
 - They are different from public data sources such as websites, Google/search results, public articles, and public pages the agent can access without the human's login (already configured and ready to run).
+- The human does NOT need to compile this list by hand — that is usually tiring, hard, and incomplete. With permission, the agent can DISCOVER candidate private data sources automatically from the places the human already joined or follows on their own machine — Facebook joined groups, subreddits, followed pages/profiles/KOLs, subscribed channels, community feeds — through the Local Collector, filter the candidates, and present a shortlist for approval before anything is monitored.
 - Collection uses the Solo Agency Local Collector: a local app plus Chrome extension on the human's computer. It uses the already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. It never asks for credentials, cookies, passwords, OTPs, or tokens.
 - The human must already be a member, follower, subscriber, logged in, or otherwise authorized to view any source they provide, in the Chrome profile where this client's Solo Agency Local Collector extension is installed; one separate Chrome profile per client is recommended, with that client's extension loaded and the relevant social accounts logged in there.
 - Collection activates only with the human's permission. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if the human provides more, the agent prioritizes and rotates them.
@@ -146,7 +147,8 @@ Content-completeness checklist for this checkpoint (audited in Stage 9 — a che
 2. Contrast with public data sources (what the system can already read without login).
 3. What the Local Collector is + data stays local + never asks for passwords/cookies/OTPs/tokens.
 4. The already-a-member/logged-in requirement and the per-client Chrome profile recommendation.
-5. The three reply options: provide sources / allow discovery / postpone.
+5. The hands-free discovery capability: the agent can find candidate sources from places the human already joined/follows, so no hand-compiled list is needed; approval comes before anything is monitored.
+6. The three reply options: provide sources / allow discovery / postpone.
 
 ### Private Data Source Discovery When The Human Has No List
 
