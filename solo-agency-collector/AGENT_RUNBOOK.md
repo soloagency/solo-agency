@@ -32,9 +32,9 @@ That file must say whether the Solo Agency Local Collector extension and Local C
 Use the Solo Agency GitHub repo as the default setup source. Until GitHub Releases and Chrome Web Store are available, use these raw GitHub artifact URLs:
 
 ```text
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/collector-bridge-binaries-0.1.0.zip
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/SHA256SUMS
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/collector-bridge-binaries-0.1.0.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/chrome-extension-collector-root-0.1.0.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/SHA256SUMS
 ```
 
 The agent should:
@@ -119,7 +119,7 @@ Choose one:
 If the binary is missing:
 
 1. Do not ask the user to install Go.
-2. If network/download is available and authorized, download the prebuilt binary bundle from `https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/collector-bridge-binaries-0.1.0.zip`.
+2. If network/download is available and authorized, download the prebuilt binary bundle from `https://raw.githubusercontent.com/soloagency/solo-agency/dist/collector-bridge-binaries-0.1.0.zip`.
 3. If download is unavailable, log `collector_unavailable`.
 4. Continue with public data sources and any previously collected private data.
 5. Notify the user that the local collector binary is missing.

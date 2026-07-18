@@ -26,9 +26,9 @@ The normal user should not need Go, Node.js, Python, Playwright, npm, pip, or a 
 Agents should use the Solo Agency GitHub repo as the default setup source. Until GitHub Releases and Chrome Web Store are available, use these raw GitHub artifact URLs:
 
 ```text
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/collector-bridge-binaries-0.1.0.zip
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/SHA256SUMS
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/collector-bridge-binaries-0.1.0.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/chrome-extension-collector-root-0.1.0.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/SHA256SUMS
 ```
 
 The package ships prebuilt bridge binaries through the artifact bundle:
