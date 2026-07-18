@@ -37,7 +37,7 @@ KNOWN_OPERATION_CANDIDATES = {
     "list_videos": ["listVideos"],
     "upload_asset": ["uploadAsset"],
     "upload_html_report": ["uploadAsset"],
-    "send_notification": ["sendTelegramMessage"],
+    "send_notification": ["sendNotification", "sendTelegramMessage"],
     "publish": ["publish"],
     "create_video": ["createVideo"],
     "export_video": ["exportVideo"],

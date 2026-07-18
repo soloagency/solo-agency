@@ -97,7 +97,7 @@ When a writing or production skill names a provider-specific tool, map it to the
 | `widecast_create_image`, generated scene image | `media.create_image` from the current client's verified provider capabilities, with explicit cost/credit approval before paid generation |
 | `widecast_export_video`, render/export | `production.export_video` from the current client's verified provider capabilities, with a fresh human approval gate |
 | `widecast_publish`, post to platforms | `distribution.publish` from the current client's verified provider capabilities, with exact content and platform approval |
-| `sendTelegramMessage`, Telegram/email fallback | `notification.send` from the current client's verified provider capabilities |
+| `sendNotification`, Telegram/email fallback | `notification.send` from the current client's verified provider capabilities |
 | analytics/dashboard/list videos | `analytics.read` from the current client's verified provider capabilities |
 
 For WideCast, the default discovery URL is `https://widecast.ai/openapi.yaml`, but the agent must still read the current client's provider config first and must not infer availability from a global MCP connection.

@@ -1038,7 +1038,7 @@ Selects the storage backend the adapter uses (§2). Minimal:
 
 ### 11.4 `provider_defaults.json`
 
-Provider-neutral catalog for the **operator notification** provider only. WideCast is used **exclusively** as the notification provider (Telegram via `sendTelegramMessage` with email fallback, plus optional `uploadAsset` for the report link). It is not used for production, video, or publishing. This file must contain **no** API keys, tokens, cookies, passwords, or client secrets.
+Provider-neutral catalog for the **operator notification** provider only. WideCast is used **exclusively** as the notification provider (Telegram via `sendNotification` (email always, plus Telegram when connected), plus optional `uploadAsset` for the report link). It is not used for production, video, or publishing. This file must contain **no** API keys, tokens, cookies, passwords, or client secrets.
 
 ```json
 {
@@ -1055,7 +1055,7 @@ Provider-neutral catalog for the **operator notification** provider only. WideCa
       "auth_type": "bearer_api_key",
       "api_key_prefix": "wc_live_",
       "secret_storage": "per_client_local_config",
-      "notes": "OutreachCRM uses WideCast ONLY as the operator-notification provider (Telegram via sendTelegramMessage with email fallback, plus optional uploadAsset for the report link). Use https://widecast.ai/app/dashboard as the server; do not call https://api.widecast.ai unless a future release enables it. Do not put API keys here. Notification is optional: with no provider configured, the daily run surfaces report links in chat and logs the blocker."
+      "notes": "OutreachCRM uses WideCast ONLY as the operator-notification provider (email + Telegram via one sendNotification call — subject + message — plus optional uploadAsset for the report link). Use https://widecast.ai/app/dashboard as the server; do not call https://api.widecast.ai unless a future release enables it. Do not put API keys here. Notification is optional: with no provider configured, the daily run surfaces report links in chat and logs the blocker."
     }
   }
 }
@@ -1259,8 +1259,8 @@ Tracks operator notifications sent through the WideCast Telegram / email-fallbac
 
 | Date | Agent | Event | Channel | Status | Report Path | Report Link Sent | Provider | Provider Discovery Checked | Upload Operation | Notification Operation | Upload Attempted | Uploaded Report URL | Notification Attempted | Blocker | Action Needed |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-07-15 | Claude Schedule | daily_run_completed | WideCast Telegram/email fallback | sent | outputs/2026-07/2026-07-15/angela-do-daily-ops.html | yes | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... | yes | none | Review approvals in chat |
-| 2026-07-20 | Claude Schedule | weekly_client_report_ready | WideCast Telegram/email fallback | sent | outputs/2026-07/2026-07-20/angela-do-weekly-client-report.html | yes | widecast | yes | uploadAsset | sendTelegramMessage | yes | https://... | yes | none | Client report scrubbed and ready |
+| 2026-07-15 | Claude Schedule | daily_run_completed | WideCast email+Telegram | sent | outputs/2026-07/2026-07-15/angela-do-daily-ops.html | yes | widecast | yes | uploadAsset | sendNotification | yes | https://... | yes | none | Review approvals in chat |
+| 2026-07-20 | Claude Schedule | weekly_client_report_ready | WideCast email+Telegram | sent | outputs/2026-07/2026-07-20/angela-do-weekly-client-report.html | yes | widecast | yes | uploadAsset | sendNotification | yes | https://... | yes | none | Client report scrubbed and ready |
 ```
 
 Event enum: `daily_run_completed | weekly_client_report_ready`. Notification is **optional** — with no provider configured, the run surfaces the report links in chat and logs the blocker; it does not fail the run. Distinguish blockers precisely:
@@ -1269,11 +1269,11 @@ Event enum: `daily_run_completed | weekly_client_report_ready`. Notification is 
 - `provider_auth_missing` — config exists but no API key/supported auth value.
 - `provider_auth_failed` — provider rejected the credential.
 - `provider_discovery_failed` — OpenAPI discovery URL could not be fetched/parsed.
-- `provider_required_operation_missing` — spec lacks the needed operation (`sendTelegramMessage`/`uploadAsset`).
+- `provider_required_operation_missing` — spec lacks the needed operation (`sendNotification`/`uploadAsset`).
 - `provider_account_mismatch` — verified account does not match the saved client identity.
 - `global_mcp_not_client_scoped` — an MCP/native tool is visible but not proven authenticated as this client's provider account.
 - `provider_upload_failed` — `uploadAsset` exists but the call failed.
-- `provider_notification_failed` — `sendTelegramMessage` exists but send failed.
+- `provider_notification_failed` — `sendNotification` exists but send failed.
 - `provider_notification_not_configured` — account valid but Telegram/email destination not configured and no fallback sent.
 
 Preserve `provider_identity_source: per_client_openapi` for client-scoped delivery; if a global MCP/native provider account was visible but not proven to match, record `mcp_compatibility_status: not_client_scoped` and blocker `global_mcp_not_client_scoped`. Do not log `unavailable` generically when the real issue is missing config, failed auth, a missing operation, expired credentials, or an account mismatch.
@@ -1319,7 +1319,7 @@ Client-local, sensitive. Never include it in a public repo, zip, screenshot, rep
       },
       "notification": {
         "enabled": false,
-        "preferred_operation_id": "sendTelegramMessage",
+        "preferred_operation_id": "sendNotification",
         "delivery": "telegram_or_email_fallback"
       },
       "report_upload": {
@@ -1361,12 +1361,12 @@ Snapshot of discovered OpenAPI operations — the main Client-tools inventory, s
   "auth_scheme": "bearerAuth",
   "operation_ids": {
     "getAccount": {"method": "GET", "path": "/..."},
-    "sendTelegramMessage": {"method": "POST", "path": "/..."},
+    "sendNotification": {"method": "POST", "path": "/v1/notification/send"},
     "uploadAsset": {"method": "POST", "path": "/..."}
   },
   "operation_aliases": {
     "account": "getAccount",
-    "send_notification": "sendTelegramMessage",
+    "send_notification": "sendNotification",
     "upload_asset": "uploadAsset",
     "upload_html_report": "uploadAsset"
   },

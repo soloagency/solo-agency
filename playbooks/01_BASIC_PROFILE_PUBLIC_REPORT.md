@@ -766,7 +766,7 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, send a notification to the human/operator that includes run status, client-facing HTML report path/link, PDF companion path/status, INTERNAL_REPORT path/status, clients processed, blockers, lead/competitor counts, and required actions.
+9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendNotification`, send a notification to the human/operator that includes run status, client-facing HTML report path/link, PDF companion path/status, INTERNAL_REPORT path/status, clients processed, blockers, lead/competitor counts, and required actions.
 10. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
 11. Log the notification attempt in `notifications/notification_log.md`.
 

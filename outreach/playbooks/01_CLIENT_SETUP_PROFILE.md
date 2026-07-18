@@ -444,7 +444,7 @@ Setup writes the campaign config only. It does not build the enrich queue, draft
 
 ### Step 7 — PDNA notification (WideCast API key only)
 
-In OutreachCRM, PDNA is **notification-only**. There is no production, rendering, or distribution stage — WideCast is used solely to deliver operator notifications: a Telegram message (`sendTelegramMessage`) with the report link, an email fallback when Telegram is unavailable, and an optional `uploadAsset` call to host the report file behind the link. This is the one provider setup in Setup Flow, and it is client-scoped.
+In OutreachCRM, PDNA is **notification-only**. There is no production, rendering, or distribution stage — WideCast is used solely to deliver operator notifications: a Telegram message (`sendNotification`) with the report link, an email fallback when Telegram is unavailable, and an optional `uploadAsset` call to host the report file behind the link. This is the one provider setup in Setup Flow, and it is client-scoped.
 
 Ask only for the client's WideCast API key; the agent configures, verifies, discovers, and resyncs the rest. Provider config lives per client under `integrations/providers/provider_config.local.json`. The key is referenced by `api_key_env` (an environment-variable name) or `api_key_local` (a path/handle) — **never a field literally named `api_key`**. Capability discovery uses the OpenAPI helper `tools/provider_openapi.py`, caching to `provider_openapi_cache.yaml` and recording capabilities in `provider_capabilities.json`.
 
@@ -453,10 +453,10 @@ Ask only for the client's WideCast API key; the agent configures, verifies, disc
 
 **Client:** {Client Name}
 **I need you to:** paste this client's WideCast API key so operator notifications
-(Telegram + email fallback) work.
+(email + Telegram) work.
 **Reply with:** `widecast key: {key}`
 **Why:** After a run, OutreachCRM sends you the run summary and report link via WideCast
-`sendTelegramMessage`. It is notification-only — no video, rendering, or distribution.
+`sendNotification`. It is notification-only — no video, rendering, or distribution.
 ```
 
 Do not ask provider/scope/spend/publish/account-identity questions — those belong to a non-default stack the human must explicitly request. Do not treat a global MCP/native provider account as this client's notification connection. If the current session cannot write provider config, hand the API-key action to the setup/automation task via an `**[ACTION REQUIRED]**` block. WideCast is operator-only; it never appears in client-facing output (the scrub gate strips it).
@@ -643,7 +643,7 @@ The first send/enrich/draft/approval cycle happens in the client-specific automa
 - The first automation run follows the Daily Run order (orchestrated by `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, not by this stage): sync inbox → pull tracking → triage + apply CRM rules → follow-up advising → load new pipeline (verify → enrich → step-1 draft into `pending_approval`) → send only `outbox/approved/` within quota → compile Today View → reports → notify → Stage 9 audit.
 - Nothing is sent until the operator reviews the Approval Report and replies `approve …` in chat. `approval_mode` defaults to `manual_all`, even for bumps. Rejections feed `learning_log` for the next batch.
 - Suppression is checked at every send-capable path (initial, follow-up) and at import against all identities. If the tracker pull has not succeeded within the configured window, sending for that box is blocked so opt-outs cannot sit unhonored.
-- The first automation run's operator notification (WideCast `sendTelegramMessage`, email fallback) reports run status, drafts awaiting review, the report link, blockers, and any required action, and is logged in `notifications/notification_log.md`. The client-facing weekly report (the only scrubbed, client-facing output) is not produced in Setup Flow.
+- The first automation run's operator notification (WideCast `sendNotification`, email fallback) reports run status, drafts awaiting review, the report link, blockers, and any required action, and is logged in `notifications/notification_log.md`. The client-facing weekly report (the only scrubbed, client-facing output) is not produced in Setup Flow.
 
 The automation-run handoff message must show a compact progress roadmap and end with a concrete next-step `**[ACTION REQUIRED]**` (approve the drafts, re-auth a box, or paste a missing API key). Do not end with only a report link, a summary, or "let me know".
 

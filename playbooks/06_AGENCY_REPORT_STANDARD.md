@@ -1398,7 +1398,7 @@ When the result is long, the agent should send or surface the HTML report plus P
 
 The agent must deliver the client-facing HTML report, PDF companion path/status, and operator-only `INTERNAL_REPORT` path/status to the user/operator by the most convenient available channel:
 
-- Configured provider notification, preferably WideCast OpenAPI `sendTelegramMessage`, with the uploaded operator-delivery HTML report URL when report upload is available, the PDF companion URL/path/status, and the `INTERNAL_REPORT` path/status. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
+- Configured provider notification, preferably WideCast OpenAPI `sendNotification`, with the uploaded operator-delivery HTML report URL when report upload is available, the PDF companion URL/path/status, and the `INTERNAL_REPORT` path/status. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
 - If the configured provider notification itself is unavailable, use a connected Gmail/email MCP, connector, or tool to email the HTML/PDF reports or links to the human if available and authorized.
 - Agent chat file attachment if supported.
 - Local file path in the automation/thread output.
@@ -1415,8 +1415,8 @@ Notification fallback rule:
   Get daily reports on Telegram
   Register at https://widecast.ai/#setup, log in, click Setup AI Agent, open API Keys & MCP, click Setup, then Generate API key and MCP url. Paste only the API key back to the agent for this client. Connect Telegram there so scheduled runs can send report links, blockers, and approval requests to your phone. If convenient, connect social accounts too; publishing to 10+ platforms still happens only after you approve the exact content and target platforms.
   ```
-- If WideCast OpenAPI notification is available, call `sendTelegramMessage` even if the human has not connected Telegram yet. WideCast should handle fallback email delivery when Telegram is not connected and email fallback is available.
-- If WideCast OpenAPI notification is available and Client tools expose an HTML-capable upload API, upload the `.html` report to WideCast first with `uploadAsset` and send the uploaded URL through WideCast Telegram/email fallback. Upload the PDF companion too only when Client tools expose a compatible PDF upload operation; otherwise include the local PDF path/status.
+- If WideCast OpenAPI notification is available, call `sendNotification` even if the human has not connected Telegram yet. WideCast should handle fallback email delivery when Telegram is not connected and email fallback is available.
+- If WideCast OpenAPI notification is available and Client tools expose an HTML-capable upload API, upload the `.html` report to WideCast first with `uploadAsset` and send the uploaded URL through WideCast email+Telegram. Upload the PDF companion too only when Client tools expose a compatible PDF upload operation; otherwise include the local PDF path/status.
 - Do not send only a local file path when an uploaded WideCast report URL is available.
 - If provider config is missing, auth fails, OpenAPI discovery fails, account verification mismatches, or the current WideCast OpenAPI spec cannot upload `.html` files, log the exact provider-neutral blocker and any useful legacy WideCast alias, send the best available HTML path/link plus PDF companion path/status, and state the upload blocker clearly.
 - If OpenAPI discovery does not expose a WideCast Telegram/notification send operation, log `provider_required_operation_missing` and any useful legacy WideCast alias. Do not claim WideCast itself lacks notification capability merely because a legacy/global MCP/native tool surface is not exposed.
@@ -1458,7 +1458,7 @@ This is an operator/internal check. Its detailed output must be recorded in `INT
    - account/status capability, such as `getAccount`;
    - HTML-capable report/file/asset upload capability, such as `uploadAsset` with `text/html`;
    - PDF/file upload capability when exposed by the verified client provider;
-   - Telegram/report notification send capability, such as `sendTelegramMessage`;
+   - Telegram/report notification send capability, such as `sendNotification`;
    - email fallback behavior exposed by the provider, if any.
 10. Use legacy/global MCP/native tool discovery/lazy-load only as a fallback or compatibility path after Client tools and the client-scoped provider config/account identity have been checked. A global MCP/native WideCast account visible in the AI session is not proof that the current client's report upload, notification, platforms, credits, or analytics are configured. If the tool account cannot be proven to match the client provider identity, log `global_mcp_not_client_scoped` and continue with the per-client OpenAPI/API-key setup path or the best authorized fallback.
 11. If upload capability exists, upload the client-facing `.html` report for user/operator delivery and capture the uploaded URL and TTL if returned. Treat provider-hosted URLs as operator handoff links, not client-share links.

@@ -670,7 +670,7 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendTelegramMessage`, upload the scrubbed client-facing HTML report first when an HTML-capable upload operation such as `uploadAsset` is available, upload the PDF companion too when the verified client provider supports PDF upload, then send a notification to the human/operator that includes the uploaded report URL, PDF companion path/status, INTERNAL_REPORT path/status, run status, clients processed, blockers, lead/competitor counts, and required actions. Treat provider-hosted URLs as operator handoff links, not client-share links.
+9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendNotification`, upload the scrubbed client-facing HTML report first when an HTML-capable upload operation such as `uploadAsset` is available, upload the PDF companion too when the verified client provider supports PDF upload, then send a notification to the human/operator that includes the uploaded report URL, PDF companion path/status, INTERNAL_REPORT path/status, run status, clients processed, blockers, lead/competitor counts, and required actions. Treat provider-hosted URLs as operator handoff links, not client-share links.
 10. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
 11. Log the notification attempt in `notifications/notification_log.md`.
 
@@ -750,7 +750,7 @@ The playbook does not require one specific scheduler because different AI servic
 
 The agent must record the chosen method in `schedule.md`.
 
-The agent must also record the notification channel in `schedule.md`. If the client has verified WideCast OpenAPI config and the discovered spec exposes `sendTelegramMessage`, record WideCast Telegram/email fallback as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email when the account supports it. If WideCast OpenAPI notification is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast API key + Telegram/email fallback or Gmail/email.
+The agent must also record the notification channel in `schedule.md`. If the client has verified WideCast OpenAPI config and the discovered spec exposes `sendNotification`, record WideCast email+Telegram as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email when the account supports it. If WideCast OpenAPI notification is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast API key + Telegram/email fallback or Gmail/email.
 
 Scheduled runs should be designed as unattended runs. The human may not be watching the AI agent UI, so the agent must proactively notify the human when the run finishes or when human action is required.
 
@@ -1521,6 +1521,7 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] If the human wanted private data sources or was unsure, did I handle actual source intake/discovery/approval in step 6, including the optional discovery pass from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds, then resync the automation task?
 - [ ] Before asking the step-6 checkpoint question, did I load `playbooks/PRIVATE_SOURCE_GATE.md` and Stage 2 in full, and follow the Stage-2 §6 two-part delivery rule instead of compressing the explanation away?
 - [ ] If the human approved discovery and the collector plus matching extension were verified healthy in-session, did I run the step-6 discovery pass right there and get the shortlist approved (or record exactly why it was deferred as `approved_pending_first_scan`)?
+- [ ] Did I ask the step-7 PDNA notification question during setup with the value-first framing (hot-lead alerts, report-ready, drafts awaiting review), without pressure language and without implying any Solo Agency-provider affiliation - or record the decline as `notification_channel_missing` for the once-per-run re-offer?
 - [ ] If this was Add Client Mode or First Client Setup Mode, did I create or verify a dedicated `extensions/{client_slug}/` folder, patch the Chrome extension name to `{Client Name} - Solo Agency Collector`, and show the absolute folder path plus exact `chrome://extensions` -> Developer mode -> `Load unpacked` steps for the matching client Chrome profile/account?
 - [ ] Did I avoid merely saying "I created the extension" or "extension folder exists" without the path and install steps?
 - [ ] Did I build a public keyword bank from pain points, problems, needs, objections, buying triggers, and local context, not only generic industry terms?
@@ -1825,7 +1826,7 @@ Before saying the run is complete, verify:
 - [ ] Did every user/operator-facing report link/path in chat, Telegram, or notification point to `.html`, not `.md`?
 - [ ] Did I avoid fake interactive buttons in static HTML, except real local copy buttons for editable draft review?
 - [ ] Did I include references/URLs in the report?
-- [ ] Did I notify the human through the configured provider notification channel if available, preferably WideCast OpenAPI `sendTelegramMessage`, relying on WideCast's email fallback if Telegram is not connected and fallback is available?
+- [ ] Did I notify the human through the configured provider notification channel if available, preferably WideCast OpenAPI `sendNotification`, relying on WideCast's email fallback if Telegram is not connected and fallback is available?
 - [ ] Did every report-ready notification include an HTML report URL/path, PDF companion path/status, and INTERNAL_REPORT path/status? A plain "report ready" notification with no report URL/path and PDF/internal status is invalid.
 - [ ] If WideCast OpenAPI notification/Telegram was available and an HTML-capable `uploadAsset` operation was available, did I upload the `.html` report to WideCast for operator delivery first and send the uploaded report URL instead of only a local path, while treating provider-hosted URLs as non-client-share links?
 - [ ] Did I record a report-delivery object with local HTML path, local PDF path/status, INTERNAL_REPORT path/status, client-facing scrub status, provider, OpenAPI discovery status, account verification status, upload attempted status, uploaded HTML/PDF URL if any, upload blocker if any, notification channel, and final notification report link?

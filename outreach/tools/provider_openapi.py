@@ -37,7 +37,7 @@ USER_AGENT = "OutreachCRMOpenAPIAdapter/1.0"
 # account verification). No production/video/publish operations.
 KNOWN_OPERATION_CANDIDATES = {
     "account": ["getAccount"],
-    "send_notification": ["sendTelegramMessage"],
+    "send_notification": ["sendNotification", "sendTelegramMessage"],
     "upload_asset": ["uploadAsset"],
     "upload_html_report": ["uploadAsset"],
     "analytics": ["getAnalytics"],
@@ -489,7 +489,8 @@ def _notification_enabled(config: dict[str, Any], provider: str) -> bool:
 def cmd_notify(args: argparse.Namespace) -> int:
     """Compose the operator notification in one deterministic step:
     config check -> (dry-run/degraded short-circuit) -> discover -> getAccount ->
-    optional uploadAsset(report) -> sendTelegramMessage -> notification_log.md row.
+    optional uploadAsset(report) -> sendNotification (subject+message; email always,
+    Telegram when connected; legacy sendTelegramMessage fallback) -> notification_log.md row.
     A missing/disabled provider is a valid degraded outcome (`local_path_only`, exit 0),
     never a run failure. `--dry-run` does everything except touch the network or send."""
     config = _read_json(args.config)
@@ -497,7 +498,7 @@ def cmd_notify(args: argparse.Namespace) -> int:
     provider = _active_provider(config, args.provider)
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     row = {"Date": now[:10], "Agent": args.agent, "Event": args.event,
-           "Channel": "WideCast Telegram/email fallback", "Provider": provider,
+           "Channel": "WideCast email+Telegram", "Provider": provider,
            "Report Path": args.report_path or (args.report_file or ""),
            "Action Needed": args.action_needed,
            "Provider Discovery Checked": "no", "Upload Attempted": "no",
@@ -528,7 +529,7 @@ def cmd_notify(args: argparse.Namespace) -> int:
     # 2. Dry-run: report the plan, no network, no send.
     if args.dry_run:
         return finish("dry_run", "",
-                      **{"Notification Operation": "sendTelegramMessage",
+                      **{"Notification Operation": "sendNotification (fallback: sendTelegramMessage)",
                          "Upload Operation": "uploadAsset" if args.report_file else ""})
 
     # 3. Real path: discover -> verify -> upload -> send.
@@ -571,14 +572,22 @@ def cmd_notify(args: argparse.Namespace) -> int:
                     # upload SUCCEEDED but the URL key wasn't recognized — distinct from a real failure
                     row["Blocker"] = "provider_upload_url_unrecognized"
 
-    op = parsed["operations"][aliases["send_notification"]]
+    op_id = aliases["send_notification"]
+    op = parsed["operations"][op_id]
     text = args.message + (f"\n\nReport: {uploaded_url}" if uploaded_url else "")
-    # The message body property name is provider-schema-specific; default "text", overridable in
-    # provider_config notification.text_field so a live schema can be matched without a code change.
-    text_field = notif_cfg.get("text_field") or "text"
     row["Notification Attempted"] = "yes"
-    st, _, resp = _request_json(op["method"], _url_for(parsed["server_url"], op["path"]), key, {text_field: text})
-    _write_call_log(args.config, provider, aliases["send_notification"], st,
+    if op_id == "sendNotification" or notif_cfg.get("subject_field"):
+        # sendNotification: one call delivers email always + Telegram when connected.
+        # Field names overridable in provider_config notification.{subject_field,message_field}.
+        subject = args.subject or (args.message.strip().splitlines() or ["Solo Agency report"])[0][:120]
+        body = {notif_cfg.get("subject_field") or "subject": subject,
+                notif_cfg.get("message_field") or "message": text}
+    else:
+        # Legacy single-text op; property name overridable in notification.text_field.
+        text_field = notif_cfg.get("text_field") or "text"
+        body = {text_field: text}
+    st, _, resp = _request_json(op["method"], _url_for(parsed["server_url"], op["path"]), key, body)
+    _write_call_log(args.config, provider, op_id, st,
                     "" if st < 400 else "provider_notification_failed")
     if st >= 400:
         return finish("blocked", "provider_notification_failed", 1,
@@ -620,6 +629,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     notify = sub.add_parser("notify", help="Composed operator notification: verify -> optional upload -> send -> log")
     notify.add_argument("--message", required=True, help="Operator-facing status text (counts + report link).")
+    notify.add_argument("--subject", default="", help="Email subject (Telegram shows it bolded above the body). Defaults to the first line of --message.")
     notify.add_argument("--event", default="daily_run_completed",
                         choices=["daily_run_completed", "weekly_client_report_ready"])
     notify.add_argument("--report-file", help="HTML report to uploadAsset for the report link.")

@@ -24,7 +24,7 @@ These are the non-negotiables. They are restated in detail in the relevant secti
 - **Full-load discipline.** Every stage/module/dependency load requires a LOAD LEDGER; a short read = NOT loaded; no side-effect without a PASS ledger.
 - **Only the weekly report is client-facing.** It is produced through the Client-Blind Scrub Gate. Every other output (approval report, Today View, daily ops, `INTERNAL_REPORT`) is operator-only and must never be shared with the client.
 - **Never a field literally named `api_key`.** Use `api_key_env` (environment variable name) or `api_key_local` (local client value). Never store credentials, OAuth secrets, refresh tokens, or the tracker key in client config, reports, issue drafts, or committed files.
-- **WideCast is notification-only.** WideCast is the operator's Telegram-notification provider: `sendTelegramMessage` with email fallback, and optional `uploadAsset` to host the report link. It is not a content, publishing, or production tool.
+- **WideCast is notification-only.** WideCast is the operator's Telegram-notification provider: `sendNotification` (email always, plus Telegram when connected), and optional `uploadAsset` to host the report link. It is not a content, publishing, or production tool.
 - **`[ACTION REQUIRED]` contract.** When the human must act, use a standalone `**[ACTION REQUIRED]**` block: one purpose, one exact next step, one command or one absolute path. When nothing is needed, end with next-action guidance per the root playbook's Next-Action Guidance Rule, never `No action required right now.`
 - **Guessed email is code-enforced.** Guessed/unverified addresses require an explicit guessed-approval flag on the draft plus a daily guessed-send cap, both enforced in `gmail_client.py send`. First guessed-pattern hard bounce at a domain suppresses all other guessed addresses at that domain.
 
@@ -164,7 +164,7 @@ Because the repo changes frequently, treat any blocker, repeated failure, contra
 
 ### 0.9 Provider adapter + PDNA notification (Telegram only)
 
-Per-client `integrations/providers/provider_config.local.json` holds `api_key_env` or `api_key_local` (never a field literally named `api_key`). OpenAPI discovery runs via `tools/provider_openapi.py`; capabilities cache in `provider_capabilities.json`. The only surviving provider use is **operator notification (PDNA notification)**: WideCast `sendTelegramMessage` with an email fallback, and optional `uploadAsset` to host the report link. A report-ready notification is invalid unless it includes the HTML report URL/path; if one is ever sent without the link, send an immediate correction. Do not treat a global MCP/native account as this client's provider; verify against the client's own config path and log `global_mcp_not_client_scoped` if it cannot be proven to match.
+Per-client `integrations/providers/provider_config.local.json` holds `api_key_env` or `api_key_local` (never a field literally named `api_key`). OpenAPI discovery runs via `tools/provider_openapi.py`; capabilities cache in `provider_capabilities.json`. The only surviving provider use is **operator notification (PDNA notification)**: WideCast `sendNotification` (email always, plus Telegram when connected), and optional `uploadAsset` to host the report link. A report-ready notification is invalid unless it includes the HTML report URL/path; if one is ever sent without the link, send an immediate correction. Do not treat a global MCP/native account as this client's provider; verify against the client's own config path and log `global_mcp_not_client_scoped` if it cannot be proven to match.
 
 ### 0.10 Two-lane reporting
 
@@ -363,7 +363,7 @@ Load Stage 15 (`15_CRM_REPORTING.md`) for reporting and Stage 7 (`07_STORAGE_SCH
 
 - **Two-lane, weekly-only client output.** Operator outputs (approval report, Today View, daily ops, `INTERNAL_REPORT`) are full-detail and never shared. The **weekly** CRM report (Mondays) is the only client-facing output and passes through the Client-Blind Scrub Gate before it is rendered (HTML + PDF) by `tools/report_renderer.py`. Reports label opens "estimated" and report the guessed cohort's bounce rate separately.
 - **Storage discipline.** All CRM mutations go through `crm_store.py` (§1). Records are one-file-per-record JSON (logs are monthly JSONL with a monotonic `seq`), atomic via temp+rename, per-collection lock. The adapter is pluggable (JSON default → Postgres later, same contract tests); identity lookups use `find_by_identity` over the unique reverse index (`contact_identities`), not the flat-field query DSL.
-- **Notify.** After the run, notify the operator via WideCast `sendTelegramMessage` (email fallback): counts + the report link → `daily-content-pipeline/notifications/notification_log.md`. A report-ready notification without the link is invalid.
+- **Notify.** After the run, notify the operator via WideCast `sendNotification` (email + Telegram when connected): counts + the report link → `daily-content-pipeline/notifications/notification_log.md`. A report-ready notification without the link is invalid.
 
 ### Daily Run order (reference; per client, pins `target_client_slug`)
 
