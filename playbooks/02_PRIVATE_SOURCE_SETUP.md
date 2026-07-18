@@ -48,6 +48,25 @@ For the first lead/competitor pass for a client/source set, Stage 10 overrides t
 
 If any older copied section appears to use the daily 5-scroll default for source discovery, this latest delta override wins.
 
+## Three Distinct Caps: Discovery Capture vs Shortlist vs Active Monitoring
+
+The number "about 20 sources per client" is the ACTIVE DAILY MONITORING cap only (an account-safety limit on how many sources are scanned every day). It must NEVER be used as the discovery-capture limit. Three separate caps apply to three separate stages:
+
+1. **Discovery capture (broad).** When discovering candidate sources, capture as MANY joined groups / followed communities / subscribed sources as the scroll safety allows — the whole reachable list, not 20. The discovery job's `pacing.max_sources` must be set high enough to cover the client's full joined/followed list (for a heavy-membership account, hundreds), so filtering can see everything before narrowing. Setting the discovery job's `max_sources` to ~20 is a defect: it truncates capture to the first 20 and hides the rest.
+2. **Shortlist (filtered).** The relevance filter narrows the full captured set down to a proposed shortlist for approval. Filtering happens over ALL captured candidates, never a truncated sample.
+3. **Active daily monitoring (~20).** Only the APPROVED, ACTIVE sources that get scanned every day are held to ~20 per client (account safety); extras are classified weekly/optional and rotated. This is the only place the ~20 belongs.
+
+Capture completeness and honesty:
+
+- Record `capture_status` (`complete` | `capped_incomplete`) and the real `captured_count` for each discovery surface. A scan is `complete` only when it reached the stop condition (no new sources for 3 consecutive scrolls) or the true end of the list; if it stopped because it hit the scroll cap or `max_sources` before the end, it is `capped_incomplete`.
+- When `capped_incomplete`, tell the human plainly that the capture is partial ("captured N so far; more joined sources exist beyond this"), and never present the shortlist as if it covered all joined groups. Offer to continue discovery in a later pass and/or run a targeted search.
+- Reconcile before reporting: the number of candidates you classified and the counts you tell the human must match the actual captured records on disk (`new_private_sources.jsonl` and the surface snapshots). Never state a capture count you cannot point to in the captured data — do not invent a total.
+
+Targeted named-source search:
+
+- When the human names specific sources (for example a particular group by name) that are not in the capture, or whenever capture is `capped_incomplete`, run a targeted Local Collector search for those exact names plus profile-derived keywords (industry / sub-industry / target location / pain points) instead of speculating about why they are missing. Facebook keyword group search (`https://www.facebook.com/search/groups/?q={url_encoded_keyword}`) is the right tool for locating a named group that a joined-list scroll did not reach.
+
+
 ## Group Scan Communication Rule
 
 Every time the agent tells the human it will scan or monitor groups, communities, fanpages, or logged-in social sources, it must state the actual scan depth and where that value comes from.
@@ -632,6 +651,8 @@ discovery_category: membership_sources | following_sources | recommendation_feed
 discovery_url:
 current_url:
 captured_at:
+capture_status: complete | capped_incomplete   # per surface: complete only if it reached the stop condition or true end of list
+captured_count:                                   # real number captured for this surface (must match the records on disk)
 why_relevant:
 matched_pain_points:
 matched_content_pillars:
