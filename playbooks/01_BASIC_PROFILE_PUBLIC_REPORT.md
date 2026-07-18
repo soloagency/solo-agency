@@ -576,6 +576,7 @@ Exact manual run-now contract:
 - `run_now_ttl_minutes` should be 30 by default and must not exceed 120.
 - `sources` must contain the private data sources for that client if private data sources exist. If there are no private data sources, the agent should still run public research without the Local Collector app.
 - `pacing.scroll_steps` defaults to 5 and must not exceed 10.
+- `pacing.max_sources` caps how many sources ONE run captures. For a daily MONITORING run keep it around 20 (the account-safety active list). For a SOURCE-DISCOVERY run (`job_type: private_data_source_discovery` / `purpose: source_discovery`) it must be raised to cover the client's full joined/followed list (for a heavy-membership account, a few hundred) — discovery must capture every candidate before filtering. Never cap a discovery run at ~20; that is the active-monitoring cap, not the discovery-capture cap (Stage 2 Three Distinct Caps).
 - If the agent cannot make this POST itself but can write local files, it should write the JSON payload to one unique per-client queue file:
 
 ```text
@@ -634,6 +635,7 @@ Exact schedule contract:
   "default_runs_per_day": 1,
   "poll_interval_seconds": 5,
   "max_sources_per_run": 20,
+  "_comment_max_sources_per_run": "active daily-MONITORING cap only; a source-DISCOVERY run must override this to cover the full joined/followed list (Stage 2 Three Distinct Caps)",
   "max_scrolls_per_source": 5,
   "max_scrolls_allowed": 10,
   "scroll_delay_seconds": 5,
