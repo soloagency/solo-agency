@@ -236,9 +236,9 @@ https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collec
 Current collector artifacts:
 
 ```text
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/collector-bridge-binaries-0.1.0.zip
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/chrome-extension-collector-root-0.1.0.zip
-https://raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/dist/SHA256SUMS
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/collector-bridge-binaries-0.1.0.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/chrome-extension-collector-root-0.1.0.zip
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/SHA256SUMS
 ```
 
 Current writing-skill artifacts:
