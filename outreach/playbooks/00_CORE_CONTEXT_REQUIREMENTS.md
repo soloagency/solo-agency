@@ -25,7 +25,7 @@ These are the non-negotiables. They are restated in detail in the relevant secti
 - **Only the weekly report is client-facing.** It is produced through the Client-Blind Scrub Gate. Every other output (approval report, Today View, daily ops, `INTERNAL_REPORT`) is operator-only and must never be shared with the client.
 - **Never a field literally named `api_key`.** Use `api_key_env` (environment variable name) or `api_key_local` (local client value). Never store credentials, OAuth secrets, refresh tokens, or the tracker key in client config, reports, issue drafts, or committed files.
 - **WideCast is notification-only.** WideCast is the operator's Telegram-notification provider: `sendTelegramMessage` with email fallback, and optional `uploadAsset` to host the report link. It is not a content, publishing, or production tool.
-- **`[ACTION REQUIRED]` contract.** When the human must act, use a standalone `**[ACTION REQUIRED]**` block: one purpose, one exact next step, one command or one absolute path. When nothing is needed, say exactly `No action required right now.`
+- **`[ACTION REQUIRED]` contract.** When the human must act, use a standalone `**[ACTION REQUIRED]**` block: one purpose, one exact next step, one command or one absolute path. When nothing is needed, end with next-action guidance per the root playbook's Next-Action Guidance Rule, never `No action required right now.`
 - **Guessed email is code-enforced.** Guessed/unverified addresses require an explicit guessed-approval flag on the draft plus a daily guessed-send cap, both enforced in `gmail_client.py send`. First guessed-pattern hard bounce at a domain suppresses all other guessed addresses at that domain.
 
 ## Source Preservation Rule
@@ -172,7 +172,7 @@ Operator-only outputs (`INTERNAL_REPORT`, approval report, Today View, daily ops
 
 ### 0.11 `[ACTION REQUIRED]` contract
 
-Any human-facing reply, setup handoff, blocker, notification, or next-step question that needs the human to answer, approve, paste, run, connect, or confirm must put that request in a standalone block: one purpose, one exact next step, and one copy-paste command or one absolute path. Do not bury required actions in prose, progress blocks, or report links. At most three `**[ACTION REQUIRED]**` blocks per reply. When no action is needed, say exactly `No action required right now.` Never ask for passwords, cookies, OTPs, session tokens, or credentials; provider setup blocks may ask only for the specific API key the playbook allows.
+Any human-facing reply, setup handoff, blocker, notification, or next-step question that needs the human to answer, approve, paste, run, connect, or confirm must put that request in a standalone block: one purpose, one exact next step, and one copy-paste command or one absolute path. Do not bury required actions in prose, progress blocks, or report links. At most three `**[ACTION REQUIRED]**` blocks per reply. When no action is needed, end with next-action guidance per the root playbook's Next-Action Guidance Rule. Never ask for passwords, cookies, OTPs, session tokens, or credentials; provider setup blocks may ask only for the specific API key the playbook allows.
 
 ### 0.12 Slug rules + monthly folders + deploy discipline
 
@@ -234,7 +234,7 @@ The agent must follow these at all times.
 - Never send from the operator's primary personal Gmail; never scale cold @gmail.com volume beyond the documented ~20–50/day/box at tight personalization.
 - Do not require any provider account, API key, MCP connection, or installed tool merely to import, verify, enrich, or draft. Only operator notification uses a provider, and even that has an email fallback.
 - When provider notification is available, use it to notify the human about completed scheduled runs, drafts awaiting approval, sendbox re-auth needs, blockers, and important failures, because the human may be away when the schedule runs. Every report-ready notification must include the HTML report URL/path.
-- Use the `**[ACTION REQUIRED]**` contract for every required human action; otherwise say `No action required right now.`
+- Use the `**[ACTION REQUIRED]**` contract for every required human action; otherwise end with next-action guidance per the root playbook's Next-Action Guidance Rule.
 - Communicate with the human in the human's language. Store internal field names and schemas in English. Human-facing reports, notifications, and approval requests are in the human's language. Email copy is written in the recipient's language (default English for the priority path unless the campaign/segment says otherwise).
 - User-facing reports must be HTML. Do not hand the human `.md` report files as the report experience or make them open Markdown to learn the next step; put next actions directly in chat, the notification, or the HTML report.
 - Never fabricate facts, evidence URLs, metrics, replies, or send results. Mark unavailable metrics clearly. If a required signal is missing, say so and stop at the honest blocker.
@@ -408,7 +408,7 @@ Compliance is a code-enforced backbone, not a disclaimer. It binds every send-ca
 - **Human language.** Talk to the human in the human's language. Internal field names, schemas, slugs, and logs are English. Reports, notifications, approval requests, and setup guidance are in the human's language; email copy is in the recipient's language (default English on the priority path).
 - **Client-facing = weekly + scrubbed only.** The weekly CRM report is the sole client-facing artifact. It goes through the Client-Blind Scrub Gate and must never mention OutreachCRM internals: sendbox / `gmail_client` / `crm_store`, `trk.` / HMAC / token, sent_log, suppression, warmup, quota, guessed, provider/Telegram/API-key/config details, or `INTERNAL_REPORT`. Operator reports keep all of that.
 - **HTML for humans, Markdown for the agent.** Hand the human the mobile-friendly HTML path/link; keep Markdown as the internal source-of-truth/audit record. Do not make the human open Markdown to find the next step.
-- **`[ACTION REQUIRED]` everywhere a human must act** (§0.11). One purpose, one exact step, one command or path; at most three per reply; `No action required right now.` when nothing is needed.
+- **`[ACTION REQUIRED]` everywhere a human must act** (§0.11). One purpose, one exact step, one command or path; at most three per reply; next-action guidance per the Next-Action Guidance Rule when nothing is needed.
 - **Progress + next-step question** on every incomplete-workflow reply that hands control back (§0.15), with an `Automation freshness` line once a schedule exists.
 - **Honesty gates.** Never fabricate facts, evidence URLs, replies, metrics, or send outcomes. Opens are "estimated." Missing signals are stated, not guessed. When a hard gate blocks an action, surface the blocker in an `[ACTION REQUIRED]` block rather than working around it.
 

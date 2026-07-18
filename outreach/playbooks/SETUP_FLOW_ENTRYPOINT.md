@@ -22,7 +22,7 @@ Before setup proceeds, verify or explain that OutreachCRM needs Codex, Claude De
 10. Notification setup (optional) is client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming notification is available. Default is WideCast: ask only for the client's WideCast API key. Do not treat a global MCP/native provider account as this client's connection. Notification is optional; mark it `–` if declined.
 11. After any approved config change or applied OutreachCRM update, perform Automation Resync if a schedule/automation already exists.
 12. Setup Flow completion means `ready_for_automation_first_run`.
-13. Every human question, approval request, one-line command, sendbox-connection step, provider/API-key setup request, and native automation task edit must use the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. If setup continues without needing the human, say `No action required right now.`
+13. Every human question, approval request, one-line command, sendbox-connection step, provider/API-key setup request, and native automation task edit must use the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. If setup continues without needing the human, end the reply with next-action guidance per the Next-Action Guidance Rule instead of `No action required right now.`
 
 ## The 9-step Setup Sequence
 
@@ -93,6 +93,6 @@ When the human asks to send / run a campaign / draft-and-send while this entrypo
 2. Finish or resync the client-specific automation task.
 3. Provide the exact task name to run for the first daily run.
 4. If the native automation UI requires human action, provide that one exact action in a `**[ACTION REQUIRED]**` block.
-5. End with a `**[ACTION REQUIRED]**` block naming the exact automation task to run, or say `No action required right now.`
+5. End with a `**[ACTION REQUIRED]**` block naming the exact automation task to run, or end with next-action guidance per the Next-Action Guidance Rule.
 
 Do not ask whether to send now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not enrich, draft-to-send, or notify in Setup Flow.

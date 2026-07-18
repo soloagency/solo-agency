@@ -22,7 +22,7 @@ The Client Intelligence Profile that this stage builds is written using the cano
 - If the human asks to send, enrich-and-send, run a campaign, "email them now", or "just send the first batch" while this stage is being used for Setup Flow, do not send. Refuse with the exact wording in the Setup Flow Send Refusal section, finish or resync the client-specific automation task, and tell the human the exact task name to run.
 - The first send, enrichment pass, and approval batch happen in Automation Flow, driven by a client-specific task whose name begins with the client name, for example `AvenNgo - OutreachCRM Daily Run`. The first run is simply that task's first execution, not a separate task.
 - Nothing leaves the system without an explicit chat `approve`. Even in Automation Flow the send is gated by the Preview & chat-approval step (Stage 5 / Stage 8). Setup Flow does not reach that gate at all.
-- Every human step in this stage — every question, approval request, API-key request, one-line command, and native automation task edit — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. When nothing is needed, say `No action required right now.`
+- Every human step in this stage — every question, approval request, API-key request, one-line command, and native automation task edit — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule.
 - Load the referenced stages (2 sendbox, 3 import, 5 campaign, 7 storage schema, 12 analytics) with their own LOAD LEDGER before writing the config those stages own. Do not hand-write sendbox, list, campaign, pipeline, or analytics files from prose.
 - Configure the recurring schedule and the client-specific automation task once the profile and first campaign goal are known. Then offer the agency-wide maintenance task `OutreachCRM - GitHub Update Watch` as a separate update-watch automation.
 
@@ -61,7 +61,7 @@ the first batch, draft emails against the campaign goal, and post the drafts for
 review. I will send only the drafts you `approve`.
 ```
 
-Then end the reply with an `**[ACTION REQUIRED]**` block that names the exact client-specific automation task to run, or `No action required right now.` if the task is already ready and the human only needs to run it. Never end a send-request handoff with "let me know" or a bare report link.
+Then end the reply with an `**[ACTION REQUIRED]**` block that names the exact client-specific automation task to run, or, if the task is already ready, next-action guidance whose FIRST suggestion is running that exact task. Never end a send-request handoff with "let me know" or a bare report link.
 
 Do not ask "Do you want me to send it now?". Do not load the Scheduled Run entrypoint in the setup chat. Do not enrich, draft, send, pull tracking, or notify in Setup Flow.
 

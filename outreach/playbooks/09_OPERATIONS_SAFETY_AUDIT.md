@@ -444,7 +444,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] If schedule/automation already exists and this reply includes a progress block, did I include an `Automation freshness check` (synced into the automation prompt/contract/source state, not only config; will tomorrow's run read the newest state)?
 - [ ] If handing control back while required steps remain, is the final line exactly one concrete next-step question?
 - [ ] If human action is needed, did I show the exact action directly in chat inside a `**[ACTION REQUIRED]**` block, not buried in paragraphs or a file link?
-- [ ] If no human action is needed, did I say `No action required right now.` instead of ending ambiguously?
+- [ ] If no human action was needed, did I end with next-action guidance per the Next-Action Guidance Rule (1-3 real available next steps, the first resuming the current or interrupted flow, plus one closing question) instead of `No action required right now.` or an ambiguous ending?
 - [ ] Did I keep the most important action at the end, with no more than three `**[ACTION REQUIRED]**` blocks, and never an icon as the only signal?
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I mentioned a report, did I provide the `.html` path/link (never `.md`) and, for the weekly report, confirm the scrub gate?

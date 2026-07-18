@@ -404,7 +404,7 @@ Append-only record of each imported row and what became of it (contact created /
 
 ### 5.3 `lists/{list_slug}/import_log.md`
 
-Human-readable import summary (one table row per import run): date, agent, source file, rows in, created, matched, suppressed, skipped, blockers. Surface any blocker with the `[ACTION REQUIRED]` contract (one purpose, one exact next step, one path); say `No action required right now.` when the import is clean.
+Human-readable import summary (one table row per import run): date, agent, source file, rows in, created, matched, suppressed, skipped, blockers. Surface any blocker with the `[ACTION REQUIRED]` contract (one purpose, one exact next step, one path); when the import is clean, end with next-action guidance per the Next-Action Guidance Rule.
 
 ---
 
@@ -1443,4 +1443,4 @@ A run that touches storage cannot be claimed complete until the Stage 9 audit co
 - Suppression was checked at import (all identities) and at every send path; merges unioned identities/channels/suppression into the survivor; pending-merge contacts stayed out of queues.
 - The client's Metadata `status` and `clients_index.md` row reflect reality; any post-setup change was carried through Automation Resync with a passing dry-read.
 
-Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, say `No action required right now.`
+Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule.

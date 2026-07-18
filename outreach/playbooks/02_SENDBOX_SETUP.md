@@ -19,7 +19,7 @@ This file is loaded, not summarized. A short read is NOT a load: register a LOAD
 - **Setup Flow never sends.** Connecting and health-checking a sendbox is a connectivity check, not a cold send. Setup Flow does not send a test email, cold or otherwise; its terminal state stays `ready_for_automation_first_run`.
 - **The `@gmail.com` App Password path is the priority path**; OAuth/Workspace is the advanced fallback. Do not push a client onto OAuth unless they run Google Workspace on a custom domain and explicitly want it.
 - **Data root is `daily-content-pipeline/`.** Every sendbox artifact lives under `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/sendboxes/`. The toolkit/source repo holds no sendbox data or secrets.
-- Every human step in this stage — the App Password creation request, the re-auth request, any blocker — uses the `**[ACTION REQUIRED]**` contract from `OUTREACHCRM_PLAYBOOK.md`: one purpose, one exact next step, one command or path. When nothing is needed, say `No action required right now.`
+- Every human step in this stage — the App Password creation request, the re-auth request, any blocker — uses the `**[ACTION REQUIRED]**` contract from `OUTREACHCRM_PLAYBOOK.md`: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule.
 - This stage must be loaded IN FULL (LOAD LEDGER printed with `Verdict: PASS`, matching `LOAD_MANIFEST.md` when present) before any side-effect write.
 
 ## Source Preservation Rule
@@ -238,7 +238,7 @@ A sendbox is "connected" when all of the following hold:
 - The box is referenced by slug in the Client Intelligence Profile `sending_identity.sendboxes[]`, and any change here was carried through Automation Resync so the next scheduled run reads it.
 - No cold email was sent during setup — connectivity was verified without sending.
 
-Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, say `No action required right now.`
+Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule.
 
 ---
 
