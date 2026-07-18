@@ -48,6 +48,8 @@ daily-content-pipeline/              # shared Solo Agency data root — data/con
   clients/{client_slug}/{business_slug}_{location_slug}/
     outreach/                        # OutreachCRM's per-client subtree (sits beside content data)
       client_profile_{client_slug}_{business_slug}_{location_slug}.md
+      config/sending_identity.json   # machine-readable CAN-SPAM identity (Stage 1 §Step-3 writes it;
+                                     # gmail_client reads it to append the footer; presend fails closed without it)
       sendboxes/
         sendboxes.json
         {sendbox_slug}/credentials.json  {sendbox_slug}/token.json   # gitignored, chmod 600
@@ -298,7 +300,7 @@ Stages carry `probability` + `sla_days`. Rules are **deterministic**, executed b
    {"id":"r3","on":"reply_negative|remove_intent","do":["suppress(contact)","freeze_sequence","close_open_tasks"]},
    {"id":"r4","on":"stage_age_exceeds_sla","do":["create_task(nudge)","flag_in_report"]},
    {"id":"r5","on":"deal_won","do":["set_lifecycle(customer)","enroll_segment(customers)","create_task(onboarding)"]},
-   {"id":"r6","on":"hard_bounce|unsubscribe","do":["suppress(contact)","close_open_tasks"]}
+   {"id":"r6","on":"hard_bounce|unsubscribe","do":["suppress(contact)","freeze_sequence","close_open_tasks"]}
  ]}
 ```
 
@@ -463,6 +465,8 @@ Field notes:
 - **`goal.goal_type`** enum: `book_meeting | get_reply | direct_sale | reactivation | nurture_upsell | event_invite`. This drives the email structure (Stage 6): `book_meeting`→short, one time-bound CTA; `get_reply`→ends with a question, no link; `direct_sale`→value + one offer link (the only place click tracking is on by default); `reactivation`→evidence of prior relationship + "still doing X?"; every final step→breakup.
 - **`goal.proof_points[]`** = `{claim, evidence_url}` — evidence-backed; a draft may only cite proof that has an `evidence_url`.
 - **`goal.cta.type`** ∈ `reply_yes | link | calendar`.
+- **`goal.companion_doc`** (optional, Stage 5 §1b) = `{instructions, on_fail: skip|default_link, default_link}` — the operator's free-text directive for producing a per-lead LINK embedded in the body; `on_fail` is REQUIRED when declared (the agent asks if omitted). Persists verbatim.
+- **`goal.message_bank`** (optional, Stage 5 §1c) = `[{msg, source: operator|agent, approved}]` — the key messages each touch draws 1–2 of, rotated across the sequence; agent-expanded entries need operator approval. Persists verbatim.
 - **`goal.success_event`** wires straight into the rules engine (§4.6): `{on: reply_positive, create_deal_stage: new_reply}`.
 - **`audience.personalization.min_confidence`** gates drafting (≥0.7 High); `no_hook_fallback` ∈ `skip | generic_honest_opener` (default `skip` — a hookless step-1 draft is rejected unless the campaign explicitly opts into the generic opener).
 - **`sequence[].tracking`** default `plain_text`; a bump/reply threads on the prior send.
@@ -517,13 +521,19 @@ A draft is written to `outbox/pending_approval/YYYY-MM-DD/{draft_id}.json` and, 
  "tracking":"plain_text|pixel_and_links",
  "warnings":["guessed_email","generic_opener","bump_step"],
  "guessed_approved":false,
+ "is_reply":false,
+ "bank_messages_used":["<goal.message_bank messages woven into THIS touch>"],
+ "companion_url":"<the per-lead companion link this sequence reuses>",
  "status":"pending_approval|approved|rejected|hold|sent|blocked",
- "decided_at":"","decided_by":"","reject_reason":"","blocker":""}
+ "decided_at":"","decided_by":"","reject_reason":"","blocker":"","blocked_at":""}
 ```
 
 - **`confidence_band`** ∈ `high | review_carefully` — drives which section of the Approval Report the card lands in.
 - **`guessed_approved`** must be `true` before a `guessed_only` address may send; the flag is enforced **in `gmail_client.py send`** plus a daily guessed-send cap, never only in prose.
-- **`status`** ∈ `pending_approval | approved | rejected | hold | sent | blocked`. A send error returns the draft to `approved` with a `blocker` (Stage 8).
+- **`status`** ∈ `pending_approval | approved | rejected | hold | sent | blocked`. A failed send is never silent: a TERMINAL blocker (suppressed, channel unusable, frozen, bad recipient/headers, already sent) flips the draft to `status: blocked`; a TRANSIENT one (quota, SMTP/auth, sendbox health, missing sending identity) keeps `status: approved` and stamps `blocker` + `blocked_at` so the next run retries naturally (enforced in `gmail_client.py`).
+- **`is_reply`** — a reply draft (answering an inbound message); exempt from the daily draft budget.
+- **`bank_messages_used`** — which `goal.message_bank` messages this touch wove in; later bumps read prior drafts to rotate the bank (skill `followup.md`).
+- **`companion_url`** — the per-lead companion link; produced at the first touch, REUSED by every later bump (Stage 6 §Companion).
 
 ### 7.5 Sent log (`campaigns/{campaign_slug}/sent/YYYY-MM/sent_log.jsonl`)
 
@@ -650,6 +660,8 @@ from_title:
 reply_to:
 signature_block:
 physical_mailing_address:      # REQUIRED — appears in the CAN-SPAM footer of every commercial email
+                               # (a machine-readable copy lives at config/sending_identity.json —
+                               #  the send engine reads THAT file; keep the two in sync at Stage 1)
 sending_domains:
 - domain:
   purpose: primary | variant

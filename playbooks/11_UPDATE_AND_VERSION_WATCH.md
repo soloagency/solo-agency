@@ -94,6 +94,12 @@ An update check must compare at least these areas:
   - manifest template
   - background/popup/content scripts
   - `client_binding.json` schema/defaults
+- OutreachCRM module (`outreach/` — ships in this same repo):
+  - `outreach/OUTREACHCRM_PLAYBOOK.md`, `outreach/AGENTS.md`, both entrypoints
+  - `outreach/playbooks/*.md` and `outreach/playbooks/skills/**`
+  - `outreach/tools/*.py` and `outreach/tests/`
+  - an update that ADDS `outreach/` for the first time is not inert files: surface it as a new
+    module requiring its own onboarding (`outreach/SETUP_FLOW_ENTRYPOINT.md`) in the update notice
 - Installed runtime copies:
   - `{agency_root}/solo-agency-local-collector/`
   - `{agency_root}/extensions/{client_slug}/`
@@ -105,6 +111,13 @@ An update check must compare at least these areas:
 Do not decide "no update needed" after checking only one file or only the root playbook.
 
 ## Backup And Safe Apply Protocol
+
+**Dirty-tree guard — run BEFORE any `git reset --hard` / forced checkout, no exceptions.** Check
+`git status --porcelain` first. If any TRACKED file is modified, do NOT reset yet: copy those files
+into the backup folder below AND `git stash push -m "pre-update {YYYY-MM-DD}"`, record both paths in
+the update log, and only then apply the reset. A hard reset on a dirty tree silently destroys
+uncommitted local work with no recovery. Untracked files survive a hard reset but must be listed in
+the update log and reconciled, never ignored.
 
 Before applying changes, create a timestamped backup of every runtime file or folder that will be replaced.
 

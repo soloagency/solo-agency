@@ -26,7 +26,8 @@ just posted about a loss) but they go into `do_not_mention`, never into a senten
 - Reference the business signal plainly and usefully ("your Main St listing has been up 40 days
   with photo-only — a video tour is closing comparable Alabaster homes in 18 days"), not as
   flattery ("congrats on your amazing listing!").
-- One honest, load-bearing detail beats three shallow ones. Never stack personalized details to
-  look impressive — it looks scraped.
+- Every referenced fact must EARN a conclusion that advances the goal (the weave's cut rule —
+  `skills/email-writing/weave.md`); a fact that earns none gets cut. Multi-point weaving is the
+  norm, but never stack personalized details just to look impressive — that reads as scraped.
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.

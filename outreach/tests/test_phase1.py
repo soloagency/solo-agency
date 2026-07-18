@@ -198,6 +198,10 @@ class TestGmailPresendAndClassifier(unittest.TestCase):
         gmail_client.save_sendbox(self.cdir, {"slug": "sb-a", "auth_mode": "app_password", "email": "s@gmail.com",
                                               "domain": "gmail.com", "quota_today": 2, "warmup_stage": "week_1",
                                               "status": "healthy", "imap_uid_cursor": 0, "last_successful_sync_ts": ""})
+        os.makedirs(os.path.join(self.cdir, "config"), exist_ok=True)
+        with open(os.path.join(self.cdir, "config", "sending_identity.json"), "w") as fh:
+            json.dump({"from_name": "Binh at LeadUp",
+                       "physical_mailing_address": "123 Main St, Austin, TX 78701"}, fh)
 
     def _draft(self, **over):
         d = {"id": "draft_1", "lead_id": self.lead, "campaign_slug": "demo", "step": 1, "sendbox": "sb-a",
@@ -232,6 +236,39 @@ class TestGmailPresendAndClassifier(unittest.TestCase):
         self.s.suppress("email", "t@x.com", "unsubscribe", tier="client")
         r = gmail_client.cmd_send(self.cdir, self._draft(), dry_run=True)
         self.assertEqual(r["blocker"], "suppressed")
+
+    def test_failed_send_marks_draft_blocked(self):
+        """A failed send is never silent: the blocker lands on the draft record (terminal -> blocked)."""
+        self.s.suppress("email", "t@x.com", "unsubscribe", tier="client")
+        p = self._draft()
+        r = gmail_client.cmd_send(self.cdir, p, dry_run=False)
+        self.assertEqual(r["blocker"], "suppressed")
+        with open(p) as fh:
+            d = json.load(fh)
+        self.assertEqual(d["status"], "blocked")
+        self.assertEqual(d["blocker"], "suppressed")
+        self.assertTrue(d["blocked_at"])
+
+    def test_gate_missing_physical_address_blocks_send(self):
+        """CAN-SPAM fail-closed: no sending identity / no postal address -> no send."""
+        os.remove(os.path.join(self.cdir, "config", "sending_identity.json"))
+        r = gmail_client.cmd_send(self.cdir, self._draft(), dry_run=True)
+        self.assertFalse(r["ok"]); self.assertEqual(r["blocker"], "missing_physical_address")
+
+    def test_can_spam_footer_appended_to_every_body(self):
+        ident = gmail_client.load_sending_identity(self.cdir)
+        footer = gmail_client.compliance_footer(ident)
+        self.assertIn("123 Main St, Austin, TX 78701", footer)
+        sb = gmail_client.get_sendbox(self.cdir, "sb-a")
+        draft = {"lead_id": self.lead, "campaign_slug": "demo", "step": 1, "sendbox": "sb-a",
+                 "to": "t@x.com", "subject": "Idea", "body_text": "hi", "tracking": "plain_text",
+                 "status": "approved"}
+        msg = gmail_client.build_mime(sb, draft, "<m@gmail.com>", None, footer=footer)
+        body = msg.get_content()
+        self.assertIn("123 Main St, Austin, TX 78701", body)
+        self.assertIn("unsubscribe", body.lower())
+        # footer must come AFTER the draft body, separated by the signature marker
+        self.assertLess(body.find("hi"), body.find("-- "))
 
     def test_classifier_dsn_before_thread(self):
         """The audit blocker: a DSN threaded into our sent message must be a bounce, not a reply."""

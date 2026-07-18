@@ -26,6 +26,7 @@ import argparse
 import email
 import email.message
 import email.utils
+import html as _html
 import imaplib
 import json
 import os
@@ -199,6 +200,41 @@ def _header_safe(value: str) -> bool:
     return "\n" not in (value or "") and "\r" not in (value or "")
 
 
+def _identity_path(client_dir):
+    return os.path.join(client_dir, "config", "sending_identity.json")
+
+
+def load_sending_identity(client_dir) -> dict:
+    """Machine-readable sending identity (config/sending_identity.json), written at Stage 1
+    alongside the human Client Intelligence Profile. Plain config like sendboxes.json."""
+    p = _identity_path(client_dir)
+    if not os.path.isfile(p):
+        return {}
+    try:
+        with open(p, "r", encoding="utf-8") as fh:
+            return json.load(fh) or {}
+    except ValueError:
+        return {}
+
+
+def compliance_footer(identity: dict) -> str | None:
+    """CAN-SPAM footer appended to EVERY outgoing body (physical postal address + visible
+    opt-out line; 15 U.S.C. 7704). Returns None when no physical address is configured so
+    presend_check can fail closed instead of sending a non-compliant email."""
+    addr = (identity.get("physical_mailing_address") or "").strip()
+    if not addr:
+        return None
+    name = (identity.get("from_name") or "").strip()
+    optout = (identity.get("unsubscribe_text") or "").strip() or \
+        'Don\'t want these emails? Reply "unsubscribe" and we\'ll stop.'
+    lines = ["-- "]
+    if name:
+        lines.append(name)
+    lines.append(addr)
+    lines.append(optout)
+    return "\n".join(lines)
+
+
 def presend_check(store: CrmStore, client_dir, sb: dict, draft: dict, day: str,
                   reserve: bool = True) -> tuple[bool, str, str | None]:
     """The ordered in-code pre-send re-check (DESIGN §10/§16). Returns (ok, reason, token).
@@ -231,6 +267,10 @@ def presend_check(store: CrmStore, client_dir, sb: dict, draft: dict, day: str,
     # 2. channel status
     if contact.get("channels", {}).get("email", {}).get("status") in ("opted_out", "bounced"):
         return False, "email_channel_not_usable", None
+    # 2b. CAN-SPAM: a sending identity with a physical mailing address must exist
+    # (config/sending_identity.json) — fail closed; the body footer is legally required
+    if compliance_footer(load_sending_identity(client_dir)) is None:
+        return False, "missing_physical_address", None
     # 3. guessed_only must be approved
     prim = next((e for e in ids.get("emails", []) if e.get("is_primary")), None)
     if prim and prim.get("status") == "guessed_only" and not draft.get("guessed_approved"):
@@ -289,7 +329,8 @@ def _sent_log_files(client_dir, campaign_slug):
     return out
 
 
-def build_mime(sb: dict, draft: dict, rfc_message_id: str, thread_refs: str | None) -> email.message.EmailMessage:
+def build_mime(sb: dict, draft: dict, rfc_message_id: str, thread_refs: str | None,
+               footer: str | None = None) -> email.message.EmailMessage:
     msg = email.message.EmailMessage()
     from_name = draft.get("from_name") or sb.get("from_name") or ""
     msg["From"] = email.utils.formataddr((from_name, sb["email"])) if from_name else sb["email"]
@@ -309,12 +350,38 @@ def build_mime(sb: dict, draft: dict, rfc_message_id: str, thread_refs: str | No
         msg["In-Reply-To"] = thread_refs
         msg["References"] = thread_refs
     body = draft.get("body_text", "")
+    # CAN-SPAM footer (physical address + opt-out) rides on EVERY send, incl. plain_text_mode
+    if footer:
+        body = body.rstrip() + "\n\n" + footer
     msg.set_content(body)
     # minimal html alternative only when explicitly not plain_text_mode (Phase 2 tracking)
     if draft.get("tracking") == "pixel_and_links" and draft.get("body_html"):
-        msg.add_alternative(draft["body_html"], subtype="html")
+        html_body = draft["body_html"]
+        if footer:
+            html_body = html_body + "<br><br>" + _html.escape(footer).replace("\n", "<br>")
+        msg.add_alternative(html_body, subtype="html")
     draft["token"] = token
     return msg
+
+
+_TERMINAL_BLOCKERS = {"suppressed", "email_channel_not_usable", "sequence_frozen",
+                      "recipient_not_a_contact_identity", "contact_not_found",
+                      "already_sent", "invalid_draft_headers", "step1_subject_looks_like_reply"}
+
+
+def _persist_send_blocker(draft_path, draft, reason):
+    """A failed send must never be silent (Stage 9: 'never silently dropped'). Records the
+    blocker on the draft record: TERMINAL blockers flip status to 'blocked' (do not retry);
+    transient ones (quota, SMTP, auth, sendbox health) keep status 'approved' so the next
+    run retries naturally, with blocker/blocked_at showing why the last attempt failed."""
+    if draft.get("status") != "approved":
+        return  # only an approved draft that failed to send gets annotated
+    draft["blocker"] = reason
+    draft["blocked_at"] = now_iso()
+    if reason in _TERMINAL_BLOCKERS:
+        draft["status"] = "blocked"
+    with open(draft_path, "w", encoding="utf-8") as fh:
+        json.dump(draft, fh, ensure_ascii=False, indent=2)
 
 
 def cmd_send(client_dir, draft_path, dry_run=False) -> dict:
@@ -324,8 +391,12 @@ def cmd_send(client_dir, draft_path, dry_run=False) -> dict:
     slug = draft["sendbox"]
     sb = get_sendbox(client_dir, slug)
     if not sb:
+        if not dry_run:
+            _persist_send_blocker(draft_path, draft, "sendbox_not_configured")
         return {"ok": False, "blocker": "sendbox_not_configured", "sendbox": slug}
     if sb.get("status") != "healthy":
+        if not dry_run:
+            _persist_send_blocker(draft_path, draft, f"sendbox_{sb.get('status')}")
         return {"ok": False, "blocker": f"sendbox_{sb.get('status')}", "sendbox": slug}
     # approval gate: a draft must be approved to send
     if draft.get("status") != "approved":
@@ -335,16 +406,21 @@ def cmd_send(client_dir, draft_path, dry_run=False) -> dict:
     step = int(draft.get("step", 1))
     ok, reason, token = presend_check(store, client_dir, sb, draft, day, reserve=not dry_run)
     if not ok:
+        if not dry_run:
+            _persist_send_blocker(draft_path, draft, reason)
         return {"ok": False, "blocker": reason, "lead_id": draft.get("lead_id")}
 
     # thread refs for bumps/replies: prior rfc_message_id from this lead's sent_log (all months)
     thread_refs = _prior_message_id(client_dir, draft["campaign_slug"], lead_id) if step > 1 else None
     rfc_message_id = f"<{uuid.uuid4().hex}@{sb['email'].split('@',1)[1]}>"
+    footer = compliance_footer(load_sending_identity(client_dir))  # non-None (presend gate 2b)
     try:
-        msg = build_mime(sb, draft, rfc_message_id, thread_refs)
+        msg = build_mime(sb, draft, rfc_message_id, thread_refs, footer=footer)
     except (ValueError, TypeError) as e:  # header injection / malformed draft
         if token:
             store.a.release(slug, day, token)
+        if not dry_run:
+            _persist_send_blocker(draft_path, draft, "invalid_draft_headers")
         return {"ok": False, "blocker": "invalid_draft_headers", "error": str(e)}
 
     if dry_run:
@@ -363,6 +439,7 @@ def cmd_send(client_dir, draft_path, dry_run=False) -> dict:
         needs_reauth = "auth" in e.__class__.__name__.lower() or isinstance(e, smtplib.SMTPAuthenticationError)
         if needs_reauth:
             save_sendbox(client_dir, {**sb, "status": "needs_reauth"})
+        _persist_send_blocker(draft_path, draft, "needs_reauth" if needs_reauth else "smtp_send_failed")
         return {"ok": False, "blocker": "needs_reauth" if needs_reauth else "smtp_send_failed",
                 "error": e.__class__.__name__}
 
@@ -625,6 +702,7 @@ def cmd_sync(client_dir, slug, max_msgs=100) -> dict:
             if lead:
                 if cls.get("hard"):
                     store.suppress_contact(lead, "hard_bounce", by="rule")
+                    store.set_contact(lead, {"sequence_state": "frozen"})  # dead address: stop drafting bumps too
                 store.log_activity("email_bounce", lead, summary=f"{'hard' if cls.get('hard') else 'soft'} bounce", by="rule")
             results["bounce"] += 1
         elif kind == "auto_reply_ooo":
@@ -633,6 +711,7 @@ def cmd_sync(client_dir, slug, max_msgs=100) -> dict:
             info = _lookup_token(client_dir, cls["token"])
             if info and info.get("lead_id"):
                 store.suppress_contact(info["lead_id"], "unsubscribe", by="rule")
+                store.set_contact(info["lead_id"], {"sequence_state": "frozen"})  # opted out: never draft another bump
                 store.log_activity("unsubscribe", info["lead_id"], summary="unsubscribed via mailto alias", by="rule")
             results["unsubscribe"] += 1
         elif kind == "campaign_reply":
