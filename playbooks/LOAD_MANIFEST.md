@@ -5,17 +5,17 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| SOLO_AGENCY_PLAYBOOK.md | 837 | 26771ae129adc646b0c31ee33d075823f242890e3b68d8a0df492c207bc2e50a | If any required stage was not loaded, load it before proceeding. |
-| playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1818 | db2632e36f3c902ffdfc130757545f58f4725a3f47a7c0d8f39c55336061fe49 | --- |
+| SOLO_AGENCY_PLAYBOOK.md | 837 | f3e9391dfeb9156cacbfe48e051d30dbe560582c2b11d0a9685139e425a02075 | If any required stage was not loaded, load it before proceeding. |
+| playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1818 | 4d5550f69c5b932d2342cb728ec44be3dbc316713461b2e4b54718c23ba97f52 | --- |
 | playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md | 794 | 1247f7e887894609397e62428c753570db9430dcbd7b9392444b9e2bce7bfbab | --- |
-| playbooks/02_PRIVATE_SOURCE_SETUP.md | 651 | ec688856a0e7d2b67a729a11385382e89f9e02054bb496a998dc2ccd678f11c9 | --- |
+| playbooks/02_PRIVATE_SOURCE_SETUP.md | 653 | 05a7c4b6202f6ddd66395363b36a0b4f2cc22ea5748f25447d0c6b69cf4e3ed4 | --- |
 | playbooks/03_PRODUCTION_DISTRIBUTION.md | 1061 | e9bbeb91f3584dc2a91401b33d02eb8853ac1b15900add67eab5e84739c4a387 | Competitor analysis must be used for strategy, positioning, and original content ideas. The agent must not copy competitor posts, scripts, captions, offers, or creative assets. |
 | playbooks/04_DAILY_SCHEDULE.md | 637 | bae0f87b6229f1cb5d12f73140987f09230b4e62d399a41e0433187ad804f4bd | If the bridge is not installed as a startup service, the human must start it manually after reboot by running the prepared setup/start command outside the AI sandbox. The AI agent should not start it from inside the AI sandbox during setup or repair. |
 | playbooks/05_MEASURE_LEARN_IMPROVE.md | 297 | 8723db725c45b240b2bdf97886d08622be14163c64d2d8edacf1836eb8f7c096 | Claiming measurement completion without these is a critical violation. |
 | playbooks/06_AGENCY_REPORT_STANDARD.md | 1522 | 78a99ce481d595ec002ee4979e3e4ada24ab5e080c457c3f6d5c4bda5906af6b | --- |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1708 | c8ea0a5f8b5ad7888ef03e97d95dd21698e4b9f84bb4d05388849e709a07ee5b | Storage-schema note: the three per-client analytics logs written under each client's `analytics/` directory are `metrics_log.md`, `learning_log.md`, and `comment_signal_log.md`. |
 | playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md | 1678 | 792a155840b59b7b0de32a856c557f4313ebab6e9d1bbdf5ad06122132201601 | --- |
-| playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md | 1926 | f96d579c7d18a4384562efb1944dd86c16f54a08821107998639a5398744e4f7 | This is the intended operating model. |
+| playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md | 1926 | f005eb4dd26c1eda47a55b4a17fb5afb945dfa55ee006765f95b1c051403c370 | This is the intended operating model. |
 | playbooks/10_LEAD_COMPETITOR_DETECTION.md | 380 | aec42c6edf8731c68b25263d4a6240862eb226d7ad547579a29080bf174d6634 | - No auto outreach, auto DM, credential/secret collection, or access-control/CAPTCHA bypass occurred. (Collecting publicly-rendered contact details under the operator's command is permitted per the collection-consent rule above; the send/act side still needs human approval.) |
 | playbooks/11_UPDATE_AND_VERSION_WATCH.md | 379 | b82a611ba5520113345459c5965f4f9e3c845c45bb3298e8ab79b42485f2fef0 | - If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And GitHub Issue Escalation Rule. |
 | playbooks/LOAD_LEDGER_PROTOCOL.md | 61 | af1fd8b7d00598490324118b69fe6c9d5470b22674bcad93975e6b967e6878d8 | `playbooks/LOAD_MANIFEST.md` lists every `playbooks/**/*.md` with `path \| lines \| last_line \| sha256`. It is regenerated automatically by `deploy-soloagency.sh` on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection. |
