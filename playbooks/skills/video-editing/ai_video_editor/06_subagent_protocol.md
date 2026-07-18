@@ -62,7 +62,7 @@ terminology, geo, numbers) — you edit one scene but judge it against the whole
 Do NOT call widecast_video_data unless a file is missing/unreadable.
 
 topic_id: <...>
-scene: voice_file=<...>  id=<...>  type=<...>
+scene: voice_file=<...>  id=<...>  type=<...>  opening=<yes|no>
 scene record: <scratchpad>/scene_<voice_file>/record.json
 run script: <scratchpad>/run_script.txt
 skill_root: <local path to unzipped skill>
@@ -73,7 +73,10 @@ JOB: run the 5-gate playbook for this scene. Gate 1 fix text/STT (branch K). Gat
 route from data. Gate 3 (if non-grid + narrator not filling frame): pull the plate,
 print the Gate 3 BACKGROUND PROOF, fix via mediaUrl only. Gate 4 (if overlay text is
 image-model-generated — illustration non-photo / chart / diagram / object): pull the
-overlay poster, print the per-string transcription table (transcribe FIRST). Gate 5:
+overlay poster, print the per-string transcription table (transcribe FIRST). If
+opening=yes: ALWAYS pull the poster (even typography) and run the OPENING POSTER CHECK
+— rebuild the hook poster if it clearly falls short (cap 1 rebuild, preserve-biased),
+or author one if there's no overlay. Gate 5:
 if you edited, the ONE AFTER look (poster/composite) — it verifies the fix AND confirms
 the save (a modify_scene 200 under the edit session is durable; no separate re-pull).
 Do NOT audit dead-zone /

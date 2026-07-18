@@ -20,6 +20,8 @@ Deliberately redundant with the Critical Rules (`01_critical_rules`) and the per
 
 - About to **typo-check overlay text** → first confirm Gate 4 applies (text was image-model-generated: `illustration` sub_mode≠`photo_with_people`, or chart/diagram/object with baked text). If it applies, pull the overlay poster and print the per-string transcription table. **`typography_only`/SVG text never misspells → mark Gate 4 N/A, no look.**
 
+- About to **mark Gate 4 N/A on the `opening` roster row** (the first content scene) because it's typography/SVG → STOP. The opening scene ALWAYS pulls the poster and runs the OPENING POSTER CHECK (hook-in-1s, not-a-flat-card, copy correct). Rebuild if it clearly fails (cap 1); author a hook poster if there's no overlay. This exception is opening-scene-only.
+
 - About to **write "typo PASS" / "diacritics correct" for a scene where Gate 4 applies WITHOUT its per-string transcription table printed in THIS scene's block** → STOP. One table per applicable scene, every time — "the last few were clean" is proof-compression drift. A prose assurance is not the table; scene 2's table does not cover scene 9.
 
 - About to **change the background because the overlay looks weak**, or **change the overlay because the background is wrong** → STOP. Layer isolation: a background fix touches only `mediaUrl`; it never authorizes an overlay change, and vice-versa.
