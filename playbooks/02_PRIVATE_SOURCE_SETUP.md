@@ -206,6 +206,7 @@ Timing: this sequence is the step-6 checkpoint's own interactive flow, and its o
    - `skip_too_broad`
    - `skip_too_noisy`
    - `skip_sensitive_or_risky`
+   - `skip_individual_profile` (an individual professional is a LEAD, not a monitoring source; see the Source-Type Preference rule)
    - `skip_platform_unavailable`
 8. Show a compact approval list DIRECTLY IN CHAT as a numbered list (see the In-Chat Numbered Shortlist Rule below), grouped by proposed cadence:
    - `Recommended daily`
@@ -386,7 +387,7 @@ Noise filtering:
 - Do not treat a keyword search result as an active private data source until the human approves it.
 - Do not join a group, request access, message admins, or follow pages as part of this workflow.
 
-Classify candidates as:
+Classify candidates as (prefer groups/communities and reputable organization pages; default-skip individual personal profiles per the Source-Type Preference rule):
 
 - `recommended_daily`
 - `recommended_weekly`
@@ -396,6 +397,7 @@ Classify candidates as:
 - `skip_too_broad`
 - `skip_too_noisy`
 - `skip_sensitive_or_risky`
+- `skip_individual_profile`
 - `skip_platform_unavailable`
 
 For every candidate, save:
@@ -580,8 +582,9 @@ For every candidate source, evaluate:
 - Pain point match.
 - Content pillar match.
 - Lead signal potential.
-- Competitor intelligence value.
-- KOL/trend authority value.
+- Competitor intelligence value (a competitor is fair game as an ORGANIZATION page, not as an individual's personal profile).
+- Source type: is this a group/community or a reputable organization page (preferred), or an individual personal profile (default-skip; see the Source-Type Preference rule)?
+- KOL/trend authority value (only high-reach authority accounts clear the individual-profile skip).
 - Posting/activity frequency.
 - Noise level.
 - Sensitivity/risk level.
@@ -597,16 +600,31 @@ Classify each candidate source:
 - `skip_too_broad`
 - `skip_too_noisy`
 - `skip_sensitive_or_risky`
+- `skip_individual_profile`
 - `skip_platform_unavailable`
 
 The agent must show the filtered result to the human before adding newly discovered sources to active `private_data_sources`.
+
+#### Source-Type Preference: groups/communities and reputable organizations, not individual profiles
+
+A private data source is a place that produces steady, multi-person signal — not one person's feed. When selecting and classifying candidates, prefer, in this order:
+
+1. **Groups and communities** (Facebook groups, subreddits, LinkedIn groups, Discord/Slack communities, niche forums) where many of the target audience gather. Highest value: fresh pains, questions, content ideas, and many leads per single scan.
+2. **Reputable organization pages/websites**: industry associations, competitor companies/agencies, trade publications, and official brand/company pages that publish steady on-vertical content.
+
+**Default-skip individual personal profiles/accounts** — classify them `skip_individual_profile`. An individual professional who fits the ICP is a LEAD (Stage 10 surfaces them FROM the group/community scans), not a monitoring source; a single person's feed carries too little daily signal to monitor. This includes personal Facebook pages, personal LinkedIn profiles, and single-person accounts, even when the person is on-vertical.
+
+**Narrow exception:** keep an individual account ONLY when it is a high-reach authority/KOL or an official brand account with large, steady, on-vertical output that a group cannot replace — and only when the agent records the reach/authority evidence (follower scale, posting cadence, on-vertical) that justifies it. A modest personal profile never qualifies; when in doubt, skip it as a source and let it surface as a lead instead.
+
+Weight the discovery surfaces accordingly: prioritize joined-groups and keyword group/community search over following-individual-profile surfaces. A shortlist that is mostly individual profiles is a filtering failure — re-filter toward groups, communities, and reputable organization pages.
+
 
 #### Discovery Data Model
 
 Use this shape in logs and reports:
 
 ```yaml
-source_type: joined_group | followed_profile | followed_page | subscribed_channel | followed_company | subreddit | community | recommendation_feed_author | recommendation_feed_topic
+source_type: joined_group | followed_page | subscribed_channel | followed_company | subreddit | community | organization_page | recommendation_feed_topic   # prefer group/community/organization types; an individual profile is default-skip_individual_profile (a lead, not a source) unless it clears the high-reach-authority exception
 platform:
 source_name:
 source_url:
