@@ -1105,7 +1105,11 @@ Bad questions:
 
 Private data sources must match the client, target audience, target location, and pain points.
 
-For location-dependent industries, location match is critical.
+Location weighting depends on the business's geographic model:
+
+- For a location-DEPENDENT business (local service area, jurisdiction, or geo-limited offer, e.g. a Los Angeles DUI lawyer), location match is critical: wrong-city or wrong-jurisdiction sources are `skip_not_relevant`.
+- For a NATIONWIDE or location-independent business whose audience is defined by profession/vertical rather than place (e.g. a US-nationwide done-for-you video service for real-estate, mortgage, insurance, and legal professionals), VERTICAL-AUDIENCE fit is the primary filter and location is a soft, secondary signal. Do not skip an otherwise on-vertical national or professional source just because it is not tied to one city.
+- When such a business also names a priority sub-segment (a test region or a language/community segment), sources serving that sub-segment gain relevance rather than being skipped as off-location, including sources in the audience's language. Example: for a US video service targeting Vietnamese-American real-estate and loan professionals, a Vietnamese-language realtor/loan-officer group in California is a relevant source, not an off-location skip; a generic Vietnamese community group with no professional-vertical overlap is still `skip_not_relevant`.
 
 Private data source pacing rule:
 
