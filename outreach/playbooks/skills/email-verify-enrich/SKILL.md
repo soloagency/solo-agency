@@ -118,10 +118,14 @@ to find and evidence as many as exist.
 
 ## Freshness at write time
 
-Before drafting **step 1**, hooks must be within TTL (`enrich status` handles this). Before a
-**follow-up** (Stage 10), micro-refresh the person's 1–2 best sources: a fresh event is a great
-bump hook, and — critically — **a stale hook must be invalidated** (a listing that sold must not
-be referenced as active). Re-run `enrich write` with the refreshed hooks.
+Before drafting **step 1**, hooks must be within TTL (`enrich status` handles this). For
+**follow-ups** (Stage 10) you do NOT re-enrich per bump: the entry enrichment already gathered
+many points, the writer reserves the secondary ones across the sequence, and the campaign's
+`message_bank` carries the rotation. A **micro-refresh is opportunistic only** — run it when the
+reserved points are used up AND the collector has spare capacity (gated by the send budget); if it
+runs, re-run `enrich write` with the refreshed hooks. What stays mandatory for every bump is the
+**stale-hook guard**: a time-sensitive hook past TTL is re-verified (that one known URL) or not
+referenced (a listing that sold must not be referenced as active).
 
 ## Writing the dossier
 

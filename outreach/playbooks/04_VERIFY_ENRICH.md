@@ -2,8 +2,9 @@
 
 ## Load Rule
 
-Load before ANY enrichment: the daily run's "load new pipeline → verify → enrich" step, or a
-follow-up's micro-refresh. Its dependency is the skill `playbooks/skills/email-verify-enrich/`
+Load before ANY enrichment: the daily run's "load new pipeline → verify → enrich" step, or an
+OPPORTUNISTIC follow-up micro-refresh (enrichment is NOT re-run per bump — see the Completion
+Gates and `skills/email-writing/followup.md`). Its dependency is the skill `playbooks/skills/email-verify-enrich/`
 (SKILL.md + `channel_reality.md` + `etiquette.md`) — each needs its own LOAD LEDGER per
 `playbooks/LOAD_LEDGER_PROTOCOL.md` before you act.
 
@@ -95,8 +96,10 @@ wins.
 - Every drafted personalized detail (Stage 6) traces to a stored hook with an `evidence_url`.
 - No guessed email exists; found emails are `source: enrich`.
 - No `personal` hook is a usable hook (it is in `do_not_mention`).
-- Freshness respected: step-1 drafts use in-TTL hooks; follow-ups micro-refreshed and stale hooks
-  invalidated.
+- Freshness respected: step-1 drafts use in-TTL hooks. Follow-ups draw on RESERVED points + the
+  campaign `message_bank` (no per-bump re-enrichment); a micro-refresh ran only opportunistically
+  (reserved points exhausted AND collector spare capacity); any time-sensitive hook referenced in
+  a bump was re-verified or dropped (stale-hook guard).
 
 ## Phase status
 

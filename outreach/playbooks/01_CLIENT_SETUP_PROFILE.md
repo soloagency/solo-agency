@@ -287,7 +287,19 @@ valid physical mailing address for the legal footer. Tell me the reply-to addres
 commercial email. I cannot mark the client ready to send without them.
 ```
 
-Encode, do not merely note: the profile stores the address and opt-out method; the send engine (Stage 8) injects the footer opt-out and `List-Unsubscribe` header on every send, and Stage 9 audits their presence. Step-1 subjects must be truthful (no fake `Re:`/`Fwd:`) — recorded here as a guardrail, enforced at draft and pre-send.
+Encode, do not merely note: the profile stores the address and opt-out method, **and this step ALSO
+writes the machine-readable copy the send engine actually reads** — `config/sending_identity.json`
+in the client dir:
+
+```json
+{"from_name": "…", "physical_mailing_address": "…", "unsubscribe_text": "(optional per-client wording)"}
+```
+
+`gmail_client.py` appends the CAN-SPAM footer (postal address + visible opt-out line) to EVERY
+outgoing body from this file, and its presend gate **fails closed** (`missing_physical_address`)
+when the file or the address is absent — a client without it cannot send at all. Stage 9 audits its
+presence. Step-1 subjects must be truthful (no fake `Re:`/`Fwd:`) — recorded here as a guardrail,
+enforced at draft and pre-send.
 
 ### Step 4 — Connect the first sendbox
 
@@ -340,6 +352,8 @@ Load Stage 5 (`playbooks/05_CAMPAIGN_MANAGEMENT.md`) in full (LOAD LEDGER) befor
    "objective":"","offer":"","value_proposition":"",
    "proof_points":[{"claim":"","evidence_url":""}],
    "cta":{"type":"reply_yes|link|calendar","text":""},
+   "companion_doc":{"instructions":"","on_fail":"skip|default_link","default_link":""},
+   "message_bank":[{"msg":"","source":"operator|agent","approved":true}],
    "success_event":{"on":"reply_positive","create_deal_stage":"new_reply"}},
  "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,
    "no_hook_fallback":"skip|generic_honest_opener"}},
@@ -353,6 +367,13 @@ Load Stage 5 (`playbooks/05_CAMPAIGN_MANAGEMENT.md`) in full (LOAD LEDGER) befor
 ```
 
 `goal_type` shapes the email: `book_meeting` → short, one time-bound CTA; `get_reply` → ends with a question, no link; `direct_sale` → value + one offer link; `reactivation` → evidence of a prior relationship. Every final step is a breakup. `success_event` wires straight into the CRM rules engine (a positive reply creates a deal at `new_reply`). Default `approval_mode: manual_all` even for bumps.
+
+The Stage-5 intake (`05_CAMPAIGN_MANAGEMENT.md` §1b/§1c) adds TWO questions you must ask here too:
+(1) *"Is there a companion document/link? Describe how to get the link"* — and if declared, its
+failure policy (`on_fail: skip|default_link`) MUST be asked when the operator forgets; (2) *"List
+every key message for email 1 and the follow-ups (or ask me to propose a set)"* — then EXPAND the
+operator's list with domain knowledge and show the full bank back for approval before creating the
+campaign. Store both on the goal as shown above.
 
 ```text
 **[ACTION REQUIRED]**

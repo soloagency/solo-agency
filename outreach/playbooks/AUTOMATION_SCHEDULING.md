@@ -462,8 +462,9 @@ For each client, pinning `target_client_slug`, in this exact order:
    improvised by the model.
 5. **Follow-up advising** (deal-aware, Stage 10): triaged replies become reply drafts;
    due-silent sequences get value-add bumps (never "just following up") → `pending_approval`.
-   Every bump micro-refreshes the person's best 1–2 sources to find a fresh hook and to
-   invalidate stale hooks before drafting.
+   Bumps draw on RESERVED Layer-B points + the campaign `message_bank` — no per-bump
+   re-enrichment; a micro-refresh is opportunistic only. Mandatory per bump: the stale-hook
+   guard (re-verify or drop any time-sensitive hook past TTL before referencing it).
 6. **Load new pipeline** (cold/trigger campaigns, JIT buffer 3–7 days, Stages 4/5/6): priority
    pick → Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`. The drafting pass is
    **bounded by each campaign's `daily_quota`** (its daily draft budget): read
@@ -577,12 +578,19 @@ For each active client:
 
 ### E. Follow-up advising (Stage 10)
 
-13. For triaged replies needing a human-approved answer, draft the reply and place it in
-    `outbox/pending_approval/`.
-14. For due-silent sequences within a healthy assigned sendbox, micro-refresh the person's 1–2
-    best sources (freshness gate), draft a value-add bump carrying NEW value, and place it in
-    `pending_approval`. If the assigned box is broken, the bump **waits** (never reassigned) and
-    a `**[ACTION REQUIRED]**` re-auth is raised; the report shows "N follow-ups blocked."
+13. For triaged replies needing a human-approved answer, draft the reply (pass `is_reply: true` —
+    reply drafts are exempt from the draft budget) and place it in `outbox/pending_approval/`.
+14. For due-silent sequences within a healthy assigned sendbox, draft a value-add bump from the
+    RESERVED dossier points + the campaign `message_bank` (read the lead's PRIOR drafts under
+    `outbox/**` first to see `bank_messages_used`/`hooks_used`/`companion_url`, then rotate; no
+    per-bump re-enrichment — micro-refresh only opportunistically per Stage 4), apply the
+    stale-hook guard to anything referenced, and place it in `pending_approval`. Bumps SHARE the
+    campaign draft budget and are rejected in code once only the new-lead floor remains
+    (`bump_budget_exhausted`, Stage 5) — a rejected bump simply stays due for tomorrow.
+    `followups due` already skips leads whose bump draft is still awaiting approval (dedupe), and
+    a duplicate (lead, step) draft is refused (`duplicate_pending_draft`). If the assigned box is
+    broken, the bump **waits** (never reassigned) and a `**[ACTION REQUIRED]**` re-auth is
+    raised; the report shows "N follow-ups blocked."
 
 ### F. Load new pipeline (Stages 4/5/6)
 
@@ -608,13 +616,16 @@ For each active client:
 ### G. Send approved (Stage 8, DESIGN §10)
 
 18. Send `outbox/approved/` through `gmail_client.py send`, which runs the full ordered
-    pre-send re-check in code: `resolve(lead)` → global + client suppression (with fresh
-    track-pull) → `channels.email.status` → atomic quota reservation → warmup cap → two-tier
-    domain cap → send-window (recipient tz) → guessed cap + guessed-approval flag →
-    sequence-freeze check → step-1 subject lint. Sticky sender: rotation picks the box only on
-    step 1, then `assigned_sendbox` is fixed. Record `sent_log.jsonl`, append `email_sent`,
-    sleep jitter 30–180s. Approval itself happens in chat, any time; the run only sends what is
-    already approved.
+    pre-send re-check in code (Stage 8 §3): `resolve(lead)` → client + agency suppression →
+    `channels.email.status` → CAN-SPAM sending-identity gate (`config/sending_identity.json`;
+    the engine appends the postal-address + opt-out footer to every body) → guessed-approval
+    flag → sequence-freeze check → step-1 subject lint → atomic quota reservation LAST.
+    (Warmup/domain/send-window caps + live track-pull are Phase-2/3 — do not assert them.)
+    Sticky sender: rotation picks the box only on step 1, then `assigned_sendbox` is fixed.
+    Record `sent_log.jsonl`, append `email_sent`, sleep jitter 30–180s. A failed send persists
+    its blocker on the draft (terminal → `status: blocked`; transient stays `approved` for
+    retry) — never silent. Approval itself happens in chat, any time; the run only sends what
+    is already approved.
 
 ### H. Assisted channels (DESIGN §9/§16)
 

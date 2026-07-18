@@ -70,6 +70,11 @@ Default `approval_mode: manual_all` (campaign_config, Stage 7 §7.1) means **eve
 
 **2. Email channel status.** If `channels.email.status ∈ {opted_out, bounced}` → `blocker: email_channel_not_usable`. A contact whose email channel is `needs_data` also cannot be emailed (no usable address).
 
+**2b. CAN-SPAM sending identity (fail closed).** `config/sending_identity.json` must exist with a
+non-empty `physical_mailing_address`, else → `blocker: missing_physical_address`. The engine appends
+the compliance footer (postal address + visible opt-out line) to every body from this file (§5); a
+client that has not completed Stage 1 §Step-3 cannot send at all.
+
 **3. Guessed-email approval.** If the primary email `status == "guessed_only"` and the draft's `guessed_approved` is not `true` → `blocker: guessed_email_needs_approval`. A guessed/unverified address may only send with an explicit per-draft `guessed_approved: true` flag, never on prose alone. (The daily guessed-send cap and the per-domain guessed kill switch are the DESIGN §9.6 target that lands with the Phase-2 verify/enrich stage; Phase-1 `send` enforces the approval flag.)
 
 **4. Sequence freeze.** If `contact.sequence_state == "frozen"` → `blocker: sequence_frozen`. **Any inbound reply freezes the remaining bumps** for that contact (the sync classifier sets `sequence_state: "frozen"` on a `campaign_reply`). Frozen stays frozen until triage clears it. This gate exists so a person who replied never receives the next scheduled bump.
@@ -84,9 +89,12 @@ The equivalent manual reservation command (the same `reserve` the send path call
 python3 tools/crm_store.py --client-dir <CLIENT_DIR> reserve --sendbox sb-a --day YYYY-MM-DD --cap 40
 ```
 
-**Dry-run caution:** `--dry-run` runs steps 0–6 including the reservation, then returns `{would_send_to, subject, rfc_message_id, list_unsubscribe, reserved_token}` without sending. Because the reservation is committed and **not rolled back**, a dry-run consumes a quota slot for the day. Likewise a real SMTP failure (§7) does not roll the reservation back. This is intentional fail-closed behavior — remaining quota reflects reservations — but it means dry-run is a gate check, not a free preview. Do not loop dry-runs to "test" a box or you will exhaust its daily quota with reservations.
+**Dry-run note:** `--dry-run` runs steps 0–6 but **skips the reservation commit** (`presend_check`
+is called with `reserve=False`), returning `{would_send_to, subject, rfc_message_id,
+list_unsubscribe}` without sending — a dry-run does NOT consume a quota slot (audit fix; the test
+suite asserts this). A real send that fails at SMTP releases its reservation (`store.a.release`).
 
-**Phase-1 scope note:** DESIGN §10's fuller chain also lists warmup cap, two-tier domain cap, send-window (recipient timezone), a daily guessed cap, and a **live** tracker/`+unsub` pull that blocks the box if it has not succeeded within N hours. Phase-1 `presend_check` implements resolve → suppression → channel → guessed-approval → sequence-freeze → subject-lint → atomic reservation as above; the warmup/domain/send-window caps and the live pre-send unsub pull arrive with the tracker worker (Phase 2/3). Do not assert a send passed a warmup or send-window gate that Phase-1 code does not run.
+**Phase-1 scope note:** DESIGN §10's fuller chain also lists warmup cap, two-tier domain cap, send-window (recipient timezone), a daily guessed cap, and a **live** tracker/`+unsub` pull that blocks the box if it has not succeeded within N hours. Phase-1 `presend_check` implements resolve → suppression → channel → **sending-identity (2b)** → guessed-approval → sequence-freeze → subject-lint → atomic reservation as above; the warmup/domain/send-window caps and the live pre-send unsub pull arrive with the tracker worker (Phase 2/3). Do not assert a send passed a warmup or send-window gate that Phase-1 code does not run.
 
 ## 4. Sticky-Sender Rotation and Threading
 
@@ -104,7 +112,13 @@ python3 tools/crm_store.py --client-dir <CLIENT_DIR> reserve --sendbox sb-a --da
 - **Message-ID:** our own, minted as `<{uuid}@{sendbox_domain}>`. On the `app_password` path SMTP **preserves** our Message-ID on the wire — this is why the app_password mode is the priority path (no provider rewrite). This value is stored as `rfc_message_id` in the sent log and is what future bumps/replies thread against.
 - **Date:** RFC-formatted send time.
 - **List-Unsubscribe:** always present, as a mailto to the per-box `+unsub` alias carrying the tracker token: `<mailto:{local}+unsub-{token}@{domain}?subject=unsubscribe>`. The token (`draft.token` or a freshly minted 12-char token) is written back onto the draft so the sent-log row carries it; the sync classifier maps an inbound `{local}+unsub-{token}@…` back to the exact lead (Stage 10 / DESIGN §12).
-- **Body:** `text/plain` from `draft.body_text` via `set_content`. A `text/html` alternative is added **only** when `draft.tracking == "pixel_and_links"` and `body_html` is present — that is the Phase-2 tracked mode. In Phase-1 `plain_text_mode` the message is plain text with the mailto `List-Unsubscribe` header and the footer opt-out, and nothing else.
+- **Body:** `text/plain` from `draft.body_text` via `set_content`, **with the CAN-SPAM compliance
+  footer appended by the engine on every send** — the `-- ` signature separator, then `from_name`,
+  the `physical_mailing_address`, and a visible opt-out line, all read from
+  `config/sending_identity.json` (gate 2b fails closed when it is missing). The writer never
+  hand-types this footer. A `text/html` alternative is added **only** when
+  `draft.tracking == "pixel_and_links"` and `body_html` is present (the footer is appended there
+  too, HTML-escaped) — that is the Phase-2 tracked mode.
 
 **Phase-1 vs DESIGN §10 headers:** Phase-1 emits the mailto `List-Unsubscribe` only. The additional `https://trk.{domain}/u/{token}` unsubscribe URL and the `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058) header ship with the tracker worker in Phase 2. The mailto alias alone is a working, compliant one-click opt-out for Phase 1.
 
@@ -150,7 +164,7 @@ The App Password is read only from the `OUTREACHCRM_APP_PASSWORD` environment va
 
 ## 8. Compliance (CAN-SPAM, encoded)
 
-- **Physical address + working opt-out in every commercial email.** The CAN-SPAM footer address comes from the Client Intelligence Profile `sending_identity.physical_mailing_address` (Stage 7 §8) and must be present in the body; the `List-Unsubscribe` mailto (§5) plus the footer opt-out give a working one-click opt-out. A campaign cannot be marked ready with `can_spam_physical_address_present: false`.
+- **Physical address + working opt-out in every commercial email — enforced in code.** The CAN-SPAM footer is appended by `gmail_client.py` to EVERY outgoing body, from the machine-readable `config/sending_identity.json` (written at Stage 1 §Step-3 alongside the profile's `sending_identity` block); presend gate 2b **fails closed** (`missing_physical_address`) when the file or address is absent. The `List-Unsubscribe` mailto (§5) plus the footer opt-out line give a working opt-out. A campaign cannot be marked ready with `can_spam_physical_address_present: false`.
 - **Opt-out honored immediately.** An inbound unsubscribe (mailto `+unsub` alias, negative reply, or remove-intent) routes through `crm_store` suppression (`store.suppress_contact`), which flips the email channel to `opted_out` and writes the suppression row; the next send is blocked at gate 1. OutreachCRM's default is same-run honoring, well inside the 10-business-day legal window (DESIGN §16).
 - **Truthful subjects.** Step-1 subjects must not begin `Re:`/`Fwd:` (gate 5 + the Stage 9 audit lint). Bumps are real in-thread replies, so their `Re:` is truthful.
 - **Only a reply is conversion evidence.** Opens and clicks — which do not even exist in Phase-1 `plain_text_mode` — never trigger a stage change, a deal, or a suppression flip. The send engine records events; intent is only ever read from an actual reply (classified in Stage 10).

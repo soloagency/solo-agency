@@ -58,6 +58,14 @@ actually changes the color. 1–2 per touch, never a recital. Treat the bank as 
 positioning or ROI fact (tenure, price band, a "$X listing") may ride along with a touch's primary
 data point to anchor the one-client math without counting as a second color.
 
+**How you KNOW what earlier touches used (each run is a fresh agent — never guess):** before
+drafting a bump, read the lead's PRIOR DRAFTS for this campaign — they persist on disk under
+`campaigns/{slug}/outbox/**` (pending_approval, approved, and sent records) — and take from each:
+`bank_messages_used` (which bank entries were spent), `hooks_used` (which data points were spent),
+`companion_url`, and the body itself (the color it struck). Then pass the bank messages YOU use as
+`bank_messages_used: ["…"]` in the `draft write` JSON so the next run can do the same. No prior
+drafts found = treat as touch 1 of the rotation.
+
 ## The shrinking ask
 
 Lower the friction as the sequence goes: step 1 "worth a look?" → step 2 "want a 2-minute sample?" →
@@ -101,15 +109,18 @@ sequence ends for that contact (`followups due` never offers an exhausted sequen
 Step 1 is the Angela weave in `weave.md`. Here are her next three doors. Bracketed labels are the
 door/beat, not part of the email. Every body is em-dash-free (House Style).
 
-**Step 2 (+4d) — the NEW-proof door.** `Re:` thread; self-anchor in one line, then lead with a fresh
-signal, and drop the friction to a free sample:
+**Step 2 (+4d) — the NEW-proof door.** `Re:` thread; self-anchor in one line, then open on a
+RESERVED signal step 1 did not spend (step 1 used only the 52-share video; her Reels tab and
+second-home positioning were held back), and drop the friction to a free sample:
 > Quick one, then I'll leave it with you. I put together a 30-day content plan for your Scottsdale
-> listings last week.  `[self-anchor in one line — the blind rule]`  Since then your newer Reel has
-> kept climbing, right alongside the one that pulled 52 shares.  `[NEW signal, not step 1's]`  That is
-> the whole point: the market already stops for your content, it just is not compounding into an
-> audience yet.  `[conclusion + the same one-off-vs-system tension, tighter]`  I can send you a
-> 2-minute sample built from one of your current listings, so you see the output before deciding
-> anything. Want me to?  `[lower-friction ask: a free sample, not "read the plan"]`
+> listings last week.  `[self-anchor in one line — the blind rule]`  Something I did not mention:
+> your page already has Reels out front and your cover pitches second homes and Airbnb investors,
+> which is exactly the audience that binges short video before choosing an agent.  `[a RESERVED
+> signal, not step 1's 52-share video — its own conclusion]`  So the raw material and the right
+> audience are both there; what is missing is only the steady output between hits.  `[tighter
+> restatement of the same one-off-vs-system tension]`  I can send you a 2-minute sample built from
+> one of your current listings, so you see the output before deciding anything. Want me to?
+> `[lower-friction ask: a free sample, not "read the plan"]`
 
 **Step 3 (+5d) — a different emotional door (cost of inaction).** Not more proof; a new angle:
 > One more angle, then I'll stop.  `[shrinking-ask signal, sets up the easy out]`  The quiet cost of

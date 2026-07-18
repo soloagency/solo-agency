@@ -59,7 +59,7 @@ DEFAULT_PIPELINES = {
         {"id": "r3", "on": "reply_negative|remove_intent", "do": ["suppress(contact)", "freeze_sequence", "close_open_tasks"]},
         {"id": "r4", "on": "stage_age_exceeds_sla", "do": ["create_task(nudge)", "flag_in_report"]},
         {"id": "r5", "on": "deal_won", "do": ["set_lifecycle(customer)", "enroll_segment(customers)", "create_task(onboarding)"]},
-        {"id": "r6", "on": "hard_bounce|unsubscribe", "do": ["suppress(contact)", "close_open_tasks"]},
+        {"id": "r6", "on": "hard_bounce|unsubscribe", "do": ["suppress(contact)", "freeze_sequence", "close_open_tasks"]},
     ],
 }
 
@@ -493,10 +493,30 @@ class CrmStore:
         for k in ("still_active", "current_company", "role", "profiles", "evidence"):
             merged_ident[k] = ident.get(k) if ident.get(k) is not None else prev_ident.get(k)
         merged_ident["enriched_at"] = now if has_identity else (prev_ident.get("enriched_at") or now)
+        # Hooks are MERGED too (same principle as identity): an opportunistic partial refresh
+        # that submits only the newly-found hooks must NOT wipe the RESERVED hooks the sequence's
+        # remaining bumps depend on (skills/email-writing/followup.md). Merge key = evidence_url:
+        # a resubmitted hook wins on content but unions its used_in history; prior hooks not
+        # resubmitted survive. Explicit retirement (a sold listing): dossier["retired_hooks"] =
+        # [evidence_url, ...] removes those from the merged set.
+        retired = {str(u).strip() for u in (dossier.get("retired_hooks") or []) if u}
+        hooks_by_url = {}
+        for h in (prev_en.get("hooks", []) or []):
+            u = h.get("evidence_url")
+            if u and u not in retired:
+                hooks_by_url[u] = dict(h)
+        for h in usable_hooks:
+            u = h["evidence_url"]
+            if u in retired:
+                continue
+            if u in hooks_by_url:
+                h = {**h, "used_in": sorted(set(hooks_by_url[u].get("used_in", []) or []) | set(h.get("used_in", []) or []))}
+            hooks_by_url[u] = h
+        merged_hooks = list(hooks_by_url.values())
         enrichment = {
             "identity": merged_ident,
             "context": dossier.get("context", {}),
-            "hooks": usable_hooks, "hooks_refreshed_at": now,
+            "hooks": merged_hooks, "hooks_refreshed_at": now,
             "writing_brief": {"one_liner": (dossier.get("writing_brief") or {}).get("one_liner", ""),
                               "ranked_angles": (dossier.get("writing_brief") or {}).get("ranked_angles", []),
                               "do_not_mention": do_not_mention, "personalization_confidence": conf},
@@ -566,7 +586,8 @@ class CrmStore:
 
     def draft_write(self, contact_id: str, campaign_slug: str, step: int, subject: str,
                     body_text: str, hooks_used: list | None = None, body_html: str = "",
-                    tracking: str = "plain_text") -> dict:
+                    tracking: str = "plain_text", is_reply: bool = False,
+                    bank_messages_used: list | None = None, companion_url: str = "") -> dict:
         """Validate and store a draft in outbox/pending_approval. Rejects a step-1 fake Re:/Fwd:
         subject and any hook_used that isn't in the contact's dossier WITH an evidence_url."""
         lead_id = self.resolve(contact_id)
@@ -577,6 +598,22 @@ class CrmStore:
         if not cfg:
             raise StorageError(f"campaign {campaign_slug!r} not found")
         step = int(step)
+        # Daily draft budget — bumps and step-1s share daily_quota, and bumps must leave a FLOOR
+        # of slots for new-lead intake so a growing due-bump population can't starve the pipeline.
+        # Reply drafts (is_reply) are exempt: answering someone who wrote back is never blocked.
+        if not is_reply:
+            budget = self.draft_budget(campaign_slug)
+            if budget["remaining"] <= 0:
+                raise StorageError("draft_budget_exhausted: today's daily_quota draft slots are used")
+            if step > 1:
+                floor = int(cfg.get("new_lead_floor", max(1, int(cfg.get("daily_quota", 40)) // 5)))
+                if budget["remaining"] <= floor:
+                    raise StorageError(f"bump_budget_exhausted: remaining {budget['remaining']} draft "
+                                       f"slots are reserved for new-lead (step-1) drafts (floor {floor})")
+        # Bump dedupe: one live draft per (lead, step) — a bump drafted-but-unapproved must not be
+        # re-drafted by the next daily run (followups_due also filters these; this is the backstop).
+        if step > 1 and (lead_id, step) in self._open_draft_steps(campaign_slug):
+            raise StorageError("duplicate_pending_draft: a draft for this lead/step already awaits approval")
         if step == 1 and re.match(r"^\s*(re|fwd)\s*:", _subject_gate_normalized(subject), re.I):
             raise StorageError("step-1 subject must not begin with Re:/Fwd: (deceptive, CAN-SPAM)")
         # recipient must be a real, well-formed found email (no guessing)
@@ -619,7 +656,8 @@ class CrmStore:
                  "sendbox": sendbox, "to": primary["address"], "subject": subject,
                  "body_text": body_text, "body_html": body_html,
                  "confidence_band": band, "hooks_used": clean_hooks, "tracking": tracking,
-                 "warnings": warnings, "guessed_approved": False,
+                 "warnings": warnings, "guessed_approved": False, "is_reply": bool(is_reply),
+                 "bank_messages_used": list(bank_messages_used or []), "companion_url": companion_url or "",
                  "status": "pending_approval", "decided_at": "", "decided_by": "", "reject_reason": "", "blocker": ""}
         d = os.path.join(self.campaign_dir(campaign_slug), "outbox", "pending_approval", today_str(now))
         os.makedirs(d, exist_ok=True)
@@ -948,9 +986,33 @@ class CrmStore:
 
     # --- follow-ups (silent-lead bumps) --------------------------------------
 
+    def _open_draft_steps(self, campaign_slug: str) -> set:
+        """(lead_id, step) pairs that already have a LIVE draft (pending_approval or approved,
+        not yet sent/rejected) in this campaign — so a due bump isn't re-drafted every day
+        while its first draft sits awaiting approval."""
+        out = set()
+        base = os.path.join(self.campaign_dir(campaign_slug), "outbox")
+        for sub in ("pending_approval", "approved"):
+            root = os.path.join(base, sub)
+            if not os.path.isdir(root):
+                continue
+            for r, _dirs, files in os.walk(root):
+                for name in files:
+                    if not name.endswith(".json"):
+                        continue
+                    try:
+                        with open(os.path.join(r, name), "r", encoding="utf-8") as fh:
+                            rec = json.load(fh)
+                    except ValueError:
+                        continue
+                    if rec.get("status") in ("pending_approval", "approved"):
+                        out.add((self.resolve(rec.get("lead_id")), int(rec.get("step", 0))))
+        return out
+
     def followups_due(self, campaign_slug: str, now: str | None = None) -> list:
         """Contacts due for a bump: sent step N in this campaign, gap_days for step N+1 elapsed,
-        no reply (not frozen), sequence not exhausted. Stage 10 drafts these."""
+        no reply (not frozen), sequence not exhausted, and no live draft already awaiting
+        approval for that step (dedupe). Stage 10 drafts these."""
         now = now or now_iso()
         cfg = self.get_campaign(campaign_slug)
         if not cfg:
@@ -977,6 +1039,7 @@ class CrmStore:
                     cur = state.get(lid, {"step": 0, "sent_at": ""})
                     if st > cur["step"] or (st == cur["step"] and sa > cur["sent_at"]):
                         state[lid] = {"step": st, "sent_at": sa}
+        open_drafts = self._open_draft_steps(campaign_slug)
         due = []
         for lid, s in state.items():
             c = self.get_contact(lid)
@@ -987,6 +1050,8 @@ class CrmStore:
                 continue  # sequence exhausted (breakup already sent)
             if next_step not in gap_by_step:
                 continue  # no defined cadence for this step (non-contiguous config) -> never auto-due
+            if (lid, next_step) in open_drafts:
+                continue  # a draft for this bump already awaits approval — don't re-draft daily
             gap = gap_by_step[next_step]
             if s["sent_at"] and s["sent_at"] <= _iso_days_ago_from(gap, now):
                 due.append({"lead_id": lid, "next_step": next_step, "last_step": s["step"],
@@ -1890,7 +1955,10 @@ def main(argv=None) -> int:
             return _out(store.draft_write(args.contact, args.campaign, d.get("step", 1),
                                           d.get("subject", ""), d.get("body_text", ""),
                                           hooks_used=d.get("hooks_used"), body_html=d.get("body_html", ""),
-                                          tracking=d.get("tracking", "plain_text")))
+                                          tracking=d.get("tracking", "plain_text"),
+                                          is_reply=bool(d.get("is_reply", False)),
+                                          bank_messages_used=d.get("bank_messages_used"),
+                                          companion_url=d.get("companion_url", "")))
         if args.op == "list":
             return _out(store.list_pending_drafts(args.campaign))
         if args.op == "budget":

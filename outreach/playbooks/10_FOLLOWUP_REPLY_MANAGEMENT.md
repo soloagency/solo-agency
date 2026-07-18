@@ -132,8 +132,12 @@ python3 tools/crm_store.py --client-dir <CLIENT_DIR> followups due --campaign <s
 ```
 
 `followups due` returns, per campaign, each lead whose latest sent step N has passed its
-step-(N+1) `gap_days`, who is **not** frozen (no reply), and whose sequence is **not** exhausted
-(the breakup step is the last one). For each, the bump draws first on the **reserved** Layer-B from the
+step-(N+1) `gap_days`, who is **not** frozen (no reply — and an unsubscribe or hard bounce also
+freezes), whose sequence is **not** exhausted (the breakup step is the last one), and who does
+**not already have a bump draft awaiting approval** (dedupe — an unapproved bump is never
+re-drafted daily; `draft write` also refuses a duplicate `(lead, step)` with
+`duplicate_pending_draft`). Bumps share the campaign's daily draft budget and must leave the
+`new_lead_floor` slots for step-1 intake (Stage 5); reply drafts are exempt (`is_reply: true`). For each, the bump draws first on the **reserved** Layer-B from the
 initial enrichment plus the campaign's `message_bank` — no new collector call needed. A **micro-refresh
 is opportunistic**: run it only when the reserved points are used up and the collector has spare
 capacity, gated by the send budget, never as a per-bump requirement (enrichment must not scale with the

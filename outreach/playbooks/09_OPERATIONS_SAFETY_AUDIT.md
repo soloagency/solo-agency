@@ -198,7 +198,8 @@ Claim a drafting pass complete only when, for every draft:
 
 1. The draft is assembled from four inputs: client profile (voice, offer, compliance) + campaign goal (objective, offer, CTA, proof points) + contact dossier (hooks + evidence) + step intent. A bump carries NEW value, never "just following up".
 2. Every personalization detail in the body traces to a dossier fact that carries an `evidence_url`. Details with no evidence are removed or the draft drops to the no-hook fallback.
-3. The freshness gate passed: for a step-1 draft, hooks are within TTL (else known URLs were refreshed); before every follow-up, the person's 1–2 best sources were micro-refreshed to find a fresh hook AND to invalidate stale hooks (a sold listing is not referenced as active).
+3. The freshness gate passed: for a step-1 draft, hooks are within TTL (else known URLs were refreshed); a bump drew on RESERVED dossier points + the campaign `message_bank` (no per-bump re-enrichment — micro-refresh only opportunistically), and the stale-hook guard held (any time-sensitive hook past TTL was re-verified or dropped; a sold listing is not referenced as active).
+3b. House Style held: the draft contains zero em dashes (`—`). If the campaign declares `goal.companion_doc`, the body embeds a real produced URL (or the lead was handled per `on_fail`); if it declares `goal.message_bank`, the draft weaves 1–2 bank messages not used by this lead's earlier touches (menu, not checklist — no message the lead's data contradicts).
 4. The step-1 subject does not begin `Re:` or `Fwd:`. Continuation steps use a truthful `Re:` on a real in-thread reply only.
 5. No banned claim from `guardrails.banned_claims` (e.g. guarantees) appears; `no_fake_re` is honored.
 6. Each draft landed in `outbox/pending_approval/`; nothing was moved to `approved` without a chat `approve`.
@@ -223,20 +224,20 @@ Claim a send complete only when, for every message sent:
 
 ## The Ordered Pre-Send Gate Chain
 
-`gmail_client.py send` must run these gates in this exact order for every message. The audit confirms the chain ran in code (not narrated in prose) and that any block halted the send. Order is load-bearing.
+`gmail_client.py send` must run these gates in this exact order for every message (this is the
+Phase-1 chain actually in code — Stage 8 §3 is the source): the audit confirms the chain ran in
+code (not narrated in prose) and that any block halted the send. Order is load-bearing.
 
 1. **resolve(lead)** — follow merge chains so suppression/quota/channel checks hit the survivor record.
-2. **Suppression** — global (`global_suppression.jsonl`) + client (`crm/suppression.jsonl`). Live path: before any batch, pull new unsubscribes from the tracker `/events` endpoint AND the `+unsub` mailbox. If track-pull has not succeeded within N hours, **block the box** (so worker/mailto unsubs cannot sit unhonored past the window).
-3. **channels.email.status** — must be `usable` (not `needs_data`, `opted_out`, or `bounced`).
-4. **Atomic quota reservation** — `reserve(sendbox, day)`; append `send_reserved` under the `sent_log` lock before releasing, so there is no count-then-send race.
-5. **Warmup cap** — respect the box's `warmup_stage` daily ceiling.
-6. **Two-tier domain cap** — `min(remaining_box_quota, remaining_domain_cap)`; boxes on one domain share domain reputation.
-7. **Send-window** — within the recipient's timezone window (`contact.tz`, inferred from state/area code).
-8. **Guessed cap** — guessed cohort ≤ 10%/day/box, and a guessed address requires its per-draft guessed-approval flag; per-domain kill switch active (see Compliance Audit).
-9. **Sequence-freeze check** — any inbound reply freezes the remaining bumps for that contact until triage completes.
-10. **Step-1 subject lint** — reject `^(Re|Fwd):` on step-1 subjects.
+2. **Suppression** — client (`crm/suppression.jsonl`) + agency (`global_suppression.jsonl`), across the contact's identities AND the actual recipient address, before any quota is reserved.
+3. **channels.email.status** — must be usable (not `opted_out` or `bounced`).
+4. **CAN-SPAM sending identity (gate 2b)** — `config/sending_identity.json` must exist with a physical mailing address; the engine appends the compliance footer to every body. Fail closed: `missing_physical_address`.
+5. **Guessed-email approval** — a `guessed_only` address sends only with the per-draft `guessed_approved` flag.
+6. **Sequence-freeze check** — any inbound reply (and any unsubscribe/hard bounce) freezes the remaining bumps for that contact until triage clears it.
+7. **Step-1 subject lint** — reject `^(Re|Fwd):` on step-1 subjects.
+8. **Atomic quota reservation (last)** — `store.reserve(sendbox, day, cap)` under the lock; a draft blocked by any earlier gate never reserves. A failed real send releases its reservation.
 
-If any of these ten is enforced only in playbook prose and not in `gmail_client.py`, that is a critical violation — record it and block the claim.
+If any of these is enforced only in playbook prose and not in `gmail_client.py`, that is a critical violation — record it and block the claim. **Phase-2/3 gates (tracker worker) — NOT in Phase-1 code; do not assert them and do not flag their absence as a violation:** live tracker `/events` + `+unsub` pull with block-the-box staleness, warmup-stage cap, two-tier domain cap, send-window (recipient tz), guessed cohort ≤10%/day/box + per-domain kill switch. A failed send is never silent: the blocker is persisted on the draft record (terminal blockers flip it to `status: blocked`; transient ones keep `approved` + `blocker`/`blocked_at` for natural retry).
 
 ---
 
@@ -413,7 +414,7 @@ For reference during the Daily Run completion gate. The scheduled-run entrypoint
 
 1. Every draft = client profile + campaign goal + contact dossier + step intent; bumps carry NEW value.
 2. Every personalization detail traces to a dossier `evidence_url` (mechanical check passed).
-3. The freshness gate passed (step-1 hooks in TTL; follow-ups micro-refreshed; stale hooks invalidated).
+3. The freshness gate passed (step-1 hooks in TTL; bumps from reserved points + `message_bank`, no per-bump re-enrichment; stale-hook guard held). House Style: zero em dashes; companion-doc URL and bank rotation honored when declared.
 4. No step-1 subject begins `Re:`/`Fwd:`; no banned claim appears; `no_fake_re` honored.
 5. All drafts landed in `pending_approval`; the Approval Report was rendered with the confidence split and clickable evidence URLs; a Telegram note was sent.
 
@@ -481,7 +482,8 @@ Use this before replying to the human, before claiming setup complete, and befor
 
 - [ ] Did each draft combine client profile + campaign goal + dossier + step intent, with bumps carrying NEW value?
 - [ ] Does every personalization detail trace to a dossier fact with an `evidence_url`?
-- [ ] Did the freshness gate pass (step-1 hooks in TTL; follow-ups micro-refreshed; stale hooks invalidated)?
+- [ ] Did the freshness gate pass (step-1 hooks in TTL; bumps from reserved points + `message_bank` with NO per-bump re-enrichment; stale-hook guard applied to every referenced time-sensitive hook)?
+- [ ] Is every draft free of em dashes (`—`), and — when the campaign declares them — does the body carry the produced companion-doc URL (or the `on_fail` path) and 1–2 rotated `message_bank` messages this lead has not seen?
 - [ ] Is every step-1 subject free of `Re:`/`Fwd:`, and are continuation subjects truthful `Re:` on real in-thread replies?
 - [ ] Did I drop any draft with no verifiable hook to the honest no-hook fallback (or skip), never inventing detail?
 - [ ] Did all drafts land in `pending_approval`, with nothing moved to `approved` without a chat `approve`?

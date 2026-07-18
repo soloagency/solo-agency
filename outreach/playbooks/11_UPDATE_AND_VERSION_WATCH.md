@@ -118,6 +118,13 @@ Do not decide "no update needed" after checking only one file or only the root p
 
 ## Backup And Safe Apply Protocol
 
+**Dirty-tree guard — run BEFORE any `git reset --hard` / forced checkout, no exceptions.** Check
+`git status --porcelain` first. If any TRACKED file is modified, do NOT reset yet: copy those files
+into the backup folder below AND `git stash push -m "pre-update {YYYY-MM-DD}"`, record both paths in
+the update log, and only then apply the reset. A hard reset on a dirty tree silently destroys
+uncommitted local work with no recovery. Untracked files survive a hard reset but must be listed in
+the update log and reconciled, never ignored.
+
 Before applying changes, create a timestamped backup of every runtime file or folder that will be replaced.
 
 Recommended backup location:

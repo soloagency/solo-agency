@@ -36,6 +36,10 @@ campaign, or the daily "load new pipeline" step). Print a LOAD LEDGER per
   (§1b), it MUST carry an `on_fail` of `skip` or `default_link` (plus the `default_link` URL when
   that mode is used). If the operator did not state one at intake, ASK before creating the campaign;
   never default it silently.
+- **A message bank is operator-approved before the campaign is created.** If the campaign declares
+  `goal.message_bank` (§1c), the agent-expanded bank was shown back to the operator and approved or
+  trimmed (agent-added entries carry `source: "agent"` and `approved: true`); never ship an expanded
+  bank the operator has not seen.
 
 ## Source Preservation Rule
 
@@ -148,10 +152,15 @@ python3 tools/crm_store.py --client-dir DIR segment resolve --id al-realtors-act
 
 ```sh
 python3 tools/crm_store.py --client-dir DIR campaign create --slug demo-outreach --json \
-  '{"goal":{"goal_type":"book_meeting","objective":"book a demo","cta":{"type":"reply_yes","text":"Reply YES"}},
+  '{"goal":{"goal_type":"book_meeting","objective":"book a demo","cta":{"type":"reply_yes","text":"Reply YES"},
+            "companion_doc":{"instructions":"US lead -> https://x/en, VN lead -> https://x/vi","on_fail":"skip"},
+            "message_bank":[{"msg":"done-for-you: you record 5 min, we do the rest","source":"operator"},
+                            {"msg":"consistency compounds: 30 steady videos beat one viral hit","source":"agent","approved":true}]},
     "audience":{"segment":"al-realtors-active","personalization":{"min_confidence":0.7,"no_hook_fallback":"skip"}},
     "sendboxes":["sb-a"],"daily_quota":40,"channel_strategy":"email_first"}'
 ```
+(`companion_doc` and `message_bank` are optional — include them exactly when the intake in §1b/§1c
+produced them; both persist verbatim on the goal.)
 
 Defaults are filled in for any field you omit: a 4-step sequence (step 1 cold + 3 bumps with
 `gap_days` 4/5/7, the last a breakup), `approval_mode: manual_all`,
@@ -165,9 +174,13 @@ Creating a campaign makes its `queue/`, `outbox/pending_approval/`, `outbox/appr
   `no_hook_fallback: "generic_honest_opener"` only to explicitly opt a campaign into a
   generic-but-honest opener (grounded in license/roster facts, flagged `generic_opener`). Bumps and
   reply drafts (step>1) are exempt.
-- **`daily_quota` doubles as the daily draft budget.** The daily run drafts while
-  `crm_store.py draft budget --campaign <slug>` reports `remaining > 0`
-  (`{daily_quota, used_today, remaining}`), then stops; it is also the campaign's per-day send share.
+- **`daily_quota` doubles as the daily draft budget — and bumps share it.** `draft write` enforces
+  it in code for EVERY non-reply draft (`draft_budget_exhausted`), and step>1 bumps must leave a
+  **floor** of slots for new-lead intake: `new_lead_floor` (default `max(1, daily_quota // 5)`;
+  override per campaign) — a bump is rejected (`bump_budget_exhausted`) when
+  `remaining <= new_lead_floor`, so a growing due-bump population can never starve step-1 drafting
+  to zero. Reply drafts (`is_reply: true` in the draft JSON) are exempt: answering someone who
+  wrote back is never budget-blocked.
 
 ## 4. Populate the enrich queue (the JIT buffer)
 
@@ -195,6 +208,8 @@ already-queued or already-sent lead is never re-queued. The queued leads then fl
   discovery (skipping only a lead whose discovery already failed within the 30-day negative-cache window).
 - If the campaign declares a `companion_doc`, it has `instructions` + an `on_fail` policy (plus a
   `default_link` when required); a multi-step recipe is previewed on the first lead before the rest.
+- If the campaign declares a `message_bank`, the operator approved the expanded bank (asked with
+  §1c's intake question; agent additions flagged and approved).
 
 ## Phase status
 

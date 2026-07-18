@@ -204,7 +204,10 @@ the email.)
 **Why it works:** five facts (10K, verified, 52-share video, licensed-since-2006, four property
 types) and not one is a readout — each is a beat: the video+shares establish the asset, the
 license+property-types defuse the credibility objection. The tension ("individual moments, not a
-system") is the *exact* axis the offer resolves.
+system") is the *exact* axis the offer resolves. Note the reserve rule in action: only ONE
+numeric content signal (the 52-share video) is spent here; the rest are positioning facts doing
+defuse-work. Angela's other reels/counts stay unspent — they are the bumps' fresh openings
+(`followup.md`). Do not read this example as license to enumerate every number in step 1.
 
 ### Reference B — Maria Mendez (real estate) · MEDIUM mode · vanity-metric reframe
 

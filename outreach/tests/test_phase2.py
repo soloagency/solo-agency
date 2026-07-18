@@ -714,5 +714,91 @@ class TestAuditFixes(unittest.TestCase):
         return os.path.join(self.cdir, "outputs", now_iso()[:10], "approval_index.json")
 
 
+class TestOpsLoopFixes(unittest.TestCase):
+    """Pre-production ops-loop fixes: hooks merge-not-overwrite, bump dedupe,
+    unsubscribe freeze, and the shared draft budget with a new-lead floor."""
+
+    def setUp(self):
+        self.cdir = _client()
+        self.s = CrmStore(self.cdir)
+        import gmail_client as g
+        g.save_sendbox(self.cdir, {"slug": "sb-a", "email": "me@gmail.com", "domain": "gmail.com",
+                                   "quota_today": 40, "status": "healthy", "imap_uid_cursor": 0})
+        self.s.create_campaign("demo", {"audience": {"segment": "x", "personalization": {"no_hook_fallback": "generic_honest_opener"}},
+                                        "sendboxes": ["sb-a"]})
+        self.lead, _ = self.s.add_contact({"name": {"full": "A"},
+                                           "identities": {"emails": [{"address": "a@x.com", "is_primary": True}]}})
+
+    def _hook(self, url, **over):
+        h = {"type": "new_listing", "summary": "x", "evidence_url": url, "observed_date": "2026-07-14",
+             "confidence": 0.9, "analysis": {"sensitivity": "public_business"}}
+        h.update(over)
+        return h
+
+    def test_enrich_refresh_merges_hooks_not_overwrites(self):
+        self.s.enrich_write(self.lead, {"hooks": [self._hook("https://z/a"), self._hook("https://z/b")],
+                                        "writing_brief": {"personalization_confidence": 0.8}})
+        # partial refresh submits ONLY the newly-found hook -> prior reserved hooks must survive
+        self.s.enrich_write(self.lead, {"hooks": [self._hook("https://z/c")]})
+        urls = {h["evidence_url"] for h in self.s.get_contact(self.lead)["enrichment"]["hooks"]}
+        self.assertEqual(urls, {"https://z/a", "https://z/b", "https://z/c"})
+        # resubmitting a hook unions used_in instead of dropping history
+        self.s.draft_write(self.lead, "demo", 1, "Idea", "Hi",
+                           hooks_used=[{"type": "new_listing", "evidence_url": "https://z/a"}])
+        self.s.enrich_write(self.lead, {"hooks": [self._hook("https://z/a")]})
+        ha = next(h for h in self.s.get_contact(self.lead)["enrichment"]["hooks"]
+                  if h["evidence_url"] == "https://z/a")
+        self.assertIn("demo/step1", ha.get("used_in", []))
+        # explicit retirement removes a stale hook (a sold listing)
+        self.s.enrich_write(self.lead, {"hooks": [], "retired_hooks": ["https://z/b"]})
+        urls = {h["evidence_url"] for h in self.s.get_contact(self.lead)["enrichment"]["hooks"]}
+        self.assertEqual(urls, {"https://z/a", "https://z/c"})
+
+    def _sent_step1_days_ago(self, lead, days):
+        import datetime as dt
+        sa = (dt.datetime.now(dt.timezone.utc).replace(microsecond=0) - dt.timedelta(days=days)).isoformat().replace("+00:00", "Z")
+        d = os.path.join(self.cdir, "campaigns", "demo", "sent", sa[:7])
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "sent_log.jsonl"), "a") as fh:
+            fh.write(json.dumps({"seq": 1, "ts": sa, "lead_id": lead, "campaign": "demo", "step": 1,
+                                 "sendbox": "sb-a", "rfc_message_id": "<x>", "sent_at": sa}) + "\n")
+
+    def test_followups_due_skips_leads_with_pending_bump_draft(self):
+        self._sent_step1_days_ago(self.lead, 5)
+        self.assertEqual([x["lead_id"] for x in self.s.followups_due("demo")], [self.lead])
+        # a bump draft awaiting approval -> the lead is NOT offered again the next day
+        self.s.draft_write(self.lead, "demo", 2, "Re: Idea", "new value")
+        self.assertEqual(self.s.followups_due("demo"), [])
+        # and a second draft for the same (lead, step) is refused outright
+        with self.assertRaises(Exception) as ctx:
+            self.s.draft_write(self.lead, "demo", 2, "Re: Idea", "another")
+        self.assertIn("duplicate_pending_draft", str(ctx.exception))
+
+    def test_unsubscribe_rule_freezes_sequence(self):
+        self.s.apply_rules([{"type": "unsubscribe", "contact_id": self.lead, "activity_id": "a-u1"}])
+        c = self.s.get_contact(self.lead)
+        self.assertEqual(c.get("sequence_state"), "frozen")
+        self.assertTrue(self.s.is_suppressed(email="a@x.com"))
+
+    def test_draft_budget_floor_reserves_new_lead_slots(self):
+        self.s.create_campaign("tiny", {"audience": {"segment": "x", "personalization": {"no_hook_fallback": "generic_honest_opener"}},
+                                        "sendboxes": ["sb-a"], "daily_quota": 3, "new_lead_floor": 2})
+        l2, _ = self.s.add_contact({"identities": {"emails": [{"address": "b@x.com", "is_primary": True}]}})
+        self.s.draft_write(self.lead, "tiny", 1, "Hi", "one")            # used 1, remaining 2
+        with self.assertRaises(Exception) as ctx:                        # bump blocked: remaining <= floor
+            self.s.draft_write(l2, "tiny", 2, "Re: Hi", "bump")
+        self.assertIn("bump_budget_exhausted", str(ctx.exception))
+        self.s.draft_write(l2, "tiny", 1, "Hi2", "two")                  # step-1 still allowed (used 2)
+        l3, _ = self.s.add_contact({"identities": {"emails": [{"address": "c@x.com", "is_primary": True}]}})
+        self.s.draft_write(l3, "tiny", 1, "Hi3", "three")                # used 3 = quota
+        l4, _ = self.s.add_contact({"identities": {"emails": [{"address": "d@x.com", "is_primary": True}]}})
+        with self.assertRaises(Exception) as ctx:                        # quota gone for everyone
+            self.s.draft_write(l4, "tiny", 1, "Hi4", "four")
+        self.assertIn("draft_budget_exhausted", str(ctx.exception))
+        # a reply draft is never budget-blocked
+        r = self.s.draft_write(l2, "tiny", 2, "Re: Hi", "answering their reply", is_reply=True)
+        self.assertTrue(r["draft_id"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
