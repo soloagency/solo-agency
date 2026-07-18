@@ -207,11 +207,11 @@ Timing: this sequence is the step-6 checkpoint's own interactive flow, and its o
    - `skip_too_noisy`
    - `skip_sensitive_or_risky`
    - `skip_platform_unavailable`
-8. Show a compact approval list:
+8. Show a compact approval list DIRECTLY IN CHAT as a numbered list (see the In-Chat Numbered Shortlist Rule below), grouped by proposed cadence:
    - `Recommended daily`
    - `Recommended weekly`
    - `Optional`
-   - `Skip`
+   - `Skip` (name or count only)
 9. For each recommended source, include:
    - source name;
    - source URL when visible;
@@ -222,17 +222,26 @@ Timing: this sequence is the step-6 checkpoint's own interactive flow, and its o
    - competitor intelligence value;
    - proposed cadence;
    - risk/noise note.
-10. Ask the human to approve, remove, or add sources in a `**[ACTION REQUIRED]**` block before anything is saved as active.
+10. Ask the human to approve, remove, or add sources BY NUMBER in a `**[ACTION REQUIRED]**` block before anything is saved as active (per the In-Chat Numbered Shortlist Rule). Do not ask the human to open a `.md` file or report to read or approve the shortlist.
 11. Save approved sources to `private_data_sources`.
 12. Save unapproved candidates to the discovery log as `pending_human_approval`, `rejected`, or `skipped`.
 13. If `daily-content-pipeline/schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, or any native automation/scheduled task already exists, load Stage 4 and perform Automation Resync. This must update the Client Intelligence Profile, source logs, `schedule.md`, collector config if relevant, automation manifest, scheduled-run prompt/task body, and resync log. Do not tell the human that tomorrow's scheduled run will scan the approved sources until this resync or a clearly logged `automation_prompt_update_pending` state is complete.
+
+### In-Chat Numbered Shortlist Rule
+
+The discovery shortlist is presented for approval DIRECTLY IN THE CHAT, never as a file the human must open. The saved discovery log (`.md`) is a record only, not the approval surface.
+
+- Show the shortlist in chat as a NUMBERED list (`1.`, `2.`, `3.`, ...), one short phone-scannable line per candidate: `{n}. {source name} - {platform} - {proposed cadence} - {one-line why it fits: matched pain point / audience / location fit}`. Group by cadence (Recommended daily, Recommended weekly, Optional) and list Skip candidates by name only or as a count, so the human sees what was filtered out and why.
+- End with an `**[ACTION REQUIRED]**` block asking the human to reply BY NUMBER, for example `approve all` / `approve 1-5, 8` / `skip 3, 7` / `add: {url}`. The numbering is what the human replies against, so it must be stable within that message.
+- Never tell the human to open a `.md` file, a report, or a saved log to read or approve the shortlist. This is the root "do not bury the question in a Markdown file" rule applied to discovery: the full per-candidate detail is written to the discovery log as a record, but the human-facing approval always happens in chat.
+- If the list is long, show Recommended daily and weekly in full and summarize Optional/Skip as counts, but keep every source the human is asked to approve individually numbered.
 
 ### Pending-Approval Shortlist Rule (`discovery_completed_pending_approval`)
 
 After a discovery scan produced a shortlist that the human has not yet approved, trimmed, or rejected:
 
 1. Do NOT re-run discovery on later runs while the shortlist is pending. Re-scan only when the human asks, or offer a refresh when the shortlist is older than 14 days — never silently re-scan.
-2. EVERY later run (scheduled or manual) must re-surface the pending shortlist in its progress block and report/notification, inside an `**[ACTION REQUIRED]**` approval block, until the human resolves it. A pending shortlist buried in an old report is a workflow failure.
+2. EVERY later run (scheduled or manual) must re-surface the pending shortlist as a numbered in-chat list (per the In-Chat Numbered Shortlist Rule) inside an `**[ACTION REQUIRED]**` approval block, until the human resolves it. A pending shortlist buried in an old report or in a `.md` file the human must open is a workflow failure.
 3. When the human approves, save the approved sources to `private_data_sources`, log the remaining candidates per the discovery log states, and perform Automation Resync so the next run monitors the approved sources.
 
 If the human says no or not now:
@@ -418,7 +427,7 @@ Show the human a short `Facebook Keyword Group Search Review` before saving anyt
 - access/membership notes;
 - which groups need human approval or joining before scheduled monitoring can use them.
 
-Ask the human to approve the recommended groups before adding them as active `private_data_sources`. If the group requires membership or access and the client Chrome profile cannot view it yet, save it as `pending_human_approval` or `pending_private_activation`, not active.
+Show the recommended groups DIRECTLY IN CHAT as a numbered list and ask the human to approve them by number (per the In-Chat Numbered Shortlist Rule) before adding them as active `private_data_sources`; the saved review `.md` is a record, not the approval surface - do not ask the human to open it to approve. If the group requires membership or access and the client Chrome profile cannot view it yet, save it as `pending_human_approval` or `pending_private_activation`, not active.
 
 Save the discovery output under:
 
