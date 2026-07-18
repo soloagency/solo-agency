@@ -27,7 +27,7 @@ This file is an INDEX, not the manual. **Opening a module is a REQUIRED ACTION**
 
 - `[ACTION REQUIRED]` — a standalone block whenever the human must do something (record A-roll, approve, run a command, final hand-off).
 - `Scene N: PASS` / `Scene N: FAIL — …` — the per-scene verdict.
-- When a hand-off needs nothing from the human, end with next-action guidance per the root Next-Action Guidance Rule (for example suggest the render/export approval or the next pending step) instead of `No action required.`
+- `No action required.` — when a hand-off needs nothing from the human.
 
 ### Run kickoff — load these 5 core modules FIRST, before scene 1
 
@@ -65,11 +65,11 @@ The **Module id** column is what you pass to `widecast_get_editing_skill(module=
 | Pattern is OTHER (`map_chart`/`comparison_table`/`timeline_events`/`checklist_tips`/`quote_card`/`illustration`/`hybrid_vertical`/`real_entity`/`typography_only`/`narration_only`) | **`ai_video_editor/33_patterns`** |
 | About to spawn ANY subagent for scene work (scene editors, fix agents) · edit-session start/commit | **`ai_video_editor/06_subagent_protocol`** |
 
-*(`30`/`31`/`32`/`33` + style libs load ONLY when you must fix an overlay defect — the server authors overlays and guarantees placement; you don't build/audit them routinely. `40_thumbnail_cta` is retired: endpoint/poster authoring is no longer an agent gate.)*
+*(`30`/`31`/`32`/`33` + style libs load ONLY when you must fix an overlay defect — the server authors overlays and guarantees placement; you don't build/audit them routinely. `40_thumbnail_cta` is RETIRED + dormant: kept on disk for possible future re-enablement but never loaded or used — the opening-frame hook lives inline as the Gate 4 OPENING POSTER CHECK in `03_dod_gates`. A module whose title/summary/banner says RETIRED is intentionally dormant: the fail-open "load unknown modules" rule does NOT apply to it — skip it.)*
 
 **Adding modules later — fully automatic, ZERO formatting required.** Drop a new `.md` file anywhere under `widecast/skills/video-editing/` and it appears in the live `available_modules[]` index returned by the entry call. The server auto-generates `title` (first H1 → first H2 → first content line → filename basename) and `summary` (first ~200 chars of meaningful content). No code change, no SKILL.md edit, no required formatting.
 
-If you see an available module whose `title`/`summary` matches a step that this table doesn't cover yet, load it. Treat the live `available_modules[]` as the source of truth; this table is the curated default chain.
+If you see an available module whose `title`/`summary` matches a step that this table doesn't cover yet, load it — **UNLESS its title/summary/banner says `RETIRED`**, which marks an intentionally dormant module kept only for possible future re-enablement (e.g. `40_thumbnail_cta`); never load a RETIRED module. Treat the live `available_modules[]` as the source of truth; this table is the curated default chain.
 
 ---
 

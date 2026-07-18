@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.43-scroll0-fix";
+const EXTENSION_BUILD = "0.1.44-discovery-cap";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -691,7 +691,15 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
       },
       newPrivateSources: entityItems
         .filter((it) => it && /group|community|page|channel|profile|account/i.test(String(it.type || "")))
-        .slice(0, 20)
+        // DISCOVERY must keep ALL captured candidates (a big account can surface 100s of
+        // groups) — the old hardcoded .slice(0, 20) silently dropped them, so the raw
+        // entity_candidates held 152 while new_private_sources.jsonl got only 20. That 20
+        // is NOT the monitoring cap (pacing.max_sources, which limits SOURCES scanned);
+        // it was an incidental token-saving cap for normal runs. Keep a small cap only for
+        // non-discovery collections; discovery keeps everything (override via max_candidates).
+        .slice(0, discoveryMode
+          ? Number(job.pacing?.max_candidates || settings.maxDiscoveryCandidates || 1000)
+          : Number(job.pacing?.max_candidates || 20))
         .map((it) => ({
           run_id: runId,
           client_slug: job.client_slug || binding.client_slug || "",
