@@ -14,6 +14,7 @@ The Client Intelligence Profile that this stage builds is written using the cano
 
 - The first setup question asks only one open thing: what the client sells and to whom (a product/service description, a website or profile URL, and target location only if it matters). Do not ask a dozen questions.
 - Do not ask the human to define ICP, pain points, value proposition, brand voice, offer, or audience by hand. The agent infers these from the one opening answer and shows them for correction.
+- When the sibling Solo Agency content-pipeline Client Intelligence Profile already exists for this client, follow the Solo Agency Profile Bootstrap rule (below): pre-fill from it, open with the inference block instead of the first setup question, and let the human confirm instead of re-declaring anything.
 - Show the inference before asking the next question. The human sees the agent's reasoning evolve after every answer.
 - Explain any marketing/deliverability/compliance term in plain language when asking the human for input.
 - Setup Flow NEVER sends an email, NEVER enriches a contact for send, NEVER runs a campaign, and NEVER previews-then-sends. It only creates config and the client-specific automation task.
@@ -155,7 +156,7 @@ buy in? That changes how tightly I geo-target the first list.
 
 The agent thinks, infers, and researches before asking. The agent must:
 
-- Use existing files first (a prior profile, an earlier `pending` note).
+- Use existing files first (a prior profile, an earlier `pending` note) — including the sibling Solo Agency content-pipeline Client Intelligence Profile when it exists (see the Solo Agency Profile Bootstrap rule below).
 - Use the client description or public website/profile URL.
 - Use public web research (WebSearch/WebFetch/browser tool) when available.
 - Use known market patterns for the offer type.
@@ -187,6 +188,49 @@ payment, which makes them the highest-intent cold-email audience.
 ```
 
 Research honesty: do not invent proof points, awards, closings, or claims the client has not confirmed. Anything the agent could not verify is marked `to_verify` and surfaced in the correction step. A draft (later, in Automation Flow) may contain only claims the client confirmed or a contact dossier supports with an `evidence_url`; that discipline starts at the profile.
+
+---
+
+## Solo Agency Profile Bootstrap (read-only)
+
+OutreachCRM shares its per-client workspace with the Solo Agency content pipeline. When the same client already completed the content-pipeline setup, that product's Client Intelligence Profile exists ONE level above OutreachCRM's subtree:
+
+```text
+daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/
+  client_profile_{client_slug}_{business_slug}_{location_slug}.md      <- Solo Agency (content) profile
+  outreach/
+    client_profile_{client_slug}_{business_slug}_{location_slug}.md    <- OutreachCRM profile (this stage)
+```
+
+**Bootstrap check (mandatory):** BEFORE asking the Step-1 opening question for a new client, look for `daily-content-pipeline/clients/{client_slug}/*/client_profile_*.md` one level above the `outreach/` subtree (never inside it). Three outcomes:
+
+- **No match** → run the interview exactly as written below. Nothing changes.
+- **One match** → enter Bootstrap Mode.
+- **Multiple matches** (several `{business_slug}_{location_slug}` workspaces) → ask the human one question — which workspace this outreach client corresponds to — then enter Bootstrap Mode.
+
+**Bootstrap Mode** replaces the Step-1 QUESTION, never the Step-1 CONFIRMATION:
+
+1. Read the content-pipeline profile. Use ONLY its business-context fields. IGNORE its `public_data_sources` / `private_data_sources`, keyword-bank, collector, and PDNA production/distribution sections entirely — those concepts are deleted from OutreachCRM (DESIGN §3 "Deleted components") and must not be imported, referenced, or re-created here.
+2. Pre-fill the OutreachCRM profile from this mapping. Every pre-filled field keeps the `value` / `status` / `rationale` discipline: `status: discovered_from_source` with a rationale naming the source file path; the human's confirmation upgrades it (`human_corrected` on edits).
+
+   | Content-pipeline field | OutreachCRM field | Transform |
+   |---|---|---|
+   | `business_description` | `business_description` | copy, condense |
+   | `industry`, `sub_industry` | `industry`, `sub_industry` | copy |
+   | `business_offer` | `offer` | copy; split into offer items |
+   | positioning / offer promise | `value_prop` | rewrite in cold-email voice |
+   | `target_audience` | `icp` | NARROW to who will receive email (titles, firm types, geography, disqualifiers); never copy verbatim |
+   | `pain_points` | `pain_points` | re-rank by cold-email relevance |
+   | `target_location` | `target_location` | copy |
+   | `language` | `language.recipient_language` + `language.human_report_language` | map both explicitly |
+   | content pillars, proposal/website research | candidate `proof_points` (marked `to_verify`), `brand_voice` seed | `inferred_by_agent` |
+
+3. Do NOT ask the canonical First Human Question. Open with the FULL Step-1 inference block (all pre-filled + inferred fields, each with its status) and ask ONE `**[ACTION REQUIRED]**` confirmation per the Show Inference And Research Rule. The human confirms or corrects; they never re-type what the content-pipeline setup already established.
+4. Record the bootstrap in the profile's `bootstrap` block (Stage 7 schema): source path, the source profile's `last_reviewed_date`, bootstrap date, and the pre-filled field list.
+5. Bootstrap is a ONE-TIME SNAPSHOT, strictly one-way. Later edits to the content-pipeline profile do NOT flow here automatically, and OutreachCRM NEVER writes to the content-pipeline profile. If the human says the content side changed, re-run this rule as Setup Repair and show a diff for confirmation.
+6. Interview Steps 3, 4, 5, 7, and 9 are NOT bootstrappable — sending identity (legally load-bearing, CAN-SPAM), sendbox credentials, the contact list, the WideCast key, and the schedule are still asked exactly as written.
+7. Step 6 (first campaign) uses the bootstrapped profile to PROPOSE the full campaign goal and a seed message bank — see Step 6 and Stage 5 §1c. The human approves or edits; they do not author from scratch.
+8. A source field whose own status shows it was never human-confirmed on the content side may still be used, but its rationale must say so (e.g. `from Solo Agency profile; status there: inferred_by_agent, not yet human-confirmed`) so the human's attention lands on it during confirmation.
 
 ---
 
@@ -227,9 +271,10 @@ Setup follows exactly nine steps, aligned to the visible setup roadmap. Do not i
 
 ### Step 1 — Business, ICP, pain points, value proposition, and voice (one question, then infer)
 
-Ask the single opening question. From the answer plus research, infer and show for correction:
+Ask the single opening question — unless Bootstrap Mode is active (see the Solo Agency Profile Bootstrap rule), in which case skip the question and open directly with the pre-filled inference block. From the answer (or the bootstrapped profile) plus research, infer and show for correction:
 
 - `business` (what the client sells) and `offer`
+- `industry` and `sub_industry` (Stage 7 schema fields; inferred, never asked)
 - `icp` (who OutreachCRM will email)
 - `pain_points` of the ICP
 - `value_proposition` and candidate `proof_points` (mark unconfirmed ones `to_verify`)
@@ -375,6 +420,16 @@ every key message for email 1 and the follow-ups (or ask me to propose a set)"* 
 operator's list with domain knowledge and show the full bank back for approval before creating the
 campaign. Store both on the goal as shown above.
 
+In Bootstrap Mode (Solo Agency Profile Bootstrap), propose BOTH before asking: (a) the complete
+goal JSON — `goal_type` (a value from the valid enum), `objective`, `offer`, `value_proposition`,
+`proof_points`, `cta` — derived from the bootstrapped profile; and (b) a seed `message_bank` drawn
+from the profile's value proposition, pain points, and the content-pipeline positioning/themes,
+every proposed entry tagged `source: "agent"`. The two intake questions then collapse into
+confirmations: the companion-doc question is still asked normally (operator knowledge, never
+inferable), and the message-bank question becomes *"here is the proposed bank — approve, trim, or
+add your own"*. The Stage-5 §1c hard gate is unchanged: the operator approves every agent-added
+entry before the campaign is created.
+
 ```text
 **[ACTION REQUIRED]**
 
@@ -437,8 +492,9 @@ daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/out
 Stage-1-relevant fields the interview must fill (each with `value` / `status` / `rationale` where inferred):
 
 - `client_name`, `client_slug`, `business_slug`, `location_slug`
-- `business`, `offer`, `value_proposition`, `proof_points[]` (each `to_verify` until confirmed)
+- `business`, `industry`, `sub_industry`, `offer`, `value_proposition`, `proof_points[]` (each `to_verify` until confirmed)
 - `icp`, `pain_points[]`, `target_location`
+- `bootstrap` (only when Bootstrap Mode was used): source profile path, source `last_reviewed_date`, bootstrap date, pre-filled field list (Stage 7 schema)
 - `brand_voice`, `language` (audience language, report language)
 - `do_not_mention[]` / `negative_topics[]`
 - `sending_identity`: `from_name`, `signature`, `physical_postal_address`, `reply_to`, `unsubscribe_method`

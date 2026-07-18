@@ -35,6 +35,7 @@ Before claiming **Setup Flow** completion:
 - Confirm the agency-wide `OutreachCRM - GitHub Update Watch` task exists or is proposed, and that it is barred from client-facing channels.
 - Confirm any setup/config change made after schedule creation triggered Automation Resync.
 - Confirm at least one sendbox is connected and verified through Stage 2 (or explicitly recorded as pending), and that `sendboxes/{slug}/credentials.json` and `token.json` are gitignored and `chmod 600`.
+- If the Stage-1 Solo Agency Profile Bootstrap was used: confirm the read was one-way (nothing created or modified outside the client's `outreach/` subtree), every pre-filled field carried `status: discovered_from_source` and was confirmed or corrected by the human before the profile save, the profile's `bootstrap` block records the source path and date, and no data-sources/collector/PDNA-production concept leaked in from the source file.
 - Completion wording must be `ready_for_automation_first_run` or `ready_for_next_automation_run`, never `campaign sent`, `report complete`, or `emails delivered`.
 
 Before claiming **Automation Flow (Daily Run)** completion for a client:
@@ -456,6 +457,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 
 - [ ] Did I keep Setup Flow free of any send, enrichment-for-send, campaign run, or import-for-send?
 - [ ] Did I infer industry/sub-industry/audience/offer and show them before saving?
+- [ ] If the sibling Solo Agency content-pipeline profile existed, did I bootstrap from it (read-only, one-way) instead of re-asking, show every pre-filled field for confirmation, and record the `bootstrap` block?
 - [ ] Did I save the client profile at the correct path with valid slugs, only after showing the summary?
 - [ ] Did I connect/verify at least one sendbox (or record it pending), with `credentials.json`/`token.json` gitignored and `chmod 600`?
 - [ ] For an `app_password` box, did I confirm 2FA + App Password; for an `oauth` box, did I keep scopes to `gmail.send + gmail.readonly` and prefer an Internal OAuth app (else a scheduled day-6 re-auth `**[ACTION REQUIRED]**`)?

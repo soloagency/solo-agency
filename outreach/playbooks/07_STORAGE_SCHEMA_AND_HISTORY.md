@@ -27,6 +27,8 @@ This file is the detailed on-disk source material. Do not summarize away require
 
 The toolkit/source is the `outreach/` module of the Solo Agency repo (`soloagency/outreach/`, no client data). Its data lives in the shared Solo Agency data root, `daily-content-pipeline/` (data/config/output only): OutreachCRM data lives in the `outreach/` subtree of the shared per-client workspace (`daily-content-pipeline/clients/{slug}/{business}_{location}/outreach/`) so it sits beside — and never collides with — Solo Agency's content data for the same client. This is the complete, authoritative tree. Nothing outside it may be created without amending this stage.
 
+One **read-only external input** is sanctioned: at Stage-1 setup, OutreachCRM may READ the same client's Solo Agency content-pipeline Client Intelligence Profile (`clients/{client_slug}/{business_slug}_{location_slug}/client_profile_*.md`, one level above the `outreach/` subtree) to pre-fill the OutreachCRM profile — Stage 1 "Solo Agency Profile Bootstrap". This is a one-way read: OutreachCRM never creates or modifies anything outside its own `outreach/` subtree, and the content-pipeline file is never written.
+
 ```text
 soloagency/                          # Solo Agency monorepo (.git at this repo root)
   outreach/                          # this module (OutreachCRM toolkit/source), no client data
@@ -584,6 +586,14 @@ The profile is authored in **Setup Flow**, which is the control plane: it create
 - last_reviewed_date:
 - status: needs_setup | ready_for_automation_first_run | active | paused | archived
 
+## bootstrap   # present ONLY when Stage 1 pre-filled this profile from the sibling Solo Agency content-pipeline profile (read-only, one-way)
+
+source_profile_path:            # ../client_profile_{client_slug}_{business_slug}_{location_slug}.md
+source_profile_last_reviewed:   # that profile's last_reviewed_date at bootstrap time
+bootstrap_date:
+fields_prefilled:               # e.g. business_description, industry, sub_industry, offer, icp, pain_points, value_prop, target_location, language
+sync_policy: one_time_snapshot  # later content-pipeline edits never auto-flow here; re-run the bootstrap as Setup Repair with a shown diff
+
 ## business_description
 
 value:
@@ -632,6 +642,15 @@ segments:
   segment_id:            # must exist in crm/segments.json
   definition_summary:
   priority: high | medium | low
+
+## pain_points   # the ICP's pains cold email may speak to (Stage 1 fills this)
+
+status:
+rationale:
+items:
+- pain:
+  cold_email_relevance: high | medium | low
+  icp_segment:           # optional — which ICP segment feels it most
 
 ## value_prop
 
@@ -733,6 +752,34 @@ negative_topics:
 do_not_mention:
 -
 
+## pipeline
+
+pipeline_id: default_sales     # must exist in crm/pipelines.json
+status:
+rationale:
+
+## default_campaign
+
+campaign_slug:
+goal_summary:                  # goal_type + one-line objective
+status:
+rationale:
+
+## notification   # WideCast, notification-only
+
+provider: widecast
+api_key_ref: api_key_env | api_key_local   # never a field literally named api_key
+capabilities_file: integrations/providers/provider_capabilities.json
+status:
+rationale:
+
+## analytics_baseline
+
+baseline_date:
+nothing_sent_yet: true | false
+metric_honesty_note: reply/bounce/unsubscribe exact; opens estimated; plain_text_mode has no open pixel
+status:
+
 ## automation_sync
 
 status: current | needs_resync | automation_prompt_update_pending | partial | blocked
@@ -763,6 +810,7 @@ dry_read_verification:
 ### 8.2 Field discipline
 
 - Every `value / status / rationale` field records **what we believe, how sure we are, and why**. `status` should read like `confirmed | inferred | assumed | needs_human` so downstream drafting knows what it may lean on. Do not assert a `value` with no `rationale`.
+- **`bootstrap` is provenance metadata, not a license to skip confirmation.** Every field pre-filled by the Stage-1 Solo Agency Profile Bootstrap still carries its own `status` (`discovered_from_source` until the human confirms) and must be shown in the Step-1 inference block before the profile is saved.
 - **`sending_identity.physical_mailing_address` is required** — it is the CAN-SPAM footer address. A commercial campaign cannot be marked ready while `can_spam_physical_address_present` is `false`; surface it as `[ACTION REQUIRED]`.
 - **`custom_field_definitions`** is the *only* place custom-field keys are declared. `contact.custom_fields`, `account.custom_fields`, and deal custom fields must use keys defined here (with the declared `type`/`allowed_values`).
 - **`target_triggers`** seed the JIT pipeline (which cold/trigger leads to load 3–7 days ahead) and constrain which hook types a campaign may open on.

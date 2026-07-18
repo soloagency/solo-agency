@@ -89,6 +89,11 @@ video/blog/social skills, `10_LEAD_COMPETITOR_DETECTION.md` (folded into CRM),
 public/private "data sources" concepts, PDNA production/video/render/distribution
 (only PDNA **notification** survives).
 
+Note: the Stage-1 profile bootstrap reads ONLY business-context fields from the sibling
+content-pipeline profile. The deleted concepts above stay deleted — the bootstrap must ignore the
+source file's data-sources/collector/PDNA-production sections and must not re-introduce their
+vocabulary into OutreachCRM.
+
 ---
 
 ## 4. Stage Map (new)
@@ -136,6 +141,13 @@ OutreachCRM data lives in the `outreach/` subtree of the shared per-client works
 never collides with — Solo Agency's content data for the same client. Agency-global files
 (clients_index, schedule, suppression, secrets, provider defaults, automation state, notifications)
 sit at the shared data root.
+
+"Never collides" is a WRITE rule: the two products never write into each other's files. One
+sanctioned READ crosses the boundary: at Stage-1 setup, OutreachCRM may read the same client's Solo
+Agency content-pipeline Client Intelligence Profile (the `client_profile_*.md` one level above
+`outreach/`) to pre-fill its own profile — one-way, read-only, snapshot-at-setup (playbook Stage 1
+"Solo Agency Profile Bootstrap"). OutreachCRM never writes to content-pipeline files, and Solo
+Agency never reads `outreach/` data.
 
 ```text
 soloagency/                          # Solo Agency monorepo (.git at this repo root)
