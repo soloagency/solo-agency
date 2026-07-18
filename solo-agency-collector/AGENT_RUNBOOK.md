@@ -37,11 +37,32 @@ https://raw.githubusercontent.com/soloagency/solo-agency/dist/chrome-extension-c
 https://raw.githubusercontent.com/soloagency/solo-agency/dist/SHA256SUMS
 ```
 
-The agent should:
+### Recommended: use the canonical `setup_collector.sh` (do NOT hand-write the download/checksum step)
+
+There is ONE supported installer. Download it and have the human run it — it downloads the
+bundle, verifies the checksum (matched by BASENAME, so it works regardless of the
+`SHA256SUMS` path format), extracts the right binary for the machine, and prints the
+launch command. It never starts the bridge and is safe to re-run.
+
+```text
+https://raw.githubusercontent.com/soloagency/solo-agency/dist/setup_collector.sh
+```
+
+```bash
+# from the agency root (the folder that contains daily-content-pipeline/):
+curl -fsSL -o setup_collector.sh https://raw.githubusercontent.com/soloagency/solo-agency/dist/setup_collector.sh
+bash setup_collector.sh
+```
+
+Do NOT reimplement the checksum parsing yourself: a hand-written parser that assumed a
+bare filename dead-ended a real setup because `SHA256SUMS` can list a full path. The
+canonical script already handles bare-name, `*name`, and full-path formats.
+
+The manual steps below are the fallback only if the script cannot be used:
 
 1. Resolve the absolute agency root that contains both `daily-content-pipeline/` and `solo-agency-local-collector/`.
 2. Download the runtime files into the absolute `solo-agency-local-collector/downloads/` folder.
-3. Verify checksums when tools are available.
+3. Verify checksums by matching the file's BASENAME in `SHA256SUMS` (it may list a bare name, `*name`, or a full path); never require an exact full-path match.
 4. Extract bridge binaries into the absolute `solo-agency-local-collector/bin/` folder.
 5. Extract/copy the Chrome extension template into a per-client absolute `extensions/{client_slug}/` folder.
 6. Select the correct bridge binary for the user's OS/CPU.
