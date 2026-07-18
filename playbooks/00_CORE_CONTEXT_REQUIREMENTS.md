@@ -421,7 +421,7 @@ After the first automation report is delivered, the Automation Flow agent may as
 
 After the first automation report is delivered, if the human wants production, video/blog/social, publishing, notifications, analytics, or fully automatic operation, load the production/provider setup playbook and complete checklist step 7. In Setup Flow, treat this as provider/configuration only unless the human has explicitly moved into Automation Flow.
 
-If the human wants private data sources before the first automation run, load the private data source playbook, complete Local Collector setup if needed, then update the client-specific automation task. Do not run an approved discovery/scan inside Setup Flow; the first Automation Flow run should include that data or mark it pending honestly.
+If the human wants private data sources before the first automation run, load the private data source playbook, complete Local Collector setup if needed, then update the client-specific automation task. Do not run an approved discovery/scan inside Setup Flow; record the state as `approved_pending_first_scan` and resync the automation task. The first Automation Flow run MUST then execute the approved discovery/scan and present the candidate shortlist for human approval when the Local Collector and matching extension are healthy, or report the exact collector blocker — it must not silently defer approved discovery while the collector is healthy.
 
 ### Published Content Measurement Requirement
 
