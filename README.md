@@ -36,6 +36,16 @@ This playbook connects the full agency loop: research, ideas, lead and competito
 - A production layer for idea-to-video, blog/social creation, auto-posting, notifications, analytics, and build-measure-learn-improve loops.
 - A multi-client workflow for freelancers and agencies that need repeatable output without rebuilding strategy from scratch every morning.
 
+## Features At A Glance
+
+- **Content engine** — daily source-backed content ideas, the best idea of the day, a Hot/Trend/Evergreen idea matrix, and 5 ready-to-shoot draft angles. Approved ideas become real videos, blogs, and social posts.
+- **Market intelligence** — finds leads and competitor moves during research, monitors the private groups/communities your audience actually gathers in (Local Collector), and runs an analytics + learning loop once content is published.
+- **Cold-email outreach & CRM** — import a prospect list, verify and enrich each lead with evidenced hooks, run goal-driven personalized cold-email campaigns with automatic value-add follow-ups, and track replies through a CRM pipeline. Nothing sends without your chat approval.
+- **Notifications** — the daily report and hot-lead alerts are pushed to you by email + Telegram in one step (WideCast), so you do not have to sit in front of the agent.
+- **Runs for you** — one client or your whole roster, on a daily schedule, with human-approval gates on everything that sends, spends, or publishes.
+
+*Full capability list with the exact phrase to trigger each one: [`playbooks/FEATURE_CATALOG.md`](playbooks/FEATURE_CATALOG.md).*
+
 ## What You Get Every Day
 
 - A client-ready HTML report with insights, proof, recommendations, and next actions.
