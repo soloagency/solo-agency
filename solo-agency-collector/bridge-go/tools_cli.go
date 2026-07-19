@@ -122,6 +122,8 @@ func maybeRunToolCLI(args []string) (handled bool, exitCode int) {
 		return true, runImportLeadsCLI(args[2:])
 	case "render-report":
 		return true, runRenderReportCLI(args[2:])
+	case "provider":
+		return true, runProviderCLI(args[2:])
 	case "verify-email":
 		if len(args) < 3 {
 			return true, usage()
