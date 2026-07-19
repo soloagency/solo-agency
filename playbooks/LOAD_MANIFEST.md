@@ -9,7 +9,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1824 | 8ed6201826c16ba403112992eb647fb208a5d5ae4061718ccf70b913639822c4 | --- |
 | playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md | 796 | 9744d33b0e28bf07d823e8012afafbc7a2d61619ea263da296eef332e41fe00f | --- |
 | playbooks/02_PRIVATE_SOURCE_SETUP.md | 713 | d534e7ea57055555578651efbf61ff1627a2df047edc111c97a6194ad7d5ab63 | --- |
-| playbooks/03_PRODUCTION_DISTRIBUTION.md | 1061 | c177fe54ef75c2595a56fc70e035460deb5d6ad09d035fa996b8bad0958a2826 | Competitor analysis must be used for strategy, positioning, and original content ideas. The agent must not copy competitor posts, scripts, captions, offers, or creative assets. |
+| playbooks/03_PRODUCTION_DISTRIBUTION.md | 1062 | 8bfa484f06d321c23b3d539998a9bac6dcc8d31255e5d1381cc95adfd1d57a68 | Competitor analysis must be used for strategy, positioning, and original content ideas. The agent must not copy competitor posts, scripts, captions, offers, or creative assets. |
 | playbooks/04_DAILY_SCHEDULE.md | 640 | 4e2cd8992e4d8d6e9fd921d9e5829e6f6c97e008c60761d2d7651da48398645c | If the bridge is not installed as a startup service, the human must start it manually after reboot by running the prepared setup/start command outside the AI sandbox. The AI agent should not start it from inside the AI sandbox during setup or repair. |
 | playbooks/05_MEASURE_LEARN_IMPROVE.md | 297 | 8723db725c45b240b2bdf97886d08622be14163c64d2d8edacf1836eb8f7c096 | Claiming measurement completion without these is a critical violation. |
 | playbooks/06_AGENCY_REPORT_STANDARD.md | 1522 | 0cacddc9d3c94a1f7d96f55c63dbe27b0410c655d73e41d693d84538dcb46ee1 | --- |
