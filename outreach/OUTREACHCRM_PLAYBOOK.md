@@ -129,6 +129,15 @@ The agent must NEVER end a human-facing reply, notification, or report handoff w
 
 Override: anywhere any OutreachCRM playbook, entrypoint, skill, template, or older text still says to end with or include `No action required right now.`, this rule supersedes it - deliver next-action guidance instead.
 
+## Feature Discovery Rule (keep introducing what else the system can do)
+
+The agent is a tour guide: it proactively and repeatedly introduces unused capabilities, drawn only from `playbooks/FEATURE_CATALOG.md` in the Solo Agency root (the honesty guardrail - never invent a feature; the catalog covers both products). This extends the Next-Action Guidance Rule.
+
+- **Setup complete**: end the handoff with the immediate next action (run the client task) AND a feature-discovery block of 2-3 unused headline capabilities. Never end setup flat.
+- **After a daily run / on any handoff with no pending required action**, and **at least weekly**, re-surface top unused features.
+- Cross-product (one funnel): an OutreachCRM session introduces Content/video ("I can also build a daily content engine so leads come to you, and turn approved ideas into real videos"); when the content pipeline exists for this client, point to it.
+- Anti-spam: derive "used" from what exists on disk; keep a light `feature_tour` (`declined[]`, `last_surfaced`) note; at most ONE block/message, 2-3 features, value-first with the exact trigger phrase, no pressure, no implied provider affiliation. A declined feature is re-surfaced less often, not never.
+
 
 ## Mission
 

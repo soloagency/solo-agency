@@ -154,6 +154,25 @@ Every human-facing reply ends with next-action guidance:
 
 Override: anywhere any playbook, entrypoint, skill, template, or older text still says to end with or include `No action required right now.`, this rule supersedes it - deliver next-action guidance instead. The `**[ACTION REQUIRED]**` contract itself is unchanged.
 
+## Feature Discovery Rule (the tour guide keeps introducing what else the system can do)
+
+Retention depends on the human learning what this system can do for them. The agent is a tour guide: it proactively and repeatedly introduces unused capabilities, drawn only from `playbooks/FEATURE_CATALOG.md` (the honesty guardrail - never invent a feature). This extends the Next-Action Guidance Rule; it does not replace the primary next action.
+
+When to surface a feature-discovery block (aggressive pacing, but paced - not every message):
+
+- **Setup complete** - the setup handoff MUST end with both the immediate next action (run the task) AND a feature-discovery block introducing 2-3 headline capabilities the human has not used yet (for example lead & competitor detection, cold-email outreach, WideCast video creation). Never end setup flat.
+- **After the first automation report**, and on any report/notification where the human has no pending required action.
+- **When a run detects leads or competitor moves** - surface Outreach at the TOP of the suggestions (highest-intent cross-sell moment).
+- **Periodically** - at least once a week, re-surface the top unused high-value features.
+
+Anti-spam and rotation (so "remind often" does not become nagging):
+
+- Derive "already used" from what exists on disk (a campaign folder = outreach used; produced videos = production used; approved private sources = monitoring used) rather than a hand-kept list. Only surface features NOT yet used.
+- Keep a light `feature_tour` note in the Client Intelligence Profile: `declined[]` and `last_surfaced` per feature. Rotate through unused features; never repeat the same feature two messages in a row; a declined feature is re-surfaced less often (roughly monthly), not never.
+- At most ONE feature-discovery block per message, at most 2-3 features in it, one scannable line each: value first, then the exact trigger phrase. Plain language, no pressure, no implied Solo Agency-provider affiliation. If a feature needs setup first, say so.
+
+Cross-product: this is one funnel. A content-pipeline session introduces OutreachCRM (lead gen + cold email); an OutreachCRM session introduces content/video. Introducing a feature is never a cross-client or cross-product data read - it is always allowed; the one-way data boundary stays intact.
+
 ## Notification Operation And Copy Standard
 
 Operation (WideCast default provider):
@@ -720,7 +739,7 @@ Let me know if you need anything else.
 Next steps are in the report.
 ```
 
-Even when the entire requested workflow is complete and no human decision is required, the agent still closes with next-action guidance per the Next-Action Guidance Rule: suggest 1-3 real, currently-available next steps and ask which one the human wants.
+Even when the entire requested workflow is complete and no human decision is required, the agent still closes with next-action guidance per the Next-Action Guidance Rule AND a feature-discovery block per the Feature Discovery Rule: suggest 1-3 real, currently-available next steps (including unused headline features from `playbooks/FEATURE_CATALOG.md`) and ask which one the human wants.
 
 ## Non-Negotiable Summary
 
@@ -769,7 +788,7 @@ Setup is not complete until:
 - Schedule/routine and the client-specific automation task were configured before the private data source checkpoint, with a public data sources baseline if no private data sources were active yet.
 - The step 6 private data source intake/discovery/approval plus the Local Collector checkpoint were resolved, declined, postponed, or honestly marked pending, and the automation task was resynced or confirmed current afterward.
 - The automation task contract requires the first automation run to load Stage 10, generate the three-file client-facing HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), generate `{client-name}-INTERNAL_REPORT.html`, pass the Client-Blind Scrub Gate, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, reject direct-promo ideas as `promotional_not_value_first`, and create at least one useful audience-value-first draft script/blog/caption.
-- The setup handoff showed the exact task name the human should run for the first report.
+- The setup handoff showed the exact task name the human should run for the first report, AND ended with a feature-discovery block introducing 2-3 unused headline capabilities (Feature Discovery Rule) - setup never ends flat.
 - PDNA - Production, Distribution, Notification, and Analytics - was treated as provider/configuration setup only, not report/video/publish execution inside Setup Flow.
 - After schedule/automation exists, the `Solo Agency - GitHub Update Watch` maintenance task was offered/configured or the exact pending prompt path/action was recorded.
 

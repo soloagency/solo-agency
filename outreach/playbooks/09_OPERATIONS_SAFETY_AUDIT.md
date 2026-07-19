@@ -445,6 +445,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] If handing control back while required steps remain, is the final line exactly one concrete next-step question?
 - [ ] If human action is needed, did I show the exact action directly in chat inside a `**[ACTION REQUIRED]**` block, not buried in paragraphs or a file link?
 - [ ] If no human action was needed, did I end with next-action guidance per the Next-Action Guidance Rule (1-3 real available next steps, the first resuming the current or interrupted flow, plus one closing question) instead of `No action required right now.` or an ambiguous ending?
+- [ ] At setup-complete or a no-pending-action handoff (and at least weekly), did I include a feature-discovery block (Feature Discovery Rule, from `playbooks/FEATURE_CATALOG.md`) introducing 2-3 unused capabilities including the content/video side of the funnel, value-first with the exact trigger phrase, not nagging?
 - [ ] Did I keep the most important action at the end, with no more than three `**[ACTION REQUIRED]**` blocks, and never an icon as the only signal?
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I mentioned a report, did I provide the `.html` path/link (never `.md`) and, for the weekly report, confirm the scrub gate?

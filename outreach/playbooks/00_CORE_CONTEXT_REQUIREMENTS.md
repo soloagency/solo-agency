@@ -211,7 +211,7 @@ Roadmap integrity: always show all items in order (all 9); never hide later item
 
 ### 0.15 Progress + next-step question rule
 
-While setup or a run is still incomplete, every human-facing reply that hands control back must include a compact progress block. If any required step remains and the agent is waiting, the final line must be exactly one clear next-step question — never a passive summary, a bare report link, or "let me know what you think." Omit the question only when the entire requested workflow is complete and no human decision is required. Human-facing reports are HTML; Markdown files are internal source-of-truth records and must not be handed to the human as the report experience.
+While setup or a run is still incomplete, every human-facing reply that hands control back must include a compact progress block. If any required step remains and the agent is waiting, the final line must be exactly one clear next-step question — never a passive summary, a bare report link, or "let me know what you think." Even when the entire requested workflow is complete and no human decision is required, still close with next-action guidance AND a feature-discovery block per the OutreachCRM Feature Discovery Rule (unused headline features from `playbooks/FEATURE_CATALOG.md` in the Solo Agency root, both products). Human-facing reports are HTML; Markdown files are internal source-of-truth records and must not be handed to the human as the report experience.
 
 ---
 

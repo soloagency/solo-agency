@@ -1396,7 +1396,7 @@ Initial setup is complete when:
 15. If no private data sources are active, the automation contract includes `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed`, with a plain note that public-only reports can miss community, lead, and competitor signals.
 16. If the client's WideCast/OpenAPI provider config is not connected and verified, the automation report contract requires the PDNA/WideCast setup note in `INTERNAL_REPORT` and the operator handoff, not in client-facing reports.
 17. If the human agrees to activate private data sources, `daily-content-pipeline/collector/collector_setup_status.md` exists and shows either `installed_and_running` or a precise blocked status with the required human action.
-18. The setup handoff tells the human the exact client-specific automation task name to run for the first report.
+18. The setup handoff tells the human the exact client-specific automation task name to run for the first report, AND ends with a feature-discovery block introducing 2-3 unused headline capabilities (Feature Discovery Rule) - setup never ends flat.
 19. Any required human action is also shown directly in the current chat message with one clear command, one double-clickable launcher path, or one absolute extension folder path. Markdown-only setup instructions are a failure.
 20. Only after the first agency report and draft are shown does the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
 
@@ -1474,6 +1474,7 @@ Before replying to the human, verify:
 - [ ] If human action is needed, did I show the exact action directly in chat or notification?
 - [ ] If human action is needed, did I use the root playbook `**[ACTION REQUIRED]**` block instead of burying the question/action in paragraphs, reports, file links, or progress text?
 - [ ] If no human action was required, did I end with next-action guidance per the Next-Action Guidance Rule - 1-3 real, currently-available next steps (the first resuming the current or interrupted flow) plus exactly one closing question - instead of `No action required right now.` or a passive ending?
+- [ ] At setup-complete, a no-pending-action handoff, a lead-detected run, or the weekly cadence, did I include a feature-discovery block (Feature Discovery Rule) drawn from `playbooks/FEATURE_CATALOG.md` - unused features only, value-first with the exact trigger phrase, at most 2-3, not repeating one surfaced last message, and Outreach on top when leads were found?
 - [ ] Did I keep the most important required action at the end of the reply, with no more than three `**[ACTION REQUIRED]**` blocks?
 - [ ] Did I avoid telling the human to open a Markdown file for instructions?
 - [ ] If I am about to report a blocker, repeated failure, unclear contradiction, stale artifact, missing capability, or dead end, did I first run Last-Resort Recovery by checking GitHub `main` for newer Solo Agency playbooks/code and reloading the latest relevant instructions?

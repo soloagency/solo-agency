@@ -1398,6 +1398,14 @@ collector_panel:
   show_data_point_count: true
   show_status: true
 
+## feature_tour   # light state for the Feature Discovery Rule (tour-guide anti-spam/rotation)
+
+introduced:                    # feature keys already surfaced to the human
+-
+declined:                      # feature keys the human declined (re-surface ~monthly, not never)
+-
+last_surfaced:                 # feature_key: YYYY-MM-DD, to rotate and avoid repeating twice in a row
+
 ## automation_sync
 
 status: current | needs_resync | automation_prompt_update_pending | partial | blocked
