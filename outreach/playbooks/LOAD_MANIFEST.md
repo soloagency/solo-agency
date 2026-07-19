@@ -5,9 +5,9 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 457 | 9066dbb95732fa73a8a3b608f7d0fc19fe44681595a244909387c874f5411047 | If any required stage was not loaded, load it before proceeding. |
-| playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 473 | 5c4fb85702815b714f9d5199cb3dbfdba5ffa727d646723f7dfe635e5bf130be | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
-| playbooks/01_CLIENT_SETUP_PROFILE.md | 714 | 7a629ec92c5453bb73db5212cace8c055375daac9ceb15126b7e0f0863addb25 | --- |
+| OUTREACHCRM_PLAYBOOK.md | 457 | daaf96120a20a6c62d2eed903a94dce9e7b3461548d22b6a96c2a1f44116ce95 | If any required stage was not loaded, load it before proceeding. |
+| playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 473 | f5e332dc948591c07f090a3e4c2f34a2703bb26d105c01ceffd4636ebbaac9ce | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
+| playbooks/01_CLIENT_SETUP_PROFILE.md | 722 | a995d2b777796bb1122854fa3180d291cf6b9980e47b3cd630347496f0a3eb1f | --- |
 | playbooks/02_SENDBOX_SETUP.md | 257 | 22716a9cd1ac68aa4dabe06000582958c1c68a8d6a3c8cf67008bb93bb307a85 | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/03_IMPORT_LIST.md | 319 | 95f971919cf78e95bda37236c82a93384229d73b724c79d2496f633a8d32840e | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/04_VERIFY_ENRICH.md | 111 | 9af27366840dff32beb9861e1e3180d46ea15af50cc6c54a0852fb5e9e168991 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
@@ -15,7 +15,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/06_EMAIL_WRITING_STANDARD.md | 130 | 63751cad64edc8385dc2efa2c5339b4b643bfb077cd70f2144c5f9d97615e306 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1446 | 568bab6326f19673b5f40fae7e8ecbb46eada188f4162cc0c0b676ce3f55f2a1 | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule. |
 | playbooks/08_SEND_ENGINE_PROTOCOL.md | 185 | 33e2cd7a016c8c29502df89f8599faad2582b61bd447c4ef2955fb05a029a3fa | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| playbooks/09_OPERATIONS_SAFETY_AUDIT.md | 634 | 43c3094ffad0e44a912416cbaff8ee637a3f542c7baed3dc1724ab3b86b81156 | This is the intended operating model. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/09_OPERATIONS_SAFETY_AUDIT.md | 635 | aed0bf3441941fc50c8d63c403f689e97703d0ce9cb459e0391b19bad46d6555 | This is the intended operating model. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/10_FOLLOWUP_REPLY_MANAGEMENT.md | 182 | 11544252678d6166dcf858426d7d2e1b8f5e0d14cfb2fd282307f137edf88765 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/11_UPDATE_AND_VERSION_WATCH.md | 413 | c44d5b673d7c89c1f45a98399e329d5a785e0f90ac3c93ea7b99eee4fa89d1e7 | - If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And GitHub Issue Escalation Rule. |
 | playbooks/13_CRM_CORE.md | 77 | bde62422d2b2e8b2d81c0a592136fec55bc6560b84c74500da964f5af7ace4d4 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
