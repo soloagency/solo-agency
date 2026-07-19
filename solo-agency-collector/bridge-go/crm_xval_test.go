@@ -92,18 +92,19 @@ func runGoStep(t *testing.T, s xstep) xresult {
 var ulidRe = regexp.MustCompile(`(c_|d_|act_|draft_|rsv_)?[0-9A-HJKMNP-TV-Z]{26}`)
 
 type canonicalizer struct {
-	root string
-	ids  map[string]string
-	n    int
+	root   string
+	ids    map[string]string
+	shorts map[string]string // 10-char truncations (kanban/today-view print id[:10])
+	n      int
 }
 
 func newCanon(root string) *canonicalizer {
-	return &canonicalizer{root: root, ids: map[string]string{}}
+	return &canonicalizer{root: root, ids: map[string]string{}, shorts: map[string]string{}}
 }
 
 func (cz *canonicalizer) apply(s string) string {
 	s = strings.ReplaceAll(s, cz.root, "<ROOT>")
-	return ulidRe.ReplaceAllStringFunc(s, func(m string) string {
+	s = ulidRe.ReplaceAllStringFunc(s, func(m string) string {
 		// explicit fixture ids (c_lead1 etc.) never match the 26-char pattern
 		if v, ok := cz.ids[m]; ok {
 			return v
@@ -115,8 +116,17 @@ func (cz *canonicalizer) apply(s string) string {
 		}
 		v := fmt.Sprintf("<%sID%d>", prefix, cz.n)
 		cz.ids[m] = v
+		// the ULID's leading chars are wall-clock ms, so a printed id[:10] is
+		// only COINCIDENTALLY equal across the two runs — canonicalize it too
+		if len(m) > 10 {
+			cz.shorts[m[:10]] = fmt.Sprintf("<%sSID%d>", prefix, cz.n)
+		}
 		return v
 	})
+	for short, v := range cz.shorts {
+		s = strings.ReplaceAll(s, short, v)
+	}
+	return s
 }
 
 // canonJSON parses s as JSON and re-renders deterministically (sorted keys,
