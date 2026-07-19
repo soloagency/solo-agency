@@ -2,10 +2,11 @@
 Solo Agency — Local Collector setup (Windows / PowerShell).
 
 PowerShell counterpart of setup_collector.sh for machines that cannot run .sh
-(Windows without Git Bash/WSL). Same behavior: download the bridge bundle + SHA256SUMS,
-verify the checksum (matched by BASENAME, tolerant of bare / *name / full-path formats),
-extract the binary for THIS machine, and print the launch command. It never starts the
-bridge and is safe to re-run (idempotent).
+(Windows without Git Bash/WSL). One command does the whole setup and is safe to re-run:
+download the bundle + SHA256SUMS, verify the checksum (matched by BASENAME, tolerant of
+bare / *name / full-path formats), extract the binary for THIS machine, STOP any bridge
+already on the port (it never kills a non-collector process), and START the newest bridge
+in the BACKGROUND so you can close the window. It never fails on "address already in use".
 
   Windows:  powershell -ExecutionPolicy Bypass -File setup_collector.ps1
   PS7:      pwsh -File setup_collector.ps1
@@ -32,6 +33,12 @@ $Runtime = Join-Path $Root 'solo-agency-local-collector'
 $DL      = Join-Path $Runtime 'downloads'
 $Bin     = Join-Path $Runtime 'bin'
 New-Item -ItemType Directory -Force -Path $DL, $Bin | Out-Null
+$Port       = if ($env:SOLO_AGENCY_BRIDGE_PORT) { [int]$env:SOLO_AGENCY_BRIDGE_PORT } else { 17321 }
+$ConfigFile = Join-Path $Root 'daily-content-pipeline/collector/collector_config.json'
+$OutputDir  = Join-Path $Root 'daily-content-pipeline/collector/inbox'
+$PidFile    = Join-Path $Runtime 'collector.pid'
+$LogFile    = Join-Path $Runtime 'collector.log'
+New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
 # --- platform detection ------------------------------------------------------
 # $IsWindows/$IsMacOS/$IsLinux exist only in PowerShell 6+. Windows PowerShell 5.1
@@ -84,11 +91,11 @@ Say "Solo Agency Local Collector setup (v$Version)"
 Info "Machine : $O/$A  ->  bridge binary: $TargetBin"
 Info "Install : $Runtime"
 
-Say "1/4  Fetching checksums"
+Say "1/6  Fetching checksums"
 Get-File $Sums (Join-Path $DL $Sums)
 Ok "got $Sums"
 
-Say "2/4  Fetching the bridge bundle"
+Say "2/6  Fetching the bridge bundle"
 $want = Get-ExpectedSum $Bundle
 if (-not $want) { Fail "Checksum for $Bundle not found in $Sums." "The published checksum file looks out of date. Re-run in a minute; if it persists, tell your setup agent." }
 $want = $want.ToLower()
@@ -100,23 +107,55 @@ if ((Test-Path $bundlePath) -and ((Get-Sha256 $bundlePath) -eq $want)) {
   Ok "downloaded $Bundle"
 }
 
-Say "3/4  Verifying checksum"
+Say "3/6  Verifying checksum"
 if ((Get-Sha256 $bundlePath) -ne $want) {
   Remove-Item -Force $bundlePath
   Fail "Checksum MISMATCH for $Bundle (download corrupted or tampered)." "Deleted the bad file - run this script again to re-download. Do NOT use a file that fails this check."
 }
 Ok "checksum verified"
 
-Say "4/4  Extracting your binary"
+Say "4/6  Extracting your binary"
 Expand-Archive -Path $bundlePath -DestinationPath $Bin -Force
 $binPath = Join-Path $Bin $TargetBin
 if (-not (Test-Path $binPath)) { Fail "The bundle did not contain $TargetBin." "It may be built for a different version. Tell your setup agent." }
 Ok "installed: $binPath"
 
-Say "Setup complete. Start the bridge yourself with (this script does NOT start it):"
-Write-Host ""
-Write-Host "  & `"$binPath`" --host 127.0.0.1 --port 17321 ``"
-Write-Host "      --config-file daily-content-pipeline/collector/collector_config.json ``"
-Write-Host "      --output-dir daily-content-pipeline/collector/inbox --persistent"
-Write-Host ""
+if ($env:SOLO_AGENCY_SETUP_NO_START -eq '1') {
+  Say "Install complete (SOLO_AGENCY_SETUP_NO_START=1 -> not stopping/starting the bridge)."
+  Info "To run it: powershell -ExecutionPolicy Bypass -File setup_collector.ps1"
+  exit 0
+}
+
+Say "5/6  Stopping any bridge already on port $Port"
+try { Invoke-WebRequest -UseBasicParsing -Method Post -Uri "http://127.0.0.1:$Port/shutdown" -TimeoutSec 3 | Out-Null } catch { }
+if (Test-Path $PidFile) {
+  $oldPid = (Get-Content $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1)
+  if ($oldPid) { try { Stop-Process -Id ([int]$oldPid) -Force -ErrorAction SilentlyContinue } catch { } }
+}
+# Kill the port owner ONLY if it is a collector-bridge — never an unknown process.
+if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
+  foreach ($c in (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)) {
+    $op = Get-Process -Id $c.OwningProcess -ErrorAction SilentlyContinue
+    if ($op -and ($op.ProcessName -like '*collector-bridge*')) { try { Stop-Process -Id $op.Id -Force -ErrorAction SilentlyContinue } catch { } }
+    elseif ($op) { Fail "Port $Port is held by a NON-collector process (PID $($op.Id)): $($op.ProcessName)" "This setup will not kill an unknown process. Stop it yourself, then re-run." }
+  }
+}
+Start-Sleep -Seconds 1
+Ok "port $Port is free"
+
+Say "6/6  Starting the newest bridge (background, persistent)"
+if (-not (Test-Path $ConfigFile)) { Warn "config not found at $ConfigFile - starting anyway; if the bridge exits, create the config and re-run." }
+$argList = @('--host','127.0.0.1','--port',"$Port",'--config-file',$ConfigFile,'--output-dir',$OutputDir,'--persistent')
+$proc = Start-Process -FilePath $binPath -ArgumentList $argList -RedirectStandardOutput $LogFile -RedirectStandardError "$LogFile.err" -WindowStyle Hidden -PassThru
+$proc.Id | Out-File -FilePath $PidFile -Encoding ascii
+Start-Sleep -Seconds 2
+if ($proc.HasExited) {
+  Fail "The bridge exited right after starting." ("Last lines of ${LogFile}:`n" + ((Get-Content $LogFile -Tail 15 -ErrorAction SilentlyContinue) -join "`n"))
+}
+Ok "bridge running (pid $($proc.Id))"
+
+Say "Done - the collector is running in the background. You can close this window."
+Info "Port   : 127.0.0.1:$Port"
+Info "Status : curl http://127.0.0.1:$Port/status"
+Info "Logs   : $LogFile"
 Info "One-time: install the Chrome extension via Developer Mode (see AGENT_RUNBOOK.md)."
