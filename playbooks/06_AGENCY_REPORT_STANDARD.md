@@ -15,7 +15,7 @@ contract, and the report-design skill controls visual quality.
 ## Hard Gates For This Stage
 
 - Canonical human-facing report output is one standalone HTML file per client/day/run: `{client-name}-client-report.html`. A PDF companion generated from that same HTML is mandatory when export is available and safe.
-- Markdown is internal.
+- **Markdown is internal only, and is NEVER the report the human sees.** The report handed to, shown to, linked for, notified to, or delivered to the human is ALWAYS the rendered HTML (`{client-name}-client-report.html`) plus its mandatory PDF companion — never a `.md`. Producing only a `.md` report, ending a run by pointing the human at a `.md`, or showing/sending/asking the human to open a `.md` as the report is a workflow violation. If the HTML render cannot be produced, surface the exact renderer blocker; never fall back to handing the human a `.md`.
 - The report must be standalone, mobile-friendly, agency-grade, and factually aligned with the Markdown source.
 - The report must use the reusable report-design module and reusable renderer path by default. Do not write one-off Python/HTML/PDF scripts for ordinary report generation.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
@@ -56,7 +56,7 @@ The agent must keep the Markdown file even when an HTML report is created, unles
 - regenerating HTML reports;
 - preserving references, reasoning, leads, competitors, provider-backed drafts, and operational notes without parsing HTML.
 
-The HTML report must be created from the same facts, references, ideas, analysis, and draft content as the Markdown report, but it may use a custom structure and design. It must not become a factually divergent report. If the agent can only preserve one long-term artifact, preserve the Markdown file first and regenerate HTML later. If the agent can only deliver one artifact to the human, deliver the HTML report because all user-facing reports must be HTML.
+The HTML report must be created from the same facts, references, ideas, analysis, and draft content as the Markdown report, but it may use a custom structure and design. It must not become a factually divergent report. If the agent can only preserve one long-term storage artifact, preserve the Markdown source first and regenerate HTML later — but this is about long-term storage only; the human-facing handoff in every run still requires the rendered HTML, and the `.md` is never handed to the human as the report. If the agent can only deliver one artifact to the human, deliver the HTML report because all user-facing reports must be HTML.
 
 ### Human-Facing Report Rule: HTML Plus PDF Companion
 
