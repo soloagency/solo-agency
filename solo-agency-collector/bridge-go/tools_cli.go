@@ -118,6 +118,8 @@ func maybeRunToolCLI(args []string) (handled bool, exitCode int) {
 	switch args[1] {
 	case "crm-store":
 		return true, runCrmStoreCLI(args[2:])
+	case "import-leads":
+		return true, runImportLeadsCLI(args[2:])
 	case "verify-email":
 		if len(args) < 3 {
 			return true, usage()

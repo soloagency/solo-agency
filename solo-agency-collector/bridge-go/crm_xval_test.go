@@ -375,3 +375,102 @@ func clip(s string) string {
 	}
 	return s
 }
+
+func TestImportLeadsGoldenCrossValidation(t *testing.T) {
+	pyRepo := findCrmStorePy(t)
+	pyTool := filepath.Join(filepath.Dir(pyRepo), "import_leads.py")
+	if _, err := os.Stat(pyTool); err != nil {
+		t.Skip("import_leads.py not present")
+	}
+
+	pyRoot := filepath.Join(t.TempDir(), "dcp")
+	goRoot := filepath.Join(t.TempDir(), "dcp")
+	pyWS := filepath.Join(pyRoot, "clients", "leadup", "video_us", "outreach")
+	goWS := filepath.Join(goRoot, "clients", "leadup", "video_us", "outreach")
+
+	csvBody := "Full Name,Email,Cell Phone,Office Name,Website\n" +
+		"Susan Vo,susan@kw.com,(415) 555-0101,KW Bay Area,https://susanvo.com\n" +
+		"Binh Tran,BINH@remax.com,,RE/MAX,\n" +
+		"No Identity,,,,\n" +
+		"Susan Dup,susan@kw.com,,KW,\n" +
+		"Spam Guy,spam@x.com,,X,\n"
+	csvPath := filepath.Join(t.TempDir(), "leads.csv")
+	if err := os.WriteFile(csvPath, []byte(csvBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	steps := []xstep{
+		{FakeNow: "2026-07-19T11:00:00Z", Argv: []string{"crm", "--pipeline", "{ROOT}", "--client", "leadup", "--business", "video", "--location", "us", "init-client"}},
+		{FakeNow: "2026-07-19T11:01:00Z", Argv: []string{"crm", "--client-dir", "{WS}", "suppress", "add", "--kind", "email", "--value", "spam@x.com", "--reason", "unsubscribe"}},
+		{FakeNow: "2026-07-19T11:02:00Z", Argv: []string{"leads", "inspect", "--file", csvPath}},
+		{FakeNow: "2026-07-19T11:03:00Z", Argv: []string{"leads", "import", "--client-dir", "{WS}", "--file", csvPath, "--list-slug", "realtors", "--no-mx-check"}},
+		{FakeNow: "2026-07-19T11:04:00Z", Argv: []string{"leads", "import", "--client-dir", "{WS}", "--file", csvPath, "--list-slug", "realtors", "--no-mx-check"}}, // idempotent no-op
+		{FakeNow: "2026-07-19T11:05:00Z", Argv: []string{"crm", "--client-dir", "{WS}", "contact", "list", "--where", "lifecycle_stage,=,lead"}},
+	}
+
+	pyCanon := newCanon(pyRoot)
+	goCanon := newCanon(goRoot)
+	// the CSV lives outside both roots; canonicalize its temp path too
+	csvDir := filepath.Dir(csvPath)
+
+	for i, s := range steps {
+		pyArgv := make([]string, len(s.Argv))
+		goArgv := make([]string, len(s.Argv))
+		for j, a := range s.Argv {
+			pyArgv[j] = strings.ReplaceAll(strings.ReplaceAll(a, "{ROOT}", pyRoot), "{WS}", pyWS)
+			goArgv[j] = strings.ReplaceAll(strings.ReplaceAll(a, "{ROOT}", goRoot), "{WS}", goWS)
+		}
+		var pr, gr xresult
+		if pyArgv[0] == "crm" {
+			pr = runPyStep(t, pyRepo, xstep{FakeNow: s.FakeNow, Argv: pyArgv[1:]})
+			gr = runGoStep(t, xstep{FakeNow: s.FakeNow, Argv: append([]string{}, goArgv[1:]...)})
+		} else {
+			pr = runPyStep(t, pyTool, xstep{FakeNow: s.FakeNow, Argv: pyArgv[1:]})
+			gr = func() xresult {
+				t.Setenv("OUTREACHCRM_TEST_MODE", "1")
+				t.Setenv("OUTREACHCRM_FAKE_NOW", s.FakeNow)
+				oldOut, oldErr := os.Stdout, os.Stderr
+				rOut, wOut, _ := os.Pipe()
+				rErr, wErr, _ := os.Pipe()
+				os.Stdout, os.Stderr = wOut, wErr
+				code := runImportLeadsCLI(goArgv[1:])
+				os.Stdout, os.Stderr = oldOut, oldErr
+				wOut.Close()
+				wErr.Close()
+				outB, _ := io.ReadAll(rOut)
+				errB, _ := io.ReadAll(rErr)
+				return xresult{code, string(outB), string(errB)}
+			}()
+		}
+		if pr.Code != gr.Code {
+			t.Fatalf("leads step %d %v: exit py=%d go=%d\npy-err: %s\ngo-err: %s", i, s.Argv, pr.Code, gr.Code, pr.Stderr, gr.Stderr)
+		}
+		pc := strings.ReplaceAll(pyCanon.canonJSON(t, pr.Stdout, nil), csvDir, "<TMP>")
+		gc := strings.ReplaceAll(goCanon.canonJSON(t, gr.Stdout, nil), csvDir, "<TMP>")
+		if pc != gc {
+			t.Fatalf("leads step %d %v: stdout mismatch\npy: %s\ngo: %s", i, s.Argv, pc, gc)
+		}
+	}
+
+	pyTree := pyCanon.snapshotTree(t, pyRoot)
+	goTree := goCanon.snapshotTree(t, goRoot)
+	var keys []string
+	for k := range pyTree {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if _, ok := goTree[k]; !ok {
+			t.Errorf("go tree missing %s", k)
+			continue
+		}
+		pv := strings.ReplaceAll(pyTree[k], csvDir, "<TMP>")
+		gv := strings.ReplaceAll(goTree[k], csvDir, "<TMP>")
+		if pv != gv {
+			t.Errorf("leads tree mismatch at %s\npy: %s\ngo: %s", k, clip(pv), clip(gv))
+		}
+	}
+	if len(goTree) != len(pyTree) {
+		t.Errorf("tree sizes differ: py=%d go=%d", len(pyTree), len(goTree))
+	}
+}
