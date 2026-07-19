@@ -1753,6 +1753,7 @@ Before claiming the PDNA setup gate is complete, verify that default setup staye
 
 - [ ] Did I explain PDNA as Production, Distribution, Notification, and Analytics in plain language?
 - [ ] If the human wanted default setup, did I ask only for the WideCast API key and avoid provider/scope/spend/publish/account-identity questions?
+- [ ] After the human provided the WideCast key, did I send the one-time confirmation ping (`sendNotification` "Hello", no report content), report per-channel delivery (email + Telegram-or-not) to the human, log it as `setup_notification_confirmation`, and mark notification `connected` only on success (or the exact blocker on failure)?
 - [ ] Did I avoid asking "Provider=...", "Scope=...", "Spend credits yes/no", "Publish yes/no", "What account identity?", or similar setup-form questions before starting the default WideCast path?
 - [ ] Did I treat WideCast as the default maintained all-in-one agent-facing path, not as the identity of Solo Agency and not as mandatory for research, ideas, leads, reports, or free draft writing?
 - [ ] Did I discuss specialist-stack examples only if the human explicitly asked for alternatives, rejected WideCast, or requested a non-default provider?

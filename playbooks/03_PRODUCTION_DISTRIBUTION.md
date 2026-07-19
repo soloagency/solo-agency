@@ -144,6 +144,25 @@ For the default path, the agent's human-facing ask should be only this. Lead wit
 
 Do not add a second question such as "Which provider?", "Which scope?", "Spend credits yes/no?", "Publish yes/no?", "What account identity?", or "Which notification channel?" during default setup. The safe defaults are: provider `widecast`, discover all PDNA capabilities, no publishing/render/export/credit spend/clone/outreach until a later explicit approval gate, and use the verified account response as identity evidence.
 
+#### After the human provides the key: verify, then send a confirmation ping
+
+Once the human pastes the WideCast API key, before marking notification `connected`:
+
+1. Save it as `api_key_env` / `api_key_local` (never a field named `api_key`) in this client's `integrations/providers/provider_config.local.json`.
+2. Verify the account (`tools/provider_openapi.py ... account` -> `getAccount`) and run discovery (`... discover`) so `sendNotification` is confirmed available.
+3. Send ONE confirmation notification (a "Hello" ping) so the human sees the channel work immediately, using the configured provider's notification operation:
+
+```sh
+python3 tools/provider_openapi.py --config <client provider_config.local.json>   --defaults daily-content-pipeline/provider_defaults.json   call --operation sendNotification   --body '{"subject":"{Client}: notifications are on","message":"One-time confirmation that Solo Agency can now reach you here. From now on you get the daily report and hot-lead alerts at this address. No action needed."}'
+```
+
+Write the subject/message in the human's language. This ping is a configuration-verification test only: it must contain NO report content, leads, drafts, or links - just the confirmation.
+4. Read the response `delivery` array and per-channel statuses, then tell the human in chat exactly what arrived: email delivered to the masked address; and Telegram delivered, or "Telegram is not connected yet - connect it in WideCast to also get alerts on your phone." On 502 (partial) report which channel failed; on 429 (rate-limited) or an auth error report the exact blocker and that notifications are pending until fixed - do not claim the channel is confirmed.
+5. Log the ping in `daily-content-pipeline/notifications/notification_log.md` as event `setup_notification_confirmation`.
+6. Record notification `connected` only after a successful confirmation ping; a failed ping stays `selected_pending_connection` or `blocked` with the exact blocker, and the run-time re-offer rule still applies.
+
+This confirmation ping is the ONE sanctioned notification send inside Setup Flow - a channel test, not operational delivery. Setup Flow still must not send report, blocker, or approval notifications from a run.
+
 ### Specialist Or Manual Alternatives
 
 ### One-Time Setup Process Item 7 Completion Contract
