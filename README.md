@@ -153,3 +153,5 @@ If you are an AI agent setting up this repo, start here:
 13. Every scheduled/manual report handoff must include a Provider Report Delivery Capability Check outcome: configured provider/OpenAPI checked, account verified or blocker logged, HTML upload/notification attempted when available, uploaded URL or exact blocker logged, and final HTML report path/link delivered.
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
+
+For the localhost Bridge + UI architecture (single Go binary serving the web UI, absorbing the Python tools, agent-agnostic file bus), see `docs/UI_DESIGN.md`.

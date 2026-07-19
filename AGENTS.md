@@ -69,6 +69,8 @@ When explaining WideCast/API-key setup, give the exact human steps: register at 
 
 The repo entrypoint is `SOLO_AGENCY_PLAYBOOK.md`, not `solo-agency-collector/`.
 
+The Bridge + local UI contract (URL map, ui_inbox file bus, Python-to-Go absorption plan) is `docs/UI_DESIGN.md`; when building or changing the bridge/UI, that file wins — amend it first.
+
 Cold-email / CRM work is the separate OutreachCRM module at `outreach/` — see the OutreachCRM row in the `SOLO_AGENCY_PLAYBOOK.md` Stage Map; it has its own Stage Map, gates, and approve-then-send flow, and is not the Stage-10 lead-`outreach` action gated in Solo Agency's own pipeline. Its Stage-1 setup may bootstrap (read-only, one-way) from a client's existing Solo Agency Client Intelligence Profile; Solo Agency never reads the client's `outreach/` subtree. OutreachCRM setup runs INSIDE the same setup session (never spawn a dedicated outreach setup session); automation is one task per campaign (`{Client} - {Campaign} Daily Run`) plus the client's content Daily Run.
 
 ## Imported Claude Cowork project instructions
