@@ -154,6 +154,24 @@ If the binary is missing:
 
 ## Chrome Extension Per-Client Install
 
+### Rule: client builds MUST come from the FULL template — never strip capabilities
+
+Every per-client extension is built by copying the COMPLETE `solo-agency-collector/chrome-extension/`
+template as-is (all files: `gql_intercept.js`, `gql_extract.js`, `gql_actions.js`, `background.js`,
+`contact_extract.js`, and every capture file). The ONLY per-client changes are cosmetic/identity:
+the manifest name/description/default_title and `client_binding.json` — nothing else.
+
+Do NOT strip, disable, or remove any capability from a client build (do not delete/rename the GraphQL
+layer `gql_intercept.js`/`gql_extract.js`, do not disable `gql_actions.js` → `.disabled`, do not add a
+`read_only: true` / "read-only, local-output-only" fork of `background.js`). Stripping capabilities at
+build time means a later flow (e.g. outreach enrichment that needs `fb.profile.header`/`videos`/`posts`,
+or an approved react/comment/DM job) silently fails and forces the user to re-install/reload the
+extension. Having a capability's code present does NOT mean it runs on its own — write-actions only fire
+when an approved job is created (daily-report gate), and the GraphQL layer only reads what the logged-in
+user already sees. So the safe default is the FULL template for every client; capability USE is governed
+by the flow layer, not by amputating the extension. If a specific client genuinely must be restricted,
+that is a deliberate, human-approved exception recorded in that client's config — never an agent's own call.
+
 If `extensions/{client_slug}/manifest.json` does not exist, prepare it from the local extension template. Prefer the repo helper when available:
 
 ```bash
