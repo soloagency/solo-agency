@@ -44,6 +44,14 @@ The pre-send re-check chain, atomic quota reservation, and inbound classifier ar
 daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/
 ```
 
+**Absolute paths in every human-run command.** The `python3 tools/gmail_client.py --client-dir DIR …` forms shown in this stage are relative TEMPLATES. Whenever you hand a `gmail_client.py` command to the human to run in their terminal, resolve and substitute the ABSOLUTE path of BOTH the script and `--client-dir` from the real workspace root, for example:
+
+```bash
+python3 /ABS/PATH/TO/solo-agency/outreach/tools/gmail_client.py --client-dir /ABS/PATH/TO/daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach auth --sendbox sb-a --email outreach@gmail.com
+```
+
+A non-technical user does not know which directory to run from, so never hand out a relative `python3 solo-agency/outreach/tools/...` or `--client-dir daily-content-pipeline/...` form.
+
 **Command form (verified):** `--client-dir DIR` is a global flag that comes **before** the subcommand. `gmail_client.py auth --client-dir DIR …` (subcommand first) is rejected by the parser.
 
 ---
