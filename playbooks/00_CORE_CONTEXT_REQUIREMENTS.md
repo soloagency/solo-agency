@@ -62,6 +62,10 @@ Solo Agency must run in an AI agent runtime that supports:
 - multiple parallel/sub-agent work streams for research, private collection coordination, reporting, provider checks, and resync verification;
 - Local Collector setup handoff and later collector file/status inspection.
 
+### Binary-First Tool Invocation
+
+The repo's Python tools also ship INSIDE the collector bridge binary as subcommands with identical flags, JSON output, and exit codes: `tools/solo_report_renderer.py` → `<bridge> tool render-report`, `tools/provider_openapi.py` → `<bridge> tool provider` (the OutreachCRM module's tools follow the same rule — see its Stage 0). `<bridge>` is the installed collector bridge executable (the same binary serving `127.0.0.1:17321`, at `{setup-root}/solo-agency-local-collector/bin/collector-bridge-{os}-{arch}`; `.exe` on Windows). Whenever a playbook step names one of these tools, prefer the binary subcommand (probe: `<bridge> tool render-report` prints usage, exit 2) and fall back to `python3 tools/<name>.py` only when the binary is absent or predates the subcommands. On a Python-less machine the binary is the only path — never tell a human to install Python when a current bridge binary is available.
+
 Good runtime examples include Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or comparable desktop/local agent environments. A plain web chat is not enough for the full Solo Agency workflow. The agent may use web chat only as a review/conversation surface, not as the primary runtime for setup, scheduled runs, Local Collector coordination, or multi-agent automation.
 
 When asked how to install or run Solo Agency, the agent must say this plainly before setup proceeds. Do not imply that pasting the playbook into a browser-only chat will create the automation system.

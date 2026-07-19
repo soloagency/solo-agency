@@ -74,6 +74,26 @@ OutreachCRM must run in an AI agent runtime that supports:
 - outbound email and inbox read for at least one sendbox (SMTP+IMAP for `app_password`, or the Gmail API for `oauth`);
 - running local Python tools (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`, `report_renderer.py`, `provider_openapi.py`) and, when tracking is enabled, a Cloudflare Worker under `trk.{domain}`.
 
+### Binary-First Tool Invocation
+
+Every tool above also ships INSIDE the collector bridge binary as a subcommand with the same flags, the same JSON output, and the same exit codes — cross-validated against the Python originals:
+
+| Python tool | Bridge subcommand |
+|---|---|
+| `crm_store.py` | `<bridge> tool crm-store` |
+| `gmail_client.py` | `<bridge> tool gmail` |
+| `import_leads.py` | `<bridge> tool import-leads` |
+| `email_verify.py` | `<bridge> tool verify-email` |
+| `report_renderer.py` | `<bridge> tool render-report` |
+| `provider_openapi.py` | `<bridge> tool provider` |
+
+`<bridge>` is the installed collector bridge executable — the SAME binary that serves the Local Collector on `127.0.0.1:17321`, installed by the collector setup at `{setup-root}/solo-agency-local-collector/bin/collector-bridge-{os}-{arch}` (sibling of `daily-content-pipeline/`; `.exe` on Windows). Resolution order whenever a playbook step names one of these tools:
+
+1. The installed bridge binary subcommand. Probe once per session: `<bridge> tool crm-store` must print usage (exit 2), not an unknown-command error — an older binary that predates the subcommands fails this probe.
+2. Fallback: `python3 {repo}/outreach/tools/<name>.py` with identical arguments, only when the binary is absent or too old.
+
+On a machine without Python (notably Windows) the binary is the ONLY path — the storage layer no longer requires fcntl, so the CRM now runs on Windows through the binary. Never tell a human to install Python when a current bridge binary is available.
+
 Good runtime examples include Codex, Claude Desktop/Cowork, or a comparable desktop/local agent environment. A plain web chat is not enough: it cannot reliably host the sendbox credentials, the local file state, the scheduled runs, or the multi-agent work OutreachCRM requires. When asked how to install or run OutreachCRM, say this plainly before setup proceeds; do not imply that pasting the playbook into a browser-only chat creates the system.
 
 ---
