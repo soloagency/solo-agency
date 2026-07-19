@@ -347,7 +347,7 @@ Issue escalation: the human does not need a GitHub account. Prefer `gh issue cre
 
 ## Update Command And Version Watch Rule
 
-When the human says `update`, `upgrade`, `cập nhật`, `sync latest`, `pull latest`, or equivalent, load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` and treat it as an OutreachCRM update command, not a report request. It means: check GitHub `main`, compare the installed version, inspect playbooks/tools/tracker worker/storage adapter/schema, apply safe updates while preserving secrets and client data, resync every client and automation task, and update `update_state.json` + `update_log.md`. Do not send emails, enrich, or run campaigns because of an update. After schedule/automation exists, recommend the daily `OutreachCRM - GitHub Update Watch` task; it must not use any client-facing channel and must not touch `clients/`.
+When the human says `update`, `upgrade`, `cập nhật`, `sync latest`, `pull latest`, or equivalent, load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` and treat it as an OutreachCRM update command, not a report request. It means: check GitHub `main`, compare the installed version, inspect playbooks/tools/tracker worker/storage adapter/schema, apply safe updates while preserving secrets and client data, resync every client and automation task, and update `update_state.json` + `update_log.md`. Do not send emails, enrich, or run campaigns because of an update. After schedule/automation exists, set up the daily `OutreachCRM - GitHub Update Watch` task - create it, or write its pending prompt AND hand it to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (never silently skip); it must not use any client-facing channel and must not touch `clients/`. Default posture is notify-first (`auto_apply_approved: false`).
 
 ## Non-Negotiable Summary
 
@@ -383,7 +383,7 @@ Setup is not complete until:
 - The first list was imported, deduped, and checked against suppression, or marked pending.
 - At least one campaign with a structured goal and a valid sequence exists.
 - Notification (WideCast) was configured or explicitly marked `–` (optional).
-- The client-specific `{Client} - OutreachCRM Daily Run` automation task was created (pinning `target_client_slug`) and, after schedule exists, the `OutreachCRM - GitHub Update Watch` task was offered/recorded.
+- The client-specific `{Client} - OutreachCRM Daily Run` automation task was created (pinning `target_client_slug`) and, after schedule exists, the `OutreachCRM - GitHub Update Watch` task was created, or its pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (not silently skipped).
 - Setup Flow sent nothing. Terminal state is `ready_for_automation_first_run`.
 - The setup handoff showed the exact task name to run.
 

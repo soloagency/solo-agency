@@ -1399,6 +1399,7 @@ Initial setup is complete when:
 18. The setup handoff tells the human the exact client-specific automation task name to run for the first report, AND ends with a feature-discovery block introducing 2-3 unused headline capabilities (Feature Discovery Rule) - setup never ends flat.
 19. Any required human action is also shown directly in the current chat message with one clear command, one double-clickable launcher path, or one absolute extension folder path. Markdown-only setup instructions are a failure.
 20. Only after the first agency report and draft are shown does the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
+21. After the schedule/automation exists, the agency-wide `Solo Agency - GitHub Update Watch` task was CREATED, or its pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it - not silently skipped. Default posture is notify-first (`auto_apply_approved: false`).
 
 Recurring schedule setup is complete when:
 

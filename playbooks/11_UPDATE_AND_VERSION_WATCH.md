@@ -229,7 +229,7 @@ When extension changes are applied:
 
 ## Daily GitHub Update Watch Task
 
-After setup/routine exists, the agent should recommend a lightweight update-watch automation because Solo Agency changes frequently.
+After setup/routine exists, the agent must set up a lightweight update-watch automation because Solo Agency changes frequently - create the native task, or write its pending prompt AND hand it to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (never silently skip). Default posture is notify-first: `auto_apply_approved` stays `false` unless the human opts into auto-apply.
 
 Canonical task name:
 

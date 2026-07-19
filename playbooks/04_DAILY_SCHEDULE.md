@@ -218,7 +218,7 @@ Scheduled runs should be designed as unattended runs. The human may not be watch
 
 ## GitHub Update Watch Scheduling Rule
 
-After the first schedule/automation has been configured, offer a separate maintenance automation:
+After the first schedule/automation has been configured, set up a separate maintenance automation - create the native task or write its pending prompt AND hand it to the human in an `**[ACTION REQUIRED]**` block (never silently skip):
 
 ```text
 Solo Agency - GitHub Update Watch

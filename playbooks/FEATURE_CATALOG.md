@@ -23,6 +23,7 @@ Load this file when composing a feature-discovery suggestion (setup completion, 
 | Daily/weekly reports | A clean HTML report of ideas, drafts, leads, and opportunities — daily for you, a scrubbed weekly one for the client | client configured | "show me the latest report" | Stage 6 |
 | Analytics & learning loop | Once content is published, measure what worked and feed it back into better ideas | published URLs exist | "review analytics" | Stage 5 |
 | Notifications (Telegram + email) | Get the report and hot-lead alerts pushed to you the moment they happen | WideCast key connected | "turn on notifications" | PDNA notification |
+| Auto update-watch | A daily task that checks GitHub and keeps your Solo Agency install current; tells you when a new version changes behavior (or auto-applies if you opt in) | schedule/automation exists | "set up the update watch task" | Stage 11 + `Solo Agency - GitHub Update Watch` |
 
 ## Outreach + CRM (OutreachCRM module)
 

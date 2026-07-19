@@ -5,7 +5,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 456 | 7f85bd1008520309173f060e544d6b39b2e3fcdd2d7d8b333f04eb29c8de83e7 | If any required stage was not loaded, load it before proceeding. |
+| OUTREACHCRM_PLAYBOOK.md | 456 | 5baee6bda56e82ba4391a61c6af027ee95544e5fd566b8c87e04c51bfa89f65a | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 473 | 5c4fb85702815b714f9d5199cb3dbfdba5ffa727d646723f7dfe635e5bf130be | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 709 | 770c4a27bd227379fd1c3b2cfeebf22c10e99dcaa381393cbcecc044019cb319 | --- |
 | playbooks/02_SENDBOX_SETUP.md | 245 | 35e387579e48b2bb0f9e0a1e37a5d6c7e6a5668b5bdb0870b236a440b3878b48 | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
