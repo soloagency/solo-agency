@@ -102,6 +102,7 @@ func (b *bridge) registerUIRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ui/", b.uiAuth(b.handleUIRouter))
 	mux.HandleFunc("/files/", b.uiAuth(b.handleUIFiles))
 	mux.HandleFunc("/events", b.uiAuth(b.handleUIEvents))
+	mux.HandleFunc("/api/ui/", b.uiAuth(b.handleUIAPI))
 }
 
 func (b *bridge) handleUIEnter(w http.ResponseWriter, r *http.Request) {
@@ -130,8 +131,10 @@ func (b *bridge) uiAuth(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "origin not allowed", http.StatusForbidden)
 			return
 		}
-		if r.Method != http.MethodGet {
-			http.Error(w, "read-only in U1", http.StatusMethodNotAllowed)
+		// U2: mutations exist only under /api/ui/ and land exclusively in ui_inbox/.
+		if r.Method != http.MethodGet &&
+			!(r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/ui/")) {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if !b.uiAuthorized(r) {
@@ -247,7 +250,25 @@ func (b *bridge) uiFingerprint() string {
 	for _, ws := range b.uiClients() {
 		stamp(filepath.Join(ws.Path, "outputs"))
 		stamp(filepath.Join(ws.Path, "outreach", "outputs"))
-		stamp(filepath.Join(ws.Path, "outreach", "outbox"))
+		stamp(filepath.Join(ws.Path, "outreach", "ui_inbox"))
+		stamp(filepath.Join(ws.Path, "ui_inbox"))
+		stamp(filepath.Join(ws.Path, "history", "discovery_shortlist.json"))
+		// pending_approval holds YYYY-MM-DD subdirs; stamp those so new drafts refresh the page
+		campaigns := filepath.Join(ws.Path, "outreach", "campaigns")
+		if camps, err := os.ReadDir(campaigns); err == nil {
+			for _, camp := range camps {
+				if !camp.IsDir() {
+					continue
+				}
+				pa := filepath.Join(campaigns, camp.Name(), "outbox", "pending_approval")
+				stamp(pa)
+				if days, err := os.ReadDir(pa); err == nil {
+					for _, day := range days {
+						stamp(filepath.Join(pa, day.Name()))
+					}
+				}
+			}
+		}
 	}
 	return sb.String()
 }
@@ -255,9 +276,9 @@ func (b *bridge) uiFingerprint() string {
 // ---------- data readers (read-only) ----------
 
 type uiClient struct {
-	Slug     string
+	Slug      string
 	Workspace string
-	Path     string
+	Path      string
 }
 
 func (b *bridge) uiClients() []uiClient {
@@ -555,9 +576,251 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 		b.uiRenderReports(w, parts[0])
 	case len(parts) == 2 && parts[1] == "crm":
 		b.uiRenderCRM(w, parts[0])
+	case len(parts) == 2 && parts[1] == "approvals":
+		b.uiRenderApprovals(w, parts[0])
+	case len(parts) == 2 && parts[1] == "shortlist":
+		b.uiRenderShortlist(w, parts[0])
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+// ---------- U2: interactive approvals + shortlist (writes go to ui_inbox only) ----------
+
+type uiDraft struct {
+	ID        string
+	Campaign  string
+	Step      any
+	To        string
+	Subject   string
+	Body      string
+	Band      string
+	Warnings  []string
+	Companion string
+	Hooks     []map[string]any
+}
+
+func (b *bridge) uiPendingDrafts(c uiClient) []uiDraft {
+	var out []uiDraft
+	campaignsDir := filepath.Join(c.Path, "outreach", "campaigns")
+	camps, err := os.ReadDir(campaignsDir)
+	if err != nil {
+		return out
+	}
+	for _, camp := range camps {
+		if !camp.IsDir() {
+			continue
+		}
+		base := filepath.Join(campaignsDir, camp.Name(), "outbox", "pending_approval")
+		_ = filepath.WalkDir(base, func(p string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".json") {
+				return nil
+			}
+			var doc map[string]any
+			if uiReadJSON(p, &doc) != nil {
+				return nil
+			}
+			if s, _ := doc["status"].(string); s != "pending_approval" {
+				return nil
+			}
+			dr := uiDraft{Campaign: camp.Name()}
+			dr.ID, _ = doc["id"].(string)
+			dr.Step = doc["step"]
+			dr.To, _ = doc["to"].(string)
+			dr.Subject, _ = doc["subject"].(string)
+			dr.Body, _ = doc["body_text"].(string)
+			dr.Band, _ = doc["confidence_band"].(string)
+			dr.Companion, _ = doc["companion_url"].(string)
+			if ws, ok := doc["warnings"].([]any); ok {
+				for _, wv := range ws {
+					if s, ok := wv.(string); ok {
+						dr.Warnings = append(dr.Warnings, s)
+					}
+				}
+			}
+			if hs, ok := doc["hooks_used"].([]any); ok {
+				for _, hv := range hs {
+					if hm, ok := hv.(map[string]any); ok {
+						dr.Hooks = append(dr.Hooks, hm)
+					}
+				}
+			}
+			out = append(out, dr)
+			return nil
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Band != out[j].Band {
+			return out[i].Band < out[j].Band // "high" before "review_carefully"
+		}
+		return out[i].ID < out[j].ID
+	})
+	return out
+}
+
+func (b *bridge) uiRenderApprovals(w http.ResponseWriter, slug string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	b.uiRender(w, "approvals", map[string]any{
+		"Title": c.Slug + " approvals", "Client": c, "Drafts": b.uiPendingDrafts(c),
+	})
+}
+
+type uiShortlistCandidate struct {
+	N          any            `json:"n"`
+	SourceName string         `json:"source_name"`
+	SourceURL  string         `json:"source_url"`
+	Platform   string         `json:"platform"`
+	Cadence    string         `json:"cadence_suggested"`
+	Why        string         `json:"why"`
+	Class      string         `json:"classification"`
+	Extra      map[string]any `json:"-"`
+}
+
+func (b *bridge) uiShortlist(c uiClient) (string, []uiShortlistCandidate) {
+	p := filepath.Join(c.Path, "history", "discovery_shortlist.json")
+	var doc struct {
+		GeneratedAt string                 `json:"generated_at"`
+		Candidates  []uiShortlistCandidate `json:"candidates"`
+	}
+	if uiReadJSON(p, &doc) != nil {
+		return "", nil
+	}
+	return doc.GeneratedAt, doc.Candidates
+}
+
+func (b *bridge) uiRenderShortlist(w http.ResponseWriter, slug string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	gen, cands := b.uiShortlist(c)
+	b.uiRender(w, "shortlist", map[string]any{
+		"Title": c.Slug + " shortlist", "Client": c, "GeneratedAt": gen, "Candidates": cands,
+	})
+}
+
+// appendUIInbox appends one JSON line to a ui_inbox file. The bridge is the
+// sole writer of these files (docs/UI_DESIGN.md §6.3), so O_APPEND + fsync of
+// a single line is safe and keeps the file valid JSONL at all times.
+func appendUIInbox(path string, obj map[string]any) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	line, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := f.Write(append(line, '\n')); err != nil {
+		return err
+	}
+	return f.Sync()
+}
+
+// handleUIAPI accepts POST /api/ui/{client}/approval and /api/ui/{client}/shortlist.
+// Every write lands ONLY in ui_inbox/ (never a canonical ledger/CRM file); the
+// Python/Go tools ingest them at the next run (crm_store ingest-ui).
+func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/ui/"), "/"), "/")
+	if len(parts) != 2 {
+		http.NotFound(w, r)
+		return
+	}
+	c, ok := b.uiFindClient(parts[0])
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	var body map[string]any
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxJSONBodyBytes))
+	if err := dec.Decode(&body); err != nil {
+		http.Error(w, "bad json", http.StatusBadRequest)
+		return
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	session := b.uiToken[:8]
+	writeJSON := func(v any) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(v)
+	}
+	switch parts[1] {
+	case "approval":
+		decision, _ := body["decision"].(string)
+		draftID, _ := body["draft_id"].(string)
+		if draftID == "" || !uiValidDecision(decision, "approve", "reject", "hold", "edit") {
+			http.Error(w, "draft_id + decision(approve|reject|hold|edit) required", http.StatusBadRequest)
+			return
+		}
+		rec := map[string]any{"ts": now, "draft_id": draftID, "decision": decision, "ui_session": session}
+		for _, k := range []string{"campaign", "edited_subject", "edited_body", "note"} {
+			if v, ok := body[k].(string); ok && v != "" {
+				rec[k] = v
+			}
+		}
+		p := filepath.Join(c.Path, "outreach", "ui_inbox", "approval_decisions.jsonl")
+		if err := appendUIInbox(p, rec); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(map[string]any{"ok": true, "queued": draftID,
+			"note": "recorded in ui_inbox; the next run (or 'ingest UI approvals' in chat) applies it"})
+	case "shortlist":
+		raw, ok := body["decisions"].([]any)
+		if !ok || len(raw) == 0 {
+			http.Error(w, "decisions[] required", http.StatusBadRequest)
+			return
+		}
+		p := filepath.Join(c.Path, "ui_inbox", "shortlist_decisions.jsonl")
+		n := 0
+		for _, rv := range raw {
+			rm, ok := rv.(map[string]any)
+			if !ok {
+				continue
+			}
+			decision, _ := rm["decision"].(string)
+			srcURL, _ := rm["source_url"].(string)
+			if srcURL == "" || !uiValidDecision(decision, "approve", "skip") {
+				continue
+			}
+			rec := map[string]any{"ts": now, "source_url": srcURL, "decision": decision, "ui_session": session}
+			for _, k := range []string{"source_name", "cadence"} {
+				if v, ok := rm[k].(string); ok && v != "" {
+					rec[k] = v
+				}
+			}
+			if err := appendUIInbox(p, rec); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			n++
+		}
+		writeJSON(map[string]any{"ok": true, "queued": n,
+			"note": "recorded in ui_inbox; tell your agent to apply the shortlist decisions"})
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+func uiValidDecision(v string, allowed ...string) bool {
+	for _, a := range allowed {
+		if v == a {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *bridge) uiActiveRuns() []any {
@@ -593,6 +856,7 @@ func (b *bridge) uiRenderClient(w http.ResponseWriter, slug string) {
 	latest = append(latest, b.uiListFiles(filepath.Join(c.Path, "outreach", "outputs", "latest"), []string{".html", ".pdf"}, 20)...)
 	b.uiRender(w, "client", map[string]any{
 		"Title": c.Slug, "Client": c, "Latest": latest,
+		"Pending": len(b.uiPendingDrafts(c)),
 	})
 }
 
@@ -663,7 +927,13 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px
 th{color:var(--mut);font-weight:600}.mut{color:var(--mut)}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
 .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;color:var(--mut)}
-a{color:var(--acc)}.wrap{overflow-x:auto}</style></head><body>
+a{color:var(--acc)}.wrap{overflow-x:auto}
+input[type=text],textarea,select{width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit}
+textarea{min-height:150px;white-space:pre-wrap}select{width:auto}
+button{font:inherit;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:6px 14px;cursor:pointer;background:var(--card);color:var(--fg)}
+button.ok{background:var(--acc);border-color:var(--acc);color:#fff}button:disabled{opacity:.5;cursor:default}
+.draft.done{opacity:.55}.acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.band-high{color:#16a34a;border-color:#16a34a}.band-review_carefully{color:#d97706;border-color:#d97706}</style></head><body>
 <nav><a class="brand" href="/ui">Solo Agency</a><a href="/ui/jobs">Jobs</a><a href="/ui/status">Status</a></nav>
 <main><h1>{{.Title}}</h1>{{end}}
 
@@ -680,7 +950,7 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 <h2>Clients</h2><div class="grid">
 {{range .Clients}}<div class="card"><strong><a href="/ui/{{.Slug}}">{{.Slug}}</a></strong><br>
 <span class="mut">{{.Workspace}}</span><br>
-<a href="/ui/{{.Slug}}/reports">reports</a> · <a href="/ui/{{.Slug}}/crm">crm</a></div>
+<a href="/ui/{{.Slug}}/reports">reports</a> · <a href="/ui/{{.Slug}}/crm">crm</a> · <a href="/ui/{{.Slug}}/approvals">approvals</a></div>
 {{else}}<p class="mut">No clients yet.</p>{{end}}</div>
 <h2>Recent jobs</h2><div class="wrap"><table><tr><th>state</th><th>client</th><th>kind</th><th>file</th><th>when</th></tr>
 {{range .Jobs}}<tr><td><span class="pill">{{.State}}</span></td><td>{{.Client}}</td><td>{{.Kind}}</td><td class="mut">{{.Name}}</td><td class="mut">{{.ModTime.Format "01-02 15:04"}}</td></tr>{{else}}<tr><td colspan="5" class="mut">none</td></tr>{{end}}</table></div>
@@ -703,7 +973,9 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 {{template "foot" .}}{{end}}
 
 {{define "client"}}{{template "head" .}}
-<p><a href="/ui/{{.Client.Slug}}/reports">All reports</a> · <a href="/ui/{{.Client.Slug}}/crm">CRM</a></p>
+<p><a href="/ui/{{.Client.Slug}}/reports">All reports</a> · <a href="/ui/{{.Client.Slug}}/crm">CRM</a> ·
+<a href="/ui/{{.Client.Slug}}/approvals">Approvals{{if .Pending}} <strong>({{.Pending}})</strong>{{end}}</a> ·
+<a href="/ui/{{.Client.Slug}}/shortlist">Shortlist</a></p>
 <h2>Latest</h2><div class="wrap"><table><tr><th>file</th><th>when</th></tr>
 {{range .Latest}}<tr><td><a href="/files/{{.Rel}}">{{.Name}}</a></td><td class="mut">{{.ModTime.Format "2006-01-02 15:04"}}</td></tr>{{else}}<tr><td colspan="2" class="mut">no outputs yet — run the client's daily task</td></tr>{{end}}</table></div>
 {{template "foot" .}}{{end}}
@@ -720,4 +992,79 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 <h2>Contacts</h2><div class="wrap"><table><tr><th>name</th><th>email</th><th>vertical</th><th>stage</th></tr>
 {{range .Contacts}}<tr><td>{{if .Name}}{{.Name}}{{else}}<span class="mut">{{.ID}}</span>{{end}}</td><td class="mut">{{.Email}}</td><td>{{.Vertical}}</td><td class="mut">{{.Stage}}</td></tr>{{else}}<tr><td colspan="4" class="mut">no contacts yet</td></tr>{{end}}</table></div>
 {{template "foot" .}}{{end}}
+
+{{define "footform"}}
+<div class="card mut" style="margin-top:16px">Decisions are queued in <code>ui_inbox/</code> — the agent applies them automatically at the start of the next campaign run, or tell it: <em>"apply my UI decisions"</em>.</div>
+</main></body></html>{{end}}
+
+{{define "approvals"}}{{template "head" .}}
+<p><a href="/ui/{{.Client.Slug}}">← {{.Client.Slug}}</a> · <span id="left">{{len .Drafts}}</span> pending
+<button id="allhigh" style="margin-left:10px">Approve all high-confidence</button></p>
+{{range .Drafts}}
+<div class="card draft" data-id="{{.ID}}" data-campaign="{{.Campaign}}" data-band="{{.Band}}">
+<div><strong>{{.To}}</strong> <span class="pill band-{{.Band}}">{{.Band}}</span>
+<span class="pill">{{.Campaign}}</span> <span class="pill">step {{.Step}}</span>
+{{if .Companion}}<a class="pill" href="{{.Companion}}" target="_blank" rel="noopener">companion ↗</a>{{end}}</div>
+{{if .Warnings}}<div style="margin-top:6px">{{range .Warnings}}<span class="pill band-review_carefully">⚠ {{.}}</span> {{end}}</div>{{end}}
+{{if .Hooks}}<div class="mut" style="margin-top:6px;font-size:13px">hooks: {{range .Hooks}}{{if index . "evidence_url"}}<a href="{{index . "evidence_url"}}" target="_blank" rel="noopener">{{index . "type"}}</a> {{else}}{{index . "type"}} {{end}}{{end}}</div>{{end}}
+<div style="margin-top:8px"><input class="subj" type="text" value="{{.Subject}}"></div>
+<div style="margin-top:8px"><textarea class="body">{{.Body}}</textarea></div>
+<div class="acts">
+<button class="ok" data-act="approve">Approve</button>
+<button data-act="edit">Save edit (keep pending)</button>
+<button data-act="hold">Hold</button>
+<button data-act="reject">Reject…</button>
+</div></div>
+{{else}}<p class="mut">No drafts waiting for approval. New drafts appear here after the campaign's daily run.</p>{{end}}
+<script>
+var CLIENT="{{.Client.Slug}}";
+function payload(card){var p={draft_id:card.dataset.id,campaign:card.dataset.campaign};
+ var s=card.querySelector('.subj'),b=card.querySelector('.body');
+ if(s.value!==s.defaultValue)p.edited_subject=s.value;
+ if(b.value!==b.defaultValue)p.edited_body=b.value;return p}
+function send(card,act,note){var p=payload(card);p.decision=act;if(note)p.note=note;
+ return fetch('/api/ui/'+CLIENT+'/approval',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
+ .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+ .then(function(){if(act!=='edit'){card.classList.add('done');card.querySelector('.acts').innerHTML='<span class="pill">'+act+' ✓ queued</span>'}
+  else{card.querySelector('.subj').defaultValue=card.querySelector('.subj').value;card.querySelector('.body').defaultValue=card.querySelector('.body').value}
+  var n=document.querySelectorAll('.draft:not(.done)').length;document.getElementById('left').textContent=n})
+ .catch(function(e){alert('Failed: '+e.message)})}
+document.addEventListener('click',function(e){var b=e.target.closest('button[data-act]');if(!b)return;
+ var card=b.closest('.draft');var act=b.getAttribute('data-act');
+ if(act==='reject'){var note=prompt('Reject reason (feeds the learning log):','');if(note===null)return;send(card,act,note)}
+ else send(card,act)});
+document.getElementById('allhigh').addEventListener('click',function(){
+ var cards=document.querySelectorAll('.draft[data-band="high"]:not(.done)');
+ if(!cards.length){alert('No untouched high-confidence drafts.');return}
+ if(!confirm('Approve '+cards.length+' high-confidence draft(s)?'))return;
+ var q=Promise.resolve();cards.forEach(function(c){q=q.then(function(){return send(c,'approve')})})});
+</script>
+{{template "footform" .}}{{end}}
+
+{{define "shortlist"}}{{template "head" .}}
+<p><a href="/ui/{{.Client.Slug}}">← {{.Client.Slug}}</a>{{if .GeneratedAt}} · <span class="mut">generated {{.GeneratedAt}}</span>{{end}}</p>
+{{if .Candidates}}
+<div class="wrap"><table><tr><th>keep</th><th>#</th><th>source</th><th>platform</th><th>why</th><th>cadence</th></tr>
+{{range .Candidates}}<tr data-url="{{.SourceURL}}" data-name="{{.SourceName}}">
+<td><input class="pick" type="checkbox" checked></td><td class="mut">{{.N}}</td>
+<td><strong>{{.SourceName}}</strong>{{if .Class}} <span class="pill">{{.Class}}</span>{{end}}<br><a href="{{.SourceURL}}" target="_blank" rel="noopener" class="mut" style="font-size:12px">{{.SourceURL}}</a></td>
+<td>{{.Platform}}</td><td class="mut" style="font-size:13px">{{.Why}}</td>
+<td><select class="cad"><option{{if eq .Cadence "daily"}} selected{{end}}>daily</option><option{{if eq .Cadence "weekly"}} selected{{end}}>weekly</option><option{{if eq .Cadence "optional"}} selected{{end}}>optional</option></select></td>
+</tr>{{end}}</table></div>
+<div class="acts"><button class="ok" id="submit">Submit decisions</button><span class="mut" id="msg"></span></div>
+<script>
+var CLIENT="{{.Client.Slug}}";
+document.getElementById('submit').addEventListener('click',function(){
+ var ds=[];document.querySelectorAll('tr[data-url]').forEach(function(r){
+  ds.push({source_url:r.dataset.url,source_name:r.dataset.name,
+   decision:r.querySelector('.pick').checked?'approve':'skip',
+   cadence:r.querySelector('.cad').value})});
+ var btn=this;btn.disabled=true;
+ fetch('/api/ui/'+CLIENT+'/shortlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decisions:ds})})
+ .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+ .then(function(j){document.getElementById('msg').textContent='✓ '+j.queued+' decision(s) queued'})
+ .catch(function(e){btn.disabled=false;alert('Failed: '+e.message)})});
+</script>
+{{else}}<p class="mut">No shortlist published. The agent writes <code>history/discovery_shortlist.json</code> when a private-source discovery finishes.</p>{{end}}
+{{template "footform" .}}{{end}}
 `))

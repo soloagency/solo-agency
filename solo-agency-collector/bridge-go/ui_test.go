@@ -164,3 +164,114 @@ func TestDeriveDataRoot(t *testing.T) {
 		t.Fatalf("deriveDataRoot from outputDir = %q, want %q", got, want)
 	}
 }
+
+func TestUIApprovalAndShortlistAPI(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	mustJSON := func(rel string, body string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustJSON("outreach/campaigns/camp-a/outbox/pending_approval/2026-07-19/d1.json",
+		`{"id":"d1","status":"pending_approval","to":"jane@x.com","subject":"Hello Jane",
+		  "body_text":"Hi Jane","confidence_band":"high","step":1,
+		  "warnings":["no phone"],"hooks_used":[{"type":"listing","evidence_url":"https://ex.com/1"}]}`)
+	mustJSON("outreach/campaigns/camp-a/outbox/pending_approval/2026-07-19/d2.json",
+		`{"id":"d2","status":"approved","to":"z@x.com","subject":"s","body_text":"b"}`)
+	mustJSON("history/discovery_shortlist.json",
+		`{"generated_at":"2026-07-19T01:00:00Z","candidates":[
+		  {"n":1,"source_name":"FB Group A","source_url":"https://fb.com/g/a","platform":"facebook",
+		   "cadence_suggested":"daily","why":"active","classification":"recommended_daily"}]}`)
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+
+	authed := func(method, url, body string) *httptest.ResponseRecorder {
+		var req *http.Request
+		if body == "" {
+			req = httptest.NewRequest(method, url, nil)
+		} else {
+			req = httptest.NewRequest(method, url, strings.NewReader(body))
+		}
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// approvals page lists only pending drafts
+	rec := authed("GET", "/ui/leadup/approvals", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "jane@x.com") {
+		t.Fatalf("approvals page: %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "z@x.com") {
+		t.Fatal("approved draft must not appear on approvals page")
+	}
+
+	// unauthenticated POST is refused
+	recNoAuth := httptest.NewRecorder()
+	mux.ServeHTTP(recNoAuth, httptest.NewRequest("POST", "/api/ui/leadup/approval",
+		strings.NewReader(`{"draft_id":"d1","decision":"approve"}`)))
+	if recNoAuth.Code != http.StatusForbidden {
+		t.Fatalf("unauthenticated POST = %d, want 403", recNoAuth.Code)
+	}
+
+	// POST outside /api/ui/ stays read-only
+	if rec := authed("POST", "/ui/leadup/approvals", "{}"); rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST to page = %d, want 405", rec.Code)
+	}
+
+	// invalid decision rejected
+	if rec := authed("POST", "/api/ui/leadup/approval", `{"draft_id":"d1","decision":"yolo"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad decision = %d, want 400", rec.Code)
+	}
+
+	// valid approval with edit lands in ui_inbox as one JSONL line
+	rec = authed("POST", "/api/ui/leadup/approval",
+		`{"draft_id":"d1","campaign":"camp-a","decision":"approve","edited_subject":"Better subject"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("approval POST = %d body=%s", rec.Code, rec.Body.String())
+	}
+	inbox, err := os.ReadFile(filepath.Join(ws, "outreach", "ui_inbox", "approval_decisions.jsonl"))
+	if err != nil {
+		t.Fatalf("approval_decisions.jsonl: %v", err)
+	}
+	line := strings.TrimSpace(string(inbox))
+	if strings.Count(line, "\n") != 0 {
+		t.Fatalf("expected exactly 1 line, got %q", line)
+	}
+	for _, want := range []string{`"draft_id":"d1"`, `"decision":"approve"`, `"edited_subject":"Better subject"`, `"ts":`, `"ui_session":`} {
+		if !strings.Contains(line, want) {
+			t.Errorf("inbox line missing %s: %s", want, line)
+		}
+	}
+
+	// shortlist page renders the candidate
+	rec = authed("GET", "/ui/leadup/shortlist", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "FB Group A") {
+		t.Fatalf("shortlist page: %d", rec.Code)
+	}
+
+	// shortlist POST: invalid entries skipped, valid appended
+	rec = authed("POST", "/api/ui/leadup/shortlist",
+		`{"decisions":[{"source_url":"https://fb.com/g/a","source_name":"FB Group A","decision":"approve","cadence":"weekly"},
+		               {"source_url":"","decision":"approve"},
+		               {"source_url":"https://fb.com/g/b","decision":"nope"}]}`)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"queued":1`) {
+		t.Fatalf("shortlist POST = %d body=%s", rec.Code, rec.Body.String())
+	}
+	sl, err := os.ReadFile(filepath.Join(ws, "ui_inbox", "shortlist_decisions.jsonl"))
+	if err != nil {
+		t.Fatalf("shortlist_decisions.jsonl: %v", err)
+	}
+	if !strings.Contains(string(sl), `"cadence":"weekly"`) || strings.Contains(string(sl), "g/b") {
+		t.Fatalf("shortlist inbox wrong: %s", sl)
+	}
+}

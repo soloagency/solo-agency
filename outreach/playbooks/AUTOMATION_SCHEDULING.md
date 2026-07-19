@@ -450,7 +450,9 @@ For each client, pinning `target_client_slug`, in this exact order:
 1. **Load contract + LOAD LEDGER.** Load Stage 0, Stage 7, and this file; read the automation
    manifest and `daily-content-pipeline/automation/update_state.json` (Update Watch is a separate
    task and does not touch clients). Compute the date key in the recorded timezone. Take the
-   per-client `run_lock`.
+   per-client `run_lock`. Then run `crm_store.py ingest-ui`: it applies any Approvals-page
+   decisions queued in `outreach/ui_inbox/approval_decisions.jsonl` while no run was active.
+   Browser decisions carry the same trust as chat approvals; report what it applied.
 2. **Sync inbox** across all sendboxes (DESIGN §12, Stage 10): run the deterministic classifier
    (see below), split personal mail off, and suppress bounces/unsubs immediately.
 3. **Pull tracking** from the worker (DESIGN §11, Stage 12): record open/click activities,
@@ -473,11 +475,15 @@ For each client, pinning `target_client_slug`, in this exact order:
    nothing already in `pending_approval` is lost; an unattended run drafts up to budget and stops.
    At the **END of this drafting pass** — after all new-pipeline drafting and **before** any send —
    render the **Approval Report** (`{client}-approval-report.html`, operator-only, NOT scrubbed)
-   per DESIGN §14 so the operator can approve in chat; it is **refreshed** in the reports phase
+   per DESIGN §14 so the operator can approve in chat — or on the bridge Approvals page at
+   `http://127.0.0.1:17321/ui/{client}/approvals` (equal trust; decisions queue in `ui_inbox/`
+   and are applied by `ingest-ui`); it is **refreshed** in the reports phase
    (step 10) per DESIGN §15.
-7. **Send** `outbox/approved/` within quota through `gmail_client.py send` (DESIGN §10). The
-   ordered pre-send re-check chain runs in code. Approval happens in chat, at any time — the
-   run sends only what is already approved.
+7. **Send** `outbox/approved/` within quota through `gmail_client.py send` (DESIGN §10). Run
+   `crm_store.py ingest-ui` once more immediately before sending, so browser decisions made
+   during this run are included. The ordered pre-send re-check chain runs in code. Approval
+   happens in chat or on the Approvals page, at any time — the run sends only what is already
+   approved.
 8. **Assisted channels:** draft SMS/Messenger/Zalo for no-email contacts only if the campaign
    allows and consent/legal basis exists (DESIGN §9/§16) → Today View copy buttons. The human
    sends and reports back → `assisted_sent` activity.
@@ -489,7 +495,9 @@ For each client, pinning `target_client_slug`, in this exact order:
     (`crm_store.py monthly-report --month <prior YYYY-MM>`). The weekly and monthly reports are
     the client-facing outputs and must pass the Client-Blind Scrub Gate.
 11. **Notify the operator** via WideCast `sendNotification` (email + Telegram when connected): counts +
-    report link → `notifications/notification_log.md`.
+    report link → `notifications/notification_log.md`. When drafts remain in `pending_approval`,
+    include the Approvals-page link (`http://127.0.0.1:17321/ui/{client}/approvals`) beside the
+    report link.
 12. **Stage 9 audit** → completion gates → release `run_lock`.
 
 ---
@@ -522,7 +530,8 @@ For each active client:
 2. Compute the current month folder key `YYYY-MM` and the day key `YYYY-MM-DD` in the recorded
    timezone from `schedule.md`.
 3. Take/verify the per-client `run_lock` (Run Locking rule). If a fresh lock exists, log and
-   stop for this client.
+   stop for this client. Then run `crm_store.py ingest-ui` to apply any browser Approvals-page
+   decisions queued in `outreach/ui_inbox/` (equal trust to chat; report what it applied).
 
 ### B. Sync inbox (Stage 10, DESIGN §12)
 
@@ -610,7 +619,9 @@ For each active client:
     `Re:`/`Fwd:`. Place in `pending_approval`. At the **END of this drafting pass** — after all
     new-pipeline drafting and **before** the Send step (section G) — render the **Approval
     Report** (`{client}-approval-report.html`, operator-only, NOT scrubbed) per DESIGN §14 so
-    the operator can approve in chat; it is **refreshed** in the reports phase (step 21) per
+    the operator can approve in chat or on the bridge Approvals page
+    (`http://127.0.0.1:17321/ui/{client}/approvals`, equal trust — decisions queue in
+    `ui_inbox/` and apply via `ingest-ui`); it is **refreshed** in the reports phase (step 21) per
     DESIGN §15.
 
 ### G. Send approved (Stage 8, DESIGN §10)
@@ -624,8 +635,9 @@ For each active client:
     Sticky sender: rotation picks the box only on step 1, then `assigned_sendbox` is fixed.
     Record `sent_log.jsonl`, append `email_sent`, sleep jitter 30–180s. A failed send persists
     its blocker on the draft (terminal → `status: blocked`; transient stays `approved` for
-    retry) — never silent. Approval itself happens in chat, any time; the run only sends what
-    is already approved.
+    retry) — never silent. Run `crm_store.py ingest-ui` immediately before this step so browser
+    decisions made during the run are included. Approval itself happens in chat or on the
+    Approvals page, any time; the run only sends what is already approved.
 
 ### H. Assisted channels (DESIGN §9/§16)
 

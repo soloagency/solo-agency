@@ -306,6 +306,71 @@ class TestApprovalAndFollowup(unittest.TestCase):
         self.assertTrue(self.s.render_kanban()["html_rendered"])
 
 
+class TestUIIngest(unittest.TestCase):
+    """ui_inbox/approval_decisions.jsonl (bridge UI) -> same terminal semantics as chat approvals."""
+
+    def setUp(self):
+        self.cdir = _client()
+        self.s = CrmStore(self.cdir)
+        import gmail_client as g
+        g.save_sendbox(self.cdir, {"slug": "sb-a", "email": "me@gmail.com", "domain": "gmail.com", "quota_today": 40, "status": "healthy", "imap_uid_cursor": 0})
+        self.s.create_campaign("demo", {"audience": {"segment": "x"}, "sendboxes": ["sb-a"]})
+        self.drafts = []
+        for i in range(3):
+            lead, _ = self.s.add_contact({"name": {"full": f"U{i}"}, "identities": {"emails": [{"address": f"u{i}@x.com", "is_primary": True}]}})
+            self.s.enrich_write(lead, {"identity": {"still_active": "confirmed"}, "hooks": [{"type": "new_listing", "summary": "x", "evidence_url": f"https://u/{i}", "observed_date": "2026-07-14", "confidence": 0.9, "analysis": {"sensitivity": "public_business"}}], "writing_brief": {"personalization_confidence": 0.85}}, campaign_slug="demo")
+            r = self.s.draft_write(lead, "demo", 1, f"Idea {i}", "Hi", hooks_used=[{"type": "new_listing", "evidence_url": f"https://u/{i}"}])
+            self.drafts.append(r["draft_id"])
+
+    def _write_inbox(self, decisions):
+        d = os.path.join(self.cdir, "ui_inbox")
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "approval_decisions.jsonl"), "a", encoding="utf-8") as fh:
+            for dec in decisions:
+                fh.write(json.dumps(dec) + "\n")
+
+    def test_ingest_applies_terminal_decisions_and_is_idempotent(self):
+        self._write_inbox([
+            {"ts": "t", "draft_id": self.drafts[0], "campaign": "demo", "decision": "approve",
+             "edited_body": "ui edited body", "ui_session": "s1"},
+            {"ts": "t", "draft_id": self.drafts[1], "campaign": "demo", "decision": "reject",
+             "note": "wrong angle", "ui_session": "s1"},
+            {"ts": "t", "draft_id": self.drafts[2], "decision": "hold", "ui_session": "s1"},
+            {"ts": "t", "draft_id": "draft_MISSING", "campaign": "demo", "decision": "approve", "ui_session": "s1"},
+        ])
+        res = self.s.ingest_ui_decisions()
+        self.assertEqual(len(res["approved"]), 1)
+        self.assertEqual(res["rejected"], [self.drafts[1]])
+        self.assertEqual(res["held"], [self.drafts[2]])
+        self.assertIn("draft_MISSING", res["not_found"])
+        # approved draft moved with the UI edit applied
+        dest = os.path.join(self.cdir, "campaigns", "demo", "outbox", "approved", f"{self.drafts[0]}.json")
+        with open(dest) as fh:
+            d = json.load(fh)
+        self.assertEqual(d["status"], "approved")
+        self.assertEqual(d["decided_by"], "ui")
+        self.assertEqual(d["body_text"], "ui edited body")
+        # ledger + learning log written
+        with open(os.path.join(self.cdir, "approvals", "approval_log.md")) as fh:
+            log = fh.read()
+        self.assertIn("| ui |", log)
+        with open(os.path.join(self.cdir, "analytics", "learning_log.md")) as fh:
+            self.assertIn("wrong angle", fh.read())
+        # idempotent: second ingest processes nothing new
+        res2 = self.s.ingest_ui_decisions()
+        self.assertEqual(res2["approved"], [])
+        self.assertEqual(res2["rejected"], [])
+        # new decision after cursor still ingests (hold released to approve is NOT allowed:
+        # the held draft is no longer pending_approval, so it reports already_processed)
+        self._write_inbox([{"ts": "t2", "draft_id": self.drafts[2], "campaign": "demo", "decision": "approve", "ui_session": "s2"}])
+        res3 = self.s.ingest_ui_decisions()
+        self.assertEqual(res3["already_processed"], [self.drafts[2]])
+
+    def test_ingest_no_inbox_is_noop(self):
+        res = self.s.ingest_ui_decisions()
+        self.assertEqual(res["processed_lines"], 0)
+
+
 class TestInjectableClock(unittest.TestCase):
     """2E — OUTREACHCRM_FAKE_NOW, gated behind OUTREACHCRM_TEST_MODE (DESIGN §17)."""
 

@@ -290,7 +290,7 @@ The Approval Report is the gate before any send. Confirm:
 
 - The Approval Report was rendered to `outputs/.../{client}-approval-report.html` (operator-only, NOT scrubbed) by `tools/report_renderer.py`, reusing its contenteditable + Copy-button blocks.
 - Header split into High confidence vs Review carefully; one card per lead with `#id`, name/company/email + verify status, hooks with clickable evidence URLs, subject + editable body + warning flags (guessed, generic, bump step).
-- Chat is the write path; editing the HTML does not persist. Only the chat grammar approves: `approve all` / `approve 1-20, 35, 41` / `reject 7: reason` / `edit 12: ...` / `hold 5`.
+- Chat and the bridge Approvals page are the ONLY write paths; editing the HTML report does not persist. Chat grammar: `approve all` / `approve 1-20, 35, 41` / `reject 7: reason` / `edit 12: ...` / `hold 5`. UI decisions queue in `outreach/ui_inbox/approval_decisions.jsonl` and are applied by `crm_store.py ingest-ui` (run at run start and again immediately before send), logged with `by: ui` in `approvals/approval_log.md` — equal trust to chat.
 - Approved → `outbox/approved/` → sent in-session within quota with the full in-code re-check chain. Rejected → logged with reason → reason feeds `analytics/learning_log.md`. Edit → the agent patches, re-confirms, then approves.
 - Every decision is written to `approvals/approval_log.md`. Nothing left without an explicit `approve`. Default `approval_mode: manual_all`, even for bumps.
 
@@ -364,7 +364,7 @@ For reference during the Daily Run completion gate. The scheduled-run entrypoint
 4. **Semantic triage + `apply-rules`**: replies → deals/tasks; SLA sweep → nudge tasks; every stage change carries evidence.
 5. **Follow-up advising (deal-aware):** replies → reply drafts; due-silent → value-add bumps → `pending_approval`.
 6. **Load new pipeline** (cold/trigger campaigns, JIT buffer 3–7 days): priority pick → Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`.
-7. **Send** `outbox/approved/` within quota (approval happens in chat, any time).
+7. **Send** `outbox/approved/` within quota (`ingest-ui` re-run first; approval happens in chat or on the Approvals page, any time).
 8. **Assisted channels:** draft SMS/Messenger for no-email contacts where the campaign allows + consent exists → Today View copy buttons; human sends, reports back → activity.
 9. **Compile Today View + regenerate kanban** (renderer).
 10. **Reports:** daily-ops + Approval Report + `INTERNAL_REPORT`; **Mondays** add the weekly client report through the scrub gate.
