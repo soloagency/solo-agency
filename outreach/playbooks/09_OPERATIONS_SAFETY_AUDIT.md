@@ -462,6 +462,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] Did I save the client profile at the correct path with valid slugs, only after showing the summary?
 - [ ] Did I connect/verify at least one sendbox (or record it pending), with `credentials.json`/`token.json` gitignored and `chmod 600`?
 - [ ] For an `app_password` box, did I confirm 2FA + App Password; for an `oauth` box, did I keep scopes to `gmail.send + gmail.readonly` and prefer an Internal OAuth app (else a scheduled day-6 re-auth `**[ACTION REQUIRED]**`)?
+- [ ] Did the FIRST App Password request already include the full step-by-step create instructions with the direct Google links (2FA page + apppasswords page + the official guide), instead of an abbreviated ask the human had to expand — and did I never ask them to paste the App Password into chat (env var only)?
 - [ ] Did I add the client row to `clients_index.md`?
 - [ ] Did I configure the schedule and create/propose the automation task with the client name at the start and `target_client_slug` pinned?
 - [ ] Did I confirm the agency-wide `OutreachCRM - GitHub Update Watch` task exists/is proposed and is barred from client-facing channels?
