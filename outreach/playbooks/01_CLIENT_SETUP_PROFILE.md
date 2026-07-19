@@ -355,16 +355,21 @@ Load Stage 2 (`playbooks/02_SENDBOX_SETUP.md`) in full (LOAD LEDGER) before writ
 
 Never ask for the Google password, cookies, or OTP. The App Password request is allowed because it is a scoped app credential, not the account password:
 
+Include the full step-by-step below in this first ask — do NOT wait for the human to ask "how do I create an App Password?". Never ask them to paste the App Password into chat; it reaches the tool only through the `OUTREACHCRM_APP_PASSWORD` environment variable.
+
 ```text
 **[ACTION REQUIRED]**
 
 **Client:** {Client Name}
-**I need you to:** turn on 2-Step Verification for the sending Gmail account, create an
-App Password (Google Account → Security → App passwords), and paste the 16-character App
-Password plus the sending address.
-**Reply with:** `sendbox: {address}@gmail.com` and the App Password
-**Why:** OutreachCRM sends and reads that mailbox over SMTP/IMAP with the App Password.
-It is scoped to this app and never your main Google password.
+**I need you to create a Google App Password (nothing pasted to me):**
+  1. Open https://myaccount.google.com/security and sign in to the SENDING Gmail account.
+  2. Under "How you sign in to Google", turn ON 2-Step Verification (App Passwords require it).
+  3. Open https://myaccount.google.com/apppasswords (Google may ask you to sign in again).
+  4. Type an app name, e.g. `OutreachCRM {Client}`, click Create — Google shows a 16-character code ONCE; copy it now.
+  5. In your local terminal, set it (do NOT send it to me): export OUTREACHCRM_APP_PASSWORD="the 16-char code"
+**If "App Passwords" is missing:** 2-Step Verification is not fully on, or the account uses a security key only, or an organization / Advanced Protection blocked it. Fix 2FA first — Google's guide: https://support.google.com/accounts/answer/185833
+**Reply with:** the sending address only, e.g. `sendbox: {address}@gmail.com` (never the App Password itself)
+**Why:** OutreachCRM sends and reads that mailbox over SMTP/IMAP with the App Password. It is scoped to this app, never your main Google password, and I never see it — the tool reads it from your environment variable.
 ```
 
 `gmail_client.py auth` (Phase 1, present) does this for real: the human sets `OUTREACHCRM_APP_PASSWORD` in their shell, then runs `python3 tools/gmail_client.py --client-dir <DIR> auth --sendbox <slug> --email <you@gmail.com>`, which verifies SMTP+IMAP, writes `sendboxes/{sendbox_slug}/credentials.json` (gitignored, chmod 600), registers the box in `sendboxes/sendboxes.json` (`auth_mode`, `email`, `domain`, `quota_today`, `warmup_stage: week_1`), baselines the IMAP cursor, and flips the box to `status: healthy`. Do not improvise a one-off connectivity script, and never ask for the App Password in chat or as a CLI argument (env var only). Setup never sends a test cold email.

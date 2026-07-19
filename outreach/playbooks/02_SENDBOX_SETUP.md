@@ -20,6 +20,7 @@ This file is loaded, not summarized. A short read is NOT a load: register a LOAD
 - **The `@gmail.com` App Password path is the priority path**; OAuth/Workspace is the advanced fallback. Do not push a client onto OAuth unless they run Google Workspace on a custom domain and explicitly want it.
 - **Data root is `daily-content-pipeline/`.** Every sendbox artifact lives under `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/sendboxes/`. The toolkit/source repo holds no sendbox data or secrets.
 - Every human step in this stage — the App Password creation request, the re-auth request, any blocker — uses the `**[ACTION REQUIRED]**` contract from `OUTREACHCRM_PLAYBOOK.md`: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule.
+- **The first App Password request must include the full step-by-step create instructions with the direct Google links (§2.1), not an abbreviated version the human has to ask to expand.**
 - This stage must be loaded IN FULL (LOAD LEDGER printed with `Verdict: PASS`, matching `LOAD_MANIFEST.md` when present) before any side-effect write.
 
 ## Source Preservation Rule
@@ -51,19 +52,22 @@ daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/out
 
 ### 2.1 Create the App Password (human step)
 
-The App Password is a Google-tightened surface and requires 2-Step Verification. Ask the human with a single `**[ACTION REQUIRED]**` block. Never ask them to paste the password into chat.
+The App Password is a Google-tightened surface and requires 2-Step Verification. Ask the human with a single `**[ACTION REQUIRED]**` block. **The first ask must already contain the full step-by-step below with the direct Google links — do NOT give an abbreviated "create an App Password" instruction and wait for the human to ask how.** Never ask them to paste the password into chat.
 
 ```text
 **[ACTION REQUIRED]**
 
 **Client:** {Client Name}
-**I need you to (all local, nothing pasted to me):**
-  1. Open Google Account → Security for the sending Gmail account.
-  2. Turn ON 2-Step Verification if it is not already on (App passwords require it).
-  3. Go to Security → App passwords → generate a new 16-character App Password.
-  4. In your local terminal, set it as an environment variable (do NOT send it to me):
+**I need you to create a Google App Password (all local, nothing pasted to me):**
+  1. Open https://myaccount.google.com/security and sign in to the SENDING Gmail account.
+  2. Under "How you sign in to Google", turn ON 2-Step Verification if it is not already on (App Passwords require it).
+  3. Open https://myaccount.google.com/apppasswords (Google may ask you to sign in again).
+  4. Type an app name, e.g. `OutreachCRM {Client}`, then click Create.
+  5. Google shows a 16-character code ONCE — copy it now.
+  6. In your local terminal, set it as an environment variable (do NOT send it to me):
        export OUTREACHCRM_APP_PASSWORD="the 16-char app password"
-  5. Reply here only with the sending address, e.g. `sendbox: outreach@gmail.com`.
+  7. Reply here only with the sending address, e.g. `sendbox: outreach@gmail.com`.
+**If you do not see "App Passwords":** 2-Step Verification is not fully on, or the account uses a security key only, or an organization / Advanced Protection blocked it. Fix 2FA first — Google's guide: https://support.google.com/accounts/answer/185833
 **Why:** OutreachCRM sends and reads that mailbox over SMTP/IMAP using the App Password.
 It is scoped to this app, never your main Google password, and I never see it — the tool
 reads it from your environment variable.
