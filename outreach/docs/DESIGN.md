@@ -704,11 +704,23 @@ full in-code re-check chain); rejected → logged with reason → reason feeds
 Every decision → `approvals/approval_log.md`. Nothing leaves without an explicit
 "approve". Default `approval_mode: manual_all` even for bumps.
 
+**Browser approvals — the second write path (bridge UI, U2).** The bridge serves
+`/ui/{client}/approvals`: the same pending drafts as cards (subject + editable body, evidence
+links, warnings, confidence band) with Approve / Save edit / Hold / Reject. Decisions append to
+`clients/{c}/{bl}/outreach/ui_inbox/approval_decisions.jsonl` (`{ts, draft_id, decision:
+approve|reject|hold|edit, edited_subject?, edited_body?, note?, ui_session}`; the bridge is that
+file's sole writer). `crm_store.py ingest-ui` applies them with semantics identical to chat
+(`by: ui` in `approvals/approval_log.md`, reject reasons feed `learning_log`, cursor-idempotent
+via `ui_inbox/.approval_cursor`); it runs at the start of every campaign daily run and again
+immediately before the send step. A UI decision carries exactly the same trust as a chat
+decision. Editing the HTML *report* still does not persist — the *UI page* does.
+
 ---
 
 ## 15. Daily Run order (per client, pins `target_client_slug`)
 1. Load contract + LOAD LEDGER; read automation manifest + `update_state.json` (Update
-   Watch is a separate task, doesn't touch clients); take per-client `run_lock`.
+   Watch is a separate task, doesn't touch clients); take per-client `run_lock`; run
+   `crm_store.py ingest-ui` (apply queued browser approval decisions — equal trust to chat).
 2. **Sync inbox** across all sendboxes (§12): classify, split personal, suppress
    bounces/unsubs immediately.
 3. **Pull tracking** from the worker (§11): record open/click activities (bot-filtered).
@@ -723,7 +735,8 @@ Every decision → `approvals/approval_log.md`. Nothing leaves without an explic
    contract** (the loop is agent-driven): if the operator says "stop"/"ngưng" mid-loop, finish
    the current lead and halt — nothing already in `pending_approval` is lost; an unattended run
    drafts up to budget and stops.
-7. **Send** `outbox/approved/` within quota (§10). (Approval happens in chat, any time.)
+7. **Send** `outbox/approved/` within quota (§10), re-running `ingest-ui` first. (Approval
+   happens in chat or on the bridge Approvals page, any time.)
 8. **Assisted channels:** draft SMS/Messenger for no-email contacts if the campaign
    allows + consent exists (§9/§16) → Today View copy buttons; human sends, reports back
    → activity.

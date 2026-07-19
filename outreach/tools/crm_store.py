@@ -980,6 +980,97 @@ class CrmStore:
                 fh.write("# Learning Log\n\n| Date | Source | Signal | Note |\n|---|---|---|---|\n")
             fh.write(f"| {now_iso()} | draft_rejected | {draft['campaign_slug']}/step{draft['step']} | {reason} |\n")
 
+    def ingest_ui_decisions(self) -> dict:
+        """Consume ui_inbox/approval_decisions.jsonl (written ONLY by the local bridge UI —
+        docs/UI_DESIGN.md §6.2) into the same terminal decisions as chat approvals, with
+        by="ui". Decisions reference draft_id directly (no report numbering). Cursor-based:
+        ui_inbox/.approval_cursor stores how many lines are already processed, so ingest is
+        idempotent and safe to run at the start of every daily run and before any send."""
+        inbox = os.path.join(self.client_dir, "ui_inbox", "approval_decisions.jsonl")
+        cursor_path = os.path.join(self.client_dir, "ui_inbox", ".approval_cursor")
+        result = {"approved": [], "rejected": [], "held": [], "edited": [],
+                  "not_found": [], "already_processed": [], "processed_lines": 0}
+        if not os.path.isfile(inbox):
+            return result
+        try:
+            with open(cursor_path, "r", encoding="utf-8") as fh:
+                cursor = int(fh.read().strip() or "0")
+        except (OSError, ValueError):
+            cursor = 0
+        with open(inbox, "r", encoding="utf-8") as fh:
+            lines = fh.readlines()
+        now = now_iso()
+
+        def find_pending(draft_id: str, campaign: str):
+            camps = [campaign] if campaign else []
+            if not camps:
+                base = os.path.join(self.client_dir, "campaigns")
+                camps = [c for c in (os.listdir(base) if os.path.isdir(base) else [])]
+            for camp in camps:
+                pat = os.path.join(self.client_dir, "campaigns", camp, "outbox",
+                                   "pending_approval", "**", f"{draft_id}.json")
+                hits = glob.glob(pat, recursive=True)
+                if hits:
+                    return camp, hits[0]
+            return None, None
+
+        for raw in lines[cursor:]:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                dec = json.loads(raw)
+            except ValueError:
+                continue
+            did = dec.get("draft_id", "")
+            action = dec.get("decision", "")
+            camp, path = find_pending(did, dec.get("campaign", ""))
+            if not path:
+                result["not_found"].append(did)
+                continue
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    d = json.load(fh)
+            except (OSError, ValueError):
+                result["not_found"].append(did)
+                continue
+            if d.get("status") != "pending_approval":
+                result["already_processed"].append(did)
+                continue
+            if dec.get("edited_subject"):
+                d["subject"] = dec["edited_subject"]
+            if dec.get("edited_body"):
+                d["body_text"] = dec["edited_body"]
+            d["updated_at"] = now
+            if action == "edit":
+                JsonAdapter._atomic_write(path, json.dumps(d, ensure_ascii=False, indent=2))
+                result["edited"].append(did)
+            elif action == "reject":
+                reason = dec.get("note", "")
+                d.update({"status": "rejected", "decided_at": now, "decided_by": "ui",
+                          "reject_reason": reason})
+                JsonAdapter._atomic_write(path, json.dumps(d, ensure_ascii=False, indent=2))
+                self._approval_log(d, "reject", "ui", reason)
+                self._learning_log(d, reason)
+                result["rejected"].append(did)
+            elif action == "hold":
+                d.update({"status": "hold", "decided_at": now, "decided_by": "ui"})
+                JsonAdapter._atomic_write(path, json.dumps(d, ensure_ascii=False, indent=2))
+                result["held"].append(did)
+            elif action == "approve":
+                d.update({"status": "approved", "decided_at": now, "decided_by": "ui"})
+                approved_dir = os.path.join(self.campaign_dir(camp), "outbox", "approved")
+                os.makedirs(approved_dir, exist_ok=True)
+                dest = os.path.join(approved_dir, f"{did}.json")
+                JsonAdapter._atomic_write(path, json.dumps(d, ensure_ascii=False, indent=2))
+                os.replace(path, dest)
+                self._approval_log(d, "approve", "ui", "")
+                result["approved"].append({"draft_id": did, "path": dest})
+        result["processed_lines"] = len(lines)
+        os.makedirs(os.path.dirname(cursor_path), exist_ok=True)
+        JsonAdapter._atomic_write(cursor_path, str(len(lines)))
+        return result
+
     def _client_slug(self) -> str:
         # {client_slug}/{business_slug}_{location_slug} -> a filesystem-safe report prefix
         return os.path.basename(os.path.dirname(self.client_dir)) or "client"
@@ -1899,6 +1990,7 @@ def main(argv=None) -> int:
     dr.add_argument("--contact"); dr.add_argument("--campaign"); dr.add_argument("--json"); dr.add_argument("--day")
     aprt = sub.add_parser("approval-report"); aprt.add_argument("--campaign")
     apy = sub.add_parser("approve"); apy.add_argument("--json", required=True)
+    sub.add_parser("ingest-ui")
     fu = sub.add_parser("followups"); fu.add_argument("op", choices=["due"]); fu.add_argument("--campaign", required=True)
     tv = sub.add_parser("today-view")
     kb = sub.add_parser("kanban")
@@ -1967,6 +2059,8 @@ def main(argv=None) -> int:
         return _out(store.render_approval_report(args.campaign))
     if args.cmd == "approve":
         return _out(store.approve_apply(json.loads(args.json)))
+    if args.cmd == "ingest-ui":
+        return _out(store.ingest_ui_decisions())
     if args.cmd == "followups":
         return _out(store.followups_due(args.campaign))
     if args.cmd == "today-view":

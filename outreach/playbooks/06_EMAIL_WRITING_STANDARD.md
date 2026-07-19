@@ -27,7 +27,8 @@ engine) + `structures.md` + `channels.md` + `followup.md`) — each needs its ow
   surveillant (anti-creepy stance).
 - **Never mention `writing_brief.do_not_mention`** (personal-life details).
 - **Step-1 subject not `Re:`/`Fwd:`** (deceptive). Bumps thread and may keep `Re:` (truthful).
-- **The draft never sends.** It lands in `pending_approval`; the operator approves in chat, then
+- **The draft never sends.** It lands in `pending_approval`; the operator approves in chat or on
+  the bridge Approvals page (`/ui/{client}/approvals`, applied via `crm_store.py ingest-ui`), then
   Stage 8 sends. This stage must not call `gmail_client.py send`.
 - **No guessing, no invented facts, no fabricated proof.**
 - **No em dash (`—`).** Banned in every draft, every channel, every language (it reads as

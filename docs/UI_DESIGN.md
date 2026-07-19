@@ -1,6 +1,6 @@
 # Solo Agency Bridge + Local UI — Design Contract (U-spec v1)
 
-Status: U0 approved by the operator (2026-07-19). This document is the authoritative contract for the localhost UI and for absorbing the Python tools into the single bridge binary. Implementation phases below reference it; when any implementation disagrees with this file, this file wins (amend it first, then the code).
+Status: U0 approved by the operator (2026-07-19). **U1 shipped** (read-only UI + G1 tool CLI). **U2 shipped 2026-07-19** (interactive approvals + shortlist via `ui_inbox`, consumed by `crm_store.py ingest-ui`; playbook wiring in AUTOMATION_SCHEDULING/06/09/DESIGN §14–15 and content playbook 02). G2 (crm_store/import_leads Go port) is still pending — the G2 port MUST reimplement `ingest-ui` with identical semantics. This document is the authoritative contract for the localhost UI and for absorbing the Python tools into the single bridge binary. Implementation phases below reference it; when any implementation disagrees with this file, this file wins (amend it first, then the code). (v1.2)
 
 ## 1. Purpose and principles
 
@@ -58,17 +58,17 @@ Rules: paths are stable once shipped (append, never repurpose). Agents hand the 
 
 ### 6.1 Read model (bridge → UI)
 
-The bridge reads existing files as-is — no schema changes: `clients_index.md`, `outputs/**/report_state.json` + report HTML/PDF, `collector/jobs/*` + `collector/inbox/*`, `outreach/**/crm/*` (contacts/deals/tasks/pipelines via the same JSON the tools write), `sendboxes/sendboxes.json` (never `credentials.json`), `campaigns/*/campaign_config.json`, `outbox/*`, `approvals/approval_log.md`, `notifications/notification_log.md`, `automation/*`. The bridge never reads: `credentials.json`, `token.json`, `secrets/`, provider keys.
+The bridge reads existing files as-is — no schema changes: `clients_index.md`, `outputs/**/report_state.json` + report HTML/PDF, `collector/jobs/*` + `collector/inbox/*`, `outreach/**/crm/*` (contacts/deals/tasks/pipelines via the same JSON the tools write), `sendboxes/sendboxes.json` (never `credentials.json`), `campaigns/*/campaign_config.json`, `outbox/*` (the Approvals page scans `campaigns/*/outbox/pending_approval/**/*.json` and shows only `status: pending_approval`), `approvals/approval_log.md`, `notifications/notification_log.md`, `automation/*`, and `history/discovery_shortlist.json` — the machine-readable shortlist mirror the CONTENT agent writes alongside the in-chat numbered list (playbook 02): `{"generated_at": "<ISO-8601 UTC>", "candidates": [{"n": <chat number>, "source_name", "source_url", "platform", "cadence_suggested": "daily|weekly|optional", "why", "classification"}]}`. The bridge never reads: `credentials.json`, `token.json`, `secrets/`, provider keys.
 
 ### 6.2 Write model (UI → agents): `ui_inbox/` only
 
-The bridge writes ONLY append-only JSONL under dedicated `ui_inbox/` directories (atomic temp+rename, one file per concern):
+The bridge writes ONLY append-only JSONL under dedicated `ui_inbox/` directories (single-line `O_APPEND` + fsync — safe because the ownership matrix makes the bridge the file's sole writer; v1.2 supersedes the earlier temp+rename wording, which cannot append):
 
-- `clients/{c}/{bl}/outreach/ui_inbox/approval_decisions.jsonl` — `{ts, draft_id, decision: approve|reject|hold|edit, edited_subject?, edited_body?, note?, ui_session}`
-- `clients/{c}/{bl}/ui_inbox/shortlist_decisions.jsonl` — `{ts, source_url, source_name, decision: approve|skip, cadence?: daily|weekly|optional, ui_session}`
+- `clients/{c}/{bl}/outreach/ui_inbox/approval_decisions.jsonl` — `{ts, draft_id, decision: approve|reject|hold|edit, campaign?, edited_subject?, edited_body?, note?, ui_session}`. `edited_*` may accompany ANY decision (applied before it); `decision: edit` alone patches the draft and leaves it pending. POST `/api/ui/{client}/approval`.
+- `clients/{c}/{bl}/ui_inbox/shortlist_decisions.jsonl` — `{ts, source_url, source_name?, decision: approve|skip, cadence?: daily|weekly|optional, ui_session}`. POST `/api/ui/{client}/shortlist` (body `{decisions: [...]}`, invalid entries skipped, response reports the queued count).
 - (U3) `clients/{c}/{bl}/outreach/ui_inbox/crm_actions.jsonl` — task done / deal stage moves, each with evidence of the human click.
 
-Consumption invariant: tools/agents merge `ui_inbox` into the canonical ledgers at the next run — UI approval decisions are copied into `approvals/approval_log.md` with `via: ui` (single-ledger invariant preserved), then honored by `gmail_client send` exactly like chat approvals; shortlist decisions feed the same save path as chat-numbered approval. The bridge never writes canonical ledgers, CRM collections, configs, or profiles.
+Consumption invariant: tools/agents merge `ui_inbox` into the canonical ledgers at the next run — `crm_store.py ingest-ui` (run at the start of every campaign daily run and again immediately before the send step) applies approval decisions with `by: ui` in `approvals/approval_log.md` (single-ledger invariant preserved; reject reasons feed `learning_log`), idempotent via the processed-line cursor `outreach/ui_inbox/.approval_cursor`; approved drafts are then honored by `gmail_client send` exactly like chat approvals. Shortlist decisions are consumed by the content agent (playbook 02, cursor `history/.shortlist_cursor`) and feed the same save path as chat-numbered approval. The bridge never writes canonical ledgers, CRM collections, configs, or profiles.
 
 ### 6.3 Ownership matrix
 
@@ -106,7 +106,7 @@ CLI-compat contract: the binary exposes `solo-agency-bridge tool <name> <subcomm
 |---|---|---|
 | U0 | This contract | — |
 | U1 + G1 | Read-only UI (home, jobs, status, reports, leads, CRM-read) + static serving + SSE + G1 tool ports + link-first playbook rules | near-zero (read-only) |
-| U2 + G2 | Interactive approvals + shortlist via `ui_inbox`; crm_store/import_leads in Go; approval-gate amendment | medium — gated by cross-validation + ledger merge invariant |
+| U2 + G2 | Interactive approvals + shortlist via `ui_inbox`; crm_store/import_leads in Go; approval-gate amendment | medium — gated by cross-validation + ledger merge invariant. **U2 half shipped 2026-07-19** (UI pages + POST endpoints + Python `ingest-ui` + playbook wiring); G2 Go port still open and must carry `ingest-ui` over |
 | U3 + G3 | CRM interactions, campaign controls (pause/quota), gmail port, Python retirement sweep | medium — IMAP/SMTP needs live validation on a real sendbox |
 
 ## 10. Risks and guardrails
