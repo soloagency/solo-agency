@@ -73,6 +73,10 @@ type bridge struct {
 	lastRunNowRequestSig string
 	activeJobClaimedPath string
 
+	// local operator UI (ui.go); empty uiDataRoot means the UI is disabled.
+	uiDataRoot string
+	uiToken    string
+
 	mu          sync.Mutex
 	fileMu      sync.Mutex
 	counts      map[string]int
@@ -119,6 +123,9 @@ type extensionIdentity struct {
 }
 
 func main() {
+	if handled, code := maybeRunToolCLI(os.Args[1:]); handled {
+		os.Exit(code)
+	}
 	cfg := parseFlags()
 	if cfg.persistent {
 		if cfg.outputDir == "" {
@@ -501,6 +508,7 @@ func (b *bridge) run() error {
 	mux.HandleFunc("/collect/snapshot", b.withCORS(b.requireToken(b.handleSnapshot)))
 	mux.HandleFunc("/complete", b.withCORS(b.requireToken(b.handleComplete)))
 	mux.HandleFunc("/shutdown", b.withCORS(b.requireToken(b.handleShutdown)))
+	b.registerUIRoutes(mux)
 
 	addr := fmt.Sprintf("%s:%d", b.cfg.host, b.cfg.port)
 	ln, err := net.Listen("tcp", addr)

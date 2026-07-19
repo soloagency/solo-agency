@@ -1,0 +1,723 @@
+package main
+
+// ui.go — the local operator UI (U1, read-only) per docs/UI_DESIGN.md.
+//
+// Principles enforced here:
+//   - Read-only: this file never writes into the data root except the single
+//     bridge/ui_token file. All mutating surfaces arrive in U2 via ui_inbox/.
+//   - UI failure must never break the collector role: initUI errors are logged
+//     and the extension endpoints keep working.
+//   - Agents never fetch these URLs; the human's browser does. Auth is a local
+//     token cookie so other local pages cannot read operator data.
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"html/template"
+	"log"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+)
+
+const uiCookieName = "sa_ui"
+
+// ---------- data root ----------
+
+// deriveDataRoot finds the daily-content-pipeline root from the bridge config:
+// prefer the collector_config.json location (…/daily-content-pipeline/collector/x.json),
+// else walk up from the output dir until a plausible pipeline root is found.
+func deriveDataRoot(cfg config) string {
+	if cfg.configFile != "" {
+		if abs, err := filepath.Abs(filepath.Dir(filepath.Dir(cfg.configFile))); err == nil {
+			return abs
+		}
+	}
+	dir, err := filepath.Abs(cfg.outputDir)
+	if err != nil {
+		return ""
+	}
+	for i := 0; i < 6; i++ {
+		if filepath.Base(dir) == "daily-content-pipeline" {
+			return dir
+		}
+		if st, err := os.Stat(filepath.Join(dir, "clients")); err == nil && st.IsDir() {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ""
+}
+
+// ---------- init + auth ----------
+
+func (b *bridge) initUI() error {
+	root := deriveDataRoot(b.cfg)
+	if root == "" {
+		return fmt.Errorf("ui: could not derive data root from config/output paths")
+	}
+	b.uiDataRoot = root
+	tokenPath := filepath.Join(root, "bridge", "ui_token")
+	if data, err := os.ReadFile(tokenPath); err == nil {
+		tok := strings.TrimSpace(string(data))
+		if len(tok) >= 16 {
+			b.uiToken = tok
+		}
+	}
+	if b.uiToken == "" {
+		raw := make([]byte, 16)
+		if _, err := rand.Read(raw); err != nil {
+			return err
+		}
+		b.uiToken = hex.EncodeToString(raw)
+		if err := os.MkdirAll(filepath.Dir(tokenPath), 0o700); err != nil {
+			return err
+		}
+		if err := os.WriteFile(tokenPath, []byte(b.uiToken+"\n"), 0o600); err != nil {
+			return err
+		}
+	}
+	log.Printf("ui: enabled — entry http://%s:%d/ui/enter/%s (token file %s)",
+		b.cfg.host, b.cfg.port, b.uiToken, tokenPath)
+	return nil
+}
+
+func (b *bridge) registerUIRoutes(mux *http.ServeMux) {
+	if err := b.initUI(); err != nil {
+		log.Printf("ui: disabled — %v (collector endpoints unaffected)", err)
+		return
+	}
+	mux.HandleFunc("/ui/enter/", b.handleUIEnter)
+	mux.HandleFunc("/ui", b.uiAuth(b.handleUIHome))
+	mux.HandleFunc("/ui/", b.uiAuth(b.handleUIRouter))
+	mux.HandleFunc("/files/", b.uiAuth(b.handleUIFiles))
+	mux.HandleFunc("/events", b.uiAuth(b.handleUIEvents))
+}
+
+func (b *bridge) handleUIEnter(w http.ResponseWriter, r *http.Request) {
+	tok := strings.TrimPrefix(r.URL.Path, "/ui/enter/")
+	if tok == "" || tok != b.uiToken {
+		http.Error(w, "invalid entry token", http.StatusForbidden)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name: uiCookieName, Value: tok, Path: "/",
+		HttpOnly: true, SameSite: http.SameSiteLaxMode,
+	})
+	http.Redirect(w, r, "/ui", http.StatusFound)
+}
+
+func (b *bridge) uiAuthorized(r *http.Request) bool {
+	c, err := r.Cookie(uiCookieName)
+	return err == nil && c.Value == b.uiToken
+}
+
+func (b *bridge) uiAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Same-origin only: browser same-origin requests carry no Origin on GET;
+		// refuse any cross-origin caller outright.
+		if o := r.Header.Get("Origin"); o != "" && o != fmt.Sprintf("http://%s:%d", b.cfg.host, b.cfg.port) {
+			http.Error(w, "origin not allowed", http.StatusForbidden)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, "read-only in U1", http.StatusMethodNotAllowed)
+			return
+		}
+		if !b.uiAuthorized(r) {
+			w.WriteHeader(http.StatusForbidden)
+			_ = uiTpl.ExecuteTemplate(w, "locked", map[string]any{"Title": "Locked"})
+			return
+		}
+		next(w, r)
+	}
+}
+
+// ---------- /files/ (read-only static serving with guardrails) ----------
+
+// uiFilesDenied blocks secret-bearing paths from ever being served.
+func uiFilesDenied(rel string) bool {
+	rel = strings.ToLower(filepath.ToSlash(rel))
+	base := path.Base(rel)
+	if base == "credentials.json" || base == "token.json" || base == "ui_token" {
+		return true
+	}
+	if strings.HasPrefix(base, "provider_config.local") {
+		return true
+	}
+	for _, seg := range strings.Split(rel, "/") {
+		if seg == "secrets" {
+			return true
+		}
+	}
+	return false
+}
+
+// uiResolveFile maps /files/<rel> to an absolute path inside root, rejecting
+// traversal and denied names. Returns "" when the request must be refused.
+func uiResolveFile(root, urlPath string) string {
+	rel := strings.TrimPrefix(urlPath, "/files/")
+	rel = path.Clean("/" + rel)[1:] // collapse ../ tricks against the virtual root
+	if rel == "" || rel == "." || strings.Contains(rel, "\x00") {
+		return ""
+	}
+	if uiFilesDenied(rel) {
+		return ""
+	}
+	full := filepath.Join(root, filepath.FromSlash(rel))
+	rootSep := strings.TrimSuffix(root, string(filepath.Separator)) + string(filepath.Separator)
+	if !strings.HasPrefix(full, rootSep) {
+		return ""
+	}
+	st, err := os.Stat(full)
+	if err != nil || st.IsDir() {
+		return ""
+	}
+	return full
+}
+
+func (b *bridge) handleUIFiles(w http.ResponseWriter, r *http.Request) {
+	full := uiResolveFile(b.uiDataRoot, r.URL.Path)
+	if full == "" {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeFile(w, r, full)
+}
+
+// ---------- SSE change feed ----------
+
+// handleUIEvents emits a "change" event whenever a watched directory's
+// fingerprint moves. Cheap mtime polling only — no fsnotify dependency.
+func (b *bridge) handleUIEvents(w http.ResponseWriter, r *http.Request) {
+	fl, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	last := b.uiFingerprint()
+	fmt.Fprintf(w, "event: hello\ndata: %q\n\n", last)
+	fl.Flush()
+	tick := time.NewTicker(2 * time.Second)
+	heartbeat := time.NewTicker(25 * time.Second)
+	defer tick.Stop()
+	defer heartbeat.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-heartbeat.C:
+			fmt.Fprint(w, ": ping\n\n")
+			fl.Flush()
+		case <-tick.C:
+			cur := b.uiFingerprint()
+			if cur != last {
+				last = cur
+				fmt.Fprintf(w, "event: change\ndata: %q\n\n", cur)
+				fl.Flush()
+			}
+		}
+	}
+}
+
+func (b *bridge) uiFingerprint() string {
+	var sb strings.Builder
+	stamp := func(p string) {
+		if st, err := os.Stat(p); err == nil {
+			fmt.Fprintf(&sb, "%s=%d;", p, st.ModTime().UnixNano())
+		}
+	}
+	root := b.uiDataRoot
+	for _, d := range []string{"pending", "claimed", "completed"} {
+		stamp(filepath.Join(root, "collector", "jobs", d))
+	}
+	stamp(filepath.Join(root, "collector", "inbox"))
+	for _, ws := range b.uiClients() {
+		stamp(filepath.Join(ws.Path, "outputs"))
+		stamp(filepath.Join(ws.Path, "outreach", "outputs"))
+		stamp(filepath.Join(ws.Path, "outreach", "outbox"))
+	}
+	return sb.String()
+}
+
+// ---------- data readers (read-only) ----------
+
+type uiClient struct {
+	Slug     string
+	Workspace string
+	Path     string
+}
+
+func (b *bridge) uiClients() []uiClient {
+	var out []uiClient
+	base := filepath.Join(b.uiDataRoot, "clients")
+	slugs, err := os.ReadDir(base)
+	if err != nil {
+		return out
+	}
+	for _, s := range slugs {
+		if !s.IsDir() {
+			continue
+		}
+		subs, err := os.ReadDir(filepath.Join(base, s.Name()))
+		if err != nil {
+			continue
+		}
+		for _, ws := range subs {
+			if !ws.IsDir() {
+				continue
+			}
+			out = append(out, uiClient{
+				Slug:      s.Name(),
+				Workspace: ws.Name(),
+				Path:      filepath.Join(base, s.Name(), ws.Name()),
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Slug < out[j].Slug })
+	return out
+}
+
+func (b *bridge) uiFindClient(slug string) (uiClient, bool) {
+	for _, c := range b.uiClients() {
+		if c.Slug == slug {
+			return c, true
+		}
+	}
+	return uiClient{}, false
+}
+
+type uiFile struct {
+	Name    string
+	Rel     string // data-root-relative, for /files/ links
+	ModTime time.Time
+	Size    int64
+}
+
+// uiListFiles walks base (bounded depth) collecting files with the given
+// extensions, newest first, capped.
+func (b *bridge) uiListFiles(base string, exts []string, cap int) []uiFile {
+	var out []uiFile
+	var walk func(dir string, depth int)
+	walk = func(dir string, depth int) {
+		if depth > 4 || len(out) > cap*3 {
+			return
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			p := filepath.Join(dir, e.Name())
+			if e.IsDir() {
+				walk(p, depth+1)
+				continue
+			}
+			keep := false
+			for _, x := range exts {
+				if strings.HasSuffix(strings.ToLower(e.Name()), x) {
+					keep = true
+					break
+				}
+			}
+			if !keep {
+				continue
+			}
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			rel, err := filepath.Rel(b.uiDataRoot, p)
+			if err != nil || uiFilesDenied(rel) {
+				continue
+			}
+			out = append(out, uiFile{Name: e.Name(), Rel: filepath.ToSlash(rel), ModTime: info.ModTime(), Size: info.Size()})
+		}
+	}
+	walk(base, 0)
+	sort.Slice(out, func(i, j int) bool { return out[i].ModTime.After(out[j].ModTime) })
+	if len(out) > cap {
+		out = out[:cap]
+	}
+	return out
+}
+
+func uiReadJSON(path string, into any) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, into)
+}
+
+type uiJob struct {
+	State   string
+	Name    string
+	ModTime time.Time
+	RunID   string
+	Client  string
+	Kind    string
+}
+
+func (b *bridge) uiJobs() []uiJob {
+	var out []uiJob
+	for _, state := range []string{"pending", "claimed", "completed"} {
+		dir := filepath.Join(b.uiDataRoot, "collector", "jobs", state)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		var batch []uiJob
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+				continue
+			}
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			j := uiJob{State: state, Name: e.Name(), ModTime: info.ModTime()}
+			var doc map[string]any
+			if uiReadJSON(filepath.Join(dir, e.Name()), &doc) == nil {
+				j.RunID, _ = doc["run_id"].(string)
+				j.Client, _ = doc["client_slug"].(string)
+				if v, ok := doc["job_type"].(string); ok {
+					j.Kind = v
+				} else if v, ok := doc["purpose"].(string); ok {
+					j.Kind = v
+				}
+			}
+			batch = append(batch, j)
+		}
+		sort.Slice(batch, func(i, j int) bool { return batch[i].ModTime.After(batch[j].ModTime) })
+		if state == "completed" && len(batch) > 30 {
+			batch = batch[:30]
+		}
+		out = append(out, batch...)
+	}
+	return out
+}
+
+type uiSendbox struct {
+	Client string
+	Slug   string
+	Email  string
+	Status string
+	Quota  string
+	Warmup string
+}
+
+func (b *bridge) uiSendboxes() []uiSendbox {
+	var out []uiSendbox
+	for _, c := range b.uiClients() {
+		var doc struct {
+			Sendboxes []map[string]any `json:"sendboxes"`
+		}
+		p := filepath.Join(c.Path, "outreach", "sendboxes", "sendboxes.json")
+		if uiReadJSON(p, &doc) != nil {
+			continue
+		}
+		for _, sb := range doc.Sendboxes {
+			row := uiSendbox{Client: c.Slug}
+			row.Slug, _ = sb["slug"].(string)
+			row.Email, _ = sb["email"].(string)
+			row.Status, _ = sb["status"].(string)
+			row.Warmup, _ = sb["warmup_stage"].(string)
+			for _, k := range []string{"quota_today", "daily_quota"} {
+				if v, ok := sb[k]; ok {
+					row.Quota = fmt.Sprintf("%v", v)
+					break
+				}
+			}
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
+type uiContact struct {
+	ID       string
+	Name     string
+	Email    string
+	Vertical string
+	Stage    string
+}
+
+func (b *bridge) uiContacts(c uiClient, cap int) []uiContact {
+	dir := filepath.Join(c.Path, "outreach", "crm", "contacts")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []uiContact
+	for _, e := range entries {
+		if len(out) >= cap || e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		var doc map[string]any
+		if uiReadJSON(filepath.Join(dir, e.Name()), &doc) != nil {
+			continue
+		}
+		ct := uiContact{ID: strings.TrimSuffix(e.Name(), ".json")}
+		for _, k := range []string{"display_name", "full_name", "name"} {
+			if v, ok := doc[k].(string); ok && v != "" {
+				ct.Name = v
+				break
+			}
+		}
+		if ids, ok := doc["identities"].(map[string]any); ok {
+			if emails, ok := ids["emails"].([]any); ok && len(emails) > 0 {
+				if em, ok := emails[0].(map[string]any); ok {
+					ct.Email, _ = em["address"].(string)
+				}
+			}
+		}
+		if cf, ok := doc["custom_fields"].(map[string]any); ok {
+			if v, ok := cf["professional_vertical"].(string); ok {
+				ct.Vertical = v
+			}
+		}
+		ct.Stage, _ = doc["lifecycle_stage"].(string)
+		out = append(out, ct)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+type uiDeal struct {
+	ID      string
+	Stage   string
+	Contact string
+	Title   string
+}
+
+func (b *bridge) uiDeals(c uiClient) []uiDeal {
+	dir := filepath.Join(c.Path, "outreach", "crm", "deals")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []uiDeal
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		var doc map[string]any
+		if uiReadJSON(filepath.Join(dir, e.Name()), &doc) != nil {
+			continue
+		}
+		d := uiDeal{ID: strings.TrimSuffix(e.Name(), ".json")}
+		d.Stage, _ = doc["stage"].(string)
+		d.Contact, _ = doc["contact_id"].(string)
+		d.Title, _ = doc["title"].(string)
+		out = append(out, d)
+	}
+	return out
+}
+
+// ---------- handlers ----------
+
+func (b *bridge) handleUIHome(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/ui" {
+		http.NotFound(w, r)
+		return
+	}
+	b.uiRender(w, "home", map[string]any{
+		"Title":   "Solo Agency",
+		"Clients": b.uiClients(),
+		"Jobs":    b.uiJobs(),
+	})
+}
+
+// handleUIRouter dispatches /ui/... subpaths.
+func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/ui/"), "/"), "/")
+	switch {
+	case len(parts) == 1 && parts[0] == "jobs":
+		b.uiRender(w, "jobs", map[string]any{"Title": "Jobs", "Jobs": b.uiJobs(), "Active": b.uiActiveRuns()})
+	case len(parts) == 1 && parts[0] == "status":
+		b.uiRenderStatus(w)
+	case len(parts) == 1 && parts[0] != "":
+		b.uiRenderClient(w, parts[0])
+	case len(parts) == 2 && parts[1] == "reports":
+		b.uiRenderReports(w, parts[0])
+	case len(parts) == 2 && parts[1] == "crm":
+		b.uiRenderCRM(w, parts[0])
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+func (b *bridge) uiActiveRuns() []any {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.activeRunSummariesLocked()
+}
+
+func (b *bridge) uiRenderStatus(w http.ResponseWriter) {
+	b.mu.Lock()
+	exts := make([]map[string]string, 0, len(b.extensions))
+	for _, t := range b.extensions {
+		exts = append(exts, map[string]string{
+			"Instance": t.instanceID, "Client": t.clientSlug, "Name": t.displayName,
+			"Last": t.lastCheckAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+	b.mu.Unlock()
+	b.uiRender(w, "status", map[string]any{
+		"Title": "Status", "StartedAt": b.startedAt.Format(time.RFC3339),
+		"DataRoot": b.uiDataRoot, "Persistent": b.cfg.persistent,
+		"Extensions": exts, "Sendboxes": b.uiSendboxes(),
+	})
+}
+
+func (b *bridge) uiRenderClient(w http.ResponseWriter, slug string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	latest := b.uiListFiles(filepath.Join(c.Path, "outputs", "latest"), []string{".html", ".pdf"}, 20)
+	latest = append(latest, b.uiListFiles(filepath.Join(c.Path, "outreach", "outputs", "latest"), []string{".html", ".pdf"}, 20)...)
+	b.uiRender(w, "client", map[string]any{
+		"Title": c.Slug, "Client": c, "Latest": latest,
+	})
+}
+
+func (b *bridge) uiRenderReports(w http.ResponseWriter, slug string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	files := b.uiListFiles(filepath.Join(c.Path, "outputs"), []string{".html", ".pdf"}, 120)
+	files = append(files, b.uiListFiles(filepath.Join(c.Path, "outreach", "outputs"), []string{".html", ".pdf"}, 120)...)
+	sort.Slice(files, func(i, j int) bool { return files[i].ModTime.After(files[j].ModTime) })
+	b.uiRender(w, "reports", map[string]any{"Title": c.Slug + " reports", "Client": c, "Files": files})
+}
+
+func (b *bridge) uiRenderCRM(w http.ResponseWriter, slug string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	deals := b.uiDeals(c)
+	stages := map[string][]uiDeal{}
+	var order []string
+	var pipe struct {
+		Pipelines []struct {
+			Stages []struct {
+				ID string `json:"id"`
+			} `json:"stages"`
+		} `json:"pipelines"`
+	}
+	if uiReadJSON(filepath.Join(c.Path, "outreach", "crm", "pipelines.json"), &pipe) == nil && len(pipe.Pipelines) > 0 {
+		for _, s := range pipe.Pipelines[0].Stages {
+			order = append(order, s.ID)
+			stages[s.ID] = nil
+		}
+	}
+	for _, d := range deals {
+		stages[d.Stage] = append(stages[d.Stage], d)
+	}
+	b.uiRender(w, "crm", map[string]any{
+		"Title": c.Slug + " CRM", "Client": c,
+		"Contacts": b.uiContacts(c, 500), "StageOrder": order, "Stages": stages,
+	})
+}
+
+func (b *bridge) uiRender(w http.ResponseWriter, page string, data map[string]any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := uiTpl.ExecuteTemplate(w, page, data); err != nil {
+		log.Printf("ui: template %s: %v", page, err)
+	}
+}
+
+// ---------- templates (embedded, no build chain) ----------
+
+var uiTpl = template.Must(template.New("ui").Parse(`
+{{define "head"}}<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{.Title}} · Solo Agency</title><style>
+:root{--bg:#fff;--fg:#111;--mut:#667;--line:#e5e7eb;--card:#f8fafc;--acc:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1020;--fg:#e8ecf4;--mut:#9aa4b8;--line:#232a3d;--card:#111731;--acc:#7aa2ff}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 -apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+nav{display:flex;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);align-items:center;flex-wrap:wrap}
+nav a{color:var(--fg);text-decoration:none;font-weight:600}nav a:hover{color:var(--acc)}
+nav .brand{color:var(--acc)}main{max-width:1100px;margin:0 auto;padding:18px 16px}
+h1{font-size:20px;margin:8px 0 14px}h2{font-size:16px;margin:18px 0 8px}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{color:var(--mut);font-weight:600}.mut{color:var(--mut)}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;color:var(--mut)}
+a{color:var(--acc)}.wrap{overflow-x:auto}</style></head><body>
+<nav><a class="brand" href="/ui">Solo Agency</a><a href="/ui/jobs">Jobs</a><a href="/ui/status">Status</a></nav>
+<main><h1>{{.Title}}</h1>{{end}}
+
+{{define "foot"}}</main><script>
+try{var es=new EventSource('/events');es.addEventListener('change',function(){location.reload()})}catch(e){}
+</script></body></html>{{end}}
+
+{{define "locked"}}{{template "head" .}}
+<div class="card"><p><strong>UI locked.</strong> Open the tokenized entry link once to unlock this browser.</p>
+<p class="mut">Ask your AI agent for the entry link, or read <code>daily-content-pipeline/bridge/ui_token</code> and open <code>/ui/enter/&lt;token&gt;</code>.</p></div>
+{{template "foot" .}}{{end}}
+
+{{define "home"}}{{template "head" .}}
+<h2>Clients</h2><div class="grid">
+{{range .Clients}}<div class="card"><strong><a href="/ui/{{.Slug}}">{{.Slug}}</a></strong><br>
+<span class="mut">{{.Workspace}}</span><br>
+<a href="/ui/{{.Slug}}/reports">reports</a> · <a href="/ui/{{.Slug}}/crm">crm</a></div>
+{{else}}<p class="mut">No clients yet.</p>{{end}}</div>
+<h2>Recent jobs</h2><div class="wrap"><table><tr><th>state</th><th>client</th><th>kind</th><th>file</th><th>when</th></tr>
+{{range .Jobs}}<tr><td><span class="pill">{{.State}}</span></td><td>{{.Client}}</td><td>{{.Kind}}</td><td class="mut">{{.Name}}</td><td class="mut">{{.ModTime.Format "01-02 15:04"}}</td></tr>{{else}}<tr><td colspan="5" class="mut">none</td></tr>{{end}}</table></div>
+{{template "foot" .}}{{end}}
+
+{{define "jobs"}}{{template "head" .}}
+<h2>Active runs</h2><div class="card"><pre class="mut" style="margin:0;white-space:pre-wrap">{{range .Active}}{{printf "%v" .}}
+{{else}}none{{end}}</pre></div>
+<h2>Queue</h2><div class="wrap"><table><tr><th>state</th><th>client</th><th>kind</th><th>run id</th><th>file</th><th>when</th></tr>
+{{range .Jobs}}<tr><td><span class="pill">{{.State}}</span></td><td>{{.Client}}</td><td>{{.Kind}}</td><td class="mut">{{.RunID}}</td><td class="mut">{{.Name}}</td><td class="mut">{{.ModTime.Format "01-02 15:04"}}</td></tr>{{else}}<tr><td colspan="6" class="mut">empty</td></tr>{{end}}</table></div>
+{{template "foot" .}}{{end}}
+
+{{define "status"}}{{template "head" .}}
+<div class="card">Bridge started <strong>{{.StartedAt}}</strong> · persistent: {{.Persistent}}<br>
+<span class="mut">data root: {{.DataRoot}}</span></div>
+<h2>Extensions</h2><div class="wrap"><table><tr><th>client</th><th>instance</th><th>name</th><th>last check-in</th></tr>
+{{range .Extensions}}<tr><td>{{.Client}}</td><td class="mut">{{.Instance}}</td><td>{{.Name}}</td><td class="mut">{{.Last}}</td></tr>{{else}}<tr><td colspan="4" class="mut">no extension check-ins yet</td></tr>{{end}}</table></div>
+<h2>Sendboxes</h2><div class="wrap"><table><tr><th>client</th><th>slug</th><th>email</th><th>status</th><th>quota</th><th>warmup</th></tr>
+{{range .Sendboxes}}<tr><td>{{.Client}}</td><td>{{.Slug}}</td><td>{{.Email}}</td><td><span class="pill">{{.Status}}</span></td><td>{{.Quota}}</td><td class="mut">{{.Warmup}}</td></tr>{{else}}<tr><td colspan="6" class="mut">none configured</td></tr>{{end}}</table></div>
+{{template "foot" .}}{{end}}
+
+{{define "client"}}{{template "head" .}}
+<p><a href="/ui/{{.Client.Slug}}/reports">All reports</a> · <a href="/ui/{{.Client.Slug}}/crm">CRM</a></p>
+<h2>Latest</h2><div class="wrap"><table><tr><th>file</th><th>when</th></tr>
+{{range .Latest}}<tr><td><a href="/files/{{.Rel}}">{{.Name}}</a></td><td class="mut">{{.ModTime.Format "2006-01-02 15:04"}}</td></tr>{{else}}<tr><td colspan="2" class="mut">no outputs yet — run the client's daily task</td></tr>{{end}}</table></div>
+{{template "foot" .}}{{end}}
+
+{{define "reports"}}{{template "head" .}}
+<div class="wrap"><table><tr><th>file</th><th>when</th><th>size</th></tr>
+{{range .Files}}<tr><td><a href="/files/{{.Rel}}">{{.Rel}}</a></td><td class="mut">{{.ModTime.Format "2006-01-02 15:04"}}</td><td class="mut">{{.Size}}</td></tr>{{else}}<tr><td colspan="3" class="mut">no reports yet</td></tr>{{end}}</table></div>
+{{template "foot" .}}{{end}}
+
+{{define "crm"}}{{template "head" .}}
+<h2>Pipeline</h2><div class="grid">
+{{$st := .Stages}}{{range .StageOrder}}<div class="card"><strong>{{.}}</strong>
+{{range index $st .}}<div class="mut">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</div>{{else}}<div class="mut">—</div>{{end}}</div>{{end}}</div>
+<h2>Contacts</h2><div class="wrap"><table><tr><th>name</th><th>email</th><th>vertical</th><th>stage</th></tr>
+{{range .Contacts}}<tr><td>{{if .Name}}{{.Name}}{{else}}<span class="mut">{{.ID}}</span>{{end}}</td><td class="mut">{{.Email}}</td><td>{{.Vertical}}</td><td class="mut">{{.Stage}}</td></tr>{{else}}<tr><td colspan="4" class="mut">no contacts yet</td></tr>{{end}}</table></div>
+{{template "foot" .}}{{end}}
+`))

@@ -22,7 +22,7 @@ The three session types are unchanged (see the OutreachCRM router "Session Model
 |---|---|---|
 | Extension hub | Existing 13 endpoints (`/status`, `/jobs/*`, `/collect/*`, `/complete`, ...), extension token auth. UNCHANGED; UI work must not alter these routes or their semantics. | shipped |
 | Static/report server | Serve report HTML/PDF/assets from the data root read-only (`/files/...`), so handoffs become clickable URLs instead of file paths. | U1 |
-| UI app | Embedded vanilla-JS SPA (Go `embed`), served under `/ui/...`. No node, no build chain, no external CDN (self-contained like the reports). | U1–U3 |
+| UI app | Embedded server-rendered pages + vanilla JS (Go templates compiled into the binary), served under `/ui/...`. No node, no build chain, no external CDN (self-contained like the reports). SSE-driven auto-refresh. (v1.1: server-rendered chosen over an SPA — same no-build guarantee, less client state.) | U1–U3 |
 | File-bus API + tools | Read APIs over existing files, SSE change feed, write endpoints restricted to `ui_inbox/`, and CLI subcommands replacing the Python tools (G1–G3). | U1–G3 |
 
 ## 4. Security
