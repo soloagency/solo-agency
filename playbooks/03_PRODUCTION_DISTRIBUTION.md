@@ -129,16 +129,17 @@ Before using the acronym `PDNA`, define it in plain language:
 - Notification: send report-ready messages, blocker alerts, and approval requests, preferably through Telegram/email fallback when available.
 - Analytics: measure performance such as views, likes, comments, shares, saves, clicks, followers, and unavailable metrics honestly.
 
-For the default path, the agent's human-facing ask should be only this:
+For the default path, the agent's human-facing ask should be only this. Lead with the value the human gets first (daily report notification and hot-lead alerts), then production; state that this is the last setup step that needs them; keep it free-framed and never imply Solo Agency and WideCast are the same company:
 
 ```text
 **[ACTION REQUIRED]**
 
 **Client:** {Client Name}
-**I need you to:** Generate a WideCast API key and paste only the API key here.
-**Steps:** Go to https://widecast.ai/#setup, register or log in, click `Setup AI Agent`, open `API Keys & MCP`, click `Setup`, then click `Generate API key and MCP url`.
-**Optional inside WideCast:** Connect Telegram so I can send report links, blockers, and approval requests. Connect social accounts only if you want later approval-aware publishing.
-**Why:** I will use the API key to configure this client's PDNA provider, verify the account, discover capabilities, update the automation task, and keep video production provider-backed.
+**Why this helps you:** connect WideCast so {Client Name} sends you a notification the moment the daily report is ready and an instant alert when a hot lead needs fast contact — plus, after you approve, video/blog/social asset creation and publishing. This is the last setup step that needs you; after it, the daily automation runs on its own and reaches you.
+**I need you to:** register WideCast (it is free), generate an API key (it usually starts with `wc_live_...`), and paste only the API key here — I configure everything else.
+**Steps:** Go to https://widecast.ai/#setup, register or log in (free 50 credits/month when that offer is shown), click `Setup AI Agent`, open `API Keys & MCP`, click `Setup`, then click `Generate API key and MCP url`. Copy only the API key back here.
+**Optional inside WideCast:** connect Telegram so alerts also reach your phone; connect social accounts only if you want later approval-aware publishing.
+**Reply with:** the `wc_live_...` key to finish setup, or `skip PDNA` to continue without alerts (then you would have to open the AI agent yourself each day to see the report and any hot leads).
 ```
 
 Do not add a second question such as "Which provider?", "Which scope?", "Spend credits yes/no?", "Publish yes/no?", "What account identity?", or "Which notification channel?" during default setup. The safe defaults are: provider `widecast`, discover all PDNA capabilities, no publishing/render/export/credit spend/clone/outreach until a later explicit approval gate, and use the verified account response as identity evidence.
