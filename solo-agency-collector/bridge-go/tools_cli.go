@@ -109,12 +109,15 @@ func maybeRunToolCLI(args []string) (handled bool, exitCode int) {
 	}
 	usage := func() int {
 		fmt.Fprintln(os.Stderr, "usage: tool verify-email check --email a@b.com | check-file --in emails.txt")
+		fmt.Fprintln(os.Stderr, "       tool crm-store [--client-dir DIR | --pipeline R --client S] <subcommand> ...")
 		return 2
 	}
 	if len(args) < 2 {
 		return true, usage()
 	}
 	switch args[1] {
+	case "crm-store":
+		return true, runCrmStoreCLI(args[2:])
 	case "verify-email":
 		if len(args) < 3 {
 			return true, usage()
