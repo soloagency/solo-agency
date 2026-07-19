@@ -18,7 +18,7 @@ All CRM data lives under `daily-content-pipeline/`. Every mutation of a `crm/` c
 
 ## Client isolation
 
-One agency, many clients; each client is an isolated workspace under `daily-content-pipeline/clients/{client_slug}/`. The storage adapter is instantiated per client. The only agency-global collections are the global suppression tier, `secrets/`, `provider_defaults.json`, and the tracker key. A run pinned to `target_client_slug` must never read or write another client's data. Every client-specific automation task name must begin with the client name, e.g. `Max Output - OutreachCRM Daily Run`.
+One agency, many clients; each client is an isolated workspace under `daily-content-pipeline/clients/{client_slug}/`. The storage adapter is instantiated per client. The only agency-global collections are the global suppression tier, `secrets/`, `provider_defaults.json`, and the tracker key. A run pinned to `target_client_slug` must never read or write another client's data. Every client-specific automation task name must begin with the client name, e.g. `Max Output - SaaS Founders Intro Daily Run`.
 
 ## Sending, approval, and compliance
 

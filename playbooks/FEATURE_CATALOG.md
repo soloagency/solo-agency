@@ -29,7 +29,7 @@ Load this file when composing a feature-discovery suggestion (setup completion, 
 
 | Feature | Value (say this first) | Prerequisite | Trigger phrase | Delivered by |
 |---|---|---|---|---|
-| Cold-email outreach | Reach the leads directly with personalized, evidence-backed cold emails — nothing sends until you approve | a sendbox + a list | "set up a cold-email campaign" | OutreachCRM Stage 1-6 |
+| Cold-email outreach | Reach the leads directly with personalized, evidence-backed cold emails — nothing sends until you approve. After Solo Agency setup it takes just 3 questions: your lead list, a Gmail App Password, and one goal+URL confirmation | a sendbox + a list | "set up a cold-email campaign" | OutreachCRM Stage 1-6 |
 | Import a contact list | Bring a CSV/list of prospects in, deduped and suppression-checked | none | "import a list" | OutreachCRM Stage 3 |
 | Lead enrichment | Gather verified, evidenced hooks on each contact so every email is genuinely personal | a list imported | "enrich my leads" | OutreachCRM Stage 4 |
 | Follow-up / bump engine | Automatic, distinct follow-ups that add new value each time, never "just checking in" | a campaign running | (runs in the daily task) | OutreachCRM Stage 10 |

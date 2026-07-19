@@ -125,7 +125,7 @@ Rules:
 The agent must NEVER end a human-facing reply, notification, or report handoff with `No action required right now.`, a passive summary, or any ending that leaves the human without a suggested next move. Assume the human is completely new to OutreachCRM: the agent is the tour guide and user guide.
 
 1. If a required human action exists, end with the `**[ACTION REQUIRED]**` block(s) - unchanged.
-2. Otherwise, end with 1-3 concrete suggested next actions plus exactly ONE closing question asking which one the human wants. The FIRST suggestion must resume the current or interrupted workflow at its exact pending step (for example: approve the pending drafts in the Approval Report, resume setup at the current roadmap step). The others must be REAL OutreachCRM capabilities available in the current state - run `{Client} - OutreachCRM Daily Run`, import another list, connect an additional sendbox, create or adjust a campaign goal, review the weekly client report - phrased in plain language with the exact reply/command. Never invent a capability; if a suggestion has unmet prerequisites, say what setup it needs first.
+2. Otherwise, end with 1-3 concrete suggested next actions plus exactly ONE closing question asking which one the human wants. The FIRST suggestion must resume the current or interrupted workflow at its exact pending step (for example: approve the pending drafts in the Approval Report, resume setup at the current roadmap step). The others must be REAL OutreachCRM capabilities available in the current state - run `{Client} - {Campaign} Daily Run`, import another list, connect an additional sendbox, create or adjust a campaign goal, review the weekly client report - phrased in plain language with the exact reply/command. Never invent a capability; if a suggestion has unmet prerequisites, say what setup it needs first.
 3. Scheduled-run notifications follow the same rule: end with the suggested next action, never `No action required right now.`
 
 Override: anywhere any OutreachCRM playbook, entrypoint, skill, template, or older text still says to end with or include `No action required right now.`, this rule supersedes it - deliver next-action guidance instead.
@@ -224,6 +224,14 @@ Operator-only reports (Approval Report, Today View, daily ops, `INTERNAL_REPORT`
 | Scheduled Entrypoint | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` | The scheduler prompt for unattended daily runs. |
 | TODO | `playbooks/TODO.md` | Backlog. Not a source of daily questions to the human. |
 
+## Session Model (three session types only)
+
+The whole system runs in exactly three kinds of human-facing sessions:
+
+1. **ONE setup session — shared with Solo Agency.** ALL setup (content pipeline, outreach, campaigns) happens INSIDE the human's current setup session by loading this module's stages there. NEVER spawn, create, or hand off to a separate dedicated "OutreachCRM setup" session/task/thread: OutreachCRM is a distinct module, not a separate session. When campaign intent appears mid-setup, continue in the same session (Campaign Quick Start when the Solo Agency profile exists).
+2. **ONE content automation session per client** — `{Client} - Solo Agency Daily Run` (owned by the content pipeline).
+3. **ONE automation session per campaign** — `{Client} - {Campaign} Daily Run`, created when the campaign is created. Each runs its campaign's daily loop. The per-client `run_lock` serializes same-client campaign sessions so they never overlap; client-level steps inside the loop (inbox sync, triage/apply-rules, follow-up advising) are idempotent (IMAP cursor + rule guard keys), so whichever campaign session runs first that day performs them and later sessions reuse the state.
+
 ## Latest Architecture: Setup Flow And Automation Flow
 
 OutreachCRM has two independent human-facing flows.
@@ -235,7 +243,7 @@ The setup chat (and any later setup/repair chat) is the control plane. It may cr
 In Setup Flow the agent must:
 
 - create or update client folders, the Client Intelligence Profile, pipelines, custom fields, sending identity, sendbox connections, imported lists, campaigns, schedule files, automation manifests, scheduled prompts, and resync logs;
-- create or update client-specific automation tasks whose names start with the client name, e.g. `Max Output - OutreachCRM Daily Run`;
+- create or update client-specific automation tasks whose names start with the client name, e.g. `Max Output - SaaS Founders Intro Daily Run`;
 - perform Automation Resync after every approved change once any schedule/automation exists;
 - direct the human to run the configured automation task for the first daily run.
 
@@ -248,7 +256,7 @@ In Setup Flow the agent must NOT:
 If the human asks to send or run a campaign during Setup Flow, treat it as a handoff request. Required response pattern:
 
 ```text
-I will not send from this setup chat because Setup Flow only configures the system. I will finish or resync the client-specific automation task instead. After setup is ready, run `{Client Name} - OutreachCRM Daily Run` for the first run.
+I will not send from this setup chat because Setup Flow only configures the system. I will finish or resync the client-specific automation task instead. After setup is ready, run `{Client Name} - {Campaign} Daily Run` for the first run.
 ```
 
 Do not continue with drafting-to-send in the same setup turn after saying this. If the native automation task cannot be created/updated directly, write the exact prompt to `daily-content-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and tell the human the one exact task action needed.
@@ -262,11 +270,11 @@ Scheduled/automation tasks run what Setup Flow configured: inbox sync, reply/bou
 Every client-specific automation/scheduled task name must begin with the client name (task lists truncate long names):
 
 ```text
-Max Output - OutreachCRM Daily Run
+Max Output - SaaS Founders Intro Daily Run
 Max Output - OutreachCRM Weekly Report   (optional additional task)
 ```
 
-The standard, canonical client task is `{Client} - OutreachCRM Daily Run` — one per client. A separate `{Client} - OutreachCRM Weekly Report` task is optional and only exists when explicitly created; do not assume it exists. Do not name client-specific tasks with `OutreachCRM` first. One agency-wide maintenance task is `OutreachCRM - GitHub Update Watch`.
+The standard, canonical automation task is `{Client} - {Campaign} Daily Run` — **one per campaign** (use a short human-readable campaign name, not the raw slug). Its prompt pins BOTH `target_client_slug` and `campaign_slug`; it processes only that campaign; the per-client `run_lock` serializes same-client campaign tasks, and client-level steps (inbox sync, triage, follow-up advising) run inside whichever campaign task executes first that day and are idempotent for the rest. A separate `{Client} - OutreachCRM Weekly Report` task is optional and only exists when explicitly created; do not assume it exists. Do not name campaign tasks with `OutreachCRM` first. One agency-wide maintenance task is `OutreachCRM - GitHub Update Watch`. **Migration:** an older per-client `{Client} - OutreachCRM Daily Run` task is replaced by per-campaign tasks at the next setup/resync touching that client.
 
 ## Automation Resync Invariant
 
@@ -309,7 +317,7 @@ This is the planned setup process I am working through. You only need to reply w
 
 Progress roadmap integrity rule:
 
-- Every setup progress block shows all 9 items in order; never hide pending/declined items.
+- Every setup progress block shows all 9 items in order; never hide pending/declined items. Exception: Campaign Quick Start (Stage 1) shows its compact 3-step roadmap plus one line stating the rest is configured automatically; the 9-item block applies to standalone (non-bootstrapped) setups.
 - When Bootstrap Mode is active, item 1 reads as bootstrapped (e.g. `✓ 1. Bootstrapped from this client's Solo Agency profile; you confirmed/corrected it`) — still 9 items, never a 10th.
 - Step 4 (sendbox) and Step 5 (list) may be marked `!` if the human must act (connect a box / provide a file).
 - Step 7 is optional; mark it `–` with a reason if the human declines notifications.
@@ -384,7 +392,7 @@ Setup is not complete until:
 - The first list was imported, deduped, and checked against suppression, or marked pending.
 - At least one campaign with a structured goal and a valid sequence exists.
 - Notification (WideCast) was configured or explicitly marked `–` (optional).
-- The client-specific `{Client} - OutreachCRM Daily Run` automation task was created (pinning `target_client_slug`) and, after schedule exists, the `OutreachCRM - GitHub Update Watch` task was created, or its pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (not silently skipped).
+- One `{Client} - {Campaign} Daily Run` automation task per campaign was created (each pinning `target_client_slug` + `campaign_slug`) and, after schedule exists, the `OutreachCRM - GitHub Update Watch` task was created, or its pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (not silently skipped).
 - Setup Flow sent nothing. Terminal state is `ready_for_automation_first_run`.
 - The setup handoff showed the exact task name to run.
 

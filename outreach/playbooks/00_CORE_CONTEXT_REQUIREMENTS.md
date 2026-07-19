@@ -42,7 +42,7 @@ OutreachCRM strictly separates setup/configuration from operational runs. This o
 
 - **Setup Flow is the control plane.** It creates and updates client config, sendbox connections, imported lists, campaign definitions, schedules, the client-specific automation task, provider (notification) config, and resync logs. It must not send email, verify/enrich for send, draft-for-send a campaign, pull tracking, run `apply-rules`, or notify a client.
 - **Automation Flow is the operations plane.** It runs the configured pipeline from saved state (sync inbox → pull tracking → triage + rules → follow-up advising → load new pipeline → send approved → assisted drafts → compile views → reports → notify → audit). It may also record practical config changes discovered during a run (a new bounce pattern, a segment tweak), but it must resync those changes for future runs.
-- **The first run is not a setup deliverable.** It must execute through a client-specific automation task whose name begins with the client name, e.g. `Acme Realty - OutreachCRM Daily Run`.
+- **The first run is not a setup deliverable.** It must execute through a client-specific automation task whose name begins with the client name, e.g. `Acme Realty - Home Sellers Intro Daily Run`.
 - **Client-specific tasks process only their pinned `target_client_slug`.** A task cannot read, draft into, send from, or suppress within any other client's workspace.
 - **Terminal setup state is `ready_for_automation_first_run`.** Setup ends when configuration is current and the human has the exact automation-task name to run.
 
@@ -59,7 +59,7 @@ Send/report request hard stop in Setup Flow:
 Required response pattern in Setup Flow when asked to operate:
 
 ```text
-I will not send or run a campaign in this setup chat because Setup Flow is only for configuration. I will finish or resync the client-specific automation task instead. After setup is ready, run `{Client Name} - OutreachCRM Daily Run` for the first pipeline pass.
+I will not send or run a campaign in this setup chat because Setup Flow is only for configuration. I will finish or resync the client-specific automation task instead. After setup is ready, run `{Client Name} - {Campaign} Daily Run` for the first pipeline pass.
 ```
 
 ---
@@ -69,7 +69,7 @@ I will not send or run a campaign in this setup chat because Setup Flow is only 
 OutreachCRM must run in an AI agent runtime that supports:
 
 - local workspace file reads/writes (the entire data root `daily-content-pipeline/` lives on the operator's machine);
-- scheduled automation or native tasks (one per client, plus the update-watch task);
+- scheduled automation or native tasks (one per campaign — `{Client} - {Campaign} Daily Run` — plus the update-watch task);
 - multiple parallel/sub-agent work streams for verify/enrich, drafting, inbox sync, tracking, reporting, and resync verification;
 - outbound email and inbox read for at least one sendbox (SMTP+IMAP for `app_password`, or the Gmail API for `oauth`);
 - running local Python tools (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`, `report_renderer.py`, `provider_openapi.py`) and, when tracking is enabled, a Cloudflare Worker under `trk.{domain}`.
@@ -125,10 +125,10 @@ Stated in full in the override above. The control-plane / operations-plane split
 Client-specific task name begins with the client name (task lists truncate long names), pins `target_client_slug`, and cannot touch another client. Example name (there is exactly one client-specific task):
 
 ```text
-Acme Realty - OutreachCRM Daily Run
+Acme Realty - Home Sellers Intro Daily Run
 ```
 
-The first run is just that `{Client} - OutreachCRM Daily Run` task's first execution — there is no separate `First Run` task. Plus one agency-wide `OutreachCRM - GitHub Update Watch` task (§0.6), barred from every client-facing channel.
+The first run is just that `{Client} - {Campaign} Daily Run` task's first execution — there is no separate `First Run` task. Plus one agency-wide `OutreachCRM - GitHub Update Watch` task (§0.6), barred from every client-facing channel.
 
 ### 0.5 Automation Resync
 
@@ -204,7 +204,7 @@ This is the planned setup process I am working through. You only need to reply w
 ○ 6. We create the first campaign and its goal (e.g. book a meeting — the goal is the writing blueprint), sequence, and daily quota
 ○ 7. I set up operator notifications (optional): Telegram via a WideCast API key, with email fallback, so you get run summaries and the report link
 ○ 8. I record a baseline (nothing has been sent yet)
-○ 9. I create the client-specific daily automation task ({Client} - OutreachCRM Daily Run); from then on the daily run enriches, drafts, and shows you an Approval Report — nothing sends until you approve
+○ 9. I create the client-specific daily automation task ({Client} - {Campaign} Daily Run); from then on the daily run enriches, drafts, and shows you an Approval Report — nothing sends until you approve
 ```
 
 Roadmap integrity: always show all items in order (all 9); never hide later items because they are pending; mark `–` only after an explicit human decline or a logged not-applicable reason; the automation task is created LAST (item 9), and the verify/enrich/draft/send/track/report work it runs (item 9) never runs in Setup Flow. After any approved config change once a schedule exists, run Automation Resync and show an `Automation freshness` line (`current` / `resync in progress` / `action needed` / `not applicable yet`).

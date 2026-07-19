@@ -87,12 +87,12 @@ Rules:
 
 - Create **one client-specific automation task per active client** by default.
 - Every client-specific task name must begin with the client name, for example
-  `AvenNgo - OutreachCRM Daily Run`.
+  `AvenNgo - Buyer Leads Intro Daily Run`.
 - The task prompt must pin `target_client_slug` and must not process any other client. A
   client-named task that touches a second client's data is a critical violation.
 - The task prompt runs the full Daily Run order (DESIGN §15) for that one client, loading the
   needed stage files fresh at run time.
-- A setup/config session may instruct the human to run `AvenNgo - OutreachCRM Daily Run`, but
+- A setup/config session may instruct the human to run `AvenNgo - Buyer Leads Intro Daily Run`, but
   it must not send, enrich, or run the campaign inside the setup chat.
 - A setup/config session must **not** load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` as a
   workaround for a human "run it now" request. The scheduled entrypoint belongs in the native
@@ -749,7 +749,7 @@ expressed in three places that the daily run reads at run time:
 
 - cadence (daily / multiple-times-daily / weekly / manual-only / first-run-only);
 - the chosen scheduling mechanism and how it is instantiated;
-- included clients and their per-client task names;
+- included clients and their per-campaign task names;
 - the recorded local timezone (see the timezone rule above);
 - the notification channel (WideCast email+Telegram → Gmail/email → `local_path_only`);
 - the weekly-report day (default Monday, in the recorded timezone);
@@ -764,7 +764,7 @@ timezone: America/Chicago
 weekly_client_report_day: monday
 clients:
   - slug: avenngo-realty-austin
-    task_name: "AvenNgo - OutreachCRM Daily Run"
+    task_name: "AvenNgo - Buyer Leads Intro Daily Run"
     target_client_slug: avenngo-realty-austin
 notification_channel: widecast_telegram_email_fallback
 last_resync: 2026-07-15T09:00:00-05:00

@@ -180,7 +180,7 @@ For every active or configured client, check and update:
 - `daily-content-pipeline/schedule.md`.
 - `daily-content-pipeline/automation/automation_manifest.md`.
 - `daily-content-pipeline/automation/scheduled_run_prompt.md`.
-- the native AI automation/scheduled task body (`{Client} - OutreachCRM Daily Run`) when the environment exposes it.
+- the native AI automation/scheduled task body (`{Client} - {Campaign} Daily Run`) when the environment exposes it.
 - `daily-content-pipeline/automation/update_state.json` and `update_log.md`.
 - `daily-content-pipeline/automation/resync_log.md`.
 
