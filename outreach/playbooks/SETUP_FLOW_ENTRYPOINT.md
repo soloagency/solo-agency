@@ -93,6 +93,6 @@ When the human asks to send / run a campaign / draft-and-send while this entrypo
 2. Finish or resync the client-specific automation task.
 3. Provide the exact task name to run for the first daily run.
 4. If the native automation UI requires human action, provide that one exact action in a `**[ACTION REQUIRED]**` block.
-5. End with a `**[ACTION REQUIRED]**` block naming the exact automation task to run, or end with next-action guidance per the Next-Action Guidance Rule.
+5. End with a `**[ACTION REQUIRED]**` block naming the exact automation task to run, AND a feature-discovery block of 2-3 unused headline capabilities (Feature Discovery Rule; also introduce the content/video side of the funnel) - setup never ends flat. When no action is needed, still end with next-action guidance plus the feature-discovery block.
 
 Do not ask whether to send now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not enrich, draft-to-send, or notify in Setup Flow.

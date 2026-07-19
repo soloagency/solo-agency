@@ -342,7 +342,7 @@ Let me know if you need anything else.
 Next steps are in the report.
 ```
 
-Even when the entire requested workflow is complete and no human decision is required, the agent still closes with next-action guidance per the root Next-Action Guidance Rule: suggest 1-3 real, currently-available next steps and ask which one the human wants.
+Even when the entire requested workflow is complete and no human decision is required, the agent still closes with next-action guidance per the root Next-Action Guidance Rule AND a feature-discovery block per the root Feature Discovery Rule (draw unused headline features from `playbooks/FEATURE_CATALOG.md`): suggest 1-3 real, currently-available next steps and ask which one the human wants.
 
 ### Manual Private Data Sources And Discovery Are Independent
 

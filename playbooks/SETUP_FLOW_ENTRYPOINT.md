@@ -82,6 +82,6 @@ When the human asks for a report/run while this entrypoint is active, the only v
 2. Finish or resync the client-specific automation task.
 3. Provide the exact task name and whether it will run public data sources only or public plus activated private data sources.
 4. If the native automation UI requires human action, provide that one exact action in a `**[ACTION REQUIRED]**` block.
-5. End with a `**[ACTION REQUIRED]**` block naming the exact client-specific automation task to run for the report, or, when no action is needed, end with next-action guidance per the root Next-Action Guidance Rule.
+5. End with a `**[ACTION REQUIRED]**` block naming the exact client-specific automation task to run for the report, AND a feature-discovery block introducing 2-3 unused headline capabilities from `playbooks/FEATURE_CATALOG.md` (Feature Discovery Rule) - setup never ends flat. When no action is needed, still end with next-action guidance plus the feature-discovery block.
 
 Do not ask whether to run the report now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not perform public research, private data source collection (one exception: the step-6 discovery pass per item 6 of the Setup Flow Contract), report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery (one exception: the single step-7 WideCast confirmation ping that verifies the notification channel right after the human provides the API key) in Setup Flow.
