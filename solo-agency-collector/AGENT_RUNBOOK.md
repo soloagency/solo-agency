@@ -39,17 +39,22 @@ https://raw.githubusercontent.com/soloagency/solo-agency/dist/SHA256SUMS
 
 ### Recommended: use the canonical setup script (do NOT hand-write the download/checksum step)
 
-There is ONE supported installer, in two equivalent forms — pick by the user's OS. Each
-downloads the bundle, verifies the checksum (matched by BASENAME, so it works regardless
-of the `SHA256SUMS` path format), extracts the right binary for the machine, and prints
-the launch command. Neither starts the bridge; both are safe to re-run.
+There is ONE supported installer, in two equivalent forms — pick by the user's OS. Running
+it is the WHOLE setup in one command: it downloads the bundle, verifies the checksum
+(matched by BASENAME, so it works regardless of the `SHA256SUMS` path format), extracts the
+right binary, then **STOPS any bridge already on the port and STARTS the newest one in the
+background**. It is idempotent and **must never fail on "address already in use"** — it
+stops the old collector first (it will never kill a non-collector process). The bridge runs
+detached, so the user can close the Terminal. Do NOT chain a separate `... --persistent`
+start command after it (that is what raced the port and failed); running the script IS the
+start.
 
 **macOS / Linux (and Windows with Git Bash / WSL):**
 
 ```bash
 # from the agency root (the folder that contains daily-content-pipeline/):
 curl -fsSL -o setup_collector.sh https://raw.githubusercontent.com/soloagency/solo-agency/dist/setup_collector.sh
-bash setup_collector.sh
+bash setup_collector.sh          # downloads, verifies, installs, AND (re)starts the bridge
 ```
 
 **Windows (native PowerShell — no Git Bash needed; ships with Windows 10/11):**
@@ -60,10 +65,13 @@ Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/soloag
 powershell -ExecutionPolicy Bypass -File setup_collector.ps1
 ```
 
-Pick the script for the user's OS (the agent may also read either one and adapt it to the
-environment). Do NOT reimplement the checksum parsing yourself: a hand-written parser that
-assumed a bare filename dead-ended a real setup because `SHA256SUMS` can list a full path.
-Both canonical scripts already handle bare-name, `*name`, and full-path formats.
+Re-running the script is the supported way to upgrade or restart: it always stops the old
+bridge and starts the newest binary. Pick the script for the user's OS (the agent may also
+read either one and adapt it). Do NOT reimplement the checksum parsing yourself: a
+hand-written parser that assumed a bare filename dead-ended a real setup because
+`SHA256SUMS` can list a full path. Both scripts handle bare-name, `*name`, and full-path
+formats. (The agent still does not run the script itself — the human runs it — but the
+human runs ONLY this one script; no extra bridge-start command.)
 
 The manual steps below are the fallback only if the script cannot be used:
 
