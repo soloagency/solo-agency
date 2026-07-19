@@ -114,6 +114,7 @@ Rules:
 - Use at most three `**[ACTION REQUIRED]**` blocks in one reply; group or prioritize if more.
 - Keep each block short enough to scan on mobile.
 - Do not use an icon as the only signal; the `**[ACTION REQUIRED]**` text marker is mandatory.
+- **Every command or path you hand the human to run or open must be ABSOLUTE — the full path from the real workspace root, never relative. A non-technical user does not know which directory to run a command from.** This covers the tool/script path (e.g. `gmail_client.py`), the `--client-dir` value, and any file paths. Resolve the actual absolute workspace path and substitute it; do not hand out `python3 solo-agency/outreach/tools/...` or `--client-dir daily-content-pipeline/...` relative forms.
 - Do not ask for passwords, cookies, OTPs, or session tokens. Sendbox connection may ask only for the specific App Password or OAuth action the playbook allows; provider setup blocks may ask only for the specific API key.
 - Setup Flow "send now" requests must end with an action block naming the exact client-specific automation task to run, not a question asking whether to send now.
 - Any send, any outbound message on any channel, any credit spend, any provider connection, any schedule/automation task edit, and any assisted-channel send always require approval and use this block.

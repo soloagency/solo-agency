@@ -5,7 +5,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| SOLO_AGENCY_PLAYBOOK.md | 882 | 56906d09251949107aa5320233e9f5c6cb36d12dc87cf835ee39224a7c16fd9f | If any required stage was not loaded, load it before proceeding. |
+| SOLO_AGENCY_PLAYBOOK.md | 883 | a812eb3ab716bde1963c4f73e880d9eacea671d2f64009b385a6e30149144366 | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1824 | 73d6b75630523ce4dd6e8a5afcce1ad56fe532ddd6e17f227ad2b2ab9dba82cd | --- |
 | playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md | 796 | 9744d33b0e28bf07d823e8012afafbc7a2d61619ea263da296eef332e41fe00f | --- |
 | playbooks/02_PRIVATE_SOURCE_SETUP.md | 713 | d534e7ea57055555578651efbf61ff1627a2df047edc111c97a6194ad7d5ab63 | --- |

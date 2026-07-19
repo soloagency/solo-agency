@@ -134,6 +134,7 @@ Rules:
 - Use at most three `**[ACTION REQUIRED]**` blocks in one reply. If more than three actions exist, group or prioritize them.
 - Keep each block short enough to scan on mobile.
 - Do not use an icon as the only signal; the `**[ACTION REQUIRED]**` text marker is mandatory.
+- **Every command or path you hand the human to run or open must be ABSOLUTE — the full path from the real workspace root, never relative. A non-technical user does not know which directory to run a command from.** This covers the tool/script path, the `--client-dir` value, any file paths, the Local Collector setup/start command, and the Chrome `Load unpacked` folder. Resolve the actual absolute workspace path and substitute it into the command; do not hand out `python3 solo-agency/...` or other relative forms.
 - Do not ask for passwords, cookies, OTPs, browser session tokens, or social credentials. Provider setup blocks may ask only for the specific API key or OAuth/connection action the playbook allows.
 - Setup Flow report requests must end with an action block that names the exact client-specific automation task to run, not a question asking whether to run the report now.
 - Production, rendering, publishing, credit spending, face/voice clone, provider account connection, lead outreach, private data source discovery, private data source approval, Local Collector start/reload, Chrome extension loading, and native automation task edits always require this block.
