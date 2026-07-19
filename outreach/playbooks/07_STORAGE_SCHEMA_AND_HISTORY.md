@@ -790,7 +790,7 @@ last_resynced_by_agent:
 automation_manifest_file: daily-content-pipeline/automation/automation_manifest.md
 scheduled_prompt_file: daily-content-pipeline/automation/scheduled_run_prompt.md
 schedule_file: daily-content-pipeline/schedule.md
-native_task_name: {client_name} - OutreachCRM Daily Run
+native_task_name: {client_name} - {campaign} Daily Run
 native_task_prompt_updated: true | false | not_applicable | unknown
 dry_read_verification:
   verified_at:
@@ -1024,7 +1024,7 @@ Daily runs process every client with `active` status. A `ready_for_automation_fi
 
 ### 11.2 `schedule.md`
 
-Records how daily runs happen in the current AI environment. May use: native AI automations, reminders, cron, launchd, Task Scheduler, n8n, Make, GitHub Actions, or a local desktop routine. If true automation is unavailable, create manual run instructions. Each client has **one** automation task named `{Client} - OutreachCRM Daily Run`; there is also one agency-wide `OutreachCRM - GitHub Update Watch` task (Stage 11). A client's task prompt pins `target_client_slug` and cannot touch another client.
+Records how daily runs happen in the current AI environment. May use: native AI automations, reminders, cron, launchd, Task Scheduler, n8n, Make, GitHub Actions, or a local desktop routine. If true automation is unavailable, create manual run instructions. Each client has **one** automation task named `{Client} - {Campaign} Daily Run`; there is also one agency-wide `OutreachCRM - GitHub Update Watch` task (Stage 11). A client's task prompt pins `target_client_slug` and cannot touch another client.
 
 ### 11.3 `storage_config.json`
 

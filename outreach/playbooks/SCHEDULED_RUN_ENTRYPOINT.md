@@ -22,6 +22,7 @@ Run the scheduled OutreachCRM daily run now.
    c. Semantically triage replies (positive/question/objection/negative/remove_intent), then run crm_store.py apply-rules (deterministic): reply_positive -> create deal + "reply within 4h" task + freeze sequence; negative/remove_intent -> suppress + freeze; SLA sweep -> nudge tasks. Every stage change carries an evidence activity.
    d. Advise follow-ups (Stage 10 + email-writing skill), deal-aware: replies -> reply drafts; due-silent contacts -> value-add bumps drawn from the RESERVED dossier points + the campaign message_bank (rotate the bank; do NOT re-enrich per bump — a micro-refresh is opportunistic only, when reserved points are exhausted and the collector has spare capacity). Apply the stale-hook guard: re-verify or drop any time-sensitive hook past TTL before referencing it. Route drafts to outbox/pending_approval/.
    e. Load new pipeline for cold/trigger campaigns (JIT buffer 3-7 days), bounded per campaign by its daily draft budget: `crm_store.py draft budget --campaign <slug>` and draft while `remaining > 0` (the operator saying "stop" mid-loop means finish the current lead and halt — drafts already in pending_approval are preserved). Priority pick -> Stage 4 Tier-1 verify (a no-email lead is queued here so enrichment can DISCOVER an email; a recent 30-day email_not_found negative cache skips it) -> Tier-2 enrich -> step-1 draft -> outbox/pending_approval/. Every personalized detail must map to a dossier hook with an evidence_url; a hookless step-1 is REJECTED (`no_evidenced_hook`) unless the campaign explicitly opts into `no_hook_fallback: generic_honest_opener` (default is `skip`).
+   e2. Before deciding draft-vs-skip for any lead, apply the Stage-6 Drafting Decision Checklist: the ONLY valid skip reasons are suppression/unsubscribed, no usable email after discovery, or (non-curated lists only) zero evidenced hooks with no_hook_fallback=skip. NEVER skip for offer-fit / "already has a content system" / competitor overlap / companion-link domain; below-threshold confidence with a hook drafts into Review carefully; a user-curated list is enrich + personalize only.
    f. Render the operator-only Approval Report (report_renderer.py, NOT scrubbed): step-1 drafts grouped High confidence vs Review carefully, plus a separate "Follow-ups due" section for bumps and reply drafts (step>1), one card per lead with clickable evidence URLs and an editable draft. Nothing sends yet.
    g. Send outbox/approved/ within quota (gmail_client.py send). Each send runs the ordered in-code pre-send re-check (resolve -> suppression -> channel status -> sending-identity/CAN-SPAM gate (config/sending_identity.json must exist; the engine appends the postal-address + opt-out footer to every body) -> guessed-approval -> sequence-freeze -> step-1 subject lint -> atomic quota reservation last; warmup/domain/send-window caps are Phase-2/3), uses the sticky assigned sendbox (rotation only for step-1), records sent_log with the on-the-wire rfc_message_id, and appends an email_sent activity. Never send without an approval logged in approvals/approval_log.md.
    h. Draft assisted-channel messages for no-email contacts when the campaign allows and consent exists; surface them in the Today View for the human to send manually (the agent never sends them).
@@ -36,19 +37,19 @@ Run the scheduled OutreachCRM daily run now.
 
 ## Client-Specific Automation Prompt
 
-Prefer one automation task per client. The task name must begin with the client name:
+One automation task per CAMPAIGN. The task name must begin with the client name:
 
 ```text
-{Client Name} - OutreachCRM Daily Run
+{Client Name} - {Campaign} Daily Run
 ```
 
-Client-specific automation prompts must pin `target_client_slug` and follow this contract:
+Campaign automation prompts must pin `target_client_slug` AND `campaign_slug` and follow this contract:
 
 ```text
-Run OutreachCRM daily run for target_client_slug="{client_slug}" only.
+Run the OutreachCRM daily run for target_client_slug="{client_slug}", campaign_slug="{campaign_slug}" only.
 
 Load OUTREACHCRM_PLAYBOOK.md and the required stage playbooks.
-Then Load playbooks/SCHEDULED_RUN_ENTRYPOINT.md (with a LOAD LEDGER) and follow every numbered rule of its Scheduler Prompt, plus the Daily Run order in playbooks/AUTOMATION_SCHEDULING.md, restricted to this one client. That includes: LOAD LEDGER full-load discipline per playbooks/LOAD_LEDGER_PROTOCOL.md; inbox sync with the mandatory classifier order; deterministic crm_store.py apply-rules; the evidence-URL personalization rule; the operator-only Approval Report; the in-code pre-send re-check chain; sticky-sender sendbox rotation; suppression at every send path; opens/clicks never triggering an action; the OutreachCRM daily run progress block with an Automation freshness check line; the **[ACTION REQUIRED]** contract and the Next-Action Guidance Rule; and loading Stage 9 before claiming completion.
+Then Load playbooks/SCHEDULED_RUN_ENTRYPOINT.md (with a LOAD LEDGER) and follow every numbered rule of its Scheduler Prompt, plus the Daily Run order in playbooks/AUTOMATION_SCHEDULING.md, restricted to this one client and this one campaign (client-level steps — inbox sync, triage, follow-up advising — are idempotent; the per-client run_lock serializes same-client campaign tasks). That includes: LOAD LEDGER full-load discipline per playbooks/LOAD_LEDGER_PROTOCOL.md; inbox sync with the mandatory classifier order; deterministic crm_store.py apply-rules; the evidence-URL personalization rule; the operator-only Approval Report; the in-code pre-send re-check chain; sticky-sender sendbox rotation; suppression at every send path; opens/clicks never triggering an action; the OutreachCRM daily run progress block with an Automation freshness check line; the **[ACTION REQUIRED]** contract and the Next-Action Guidance Rule; and loading Stage 9 before claiming completion.
 Read daily-content-pipeline/clients_index.md and verify the target client is active. Do not read or write any other client's data. Take the per-client run_lock. After the Stage 9 audit and completion gates pass, release/close the per-client run_lock (outputs/YYYY-MM/YYYY-MM-DD/{client}-run_lock.json) before ending the run.
 Read only this client's Client Intelligence Profile, CRM data (contacts/deals/activities/tasks/pipelines), sendboxes, suppression, campaigns, outbox, sent_log, inbox_sync, analytics, and provider config.
 If any blocker, repeated failure, stale artifact, or instruction/tool mismatch occurs, treat stale OutreachCRM playbooks/code as the first suspect: check GitHub main, reload the latest relevant playbook instructions, and only then declare the run blocked. If still blocked, create/send/draft a redacted issue without requiring the human to have a GitHub account, tracked in daily-content-pipeline/automation/github_issues.md.
@@ -56,7 +57,7 @@ For notification, prefer this client's configured provider. WideCast defaults to
 Nothing sends without an approval logged in approvals/approval_log.md. Assisted-channel messages are drafted for the human to send manually; the agent never sends them.
 ```
 
-If the prompt contains a `target_client_slug`, the scheduled agent must not loop through other clients.
+If the prompt contains a `target_client_slug`, the scheduled agent must not loop through other clients; if it contains a `campaign_slug`, do not process other campaigns — their own tasks handle them.
 
 ## GitHub Update Watch Task Prompt
 

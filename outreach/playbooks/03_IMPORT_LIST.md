@@ -20,6 +20,7 @@ Import creates the contact set. It does **not** verify-enrich for send, does **n
 - **Import is idempotent.** Re-running the same file with the same mapping under the same list slug is a no-op (matched by an idempotency key over file content + mapping). Do not "force" a duplicate import to make counts look busier.
 - Load Stage 7 IN FULL (LOAD LEDGER printed with `Verdict: PASS`, matching `LOAD_MANIFEST.md` when present) before writing any list artifact. A partial read = NOT loaded.
 - Every human step in this stage — the mapping confirmation and any blocker — uses the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`: one purpose, one exact next step, one command or path. When the import is clean, end with next-action guidance per the Next-Action Guidance Rule (for example suggest creating the first campaign for this list or running the daily task).
+- **User-Curated List Rule.** A list the human provides (or explicitly approves from a handoff) is PRE-QUALIFIED: the human already decided these are the people to reach. Import it whole. The agent has NO authority to drop, deprioritize, or skip a curated lead on fit judgment — offer-fit, "already has a content system", competitor overlap, or brand maturity are NEVER skip reasons anywhere downstream (import, enrich, draft). Only hard floors remove a curated lead: suppression/unsubscribed, no reachable channel after a real discovery attempt, or a hard compliance block. Record `list_origin: user_curated` on the list manifest so downstream stages apply this rule.
 
 ## Source Preservation Rule
 
@@ -269,7 +270,7 @@ Reconciliation check: `row_count == contacts_created + contacts_matched_existing
 
 ## 10. The Import Summary (only an ACTION REQUIRED on a blocker)
 
-After a clean import, report the counts and end with next-action guidance — the human does not need to fix anything for a normal import, so suggest the natural next step (create or adjust the campaign for this list, or run `{Client} - OutreachCRM Daily Run` to enrich and draft) and ask which one they want.
+After a clean import, report the counts and end with next-action guidance — the human does not need to fix anything for a normal import, so suggest the natural next step (create or adjust the campaign for this list, or run `{Client} - {Campaign} Daily Run` to enrich and draft) and ask which one they want.
 
 Raise a single `**[ACTION REQUIRED]**` block only when there is a real blocker, for example:
 
@@ -283,7 +284,7 @@ Example clean summary:
 ```text
 Imported al-realtors: 412 rows → 380 created, 18 matched (already known), 9 suppressed, 5 skipped (no identity).
 List: daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/lists/al-realtors/
-Next: I can create the first campaign for this list, or you can run `{Client} - OutreachCRM Daily Run` to enrich and draft against it. Which would you like?
+Next: I can create the first campaign for this list, or you can run `{Client} - {Campaign} Daily Run` to enrich and draft against it. Which would you like?
 ```
 
 Example blocker:

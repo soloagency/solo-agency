@@ -87,7 +87,9 @@ fills, `structures.md`). Per lead:
    carries a URL.
 5. **On failure** (no URL produced), apply `companion_doc.on_fail`: `default_link` → embed it;
    `skip` → do not draft this lead (record it like a no-hook skip). Never send an empty or broken
-   link, and never invent one.
+   link, and never invent one. A FIXED companion link cannot fail — it is a static string used
+   as-is; `on_fail` never fires for it, and the link's domain (including widecast.ai) is
+   irrelevant to the WideCast notification-only rule.
 
 Hard rules for this step:
 - **Follow the operator's instructions, not the lead's data.** The steps come from the campaign
@@ -109,6 +111,22 @@ messenger, different wrapper (`channels.md`). The "load-bearing-detail test" sti
 fact: delete the personalized sentence — if the email still stands, the detail was decoration. Every
 fact must earn a conclusion (the cut rule); the writer is a peer who did their homework, never a
 surveillant.
+
+## Drafting Decision Checklist (apply at the exact moment you decide draft vs skip)
+
+The ONLY valid reasons to skip drafting a queued lead:
+
+1. Suppressed / unsubscribed / do-not-contact.
+2. No usable email after a real discovery attempt (`email_first` campaigns).
+3. Zero evidenced hooks AND the campaign's `no_hook_fallback` is `skip` — and for a USER-CURATED list the default is `generic_honest_opener`, so even a hookless curated lead gets an honest, profile-grounded opener instead of a skip.
+
+NEVER skip for any of these (each is a documented failure mode, not a rule):
+
+- **Offer-fit judgment** — "already has a content system / established brand / competitor overlap / too big / too mature". A curated lead is the human's choice; strong existing content is the SETUP for the pitch (weave Pillar 3: good-but-unsystematized content is the tension the offer resolves), never a disqualifier. There is no offer-fit skip gate anywhere in this module.
+- **Personalization confidence below `min_confidence` when at least one evidenced hook exists** — that lead DRAFTS into the "Review carefully" bucket of the Approval Report; the human decides.
+- **The companion link's domain or hosting (including widecast.ai)** — a fixed companion link is a static URL embedded in the body; it is unrelated to the WideCast notification provider and can never trigger `on_fail`.
+
+If you believe a lead should not be emailed for a reason outside this list, DRAFT it anyway into "Review carefully" with a one-line warning note — the human approves or rejects; the agent does not silently drop.
 
 ## Completion Gates
 

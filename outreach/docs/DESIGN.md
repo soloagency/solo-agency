@@ -44,9 +44,13 @@ scrubbed report.
 3. **Setup Flow vs Automation Flow split.** Setup Flow is the control plane: it
    creates config + the automation task and **never sends an email, never runs a
    campaign, never enriches for send**. Terminal state: `ready_for_automation_first_run`.
-4. **One automation task per client**, name begins with the client name, prompt pins
-   `target_client_slug`, cannot touch another client. Plus one agency-wide
-   `OutreachCRM - GitHub Update Watch` task.
+4. **One automation task per campaign** (`{Client} - {Campaign} Daily Run`), name begins
+   with the client name, prompt pins `target_client_slug` + `campaign_slug`, cannot touch
+   another client; the per-client `run_lock` serializes same-client campaign tasks, and
+   client-level steps (inbox sync, triage, follow-ups) are idempotent across them. Plus one
+   agency-wide `OutreachCRM - GitHub Update Watch` task. (Amended from "one task per
+   client" by operator decision, 2026-07-19; setup itself always runs inside the ONE shared
+   setup session — never a separate dedicated outreach setup session.)
 5. **Automation Resync.** Any post-setup config change re-syncs the profile, schedule,
    automation manifest, scheduled-run prompt, and native task body, with a dry-read
    verification, before it is called complete.
@@ -79,7 +83,7 @@ scrubbed report.
 | `deploy-soloagency.sh` | same `deploy-soloagency.sh` `generate_outreach_artifacts` (`--outreach-only`); no separate module deploy script |
 | data root `daily-content-pipeline/` | same `daily-content-pipeline/` (shared root); per-client data under `clients/{slug}/{business}_{location}/outreach/` |
 | `tools/solo_report_renderer.py` | `tools/report_renderer.py` |
-| task `{Client} - Solo Agency Daily Run` | `{Client} - OutreachCRM Daily Run` |
+| task `{Client} - Solo Agency Daily Run` | `{Client} - {Campaign} Daily Run` (one per campaign) |
 | `Solo Agency - GitHub Update Watch` | `OutreachCRM - GitHub Update Watch` |
 | GitHub `github.com/soloagency/solo-agency` | same repo `github.com/soloagency/solo-agency`; the module lives at the `outreach/` subpath (no separate `outreach` repo; product name stays OutreachCRM) |
 

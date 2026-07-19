@@ -30,7 +30,7 @@ This file is the audit and completion-gate layer. It does not replace the stage 
 Before claiming **Setup Flow** completion:
 
 - Confirm no send, enrichment-for-send, campaign run, import-for-send, or report of send activity was executed inside the setup chat.
-- Confirm the client-specific automation task exists or has been proposed for human review, and its name begins with the client name — for example `AvenNgo - OutreachCRM Daily Run`.
+- Confirm the client-specific automation task exists or has been proposed for human review, and its name begins with the client name — for example `AvenNgo - Buyer Leads Intro Daily Run`.
 - Confirm the scheduled-run prompt pins `target_client_slug` and cannot touch another client.
 - Confirm the agency-wide `OutreachCRM - GitHub Update Watch` task exists or is proposed, and that it is barred from client-facing channels.
 - Confirm any setup/config change made after schedule creation triggered Automation Resync.
@@ -465,6 +465,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] Did the FIRST App Password request already include the full step-by-step create instructions with the direct Google links (2FA page + apppasswords page + the official guide), instead of an abbreviated ask the human had to expand — and did I never ask them to paste the App Password into chat (env var only)?
 - [ ] Was every command/path I handed the human ABSOLUTE (full path from the real workspace root for the script and `--client-dir`), not a relative `python3 solo-agency/...` / `--client-dir daily-content-pipeline/...` form a non-technical user cannot run?
 - [ ] Before asking for the WideCast key, did I read existing config first and reuse a client-scoped key that already exists for this client (OutreachCRM's own config, or the same client's sibling content-pipeline provider config) - asking only when none exists, and never re-asking for a key the operator already connected?
+- [ ] If the Solo Agency profile existed, did I run Campaign Quick Start — exactly three asks (lead list; App Password + sending identity once per client; one goal+URL confirmation block) with everything else silently defaulted — in the SAME setup session, never spawning a separate outreach setup session?
 - [ ] Did I add the client row to `clients_index.md`?
 - [ ] Did I configure the schedule and create/propose the automation task with the client name at the start and `target_client_slug` pinned?
 - [ ] Did I confirm the agency-wide `OutreachCRM - GitHub Update Watch` task exists/is proposed and is barred from client-facing channels?
@@ -487,6 +488,8 @@ Use this before replying to the human, before claiming setup complete, and befor
 ### Drafting & Approval Self-Audit Checklist
 
 - [ ] Did each draft combine client profile + campaign goal + dossier + step intent, with bumps carrying NEW value?
+- [ ] Did I apply the Stage-6 Drafting Decision Checklist — skipping ONLY for suppression, no-usable-email-after-discovery, or (non-curated lists) hookless-with-skip-fallback — and never for offer-fit / "already has a content system" / competitor overlap / companion-link domain / below-threshold-confidence-with-a-hook (those draft into Review carefully)? Inventing a skip gate that is not in the checklist is a critical workflow violation.
+- [ ] If the list was user-curated, did I treat it as pre-qualified — enrich + personalize only — with every curated lead either drafted or removed only by a logged hard floor?
 - [ ] Does every personalization detail trace to a dossier fact with an `evidence_url`?
 - [ ] Did the freshness gate pass (step-1 hooks in TTL; bumps from reserved points + `message_bank` with NO per-bump re-enrichment; stale-hook guard applied to every referenced time-sensitive hook)?
 - [ ] Is every draft free of em dashes (`—`), and — when the campaign declares them — does the body carry the produced companion-doc URL (or the `on_fail` path) and 1–2 rotated `message_bank` messages this lead has not seen?

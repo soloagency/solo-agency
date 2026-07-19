@@ -73,13 +73,15 @@ embeds in the email body** (a hosted URL, never a file attachment). The whole fe
 free-text directive the operator dictates at setup and the agent executes at draft time.
 
 **Campaign intake — ask the operator these questions before building the goal JSON** (in the
-operator's language):
+operator's language). In Campaign Quick Start (Stage 1), fold this ENTIRE intake into ONE compact
+confirmation block — inferred goal + the companion-URL question + proposed failure policy +
+summarized message bank + quota + default-daily cadence — so one reply approves everything:
 
 1. **What is the goal of this campaign?** → sets `goal_type` + `objective` / `offer` / `cta` (§1).
 2. **Is there a companion document/link? If so, describe how to get the link to embed in the
    email.** Free text, anywhere on this spectrum:
    - **none** → omit `companion_doc`; the email carries no such link (today's default).
-   - **a fixed link (or list)** → "use https://… for every lead."
+   - **a fixed link (or list)** → "use https://… for every lead." A fixed link is a static string used as-is at draft time — no provider call, cannot fail, and its DOMAIN is irrelevant (a public URL on widecast.ai is just a web page in the email body; it has nothing to do with the WideCast notification provider or its notification-only restriction).
    - **a conditional link** → "US recipient → https://…EN, Vietnamese recipient → https://…VI"; the
      agent picks per lead from the dossier (enrich already resolves language/market).
    - **a personalized recipe (any number of steps)** → e.g. "read template X, personalize it from
@@ -180,7 +182,7 @@ Defaults are filled in for any field you omit: a 4-step sequence (step 1 cold + 
 Creating a campaign makes its `queue/`, `outbox/pending_approval/`, `outbox/approved/`, and
 `history/` folders.
 
-- **`no_hook_fallback` defaults to `skip`.** A step-1 draft with no evidenced hook is REJECTED by
+- **`no_hook_fallback` defaults to `skip`** — except for a campaign whose audience comes from a USER-CURATED list (`list_origin: user_curated`): there it defaults to `"generic_honest_opener"`, because the human already chose those leads and none may be silently dropped (User-Curated List Rule). A step-1 draft with no evidenced hook is REJECTED by
   `draft write` (`no_evidenced_hook`); recent evidenced activity is the reason an email exists. Set
   `no_hook_fallback: "generic_honest_opener"` only to explicitly opt a campaign into a
   generic-but-honest opener (grounded in license/roster facts, flagged `generic_opener`). Bumps and
