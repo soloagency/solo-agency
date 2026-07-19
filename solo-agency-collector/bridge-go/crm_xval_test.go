@@ -266,7 +266,7 @@ func TestCrmStoreGoldenCrossValidation(t *testing.T) {
 			WantFail: "step-1 subject must not begin with Re:/Fwd:"},
 		{FakeNow: "2026-07-19T10:14:00Z", Argv: []string{"--client-dir", "{WS}", "draft", "budget", "--campaign", "demo"}},
 		{FakeNow: "2026-07-19T10:15:00Z", Argv: []string{"--client-dir", "{WS}", "draft", "list", "--campaign", "demo"}},
-		{FakeNow: "2026-07-19T10:16:00Z", Argv: []string{"--client-dir", "{WS}", "approval-report"}, IgnoreKey: []string{"html", "html_rendered"}},
+		{FakeNow: "2026-07-19T10:16:00Z", Argv: []string{"--client-dir", "{WS}", "approval-report"}},
 		{FakeNow: "2026-07-19T10:17:00Z", Argv: []string{"--client-dir", "{WS}", "approve", "--json", `{"edit": [{"n": 1, "subject": "Better idea for 123 Main St"}], "approve": "1"}`}},
 		{FakeNow: "2026-07-19T10:18:00Z", Argv: []string{"--client-dir", "{WS}", "followups", "due", "--campaign", "demo"}},
 		{FakeNow: "2026-07-19T10:19:00Z", Argv: []string{"--client-dir", "{WS}", "apply-rules", "--event", "reply_positive", "--contact", "c_lead1", "--activity", "act_fixture01"}},
@@ -279,10 +279,10 @@ func TestCrmStoreGoldenCrossValidation(t *testing.T) {
 		{FakeNow: "2026-07-19T10:26:00Z", Argv: []string{"--client-dir", "{WS}", "reserve", "--sendbox", "sb-a", "--day", "2026-07-19", "--cap", "2"}}, // denied
 		{FakeNow: "2026-07-19T10:27:00Z", Argv: []string{"--client-dir", "{WS}", "contact", "merge", "--loser", "c_lead2", "--winner", "c_lead1"}},
 		{FakeNow: "2026-07-19T10:28:00Z", Argv: []string{"--client-dir", "{WS}", "validate", "--rebuild-index"}},
-		{FakeNow: "2026-07-19T10:29:00Z", Argv: []string{"--client-dir", "{WS}", "today-view"}, IgnoreKey: []string{"html", "html_rendered"}},
-		{FakeNow: "2026-07-19T10:30:00Z", Argv: []string{"--client-dir", "{WS}", "kanban"}, IgnoreKey: []string{"html", "html_rendered"}},
-		{FakeNow: "2026-07-19T10:31:00Z", Argv: []string{"--client-dir", "{WS}", "weekly-report"}, IgnoreKey: []string{"html", "html_rendered"}},
-		{FakeNow: "2026-07-19T10:32:00Z", Argv: []string{"--client-dir", "{WS}", "monthly-report", "--month", "2026-07"}, IgnoreKey: []string{"html", "html_rendered"}},
+		{FakeNow: "2026-07-19T10:29:00Z", Argv: []string{"--client-dir", "{WS}", "today-view"}},
+		{FakeNow: "2026-07-19T10:30:00Z", Argv: []string{"--client-dir", "{WS}", "kanban"}},
+		{FakeNow: "2026-07-19T10:31:00Z", Argv: []string{"--client-dir", "{WS}", "weekly-report"}},
+		{FakeNow: "2026-07-19T10:32:00Z", Argv: []string{"--client-dir", "{WS}", "monthly-report", "--month", "2026-07"}},
 	}
 
 	subst := func(argv []string, root, ws string) []string {
