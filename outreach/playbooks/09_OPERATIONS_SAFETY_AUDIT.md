@@ -464,6 +464,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] For an `app_password` box, did I confirm 2FA + App Password; for an `oauth` box, did I keep scopes to `gmail.send + gmail.readonly` and prefer an Internal OAuth app (else a scheduled day-6 re-auth `**[ACTION REQUIRED]**`)?
 - [ ] Did the FIRST App Password request already include the full step-by-step create instructions with the direct Google links (2FA page + apppasswords page + the official guide), instead of an abbreviated ask the human had to expand — and did I never ask them to paste the App Password into chat (env var only)?
 - [ ] Was every command/path I handed the human ABSOLUTE (full path from the real workspace root for the script and `--client-dir`), not a relative `python3 solo-agency/...` / `--client-dir daily-content-pipeline/...` form a non-technical user cannot run?
+- [ ] Before asking for the WideCast key, did I read existing config first and reuse a client-scoped key that already exists for this client (OutreachCRM's own config, or the same client's sibling content-pipeline provider config) - asking only when none exists, and never re-asking for a key the operator already connected?
 - [ ] Did I add the client row to `clients_index.md`?
 - [ ] Did I configure the schedule and create/propose the automation task with the client name at the start and `target_client_slug` pinned?
 - [ ] Did I confirm the agency-wide `OutreachCRM - GitHub Update Watch` task exists/is proposed and is barred from client-facing channels?

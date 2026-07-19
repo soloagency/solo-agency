@@ -451,7 +451,15 @@ Setup writes the campaign config only. It does not build the enrich queue, draft
 
 In OutreachCRM, PDNA is **notification-only**. There is no production, rendering, or distribution stage — WideCast is used solely to deliver operator notifications: a Telegram message (`sendNotification`) with the report link, an email fallback when Telegram is unavailable, and an optional `uploadAsset` call to host the report file behind the link. This is the one provider setup in Setup Flow, and it is client-scoped.
 
-Ask only for the client's WideCast API key; the agent configures, verifies, discovers, and resyncs the rest. Provider config lives per client under `integrations/providers/provider_config.local.json`. The key is referenced by `api_key_env` (an environment-variable name) or `api_key_local` (a path/handle) — **never a field literally named `api_key`**. Capability discovery uses the OpenAPI helper `tools/provider_openapi.py`, caching to `provider_openapi_cache.yaml` and recording capabilities in `provider_capabilities.json`.
+**Read existing config before asking (WideCast key bootstrap).** Do NOT ask for the WideCast key if a client-scoped key already exists for THIS client:
+
+1. Check OutreachCRM's own provider config (`.../outreach/integrations/providers/provider_config.local.json`). If it is already configured and the account verifies, notification is connected - do not ask again.
+2. Otherwise check the sibling Solo Agency content-pipeline provider config for the SAME client (`integrations/providers/provider_config.local.json`, one level ABOVE the `outreach/` subtree). If a client-scoped WideCast key (`api_key_env`/`api_key_local`) exists and verifies there, REUSE it: write OutreachCRM's own `outreach/integrations/providers/provider_config.local.json` referencing the same key (the operator's own WideCast account, already connected for this client), verify the account + notification capability, send the confirmation ping, and mark notification connected - WITHOUT asking the human to paste the key again. Tell the human you reused the WideCast key they already connected for this client.
+3. Only if neither config has a client-scoped key for this client do you ask the human (the `**[ACTION REQUIRED]**` below).
+
+This one-way read of the SAME client's sibling config is allowed - it is client-scoped, the operator's own verified key (mirrors the Stage-1 profile bootstrap). It is NOT the forbidden case of adopting a global MCP/native account as this client's connection; that stays forbidden, and a global account is never auto-reused (`global_mcp_not_client_scoped`).
+
+If no client-scoped key exists for this client yet, ask only for the WideCast API key; the agent configures, verifies, discovers, and resyncs the rest. Provider config lives per client under `integrations/providers/provider_config.local.json`. The key is referenced by `api_key_env` (an environment-variable name) or `api_key_local` (a path/handle) — **never a field literally named `api_key`**. Capability discovery uses the OpenAPI helper `tools/provider_openapi.py`, caching to `provider_openapi_cache.yaml` and recording capabilities in `provider_capabilities.json`.
 
 ```text
 **[ACTION REQUIRED]**
