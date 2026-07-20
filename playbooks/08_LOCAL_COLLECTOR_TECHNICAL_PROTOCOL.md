@@ -992,33 +992,17 @@ Action: Please run the Local Collector setup/start command for the current setup
 
 ### OS Startup For Persistent Bridge
 
-If the human wants unattended collection after reboot, the AI agent should prepare or document an OS startup service for the bridge, but the human must approve/run the setup outside the AI sandbox. Do not install or start the service from the AI agent during one-time setup unless the user has explicitly moved beyond setup and asked for OS service automation with full awareness of the local action.
+The canonical setup scripts (`setup_collector.sh` / `setup_collector.ps1`, 2026-07-20+) register OS autostart BY DEFAULT when the human runs them: macOS per-user LaunchAgent `com.solo-agency.collector.{insthash}` (RunAtLoad; restarts on crash, stays stopped after a clean stop), Linux systemd user unit `solo-agency-collector-{insthash}.service` (`Restart=on-failure`, best-effort `loginctl enable-linger` for start-before-login), Windows logon Scheduled Task `SoloAgencyCollector-{insthash}` (crash restarts, output wrapped into `collector.log`). `{insthash}` = first 8 hex chars of SHA-256 of the agency root path, so two installs on one machine never collide. The human opts out with `SOLO_AGENCY_NO_AUTOSTART=1` (plain background start). Re-running the script refreshes the registration and remains the ONLY start/upgrade command the human ever needs. After a reboot the bridge should be up without anyone running anything.
 
-Claude-specific rule:
+Every setup run records the outcome in `solo-agency-local-collector/autostart.json`: `{"mode": "launchd"|"systemd"|"scheduled_task"|"none", "label", "port", "root", "registered_at", "reason"}`. This file is the canonical evidence for agents — it lives inside the workspace, so even a sandboxed agent can read it when OS commands and `~/Library`/`~/.config` are out of reach.
 
-- Claude often cannot run downloaded binaries from inside its sandbox.
-- Claude must not try Claude Chrome Extension as a workaround for automated private collection.
-- Claude should provide the human with a one-time shell command or OS-specific setup instructions to start or install the bridge.
-- After the bridge is installed as a startup service, Claude can read collector output files and continue reasoning without controlling Chrome directly.
+**Agent duty — verify autostart after any collector setup/upgrade, and FIRST when diagnosing a bridge that is down after a reboot. Pick the deepest rung you can actually perform; never assume and never silently skip:**
 
-Recommended startup methods:
+1. Agent can run OS commands (local, unsandboxed): verify directly — macOS `launchctl print gui/$(id -u)/com.solo-agency.collector.{insthash}`; Linux `systemctl --user is-enabled solo-agency-collector-{insthash}.service`; Windows `Get-ScheduledTask -TaskName SoloAgencyCollector-{insthash}`.
+2. Sandboxed agent: read `solo-agency-local-collector/autostart.json`. `mode` other than `"none"` = registered (report which). `mode: "none"` = autostart is OFF — tell the human why (`reason`: `opt_out_env`, `*_registration_failed`, `no_supervisor_available`) and that the fix is re-running the setup script. File missing = the install predates the autostart scripts — ask the human to re-run the current setup script once.
+3. Agent can neither run commands nor read the file: give the human the ONE copy-paste command for their OS from rung 1 and ask them to paste the output back.
 
-- macOS: LaunchAgent in `~/Library/LaunchAgents/`.
-- Windows: Task Scheduler with "At log on" trigger.
-- Linux: `systemd --user` service.
-
-The startup service should run the selected bridge binary with a persistent scheduler config, for example:
-
-```text
-solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
-  --host 127.0.0.1 \
-  --port 17321 \
-  --config-file daily-content-pipeline/collector/collector_config.json \
-  --output-dir daily-content-pipeline/collector/inbox \
-  --persistent
-```
-
-If the bridge is not installed as a startup service, the human must start it manually after reboot by running the prepared setup/start command outside the AI sandbox. The agent should not start it from inside the AI sandbox during setup or repair.
+Guardrails (unchanged in spirit): do not hand-craft a custom LaunchAgent/systemd unit/Scheduled Task beyond what the script registers, and do not install/start services from inside the AI sandbox — for a missing or broken registration the fix is always that the HUMAN re-runs the setup script (one command, safe to re-run). Claude-specific: Claude often cannot run downloaded binaries from inside its sandbox; Claude must not use Claude Chrome Extension as a workaround for automated private collection; after the bridge runs as a startup service, Claude reads collector output files and continues without controlling Chrome directly.
 
 ### Localhost Bridge Choice
 

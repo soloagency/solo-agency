@@ -174,6 +174,7 @@ Claim `ready_for_automation_first_run` only when:
 9. Any post-schedule config change triggered Automation Resync (see the Automation Resync Safety Check).
 10. The setup handoff tells the human the exact automation task name to run for the first run, directly in chat, inside a `**[ACTION REQUIRED]**` block. Markdown-only handoffs are a failure.
 11. The completion wording is `ready_for_automation_first_run` (or `ready_for_next_automation_run`), never a send/report claim.
+12. If this client's setup touched the local collector bridge (UI sendbox connect, collector enrichment, Campaigns/Approvals pages): bridge autostart was verified at the deepest rung the sandbox allows — OS-level check when commands are available, else `solo-agency-local-collector/autostart.json` shows `mode != "none"`, else the human ran the per-OS one-liner and pasted the output — and a `mode: "none"`/missing-file outcome was surfaced to the human with the fix (re-run the setup script; agents never hand-craft services). A bridge that dies at reboot silently kills the next scheduled run.
 
 ### Daily Run completion gate
 

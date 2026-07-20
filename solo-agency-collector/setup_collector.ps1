@@ -69,6 +69,17 @@ New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 $sha = [System.Security.Cryptography.SHA256]::Create()
 $InstHash = ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Root))) -replace '-','').Substring(0,8).ToLower()
 $TaskName = "SoloAgencyCollector-$InstHash"
+$AutostartState = Join-Path $Runtime 'autostart.json'
+
+# Canonical, workspace-readable evidence of the autostart outcome. Sandboxed
+# agents cannot run Get-ScheduledTask, but they CAN read this file.
+function Record-Autostart ($mode, $label, $reason) {
+  try {
+    @{ mode = $mode; label = $label; port = $Port; root = $Root
+       registered_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+       reason = $reason } | ConvertTo-Json -Compress | Out-File -FilePath $AutostartState -Encoding ascii
+  } catch { }
+}
 
 # --- platform detection ------------------------------------------------------
 # $IsWindows/$IsMacOS/$IsLinux exist only in PowerShell 6+. Windows PowerShell 5.1
@@ -202,6 +213,7 @@ function Start-PlainBackground {
 $Autostart = 'none'
 if ($env:SOLO_AGENCY_NO_AUTOSTART -eq '1') {
   Info "SOLO_AGENCY_NO_AUTOSTART=1 - plain background start (no logon registration)."
+  Record-Autostart 'none' '' 'opt_out_env'
   Start-PlainBackground
 } elseif ($onWindows -and (Get-Command Register-ScheduledTask -ErrorAction SilentlyContinue)) {
   # Windows: a logon Scheduled Task. Starts at every logon, restarts on crash,
@@ -223,17 +235,21 @@ if ($env:SOLO_AGENCY_NO_AUTOSTART -eq '1') {
         $owner = (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess
         if ($owner) { $owner | Out-File -FilePath $PidFile -Encoding ascii }
       }
+      Record-Autostart 'scheduled_task' $TaskName 'registered'
       Ok "bridge running as a Scheduled Task - starts automatically at logon, restarts on crash"
     } else {
       Warn "Scheduled Task did not become healthy - falling back to a plain background start."
       try { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue } catch { }
+      Record-Autostart 'none' '' 'task_not_healthy'
       Start-PlainBackground
     }
   } catch {
     Warn "Scheduled Task registration failed ($($_.Exception.Message)) - falling back to a plain background start."
+    Record-Autostart 'none' '' 'task_registration_failed'
     Start-PlainBackground
   }
 } else {
+  Record-Autostart 'none' '' 'no_supervisor_available'
   Start-PlainBackground
 }
 

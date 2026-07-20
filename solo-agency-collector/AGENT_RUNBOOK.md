@@ -251,6 +251,23 @@ The setup file must be idempotent:
   setup script refreshes the registration; `SOLO_AGENCY_NO_AUTOSTART=1` skips it (plain
   background start, old behavior). After a reboot the human should NOT need to run anything —
   if `/status` answers, the supervisor did its job.
+- **Autostart VERIFY duty (capability ladder).** Every setup run writes the outcome to
+  `solo-agency-local-collector/autostart.json` (`{"mode": "launchd"|"systemd"|"scheduled_task"|"none",
+  "label", "port", "root", "registered_at", "reason"}`) — the canonical, workspace-readable
+  evidence. After any collector setup/upgrade, and FIRST when a bridge is down after a reboot,
+  the agent verifies at the deepest rung it can actually perform — never assumes, never silently
+  skips: (1) agent with OS-command access runs the direct check — macOS
+  `launchctl print gui/$(id -u)/com.solo-agency.collector.{insthash}`, Linux
+  `systemctl --user is-enabled solo-agency-collector-{insthash}.service`, Windows
+  `Get-ScheduledTask -TaskName SoloAgencyCollector-{insthash}`; (2) a SANDBOXED agent (no OS
+  commands, no `~/Library`/`~/.config` access) reads `autostart.json` instead — `mode != "none"`
+  = registered, `mode: "none"` = report the `reason` and offer the fix, file missing = install
+  predates autostart scripts; (3) an agent that can do neither hands the human the ONE
+  copy-paste command for their OS from rung 1 and asks for the pasted output. The FIX at every
+  rung is the same and is always HUMAN-run: re-run the setup script (never hand-craft a custom
+  service, never bootout/register from inside a sandbox). Sandboxed agents must not attempt the
+  step-0 bootout/stop commands above either — those are for unsandboxed shells; the human-run
+  setup script performs the same detach itself.
 - Keep PID/log files under `solo-agency-local-collector/`, for example `solo-agency-local-collector/collector.pid` and `solo-agency-local-collector/collector.log`.
 - **One port = one production bridge.** Port `17321` belongs to the PRODUCTION install that the client Chrome extensions point at. A development or test bridge (e.g. started from a source-repo checkout) must NEVER take `17321` — start it with `--port 17322` (or `SOLO_AGENCY_BRIDGE_PORT=17322` for the setup script) so it cannot steal the port from the production bridge and silently receive extension traffic into the wrong workspace. The setup script resolves its install from the script's own location, so running one install's script can stop and replace the port-holder — which is exactly why a dev bridge must live on a different port.
 - Start the Local Collector app in background/detached mode, write PID/log files, then return control to the user. Do not require the user to keep Terminal or PowerShell open during normal operation.
