@@ -322,7 +322,7 @@ The unique reverse index that backs `find_by_identity` and deterministic merge. 
 ### 4.8 Merge / tombstone / resolve (deterministic)
 
 - **Auto-merge** on exact email / E.164 phone / canonical social URL match.
-- **Fuzzy** name+company → *propose* only; a human approves. Contacts with a **pending merge proposal are excluded from every campaign queue** until resolved.
+- **Consolidation-on-discovery** (enrich time): a dossier whose found profile/email already belongs to another contact auto-merges the SAFE pair (full union — seeds, hooks, identities all kept) and reports `consolidated`; a CONFLICTING pair (different names / disjoint emails) is flagged `duplicate_suspects[]` on both records instead — the value is withheld, the index is never silently repointed, and **both records are excluded from every campaign queue** until `contact merge` or `contact unsuspect` resolves them.
 - The **losing record becomes a permanent tombstone** — never deleted:
   ```json
   {"merge": {"status": "merged", "merged_into": "c_SURVIVOR"}}

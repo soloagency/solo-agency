@@ -588,8 +588,10 @@ For each active client:
     deal at `engaged` + draft reply for approval; negative/remove → suppress + close open
     tasks; SLA sweep → nudge tasks + report flag; won → lifecycle=customer + onboarding task.
     Every stage change carries an `evidence_activity_id`.
-12. Contacts with a pending merge proposal are excluded from every campaign queue until
-    resolved.
+12. Contacts flagged `duplicate_suspects[]` (an enrich discovered they share an identity
+    with a conflicting record) are excluded from every campaign queue until resolved
+    (`contact merge` if the same person, `contact unsuspect` if different people); report
+    any `consolidated` / `duplicate_suspected` events from enrich in the run summary.
 
 ### E. Follow-up advising (Stage 10)
 

@@ -94,6 +94,21 @@ wins.
    `identity.channels_found.profiles` — the store writes it back into `identities.socials` as a
    canonical dedupe-eligible identity and marks the seed `resolved`. A `name_only_fragment` lead
    gets a name+company+location search instead. Then continue as a profile-seeded lead.
+
+   **Batch-resolve BEFORE deep enrichment (reel-heavy lists).** User lists routinely carry many
+   content links of the SAME person. So: resolve ALL unresolved seeds to owner profiles FIRST
+   (cheap header reads), submitting each via `enrich write` with just `channels_found.profiles`
+   — the store consolidates automatically (consolidation-on-discovery, DESIGN §9.1b): fragments
+   sharing a profile/email auto-merge into ONE contact with a full union (every reel, every hook
+   kept), and the result reports `consolidated: [{survivor, merged, ...}]`. Only THEN deep-enrich
+   each surviving unique profile ONCE — never burn collector budget enriching the same person
+   twice. Two rules: (a) always continue work against the returned `lead_id` (the survivor, which
+   may differ from the id you submitted); (b) if the result carries `duplicate_suspected`, the
+   store found a CONFLICTING record sharing that identity (e.g. a brokerage page posting several
+   agents' reels) — it did NOT merge and both records are held out of campaign queues; surface it
+   to the operator (`contact merge` if same person, `contact unsuspect --id A --other B` if not).
+   Report all consolidations and suspects in the run summary — "30 rows became 12 people" is a
+   normal, healthy outcome, not an error.
 6. **No-email leads (email discovery):** a lead an `email_first` campaign queued with no email is
    here precisely so Tier 1 can DISCOVER one (website, license/roster, Google, other public
    channels). Store any real address found (`source: enrich`). If discovery genuinely fails, set
