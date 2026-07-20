@@ -160,3 +160,28 @@ func TestGmailSendOffline(t *testing.T) {
 		t.Fatalf("not-approved: %v", na)
 	}
 }
+
+func TestStripAppPasswordWhitespace(t *testing.T) {
+	const want = "abcdefghijklmnop"
+	nbsp := "\u00A0"
+	zwsp := "\u200B"
+	bom := "\uFEFF"
+	cases := map[string]string{
+		"abcd efgh ijkl mnop":                                  "gmail display (ascii spaces)",
+		"  abcd efgh ijkl mnop  ":                              "leading/trailing + inner",
+		"abcd\tefgh\tijkl\tmnop":                               "tabs",
+		"abcd efgh ijkl mnop\n":                                "trailing newline",
+		"abcd" + nbsp + "efgh" + nbsp + "ijkl" + nbsp + "mnop": "non-breaking spaces",
+		"abcd" + zwsp + "efgh ijkl mnop":                       "zero-width space",
+		bom + "abcd efgh ijkl mnop":                            "leading BOM",
+		"abcdefghijklmnop":                                     "already bare",
+	}
+	for in, desc := range cases {
+		if got := stripAllWhitespace(in); got != want {
+			t.Errorf("%s: stripAllWhitespace(%q) = %q, want %q", desc, in, got, want)
+		}
+	}
+	if got := stripAllWhitespace("a1b2 c3d4"); got != "a1b2c3d4" {
+		t.Errorf("non-space chars altered: %q", got)
+	}
+}

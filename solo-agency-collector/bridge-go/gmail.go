@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const (
@@ -148,6 +149,26 @@ var gmailVerifyLogin = func(emailAddr, appPassword string) (int, error) {
 	return baseline, nil
 }
 
+// stripAllWhitespace removes EVERY space-like rune from an App Password. Gmail
+// shows it as "abcd efgh ijkl mnop", and a paste can drag in ASCII spaces,
+// non-breaking spaces (U+00A0, common when copied from web/email), tabs, a
+// trailing newline, or invisible zero-width characters (U+200B/200C/200D,
+// U+FEFF BOM) that unicode.IsSpace does not cover. The stored/used secret is
+// always the bare characters, so a correct password never fails to log in
+// because of an invisible paste artifact.
+func stripAllWhitespace(s string) string {
+	return strings.Map(func(r rune) rune {
+		switch r {
+		case 0x200B, 0x200C, 0x200D, 0xFEFF: // zero-width space/non-joiner/joiner, BOM
+			return -1
+		}
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
 func gmailCmdAuth(clientDir, slug, emailAddr string) (map[string]any, error) {
 	appPassword := os.Getenv("OUTREACHCRM_APP_PASSWORD")
 	if appPassword == "" {
@@ -164,7 +185,7 @@ func gmailAuthWithPassword(clientDir, slug, emailAddr, appPassword string) (map[
 	if err := safeID(slug); err != nil {
 		return nil, err
 	}
-	appPassword = strings.ReplaceAll(appPassword, " ", "")
+	appPassword = stripAllWhitespace(appPassword)
 	baseline, err := gmailVerifyLogin(emailAddr, appPassword)
 	if err != nil {
 		return nil, err
