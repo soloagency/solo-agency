@@ -121,20 +121,18 @@ func imapLogin(emailAddr, appPassword string) (*imapClient, error) {
 
 // --- auth / health ----------------------------------------------------------------
 
-func gmailCmdAuth(clientDir, slug, emailAddr string) (map[string]any, error) {
-	appPassword := os.Getenv("OUTREACHCRM_APP_PASSWORD")
-	if appPassword == "" {
-		return nil, fmt.Errorf("set OUTREACHCRM_APP_PASSWORD to the 16-char Gmail App Password (never pass it as a CLI arg)")
-	}
-	appPassword = strings.ReplaceAll(appPassword, " ", "")
+// gmailVerifyLogin proves SMTP+IMAP access and returns the mailbox's current
+// top UID (the first-sync baseline). Injectable so UI/CLI tests can stub the
+// live network round-trip.
+var gmailVerifyLogin = func(emailAddr, appPassword string) (int, error) {
 	s, err := smtpLogin(emailAddr, appPassword)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	s.Quit()
 	m, err := imapLogin(emailAddr, appPassword)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	baseline := 0
 	if err := m.selectInbox(); err == nil {
@@ -147,6 +145,30 @@ func gmailCmdAuth(clientDir, slug, emailAddr string) (map[string]any, error) {
 		}
 	}
 	m.logout()
+	return baseline, nil
+}
+
+func gmailCmdAuth(clientDir, slug, emailAddr string) (map[string]any, error) {
+	appPassword := os.Getenv("OUTREACHCRM_APP_PASSWORD")
+	if appPassword == "" {
+		return nil, fmt.Errorf("set OUTREACHCRM_APP_PASSWORD to the 16-char Gmail App Password (never pass it as a CLI arg)")
+	}
+	return gmailAuthWithPassword(clientDir, slug, emailAddr, appPassword)
+}
+
+// gmailAuthWithPassword is the shared auth core: verify both channels live,
+// persist credentials (0600) + the sendbox entry. Also the UI's paste-the-App-
+// Password endpoint — the secret flows browser → bridge → Gmail and is never
+// echoed into chat, ui_inbox, or any agent-readable queue.
+func gmailAuthWithPassword(clientDir, slug, emailAddr, appPassword string) (map[string]any, error) {
+	if err := safeID(slug); err != nil {
+		return nil, err
+	}
+	appPassword = strings.ReplaceAll(appPassword, " ", "")
+	baseline, err := gmailVerifyLogin(emailAddr, appPassword)
+	if err != nil {
+		return nil, err
+	}
 	credDir := filepath.Join(clientDir, "sendboxes", slug)
 	if err := os.MkdirAll(credDir, 0o755); err != nil {
 		return nil, err

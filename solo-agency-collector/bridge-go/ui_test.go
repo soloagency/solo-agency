@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -273,5 +274,98 @@ func TestUIApprovalAndShortlistAPI(t *testing.T) {
 	}
 	if !strings.Contains(string(sl), `"cadence":"weekly"`) || strings.Contains(string(sl), "g/b") {
 		t.Fatalf("shortlist inbox wrong: %s", sl)
+	}
+}
+
+func TestUISendboxAuth(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	sbPath := filepath.Join(ws, "outreach", "sendboxes", "sendboxes.json")
+	if err := os.MkdirAll(filepath.Dir(sbPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sbPath, []byte(`{"sendboxes": [{"slug": "sb-a", "email": "old@gmail.com", "domain": "gmail.com", "quota_today": 20, "status": "needs_reauth", "warmup_stage": "week_1", "imap_uid_cursor": 42, "last_successful_sync_ts": ""}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origVerify := gmailVerifyLogin
+	defer func() { gmailVerifyLogin = origVerify }()
+	var gotPass string
+	gmailVerifyLogin = func(email, pass string) (int, error) {
+		gotPass = pass
+		if pass != "goodpass12345678" {
+			return 0, fmt.Errorf("SMTPAuthenticationError: 535 bad credentials")
+		}
+		return 99, nil
+	}
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	authed := func(method, url, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, url, strings.NewReader(body))
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// page renders with the existing box and the connect form
+	rec := authed("GET", "/ui/leadup/sendboxes", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "old@gmail.com") ||
+		!strings.Contains(rec.Body.String(), "App Password") {
+		t.Fatalf("sendboxes page: %d", rec.Code)
+	}
+	// stylesheet serves without auth
+	recCSS := httptest.NewRecorder()
+	mux.ServeHTTP(recCSS, httptest.NewRequest("GET", "/ui/assets/pico.min.css", nil))
+	if recCSS.Code != http.StatusOK || !strings.Contains(recCSS.Body.String(), "Pico CSS") {
+		t.Fatalf("pico.css: %d", recCSS.Code)
+	}
+
+	// wrong password -> sanitized auth_failed, no password echo
+	rec = authed("POST", "/api/ui/leadup/sendbox-auth",
+		`{"slug": "sb-a", "email": "new@gmail.com", "app_password": "bad pass"}`)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"auth_failed"`) {
+		t.Fatalf("bad auth: %d %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "badpass") || strings.Contains(rec.Body.String(), "535") {
+		t.Fatalf("response leaked credential/server detail: %s", rec.Body.String())
+	}
+	if gotPass != "badpass" {
+		t.Fatalf("spaces not stripped before verify: %q", gotPass)
+	}
+
+	// good password -> credentials written 0600, sendbox healthy, cursor preserved
+	rec = authed("POST", "/api/ui/leadup/sendbox-auth",
+		`{"slug": "sb-a", "email": "new@gmail.com", "app_password": "good pass 1234 5678"}`)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("good auth: %d %s", rec.Code, rec.Body.String())
+	}
+	credPathOut := filepath.Join(ws, "outreach", "sendboxes", "sb-a", "credentials.json")
+	st, err := os.Stat(credPathOut)
+	if err != nil {
+		t.Fatalf("credentials not written: %v", err)
+	}
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("credentials perm = %o, want 600", st.Mode().Perm())
+	}
+	doc, _ := readJSONFile(sbPath)
+	sb := mapsOf(mList(doc, "sendboxes"))[0]
+	if mStr(sb, "status") != "healthy" || mStr(sb, "email") != "new@gmail.com" {
+		t.Fatalf("sendbox not updated: %v", sb)
+	}
+	if mInt(sb, "imap_uid_cursor", -1) != 42 {
+		t.Fatalf("re-auth must preserve the existing cursor, got %v", sb["imap_uid_cursor"])
+	}
+
+	// missing fields -> 400
+	if rec := authed("POST", "/api/ui/leadup/sendbox-auth", `{"slug": "sb-a"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("missing fields = %d, want 400", rec.Code)
+	}
+	// unsafe slug -> auth_failed via storage error, not a panic/traversal
+	if rec := authed("POST", "/api/ui/leadup/sendbox-auth", `{"slug": "../evil", "email": "x@gmail.com", "app_password": "goodpass12345678"}`); !strings.Contains(rec.Body.String(), "auth_failed") {
+		t.Fatalf("unsafe slug not rejected: %d %s", rec.Code, rec.Body.String())
 	}
 }

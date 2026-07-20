@@ -22,7 +22,7 @@ The three session types are unchanged (see the OutreachCRM router "Session Model
 |---|---|---|
 | Extension hub | Existing 13 endpoints (`/status`, `/jobs/*`, `/collect/*`, `/complete`, ...), extension token auth. UNCHANGED; UI work must not alter these routes or their semantics. | shipped |
 | Static/report server | Serve report HTML/PDF/assets from the data root read-only (`/files/...`), so handoffs become clickable URLs instead of file paths. | U1 |
-| UI app | Embedded server-rendered pages + vanilla JS (Go templates compiled into the binary), served under `/ui/...`. No node, no build chain, no external CDN (self-contained like the reports). SSE-driven auto-refresh. (v1.1: server-rendered chosen over an SPA — same no-build guarantee, less client state.) | U1–U3 |
+| UI app | Embedded server-rendered pages + vanilla JS (Go templates compiled into the binary), served under `/ui/...`. No node, no build chain, no external CDN (self-contained like the reports). SSE-driven auto-refresh. (v1.1: server-rendered chosen over an SPA — same no-build guarantee, less client state. v1.3: styling is vendored Pico CSS v2 (MIT), embedded in-binary and served at `/ui/assets/pico.min.css` — a real design system with automatic dark mode, still zero CDN/build.) | U1–U3 |
 | File-bus API + tools | Read APIs over existing files, SSE change feed, write endpoints restricted to `ui_inbox/`, and CLI subcommands replacing the Python tools (G1–G3). | U1–G3 |
 
 ## 4. Security
@@ -48,6 +48,7 @@ Base: `http://127.0.0.1:17321`
 | `/ui/{client_slug}/crm` | CRM kanban + contacts table | U1 (read) / U3 (interact) |
 | `/ui/{client_slug}/approvals` | Interactive Approval Report (all campaigns; per-campaign at `/approvals/{campaign_slug}`) | U2 |
 | `/ui/{client_slug}/shortlist` | Discovery shortlist review (checkbox table) | U2 |
+| `/ui/{client_slug}/sendboxes` | Sendbox list + App Password connect form (`POST /api/ui/{c}/sendbox-auth`) | U2.5 |
 | `/files/...` | Raw file serving from the data root (reports, assets), read-only | U1 |
 | `/events?scope=...` | SSE change feed (file-watch driven) | U1 |
 | `/api/ui/...` | JSON read APIs + `ui_inbox` write endpoints (cookie-gated) | U1–U2 |
@@ -67,6 +68,8 @@ The bridge writes ONLY append-only JSONL under dedicated `ui_inbox/` directories
 - `clients/{c}/{bl}/outreach/ui_inbox/approval_decisions.jsonl` — `{ts, draft_id, decision: approve|reject|hold|edit, campaign?, edited_subject?, edited_body?, note?, ui_session}`. `edited_*` may accompany ANY decision (applied before it); `decision: edit` alone patches the draft and leaves it pending. POST `/api/ui/{client}/approval`.
 - `clients/{c}/{bl}/ui_inbox/shortlist_decisions.jsonl` — `{ts, source_url, source_name?, decision: approve|skip, cadence?: daily|weekly|optional, ui_session}`. POST `/api/ui/{client}/shortlist` (body `{decisions: [...]}`, invalid entries skipped, response reports the queued count).
 - (U3) `clients/{c}/{bl}/outreach/ui_inbox/crm_actions.jsonl` — task done / deal stage moves, each with evidence of the human click.
+
+**The one sanctioned exception (v1.3, U2.5): sendbox credential entry.** `POST /api/ui/{client}/sendbox-auth` (`{slug, email, app_password}`) makes the bridge run the SAME auth code as `tool gmail auth` in-process: live SMTP+IMAP verification, then it writes `outreach/sendboxes/{slug}/credentials.json` (0600) and the `sendboxes.json` entry. This is deliberately NOT routed through `ui_inbox/` — agents read ui_inbox, and the App Password must never reach any agent-readable surface (chat, queue, log). Error responses are sanitized to a class name; the secret is never echoed. This is the only canonical write the UI can trigger outside `ui_inbox/`.
 
 Consumption invariant: tools/agents merge `ui_inbox` into the canonical ledgers at the next run — `crm_store.py ingest-ui` (run at the start of every campaign daily run and again immediately before the send step) applies approval decisions with `by: ui` in `approvals/approval_log.md` (single-ledger invariant preserved; reject reasons feed `learning_log`), idempotent via the processed-line cursor `outreach/ui_inbox/.approval_cursor`; approved drafts are then honored by `gmail_client send` exactly like chat approvals. Shortlist decisions are consumed by the content agent (playbook 02, cursor `history/.shortlist_cursor`) and feed the same save path as chat-numbered approval. The bridge never writes canonical ledgers, CRM collections, configs, or profiles.
 

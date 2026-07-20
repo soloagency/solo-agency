@@ -98,6 +98,8 @@ func (b *bridge) registerUIRoutes(mux *http.ServeMux) {
 		return
 	}
 	mux.HandleFunc("/ui/enter/", b.handleUIEnter)
+	// stylesheet is served unauthenticated so the locked page renders styled
+	mux.HandleFunc("/ui/assets/pico.min.css", handleUIPicoCSS)
 	mux.HandleFunc("/ui", b.uiAuth(b.handleUIHome))
 	mux.HandleFunc("/ui/", b.uiAuth(b.handleUIRouter))
 	mux.HandleFunc("/files/", b.uiAuth(b.handleUIFiles))
@@ -580,9 +582,37 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 		b.uiRenderApprovals(w, parts[0])
 	case len(parts) == 2 && parts[1] == "shortlist":
 		b.uiRenderShortlist(w, parts[0])
+	case len(parts) == 2 && parts[1] == "sendboxes":
+		b.uiRenderSendboxes(w, parts[0])
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+func handleUIPicoCSS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write([]byte(picoCSS))
+}
+
+// uiClientSendboxes reads {ws}/outreach/sendboxes/sendboxes.json for one client.
+func (b *bridge) uiClientSendboxes(c uiClient) []map[string]any {
+	p := filepath.Join(c.Path, "outreach", "sendboxes", "sendboxes.json")
+	if m, err := readJSONFile(p); err == nil {
+		return mapsOf(mList(m, "sendboxes"))
+	}
+	return nil
+}
+
+func (b *bridge) uiRenderSendboxes(w http.ResponseWriter, slug string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	b.uiRender(w, "sendboxes", map[string]any{
+		"Title": c.Slug + " sendboxes", "Client": c, "Sendboxes": b.uiClientSendboxes(c),
+	})
 }
 
 // ---------- U2: interactive approvals + shortlist (writes go to ui_inbox only) ----------
@@ -809,6 +839,25 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(map[string]any{"ok": true, "queued": n,
 			"note": "recorded in ui_inbox; tell your agent to apply the shortlist decisions"})
+	case "sendbox-auth":
+		// The ONE canonical write the UI performs outside ui_inbox (spec §6.2 v1.3):
+		// the App Password must never transit chat or any agent-readable queue, so
+		// the bridge itself verifies SMTP+IMAP live and persists credentials (0600).
+		slug := strings.TrimSpace(mStr(body, "slug"))
+		emailAddr := strings.TrimSpace(mStr(body, "email"))
+		appPassword, _ := body["app_password"].(string)
+		if slug == "" || emailAddr == "" || strings.TrimSpace(appPassword) == "" {
+			http.Error(w, "slug + email + app_password required", http.StatusBadRequest)
+			return
+		}
+		res, err := gmailAuthWithPassword(filepath.Join(c.Path, "outreach"), slug, emailAddr, appPassword)
+		if err != nil {
+			// sanitized: class-level reason only; never echo the password or raw
+			// server chatter into the response
+			writeJSON(map[string]any{"ok": false, "error": "auth_failed", "detail": errClassName(err)})
+			return
+		}
+		writeJSON(res)
 	default:
 		http.NotFound(w, r)
 	}
@@ -913,29 +962,32 @@ func (b *bridge) uiRender(w http.ResponseWriter, page string, data map[string]an
 // ---------- templates (embedded, no build chain) ----------
 
 var uiTpl = template.Must(template.New("ui").Parse(`
-{{define "head"}}<!doctype html><html><head><meta charset="utf-8">
+{{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{.Title}} · Solo Agency</title><style>
-:root{--bg:#fff;--fg:#111;--mut:#667;--line:#e5e7eb;--card:#f8fafc;--acc:#2563eb}
-@media(prefers-color-scheme:dark){:root{--bg:#0b1020;--fg:#e8ecf4;--mut:#9aa4b8;--line:#232a3d;--card:#111731;--acc:#7aa2ff}}
-*{box-sizing:border-box}body{margin:0;font:15px/1.5 -apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
-nav{display:flex;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);align-items:center;flex-wrap:wrap}
-nav a{color:var(--fg);text-decoration:none;font-weight:600}nav a:hover{color:var(--acc)}
-nav .brand{color:var(--acc)}main{max-width:1100px;margin:0 auto;padding:18px 16px}
-h1{font-size:20px;margin:8px 0 14px}h2{font-size:16px;margin:18px 0 8px}
-table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
-th{color:var(--mut);font-weight:600}.mut{color:var(--mut)}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;color:var(--mut)}
-a{color:var(--acc)}.wrap{overflow-x:auto}
-input[type=text],textarea,select{width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit}
+<title>{{.Title}} · Solo Agency</title>
+<link rel="stylesheet" href="/ui/assets/pico.min.css">
+<style>
+/* thin overlay on Pico: map the app's structural classes onto Pico tokens */
+:root{--pico-font-size:97%}
+body>nav.sa{display:flex;gap:1.1rem;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding:.6rem 1.1rem;border-bottom:1px solid var(--pico-muted-border-color)}
+nav.sa a{text-decoration:none;font-weight:600}nav.sa .brand{color:var(--pico-primary)}
+main.container{padding-top:1.1rem}
+h1{font-size:1.45rem;margin-bottom:1rem}h2{font-size:1.05rem;margin:1.4rem 0 .55rem}
+.mut{color:var(--pico-muted-color)}
+.card{background:var(--pico-card-background-color);border:1px solid var(--pico-muted-border-color);border-radius:var(--pico-border-radius);box-shadow:var(--pico-card-box-shadow);padding:.85rem 1rem;margin:.5rem 0}
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.7rem}
+.pill{display:inline-block;border:1px solid var(--pico-muted-border-color);border-radius:999px;padding:.05rem .6rem;font-size:.75rem;color:var(--pico-muted-color);vertical-align:middle}
+.wrap{overflow-x:auto}
+table{font-size:.85rem}th,td{vertical-align:top}
 textarea{min-height:150px;white-space:pre-wrap}select{width:auto}
-button{font:inherit;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:6px 14px;cursor:pointer;background:var(--card);color:var(--fg)}
-button.ok{background:var(--acc);border-color:var(--acc);color:#fff}button:disabled{opacity:.5;cursor:default}
-.draft.done{opacity:.55}.acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
-.band-high{color:#16a34a;border-color:#16a34a}.band-review_carefully{color:#d97706;border-color:#d97706}</style></head><body>
-<nav><a class="brand" href="/ui">Solo Agency</a><a href="/ui/jobs">Jobs</a><a href="/ui/status">Status</a></nav>
-<main><h1>{{.Title}}</h1>{{end}}
+button{width:auto}button.ok{--pico-background-color:var(--pico-primary);--pico-border-color:var(--pico-primary)}
+.draft.done{opacity:.55}.acts{display:flex;gap:.5rem;margin-top:.6rem;flex-wrap:wrap;align-items:center}
+.acts button{margin-bottom:0;padding:.35rem .9rem;font-size:.85rem}
+.band-high{color:#16a34a;border-color:#16a34a}.band-review_carefully{color:#d97706;border-color:#d97706}
+input,select,textarea{margin-bottom:.6rem}
+</style></head><body>
+<nav class="sa"><a class="brand" href="/ui"><strong>Solo Agency</strong></a><a href="/ui/jobs">Jobs</a><a href="/ui/status">Status</a></nav>
+<main class="container"><h1>{{.Title}}</h1>{{end}}
 
 {{define "foot"}}</main><script>
 try{var es=new EventSource('/events');es.addEventListener('change',function(){location.reload()})}catch(e){}
@@ -947,7 +999,7 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 {{template "foot" .}}{{end}}
 
 {{define "home"}}{{template "head" .}}
-<h2>Clients</h2><div class="grid">
+<h2>Clients</h2><div class="grid-cards">
 {{range .Clients}}<div class="card"><strong><a href="/ui/{{.Slug}}">{{.Slug}}</a></strong><br>
 <span class="mut">{{.Workspace}}</span><br>
 <a href="/ui/{{.Slug}}/reports">reports</a> · <a href="/ui/{{.Slug}}/crm">crm</a> · <a href="/ui/{{.Slug}}/approvals">approvals</a></div>
@@ -975,7 +1027,8 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 {{define "client"}}{{template "head" .}}
 <p><a href="/ui/{{.Client.Slug}}/reports">All reports</a> · <a href="/ui/{{.Client.Slug}}/crm">CRM</a> ·
 <a href="/ui/{{.Client.Slug}}/approvals">Approvals{{if .Pending}} <strong>({{.Pending}})</strong>{{end}}</a> ·
-<a href="/ui/{{.Client.Slug}}/shortlist">Shortlist</a></p>
+<a href="/ui/{{.Client.Slug}}/shortlist">Shortlist</a> ·
+<a href="/ui/{{.Client.Slug}}/sendboxes">Sendboxes</a></p>
 <h2>Latest</h2><div class="wrap"><table><tr><th>file</th><th>when</th></tr>
 {{range .Latest}}<tr><td><a href="/files/{{.Rel}}">{{.Name}}</a></td><td class="mut">{{.ModTime.Format "2006-01-02 15:04"}}</td></tr>{{else}}<tr><td colspan="2" class="mut">no outputs yet — run the client's daily task</td></tr>{{end}}</table></div>
 {{template "foot" .}}{{end}}
@@ -986,7 +1039,7 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 {{template "foot" .}}{{end}}
 
 {{define "crm"}}{{template "head" .}}
-<h2>Pipeline</h2><div class="grid">
+<h2>Pipeline</h2><div class="grid-cards">
 {{$st := .Stages}}{{range .StageOrder}}<div class="card"><strong>{{.}}</strong>
 {{range index $st .}}<div class="mut">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</div>{{else}}<div class="mut">—</div>{{end}}</div>{{end}}</div>
 <h2>Contacts</h2><div class="wrap"><table><tr><th>name</th><th>email</th><th>vertical</th><th>stage</th></tr>
@@ -1067,4 +1120,57 @@ document.getElementById('submit').addEventListener('click',function(){
 </script>
 {{else}}<p class="mut">No shortlist published. The agent writes <code>history/discovery_shortlist.json</code> when a private-source discovery finishes.</p>{{end}}
 {{template "footform" .}}{{end}}
+
+{{define "sendboxes"}}{{template "head" .}}
+<p><a href="/ui/{{.Client.Slug}}">← {{.Client.Slug}}</a></p>
+{{if .Sendboxes}}
+<div class="wrap"><table><tr><th>slug</th><th>email</th><th>status</th><th>quota/day</th><th>warmup</th><th>last sync</th><th></th></tr>
+{{range .Sendboxes}}<tr>
+<td><code>{{.slug}}</code></td><td>{{.email}}</td>
+<td><span class="pill{{if eq .status "healthy"}} band-high{{else}} band-review_carefully{{end}}">{{.status}}</span></td>
+<td>{{.quota_today}}</td><td class="mut">{{.warmup_stage}}</td>
+<td class="mut">{{.last_successful_sync_ts}}</td>
+<td><a href="#connect" class="pick-box" data-slug="{{.slug}}" data-email="{{.email}}">connect / re-auth</a></td>
+</tr>{{end}}</table></div>
+{{else}}<p class="mut">No sendboxes yet — connect the first one below.</p>{{end}}
+
+<h2 id="connect">Connect a sendbox (Gmail App Password)</h2>
+<div class="card" style="max-width:560px">
+<form id="authform">
+<label>Sendbox slug
+<input id="f-slug" type="text" placeholder="sb-a" required></label>
+<label>Gmail address
+<input id="f-email" type="email" placeholder="you@gmail.com" required></label>
+<label>App Password <span class="mut">(16 characters — Google Account → Security → App passwords)</span>
+<input id="f-pass" type="password" autocomplete="off" placeholder="xxxx xxxx xxxx xxxx" required></label>
+<button class="ok" type="submit">Connect &amp; verify</button>
+<span id="authmsg" class="mut"></span>
+</form>
+<p class="mut" style="font-size:.8rem;margin-bottom:0">The password goes from this page straight to Gmail over TLS and is stored only on this machine
+(<code>sendboxes/&lt;slug&gt;/credentials.json</code>, permissions 0600). Never paste an App Password
+into the agent chat — this page is the one intended place for it.</p>
+</div>
+<script>
+var CLIENT="{{.Client.Slug}}";
+document.querySelectorAll('.pick-box').forEach(function(a){a.addEventListener('click',function(){
+ document.getElementById('f-slug').value=this.dataset.slug;
+ document.getElementById('f-email').value=this.dataset.email;
+ document.getElementById('f-pass').focus()})});
+document.getElementById('authform').addEventListener('submit',function(e){
+ e.preventDefault();
+ var btn=this.querySelector('button');btn.disabled=true;btn.setAttribute('aria-busy','true');
+ var msg=document.getElementById('authmsg');msg.textContent='Verifying SMTP + IMAP with Gmail…';
+ fetch('/api/ui/'+CLIENT+'/sendbox-auth',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({slug:document.getElementById('f-slug').value.trim(),
+   email:document.getElementById('f-email').value.trim(),
+   app_password:document.getElementById('f-pass').value})})
+ .then(function(r){return r.json()})
+ .then(function(j){
+  if(j.ok){msg.textContent='✓ connected ('+j.email+', quota '+j.quota_today+'/day)';
+   document.getElementById('f-pass').value='';setTimeout(function(){location.reload()},900)}
+  else{btn.disabled=false;btn.removeAttribute('aria-busy');
+   msg.textContent='✗ '+(j.error||'failed')+(j.detail?' — '+j.detail:'')+' (check the address and the App Password)'}})
+ .catch(function(err){btn.disabled=false;btn.removeAttribute('aria-busy');msg.textContent='✗ '+err.message})});
+</script>
+</main></body></html>{{end}}
 `))
