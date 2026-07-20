@@ -11,7 +11,10 @@ in the BACKGROUND so you can close the window. It never fails on "address alread
   Windows:  powershell -ExecutionPolicy Bypass -File setup_collector.ps1
   PS7:      pwsh -File setup_collector.ps1
 
-Run it from your agency root (the folder that contains daily-content-pipeline/).
+The agency root is resolved from the script's own location first (the install
+this copy belongs to), so invoking it by absolute path always targets that
+install; the terminal's current folder is only a fallback. Override with
+SOLO_AGENCY_ROOT when needed.
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -27,8 +30,26 @@ function Ok   ($m) { Write-Host "  [OK] $m" -ForegroundColor Green }
 function Warn ($m) { Write-Host "  [!] $m"  -ForegroundColor Yellow }
 function Fail ($m, $h) { Write-Host "`n[X] $m" -ForegroundColor Red; if ($h) { Write-Host "  -> $h" }; exit 1 }
 
+# --- resolve agency root (script location beats the terminal's cwd) ----------
+# Order: SOLO_AGENCY_ROOT env override -> the script's own location -> cwd.
+# Invoking an install's script by absolute path must target THAT install even
+# when the terminal is standing in another workspace with its own pipeline.
+$Root = if ($env:SOLO_AGENCY_ROOT) {
+  (Resolve-Path $env:SOLO_AGENCY_ROOT).Path
+} elseif ($PSScriptRoot -and (Test-Path (Join-Path (Split-Path $PSScriptRoot -Parent) 'daily-content-pipeline'))) {
+  Split-Path $PSScriptRoot -Parent
+} elseif ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'daily-content-pipeline'))) {
+  $PSScriptRoot
+} else {
+  (Get-Location).Path
+}
+$CwdPath = (Get-Location).Path
+if ((Test-Path (Join-Path $CwdPath 'daily-content-pipeline')) -and ($Root -ne $CwdPath)) {
+  Warn "Terminal is standing in a DIFFERENT workspace: $CwdPath"
+  Warn "Using the install this script belongs to: $Root (set SOLO_AGENCY_ROOT to override)"
+}
+
 # --- runtime folders ---------------------------------------------------------
-$Root    = (Get-Location).Path
 $Runtime = Join-Path $Root 'solo-agency-local-collector'
 $DL      = Join-Path $Runtime 'downloads'
 $Bin     = Join-Path $Runtime 'bin'

@@ -27,12 +27,24 @@ ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$*" >&2; }
 fail() { printf '\n\033[31m✗ %s\033[0m\n' "$1" >&2; [ -n "${2:-}" ] && printf '  → %s\n' "$2" >&2; exit 1; }
 
-# --- resolve agency root + runtime folders (robust to where it's run from) ---
+# --- resolve agency root + runtime folders ------------------------------------
+# Order: SOLO_AGENCY_ROOT env override → the SCRIPT'S OWN location → the current
+# directory. The script location must beat $PWD: invoking an install's script by
+# absolute path targets THAT install, even when the terminal happens to be
+# standing in another workspace that also has a pipeline (two installs on one
+# machine — a source repo plus client setups — is normal). $PWD-first here once
+# silently restarted the bridge against the wrong workspace.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "$PWD")"
-if   [ -d "$PWD/daily-content-pipeline" ];            then ROOT="$PWD"
+if   [ -n "${SOLO_AGENCY_ROOT:-}" ];                  then ROOT="$(cd "$SOLO_AGENCY_ROOT" && pwd)"
 elif [ -d "$SCRIPT_DIR/../daily-content-pipeline" ];  then ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 elif [ -d "$SCRIPT_DIR/daily-content-pipeline" ];     then ROOT="$SCRIPT_DIR"
+elif [ -d "$PWD/daily-content-pipeline" ];            then ROOT="$PWD"
 else ROOT="$PWD"; fi
+if [ -d "$PWD/daily-content-pipeline" ] && [ "$ROOT" != "$PWD" ]; then
+  warn "Terminal is standing in a DIFFERENT workspace: $PWD"
+  warn "Using the install this script belongs to: $ROOT"
+  warn "(set SOLO_AGENCY_ROOT=/path to override)"
+fi
 RUNTIME="$ROOT/solo-agency-local-collector"
 DL="$RUNTIME/downloads"
 BIN="$RUNTIME/bin"
