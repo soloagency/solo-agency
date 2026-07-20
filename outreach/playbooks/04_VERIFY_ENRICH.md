@@ -37,7 +37,13 @@ Three layers, with a hard floor:
   `identity.channels_found` + `identity.profiles`.
 - **Layer B — Proof-of-Life (≥1 required; MORE IS BETTER — do NOT cap):** evidenced, recent public
   PROFESSIONAL signals — the personalization fuel; each point is one basis for a conclusion the
-  writer weaves. Universal, industry-AGNOSTIC taxonomy (INFER the sources that fit the lead's field
+  writer weaves. **Recency is enforced, not aspirational (code gate in `enrich write`):** a
+  `high` band REQUIRES ≥1 dated hook ≤60 days old that is NOT a `website_update` — a website
+  positioning line is background, not proof-of-life, because websites go stale while social does
+  not. If a Facebook profile is on file (or you just found one) and you have NOT read it via the
+  collector, the store caps the band to `review_carefully` and tells you to read it. Never stamp a
+  hook's `observed_date` with today's date because that is when YOU read the page — use the
+  content's own publish/update date, or leave it empty (an undated hook never counts as recent). Universal, industry-AGNOSTIC taxonomy (INFER the sources that fit the lead's field
   — do NOT work from a hardcoded per-industry list): (1) recent activity/output, (2) reputation /
   social proof, (3) positioning / identity, (4) scale / momentum.
 - **Layer C — The Opening (NOT collected here):** the specific gap the offer resolves; the WRITER
@@ -47,9 +53,15 @@ Three layers, with a hard floor:
 points scales `personalization_confidence`. Springboard exhausted and still 0 Layer-B → NOT
 write-ready → `mark_no_hook` (`no_hook_fallback` decides). Layer A fails → assisted or skip. "Use
 what you have" applies to the CHANNEL and the degraded path — the personalization floor stays ≥1
-Layer-B. **The springboard:** from ANY seed (name / email / one URL), pivot and loop until returns
-diminish (social → website → industry/directory page → reverse search), reasoning about which
-sources fit the trade, until Layers A+B are satisfied.
+Layer-B. **The springboard (social-FIRST, mandatory order):** from ANY seed (name / email / one URL),
+resolve the person, then read their SOCIAL presence BEFORE their website — social is where recent
+professional activity lives; a website is a background/confirmation source only. Order: **social
+(read it, don't just save the URL) → website → industry/directory page → reverse search**, looping
+until returns diminish. Concretely: any lead with a Facebook profile MUST be read through the
+collector (`fb.profile.header`, then `fb.profile.posts` / `fb.profile.videos`) and its 3–5 most
+recent readable posts/videos analyzed for dated signals BEFORE the lead can reach `high`. Saving a
+Facebook URL without reading it is NOT enrichment. Stopping at the website is the #1 failure mode —
+websites are months out of date; the whole point of Layer B is RECENT activity.
 
 ## Source Preservation Rule
 

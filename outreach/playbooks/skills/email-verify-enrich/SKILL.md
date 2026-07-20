@@ -115,8 +115,13 @@ there is no upside to stopping early. Record each with `type`, `summary`, `evide
 and **`analysis.angle` is the conclusion that hook supports** (the implication the writer can draw
 from it, e.g. a share count → "people are already passing your version along"). **Always set
 `observed_date`** — a usable hook missing it is kept but `enrich write` flags a `problems` note
-(recency unverified), and recency is what makes proof-of-life real. Analyze the 3–5 latest readable
-posts where possible. Distill a `writing_brief`: a one-liner, ranked angles (freshness × goal-fit ×
+(recency unverified), and recency is what makes proof-of-life real. **Social BEFORE website, and
+reading BEFORE claiming:** a website is a background/confirmation source that goes stale; any lead
+with a Facebook profile MUST have it read (collector `fb.profile.header` then `fb.profile.posts`/
+`fb.profile.videos`), analyzing the 3–5 latest readable posts/videos for DATED signals, before that
+lead can be `high`. Saving the profile URL without reading it, or resting on a `website_update`
+line, is not proof-of-life — `enrich write` will cap the band and tell you so. `observed_date` is
+the CONTENT's publish/update date, never the date you read it. Distill a `writing_brief`: a one-liner, ranked angles (freshness × goal-fit ×
 confidence), a `do_not_mention` list, and a `personalization_confidence` set by the **COUNT +
 freshness + goal-fit** of the Layer-B points (drives the band: ≥0.7 high, 0.4–0.7 review_carefully,
 <0.4 fallback). Selecting which points to actually use is the WRITER's job, not yours — your job is
