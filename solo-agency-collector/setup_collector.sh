@@ -64,6 +64,15 @@ LAUNCHD_LABEL="com.solo-agency.collector.$INSTHASH"
 LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$LAUNCHD_LABEL.plist"
 SYSTEMD_UNIT="solo-agency-collector-$INSTHASH.service"
 SYSTEMD_FILE="$HOME/.config/systemd/user/$SYSTEMD_UNIT"
+AUTOSTART_STATE="$RUNTIME/autostart.json"
+
+# record_autostart <mode> <label> <reason> — canonical, workspace-readable evidence
+# of the autostart outcome. Sandboxed agents cannot run launchctl/systemctl and
+# cannot read ~/Library, but they CAN read this file (filesystem is the bus).
+record_autostart() {
+  printf '{"mode": "%s", "label": "%s", "port": %s, "root": "%s", "registered_at": "%s", "reason": "%s"}\n' \
+    "$1" "$2" "$PORT" "$ROOT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$3" > "$AUTOSTART_STATE" 2>/dev/null || true
+}
 
 # --- checksum tool ---
 if command -v shasum >/dev/null 2>&1; then SHACMD() { shasum -a 256 "$1"; }
@@ -187,6 +196,7 @@ AUTOSTART="none"
 STOP_HINT="kill \$(cat \"$PID_FILE\")"
 if [ "${SOLO_AGENCY_NO_AUTOSTART:-0}" = "1" ]; then
   info "SOLO_AGENCY_NO_AUTOSTART=1 — plain background start (no boot registration)."
+  record_autostart "none" "" "opt_out_env"
   start_nohup
 
 elif [ "$O" = "darwin" ] && command -v launchctl >/dev/null 2>&1; then
@@ -217,10 +227,12 @@ PLIST
     AUTOSTART="launchd ($LAUNCHD_LABEL)"
     STOP_HINT="launchctl bootout gui/\$(id -u)/$LAUNCHD_LABEL"
     bridge_pid_on_port > "$PID_FILE" 2>/dev/null || true
+    record_autostart "launchd" "$LAUNCHD_LABEL" "registered"
     ok "bridge running under launchd — starts automatically at login, restarts on crash"
   else
     warn "launchd registration failed — falling back to a plain background start."
     rm -f "$LAUNCHD_PLIST"
+    record_autostart "none" "" "launchd_registration_failed"
     start_nohup
   fi
 
@@ -251,6 +263,7 @@ UNIT
     AUTOSTART="systemd ($SYSTEMD_UNIT)"
     STOP_HINT="systemctl --user stop $SYSTEMD_UNIT"
     bridge_pid_on_port > "$PID_FILE" 2>/dev/null || true
+    record_autostart "systemd" "$SYSTEMD_UNIT" "registered"
     if loginctl enable-linger "$(id -un)" >/dev/null 2>&1; then
       ok "bridge running under systemd — starts at BOOT (lingering on), restarts on crash"
     else
@@ -261,6 +274,7 @@ UNIT
     warn "systemd registration failed — falling back to a plain background start."
     systemctl --user disable "$SYSTEMD_UNIT" >/dev/null 2>&1 || true
     rm -f "$SYSTEMD_FILE"; systemctl --user daemon-reload >/dev/null 2>&1 || true
+    record_autostart "none" "" "systemd_registration_failed"
     start_nohup
   fi
 
@@ -268,6 +282,7 @@ else
   # Windows Git-Bash lands here — setup_collector.ps1 registers the Scheduled
   # Task; from bash we can only do a plain background start.
   [ "$O" = "windows" ] && info "For autostart on Windows run setup_collector.ps1 (registers a logon Scheduled Task)."
+  record_autostart "none" "" "no_supervisor_available"
   start_nohup
 fi
 
