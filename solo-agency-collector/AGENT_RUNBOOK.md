@@ -2,6 +2,8 @@
 
 Use this runbook when an AI agent needs to collect data from private data sources through the Solo Agency Local Collector extension and localhost bridge.
 
+**Migrating a client or the whole agency to another machine / another AI agent (Claude ↔ Codex)?** See `MIGRATE_RUNBOOK.md` — `<bridge> tool migrate export|import` moves data + encrypted secrets + task hints; the destination bootstraps the binary/playbooks from the repo and re-registers the tasks in its own scheduler.
+
 ## Key Rule
 
 Do not ask the user to install Go.
