@@ -728,6 +728,16 @@ uploads the report, sends the Telegram (email-fallback) message, and appends the
     is invalid; send a correction immediately and log it. Record every attempt in
     `notifications/notification_log.md` (deduped per client/day).
 
+### Reply poller (persistent bridge, 2026-07-20+)
+
+The persistent bridge itself polls every sendbox's IMAP every ~5 minutes (same
+`gmail sync` code path: classify, freeze on reply, log the activity) and sends the
+operator an immediate WideCast notification for genuinely NEW campaign replies
+(deduped per lead+activity in `outreach/.reply_notify_seen.json`, so the daily
+run re-syncing the same mailbox never double-notifies). The daily run keeps
+running `tool gmail sync` exactly as before — the poller is an extra freshness
+layer, not a replacement. Operators see the live picture on `/ui/{client}/sent`.
+
 ### Provider Consent & Mandatory Notify Rule (anti-self-blocking)
 
 Configuring the PDNA provider (WideCast API key + `provider_config.local.json`) IS the
