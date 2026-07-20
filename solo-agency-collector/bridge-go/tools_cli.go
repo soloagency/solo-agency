@@ -110,6 +110,7 @@ func maybeRunToolCLI(args []string) (handled bool, exitCode int) {
 	usage := func() int {
 		fmt.Fprintln(os.Stderr, "usage: tool verify-email check --email a@b.com | check-file --in emails.txt")
 		fmt.Fprintln(os.Stderr, "       tool crm-store [--client-dir DIR | --pipeline R --client S] <subcommand> ...")
+		fmt.Fprintln(os.Stderr, "       tool migrate export|import ...   (see MIGRATE_RUNBOOK.md)")
 		return 2
 	}
 	if len(args) < 2 {
@@ -126,6 +127,8 @@ func maybeRunToolCLI(args []string) (handled bool, exitCode int) {
 		return true, runProviderCLI(args[2:])
 	case "gmail":
 		return true, runGmailCLI(args[2:])
+	case "migrate":
+		return true, runMigrateCLI(args[2:])
 	case "verify-email":
 		if len(args) < 3 {
 			return true, usage()
