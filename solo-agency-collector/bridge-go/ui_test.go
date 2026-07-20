@@ -487,3 +487,93 @@ func TestUIExtensionPage(t *testing.T) {
 		t.Fatalf("connected state not shown")
 	}
 }
+
+func TestShortID(t *testing.T) {
+	cases := map[string]string{
+		"c_01KXY7Q17X7MYGMTRSPPFNNR92": "c_…FNNR92",
+		"d_01KABCDEF":                  "d_…ABCDEF",
+		"short":                        "short",
+		"":                             "",
+	}
+	for in, want := range cases {
+		if got := shortID(in); got != want {
+			t.Errorf("shortID(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestUIContactDetail(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	crm := filepath.Join(ws, "outreach", "crm", "contacts")
+	os.MkdirAll(crm, 0o755)
+	// a fully-enriched contact: identities + hook (latest activity) + seed
+	os.WriteFile(filepath.Join(crm, "c_01KXY7Q17X7MYGMTRSPPFNNR92.json"), []byte(`{
+	  "id": "c_01KXY7Q17X7MYGMTRSPPFNNR92",
+	  "name": {"full": "Susan Vo"},
+	  "identities": {"emails": [{"address": "susan@kw.com", "status": "mx_ok"}],
+	    "phones": [{"number": "+14155550101"}],
+	    "socials": {"facebook": "https://facebook.com/susan.vo"},
+	    "seeds": [{"url": "https://facebook.com/reel/123", "kind": "reel", "platform": "facebook", "status": "resolved"}]},
+	  "lifecycle_stage": "lead",
+	  "custom_fields": {"professional_vertical": "real_estate"},
+	  "enrichment": {"confidence_band": "high",
+	    "identity": {"still_active": "confirmed", "current_company": "KW"},
+	    "writing_brief": {"one_liner": "top KW agent"},
+	    "hooks": [{"type": "new_listing", "summary": "listed 123 Main St", "evidence_url": "https://z/1", "observed_date": "2026-07-14"}]}
+	}`), 0o644)
+	// a nameless email-only contact -> list shows short id
+	os.WriteFile(filepath.Join(crm, "c_01BARE000000000000000000X.json"), []byte(
+		`{"id": "c_01BARE000000000000000000X", "identities": {"emails": [{"address": "bare@x.com"}]}, "lifecycle_stage": "lead"}`), 0o644)
+	// an activity
+	act := filepath.Join(ws, "outreach", "crm", "activities", "2026-07")
+	os.MkdirAll(act, 0o755)
+	os.WriteFile(filepath.Join(act, "activities.jsonl"),
+		[]byte(`{"contact_id": "c_01KXY7Q17X7MYGMTRSPPFNNR92", "type": "email_sent", "summary": "sent step 1", "by": "agent", "ts": "2026-07-19T10:00:00Z"}`+"\n"), 0o644)
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	get := func(url string) string {
+		req := httptest.NewRequest("GET", url, nil)
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s -> %d", url, rec.Code)
+		}
+		return rec.Body.String()
+	}
+
+	// list: clickable rows, short id for the nameless one, phone/social columns
+	crmPage := get("/ui/leadup/crm")
+	for _, want := range []string{"contact/c_01KXY7Q17X7MYGMTRSPPFNNR92", "Susan Vo",
+		"c_…00000X", "14155550101", "enriched"} {
+		if !strings.Contains(crmPage, want) {
+			t.Errorf("crm list missing %q", want)
+		}
+	}
+	if strings.Contains(crmPage, "c_01KXY7Q17X7MYGMTRSPPFNNR92</span>") {
+		t.Error("full ULID leaked into the visible name cell")
+	}
+
+	// detail: identities, the hook (latest activity for personalization), evidence link, timeline
+	d := get("/ui/leadup/contact/c_01KXY7Q17X7MYGMTRSPPFNNR92")
+	for _, want := range []string{"Susan Vo", "susan@kw.com", "14155550101",
+		"facebook.com/susan.vo", "Content clues", "reel", "resolved",
+		"listed 123 Main St", "https://z/1", "2026-07-14", "email_sent", "top KW agent"} {
+		if !strings.Contains(d, want) {
+			t.Errorf("contact detail missing %q", want)
+		}
+	}
+
+	// unknown contact -> 404
+	req := httptest.NewRequest("GET", "/ui/leadup/contact/c_nope", nil)
+	req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown contact -> %d, want 404", rec.Code)
+	}
+}

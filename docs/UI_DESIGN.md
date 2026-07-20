@@ -45,7 +45,8 @@ Base: `http://127.0.0.1:17321`
 | `/ui/{client_slug}` | Client home: latest reports, pending actions, quick links | U1 |
 | `/ui/{client_slug}/reports` | Reports hub (dated + `latest/`, HTML/PDF) | U1 |
 | `/ui/{client_slug}/leads` | Lead & Competitor Opportunities table (links + copy-ready comments) | U1 |
-| `/ui/{client_slug}/crm` | CRM kanban + contacts table | U1 (read) / U3 (interact) |
+| `/ui/{client_slug}/crm` | CRM kanban + contacts table (rows clickable; short id for nameless leads; phone/social columns + enriched / seed-unresolved badges) | U1 (read) / U3 (interact) |
+| `/ui/{client_slug}/contact/{id}` | Full contact profile: all identities + seeds (with resolve state), the enrichment HOOKS timeline (the proof-of-life 'latest activities' that personalize email, each with evidence link + observed date + used-in), writing brief, and the activity timeline | U3 |
 | `/ui/{client_slug}/approvals` | Interactive Approval Report (all campaigns; per-campaign at `/approvals/{campaign_slug}`) | U2 |
 | `/ui/{client_slug}/shortlist` | Discovery shortlist review (checkbox table) | U2 |
 | `/ui/{client_slug}/sendboxes` | Sendbox list + App Password connect form (`POST /api/ui/{c}/sendbox-auth`) | U2.5 |

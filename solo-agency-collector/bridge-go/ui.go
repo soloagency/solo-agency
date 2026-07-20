@@ -258,6 +258,8 @@ func (b *bridge) uiFingerprint() string {
 		stamp(filepath.Join(ws.Path, "outreach", "ui_inbox"))
 		stamp(filepath.Join(ws.Path, "ui_inbox"))
 		stamp(filepath.Join(ws.Path, "history", "discovery_shortlist.json"))
+		stamp(filepath.Join(ws.Path, "outreach", "crm", "contacts"))
+		stamp(filepath.Join(ws.Path, "outreach", "crm", "deals"))
 		// pending_approval holds YYYY-MM-DD subdirs; stamp those so new drafts refresh the page
 		campaigns := filepath.Join(ws.Path, "outreach", "campaigns")
 		if camps, err := os.ReadDir(campaigns); err == nil {
@@ -474,11 +476,51 @@ func (b *bridge) uiSendboxes() []uiSendbox {
 }
 
 type uiContact struct {
-	ID       string
-	Name     string
-	Email    string
-	Vertical string
-	Stage    string
+	ID              string
+	ShortID         string
+	Name            string
+	Email           string
+	Phone           string
+	Social          string // one representative social/profile URL
+	Vertical        string
+	Stage           string
+	Band            string // enrichment.confidence_band ("" = not enriched)
+	Seeds           int
+	SeedsUnresolved int
+}
+
+// shortID trims a ULID to a short, still-unique display code: the type prefix
+// plus the last 6 chars (the ULID's random tail — where collisions can't hide),
+// e.g. "c_01KXY7Q17X7MYGMTRSPPFNNR92" -> "c_…FNNR92".
+func shortID(id string) string {
+	prefix := ""
+	body := id
+	if i := strings.Index(id, "_"); i >= 0 && i < 5 {
+		prefix = id[:i+1]
+		body = id[i+1:]
+	}
+	if len(body) <= 8 {
+		return id
+	}
+	return prefix + "…" + body[len(body)-6:]
+}
+
+// contactName pulls the best display name from a contact doc.
+func contactName(doc map[string]any) string {
+	for _, k := range []string{"display_name", "full_name"} {
+		if v, ok := doc[k].(string); ok && v != "" {
+			return v
+		}
+	}
+	if n, ok := doc["name"].(map[string]any); ok {
+		if v, ok := n["full"].(string); ok && v != "" {
+			return v
+		}
+	}
+	if v, ok := doc["name"].(string); ok && v != "" {
+		return v
+	}
+	return ""
 }
 
 func (b *bridge) uiContacts(c uiClient, cap int) []uiContact {
@@ -492,34 +534,149 @@ func (b *bridge) uiContacts(c uiClient, cap int) []uiContact {
 		if len(out) >= cap || e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
-		var doc map[string]any
-		if uiReadJSON(filepath.Join(dir, e.Name()), &doc) != nil {
+		doc, err := readJSONFile(filepath.Join(dir, e.Name()))
+		if err != nil {
 			continue
 		}
-		ct := uiContact{ID: strings.TrimSuffix(e.Name(), ".json")}
-		for _, k := range []string{"display_name", "full_name", "name"} {
-			if v, ok := doc[k].(string); ok && v != "" {
-				ct.Name = v
+		// hide merge tombstones — they resolve to the winner
+		if mStr(mMap(doc, "merge"), "status") == "merged" {
+			continue
+		}
+		id := strings.TrimSuffix(e.Name(), ".json")
+		ct := uiContact{ID: id, ShortID: shortID(id), Name: contactName(doc)}
+		ids := mMap(doc, "identities")
+		if emails := mapsOf(mList(ids, "emails")); len(emails) > 0 {
+			ct.Email = mStr(emails[0], "address")
+		}
+		if phones := mapsOf(mList(ids, "phones")); len(phones) > 0 {
+			ct.Phone = mStr(phones[0], "number")
+		}
+		for _, k := range sortedKeys(mMap(ids, "socials")) {
+			if v, ok := mMap(ids, "socials")[k].(string); ok && v != "" {
+				ct.Social = v
 				break
 			}
 		}
-		if ids, ok := doc["identities"].(map[string]any); ok {
-			if emails, ok := ids["emails"].([]any); ok && len(emails) > 0 {
-				if em, ok := emails[0].(map[string]any); ok {
-					ct.Email, _ = em["address"].(string)
-				}
+		if ct.Social == "" {
+			if w := mStr(ids, "website"); w != "" {
+				ct.Social = w
 			}
 		}
-		if cf, ok := doc["custom_fields"].(map[string]any); ok {
-			if v, ok := cf["professional_vertical"].(string); ok {
-				ct.Vertical = v
+		ct.Vertical = mStr(mMap(doc, "custom_fields"), "professional_vertical")
+		ct.Stage = mStr(doc, "lifecycle_stage")
+		ct.Band = mStr(mMap(doc, "enrichment"), "confidence_band")
+		for _, sd := range mapsOf(mList(ids, "seeds")) {
+			ct.Seeds++
+			if mStr(sd, "status") != "resolved" {
+				ct.SeedsUnresolved++
 			}
 		}
-		ct.Stage, _ = doc["lifecycle_stage"].(string)
 		out = append(out, ct)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	// enriched + named first, then by name, then by short id
+	sort.Slice(out, func(i, j int) bool {
+		if (out[i].Name != "") != (out[j].Name != "") {
+			return out[i].Name != ""
+		}
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].ID < out[j].ID
+	})
 	return out
+}
+
+// uiContactDetail returns the full record + a personalization view (hooks =
+// the "latest activities" used to personalize email) + the activity timeline.
+func (b *bridge) uiContactDetail(c uiClient, id string) map[string]any {
+	if safeID(id) != nil {
+		return nil
+	}
+	doc, err := readJSONFile(filepath.Join(c.Path, "outreach", "crm", "contacts", id+".json"))
+	if err != nil {
+		return nil
+	}
+	ids := mMap(doc, "identities")
+	var emails, phones []map[string]any
+	emails = mapsOf(mList(ids, "emails"))
+	phones = mapsOf(mList(ids, "phones"))
+	var socials [][2]string
+	for _, k := range sortedKeys(mMap(ids, "socials")) {
+		if v, ok := mMap(ids, "socials")[k].(string); ok && v != "" {
+			socials = append(socials, [2]string{k, v})
+		}
+	}
+	en := mMap(doc, "enrichment")
+	var hooks []map[string]any
+	for _, h := range mapsOf(mList(en, "hooks")) {
+		hooks = append(hooks, map[string]any{
+			"Type": mStr(h, "type"), "Summary": mStr(h, "summary"),
+			"URL": mStr(h, "evidence_url"), "Observed": mStr(h, "observed_date"),
+			"UsedIn": mList(h, "used_in"),
+		})
+	}
+	brief := mMap(en, "writing_brief")
+	ident := mMap(en, "identity")
+	return map[string]any{
+		"ID": id, "Name": contactName(doc), "Stage": mStr(doc, "lifecycle_stage"),
+		"Emails": emails, "Phones": phones, "Socials": socials,
+		"Website": mStr(ids, "website"), "Seeds": mapsOf(mList(ids, "seeds")),
+		"Band": mStr(en, "confidence_band"), "Enriched": len(en) > 0,
+		"StillActive": mStr(ident, "still_active"), "Company": mStr(ident, "current_company"),
+		"Role": mStr(ident, "role"), "OneLiner": mStr(brief, "one_liner"),
+		"Angles": mList(brief, "ranked_angles"), "DoNotMention": mList(brief, "do_not_mention"),
+		"Hooks": hooks, "HooksRefreshed": mStr(en, "hooks_refreshed_at"),
+		"Vertical":      mStr(mMap(doc, "custom_fields"), "professional_vertical"),
+		"SequenceState": mStr(doc, "sequence_state"),
+		"Activities":    b.uiContactActivities(c, id, 40),
+	}
+}
+
+// uiContactActivities scans the monthly activity logs for one contact, newest first.
+func (b *bridge) uiContactActivities(c uiClient, id string, cap int) []map[string]any {
+	base := filepath.Join(c.Path, "outreach", "crm", "activities")
+	months, _ := os.ReadDir(base)
+	names := make([]string, 0, len(months))
+	for _, m := range months {
+		names = append(names, m.Name())
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(names)))
+	var out []map[string]any
+	for _, m := range names {
+		rows := readJSONLines(filepath.Join(base, m, "activities.jsonl"))
+		for i := len(rows) - 1; i >= 0; i-- {
+			r := rows[i]
+			if mStr(r, "contact_id") != id {
+				continue
+			}
+			out = append(out, map[string]any{
+				"Type": mStr(r, "type"), "Summary": mStr(r, "summary"),
+				"By": mStr(r, "by"), "At": mStr(r, "ts"),
+			})
+			if len(out) >= cap {
+				return out
+			}
+		}
+	}
+	return out
+}
+
+func (b *bridge) uiRenderContact(w http.ResponseWriter, slug, id string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	d := b.uiContactDetail(c, id)
+	if d == nil {
+		http.Error(w, "unknown contact", http.StatusNotFound)
+		return
+	}
+	name := mStr(d, "Name")
+	if name == "" {
+		name = shortID(id)
+	}
+	b.uiRender(w, "contact", map[string]any{"Title": name, "Client": c, "C": d})
 }
 
 type uiDeal struct {
@@ -581,6 +738,8 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 		b.uiRenderReports(w, parts[0])
 	case len(parts) == 2 && parts[1] == "crm":
 		b.uiRenderCRM(w, parts[0])
+	case len(parts) == 3 && parts[1] == "contact":
+		b.uiRenderContact(w, parts[0], parts[2])
 	case len(parts) == 2 && parts[1] == "approvals":
 		b.uiRenderApprovals(w, parts[0])
 	case len(parts) == 2 && parts[1] == "shortlist":
@@ -1121,6 +1280,7 @@ func (b *bridge) uiRender(w http.ResponseWriter, page string, data map[string]an
 // ---------- templates (embedded, no build chain) ----------
 
 var uiTplFuncs = template.FuncMap{
+	"shortid": shortID,
 	// groups: distinct Group values in first-appearance order
 	"groups": func(feats []map[string]any) []string {
 		var out []string
@@ -1259,8 +1419,74 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 <h2>Pipeline</h2><div class="grid-cards">
 {{$st := .Stages}}{{range .StageOrder}}<div class="card"><strong>{{.}}</strong>
 {{range index $st .}}<div class="mut">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</div>{{else}}<div class="mut">—</div>{{end}}</div>{{end}}</div>
-<h2>Contacts</h2><div class="wrap"><table><tr><th>name</th><th>email</th><th>vertical</th><th>stage</th></tr>
-{{range .Contacts}}<tr><td>{{if .Name}}{{.Name}}{{else}}<span class="mut">{{.ID}}</span>{{end}}</td><td class="mut">{{.Email}}</td><td>{{.Vertical}}</td><td class="mut">{{.Stage}}</td></tr>{{else}}<tr><td colspan="4" class="mut">no contacts yet</td></tr>{{end}}</table></div>
+<h2>Contacts <span class="mut" style="font-size:.8rem">({{len .Contacts}}) — click a row for the full profile + latest activities</span></h2>
+<div class="wrap"><table><tr><th>name</th><th>email</th><th>phone</th><th>social</th><th>vertical</th><th>state</th></tr>
+{{$slug := .Client.Slug}}{{range .Contacts}}<tr style="cursor:pointer" onclick="location.href='/ui/{{$slug}}/contact/{{.ID}}'">
+<td>{{if .Name}}<strong>{{.Name}}</strong>{{else}}<span class="mut" title="{{.ID}}">{{.ShortID}}</span>{{end}}</td>
+<td class="mut">{{if .Email}}{{.Email}}{{else}}—{{end}}</td>
+<td class="mut">{{if .Phone}}{{.Phone}}{{else}}—{{end}}</td>
+<td class="mut">{{if .Social}}<a href="{{.Social}}" target="_blank" rel="noopener" onclick="event.stopPropagation()">link ↗</a>{{else}}—{{end}}</td>
+<td>{{.Vertical}}</td>
+<td>{{if .Band}}<span class="pill band-high">enriched</span>{{else if .SeedsUnresolved}}<span class="pill band-review_carefully">seed: trace origin</span>{{else}}<span class="pill">{{if .Stage}}{{.Stage}}{{else}}new{{end}}</span>{{end}}</td>
+</tr>{{else}}<tr><td colspan="6" class="mut">no contacts yet — import a list or run discovery</td></tr>{{end}}</table></div>
+{{template "foot" .}}{{end}}
+
+{{define "contact"}}{{template "head" .}}
+{{$c := .C}}
+<p><a href="/ui/{{.Client.Slug}}/crm">← CRM</a></p>
+<div class="card">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;align-items:baseline">
+<div><strong style="font-size:1.15rem">{{if $c.Name}}{{$c.Name}}{{else}}<span class="mut">{{shortid $c.ID}}</span>{{end}}</strong>
+{{if $c.Company}} <span class="mut">· {{$c.Company}}{{if $c.Role}}, {{$c.Role}}{{end}}</span>{{end}}</div>
+<div>
+{{if $c.Band}}<span class="pill band-high">enriched · {{$c.Band}}</span>{{else}}<span class="pill band-review_carefully">not enriched yet</span>{{end}}
+{{if $c.StillActive}}<span class="pill">{{$c.StillActive}}</span>{{end}}
+{{if eq $c.SequenceState "frozen"}}<span class="pill">sequence frozen (replied)</span>{{end}}
+</div></div>
+{{if $c.OneLiner}}<p class="mut" style="margin:.4rem 0 0">{{$c.OneLiner}}</p>{{end}}
+</div>
+
+<div class="grid-cards">
+<div class="card"><strong>Identities</strong>
+<table style="margin-top:.4rem"><tbody>
+{{range $c.Emails}}<tr><td class="mut">email</td><td>{{.address}} <span class="mut">({{.status}})</span></td></tr>{{end}}
+{{range $c.Phones}}<tr><td class="mut">phone</td><td>{{.number}}</td></tr>{{end}}
+{{range $c.Socials}}<tr><td class="mut">{{index . 0}}</td><td><a href="{{index . 1}}" target="_blank" rel="noopener">{{index . 1}}</a></td></tr>{{end}}
+{{if $c.Website}}<tr><td class="mut">website</td><td><a href="{{$c.Website}}" target="_blank" rel="noopener">{{$c.Website}}</a></td></tr>{{end}}
+{{if and (not $c.Emails) (not $c.Phones) (not $c.Socials) (not $c.Website)}}<tr><td colspan="2" class="mut">no reachable identity yet — enrichment must resolve one</td></tr>{{end}}
+</tbody></table></div>
+
+{{if $c.Seeds}}<div class="card"><strong>Content clues (seeds)</strong>
+<span class="mut" style="font-size:.8rem"> — traced back to a profile during enrichment</span>
+<table style="margin-top:.4rem"><tbody>
+{{range $c.Seeds}}<tr><td class="mut">{{.kind}}{{if .platform}} · {{.platform}}{{end}}</td>
+<td><a href="{{.url}}" target="_blank" rel="noopener">{{.url}}</a>
+{{if eq (printf "%v" .status) "resolved"}}<span class="pill band-high">resolved</span>{{else}}<span class="pill band-review_carefully">unresolved</span>{{end}}</td></tr>{{end}}
+</tbody></table></div>{{end}}
+</div>
+
+<h2>Latest activities <span class="mut" style="font-size:.8rem">— the proof-of-life hooks used to personalize email</span></h2>
+{{if $c.Hooks}}
+<div class="wrap"><table><tr><th>signal</th><th>what</th><th>observed</th><th>evidence</th><th>used</th></tr>
+{{range $c.Hooks}}<tr>
+<td><span class="pill">{{.Type}}</span></td>
+<td>{{.Summary}}</td>
+<td class="mut">{{if .Observed}}{{.Observed}}{{else}}<span title="recency unverified">?</span>{{end}}</td>
+<td>{{if .URL}}<a href="{{.URL}}" target="_blank" rel="noopener">source ↗</a>{{else}}<span class="mut">—</span>{{end}}</td>
+<td class="mut">{{range .UsedIn}}{{.}} {{else}}—{{end}}</td>
+</tr>{{end}}</table></div>
+{{if $c.HooksRefreshed}}<p class="mut" style="font-size:.8rem">hooks refreshed {{$c.HooksRefreshed}}</p>{{end}}
+{{else}}
+<p class="mut">No hooks yet. These are the recent, evidenced signals (a new listing, a post, a review, an award) that make each email genuinely personal — enrichment fills them in. Run the client's daily task, or tell the agent "enrich my leads".</p>
+{{end}}
+
+{{if $c.DoNotMention}}<p class="mut" style="font-size:.8rem">Do not mention: {{range $c.DoNotMention}}{{.}}; {{end}}</p>{{end}}
+
+<h2>Activity timeline</h2>
+{{if $c.Activities}}
+<div class="wrap"><table><tr><th>when</th><th>event</th><th>detail</th><th>by</th></tr>
+{{range $c.Activities}}<tr><td class="mut">{{.At}}</td><td><span class="pill">{{.Type}}</span></td><td>{{.Summary}}</td><td class="mut">{{.By}}</td></tr>{{end}}</table></div>
+{{else}}<p class="mut">No activity recorded yet (sends, replies, stage changes appear here).</p>{{end}}
 {{template "foot" .}}{{end}}
 
 {{define "footform"}}
