@@ -217,6 +217,12 @@ func TestUIApprovalAndShortlistAPI(t *testing.T) {
 	if strings.Contains(rec.Body.String(), "z@x.com") {
 		t.Fatal("approved draft must not appear on approvals page")
 	}
+	// batch-approve controls render: check-all box, per-item checkboxes, batch button
+	for _, want := range []string{`id="checkall"`, `class="pick"`, `id="approvechecked"`, `id="onlyhigh"`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("approvals page missing batch control %q", want)
+		}
+	}
 
 	// unauthenticated POST is refused
 	recNoAuth := httptest.NewRecorder()

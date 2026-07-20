@@ -1654,13 +1654,24 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 </main></body></html>{{end}}
 
 {{define "approvals"}}{{template "head" .}}
-<p><a href="/ui/{{.Client.Slug}}">← {{.Client.Slug}}</a> · <span id="left">{{len .Drafts}}</span> pending
-<button id="allhigh" style="margin-left:10px">Approve all high-confidence</button></p>
+<p><a href="/ui/{{.Client.Slug}}">← {{.Client.Slug}}</a> · <span id="left">{{len .Drafts}}</span> pending</p>
+{{if .Drafts}}
+<div class="card" style="position:sticky;top:.5rem;z-index:5;display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;padding:.6rem .9rem">
+<label style="display:flex;align-items:center;gap:.45rem;margin:0;cursor:pointer">
+<input type="checkbox" id="checkall" checked style="margin:0"> <span>All</span></label>
+<button class="ok" id="approvechecked" style="margin:0">Approve checked (<span id="ckcount">0</span>)</button>
+<a href="#" id="onlyhigh" class="mut" style="font-size:.85rem">select high-confidence only</a>
+<span class="mut" id="batchmsg" style="font-size:.85rem"></span>
+</div>
+{{end}}
 {{range .Drafts}}
 <div class="card draft" data-id="{{.ID}}" data-campaign="{{.Campaign}}" data-band="{{.Band}}">
-<div><strong>{{.To}}</strong> <span class="pill band-{{.Band}}">{{.Band}}</span>
+<div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap">
+<label style="margin:0;cursor:pointer"><input class="pick" type="checkbox" checked style="margin:0"></label>
+<strong>{{.To}}</strong> <span class="pill band-{{.Band}}">{{.Band}}</span>
 <span class="pill">{{.Campaign}}</span> <span class="pill">step {{.Step}}</span>
-{{if .Companion}}<a class="pill" href="{{.Companion}}" target="_blank" rel="noopener">companion ↗</a>{{end}}</div>
+{{if .Companion}}<a class="pill" href="{{.Companion}}" target="_blank" rel="noopener">companion ↗</a>{{end}}
+</div>
 {{if .Warnings}}<div style="margin-top:6px">{{range .Warnings}}<span class="pill band-review_carefully">⚠ {{.}}</span> {{end}}</div>{{end}}
 {{if .Hooks}}<div class="mut" style="margin-top:6px;font-size:13px">hooks: {{range .Hooks}}{{if index . "evidence_url"}}<a href="{{index . "evidence_url"}}" target="_blank" rel="noopener">{{index . "type"}}</a> {{else}}{{index . "type"}} {{end}}{{end}}</div>{{end}}
 <div style="margin-top:8px"><input class="subj" type="text" value="{{.Subject}}"></div>
@@ -1678,22 +1689,42 @@ function payload(card){var p={draft_id:card.dataset.id,campaign:card.dataset.cam
  var s=card.querySelector('.subj'),b=card.querySelector('.body');
  if(s.value!==s.defaultValue)p.edited_subject=s.value;
  if(b.value!==b.defaultValue)p.edited_body=b.value;return p}
+function pickable(){return Array.prototype.slice.call(document.querySelectorAll('.draft:not(.done)'))}
+function checkedCards(){return pickable().filter(function(c){var p=c.querySelector('.pick');return p&&p.checked})}
+function updateCount(){var all=document.getElementById('checkall');if(!all)return;
+ var cards=pickable(),n=checkedCards().length;
+ document.getElementById('ckcount').textContent=n;
+ all.checked=n>0&&n===cards.length;all.indeterminate=n>0&&n<cards.length;
+ document.getElementById('approvechecked').disabled=(n===0)}
 function send(card,act,note){var p=payload(card);p.decision=act;if(note)p.note=note;
  return fetch('/api/ui/'+CLIENT+'/approval',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
  .then(function(){if(act!=='edit'){card.classList.add('done');card.querySelector('.acts').innerHTML='<span class="pill">'+act+' ✓ queued</span>'}
   else{card.querySelector('.subj').defaultValue=card.querySelector('.subj').value;card.querySelector('.body').defaultValue=card.querySelector('.body').value}
-  var n=document.querySelectorAll('.draft:not(.done)').length;document.getElementById('left').textContent=n})
+  var n=document.querySelectorAll('.draft:not(.done)').length;document.getElementById('left').textContent=n;updateCount()})
  .catch(function(e){alert('Failed: '+e.message)})}
 document.addEventListener('click',function(e){var b=e.target.closest('button[data-act]');if(!b)return;
  var card=b.closest('.draft');var act=b.getAttribute('data-act');
  if(act==='reject'){var note=prompt('Reject reason (feeds the learning log):','');if(note===null)return;send(card,act,note)}
  else send(card,act)});
-document.getElementById('allhigh').addEventListener('click',function(){
- var cards=document.querySelectorAll('.draft[data-band="high"]:not(.done)');
- if(!cards.length){alert('No untouched high-confidence drafts.');return}
- if(!confirm('Approve '+cards.length+' high-confidence draft(s)?'))return;
- var q=Promise.resolve();cards.forEach(function(c){q=q.then(function(){return send(c,'approve')})})});
+document.addEventListener('change',function(e){
+ if(e.target.id==='checkall'){var on=e.target.checked;
+  pickable().forEach(function(c){c.querySelector('.pick').checked=on});updateCount()}
+ else if(e.target.classList&&e.target.classList.contains('pick')){updateCount()}});
+var onlyHigh=document.getElementById('onlyhigh');
+if(onlyHigh)onlyHigh.addEventListener('click',function(e){e.preventDefault();
+ pickable().forEach(function(c){c.querySelector('.pick').checked=(c.dataset.band==='high')});updateCount()});
+var batchBtn=document.getElementById('approvechecked');
+if(batchBtn)batchBtn.addEventListener('click',function(){
+ var cards=checkedCards();
+ if(!cards.length)return;
+ if(!confirm('Approve '+cards.length+' checked draft(s)? Any inline edits you made are kept.'))return;
+ var msg=document.getElementById('batchmsg');batchBtn.disabled=true;batchBtn.setAttribute('aria-busy','true');
+ var i=0,q=Promise.resolve();
+ cards.forEach(function(c){q=q.then(function(){i++;msg.textContent='Approving '+i+'/'+cards.length+'…';return send(c,'approve')})});
+ q.then(function(){batchBtn.removeAttribute('aria-busy');batchBtn.disabled=false;
+  msg.textContent='✓ '+cards.length+' approved & queued — applied by the next run (ingest-ui)';updateCount()})});
+updateCount();
 </script>
 {{template "footform" .}}{{end}}
 
