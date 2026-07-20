@@ -1,0 +1,9 @@
+# Compiled binaries and dev artifacts never belong in source — the runnable
+# bridge is the one the collector setup installs at
+# {setup-root}/solo-agency-local-collector/bin/collector-bridge-{os}-{arch}.
+# A committed binary here misleads the agent (wrong OS/arch) and bloats history.
+/bridge-go
+/bridge-go.exe
+/bridge-go_*
+*.backup
+*.go.bak

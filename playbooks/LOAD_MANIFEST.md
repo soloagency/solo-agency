@@ -6,7 +6,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | path | lines | sha256 | last_line |
 |---|---|---|---|
 | SOLO_AGENCY_PLAYBOOK.md | 884 | 0411553815eb5e96e5dc85525423cfcb0709c6aa14b6b8afdd36db6aa11dc8cf | If any required stage was not loaded, load it before proceeding. |
-| playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1828 | 75438954b9d54219adf1addfb1ffa5e9c2b3a4dda06fce3793ac7f54ea64d415 | --- |
+| playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1828 | bee2f6a6b821b3b113a8d0106295c2566753358cdb96011bec4bda40b52460d6 | --- |
 | playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md | 796 | 1c1f35b832135cff7f871bd18e55b535b8a0453a6a03c223b699eb1a41331e59 | --- |
 | playbooks/02_PRIVATE_SOURCE_SETUP.md | 714 | 5f36d8a9c834aa5780ddbbd9b8bc28379b2f57745284422de5e3cc8ef447e279 | --- |
 | playbooks/03_PRODUCTION_DISTRIBUTION.md | 1081 | 2c5f1d36c35967b9718819532b9ddd0be44973a738a9aa612c1ae881f3b03d8a | Competitor analysis must be used for strategy, positioning, and original content ideas. The agent must not copy competitor posts, scripts, captions, offers, or creative assets. |
