@@ -819,6 +819,40 @@ func TestReplyPollerDedup(t *testing.T) {
 	}
 }
 
+func TestReplyNotifyDegradesNoPanic(t *testing.T) {
+	// notifyReplies runs unattended every 5 min; with no provider configured it
+	// must degrade (local_path_only), log, and never panic or fail the poll.
+	root := t.TempDir()
+	c := uiClient{Slug: "leadup", Workspace: "main", Path: filepath.Join(root, "clients", "leadup", "main")}
+	clientDir := filepath.Join(c.Path, "outreach")
+	if err := os.MkdirAll(filepath.Join(clientDir, "crm", "contacts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(clientDir, "crm", "contacts", "c_1.json"),
+		[]byte(`{"id":"c_1","name":{"full":"Jane Doe Realtor"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b := &bridge{}
+	b.uiDataRoot = root
+	replies := []map[string]any{
+		{"lead_id": "c_1", "activity_seq": 1, "from": "x@y.com", "campaign": "camp-a", "subject": "Re: idea"},
+		{"lead_id": "c_2", "activity_seq": 2, "from": "z@y.com", "campaign": "camp-a", "subject": "interested"},
+	}
+	// must not panic even though no provider_config / defaults / notifications dir exist
+	b.notifyReplies(c, clientDir, replies)
+	// the notification was attempted and logged (degraded), dir auto-created
+	logPath := filepath.Join(root, "notifications", "notification_log.md")
+	if _, err := os.Stat(logPath); err != nil {
+		t.Fatalf("notification log not written: %v", err)
+	}
+	data, _ := os.ReadFile(logPath)
+	for _, want := range []string{"local_path_only", "Reply Poller", "campaign_reply_detected"} {
+		if !strings.Contains(string(data), want) {
+			t.Fatalf("degraded log row missing %q: %s", want, data)
+		}
+	}
+}
+
 func TestAddrInUseFlapGuard(t *testing.T) {
 	// isAddrInUse: real bind conflict, nil, unrelated error
 	ln, err := net.Listen("tcp", "127.0.0.1:0")

@@ -1053,6 +1053,13 @@ func gmailCmdSync(clientDir, slug string, maxMsgs int) (map[string]any, error) {
 		return nil, fmt.Errorf("sendbox %s not configured", pyRepr(slug))
 	}
 	store := newCrmStore(clientDir)
+	// Serialize syncs of the SAME sendbox so the reply poller and the daily run
+	// never advance imap_uid_cursor concurrently — a race there would reprocess
+	// a UID and double-log/double-notify the same reply. Per-sendbox: different
+	// boxes still sync in parallel. Same lock both callers acquire via this fn.
+	if unlock, lerr := store.a.lock("gmail_sync_" + slug); lerr == nil {
+		defer unlock()
+	}
 	known := gmailLoadKnownMessageIDs(clientDir)
 	fromResolver := func(addr string) map[string]any {
 		if lead := store.a.findByIdentity("email", normalizeEmail(addr)); lead != "" {
