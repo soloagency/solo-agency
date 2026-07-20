@@ -513,6 +513,17 @@ func (b *bridge) run() error {
 	addr := fmt.Sprintf("%s:%d", b.cfg.host, b.cfg.port)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
+		// Under an autostart supervisor (launchd/systemd/Scheduled Task) a
+		// non-zero exit on EADDRINUSE causes an infinite respawn flap whenever
+		// some other healthy bridge instance already owns the port (e.g. a
+		// manual start, or a supervisor/manual race during upgrades). If a
+		// collector bridge is ALREADY serving this address there is nothing
+		// left to do — exit 0 so failure-keyed supervisors stay quiet. A dead
+		// or foreign port-holder still exits non-zero (supervisor retries).
+		if b.cfg.persistent && isAddrInUse(err) && probeHealthyBridge(addr) {
+			log.Printf("another healthy collector bridge already serves http://%s — exiting cleanly", addr)
+			return nil
+		}
 		return err
 	}
 	defer ln.Close()
@@ -550,6 +561,37 @@ func (b *bridge) run() error {
 		log.Printf("allowed extension origin=any chrome-extension:// origin")
 	}
 	return b.server.Serve(ln)
+}
+
+// isAddrInUse reports whether err is a bind failure because the address is
+// taken. Checks the errno first; falls back to the two message shapes (unix
+// "address already in use", Windows "Only one usage of each socket address").
+func isAddrInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, syscall.EADDRINUSE) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "address already in use") ||
+		strings.Contains(msg, "only one usage of each socket address")
+}
+
+// probeHealthyBridge asks /status on addr; true only when a collector bridge
+// answers (the status JSON always carries config_file).
+func probeHealthyBridge(addr string) bool {
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get("http://" + addr + "/status")
+	if err != nil || resp.StatusCode != http.StatusOK {
+		if resp != nil {
+			resp.Body.Close()
+		}
+		return false
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	return err == nil && strings.Contains(string(body), "\"config_file\"")
 }
 
 func (b *bridge) withCORS(next http.HandlerFunc) http.HandlerFunc {

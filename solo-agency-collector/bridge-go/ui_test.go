@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -683,5 +684,45 @@ func TestUICampaignPages(t *testing.T) {
 	inbox2, _ := os.ReadFile(filepath.Join(ws, "outreach", "ui_inbox", "campaign_edits.jsonl"))
 	if string(inbox2) != string(inbox) {
 		t.Fatal("refused edit must not append an event")
+	}
+}
+
+func TestAddrInUseFlapGuard(t *testing.T) {
+	// isAddrInUse: real bind conflict, nil, unrelated error
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	_, err = net.Listen("tcp", ln.Addr().String())
+	if !isAddrInUse(err) {
+		t.Fatalf("real bind conflict not detected: %v", err)
+	}
+	if isAddrInUse(nil) || isAddrInUse(errors.New("connection refused")) {
+		t.Fatal("false positives")
+	}
+
+	// probeHealthyBridge: true only for an answering bridge-shaped /status
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/status" {
+			w.Write([]byte(`{"config_file":"/x/collector_config.json","active_jobs":[]}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	if !probeHealthyBridge(strings.TrimPrefix(srv.URL, "http://")) {
+		t.Fatal("healthy bridge not recognized")
+	}
+	dead, _ := net.Listen("tcp", "127.0.0.1:0")
+	deadAddr := dead.Addr().String()
+	dead.Close()
+	if probeHealthyBridge(deadAddr) {
+		t.Fatal("dead port must not probe healthy")
+	}
+	other := httptest.NewServer(http.NotFoundHandler())
+	defer other.Close()
+	if probeHealthyBridge(strings.TrimPrefix(other.URL, "http://")) {
+		t.Fatal("foreign HTTP server must not probe healthy")
 	}
 }
