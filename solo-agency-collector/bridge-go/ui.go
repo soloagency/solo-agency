@@ -19,8 +19,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -249,6 +251,7 @@ func (b *bridge) uiFingerprint() string {
 		stamp(filepath.Join(root, "collector", "jobs", d))
 	}
 	stamp(filepath.Join(root, "collector", "inbox"))
+	stamp(filepath.Join(root, "collector", "logs", "extension_health.jsonl"))
 	for _, ws := range b.uiClients() {
 		stamp(filepath.Join(ws.Path, "outputs"))
 		stamp(filepath.Join(ws.Path, "outreach", "outputs"))
@@ -584,6 +587,8 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 		b.uiRenderShortlist(w, parts[0])
 	case len(parts) == 2 && parts[1] == "sendboxes":
 		b.uiRenderSendboxes(w, parts[0])
+	case len(parts) == 2 && parts[1] == "extension":
+		b.uiRenderExtension(w, parts[0])
 	default:
 		http.NotFound(w, r)
 	}
@@ -618,6 +623,7 @@ var uiFeatures = []uiFeature{
 	{"Content", "Blog + social posts", "Turn one idea into a blog and platform-ready posts", "agent", "", "write the blog and social posts", "a NEW chat session (automation)"},
 	{"Content", "Private-source discovery", "Find the groups/communities your audience gathers in, from places you already joined", "agent", "", "run discovery", "the shared SETUP session"},
 	{"Content", "Latest reports", "Daily HTML reports: ideas, drafts, leads, opportunities", "ui", "reports", "", ""},
+	{"Content", "Install / check the Chrome extension", "Drag-and-drop install for this client's collector extension, with a live connected check", "ui", "extension", "", ""},
 	{"Outreach", "Create a cold-email campaign", "Personalized, evidence-backed cold email — 3 questions and it runs; nothing sends without your approval", "agent", "", "set up a cold-email campaign", "the shared SETUP session"},
 	{"Outreach", "Import a lead list", "Bring in a CSV of prospects, deduped and suppression-checked", "agent", "", "import a list: <path to your CSV>", "the shared SETUP session"},
 	{"Outreach", "Review & approve drafts", "Approve, edit, hold or reject every drafted email — right here", "ui", "approvals", "", ""},
@@ -656,6 +662,71 @@ func resolveSendboxSlug(clientDir, emailAddr string) string {
 		}
 	}
 	return "sb-" + gmailMkToken()[:4]
+}
+
+// ---------- extension install helper ----------
+
+// uiOpenInFileManager reveals a folder in the OS file manager so the human can
+// DRAG it onto chrome://extensions instead of memorizing a path. Injectable
+// for tests.
+var uiOpenInFileManager = func(path string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", path)
+	case "windows":
+		cmd = exec.Command("explorer", path)
+	default:
+		cmd = exec.Command("xdg-open", path)
+	}
+	return cmd.Start() // fire and forget; explorer's exit codes are meaningless
+}
+
+// uiExtensionInfo resolves the client's extension folder (registry entry wins,
+// conventional {setup-root}/extensions/{slug} otherwise) and its live check-in
+// state from the bridge's in-memory tracker.
+func (b *bridge) uiExtensionInfo(c uiClient) map[string]any {
+	setupRoot := filepath.Dir(b.uiDataRoot)
+	folder := filepath.Join(setupRoot, "extensions", c.Slug)
+	info := map[string]any{"Folder": folder, "Exists": false, "Instance": "",
+		"LastCheck": "", "CheckedIn": false}
+	if reg, err := readJSONFile(filepath.Join(b.uiDataRoot, "collector", "extension_registry.json")); err == nil {
+		for _, e := range mapsOf(mList(reg, "clients")) {
+			if mStr(e, "client_slug") == c.Slug {
+				if f := mStr(e, "extension_folder"); f != "" {
+					info["Folder"] = f
+					folder = f
+				}
+				info["Instance"] = mStr(e, "extension_instance_id")
+			}
+		}
+	}
+	if st, err := os.Stat(folder); err == nil && st.IsDir() {
+		info["Exists"] = true
+	}
+	b.mu.Lock()
+	for _, t := range b.extensions {
+		if t.clientSlug == c.Slug {
+			info["CheckedIn"] = true
+			info["LastCheck"] = t.lastCheckAt.Format("2006-01-02 15:04:05")
+			if mStr(info, "Instance") == "" {
+				info["Instance"] = t.instanceID
+			}
+		}
+	}
+	b.mu.Unlock()
+	return info
+}
+
+func (b *bridge) uiRenderExtension(w http.ResponseWriter, slug string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	b.uiRender(w, "extension", map[string]any{
+		"Title": c.Slug + " extension", "Client": c, "Ext": b.uiExtensionInfo(c),
+	})
 }
 
 // uiClientSendboxes reads {ws}/outreach/sendboxes/sendboxes.json for one client.
@@ -902,6 +973,25 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(map[string]any{"ok": true, "queued": n,
 			"note": "recorded in ui_inbox; tell your agent to apply the shortlist decisions"})
+	case "reveal-extension":
+		info := b.uiExtensionInfo(c)
+		folder := mStr(info, "Folder")
+		setupRoot := filepath.Dir(b.uiDataRoot)
+		cleanFolder := filepath.Clean(folder)
+		if !strings.HasPrefix(cleanFolder, filepath.Clean(setupRoot)+string(filepath.Separator)) {
+			http.Error(w, "extension folder outside the install root", http.StatusBadRequest)
+			return
+		}
+		if info["Exists"] != true {
+			writeJSON(map[string]any{"ok": false, "error": "folder_missing", "folder": folder,
+				"note": "the per-client extension folder was not prepared yet — ask the agent to prepare it"})
+			return
+		}
+		if err := uiOpenInFileManager(cleanFolder); err != nil {
+			writeJSON(map[string]any{"ok": false, "error": "open_failed", "folder": folder})
+			return
+		}
+		writeJSON(map[string]any{"ok": true, "folder": folder})
 	case "sendbox-auth":
 		// The ONE canonical write the UI performs outside ui_inbox (spec §6.2 v1.3):
 		// the App Password must never transit chat or any agent-readable queue, so
@@ -1298,4 +1388,38 @@ document.getElementById('authform').addEventListener('submit',function(e){
  .catch(function(err){btn.disabled=false;btn.removeAttribute('aria-busy');msg.textContent='✗ '+err.message})});
 </script>
 </main></body></html>{{end}}
+
+{{define "extension"}}{{template "head" .}}
+<p><a href="/ui/{{.Client.Slug}}">← {{.Client.Slug}}</a></p>
+<div class="card" style="max-width:640px">
+{{if .Ext.CheckedIn}}
+<p><span class="pill band-high">✓ extension connected</span> <span class="mut">last check-in {{.Ext.LastCheck}}{{if .Ext.Instance}} · {{.Ext.Instance}}{{end}}</span></p>
+<p class="mut">The Chrome extension for this client is talking to the collector. Nothing to do here.</p>
+{{else}}
+<p><span class="pill band-review_carefully">not connected yet</span> <span class="mut">no check-in from this client's extension since the bridge started</span></p>
+<h2 style="margin-top:.6rem">Install in 3 steps — no path typing</h2>
+<ol>
+<li><button class="ok" id="reveal" style="padding:.3rem .9rem">Open the extension folder</button>
+<span id="revealmsg" class="mut"></span><br>
+<span class="mut" style="font-size:.8rem">Finder/Explorer opens the exact folder. Keep that window visible.</span></li>
+<li>In the Chrome profile for <strong>{{.Client.Slug}}</strong>, open <code>chrome://extensions</code> and switch on <strong>Developer mode</strong> (top right).</li>
+<li><strong>Drag the opened folder</strong> from Finder/Explorer and drop it anywhere on the <code>chrome://extensions</code> page — that installs it (same as "Load unpacked", minus the file picker). This page flips to <span class="pill band-high">✓ connected</span> on its own once the extension checks in.</li>
+</ol>
+<p class="mut" style="font-size:.8rem">Manual fallback: click "Load unpacked", press <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> (Mac) or paste into the address bar (Windows), then paste this path:<br>
+<code id="extpath" style="font-size:.75rem">{{.Ext.Folder}}</code>
+<button class="copy-phrase" data-phrase="{{.Ext.Folder}}" style="padding:.1rem .5rem;font-size:.7rem">Copy</button></p>
+{{end}}
+</div>
+<script>
+var CLIENT="{{.Client.Slug}}";
+var rv=document.getElementById('reveal');
+if(rv){rv.addEventListener('click',function(){
+ fetch('/api/ui/'+CLIENT+'/reveal-extension',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+ .then(function(r){return r.json()})
+ .then(function(j){document.getElementById('revealmsg').textContent=j.ok?'✓ folder opened':'✗ '+(j.note||j.error)})
+ .catch(function(e){document.getElementById('revealmsg').textContent='✗ '+e.message})})}
+document.addEventListener('click',function(e){var b=e.target.closest('.copy-phrase');if(!b)return;
+ navigator.clipboard.writeText(b.dataset.phrase).then(function(){var t=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=t},1200)})});
+</script>
+{{template "foot" .}}{{end}}
 `))

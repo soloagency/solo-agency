@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestEmailSyntaxOK(t *testing.T) {
@@ -414,5 +415,75 @@ func TestUIFeaturePanels(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("home page missing %q", want)
 		}
+	}
+}
+
+func TestUIExtensionPage(t *testing.T) {
+	root := t.TempDir()
+	setupRoot := root // dataRoot = root; setup root = parent — build accordingly
+	dataRoot := filepath.Join(setupRoot, "daily-content-pipeline")
+	ws := filepath.Join(dataRoot, "clients", "leadup", "main")
+	if err := os.MkdirAll(ws, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	extDir := filepath.Join(setupRoot, "extensions", "leadup")
+	if err := os.MkdirAll(extDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	regPath := filepath.Join(dataRoot, "collector", "extension_registry.json")
+	os.MkdirAll(filepath.Dir(regPath), 0o755)
+	os.WriteFile(regPath, []byte(fmt.Sprintf(
+		`{"clients": [{"client_slug": "leadup", "extension_folder": %q, "extension_instance_id": "leadup-local-collector"}]}`,
+		extDir)), 0o644)
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(dataRoot, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	authed := func(method, url, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, url, strings.NewReader(body))
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := authed("GET", "/ui/leadup/extension", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "not connected yet") ||
+		!strings.Contains(rec.Body.String(), "Drag the opened folder") {
+		t.Fatalf("extension page: %d", rec.Code)
+	}
+
+	origOpen := uiOpenInFileManager
+	defer func() { uiOpenInFileManager = origOpen }()
+	var opened string
+	uiOpenInFileManager = func(p string) error { opened = p; return nil }
+	rec = authed("POST", "/api/ui/leadup/reveal-extension", "{}")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("reveal: %d %s", rec.Code, rec.Body.String())
+	}
+	if opened != extDir {
+		t.Fatalf("opened %q, want %q", opened, extDir)
+	}
+
+	// missing folder -> folder_missing, opener NOT called
+	os.RemoveAll(extDir)
+	opened = ""
+	rec = authed("POST", "/api/ui/leadup/reveal-extension", "{}")
+	if !strings.Contains(rec.Body.String(), "folder_missing") || opened != "" {
+		t.Fatalf("missing-folder guard: %s opened=%q", rec.Body.String(), opened)
+	}
+
+	// live check-in flips the page
+	b.mu.Lock()
+	if b.extensions == nil {
+		b.extensions = map[string]extensionTelemetry{}
+	}
+	b.extensions["leadup-local-collector"] = extensionTelemetry{instanceID: "leadup-local-collector",
+		clientSlug: "leadup", displayName: "LeadUp", lastCheckAt: time.Now()}
+	b.mu.Unlock()
+	rec = authed("GET", "/ui/leadup/extension", "")
+	if !strings.Contains(rec.Body.String(), "extension connected") {
+		t.Fatalf("connected state not shown")
 	}
 }

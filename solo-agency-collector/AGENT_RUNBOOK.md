@@ -191,8 +191,11 @@ If the helper is not available, copy `solo-agency-collector/chrome-extension/` t
 Then tell the user with the resolved absolute path, not a relative path:
 
 ```md
-Please install the local collector extension for {Client Name}:
+Please install the local collector extension for {Client Name}.
 
+**Easiest (no path typing):** open `http://127.0.0.1:17321/ui/{client_slug}/extension`, click "Open the extension folder", then drag that folder onto `chrome://extensions` (Developer mode on). The page shows a green ✓ when it connects.
+
+**Manual fallback:**
 1. Open the Chrome profile/account for {Client Name}.
 2. Go to `chrome://extensions`.
 3. Turn on `Developer mode`.

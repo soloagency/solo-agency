@@ -49,6 +49,7 @@ Base: `http://127.0.0.1:17321`
 | `/ui/{client_slug}/approvals` | Interactive Approval Report (all campaigns; per-campaign at `/approvals/{campaign_slug}`) | U2 |
 | `/ui/{client_slug}/shortlist` | Discovery shortlist review (checkbox table) | U2 |
 | `/ui/{client_slug}/sendboxes` | Sendbox list + App Password connect form (`POST /api/ui/{c}/sendbox-auth`) | U2.5 |
+| `/ui/{client_slug}/extension` | Drag-drop Chrome-extension install: reveal the folder (`POST /api/ui/{c}/reveal-extension` opens it in the OS file manager) + live check-in state | U2.7 |
 | `/files/...` | Raw file serving from the data root (reports, assets), read-only | U1 |
 | `/events?scope=...` | SSE change feed (file-watch driven) | U1 |
 | `/api/ui/...` | JSON read APIs + `ui_inbox` write endpoints (cookie-gated) | U1–U2 |

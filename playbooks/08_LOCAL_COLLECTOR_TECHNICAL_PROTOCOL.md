@@ -367,7 +367,7 @@ The agent must create or update the local setup files, then hand the human exact
    - open `chrome://extensions`;
    - enable Developer mode;
    - click `Load unpacked`;
-   - select only the absolute per-client folder: `/ABSOLUTE/PATH/TO/extensions/{client_slug}/`.
+   - **prefer the browser-UI drag-drop path** — hand the human `http://127.0.0.1:17321/ui/{client_slug}/extension` (click "Open the extension folder", then drag it onto `chrome://extensions`); the absolute per-client folder `/ABSOLUTE/PATH/TO/extensions/{client_slug}/` is the manual fallback for the file picker.
 
 The human-facing setup message must show both actions together. Do not say only "I started it", "I ran setup", or "instructions are in collector_setup_status.md".
 
@@ -591,7 +591,10 @@ Open Terminal, paste this one line, and press Enter:
 
 `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
 
-Step 2 - load the client-specific Chrome extension in the Chrome profile/account for this client.
+**Easiest path (recommended) — the browser UI does the folder-finding.** Give the human this one link and three no-typing steps:
+`http://127.0.0.1:17321/ui/{client_slug}/extension` → click **Open the extension folder** (Finder/Explorer opens the exact folder) → in the client's Chrome, open `chrome://extensions`, turn on **Developer mode**, and **drag that folder onto the page**. The UI page flips to a green ✓ connected on its own when the extension checks in — no path to remember, no file picker. The absolute-path instructions below are the manual fallback only.
+
+Step 2 (manual fallback) - load the client-specific Chrome extension in the Chrome profile/account for this client.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:
 
 `/ABSOLUTE/PATH/TO/extensions/{client_slug}/`
