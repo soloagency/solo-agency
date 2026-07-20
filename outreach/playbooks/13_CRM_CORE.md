@@ -6,13 +6,13 @@ Stage: `13`
 
 Load before you reason about **CRM objects** — a contact/account/deal/activity/task, a lifecycle or
 pipeline-stage transition, or a dedupe/merge decision. This is the schema-and-lifecycle reference for
-everything `crm_store.py` writes. Its authoritative schemas live in `docs/DESIGN.md` §7 (and Stage 7
+everything `tool crm-store` writes. Its authoritative schemas live in `docs/DESIGN.md` §7 (and Stage 7
 for the on-disk write discipline); this stage is the operating gloss, not a second source of truth.
 Every load needs a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md`.
 
 ## Hard Gates For This Stage
 
-- **`tools/crm_store.py` is the ONLY sanctioned writer of `crm/` collections.** Never hand-edit a
+- **`tool crm-store` is the ONLY sanctioned writer of `crm/` collections.** Never hand-edit a
   contact/deal/activity/task file. Reads may be direct; every write goes through the tool (atomic
   temp+rename, fcntl lock, monotonic `seq`).
 - **The rules engine is deterministic and idempotent.** Guard keys `(rule_id, trigger_activity_id)`
@@ -50,10 +50,10 @@ Default `default_sales` stages: `new_reply` (p .10, SLA 1d) → `engaged` (.25, 
 Drive them through `apply-rules` (never by hand):
 
 ```sh
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> apply-rules --event reply_positive \
+<bridge> tool crm-store --client-dir <CLIENT_DIR> apply-rules --event reply_positive \
   --contact <lead_id> --activity <activity_id>
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> deal move --id <deal_id> --stage proposal_sent
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> contact merge --json '{"keep":"<id>","drop":"<id>"}'
+<bridge> tool crm-store --client-dir <CLIENT_DIR> deal move --id <deal_id> --stage proposal_sent
+<bridge> tool crm-store --client-dir <CLIENT_DIR> contact merge --json '{"keep":"<id>","drop":"<id>"}'
 ```
 
 ## Dedupe / merge
@@ -65,13 +65,13 @@ dropped id and unions identities into the survivor; `resolve()` follows the chai
 
 ## Completion Gates
 
-- No `crm/` file was hand-written; every mutation went through `crm_store.py`.
+- No `crm/` file was hand-written; every mutation went through `tool crm-store`.
 - Every rule effect came from `apply-rules` (idempotent guard keys), not a simulated write.
 - Every contact reference resolved through `resolve()` — no action taken against a tombstone.
 
 ## Phase status
 
-The CRM core (`crm_store.py`: objects, `apply-rules` r1–r6, dedupe/merge/`resolve`, pipelines) is
+The CRM core (`tool crm-store`: objects, `apply-rules` r1–r6, dedupe/merge/`resolve`, pipelines) is
 **built** (Phase 1 + 2). The polished kanban/timeline UI and segment analytics are Phase 3.
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.

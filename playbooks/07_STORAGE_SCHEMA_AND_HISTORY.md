@@ -810,7 +810,7 @@ Credential rules:
 
 Snapshot of the OpenAPI operations discovered for the active provider. This is the main Client tools inventory for provider actions and is safe to keep without secrets.
 
-When local Python execution is available, agents may create or refresh this file with `tools/provider_openapi.py discover --config <client provider_config.local.json> --defaults daily-content-pipeline/provider_defaults.json --out-dir <client integrations/providers folder>`.
+When local Python execution is available, agents may create or refresh this file with `tool provider discover --config <client provider_config.local.json> --defaults daily-content-pipeline/provider_defaults.json --out-dir <client integrations/providers folder>`.
 
 Whenever the human or automation asks to check tools, check this Client tools file first. Only inspect global MCP/native tools after this file and the verified provider identity are current.
 

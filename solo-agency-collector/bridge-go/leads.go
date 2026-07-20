@@ -24,11 +24,11 @@ import (
 )
 
 var leadSynonymOrder = []string{"email", "full_name", "first_name", "last_name", "company",
-	"phone", "website", "city", "state", "facebook", "linkedin", "instagram"}
+	"phone", "website", "city", "state", "facebook", "linkedin", "instagram", "profile", "link"}
 
 var leadSynonyms = map[string][]string{
 	"email":      {"email", "e-mail", "email address", "mail"},
-	"full_name":  {"full name", "name", "contact name", "fullname"},
+	"full_name":  {"full name", "name", "contact name", "fullname", "full_name"},
 	"first_name": {"first name", "first", "firstname"},
 	"last_name":  {"last name", "last", "lastname", "surname"},
 	"company":    {"company", "office name", "brokerage", "organization", "org", "business"},
@@ -39,6 +39,135 @@ var leadSynonyms = map[string][]string{
 	"facebook":   {"facebook", "fb"},
 	"linkedin":   {"linkedin"},
 	"instagram":  {"instagram", "ig"},
+	// generic anchor + clue columns (DESIGN §7.1 taxonomy): every value is
+	// classified by URL shape, so a reel pasted under "profile" still lands
+	// as a seed and a profile pasted under "link" still lands as a profile
+	"profile": {"profile", "profile url", "profile link", "social", "social url", "page", "fb profile"},
+	"link": {"link", "links", "reel", "reel url", "reels", "video", "video url", "video link",
+		"watch", "post", "post url", "blog", "blog url", "content", "content url", "youtube", "media", "clip"},
+}
+
+// --- fragment classification (DESIGN §7.1: anchor vs content clue) ---------------
+
+var urlishRe = regexp.MustCompile(`^(https?://|www\.)|^[a-z0-9-]+(\.[a-z0-9-]+)+(/|$)`)
+
+// classifyLeadURL decides what a URL is: an identity anchor ("profile" with a
+// platform, or "website") or a content clue ("seed" with a kind). Returns
+// kind "" when the value is not URL-shaped.
+func classifyLeadURL(raw string) (kind, platform string) {
+	k, p, _ := classifyLeadURLFull(raw)
+	return k, p
+}
+
+func classifyLeadURLFull(raw string) (kind, platform, seedKind string) {
+	v := strings.ToLower(strings.TrimSpace(raw))
+	if v == "" || strings.Contains(v, "@") || !urlishRe.MatchString(v) {
+		return "", "", ""
+	}
+	u := schemeRe.ReplaceAllString(v, "")
+	u = wwwRe.ReplaceAllString(u, "")
+	for _, cut := range []string{"?", "#"} {
+		if i := strings.Index(u, cut); i >= 0 && cut == "#" {
+			u = u[:i]
+		}
+	}
+	host, path, _ := strings.Cut(u, "/")
+	path = strings.Trim(path, "/")
+	query := ""
+	if i := strings.Index(v, "?"); i >= 0 {
+		query = v[i+1:]
+	}
+	if i := strings.Index(path, "?"); i >= 0 {
+		path = path[:i]
+	}
+	segs := []string{}
+	for _, s := range strings.Split(path, "/") {
+		if s != "" {
+			segs = append(segs, s)
+		}
+	}
+	has := func(words ...string) bool {
+		for _, seg := range segs {
+			for _, w := range words {
+				if seg == w {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	switch {
+	case strings.Contains(host, "fb.watch"):
+		return "seed", "facebook", "video"
+	case strings.Contains(host, "facebook.com") || strings.Contains(host, "fb.com"):
+		if has("reel", "reels") {
+			return "seed", "facebook", "reel"
+		}
+		if has("videos", "video", "watch") {
+			return "seed", "facebook", "video"
+		}
+		if has("posts", "story", "share", "permalink.php", "photo", "photo.php") {
+			return "seed", "facebook", "post"
+		}
+		if has("groups") {
+			return "seed", "facebook", "group"
+		}
+		if len(segs) == 1 || strings.Contains(path, "profile.php") || strings.Contains(query, "id=") {
+			return "profile", "facebook", ""
+		}
+		return "seed", "facebook", "post"
+	case strings.Contains(host, "youtu.be"):
+		return "seed", "youtube", "video"
+	case strings.Contains(host, "youtube.com"):
+		if has("watch") || has("shorts") || strings.Contains(query, "v=") {
+			return "seed", "youtube", "video"
+		}
+		return "profile", "youtube", "" // /@handle, /channel/, /c/, /user/
+	case strings.Contains(host, "instagram.com"):
+		if has("p", "reel", "reels", "tv") {
+			return "seed", "instagram", "reel"
+		}
+		return "profile", "instagram", ""
+	case strings.Contains(host, "tiktok.com"):
+		if has("video") {
+			return "seed", "tiktok", "video"
+		}
+		return "profile", "tiktok", ""
+	case strings.Contains(host, "linkedin.com"):
+		if has("posts", "pulse", "feed") {
+			return "seed", "linkedin", "post"
+		}
+		return "profile", "linkedin", "" // /in/, /company/
+	case strings.Contains(host, "x.com") || strings.Contains(host, "twitter.com"):
+		if has("status") {
+			return "seed", "x", "post"
+		}
+		return "profile", "x", ""
+	case strings.Contains(host, "zalo.me"):
+		return "profile", "zalo", ""
+	}
+	if len(segs) == 0 {
+		return "website", "", ""
+	}
+	return "seed", "", "post" // deep path on a generic domain = an article/blog clue
+}
+
+// classifyFragment types a bare value: email / phone / url (profile|seed|website) / name.
+func classifyFragment(v string) (field, platform, seedKind string) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "", "", ""
+	}
+	if validEmail(v) {
+		return "email", "", ""
+	}
+	if kind, p, sk := classifyLeadURLFull(v); kind != "" {
+		return kind, p, sk
+	}
+	if normalizePhone(v) != "" {
+		return "phone", "", ""
+	}
+	return "full_name", "", ""
 }
 
 var colLettersRe = regexp.MustCompile(`^[A-Z]{1,2}$`)
@@ -116,9 +245,11 @@ func leadRows(path string) ([]string, func() (map[string]string, bool), func(), 
 				lines = append(lines, s)
 			}
 		}
+		// a line with no delimiter is one fragment (email/phone/URL/name —
+		// spaces are fine now that each line is classified, not assumed email)
 		single := 0
 		for _, ln := range lines {
-			if !strings.ContainsAny(ln, ",\t; ") {
+			if !strings.ContainsAny(ln, ",\t;") {
 				single++
 			}
 		}
@@ -127,7 +258,9 @@ func leadRows(path string) ([]string, func() (map[string]string, bool), func(), 
 			threshold = 1
 		}
 		if ext == ".txt" && len(lines) > 0 && single >= threshold {
-			// one-email-per-line
+			// one-FRAGMENT-per-line: each line is classified (email / phone /
+			// profile-or-seed URL / bare name) instead of being force-typed as
+			// an email \u2014 a list of reel links is a valid lead list
 			data, err := io.ReadAll(f)
 			f.Close()
 			if err != nil {
@@ -139,13 +272,23 @@ func leadRows(path string) ([]string, func() (map[string]string, bool), func(), 
 				for i < len(all) {
 					ln := strings.TrimSpace(all[i])
 					i++
-					if ln != "" {
+					if ln == "" {
+						continue
+					}
+					switch field, _, _ := classifyFragment(ln); field {
+					case "email":
 						return map[string]string{"email": ln}, true
+					case "phone":
+						return map[string]string{"phone": ln}, true
+					case "profile", "seed", "website":
+						return map[string]string{"link": ln}, true
+					default:
+						return map[string]string{"full_name": ln}, true
 					}
 				}
 				return nil, false
 			}
-			return []string{"email"}, next, func() {}, nil
+			return []string{"email", "phone", "link", "full_name"}, next, func() {}, nil
 		}
 		r := csv.NewReader(stripBOMReader(f))
 		r.Comma = sniffDelimiter(text)
@@ -419,17 +562,43 @@ func excelColKey(ref string) int {
 
 func proposeMapping(headers []string) map[string]string {
 	mapping := map[string]string{}
+	claimed := map[string]bool{}
 	lower := map[string]string{}
+	var lowerOrder []string
 	for _, h := range headers {
 		if h != "" {
-			lower[strings.ToLower(strings.TrimSpace(h))] = h
+			k := strings.ToLower(strings.TrimSpace(h))
+			if _, dup := lower[k]; !dup {
+				lower[k] = h
+				lowerOrder = append(lowerOrder, k)
+			}
 		}
 	}
 	for _, field := range leadSynonymOrder {
 		for _, syn := range leadSynonyms[field] {
-			if orig, ok := lower[syn]; ok {
+			if orig, ok := lower[syn]; ok && !claimed[orig] {
 				mapping[field] = orig
+				claimed[orig] = true
 				break
+			}
+		}
+	}
+	// clue fields may span SEVERAL columns (e.g. both "Reel" and "Link"):
+	// additional matches become link_2, link_3, ... so no clue column is dropped
+	for _, multi := range []string{"profile", "link"} {
+		n := 2
+		for _, k := range lowerOrder {
+			orig := lower[k]
+			if claimed[orig] {
+				continue
+			}
+			for _, syn := range leadSynonyms[multi] {
+				if k == syn {
+					mapping[fmt.Sprintf("%s_%d", multi, n)] = orig
+					claimed[orig] = true
+					n++
+					break
+				}
 			}
 		}
 	}
@@ -529,16 +698,73 @@ func normalizeLeadRow(raw map[string]string, mapping map[string]string) map[stri
 		full = strings.Join(parts, " ")
 	}
 	socials := map[string]any{}
-	for _, s := range []string{"facebook", "linkedin", "instagram"} {
-		if v := g(s); v != "" {
-			socials[s] = v
+	var seeds []any
+	website := ""
+	seenSeed := map[string]bool{}
+	route := func(value string) {
+		kind, platform, seedKind := classifyLeadURLFull(value)
+		switch kind {
+		case "profile":
+			if platform != "" && socials[platform] == nil {
+				socials[platform] = value
+			}
+		case "website":
+			if website == "" {
+				website = value
+			}
+		case "seed":
+			norm := normalizeSocial(value)
+			if norm != "" && !seenSeed[norm] {
+				seenSeed[norm] = true
+				seeds = append(seeds, map[string]any{"url": value, "kind": seedKind, "platform": platform})
+			}
 		}
+	}
+	// every URL-bearing column goes through the classifier — a reel pasted in
+	// the facebook column is still a seed, a profile pasted in "link" is still
+	// a profile (DESIGN §7.1 taxonomy)
+	urlCols := []string{"facebook", "linkedin", "instagram", "profile", "link"}
+	for field := range mapping {
+		if strings.HasPrefix(field, "profile_") || strings.HasPrefix(field, "link_") {
+			urlCols = append(urlCols, field)
+		}
+	}
+	sort.Strings(urlCols[3:]) // deterministic order for the multi-columns
+	for _, col := range urlCols {
+		if v := g(col); v != "" {
+			if k, _, _ := classifyLeadURLFull(v); k == "" && (col == "facebook" || col == "linkedin" || col == "instagram") {
+				// bare handle in a platform column (not URL-shaped): keep the old behavior
+				if socials[col] == nil {
+					socials[col] = v
+				}
+			} else {
+				route(v)
+			}
+		}
+	}
+	if v := g("website"); v != "" {
+		if k, _, _ := classifyLeadURLFull(v); k == "website" || k == "" {
+			if website == "" {
+				website = v
+			}
+		} else {
+			route(v)
+		}
+	}
+	email := g("email")
+	if email != "" && !validEmail(email) {
+		// a URL in the email column must never become a garbage "email" identity
+		if k, _, _ := classifyLeadURLFull(email); k != "" {
+			route(email)
+		}
+		email = ""
 	}
 	return map[string]any{
 		"full_name": full, "first_name": g("first_name"), "last_name": g("last_name"),
-		"email": normalizeEmail(g("email")), "phone": normalizePhone(g("phone")),
-		"company": g("company"), "website": g("website"),
+		"email": normalizeEmail(email), "phone": normalizePhone(g("phone")),
+		"company": g("company"), "website": website,
 		"city": g("city"), "state": g("state"), "socials": socials,
+		"seeds": orEmptyList(seeds),
 	}
 }
 
@@ -556,10 +782,18 @@ func leadToContactFields(norm map[string]any) map[string]any {
 	if mStr(norm, "website") != "" {
 		website = norm["website"]
 	}
+	var seedEntries []any
+	for _, sd := range mapsOf(mList(norm, "seeds")) {
+		seedEntries = append(seedEntries, map[string]any{
+			"url": sd["url"], "kind": sd["kind"], "platform": sd["platform"],
+			"source": "import", "status": "unresolved",
+		})
+	}
 	fields := map[string]any{
 		"name": map[string]any{"full": norm["full_name"], "first": norm["first_name"], "last": norm["last_name"]},
 		"identities": map[string]any{"emails": emails, "phones": phones,
-			"socials": mMap(norm, "socials"), "website": website},
+			"socials": mMap(norm, "socials"), "website": website,
+			"seeds": orEmptyList(seedEntries)},
 	}
 	custom := map[string]any{}
 	for _, k := range []string{"company", "city", "state"} {
@@ -622,12 +856,19 @@ func doLeadImport(clientDir, file, listSlug string, mapping map[string]string, m
 		}
 		seq++
 		norm := normalizeLeadRow(raw, mapping)
-		if mStr(norm, "email") == "" && mStr(norm, "phone") == "" &&
-			len(mMap(norm, "socials")) == 0 && mStr(norm, "full_name") == "" {
+		hasAnchor := mStr(norm, "email") != "" || mStr(norm, "phone") != "" ||
+			len(mMap(norm, "socials")) > 0 || mStr(norm, "website") != ""
+		hasSeed := len(mList(norm, "seeds")) > 0
+		if !hasAnchor && !hasSeed && mStr(norm, "full_name") == "" {
 			skipped++
 			writeLine(map[string]any{"seq": seq, "ts": nowISO(), "normalized": norm,
-				"outcome": "skipped_invalid", "lead_id": nil, "reason": "no identity or name"})
+				"outcome": "skipped_invalid", "lead_id": nil, "reason": "no identity, seed, or name"})
 			continue
+		}
+		if !hasAnchor && !hasSeed {
+			// name-only fragment: kept per the User-Curated List Rule (the human
+			// may know the name/company is distinctive); flagged for enrichment
+			norm["name_only_fragment"] = true
 		}
 		var socialVals []string
 		for _, v := range mMap(norm, "socials") {

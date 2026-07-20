@@ -6,7 +6,7 @@ description: >-
   verify pass (still in the business? gather profile URLs) then a proof-of-life pass — gather as
   MANY evidenced public-professional signals as you can find (recent activity, reputation,
   positioning, scale — each with a source URL), never capping at one or three. Writes the dossier
-  via crm_store.py. Never guesses an email address, never mines personal life. Loaded after
+  via tool crm-store. Never guesses an email address, never mines personal life. Loaded after
   Stage 4 / from the daily run's "load new pipeline -> enrich" step.
 ---
 
@@ -14,12 +14,12 @@ description: >-
 
 This is an INDEX. Load the module you need when you reach its step:
 `channel_reality.md` (what is actually readable, per source) and `etiquette.md` (what is fair
-game vs off-limits). The dossier schema and storage are Stage 7 + `crm_store.py`.
+game vs off-limits). The dossier schema and storage are Stage 7 + `tool crm-store`.
 
 ## Hard gates
 
 - **Every usable hook needs an `evidence_url`.** A detail with no source is dropped — Stage 6
-  may not write it, and Stage 9 greps for it. `crm_store.py enrich write` enforces this.
+  may not write it, and Stage 9 greps for it. `tool crm-store enrich write` enforces this.
 - **No guessing.** Never fabricate an email address. If you find a real address (on a website,
   a license record, a roster) store it as a found identity (`source: enrich`). If you find
   none, mark `mark_email_not_found` — do not invent a `first.last@domain` guess (MVP decision).
@@ -33,7 +33,7 @@ game vs off-limits). The dossier schema and storage are Stage 7 + `crm_store.py`
   says so). Do not log into anyone's account. Facebook/LinkedIn logged-out = store the URL only
   (Phase 4 Local Collector reads those later).
 - **Inherit, don't re-burn.** The dossier belongs to the CONTACT and is reused across that
-  client's campaigns. Check `crm_store.py enrich status` first; only enrich/refresh when it says
+  client's campaigns. Check `tool crm-store enrich status` first; only enrich/refresh when it says
   so. A `no_verifiable_hook` / `email_not_found` negative cache is inherited — respect its window.
 
 ## The Write-Ready gate (3 layers + floor)
@@ -69,7 +69,13 @@ fresh, on-goal → high). Springboard exhausted and still 0 Layer-B → **NOT wr
 ≥1 Layer-B.
 
 **Seed normalization — resolve a REAL identity before the first search.** A search query is built
-from a real person/business, NEVER from a URL. If the only seed is a Facebook/social URL (or the CRM
+from a real person/business, NEVER from a URL. **Content-clue seeds come first:** when the lead's
+only data is a CONTENT link (`identities.seeds[]` — a reel/video/post/blog URL, status
+`unresolved`), open that content itself (Local Collector for Facebook surfaces; the browser for
+YouTube/TikTok/blogs) and identify the AUTHOR — the byline/channel/handle links to the profile.
+Record the found profile in `identity.channels_found.profiles` (the store writes it back as a
+canonical `identities.socials` entry and marks the seed `resolved`), then continue below as a
+profile-seeded lead. If the only seed is a Facebook/social URL (or the CRM
 `name` is blank), FIRST read the profile with the Local Collector's `fb.profile.header` — the Phase-4
 collector is now LIVE (operator's own logged-in Chrome; bridge `127.0.0.1:17321`, enqueue capability
 `fb.profile.header` with the profile URL; see `solo-agency-collector`). Take its `name` + `category`
@@ -88,7 +94,7 @@ until Layers A+B are satisfied, then stop.
 
 ## The two-tier flow
 
-Run over the leads `crm_store.py enrich due --campaign <slug>` returns.
+Run over the leads `tool crm-store enrich due --campaign <slug>` returns.
 
 **Tier 1 — Verify + reachability (cheap).** Confirm the person is still active and collect profile
 URLs + any real channel (Layer A). Run the springboard from the seed — these sources are
@@ -130,7 +136,7 @@ referenced (a listing that sold must not be referenced as active).
 ## Writing the dossier
 
 ```sh
-python3 tools/crm_store.py --client-dir DIR enrich write --contact <lead_id> --campaign <slug> --json '<dossier>'
+<bridge> tool crm-store --client-dir DIR enrich write --contact <lead_id> --campaign <slug> --json '<dossier>'
 ```
 
 Dossier shape (DESIGN §9.2):

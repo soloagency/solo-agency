@@ -1,3 +1,9 @@
+> **HISTORICAL (Python era).** This runbook drove the retired Python implementation.
+> Since 2026-07-19 the acceptance gates are: the bridge-go test suite
+> (`solo-agency-collector/bridge-go`, `go test ./...` — behavioral scenario tests that were
+> golden-cross-validated against Python before retirement) plus the live sendbox validation
+> recorded in `docs/UI_DESIGN.md`'s delivery log. Command snippets below are NOT runnable as-is.
+
 # OutreachCRM — Phase 2 E2E acceptance runbook (real send, one sendbox)
 
 This is the **Phase-2 acceptance gate** (DESIGN §21). Unlike the offline unit suites
@@ -32,26 +38,26 @@ export OUTREACHCRM_APP_PASSWORD='xxxxxxxxxxxxxxxx'   # 16-char app password, no 
 ## Step 0 — Reset (idempotent; safe to re-run the whole runbook)
 ```bash
 rm -rf "$PIPE"
-python3 tools/crm_store.py --pipeline "$PIPE" --client max-output --business ai-automation --location hcmc init-client
+<bridge> tool crm-store --pipeline "$PIPE" --client max-output --business ai-automation --location hcmc init-client
 export CDIR=$(python3 -c "import glob;print(glob.glob('$PIPE/clients/max-output/*')[0])")
 echo "CDIR=$CDIR"
 ```
 (For a client that already exists, the sanctioned reset is
-`python3 tools/crm_store.py --client-dir "$CDIR" reset-client --confirm`, which also wipes
+`<bridge> tool crm-store --client-dir "$CDIR" reset-client --confirm`, which also wipes
 `test_fixture`-tagged suppression so `tainguyenvdcc@` is not permanently blocked between runs.)
 
 ## Step 1 — Connect the sendbox
 ```bash
-python3 tools/gmail_client.py --client-dir "$CDIR" auth --sendbox sb-a --email "$SENDER"
-python3 tools/gmail_client.py --client-dir "$CDIR" health --sendbox sb-a   # expect smtp/imap: ok
+<bridge> tool gmail --client-dir "$CDIR" auth --sendbox sb-a --email "$SENDER"
+<bridge> tool gmail --client-dir "$CDIR" health --sendbox sb-a   # expect smtp/imap: ok
 ```
 **Assert:** `sendboxes/sb-a/credentials.json` exists and is `-rw-------` (chmod 600);
 `sendboxes/sendboxes.json` lists `sb-a` status `healthy`.
 
 ## Step 2 — Import the fixture list
 ```bash
-python3 tools/import_leads.py inspect --file tests/fixtures/max_output_list.csv
-python3 tools/import_leads.py import --client-dir "$CDIR" --file tests/fixtures/max_output_list.csv --list-slug max-output
+<bridge> tool import-leads inspect --file tests/fixtures/max_output_list.csv
+<bridge> tool import-leads import --client-dir "$CDIR" --file tests/fixtures/max_output_list.csv --list-slug max-output
 ```
 **Assert:** `contacts_created: 5` — the three real inboxes **plus** the no-email realtor
 (imported via its phone identity) **plus** `bounce-test@…invalid` (imported with email status
@@ -70,8 +76,8 @@ cat > "$CDIR/campaigns/demo/outbox/approved/d1.json" <<JSON
  "body_text":"Hi — testing OutreachCRM Phase 1. Please reply 'yes' to this email.\n\n— E2E",
  "confidence_band":"high","tracking":"plain_text","status":"approved","guessed_approved":false}
 JSON
-python3 tools/gmail_client.py --client-dir "$CDIR" send --draft "$CDIR/campaigns/demo/outbox/approved/d1.json" --dry-run   # inspect gates first
-python3 tools/gmail_client.py --client-dir "$CDIR" send --draft "$CDIR/campaigns/demo/outbox/approved/d1.json"            # real send
+<bridge> tool gmail --client-dir "$CDIR" send --draft "$CDIR/campaigns/demo/outbox/approved/d1.json" --dry-run   # inspect gates first
+<bridge> tool gmail --client-dir "$CDIR" send --draft "$CDIR/campaigns/demo/outbox/approved/d1.json"            # real send
 ```
 **Assert:** the email arrives at `huubinhnguyen81@gmail.com`; `sent_log.jsonl` has one row with a
 real `rfc_message_id`; an `email_sent` activity exists on the contact; the draft file is now
@@ -80,13 +86,13 @@ real `rfc_message_id`; an `email_sent` activity exists on the contact; the draft
 ## Step 4 — Reply positive, then sync
 From `huubinhnguyen81@gmail.com`, **reply** to that email (keep the `Re:` subject). Then:
 ```bash
-python3 tools/gmail_client.py --client-dir "$CDIR" sync --sendbox sb-a
+<bridge> tool gmail --client-dir "$CDIR" sync --sendbox sb-a
 ```
 **Assert:** the sync output shows `campaign_reply: 1` and a `replies_untriaged` entry for the
 lead; the contact's `sequence_state` is now `frozen` (any reply freezes the sequence).
 Run the rule:
 ```bash
-python3 tools/crm_store.py --client-dir "$CDIR" apply-rules --event reply_positive --contact "$LEAD" --activity <activity_seq_from_sync>
+<bridge> tool crm-store --client-dir "$CDIR" apply-rules --event reply_positive --contact "$LEAD" --activity <activity_seq_from_sync>
 ```
 **Assert:** a deal at `new_reply` exists; a "Reply within 4h" task is open. Re-running the same
 `apply-rules` is a no-op (idempotent).
@@ -98,15 +104,15 @@ the **deterministic** opt-out is that mailto alias: from `tainguyenvdcc@gmail.co
 List-Unsubscribe link** (or send/reply to the `{sendbox}+unsub-{token}@gmail.com` address — the
 mail client's "Unsubscribe" button does exactly this). Then sync:
 ```bash
-python3 tools/gmail_client.py --client-dir "$CDIR" sync --sendbox sb-a
-python3 tools/crm_store.py --client-dir "$CDIR" suppress check --email tainguyenvdcc@gmail.com
+<bridge> tool gmail --client-dir "$CDIR" sync --sendbox sb-a
+<bridge> tool crm-store --client-dir "$CDIR" suppress check --email tainguyenvdcc@gmail.com
 ```
 **Assert:** `suppressed: true`. (A plain reply whose *body* says "unsubscribe" freezes the
 sequence but does not auto-suppress in Phase 1 — semantic remove-intent triage is Stage 10,
 Phase 2. The mailto alias is the deterministic Phase-1 path.) Now attempt to send again:
 ```bash
 # author a draft to tainguyenvdcc@ and try to send
-python3 tools/gmail_client.py --client-dir "$CDIR" send --draft <that draft> --dry-run
+<bridge> tool gmail --client-dir "$CDIR" send --draft <that draft> --dry-run
 ```
 **Assert:** blocked with `"blocker": "suppressed"` — the send is refused.
 
@@ -123,11 +129,11 @@ after `sync`, suppresses the lead and logs an `email_bounce` activity.
 
 ## Step 7 — Create a campaign with a goal + segment (Stage 5)
 ```bash
-python3 tools/crm_store.py --client-dir "$CDIR" campaign create --json \
+<bridge> tool crm-store --client-dir "$CDIR" campaign create --json \
   '{"slug":"proposal-q3","goal_type":"book_call","audience":{"segment":"active-listers"},"sendboxes":["sb-a"],
     "sequence":[{"step":1,"gap_days":0},{"step":2,"gap_days":4},{"step":3,"gap_days":6}]}'
-python3 tools/crm_store.py --client-dir "$CDIR" segment set --json '{"slug":"active-listers","rules":[{"field":"channels.email.status","op":"=","value":"usable"}]}'
-python3 tools/crm_store.py --client-dir "$CDIR" campaign queue --campaign proposal-q3 --segment active-listers
+<bridge> tool crm-store --client-dir "$CDIR" segment set --json '{"slug":"active-listers","rules":[{"field":"channels.email.status","op":"=","value":"usable"}]}'
+<bridge> tool crm-store --client-dir "$CDIR" campaign queue --campaign proposal-q3 --segment active-listers
 ```
 **Assert:** the campaign is created with a **validated** `goal_type` (an unknown goal_type is
 rejected). Re-queuing does not double-add a contact already in the campaign, one recently touched
@@ -136,8 +142,8 @@ sequence; an `email_first` campaign skips a no-email contact.
 
 ## Step 8 — Enrich the batch, evidence-only (Stage 4)
 ```bash
-python3 tools/crm_store.py --client-dir "$CDIR" enrich due --campaign proposal-q3
-python3 tools/crm_store.py --client-dir "$CDIR" enrich write --contact "$LEAD" --json \
+<bridge> tool crm-store --client-dir "$CDIR" enrich due --campaign proposal-q3
+<bridge> tool crm-store --client-dir "$CDIR" enrich write --contact "$LEAD" --json \
   '{"identity":{"still_active":"confirmed"},"hooks":[{"type":"new_listing","summary":"New 3BR listing on Oak St",
     "evidence_url":"https://www.zillow.com/homedetails/…","observed_date":"2026-07-14","confidence":0.9,
     "analysis":{"sensitivity":"public_business"}}],"writing_brief":{"personalization_confidence":0.85}}'
@@ -149,10 +155,10 @@ inheritance: enrich the same contact under a second campaign and confirm it **re
 
 ## Step 9 — Draft → Approval Report → chat-approve (Stage 6 + 2D)
 ```bash
-python3 tools/crm_store.py --client-dir "$CDIR" draft write --contact "$LEAD" --campaign proposal-q3 --json \
+<bridge> tool crm-store --client-dir "$CDIR" draft write --contact "$LEAD" --campaign proposal-q3 --json \
   '{"step":1,"subject":"Quick idea on your Oak St listing","body_text":"Hi …","hooks_used":[{"type":"new_listing","evidence_url":"https://www.zillow.com/homedetails/…"}]}'
-python3 tools/crm_store.py --client-dir "$CDIR" approval-report      # renders the operator HTML + approval_index.json
-python3 tools/crm_store.py --client-dir "$CDIR" approve --json '{"approve":"1","reject":[{"n":2,"reason":"too generic"}]}'
+<bridge> tool crm-store --client-dir "$CDIR" approval-report      # renders the operator HTML + approval_index.json
+<bridge> tool crm-store --client-dir "$CDIR" approve --json '{"approve":"1","reject":[{"n":2,"reason":"too generic"}]}'
 ```
 **Assert:** `draft write` **rejects a `hooks_used` entry that is not an evidenced dossier hook**, and
 a step-1 subject starting `Re:` is rejected; the Approval Report groups **High confidence** vs
@@ -163,14 +169,14 @@ Only an approved draft is now sendable (Step 3's `draft_not_approved` gate).
 ## Step 10 — Send the approved batch, then a follow-up bump via the injected clock (Stage 8 + 10)
 Send the approved step-1 draft to inbox #2 (real send, real timestamp — **no test mode**):
 ```bash
-python3 tools/gmail_client.py --client-dir "$CDIR" send --draft "$CDIR/campaigns/proposal-q3/outbox/approved/"*.json
+<bridge> tool gmail --client-dir "$CDIR" send --draft "$CDIR/campaigns/proposal-q3/outbox/approved/"*.json
 ```
 Now simulate "several days later" so the silent-lead bump comes due. This only shifts what the tool
 *reads as now* — the real send already happened at real time:
 ```bash
 export OUTREACHCRM_TEST_MODE=1
 export OUTREACHCRM_FAKE_NOW=$(python3 -c "import datetime;print((datetime.date.today()+datetime.timedelta(days=5)).isoformat())")
-python3 tools/crm_store.py --client-dir "$CDIR" followups due --campaign proposal-q3
+<bridge> tool crm-store --client-dir "$CDIR" followups due --campaign proposal-q3
 ```
 **Assert:** with **no reply**, after the step-2 `gap_days` has elapsed the lead appears in
 `followups due` at `next_step: 2`. If that lead had replied (Step 4 froze its sequence), it does
@@ -179,7 +185,7 @@ python3 tools/crm_store.py --client-dir "$CDIR" followups due --campaign proposa
 ## Step 11 — Weekly client report + scrub verification (2E)
 ```bash
 export OUTREACHCRM_TEST_MODE=1 OUTREACHCRM_FAKE_NOW=$(date +%F)   # a stable "now" for the 7-day window
-python3 tools/crm_store.py --client-dir "$CDIR" weekly-report --client-name "Max Output"
+<bridge> tool crm-store --client-dir "$CDIR" weekly-report --client-name "Max Output"
 ```
 **Assert:** the report renders to `outputs/<date>/max-output-weekly-client-report.html`, `blocked`
 is `false`, and the `.md` source shows the delivered/replies/pipeline figures. Open the HTML and
@@ -191,10 +197,10 @@ re-run — the render returns `blocked:true` with the offending term, writes onl
 ## Step 12 — Operator notification (2E, dry-run — no live provider needed)
 ```bash
 # no provider config → a valid degraded outcome, never a run failure:
-python3 tools/provider_openapi.py notify --message "Daily run: 2 sent, 1 reply" \
+<bridge> tool provider notify --message "Daily run: 2 sent, 1 reply" \
   --log "$CDIR/notifications/notification_log.md"
 # with a configured+enabled provider, dry-run composes the plan without touching the network:
-python3 tools/provider_openapi.py --config "$CDIR/integrations/providers/provider_config.local.json" \
+<bridge> tool provider --config "$CDIR/integrations/providers/provider_config.local.json" \
   notify --message "Weekly report ready" --event weekly_client_report_ready \
   --report-file "$CDIR/outputs/$(date +%F)/max-output-weekly-client-report.html" \
   --log "$CDIR/notifications/notification_log.md" --dry-run
@@ -217,14 +223,14 @@ Phase 1 core:
 - [ ] import: 3 real inboxes as contacts; phones normalized to E.164; dedupe on repeat rows
 - [ ] dry-run send shows the gate result + List-Unsubscribe + reserved token
 - [ ] real send: email received; sent_log row with rfc_message_id; email_sent activity; draft→sent
-- [ ] quota: `gmail_client.py quota --sendbox sb-a` shows sent/remaining correctly
+- [ ] quota: `tool gmail quota --sendbox sb-a` shows sent/remaining correctly
 - [ ] reply sync: campaign_reply counted; contact sequence_state=frozen
 - [ ] apply-rules reply_positive: deal@new_reply + task; idempotent on re-run
 - [ ] unsubscribe reply → suppressed:true; subsequent send blocked with `suppressed`
 - [ ] step-1 subject starting `Re:` is blocked (`step1_subject_looks_like_reply`)
 - [ ] a draft not `status:"approved"` is blocked (`draft_not_approved`)
 - [ ] classifier DSN-before-thread unit test passes
-- [ ] no CRM file was written by hand — every mutation went through `crm_store.py`
+- [ ] no CRM file was written by hand — every mutation went through `tool crm-store`
 
 Phase 2 stages:
 - [ ] campaign create validates `goal_type`; an unknown goal_type is rejected

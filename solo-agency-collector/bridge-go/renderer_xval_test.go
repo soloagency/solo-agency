@@ -1,14 +1,11 @@
 package main
 
-// renderer_xval_test.go — byte-parity golden test: the Go renderer must emit
-// EXACTLY the HTML the Python renderer emits (modulo the generated-at
-// timestamp) for a fixture that exercises every markdown feature the two
-// forks support. Scrub-gate behavior (exit 3, .blocked sidecar, found terms)
-// must match on terms present in BOTH forks' lists. Skips without python3.
+// renderer_xval_test.go — renderer regression tests. The HTML shape was
+// byte-verified against the retired Python renderer; the committed golden file
+// (testdata/renderer_fixture_golden.html) freezes that verified output.
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -70,164 +67,112 @@ print("hi <>&")
 ` + "```" + `
 `
 
-func TestRendererByteParityVsPython(t *testing.T) {
-	pyRepo := findCrmStorePy(t) // ensures repo + python3
-	pyRenderer := filepath.Join(filepath.Dir(pyRepo), "report_renderer.py")
-	if _, err := os.Stat(pyRenderer); err != nil {
-		t.Skip("report_renderer.py not present")
-	}
+func TestRendererGoldenSnapshot(t *testing.T) {
 	dir := t.TempDir()
 	mdPath := filepath.Join(dir, "report.md")
 	if err := os.WriteFile(mdPath, []byte(rendererFixtureMD), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	pyHTML := filepath.Join(dir, "py.html")
-	goHTML := filepath.Join(dir, "go.html")
-
-	cmd := exec.Command("python3", pyRenderer, "render", "--input", mdPath,
-		"--output-html", pyHTML, "--status-note", "Everything on *track*")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("python render failed: %v\n%s", err, out)
+	outHTML := filepath.Join(dir, "out.html")
+	rc, _, err := renderCommand(renderOpts{Input: mdPath, OutputHTML: outHTML,
+		StatusNote: "Everything on *track*"})
+	if err != nil || rc != 0 {
+		t.Fatalf("render rc=%d err=%v", rc, err)
 	}
-	rc := runRenderReportCLI([]string{"render", "--input", mdPath,
-		"--output-html", goHTML, "--status-note", "Everything on *track*"})
-	if rc != 0 {
-		t.Fatalf("go render rc=%d", rc)
+	got, _ := os.ReadFile(outHTML)
+	goldenPath := filepath.Join("testdata", "renderer_fixture_golden.html")
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		os.MkdirAll("testdata", 0o755)
+		if err := os.WriteFile(goldenPath, []byte(normalizeRendered(string(got))), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		t.Log("golden updated")
+		return
 	}
-	pyB, _ := os.ReadFile(pyHTML)
-	goB, _ := os.ReadFile(goHTML)
-	pyN, goN := normalizeRendered(string(pyB)), normalizeRendered(string(goB))
-	if pyN != goN {
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("missing golden (run with UPDATE_GOLDEN=1 to regenerate): %v", err)
+	}
+	g := normalizeRendered(string(got))
+	if g != string(want) {
 		i := 0
-		for i < len(pyN) && i < len(goN) && pyN[i] == goN[i] {
+		w := string(want)
+		for i < len(g) && i < len(w) && g[i] == w[i] {
 			i++
 		}
 		lo := i - 120
 		if lo < 0 {
 			lo = 0
 		}
-		t.Fatalf("HTML differs at byte %d\npy: …%s…\ngo: …%s…", i,
-			pyN[lo:min(i+120, len(pyN))], goN[lo:min(i+120, len(goN))])
+		t.Fatalf("HTML drifted from golden at byte %d\ngot:  …%s…\nwant: …%s…", i,
+			g[lo:min(i+120, len(g))], w[lo:min(i+120, len(w))])
 	}
 }
 
-func TestRendererScrubGateParity(t *testing.T) {
-	pyRepo := findCrmStorePy(t)
-	pyRenderer := filepath.Join(filepath.Dir(pyRepo), "report_renderer.py")
-	if _, err := os.Stat(pyRenderer); err != nil {
-		t.Skip("report_renderer.py not present")
-	}
+func TestRendererScrubGate(t *testing.T) {
 	dir := t.TempDir()
 	mdPath := filepath.Join(dir, "leaky.md")
-	// terms chosen from the intersection of both forks' lists; "API **key**" is
-	// split across markup so only the stripped-copy scan catches it
+	// "API **key**" is split across markup so only the tag-stripped scan catches it
 	leaky := "# T\n\nOur API **key** rotates; the sendbox warmup and quota look fine.\n"
 	if err := os.WriteFile(mdPath, []byte(leaky), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	pyHTML := filepath.Join(dir, "py.html")
-	goHTML := filepath.Join(dir, "go.html")
-
-	cmd := exec.Command("python3", pyRenderer, "render", "--input", mdPath,
-		"--output-html", pyHTML, "--client-facing", "--fail-on-scrub")
-	out, err := cmd.CombinedOutput()
-	ee, ok := err.(*exec.ExitError)
-	if !ok || ee.ExitCode() != 3 {
-		t.Fatalf("python expected exit 3, got %v\n%s", err, out)
+	outHTML := filepath.Join(dir, "client.html")
+	rc, status, err := renderCommand(renderOpts{Input: mdPath, OutputHTML: outHTML,
+		ClientFacing: true, FailOnScrub: true})
+	if err != nil || rc != 3 {
+		t.Fatalf("expected scrub block rc=3, got %d err=%v", rc, err)
 	}
-	rc := runRenderReportCLI([]string{"render", "--input", mdPath,
-		"--output-html", goHTML, "--client-facing", "--fail-on-scrub"})
-	if rc != 3 {
-		t.Fatalf("go expected exit 3, got %d", rc)
+	if _, err := os.Stat(outHTML); err == nil {
+		t.Fatal("real output must not exist on scrub block")
 	}
-	// real outputs must not exist; .blocked sidecars must
-	for _, p := range []string{pyHTML, goHTML} {
-		if _, err := os.Stat(p); err == nil {
-			t.Fatalf("%s must not exist on scrub block", p)
-		}
+	if _, err := os.Stat(filepath.Join(dir, "client.blocked.html")); err != nil {
+		t.Fatalf(".blocked sidecar missing: %v", err)
 	}
-	pyB, err := os.ReadFile(filepath.Join(dir, "py.blocked.html"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	goB, err := os.ReadFile(filepath.Join(dir, "go.blocked.html"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if normalizeRendered(string(pyB)) != normalizeRendered(string(goB)) {
-		t.Fatal("blocked HTML differs")
-	}
-	// found terms match on the shared vocabulary
-	for _, term := range []string{"API key", "sendbox", "warmup", "quota"} {
-		if !strings.Contains(string(out), `"`+term+`"`) {
-			t.Errorf("python did not report %q:\n%s", term, out)
-		}
-	}
-	goStatus, err := os.ReadFile(filepath.Join(dir, "go.blocked.html.render_status.json"))
-	if err != nil {
-		t.Fatal(err)
+	found := map[string]bool{}
+	for _, v := range mList(status, "client_blind_terms_found") {
+		found[v.(string)] = true
 	}
 	for _, term := range []string{"API key", "sendbox", "warmup", "quota"} {
-		if !strings.Contains(string(goStatus), `"`+term+`"`) {
-			t.Errorf("go did not report %q:\n%s", term, goStatus)
+		if !found[term] {
+			t.Errorf("blind term %q not reported: %v", term, status["client_blind_terms_found"])
 		}
 	}
 }
 
-func TestRendererPackageParity(t *testing.T) {
-	pyRepo := findCrmStorePy(t)
-	pyRenderer := filepath.Join(filepath.Dir(pyRepo), "report_renderer.py")
-	if _, err := os.Stat(pyRenderer); err != nil {
-		t.Skip("report_renderer.py not present")
-	}
+func TestRendererPackage(t *testing.T) {
 	dir := t.TempDir()
-	// two rendered inputs that cross-link each other by file name
 	mdA := "# A\n\nSee [the other](leadup-private-data-sources-report.html) report.\n\n## Section One\n\nBody A.\n"
-	mdB := "# B\n\n## Section Two\n\nBody B references leadup-daily-report.html in text.\n\n| File |\n|---|\n| leadup-daily-report.html |\n"
+	mdB := "# B\n\n## Section Two\n\nBody B.\n\n| File |\n|---|\n| leadup-daily-report.html |\n"
 	aMD, bMD := filepath.Join(dir, "a.md"), filepath.Join(dir, "b.md")
 	os.WriteFile(aMD, []byte(mdA), 0o644)
 	os.WriteFile(bMD, []byte(mdB), 0o644)
 	aHTML := filepath.Join(dir, "leadup-daily-report.html")
 	bHTML := filepath.Join(dir, "leadup-private-data-sources-report.html")
 	for _, pair := range [][2]string{{aMD, aHTML}, {bMD, bHTML}} {
-		if rc := runRenderReportCLI([]string{"render", "--input", pair[0], "--output-html", pair[1]}); rc != 0 {
-			t.Fatalf("go render %s rc=%d", pair[0], rc)
+		if rc, _, err := renderCommand(renderOpts{Input: pair[0], OutputHTML: pair[1]}); rc != 0 || err != nil {
+			t.Fatalf("render %s rc=%d err=%v", pair[0], rc, err)
 		}
 	}
-	pyOut := filepath.Join(dir, "py-package.html")
-	goOut := filepath.Join(dir, "go-package.html")
-	cmd := exec.Command("python3", pyRenderer, "package", "--inputs", aHTML, bHTML,
-		"--output-html", pyOut, "--title", "Client Package", "--client-name", "Leadup",
-		"--report-date", "2026-07-19")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("python package failed: %v\n%s", err, out)
+	out := filepath.Join(dir, "package.html")
+	rc, _, err := packageCommand(packageOpts{Inputs: []string{aHTML, bHTML}, OutputHTML: out,
+		Title: "Client Package", ClientName: "Leadup", ReportDate: "2026-07-19"})
+	if rc != 0 || err != nil {
+		t.Fatalf("package rc=%d err=%v", rc, err)
 	}
-	rc := runRenderReportCLI([]string{"package", "--inputs", aHTML, bHTML,
-		"--output-html", goOut, "--title", "Client Package", "--client-name", "Leadup",
-		"--report-date", "2026-07-19"})
-	if rc != 0 {
-		t.Fatalf("go package rc=%d", rc)
+	body, _ := os.ReadFile(out)
+	s := string(body)
+	// sibling file link rewritten to an in-package anchor; ids namespaced per part
+	if !strings.Contains(s, `href="#part-2"`) {
+		t.Error("sibling href not rewritten to #part-2")
 	}
-	pyB, _ := os.ReadFile(pyOut)
-	goB, _ := os.ReadFile(goOut)
-	if normalizeRendered(string(pyB)) != normalizeRendered(string(goB)) {
-		pyN, goN := normalizeRendered(string(pyB)), normalizeRendered(string(goB))
-		i := 0
-		for i < len(pyN) && i < len(goN) && pyN[i] == goN[i] {
-			i++
-		}
-		lo := i - 120
-		if lo < 0 {
-			lo = 0
-		}
-		t.Fatalf("package HTML differs at byte %d\npy: …%s…\ngo: …%s…", i,
-			pyN[lo:min(i+120, len(pyN))], goN[lo:min(i+120, len(goN))])
+	if !strings.Contains(s, `<a href="#part-1">Daily Cover</a>`) {
+		t.Error("table-cell filename not linkified to Daily Cover")
 	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
+	if !strings.Contains(s, `id="part-1-section-one"`) {
+		t.Error("part ids not namespaced")
 	}
-	return b
+	if !strings.Contains(s, "Private Data Sources") || !strings.Contains(s, "Daily Cover") {
+		t.Error("section labels missing")
+	}
 }

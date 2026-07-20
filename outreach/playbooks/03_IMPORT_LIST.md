@@ -10,9 +10,9 @@ Import creates the contact set. It does **not** verify-enrich for send, does **n
 
 ## Hard Gates For This Stage
 
-- **Inspect before you import.** Always run `import_leads.py inspect` first, show the human the proposed column mapping and the sample rows in an `**[ACTION REQUIRED]**` block, and import only with a mapping the human has confirmed or corrected. Never import a file the human has not seen mapped.
-- **All CRM mutations go through `crm_store.py`.** `import_leads.py` creates contacts by calling `crm_store` (`add_contact`) — that is the one sanctioned write path. Never hand-write `crm/contacts/*.json` or `crm/contact_identities.jsonl`. Direct writes to any `crm/` collection are a critical violation (inherited "no one-off scripts" rule).
-- **Email is not required.** A row with only a name plus a phone or a social URL is a valid contact (DESIGN §7.1). Do not drop rows for lacking an email.
+- **Inspect before you import.** Always run `tool import-leads inspect` first, show the human the proposed column mapping and the sample rows in an `**[ACTION REQUIRED]**` block, and import only with a mapping the human has confirmed or corrected. Never import a file the human has not seen mapped.
+- **All CRM mutations go through `tool crm-store`.** `tool import-leads` creates contacts by calling `crm_store` (`add_contact`) — that is the one sanctioned write path. Never hand-write `crm/contacts/*.json` or `crm/contact_identities.jsonl`. Direct writes to any `crm/` collection are a critical violation (inherited "no one-off scripts" rule).
+- **Email is not required — ANY unique fragment is a valid lead (DESIGN §9.1b taxonomy).** A row that is only an email, only a phone, only a profile URL, only a CONTENT link (reel / video / post / blog / watch link), or even only a distinctive name is a record. Import must never drop a curated row for being partial; enrichment's resolution ladder (seed → profile → email) fills the missing columns later.
 - **Suppression is checked at import against ALL identities.** The importer checks every email, phone, social URL, and the email's domain against both suppression tiers (global + client). A matched identity is recorded `suppressed` and no contact is created for it. Never bypass this.
 - **Dedupe is exact-identity, not fuzzy.** A row whose normalized email / phone (E.164) / social URL already exists as a contact is recorded `matched`, not created. It reuses the existing `lead_id`.
 - **The MX check marks, it does not block.** A failed MX lookup marks that email's status `email_not_found`; the contact is still imported. MX proves the domain can receive mail, never that the mailbox exists (DESIGN §9.6).
@@ -28,7 +28,7 @@ This file is the detailed source material for list import. Do not summarize away
 
 ## Phase Status — These Tools Exist
 
-`tools/import_leads.py`, `tools/crm_store.py`, and `tools/email_verify.py` ship in Phase 1 and are present in this checkout. The DESIGN §22 R2 `tool_not_built` honest-blocker path therefore does **not** apply to them: importing a list is a real, required step here, not something to record as `skipped: tool_not_built`. (Stages 4 verify/enrich, 5 campaign, 6 email writing, and 10 follow-up that this stage hands off to are now **built** (Phase 2, 2A–2D); only Stages 12/15 remain `status: planned` — Phase 3. Regardless, do not attempt enrichment or drafting from this stage on their behalf; import, dedupe, suppression-check, and MX-mark only, then hand off.)
+`tool import-leads`, `tool crm-store`, and `tool verify-email` ship in Phase 1 and are present in this checkout. The DESIGN §22 R2 `tool_not_built` honest-blocker path therefore does **not** apply to them: importing a list is a real, required step here, not something to record as `skipped: tool_not_built`. (Stages 4 verify/enrich, 5 campaign, 6 email writing, and 10 follow-up that this stage hands off to are now **built** (Phase 2, 2A–2D); only Stages 12/15 remain `status: planned` — Phase 3. Regardless, do not attempt enrichment or drafting from this stage on their behalf; import, dedupe, suppression-check, and MX-mark only, then hand off.)
 
 ---
 
@@ -41,7 +41,7 @@ Import is a two-command flow with a human confirmation in the middle. Never skip
 Run `inspect` to read the file's headers, get a proposed column mapping, and see sample rows. `inspect` reads the file only; it writes nothing and needs no client directory.
 
 ```bash
-python3 tools/import_leads.py inspect --file /path/to/list.csv
+<bridge> tool import-leads inspect --file /path/to/list.csv
 ```
 
 Optional: `--rows N` to change how many sample rows are printed (default 5).
@@ -54,7 +54,7 @@ Optional: `--rows N` to change how many sample rows are printed (default 5).
   "proposed_mapping": {"email": "Email", "full_name": "Full Name", "company": "Office Name", "website": "Website", "city": "City", "state": "State"},
   "sample_rows": [ { "...": "..." } ],
   "total_rows": 412,
-  "note": "Confirm/adjust the mapping, then run: import_leads.py import --mapping '<json>'"
+  "note": "Confirm/adjust the mapping, then run: tool import-leads import --mapping '<json>'"
 }
 ```
 
@@ -101,7 +101,7 @@ Hold the confirmed mapping for Step 3. Do not import before the human answers.
 Run `import` with the confirmed mapping. Import needs the client workspace directory and a list slug.
 
 ```bash
-python3 tools/import_leads.py import \
+<bridge> tool import-leads import \
   --client-dir daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach \
   --file /path/to/list.csv \
   --list-slug {list-slug} \
@@ -134,7 +134,9 @@ Any other extension is rejected. Convert to csv/txt/xlsx first and re-inspect.
 
 ## 3. Email-Optional Model
 
-A contact does not need an email. Import keeps a row when it has **any** of: email, phone, a social URL, or a full name. A row with none of those (no identity and no name) is recorded `skipped_invalid`.
+A contact does not need an email. Import keeps a row when it has **any** of: email, phone, a profile URL, a website, a content link (stored as `identities.seeds[]` with kind reel/video/post/group and its platform), or a full name. A truly empty row is recorded `skipped_invalid` (reason: no identity, seed, or name). A row whose ONLY value is a name imports with the `name_only_fragment` flag in `leads.jsonl` — kept deliberately (User-Curated List Rule), routed to enrichment as the hardest resolution case.
+
+**Every URL is classified by SHAPE, not by column name**: a reel pasted in the Facebook column still lands as a seed; a profile pasted in a generic Link column still lands in `socials.{platform}`. Canonical clue columns `profile` and `link` accept many synonyms (reel, video, post, blog, watch, content, ...) and MULTIPLE clue columns per file are all read (`link`, `link_2`, ...). A `.txt` list is one FRAGMENT per line — each line is classified as email / phone / URL / name (a plain list of reel links is a valid lead list).
 
 - With an email → `channels.email.status = usable` and the address is stored `source: import`, `status: unverified` (or `email_not_found` if the MX check fails — §7).
 - Without an email → the contact still imports with `channels.email.status = needs_data`; it flows to assisted channels later (Stage 10) if consent exists. This is the name + profile-URL case (e.g. a realtor with a Facebook page but no listed email).
@@ -164,7 +166,7 @@ The realtor list has these columns: `Email`, `Full Name`, `Office Name`, `Cell/O
 **Inspect:**
 
 ```bash
-python3 tools/import_leads.py inspect --file ~/lists/al-realtors.csv
+<bridge> tool import-leads inspect --file ~/lists/al-realtors.csv
 ```
 
 Auto-mapping recognizes `Email → email`, `Full Name → full_name`, `Office Name → company`, `Website → website`, `City → city`, `State → state`. It does **not** auto-map the phone: the header `Cell/Office Phone` is not one of the recognized phone synonyms (which include `cell phone` and `office phone`, but not the combined literal `cell/office phone`), so `phone` is left out of the proposed mapping.
@@ -178,7 +180,7 @@ Auto-mapping recognizes `Email → email`, `Full Name → full_name`, `Office Na
 **Import:**
 
 ```bash
-python3 tools/import_leads.py import \
+<bridge> tool import-leads import \
   --client-dir daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach \
   --file ~/lists/al-realtors.csv \
   --list-slug al-realtors \
@@ -201,7 +203,7 @@ Any hit records the row `suppressed` with the suppression `reason` (e.g. `unsubs
 You can spot-check an address before or after import:
 
 ```bash
-python3 tools/crm_store.py --client-dir <DIR> suppress check --email name@example.com --phone +15125551234
+<bridge> tool crm-store --client-dir <DIR> suppress check --email name@example.com --phone +15125551234
 ```
 
 ---
@@ -213,12 +215,12 @@ Unless `--no-mx-check` is passed, each imported email is checked with `email_ver
 - **MX resolves** → the email keeps `status: unverified` (the domain can receive mail; the mailbox is still unproven).
 - **MX fails / domain does not resolve** → the email's `status` is set to `email_not_found`. The contact is **still imported** — the address is kept and flagged, not dropped.
 
-MX is deliberately weak: catch-all domains accept any recipient, so MX success is not deliverability proof and MX failure is the only strong signal here (it will hard-bounce). Real mailbox verification for guessed/pattern addresses is a Stage 4 concern (a third-party verification API), enforced at send time in `gmail_client.py send` — never invented in this stage.
+MX is deliberately weak: catch-all domains accept any recipient, so MX success is not deliverability proof and MX failure is the only strong signal here (it will hard-bounce). Real mailbox verification for guessed/pattern addresses is a Stage 4 concern (a third-party verification API), enforced at send time in `tool gmail send` — never invented in this stage.
 
 You can check a single address directly:
 
 ```bash
-python3 tools/email_verify.py check --email name@example.com
+<bridge> tool verify-email check --email name@example.com
 ```
 
 Status is one of `syntax_invalid | mx_ok | mx_fail`.
@@ -244,7 +246,7 @@ Do not delete a manifest or salt a slug just to re-run an import; a genuinely ne
 
 ## 9. What Gets Written
 
-All list artifacts land under `lists/{list-slug}/` in the client workspace. These are list-scope config files (outside `crm/`), written by `import_leads.py` directly — they were never `crm_store` collections (Stage 7 §5). The contacts themselves are written to `crm/` **only** through `crm_store`.
+All list artifacts land under `lists/{list-slug}/` in the client workspace. These are list-scope config files (outside `crm/`), written by `tool import-leads` directly — they were never `crm_store` collections (Stage 7 §5). The contacts themselves are written to `crm/` **only** through `crm_store`.
 
 - **`lists/{list-slug}/leads.jsonl`** — append-only-per-run audit, one row per source row with its outcome, so the import is re-runnable and reviewable:
   ```json
@@ -308,7 +310,7 @@ Before calling a list import complete:
 
 - Stage 7 was loaded IN FULL with a LOAD LEDGER `Verdict: PASS` before any list artifact was written.
 - `inspect` was run and the human confirmed or corrected the mapping before `import` ran.
-- The import ran through `python3 tools/import_leads.py import` (contacts created via `crm_store`); no `crm/contacts/*.json` or `crm/contact_identities.jsonl` was hand-written.
+- The import ran through `<bridge> tool import-leads import` (contacts created via `crm_store`); no `crm/contacts/*.json` or `crm/contact_identities.jsonl` was hand-written.
 - `lists/{list-slug}/` contains all three artifacts: `leads.jsonl`, `list_manifest.json`, `import_log.md`.
 - The manifest counts reconcile: `row_count == created + matched + suppressed + skipped`.
 - Suppression was checked at import against all identities and both tiers (it is, by the tool) and no suppressed identity became a contact.

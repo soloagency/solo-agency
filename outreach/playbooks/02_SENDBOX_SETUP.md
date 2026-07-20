@@ -4,7 +4,7 @@ Stage: `02`
 
 ## Load Rule
 
-Load this stage whenever you connect, re-authenticate, health-check, or inspect the quota of a sendbox: Setup Flow Step 4 (connect the first sendbox), the add-sendbox flow, a `needs_reauth` recovery, and the start of any run that will send or sync (Stage 8 send / Stage 10 sync both assume a healthy, registered box). It must be loaded together with Stage 0 (`playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`) before you write any sendbox config or run `gmail_client.py`.
+Load this stage whenever you connect, re-authenticate, health-check, or inspect the quota of a sendbox: Setup Flow Step 4 (connect the first sendbox), the add-sendbox flow, a `needs_reauth` recovery, and the start of any run that will send or sync (Stage 8 send / Stage 10 sync both assume a healthy, registered box). It must be loaded together with Stage 0 (`playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`) before you write any sendbox config or run `tool gmail`.
 
 This stage owns the **sending-and-reading identity** for a client: how a `@gmail.com` mailbox is authenticated (App Password priority; OAuth/Workspace advanced), what `sendboxes/sendboxes.json` records, how warmup ramps, how multiple boxes rotate, and how a broken box degrades. The `sendboxes.json` and credentials layout is defined canonically in Stage 7 (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` §6) and DESIGN §8; this stage owns the connect/verify workflow, not the schema itself.
 
@@ -15,7 +15,7 @@ This file is loaded, not summarized. A short read is NOT a load: register a LOAD
 - **Never ask for the App Password in chat, and never pass it as a CLI argument.** The App Password reaches the tools only two ways: **(a) the human pastes it into the local bridge UI's Sendboxes page** (`http://127.0.0.1:17321/ui/{client}/sendboxes`) — the bridge itself verifies SMTP+IMAP against Gmail and stores the credential locally; this is the PRIMARY path whenever the bridge is running — or **(b) the environment variable `OUTREACHCRM_APP_PASSWORD`** set locally by the human (fallback when the bridge/UI is not available). In both paths it must never appear in a chat message you request, a command line, a log, a report, the profile, or any committed file.
 - **Never ask for the Google account password, cookies, or OTP.** An App Password is a scoped app credential, not the account password. That is the only sending secret Setup Flow collects for the App Password path.
 - **All sending secrets stay local and private.** `sendboxes/{sendbox_slug}/credentials.json` (and `token.json` for OAuth) are gitignored and written `chmod 600`. They are never committed, never printed, never copied into a report or the Client Intelligence Profile. The deploy script blocks staging of `token.json` / `client_secret*.json` and secret-scans the staged diff.
-- **`gmail_client.py` is the only sanctioned way to authenticate a box.** Do NOT improvise a one-off `smtplib`/`imaplib` connectivity script (the no-one-off-scripts rule holds). The tool verifies SMTP+IMAP without sending outbound mail and writes the registry entry atomically.
+- **`tool gmail` is the only sanctioned way to authenticate a box.** Do NOT improvise a one-off `smtplib`/`imaplib` connectivity script (the no-one-off-scripts rule holds). The tool verifies SMTP+IMAP without sending outbound mail and writes the registry entry atomically.
 - **Setup Flow never sends.** Connecting and health-checking a sendbox is a connectivity check, not a cold send. Setup Flow does not send a test email, cold or otherwise; its terminal state stays `ready_for_automation_first_run`.
 - **The `@gmail.com` App Password path is the priority path**; OAuth/Workspace is the advanced fallback. Do not push a client onto OAuth unless they run Google Workspace on a custom domain and explicitly want it.
 - **Data root is `daily-content-pipeline/`.** Every sendbox artifact lives under `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/sendboxes/`. The toolkit/source repo holds no sendbox data or secrets.
@@ -31,12 +31,12 @@ This file is detailed source material for connecting and operating sendboxes. Do
 
 ## 1. Two Auth Modes, One Interface
 
-A **sendbox** is one mailbox OutreachCRM sends from and reads replies into. Every sendbox is authenticated in one of two modes, and both are driven through the same tool, `tools/gmail_client.py`:
+A **sendbox** is one mailbox OutreachCRM sends from and reads replies into. Every sendbox is authenticated in one of two modes, and both are driven through the same tool, `tool gmail`:
 
-- **`app_password` — the priority path for `@gmail.com`.** SMTP send (`smtp.gmail.com:465`, SSL) + IMAP read (`imap.gmail.com:993`, SSL) via Python stdlib (`smtplib`/`imaplib`). No OAuth, no 7-day refresh-token expiry, and it preserves our own `Message-ID`. This is what almost every client uses. Requires 2-Step Verification on the Google account and a 16-character App Password.
+- **`app_password` — the priority path for `@gmail.com`.** SMTP send (`smtp.gmail.com:465`, SSL) + IMAP read (`imap.gmail.com:993`, SSL), implemented natively inside the bridge binary. No OAuth, no 7-day refresh-token expiry, and it preserves our own `Message-ID`. This is what almost every client uses. Requires 2-Step Verification on the Google account and a 16-character App Password.
 - **`oauth` — advanced (Google Workspace / custom domain).** Gmail API with scopes `gmail.send + gmail.readonly` only (`gmail.modify` is deliberately dropped). Covered in §9; use it only for a Workspace/custom-domain box. It is a later addition behind the same CLI.
 
-The pre-send re-check chain, atomic quota reservation, and inbound classifier are implemented **in code** inside `gmail_client.py` (Stages 8 and 10), not in playbook prose. This stage gets you a healthy, registered box; Stage 8 uses it to send, Stage 10 uses it to sync.
+The pre-send re-check chain, atomic quota reservation, and inbound classifier are implemented **in code** inside `tool gmail` (Stages 8 and 10), not in playbook prose. This stage gets you a healthy, registered box; Stage 8 uses it to send, Stage 10 uses it to sync.
 
 `--client-dir DIR` below always means the client pipeline directory:
 
@@ -44,15 +44,15 @@ The pre-send re-check chain, atomic quota reservation, and inbound classifier ar
 daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/
 ```
 
-**Absolute paths in every human-run command.** The `python3 tools/gmail_client.py --client-dir DIR …` forms shown in this stage are relative TEMPLATES. Whenever you hand a `gmail_client.py` command to the human to run in their terminal, resolve and substitute the ABSOLUTE path of BOTH the script and `--client-dir` from the real workspace root, for example:
+**Absolute paths in every human-run command.** The `<bridge> tool gmail --client-dir DIR …` forms shown in this stage are relative TEMPLATES. Whenever you hand a `tool gmail` command to the human to run in their terminal, resolve and substitute the ABSOLUTE path of BOTH the script and `--client-dir` from the real workspace root, for example:
 
 ```bash
-python3 /ABS/PATH/TO/solo-agency/outreach/tools/gmail_client.py --client-dir /ABS/PATH/TO/daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach auth --sendbox sb-a --email outreach@gmail.com
+<bridge> tool gmail --client-dir /ABS/PATH/TO/daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach auth --sendbox sb-a --email outreach@gmail.com
 ```
 
-A non-technical user does not know which directory to run from, so never hand out a relative `python3 solo-agency/outreach/tools/...` or `--client-dir daily-content-pipeline/...` form.
+A non-technical user does not know which directory to run from, so never hand out a relative tool path or a relative `--client-dir daily-content-pipeline/...` form.
 
-**Command form (verified):** `--client-dir DIR` is a global flag that comes **before** the subcommand. `gmail_client.py auth --client-dir DIR …` (subcommand first) is rejected by the parser.
+**Command form (verified):** `--client-dir DIR` is a global flag that comes **before** the subcommand. `tool gmail auth --client-dir DIR …` (subcommand first) is rejected by the parser.
 
 ---
 
@@ -94,7 +94,7 @@ Notes:
 
 **UI path (primary).** When the human connected through the Sendboxes page, the bridge already ran this exact auth code path itself — verified both channels and wrote `credentials.json` + the `sendboxes.json` entry. Do NOT re-run auth: read `sendboxes/sendboxes.json`, confirm the box shows `status: healthy`, and continue.
 
-**CLI path (fallback).** Once the human has set `OUTREACHCRM_APP_PASSWORD` locally and given you the sending address, run the auth subcommand (binary-first per the Stage-0 Binary-First Tool Invocation rule; `python3 tools/gmail_client.py` with the same arguments is the fallback). Pick a short `sendbox_slug` per the slug rules (lowercase, hyphens, no punctuation) — `sb-a`, `sb-b`, … are the conventional slugs.
+**CLI path (fallback).** Once the human has set `OUTREACHCRM_APP_PASSWORD` locally and given you the sending address, run the auth subcommand (the bridge binary per the Stage-0 Binary-First Tool Invocation rule). Pick a short `sendbox_slug` per the slug rules (lowercase, hyphens, no punctuation) — `sb-a`, `sb-b`, … are the conventional slugs.
 
 ```bash
 <bridge> tool gmail --client-dir DIR auth --sendbox sb-a --email outreach@gmail.com
@@ -110,7 +110,7 @@ A successful run prints JSON like `{"ok": true, "sendbox": "sb-a", "email": "…
 
 ### 2.3 Phase note (these tools now exist)
 
-`gmail_client.py`, `import_leads.py`, `email_verify.py`, and `crm_store.py` are **built** (Phase 1). The DESIGN §22 R2 `tool_not_built` degradation path — writing the sendbox as `status: pending_connectivity_check` and recording `gmail_client_auth_pending` — **no longer applies to sendbox auth**: run the real connectivity check now. (Stage-1 Setup Flow prose that describes the pending path was written for Phase 0; with `gmail_client.py` present, authenticate for real.) The Phase-2 stage files (`04_VERIFY_ENRICH.md`, `05_CAMPAIGN_MANAGEMENT.md`, `06_EMAIL_WRITING_STANDARD.md`, `10_FOLLOWUP_REPLY_MANAGEMENT.md`, `13_CRM_CORE.md`, `14_TASKS_TODAY_VIEW.md`) are now **built** (2A–2D); only Stages 12/15 remain `status: planned` (Phase 3), and a load of one of those follows DESIGN §22 R1 (load the DESIGN section, record `stage_file_pending`), not a tool-missing blocker.
+`tool gmail`, `tool import-leads`, `tool verify-email`, and `tool crm-store` are **built** (Phase 1). The DESIGN §22 R2 `tool_not_built` degradation path — writing the sendbox as `status: pending_connectivity_check` and recording `gmail_client_auth_pending` — **no longer applies to sendbox auth**: run the real connectivity check now. (Stage-1 Setup Flow prose that describes the pending path was written for Phase 0; with `tool gmail` present, authenticate for real.) The Phase-2 stage files (`04_VERIFY_ENRICH.md`, `05_CAMPAIGN_MANAGEMENT.md`, `06_EMAIL_WRITING_STANDARD.md`, `10_FOLLOWUP_REPLY_MANAGEMENT.md`, `13_CRM_CORE.md`, `14_TASKS_TODAY_VIEW.md`) are now **built** (2A–2D); only Stages 12/15 remain `status: planned` (Phase 3), and a load of one of those follows DESIGN §22 R1 (load the DESIGN section, record `stage_file_pending`), not a tool-missing blocker.
 
 ---
 
@@ -134,7 +134,7 @@ Field enums and meaning:
 - **`status`** ∈ `healthy | needs_reauth | paused`. Only a `healthy` box sends; `health` flips this automatically, and a send error can set it (Stage 8).
 - **Cursors:** `historyId` (OAuth) or `imap_uid_cursor` (app_password), plus `last_successful_sync_ts`. These are advanced by inbound sync (Stage 10) — do not hand-edit them.
 
-`sendboxes.json` is plain config (not a `crm/` collection), so it is a normal config write, not a `crm_store.py` mutation. It carries **no secrets** — the App Password lives only in `credentials.json`. The Client Intelligence Profile references boxes by slug in its `sending_identity.sendboxes[]` block; it never stores the credential.
+`sendboxes.json` is plain config (not a `crm/` collection), so it is a normal config write, not a `tool crm-store` mutation. It carries **no secrets** — the App Password lives only in `credentials.json`. The Client Intelligence Profile references boxes by slug in its `sending_identity.sendboxes[]` block; it never stores the credential.
 
 ---
 
@@ -153,7 +153,7 @@ Real scale is not one big box: it is **2–3 variant domains, 1–2 boxes each**
 
 ## 5. Multi-Sendbox Rotation, Sticky Sender & Two-Tier Caps
 
-When a client has more than one healthy box, the rules below govern which box a contact is emailed from. Selection happens at draft/queue time (Stage 5/8) and is recorded on the draft's `sendbox` field and on `contact.assigned_sendbox`; `gmail_client.py send` then honors that box and performs the atomic per-box quota reservation.
+When a client has more than one healthy box, the rules below govern which box a contact is emailed from. Selection happens at draft/queue time (Stage 5/8) and is recorded on the draft's `sendbox` field and on `contact.assigned_sendbox`; `tool gmail send` then honors that box and performs the atomic per-box quota reservation.
 
 - **Rotation is step-1 only.** The very first outreach to a contact picks the **healthy** referenced box with the lowest `sent_today / quota_today` ratio (round-robin on ties). This spreads first-touch volume across boxes and domains.
 - **Sticky sender thereafter.** Once a contact's first email goes out, `contact.assigned_sendbox` is fixed. Every bump and every reply for that contact goes from the **same** box — threading, reply routing, and anti-spam all require it. A contact is never re-rotated to a different box mid-sequence.
@@ -184,7 +184,7 @@ break the reply threading.
 After the human replies `ready`, run:
 
 ```bash
-python3 tools/gmail_client.py --client-dir DIR auth --sendbox sb-a --email outreach@gmail.com
+<bridge> tool gmail --client-dir DIR auth --sendbox sb-a --email outreach@gmail.com
 ```
 
 ---
@@ -196,7 +196,7 @@ Both are read/verify commands — neither sends mail.
 **Health** re-runs the SMTP and IMAP logins and writes back `status`:
 
 ```bash
-python3 tools/gmail_client.py --client-dir DIR health --sendbox sb-a
+<bridge> tool gmail --client-dir DIR health --sendbox sb-a
 ```
 
 Prints `{"sendbox":"sb-a","email":"…","smtp":"ok|fail:…","imap":"ok|fail:…","status":"healthy|needs_reauth"}`. If either channel fails, the box is set `needs_reauth` in `sendboxes.json`. Run health before a sending run and as the first diagnostic when a send blocks.
@@ -204,8 +204,8 @@ Prints `{"sendbox":"sb-a","email":"…","smtp":"ok|fail:…","imap":"ok|fail:…
 **Quota** reports today's headroom for a box (optionally for a specific day):
 
 ```bash
-python3 tools/gmail_client.py --client-dir DIR quota --sendbox sb-a
-python3 tools/gmail_client.py --client-dir DIR quota --sendbox sb-a --day 2026-07-16
+<bridge> tool gmail --client-dir DIR quota --sendbox sb-a
+<bridge> tool gmail --client-dir DIR quota --sendbox sb-a --day 2026-07-16
 ```
 
 Prints `{"sendbox","day","cap","sent","reserved","remaining"}` where `cap` is `quota_today`, `sent` counts real sends from the sent log, `reserved` counts atomic quota reservations, and `remaining = max(0, cap - max(sent, reserved))`. Use it to see how much of the warmup cap is left before drafting more first touches.
@@ -251,7 +251,7 @@ Full OAuth connect flow lands with the OAuth path; for Phase 1, prefer the App P
 
 A sendbox is "connected" when all of the following hold:
 
-- `gmail_client.py auth` returned `ok: true` with `smtp: ok` and `imap: ok` — the box authenticated for real (not a Phase-0 pending placeholder).
+- `tool gmail auth` returned `ok: true` with `smtp: ok` and `imap: ok` — the box authenticated for real (not a Phase-0 pending placeholder).
 - `sendboxes/sendboxes.json` has the box with `auth_mode`, `email`, `domain`, `status: healthy`, a warmup-appropriate `quota_today`, and `warmup_stage`.
 - `sendboxes/{slug}/credentials.json` exists, is `chmod 600`, and is gitignored — and no secret was ever exposed in chat, a command, a log, or the profile.
 - The box is referenced by slug in the Client Intelligence Profile `sending_identity.sendboxes[]`, and any change here was carried through Automation Resync so the next scheduled run reads it.

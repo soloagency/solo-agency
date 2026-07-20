@@ -80,7 +80,7 @@ An update check must compare at least these areas:
   - any vendored or generated skill packaging rules owned by Solo Agency
 - Provider and Client tools support:
   - provider defaults/templates
-  - OpenAPI helper code such as `tools/provider_openapi.py`
+  - OpenAPI helper code such as `tool provider`
   - provider capability schema files
   - default WideCast/OpenAPI catalog files
 - Local Collector:
@@ -97,7 +97,7 @@ An update check must compare at least these areas:
 - OutreachCRM module (`outreach/` — ships in this same repo):
   - `outreach/OUTREACHCRM_PLAYBOOK.md`, `outreach/AGENTS.md`, both entrypoints
   - `outreach/playbooks/*.md` and `outreach/playbooks/skills/**`
-  - `outreach/tools/*.py` and `outreach/tests/`
+  - `solo-agency-collector/bridge-go/` (tool behavior ships inside the bridge binary — a change here means the collector setup must be re-run to fetch the new binary)
   - an update that ADDS `outreach/` for the first time is not inert files: surface it as a new
     module requiring its own onboarding (`outreach/SETUP_FLOW_ENTRYPOINT.md`) in the update notice
 - Installed runtime copies:

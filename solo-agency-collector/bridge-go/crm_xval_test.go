@@ -1,51 +1,24 @@
 package main
 
-// crm_xval_test.go — golden cross-validation of the Go crm-store port against
-// the Python original (outreach/tools/crm_store.py), per docs/UI_DESIGN.md §8:
-// the same CLI scenario runs against two twin workspaces (one per
-// implementation) under the injected test clock; every command's stdout and the
-// final file trees must be semantically identical after canonicalization
-// (generated ULIDs -> stable placeholders, absolute roots stripped, key order
-// ignored, HTML render artifacts excluded — the Python side shells a renderer
-// the Go side inlines later).
-//
-// Skips when python3 or the repo checkout isn't available (e.g. in a bare
-// binary distribution).
+// crm_xval_test.go — behavioral scenario tests for the crm-store and
+// import-leads CLIs. History: these began as golden cross-validation against
+// the retired Python implementation (every expectation below was verified
+// byte/semantics-equal against outreach/tools/crm_store.py before the
+// retirement); they now assert those verified outcomes directly.
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 	"testing"
 )
 
-func findCrmStorePy(t *testing.T) string {
-	t.Helper()
-	p, err := filepath.Abs(filepath.Join("..", "..", "outreach", "tools", "crm_store.py"))
-	if err != nil {
-		t.Skip("cannot resolve repo path")
-	}
-	if _, err := os.Stat(p); err != nil {
-		t.Skip("crm_store.py not present (not a repo checkout)")
-	}
-	if _, err := exec.LookPath("python3"); err != nil {
-		t.Skip("python3 not available")
-	}
-	return p
-}
-
 type xstep struct {
-	FakeNow   string
-	Argv      []string
-	WantFail  string // non-empty => expect nonzero exit and this substring on stderr (both sides)
-	IgnoreKey []string
+	FakeNow string
+	Argv    []string
 }
 
 type xresult struct {
@@ -54,23 +27,14 @@ type xresult struct {
 	Stderr string
 }
 
-func runPyStep(t *testing.T, pyTool string, s xstep) xresult {
+// runGoStep executes one crm-store CLI invocation in-process under the
+// injected test clock, capturing stdout/stderr.
+func runGoStep(t *testing.T, s xstep) xresult {
 	t.Helper()
-	cmd := exec.Command("python3", append([]string{pyTool}, s.Argv...)...)
-	cmd.Env = append(os.Environ(), "OUTREACHCRM_TEST_MODE=1", "OUTREACHCRM_FAKE_NOW="+s.FakeNow)
-	var out, errb bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &errb
-	err := cmd.Run()
-	code := 0
-	if ee, ok := err.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if err != nil {
-		t.Fatalf("python step %v: %v", s.Argv, err)
-	}
-	return xresult{code, out.String(), errb.String()}
+	return runCLIStep(t, s, runCrmStoreCLI)
 }
 
-func runGoStep(t *testing.T, s xstep) xresult {
+func runCLIStep(t *testing.T, s xstep, fn func([]string) int) xresult {
 	t.Helper()
 	t.Setenv("OUTREACHCRM_TEST_MODE", "1")
 	t.Setenv("OUTREACHCRM_FAKE_NOW", s.FakeNow)
@@ -78,7 +42,7 @@ func runGoStep(t *testing.T, s xstep) xresult {
 	rOut, wOut, _ := os.Pipe()
 	rErr, wErr, _ := os.Pipe()
 	os.Stdout, os.Stderr = wOut, wErr
-	code := runCrmStoreCLI(s.Argv)
+	code := fn(s.Argv)
 	os.Stdout, os.Stderr = oldOut, oldErr
 	wOut.Close()
 	wErr.Close()
@@ -87,138 +51,23 @@ func runGoStep(t *testing.T, s xstep) xresult {
 	return xresult{code, string(outB), string(errB)}
 }
 
-// --- canonicalization ---------------------------------------------------------
-
-var ulidRe = regexp.MustCompile(`(c_|d_|act_|draft_|rsv_)?[0-9A-HJKMNP-TV-Z]{26}`)
-
-type canonicalizer struct {
-	root   string
-	ids    map[string]string
-	shorts map[string]string // 10-char truncations (kanban/today-view print id[:10])
-	n      int
+func parseOut(t *testing.T, r xresult) map[string]any {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal([]byte(r.Stdout), &m); err != nil {
+		t.Fatalf("stdout not a JSON object: %v\n%s", err, r.Stdout)
+	}
+	return m
 }
 
-func newCanon(root string) *canonicalizer {
-	return &canonicalizer{root: root, ids: map[string]string{}, shorts: map[string]string{}}
+func parseOutList(t *testing.T, r xresult) []map[string]any {
+	t.Helper()
+	var l []any
+	if err := json.Unmarshal([]byte(r.Stdout), &l); err != nil {
+		t.Fatalf("stdout not a JSON list: %v\n%s", err, r.Stdout)
+	}
+	return mapsOf(l)
 }
-
-func (cz *canonicalizer) apply(s string) string {
-	s = strings.ReplaceAll(s, cz.root, "<ROOT>")
-	s = ulidRe.ReplaceAllStringFunc(s, func(m string) string {
-		// explicit fixture ids (c_lead1 etc.) never match the 26-char pattern
-		if v, ok := cz.ids[m]; ok {
-			return v
-		}
-		cz.n++
-		prefix := ""
-		if i := strings.Index(m, "_"); i >= 0 && !strings.ContainsAny(m[:i+1], "0123456789") {
-			prefix = m[:i+1]
-		}
-		v := fmt.Sprintf("<%sID%d>", prefix, cz.n)
-		cz.ids[m] = v
-		// the ULID's leading chars are wall-clock ms, so a printed id[:10] is
-		// only COINCIDENTALLY equal across the two runs — canonicalize it too
-		if len(m) > 10 {
-			cz.shorts[m[:10]] = fmt.Sprintf("<%sSID%d>", prefix, cz.n)
-		}
-		return v
-	})
-	for short, v := range cz.shorts {
-		s = strings.ReplaceAll(s, short, v)
-	}
-	return s
-}
-
-// canonJSON parses s as JSON and re-renders deterministically (sorted keys,
-// integral floats as ints) after canonicalizing embedded strings.
-func (cz *canonicalizer) canonJSON(t *testing.T, s string, ignoreKeys []string) string {
-	var v any
-	if err := json.Unmarshal([]byte(s), &v); err != nil {
-		// not JSON (markdown log etc.) — canonicalize as text
-		return cz.apply(s)
-	}
-	ign := map[string]bool{}
-	for _, k := range ignoreKeys {
-		ign[k] = true
-	}
-	var walk func(any) any
-	walk = func(x any) any {
-		switch y := x.(type) {
-		case map[string]any:
-			out := map[string]any{}
-			for k, val := range y {
-				if ign[k] {
-					continue
-				}
-				out[cz.apply(k)] = walk(val)
-			}
-			return out
-		case []any:
-			for i := range y {
-				y[i] = walk(y[i])
-			}
-			return y
-		case string:
-			return cz.apply(y)
-		case float64:
-			if y == float64(int64(y)) {
-				return int64(y)
-			}
-			return y
-		}
-		return x
-	}
-	b, err := json.Marshal(walk(v))
-	if err != nil {
-		t.Fatalf("canon marshal: %v", err)
-	}
-	return string(b)
-}
-
-// snapshotTree returns canonical-path -> canonical-content for every compared file.
-func (cz *canonicalizer) snapshotTree(t *testing.T, root string) map[string]string {
-	out := map[string]string{}
-	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		rel, _ := filepath.Rel(root, p)
-		rel = filepath.ToSlash(rel)
-		base := filepath.Base(rel)
-		// implementation details + renderer artifacts excluded from parity
-		if strings.Contains(rel, "/.locks/") || strings.HasSuffix(rel, ".html") ||
-			strings.HasSuffix(rel, ".render_status.json") || // renderer sidecar (Go renderer lands in the next slice)
-			strings.HasSuffix(base, ".tmp") || strings.Contains(base, ".tmp.") {
-			return nil
-		}
-		data, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
-		key := cz.apply(rel)
-		body := string(data)
-		if strings.HasSuffix(rel, ".json") {
-			out[key] = cz.canonJSON(t, body, nil)
-			return nil
-		}
-		if strings.HasSuffix(rel, ".jsonl") {
-			var lines []string
-			for _, line := range strings.Split(strings.TrimRight(body, "\n"), "\n") {
-				if strings.TrimSpace(line) == "" {
-					continue
-				}
-				lines = append(lines, cz.canonJSON(t, line, nil))
-			}
-			out[key] = strings.Join(lines, "\n")
-			return nil
-		}
-		out[key] = cz.apply(body)
-		return nil
-	})
-	return out
-}
-
-// --- fixtures -----------------------------------------------------------------
 
 func writeFixture(t *testing.T, ws string) {
 	t.Helper()
@@ -235,20 +84,14 @@ func writeFixture(t *testing.T, ws string) {
 	  {"slug": "sb-a", "email": "a@gmail.com", "domain": "gmail.com", "quota_today": 40, "status": "healthy", "imap_uid_cursor": 0},
 	  {"slug": "sb-b", "email": "b@gmail.com", "domain": "gmail.com", "quota_today": 40, "status": "needs_reauth", "imap_uid_cursor": 0}
 	]}`)
-	// a prior send at step 1 makes lead2 bump-due later
+	// a prior send at step 1 makes c_lead2 bump-due later
 	mustWrite("campaigns/demo/sent/2026-07/sent_log.jsonl",
 		`{"lead_id": "c_lead2", "campaign": "demo", "step": 1, "sent_at": "2026-07-10T09:00:00Z", "sendbox": "sb-a", "rfc_message_id": "<m1@x>"}`+"\n")
 }
 
-// --- the scenario ---------------------------------------------------------------
-
-func TestCrmStoreGoldenCrossValidation(t *testing.T) {
-	pyTool := findCrmStorePy(t)
-
-	pyRoot := filepath.Join(t.TempDir(), "dcp")
-	goRoot := filepath.Join(t.TempDir(), "dcp")
-	pyWS := filepath.Join(pyRoot, "clients", "leadup", "video_us", "outreach")
-	goWS := filepath.Join(goRoot, "clients", "leadup", "video_us", "outreach")
+func TestCrmStoreScenario(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
 
 	dossier := `{"identity": {"still_active": "confirmed", "current_company": "KW", "channels_found": {"emails": ["extra@kw.com"]}},
 	 "hooks": [
@@ -258,145 +101,151 @@ func TestCrmStoreGoldenCrossValidation(t *testing.T) {
 	 ],
 	 "writing_brief": {"one_liner": "top KW agent", "personalization_confidence": 0.85, "do_not_mention": ["kids"]}}`
 
-	steps := []xstep{
-		{FakeNow: "2026-07-19T10:00:00Z", Argv: []string{"--pipeline", "{ROOT}", "--client", "leadup", "--business", "video", "--location", "us", "init-client"}},
-		{FakeNow: "2026-07-19T10:01:00Z", Argv: []string{"--client-dir", "{WS}", "contact", "add", "--json", `{"id": "c_lead1", "name": {"full": "Susan Vo"}, "identities": {"emails": [{"address": "Susan@KW.com", "is_primary": true}], "phones": [{"number": "(415) 555-0101"}]}}`}},
-		{FakeNow: "2026-07-19T10:02:00Z", Argv: []string{"--client-dir", "{WS}", "contact", "add", "--json", `{"id": "c_lead2", "name": {"full": "Binh Tran"}, "identities": {"emails": [{"address": "binh@remax.com", "is_primary": true}]}}`}},
-		{FakeNow: "2026-07-19T10:03:00Z", Argv: []string{"--client-dir", "{WS}", "contact", "add", "--json", `{"name": {"full": "Dup Susan"}, "identities": {"emails": [{"address": "susan@kw.com"}]}}`}}, // matched
-		{FakeNow: "2026-07-19T10:04:00Z", Argv: []string{"--client-dir", "{WS}", "contact", "list", "--where", "lifecycle_stage,=,lead"}},
-		{FakeNow: "2026-07-19T10:05:00Z", Argv: []string{"--client-dir", "{WS}", "segment", "set", "--json", `{"id": "all", "name": "all", "where": [["lifecycle_stage", "=", "lead"]]}`}},
-		{FakeNow: "2026-07-19T10:06:00Z", Argv: []string{"--client-dir", "{WS}", "campaign", "create", "--slug", "demo", "--json", `{"audience": {"segment": "all"}, "sendboxes": ["sb-a", "sb-b"], "daily_quota": 10}`}},
-		{FakeNow: "2026-07-19T10:07:00Z", Argv: []string{"--client-dir", "{WS}", "campaign", "queue", "--slug", "demo"}},
-		{FakeNow: "2026-07-19T10:08:00Z", Argv: []string{"--client-dir", "{WS}", "enrich", "status", "--contact", "c_lead1"}},
-		{FakeNow: "2026-07-19T10:09:00Z", Argv: []string{"--client-dir", "{WS}", "enrich", "due", "--campaign", "demo"}},
-		{FakeNow: "2026-07-19T10:10:00Z", Argv: []string{"--client-dir", "{WS}", "enrich", "write", "--contact", "c_lead1", "--campaign", "demo", "--json", dossier}},
-		{FakeNow: "2026-07-19T10:11:00Z", Argv: []string{"--client-dir", "{WS}", "enrich", "get", "--contact", "c_lead1"}},
-		{FakeNow: "2026-07-19T10:12:00Z", Argv: []string{"--client-dir", "{WS}", "draft", "write", "--contact", "c_lead1", "--campaign", "demo", "--json", `{"step": 1, "subject": "Idea for 123 Main St", "body_text": "Hi Susan...", "hooks_used": [{"type": "new_listing", "evidence_url": "https://z/1"}]}`}},
-		{FakeNow: "2026-07-19T10:13:00Z", Argv: []string{"--client-dir", "{WS}", "draft", "write", "--contact", "c_lead1", "--campaign", "demo", "--json", `{"step": 1, "subject": "Re: hello", "body_text": "x", "hooks_used": [{"type": "new_listing", "evidence_url": "https://z/1"}]}`},
-			WantFail: "step-1 subject must not begin with Re:/Fwd:"},
-		{FakeNow: "2026-07-19T10:14:00Z", Argv: []string{"--client-dir", "{WS}", "draft", "budget", "--campaign", "demo"}},
-		{FakeNow: "2026-07-19T10:15:00Z", Argv: []string{"--client-dir", "{WS}", "draft", "list", "--campaign", "demo"}},
-		{FakeNow: "2026-07-19T10:16:00Z", Argv: []string{"--client-dir", "{WS}", "approval-report"}},
-		{FakeNow: "2026-07-19T10:17:00Z", Argv: []string{"--client-dir", "{WS}", "approve", "--json", `{"edit": [{"n": 1, "subject": "Better idea for 123 Main St"}], "approve": "1"}`}},
-		{FakeNow: "2026-07-19T10:18:00Z", Argv: []string{"--client-dir", "{WS}", "followups", "due", "--campaign", "demo"}},
-		{FakeNow: "2026-07-19T10:19:00Z", Argv: []string{"--client-dir", "{WS}", "apply-rules", "--event", "reply_positive", "--contact", "c_lead1", "--activity", "act_fixture01"}},
-		{FakeNow: "2026-07-19T10:20:00Z", Argv: []string{"--client-dir", "{WS}", "apply-rules", "--event", "reply_positive", "--contact", "c_lead1", "--activity", "act_fixture01"}}, // idempotent
-		{FakeNow: "2026-07-19T10:21:00Z", Argv: []string{"--client-dir", "{WS}", "suppress", "add", "--kind", "email", "--value", "Spam@X.com", "--reason", "unsubscribe", "--tag", "test_fixture"}},
-		{FakeNow: "2026-07-19T10:22:00Z", Argv: []string{"--client-dir", "{WS}", "suppress", "check", "--email", "spam@x.com"}},
-		{FakeNow: "2026-07-19T10:23:00Z", Argv: []string{"--client-dir", "{WS}", "task", "add", "--json", `{"title": "Call Susan", "contact_id": "c_lead1", "due_at": "2026-07-20T10:00:00Z"}`}},
-		{FakeNow: "2026-07-19T10:24:00Z", Argv: []string{"--client-dir", "{WS}", "reserve", "--sendbox", "sb-a", "--day", "2026-07-19", "--cap", "2"}},
-		{FakeNow: "2026-07-19T10:25:00Z", Argv: []string{"--client-dir", "{WS}", "reserve", "--sendbox", "sb-a", "--day", "2026-07-19", "--cap", "2"}},
-		{FakeNow: "2026-07-19T10:26:00Z", Argv: []string{"--client-dir", "{WS}", "reserve", "--sendbox", "sb-a", "--day", "2026-07-19", "--cap", "2"}}, // denied
-		{FakeNow: "2026-07-19T10:27:00Z", Argv: []string{"--client-dir", "{WS}", "contact", "merge", "--loser", "c_lead2", "--winner", "c_lead1"}},
-		{FakeNow: "2026-07-19T10:28:00Z", Argv: []string{"--client-dir", "{WS}", "validate", "--rebuild-index"}},
-		{FakeNow: "2026-07-19T10:29:00Z", Argv: []string{"--client-dir", "{WS}", "today-view"}},
-		{FakeNow: "2026-07-19T10:30:00Z", Argv: []string{"--client-dir", "{WS}", "kanban"}},
-		{FakeNow: "2026-07-19T10:31:00Z", Argv: []string{"--client-dir", "{WS}", "weekly-report"}},
-		{FakeNow: "2026-07-19T10:32:00Z", Argv: []string{"--client-dir", "{WS}", "monthly-report", "--month", "2026-07"}},
+	run := func(now string, argv ...string) xresult {
+		return runGoStep(t, xstep{FakeNow: now, Argv: argv})
+	}
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
 	}
 
-	subst := func(argv []string, root, ws string) []string {
-		out := make([]string, len(argv))
-		for i, a := range argv {
-			a = strings.ReplaceAll(a, "{ROOT}", root)
-			a = strings.ReplaceAll(a, "{WS}", ws)
-			out[i] = a
-		}
-		return out
+	mustOK(run("2026-07-19T10:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+
+	out := mustOK(run("2026-07-19T10:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id": "c_lead1", "name": {"full": "Susan Vo"}, "identities": {"emails": [{"address": "Susan@KW.com", "is_primary": true}], "phones": [{"number": "(415) 555-0101"}]}}`))
+	if out["lead_id"] != "c_lead1" || out["outcome"] != "created" {
+		t.Fatalf("lead1 add: %v", out)
+	}
+	mustOK(run("2026-07-19T10:02:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id": "c_lead2", "name": {"full": "Binh Tran"}, "identities": {"emails": [{"address": "binh@remax.com", "is_primary": true}]}}`))
+	out = mustOK(run("2026-07-19T10:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"name": {"full": "Dup Susan"}, "identities": {"emails": [{"address": "susan@kw.com"}]}}`))
+	if out["lead_id"] != "c_lead1" || out["outcome"] != "matched" {
+		t.Fatalf("email dedupe failed: %v", out)
 	}
 
-	pyCanon := newCanon(pyRoot)
-	goCanon := newCanon(goRoot)
-
-	for i, s := range steps {
-		if i == 1 { // after init-client created the workspaces
-			writeFixture(t, pyWS)
-			writeFixture(t, goWS)
-			// ui_inbox decision applied later needs a real draft id — the ingest-ui path
-			// is already covered by the Python and Go unit suites; the xval scenario
-			// covers everything id-independent.
-		}
-		pyStep := s
-		pyStep.Argv = subst(s.Argv, pyRoot, pyWS)
-		goStep := s
-		goStep.Argv = subst(s.Argv, goRoot, goWS)
-		pr := runPyStep(t, pyTool, pyStep)
-		gr := runGoStep(t, goStep)
-
-		if s.WantFail != "" {
-			if pr.Code == 0 || gr.Code == 0 {
-				t.Fatalf("step %d %v: expected both to fail (py=%d go=%d)", i, s.Argv, pr.Code, gr.Code)
-			}
-			if !strings.Contains(pr.Stderr, s.WantFail) || !strings.Contains(gr.Stderr, s.WantFail) {
-				t.Fatalf("step %d: stderr mismatch\npy: %s\ngo: %s", i, pr.Stderr, gr.Stderr)
-			}
-			continue
-		}
-		if pr.Code != gr.Code {
-			t.Fatalf("step %d %v: exit py=%d go=%d\npy-err: %s\ngo-err: %s", i, s.Argv, pr.Code, gr.Code, pr.Stderr, gr.Stderr)
-		}
-		pc := pyCanon.canonJSON(t, pr.Stdout, s.IgnoreKey)
-		gc := goCanon.canonJSON(t, gr.Stdout, s.IgnoreKey)
-		if pc != gc {
-			t.Fatalf("step %d %v: stdout mismatch\npy: %s\ngo: %s", i, s.Argv, pc, gc)
-		}
+	list := parseOutList(t, run("2026-07-19T10:04:00Z", "--client-dir", ws, "contact", "list",
+		"--where", "lifecycle_stage,=,lead"))
+	if len(list) != 2 {
+		t.Fatalf("contact list = %d, want 2", len(list))
 	}
 
-	// final tree parity
-	pyTree := pyCanon.snapshotTree(t, pyRoot)
-	goTree := goCanon.snapshotTree(t, goRoot)
-	var pyKeys, goKeys []string
-	for k := range pyTree {
-		pyKeys = append(pyKeys, k)
+	mustOK(run("2026-07-19T10:05:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id": "all", "name": "all", "where": [["lifecycle_stage", "=", "lead"]]}`))
+	cfg := mustOK(run("2026-07-19T10:06:00Z", "--client-dir", ws, "campaign", "create",
+		"--slug", "demo", "--json", `{"audience": {"segment": "all"}, "sendboxes": ["sb-a", "sb-b"], "daily_quota": 10}`))
+	if mInt(cfg, "daily_quota", 0) != 10 || mStr(cfg, "approval_mode") != "manual_all" {
+		t.Fatalf("campaign cfg: %v", cfg)
 	}
-	for k := range goTree {
-		goKeys = append(goKeys, k)
+
+	q := mustOK(run("2026-07-19T10:07:00Z", "--client-dir", ws, "campaign", "queue", "--slug", "demo"))
+	if mInt(q, "queued", -1) != 1 || mInt(mMap(q, "skipped"), "already_in_campaign", -1) != 1 {
+		t.Fatalf("queue guards: %v", q) // c_lead2 already sent in demo -> skipped
 	}
-	sort.Strings(pyKeys)
-	sort.Strings(goKeys)
-	if strings.Join(pyKeys, "\n") != strings.Join(goKeys, "\n") {
-		t.Fatalf("tree file sets differ\npy-only: %v\ngo-only: %v",
-			diffKeys(pyKeys, goKeys), diffKeys(goKeys, pyKeys))
+
+	st := mustOK(run("2026-07-19T10:08:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_lead1"))
+	if st["needs"] != "enrich" || st["reason"] != "identity_stale_or_missing" {
+		t.Fatalf("enrich status: %v", st)
 	}
-	for _, k := range pyKeys {
-		if pyTree[k] != goTree[k] {
-			t.Errorf("tree content mismatch at %s\npy: %s\ngo: %s", k, clip(pyTree[k]), clip(goTree[k]))
+	ew := mustOK(run("2026-07-19T10:10:00Z", "--client-dir", ws, "enrich", "write",
+		"--contact", "c_lead1", "--campaign", "demo", "--json", dossier))
+	// personal hook -> do_not_mention; bad evidence_url dropped with problem noted
+	if mInt(ew, "usable_hooks", -1) != 1 || mStr(ew, "confidence_band") != "high" ||
+		mInt(ew, "do_not_mention", -1) != 2 || len(mList(ew, "problems")) != 1 {
+		t.Fatalf("enrich write: %v", ew)
+	}
+
+	dw := mustOK(run("2026-07-19T10:12:00Z", "--client-dir", ws, "draft", "write",
+		"--contact", "c_lead1", "--campaign", "demo", "--json",
+		`{"step": 1, "subject": "Idea for 123 Main St", "body_text": "Hi Susan...", "hooks_used": [{"type": "new_listing", "evidence_url": "https://z/1"}]}`))
+	if mStr(dw, "sendbox") != "sb-a" || mStr(dw, "confidence_band") != "high" || len(mList(dw, "warnings")) != 0 {
+		t.Fatalf("draft write: %v", dw) // sb-b is needs_reauth -> rotation picks sb-a
+	}
+
+	bad := run("2026-07-19T10:13:00Z", "--client-dir", ws, "draft", "write",
+		"--contact", "c_lead1", "--campaign", "demo", "--json",
+		`{"step": 1, "subject": "Re: hello", "body_text": "x", "hooks_used": [{"type": "new_listing", "evidence_url": "https://z/1"}]}`)
+	if bad.Code == 0 || !strings.Contains(bad.Stderr, "step-1 subject must not begin with Re:/Fwd:") {
+		t.Fatalf("subject gate: %d %s", bad.Code, bad.Stderr)
+	}
+
+	budget := mustOK(run("2026-07-19T10:14:00Z", "--client-dir", ws, "draft", "budget", "--campaign", "demo"))
+	if mInt(budget, "used_today", -1) != 1 || mInt(budget, "remaining", -1) != 9 {
+		t.Fatalf("budget: %v", budget)
+	}
+
+	rep := mustOK(run("2026-07-19T10:16:00Z", "--client-dir", ws, "approval-report"))
+	if mInt(rep, "drafts", -1) != 1 || rep["html_rendered"] != true {
+		t.Fatalf("approval report: %v", rep)
+	}
+	ap := mustOK(run("2026-07-19T10:17:00Z", "--client-dir", ws, "approve", "--json",
+		`{"edit": [{"n": 1, "subject": "Better idea for 123 Main St"}], "approve": "1"}`))
+	if len(mList(ap, "edited")) != 1 || len(mList(ap, "approved")) != 1 {
+		t.Fatalf("approve: %v", ap)
+	}
+	appr := mapsOf(mList(ap, "approved"))[0]
+	d, err := readJSONFile(mStr(appr, "path"))
+	if err != nil || mStr(d, "subject") != "Better idea for 123 Main St" || mStr(d, "status") != "approved" {
+		t.Fatalf("approved draft content: %v %v", err, d)
+	}
+
+	due := parseOutList(t, run("2026-07-19T10:18:00Z", "--client-dir", ws, "followups", "due", "--campaign", "demo"))
+	if len(due) != 1 || mStr(due[0], "lead_id") != "c_lead2" || mInt(due[0], "next_step", 0) != 2 {
+		t.Fatalf("followups due: %v", due)
+	}
+
+	ar := mustOK(run("2026-07-19T10:19:00Z", "--client-dir", ws, "apply-rules",
+		"--event", "reply_positive", "--contact", "c_lead1", "--activity", "act_fixture01"))
+	if len(mList(ar, "applied")) != 3 { // deal + task + freeze
+		t.Fatalf("apply-rules r1: %v", ar)
+	}
+	ar2 := mustOK(run("2026-07-19T10:20:00Z", "--client-dir", ws, "apply-rules",
+		"--event", "reply_positive", "--contact", "c_lead1", "--activity", "act_fixture01"))
+	if len(mList(ar2, "applied")) != 0 {
+		t.Fatalf("apply-rules must be idempotent: %v", ar2)
+	}
+
+	mustOK(run("2026-07-19T10:21:00Z", "--client-dir", ws, "suppress", "add",
+		"--kind", "email", "--value", "Spam@X.com", "--reason", "unsubscribe", "--tag", "test_fixture"))
+	sc := mustOK(run("2026-07-19T10:22:00Z", "--client-dir", ws, "suppress", "check", "--email", "spam@x.com"))
+	if sc["suppressed"] != true {
+		t.Fatalf("suppress check: %v", sc)
+	}
+
+	for i, wantGranted := range []bool{true, true, false} {
+		r := mustOK(run(fmt.Sprintf("2026-07-19T10:2%d:00Z", 4+i), "--client-dir", ws,
+			"reserve", "--sendbox", "sb-a", "--day", "2026-07-19", "--cap", "2"))
+		if r["granted"] != wantGranted {
+			t.Fatalf("reserve %d: %v", i, r)
+		}
+	}
+
+	mg := mustOK(run("2026-07-19T10:27:00Z", "--client-dir", ws, "contact", "merge",
+		"--loser", "c_lead2", "--winner", "c_lead1"))
+	if mStr(mg, "id") != "c_lead1" {
+		t.Fatalf("merge: %v", mg)
+	}
+	va := mustOK(run("2026-07-19T10:28:00Z", "--client-dir", ws, "validate", "--rebuild-index"))
+	if mInt(va, "contacts", -1) != 2 || len(mList(va, "problems")) != 0 || va["index_rebuilt"] != true {
+		t.Fatalf("validate: %v", va)
+	}
+
+	for _, cmd := range [][]string{{"today-view"}, {"kanban"}, {"weekly-report"}, {"monthly-report", "--month", "2026-07"}} {
+		r := mustOK(run("2026-07-19T10:30:00Z", append([]string{"--client-dir", ws}, cmd...)...))
+		if r["html_rendered"] != true {
+			t.Fatalf("%v: %v", cmd, r)
 		}
 	}
 }
 
-func diffKeys(a, b []string) []string {
-	set := map[string]bool{}
-	for _, k := range b {
-		set[k] = true
-	}
-	var out []string
-	for _, k := range a {
-		if !set[k] {
-			out = append(out, k)
-		}
-	}
-	return out
-}
-
-func clip(s string) string {
-	if len(s) > 600 {
-		return s[:600] + "…"
-	}
-	return s
-}
-
-func TestImportLeadsGoldenCrossValidation(t *testing.T) {
-	pyRepo := findCrmStorePy(t)
-	pyTool := filepath.Join(filepath.Dir(pyRepo), "import_leads.py")
-	if _, err := os.Stat(pyTool); err != nil {
-		t.Skip("import_leads.py not present")
-	}
-
-	pyRoot := filepath.Join(t.TempDir(), "dcp")
-	goRoot := filepath.Join(t.TempDir(), "dcp")
-	pyWS := filepath.Join(pyRoot, "clients", "leadup", "video_us", "outreach")
-	goWS := filepath.Join(goRoot, "clients", "leadup", "video_us", "outreach")
+func TestImportLeadsFlow(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
 
 	csvBody := "Full Name,Email,Cell Phone,Office Name,Website\n" +
 		"Susan Vo,susan@kw.com,(415) 555-0101,KW Bay Area,https://susanvo.com\n" +
@@ -409,78 +258,194 @@ func TestImportLeadsGoldenCrossValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	steps := []xstep{
-		{FakeNow: "2026-07-19T11:00:00Z", Argv: []string{"crm", "--pipeline", "{ROOT}", "--client", "leadup", "--business", "video", "--location", "us", "init-client"}},
-		{FakeNow: "2026-07-19T11:01:00Z", Argv: []string{"crm", "--client-dir", "{WS}", "suppress", "add", "--kind", "email", "--value", "spam@x.com", "--reason", "unsubscribe"}},
-		{FakeNow: "2026-07-19T11:02:00Z", Argv: []string{"leads", "inspect", "--file", csvPath}},
-		{FakeNow: "2026-07-19T11:03:00Z", Argv: []string{"leads", "import", "--client-dir", "{WS}", "--file", csvPath, "--list-slug", "realtors", "--no-mx-check"}},
-		{FakeNow: "2026-07-19T11:04:00Z", Argv: []string{"leads", "import", "--client-dir", "{WS}", "--file", csvPath, "--list-slug", "realtors", "--no-mx-check"}}, // idempotent no-op
-		{FakeNow: "2026-07-19T11:05:00Z", Argv: []string{"crm", "--client-dir", "{WS}", "contact", "list", "--where", "lifecycle_stage,=,lead"}},
+	if r := runGoStep(t, xstep{"2026-07-19T11:00:00Z", []string{"--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"}}); r.Code != 0 {
+		t.Fatal(r.Stderr)
+	}
+	if r := runGoStep(t, xstep{"2026-07-19T11:01:00Z", []string{"--client-dir", ws, "suppress", "add",
+		"--kind", "email", "--value", "spam@x.com", "--reason", "unsubscribe"}}); r.Code != 0 {
+		t.Fatal(r.Stderr)
 	}
 
-	pyCanon := newCanon(pyRoot)
-	goCanon := newCanon(goRoot)
-	// the CSV lives outside both roots; canonicalize its temp path too
-	csvDir := filepath.Dir(csvPath)
-
-	for i, s := range steps {
-		pyArgv := make([]string, len(s.Argv))
-		goArgv := make([]string, len(s.Argv))
-		for j, a := range s.Argv {
-			pyArgv[j] = strings.ReplaceAll(strings.ReplaceAll(a, "{ROOT}", pyRoot), "{WS}", pyWS)
-			goArgv[j] = strings.ReplaceAll(strings.ReplaceAll(a, "{ROOT}", goRoot), "{WS}", goWS)
-		}
-		var pr, gr xresult
-		if pyArgv[0] == "crm" {
-			pr = runPyStep(t, pyRepo, xstep{FakeNow: s.FakeNow, Argv: pyArgv[1:]})
-			gr = runGoStep(t, xstep{FakeNow: s.FakeNow, Argv: append([]string{}, goArgv[1:]...)})
-		} else {
-			pr = runPyStep(t, pyTool, xstep{FakeNow: s.FakeNow, Argv: pyArgv[1:]})
-			gr = func() xresult {
-				t.Setenv("OUTREACHCRM_TEST_MODE", "1")
-				t.Setenv("OUTREACHCRM_FAKE_NOW", s.FakeNow)
-				oldOut, oldErr := os.Stdout, os.Stderr
-				rOut, wOut, _ := os.Pipe()
-				rErr, wErr, _ := os.Pipe()
-				os.Stdout, os.Stderr = wOut, wErr
-				code := runImportLeadsCLI(goArgv[1:])
-				os.Stdout, os.Stderr = oldOut, oldErr
-				wOut.Close()
-				wErr.Close()
-				outB, _ := io.ReadAll(rOut)
-				errB, _ := io.ReadAll(rErr)
-				return xresult{code, string(outB), string(errB)}
-			}()
-		}
-		if pr.Code != gr.Code {
-			t.Fatalf("leads step %d %v: exit py=%d go=%d\npy-err: %s\ngo-err: %s", i, s.Argv, pr.Code, gr.Code, pr.Stderr, gr.Stderr)
-		}
-		pc := strings.ReplaceAll(pyCanon.canonJSON(t, pr.Stdout, nil), csvDir, "<TMP>")
-		gc := strings.ReplaceAll(goCanon.canonJSON(t, gr.Stdout, nil), csvDir, "<TMP>")
-		if pc != gc {
-			t.Fatalf("leads step %d %v: stdout mismatch\npy: %s\ngo: %s", i, s.Argv, pc, gc)
-		}
+	leads := func(now string, argv ...string) xresult {
+		return runCLIStep(t, xstep{now, argv}, runImportLeadsCLI)
+	}
+	insp := parseOut(t, leads("2026-07-19T11:02:00Z", "inspect", "--file", csvPath))
+	if mInt(insp, "total_rows", -1) != 5 || mStr(mMap(insp, "proposed_mapping"), "email") != "Email" {
+		t.Fatalf("inspect: %v", insp)
 	}
 
-	pyTree := pyCanon.snapshotTree(t, pyRoot)
-	goTree := goCanon.snapshotTree(t, goRoot)
-	var keys []string
-	for k := range pyTree {
-		keys = append(keys, k)
+	imp := parseOut(t, leads("2026-07-19T11:03:00Z", "import", "--client-dir", ws,
+		"--file", csvPath, "--list-slug", "realtors", "--no-mx-check"))
+	m := mMap(imp, "manifest")
+	// Verified against the Python implementation before its retirement:
+	// name-only row imports as a fragment; the dup matches; spam suppressed.
+	if imp["skipped"] != false || mInt(m, "contacts_created", -1) != 3 ||
+		mInt(m, "contacts_matched_existing", -1) != 1 || mInt(m, "suppressed_at_import", -1) != 1 {
+		t.Fatalf("import: %v", imp)
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		if _, ok := goTree[k]; !ok {
-			t.Errorf("go tree missing %s", k)
-			continue
+
+	imp2 := parseOut(t, leads("2026-07-19T11:04:00Z", "import", "--client-dir", ws,
+		"--file", csvPath, "--list-slug", "realtors", "--no-mx-check"))
+	if imp2["skipped"] != true {
+		t.Fatalf("idempotency: %v", imp2)
+	}
+}
+
+func TestSeedLeadFlow(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	if r := runGoStep(t, xstep{"2026-07-19T13:00:00Z", []string{"--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"}}); r.Code != 0 {
+		t.Fatal(r.Stderr)
+	}
+	leads := func(now string, argv ...string) xresult {
+		return runCLIStep(t, xstep{now, argv}, runImportLeadsCLI)
+	}
+
+	// CSV: reel-only, youtube-watch-only, profile-only (in the generic Link col),
+	// a reel pasted under the Facebook column, and a name-only fragment
+	csvBody := "Name,Email,Facebook,Reel,Link\n" +
+		",,https://www.facebook.com/reel/123456789,,\n" +
+		",,,https://youtube.com/watch?v=abc123xyz,\n" +
+		",,,,https://www.facebook.com/susan.vo.realtor\n" +
+		",,https://facebook.com/reel/999888777,,\n" +
+		"Nguyen Van Hiem Realty,,,,\n"
+	csvPath := filepath.Join(t.TempDir(), "clues.csv")
+	os.WriteFile(csvPath, []byte(csvBody), 0o644)
+
+	imp := parseOut(t, leads("2026-07-19T13:01:00Z", "import", "--client-dir", ws,
+		"--file", csvPath, "--list-slug", "clues", "--no-mx-check"))
+	m := mMap(imp, "manifest")
+	if mInt(m, "contacts_created", -1) != 5 || mInt(m, "rows_skipped", -1) != 0 {
+		t.Fatalf("seed import: %v", m)
+	}
+
+	// same reel again -> dedupe hit via the seed identity index
+	csv2 := filepath.Join(t.TempDir(), "again.csv")
+	os.WriteFile(csv2, []byte("Reel\nhttps://facebook.com/reel/123456789\n"), 0o644)
+	imp2 := parseOut(t, leads("2026-07-19T13:02:00Z", "import", "--client-dir", ws,
+		"--file", csv2, "--list-slug", "clues2", "--no-mx-check"))
+	m2 := mMap(imp2, "manifest")
+	if mInt(m2, "contacts_created", -1) != 0 || mInt(m2, "contacts_matched_existing", -1) != 1 {
+		t.Fatalf("seed dedupe: %v", m2)
+	}
+
+	// find the reel-only contact and walk the resolution ladder
+	rows := parseOutList(t, runGoStep(t, xstep{"2026-07-19T13:03:00Z",
+		[]string{"--client-dir", ws, "contact", "list"}}))
+	var reelLead, nameLead string
+	for _, ct := range rows {
+		seeds := mapsOf(mList(mMap(ct, "identities"), "seeds"))
+		for _, sd := range seeds {
+			if strings.Contains(mStr(sd, "url"), "reel/123456789") {
+				reelLead = mStr(ct, "id")
+				if mStr(sd, "kind") != "reel" || mStr(sd, "platform") != "facebook" ||
+					mStr(sd, "status") != "unresolved" || mStr(sd, "source") != "import" {
+					t.Fatalf("seed entry shape: %v", sd)
+				}
+			}
 		}
-		pv := strings.ReplaceAll(pyTree[k], csvDir, "<TMP>")
-		gv := strings.ReplaceAll(goTree[k], csvDir, "<TMP>")
-		if pv != gv {
-			t.Errorf("leads tree mismatch at %s\npy: %s\ngo: %s", k, clip(pv), clip(gv))
+		if mStr(mMap(ct, "name"), "full") == "Nguyen Van Hiem Realty" {
+			nameLead = mStr(ct, "id")
 		}
 	}
-	if len(goTree) != len(pyTree) {
-		t.Errorf("tree sizes differ: py=%d go=%d", len(pyTree), len(goTree))
+	if reelLead == "" || nameLead == "" {
+		t.Fatalf("leads not found: reel=%q name=%q", reelLead, nameLead)
+	}
+
+	st := parseOut(t, runGoStep(t, xstep{"2026-07-19T13:04:00Z",
+		[]string{"--client-dir", ws, "enrich", "status", "--contact", reelLead}}))
+	if st["needs"] != "enrich" || st["reason"] != "seed_unresolved" {
+		t.Fatalf("reel lead status: %v", st)
+	}
+	st = parseOut(t, runGoStep(t, xstep{"2026-07-19T13:04:30Z",
+		[]string{"--client-dir", ws, "enrich", "status", "--contact", nameLead}}))
+	if st["reason"] != "name_only_fragment" {
+		t.Fatalf("name-only status: %v", st)
+	}
+
+	// enrichment resolves the origin: profile + email found -> canonical write-back
+	ew := parseOut(t, runGoStep(t, xstep{"2026-07-19T13:05:00Z",
+		[]string{"--client-dir", ws, "enrich", "write", "--contact", reelLead, "--json",
+			`{"identity": {"still_active": "confirmed",
+			   "channels_found": {"emails": ["susan@kw.com"],
+			                      "profiles": {"facebook": "https://facebook.com/susan.vo.99"}}},
+			  "hooks": [], "writing_brief": {"personalization_confidence": 0.5}}`}}))
+	if mInt(ew, "usable_hooks", -1) != 0 {
+		t.Fatalf("enrich write: %v", ew)
+	}
+	ct := parseOut(t, runGoStep(t, xstep{"2026-07-19T13:06:00Z",
+		[]string{"--client-dir", ws, "contact", "get", "--id", reelLead}}))
+	ids := mMap(ct, "identities")
+	if mStr(mMap(ids, "socials"), "facebook") != "https://facebook.com/susan.vo.99" {
+		t.Fatalf("found profile not canonical: %v", ids["socials"])
+	}
+	gotEmail := false
+	for _, e := range mapsOf(mList(ids, "emails")) {
+		if mStr(e, "address") == "susan@kw.com" {
+			gotEmail = true
+		}
+	}
+	if !gotEmail {
+		t.Fatalf("found email not written: %v", ids["emails"])
+	}
+	seeds := mapsOf(mList(ids, "seeds"))
+	if len(seeds) != 1 || mStr(seeds[0], "status") != "resolved" ||
+		mStr(seeds[0], "resolved_profile") != "https://facebook.com/susan.vo.99" {
+		t.Fatalf("seed not resolved: %v", seeds)
+	}
+	// resolved profile is now a dedupe identity: importing that profile matches
+	csv3 := filepath.Join(t.TempDir(), "profile.csv")
+	os.WriteFile(csv3, []byte("Profile\nhttps://facebook.com/susan.vo.99\n"), 0o644)
+	imp3 := parseOut(t, leads("2026-07-19T13:07:00Z", "import", "--client-dir", ws,
+		"--file", csv3, "--list-slug", "clues3", "--no-mx-check"))
+	if mInt(mMap(imp3, "manifest"), "contacts_matched_existing", -1) != 1 {
+		t.Fatalf("resolved profile must dedupe: %v", imp3)
+	}
+}
+
+func TestSeedTxtClassification(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	if r := runGoStep(t, xstep{"2026-07-19T13:10:00Z", []string{"--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"}}); r.Code != 0 {
+		t.Fatal(r.Stderr)
+	}
+	txt := "susan@kw.com\nhttps://facebook.com/reel/5551112223\n(415) 555-0101\nHiem Nguyen Realty\n"
+	p := filepath.Join(t.TempDir(), "mixed.txt")
+	os.WriteFile(p, []byte(txt), 0o644)
+	imp := parseOut(t, runCLIStep(t, xstep{"2026-07-19T13:11:00Z",
+		[]string{"import", "--client-dir", ws, "--file", p, "--list-slug", "mixed", "--no-mx-check"}}, runImportLeadsCLI))
+	m := mMap(imp, "manifest")
+	if mInt(m, "contacts_created", -1) != 4 || mInt(m, "rows_skipped", -1) != 0 {
+		t.Fatalf("txt classify import: %v", m)
+	}
+	rows := parseOutList(t, runGoStep(t, xstep{"2026-07-19T13:12:00Z",
+		[]string{"--client-dir", ws, "contact", "list"}}))
+	var haveEmail, haveSeed, havePhone, haveName bool
+	for _, ct := range rows {
+		ids := mMap(ct, "identities")
+		for _, e := range mapsOf(mList(ids, "emails")) {
+			if mStr(e, "address") == "susan@kw.com" {
+				haveEmail = true
+			}
+		}
+		for _, ph := range mapsOf(mList(ids, "phones")) {
+			if mStr(ph, "number") == "+14155550101" {
+				havePhone = true
+			}
+		}
+		for _, sd := range mapsOf(mList(ids, "seeds")) {
+			if strings.Contains(mStr(sd, "url"), "reel/5551112223") && mStr(sd, "kind") == "reel" {
+				haveSeed = true
+			}
+		}
+		if mStr(mMap(ct, "name"), "full") == "Hiem Nguyen Realty" {
+			haveName = true
+		}
+	}
+	if !haveEmail || !haveSeed || !havePhone || !haveName {
+		t.Fatalf("txt classification: email=%v seed=%v phone=%v name=%v", haveEmail, haveSeed, havePhone, haveName)
 	}
 }

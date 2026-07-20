@@ -42,14 +42,14 @@ before taking any side-effect action (sending, enriching, writing config, creati
   kanban → reports (incl. Monday weekly + first-run-of-month monthly) → Telegram notify → Stage 9 audit → release
   `run_lock`. No step may be silently skipped; a skipped step is recorded with its reason.
 - Before any report HTML/PDF work, scheduled runs must load
-  `playbooks/skills/report-design/SKILL.md` and use `tools/report_renderer.py` by default
+  `playbooks/skills/report-design/SKILL.md` and use `tool render-report` by default
   instead of writing ad hoc report/PDF scripts.
-- Before any send, the send happens through `gmail_client.py send` with the full ordered
+- Before any send, the send happens through `tool gmail send` with the full ordered
   pre-send re-check chain in code (DESIGN §10). Playbook prose never replaces the in-code
   gate. If the tracker pull has not succeeded within the configured window for a box,
   **sending for that box is blocked** (opt-out compliance, DESIGN §16) — this is a gate,
   not a warning.
-- The Phase-1 tools (`gmail_client.py`, `crm_store.py`, `import_leads.py`, `email_verify.py`)
+- The Phase-1 tools (`tool gmail`, `tool crm-store`, `tool import-leads`, `tool verify-email`)
   **exist** — the sync, apply-rules, and send steps run for real. So do the Phase-2 stage
   files+skills through milestone 2D: Stage 4 verify/enrich, Stage 5 campaign, Stage 6
   email-writing, Stage 10 follow-up/reply, Stages 13/14 CRM core + Today View, and both skills
@@ -133,7 +133,7 @@ read and do not fetch it from the GitHub raw URL (DESIGN §22 R1).
 
 1. Always load Stage 0: `00_CORE_CONTEXT_REQUIREMENTS.md`.
 2. Always load Stage 7: `07_STORAGE_SCHEMA_AND_HISTORY.md` to read profiles, CRM records,
-   logs, sent_log, suppression, and history through `crm_store.py` (direct file writes to CRM
+   logs, sent_log, suppression, and history through `tool crm-store` (direct file writes to CRM
    collections are a critical violation).
 3. Always load this contract (`AUTOMATION_SCHEDULING.md`) for the daily-run order.
 4. Load Stage 1 (`01_CLIENT_SETUP_PROFILE.md`) only if the profile is missing, incomplete,
@@ -247,7 +247,7 @@ Automation Resync requires updating every relevant layer:
 
 1. **Client profile** (`clients/{slug}/.../client_profile_*.md`): current voice/offer/
    compliance, active campaigns, sendbox status, notification status.
-2. **CRM + campaign config** (via `crm_store.py`): campaign configs, sendboxes.json,
+2. **CRM + campaign config** (via `tool crm-store`): campaign configs, sendboxes.json,
    suppression, segments, pipelines — the current state the run will read.
 3. **`daily-content-pipeline/provider_defaults.json`**: WideCast notification catalog/discovery
    defaults, no secrets.
@@ -388,7 +388,7 @@ Rules:
   `daily-content-pipeline/automation/update_state.json` plus `update_log.md`. Classification
   includes `tracker_worker_deploy_required` (a `tracker/worker.js` change needing a
   `wrangler deploy` rerun) and `storage_schema_migration_required` (a storage adapter /
-  `schema_version` change needing `crm_store.py migrate`).
+  `schema_version` change needing `tool crm-store migrate`).
 - It must **not** run client sends, enrichment, campaigns, tracking pulls, reports, or CRM
   mutations under `clients/`.
 - It must **not** send Telegram, WideCast/email-fallback, or any client/operator campaign
@@ -399,7 +399,7 @@ Rules:
   or an equivalent operator setting.
 - Even when auto-apply is approved, a tracker-worker change still requires a human-run
   `wrangler deploy` outside the AI sandbox, and a storage-schema change still requires a
-  human-run `crm_store.py migrate` under the storage freeze flag. Both are surfaced as
+  human-run `tool crm-store migrate` under the storage freeze flag. Both are surfaced as
   `**[ACTION REQUIRED]**`, not silently applied.
 - If the automation environment cannot create the native task directly, write the exact
   prompt from `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` to
@@ -450,7 +450,7 @@ For each client, pinning `target_client_slug`, in this exact order:
 1. **Load contract + LOAD LEDGER.** Load Stage 0, Stage 7, and this file; read the automation
    manifest and `daily-content-pipeline/automation/update_state.json` (Update Watch is a separate
    task and does not touch clients). Compute the date key in the recorded timezone. Take the
-   per-client `run_lock`. Then run `crm_store.py ingest-ui`: it applies any Approvals-page
+   per-client `run_lock`. Then run `tool crm-store ingest-ui`: it applies any Approvals-page
    decisions queued in `outreach/ui_inbox/approval_decisions.jsonl` while no run was active.
    Browser decisions carry the same trust as chat approvals; report what it applied.
 2. **Sync inbox** across all sendboxes (DESIGN §12, Stage 10): run the deterministic classifier
@@ -470,7 +470,7 @@ For each client, pinning `target_client_slug`, in this exact order:
 6. **Load new pipeline** (cold/trigger campaigns, JIT buffer 3–7 days, Stages 4/5/6): priority
    pick → Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`. The drafting pass is
    **bounded by each campaign's `daily_quota`** (its daily draft budget): read
-   `crm_store.py draft budget --campaign <slug>` and draft while `remaining > 0`. **Stop
+   `tool crm-store draft budget --campaign <slug>` and draft while `remaining > 0`. **Stop
    contract:** if the operator says "stop"/"ngưng" mid-loop, finish the current lead and halt —
    nothing already in `pending_approval` is lost; an unattended run drafts up to budget and stops.
    At the **END of this drafting pass** — after all new-pipeline drafting and **before** any send —
@@ -479,20 +479,20 @@ For each client, pinning `target_client_slug`, in this exact order:
    `http://127.0.0.1:17321/ui/{client}/approvals` (equal trust; decisions queue in `ui_inbox/`
    and are applied by `ingest-ui`); it is **refreshed** in the reports phase
    (step 10) per DESIGN §15.
-7. **Send** `outbox/approved/` within quota through `gmail_client.py send` (DESIGN §10). Run
-   `crm_store.py ingest-ui` once more immediately before sending, so browser decisions made
+7. **Send** `outbox/approved/` within quota through `tool gmail send` (DESIGN §10). Run
+   `tool crm-store ingest-ui` once more immediately before sending, so browser decisions made
    during this run are included. The ordered pre-send re-check chain runs in code. Approval
    happens in chat or on the Approvals page, at any time — the run sends only what is already
    approved.
 8. **Assisted channels:** draft SMS/Messenger/Zalo for no-email contacts only if the campaign
    allows and consent/legal basis exists (DESIGN §9/§16) → Today View copy buttons. The human
    sends and reports back → `assisted_sent` activity.
-9. **Compile Today View + regenerate kanban** via `tools/report_renderer.py`.
+9. **Compile Today View + regenerate kanban** via `tool render-report`.
 10. **Reports:** daily ops HTML + **refreshed** Approval Report HTML (first rendered at the end
     of the drafting pass in step 6, per DESIGN §14) + INTERNAL_REPORT (operator-only, not
     scrubbed). On **Mondays**, additionally build the Weekly CRM Report; on the **first daily run
     of a new month**, additionally build the prior month's Monthly Client Report
-    (`crm_store.py monthly-report --month <prior YYYY-MM>`). The weekly and monthly reports are
+    (`tool crm-store monthly-report --month <prior YYYY-MM>`). The weekly and monthly reports are
     the client-facing outputs and must pass the Client-Blind Scrub Gate.
 11. **Notify the operator** via WideCast `sendNotification` (email + Telegram when connected): counts +
     report link → `notifications/notification_log.md`. When drafts remain in `pending_approval`,
@@ -504,8 +504,8 @@ For each client, pinning `target_client_slug`, in this exact order:
 
 ## Daily Run Algorithm (detailed)
 
-Build-state rule (applies to every step below): the Phase-1 tools (`gmail_client.py`,
-`crm_store.py`, `import_leads.py`, `email_verify.py`) exist — sync, apply-rules, and send run
+Build-state rule (applies to every step below): the Phase-1 tools (`tool gmail`,
+`tool crm-store`, `tool import-leads`, `tool verify-email`) exist — sync, apply-rules, and send run
 for real. Steps needing a Phase-2 `status: planned` stage/skill (Stage 4 enrich, Stage 6
 draft, Stage 10 follow-up) are recorded as `stage_file_pending` (DESIGN §22 R1): load the
 covering `docs/DESIGN.md` section, do not improvise, do not enter Last-Resort Recovery, and
@@ -530,7 +530,7 @@ For each active client:
 2. Compute the current month folder key `YYYY-MM` and the day key `YYYY-MM-DD` in the recorded
    timezone from `schedule.md`.
 3. Take/verify the per-client `run_lock` (Run Locking rule). If a fresh lock exists, log and
-   stop for this client. Then run `crm_store.py ingest-ui` to apply any browser Approvals-page
+   stop for this client. Then run `tool crm-store ingest-ui` to apply any browser Approvals-page
    decisions queued in `outreach/ui_inbox/` (equal trust to chat; report what it applied).
 
 ### B. Sync inbox (Stage 10, DESIGN §12)
@@ -577,7 +577,7 @@ For each active client:
     remove_intent`. `negative`/`remove_intent` (even without the literal word "unsubscribe")
     → suppression, or an `**[ACTION REQUIRED]**` confirm task that blocks further sends to
     that contact until resolved.
-11. Run `crm_store.py apply-rules` (idempotent via `(rule_id, trigger_activity_id)` guard
+11. Run `tool crm-store apply-rules` (idempotent via `(rule_id, trigger_activity_id)` guard
     keys): positive reply → create deal + reply-within-4h task + freeze sequence; question →
     deal at `engaged` + draft reply for approval; negative/remove → suppress + close open
     tasks; SLA sweep → nudge tasks + report flag; won → lifecycle=customer + onboarding task.
@@ -607,7 +607,7 @@ For each active client:
     honoring cross-campaign rules: a contact in an active sequence of campaign A is not drafted
     by B; a hook already used on a person may not open a second campaign. **Bound the drafting
     pass by each campaign's `daily_quota`** (its daily draft budget):
-    `crm_store.py draft budget --campaign <slug>` returns `{daily_quota, used_today, remaining}` —
+    `tool crm-store draft budget --campaign <slug>` returns `{daily_quota, used_today, remaining}` —
     draft while `remaining > 0`, then stop. **Stop contract:** on an operator "stop"/"ngưng"
     mid-loop, finish the current lead and halt; nothing already in `pending_approval` is lost, and
     an unattended run simply drafts up to budget and stops.
@@ -626,7 +626,7 @@ For each active client:
 
 ### G. Send approved (Stage 8, DESIGN §10)
 
-18. Send `outbox/approved/` through `gmail_client.py send`, which runs the full ordered
+18. Send `outbox/approved/` through `tool gmail send`, which runs the full ordered
     pre-send re-check in code (Stage 8 §3): `resolve(lead)` → client + agency suppression →
     `channels.email.status` → CAN-SPAM sending-identity gate (`config/sending_identity.json`;
     the engine appends the postal-address + opt-out footer to every body) → guessed-approval
@@ -635,7 +635,7 @@ For each active client:
     Sticky sender: rotation picks the box only on step 1, then `assigned_sendbox` is fixed.
     Record `sent_log.jsonl`, append `email_sent`, sleep jitter 30–180s. A failed send persists
     its blocker on the draft (terminal → `status: blocked`; transient stays `approved` for
-    retry) — never silent. Run `crm_store.py ingest-ui` immediately before this step so browser
+    retry) — never silent. Run `tool crm-store ingest-ui` immediately before this step so browser
     decisions made during the run are included. Approval itself happens in chat or on the
     Approvals page, any time; the run only sends what is already approved.
 
@@ -649,7 +649,7 @@ For each active client:
 
 ### I. Today View + kanban (Stage 14/15)
 
-20. Compile the Today View and regenerate the deal kanban with `tools/report_renderer.py`
+20. Compile the Today View and regenerate the deal kanban with `tool render-report`
     (reusing its contenteditable + Copy-button blocks).
 
 ### J. Reports (Stage 15 + report-design skill)
@@ -661,10 +661,10 @@ For each active client:
     sharing`; keep OutreachCRM/WideCast/provider/Telegram/API-key/config/sendbox/tracker/
     debug details here).
 22. **On Mondays only**, build the client-facing `{client}-weekly-client-report.html` with
-    `python3 tools/crm_store.py --client-dir DIR weekly-report --client-name "{Client Name}"`.
+    `<bridge> tool crm-store --client-dir DIR weekly-report --client-name "{Client Name}"`.
     That command assembles the scrubbed Markdown source (snapshot, pipeline, movements, next
     steps — counts and prospect names only, never internal identifiers) and renders it through
-    the Client-Blind Scrub Gate (`report_renderer.py render --client-facing --fail-on-scrub`,
+    the Client-Blind Scrub Gate (`tool render-report render --client-facing --fail-on-scrub`,
     `CLIENT_BLIND_TERMS`). It must not mention OutreachCRM, WideCast, provider tooling, OpenAPI,
     MCP, sendbox, gmail_client, crm_store, tracker/`trk.`, HMAC, token.json, sent_log,
     suppression, warmup, quota, guessed, automation/scheduled task, API key/config, Telegram,
@@ -673,7 +673,7 @@ For each active client:
 
     **On the first daily run of a new month**, additionally build the prior month's client-facing
     `{client}-monthly-client-report.html` with
-    `python3 tools/crm_store.py --client-dir DIR monthly-report --client-name "{Client Name}" --month <prior YYYY-MM>`
+    `<bridge> tool crm-store --client-dir DIR monthly-report --client-name "{Client Name}" --month <prior YYYY-MM>`
     (report kind "Monthly Client Report"). The month window is the full calendar month; the
     pipeline snapshot stays point-in-time "as of report date" (same as the weekly). It is scrubbed
     through the same Client-Blind Scrub Gate with the same block-on-hit behavior. The weekly and
@@ -688,7 +688,7 @@ The composed step is one command — it verifies **this client's** provider conf
 uploads the report, sends the Telegram (email-fallback) message, and appends the log row:
 
 ```sh
-python3 tools/provider_openapi.py --config DIR/integrations/providers/provider_config.local.json \
+<bridge> tool provider --config DIR/integrations/providers/provider_config.local.json \
   --defaults daily-content-pipeline/provider_defaults.json \
   notify --event daily_run_completed --message "<run status + counts + [ACTION REQUIRED]>" \
   --report-file DIR/outputs/YYYY-MM/YYYY-MM-DD/{client}-daily-ops.html \
@@ -722,7 +722,7 @@ python3 tools/provider_openapi.py --config DIR/integrations/providers/provider_c
     claiming the run is complete: suppression honored at every send-capable path; no draft
     contains a detail without an `evidence_url`; step-1 subjects not `Re:`/`Fwd:`; quota/warmup
     respected; sticky-sender preserved; sent_log/activities/report_state reconciled; scrub gate
-    passed on the weekly report; no direct CRM file writes outside `crm_store.py`.
+    passed on the weekly report; no direct CRM file writes outside `tool crm-store`.
 30. Release/close the per-client `run_lock`.
 
 The daily run is complete only when every active client is processed or explicitly logged as

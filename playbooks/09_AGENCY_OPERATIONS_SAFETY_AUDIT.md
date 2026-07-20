@@ -20,7 +20,7 @@ Load before claiming setup, daily run, private data source setup, schedule, prod
 - Treat local DIY video production as a critical workflow violation when client-scoped PDNA/video provider setup is missing, unverified, mismatched, or missing the required operation. Do not create MP4/MOV/GIF/slideshow/rough video files with `ffmpeg`, Pillow, `moviepy`, browser/canvas screenshots, Remotion, or similar fallback renderers.
 - Treat sending a report script, Markdown source record, previous draft, or content-history script directly to a video provider without first loading and applying the existing WideCast video script-writing skill as a critical workflow violation. The skill pass must run research and Stage 2 inline-media/direct-image-URL workflow when relevant, even if PDNA is missing and the run can only stop at a script/production-brief blocker. Editing, replacing, summarizing, or reimplementing the WideCast skill is also a workflow violation.
 - Treat generating a second five-version script set during video production as a workflow violation when a report version/code, pasted edited version, or automation recommended/approved version already exists. In that case the agent must process only the selected version/code through the WideCast skill's research, factual-core, Stage 2 visual treatment, inline media, media pool, and production handoff standards.
-- Before claiming any report run is complete, verify Stage 6 loaded `playbooks/skills/report-design/SKILL.md` and that client-facing HTML/PDF was generated with `tools/solo_report_renderer.py` or a reusable approved template. One-off report/PDF scripts are a workflow violation unless the exact blocker and approved exception are logged.
+- Before claiming any report run is complete, verify Stage 6 loaded `playbooks/skills/report-design/SKILL.md` and that client-facing HTML/PDF was generated with `tools/solo_tool render-report` or a reusable approved template. One-off report/PDF scripts are a workflow violation unless the exact blocker and approved exception are logged.
 
 ## Latest Override: Setup Flow And Client Isolation Audit
 
@@ -39,8 +39,8 @@ Before claiming Automation Flow completion for a client:
 - Confirm `client_slug`, `extension_instance_id`, and output path all match.
 - Confirm collector output was read only from `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/`.
 - Confirm the client has one canonical combined client-facing report for the day/run: `{client-name}-client-report.html`, built from scrubbed staging files `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
-- Confirm the report-design skill was loaded before report generation/repair and `tools/solo_report_renderer.py render` or a reusable approved template produced the client-facing HTML.
-- Confirm `tools/solo_report_renderer.py package` or a reusable approved package template produced the PDF companion package, or the exact PDF blocker is logged.
+- Confirm the report-design skill was loaded before report generation/repair and `tools/solo_tool render-report render` or a reusable approved template produced the client-facing HTML.
+- Confirm `tools/solo_tool render-report package` or a reusable approved package template produced the PDF companion package, or the exact PDF blocker is logged.
 - Confirm the public report and private report have separate source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
 - Confirm the private pass did not overwrite, delete, reorder, summarize away, or regenerate the public report file.
 - Confirm `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` exists or the exact blocker is logged, and that its public/private statuses match the report set.

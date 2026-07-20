@@ -1,7 +1,7 @@
 # Enrichment etiquette — fair game vs off-limits
 
 Knowing too much about a stranger's private life is not personalization — it reads as creepy and
-sinks the email. The line is simple and enforced in code (`crm_store.py enrich write` sends any
+sinks the email. The line is simple and enforced in code (`tool crm-store enrich write` sends any
 `sensitivity: personal` hook to `do_not_mention` and never to email copy).
 
 ## `public_business` — fair game (use as hooks)

@@ -13,15 +13,15 @@ This file is the audit and completion-gate layer. It does not replace the stage 
 - Run the relevant checklist before every completion claim. Report missing steps honestly.
 - Respect the Setup Flow vs Automation Flow split. Setup Flow **never sends an email, never enriches for send, never runs a campaign, never imports for send**. Its only terminal state is `ready_for_automation_first_run` (or `ready_for_next_automation_run` for a returning client). A send/enrich/campaign-run inside a setup session is a critical workflow violation.
 - No side-effect action without a PASS LOAD LEDGER above it. If a required stage was not loaded IN FULL (LOAD LEDGER printed, `Verdict: PASS`, matching `LOAD_MANIFEST.md` when present, dependencies ledgered), load it before proceeding. A file read to 200 of 1900 lines is NOT loaded.
-- Every send goes through `gmail_client.py send`, which runs the ordered pre-send re-check chain **in code**. A raw `smtplib`/`imaplib`/Gmail-API send from a one-off script or from playbook prose, bypassing that chain, is a critical workflow violation.
-- Every CRM mutation goes through `crm_store.py`. A direct write to any file under `crm/` (contacts, accounts, deals, activities, tasks, pipelines, suppression, identities) is a critical workflow violation. Reading raw JSON for debugging is allowed.
+- Every send goes through `tool gmail send`, which runs the ordered pre-send re-check chain **in code**. A raw `smtplib`/`imaplib`/Gmail-API send from a one-off script or from playbook prose, bypassing that chain, is a critical workflow violation.
+- Every CRM mutation goes through `tool crm-store`. A direct write to any file under `crm/` (contacts, accounts, deals, activities, tasks, pipelines, suppression, identities) is a critical workflow violation. Reading raw JSON for debugging is allowed.
 - Nothing leaves without an explicit chat `approve`. A send whose `draft_id` has no matching `approve` decision in `approvals/approval_log.md` is a critical workflow violation. Default `approval_mode: manual_all`, even for bumps.
 - Suppression is checked at **every** send-capable path — initial send, follow-up, assisted channels (SMS/Messenger/Zalo), and at import against ALL identities. A send to a suppressed address is a critical workflow violation.
 - Every `deal.stage` change carries `evidence_activity_id`. A stage moved without a backing activity is a critical workflow violation.
 - Every personalization detail in a draft must trace to a dossier fact with an `evidence_url`. A personalized claim with no evidence is a critical workflow violation.
-- Step-1 subjects must not begin `Re:` or `Fwd:`. This is linted in this stage's audit AND enforced in `gmail_client.py` pre-send.
+- Step-1 subjects must not begin `Re:` or `Fwd:`. This is linted in this stage's audit AND enforced in `tool gmail` pre-send.
 - Only the **weekly client report** is client-facing. It is the only output run through the Client-Blind Scrub Gate. Every other output (approval report, Today View, daily-ops, `INTERNAL_REPORT`) is operator-only and is NOT scrubbed and NOT sent to the client.
-- Reports and PDFs are produced by `tools/report_renderer.py` (`render`/`package`) or a reusable approved template. A one-off report/PDF script is a workflow violation unless the exact blocker and an approved exception are logged.
+- Reports and PDFs are produced by `tool render-report` (`render`/`package`) or a reusable approved template. A one-off report/PDF script is a workflow violation unless the exact blocker and an approved exception are logged.
 - Before claiming any post-schedule change is complete, verify Automation Resync ran when a schedule/automation already exists. Config-only updates are not enough if a native scheduled-task prompt may still hold an old snapshot.
 - Before claiming any update/upgrade/sync-latest work is complete, verify Stage 11 was loaded, GitHub `main` was checked from a verified source, backups/logs were written, clients and automations were resynced, and any `tracker_worker_deploy_required` / `storage_schema_migration_required` human actions were given.
 
@@ -44,7 +44,7 @@ Before claiming **Automation Flow (Daily Run)** completion for a client:
 - Confirm inbox sync ran across all of that client's sendboxes, and that bounces and unsubscribes were suppressed immediately (same run).
 - Confirm tracking was pulled from the worker and bot-filtered, and that no open/click alone drove a stage change or auto-action — only a reply is conversion evidence.
 - Confirm `apply-rules` ran and every resulting stage change carries `evidence_activity_id`.
-- Confirm every send came out of `outbox/approved/` through `gmail_client.py` within quota, with the full in-code pre-send chain, and that every sent `draft_id` has a matching `approve` in `approvals/approval_log.md`.
+- Confirm every send came out of `outbox/approved/` through `tool gmail` within quota, with the full in-code pre-send chain, and that every sent `draft_id` has a matching `approve` in `approvals/approval_log.md`.
 - Confirm the operator-only outputs exist for the day: `{client}-approval-report.html`, `{client}-today-view.html`, `{client}-daily-ops.html`, `{client}-INTERNAL_REPORT.html`, and `{client}-report_state.json`, each labeled operator-only where applicable.
 - On Mondays, confirm the client-facing `{client}-weekly-client-report.html` (+ `.pdf`) was generated through the Client-Blind Scrub Gate and that the scrub grep returned zero internal-term hits.
 - Confirm the operator was notified (WideCast `sendNotification` (email always, plus Telegram when connected)) with counts + report path/link, and that the attempt was logged in `daily-content-pipeline/notifications/notification_log.md`.
@@ -56,14 +56,14 @@ Treat these as **critical multi-client isolation violations**:
 - The agent reads another client's contacts, dossiers, or suppression (any file under `clients/{other_slug}/crm/`) while processing the target client.
 - A send occurs without an explicit `approve` for that exact `draft_id`, or with an `approve` that names a different draft.
 - A send goes to an address present in `global_suppression.jsonl` or the client's `suppression.jsonl` (checked after `resolve()` follows merge chains).
-- A CRM record is written by a direct file write instead of through `crm_store.py`.
+- A CRM record is written by a direct file write instead of through `tool crm-store`.
 - A `deal.stage` (or `stage_history` entry) is moved with no `evidence_activity_id` pointing at a real activity.
 - A draft contains a personalization detail (a listing, a post, a review, a company fact, a number) that is not present in the contact's dossier with an `evidence_url`.
 - A step-1 subject begins with `Re:` or `Fwd:` (fake-thread deception).
 - An automation task processes a client other than its pinned `target_client_slug`, or a client-specific task name does not begin with the client name.
 - A client's send is counted against another client's box or domain quota, or one sendbox is shared across two clients.
 - Agency-tier suppression (`global_suppression.jsonl`) is treated as proof the client-tier suppression (`clients/{slug}/crm/suppression.jsonl`) was checked, without checking both.
-- The weekly client report leaks any internal term (scrub-gate failure), or a client-facing artifact is produced by a one-off script instead of `tools/report_renderer.py`.
+- The weekly client report leaks any internal term (scrub-gate failure), or a client-facing artifact is produced by a one-off script instead of `tool render-report`.
 
 ## Source Preservation Rule
 
@@ -132,11 +132,11 @@ Minimum update audit:
 - The source was GitHub `main` from the Solo Agency repo — OutreachCRM's `outreach/` module (`https://github.com/soloagency/solo-agency`).
 - The agent used the current verified setup root or a fresh unique `mktemp -d` checkout. No fixed shared fallback folder (such as `/tmp/outreachcrm`, `/var/tmp/outreachcrm`, `/dev/shm/outreachcrm`) was used.
 - `.git`, `origin`, local `HEAD`, and remote `refs/heads/main` were verified on the parent checkout (the `outreach/` module has no `.git` of its own) before reading or copying source files.
-- The update check covered: root instructions, all playbooks, provider/OpenAPI tooling (`tools/provider_openapi.py`), the report renderer (`tools/report_renderer.py`), the storage adapter + `schema_version`, `crm_store.py` / `gmail_client.py` / `import_leads.py` / `email_verify.py`, `tracker/worker.js` (+ its `wrangler deploy` rerun step), sendbox token compatibility, the deploy script, and skills.
+- The update check covered: root instructions, all playbooks, provider/OpenAPI tooling (`tool provider`), the report renderer (`tool render-report`), the storage adapter + `schema_version`, `tool crm-store` / `tool gmail` / `tool import-leads` / `tool verify-email`, `tracker/worker.js` (+ its `wrangler deploy` rerun step), sendbox token compatibility, the deploy script, and skills.
 - `daily-content-pipeline/automation/update_state.json` and `update_log.md` were created or updated. The state enum uses `tracker_worker_deploy_required` and `storage_schema_migration_required`.
 - Runtime files/folders replaced by the update were backed up under `daily-content-pipeline/automation/backups/update_YYYY-MM-DD_HHMMSS/` or an equivalent logged backup path.
 - Secrets and local client state were preserved (merge config, never overwrite secrets/history): provider API keys, `provider_config.local.json`, `secrets/`, sendbox `credentials.json`/`token.json`, the tracker key, client profiles, suppression, CRM data (contacts/accounts/deals/activities/tasks), approvals, sent logs, reports, outputs, and analytics.
-- Every active/configured client was checked for required `schema_version` / template updates. If any collection needs a migration, `storage_schema_migration_required` was set and the human received the exact `crm_store.py migrate` step (run under the storage freeze flag, verified by per-record content hashes).
+- Every active/configured client was checked for required `schema_version` / template updates. If any collection needs a migration, `storage_schema_migration_required` was set and the human received the exact `tool crm-store migrate` step (run under the storage freeze flag, verified by per-record content hashes).
 - If `tracker/worker.js` changed, `tracker_worker_deploy_required` was set and the human received the exact `wrangler deploy` command to run outside the AI sandbox.
 - Automation Resync was performed when a schedule/automation exists. If native scheduled-task prompts could not be edited directly, `automation_prompt_update_pending` was logged with the exact replacement prompt path/action.
 - The human-facing completion states `update complete`, `update partially complete`, or `update blocked`, with the exact remaining action.
@@ -157,7 +157,7 @@ Treat these as critical workflow violations:
 
 Run the gate that matches what you are about to claim. Each gate is a mechanical checklist: every line must be satisfied, or the miss must be reported honestly (see Final Hard Gate).
 
-> **Phase note (read these gates against DESIGN §22).** The Phase-1 runtime tools (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`, storage adapter) **exist** — the direct-`crm/`-write critical-violation gate and the real send/sync/enrich gates are in FULL force; a "tool_not_built" skip for these is itself a finding, not an excuse. The only still-active degradation for the core loop is DESIGN §22 R1: a `status: planned` Phase-2 stage file (04/05/06/10/12–15) is not a missing-file/recovery trigger — load the covering `docs/DESIGN.md` section with its own ledger and record `stage_file_pending`, never a GitHub re-fetch or Last-Resort Recovery. One migration exception (DESIGN §22 R3): a workspace carried over from an older Phase-0 install may still contain `phase0_direct_write`-logged records; that is compliant only until `python3 tools/crm_store.py --client-dir <DIR> validate --rebuild-index` has run (validates the records and rebuilds the identity index). After that migration, every CRM write must go through `crm_store.py`.
+> **Phase note (read these gates against DESIGN §22).** The Phase-1 runtime tools (`tool crm-store`, `tool gmail`, `tool import-leads`, `tool verify-email`, storage adapter) **exist** — the direct-`crm/`-write critical-violation gate and the real send/sync/enrich gates are in FULL force; a "tool_not_built" skip for these is itself a finding, not an excuse. The only still-active degradation for the core loop is DESIGN §22 R1: a `status: planned` Phase-2 stage file (04/05/06/10/12–15) is not a missing-file/recovery trigger — load the covering `docs/DESIGN.md` section with its own ledger and record `stage_file_pending`, never a GitHub re-fetch or Last-Resort Recovery. One migration exception (DESIGN §22 R3): a workspace carried over from an older Phase-0 install may still contain `phase0_direct_write`-logged records; that is compliant only until `<bridge> tool crm-store --client-dir <DIR> validate --rebuild-index` has run (validates the records and rebuilds the identity index). After that migration, every CRM write must go through `tool crm-store`.
 
 ### Setup completion gate
 
@@ -186,9 +186,9 @@ Claim a daily run complete only when, for every active client processed (or expl
 5. Semantic triage + `apply-rules` ran; replies became deals/tasks; the SLA sweep created nudge tasks; every stage change carries `evidence_activity_id`; guard keys made `apply-rules` idempotent.
 6. Any inbound reply froze the remaining sequence for that contact until triage completed (enforced at draft-time and send-time).
 7. Follow-up advising and new-pipeline drafting produced drafts into `outbox/pending_approval/YYYY-MM-DD/`; nothing was auto-approved.
-8. Sends came only from `outbox/approved/` through `gmail_client.py`, within quota, with the full pre-send chain, jittered 30–180s; each sent `draft_id` has a matching `approve`.
+8. Sends came only from `outbox/approved/` through `tool gmail`, within quota, with the full pre-send chain, jittered 30–180s; each sent `draft_id` has a matching `approve`.
 9. Assisted-channel drafts (SMS/Messenger/Zalo) were produced only where the campaign allows AND documented consent exists; each Today-View draft shows its legal basis; the human sends and reports back → `assisted_sent` activity.
-10. The Today View and kanban were regenerated by `tools/report_renderer.py`.
+10. The Today View and kanban were regenerated by `tool render-report`.
 11. Operator-only reports were produced: `{client}-daily-ops.html`, `{client}-approval-report.html`, `{client}-INTERNAL_REPORT.html`, `{client}-report_state.json`. On Mondays, the client-facing `{client}-weekly-client-report.html` (+ `.pdf`) was produced through the Client-Blind Scrub Gate.
 12. The operator was notified via WideCast `sendNotification` (email + Telegram when connected) with counts + report path/link; the attempt was logged in `daily-content-pipeline/notifications/notification_log.md`.
 13. Every active client was processed or explicitly logged as skipped; this Stage 9 audit + completion gates ran before the `run_lock` was released.
@@ -204,14 +204,14 @@ Claim a drafting pass complete only when, for every draft:
 4. The step-1 subject does not begin `Re:` or `Fwd:`. Continuation steps use a truthful `Re:` on a real in-thread reply only.
 5. No banned claim from `guardrails.banned_claims` (e.g. guarantees) appears; `no_fake_re` is honored.
 6. Each draft landed in `outbox/pending_approval/`; nothing was moved to `approved` without a chat `approve`.
-7. The Approval Report (`{client}-approval-report.html`, operator-only, NOT scrubbed) was rendered by `tools/report_renderer.py`, splitting drafts into **High confidence** (verified email, ≥0.7 hook) and **Review carefully** (weak hook, guessed email, fallback opener), with one card per lead showing clickable evidence URLs, the editable body, and warning flags.
+7. The Approval Report (`{client}-approval-report.html`, operator-only, NOT scrubbed) was rendered by `tool render-report`, splitting drafts into **High confidence** (verified email, ≥0.7 hook) and **Review carefully** (weak hook, guessed email, fallback opener), with one card per lead showing clickable evidence URLs, the editable body, and warning flags.
 8. A Telegram note ("N drafts awaiting review" + path) was sent.
 
 ### Send completion gate
 
 Claim a send complete only when, for every message sent:
 
-1. It was sent by `gmail_client.py send`, not by a one-off script and not from playbook prose.
+1. It was sent by `tool gmail send`, not by a one-off script and not from playbook prose.
 2. The ordered pre-send re-check chain ran **in code**, in this exact order, and every gate passed (see The Ordered Pre-Send Gate Chain below).
 3. The `draft_id` was in `outbox/approved/` and has a matching `approve` decision in `approvals/approval_log.md` naming that exact draft.
 4. The recipient address is not in `global_suppression.jsonl` or the client's `suppression.jsonl` (checked after `resolve()`).
@@ -225,7 +225,7 @@ Claim a send complete only when, for every message sent:
 
 ## The Ordered Pre-Send Gate Chain
 
-`gmail_client.py send` must run these gates in this exact order for every message (this is the
+`tool gmail send` must run these gates in this exact order for every message (this is the
 Phase-1 chain actually in code — Stage 8 §3 is the source): the audit confirms the chain ran in
 code (not narrated in prose) and that any block halted the send. Order is load-bearing.
 
@@ -238,7 +238,7 @@ code (not narrated in prose) and that any block halted the send. Order is load-b
 7. **Step-1 subject lint** — reject `^(Re|Fwd):` on step-1 subjects.
 8. **Atomic quota reservation (last)** — `store.reserve(sendbox, day, cap)` under the lock; a draft blocked by any earlier gate never reserves. A failed real send releases its reservation.
 
-If any of these is enforced only in playbook prose and not in `gmail_client.py`, that is a critical violation — record it and block the claim. **Phase-2/3 gates (tracker worker) — NOT in Phase-1 code; do not assert them and do not flag their absence as a violation:** live tracker `/events` + `+unsub` pull with block-the-box staleness, warmup-stage cap, two-tier domain cap, send-window (recipient tz), guessed cohort ≤10%/day/box + per-domain kill switch. A failed send is never silent: the blocker is persisted on the draft record (terminal blockers flip it to `status: blocked`; transient ones keep `approved` + `blocker`/`blocked_at` for natural retry).
+If any of these is enforced only in playbook prose and not in `tool gmail`, that is a critical violation — record it and block the claim. **Phase-2/3 gates (tracker worker) — NOT in Phase-1 code; do not assert them and do not flag their absence as a violation:** live tracker `/events` + `+unsub` pull with block-the-box staleness, warmup-stage cap, two-tier domain cap, send-window (recipient tz), guessed cohort ≤10%/day/box + per-domain kill switch. A failed send is never silent: the blocker is persisted on the draft record (terminal blockers flip it to `status: blocked`; transient ones keep `approved` + `blocker`/`blocked_at` for natural retry).
 
 ---
 
@@ -263,7 +263,7 @@ Compliance is encoded in the send and import code, not just described here. The 
 - Guessed/unverified addresses go through the third-party verification API (called from local Python) before any send.
 - `catch_all` domains are excluded from the guessed quota or capped ~2% (an MX check is near-meaningless there — catch-alls accept any RCPT).
 - **Per-domain kill switch:** the first hard bounce on a guessed pattern at domain X suppresses all other guessed addresses at X.
-- `guessed_only` status is enforced **in `gmail_client.py send`** (requires the explicit per-draft guessed-approval flag + a daily guessed-send cap read from `sent_log`), never only in prose.
+- `guessed_only` status is enforced **in `tool gmail send`** (requires the explicit per-draft guessed-approval flag + a daily guessed-send cap read from `sent_log`), never only in prose.
 - The guessed cohort's bounce rate is reported separately in the operator report.
 
 ### Assisted channels
@@ -288,9 +288,9 @@ Unsafe → safer reframes:
 
 The Approval Report is the gate before any send. Confirm:
 
-- The Approval Report was rendered to `outputs/.../{client}-approval-report.html` (operator-only, NOT scrubbed) by `tools/report_renderer.py`, reusing its contenteditable + Copy-button blocks.
+- The Approval Report was rendered to `outputs/.../{client}-approval-report.html` (operator-only, NOT scrubbed) by `tool render-report`, reusing its contenteditable + Copy-button blocks.
 - Header split into High confidence vs Review carefully; one card per lead with `#id`, name/company/email + verify status, hooks with clickable evidence URLs, subject + editable body + warning flags (guessed, generic, bump step).
-- Chat and the bridge Approvals page are the ONLY write paths; editing the HTML report does not persist. Chat grammar: `approve all` / `approve 1-20, 35, 41` / `reject 7: reason` / `edit 12: ...` / `hold 5`. UI decisions queue in `outreach/ui_inbox/approval_decisions.jsonl` and are applied by `crm_store.py ingest-ui` (run at run start and again immediately before send), logged with `by: ui` in `approvals/approval_log.md` — equal trust to chat.
+- Chat and the bridge Approvals page are the ONLY write paths; editing the HTML report does not persist. Chat grammar: `approve all` / `approve 1-20, 35, 41` / `reject 7: reason` / `edit 12: ...` / `hold 5`. UI decisions queue in `outreach/ui_inbox/approval_decisions.jsonl` and are applied by `tool crm-store ingest-ui` (run at run start and again immediately before send), logged with `by: ui` in `approvals/approval_log.md` — equal trust to chat.
 - Approved → `outbox/approved/` → sent in-session within quota with the full in-code re-check chain. Rejected → logged with reason → reason feeds `analytics/learning_log.md`. Edit → the agent patches, re-confirms, then approves.
 - Every decision is written to `approvals/approval_log.md`. Nothing left without an explicit `approve`. Default `approval_mode: manual_all`, even for bumps.
 
@@ -300,11 +300,11 @@ The Approval Report is the gate before any send. Confirm:
 
 Confirm:
 
-- Every mutation to `crm/` went through `crm_store.py` (`put`/`update`/`append`/`apply-rules`/merge). No direct file write to any CRM collection. Reading raw JSON for debugging is allowed.
+- Every mutation to `crm/` went through `tool crm-store` (`put`/`update`/`append`/`apply-rules`/merge). No direct file write to any CRM collection. Reading raw JSON for debugging is allowed.
 - Every record carries `schema_version`, `id`, `created_at`, `updated_at`; the adapter applied any on-read upgrades and persisted them on next write.
 - Activities are append-only with a monotonic `seq`; a contact timeline = filter activities by `contact_id` following merge chains via `resolve()`.
 - Deal stages come from `pipelines.json`; a blocked invalid stage transition stayed blocked; each `stage_history` entry has `at`, `by`, and `evidence_activity_id`.
-- Rules are deterministic (`crm_store.py apply-rules`), never improvised by the model; guard keys `(rule_id, trigger_activity_id)` kept `apply-rules` idempotent/re-runnable.
+- Rules are deterministic (`tool crm-store apply-rules`), never improvised by the model; guard keys `(rule_id, trigger_activity_id)` kept `apply-rules` idempotent/re-runnable.
 - Merge semantics: auto-merge only on exact email / E.164 phone / canonical social URL; fuzzy name+company was proposed for human approval; the losing record became a permanent tombstone `{merge:{status:"merged", merged_into:A}}` (never deleted); identities, channel statuses, and suppression were unioned into the survivor.
 - Every `lead_id` lookup path (sync classifier, track-pull, unsub handler, `apply-rules`, drafting) called `resolve(lead_id)`; pending-merge contacts were excluded from every campaign queue.
 
@@ -327,7 +327,7 @@ Confirm:
 
 Two-lane reporting: operator-only (`INTERNAL_REPORT`, full detail) vs client-facing (through the Client-Blind Scrub Gate). **Only the weekly client report is client-facing.**
 
-- No one-off report/PDF scripts. Client-facing HTML/PDF is produced by `tools/report_renderer.py` (`render` / `package`) or a reusable approved template; the report-design skill (`playbooks/skills/report-design/SKILL.md`) was loaded before report generation/repair. A new one-off Python/browser/PDF script instead of using or fixing the reusable renderer is a workflow violation unless the exact blocker and an approved exception are logged.
+- No one-off report/PDF scripts. Client-facing HTML/PDF is produced by `tool render-report` (`render` / `package`) or a reusable approved template; the report-design skill (`playbooks/skills/report-design/SKILL.md`) was loaded before report generation/repair. A new one-off Python/browser/PDF script instead of using or fixing the reusable renderer is a workflow violation unless the exact blocker and an approved exception are logged.
 - Standalone/portable HTML: no `fetch("./report.md")`, no remote scripts/CSS/fonts/images; embed assets. Wide tables are inside a scroll wrapper or stacked into cards; the document has no horizontal overflow at a 390px viewport.
 - Every operator/human-facing report link points to `.html` (or the uploaded URL), never `.md`.
 - `{client}-INTERNAL_REPORT.html` holds all internal detail (sendbox status, quota/warmup, suppression counts, guessed-cohort bounce rate, provider/notification status, blockers, debug) and is labeled `INTERNAL_REPORT - Not for client sharing`. `outputs/latest/` copies are refreshed.
@@ -336,7 +336,7 @@ Two-lane reporting: operator-only (`INTERNAL_REPORT`, full detail) vs client-fac
 
 The weekly client report is the sole scrubbed, client-facing output. Run the scrub gate on `{client}-weekly-client-report.html` (and the `.pdf`) only. The operator-only outputs are never scrubbed and never sent to the client.
 
-Confirm the extracted text of the weekly client report contains **none** of the internal terms in `tools/report_renderer.py` `CLIENT_BLIND_TERMS` (per DESIGN §19 this prose list must enumerate exactly that set): `OutreachCRM`, `WideCast`, `Telegram`, `MCP`, `OpenAPI`, `automation`, `scheduled task`, `API key`, `config file`, `debug`, `agent debug`, `PDNA`, `provider_config`, `Client tools`, `global MCP`, `sendbox`, `gmail_client`, `crm_store`, `storage_config`, `trk.`, `HMAC`, `token.json`, `sent_log`, `suppression`, `warmup`, `quota`, `guessed`, `INTERNAL_REPORT`. The mechanical scrub gate (see Evidence-Based Audit Requirements) does not re-list these — it reads the renderer's own scrub result so there is one authoritative term source.
+Confirm the extracted text of the weekly client report contains **none** of the internal terms in `tool render-report` `CLIENT_BLIND_TERMS` (per DESIGN §19 this prose list must enumerate exactly that set): `OutreachCRM`, `WideCast`, `Telegram`, `MCP`, `OpenAPI`, `automation`, `scheduled task`, `API key`, `config file`, `debug`, `agent debug`, `PDNA`, `provider_config`, `Client tools`, `global MCP`, `sendbox`, `gmail_client`, `crm_store`, `storage_config`, `trk.`, `HMAC`, `token.json`, `sent_log`, `suppression`, `warmup`, `quota`, `guessed`, `INTERNAL_REPORT`. The mechanical scrub gate (see Evidence-Based Audit Requirements) does not re-list these — it reads the renderer's own scrub result so there is one authoritative term source.
 
 The weekly client report communicates results in the client's language: pipeline movement, replies and meetings booked, deals created/advanced, and recommended next actions — never sendbox mechanics, suppression counts, quota/warmup, guessed cohorts, provider tooling, or agent internals.
 
@@ -347,7 +347,7 @@ The weekly client report communicates results in the client's language: pipeline
 WideCast is the operator notification provider only.
 
 - Notification is sent via WideCast `sendNotification` (email always, plus Telegram when connected); an optional `uploadAsset` may host the report `.html` so the operator receives a URL. Provider-hosted URLs are operator handoff links, not client-share links.
-- Provider discovery is via `tools/provider_openapi.py` against the client's `integrations/providers/provider_config.local.json`. That file references the secret with `api_key_env` (environment variable name) or `api_key_local` (local path) — never a field literally named `api_key`.
+- Provider discovery is via `tool provider` against the client's `integrations/providers/provider_config.local.json`. That file references the secret with `api_key_env` (environment variable name) or `api_key_local` (local path) — never a field literally named `api_key`.
 - WideCast is used for notification only. There is no WideCast production, publishing, or analytics call.
 - Every report-ready notification includes: run status, clients processed, blockers, counts (sends, replies, bounces, unsubscribes, deals created/advanced, tasks due), and the report path/link + `INTERNAL_REPORT` path/status. A bare "report ready" with no path/link is invalid — send a correction if that happens.
 - If WideCast notification is unavailable, fall back to Gmail/email if connected; if neither is available, record `notification_channel: local_path_only` and give the human the exact path plus how to connect a channel. Log every attempt in `daily-content-pipeline/notifications/notification_log.md`.
@@ -402,7 +402,7 @@ For reference during the Daily Run completion gate. The scheduled-run entrypoint
 3. Tracking was pulled and bot-filtered; no open/click alone drove a stage change.
 4. Semantic triage + `apply-rules` ran; replies → deals/tasks; SLA sweep → nudge tasks; every stage change carries `evidence_activity_id`.
 5. Follow-up and new-pipeline drafts were produced into `pending_approval`; nothing was auto-approved.
-6. Sends came only from `outbox/approved/` through `gmail_client.py` within quota with the full pre-send chain; each sent `draft_id` has a matching `approve`.
+6. Sends came only from `outbox/approved/` through `tool gmail` within quota with the full pre-send chain; each sent `draft_id` has a matching `approve`.
 7. Assisted-channel drafts were produced only with consent and a shown legal basis; the human sent and reported back → `assisted_sent` activity.
 8. Operator-only reports exist for the day; on Mondays the weekly client report exists and passed the scrub gate.
 9. The `{client}-report_state.json` file is created/updated with reconciled counts/statuses that match the report set.
@@ -421,7 +421,7 @@ For reference during the Daily Run completion gate. The scheduled-run entrypoint
 
 ### A send is complete when
 
-1. Every message went through `gmail_client.py send` with the full ordered pre-send chain in code.
+1. Every message went through `tool gmail send` with the full ordered pre-send chain in code.
 2. Every sent `draft_id` was in `outbox/approved/` with a matching `approve`.
 3. No message went to a suppressed address; the sticky sender was honored.
 4. `List-Unsubscribe` + footer opt-out are present (including plain-text mode).
@@ -463,7 +463,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] Did I connect/verify at least one sendbox (or record it pending), with `credentials.json`/`token.json` gitignored and `chmod 600`?
 - [ ] For an `app_password` box, did I confirm 2FA + App Password; for an `oauth` box, did I keep scopes to `gmail.send + gmail.readonly` and prefer an Internal OAuth app (else a scheduled day-6 re-auth `**[ACTION REQUIRED]**`)?
 - [ ] Did the FIRST App Password request already include the full step-by-step create instructions with the direct Google links (2FA page + apppasswords page + the official guide), instead of an abbreviated ask the human had to expand — and did I never ask them to paste the App Password into chat (env var only)?
-- [ ] Was every command/path I handed the human ABSOLUTE (full path from the real workspace root for the script and `--client-dir`), not a relative `python3 solo-agency/...` / `--client-dir daily-content-pipeline/...` form a non-technical user cannot run?
+- [ ] Was every command/path I handed the human ABSOLUTE (full path from the real workspace root for the script and `--client-dir`), not a relative tool path / `--client-dir daily-content-pipeline/...` form a non-technical user cannot run?
 - [ ] Before asking for the WideCast key, did I read existing config first and reuse a client-scoped key that already exists for this client (OutreachCRM's own config, or the same client's sibling content-pipeline provider config) - asking only when none exists, and never re-asking for a key the operator already connected?
 - [ ] If the Solo Agency profile existed, did I run Campaign Quick Start — exactly three asks (lead list; App Password + sending identity once per client; one goal+URL confirmation block) with everything else silently defaulted — in the SAME setup session, never spawning a separate outreach setup session?
 - [ ] Did I add the client row to `clients_index.md`?
@@ -474,7 +474,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 
 ### Sendbox & Send Self-Audit Checklist
 
-- [ ] Did every send go through `gmail_client.py send`, never a one-off script or prose?
+- [ ] Did every send go through `tool gmail send`, never a one-off script or prose?
 - [ ] Did the ten-gate ordered pre-send chain run in code, in order, with every block halting the send?
 - [ ] Did I check global + client suppression after `resolve()`, and pull live unsubscribes (tracker `/events` + `+unsub` mailbox) before the batch?
 - [ ] If track-pull had not succeeded within N hours, did I block the box instead of sending?
@@ -511,7 +511,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 
 ### CRM Integrity Self-Audit Checklist
 
-- [ ] Did every CRM mutation go through `crm_store.py`, with no direct file writes to `crm/`?
+- [ ] Did every CRM mutation go through `tool crm-store`, with no direct file writes to `crm/`?
 - [ ] Does every record carry `schema_version`/`id`/`created_at`/`updated_at`, with on-read upgrades persisted on next write?
 - [ ] Are activities append-only with a monotonic `seq`?
 - [ ] Did every stage change come from `pipelines.json` and carry `evidence_activity_id`, with invalid transitions blocked?
@@ -525,13 +525,13 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] Step-1 subjects truthful (no `Re:`/`Fwd:`); bumps real in-thread `Re:`?
 - [ ] Opt-outs honored same-run (footer, `POST /u/`, `+unsub` mailbox, and `negative`/`remove_intent` replies) with immediate suppression + task closure?
 - [ ] Suppression checked at initial send, follow-up, assisted channels, and at import against ALL identities; unioned on merge; pending-merge excluded?
-- [ ] Guessed addresses verified via the API, `catch_all` excluded/capped, per-domain kill switch active, guessed cap + per-draft flag enforced in `gmail_client.py`, guessed bounce rate reported separately?
+- [ ] Guessed addresses verified via the API, `catch_all` excluded/capped, per-domain kill switch active, guessed cap + per-draft flag enforced in `tool gmail`, guessed bounce rate reported separately?
 - [ ] US SMS gated on documented consent `{optin_source, optin_at, evidence_activity_id}` or existing relationship, default inbound-initiated, legal basis shown per assisted draft; Zalo cold off by default?
 - [ ] For regulated industries, no unsupported claims / guarantees / fear-manipulation / personalized professional advice; disclaimers where appropriate?
 
 ### Reporting & Delivery Self-Audit Checklist
 
-- [ ] Did I produce client-facing HTML/PDF only via `tools/report_renderer.py` (or a reusable approved template), never a one-off script, with the report-design skill loaded?
+- [ ] Did I produce client-facing HTML/PDF only via `tool render-report` (or a reusable approved template), never a one-off script, with the report-design skill loaded?
 - [ ] Is the only client-facing output the weekly client report, and did I run the Client-Blind Scrub Gate on it (and its PDF) alone?
 - [ ] Did the weekly client report's extracted text return zero hits for the `CLIENT_BLIND_TERMS` set?
 - [ ] Did I keep all internal detail (sendbox/quota/warmup/suppression/guessed/provider/blocker/debug) in `INTERNAL_REPORT`, labeled `Not for client sharing`?
@@ -541,7 +541,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 
 ### Notification Self-Audit Checklist
 
-- [ ] Did I notify via WideCast `sendNotification` (email always, plus Telegram when connected), using `tools/provider_openapi.py` against the client's `provider_config.local.json` (`api_key_env`/`api_key_local`, never a field named `api_key`)?
+- [ ] Did I notify via WideCast `sendNotification` (email always, plus Telegram when connected), using `tool provider` against the client's `provider_config.local.json` (`api_key_env`/`api_key_local`, never a field named `api_key`)?
 - [ ] Did I optionally `uploadAsset` the `.html` for an operator URL, treating provider-hosted URLs as operator handoff links, not client-share links?
 - [ ] Did the notification include status, counts, blockers, report path/link, and `INTERNAL_REPORT` status (never a bare "report ready")?
 - [ ] Did I avoid any WideCast production/publishing/analytics call — notification only?
@@ -575,7 +575,7 @@ For these mechanical gates, the audit must paste real command output, not a self
 
 - **Client-blind scrub (weekly report only):** the renderer owns the single term source (its `CLIENT_BLIND_TERMS`, defined by DESIGN §19) — do not hand-maintain a separate grep pattern here that can silently drift from it and miss terms. Render the weekly report through the renderer's own scrub gate and paste its result:
   ```bash
-  python3 tools/report_renderer.py package --inputs <staging.html ...> \
+  <bridge> tool render-report package --inputs <staging.html ...> \
     --output-html <path>/{client}-weekly-client-report.html --client-facing --fail-on-scrub
   # (or `render --input REPORT.md --output-html <path>.html --client-facing --fail-on-scrub`)
   ```

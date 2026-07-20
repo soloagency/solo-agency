@@ -4,16 +4,16 @@ Stage: `08`
 
 ## Load Rule
 
-Load this stage **before any send** — before running `gmail_client.py send`, before approving a batch that will be sent in-session, before a scheduled run reaches its Send step (Daily Run order step 7, DESIGN §15), and any time you reason about the pre-send gate chain, sticky-sender rotation, threading, or the sent log. The send step is the single most consequential side effect OutreachCRM performs: it is the moment an email actually leaves for a real recipient. Never send from a summary of this file — load it in full.
+Load this stage **before any send** — before running `tool gmail send`, before approving a batch that will be sent in-session, before a scheduled run reaches its Send step (Daily Run order step 7, DESIGN §15), and any time you reason about the pre-send gate chain, sticky-sender rotation, threading, or the sent log. The send step is the single most consequential side effect OutreachCRM performs: it is the moment an email actually leaves for a real recipient. Never send from a summary of this file — load it in full.
 
 Every load needs a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` (read to the last line; compare `playbooks/LOAD_MANIFEST.md` when present). A short read is **NOT** a load: no `email_sent` activity, no `sent_log.jsonl` append, no SMTP call may happen without a `Verdict: PASS` ledger for this stage.
 
-This stage documents the send engine as it is **actually implemented in code** (`tools/gmail_client.py`, `tools/crm_store.py`). These tools **exist** (Phase 1). The DESIGN §22 R2 "`tool_not_built`" degradation does **not** apply to them — a missing send is a real blocker to fix, not a step to skip. Upstream drafting/approval-report stages (05, 06) and inbound-sync/reply stage (10) are still Phase-2 `status: planned`; where this stage references them, follow DESIGN §22 R1 (load the relevant `docs/DESIGN.md` section with its own ledger, record `stage_file_pending`), never a GitHub re-fetch or Last-Resort Recovery.
+This stage documents the send engine as it is **actually implemented in code** (`tool gmail`, `tool crm-store`). These tools **exist** (Phase 1). The DESIGN §22 R2 "`tool_not_built`" degradation does **not** apply to them — a missing send is a real blocker to fix, not a step to skip. Upstream drafting/approval-report stages (05, 06) and inbound-sync/reply stage (10) are still Phase-2 `status: planned`; where this stage references them, follow DESIGN §22 R1 (load the relevant `docs/DESIGN.md` section with its own ledger, record `stage_file_pending`), never a GitHub re-fetch or Last-Resort Recovery.
 
 ## Hard Gates For This Stage
 
-- **The approval invariant is absolute.** `gmail_client.py send` refuses any draft whose record `status` is not exactly `"approved"` (returns `blocker: draft_not_approved`). Nothing leaves the system without an explicit chat `approve` recorded in `approvals/approval_log.md`. Default `approval_mode` is `manual_all` — **bumps and replies are approved too**, never auto-sent.
-- **All CRM mutations go through `tools/crm_store.py`.** The send engine's suppression writes and its `email_sent` / `email_bounce` / `unsubscribe` activity writes are made through `crm_store` (`gmail_client.py` imports `CrmStore`). The `sent_log.jsonl` and `sync_log.jsonl` are campaign/client append-only artifacts (not `crm/` collections) and are appended with a monotonic `seq`. Never hand-write a `crm/` collection to fake a send.
+- **The approval invariant is absolute.** `tool gmail send` refuses any draft whose record `status` is not exactly `"approved"` (returns `blocker: draft_not_approved`). Nothing leaves the system without an explicit chat `approve` recorded in `approvals/approval_log.md`. Default `approval_mode` is `manual_all` — **bumps and replies are approved too**, never auto-sent.
+- **All CRM mutations go through `tool crm-store`.** The send engine's suppression writes and its `email_sent` / `email_bounce` / `unsubscribe` activity writes are made through `crm_store` (`tool gmail` imports `CrmStore`). The `sent_log.jsonl` and `sync_log.jsonl` are campaign/client append-only artifacts (not `crm/` collections) and are appended with a monotonic `seq`. Never hand-write a `crm/` collection to fake a send.
 - **The ordered pre-send re-check runs IN CODE, not in prose.** Do not reorder, skip, or approximate it in a hand-run. If a gate blocks a draft, the draft does not send — surface the blocker, do not work around it.
 - **Data root is `daily-content-pipeline/`.** Drafts, sent logs, approvals, and suppression all live under `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/…`. The toolkit repo holds no client data and no secrets.
 - **Phase 1 is `plain_text_mode`.** No open pixel, no link rewrite, no tracker `/events` pull. Open/click tracking and the tracker-based unsubscribe pull are Phase 2/3. The `List-Unsubscribe` mailto is always present for CAN-SPAM. Do not claim opens/clicks are measured in Phase 1.
@@ -31,7 +31,7 @@ This file is the detailed source material for the send gate. Do not summarize aw
 Sending is one draft per invocation:
 
 ```sh
-python3 tools/gmail_client.py --client-dir <CLIENT_DIR> send --draft <path/to/draft.json> [--dry-run]
+<bridge> tool gmail --client-dir <CLIENT_DIR> send --draft <path/to/draft.json> [--dry-run]
 ```
 
 - `--client-dir` is the **global** argument (before the subcommand); it points at the client workspace `daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/outreach/`.
@@ -41,8 +41,8 @@ python3 tools/gmail_client.py --client-dir <CLIENT_DIR> send --draft <path/to/dr
 Related read-only commands (documented for the send workflow; see Stage 2 for auth):
 
 ```sh
-python3 tools/gmail_client.py --client-dir <CLIENT_DIR> health --sendbox sb-a
-python3 tools/gmail_client.py --client-dir <CLIENT_DIR> quota  --sendbox sb-a [--day YYYY-MM-DD]
+<bridge> tool gmail --client-dir <CLIENT_DIR> health --sendbox sb-a
+<bridge> tool gmail --client-dir <CLIENT_DIR> quota  --sendbox sb-a [--day YYYY-MM-DD]
 ```
 
 `quota` reports `{cap, sent, reserved, remaining}` where `remaining = max(0, cap − max(sent, reserved))` — reservations count against remaining, not just completed sends.
@@ -56,13 +56,13 @@ A draft is inert until a human approves it in chat. The chain is:
 1. Drafting (Phase-2 Stages 5/6, or the Phase-1 manual loop) writes a draft to `campaigns/{campaign_slug}/outbox/pending_approval/YYYY-MM-DD/{draft_id}.json` with `status: "pending_approval"`.
 2. The operator approves in chat using the approval grammar (`approve all` / `approve 1-20, 35` / `reject 7: reason` / `edit 12: …` / `hold 5`). Chat is the write path; editing an HTML report never persists (DESIGN §14).
 3. On approval, the draft record is flipped to `status: "approved"` and moved to `campaigns/{campaign_slug}/outbox/approved/{draft_id}.json`, and the decision is appended to `approvals/approval_log.md` (Stage 7 §9.1).
-4. Only then may `gmail_client.py send` accept it. In code, `cmd_send` refuses any `status != "approved"` with `blocker: draft_not_approved` before it even reaches the pre-send re-check.
+4. Only then may `tool gmail send` accept it. In code, `cmd_send` refuses any `status != "approved"` with `blocker: draft_not_approved` before it even reaches the pre-send re-check.
 
 Default `approval_mode: manual_all` (campaign_config, Stage 7 §7.1) means **every** step — the cold step-1, every bump, and every reply draft — requires its own explicit approval. There is no "auto-approve bumps" mode. The rendered Approval Report (HTML, operator-only, NOT scrubbed) is the Phase-2 convenience surface; the invariant it protects is enforced now, in Phase 1, inside `send`.
 
 ## 3. The Ordered Pre-Send Re-Check (exact, in code)
 
-`gmail_client.py send` calls `presend_check(...)` on every draft (including `--dry-run`). The order is **load-bearing and fixed** — this is the exact sequence in `tools/gmail_client.py`:
+`tool gmail send` calls `presend_check(...)` on every draft (including `--dry-run`). The order is **load-bearing and fixed** — this is the exact sequence in `tool gmail`:
 
 **0. Resolve the contact.** `store.resolve(draft.lead_id)` follows merge chains to the surviving contact (Stage 7 §4.8). If the contact does not exist → `blocker: contact_not_found`. Every later check runs against the resolved survivor, never a tombstone.
 
@@ -86,7 +86,7 @@ client that has not completed Stage 1 §Step-3 cannot send at all.
 The equivalent manual reservation command (the same `reserve` the send path calls internally) is:
 
 ```sh
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> reserve --sendbox sb-a --day YYYY-MM-DD --cap 40
+<bridge> tool crm-store --client-dir <CLIENT_DIR> reserve --sendbox sb-a --day YYYY-MM-DD --cap 40
 ```
 
 **Dry-run note:** `--dry-run` runs steps 0–6 but **skips the reservation commit** (`presend_check`
@@ -155,7 +155,7 @@ When a box needs re-auth, hand it off — never try to send around it:
 **Run this outside the AI sandbox:**
 ```sh
 OUTREACHCRM_APP_PASSWORD='<16-char Gmail App Password>' \
-  python3 tools/gmail_client.py --client-dir <CLIENT_DIR> auth --sendbox sb-a --email you@gmail.com
+  <bridge> tool gmail --client-dir <CLIENT_DIR> auth --sendbox sb-a --email you@gmail.com
 ```
 **Why:** the box is `needs_reauth`; its pending follow-ups are blocked until it is healthy again
 ```
@@ -164,7 +164,7 @@ The App Password is read only from the `OUTREACHCRM_APP_PASSWORD` environment va
 
 ## 8. Compliance (CAN-SPAM, encoded)
 
-- **Physical address + working opt-out in every commercial email — enforced in code.** The CAN-SPAM footer is appended by `gmail_client.py` to EVERY outgoing body, from the machine-readable `config/sending_identity.json` (written at Stage 1 §Step-3 alongside the profile's `sending_identity` block); presend gate 2b **fails closed** (`missing_physical_address`) when the file or address is absent. The `List-Unsubscribe` mailto (§5) plus the footer opt-out line give a working opt-out. A campaign cannot be marked ready with `can_spam_physical_address_present: false`.
+- **Physical address + working opt-out in every commercial email — enforced in code.** The CAN-SPAM footer is appended by `tool gmail` to EVERY outgoing body, from the machine-readable `config/sending_identity.json` (written at Stage 1 §Step-3 alongside the profile's `sending_identity` block); presend gate 2b **fails closed** (`missing_physical_address`) when the file or address is absent. The `List-Unsubscribe` mailto (§5) plus the footer opt-out line give a working opt-out. A campaign cannot be marked ready with `can_spam_physical_address_present: false`.
 - **Opt-out honored immediately.** An inbound unsubscribe (mailto `+unsub` alias, negative reply, or remove-intent) routes through `crm_store` suppression (`store.suppress_contact`), which flips the email channel to `opted_out` and writes the suppression row; the next send is blocked at gate 1. OutreachCRM's default is same-run honoring, well inside the 10-business-day legal window (DESIGN §16).
 - **Truthful subjects.** Step-1 subjects must not begin `Re:`/`Fwd:` (gate 5 + the Stage 9 audit lint). Bumps are real in-thread replies, so their `Re:` is truthful.
 - **Only a reply is conversion evidence.** Opens and clicks — which do not even exist in Phase-1 `plain_text_mode` — never trigger a stage change, a deal, or a suppression flip. The send engine records events; intent is only ever read from an actual reply (classified in Stage 10).

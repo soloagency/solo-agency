@@ -96,7 +96,7 @@ conclusion, so the number feels new even though it was on the page all along.
 
 ## The draft is a real in-thread reply
 
-`crm_store.py draft write` with `step > 1` uses the sticky sendbox and threads off the prior
+`tool crm-store draft write` with `step > 1` uses the sticky sendbox and threads off the prior
 `rfc_message_id`; the subject may keep a truthful `Re:`. Threading is held by the `rfc_message_id`,
 not the subject string, so if the original subject carries a banned em dash, **re-render the aside
 em-dash-free** ("Glennda (241K views)") and the `Re:` stays truthful. After the breakup step, the

@@ -13,7 +13,7 @@ engine) + `structures.md` + `channels.md` + `followup.md`) — each needs its ow
   the skill's `structures.md`); the draft is written to satisfy the goal's `objective` + `cta`,
   and a positive reply fires the goal's `success_event` (a deal, via the rules engine).
 - **Every personalized detail traces to a dossier hook with an `evidence_url`.** Pass those hooks
-  as `hooks_used`; `crm_store.py draft write` rejects any that isn't an evidenced dossier hook,
+  as `hooks_used`; `tool crm-store draft write` rejects any that isn't an evidenced dossier hook,
   and Stage 9 greps for it.
 - **Step-1 proof-of-life.** A step-1 draft needs a recent evidenced hook — recent activity is the
   reason an email exists. `draft write` REJECTS a hookless step-1 (`no_evidenced_hook`) unless the
@@ -28,8 +28,8 @@ engine) + `structures.md` + `channels.md` + `followup.md`) — each needs its ow
 - **Never mention `writing_brief.do_not_mention`** (personal-life details).
 - **Step-1 subject not `Re:`/`Fwd:`** (deceptive). Bumps thread and may keep `Re:` (truthful).
 - **The draft never sends.** It lands in `pending_approval`; the operator approves in chat or on
-  the bridge Approvals page (`/ui/{client}/approvals`, applied via `crm_store.py ingest-ui`), then
-  Stage 8 sends. This stage must not call `gmail_client.py send`.
+  the bridge Approvals page (`/ui/{client}/approvals`, applied via `tool crm-store ingest-ui`), then
+  Stage 8 sends. This stage must not call `tool gmail send`.
 - **No guessing, no invented facts, no fabricated proof.**
 - **No em dash (`—`).** Banned in every draft, every channel, every language (it reads as
   machine-written). Use comma / colon / period / parentheses; ranges use "to". Hyphens in compound
@@ -42,7 +42,7 @@ engine) + `structures.md` + `channels.md` + `followup.md`) — each needs its ow
 
 ## Source Preservation Rule
 
-Drafts are written through `crm_store.py draft write`. When any instruction here disagrees with
+Drafts are written through `tool crm-store draft write`. When any instruction here disagrees with
 `docs/DESIGN.md`, `docs/DESIGN.md` wins.
 
 ## The run
@@ -60,7 +60,7 @@ Drafts are written through `crm_store.py draft write`. When any instruction here
    bumps/replies are exempt.
 3. Write it:
    ```sh
-   python3 tools/crm_store.py --client-dir DIR draft write --contact <lead_id> --campaign <slug> --json \
+   <bridge> tool crm-store --client-dir DIR draft write --contact <lead_id> --campaign <slug> --json \
      '{"step":1,"subject":"...","body_text":"...","hooks_used":[{"type":"new_listing","evidence_url":"https://..."}]}'
    ```
    The tool picks the sendbox (sticky for a bump; lowest-load rotation for step 1), sets the
@@ -141,9 +141,9 @@ If you believe a lead should not be emailed for a reason outside this list, DRAF
 
 ## Phase status
 
-2C (this stage's tooling — `crm_store.py draft write/list` + the `email-writing` skill) is
+2C (this stage's tooling — `tool crm-store draft write/list` + the `email-writing` skill) is
 **built**, and so is 2D — the Approval Report render + chat-approve handler
-(`crm_store.py approval-report` / `approve`) and follow-up/reply (Stage 10). The send itself is
+(`tool crm-store approval-report` / `approve`) and follow-up/reply (Stage 10). The send itself is
 Stage 8 (Phase 1, built). Where a referenced row is still `status: planned`, follow DESIGN §22 R1.
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.

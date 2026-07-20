@@ -595,6 +595,19 @@ func (c *crmStore) enrichStatus(contactID, now string) map[string]any {
 	if ct == nil {
 		return map[string]any{"needs": "skip", "reason": "contact_not_found"}
 	}
+	// Resolution ladder (DESIGN §7.1/§9): a contact with NO anchor (no email/
+	// phone/profile/website) must first be traced back to its origin profile —
+	// from its content seeds when it has any, else from the name fragment.
+	if !hasContactAnchor(ct) {
+		for _, sd := range mapsOf(mList(mMap(ct, "identities"), "seeds")) {
+			if mStr(sd, "status") != "resolved" {
+				return map[string]any{"needs": "enrich", "reason": "seed_unresolved"}
+			}
+		}
+		if strings.TrimSpace(mStr(mMap(ct, "name"), "full")) != "" {
+			return map[string]any{"needs": "enrich", "reason": "name_only_fragment"}
+		}
+	}
 	en := mMap(ct, "enrichment")
 	ident := mMap(en, "identity")
 	identFresh := mStr(ident, "enriched_at") != "" && mStr(ident, "enriched_at") >= isoDaysAgoFrom(identityTTLDays, now)
@@ -839,8 +852,79 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 			phones = append(phones, map[string]any{"number": s, "type": "cell", "source": "enrich"})
 		}
 	}
-	if len(emails) > 0 || len(phones) > 0 {
-		patch["identities"] = map[string]any{"emails": orEmptyList(emails), "phones": orEmptyList(phones)}
+	// Found PROFILES become canonical identities too (same rule as found
+	// emails/phones — never siloed in the dossier): channels_found.profiles is
+	// {platform: url} and/or a plain list of urls (platform-classified here).
+	foundSocials := map[string]any{}
+	foundWebsite := any(nil)
+	switch pv := found["profiles"].(type) {
+	case map[string]any:
+		for platform, u := range pv {
+			if s, ok := u.(string); ok && s != "" {
+				if platform == "website" {
+					foundWebsite = s
+				} else {
+					foundSocials[platform] = s
+				}
+			}
+		}
+	case []any:
+		for _, u := range pv {
+			if s, ok := u.(string); ok && s != "" {
+				kind, platform := classifyLeadURL(s)
+				switch kind {
+				case "profile":
+					foundSocials[platform] = s
+				case "website":
+					foundWebsite = s
+				}
+			}
+		}
+	}
+	if len(emails) > 0 || len(phones) > 0 || len(foundSocials) > 0 || foundWebsite != nil {
+		idPatch := map[string]any{"emails": orEmptyList(emails), "phones": orEmptyList(phones)}
+		if len(foundSocials) > 0 {
+			idPatch["socials"] = foundSocials
+		}
+		if foundWebsite != nil {
+			idPatch["website"] = foundWebsite
+		}
+		patch["identities"] = idPatch
+	}
+	// A resolved origin closes the seeds: once any profile/email anchor was
+	// found for this contact, its content seeds are no longer "unresolved".
+	if len(foundSocials) > 0 || foundWebsite != nil || len(emails) > 0 {
+		resolvedTo := ""
+		for _, k := range sortedKeys(foundSocials) {
+			resolvedTo = fmt.Sprint(foundSocials[k])
+			break
+		}
+		if resolvedTo == "" && foundWebsite != nil {
+			resolvedTo = fmt.Sprint(foundWebsite)
+		}
+		prevSeeds := mapsOf(mList(mMap(c.getContact(leadID), "identities"), "seeds"))
+		if len(prevSeeds) > 0 {
+			var seedPatch []any
+			for _, sd := range prevSeeds {
+				cp := map[string]any{}
+				for k, v := range sd {
+					cp[k] = v
+				}
+				if mStr(cp, "status") != "resolved" {
+					cp["status"] = "resolved"
+					if resolvedTo != "" {
+						cp["resolved_profile"] = resolvedTo
+					}
+				}
+				seedPatch = append(seedPatch, cp)
+			}
+			ip, ok := patch["identities"].(map[string]any)
+			if !ok {
+				ip = map[string]any{}
+				patch["identities"] = ip
+			}
+			ip["seeds"] = seedPatch
+		}
 	}
 	if mStr(ident, "still_active") == "confirmed" {
 		ch, _ := patch["channels"].(map[string]any)
@@ -976,7 +1060,7 @@ func (c *crmStore) identityPairs(contact map[string]any) [][2]string {
 	for k := range socials {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys) // deterministic (Python uses insertion order; set-semantics downstream)
+	sort.Strings(keys) // deterministic (set-semantics downstream)
 	for _, k := range keys {
 		if s, ok := socials[k].(string); ok {
 			if v := normalizeSocial(s); v != "" {
@@ -984,16 +1068,51 @@ func (c *crmStore) identityPairs(contact map[string]any) [][2]string {
 			}
 		}
 	}
+	// content seeds are dedupe identities too: the same reel/post pasted twice
+	// is the same lead, even before anyone knows who owns it
+	for _, sd := range mapsOf(mList(ids, "seeds")) {
+		if v := normalizeSocial(mStr(sd, "url")); v != "" {
+			out = append(out, [2]string{"seed", v})
+		}
+	}
 	return out
+}
+
+// hasContactAnchor reports whether the contact has any resolvable identity
+// anchor (email / phone / profile / website) as opposed to content seeds only.
+func hasContactAnchor(contact map[string]any) bool {
+	ids := mMap(contact, "identities")
+	for _, e := range mapsOf(mList(ids, "emails")) {
+		if validEmail(mStr(e, "address")) {
+			return true
+		}
+	}
+	for _, p := range mapsOf(mList(ids, "phones")) {
+		if normalizePhone(mStr(p, "number")) != "" {
+			return true
+		}
+	}
+	for _, v := range mMap(ids, "socials") {
+		if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+			return true
+		}
+	}
+	if s, ok := ids["website"].(string); ok && strings.TrimSpace(s) != "" {
+		return true
+	}
+	return false
 }
 
 func contactSkeleton(leadID string) map[string]any {
 	return map[string]any{
 		"id": leadID, "schema_version": 2, "created_at": nowISO(), "updated_at": nowISO(),
 		"name": map[string]any{"full": "", "first": "", "last": ""}, "account_id": "",
+		// socials is an OPEN map (any platform key: facebook, youtube, tiktok,
+		// zillow, gbp, ...); seeds hold unique CONTENT clues (reel/video/post/
+		// blog URLs) that enrichment must resolve back to their owner profile.
 		"identities": map[string]any{"emails": []any{}, "phones": []any{},
 			"socials": map[string]any{"facebook": nil, "instagram": nil, "linkedin": nil, "zalo": nil, "x": nil},
-			"website": nil},
+			"website": nil, "seeds": []any{}},
 		"channels": map[string]any{
 			"email":     map[string]any{"status": "needs_data"},
 			"sms":       map[string]any{"status": "needs_optin", "mode": "assisted"},
@@ -1081,6 +1200,33 @@ func mergeIntoContact(rec, patch map[string]any) {
 			}
 			if truthy(vm["website"]) {
 				ids["website"] = vm["website"]
+			}
+			seeds := mList(ids, "seeds")
+			for _, sd := range mapsOf(mList(vm, "seeds")) {
+				norm := normalizeSocial(mStr(sd, "url"))
+				if norm == "" {
+					continue
+				}
+				merged := false
+				for _, x := range mapsOf(seeds) {
+					if normalizeSocial(mStr(x, "url")) == norm {
+						for sk, sv := range sd { // resubmit wins (e.g. status -> resolved)
+							x[sk] = sv
+						}
+						merged = true
+						break
+					}
+				}
+				if !merged {
+					cp := map[string]any{}
+					for sk, sv := range sd {
+						cp[sk] = sv
+					}
+					seeds = append(seeds, cp)
+				}
+			}
+			if seeds != nil {
+				ids["seeds"] = seeds
 			}
 			continue
 		}
@@ -1792,6 +1938,15 @@ func pyTitle(s string) string {
 		}
 	}
 	return sb.String()
+}
+
+func sortedKeys(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func monthEndExclusive(month string) string {

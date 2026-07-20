@@ -17,7 +17,7 @@ campaign, or the daily "load new pipeline" step). Print a LOAD LEDGER per
 - A campaign's **goal is the writing blueprint, not a label**: `goal_type` drives the email
   structure Stage 6 produces and the `success_event` that Stage 10 / the rules engine fire.
 - **One audience segment per campaign.** A segment is a saved flat-field filter; it is resolved
-  through `crm_store.py`, which already excludes suppressed identities, merged tombstones, and
+  through `tool crm-store`, which already excludes suppressed identities, merged tombstones, and
   `do_not_contact` — never hand-roll audience selection.
 - **No guessing.** In the MVP nothing produces a guessed email address, and no draft ever targets
   one. An `email_first` campaign still **queues a contact with no (or invalid) email so enrichment
@@ -30,7 +30,7 @@ campaign, or the daily "load new pipeline" step). Print a LOAD LEDGER per
 - **Don't double-touch.** The enrich-queue populator skips a contact that is already queued/sent
   in this campaign, is mid-sequence (frozen after a reply) anywhere, or was emailed by **another**
   campaign within `min_days_between_touches_across_campaigns` (default 7).
-- All of the above is enforced **in `crm_store.py`**, not in prose. Do not populate a queue or
+- All of the above is enforced **in `tool crm-store`**, not in prose. Do not populate a queue or
   select an audience by reading/writing files directly.
 - **A companion document needs a failure policy.** If the campaign declares `goal.companion_doc`
   (§1b), it MUST carry an `on_fail` of `skip` or `default_link` (plus the `default_link` URL when
@@ -44,7 +44,7 @@ campaign, or the daily "load new pipeline" step). Print a LOAD LEDGER per
 ## Source Preservation Rule
 
 Campaign config (`campaigns/{slug}/campaign_config.json`) and segments (`crm/segments.json`) are
-config, but every CONTACT read for audience resolution goes through `crm_store.py`. When any
+config, but every CONTACT read for audience resolution goes through `tool crm-store`. When any
 instruction here disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.
 
 ## 1. The goal object (Stage 6 consumes it)
@@ -64,7 +64,7 @@ It selects the email structure in Stage 6 (e.g. `book_meeting` → short, one ti
 ```
 
 `success_event` wires straight into the rules engine: a positive reply on this campaign creates a
-deal at the named stage (Stage 10 / `crm_store.py apply-rules`).
+deal at the named stage (Stage 10 / `tool crm-store apply-rules`).
 
 ## 1b. Companion document — the optional per-lead link (part of the goal)
 
@@ -154,9 +154,9 @@ A segment is a saved filter over flat contact fields (the Cond DSL, §6): `[fiel
 reverse index); a segment filters on `lifecycle_stage`, `tags`, `custom_fields.*`, `tz`, etc.
 
 ```sh
-python3 tools/crm_store.py --client-dir DIR segment set --json \
+<bridge> tool crm-store --client-dir DIR segment set --json \
   '{"id":"al-realtors-active","name":"Active AL realtors","where":[["lifecycle_stage","=","lead"],["custom_fields.state","=","AL"]]}'
-python3 tools/crm_store.py --client-dir DIR segment resolve --id al-realtors-active   # preview the audience
+<bridge> tool crm-store --client-dir DIR segment resolve --id al-realtors-active   # preview the audience
 ```
 
 `resolve` already drops suppressed / merged / `do_not_contact` contacts.
@@ -164,7 +164,7 @@ python3 tools/crm_store.py --client-dir DIR segment resolve --id al-realtors-act
 ## 3. Create a campaign
 
 ```sh
-python3 tools/crm_store.py --client-dir DIR campaign create --slug demo-outreach --json \
+<bridge> tool crm-store --client-dir DIR campaign create --slug demo-outreach --json \
   '{"goal":{"goal_type":"book_meeting","objective":"book a demo","cta":{"type":"reply_yes","text":"Reply YES"},
             "companion_doc":{"instructions":"US lead -> https://x/en, VN lead -> https://x/vi","on_fail":"skip"},
             "message_bank":[{"msg":"done-for-you: you record 5 min, we do the rest","source":"operator"},
@@ -201,7 +201,7 @@ The daily run pulls a small buffer (3–7 days of volume) rather than enriching 
 up front — hook freshness is the whole point. Populate it with:
 
 ```sh
-python3 tools/crm_store.py --client-dir DIR campaign queue --slug demo-outreach --limit 100
+<bridge> tool crm-store --client-dir DIR campaign queue --slug demo-outreach --limit 100
 ```
 
 Output reports `queued` plus a `skipped` breakdown (`already_in_campaign`,
@@ -226,7 +226,7 @@ already-queued or already-sent lead is never re-queued. The queued leads then fl
 
 ## Phase status
 
-2A (this stage's tooling — campaign/segment/queue in `crm_store.py`) is **built**. The stages this
+2A (this stage's tooling — campaign/segment/queue in `tool crm-store`) is **built**. The stages this
 hands off to — Stage 4 verify/enrich (skill `email-verify-enrich`), Stage 6 email writing (skill
 `email-writing`), Stage 10 follow-up — ship in Phase 2 milestones 2B–2D; where they are still
 `status: planned`, follow DESIGN §22 R1 (load the covering DESIGN section, record

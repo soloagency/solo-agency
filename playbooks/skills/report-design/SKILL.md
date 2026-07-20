@@ -83,19 +83,19 @@ Use the shared renderer instead of writing ad hoc Python, shell, browser, or PDF
 scripts during each run:
 
 ```sh
-python3 tools/solo_report_renderer.py render --input REPORT.md --output-html REPORT.html --title "Daily Intelligence Report" --client-name "Client Name" --report-kind "Daily Report"
+<bridge> tool render-report render --input REPORT.md --output-html REPORT.html --title "Daily Intelligence Report" --client-name "Client Name" --report-kind "Daily Report"
 ```
 
 To create the single client-facing HTML report and mandatory PDF companion from
 the three scrubbed staging HTML files:
 
 ```sh
-python3 tools/solo_report_renderer.py package --inputs CLIENT-daily-report.html CLIENT-public-data-sources-report.html CLIENT-private-data-sources-report.html --output-html CLIENT-client-report.html --output-pdf CLIENT-client-report.pdf --title "Client Report" --client-name "Client Name"
+<bridge> tool render-report package --inputs CLIENT-daily-report.html CLIENT-public-data-sources-report.html CLIENT-private-data-sources-report.html --output-html CLIENT-client-report.html --output-pdf CLIENT-client-report.pdf --title "Client Report" --client-name "Client Name"
 ```
 
 Allowed deviations:
 
-- If the renderer is missing or fails, fix `tools/solo_report_renderer.py` or log the exact blocker. Do not replace it with a one-off report script.
+- If the renderer is missing or fails, fix `tools/solo_tool render-report` or log the exact blocker. Do not replace it with a one-off report script.
 - If a client has a custom approved report template, it may be layered into the renderer or a named reusable template file. Do not improvise a new unnamed renderer during the run.
 
 ## Preflight
@@ -103,7 +103,7 @@ Allowed deviations:
 Before handing off any report:
 
 - [ ] Loaded this module and Stage 6 in the current turn/run.
-- [ ] Used `tools/solo_report_renderer.py` or logged why the reusable renderer was unavailable.
+- [ ] Used `tools/solo_tool render-report` or logged why the reusable renderer was unavailable.
 - [ ] HTML is standalone, mobile-friendly, and visually polished.
 - [ ] The first viewport has a useful hero, not a file title plus wall of text.
 - [ ] Public data sources and private data sources remain separate sections inside the combined client report.

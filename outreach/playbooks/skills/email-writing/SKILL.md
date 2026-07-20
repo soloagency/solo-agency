@@ -4,7 +4,7 @@ description: >-
   Use to WRITE a cold-email draft (Stage 6) from a campaign goal + a contact's enriched dossier +
   the step intent. The campaign's goal_type drives the structure (book a meeting / get a reply /
   direct sale / reactivation). Every personalized detail must trace to a dossier hook with an
-  evidence_url. Writes the draft to pending_approval via crm_store.py — it never sends. Loaded
+  evidence_url. Writes the draft to pending_approval via tool crm-store — it never sends. Loaded
   after Stage 6 / from the daily run's draft step and Stage 10 follow-up.
 ---
 
@@ -20,11 +20,11 @@ sending on, and `followup.md` (bumps + reply drafts) for Stage 10 follow-ups.
 
 - **Every personalized detail traces to a dossier hook with an `evidence_url`.** You may only
   reference facts present in `contact.enrichment.hooks`; pass those exact hooks as `hooks_used`.
-  `crm_store.py draft write` rejects a hook that isn't an evidenced dossier hook.
+  `tool crm-store draft write` rejects a hook that isn't an evidenced dossier hook.
 - **Never mention anything in `writing_brief.do_not_mention`** (personal-life details live there).
 - **Step-1 subject must not begin `Re:`/`Fwd:`** (deceptive, CAN-SPAM). Enforced by the tool.
 - **The draft never sends.** It goes to `pending_approval`; the operator approves in chat, then
-  the send engine (Stage 8) runs. Do not call `gmail_client.py send` from this stage.
+  the send engine (Stage 8) runs. Do not call `tool gmail send` from this stage.
 - **No guessing / no invented facts / no fabricated proof.** Proof points come from the campaign
   goal (each with its own evidence). If a claim has no source, don't make it.
 - **Facts vs conclusions.** A *fact* must trace to a dossier hook with an `evidence_url` (what you
@@ -88,7 +88,7 @@ footer — adapts to the channel (`channels.md`).
 ## Write the draft
 
 ```sh
-python3 tools/crm_store.py --client-dir DIR draft write --contact <lead_id> --campaign <slug> --json \
+<bridge> tool crm-store --client-dir DIR draft write --contact <lead_id> --campaign <slug> --json \
   '{"step":1,"subject":"Quick idea for your Main St listing",
     "body_text":"Hi Susan, I saw 123 Main St went up last week...","tracking":"plain_text",
     "hooks_used":[{"type":"new_listing","evidence_url":"https://zillow.com/..."}]}'
