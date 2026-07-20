@@ -595,6 +595,49 @@ func handleUIPicoCSS(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(picoCSS))
 }
 
+// ---------- feature catalog (mirrors playbooks/FEATURE_CATALOG.md headline rows) ----------
+
+// uiFeature is one action card. Kind "ui" runs right here (Href is the
+// per-client subpage); kind "agent" is started by pasting Phrase into the
+// right chat session (Session says which one). Keep phrases IDENTICAL to the
+// trigger phrases in playbooks/FEATURE_CATALOG.md — that file is the honesty
+// guardrail; never list a capability it does not have.
+type uiFeature struct {
+	Group   string
+	Title   string
+	Value   string
+	Kind    string
+	Href    string
+	Phrase  string
+	Session string
+}
+
+var uiFeatures = []uiFeature{
+	{"Content", "Run today's report", "Fresh ideas, leads and drafts for this client — right now, no need to wait for the schedule", "agent", "", "run today's content for {client}", "a NEW chat session (automation)"},
+	{"Content", "Make a video", "Turn an approved idea into a real short video (WideCast)", "agent", "", "make a video from today's best idea", "a NEW chat session (automation)"},
+	{"Content", "Blog + social posts", "Turn one idea into a blog and platform-ready posts", "agent", "", "write the blog and social posts", "a NEW chat session (automation)"},
+	{"Content", "Private-source discovery", "Find the groups/communities your audience gathers in, from places you already joined", "agent", "", "run discovery", "the shared SETUP session"},
+	{"Content", "Latest reports", "Daily HTML reports: ideas, drafts, leads, opportunities", "ui", "reports", "", ""},
+	{"Outreach", "Create a cold-email campaign", "Personalized, evidence-backed cold email — 3 questions and it runs; nothing sends without your approval", "agent", "", "set up a cold-email campaign", "the shared SETUP session"},
+	{"Outreach", "Import a lead list", "Bring in a CSV of prospects, deduped and suppression-checked", "agent", "", "import a list: <path to your CSV>", "the shared SETUP session"},
+	{"Outreach", "Review & approve drafts", "Approve, edit, hold or reject every drafted email — right here", "ui", "approvals", "", ""},
+	{"Outreach", "Approve discovered sources", "Tick the monitoring shortlist the agent proposed", "ui", "shortlist", "", ""},
+	{"Outreach", "Connect a sendbox", "Paste the Gmail App Password here — never into chat", "ui", "sendboxes", "", ""},
+	{"Outreach", "CRM pipeline", "Replies become deals moving through stages", "ui", "crm", "", ""},
+}
+
+func uiFeaturesFor(slug string) []map[string]any {
+	out := make([]map[string]any, 0, len(uiFeatures))
+	for _, f := range uiFeatures {
+		out = append(out, map[string]any{
+			"Group": f.Group, "Title": f.Title, "Value": f.Value, "Kind": f.Kind,
+			"Href": f.Href, "Session": f.Session,
+			"Phrase": strings.ReplaceAll(f.Phrase, "{client}", slug),
+		})
+	}
+	return out
+}
+
 // uiClientSendboxes reads {ws}/outreach/sendboxes/sendboxes.json for one client.
 func (b *bridge) uiClientSendboxes(c uiClient) []map[string]any {
 	p := filepath.Join(c.Path, "outreach", "sendboxes", "sendboxes.json")
@@ -905,7 +948,8 @@ func (b *bridge) uiRenderClient(w http.ResponseWriter, slug string) {
 	latest = append(latest, b.uiListFiles(filepath.Join(c.Path, "outreach", "outputs", "latest"), []string{".html", ".pdf"}, 20)...)
 	b.uiRender(w, "client", map[string]any{
 		"Title": c.Slug, "Client": c, "Latest": latest,
-		"Pending": len(b.uiPendingDrafts(c)),
+		"Pending":  len(b.uiPendingDrafts(c)),
+		"Features": uiFeaturesFor(c.Slug),
 	})
 }
 
@@ -961,7 +1005,31 @@ func (b *bridge) uiRender(w http.ResponseWriter, page string, data map[string]an
 
 // ---------- templates (embedded, no build chain) ----------
 
-var uiTpl = template.Must(template.New("ui").Parse(`
+var uiTplFuncs = template.FuncMap{
+	// groups: distinct Group values in first-appearance order
+	"groups": func(feats []map[string]any) []string {
+		var out []string
+		seen := map[string]bool{}
+		for _, f := range feats {
+			if g, _ := f["Group"].(string); !seen[g] {
+				seen[g] = true
+				out = append(out, g)
+			}
+		}
+		return out
+	},
+	"featIn": func(feats []map[string]any, group string) []map[string]any {
+		var out []map[string]any
+		for _, f := range feats {
+			if f["Group"] == group {
+				out = append(out, f)
+			}
+		}
+		return out
+	},
+}
+
+var uiTpl = template.Must(template.New("ui").Funcs(uiTplFuncs).Parse(`
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{.Title}} · Solo Agency</title>
@@ -1002,8 +1070,14 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 <h2>Clients</h2><div class="grid-cards">
 {{range .Clients}}<div class="card"><strong><a href="/ui/{{.Slug}}">{{.Slug}}</a></strong><br>
 <span class="mut">{{.Workspace}}</span><br>
-<a href="/ui/{{.Slug}}/reports">reports</a> · <a href="/ui/{{.Slug}}/crm">crm</a> · <a href="/ui/{{.Slug}}/approvals">approvals</a></div>
+<a href="/ui/{{.Slug}}/reports">reports</a> · <a href="/ui/{{.Slug}}/crm">crm</a> · <a href="/ui/{{.Slug}}/approvals">approvals</a> · <a href="/ui/{{.Slug}}/sendboxes">sendboxes</a></div>
 {{else}}<p class="mut">No clients yet.</p>{{end}}</div>
+<h2>What this system can do</h2>
+<div class="grid-cards">
+<div class="card"><strong>Content pipeline</strong><br><span class="mut" style="font-size:.85rem">daily ideas · short videos (WideCast) · blog + social posts · private-source monitoring · daily/weekly HTML reports · analytics loop</span></div>
+<div class="card"><strong>Outreach + CRM</strong><br><span class="mut" style="font-size:.85rem">cold-email campaigns · lead-list import · evidence-backed personalization · draft approvals · follow-up engine · CRM pipeline</span></div>
+</div>
+<p class="mut" style="font-size:.85rem">Open a client above for the full action cards — web-UI actions run right here; agent actions give you the exact phrase to paste into chat.</p>
 <h2>Recent jobs</h2><div class="wrap"><table><tr><th>state</th><th>client</th><th>kind</th><th>file</th><th>when</th></tr>
 {{range .Jobs}}<tr><td><span class="pill">{{.State}}</span></td><td>{{.Client}}</td><td>{{.Kind}}</td><td class="mut">{{.Name}}</td><td class="mut">{{.ModTime.Format "01-02 15:04"}}</td></tr>{{else}}<tr><td colspan="5" class="mut">none</td></tr>{{end}}</table></div>
 {{template "foot" .}}{{end}}
@@ -1029,6 +1103,34 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 <a href="/ui/{{.Client.Slug}}/approvals">Approvals{{if .Pending}} <strong>({{.Pending}})</strong>{{end}}</a> ·
 <a href="/ui/{{.Client.Slug}}/shortlist">Shortlist</a> ·
 <a href="/ui/{{.Client.Slug}}/sendboxes">Sendboxes</a></p>
+
+<h2>Actions</h2>
+<p class="mut" style="margin-top:-.3rem">Cards marked <span class="pill band-high">web UI</span> run right here. Cards marked <span class="pill">agent chat</span> start by pasting the phrase into the named chat session.</p>
+{{$slug := .Client.Slug}}
+{{range $grp := groups .Features}}
+<h3 style="font-size:.95rem;margin:.9rem 0 .3rem">{{$grp}}</h3>
+<div class="grid-cards">
+{{range featIn $.Features $grp}}
+<div class="card">
+<strong>{{.Title}}</strong>
+{{if eq .Kind "ui"}}<span class="pill band-high">web UI</span>{{else}}<span class="pill">agent chat</span>{{end}}<br>
+<span class="mut" style="font-size:.82rem">{{.Value}}</span><br>
+{{if eq .Kind "ui"}}
+<a role="button" class="ok" style="display:inline-block;margin-top:.5rem;padding:.3rem .8rem;font-size:.82rem" href="/ui/{{$slug}}/{{.Href}}">Open</a>
+{{else}}
+<code style="font-size:.78rem;display:inline-block;margin-top:.5rem">{{.Phrase}}</code>
+<button class="copy-phrase" data-phrase="{{.Phrase}}" style="padding:.15rem .6rem;font-size:.75rem;margin:.3rem 0 0">Copy</button>
+<br><span class="mut" style="font-size:.72rem">→ paste into {{.Session}}</span>
+{{end}}
+</div>
+{{end}}
+</div>
+{{end}}
+<script>
+document.addEventListener('click',function(e){var b=e.target.closest('.copy-phrase');if(!b)return;
+ navigator.clipboard.writeText(b.dataset.phrase).then(function(){var t=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=t},1200)})});
+</script>
+
 <h2>Latest</h2><div class="wrap"><table><tr><th>file</th><th>when</th></tr>
 {{range .Latest}}<tr><td><a href="/files/{{.Rel}}">{{.Name}}</a></td><td class="mut">{{.ModTime.Format "2006-01-02 15:04"}}</td></tr>{{else}}<tr><td colspan="2" class="mut">no outputs yet — run the client's daily task</td></tr>{{end}}</table></div>
 {{template "foot" .}}{{end}}

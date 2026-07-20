@@ -84,4 +84,21 @@ When the human asks for a report/run while this entrypoint is active, the only v
 4. If the native automation UI requires human action, provide that one exact action in a `**[ACTION REQUIRED]**` block.
 5. End with a `**[ACTION REQUIRED]**` block naming the exact client-specific automation task to run for the report, AND a feature-discovery block introducing 2-3 unused headline capabilities from `playbooks/FEATURE_CATALOG.md` (Feature Discovery Rule) - setup never ends flat. When no action is needed, still end with next-action guidance plus the feature-discovery block.
 
+### Setup-Complete Closing Template (MANDATORY shape)
+
+The FINAL message of a completed setup must end with this three-offer block (translate to the human's language; adapt names, never the shape). Listing trigger phrases "for later" is NOT compliance: offer 1 must be startable NOW, and the message MUST end with exactly one question.
+
+```text
+**[ACTION REQUIRED] — bước tiếp theo, chọn một:**
+1. **Chạy báo cáo đầu tiên ngay bây giờ** — mở một phiên chat mới và ra lệnh:
+   `run task "{Client} - Daily Run"` (không cần chờ lịch {time} {days}).
+2. **Tạo campaign cold-email đầu tiên (OutreachCRM)** — chỉ cần 3 thứ: list lead,
+   Gmail App Password, và xác nhận goal+URL. Nói: "set up a cold-email campaign".
+3. **{one more unused feature from FEATURE_CATALOG.md, value-first, with its trigger phrase}**
+
+Bạn muốn bắt đầu với cái nào? (Trả lời 1, 2, 3 — hoặc hỏi tôi bất kỳ điều gì khác.)
+```
+
+Hard gates on this template: offer 1 is ALWAYS the immediate first run of the just-created automation task (a scheduled future run is never a substitute); one offer is ALWAYS from the OTHER product side (content setup offers Outreach, Outreach setup offers content/video — the cross-introduce rule); the closing line is a QUESTION. A setup-complete message whose last line is not a question is a Stage-9 audit failure.
+
 Do not ask whether to run the report now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not perform public research, private data source collection (one exception: the step-6 discovery pass per item 6 of the Setup Flow Contract), report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery (one exception: the single step-7 WideCast confirmation ping that verifies the notification channel right after the human provides the API key) in Setup Flow.

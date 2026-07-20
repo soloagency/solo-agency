@@ -369,3 +369,38 @@ func TestUISendboxAuth(t *testing.T) {
 		t.Fatalf("unsafe slug not rejected: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestUIFeaturePanels(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "clients", "leadup", "main"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	authed := func(url string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", url, nil)
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+	// client page: action cards with agent phrases (client-substituted) + UI links
+	rec := authed("/ui/leadup")
+	body := rec.Body.String()
+	for _, want := range []string{"run today&#39;s content for leadup", "set up a cold-email campaign",
+		"/ui/leadup/sendboxes", "agent chat", "web UI", "paste into"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("client page missing %q", want)
+		}
+	}
+	// home page: capability overview
+	rec = authed("/ui")
+	body = rec.Body.String()
+	for _, want := range []string{"What this system can do", "Content pipeline", "Outreach + CRM"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("home page missing %q", want)
+		}
+	}
+}

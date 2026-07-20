@@ -39,7 +39,7 @@ Base: `http://127.0.0.1:17321`
 
 | Path | Surface | Phase |
 |---|---|---|
-| `/ui` | Home = Feature Catalog rendered clickable + client list + global status | U1 |
+| `/ui` | Home = Feature Catalog rendered clickable + client list + global status (v1.4: capability overview on home; per-client Action cards — `ui`-kind opens the page, `agent`-kind shows the exact FEATURE_CATALOG trigger phrase + copy button + which session to paste it into) | U1 |
 | `/ui/jobs` | Job queue & run monitor (collector jobs, automation runs, live states) | U1 |
 | `/ui/status` | Bridge / extensions / sendboxes / provider health | U1 |
 | `/ui/{client_slug}` | Client home: latest reports, pending actions, quick links | U1 |
