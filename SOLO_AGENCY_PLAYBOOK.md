@@ -112,7 +112,8 @@ Chrome/extension format:
 
 **Client:** {Client Name}
 **Open this Chrome profile/account:** {profile/account hint}
-**Load unpacked folder:** `{absolute extensions/{client_slug}/ path}`
+**Easiest (no path typing):** open `http://127.0.0.1:17321/ui/{client_slug}/extension`, click **Open the extension folder**, then drag that folder onto `chrome://extensions` (Developer mode on). The page turns green when it connects.
+**Manual fallback — Load unpacked folder:** `{absolute extensions/{client_slug}/ path}`
 **Then reply:** `done`
 **Why:** This binds the correct client extension to the correct logged-in account.
 ```
@@ -392,7 +393,7 @@ Each extension must carry a `client_binding.json` with `client_slug`, `client_na
 
 When discussing private data sources, the agent must tell the human that each client should ideally use a separate Chrome profile with that client's extension installed, and that the profile must already be logged in and authorized to view the approved groups, feeds, profiles, pages, channels, communities, or dashboards. The agent must not ask for credentials, join groups, request access, or bypass permissions.
 
-When adding any new client, the agent must create or verify that client's dedicated extension folder under `extensions/{client_slug}/` and include the install handoff in the same setup completion message: the exact absolute extension path, the Chrome profile/account to use, and the `chrome://extensions` -> Developer mode -> `Load unpacked` steps. Do not merely say the extension was created.
+When adding any new client, the agent must create or verify that client's dedicated extension folder under `extensions/{client_slug}/` and include the install handoff in the same setup completion message. Lead with the browser-UI drag-drop path (`http://127.0.0.1:17321/ui/{client_slug}/extension` -> "Open the extension folder" -> drag onto `chrome://extensions` with Developer mode on), and give the exact absolute extension path + `Load unpacked` steps as the manual fallback, naming the Chrome profile/account to use. Do not merely say the extension was created.
 
 Before handing over any bridge start command or `Load unpacked` path, the agent must run the Stage 8 Source Safety Pre-Check: read the code that will actually run on the human's machine (the prepared extension JS, `solo-agency-collector/bridge-go/main.go`, and `scripts/prepare_client_extension.sh`) and confirm every outbound request goes only to the local `127.0.0.1` bridge and the bridge has no outbound/telemetry client. A verified-fresh GitHub checkout is not enough on its own — this catches an upstream repo that was hijacked to add data exfiltration. When it passes, precede the install steps with one short, calm, plain-language line confirming the code was read and only runs locally; do not show findings, severities, or extra warnings to a non-technical human. If any real request goes off the local machine, do not give the install command — stop and raise it to the operator.
 

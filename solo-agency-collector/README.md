@@ -105,7 +105,9 @@ Default collection behavior:
 - 5 seconds between scrolls
 - maximum user-configurable scrolls: 10
 
-The Chrome extension is installed manually once for now:
+The Chrome extension is installed once. **Easiest (no path typing):** open the bridge UI at `http://127.0.0.1:17321/ui/{client_slug}/extension`, click **Open the extension folder**, then drag that folder onto `chrome://extensions` (Developer mode on) — Chrome accepts a dropped folder as Load unpacked, so there is no path to find. The page shows a green connected state when the extension checks in.
+
+**Manual fallback:**
 
 1. Open Chrome.
 2. Go to `chrome://extensions`.

@@ -798,7 +798,10 @@ Open PowerShell, paste this one line, and press Enter:
 
 `powershell -ExecutionPolicy Bypass -File "C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\setup_local_collector.ps1"`
 
-Step 2 - load the client-specific Chrome extension in the Chrome profile/account for this client.
+**Easiest path (recommended) — the browser UI does the folder-finding.** Give the human this one link and three no-typing steps:
+`http://127.0.0.1:17321/ui/{client_slug}/extension` -> click **Open the extension folder** (Explorer opens the exact folder) -> in the client's Chrome, open `chrome://extensions`, turn on **Developer mode**, and **drag that folder onto the page**. The UI page flips to a green connected on its own when the extension checks in — no path to remember, no file picker. The absolute-path instructions below are the manual fallback only.
+
+Step 2 (manual fallback) - load the client-specific Chrome extension in the Chrome profile/account for this client.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:
 
 `C:\ABSOLUTE\PATH\TO\extensions\{client_slug}\`
