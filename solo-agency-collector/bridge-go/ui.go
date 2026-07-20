@@ -771,6 +771,8 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 		b.uiRenderContact(w, parts[0], parts[2])
 	case len(parts) == 2 && parts[1] == "campaigns":
 		b.uiRenderCampaigns(w, parts[0])
+	case len(parts) == 2 && parts[1] == "sent":
+		b.uiRenderSent(w, parts[0])
 	case len(parts) == 3 && parts[1] == "campaign":
 		b.uiRenderCampaign(w, parts[0], parts[2])
 	case len(parts) == 2 && parts[1] == "approvals":
@@ -832,6 +834,7 @@ var uiFeatures = []uiFeature{
 	{"Outreach + CRM", "Approve discovered sources", "Tick the monitoring shortlist the agent proposed after discovery", "ui", "shortlist", "", "", "list"},
 	{"Outreach + CRM", "Connect a sendbox", "Paste the Gmail App Password here, never into chat; verified live over SMTP and IMAP", "ui", "sendboxes", "", "", "mail"},
 	{"Outreach + CRM", "CRM pipeline", "Replies become deals moving through stages; every contact keeps its proof-of-life hooks", "ui", "crm", "", "", "kanban"},
+	{"Outreach + CRM", "Sent history", "Every email ever sent: campaign, step, sendbox, and its open/click/reply state in one place", "ui", "sent", "", "", "send"},
 }
 
 func uiFeaturesFor(slug string) []map[string]any {
@@ -989,6 +992,104 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 		data["UsedToday"] = budget["used_today"]
 	}
 	b.uiRender(w, "campaign", data)
+}
+
+// ---------- sent history (T1b: the centralized send registry) ----------
+
+// uiSentRows joins the append-only sent_log with reply activities (and, once
+// tracking lands, pulled open/click events) into one operator view: every email
+// ever sent, which campaign/step/sendbox, and whether it got opened/clicked/
+// replied. Read-only; caps at `limit` newest rows.
+func (b *bridge) uiSentRows(c uiClient, limit int) (rows []map[string]any, total, replied int) {
+	clientDir := filepath.Join(c.Path, "outreach")
+	store := newCrmStore(clientDir)
+
+	// lead -> newest reply ts (email_reply activities are the reply source of truth)
+	replyTS := map[string]string{}
+	if acts, err := store.a.readLog("activities", -1, nil); err == nil {
+		for _, a := range acts {
+			if mStr(a, "type") != "email_reply" {
+				continue
+			}
+			lead := store.resolve(mStr(a, "contact_id"))
+			if ts := mStr(a, "ts"); ts > replyTS[lead] {
+				replyTS[lead] = ts
+			}
+		}
+	}
+	// tracking events pulled from WideCast land here (T2); keyed by msg ref,
+	// which the sender stamps as the row's rfc_message_id
+	opened, clicked := map[string]bool{}, map[string]bool{}
+	for _, ev := range readJSONLines(filepath.Join(clientDir, "tracking", "events.jsonl")) {
+		m := mStr(ev, "m")
+		switch mStr(ev, "kind") {
+		case "open":
+			opened[m] = true
+		case "click":
+			clicked[m] = true
+		}
+	}
+
+	nameCache := map[string]map[string]any{}
+	for _, p := range store.allSentLogs("") {
+		for _, r := range readJSONLines(p) {
+			if mStr(r, "rfc_message_id") == "" {
+				continue // reservation rows etc.
+			}
+			total++
+			lead := store.resolve(mStr(r, "lead_id"))
+			ct, ok := nameCache[lead]
+			if !ok {
+				ct = store.getContact(lead)
+				nameCache[lead] = ct
+			}
+			to, name := "", ""
+			if ct != nil {
+				name = contactName(ct)
+				for _, e := range mapsOf(mList(mMap(ct, "identities"), "emails")) {
+					if to == "" || mBool(e, "is_primary") {
+						to = mStr(e, "address")
+					}
+				}
+			}
+			rid := mStr(r, "rfc_message_id")
+			hasReply := replyTS[lead] != "" && replyTS[lead] >= mStr(r, "sent_at")
+			if hasReply {
+				replied++
+			}
+			rows = append(rows, map[string]any{
+				"Lead": lead, "Name": name, "To": to,
+				"Campaign": mStr(r, "campaign"), "Step": mInt(r, "step", 0),
+				"Sendbox": mStr(r, "sendbox"), "SentAt": mStr(r, "sent_at"),
+				"Opened": opened[rid], "Clicked": clicked[rid], "Replied": hasReply,
+			})
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return mStr(rows[i], "SentAt") > mStr(rows[j], "SentAt")
+	})
+	if len(rows) > limit {
+		rows = rows[:limit]
+	}
+	return rows, total, replied
+}
+
+func (b *bridge) uiRenderSent(w http.ResponseWriter, slug string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	rows, total, replied := b.uiSentRows(c, 200)
+	rate := ""
+	if total > 0 {
+		rate = fmt.Sprintf("%.1f%%", float64(replied)/float64(total)*100)
+	}
+	b.uiRender(w, "sent", map[string]any{
+		"Title": "Sent", "Client": c, "Rows": rows,
+		"Total": total, "Replied": replied, "Rate": rate,
+		"Truncated": total > len(rows),
+	})
 }
 
 // ---------- extension install helper ----------
@@ -1592,6 +1693,7 @@ var uiTpl = template.Must(template.New("ui").Funcs(uiTplFuncs).Parse(`
 <a href="/ui/{{.Slug}}"{{if eq $.NavPage "client"}} class="on"{{end}}>{{icon "layout"}}Overview</a>
 <a href="/ui/{{.Slug}}/campaigns"{{if eq $.NavPage "campaigns"}} class="on"{{end}}>{{icon "send"}}Campaigns</a>
 <a href="/ui/{{.Slug}}/approvals"{{if eq $.NavPage "approvals"}} class="on"{{end}}>{{icon "checks"}}Approvals{{if $.NavPending}}<span class="nbadge">{{$.NavPending}}</span>{{end}}</a>
+<a href="/ui/{{.Slug}}/sent"{{if eq $.NavPage "sent"}} class="on"{{end}}>{{icon "mail"}}Sent</a>
 <a href="/ui/{{.Slug}}/crm"{{if eq $.NavPage "crm"}} class="on"{{end}}>{{icon "users"}}CRM</a>
 <a href="/ui/{{.Slug}}/reports"{{if eq $.NavPage "reports"}} class="on"{{end}}>{{icon "file"}}Reports</a>
 <a href="/ui/{{.Slug}}/shortlist"{{if eq $.NavPage "shortlist"}} class="on"{{end}}>{{icon "list"}}Shortlist</a>
@@ -2041,6 +2143,39 @@ document.getElementById('campform').addEventListener('submit',function(e){
    else{msg.textContent='✗ '+j.error}})});
 </script>
 </main></div></div></body></html>{{end}}
+
+{{define "sent"}}{{template "head" .}}
+<p class="sub">Every email sent for this client, newest first. A reply freezes that lead's sequence automatically; only replies drive action, opens and clicks are directional.</p>
+<div class="statrow">
+<div class="stat"><b>{{.Total}}</b><span>emails sent</span></div>
+<div class="stat hot"><b>{{.Replied}}</b><span>got a reply</span></div>
+{{if .Rate}}<div class="stat"><b>{{.Rate}}</b><span>reply rate</span></div>{{end}}
+</div>
+{{if .Rows}}
+<input id="sentfilter" type="search" placeholder="Filter by name, email, campaign, sendbox..." style="max-width:380px;margin-bottom:10px">
+<div class="wrap"><table id="senttable"><tr><th>to</th><th>campaign</th><th>step</th><th>sendbox</th><th>sent</th><th>status</th></tr>
+{{$slug := .Client.Slug}}{{range .Rows}}<tr style="cursor:pointer" onclick="location.href='/ui/{{$slug}}/contact/{{.Lead}}'">
+<td>{{if .Name}}<strong>{{.Name}}</strong> <span class="mut" style="font-size:.78rem">{{.To}}</span>{{else}}{{.To}}{{end}}</td>
+<td class="mut">{{.Campaign}}</td>
+<td>{{if eq .Step 1}}<span class="pill">cold</span>{{else}}<span class="pill">bump {{.Step}}</span>{{end}}</td>
+<td class="mut">{{.Sendbox}}</td>
+<td class="mut" style="font-variant-numeric:tabular-nums">{{if ge (len .SentAt) 16}}{{slice .SentAt 0 16}}{{else}}{{.SentAt}}{{end}}</td>
+<td>
+{{if .Replied}}<span class="pill band-high">replied</span>
+{{else if .Clicked}}<span class="pill info">clicked</span>
+{{else if .Opened}}<span class="pill">opened</span>
+{{else}}<span class="pill" style="opacity:.55">sent</span>{{end}}
+</td>
+</tr>{{end}}</table></div>
+{{if .Truncated}}<p class="mut" style="font-size:.8rem">Showing the newest {{len .Rows}} of {{.Total}}.</p>{{end}}
+<script>
+document.getElementById('sentfilter').addEventListener('input',function(){
+ var q=this.value.toLowerCase();
+ document.querySelectorAll('#senttable tr[onclick]').forEach(function(tr){
+  tr.style.display=tr.textContent.toLowerCase().indexOf(q)>=0?'':'none'})});
+</script>
+{{else}}<div class="empty"><b>Nothing sent yet.</b><br>Approved drafts go out on the campaign's daily run and appear here.</div>{{end}}
+{{template "foot" .}}{{end}}
 
 {{define "sendboxes"}}{{template "head" .}}
 <p class="sub">Sending mailboxes for this client. The App Password is entered here and only here, never in chat.</p>

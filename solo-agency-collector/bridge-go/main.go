@@ -550,6 +550,13 @@ func (b *bridge) run() error {
 		}
 	}()
 
+	// T1: persistent bridges watch for campaign replies continuously so the
+	// operator is notified within minutes, not at the next daily run.
+	if b.cfg.persistent && b.uiDataRoot != "" {
+		b.startReplyPoller(ctx.Done())
+		log.Printf("reply poller enabled (every %s)", replyPollInterval)
+	}
+
 	log.Printf("media agency collector bridge listening on http://%s", addr)
 	log.Printf("run_id=%s output_dir=%s ttl=%s", b.cfg.runID, b.cfg.outputDir, b.cfg.ttl)
 	if b.cfg.persistent {

@@ -744,6 +744,81 @@ func TestUIContactMergeRedirectAndSuspects(t *testing.T) {
 	}
 }
 
+func TestUISentPage(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	mustJSON := func(rel, body string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustJSON("outreach/crm/contacts/c_1.json",
+		`{"id":"c_1","name":{"full":"Susan Vo"},"identities":{"emails":[{"address":"susan@kw.com","is_primary":true}]}}`)
+	mustJSON("outreach/crm/contacts/c_2.json",
+		`{"id":"c_2","identities":{"emails":[{"address":"mike@rx.com"}]}}`)
+	mustJSON("outreach/campaigns/camp-a/sent/2026-07/sent_log.jsonl",
+		`{"lead_id":"c_1","campaign":"camp-a","step":1,"sendbox":"sb-a","sent_at":"2026-07-18T09:00:00Z","rfc_message_id":"<m1@x>"}
+{"lead_id":"c_2","campaign":"camp-a","step":2,"sendbox":"sb-b","sent_at":"2026-07-19T10:00:00Z","rfc_message_id":"<m2@x>"}
+`)
+	// c_1 replied AFTER the send; c_2 has an open event pulled from tracking
+	mustJSON("outreach/crm/activities/2026-07/activities.jsonl",
+		`{"id":"a1","type":"email_reply","contact_id":"c_1","summary":"campaign reply (untriaged)","by":"rule","ts":"2026-07-18T12:00:00Z"}
+`)
+	mustJSON("outreach/tracking/events.jsonl",
+		`{"kind":"open","m":"<m2@x>","ts":1721400000}
+`)
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	req := httptest.NewRequest("GET", "/ui/leadup/sent", nil)
+	req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	page := rec.Body.String()
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sent page: %d", rec.Code)
+	}
+	for _, want := range []string{"Susan Vo", "susan@kw.com", "mike@rx.com", "camp-a",
+		"sb-a", "sb-b", ">replied<", ">opened<", "bump 2", ">cold<",
+		`id="sentfilter"`, "emails sent", "reply rate"} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("sent page missing %q", want)
+		}
+	}
+	// newest first: c_2's row (07-19) appears before c_1's (07-18)
+	if strings.Index(page, "mike@rx.com") > strings.Index(page, "susan@kw.com") {
+		t.Fatal("rows must be newest-first")
+	}
+}
+
+func TestReplyPollerDedup(t *testing.T) {
+	dir := t.TempDir()
+	b := &bridge{}
+	r1 := map[string]any{"lead_id": "c_1", "activity_seq": 7, "from": "a@x.com"}
+	r2 := map[string]any{"lead_id": "c_2", "activity_seq": 9, "from": "b@x.com"}
+	out := b.filterUnnotifiedReplies(dir, []map[string]any{r1, r2})
+	if len(out) != 2 {
+		t.Fatalf("first pass: want 2 fresh, got %d", len(out))
+	}
+	// same replies again (e.g. daily run re-synced the same UID) -> zero
+	out = b.filterUnnotifiedReplies(dir, []map[string]any{r1, r2})
+	if len(out) != 0 {
+		t.Fatalf("second pass: want 0, got %d", len(out))
+	}
+	// a genuinely new reply still passes
+	r3 := map[string]any{"lead_id": "c_1", "activity_seq": 12, "from": "a@x.com"}
+	out = b.filterUnnotifiedReplies(dir, []map[string]any{r1, r3})
+	if len(out) != 1 || mStr(out[0], "lead_id") != "c_1" {
+		t.Fatalf("third pass: want just the new one, got %v", out)
+	}
+}
+
 func TestAddrInUseFlapGuard(t *testing.T) {
 	// isAddrInUse: real bind conflict, nil, unrelated error
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
