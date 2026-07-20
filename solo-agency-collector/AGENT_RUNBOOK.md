@@ -235,6 +235,7 @@ The setup file must be idempotent:
   4. Start the newest Local Collector app executable in background/detached mode.
   5. Write the new PID to `collector.pid` and logs to `collector.log`.
 - Keep PID/log files under `solo-agency-local-collector/`, for example `solo-agency-local-collector/collector.pid` and `solo-agency-local-collector/collector.log`.
+- **One port = one production bridge.** Port `17321` belongs to the PRODUCTION install that the client Chrome extensions point at. A development or test bridge (e.g. started from a source-repo checkout) must NEVER take `17321` — start it with `--port 17322` (or `SOLO_AGENCY_BRIDGE_PORT=17322` for the setup script) so it cannot steal the port from the production bridge and silently receive extension traffic into the wrong workspace. The setup script resolves its install from the script's own location, so running one install's script can stop and replace the port-holder — which is exactly why a dev bridge must live on a different port.
 - Start the Local Collector app in background/detached mode, write PID/log files, then return control to the user. Do not require the user to keep Terminal or PowerShell open during normal operation.
 - Do not show the user a long multi-line script as the main instruction.
 
