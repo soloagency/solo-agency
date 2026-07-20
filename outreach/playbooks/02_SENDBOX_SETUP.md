@@ -74,8 +74,9 @@ The App Password is a Google-tightened surface and requires 2-Step Verification.
   5. Google shows a 16-character code ONCE — copy it now.
   6. Open the local Sendboxes page and paste it THERE (do NOT send it to me):
        http://127.0.0.1:17321/ui/{client}/sendboxes
-     Fill the sendbox slug (e.g. `sb-a`) and the Gmail address, paste the App Password,
-     then click "Connect & verify" — the page checks SMTP+IMAP with Gmail directly from your machine.
+     Enter the Gmail address, paste the App Password, then click "Connect & verify" —
+     the page checks SMTP+IMAP with Gmail directly from your machine and names the
+     mailbox automatically (re-entering a listed address re-connects that same mailbox).
   7. Reply here only with `connected` (or the sending address, e.g. `sendbox: outreach@gmail.com`).
 **If the Sendboxes page does not open** (Local Collector bridge not running): set the password locally instead and tell me the address —
        export OUTREACHCRM_APP_PASSWORD="the 16-char app password"

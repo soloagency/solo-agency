@@ -638,6 +638,26 @@ func uiFeaturesFor(slug string) []map[string]any {
 	return out
 }
 
+// resolveSendboxSlug maps an email to its existing box (re-auth) or mints the
+// next free conventional slug so the UI never has to ask a human for one.
+func resolveSendboxSlug(clientDir, emailAddr string) string {
+	boxes := mapsOf(mList(loadSendboxesDoc(clientDir), "sendboxes"))
+	taken := map[string]bool{}
+	for _, b := range boxes {
+		if normalizeEmail(mStr(b, "email")) == normalizeEmail(emailAddr) {
+			return mStr(b, "slug")
+		}
+		taken[mStr(b, "slug")] = true
+	}
+	for ch := 'a'; ch <= 'z'; ch++ {
+		cand := "sb-" + string(ch)
+		if !taken[cand] {
+			return cand
+		}
+	}
+	return "sb-" + gmailMkToken()[:4]
+}
+
 // uiClientSendboxes reads {ws}/outreach/sendboxes/sendboxes.json for one client.
 func (b *bridge) uiClientSendboxes(c uiClient) []map[string]any {
 	p := filepath.Join(c.Path, "outreach", "sendboxes", "sendboxes.json")
@@ -889,9 +909,14 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		slug := strings.TrimSpace(mStr(body, "slug"))
 		emailAddr := strings.TrimSpace(mStr(body, "email"))
 		appPassword, _ := body["app_password"].(string)
-		if slug == "" || emailAddr == "" || strings.TrimSpace(appPassword) == "" {
-			http.Error(w, "slug + email + app_password required", http.StatusBadRequest)
+		if emailAddr == "" || strings.TrimSpace(appPassword) == "" {
+			http.Error(w, "email + app_password required", http.StatusBadRequest)
 			return
+		}
+		if slug == "" {
+			// Non-tech users never see a "slug": same email -> re-auth the same
+			// box; new email -> next free conventional name (sb-a, sb-b, ...).
+			slug = resolveSendboxSlug(filepath.Join(c.Path, "outreach"), emailAddr)
 		}
 		res, err := gmailAuthWithPassword(filepath.Join(c.Path, "outreach"), slug, emailAddr, appPassword)
 		if err != nil {
@@ -1226,21 +1251,19 @@ document.getElementById('submit').addEventListener('click',function(){
 {{define "sendboxes"}}{{template "head" .}}
 <p><a href="/ui/{{.Client.Slug}}">← {{.Client.Slug}}</a></p>
 {{if .Sendboxes}}
-<div class="wrap"><table><tr><th>slug</th><th>email</th><th>status</th><th>quota/day</th><th>warmup</th><th>last sync</th><th></th></tr>
+<div class="wrap"><table><tr><th>name</th><th>email</th><th>status</th><th>quota/day</th><th>warmup</th><th>last sync</th><th></th></tr>
 {{range .Sendboxes}}<tr>
 <td><code>{{.slug}}</code></td><td>{{.email}}</td>
 <td><span class="pill{{if eq .status "healthy"}} band-high{{else}} band-review_carefully{{end}}">{{.status}}</span></td>
 <td>{{.quota_today}}</td><td class="mut">{{.warmup_stage}}</td>
 <td class="mut">{{.last_successful_sync_ts}}</td>
-<td><a href="#connect" class="pick-box" data-slug="{{.slug}}" data-email="{{.email}}">connect / re-auth</a></td>
+<td><a href="#connect" class="pick-box" data-email="{{.email}}">connect / re-auth</a></td>
 </tr>{{end}}</table></div>
 {{else}}<p class="mut">No sendboxes yet — connect the first one below.</p>{{end}}
 
-<h2 id="connect">Connect a sendbox (Gmail App Password)</h2>
+<h2 id="connect">Connect a sending mailbox (Gmail App Password)</h2>
 <div class="card" style="max-width:560px">
 <form id="authform">
-<label>Sendbox slug
-<input id="f-slug" type="text" placeholder="sb-a" required></label>
 <label>Gmail address
 <input id="f-email" type="email" placeholder="you@gmail.com" required></label>
 <label>App Password <span class="mut">(16 characters — Google Account → Security → App passwords)</span>
@@ -1248,6 +1271,8 @@ document.getElementById('submit').addEventListener('click',function(){
 <button class="ok" type="submit">Connect &amp; verify</button>
 <span id="authmsg" class="mut"></span>
 </form>
+<p class="mut" style="font-size:.8rem">Reconnecting an address in the list updates that same mailbox; a new address is added
+automatically under the next free internal name — nothing else to fill in.</p>
 <p class="mut" style="font-size:.8rem;margin-bottom:0">The password goes from this page straight to Gmail over TLS and is stored only on this machine
 (<code>sendboxes/&lt;slug&gt;/credentials.json</code>, permissions 0600). Never paste an App Password
 into the agent chat — this page is the one intended place for it.</p>
@@ -1255,7 +1280,6 @@ into the agent chat — this page is the one intended place for it.</p>
 <script>
 var CLIENT="{{.Client.Slug}}";
 document.querySelectorAll('.pick-box').forEach(function(a){a.addEventListener('click',function(){
- document.getElementById('f-slug').value=this.dataset.slug;
  document.getElementById('f-email').value=this.dataset.email;
  document.getElementById('f-pass').focus()})});
 document.getElementById('authform').addEventListener('submit',function(e){
@@ -1263,12 +1287,11 @@ document.getElementById('authform').addEventListener('submit',function(e){
  var btn=this.querySelector('button');btn.disabled=true;btn.setAttribute('aria-busy','true');
  var msg=document.getElementById('authmsg');msg.textContent='Verifying SMTP + IMAP with Gmail…';
  fetch('/api/ui/'+CLIENT+'/sendbox-auth',{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({slug:document.getElementById('f-slug').value.trim(),
-   email:document.getElementById('f-email').value.trim(),
+  body:JSON.stringify({email:document.getElementById('f-email').value.trim(),
    app_password:document.getElementById('f-pass').value})})
  .then(function(r){return r.json()})
  .then(function(j){
-  if(j.ok){msg.textContent='✓ connected ('+j.email+', quota '+j.quota_today+'/day)';
+  if(j.ok){msg.textContent='✓ connected ('+j.email+' as '+j.sendbox+', quota '+j.quota_today+'/day)';
    document.getElementById('f-pass').value='';setTimeout(function(){location.reload()},900)}
   else{btn.disabled=false;btn.removeAttribute('aria-busy');
    msg.textContent='✗ '+(j.error||'failed')+(j.detail?' — '+j.detail:'')+' (check the address and the App Password)'}})

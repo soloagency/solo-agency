@@ -364,6 +364,18 @@ func TestUISendboxAuth(t *testing.T) {
 	if rec := authed("POST", "/api/ui/leadup/sendbox-auth", `{"slug": "sb-a"}`); rec.Code != http.StatusBadRequest {
 		t.Fatalf("missing fields = %d, want 400", rec.Code)
 	}
+	// no slug + known email -> re-auths the SAME box (non-tech flow)
+	rec = authed("POST", "/api/ui/leadup/sendbox-auth",
+		`{"email": "NEW@gmail.com", "app_password": "goodpass12345678"}`)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"sendbox":"sb-a"`) {
+		t.Fatalf("email-matched re-auth: %d %s", rec.Code, rec.Body.String())
+	}
+	// no slug + brand-new email -> next free conventional name
+	rec = authed("POST", "/api/ui/leadup/sendbox-auth",
+		`{"email": "second@gmail.com", "app_password": "goodpass12345678"}`)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"sendbox":"sb-b"`) {
+		t.Fatalf("auto-slug mint: %d %s", rec.Code, rec.Body.String())
+	}
 	// unsafe slug -> auth_failed via storage error, not a panic/traversal
 	if rec := authed("POST", "/api/ui/leadup/sendbox-auth", `{"slug": "../evil", "email": "x@gmail.com", "app_password": "goodpass12345678"}`); !strings.Contains(rec.Body.String(), "auth_failed") {
 		t.Fatalf("unsafe slug not rejected: %d %s", rec.Code, rec.Body.String())
