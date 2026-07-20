@@ -345,13 +345,16 @@ Stages carry `probability` + `sla_days`. Rules are **deterministic**, executed b
 Guard keys `(rule_id, trigger_activity_id)` make `apply-rules` idempotent/re-runnable.
 
 ### 7.7 Merge semantics (deterministic)
-Auto-merge on exact email / E.164 phone / canonical social URL match. Fuzzy
-name+company → propose, human approves. Losing record becomes a permanent tombstone
-`{merge:{status:"merged", merged_into:A}}` (never deleted); identities, channel
-statuses, and suppression are **unioned** into the survivor. Every `lead_id` lookup
-path (sync classifier, track-pull, unsub handler, apply-rules, drafting) calls
-`resolve(lead_id)` to follow merge chains. Contacts with a pending merge proposal are
-excluded from every campaign queue until resolved.
+Auto-merge on exact email / E.164 phone / canonical social URL match — at import
+(matched rows union their new data in) and at enrich time (consolidation-on-discovery,
+§9.1b). Losing record becomes a permanent tombstone `{merge:{status:"merged",
+merged_into:A}}` (never deleted); identities, seeds, hooks, channel statuses, and
+suppression are **unioned** into the survivor (full union — nothing loaded is lost).
+Every `lead_id` lookup path (sync classifier, track-pull, unsub handler, apply-rules,
+drafting) calls `resolve(lead_id)` to follow merge chains. Records that share an
+identity but CONFLICT (different names / disjoint emails) are never auto-merged:
+both carry `duplicate_suspects[]` and are excluded from every campaign queue until
+the operator merges (`contact merge`) or clears (`contact unsuspect`).
 
 ---
 
@@ -490,6 +493,28 @@ or `name_only_fragment` (anchorless, seedless, named) before any TTL logic; Tier
 first move on such a lead is origin resolution, and found profiles are written back
 as canonical identities (§9.2) — resolving a profile marks the contact's seeds
 `resolved` with `resolved_profile`.
+
+**Consolidation-on-discovery (code-enforced in `enrich write`).** Reel-heavy lists
+routinely carry MANY fragments of one person; resolution is where that surfaces.
+When a dossier's `channels_found` profile/email/phone already belongs to ANOTHER
+contact, the store consolidates BEFORE writing:
+
+- **Safe pair** (no conflicting names, no disjoint email sets — e.g. any fragment):
+  auto-merge with a **FULL union** — seeds (both reels, resolve-state kept), hooks
+  (by `evidence_url`, `used_in` unioned), identities, name/tags/custom_fields
+  fill-if-empty, `frozen` sequence state wins, suppression/bounce statuses propagate.
+  Dedupe NEVER loses loaded data. The dossier then lands on the survivor; the tool
+  result reports `consolidated: [{survivor, merged, via, value}]`.
+- **Conflicting pair** (both named differently, or disjoint email sets — e.g. a
+  brokerage PAGE posting reels of several agents): NO merge, and the conflicting
+  value is withheld from the write so the identity index is never silently stolen.
+  Both records get a mutual `duplicate_suspects[]` flag `{id, via, value, at}`, the
+  tool result reports `duplicate_suspected`, and `campaign queue` holds both out
+  (`skipped.duplicate_suspected`) until the operator resolves: `contact merge`
+  (same person) or `contact unsuspect --id A --other B` (different people).
+- Matched IMPORT rows union too: a re-imported row's NEW seed/phone/tag folds into
+  the existing contact (socials/website fill-if-empty so import junk never clobbers
+  an enriched canonical URL) instead of being dropped.
 
 ### 9.2 Dossier (`queue/enriched/YYYY-MM-DD/{lead_id}.json`; distilled copy into `contact.enrichment`)
 ```json

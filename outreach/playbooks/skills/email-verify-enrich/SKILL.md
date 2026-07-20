@@ -75,7 +75,13 @@ only data is a CONTENT link (`identities.seeds[]` — a reel/video/post/blog URL
 YouTube/TikTok/blogs) and identify the AUTHOR — the byline/channel/handle links to the profile.
 Record the found profile in `identity.channels_found.profiles` (the store writes it back as a
 canonical `identities.socials` entry and marks the seed `resolved`), then continue below as a
-profile-seeded lead. If the only seed is a Facebook/social URL (or the CRM
+profile-seeded lead. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
+to its owner profile before any deep enrichment — the store auto-consolidates fragments that
+share a profile/email (full union: all reels + hooks kept; result reports `consolidated`), so
+you deep-enrich each unique person exactly ONCE. Always continue against the returned `lead_id`
+(the survivor). A `duplicate_suspected` result means a CONFLICTING record shares that identity
+(shared page ≠ same person) — not merged, both held out of queues; surface it to the operator
+instead of picking a side yourself. If the only seed is a Facebook/social URL (or the CRM
 `name` is blank), FIRST read the profile with the Local Collector's `fb.profile.header` — the Phase-4
 collector is now LIVE (operator's own logged-in Chrome; bridge `127.0.0.1:17321`, enqueue capability
 `fb.profile.header` with the profile URL; see `solo-agency-collector`). Take its `name` + `category`

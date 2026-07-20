@@ -606,3 +606,145 @@ func TestCampaignUpdateAndPause(t *testing.T) {
 		t.Fatalf("resume must queue again: %v", q)
 	}
 }
+
+// TestConsolidationFlow covers the "many reels → one person" path: matched
+// import rows keep their new data, enrich-time discovery auto-merges safe
+// pairs with a FULL union, conflicting pairs are flagged (never index-stolen)
+// and held out of queues until resolved.
+func TestConsolidationFlow(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult {
+		return runGoStep(t, xstep{FakeNow: now, Argv: argv})
+	}
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	readDoc := func(id string) map[string]any {
+		t.Helper()
+		m, err := readJSONFile(filepath.Join(ws, "crm", "contacts", id+".json"))
+		if err != nil {
+			t.Fatalf("read %s: %v", id, err)
+		}
+		return m
+	}
+	seedURLs := func(doc map[string]any) map[string]string {
+		out := map[string]string{}
+		for _, sd := range mapsOf(mList(mMap(doc, "identities"), "seeds")) {
+			out[mStr(sd, "url")] = mStr(sd, "status")
+		}
+		return out
+	}
+	mustOK(run("2026-07-20T11:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+
+	// 1. matched import row keeps its NEW seed (no data loss on dedupe)
+	a := mustOK(run("2026-07-20T11:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id": "c_a", "name": {"full": "Susan Vo"}, "identities": {"emails": [{"address": "susan@x.com", "is_primary": true}]}}`))
+	if a["outcome"] != "created" {
+		t.Fatalf("A add: %v", a)
+	}
+	m := mustOK(run("2026-07-20T11:02:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"identities": {"emails": [{"address": "susan@x.com"}],
+		  "seeds": [{"url": "https://www.facebook.com/reel/999", "kind": "reel", "platform": "facebook", "source": "import", "status": "unresolved"}]}}`))
+	if m["outcome"] != "matched" || m["lead_id"] != "c_a" {
+		t.Fatalf("matched row: %v", m)
+	}
+	if s := seedURLs(readDoc("c_a")); s["https://www.facebook.com/reel/999"] == "" {
+		t.Fatalf("matched row's NEW seed lost: %v", s)
+	}
+
+	// 2. two reel fragments resolve to ONE profile -> auto-merge, full union
+	mustOK(run("2026-07-20T11:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id": "c_b", "identities": {"seeds": [{"url": "https://www.facebook.com/reel/111", "kind": "reel", "platform": "facebook", "source": "import", "status": "unresolved"}]}}`))
+	mustOK(run("2026-07-20T11:04:00Z", "--client-dir", ws, "enrich", "write",
+		"--contact", "c_b", "--campaign", "", "--json",
+		`{"identity": {"still_active": "confirmed", "channels_found": {"profiles": {"facebook": "https://www.facebook.com/pro.susan"}}},
+		  "hooks": [{"type": "new_listing", "summary": "reel one", "evidence_url": "https://www.facebook.com/reel/111", "observed_date": "2026-07-14", "confidence": 0.9}],
+		  "writing_brief": {"personalization_confidence": 0.8}}`))
+	mustOK(run("2026-07-20T11:05:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id": "c_c", "identities": {"seeds": [{"url": "https://www.facebook.com/reel/222", "kind": "reel", "platform": "facebook", "source": "import", "status": "unresolved"}]}}`))
+	ew := mustOK(run("2026-07-20T11:06:00Z", "--client-dir", ws, "enrich", "write",
+		"--contact", "c_c", "--campaign", "", "--json",
+		`{"identity": {"still_active": "confirmed", "channels_found": {"profiles": {"facebook": "https://www.facebook.com/pro.susan"}}},
+		  "hooks": [{"type": "award", "summary": "reel two", "evidence_url": "https://www.facebook.com/reel/222", "observed_date": "2026-07-15", "confidence": 0.9}],
+		  "writing_brief": {"personalization_confidence": 0.8}}`))
+	if ew["lead_id"] != "c_b" {
+		t.Fatalf("dossier must land on survivor: %v", ew)
+	}
+	cons := mapsOf(mList(ew, "consolidated"))
+	if len(cons) != 1 || mStr(cons[0], "survivor") != "c_b" || mStr(cons[0], "merged") != "c_c" {
+		t.Fatalf("consolidated event wrong: %v", ew["consolidated"])
+	}
+	b := readDoc("c_b")
+	seeds := seedURLs(b)
+	if seeds["https://www.facebook.com/reel/111"] != "resolved" || seeds["https://www.facebook.com/reel/222"] != "resolved" {
+		t.Fatalf("union must keep BOTH reels resolved: %v", seeds)
+	}
+	hookURLs := map[string]bool{}
+	for _, h := range mapsOf(mList(mMap(b, "enrichment"), "hooks")) {
+		hookURLs[mStr(h, "evidence_url")] = true
+	}
+	if !hookURLs["https://www.facebook.com/reel/111"] || !hookURLs["https://www.facebook.com/reel/222"] {
+		t.Fatalf("union must keep BOTH hooks: %v", hookURLs)
+	}
+	if mStr(mMap(readDoc("c_c"), "merge"), "merged_into") != "c_b" {
+		t.Fatal("loser must be tombstoned into survivor")
+	}
+	if m := mustOK(run("2026-07-20T11:07:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"identities": {"seeds": [{"url": "https://www.facebook.com/reel/222", "kind": "reel", "platform": "facebook", "source": "import", "status": "unresolved"}]}}`)); m["lead_id"] != "c_b" {
+		t.Fatalf("loser's seed must now resolve to survivor: %v", m)
+	}
+
+	// 3. conflict (two NAMED people share one page URL) -> flag, no merge, no theft
+	mustOK(run("2026-07-20T11:08:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id": "c_d", "name": {"full": "David Do"}, "identities": {"emails": [{"address": "david@x.com", "is_primary": true}]}}`))
+	mustOK(run("2026-07-20T11:09:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id": "c_e", "name": {"full": "Emma Vo"}, "identities": {"emails": [{"address": "emma@y.com", "is_primary": true}]}}`))
+	mustOK(run("2026-07-20T11:10:00Z", "--client-dir", ws, "enrich", "write",
+		"--contact", "c_e", "--campaign", "", "--json",
+		`{"identity": {"still_active": "confirmed", "channels_found": {"profiles": {"facebook": "https://www.facebook.com/brokerage.page"}}},
+		  "writing_brief": {"personalization_confidence": 0.5}}`))
+	dw := mustOK(run("2026-07-20T11:11:00Z", "--client-dir", ws, "enrich", "write",
+		"--contact", "c_d", "--campaign", "", "--json",
+		`{"identity": {"still_active": "confirmed", "channels_found": {"profiles": {"facebook": "https://www.facebook.com/brokerage.page"}}},
+		  "writing_brief": {"personalization_confidence": 0.5}}`))
+	sus := mapsOf(mList(dw, "duplicate_suspected"))
+	if len(sus) != 1 || mStr(sus[0], "other_id") != "c_e" {
+		t.Fatalf("conflict must be flagged, not merged: %v", dw)
+	}
+	d := readDoc("c_d")
+	if truthy(mMap(mMap(d, "identities"), "socials")["facebook"]) {
+		t.Fatal("conflicting URL must be withheld from the losing write")
+	}
+	if len(mList(d, "duplicate_suspects")) != 1 || len(mList(readDoc("c_e"), "duplicate_suspects")) != 1 {
+		t.Fatal("both records must carry the mutual flag")
+	}
+	if m := mustOK(run("2026-07-20T11:12:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"identities": {"socials": {"facebook": "https://www.facebook.com/brokerage.page"}}}`)); m["lead_id"] != "c_e" {
+		t.Fatalf("index must still point at the original owner: %v", m)
+	}
+
+	// 4. suspects are held out of campaign queues; unsuspect releases them
+	mustOK(run("2026-07-20T11:13:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id": "all", "name": "all", "where": [["lifecycle_stage", "=", "lead"]]}`))
+	mustOK(run("2026-07-20T11:14:00Z", "--client-dir", ws, "campaign", "create",
+		"--slug", "demo", "--json", `{"audience": {"segment": "all"}, "sendboxes": ["sb-a"], "daily_quota": 10}`))
+	q := mustOK(run("2026-07-20T11:15:00Z", "--client-dir", ws, "campaign", "queue", "--slug", "demo"))
+	if mInt(mMap(q, "skipped"), "duplicate_suspected", -1) != 2 {
+		t.Fatalf("both suspects must be held out: %v", q)
+	}
+	mustOK(run("2026-07-20T11:16:00Z", "--client-dir", ws, "contact", "unsuspect", "--id", "c_d", "--other", "c_e"))
+	if len(mList(readDoc("c_d"), "duplicate_suspects")) != 0 || len(mList(readDoc("c_e"), "duplicate_suspects")) != 0 {
+		t.Fatal("unsuspect must clear both sides")
+	}
+	q = mustOK(run("2026-07-20T11:17:00Z", "--client-dir", ws, "campaign", "queue", "--slug", "demo"))
+	if mInt(q, "queued", -1) != 2 || mInt(mMap(q, "skipped"), "duplicate_suspected", -1) != 0 {
+		t.Fatalf("cleared suspects must queue: %v", q)
+	}
+}

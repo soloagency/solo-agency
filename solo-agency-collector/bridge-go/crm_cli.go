@@ -166,7 +166,7 @@ func runCrmStoreCLI(args []string) int {
 		"--json", "--id", "--loser", "--winner", "--where", "--file", "--kind", "--value", "--reason",
 		"--tier", "--tag", "--email", "--phone", "--contact", "--stage", "--evidence", "--sendbox",
 		"--day", "--cap", "--event", "--activity", "--events", "--slug", "--limit", "--campaign",
-		"--client-name", "--days", "--month"} {
+		"--client-name", "--days", "--month", "--other"} {
 		valueFlags[f] = true
 	}
 	boolFlags := map[string]bool{"--confirm": true, "--rebuild-index": true}
@@ -421,6 +421,12 @@ func runCrmStoreCLI(args []string) int {
 			return crmOut(listAny(rows), 0)
 		case "merge":
 			res, err := store.merge(a.get("--loser"), a.get("--winner"))
+			if err != nil {
+				return crmFail(err)
+			}
+			return crmOut(res, 0)
+		case "unsuspect":
+			res, err := store.clearDuplicateSuspect(a.get("--id"), a.get("--other"))
 			if err != nil {
 				return crmFail(err)
 			}

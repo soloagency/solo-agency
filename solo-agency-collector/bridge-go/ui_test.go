@@ -687,6 +687,57 @@ func TestUICampaignPages(t *testing.T) {
 	}
 }
 
+func TestUIContactMergeRedirectAndSuspects(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	mustJSON := func(rel, body string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustJSON("outreach/crm/contacts/c_x.json",
+		`{"id":"c_x","merge":{"status":"merged","merged_into":"c_y"}}`)
+	mustJSON("outreach/crm/contacts/c_y.json",
+		`{"id":"c_y","name":{"full":"Susan Vo"},"lifecycle_stage":"lead",
+		  "identities":{"emails":[{"address":"susan@x.com"}]},
+		  "duplicate_suspects":[{"id":"c_z","via":"social","value":"https://fb.com/page","at":"2026-07-20T11:00:00Z"}]}`)
+	mustJSON("outreach/crm/activities/2026-07/activities.jsonl",
+		`{"id":"a1","type":"merged","contact_id":"c_x","summary":"fragment history","by":"agent","ts":"2026-07-19T10:00:00Z"}`+"\n")
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	authed := func(url string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", url, nil)
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// a consolidated fragment's old link redirects to the survivor
+	rec := authed("/ui/leadup/contact/c_x")
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/ui/leadup/contact/c_y" {
+		t.Fatalf("tombstone must redirect: %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+	// survivor page shows the suspect banner and the fragment's activity
+	rec = authed("/ui/leadup/contact/c_y")
+	page := rec.Body.String()
+	if rec.Code != http.StatusOK {
+		t.Fatalf("survivor page: %d", rec.Code)
+	}
+	for _, want := range []string{"Possible duplicate", "c_z", "fragment history"} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("survivor page missing %q", want)
+		}
+	}
+}
+
 func TestAddrInUseFlapGuard(t *testing.T) {
 	// isAddrInUse: real bind conflict, nil, unrelated error
 	ln, err := net.Listen("tcp", "127.0.0.1:0")

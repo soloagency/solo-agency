@@ -403,7 +403,7 @@ func (c *crmStore) queueCampaign(slug string, limit int) (map[string]any, error)
 	}
 	added := 0
 	skipped := map[string]any{"already_in_campaign": 0, "recently_touched_elsewhere": 0,
-		"in_active_sequence": 0, "no_email": 0}
+		"in_active_sequence": 0, "no_email": 0, "duplicate_suspected": 0}
 	bump := func(k string) { skipped[k] = skipped[k].(int) + 1 }
 	qp := c.enrichQueuePath(slug)
 	if err := os.MkdirAll(filepath.Dir(qp), 0o755); err != nil {
@@ -432,6 +432,12 @@ func (c *crmStore) queueCampaign(slug string, limit int) (map[string]any, error)
 		leadID := c.resolve(mStr(ct, "id"))
 		if already[leadID] {
 			bump("already_in_campaign")
+			continue
+		}
+		if len(mList(ct, "duplicate_suspects")) > 0 {
+			// possibly the same human as another record — emailing both would
+			// double-touch one person; operator resolves via merge/unsuspect
+			bump("duplicate_suspected")
 			continue
 		}
 		if emailFirst {
@@ -664,6 +670,16 @@ func validEmail(address string) bool {
 
 func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaignSlug string) (map[string]any, error) {
 	leadID := c.resolve(contactID)
+	// Many list rows are content fragments (reels/posts) of ONE person: when
+	// this dossier's found channels already belong to other contacts,
+	// consolidate BEFORE writing so the dossier lands on the single survivor
+	// (safe pairs auto-merge; conflicting pairs are flagged + withheld).
+	leadID2, consolidated, dupSuspects, skipIdent, err := c.consolidateOnDiscovery(
+		leadID, mMap(mMap(dossier, "identity"), "channels_found"))
+	if err != nil {
+		return nil, err
+	}
+	leadID = leadID2
 	now := nowISO()
 	problems := []any{}
 	var usableHooks []map[string]any
@@ -897,12 +913,12 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 	found := mMap(ident, "channels_found")
 	var emails, phones []any
 	for _, e := range mList(found, "emails") {
-		if s, ok := e.(string); ok && s != "" {
+		if s, ok := e.(string); ok && s != "" && !skipIdent["email|"+normalizeEmail(s)] {
 			emails = append(emails, map[string]any{"address": s, "source": "enrich", "status": "unverified"})
 		}
 	}
 	for _, p := range mList(found, "phones") {
-		if s, ok := p.(string); ok && s != "" {
+		if s, ok := p.(string); ok && s != "" && !skipIdent["phone|"+normalizePhone(s)] {
 			phones = append(phones, map[string]any{"number": s, "type": "cell", "source": "enrich"})
 		}
 	}
@@ -917,7 +933,7 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 			if s, ok := u.(string); ok && s != "" {
 				if platform == "website" {
 					foundWebsite = s
-				} else {
+				} else if !skipIdent["social|"+normalizeSocial(s)] {
 					foundSocials[platform] = s
 				}
 			}
@@ -928,7 +944,9 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 				kind, platform := classifyLeadURL(s)
 				switch kind {
 				case "profile":
-					foundSocials[platform] = s
+					if !skipIdent["social|"+normalizeSocial(s)] {
+						foundSocials[platform] = s
+					}
 				case "website":
 					foundWebsite = s
 				}
@@ -993,8 +1011,15 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 	if _, err := c.setContact(leadID, patch); err != nil {
 		return nil, err
 	}
-	return map[string]any{"lead_id": leadID, "usable_hooks": len(usableHooks), "confidence_band": band,
-		"do_not_mention": len(doNotMention), "problems": problems}, nil
+	res := map[string]any{"lead_id": leadID, "usable_hooks": len(usableHooks), "confidence_band": band,
+		"do_not_mention": len(doNotMention), "problems": problems}
+	if len(consolidated) > 0 {
+		res["consolidated"] = consolidated
+	}
+	if len(dupSuspects) > 0 {
+		res["duplicate_suspected"] = dupSuspects
+	}
+	return res, nil
 }
 
 func hookType(h map[string]any) string {
@@ -1314,7 +1339,14 @@ func (c *crmStore) addContact(fields map[string]any) (string, string, error) {
 	defer unlock()
 	for _, pair := range c.identityPairs(fields) {
 		if existing := c.a.findByIdentity(pair[0], pair[1]); existing != "" {
-			return c.resolve(existing), "matched", nil
+			matchedID := c.resolve(existing)
+			// A matched row still carries information (another reel/seed, a
+			// second phone, a tag). Union it in — dedupe must never lose
+			// loaded data — instead of dropping the row on the floor.
+			if err := c.unionMatchedRow(matchedID, fields); err != nil {
+				return "", "", err
+			}
+			return matchedID, "matched", nil
 		}
 	}
 	leadID := mStr(fields, "id")
@@ -1332,6 +1364,80 @@ func (c *crmStore) addContact(fields map[string]any) (string, string, error) {
 		}
 	}
 	return leadID, "created", nil
+}
+
+// unionMatchedRow folds a re-imported row into the contact it matched.
+// Whitelist-union only: identities (emails/phones/seeds append-dedup;
+// socials/website fill-if-empty so import junk never clobbers an enriched
+// canonical URL), name fill-if-empty, tags union, custom_fields
+// fill-if-missing. Import rows never touch workflow state.
+func (c *crmStore) unionMatchedRow(leadID string, fields map[string]any) error {
+	rec, err := c.a.get("contacts", leadID)
+	if err != nil || rec == nil {
+		return nil
+	}
+	patch := map[string]any{}
+	if fi, ok := fields["identities"].(map[string]any); ok {
+		ip := map[string]any{}
+		for _, k := range []string{"emails", "phones", "seeds"} {
+			if v, ok := fi[k]; ok {
+				ip[k] = v
+			}
+		}
+		recIDs := mMap(rec, "identities")
+		recSoc := mMap(recIDs, "socials")
+		soc := map[string]any{}
+		for k, v := range mMap(fi, "socials") {
+			if truthy(v) && !truthy(recSoc[k]) {
+				soc[k] = v
+			}
+		}
+		if len(soc) > 0 {
+			ip["socials"] = soc
+		}
+		if truthy(fi["website"]) && !truthy(recIDs["website"]) {
+			ip["website"] = fi["website"]
+		}
+		if len(ip) > 0 {
+			patch["identities"] = ip
+		}
+	}
+	if mStr(mMap(rec, "name"), "full") == "" {
+		if fn, ok := fields["name"].(map[string]any); ok && mStr(fn, "full") != "" {
+			patch["name"] = fn
+		}
+	}
+	if ft := mList(fields, "tags"); len(ft) > 0 {
+		tags := mList(rec, "tags")
+		have := map[string]bool{}
+		for _, t := range tags {
+			have[fmt.Sprint(t)] = true
+		}
+		for _, t := range ft {
+			if !have[fmt.Sprint(t)] {
+				tags = append(tags, t)
+				have[fmt.Sprint(t)] = true
+			}
+		}
+		patch["tags"] = orEmptyList(tags)
+	}
+	if fcf := mMap(fields, "custom_fields"); len(fcf) > 0 {
+		rcf := mMap(rec, "custom_fields")
+		add := map[string]any{}
+		for k, v := range fcf {
+			if _, ok := rcf[k]; !ok {
+				add[k] = v
+			}
+		}
+		if len(add) > 0 {
+			patch["custom_fields"] = add
+		}
+	}
+	if len(patch) == 0 {
+		return nil
+	}
+	_, err = c.setContact(leadID, patch)
+	return err
 }
 
 func (c *crmStore) setContact(leadID string, patch map[string]any) (map[string]any, error) {
@@ -1428,6 +1534,145 @@ func (c *crmStore) merge(loserID, winnerID string) (map[string]any, error) {
 				dst["status"] = st
 			}
 		}
+		// FULL UNION — consolidation must never lose loaded data (many reels
+		// of one person fold into one record with everything both sides had).
+		// seeds: dedup by URL; on dup fill missing keys, resolved state wins
+		seeds := mList(li, "seeds")
+		for _, sd := range mapsOf(mList(lo, "seeds")) {
+			norm := normalizeSocial(mStr(sd, "url"))
+			if norm == "" {
+				continue
+			}
+			var hit map[string]any
+			for _, x := range mapsOf(seeds) {
+				if normalizeSocial(mStr(x, "url")) == norm {
+					hit = x
+					break
+				}
+			}
+			if hit == nil {
+				cp := map[string]any{}
+				for k, v := range sd {
+					cp[k] = v
+				}
+				seeds = append(seeds, cp)
+				continue
+			}
+			for k, v := range sd {
+				if _, ok := hit[k]; !ok {
+					hit[k] = v
+				}
+			}
+			if mStr(sd, "status") == "resolved" && mStr(hit, "status") != "resolved" {
+				hit["status"] = "resolved"
+				if rp := mStr(sd, "resolved_profile"); rp != "" {
+					hit["resolved_profile"] = rp
+				}
+			}
+		}
+		if seeds != nil {
+			li["seeds"] = seeds
+		}
+		if !truthy(li["website"]) && truthy(lo["website"]) {
+			li["website"] = lo["website"]
+		}
+		if mStr(mMap(win, "name"), "full") == "" {
+			if ln := mMap(loser, "name"); mStr(ln, "full") != "" {
+				win["name"] = ln
+			}
+		}
+		tags := mList(win, "tags")
+		haveT := map[string]bool{}
+		for _, t := range tags {
+			haveT[fmt.Sprint(t)] = true
+		}
+		for _, t := range mList(loser, "tags") {
+			if !haveT[fmt.Sprint(t)] {
+				tags = append(tags, t)
+				haveT[fmt.Sprint(t)] = true
+			}
+		}
+		if tags != nil {
+			win["tags"] = tags
+		}
+		if lcf := mMap(loser, "custom_fields"); len(lcf) > 0 {
+			wcf := mMap(win, "custom_fields")
+			if wcf == nil {
+				wcf = map[string]any{}
+				win["custom_fields"] = wcf
+			}
+			for k, v := range lcf {
+				if _, ok := wcf[k]; !ok {
+					wcf[k] = v
+				}
+			}
+		}
+		// enrichment: hooks union by evidence_url (used_in unioned, winner's
+		// content wins on dup); other keys fill-if-missing; freshest stamp
+		if loEn := mMap(loser, "enrichment"); len(loEn) > 0 {
+			wEn := mMap(win, "enrichment")
+			if wEn == nil {
+				wEn = map[string]any{}
+				win["enrichment"] = wEn
+			}
+			hooks := mList(wEn, "hooks")
+			byURL := map[string]map[string]any{}
+			for _, h := range mapsOf(hooks) {
+				byURL[mStr(h, "evidence_url")] = h
+			}
+			for _, h := range mapsOf(mList(loEn, "hooks")) {
+				u := mStr(h, "evidence_url")
+				if ex, ok := byURL[u]; ok {
+					used := mList(ex, "used_in")
+					haveU := map[string]bool{}
+					for _, x := range used {
+						haveU[fmt.Sprint(x)] = true
+					}
+					for _, x := range mList(h, "used_in") {
+						if !haveU[fmt.Sprint(x)] {
+							used = append(used, x)
+						}
+					}
+					ex["used_in"] = orEmptyList(used)
+					continue
+				}
+				hooks = append(hooks, h)
+				byURL[u] = h
+			}
+			if hooks != nil {
+				wEn["hooks"] = hooks
+			}
+			for _, k := range []string{"identity", "context", "writing_brief", "confidence_band",
+				"email_not_found_at", "no_verifiable_hook_at"} {
+				if _, ok := wEn[k]; !ok {
+					if v, ok2 := loEn[k]; ok2 {
+						wEn[k] = v
+					}
+				}
+			}
+			if l := mStr(loEn, "hooks_refreshed_at"); l > mStr(wEn, "hooks_refreshed_at") {
+				wEn["hooks_refreshed_at"] = l
+			}
+		}
+		if mStr(loser, "sequence_state") == "frozen" {
+			win["sequence_state"] = "frozen"
+		}
+		if !truthy(win["assigned_sendbox"]) && truthy(loser["assigned_sendbox"]) {
+			win["assigned_sendbox"] = loser["assigned_sendbox"]
+		}
+		// merging the pair settles any duplicate suspicion between them
+		if ds := mList(win, "duplicate_suspects"); len(ds) > 0 {
+			var keep []any
+			for _, d := range ds {
+				if dm, ok := d.(map[string]any); ok {
+					if oid := mStr(dm, "id"); oid == loserID || oid == winnerID {
+						continue
+					}
+				}
+				keep = append(keep, d)
+			}
+			win["duplicate_suspects"] = orEmptyList(keep)
+		}
 		return win
 	})
 	if err != nil {
@@ -1449,6 +1694,219 @@ func (c *crmStore) merge(loserID, winnerID string) (map[string]any, error) {
 		return nil, err
 	}
 	return win, nil
+}
+
+// anchorScore ranks which record should SURVIVE an auto-consolidation:
+// verified reachability first (emails), then phones, profiles, enrichment, name.
+func anchorScore(contact map[string]any) int {
+	ids := mMap(contact, "identities")
+	score := 0
+	for _, e := range mapsOf(mList(ids, "emails")) {
+		if validEmail(mStr(e, "address")) {
+			score += 4
+		}
+	}
+	for _, p := range mapsOf(mList(ids, "phones")) {
+		if normalizePhone(mStr(p, "number")) != "" {
+			score += 2
+		}
+	}
+	for _, v := range mMap(ids, "socials") {
+		if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+			score++
+		}
+	}
+	if truthy(ids["website"]) {
+		score++
+	}
+	if len(mMap(contact, "enrichment")) > 0 {
+		score += 2
+	}
+	if mStr(mMap(contact, "name"), "full") != "" {
+		score++
+	}
+	return score
+}
+
+// contactsConflict reports when two records look like two DIFFERENT real
+// people — both carry a name and the names differ, or both carry emails and
+// the sets are disjoint. A shared URL between such records (e.g. a brokerage
+// page posting reels of several agents) must FLAG, never auto-merge.
+func contactsConflict(a, b map[string]any) bool {
+	an := strings.ToLower(strings.TrimSpace(mStr(mMap(a, "name"), "full")))
+	bn := strings.ToLower(strings.TrimSpace(mStr(mMap(b, "name"), "full")))
+	if an != "" && bn != "" && an != bn {
+		return true
+	}
+	ae := map[string]bool{}
+	for _, e := range mapsOf(mList(mMap(a, "identities"), "emails")) {
+		if n := normalizeEmail(mStr(e, "address")); n != "" {
+			ae[n] = true
+		}
+	}
+	overlap, bHas := false, false
+	for _, e := range mapsOf(mList(mMap(b, "identities"), "emails")) {
+		if n := normalizeEmail(mStr(e, "address")); n != "" {
+			bHas = true
+			if ae[n] {
+				overlap = true
+			}
+		}
+	}
+	return len(ae) > 0 && bHas && !overlap
+}
+
+// noteDuplicateSuspects flags BOTH records (append-dedup by other id) and logs
+// one activity. Suspected duplicates are excluded from campaign queues until
+// the operator merges or clears them.
+func (c *crmStore) noteDuplicateSuspects(aID, bID, via, value string) error {
+	add := func(onID, otherID string) error {
+		_, err := c.a.update("contacts", onID, func(r map[string]any) map[string]any {
+			for _, d := range mapsOf(mList(r, "duplicate_suspects")) {
+				if mStr(d, "id") == otherID {
+					return r
+				}
+			}
+			r["duplicate_suspects"] = append(mList(r, "duplicate_suspects"),
+				map[string]any{"id": otherID, "via": via, "value": value, "at": nowISO()})
+			return r
+		})
+		return err
+	}
+	if err := add(aID, bID); err != nil {
+		return err
+	}
+	if err := add(bID, aID); err != nil {
+		return err
+	}
+	_, err := c.logActivity("duplicate_suspected", aID,
+		fmt.Sprintf("possible duplicate of %s (shared %s %s) — records conflict, NOT auto-merged; resolve with `contact merge` (same person) or `contact unsuspect` (different people)", bID, via, value),
+		"agent", nil, nil)
+	return err
+}
+
+// clearDuplicateSuspect removes the mutual flag (operator confirmed the two
+// records are different people).
+func (c *crmStore) clearDuplicateSuspect(aID, bID string) (map[string]any, error) {
+	aID, bID = c.resolve(aID), c.resolve(bID)
+	rm := func(onID, otherID string) error {
+		_, err := c.a.update("contacts", onID, func(r map[string]any) map[string]any {
+			var keep []any
+			for _, d := range mList(r, "duplicate_suspects") {
+				if dm, ok := d.(map[string]any); ok && mStr(dm, "id") == otherID {
+					continue
+				}
+				keep = append(keep, d)
+			}
+			r["duplicate_suspects"] = orEmptyList(keep)
+			return r
+		})
+		return err
+	}
+	if err := rm(aID, bID); err != nil {
+		return nil, err
+	}
+	if err := rm(bID, aID); err != nil {
+		return nil, err
+	}
+	if _, err := c.logActivity("duplicate_cleared", aID,
+		fmt.Sprintf("cleared duplicate suspicion with %s (confirmed different people)", bID),
+		"human", nil, nil); err != nil {
+		return nil, err
+	}
+	return map[string]any{"ok": true, "a": aID, "b": bID}, nil
+}
+
+// consolidateOnDiscovery: the dossier's channels_found just tied this contact
+// to identities that may already belong to OTHER contacts (the "many reels →
+// one profile" case). Safe pairs merge immediately — full union, nothing
+// loaded is lost — and the dossier lands on the survivor. Conflicting pairs
+// are flagged on both records and the conflicting value is withheld from the
+// write, so the identity index pointer is never silently stolen. Returns the
+// surviving lead id, merge/suspect events for the tool result, and the
+// "kind|value" identity keys to withhold.
+func (c *crmStore) consolidateOnDiscovery(leadID string, found map[string]any) (string, []any, []any, map[string]bool, error) {
+	skip := map[string]bool{}
+	var consolidated, suspects []any
+	if len(found) == 0 {
+		return leadID, nil, nil, skip, nil
+	}
+	type cand struct{ kind, val string }
+	var cands []cand
+	for _, e := range mList(found, "emails") {
+		if s, ok := e.(string); ok {
+			if n := normalizeEmail(s); n != "" {
+				cands = append(cands, cand{"email", n})
+			}
+		}
+	}
+	for _, p := range mList(found, "phones") {
+		if s, ok := p.(string); ok {
+			if n := normalizePhone(s); n != "" {
+				cands = append(cands, cand{"phone", n})
+			}
+		}
+	}
+	switch pv := found["profiles"].(type) {
+	case map[string]any:
+		for platform, u := range pv {
+			if s, ok := u.(string); ok && s != "" && platform != "website" {
+				if n := normalizeSocial(s); n != "" {
+					cands = append(cands, cand{"social", n})
+				}
+			}
+		}
+	case []any:
+		for _, u := range pv {
+			if s, ok := u.(string); ok && s != "" {
+				if kind, _ := classifyLeadURL(s); kind == "profile" {
+					if n := normalizeSocial(s); n != "" {
+						cands = append(cands, cand{"social", n})
+					}
+				}
+			}
+		}
+	}
+	flagged := map[string]bool{}
+	for _, cd := range cands {
+		owner := c.a.findByIdentity(cd.kind, cd.val)
+		if owner == "" {
+			continue
+		}
+		other := c.resolve(owner)
+		cur := c.resolve(leadID)
+		if other == cur {
+			continue
+		}
+		curDoc, othDoc := c.getContact(cur), c.getContact(other)
+		if curDoc == nil || othDoc == nil {
+			continue
+		}
+		if contactsConflict(curDoc, othDoc) {
+			skip[cd.kind+"|"+cd.val] = true
+			if !flagged[other] {
+				if err := c.noteDuplicateSuspects(cur, other, cd.kind, cd.val); err != nil {
+					return cur, consolidated, suspects, skip, err
+				}
+				suspects = append(suspects, map[string]any{"other_id": other, "via": cd.kind, "value": cd.val})
+				flagged[other] = true
+			}
+			continue
+		}
+		winner, loser := cur, other
+		cs, os2 := anchorScore(curDoc), anchorScore(othDoc)
+		if os2 > cs || (os2 == cs && (mStr(othDoc, "created_at") < mStr(curDoc, "created_at") ||
+			(mStr(othDoc, "created_at") == mStr(curDoc, "created_at") && other < cur))) {
+			winner, loser = other, cur
+		}
+		if _, err := c.merge(loser, winner); err != nil {
+			return cur, consolidated, suspects, skip, err
+		}
+		leadID = winner
+		consolidated = append(consolidated, map[string]any{"survivor": winner, "merged": loser,
+			"via": cd.kind, "value": cd.val})
+	}
+	return c.resolve(leadID), consolidated, suspects, skip, nil
 }
 
 // --- activities / tasks / deals -------------------------------------------------

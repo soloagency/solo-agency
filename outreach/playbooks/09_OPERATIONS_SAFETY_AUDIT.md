@@ -256,7 +256,7 @@ Compliance is encoded in the send and import code, not just described here. The 
 ### Opt-out reach
 
 - Suppression is checked at **every** send-capable path: initial send, follow-up, assisted channels, and at import against ALL identities (emails, phones, canonical socials).
-- On merge, suppression and channel statuses are **unioned** into the survivor; a contact with a pending merge proposal is excluded from every campaign queue until resolved.
+- On merge, EVERYTHING is unioned into the survivor (identities, seeds, hooks, tags, suppression and channel statuses — full union, nothing loaded is lost); a contact carrying `duplicate_suspects[]` (identity shared with a conflicting record) is excluded from every campaign queue until the operator merges or clears it.
 - If track-pull has not succeeded within N hours, sending for that box is **blocked**, so worker/mailto unsubscribes cannot sit unhonored past the window.
 
 ### Guessed email
@@ -321,6 +321,7 @@ Confirm:
 - Etiquette hard rule held: `public_business` signals (listings, work posts, reviews, awards, market opinions) were fair game; `personal` signals (family, health, vacations, children) were default-banned from copy and went only into `do_not_mention`.
 - Channel-reality honesty: logged-out-unreadable sources (Facebook, LinkedIn) were stored as URL only, not fabricated into readable content.
 - Every hook carries an `evidence_url`; the write-time freshness gate invalidated stale hooks. The mechanical draft-vs-dossier check (below) confirms no personalization detail lacks evidence.
+- Consolidation honesty: on reel-heavy lists, seeds were batch-resolved BEFORE deep enrichment (no person enriched twice); every `consolidated` and `duplicate_suspected` event from `enrich write` was reported in the run summary (a shrinking row count is healthy dedupe, not silent loss — the union keeps every reel and hook); work continued against the returned survivor `lead_id`; no suspected-duplicate pair was silently merged or silently ignored (operator decides via `contact merge` / `contact unsuspect`).
 
 ---
 

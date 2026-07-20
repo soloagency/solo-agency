@@ -627,13 +627,16 @@ func (b *bridge) uiContactDetail(c uiClient, id string) map[string]any {
 		"Role": mStr(ident, "role"), "OneLiner": mStr(brief, "one_liner"),
 		"Angles": mList(brief, "ranked_angles"), "DoNotMention": mList(brief, "do_not_mention"),
 		"Hooks": hooks, "HooksRefreshed": mStr(en, "hooks_refreshed_at"),
-		"Vertical":      mStr(mMap(doc, "custom_fields"), "professional_vertical"),
-		"SequenceState": mStr(doc, "sequence_state"),
-		"Activities":    b.uiContactActivities(c, id, 40),
+		"Vertical":          mStr(mMap(doc, "custom_fields"), "professional_vertical"),
+		"SequenceState":     mStr(doc, "sequence_state"),
+		"DuplicateSuspects": mapsOf(mList(doc, "duplicate_suspects")),
+		"Activities":        b.uiContactActivities(c, id, 40),
 	}
 }
 
-// uiContactActivities scans the monthly activity logs for one contact, newest first.
+// uiContactActivities scans the monthly activity logs for one contact, newest
+// first. Rows logged against ids that were later MERGED into this contact are
+// included too (memoized resolve, so consolidated fragments keep their history).
 func (b *bridge) uiContactActivities(c uiClient, id string, cap int) []map[string]any {
 	base := filepath.Join(c.Path, "outreach", "crm", "activities")
 	months, _ := os.ReadDir(base)
@@ -642,12 +645,25 @@ func (b *bridge) uiContactActivities(c uiClient, id string, cap int) []map[strin
 		names = append(names, m.Name())
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(names)))
+	store := newCrmStore(filepath.Join(c.Path, "outreach"))
+	memo := map[string]string{}
+	resolved := func(x string) string {
+		if x == "" {
+			return x
+		}
+		if v, ok := memo[x]; ok {
+			return v
+		}
+		v := store.resolve(x)
+		memo[x] = v
+		return v
+	}
 	var out []map[string]any
 	for _, m := range names {
 		rows := readJSONLines(filepath.Join(base, m, "activities.jsonl"))
 		for i := len(rows) - 1; i >= 0; i-- {
 			r := rows[i]
-			if mStr(r, "contact_id") != id {
+			if cid := mStr(r, "contact_id"); cid != id && resolved(cid) != id {
 				continue
 			}
 			out = append(out, map[string]any{
@@ -667,6 +683,14 @@ func (b *bridge) uiRenderContact(w http.ResponseWriter, slug, id string) {
 	if !ok {
 		http.Error(w, "unknown client", http.StatusNotFound)
 		return
+	}
+	// a consolidated fragment's old link redirects to its survivor
+	if safeID(id) == nil {
+		if rid := newCrmStore(filepath.Join(c.Path, "outreach")).resolve(id); rid != id {
+			w.Header().Set("Location", "/ui/"+slug+"/contact/"+rid)
+			w.WriteHeader(http.StatusFound)
+			return
+		}
 	}
 	d := b.uiContactDetail(c, id)
 	if d == nil {
@@ -1563,6 +1587,13 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 {{define "contact"}}{{template "head" .}}
 {{$c := .C}}
 <p><a href="/ui/{{.Client.Slug}}/crm">← CRM</a></p>
+{{if $c.DuplicateSuspects}}
+<div class="card" style="border-color:#b8860b">
+<strong>⚠ Possible duplicate</strong> <span class="mut">— shares an identity with:</span>
+{{range $c.DuplicateSuspects}}<div style="margin-top:.25rem"><a href="/ui/{{$.Client.Slug}}/contact/{{.id}}"><code style="font-size:.8rem">{{.id}}</code></a> <span class="mut" style="font-size:.82rem">(shared {{.via}}: {{.value}})</span></div>{{end}}
+<p class="mut" style="font-size:.78rem;margin-bottom:0">Same person → tell the agent: <code>merge these contacts</code>. Different people → <code>clear the duplicate flag</code>. Suspected duplicates are held out of campaign queues until resolved.</p>
+</div>
+{{end}}
 <div class="card">
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;align-items:baseline">
 <div><strong style="font-size:1.15rem">{{if $c.Name}}{{$c.Name}}{{else}}<span class="mut">{{shortid $c.ID}}</span>{{end}}</strong>
