@@ -5,7 +5,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| SOLO_AGENCY_PLAYBOOK.md | 883 | 9083ad0ed4174b7fda5719782d432fe05239e5e224ffcb0afe1dc3e0814f290a | If any required stage was not loaded, load it before proceeding. |
+| SOLO_AGENCY_PLAYBOOK.md | 884 | 0411553815eb5e96e5dc85525423cfcb0709c6aa14b6b8afdd36db6aa11dc8cf | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1828 | 75438954b9d54219adf1addfb1ffa5e9c2b3a4dda06fce3793ac7f54ea64d415 | --- |
 | playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md | 796 | 1c1f35b832135cff7f871bd18e55b535b8a0453a6a03c223b699eb1a41331e59 | --- |
 | playbooks/02_PRIVATE_SOURCE_SETUP.md | 714 | 5f36d8a9c834aa5780ddbbd9b8bc28379b2f57745284422de5e3cc8ef447e279 | --- |
@@ -14,7 +14,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/05_MEASURE_LEARN_IMPROVE.md | 297 | 8723db725c45b240b2bdf97886d08622be14163c64d2d8edacf1836eb8f7c096 | Claiming measurement completion without these is a critical violation. |
 | playbooks/06_AGENCY_REPORT_STANDARD.md | 1522 | 0d013e818a7936f71ce16b9ccb9eaf3ad6b8b8f6348d04b1d4a8a822b781ba8a | --- |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1716 | 620deee8da77008fe70c4961a4ac35ab70f1a10b7a54d526a83d8e90681b43ee | Storage-schema note: the three per-client analytics logs written under each client's `analytics/` directory are `metrics_log.md`, `learning_log.md`, and `comment_signal_log.md`. |
-| playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md | 1682 | 09e4ccd2f6cc36b2cd6298c88e109a12587f238639881c0bf3ab860e0dfbf96b | --- |
+| playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md | 1685 | fa1f67357ce96c6c8285f64281af3eff5604c2ea341907afddb1a4de4a45ecef | --- |
 | playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md | 1943 | 16421e425f6deedb8f9bd5727b072e7035e7b110a62a93f475fec6f92fd5c6e8 | This is the intended operating model. |
 | playbooks/10_LEAD_COMPETITOR_DETECTION.md | 380 | aec42c6edf8731c68b25263d4a6240862eb226d7ad547579a29080bf174d6634 | - No auto outreach, auto DM, credential/secret collection, or access-control/CAPTCHA bypass occurred. (Collecting publicly-rendered contact details under the operator's command is permitted per the collection-consent rule above; the send/act side still needs human approval.) |
 | playbooks/11_UPDATE_AND_VERSION_WATCH.md | 379 | 16d682170b9a00f5e791fd97eda1b1ef2a46af0e57313e9cd455c6f24a79d763 | - If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And GitHub Issue Escalation Rule. |
