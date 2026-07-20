@@ -12,7 +12,7 @@ This file is loaded, not summarized. A short read is NOT a load: register a LOAD
 
 ## Hard Gates For This Stage
 
-- **Never ask for the App Password in chat, and never pass it as a CLI argument.** The App Password reaches `gmail_client.py` **only** through the environment variable `OUTREACHCRM_APP_PASSWORD`, which the human sets locally. It must never appear in a chat message you request, a command line, a log, a report, the profile, or any committed file.
+- **Never ask for the App Password in chat, and never pass it as a CLI argument.** The App Password reaches the tools only two ways: **(a) the human pastes it into the local bridge UI's Sendboxes page** (`http://127.0.0.1:17321/ui/{client}/sendboxes`) — the bridge itself verifies SMTP+IMAP against Gmail and stores the credential locally; this is the PRIMARY path whenever the bridge is running — or **(b) the environment variable `OUTREACHCRM_APP_PASSWORD`** set locally by the human (fallback when the bridge/UI is not available). In both paths it must never appear in a chat message you request, a command line, a log, a report, the profile, or any committed file.
 - **Never ask for the Google account password, cookies, or OTP.** An App Password is a scoped app credential, not the account password. That is the only sending secret Setup Flow collects for the App Password path.
 - **All sending secrets stay local and private.** `sendboxes/{sendbox_slug}/credentials.json` (and `token.json` for OAuth) are gitignored and written `chmod 600`. They are never committed, never printed, never copied into a report or the Client Intelligence Profile. The deploy script blocks staging of `token.json` / `client_secret*.json` and secret-scans the staged diff.
 - **`gmail_client.py` is the only sanctioned way to authenticate a box.** Do NOT improvise a one-off `smtplib`/`imaplib` connectivity script (the no-one-off-scripts rule holds). The tool verifies SMTP+IMAP without sending outbound mail and writes the registry entry atomically.
@@ -72,13 +72,17 @@ The App Password is a Google-tightened surface and requires 2-Step Verification.
   3. Open https://myaccount.google.com/apppasswords (Google may ask you to sign in again).
   4. Type an app name, e.g. `OutreachCRM {Client}`, then click Create.
   5. Google shows a 16-character code ONCE — copy it now.
-  6. In your local terminal, set it as an environment variable (do NOT send it to me):
+  6. Open the local Sendboxes page and paste it THERE (do NOT send it to me):
+       http://127.0.0.1:17321/ui/{client}/sendboxes
+     Fill the sendbox slug (e.g. `sb-a`) and the Gmail address, paste the App Password,
+     then click "Connect & verify" — the page checks SMTP+IMAP with Gmail directly from your machine.
+  7. Reply here only with `connected` (or the sending address, e.g. `sendbox: outreach@gmail.com`).
+**If the Sendboxes page does not open** (Local Collector bridge not running): set the password locally instead and tell me the address —
        export OUTREACHCRM_APP_PASSWORD="the 16-char app password"
-  7. Reply here only with the sending address, e.g. `sendbox: outreach@gmail.com`.
 **If you do not see "App Passwords":** 2-Step Verification is not fully on, or the account uses a security key only, or an organization / Advanced Protection blocked it. Fix 2FA first — Google's guide: https://support.google.com/accounts/answer/185833
 **Why:** OutreachCRM sends and reads that mailbox over SMTP/IMAP using the App Password.
-It is scoped to this app, never your main Google password, and I never see it — the tool
-reads it from your environment variable.
+It is scoped to this app, never your main Google password, and I never see it — it stays
+on your machine (the Sendboxes page or your environment variable).
 ```
 
 Notes:
@@ -87,10 +91,12 @@ Notes:
 
 ### 2.2 Authenticate and register the box
 
-Once the human has set `OUTREACHCRM_APP_PASSWORD` locally and given you the sending address, run the auth subcommand. Pick a short `sendbox_slug` per the slug rules (lowercase, hyphens, no punctuation) — `sb-a`, `sb-b`, … are the conventional slugs.
+**UI path (primary).** When the human connected through the Sendboxes page, the bridge already ran this exact auth code path itself — verified both channels and wrote `credentials.json` + the `sendboxes.json` entry. Do NOT re-run auth: read `sendboxes/sendboxes.json`, confirm the box shows `status: healthy`, and continue.
+
+**CLI path (fallback).** Once the human has set `OUTREACHCRM_APP_PASSWORD` locally and given you the sending address, run the auth subcommand (binary-first per the Stage-0 Binary-First Tool Invocation rule; `python3 tools/gmail_client.py` with the same arguments is the fallback). Pick a short `sendbox_slug` per the slug rules (lowercase, hyphens, no punctuation) — `sb-a`, `sb-b`, … are the conventional slugs.
 
 ```bash
-python3 tools/gmail_client.py --client-dir DIR auth --sendbox sb-a --email outreach@gmail.com
+<bridge> tool gmail --client-dir DIR auth --sendbox sb-a --email outreach@gmail.com
 ```
 
 What `auth` does, in code:
