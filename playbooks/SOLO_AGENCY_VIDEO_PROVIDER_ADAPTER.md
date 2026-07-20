@@ -73,7 +73,7 @@ Before any provider action, resolve the target provider through Client tools fir
 
 Preferred execution path:
 
-1. Use the repo OpenAPI helper when available, such as `tools/provider_openapi.py`.
+1. Use the repo OpenAPI helper when available, such as `tool provider`.
 2. Otherwise use equivalent direct OpenAPI calls with the configured client credential.
 3. Use MCP/native tools only as an optional compatibility path after identity is proven to be the same client account.
 

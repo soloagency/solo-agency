@@ -17,8 +17,8 @@ Also load during blocker recovery, setup repair, storage-adapter or schema-versi
 - Treat a failed delete/update, wrong owner, missing `.git`, mismatched remote, or old timestamp as stale cache.
 - Never overwrite human/client data or secrets while applying an update: agency and client `secrets/`, sendbox `credentials.json` and `token.json`, provider API keys (`api_key_local`), `TRACKER_API_KEY` / `.dev.vars`, CRM records under `clients/{client_slug}/crm/`, `sent_log.jsonl`, `activities.jsonl`, `approvals/`, global and client `suppression`, `analytics/`, `inbox_sync/`, imported `lists/*/leads.jsonl`, reports, and outputs.
 - Back up changed runtime files before replacing them.
-- An update is incomplete until playbooks, contracts, templates, tools (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`, `report_renderer.py`, `provider_openapi.py`), the storage adapter, `tracker/worker.js`, provider defaults, client setup state, and automation/scheduled task prompts have all been checked and resynced.
-- If `tracker/worker.js` (or its D1 schema), the storage adapter `schema_version`, or sendbox token/auth compatibility changed, tell the human the exact command to run outside the AI sandbox (`wrangler deploy`, `crm_store.py migrate`) and exactly which sendboxes must be re-authenticated.
+- An update is incomplete until playbooks, contracts, templates, tools (`tool crm-store`, `tool gmail`, `tool import-leads`, `tool verify-email`, `tool render-report`, `tool provider`), the storage adapter, `tracker/worker.js`, provider defaults, client setup state, and automation/scheduled task prompts have all been checked and resynced.
+- If `tracker/worker.js` (or its D1 schema), the storage adapter `schema_version`, or sendbox token/auth compatibility changed, tell the human the exact command to run outside the AI sandbox (`wrangler deploy`, `tool crm-store migrate`) and exactly which sendboxes must be re-authenticated.
 - The scheduled `OutreachCRM - GitHub Update Watch` task must never write under `daily-content-pipeline/clients/` and must never use a client-facing channel. It updates only the agency-tier toolkit and `daily-content-pipeline/automation/` state, and records per-client resync as pending for a maintenance session or each client's own daily automation task.
 
 ## Update Trigger Command
@@ -83,18 +83,18 @@ An update check must compare at least these areas:
   - the regenerated `playbooks/LOAD_MANIFEST.md`
   - skills owned by OutreachCRM: `playbooks/skills/report-design/SKILL.md`, `email-verify-enrich`, `email-writing`
 - Provider and notification tooling:
-  - `tools/provider_openapi.py`
+  - `tool provider`
   - `provider_defaults.template.json` and `provider_config.local.template.json`
   - the client's `integrations/providers/provider_capabilities.json`, `provider_openapi_cache.yaml`, and `provider_health.md` schema expectations
   - `daily-content-pipeline/provider_defaults.json` (WideCast notification catalog, no secrets)
 - CRM and email engine tools:
-  - `tools/crm_store.py` (the only sanctioned CRM write path)
-  - `tools/gmail_client.py`
-  - `tools/import_leads.py`
-  - `tools/email_verify.py`
-  - `tools/report_renderer.py` and its `CLIENT_BLIND_TERMS` list
+  - `tool crm-store` (the only sanctioned CRM write path)
+  - `tool gmail`
+  - `tool import-leads`
+  - `tool verify-email`
+  - `tool render-report` and its `CLIENT_BLIND_TERMS` list
 - Storage adapter and schema:
-  - `tools/storage/adapter.py`, `tools/storage/json_adapter.py`, `tools/storage/postgres_adapter.py`
+  - the storage layer inside `solo-agency-collector/bridge-go/` (`store.go`, `flock_*.go`)
   - per-collection `schema_version` definitions and the read-time upgrade registry (`{from_version: fn}`)
   - `daily-content-pipeline/storage_config.json` (`{"backend":"json"}` or `postgres`)
   - the parametrized adapter contract tests as the compatibility signal
@@ -151,7 +151,7 @@ Never copy these into public support bundles or GitHub issues:
 
 Safe apply follows three tiers. Never blur them.
 
-- Replace from the verified source: playbooks, `OUTREACHCRM_PLAYBOOK.md`, `AGENTS.md`, both entrypoints, `LOAD_LEDGER_PROTOCOL.md`, `tools/*.py` (including the storage adapter), `tracker/worker.js` and its wrangler config, skills, `README.md`, `.gitignore`, and the `*.template.json` provider files. The root `deploy-soloagency.sh` `generate_outreach_artifacts` step (mode `--outreach-only`) regenerates `outreach/playbooks/LOAD_MANIFEST.md`, rezips the skills, and runs the module's 103-test suite as a preflight.
+- Replace from the verified source: playbooks, `OUTREACHCRM_PLAYBOOK.md`, `AGENTS.md`, both entrypoints, `LOAD_LEDGER_PROTOCOL.md`, `tracker/worker.js` and its wrangler config, skills, `README.md`, `.gitignore`, and the `*.template.json` provider files. The root `deploy-soloagency.sh` `generate_outreach_artifacts` step (mode `--outreach-only`) regenerates `outreach/playbooks/LOAD_MANIFEST.md`, rezips the skills, and runs the bridge-go test suite as a preflight.
 - Merge config schemas without deleting local values: `daily-content-pipeline/provider_defaults.json`, `daily-content-pipeline/storage_config.json`, each client's `integrations/providers/provider_capabilities.json` / `provider_openapi_cache.yaml` / `provider_health.md`, `campaign_config.json`, `pipelines.json`, `sendboxes.json` (schema fields only), and the automation manifest/schedule.
 - Never overwrite secrets, history, or client data: `secrets/`, sendbox `credentials.json` / `token.json`, `provider_config.local.json` auth values, `TRACKER_API_KEY` / `.dev.vars`, everything under `clients/{client_slug}/crm/`, `sent/YYYY-MM/sent_log.jsonl`, `activities/YYYY-MM/activities.jsonl`, global and client `suppression`, `approvals/`, `analytics/`, `inbox_sync/`, `lists/*/leads.jsonl`, `reports/`, and `outputs/`.
 
@@ -159,7 +159,7 @@ Additional safe-apply rules:
 
 - Preserve `api_key_env`, `api_key_local`, provider identities, local account notes, and `provider_calls.jsonl` logs.
 - Preserve client profiles, campaign goals, pipeline/rule customizations, sendbox warmup progress, cursors (`historyId`, `imap_uid_cursor`), suppression, history, reports, outputs, and analytics.
-- All CRM record changes go through `crm_store.py`. Never hand-edit or blind-overwrite a record under `clients/{client_slug}/crm/` during an update; that is a critical "no one-off scripts" violation.
+- All CRM record changes go through `tool crm-store`. Never hand-edit or blind-overwrite a record under `clients/{client_slug}/crm/` during an update; that is a critical "no one-off scripts" violation.
 - If a file has both new template content and user-local values, merge by schema instead of blind overwrite.
 - If a merge is ambiguous, write an `update_conflict` record and ask the human before overwriting.
 
@@ -174,7 +174,7 @@ For every active or configured client, check and update:
 - `pipelines.json` stages/rules schema when Stage 13 rule definitions changed.
 - `sendboxes.json` schema fields when Stage 8/10 changed, without ever touching `credentials.json` or `token.json`.
 - the client's `integrations/providers/provider_capabilities.json`, `provider_openapi_cache.yaml`, and `provider_health.md` schema expectations when provider tooling changed.
-- `crm/` record `schema_version` through the adapter's read-time upgrade registry or `crm_store.py migrate`, never by hand.
+- `crm/` record `schema_version` through the adapter's read-time upgrade registry or `tool crm-store migrate`, never by hand.
 - `daily-content-pipeline/provider_defaults.json`.
 - `daily-content-pipeline/storage_config.json`.
 - `daily-content-pipeline/schedule.md`.
@@ -184,7 +184,7 @@ For every active or configured client, check and update:
 - `daily-content-pipeline/automation/update_state.json` and `update_log.md`.
 - `daily-content-pipeline/automation/resync_log.md`.
 
-**Update-watch boundary on client writes.** When the update is applied interactively (a human `update` command in a setup/maintenance chat), the agent may perform the per-client resync directly, including a `crm_store.py migrate` under a storage freeze. When the update is applied by the scheduled `OutreachCRM - GitHub Update Watch` task, that task must not write under `daily-content-pipeline/clients/`: it applies only the agency-tier toolkit and `daily-content-pipeline/automation/` state, records each affected client in `clients_pending_resync`, and lets a maintenance session or each client's own daily automation task self-heal its client folder on the next run.
+**Update-watch boundary on client writes.** When the update is applied interactively (a human `update` command in a setup/maintenance chat), the agent may perform the per-client resync directly, including a `tool crm-store migrate` under a storage freeze. When the update is applied by the scheduled `OutreachCRM - GitHub Update Watch` task, that task must not write under `daily-content-pipeline/clients/`: it applies only the agency-tier toolkit and `daily-content-pipeline/automation/` state, records each affected client in `clients_pending_resync`, and lets a maintenance session or each client's own daily automation task self-heal its client folder on the next run.
 
 If the agent cannot edit the native scheduled task body directly, it must:
 
@@ -220,11 +220,11 @@ When tracker-worker changes are applied:
   ```
 
 - After the human deploys, verify: `GET https://trk.{domain}/events?since=0` with the `TRACKER_API_KEY` Bearer returns 200, and a fresh `/o/{token}.gif` responds. Record `tracker_worker_deploy_required: true` until this passes.
-- **Token compatibility is a compliance gate.** In-flight emails already carry `token` and `sig` values computed by the installed `gmail_client.py` against the current `TRACKER_API_KEY`. A worker deploy that changes token derivation or HMAC verification, or that rotates `TRACKER_API_KEY`, will break opens, clicks, and — critically — the `/u/` unsubscribe links already delivered. Never deploy a tracker change that stops honoring tokens minted by the currently installed send engine while any email carrying those tokens is still within its reply/unsubscribe window. Prefer additive, backward-compatible worker changes. A breaking token/HMAC change must ship `gmail_client.py` and `tracker/worker.js` together, keep old-format acceptance for at least the suppression window, and use a dual-key transition rather than a hard `TRACKER_API_KEY` rotation. If a rotation is unavoidable, block sends for the affected sendboxes until the new worker is live, mirroring the "track-pull stale beyond N hours blocks the box" rule.
+- **Token compatibility is a compliance gate.** In-flight emails already carry `token` and `sig` values computed by the installed `tool gmail` against the current `TRACKER_API_KEY`. A worker deploy that changes token derivation or HMAC verification, or that rotates `TRACKER_API_KEY`, will break opens, clicks, and — critically — the `/u/` unsubscribe links already delivered. Never deploy a tracker change that stops honoring tokens minted by the currently installed send engine while any email carrying those tokens is still within its reply/unsubscribe window. Prefer additive, backward-compatible worker changes. A breaking token/HMAC change must ship `tool gmail` and `tracker/worker.js` together, keep old-format acceptance for at least the suppression window, and use a dual-key transition rather than a hard `TRACKER_API_KEY` rotation. If a rotation is unavoidable, block sends for the affected sendboxes until the new worker is live, mirroring the "track-pull stale beyond N hours blocks the box" rule.
 
 Classify changes that touch these paths as storage-schema changes:
 
-- `tools/storage/adapter.py`, `json_adapter.py`, or `postgres_adapter.py`
+- the bridge storage layer (`solo-agency-collector/bridge-go/store.go`)
 - a per-collection `schema_version` bump (for example `contacts` moving to a new version)
 - the read-time upgrade registry (`{from_version: fn}`)
 - `contact_identities` reverse-index structure or `storage_config.json` backend
@@ -236,23 +236,23 @@ When storage-schema changes are applied:
 - For a structural migration, back up the client CRM folder first (copy, never overwrite), then run the sanctioned tool under a storage freeze flag:
 
   ```bash
-  cd "{agency_root}/outreachcrm" && python3 tools/crm_store.py migrate --client {client_slug}
+  cd "{agency_root}/outreachcrm" && <bridge> tool crm-store migrate --client {client_slug}
   ```
 
-  A backend migration uses `python3 tools/crm_store.py migrate --to postgres`. `crm_store.py migrate` upgrades all records to the current `schema_version` first and verifies with per-record content hashes, not counts.
+  A backend migration uses `<bridge> tool crm-store migrate --to postgres`. `tool crm-store migrate` upgrades all records to the current `schema_version` first and verifies with per-record content hashes, not counts.
 - The scheduled update-watch task never runs a client migration. It records `storage_schema_migration_required: true` plus the affected clients in `clients_pending_resync` and hands the migration off to a maintenance session or the client's own automation preflight.
 - Never hand-edit records to satisfy a schema change. Direct file writes under `clients/{client_slug}/crm/` are a critical violation.
 
 Classify changes that touch these paths as sendbox token/auth-compat changes:
 
 - `token.json` or `credentials.json` format
-- the OAuth scope set or `auth_mode` handling in `gmail_client.py`
+- the OAuth scope set or `auth_mode` handling in `tool gmail`
 - SMTP/IMAP behavior for `app_password` sendboxes
 
 When sendbox token/auth-compat changes are applied:
 
 - Never overwrite `sendboxes/{sendbox_slug}/credentials.json` or `token.json` (gitignored, `chmod 600`).
-- If the token format changed and `gmail_client.py` can migrate it in place, let it; otherwise mark the sendbox `needs_reauth` and raise an `[ACTION REQUIRED]` re-auth for that box.
+- If the token format changed and `tool gmail` can migrate it in place, let it; otherwise mark the sendbox `needs_reauth` and raise an `[ACTION REQUIRED]` re-auth for that box.
 - List every affected sendbox slug in `sendbox_reauth_required` and keep it there until the human confirms re-auth and a clean sync.
 
 ## Daily GitHub Update Watch Task
@@ -397,7 +397,7 @@ Do not claim an update is complete until all true items are satisfied:
 - Backups were created for every replaced runtime file/folder.
 - Toolkit, playbooks, templates, tools, storage adapter, and tracker worker were updated from the verified source when needed, and `playbooks/LOAD_MANIFEST.md` was regenerated.
 - Config schemas were merged safely without losing local values or secrets.
-- Storage `schema_version` changes were handled through the adapter upgrade registry or `crm_store.py migrate` (never hand-edited), with per-record content-hash verification when a structural migration ran.
+- Storage `schema_version` changes were handled through the adapter upgrade registry or `tool crm-store migrate` (never hand-edited), with per-record content-hash verification when a structural migration ran.
 - Every configured client and scheduled/automation task was resynced, or, for the update-watch task, recorded in `clients_pending_resync` with a precise handoff and a logged `automation_prompt_update_pending` where the native prompt could not be edited.
 - `update_state.json` and `update_log.md` were updated.
 - If `tracker/worker.js` or its D1 schema changed, the human received the exact `wrangler deploy` (and `wrangler d1 migrations apply` when needed) command to run against the current setup's `tracker/`, and the token/HMAC backward-compatibility window was preserved.

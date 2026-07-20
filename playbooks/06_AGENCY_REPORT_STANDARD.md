@@ -130,16 +130,16 @@ script. Solo Agency includes a reusable report design skill and renderer:
 
 ```text
 playbooks/skills/report-design/SKILL.md
-tools/solo_report_renderer.py
+tools/solo_tool render-report
 ```
 
 Required order for every client-facing report:
 
 1. Author or update the internal Markdown/source record with complete facts, references, lane markers, drafts, blockers, and operational notes.
 2. Load `playbooks/skills/report-design/SKILL.md`.
-3. Render each client-facing report from the approved source content with `tools/solo_report_renderer.py render`, or a named reusable template layered into that renderer.
+3. Render each client-facing report from the approved source content with `tools/solo_tool render-report render`, or a named reusable template layered into that renderer.
 4. Run the Client-Blind Scrub Gate on each client-facing HTML file.
-5. Build `{client-name}-client-report.html` and `{client-name}-client-report.pdf` with `tools/solo_report_renderer.py package` from the scrubbed daily/public/private HTML files. This package HTML is the only default human/client-facing report link.
+5. Build `{client-name}-client-report.html` and `{client-name}-client-report.pdf` with `tools/solo_tool render-report package` from the scrubbed daily/public/private HTML files. This package HTML is the only default human/client-facing report link.
 6. If PDF export is unavailable, keep the package HTML, write the renderer status JSON, update `report_state.json`, and record the exact blocker in `INTERNAL_REPORT`.
 7. Create or update the operator-only `{client-name}-INTERNAL_REPORT.html` (labeled `INTERNAL_REPORT - Not for client sharing`).
 8. Create or update `{client-name}-report_state.json` with reconciled counts, statuses, and timestamps on success — not only on the PDF-failure branch.
@@ -150,7 +150,7 @@ Required order for every client-facing report:
 Default render command pattern:
 
 ```sh
-python3 tools/solo_report_renderer.py render \
+<bridge> tool render-report render \
   --input outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.md \
   --output-html outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html \
   --title "Public Data Sources Report" \
@@ -163,7 +163,7 @@ python3 tools/solo_report_renderer.py render \
 Default package command pattern:
 
 ```sh
-python3 tools/solo_report_renderer.py package \
+<bridge> tool render-report package \
   --inputs \
     outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html \
     outputs/YYYY-MM/YYYY-MM-DD/{client-name}-public-data-sources-report.html \

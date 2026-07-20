@@ -59,11 +59,11 @@ scrubbed report.
    classification, update-watch task barred from client-facing channels.
 7. **Provider adapter + PDNA (Telegram only).** Per-client `provider_config.local.json`
    (`api_key_env`/`api_key_local`, never a field literally named `api_key`), OpenAPI
-   discovery via `tools/provider_openapi.py`, notification via WideCast
+   discovery via `tool provider`, notification via WideCast
    `sendNotification` (email always, plus Telegram when connected). Kept for operator notification only.
 8. **Two-lane reporting.** Operator-only (`INTERNAL_REPORT`, full detail) vs
    client-facing (through the Client-Blind Scrub Gate). Rendered by
-   `tools/report_renderer.py` (stdlib only). The client-facing reports are the **weekly**
+   `tool render-report` (stdlib only). The client-facing reports are the **weekly**
    report and the **monthly** report; every other output is operator-only.
 9. **`[ACTION REQUIRED]` contract.** One purpose, one exact next step, one command or
    path. When nothing is needed, end with next-action guidance (the Next-Action Guidance Rule
@@ -82,7 +82,7 @@ scrubbed report.
 | `SOLO_AGENCY_PLAYBOOK.md` | `OUTREACHCRM_PLAYBOOK.md` |
 | `deploy-soloagency.sh` | same `deploy-soloagency.sh` `generate_outreach_artifacts` (`--outreach-only`); no separate module deploy script |
 | data root `daily-content-pipeline/` | same `daily-content-pipeline/` (shared root); per-client data under `clients/{slug}/{business}_{location}/outreach/` |
-| `tools/solo_report_renderer.py` | `tools/report_renderer.py` |
+| `tools/solo_tool render-report` | `tool render-report` |
 | task `{Client} - Solo Agency Daily Run` | `{Client} - {Campaign} Daily Run` (one per campaign) |
 | `Solo Agency - GitHub Update Watch` | `OutreachCRM - GitHub Update Watch` |
 | GitHub `github.com/soloagency/solo-agency` | same repo `github.com/soloagency/solo-agency`; the module lives at the `outreach/` subpath (no separate `outreach` repo; product name stays OutreachCRM) |
@@ -130,7 +130,7 @@ vocabulary into OutreachCRM.
 
 Built so far: 0, 1, 7, 9, 11, AUTOMATION_SCHEDULING, root playbook, both entrypoints,
 LOAD_LEDGER, AGENTS.md, deploy script, README, renderer, LOAD_MANIFEST (Phase 0); **2, 3, 8
-plus tools `storage/`, `crm_store.py`, `import_leads.py`, `email_verify.py`, `gmail_client.py`
+plus tools `storage/`, `tool crm-store`, `tool import-leads`, `tool verify-email`, `tool gmail`
 and `tests/` (Phase 1)**; **4, 5, 6, 10, 13, 14 plus the `email-verify-enrich` /
 `email-writing` skills, the Approval Report + chat-approve handler, follow-up/reply, and the
 Today View / kanban (Phase 2, milestones 2A–2D)**. Still `status: planned`: 12 and 15 (metrics /
@@ -228,8 +228,8 @@ allowed to be global and are enumerated explicitly.
 
 ## 6. Storage adapter (pluggable JSON → Postgres)
 
-`tools/storage/adapter.py` defines the interface; `json_adapter.py` is default;
-`postgres_adapter.py` comes later and must pass the same parametrized contract tests.
+The storage layer inside the bridge binary (`bridge-go/store.go`) defines the interface;
+the JSON backend is default; Postgres comes later and must pass the same contract tests.
 
 Interface:
 ```
@@ -257,11 +257,11 @@ reserve(sendbox_slug, day) -> token | None           # atomic quota reservation 
   updated_at, <generated index cols>)`; `client_id` mandatory in every table and every
   generated WHERE; `contact_identities(client_id, kind, value UNIQUE, contact_id)`;
   logs get a `seq bigserial`; index columns are GENERATED from payload.
-- `crm_store.py migrate --to postgres` runs under a storage freeze flag, verifies with
+- `tool crm-store migrate --to postgres` runs under a storage freeze flag, verifies with
   **per-record content hashes** (not counts), upgrades all records to current
   schema_version first.
 
-**All CRM mutations go through `crm_store.py`.** Direct file writes are a critical
+**All CRM mutations go through `tool crm-store`.** Direct file writes are a critical
 violation (inherited "no one-off scripts" rule). Reading raw JSON is allowed only for
 debugging.
 
@@ -280,7 +280,8 @@ debugging.
     "emails": [{"address": "", "source": "import|enrich|guess", "status": "unverified|mx_ok|delivered|bounced|guessed_only|catch_all|email_not_found", "is_primary": true}],
     "phones": [{"number": "+1...", "type": "cell|office", "source": ""}],
     "socials": {"facebook": null, "instagram": null, "linkedin": null, "zalo": null, "x": null},
-    "website": null
+    "website": null,
+    "seeds": [{"url": "", "kind": "reel|video|post|group", "platform": "", "source": "import|enrich", "status": "unresolved|resolved", "resolved_profile": ""}]
   },
   "channels": {
     "email":     {"status": "usable|needs_data|opted_out|bounced"},
@@ -324,7 +325,7 @@ A contact timeline = filter this by `contact_id` (following merge chains via `re
 
 ### 7.6 Pipelines + rules (`crm/pipelines.json`)
 Stages carry `probability` + `sla_days`. Rules are **deterministic**, executed by
-`crm_store.py apply-rules`, never improvised by the LLM.
+`tool crm-store apply-rules`, never improvised by the LLM.
 ```json
 {"pipelines":[{"id":"default_sales","stages":[
    {"id":"new_reply","probability":0.10,"sla_days":1},
@@ -467,12 +468,35 @@ the same person). Two TTL tiers:
   hook already used on that person. A contact in an active sequence of campaign A is
   not drafted by B (`min_days_between_touches_across_campaigns`).
 
+### 9.1b Lead data taxonomy + resolution ladder
+
+Every imported fragment is one of three kinds (a UNIQUE fragment of any kind is a
+valid lead record; only a bare name is not unique):
+
+- **Anchor** — identifies/reaches the person directly: email, phone, a PROFILE URL
+  (`identities.socials.{platform}` — an OPEN map: facebook, instagram, linkedin,
+  youtube, tiktok, x, zalo, zillow, gbp, ...), or a website. Anchors are dedupe keys.
+- **Content clue (seed)** — a unique URL of content BY the person (reel, video, post,
+  blog article, group thread): `identities.seeds[]`. Seeds are dedupe keys too (the
+  same reel twice = the same lead) but are NOT contact channels — the profile is the
+  origin of all content, so a seed's job is to be traced back to its owner.
+- **Name** — an attribute, never a key. A name-only row still imports (User-Curated
+  List Rule: the human may know the name/company is distinctive) and is flagged
+  `name_only_fragment` for enrichment.
+
+**Resolution ladder (enrichment's first duty): seed → profile → email/phone → hooks.**
+`enrich status` returns `seed_unresolved` (anchorless contact with unresolved seeds)
+or `name_only_fragment` (anchorless, seedless, named) before any TTL logic; Tier-1's
+first move on such a lead is origin resolution, and found profiles are written back
+as canonical identities (§9.2) — resolving a profile marks the contact's seeds
+`resolved` with `resolved_profile`.
+
 ### 9.2 Dossier (`queue/enriched/YYYY-MM-DD/{lead_id}.json`; distilled copy into `contact.enrichment`)
 ```json
 {"lead_id":"","identity":{"still_active":"confirmed|inactive|unknown",
    "evidence":[{"fact":"","url":"","retrieved_at":""}],"current_company":"","role":"",
    "profiles":{"zillow":"","website":"","facebook":"","instagram":"","gbp":""},
-   "channels_found":{"emails":[],"phones":[]}},
+   "channels_found":{"emails":[],"phones":[],"profiles":{"facebook":"","website":""}}},
  "context":{"market":"","volume_signals":"","specialty":"","content_style":""},
  "hooks":[{"type":"new_listing|social_post|review|award|market_view|website_update",
    "summary":"","analysis":{"topic":"","angle":"","sensitivity":"public_business|personal"},
@@ -537,7 +561,7 @@ addresses go through a **third-party verification API** (MillionVerifier/NeverBo
 cheap, called from local Python). `catch_all` → excluded from guessed quota or capped
 ~2%. Per-domain kill switch: first hard bounce on a guessed pattern at domain X →
 suppress all other guessed addresses at X. `guessed_only` status enforced **in
-`gmail_client.py send`** (requires explicit guessed-approval flag on the draft + a
+`tool gmail send`** (requires explicit guessed-approval flag on the draft + a
 daily guessed-send cap read from sent_log), never only in prose. Guessed cohort bounce
 rate is reported separately.
 
@@ -545,7 +569,7 @@ rate is reported separately.
 
 ## 10. Send engine (Stage 8)
 
-`gmail_client.py send` per draft, in code (do not trust playbook prose):
+`tool gmail send` per draft, in code (do not trust playbook prose):
 1. **Pre-send re-check, ordered:** resolve(lead) → global+client suppression (live: also
    pull new unsubscribes from the tracker `/events` + the `+unsub` mailbox before any
    batch; if track-pull failed > N hours, **block** the box) → `channels.email.status`
@@ -653,7 +677,7 @@ an email exists, so `draft write` REJECTS a step-1 draft that has no evidenced h
 still flags a `generic_opener` warning). Step>1 drafts (bumps/replies) are exempt — an existing
 conversation is its own justification, governed by the no-"just following up" rule.
 `daily_quota` doubles as the **daily draft budget**: the daily run drafts while
-`crm_store.py draft budget --campaign <slug>` reports `remaining > 0`, then stops.
+`tool crm-store draft budget --campaign <slug>` reports `remaining > 0`, then stops.
 
 Two OPTIONAL goal fields, dictated by the operator at campaign intake (Stage 5 §1b/§1c):
 `goal.companion_doc` = a free-text directive for producing a per-lead LINK embedded in the
@@ -709,7 +733,7 @@ Every decision → `approvals/approval_log.md`. Nothing leaves without an explic
 links, warnings, confidence band) with Approve / Save edit / Hold / Reject. Decisions append to
 `clients/{c}/{bl}/outreach/ui_inbox/approval_decisions.jsonl` (`{ts, draft_id, decision:
 approve|reject|hold|edit, edited_subject?, edited_body?, note?, ui_session}`; the bridge is that
-file's sole writer). `crm_store.py ingest-ui` applies them with semantics identical to chat
+file's sole writer). `tool crm-store ingest-ui` applies them with semantics identical to chat
 (`by: ui` in `approvals/approval_log.md`, reject reasons feed `learning_log`, cursor-idempotent
 via `ui_inbox/.approval_cursor`); it runs at the start of every campaign daily run and again
 immediately before the send step. A UI decision carries exactly the same trust as a chat
@@ -720,7 +744,7 @@ decision. Editing the HTML *report* still does not persist — the *UI page* doe
 ## 15. Daily Run order (per client, pins `target_client_slug`)
 1. Load contract + LOAD LEDGER; read automation manifest + `update_state.json` (Update
    Watch is a separate task, doesn't touch clients); take per-client `run_lock`; run
-   `crm_store.py ingest-ui` (apply queued browser approval decisions — equal trust to chat).
+   `tool crm-store ingest-ui` (apply queued browser approval decisions — equal trust to chat).
 2. **Sync inbox** across all sendboxes (§12): classify, split personal, suppress
    bounces/unsubs immediately.
 3. **Pull tracking** from the worker (§11): record open/click activities (bot-filtered).
@@ -731,7 +755,7 @@ decision. Editing the HTML *report* still does not persist — the *UI page* doe
 6. **Load new pipeline** (cold/trigger campaigns, JIT buffer 3–7 days): priority pick →
    Tier-1 verify → Tier-2 enrich → step-1 draft → `pending_approval`. The drafting pass is
    **bounded by each campaign's `daily_quota`** (its daily draft budget): query
-   `crm_store.py draft budget --campaign <slug>` and draft while `remaining > 0`. **Stop
+   `tool crm-store draft budget --campaign <slug>` and draft while `remaining > 0`. **Stop
    contract** (the loop is agent-driven): if the operator says "stop"/"ngưng" mid-loop, finish
    the current lead and halt — nothing already in `pending_approval` is lost; an unattended run
    drafts up to budget and stops.
@@ -743,7 +767,7 @@ decision. Editing the HTML *report* still does not persist — the *UI page* doe
 9. **Compile Today View + regenerate kanban** (renderer).
 10. **Reports:** daily ops + Approval Report + INTERNAL_REPORT; **Mondays** add the
     Weekly CRM Report; the **first daily run of a new month** additionally builds the prior
-    month's **Monthly Client Report** (`crm_store.py monthly-report --month <prior YYYY-MM>`).
+    month's **Monthly Client Report** (`tool crm-store monthly-report --month <prior YYYY-MM>`).
     Both the weekly and monthly reports are client-facing, through the scrub gate; their
     pipeline snapshot is point-in-time "as of report date".
 11. **Notify Telegram** via WideCast `sendNotification`: counts + report link →
@@ -780,7 +804,7 @@ Fixture list `tests/fixtures/max_output_list.csv` (5 rows):
 5. synthetic `bounce-test@nonexistent-...invalid` — MX fail at verify; send re-check must
    **block** it (inverted assertion: send refused, draft stays pending). No live forced bounce.
 
-**Injectable clock**, not backdating: the single `now_iso()` in `tools/storage/adapter.py`
+**Injectable clock**, not backdating: the single `nowISO()` in the bridge storage layer
 (from which `today_str`/`month_str` derive) honors `OUTREACHCRM_FAKE_NOW`
 (`YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SSZ`) **only when `OUTREACHCRM_TEST_MODE` is truthy** — so a
 real scheduled run can never have its send timestamps or quota-day shifted by a stray env var
@@ -802,7 +826,7 @@ sig→refused, no redirect; `/events` wrong Bearer→401; cursor pagination; `PO
 `GET /u` does not mutate.
 
 **E2E runbook** (`tests/E2E_RUNBOOK.md`, one real sendbox): mandatory **step 0 =
-`crm_store.py reset-client max-output --confirm`** (wipes test client data +
+`tool crm-store reset-client max-output --confirm`** (wipes test client data +
 `test_fixture`-tagged suppression + sendbox cursor + worker events by run prefix);
 subjects/campaign slugs salted per run-id (avoid Gmail thread collisions); ~25 assertions;
 open = soft assertion (design admits it's estimated), hard-assert click/reply/unsub.
@@ -825,8 +849,8 @@ inherited deploy logic into that step:
   `provider_config.local.json`.
 - Keep: `generate_load_manifest`, git-root safety, secret scan framework, skills zip.
 
-## 19. Renderer scrub term list (`tools/report_renderer.py`, `CLIENT_BLIND_TERMS`)
-This is the single source for the term list; `tools/report_renderer.py`, playbook 09's
+## 19. Renderer scrub term list (`tool render-report`, `CLIENT_BLIND_TERMS`)
+This is the single source for the term list; `tool render-report`, playbook 09's
 prose list, and 09's mechanical scrub grep must all enumerate exactly this set.
 **Keep** (must never reach a client): "OutreachCRM", "WideCast" (the notification provider's
 name must never appear in a client report), "INTERNAL_REPORT", "MCP", "OpenAPI", "API key",
@@ -842,7 +866,7 @@ client reports are the only scrubbed, client-facing outputs; both pass this same
 
 ## 20. Update Watch (Stage 11) — rewritten scope
 Diff scope + change-classification enum rebuilt around OutreachCRM components: storage
-adapter/schema_version, `crm_store.py`/`gmail_client.py`/`import_leads.py`/`email_verify.py`,
+adapter/schema_version, `tool crm-store`/`tool gmail`/`tool import-leads`/`tool verify-email`,
 `tracker/worker.js` + its `wrangler deploy` rerun step, sendbox token compat. Replace
 `bridge_update_required`/`extension_reload_required` in `update_state.json` with
 `tracker_worker_deploy_required`/`storage_schema_migration_required`. Repo-wide the canonical
@@ -857,9 +881,9 @@ not just explicit updates).
 - **Phase 0 (DONE):** clone+prune+rename; DESIGN.md; rewrite root playbook, AGENTS,
   both entrypoints, 00, 07, 09, 11, LOAD_LEDGER scrub; deploy surgery; renderer term list;
   README; LOAD_MANIFEST; scrub verification. 6-critic audit (48 findings) fixed.
-- **Phase 1 (DONE):** storage adapter (`tools/storage/`, json backend) + `crm_store.py`
+- **Phase 1 (DONE):** storage adapter (`tools/storage/`, json backend) + `tool crm-store`
   (contacts/accounts/deals/activities/tasks/pipelines/suppression + idempotent rules engine +
-  merge/resolve) + `import_leads.py` + `email_verify.py` + `gmail_client.py` (App Password
+  merge/resolve) + `tool import-leads` + `tool verify-email` + `tool gmail` (App Password
   SMTP/IMAP: auth/health/quota/send-with-gate-chain/sync-with-DSN-first-classifier) + playbooks
   02/03/08 + `tests/test_phase1.py` (27 stdlib unittest cases, all green). Manual core loop:
   a real @gmail.com send + reply-sync now works end to end. Open/click tracking and the
@@ -877,7 +901,7 @@ not just explicit updates).
   goal-driven email writing (06 + skill `email-writing`) → drafts in `pending_approval`; **2D ✅**
   Approval Report render + chat-approve handler + follow-up/reply (10) + Today View/kanban (13/14);
   **2E ✅** Scheduled-Run wiring + injectable clock (`OUTREACHCRM_FAKE_NOW`/`TEST_MODE`) +
-  composed WideCast `notify` (`provider_openapi.py notify`, dry-run + `local_path_only` degrade) +
+  composed WideCast `notify` (`tool provider notify`, dry-run + `local_path_only` degrade) +
   minimal client-facing `weekly-report` (scrub-gated) + expanded E2E acceptance runbook (~25
   assertions). **Phase 2 complete** — E2E runbook is the acceptance gate; Stages 12/15 + the
   tracker worker are Phase 3.
@@ -892,12 +916,12 @@ not just explicit updates).
 
 ## 22. Interim Operating Rules (Phase-1 tools have shipped)
 
-**Status update:** the Phase-1 runtime tools — `crm_store.py`, `gmail_client.py`,
-`import_leads.py`, `email_verify.py`, and the storage adapter — **now exist and MUST be
+**Status update:** the Phase-1 runtime tools — `tool crm-store`, `tool gmail`,
+`tool import-leads`, `tool verify-email`, and the storage adapter — **now exist and MUST be
 used**. The Phase-0 degradations that let setup proceed before they existed (direct `crm/`
 writes, the sendbox "pending_connectivity_check" path, "tool_not_built" skips for these
-tools) **no longer apply to them**. Setup writes CRM records through `crm_store.py`, connects
-sendboxes with `gmail_client.py auth`, and imports with `import_leads.py` for real. The
+tools) **no longer apply to them**. Setup writes CRM records through `tool crm-store`, connects
+sendboxes with `tool gmail auth`, and imports with `tool import-leads` for real. The
 critical-violation rule for a direct `crm/` write is back in force.
 
 What is still not built (Phase 2+): the stage FILES 04/05/06/10/12–15 and the
@@ -920,11 +944,11 @@ and continue with steps that need no missing tool. This is a fallback, not the e
 Phase-0 direct-write path (logged `phase0_direct_write`) predates the identity reverse index,
 so `find_by_identity` — and therefore dedupe — would miss them. After updating to a checkout
 with the tools, run once per client:
-`python3 tools/crm_store.py --client-dir <DIR> validate --rebuild-index`
+`<bridge> tool crm-store --client-dir <DIR> validate --rebuild-index`
 which validates every `crm/` record against the Stage 7 schema and rebuilds
 `contact_identities.jsonl` from the existing contacts. Stage 9 treats a logged
 `phase0_direct_write` as compliant only until this migration runs; after it, all CRM writes
-go through `crm_store.py`.
+go through `tool crm-store`.
 
 **R4 — When GitHub is unreachable, the local checkout is the source of truth.** The repo is
 `github.com/soloagency/solo-agency` (OutreachCRM is its `outreach/` subpath). If GitHub cannot be verified — the repo is not yet
@@ -938,8 +962,8 @@ repo is published and reachable, normal Fresh-Source verification against
 
 **R5 — What a full setup reaches now.** With the Phase-1 tools present, a Setup Flow session
 completes to `ready_for_automation_first_run` for real: profile + pipeline + campaign written
-via `crm_store.py`, at least one sendbox authenticated with `gmail_client.py auth`, the first
-list imported with `import_leads.py`, notification configured or declined, automation task
+via `tool crm-store`, at least one sendbox authenticated with `tool gmail auth`, the first
+list imported with `tool import-leads`, notification configured or declined, automation task
 created. The first Daily Run performs real send/sync/enrich (no `tool_not_built` skips for the
 core loop). Only the Phase-2 stage files (04/05/06/10) are still `status: planned` and follow R1.
 ```

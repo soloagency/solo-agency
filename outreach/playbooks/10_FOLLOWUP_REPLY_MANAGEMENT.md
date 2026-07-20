@@ -14,10 +14,10 @@ Every load needs a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` (read to 
 compare `playbooks/LOAD_MANIFEST.md`). A short read is **not** a load: no reply may be classified,
 no sequence frozen, no bump drafted from a summary of this file.
 
-The tools this stage drives — `gmail_client.py sync` (DSN-first classifier) and
-`crm_store.py` (`apply-rules`, `followups due`) — **exist** (Phase 1 + 2). The DESIGN §22 R2
+The tools this stage drives — `tool gmail sync` (DSN-first classifier) and
+`tool crm-store` (`apply-rules`, `followups due`) — **exist** (Phase 1 + 2). The DESIGN §22 R2
 `tool_not_built` degradation does not apply to them. The reply/bump **draft** itself is written
-through Stage 6 (`crm_store.py draft write`); the operator approval + send is Stage 8. Where this
+through Stage 6 (`tool crm-store draft write`); the operator approval + send is Stage 8. Where this
 stage references a still-`planned` row, follow DESIGN §22 R1 (load the DESIGN section with its own
 ledger), never a GitHub re-fetch.
 
@@ -42,7 +42,7 @@ ledger), never a GitHub re-fetch.
   breakup, then the sequence ends. A stale hook (a listing that sold) must be retired, not reused.
 - **Every reply/bump draft still lands in `pending_approval`.** `approval_mode: manual_all` — the
   operator approves each reply and each bump in chat before Stage 8 sends. This stage never calls
-  `gmail_client.py send`.
+  `tool gmail send`.
 - **`negative` / `remove_intent` → suppression, even without the word "unsubscribe".** A "take me
   off your list", "not interested, stop", or a bare "no" routes through `crm_store` suppression (or
   an `**[ACTION REQUIRED]**` confirm task that blocks further sends). Opt-out is honored same-run.
@@ -60,7 +60,7 @@ with `docs/DESIGN.md`, `docs/DESIGN.md` wins.
 One sync per sendbox, cursor-based (IMAP UID for the `app_password` path):
 
 ```sh
-python3 tools/gmail_client.py --client-dir <CLIENT_DIR> sync --sendbox sb-a [--max 100]
+<bridge> tool gmail --client-dir <CLIENT_DIR> sync --sendbox sb-a [--max 100]
 ```
 
 `sync` walks new messages since the box's `imap_uid_cursor` and runs `classify_message` on each in
@@ -101,7 +101,7 @@ Apply the triage through the rules engine (deterministic, idempotent — the sam
 never double-creates a deal):
 
 ```sh
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> apply-rules \
+<bridge> tool crm-store --client-dir <CLIENT_DIR> apply-rules \
   --event reply_positive --contact <lead_id> --activity <activity_id>
 ```
 
@@ -113,7 +113,7 @@ auto-suppressing — but a bare "stop"/"not interested" is unambiguous and is ho
 ## 3. Draft the reply (they replied — Stage 6)
 
 A frozen contact who replied gets a **human reply that moves toward the goal**, drafted through
-Stage 6 (`crm_store.py draft write`, `pending_approval`). The reply is where value is delivered:
+Stage 6 (`tool crm-store draft write`, `pending_approval`). The reply is where value is delivered:
 
 - `reply_positive` → confirm + the tiny next step (send the sample, propose the 15-min slot).
 - `reply_question` → answer plainly *in the reply*, then the next step.
@@ -128,7 +128,7 @@ Speed matters — a same-day reply beats next-day — so hot replies surface in 
 Contacts who did **not** reply and whose `gap_days` has elapsed are due for a bump:
 
 ```sh
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> followups due --campaign <slug>
+<bridge> tool crm-store --client-dir <CLIENT_DIR> followups due --campaign <slug>
 ```
 
 `followups due` returns, per campaign, each lead whose latest sent step N has passed its
@@ -150,12 +150,12 @@ left open); after it, the sequence ends for that contact. Every bump is a distin
 ## 5. The approval gate (cross-ref Stage 8)
 
 Reply drafts and bumps are drafts like any other: they collect in `pending_approval` and appear in
-the next **Approval Report** (`crm_store.py approval-report`) — specifically in its dedicated
+the next **Approval Report** (`tool crm-store approval-report`) — specifically in its dedicated
 **`## Follow-ups due (n)`** section (*bumps and reply drafts — threaded onto an existing
 conversation*). Because they are step>1, they are grouped apart from new step-1 leads, which stay
 in **High confidence** / **Review carefully**; numbering is stable and unique across all sections.
 They are approved in chat with the approval grammar (`approve all` / `approve 1-20,35` /
-`reject 7: reason` / `hold 5` / `edit 12: …`) via `crm_store.py approve`. Approval flips `status: approved` and moves the draft to
+`reject 7: reason` / `hold 5` / `edit 12: …`) via `tool crm-store approve`. Approval flips `status: approved` and moves the draft to
 `outbox/approved/`; only then may Stage 8 send it. The full gate chain is Stage 8 §2–§3.
 
 ## Completion Gates For An Inbound Pass
@@ -174,8 +174,8 @@ They are approved in chat with the approval grammar (`approve all` / `approve 1-
 
 ## Phase status
 
-2D (this stage's tooling — the DSN-first `gmail_client.py sync` classifier from Phase 1, plus
-`crm_store.py apply-rules` / `followups due` and the Approval Report + chat-approve handler) is
+2D (this stage's tooling — the DSN-first `tool gmail sync` classifier from Phase 1, plus
+`tool crm-store apply-rules` / `followups due` and the Approval Report + chat-approve handler) is
 **built**. Reply/bump **drafting** is Stage 6 (2C, built); the **send** is Stage 8 (Phase 1, built).
 The tracker-based unsub pull and open/click signals remain Phase 3 — do not assert them here.
 

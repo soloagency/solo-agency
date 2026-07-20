@@ -12,7 +12,7 @@ Every load needs a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md`.
 ## Hard Gates For This Stage
 
 - **The Today View is operator-only and read-derived.** It is rendered from CRM state via
-  `crm_store.py today-view` — it never becomes a write path. Editing the HTML changes nothing;
+  `tool crm-store today-view` — it never becomes a write path. Editing the HTML changes nothing;
   all decisions (approvals, stage moves) go through the tool/chat. This is the internal surface, NOT
   the scrubbed weekly client report (Stage 15).
 - **Tasks are created by rules or by a human/agent, never faked.** A task carries a `guard_key` so a
@@ -30,8 +30,8 @@ created_by: rule|human|agent, guard_key}`. Tasks originate from the rules engine
 r4 SLA nudge, r5 onboarding) or are added directly:
 
 ```sh
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> task add  --json '{"title":"Call back","deal_id":"d_...","due_at":"..."}'
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> task done --id <task_id>
+<bridge> tool crm-store --client-dir <CLIENT_DIR> task add  --json '{"title":"Call back","deal_id":"d_...","due_at":"..."}'
+<bridge> tool crm-store --client-dir <CLIENT_DIR> task done --id <task_id>
 ```
 
 "Due" means `status == open` and `due_at <= now` — a task with a future `due_at` (e.g. the +4h reply
@@ -40,7 +40,7 @@ task) is pending, not yet due.
 ## The Today View
 
 ```sh
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> today-view
+<bridge> tool crm-store --client-dir <CLIENT_DIR> today-view
 ```
 
 `today_view_data` gathers, and `render_today_view` renders (via the report renderer), the operator's
@@ -54,7 +54,7 @@ single screen:
 ## The kanban
 
 ```sh
-python3 tools/crm_store.py --client-dir <CLIENT_DIR> kanban
+<bridge> tool crm-store --client-dir <CLIENT_DIR> kanban
 ```
 
 `render_kanban` lays deals out by pipeline stage with a **weighted forecast** (Σ `value ×
@@ -63,14 +63,14 @@ forecast is Stage 15 (Phase 3).
 
 ## Completion Gates
 
-- Every surfaced task/deal was read from CRM state through `crm_store.py` — nothing hand-authored.
+- Every surfaced task/deal was read from CRM state through `tool crm-store` — nothing hand-authored.
 - SLA breaches were computed from `stage_history` age vs the stage `sla_days`, not guessed.
 - Hot replies and past-SLA deals sort to the top; the pending-drafts count links to the Approval Report.
 - The Today View was treated as read-only; no approval or stage move happened by editing the HTML.
 
 ## Phase status
 
-The task engine (`crm_store.py task`, rule-created tasks), Today View (`today-view`), and kanban
+The task engine (`tool crm-store task`, rule-created tasks), Today View (`today-view`), and kanban
 (`kanban`) are **built** (2D). The polished kanban/timeline UI, weighted-forecast client report, and
 segment analytics are Phase 3 (Stage 12/15).
 

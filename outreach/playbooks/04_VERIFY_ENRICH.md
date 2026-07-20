@@ -10,7 +10,7 @@ Gates and `skills/email-writing/followup.md`). Its dependency is the skill `play
 
 ## Hard Gates For This Stage
 
-- **Every usable hook carries an `evidence_url`.** Enforced by `crm_store.py enrich write` (it
+- **Every usable hook carries an `evidence_url`.** Enforced by `tool crm-store enrich write` (it
   drops a hook with no source) and re-checked by Stage 9. A detail with no source is never written
   and never sent.
 - **No guessing.** Enrichment never fabricates an email address (MVP decision). Store only real
@@ -21,7 +21,7 @@ Gates and `skills/email-writing/followup.md`). Its dependency is the skill `play
   skill's `etiquette.md`). Gather MANY public-professional points, but never a dated, itemized log
   of a person's life.
 - **Inherit before you enrich.** The dossier belongs to the contact and is reused across that
-  client's campaigns. Always check `crm_store.py enrich status` first and act on its verdict.
+  client's campaigns. Always check `tool crm-store enrich status` first and act on its verdict.
 - **Read-only, logged-out.** WebSearch/WebFetch (+ browser tool only where `channel_reality.md`
   says). Never log into an account. **Facebook is now readable via the Local Collector**
   (`fb.profile.header` → real name/category, then `fb.profile.posts`/`fb.profile.videos`): read the
@@ -53,19 +53,19 @@ sources fit the trade, until Layers A+B are satisfied.
 
 ## Source Preservation Rule
 
-The dossier and `contact.enrichment` are written through `crm_store.py` (a `crm/` mutation).
+The dossier and `contact.enrichment` are written through `tool crm-store` (a `crm/` mutation).
 Do not hand-edit them. When any instruction here disagrees with `docs/DESIGN.md`, `docs/DESIGN.md`
 wins.
 
 ## The run
 
-1. Get the batch: `crm_store.py enrich due --campaign <slug> --limit N` returns queued leads that
+1. Get the batch: `tool crm-store enrich due --campaign <slug> --limit N` returns queued leads that
    need enrich or refresh (already-fresh ones are skipped — that is cross-campaign inheritance).
 2. Load the skill (`email-verify-enrich`) and run its two-tier flow per lead: Tier 1 verify +
    reachability (still active? profile URLs + any real channel = Layer A), Tier 2 proof-of-life
    (gather as MANY evidenced Layer-B points as you can find — `public_business` only, do NOT cap;
    each is a conclusion-basis the writer weaves), distill a `writing_brief`.
-3. Write it: `crm_store.py enrich write --contact <lead_id> --campaign <slug> --json '<dossier>'`.
+3. Write it: `tool crm-store enrich write --contact <lead_id> --campaign <slug> --json '<dossier>'`.
    It stores the full dossier under `campaigns/{slug}/queue/enriched/YYYY-MM-DD/` and a distilled
    copy into `contact.enrichment`, and returns `usable_hooks` / `confidence_band` / `problems`. A
    usable hook that lacks an `observed_date` is **kept but flagged** in `problems` (recency
@@ -75,7 +75,14 @@ wins.
    `skip` (a hookless step-1 draft is rejected), or the explicit opt-in `generic_honest_opener`
    (grounded in license/roster facts). One evidenced Layer-B point already clears the floor — only
    mark no-hook at genuine zero. Inactive leads: `still_active: inactive`, stop — do not draft.
-5. **No-email leads (email discovery):** a lead an `email_first` campaign queued with no email is
+5. **Anchorless leads — resolution ladder first (DESIGN §9.1b): seed → profile → email → hooks.**
+   When `enrich status` says `seed_unresolved`, Tier 1's FIRST move is origin resolution: open the
+   seed content itself (reel/video/post/blog — Local Collector for Facebook surfaces, the browser
+   elsewhere), identify the OWNER via the byline/channel/handle, and record the profile in
+   `identity.channels_found.profiles` — the store writes it back into `identities.socials` as a
+   canonical dedupe-eligible identity and marks the seed `resolved`. A `name_only_fragment` lead
+   gets a name+company+location search instead. Then continue as a profile-seeded lead.
+6. **No-email leads (email discovery):** a lead an `email_first` campaign queued with no email is
    here precisely so Tier 1 can DISCOVER one (website, license/roster, Google, other public
    channels). Store any real address found (`source: enrich`). If discovery genuinely fails, set
    `mark_email_not_found` → a 30-day negative cache (so a later campaign does not re-burn the dead
@@ -103,7 +110,7 @@ wins.
 
 ## Phase status
 
-The enrich storage/TTL/validation tooling (`crm_store.py enrich`, 2B) is **built**. The web
+The enrich storage/TTL/validation tooling (`tool crm-store enrich`, 2B) is **built**. The web
 verify/enrich itself is agent behavior driven by the `email-verify-enrich` skill. Downstream Stage
 6 (email writing, 2C) and Stage 10 (follow-up/reply, 2D) are **built** too. Only Stages 12/15
 remain `status: planned` (Phase 3); where a referenced row is still planned, follow DESIGN §22 R1.

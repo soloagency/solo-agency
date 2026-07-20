@@ -55,12 +55,12 @@ If you are an AI agent setting up this module (the `outreach/` directory of the 
 1. Read `OUTREACHCRM_PLAYBOOK.md` first, then `docs/DESIGN.md` (the authoritative design).
 2. Follow the Stage Map and the LOAD LEDGER full-load discipline (`playbooks/LOAD_LEDGER_PROTOCOL.md`).
 3. Setup Flow only configures — it never sends. Sending happens in the scheduled daily run, and only after the operator approves drafts in chat.
-4. All CRM data lives under `daily-content-pipeline/` and every mutation goes through `tools/crm_store.py`.
+4. All CRM data lives under `daily-content-pipeline/` and every mutation goes through `tool crm-store`.
 5. Keep each client's workspace isolated; a `target_client_slug` run touches only that client.
 
 ## Status
 
-Under active construction. Phase 0 (this commit) delivers the inherited operating system — router, load discipline, setup/automation split, storage/schema contract, safety audit, update watch, deploy tooling — transformed for OutreachCRM. The email/CRM tools (`crm_store.py`, `gmail_client.py`, `import_leads.py`, `email_verify.py`), the tracker worker, and the Phase 1–2 stage playbooks are built next. See `docs/DESIGN.md` §21 for the phase plan.
+Under active construction. Phase 0 (this commit) delivers the inherited operating system — router, load discipline, setup/automation split, storage/schema contract, safety audit, update watch, deploy tooling — transformed for OutreachCRM. The email/CRM tools (`tool crm-store`, `tool gmail`, `tool import-leads`, `tool verify-email`), the tracker worker, and the Phase 1–2 stage playbooks are built next. See `docs/DESIGN.md` §21 for the phase plan.
 
 ## Agent compatibility
 

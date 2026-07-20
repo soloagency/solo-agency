@@ -50,7 +50,7 @@ Report dials:
 - The first viewport must work like a landing-page hero: report title, client/date
   context, the decisive takeaway, and 3-5 scan-friendly highlights.
 - **The weekly client report and its PDF companion remain client-blind** (see the
-  Client-Blind Scrub Gate term list in `tools/report_renderer.py` / DESIGN.md §19):
+  Client-Blind Scrub Gate term list in `tool render-report` / DESIGN.md §19):
   do not mention OutreachCRM, WideCast, PDNA/provider tooling, OpenAPI, MCP, API keys,
   Telegram, automation/scheduled tasks, sendboxes, crm_store, sent_log, suppression,
   warmup, quota, guessed, tracker domains, agent/debug details, or `INTERNAL_REPORT`.
@@ -67,7 +67,7 @@ Report dials:
 ## Required Report Shapes
 
 **Weekly client report:** the minimal, data-driven version is generated in one step by
-`python3 tools/crm_store.py --client-dir DIR weekly-report --client-name "…"`, which assembles a
+`<bridge> tool crm-store --client-dir DIR weekly-report --client-name "…"`, which assembles a
 scrubbed Markdown source from CRM state and renders it client-facing (see the Renderer Contract
 below). Use this skill to review/upgrade its visual polish; the required content shape is:
 1. Hero: reporting period, headline outcome (e.g. "3 new opportunities, 1 won"), next step.
@@ -99,7 +99,7 @@ verify status, hooks with clickable evidence URLs, subject + editable body, warn
 Use the shared renderer instead of writing ad hoc Python/shell/browser/PDF scripts:
 
 ```sh
-python3 tools/report_renderer.py render --input REPORT.md --output-html REPORT.html \
+<bridge> tool render-report render --input REPORT.md --output-html REPORT.html \
   --title "Weekly Report" --client-name "Client Name" --report-kind "Weekly Report" \
   --client-facing --fail-on-scrub
 ```
@@ -112,14 +112,14 @@ Today View, daily ops, INTERNAL_REPORT) are rendered WITHOUT `--client-facing`.
 To combine scrubbed staging fragments into the client-facing HTML + PDF companion:
 
 ```sh
-python3 tools/report_renderer.py package --inputs PART1.html PART2.html \
+<bridge> tool render-report package --inputs PART1.html PART2.html \
   --output-html CLIENT-weekly-client-report.html --output-pdf CLIENT-weekly-client-report.pdf \
   --title "Weekly Report" --client-name "Client Name" --client-facing --fail-on-scrub
 ```
 
 Allowed deviations:
 
-- If the renderer is missing or fails, fix `tools/report_renderer.py` or log the exact
+- If the renderer is missing or fails, fix `tool render-report` or log the exact
   blocker. Do not replace it with a one-off report script.
 - A client's custom approved template may be layered into the renderer or a named
   reusable template file. Do not improvise a new unnamed renderer during the run.
@@ -127,7 +127,7 @@ Allowed deviations:
 ## Preflight
 
 - [ ] Loaded this module and the relevant reporting stage in the current turn/run.
-- [ ] Used `tools/report_renderer.py` or logged why the reusable renderer was unavailable.
+- [ ] Used `tool render-report` or logged why the reusable renderer was unavailable.
 - [ ] HTML is standalone, mobile-friendly, and visually polished.
 - [ ] The first viewport has a useful hero, not a file title plus wall of text.
 - [ ] For the weekly client report: rendered with `--client-facing --fail-on-scrub` and the

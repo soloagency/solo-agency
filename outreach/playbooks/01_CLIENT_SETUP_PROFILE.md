@@ -312,7 +312,7 @@ Propose the default sales pipeline (six stages) and ask only whether to customiz
    {"id":"won"},{"id":"lost"}]}]}
 ```
 
-The full pipeline object (including the deterministic rules `r1`–`r6`) lives in Stage 13; at setup, write the pipeline via `crm_store.py`, never as a hand-edited file. `tools/crm_store.py` exists (Phase 1) — write CRM records through it; hand-editing a `crm/` record file is a critical violation. A workspace carried over from an older Phase-0 install must run `python3 tools/crm_store.py --client-dir <DIR> validate --rebuild-index` once (DESIGN §22 R3). Ask whether the client wants to rename or add stages, and whether they track any custom fields on contacts, accounts, or deals (for example `loan_type`, `brokerage`, `renewal_month`). Custom fields land in `contact.custom_fields` / account `custom_fields` / deal fields per the Stage 7 schema.
+The full pipeline object (including the deterministic rules `r1`–`r6`) lives in Stage 13; at setup, write the pipeline via `tool crm-store`, never as a hand-edited file. `tool crm-store` exists (Phase 1) — write CRM records through it; hand-editing a `crm/` record file is a critical violation. A workspace carried over from an older Phase-0 install must run `<bridge> tool crm-store --client-dir <DIR> validate --rebuild-index` once (DESIGN §22 R3). Ask whether the client wants to rename or add stages, and whether they track any custom fields on contacts, accounts, or deals (for example `loan_type`, `brokerage`, `renewal_month`). Custom fields land in `contact.custom_fields` / account `custom_fields` / deal fields per the Stage 7 schema.
 
 ```text
 **[ACTION REQUIRED]**
@@ -320,7 +320,7 @@ The full pipeline object (including the deterministic rules `r1`–`r6`) lives i
 **Client:** {Client Name}
 **Approve one option:** `use default pipeline` / `rename/add stages` / `add custom fields`
 **What I will do after approval:** save the pipeline and any custom fields to this
-client's CRM config through `crm_store.py`.
+client's CRM config through `tool crm-store`.
 **Why:** The pipeline decides how replies become deals and when nudge tasks fire.
 ```
 
@@ -354,7 +354,7 @@ in the client dir:
 {"from_name": "…", "physical_mailing_address": "…", "unsubscribe_text": "(optional per-client wording)"}
 ```
 
-`gmail_client.py` appends the CAN-SPAM footer (postal address + visible opt-out line) to EVERY
+`tool gmail` appends the CAN-SPAM footer (postal address + visible opt-out line) to EVERY
 outgoing body from this file, and its presend gate **fails closed** (`missing_physical_address`)
 when the file or the address is absent — a client without it cannot send at all. Stage 9 audits its
 presence. Step-1 subjects must be truthful (no fake `Re:`/`Fwd:`) — recorded here as a guardrail,
@@ -386,11 +386,11 @@ Include the full step-by-step below in this first ask — do NOT wait for the hu
 **Why:** OutreachCRM sends and reads that mailbox over SMTP/IMAP with the App Password. It is scoped to this app, never your main Google password, and I never see it — the tool reads it from your environment variable.
 ```
 
-`gmail_client.py auth` (Phase 1, present) does this for real: the human sets `OUTREACHCRM_APP_PASSWORD` in their shell, then runs `python3 tools/gmail_client.py --client-dir <DIR> auth --sendbox <slug> --email <you@gmail.com>`, which verifies SMTP+IMAP, writes `sendboxes/{sendbox_slug}/credentials.json` (gitignored, chmod 600), registers the box in `sendboxes/sendboxes.json` (`auth_mode`, `email`, `domain`, `quota_today`, `warmup_stage: week_1`), baselines the IMAP cursor, and flips the box to `status: healthy`. Do not improvise a one-off connectivity script, and never ask for the App Password in chat or as a CLI argument (env var only). Setup never sends a test cold email.
+`tool gmail auth` (Phase 1, present) does this for real: the human sets `OUTREACHCRM_APP_PASSWORD` in their shell, then runs `<bridge> tool gmail --client-dir <DIR> auth --sendbox <slug> --email <you@gmail.com>`, which verifies SMTP+IMAP, writes `sendboxes/{sendbox_slug}/credentials.json` (gitignored, chmod 600), registers the box in `sendboxes/sendboxes.json` (`auth_mode`, `email`, `domain`, `quota_today`, `warmup_stage: week_1`), baselines the IMAP cursor, and flips the box to `status: healthy`. Do not improvise a one-off connectivity script, and never ask for the App Password in chat or as a CLI argument (env var only). Setup never sends a test cold email.
 
 ### Step 5 — Import the first list
 
-Load Stage 3 (`playbooks/03_IMPORT_LIST.md`) in full (LOAD LEDGER) before importing. Accept a CSV/TXT/XLSX list. The importer mints a ULID `lead_id` per row (email is NOT required — a contact may be name + a profile URL only), maps and normalizes fields, dedupes across identities, and checks every identity against global and client suppression at import time. Output lands under `lists/{list_slug}/` (`list_manifest.json`, `leads.jsonl`, `import_log.md`) and creates contacts through `crm_store.py`.
+Load Stage 3 (`playbooks/03_IMPORT_LIST.md`) in full (LOAD LEDGER) before importing. Accept a CSV/TXT/XLSX list. The importer mints a ULID `lead_id` per row (email is NOT required — a contact may be name + a profile URL only), maps and normalizes fields, dedupes across identities, and checks every identity against global and client suppression at import time. Output lands under `lists/{list_slug}/` (`list_manifest.json`, `leads.jsonl`, `import_log.md`) and creates contacts through `tool crm-store`.
 
 ```text
 **[ACTION REQUIRED]**
@@ -473,7 +473,7 @@ In OutreachCRM, PDNA is **notification-only**. There is no production, rendering
 
 This one-way read of the SAME client's sibling config is allowed - it is client-scoped, the operator's own verified key (mirrors the Stage-1 profile bootstrap). It is NOT the forbidden case of adopting a global MCP/native account as this client's connection; that stays forbidden, and a global account is never auto-reused (`global_mcp_not_client_scoped`).
 
-If no client-scoped key exists for this client yet, ask only for the WideCast API key; the agent configures, verifies, discovers, and resyncs the rest. Provider config lives per client under `integrations/providers/provider_config.local.json`. The key is referenced by `api_key_env` (an environment-variable name) or `api_key_local` (a path/handle) — **never a field literally named `api_key`**. Capability discovery uses the OpenAPI helper `tools/provider_openapi.py`, caching to `provider_openapi_cache.yaml` and recording capabilities in `provider_capabilities.json`.
+If no client-scoped key exists for this client yet, ask only for the WideCast API key; the agent configures, verifies, discovers, and resyncs the rest. Provider config lives per client under `integrations/providers/provider_config.local.json`. The key is referenced by `api_key_env` (an environment-variable name) or `api_key_local` (a path/handle) — **never a field literally named `api_key`**. Capability discovery uses the OpenAPI helper `tool provider`, caching to `provider_openapi_cache.yaml` and recording capabilities in `provider_capabilities.json`.
 
 ```text
 **[ACTION REQUIRED]**
@@ -533,7 +533,7 @@ Stage-1-relevant fields the interview must fill (each with `value` / `status` / 
 - `setup_state`: `ready_for_automation_first_run`
 - `automation_task_name`: `{Client Name} - {Campaign} Daily Run` (the first pass is this task's first execution)
 
-Slug rules: lowercase, hyphens, no punctuation or spaces. The client folder key is `{client_slug}/{business_slug}_{location_slug}`. All monthly artifacts (activities, sent log, campaign history, reports, inbox sync, outputs) use `YYYY-MM/` folders. The profile is written through `crm_store.py`/the Stage 7 tooling where the schema requires it; do not hand-edit CRM record files, which is a critical violation. `tools/crm_store.py` exists (Phase 1) — write CRM records through it; hand-editing a `crm/` record file is a critical violation. A workspace carried over from an older Phase-0 install must run `python3 tools/crm_store.py --client-dir <DIR> validate --rebuild-index` once (DESIGN §22 R3). (The Client Intelligence Profile itself is a `.md` file, never a crm_store collection, so it was always a direct write.)
+Slug rules: lowercase, hyphens, no punctuation or spaces. The client folder key is `{client_slug}/{business_slug}_{location_slug}`. All monthly artifacts (activities, sent log, campaign history, reports, inbox sync, outputs) use `YYYY-MM/` folders. The profile is written through `tool crm-store`/the Stage 7 tooling where the schema requires it; do not hand-edit CRM record files, which is a critical violation. `tool crm-store` exists (Phase 1) — write CRM records through it; hand-editing a `crm/` record file is a critical violation. A workspace carried over from an older Phase-0 install must run `<bridge> tool crm-store --client-dir <DIR> validate --rebuild-index` once (DESIGN §22 R3). (The Client Intelligence Profile itself is a `.md` file, never a crm_store collection, so it was always a direct write.)
 
 ---
 

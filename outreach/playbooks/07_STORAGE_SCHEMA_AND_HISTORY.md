@@ -12,7 +12,7 @@ This stage is the **constitution**: it defines every on-disk structure OutreachC
 
 - Use the dedicated data root `daily-content-pipeline/` (the shared Solo Agency per-client root). The toolkit/source is the `outreach/` module of the Solo Agency repo (`soloagency/outreach/`); it holds no client data.
 - Use `client_profile_{client_slug}_{business_slug}_{location_slug}.md` (the Client Intelligence Profile) as the canonical profile. Never use a vague name such as `ABC.md`.
-- **All CRM mutations go through `crm_store.py`.** Direct file writes to any `crm/` collection are a critical violation (inherited "no one-off scripts" rule). Reading raw JSON is allowed only for debugging.
+- **All CRM mutations go through `tool crm-store`.** Direct file writes to any `crm/` collection are a critical violation (inherited "no one-off scripts" rule). Reading raw JSON is allowed only for debugging.
 - Every record carries `schema_version`, `id`, `created_at`, `updated_at`; every append-only log row carries `ts` and a monotonic `seq`.
 - Slug rules and monthly `YYYY-MM/` folders apply to every daily/append artifact.
 - This stage must be loaded IN FULL (LOAD LEDGER printed with `Verdict: PASS`, matching `LOAD_MANIFEST.md` when present) before any side-effect write. A partial read = NOT loaded. See `playbooks/LOAD_LEDGER_PROTOCOL.md`.
@@ -116,7 +116,7 @@ daily-content-pipeline/              # shared Solo Agency data root — data/con
 
 ## 2. Storage Adapter (pluggable JSON → Postgres)
 
-`tools/storage/adapter.py` defines the interface; `tools/storage/json_adapter.py` is the default backend; `tools/storage/postgres_adapter.py` comes later and must pass the **same parametrized contract tests**. The backend in force is read from `daily-content-pipeline/storage_config.json`.
+The storage layer inside the bridge binary (`solo-agency-collector/bridge-go/store.go`) defines the interface; the JSON backend is the default; a Postgres backend comes later and must pass the **same contract tests**. The backend in force is read from `daily-content-pipeline/storage_config.json`.
 
 ### 2.1 Interface
 
@@ -158,13 +158,13 @@ reserve(sendbox_slug, day) -> token | None           # atomic quota reservation 
 
 ### 2.6 Migration
 
-- `crm_store.py migrate --to postgres` runs under a **storage freeze flag**.
+- `tool crm-store migrate --to postgres` runs under a **storage freeze flag**.
 - It upgrades all records to the current `schema_version` first.
 - It verifies the move with **per-record content hashes** (not row counts) — count parity is not proof of a faithful copy.
 
 ### 2.7 The one write path
 
-**All CRM mutations go through `crm_store.py`.** Direct file writes are a critical violation of the inherited "no one-off scripts" rule and are caught by the Stage 9 audit. Reading raw JSON for debugging is fine; writing it by hand is not. The adapter, not prose, is the source of truth for atomicity, locking, and `seq`.
+**All CRM mutations go through `tool crm-store`.** Direct file writes are a critical violation of the inherited "no one-off scripts" rule and are caught by the Stage 9 audit. Reading raw JSON for debugging is fine; writing it by hand is not. The adapter, not prose, is the source of truth for atomicity, locking, and `seq`.
 
 ---
 
@@ -185,7 +185,7 @@ reserve(sendbox_slug, day) -> token | None           # atomic quota reservation 
 
 ## 4. CRM Data Model (`crm/…`)
 
-Every collection below lives under `clients/{client_slug}/{business_slug}_{location_slug}/crm/` and is mutated only through `crm_store.py`.
+Every collection below lives under `clients/{client_slug}/{business_slug}_{location_slug}/crm/` and is mutated only through `tool crm-store`.
 
 ### 4.1 Contact (`crm/contacts/{lead_id}.json`) — email is NOT required
 
@@ -287,7 +287,7 @@ Minimal required set (DESIGN §7.5): `{id, contact_id?, deal_id?, title, due_at,
 
 ### 4.6 Pipelines + rules (`crm/pipelines.json`)
 
-Stages carry `probability` + `sla_days`. Rules are **deterministic**, executed by `crm_store.py apply-rules`, and are **never improvised by the LLM**.
+Stages carry `probability` + `sla_days`. Rules are **deterministic**, executed by `tool crm-store apply-rules`, and are **never improvised by the LLM**.
 
 ```json
 {"pipelines":[{"id":"default_sales","stages":[
@@ -439,7 +439,7 @@ Both are gitignored and `chmod 600`. The deploy script blocks staging of `token.
 - **Broken box:** dropped from step-1 rotation; its assigned pending follow-ups **wait** (never reassigned) + `[ACTION REQUIRED]` re-auth; report shows "N follow-ups blocked".
 - **Consumer `@gmail.com` limits (documented, accepted):** From is gmail.com → tracking links live on an unrelated domain → default `plain_text_mode` (no pixel, no link rewrite), measure by reply; no custom Message-ID domain; ~20–50 cold/day/box; never the operator's primary Gmail; App Password requires 2FA. Keep OAuth mode available as fallback.
 
-The atomic quota reservation (`reserve(sendbox_slug, day)`) and the ordered pre-send gate chain are implemented in `gmail_client.py send` (Stage 8) — not in playbook prose.
+The atomic quota reservation (`reserve(sendbox_slug, day)`) and the ordered pre-send gate chain are implemented in `tool gmail send` (Stage 8) — not in playbook prose.
 
 ---
 
@@ -531,15 +531,15 @@ A draft is written to `outbox/pending_approval/YYYY-MM-DD/{draft_id}.json` and, 
 ```
 
 - **`confidence_band`** ∈ `high | review_carefully` — drives which section of the Approval Report the card lands in.
-- **`guessed_approved`** must be `true` before a `guessed_only` address may send; the flag is enforced **in `gmail_client.py send`** plus a daily guessed-send cap, never only in prose.
-- **`status`** ∈ `pending_approval | approved | rejected | hold | sent | blocked`. A failed send is never silent: a TERMINAL blocker (suppressed, channel unusable, frozen, bad recipient/headers, already sent) flips the draft to `status: blocked`; a TRANSIENT one (quota, SMTP/auth, sendbox health, missing sending identity) keeps `status: approved` and stamps `blocker` + `blocked_at` so the next run retries naturally (enforced in `gmail_client.py`).
+- **`guessed_approved`** must be `true` before a `guessed_only` address may send; the flag is enforced **in `tool gmail send`** plus a daily guessed-send cap, never only in prose.
+- **`status`** ∈ `pending_approval | approved | rejected | hold | sent | blocked`. A failed send is never silent: a TERMINAL blocker (suppressed, channel unusable, frozen, bad recipient/headers, already sent) flips the draft to `status: blocked`; a TRANSIENT one (quota, SMTP/auth, sendbox health, missing sending identity) keeps `status: approved` and stamps `blocker` + `blocked_at` so the next run retries naturally (enforced in `tool gmail`).
 - **`is_reply`** — a reply draft (answering an inbound message); exempt from the daily draft budget.
 - **`bank_messages_used`** — which `goal.message_bank` messages this touch wove in; later bumps read prior drafts to rotate the bank (skill `followup.md`).
 - **`companion_url`** — the per-lead companion link; produced at the first touch, REUSED by every later bump (Stage 6 §Companion).
 
 ### 7.5 Sent log (`campaigns/{campaign_slug}/sent/YYYY-MM/sent_log.jsonl`)
 
-Append-only, monthly, `seq`-stamped. Written by `gmail_client.py send` after a successful send; also holds the `send_reserved` marker appended under the sent_log lock during atomic quota reservation (so there is no count-then-send race).
+Append-only, monthly, `seq`-stamped. Written by `tool gmail send` after a successful send; also holds the `send_reserved` marker appended under the sent_log lock during atomic quota reservation (so there is no count-then-send race).
 
 ```json
 {"seq":1,"ts":"","lead_id":"","campaign":"","step":1,"sendbox":"","provider_id":"","thread_id":"",
@@ -882,7 +882,7 @@ Rolling monthly operator narrative for the client (pipeline movement, notable re
 
 ## 10. Outputs & the Report Reconciliation Ledger (`outputs/…`)
 
-Two lanes, one rule: **only the weekly client report is client-facing** (scrubbed through the Client-Blind Scrub Gate, generated Mondays). Every other output is **operator-only and NOT scrubbed**. All HTML is rendered by `tools/report_renderer.py` (stdlib only).
+Two lanes, one rule: **only the weekly client report is client-facing** (scrubbed through the Client-Blind Scrub Gate, generated Mondays). Every other output is **operator-only and NOT scrubbed**. All HTML is rendered by `tool render-report` (stdlib only).
 
 Dated set under `outputs/YYYY-MM/YYYY-MM-DD/`:
 
@@ -899,7 +899,7 @@ Dated set under `outputs/YYYY-MM/YYYY-MM-DD/`:
 | `{client}-report_state.json` | ledger | — |
 
 The monthly report is built on the first run of a new month for the prior calendar month
-(`crm_store.py monthly-report --month <prior YYYY-MM>`), same scrub gate and shape as the weekly.
+(`tool crm-store monthly-report --month <prior YYYY-MM>`), same scrub gate and shape as the weekly.
 `outputs/latest/` holds the stable pointer/copy of each (the weekly/monthly client reports + PDFs are the client handoff links; the rest are operator convenience copies). Anything in `latest/` that is operator-only must be clearly labeled `INTERNAL_REPORT — Not for client sharing`.
 
 ### 10.1 `outputs/YYYY-MM/YYYY-MM-DD/{client}-report_state.json`
@@ -1034,7 +1034,7 @@ Selects the storage backend the adapter uses (§2). Minimal:
 {"schema_version": 1, "backend": "json"}
 ```
 
-`backend` ∈ `json | postgres`. When `postgres`, add the connection reference (never inline credentials — point at a secret in `secrets/` or the user's secret manager). Changing this file is a migration event (`crm_store.py migrate`, §2.6), not a hand edit.
+`backend` ∈ `json | postgres`. When `postgres`, add the connection reference (never inline credentials — point at a secret in `secrets/` or the user's secret manager). Changing this file is a migration event (`tool crm-store migrate`, §2.6), not a hand edit.
 
 ### 11.4 `provider_defaults.json`
 
@@ -1063,7 +1063,7 @@ Provider-neutral catalog for the **operator notification** provider only. WideCa
 
 Rules:
 
-- Agents use `discovery_url` to fetch the OpenAPI spec (via `tools/provider_openapi.py`) rather than hard-coding endpoint paths, and read the `servers` list + operation schemas before calling.
+- Agents use `discovery_url` to fetch the OpenAPI spec (via `tool provider`) rather than hard-coding endpoint paths, and read the `servers` list + operation schemas before calling.
 - For WideCast, select `https://widecast.ai/app/dashboard`; skip `https://api.widecast.ai` (disabled/planned host) unless a future playbook enables it.
 - Never commit real API keys or account-specific state into this file.
 
@@ -1191,7 +1191,7 @@ Tracks the installed OutreachCRM version, latest GitHub check, auto-apply prefer
 ```
 
 - `tracker_worker_deploy_required` → an update changed `tracker/worker.js` and the Worker must be re-deployed (`wrangler deploy`) before tracking/unsub events are trustworthy.
-- `storage_schema_migration_required` → a bumped `schema_version` needs `crm_store.py migrate`/upgrade before runs continue.
+- `storage_schema_migration_required` → a bumped `schema_version` needs `tool crm-store migrate`/upgrade before runs continue.
 - `sendbox_reauth_required` → list of sendbox slugs whose token/auth compatibility changed and must be re-authenticated before they send again; Stage 11 keeps them listed until the human confirms re-auth and a clean sync.
 - `clients_pending_resync` → clients the scheduled `OutreachCRM - GitHub Update Watch` task recorded as needing resync **without** writing under `clients/`; a maintenance session or each client's own daily run self-heals them.
 - Set `update_watch_task_prompt_pending: true` when the `OutreachCRM - GitHub Update Watch` task prompt could not be created/updated natively and `daily-content-pipeline/automation/update_watch_prompt.md` holds the pending prompt.
@@ -1346,7 +1346,7 @@ Credential rules:
 
 ### 12.2 `provider_capabilities.json`
 
-Snapshot of discovered OpenAPI operations — the main Client-tools inventory, safe without secrets. Refresh with `python3 tools/provider_openapi.py --config <client provider_config.local.json> --defaults daily-content-pipeline/provider_defaults.json discover --out-dir <client integrations/providers folder>` (`--config`/`--defaults` are global flags that must PRECEDE the `discover` subcommand). Because the role is notification-only, only the notification/upload/account operations matter.
+Snapshot of discovered OpenAPI operations — the main Client-tools inventory, safe without secrets. Refresh with `<bridge> tool provider --config <client provider_config.local.json> --defaults daily-content-pipeline/provider_defaults.json discover --out-dir <client integrations/providers folder>` (`--config`/`--defaults` are global flags that must PRECEDE the `discover` subcommand). Because the role is notification-only, only the notification/upload/account operations matter.
 
 ```json
 {
@@ -1435,7 +1435,7 @@ Rules that make history trustworthy:
 
 A run that touches storage cannot be claimed complete until the Stage 9 audit confirms, against this stage's structures:
 
-- Every write went through `crm_store.py` (no hand-written CRM JSON).
+- Every write went through `tool crm-store` (no hand-written CRM JSON).
 - Every draft that sent had an explicit chat `approve` in `approval_log.md`, and every send passed the ordered pre-send gate chain (suppression both tiers → quota reservation → warmup/domain caps → send-window → guessed cap → sequence-freeze → subject lint).
 - Every deal `stage_history` entry has an `evidence_activity_id`; no stage change was improvised by the LLM.
 - Every draft cited only dossier facts that carry an `evidence_url`.

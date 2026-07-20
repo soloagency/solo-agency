@@ -149,11 +149,11 @@ Do not add a second question such as "Which provider?", "Which scope?", "Spend c
 Once the human pastes the WideCast API key, before marking notification `connected`:
 
 1. Save it as `api_key_env` / `api_key_local` (never a field named `api_key`) in this client's `integrations/providers/provider_config.local.json`.
-2. Verify the account (`tools/provider_openapi.py ... account` -> `getAccount`) and run discovery (`... discover`) so `sendNotification` is confirmed available.
+2. Verify the account (`tool provider ... account` -> `getAccount`) and run discovery (`... discover`) so `sendNotification` is confirmed available.
 3. Send ONE confirmation notification (a "Hello" ping) so the human sees the channel work immediately, using the configured provider's notification operation:
 
 ```sh
-python3 tools/provider_openapi.py --config <client provider_config.local.json>   --defaults daily-content-pipeline/provider_defaults.json   call --operation sendNotification   --body '{"subject":"{Client}: notifications are on","message":"One-time confirmation that Solo Agency can now reach you here. From now on you get the daily report and hot-lead alerts at this address. No action needed."}'
+<bridge> tool provider --config <client provider_config.local.json>   --defaults daily-content-pipeline/provider_defaults.json   call --operation sendNotification   --body '{"subject":"{Client}: notifications are on","message":"One-time confirmation that Solo Agency can now reach you here. From now on you get the daily report and hot-lead alerts at this address. No action needed."}'
 ```
 
 Write the subject/message in the human's language. This ping is a configuration-verification test only: it must contain NO report content, leads, drafts, or links - just the confirmation.
@@ -451,7 +451,7 @@ WideCast remains the maintained all-in-one reference path, but the integration m
 9. Save the verified provider account identity and PDNA status into the per-client provider config and `provider_health.md`.
 10. Log every provider call to `provider_calls.jsonl` with secrets redacted.
 
-When local Python execution is available, prefer the repo helper `tools/provider_openapi.py` for discovery, account verification, operation calls, and HTML report upload. If the helper cannot run, use equivalent curl/OpenAPI calls while preserving the same per-client config, account verification, redaction, and provider call logging rules.
+When local Python execution is available, prefer the repo helper `tool provider` for discovery, account verification, operation calls, and HTML report upload. If the helper cannot run, use equivalent curl/OpenAPI calls while preserving the same per-client config, account verification, redaction, and provider call logging rules.
 
 MCP URL setup is optional compatibility, not the default Solo Agency path. Use an MCP URL only when the human explicitly chooses connector-based setup or the current AI host requires MCP. Even then, keep the per-client provider identity and account verification in the client folder so multi-client runs do not silently use a global connector account. A visible WideCast MCP account in the current AI session is not enough to complete PDNA for a client.
 
@@ -492,7 +492,7 @@ If WideCast is not configured for this client, the agent must:
 7. Mention that the client's social accounts can be connected in WideCast later to unlock approval-aware publishing to 10+ platforms, but do not ask a separate publish yes/no question during setup. Posting still requires the human to approve exact content and target platforms first.
 8. Save only the required API key reference or local key in this client's provider config.
    - Use `api_key_env` for an environment variable name or `api_key_local` for a local client key.
-   - Do not save the key in a field named `api_key`; `tools/provider_openapi.py` ignores that field and will report `provider_auth_missing`.
+   - Do not save the key in a field named `api_key`; `tool provider` ignores that field and will report `provider_auth_missing`.
 9. Fetch and cache `https://widecast.ai/openapi.yaml`.
 10. Verify account identity with `getAccount`.
 11. Check the discovered operation IDs needed for PDNA:
