@@ -8,6 +8,10 @@ bare / *name / full-path formats), extract the binary for THIS machine, STOP any
 already on the port (it never kills a non-collector process), and START the newest bridge
 in the BACKGROUND so you can close the window. It never fails on "address already in use".
 
+The bridge is registered as a logon Scheduled Task so it starts automatically after a
+reboot (and restarts itself after a crash). Set SOLO_AGENCY_NO_AUTOSTART=1 to skip the
+registration and start a plain background process instead.
+
   Windows:  powershell -ExecutionPolicy Bypass -File setup_collector.ps1
   PS7:      pwsh -File setup_collector.ps1
 
@@ -60,6 +64,11 @@ $OutputDir  = Join-Path $Root 'daily-content-pipeline/collector/inbox'
 $PidFile    = Join-Path $Runtime 'collector.pid'
 $LogFile    = Join-Path $Runtime 'collector.log'
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+
+# Per-install autostart identity: two installs on one machine each get their own task.
+$sha = [System.Security.Cryptography.SHA256]::Create()
+$InstHash = ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Root))) -replace '-','').Substring(0,8).ToLower()
+$TaskName = "SoloAgencyCollector-$InstHash"
 
 # --- platform detection ------------------------------------------------------
 # $IsWindows/$IsMacOS/$IsLinux exist only in PowerShell 6+. Windows PowerShell 5.1
@@ -148,6 +157,8 @@ if ($env:SOLO_AGENCY_SETUP_NO_START -eq '1') {
 }
 
 Say "5/6  Stopping any bridge already on port $Port"
+# Detach the autostart task first so it cannot respawn the old binary mid-upgrade.
+try { Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue } catch { }
 try { Invoke-WebRequest -UseBasicParsing -Method Post -Uri "http://127.0.0.1:$Port/shutdown" -TimeoutSec 3 | Out-Null } catch { }
 if (Test-Path $PidFile) {
   $oldPid = (Get-Content $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1)
@@ -164,19 +175,76 @@ if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
 Start-Sleep -Seconds 1
 Ok "port $Port is free"
 
-Say "6/6  Starting the newest bridge (background, persistent)"
+Say "6/6  Starting the newest bridge (background, persistent, autostart at logon)"
 if (-not (Test-Path $ConfigFile)) { Warn "config not found at $ConfigFile - starting anyway; if the bridge exits, create the config and re-run." }
-$argList = @('--host','127.0.0.1','--port',"$Port",'--config-file',$ConfigFile,'--output-dir',$OutputDir,'--persistent')
-$proc = Start-Process -FilePath $binPath -ArgumentList $argList -RedirectStandardOutput $LogFile -RedirectStandardError "$LogFile.err" -WindowStyle Hidden -PassThru
-$proc.Id | Out-File -FilePath $PidFile -Encoding ascii
-Start-Sleep -Seconds 2
-if ($proc.HasExited) {
-  Fail "The bridge exited right after starting." ("Last lines of ${LogFile}:`n" + ((Get-Content $LogFile -Tail 15 -ErrorAction SilentlyContinue) -join "`n"))
+
+function Wait-Healthy {
+  for ($i = 0; $i -lt 20; $i++) {
+    try {
+      Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Port/status" -TimeoutSec 2 | Out-Null
+      return $true
+    } catch { Start-Sleep -Seconds 1 }
+  }
+  return $false
 }
-Ok "bridge running (pid $($proc.Id))"
+
+function Start-PlainBackground {
+  $argList = @('--host','127.0.0.1','--port',"$Port",'--config-file',$ConfigFile,'--output-dir',$OutputDir,'--persistent')
+  $proc = Start-Process -FilePath $binPath -ArgumentList $argList -RedirectStandardOutput $LogFile -RedirectStandardError "$LogFile.err" -WindowStyle Hidden -PassThru
+  $proc.Id | Out-File -FilePath $PidFile -Encoding ascii
+  Start-Sleep -Seconds 2
+  if ($proc.HasExited) {
+    Fail "The bridge exited right after starting." ("Last lines of ${LogFile}:`n" + ((Get-Content $LogFile -Tail 15 -ErrorAction SilentlyContinue) -join "`n"))
+  }
+  Ok "bridge running (pid $($proc.Id))"
+}
+
+$Autostart = 'none'
+if ($env:SOLO_AGENCY_NO_AUTOSTART -eq '1') {
+  Info "SOLO_AGENCY_NO_AUTOSTART=1 - plain background start (no logon registration)."
+  Start-PlainBackground
+} elseif ($onWindows -and (Get-Command Register-ScheduledTask -ErrorAction SilentlyContinue)) {
+  # Windows: a logon Scheduled Task. Starts at every logon, restarts on crash,
+  # no time limit. Wrapped in cmd /c so the bridge's stdout/stderr still lands
+  # in collector.log (Scheduled Tasks have no output redirection of their own).
+  try {
+    $inner = "`"$binPath`" --host 127.0.0.1 --port $Port --config-file `"$ConfigFile`" --output-dir `"$OutputDir`" --persistent >> `"$LogFile`" 2>&1"
+    $action   = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument "/c `"$inner`""
+    $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+      -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
+      -MultipleInstances IgnoreNew
+    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+    Start-ScheduledTask -TaskName $TaskName
+    if (Wait-Healthy) {
+      $Autostart = "Scheduled Task '$TaskName'"
+      # PID for the stop hint (best effort)
+      if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
+        $owner = (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess
+        if ($owner) { $owner | Out-File -FilePath $PidFile -Encoding ascii }
+      }
+      Ok "bridge running as a Scheduled Task - starts automatically at logon, restarts on crash"
+    } else {
+      Warn "Scheduled Task did not become healthy - falling back to a plain background start."
+      try { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue } catch { }
+      Start-PlainBackground
+    }
+  } catch {
+    Warn "Scheduled Task registration failed ($($_.Exception.Message)) - falling back to a plain background start."
+    Start-PlainBackground
+  }
+} else {
+  Start-PlainBackground
+}
 
 Say "Done - the collector is running in the background. You can close this window."
-Info "Port   : 127.0.0.1:$Port"
-Info "Status : curl http://127.0.0.1:$Port/status"
-Info "Logs   : $LogFile"
+Info "Port      : 127.0.0.1:$Port"
+Info "Status    : curl http://127.0.0.1:$Port/status"
+Info "Logs      : $LogFile"
+if ($Autostart -ne 'none') {
+  Info "Autostart : $Autostart - survives reboots; re-run this script after updates."
+  Info "Stop      : Stop-ScheduledTask -TaskName $TaskName   (disable: Unregister-ScheduledTask -TaskName $TaskName)"
+} else {
+  Info "Autostart : OFF - after a reboot re-run this script."
+}
 Info "One-time: install the Chrome extension via Developer Mode (see AGENT_RUNBOOK.md)."

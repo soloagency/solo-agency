@@ -452,7 +452,13 @@ For each client, pinning `target_client_slug`, in this exact order:
    task and does not touch clients). Compute the date key in the recorded timezone. Take the
    per-client `run_lock`. Then run `tool crm-store ingest-ui`: it applies any Approvals-page
    decisions queued in `outreach/ui_inbox/approval_decisions.jsonl` while no run was active.
-   Browser decisions carry the same trust as chat approvals; report what it applied.
+   Browser decisions carry the same trust as chat approvals; report what it applied. Also read
+   `outreach/ui_inbox/campaign_edits.jsonl` (informational): the operator may have edited a
+   campaign's goal/companion link/budget or paused it on the Campaigns page since the last run —
+   the config file is already updated (sanctioned direct write), this event tells you to re-read
+   it instead of assuming yesterday's values. A **paused** campaign is skipped by the run
+   (queue/draft no-op in code, send parks a transient `campaign_paused` blocker that survives
+   resume) — report it as "paused by operator", never as a failure.
 2. **Sync inbox** across all sendboxes (DESIGN §12, Stage 10): run the deterministic classifier
    (see below), split personal mail off, and suppress bounces/unsubs immediately.
 3. **Pull tracking** from the worker (DESIGN §11, Stage 12): record open/click activities,

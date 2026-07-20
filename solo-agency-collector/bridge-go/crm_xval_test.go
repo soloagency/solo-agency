@@ -518,3 +518,91 @@ func TestEnrichBandGates(t *testing.T) {
 		t.Fatalf("stale-only must be capped: %v", res)
 	}
 }
+
+// TestCampaignUpdateAndPause covers the operator edit whitelist and the paused
+// gates: queue no-ops, draft write refuses, resume restores everything.
+func TestCampaignUpdateAndPause(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult {
+		return runGoStep(t, xstep{FakeNow: now, Argv: argv})
+	}
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-20T10:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+	mustOK(run("2026-07-20T10:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id": "c_p1", "name": {"full": "Pat Doe"}, "identities": {"emails": [{"address": "pat@x.com", "is_primary": true}]}}`))
+	mustOK(run("2026-07-20T10:02:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id": "all", "name": "all", "where": [["lifecycle_stage", "=", "lead"]]}`))
+	mustOK(run("2026-07-20T10:03:00Z", "--client-dir", ws, "campaign", "create",
+		"--slug", "demo", "--json", `{"audience": {"segment": "all"}, "sendboxes": ["sb-a"], "daily_quota": 10}`))
+
+	// 1. whitelisted operator edit: goal fields + companion_doc + quota
+	up := mustOK(run("2026-07-20T10:04:00Z", "--client-dir", ws, "campaign", "update",
+		"--slug", "demo", "--json",
+		`{"daily_quota": 25, "goal": {"goal_type": "book_meeting", "objective": "book 5 calls",
+		  "cta": {"text": "Worth a look?"},
+		  "companion_doc": {"instructions": "use https://leadup.example/demo for every lead",
+		    "on_fail": "default_link", "default_link": "https://leadup.example/demo"}}}`))
+	changed := fmt.Sprint(mList(up, "changed"))
+	for _, want := range []string{"daily_quota", "goal.objective", "goal.companion_doc"} {
+		if !strings.Contains(changed, want) {
+			t.Fatalf("changed missing %s: %v", want, changed)
+		}
+	}
+	got := mustOK(run("2026-07-20T10:05:00Z", "--client-dir", ws, "campaign", "get", "--slug", "demo"))
+	goal := mMap(got, "goal")
+	if mInt(got, "daily_quota", 0) != 25 || mStr(goal, "objective") != "book 5 calls" ||
+		mStr(mMap(goal, "companion_doc"), "on_fail") != "default_link" {
+		t.Fatalf("update not persisted: %v", got)
+	}
+
+	// 2. non-whitelisted key rejected loudly
+	bad := run("2026-07-20T10:06:00Z", "--client-dir", ws, "campaign", "update",
+		"--slug", "demo", "--json", `{"sendboxes": ["sb-evil"]}`)
+	if bad.Code == 0 || !strings.Contains(bad.Stderr, "not operator-editable") {
+		t.Fatalf("unknown key must be rejected: %d %s", bad.Code, bad.Stderr)
+	}
+	// 3. invalid goal_type rejected
+	bad = run("2026-07-20T10:07:00Z", "--client-dir", ws, "campaign", "update",
+		"--slug", "demo", "--json", `{"goal": {"goal_type": "world_peace"}}`)
+	if bad.Code == 0 || !strings.Contains(bad.Stderr, "goal_type") {
+		t.Fatalf("bad goal_type must be rejected: %d %s", bad.Code, bad.Stderr)
+	}
+	// 4. default_link fallback needs a valid URL
+	bad = run("2026-07-20T10:08:00Z", "--client-dir", ws, "campaign", "update",
+		"--slug", "demo", "--json",
+		`{"goal": {"companion_doc": {"instructions": "x", "on_fail": "default_link", "default_link": "not-a-url"}}}`)
+	if bad.Code == 0 {
+		t.Fatalf("bad default_link must be rejected: %s", bad.Stdout)
+	}
+
+	// 5. pause: queue no-ops, draft write refuses with campaign_paused
+	mustOK(run("2026-07-20T10:09:00Z", "--client-dir", ws, "campaign", "update",
+		"--slug", "demo", "--json", `{"status": "paused"}`))
+	q := mustOK(run("2026-07-20T10:10:00Z", "--client-dir", ws, "campaign", "queue", "--slug", "demo"))
+	if mInt(q, "queued", -1) != 0 || mInt(mMap(q, "skipped"), "campaign_paused", -1) != 1 {
+		t.Fatalf("paused queue must no-op: %v", q)
+	}
+	dw := run("2026-07-20T10:11:00Z", "--client-dir", ws, "draft", "write",
+		"--contact", "c_p1", "--campaign", "demo", "--json",
+		`{"step": 1, "subject": "Hi", "body_text": "x", "hooks_used": [{"type": "new_listing", "evidence_url": "https://z/1"}]}`)
+	if dw.Code == 0 || !strings.Contains(dw.Stderr, "campaign_paused") {
+		t.Fatalf("paused draft write must refuse: %d %s", dw.Code, dw.Stderr)
+	}
+
+	// 6. resume restores queueing
+	mustOK(run("2026-07-20T10:12:00Z", "--client-dir", ws, "campaign", "update",
+		"--slug", "demo", "--json", `{"status": "active"}`))
+	q = mustOK(run("2026-07-20T10:13:00Z", "--client-dir", ws, "campaign", "queue", "--slug", "demo"))
+	if mInt(q, "queued", -1) != 1 {
+		t.Fatalf("resume must queue again: %v", q)
+	}
+}

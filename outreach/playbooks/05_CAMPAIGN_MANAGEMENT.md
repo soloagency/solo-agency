@@ -195,6 +195,35 @@ Creating a campaign makes its `queue/`, `outbox/pending_approval/`, `outbox/appr
   to zero. Reply drafts (`is_reply: true` in the draft JSON) are exempt: answering someone who
   wrote back is never budget-blocked.
 
+## 3b. Update a campaign / pause & resume (operator-owned config)
+
+Goal, companion link, daily budget and status are OPERATOR-owned. Two equal front doors, one
+whitelist underneath (`campaignUpdate`):
+
+- **Bridge UI (preferred for humans)** — `/ui/{client}/campaigns` lists every campaign (status,
+  budget used, pending approvals, last sent); each detail page edits the goal fields, the
+  companion-link instructions and the daily budget, and has the Pause/Resume button. Edits are
+  applied instantly (this is a sanctioned direct write, DESIGN-UI §6) and the UI appends an
+  informational event to `ui_inbox/campaign_edits.jsonl` — **read it at run start** to notice the
+  operator changed config since the last run.
+- **CLI** —
+
+```sh
+<bridge> tool crm-store --client-dir DIR campaign update --slug demo-outreach --json \
+  '{"status":"paused"}'   # or: {"daily_quota":25} / {"goal":{"objective":"...","companion_doc":{...}}}
+```
+
+Whitelist: `status` (active|paused), `daily_quota` (1..500), `goal.goal_type` (validated),
+`goal.objective|offer|value_proposition`, `goal.proof_points`, `goal.cta.text`,
+`goal.companion_doc{instructions, on_fail, default_link}` (`null` deletes it). Anything else —
+sequence, guardrails, audience, sendboxes — is rejected (`not operator-editable`); those change
+through campaign re-design with the operator, not a patch.
+
+**Paused semantics are enforced in code, not by convention:** `campaign queue` no-ops
+(`skipped.campaign_paused`), `draft write` refuses (`campaign_paused`), and `gmail send` parks a
+TRANSIENT `campaign_paused` blocker — the draft stays approved and goes out after resume. The
+daily run treats a paused campaign as "skip and say so in the report", never as an error.
+
 ## 4. Populate the enrich queue (the JIT buffer)
 
 The daily run pulls a small buffer (3–7 days of volume) rather than enriching the whole pool

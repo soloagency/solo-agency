@@ -134,6 +134,9 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 	if cfg == nil {
 		return nil, storageErrf("campaign %q not found", campaignSlug)
 	}
+	if mStr(cfg, "status") == "paused" {
+		return nil, storageErrf("campaign_paused: drafting is paused for %q — resume it on the Campaigns page (or `campaign update --json '{\"status\":\"active\"}'`)", campaignSlug)
+	}
 	step := a.Step
 	if !a.IsReply {
 		budget, err := c.draftBudget(campaignSlug, "")

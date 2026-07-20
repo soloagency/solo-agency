@@ -232,11 +232,25 @@ The setup file must be idempotent:
 - Re-running the setup/start file must restart the Local Collector app, not merely try to start a second copy. Otherwise an old collector can keep port `17321`, causing the Chrome extension to keep talking to stale config and report "no job" even after the agent wrote a new client config.
 - If the new bridge logs `address already in use`, the setup/start file is incomplete. Fix the script to detect the process holding port `17321` before asking the human to retry.
 - The restart order must be (do not rely on `POST /shutdown`: the shipped bridge requires the per-run extension token, held only by the extension, and returns 401 when called tokenless, so a tokenless call is a no-op):
+  0. Detach the autostart supervisor FIRST so it cannot respawn the old binary mid-upgrade:
+     macOS `launchctl bootout gui/$(id -u)/com.solo-agency.collector.{insthash}`, Linux
+     `systemctl --user stop solo-agency-collector-{insthash}.service`, Windows
+     `Stop-ScheduledTask -TaskName SoloAgencyCollector-{insthash}` ({insthash} = first 8 hex of
+     SHA-256 of the agency root path; ignore errors when none is registered).
   1. Kill the PID stored in `collector.pid` if it is still alive.
   2. Use `lsof -tiTCP:17321 -sTCP:LISTEN` on macOS/Linux to find any remaining process holding the port.
   3. Kill only processes whose command line contains `collector-bridge`; if a non-collector process owns the port, stop and tell the human exactly what is blocking it.
   4. Start the newest Local Collector app executable in background/detached mode.
   5. Write the new PID to `collector.pid` and logs to `collector.log`.
+- **Autostart at boot (2026-07-20+ setup scripts).** The setup script registers the bridge to
+  start by itself: macOS per-user LaunchAgent (`RunAtLoad` + KeepAlive-on-failure), Linux systemd
+  user unit (`Restart=on-failure`, best-effort `loginctl enable-linger` for start-before-login),
+  Windows logon Scheduled Task (crash restarts, wrapped in `cmd /c` so output still lands in
+  `collector.log`). Semantics: a CRASH is restarted automatically; a CLEAN stop (`/shutdown`,
+  `kill` TERM → exit 0) stays stopped — so upgrades never fight the supervisor. Re-running the
+  setup script refreshes the registration; `SOLO_AGENCY_NO_AUTOSTART=1` skips it (plain
+  background start, old behavior). After a reboot the human should NOT need to run anything —
+  if `/status` answers, the supervisor did its job.
 - Keep PID/log files under `solo-agency-local-collector/`, for example `solo-agency-local-collector/collector.pid` and `solo-agency-local-collector/collector.log`.
 - **One port = one production bridge.** Port `17321` belongs to the PRODUCTION install that the client Chrome extensions point at. A development or test bridge (e.g. started from a source-repo checkout) must NEVER take `17321` — start it with `--port 17322` (or `SOLO_AGENCY_BRIDGE_PORT=17322` for the setup script) so it cannot steal the port from the production bridge and silently receive extension traffic into the wrong workspace. The setup script resolves its install from the script's own location, so running one install's script can stop and replace the port-holder — which is exactly why a dev bridge must live on a different port.
 - Start the Local Collector app in background/detached mode, write PID/log files, then return control to the user. Do not require the user to keep Terminal or PowerShell open during normal operation.

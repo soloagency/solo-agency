@@ -385,6 +385,12 @@ func (c *crmStore) queueCampaign(slug string, limit int) (map[string]any, error)
 	if cfg == nil {
 		return nil, storageErrf("campaign %q not found", slug)
 	}
+	if mStr(cfg, "status") == "paused" {
+		// a paused campaign is a clean no-op for the daily run, not an error
+		return map[string]any{"campaign": slug, "queued": 0,
+			"skipped": map[string]any{"campaign_paused": 1},
+			"segment": mStr(mMap(cfg, "audience"), "segment"), "paused": true}, nil
+	}
 	segID := mStr(mMap(cfg, "audience"), "segment")
 	if segID == "" {
 		return nil, storageErrf("campaign %q has no audience.segment", slug)
@@ -1966,6 +1972,133 @@ func (c *crmStore) clientSlug() string {
 		return "client"
 	}
 	return s
+}
+
+// --- campaign update (operator-editable config, whitelist-merged) ----------------
+
+var campaignOnFail = map[string]bool{"skip": true, "default_link": true}
+
+// campaignUpdate applies an OPERATOR edit to campaign_config.json through a
+// strict whitelist — goal fields, companion_doc, daily_quota, status — so a
+// UI/chat patch can never rewrite sequence/guardrail/audience machinery by
+// accident. Unknown keys are rejected loudly, not dropped silently.
+func (c *crmStore) campaignUpdate(slug string, patch map[string]any) (map[string]any, error) {
+	cfg := c.getCampaign(slug)
+	if cfg == nil {
+		return nil, storageErrf("campaign %q not found", slug)
+	}
+	changed := []string{}
+	setStr := func(dst map[string]any, key, val, label string) {
+		if mStr(dst, key) != val {
+			dst[key] = val
+			changed = append(changed, label)
+		}
+	}
+	for key, val := range patch {
+		switch key {
+		case "status":
+			s, _ := val.(string)
+			if s != "active" && s != "paused" {
+				return nil, storageErrf("status must be active|paused, got %q", s)
+			}
+			setStr(cfg, "status", s, "status")
+		case "daily_quota":
+			q := int(asFloat(val, -1))
+			if q < 1 || q > 500 {
+				return nil, storageErrf("daily_quota must be 1..500, got %v", val)
+			}
+			if mInt(cfg, "daily_quota", 0) != q {
+				cfg["daily_quota"] = q
+				changed = append(changed, "daily_quota")
+			}
+		case "goal":
+			gp, ok := val.(map[string]any)
+			if !ok {
+				return nil, storageErrf("goal must be an object")
+			}
+			goal := mMap(cfg, "goal")
+			if goal == nil {
+				goal = map[string]any{}
+				cfg["goal"] = goal
+			}
+			for gk, gv := range gp {
+				switch gk {
+				case "goal_type":
+					s, _ := gv.(string)
+					if !goalTypes[s] {
+						return nil, storageErrf("goal_type %q not in %v", s, sortedGoalTypes())
+					}
+					setStr(goal, "goal_type", s, "goal.goal_type")
+				case "objective", "offer", "value_proposition":
+					s, _ := gv.(string)
+					setStr(goal, gk, s, "goal."+gk)
+				case "proof_points":
+					if l, ok := gv.([]any); ok {
+						if string(marshalLineJSON(goal["proof_points"])) != string(marshalLineJSON(l)) {
+							goal["proof_points"] = l
+							changed = append(changed, "goal.proof_points")
+						}
+					}
+				case "cta":
+					if cm, ok := gv.(map[string]any); ok {
+						cta := mMap(goal, "cta")
+						if cta == nil {
+							cta = map[string]any{}
+							goal["cta"] = cta
+						}
+						if s, ok := cm["text"].(string); ok {
+							setStr(cta, "text", s, "goal.cta.text")
+						}
+					}
+				case "companion_doc":
+					if gv == nil {
+						if _, had := goal["companion_doc"]; had {
+							delete(goal, "companion_doc")
+							changed = append(changed, "goal.companion_doc")
+						}
+						continue
+					}
+					cd, ok := gv.(map[string]any)
+					if !ok {
+						return nil, storageErrf("companion_doc must be an object or null")
+					}
+					onFail := mStr(cd, "on_fail")
+					if onFail != "" && !campaignOnFail[onFail] {
+						return nil, storageErrf("companion_doc.on_fail must be skip|default_link")
+					}
+					if onFail == "default_link" && !validEvidenceURL(cd["default_link"]) {
+						return nil, storageErrf("companion_doc.default_link must be a valid http(s) URL when on_fail=default_link")
+					}
+					if dl := mStr(cd, "default_link"); dl != "" && !validEvidenceURL(dl) {
+						return nil, storageErrf("companion_doc.default_link must be a valid http(s) URL")
+					}
+					newCD := map[string]any{
+						"instructions": mStr(cd, "instructions"),
+						"on_fail":      strOr(onFail, "skip"),
+						"default_link": mStr(cd, "default_link"),
+					}
+					if string(marshalLineJSON(goal["companion_doc"])) != string(marshalLineJSON(newCD)) {
+						goal["companion_doc"] = newCD
+						changed = append(changed, "goal.companion_doc")
+					}
+				default:
+					return nil, storageErrf("goal.%s is not operator-editable", gk)
+				}
+			}
+		default:
+			return nil, storageErrf("%s is not operator-editable (allowed: status, daily_quota, goal.*)", key)
+		}
+	}
+	p, err := c.campaignConfigPath(slug)
+	if err != nil {
+		return nil, err
+	}
+	if len(changed) > 0 {
+		if err := atomicWriteFile(p, marshalIndentJSON(cfg)); err != nil {
+			return nil, err
+		}
+	}
+	return map[string]any{"ok": true, "campaign": slug, "changed": strsToAny(changed), "config": cfg}, nil
 }
 
 // pyTitle mirrors Python str.title(): letter after non-letter uppercased, rest lowered.

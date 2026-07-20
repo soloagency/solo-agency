@@ -267,6 +267,7 @@ func (b *bridge) uiFingerprint() string {
 				if !camp.IsDir() {
 					continue
 				}
+				stamp(filepath.Join(campaigns, camp.Name(), "campaign_config.json"))
 				pa := filepath.Join(campaigns, camp.Name(), "outbox", "pending_approval")
 				stamp(pa)
 				if days, err := os.ReadDir(pa); err == nil {
@@ -740,6 +741,10 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 		b.uiRenderCRM(w, parts[0])
 	case len(parts) == 3 && parts[1] == "contact":
 		b.uiRenderContact(w, parts[0], parts[2])
+	case len(parts) == 2 && parts[1] == "campaigns":
+		b.uiRenderCampaigns(w, parts[0])
+	case len(parts) == 3 && parts[1] == "campaign":
+		b.uiRenderCampaign(w, parts[0], parts[2])
 	case len(parts) == 2 && parts[1] == "approvals":
 		b.uiRenderApprovals(w, parts[0])
 	case len(parts) == 2 && parts[1] == "shortlist":
@@ -784,6 +789,7 @@ var uiFeatures = []uiFeature{
 	{"Content", "Latest reports", "Daily HTML reports: ideas, drafts, leads, opportunities", "ui", "reports", "", ""},
 	{"Content", "Install / check the Chrome extension", "Drag-and-drop install for this client's collector extension, with a live connected check", "ui", "extension", "", ""},
 	{"Outreach", "Create a cold-email campaign", "Personalized, evidence-backed cold email — 3 questions and it runs; nothing sends without your approval", "agent", "", "set up a cold-email campaign", "the shared SETUP session"},
+	{"Outreach", "Manage campaigns", "Edit each campaign's goal and companion link, change the daily budget, pause/resume — right here", "ui", "campaigns", "", ""},
 	{"Outreach", "Import a lead list", "Bring in a CSV of prospects, deduped and suppression-checked", "agent", "", "import a list: <path to your CSV>", "the shared SETUP session"},
 	{"Outreach", "Review & approve drafts", "Approve, edit, hold or reject every drafted email — right here", "ui", "approvals", "", ""},
 	{"Outreach", "Approve discovered sources", "Tick the monitoring shortlist the agent proposed", "ui", "shortlist", "", ""},
@@ -821,6 +827,106 @@ func resolveSendboxSlug(clientDir, emailAddr string) string {
 		}
 	}
 	return "sb-" + gmailMkToken()[:4]
+}
+
+// ---------- campaigns ----------
+
+// uiCampaignRow summarizes one campaign for the list page.
+func (b *bridge) uiCampaignRows(c uiClient) []map[string]any {
+	store := newCrmStore(filepath.Join(c.Path, "outreach"))
+	var out []map[string]any
+	pendingByCamp := map[string]int{}
+	for _, d := range b.uiPendingDrafts(c) {
+		pendingByCamp[d.Campaign]++
+	}
+	for _, cfg := range store.listCampaigns() {
+		slug := mStr(cfg, "campaign_slug")
+		row := map[string]any{
+			"Slug": slug, "Status": strOr(mStr(cfg, "status"), "active"),
+			"GoalType":  mStr(mMap(cfg, "goal"), "goal_type"),
+			"Objective": mStr(mMap(cfg, "goal"), "objective"),
+			"Quota":     mInt(cfg, "daily_quota", 40),
+			"Pending":   pendingByCamp[slug],
+			"Sent":      0, "LastSent": "",
+		}
+		if budget, err := store.draftBudget(slug, ""); err == nil {
+			row["UsedToday"] = budget["used_today"]
+		}
+		sent, last := 0, ""
+		for _, p := range store.allSentLogs(slug) {
+			for _, r := range readJSONLines(p) {
+				if mStr(r, "rfc_message_id") != "" {
+					sent++
+					if sa := mStr(r, "sent_at"); sa > last {
+						last = sa
+					}
+				}
+			}
+		}
+		row["Sent"] = sent
+		if len(last) >= 10 {
+			row["LastSent"] = last[:10]
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
+func (b *bridge) uiRenderCampaigns(w http.ResponseWriter, slug string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	b.uiRender(w, "campaigns", map[string]any{
+		"Title": c.Slug + " campaigns", "Client": c, "Rows": b.uiCampaignRows(c),
+	})
+}
+
+func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
+	c, ok := b.uiFindClient(slug)
+	if !ok {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	store := newCrmStore(filepath.Join(c.Path, "outreach"))
+	cfg := store.getCampaign(camp)
+	if cfg == nil {
+		http.Error(w, "unknown campaign", http.StatusNotFound)
+		return
+	}
+	goal := mMap(cfg, "goal")
+	cd := mMap(goal, "companion_doc")
+	var proofLines []string
+	for _, p := range mList(goal, "proof_points") {
+		proofLines = append(proofLines, fmt.Sprint(p))
+	}
+	pending := 0
+	for _, d := range b.uiPendingDrafts(c) {
+		if d.Campaign == camp {
+			pending++
+		}
+	}
+	data := map[string]any{
+		"Title": camp, "Client": c, "Slug": camp,
+		"Status":    strOr(mStr(cfg, "status"), "active"),
+		"Quota":     mInt(cfg, "daily_quota", 40),
+		"Segment":   mStr(mMap(cfg, "audience"), "segment"),
+		"Sendboxes": mList(cfg, "sendboxes"),
+		"GoalType":  mStr(goal, "goal_type"), "GoalTypes": sortedGoalTypes(),
+		"Objective": mStr(goal, "objective"), "Offer": mStr(goal, "offer"),
+		"ValueProp":             mStr(goal, "value_proposition"),
+		"Proof":                 strings.Join(proofLines, "\n"),
+		"CTAText":               mStr(mMap(goal, "cta"), "text"),
+		"CompanionInstructions": mStr(cd, "instructions"),
+		"CompanionOnFail":       strOr(mStr(cd, "on_fail"), "skip"),
+		"CompanionDefault":      mStr(cd, "default_link"),
+		"Pending":               pending,
+	}
+	if budget, err := store.draftBudget(camp, ""); err == nil {
+		data["UsedToday"] = budget["used_today"]
+	}
+	b.uiRender(w, "campaign", data)
 }
 
 // ---------- extension install helper ----------
@@ -1132,6 +1238,29 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(map[string]any{"ok": true, "queued": n,
 			"note": "recorded in ui_inbox; tell your agent to apply the shortlist decisions"})
+	case "campaign-update":
+		// Operator-owned campaign config: applied through the SAME whitelist
+		// as `tool crm-store campaign update` (instant effect — the daily run
+		// reads the file fresh), plus an informational ui_inbox event so the
+		// agent knows the operator changed it.
+		campSlug := strings.TrimSpace(mStr(body, "slug"))
+		patch, _ := body["patch"].(map[string]any)
+		if campSlug == "" || len(patch) == 0 {
+			http.Error(w, "slug + patch required", http.StatusBadRequest)
+			return
+		}
+		store := newCrmStore(filepath.Join(c.Path, "outreach"))
+		res, err := store.campaignUpdate(campSlug, patch)
+		if err != nil {
+			writeJSON(map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		if changed := mList(res, "changed"); len(changed) > 0 {
+			_ = appendUIInbox(filepath.Join(c.Path, "outreach", "ui_inbox", "campaign_edits.jsonl"),
+				map[string]any{"ts": now, "campaign": campSlug, "changed": changed, "ui_session": session})
+		}
+		writeJSON(map[string]any{"ok": true, "campaign": campSlug, "changed": res["changed"],
+			"note": "saved — takes effect from the next run; the agent is notified via ui_inbox"})
 	case "reveal-extension":
 		info := b.uiExtensionInfo(c)
 		folder := mStr(info, "Folder")
@@ -1345,7 +1474,7 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 <h2>Clients</h2><div class="grid-cards">
 {{range .Clients}}<div class="card"><strong><a href="/ui/{{.Slug}}">{{.Slug}}</a></strong><br>
 <span class="mut">{{.Workspace}}</span><br>
-<a href="/ui/{{.Slug}}/reports">reports</a> · <a href="/ui/{{.Slug}}/crm">crm</a> · <a href="/ui/{{.Slug}}/approvals">approvals</a> · <a href="/ui/{{.Slug}}/sendboxes">sendboxes</a></div>
+<a href="/ui/{{.Slug}}/reports">reports</a> · <a href="/ui/{{.Slug}}/campaigns">campaigns</a> · <a href="/ui/{{.Slug}}/crm">crm</a> · <a href="/ui/{{.Slug}}/approvals">approvals</a> · <a href="/ui/{{.Slug}}/sendboxes">sendboxes</a></div>
 {{else}}<p class="mut">No clients yet.</p>{{end}}</div>
 <h2>What this system can do</h2>
 <div class="grid-cards">
@@ -1374,7 +1503,7 @@ try{var es=new EventSource('/events');es.addEventListener('change',function(){lo
 {{template "foot" .}}{{end}}
 
 {{define "client"}}{{template "head" .}}
-<p><a href="/ui/{{.Client.Slug}}/reports">All reports</a> · <a href="/ui/{{.Client.Slug}}/crm">CRM</a> ·
+<p><a href="/ui/{{.Client.Slug}}/reports">All reports</a> · <a href="/ui/{{.Client.Slug}}/campaigns">Campaigns</a> · <a href="/ui/{{.Client.Slug}}/crm">CRM</a> ·
 <a href="/ui/{{.Client.Slug}}/approvals">Approvals{{if .Pending}} <strong>({{.Pending}})</strong>{{end}}</a> ·
 <a href="/ui/{{.Client.Slug}}/shortlist">Shortlist</a> ·
 <a href="/ui/{{.Client.Slug}}/sendboxes">Sendboxes</a></p>
@@ -1563,6 +1692,121 @@ document.getElementById('submit').addEventListener('click',function(){
 </script>
 {{else}}<p class="mut">No shortlist published. The agent writes <code>history/discovery_shortlist.json</code> when a private-source discovery finishes.</p>{{end}}
 {{template "footform" .}}{{end}}
+
+{{define "campaigns"}}{{template "head" .}}
+<p><a href="/ui/{{.Client.Slug}}">← {{.Client.Slug}}</a></p>
+{{$slug := .Client.Slug}}
+{{if .Rows}}
+<div class="grid-cards">
+{{range .Rows}}
+<div class="card" style="cursor:pointer" onclick="location.href='/ui/{{$slug}}/campaign/{{.Slug}}'">
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem">
+<strong>{{.Slug}}</strong>
+{{if eq .Status "paused"}}<span class="pill band-review_carefully">⏸ paused</span>{{else}}<span class="pill band-high">active</span>{{end}}
+</div>
+<span class="mut" style="font-size:.82rem">{{.GoalType}}{{if .Objective}} · {{.Objective}}{{end}}</span>
+<div class="mut" style="font-size:.8rem;margin-top:.5rem">
+today {{.UsedToday}}/{{.Quota}} drafts
+{{if .Pending}} · <a href="/ui/{{$slug}}/approvals" onclick="event.stopPropagation()"><strong>{{.Pending}} awaiting approval</strong></a>{{end}}
+· {{.Sent}} sent{{if .LastSent}} (last {{.LastSent}}){{end}}
+</div>
+</div>
+{{end}}
+</div>
+{{else}}<p class="mut">No campaigns yet — tell the agent: <code>set up a cold-email campaign</code> (3 questions and it runs).</p>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "campaign"}}{{template "head" .}}
+<p><a href="/ui/{{.Client.Slug}}/campaigns">← campaigns</a></p>
+<div class="card">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;align-items:center">
+<div>
+{{if eq .Status "paused"}}<span class="pill band-review_carefully">⏸ paused — nothing drafts or sends</span>{{else}}<span class="pill band-high">active</span>{{end}}
+<span class="mut" style="font-size:.85rem"> · today {{.UsedToday}}/{{.Quota}} drafts{{if .Pending}} · <a href="/ui/{{.Client.Slug}}/approvals">{{.Pending}} awaiting approval</a>{{end}} · audience: {{.Segment}}{{if .Sendboxes}} · boxes: {{range .Sendboxes}}<code style="font-size:.75rem">{{.}}</code> {{end}}{{end}}</span>
+</div>
+{{if eq .Status "paused"}}
+<button class="ok" id="toggle" data-to="active">▶ Resume campaign</button>
+{{else}}
+<button id="toggle" data-to="paused">⏸ Pause campaign</button>
+{{end}}
+</div>
+</div>
+
+<form id="campform">
+<h2>Goal <span class="mut" style="font-size:.8rem">— what every email in this campaign is trying to achieve</span></h2>
+<div class="card">
+<label>Goal type
+<select id="f-goaltype">{{$gt := .GoalType}}{{range .GoalTypes}}<option value="{{.}}"{{if eq . $gt}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+<label>Objective <span class="mut">(one line — what success looks like)</span>
+<input id="f-objective" type="text" value="{{.Objective}}" placeholder="e.g. book 5 intro calls with realtors this month"></label>
+<label>Offer <span class="mut">(what you're actually proposing to them)</span>
+<textarea id="f-offer" style="min-height:70px">{{.Offer}}</textarea></label>
+<label>Value proposition <span class="mut">(why it's worth their time)</span>
+<textarea id="f-valueprop" style="min-height:70px">{{.ValueProp}}</textarea></label>
+<label>Proof points <span class="mut">(one per line — real, verifiable)</span>
+<textarea id="f-proof" style="min-height:70px">{{.Proof}}</textarea></label>
+<label>Call-to-action text <span class="mut">(the one ask at the end of the email)</span>
+<input id="f-cta" type="text" value="{{.CTAText}}" placeholder="e.g. Worth a quick look?"></label>
+</div>
+
+<h2>Companion link <span class="mut" style="font-size:.8rem">— the support link each email carries (demo page, sample video...)</span></h2>
+<div class="card">
+<label>How to get the link for each lead <span class="mut">(write it like instructions to an assistant: a fixed link, a per-language rule, or a step-by-step recipe — the agent follows exactly this)</span>
+<textarea id="f-comp-instructions" style="min-height:90px" placeholder="e.g. use https://leadup.example/demo for every lead&#10;or: US lead → https://…/en, Vietnamese lead → https://…/vi&#10;or: personalize template X from the dossier, upload via API Y, use the returned URL">{{.CompanionInstructions}}</textarea></label>
+<label>If getting the link fails
+<select id="f-comp-onfail">
+<option value="skip"{{if eq .CompanionOnFail "skip"}} selected{{end}}>skip that lead (no email without the link)</option>
+<option value="default_link"{{if eq .CompanionOnFail "default_link"}} selected{{end}}>fall back to the default link below</option>
+</select></label>
+<label>Default link <span class="mut">(required when falling back)</span>
+<input id="f-comp-default" type="text" value="{{.CompanionDefault}}" placeholder="https://…"></label>
+<p class="mut" style="font-size:.78rem;margin-bottom:0">Leave the instructions empty to send emails without a companion link.</p>
+</div>
+
+<h2>Sending</h2>
+<div class="card">
+<label>Daily draft budget <span class="mut">(max new drafts per day for this campaign)</span>
+<input id="f-quota" type="number" min="1" max="500" value="{{.Quota}}" style="width:8rem"></label>
+</div>
+
+<div class="acts">
+<button class="ok" type="submit">Save changes</button>
+<span id="savemsg" class="mut"></span>
+</div>
+</form>
+<script>
+var CLIENT="{{.Client.Slug}}", CAMP="{{.Slug}}";
+function postUpdate(patch, done){
+ fetch('/api/ui/'+CLIENT+'/campaign-update',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({slug:CAMP,patch:patch})})
+ .then(function(r){return r.json()})
+ .then(function(j){done(j)})
+ .catch(function(e){done({ok:false,error:e.message})});
+}
+document.getElementById('toggle').addEventListener('click',function(e){
+ e.preventDefault();var to=this.dataset.to;var self=this;self.disabled=true;self.setAttribute('aria-busy','true');
+ postUpdate({status:to},function(j){ if(j.ok){location.reload()} else {self.disabled=false;self.removeAttribute('aria-busy');alert(j.error)} })});
+document.getElementById('campform').addEventListener('submit',function(e){
+ e.preventDefault();
+ var btn=this.querySelector('button[type=submit]');btn.disabled=true;btn.setAttribute('aria-busy','true');
+ var msg=document.getElementById('savemsg');msg.textContent='Saving…';
+ var proof=document.getElementById('f-proof').value.split('\n').map(function(s){return s.trim()}).filter(Boolean);
+ var instructions=document.getElementById('f-comp-instructions').value.trim();
+ var goal={goal_type:document.getElementById('f-goaltype').value,
+  objective:document.getElementById('f-objective').value.trim(),
+  offer:document.getElementById('f-offer').value.trim(),
+  value_proposition:document.getElementById('f-valueprop').value.trim(),
+  proof_points:proof,
+  cta:{text:document.getElementById('f-cta').value.trim()},
+  companion_doc: instructions ? {instructions:instructions,
+    on_fail:document.getElementById('f-comp-onfail').value,
+    default_link:document.getElementById('f-comp-default').value.trim()} : null};
+ postUpdate({goal:goal, daily_quota:parseInt(document.getElementById('f-quota').value,10)},
+  function(j){btn.disabled=false;btn.removeAttribute('aria-busy');
+   if(j.ok){msg.textContent = (j.changed&&j.changed.length) ? '✓ saved ('+j.changed.join(', ')+') — takes effect from the next run; the agent is notified' : '✓ nothing changed';}
+   else{msg.textContent='✗ '+j.error}})});
+</script>
+</main></body></html>{{end}}
 
 {{define "sendboxes"}}{{template "head" .}}
 <p><a href="/ui/{{.Client.Slug}}">← {{.Client.Slug}}</a></p>

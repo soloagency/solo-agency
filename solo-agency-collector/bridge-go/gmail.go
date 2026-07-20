@@ -660,6 +660,15 @@ func gmailCmdSend(clientDir, draftPath string, dryRun bool) (map[string]any, err
 		return map[string]any{"ok": false, "blocker": "draft_not_approved",
 			"draft_status": draft["status"]}, nil
 	}
+	// paused campaign: transient blocker — the draft stays approved and sends
+	// on the first run after the operator resumes
+	if cfg := store.getCampaign(mStr(draft, "campaign_slug")); cfg != nil && mStr(cfg, "status") == "paused" {
+		if !dryRun {
+			persistSendBlocker(draftPath, draft, "campaign_paused")
+		}
+		return map[string]any{"ok": false, "blocker": "campaign_paused",
+			"campaign": draft["campaign_slug"]}, nil
+	}
 	day := todayStr("")
 	leadID := store.resolve(mStr(draft, "lead_id"))
 	step := mInt(draft, "step", 1)

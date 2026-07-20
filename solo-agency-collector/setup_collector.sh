@@ -6,7 +6,10 @@
 #   basename, so any SHA256SUMS format works), 3) extract the binary for THIS machine,
 #   4) STOP any bridge already on the port (graceful /shutdown → PID → port; it will
 #      never kill a non-collector process), 5) START the newest bridge in the
-#      BACKGROUND (persistent) so you can close the Terminal.
+#      BACKGROUND (persistent) so you can close the Terminal — and REGISTER it to
+#      start automatically at login/boot (macOS launchd, Linux systemd; crash =
+#      auto-restart, clean stop stays stopped). SOLO_AGENCY_NO_AUTOSTART=1 skips
+#      the registration and starts a plain background process instead.
 #
 #   Usage:  bash setup_collector.sh
 #
@@ -53,6 +56,14 @@ OUTPUT_DIR="$ROOT/daily-content-pipeline/collector/inbox"
 PID_FILE="$RUNTIME/collector.pid"
 LOG_FILE="$RUNTIME/collector.log"
 mkdir -p "$DL" "$BIN" "$OUTPUT_DIR"
+
+# Per-install autostart identity: two installs on one machine (a source repo plus
+# client setups is normal) each get their own launchd label / systemd unit.
+INSTHASH="$(printf '%s' "$ROOT" | { shasum -a 256 2>/dev/null || sha256sum; } | awk '{print substr($1,1,8)}')"
+LAUNCHD_LABEL="com.solo-agency.collector.$INSTHASH"
+LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$LAUNCHD_LABEL.plist"
+SYSTEMD_UNIT="solo-agency-collector-$INSTHASH.service"
+SYSTEMD_FILE="$HOME/.config/systemd/user/$SYSTEMD_UNIT"
 
 # --- checksum tool ---
 if command -v shasum >/dev/null 2>&1; then SHACMD() { shasum -a 256 "$1"; }
@@ -114,6 +125,14 @@ if [ "${SOLO_AGENCY_SETUP_NO_START:-0}" = "1" ]; then
 fi
 
 say "5/6  Stopping any bridge already on port $PORT"
+# a0) detach any autostart supervisor FIRST so it cannot respawn the old binary
+#     while we upgrade (bootout/stop also kills the supervised process).
+if [ "$O" = "darwin" ] && command -v launchctl >/dev/null 2>&1; then
+  launchctl bootout "gui/$(id -u)/$LAUNCHD_LABEL" >/dev/null 2>&1 || true
+fi
+if [ "$O" = "linux" ] && command -v systemctl >/dev/null 2>&1; then
+  systemctl --user stop "$SYSTEMD_UNIT" >/dev/null 2>&1 || true
+fi
 # a) ask the running bridge to shut down cleanly
 command -v curl >/dev/null 2>&1 && curl -s -m 3 -X POST "http://127.0.0.1:$PORT/shutdown" >/dev/null 2>&1 || true
 # b) kill the PID we started last time
@@ -133,26 +152,133 @@ fi
 sleep 1
 ok "port $PORT is free"
 
-say "6/6  Starting the newest bridge (background, persistent)"
+say "6/6  Starting the newest bridge (background, persistent, autostart at login)"
 [ -f "$CONFIG_FILE" ] || warn "config not found at $CONFIG_FILE — starting anyway; if the bridge exits, create the config and re-run."
-nohup "$BIN_PATH" \
-  --host 127.0.0.1 --port "$PORT" \
-  --config-file "$CONFIG_FILE" \
-  --output-dir "$OUTPUT_DIR" \
-  --persistent >"$LOG_FILE" 2>&1 &
-NEW_PID=$!
-echo "$NEW_PID" > "$PID_FILE"
-sleep 2
-# health check — make a silent background death VISIBLE
-if ! kill -0 "$NEW_PID" >/dev/null 2>&1; then
-  fail "The bridge exited right after starting." "Last lines of $LOG_FILE:
+
+# Wait until /status answers (supervised starts have no PID to poll directly).
+wait_healthy() {
+  local i=0
+  while [ "$i" -lt 20 ]; do
+    if curl -s -m 2 "http://127.0.0.1:$PORT/status" >/dev/null 2>&1; then return 0; fi
+    i=$((i + 1)); sleep 1
+  done
+  return 1
+}
+bridge_pid_on_port() { lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1; }
+
+start_nohup() {
+  nohup "$BIN_PATH" \
+    --host 127.0.0.1 --port "$PORT" \
+    --config-file "$CONFIG_FILE" \
+    --output-dir "$OUTPUT_DIR" \
+    --persistent >"$LOG_FILE" 2>&1 &
+  NEW_PID=$!
+  echo "$NEW_PID" > "$PID_FILE"
+  sleep 2
+  # health check — make a silent background death VISIBLE
+  if ! kill -0 "$NEW_PID" >/dev/null 2>&1; then
+    fail "The bridge exited right after starting." "Last lines of $LOG_FILE:
 $(tail -n 15 "$LOG_FILE" 2>/dev/null | sed 's/^/    /')"
+  fi
+  ok "bridge running (pid $NEW_PID)"
+}
+
+AUTOSTART="none"
+STOP_HINT="kill \$(cat \"$PID_FILE\")"
+if [ "${SOLO_AGENCY_NO_AUTOSTART:-0}" = "1" ]; then
+  info "SOLO_AGENCY_NO_AUTOSTART=1 — plain background start (no boot registration)."
+  start_nohup
+
+elif [ "$O" = "darwin" ] && command -v launchctl >/dev/null 2>&1; then
+  # macOS: a per-user LaunchAgent. RunAtLoad starts it at login; KeepAlive on
+  # failure restarts crashes but respects a clean stop (/shutdown exits 0).
+  mkdir -p "$HOME/Library/LaunchAgents"
+  cat > "$LAUNCHD_PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>$LAUNCHD_LABEL</string>
+  <key>ProgramArguments</key><array>
+    <string>$BIN_PATH</string>
+    <string>--host</string><string>127.0.0.1</string>
+    <string>--port</string><string>$PORT</string>
+    <string>--config-file</string><string>$CONFIG_FILE</string>
+    <string>--output-dir</string><string>$OUTPUT_DIR</string>
+    <string>--persistent</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>StandardOutPath</key><string>$LOG_FILE</string>
+  <key>StandardErrorPath</key><string>$LOG_FILE</string>
+</dict></plist>
+PLIST
+  if launchctl bootstrap "gui/$(id -u)" "$LAUNCHD_PLIST" >/dev/null 2>&1 \
+     && wait_healthy; then
+    AUTOSTART="launchd ($LAUNCHD_LABEL)"
+    STOP_HINT="launchctl bootout gui/\$(id -u)/$LAUNCHD_LABEL"
+    bridge_pid_on_port > "$PID_FILE" 2>/dev/null || true
+    ok "bridge running under launchd — starts automatically at login, restarts on crash"
+  else
+    warn "launchd registration failed — falling back to a plain background start."
+    rm -f "$LAUNCHD_PLIST"
+    start_nohup
+  fi
+
+elif [ "$O" = "linux" ] && command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+  # Linux: a systemd user unit. enable = start at login; Restart=on-failure
+  # restarts crashes but respects a clean stop. enable-linger (best effort)
+  # makes it start at BOOT, before the user logs in.
+  mkdir -p "$HOME/.config/systemd/user"
+  cat > "$SYSTEMD_FILE" <<UNIT
+[Unit]
+Description=Solo Agency local collector bridge ($ROOT)
+After=network-online.target
+
+[Service]
+ExecStart=$BIN_PATH --host 127.0.0.1 --port $PORT --config-file $CONFIG_FILE --output-dir $OUTPUT_DIR --persistent
+Restart=on-failure
+RestartSec=3
+StandardOutput=append:$LOG_FILE
+StandardError=append:$LOG_FILE
+
+[Install]
+WantedBy=default.target
+UNIT
+  systemctl --user daemon-reload
+  if systemctl --user enable "$SYSTEMD_UNIT" >/dev/null 2>&1 \
+     && systemctl --user restart "$SYSTEMD_UNIT" >/dev/null 2>&1 \
+     && wait_healthy; then
+    AUTOSTART="systemd ($SYSTEMD_UNIT)"
+    STOP_HINT="systemctl --user stop $SYSTEMD_UNIT"
+    bridge_pid_on_port > "$PID_FILE" 2>/dev/null || true
+    if loginctl enable-linger "$(id -un)" >/dev/null 2>&1; then
+      ok "bridge running under systemd — starts at BOOT (lingering on), restarts on crash"
+    else
+      ok "bridge running under systemd — starts at login, restarts on crash"
+      warn "could not enable lingering; to start at boot before login run: sudo loginctl enable-linger $(id -un)"
+    fi
+  else
+    warn "systemd registration failed — falling back to a plain background start."
+    systemctl --user disable "$SYSTEMD_UNIT" >/dev/null 2>&1 || true
+    rm -f "$SYSTEMD_FILE"; systemctl --user daemon-reload >/dev/null 2>&1 || true
+    start_nohup
+  fi
+
+else
+  # Windows Git-Bash lands here — setup_collector.ps1 registers the Scheduled
+  # Task; from bash we can only do a plain background start.
+  [ "$O" = "windows" ] && info "For autostart on Windows run setup_collector.ps1 (registers a logon Scheduled Task)."
+  start_nohup
 fi
-ok "bridge running (pid $NEW_PID)"
 
 say "Done — the collector is running in the background. You can close this Terminal."
-info "Port   : 127.0.0.1:$PORT"
-info "Status : curl -s http://127.0.0.1:$PORT/status"
-info "Logs   : $LOG_FILE"
-info "Stop   : kill \$(cat \"$PID_FILE\")"
+info "Port      : 127.0.0.1:$PORT"
+info "Status    : curl -s http://127.0.0.1:$PORT/status"
+info "Logs      : $LOG_FILE"
+if [ "$AUTOSTART" != "none" ]; then
+  info "Autostart : $AUTOSTART — survives reboots; re-run this script after updates."
+else
+  info "Autostart : OFF — after a reboot run: bash setup_collector.sh"
+fi
+info "Stop      : $STOP_HINT"
 info "One-time: install the Chrome extension via Developer Mode (see AGENT_RUNBOOK.md)."

@@ -577,3 +577,111 @@ func TestUIContactDetail(t *testing.T) {
 		t.Fatalf("unknown contact -> %d, want 404", rec.Code)
 	}
 }
+
+func TestUICampaignPages(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	mustJSON := func(rel, body string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustJSON("outreach/campaigns/camp-a/campaign_config.json",
+		`{"campaign_slug":"camp-a","status":"active","daily_quota":30,
+		  "audience":{"segment":"realtors"},"sendboxes":["sb-a"],
+		  "goal":{"goal_type":"book_meeting","objective":"book 5 calls",
+		    "offer":"free sample video","value_proposition":"we do the editing",
+		    "proof_points":["did 40 videos for KW"],"cta":{"text":"Worth a look?"},
+		    "companion_doc":{"instructions":"use https://x/demo","on_fail":"skip","default_link":""}}}`)
+	mustJSON("outreach/campaigns/camp-b/campaign_config.json",
+		`{"campaign_slug":"camp-b","status":"paused","daily_quota":10,
+		  "audience":{"segment":"mortgage"},"goal":{"goal_type":"get_reply"}}`)
+	mustJSON("outreach/campaigns/camp-a/outbox/pending_approval/2026-07-20/d1.json",
+		`{"id":"d1","status":"pending_approval","to":"a@x.com","subject":"s","body_text":"b"}`)
+	mustJSON("outreach/campaigns/camp-a/sent/2026-07/sent_log.jsonl",
+		`{"lead_id":"c_1","campaign":"camp-a","step":1,"sent_at":"2026-07-18T09:00:00Z","sendbox":"sb-a","rfc_message_id":"<m1@x>"}`+"\n")
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	authed := func(method, url, body string) *httptest.ResponseRecorder {
+		var req *http.Request
+		if body == "" {
+			req = httptest.NewRequest(method, url, nil)
+		} else {
+			req = httptest.NewRequest(method, url, strings.NewReader(body))
+		}
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// list page: both campaigns, status pills, pending count, last sent
+	rec := authed("GET", "/ui/leadup/campaigns", "")
+	page := rec.Body.String()
+	if rec.Code != http.StatusOK || !strings.Contains(page, "camp-a") || !strings.Contains(page, "camp-b") {
+		t.Fatalf("campaigns page: %d", rec.Code)
+	}
+	for _, want := range []string{"paused", "book_meeting", "1 awaiting approval", "1 sent", "2026-07-18"} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("campaigns page missing %q", want)
+		}
+	}
+
+	// detail page: form prefilled from config
+	rec = authed("GET", "/ui/leadup/campaign/camp-a", "")
+	page = rec.Body.String()
+	if rec.Code != http.StatusOK {
+		t.Fatalf("campaign detail: %d", rec.Code)
+	}
+	for _, want := range []string{"book 5 calls", "free sample video", "use https://x/demo",
+		"Pause campaign", "did 40 videos for KW", "Worth a look?"} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("campaign detail missing %q", want)
+		}
+	}
+	if rec = authed("GET", "/ui/leadup/campaign/nope", ""); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown campaign -> %d, want 404", rec.Code)
+	}
+	// paused campaign shows Resume
+	if page = authed("GET", "/ui/leadup/campaign/camp-b", "").Body.String(); !strings.Contains(page, "Resume campaign") {
+		t.Fatal("paused detail must offer Resume")
+	}
+
+	// API: pause camp-a through the whitelist + ui_inbox event
+	rec = authed("POST", "/api/ui/leadup/campaign-update",
+		`{"slug":"camp-a","patch":{"status":"paused","daily_quota":15}}`)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("campaign-update: %d %s", rec.Code, rec.Body.String())
+	}
+	cfgRaw, err := os.ReadFile(filepath.Join(ws, "outreach", "campaigns", "camp-a", "campaign_config.json"))
+	if err != nil || !strings.Contains(string(cfgRaw), `"paused"`) || !strings.Contains(string(cfgRaw), "15") {
+		t.Fatalf("config not updated: %v %s", err, cfgRaw)
+	}
+	inbox, err := os.ReadFile(filepath.Join(ws, "outreach", "ui_inbox", "campaign_edits.jsonl"))
+	if err != nil || strings.Count(strings.TrimSpace(string(inbox)), "\n") != 0 {
+		t.Fatalf("campaign_edits.jsonl: %v %q", err, inbox)
+	}
+	for _, want := range []string{`"campaign":"camp-a"`, "status", "daily_quota", "ui_session"} {
+		if !strings.Contains(string(inbox), want) {
+			t.Fatalf("edit event missing %q: %s", want, inbox)
+		}
+	}
+
+	// API: non-whitelisted key refused, nothing appended
+	rec = authed("POST", "/api/ui/leadup/campaign-update",
+		`{"slug":"camp-a","patch":{"sendboxes":["evil"]}}`)
+	if !strings.Contains(rec.Body.String(), "not operator-editable") {
+		t.Fatalf("whitelist must hold on the API too: %s", rec.Body.String())
+	}
+	inbox2, _ := os.ReadFile(filepath.Join(ws, "outreach", "ui_inbox", "campaign_edits.jsonl"))
+	if string(inbox2) != string(inbox) {
+		t.Fatal("refused edit must not append an event")
+	}
+}

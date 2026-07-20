@@ -249,6 +249,16 @@ func runCrmStoreCLI(args []string) int {
 				return crmFail(err)
 			}
 			return crmOut(res, 0)
+		case "update":
+			patch, err := parseJSONArg(a.get("--json"))
+			if err != nil {
+				return crmUsageErr(err.Error())
+			}
+			res, err := store.campaignUpdate(a.get("--slug"), patch)
+			if err != nil {
+				return crmFail(err)
+			}
+			return crmOut(res, 0)
 		}
 	case "segment":
 		switch op {
