@@ -116,3 +116,64 @@ func TestTrackPollWritesAndSuppresses(t *testing.T) {
 		}
 	}
 }
+
+func TestFetchTenantSecretAndCanSign(t *testing.T) {
+	root := t.TempDir()
+	clientDir := filepath.Join(root, "clients", "leadup", "main", "outreach")
+	os.MkdirAll(clientDir, 0o755)
+
+	// fake WideCast /v1/track/secret: returns a per-tenant secret for the key
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/track/secret" && strings.HasPrefix(r.Header.Get("Authorization"), "Bearer wc_live_") {
+			json.NewEncoder(w).Encode(map[string]any{
+				"object": "track.secret", "company_id": "acme", "secret": "derived_secret_abc"})
+			return
+		}
+		w.WriteHeader(401)
+	}))
+	defer srv.Close()
+
+	cfg := trackCfg{Enabled: true, BaseURL: srv.URL, apiKey: "wc_live_test", clientDir: clientDir}
+	// before fetch: cannot sign, so signing is a pure no-op
+	if cfg.canSign() {
+		t.Fatal("must not sign before the secret is fetched")
+	}
+	html := `<a href="https://x.io/demo">d</a>`
+	if cfg.trackHTMLBody(html, "<m@x>", "https://x.io/demo") != html {
+		t.Fatal("un-fetched tracking must not touch the body")
+	}
+
+	// fetch caches the secret 0600
+	cfg = cfg.fetchTenantSecret()
+	if cfg.Company != "acme" || cfg.Secret != "derived_secret_abc" || !cfg.canSign() {
+		t.Fatalf("fetch did not populate signing material: %+v", cfg)
+	}
+	info, err := os.Stat(filepath.Join(clientDir, "tracking", ".tenant_secret.json"))
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("secret cache must be 0600: %v %v", err, info.Mode())
+	}
+
+	// a fresh load (as the send path does) now reads the cache and can sign
+	// without any network — company_id + secret come from the cache file
+	os.MkdirAll(filepath.Join(root, "clients", "leadup", "main", "integrations", "providers"), 0o755)
+	os.WriteFile(filepath.Join(root, "clients", "leadup", "main", "integrations", "providers", "provider_config.local.json"),
+		[]byte(`{"active_provider":"widecast","providers":{"widecast":{"api_key_local":"wc_live_test"}},
+		         "tracking":{"enabled":true,"base_url":"`+srv.URL+`"}}`), 0o644)
+	fresh := loadTrackCfg(clientDir)
+	if !fresh.canSign() || fresh.Company != "acme" || fresh.pinned {
+		t.Fatalf("send-path load must sign from cache (not pinned): %+v", fresh)
+	}
+	out := fresh.trackHTMLBody(html, "<m@x>", "https://x.io/demo")
+	if !strings.Contains(out, "/t/c/") || !strings.Contains(out, "/t/o/") {
+		t.Fatal("cached secret must enable click-wrap + pixel")
+	}
+
+	// a manually pinned secret is honored and never auto-fetched
+	os.WriteFile(filepath.Join(root, "clients", "leadup", "main", "integrations", "providers", "provider_config.local.json"),
+		[]byte(`{"active_provider":"widecast","providers":{"widecast":{"api_key_local":"wc_live_test"}},
+		         "tracking":{"enabled":true,"base_url":"`+srv.URL+`","company_id":"pinnedco","secret":"pinnedsec"}}`), 0o644)
+	pin := loadTrackCfg(clientDir)
+	if !pin.pinned || pin.Company != "pinnedco" || pin.Secret != "pinnedsec" {
+		t.Fatalf("manual pin must win: %+v", pin)
+	}
+}

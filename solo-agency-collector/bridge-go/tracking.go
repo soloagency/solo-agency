@@ -35,17 +35,20 @@ type trackCfg struct {
 	Enabled   bool
 	BaseURL   string // e.g. https://widecast.ai/app/dashboard  (no trailing slash)
 	Company   string // WideCast company_id -> the token tenant `t`
-	Secret    string // shared with the server's WIDECAST_WEBHOOK_SECRET
-	apiKey    string // wc_live_ key for pulling /v1/track/events
+	Secret    string // per-tenant signing secret (fetched, or pinned in config)
+	apiKey    string // wc_live_ key for pulling /v1/track/events + fetching the secret
 	clientDir string
+	pinned    bool // secret came from config (manual) -> never auto-fetch/overwrite
 }
 
 // loadTrackCfg reads the "tracking" block out of the client's provider config.
-// Shape:
+// Shape (the operator normally sets ONLY enabled + base_url — no secret to
+// paste; the bridge fetches its per-tenant signing secret with the wc_live_ key
+// it already has, see fetchTenantSecret):
 //
-//	{"tracking": {"enabled": true, "base_url": "https://widecast.ai/app/dashboard",
-//	              "company_id": "...", "secret": "<same as server>"}}
+//	{"tracking": {"enabled": true, "base_url": "https://widecast.ai/app/dashboard"}}
 //
+// A manually pinned {"company_id","secret"} is still honored (air-gapped / test).
 // The wc_live_ key is reused from the active provider block (no second secret).
 func loadTrackCfg(clientDir string) trackCfg {
 	cfgPath := filepath.Join(clientDir, "..", "integrations", "providers", "provider_config.local.json")
@@ -58,14 +61,90 @@ func loadTrackCfg(clientDir string) trackCfg {
 		return trackCfg{}
 	}
 	base := normalizeServerURL(mStr(t, "base_url"))
-	secret := mStr(t, "secret")
-	company := mStr(t, "company_id")
-	if base == "" || secret == "" || company == "" {
-		return trackCfg{} // half-configured is off, not a partial hazard
-	}
 	apiKey, _ := providerAPIKey(config, activeProvider(config, "widecast"))
-	return trackCfg{Enabled: true, BaseURL: base, Company: company, Secret: secret,
-		apiKey: apiKey, clientDir: clientDir}
+	if base == "" || apiKey == "" {
+		return trackCfg{} // can neither fetch the secret nor pull without these
+	}
+	tc := trackCfg{Enabled: true, BaseURL: base, apiKey: apiKey, clientDir: clientDir}
+	// signing secret + tenant: a manual pin in config wins; otherwise use the
+	// per-tenant secret cached by a prior fetch (empty until the first fetch,
+	// which just makes signing a no-op — sends go out untracked meanwhile).
+	tc.Company = mStr(t, "company_id")
+	tc.Secret = mStr(t, "secret")
+	tc.pinned = tc.Secret != "" && tc.Company != ""
+	if tc.Secret == "" || tc.Company == "" {
+		cache, _ := readJSONFile(filepath.Join(clientDir, filepath.FromSlash(trackSecretFile)))
+		if cache != nil {
+			if tc.Company == "" {
+				tc.Company = mStr(cache, "company_id")
+			}
+			if tc.Secret == "" {
+				tc.Secret = mStr(cache, "secret")
+			}
+		}
+	}
+	return tc
+}
+
+// canSign reports whether the bridge can build tracking tokens yet (it has the
+// per-tenant secret + tenant id). Signing helpers no-op until this is true.
+func (c trackCfg) canSign() bool { return c.Enabled && c.Secret != "" && c.Company != "" }
+
+const trackSecretFile = "tracking/.tenant_secret.json"
+const trackSecretMaxDays = 7 // refetch weekly (rotation hygiene)
+
+// fetchTenantSecret exchanges the wc_live_ key for this tenant's derived signing
+// secret (GET /v1/track/secret) and caches it 0600. Best-effort: on any failure
+// it returns the cfg unchanged (tracking simply stays un-signed for now). Only
+// runs when there is no manual/cached secret, or the cache is stale.
+func (c trackCfg) fetchTenantSecret() trackCfg {
+	if !c.Enabled || c.apiKey == "" {
+		return c
+	}
+	req, err := http.NewRequest("GET", c.BaseURL+"/v1/track/secret", nil)
+	if err != nil {
+		return c
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	resp, err := providerHTTPClient.Do(req)
+	if err != nil {
+		log.Printf("tracking: fetch secret: %v", err)
+		return c
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		log.Printf("tracking: fetch secret HTTP %d", resp.StatusCode)
+		return c
+	}
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	var sr struct {
+		CompanyID string `json:"company_id"`
+		Secret    string `json:"secret"`
+	}
+	if json.Unmarshal(body, &sr) != nil || sr.Secret == "" || sr.CompanyID == "" {
+		return c
+	}
+	cachePath := filepath.Join(c.clientDir, filepath.FromSlash(trackSecretFile))
+	_ = atomicWriteFile(cachePath, marshalIndentJSON(map[string]any{
+		"company_id": sr.CompanyID, "secret": sr.Secret, "fetched_at": nowISO()}))
+	_ = os.Chmod(cachePath, 0o600) // holds a signing secret
+	c.Company, c.Secret = sr.CompanyID, sr.Secret
+	return c
+}
+
+// tenantSecretStale reports whether the cached secret should be refetched (older
+// than the max age) — cheap rotation hygiene; the derived secret only changes if
+// the operator rotates the server's global secret.
+func (c trackCfg) tenantSecretStale() bool {
+	cache, err := readJSONFile(filepath.Join(c.clientDir, filepath.FromSlash(trackSecretFile)))
+	if err != nil || cache == nil {
+		return true
+	}
+	fetched := mStr(cache, "fetched_at")
+	if fetched == "" {
+		return true
+	}
+	return fetched < isoDaysAgo(trackSecretMaxDays)
 }
 
 // trackToken builds the stateless signed token, byte-for-byte compatible with
@@ -111,7 +190,7 @@ func (c trackCfg) unsubURL(msgRef string) string {
 // a 1x1 open pixel. Returns the body unchanged if tracking is off. Plain-text
 // sends have no HTML part, so they get reply + one-click-unsub only (by design).
 func (c trackCfg) trackHTMLBody(htmlBody, msgRef, companionURL string) string {
-	if !c.Enabled || htmlBody == "" {
+	if !c.canSign() || htmlBody == "" {
 		return htmlBody
 	}
 	if companionURL != "" && (strings.HasPrefix(companionURL, "http://") || strings.HasPrefix(companionURL, "https://")) {
@@ -128,7 +207,7 @@ func (c trackCfg) trackHTMLBody(htmlBody, msgRef, companionURL string) string {
 // unsubHeaders returns the one-click List-Unsubscribe pair (RFC 8058) to MERGE
 // with the existing mailto header. Empty when tracking is off.
 func (c trackCfg) unsubHeader(msgRef, existingMailto string) (listUnsub string, postHeader string) {
-	if !c.Enabled {
+	if !c.canSign() {
 		return existingMailto, ""
 	}
 	https := "<" + c.unsubURL(msgRef) + ">"
@@ -313,11 +392,18 @@ func detectBotHashes(events []map[string]any) map[string]bool {
 }
 
 // pollTrackingForClients is called from the reply-poller tick for every client.
+// It also lazily fetches the per-tenant signing secret (once, then weekly) so
+// the operator never pastes a secret; sends before the first fetch just go out
+// untracked.
 func (b *bridge) pollTrackingForClients() {
 	for _, c := range b.uiClients() {
 		cfg := loadTrackCfg(filepath.Join(c.Path, "outreach"))
-		if cfg.Enabled {
-			cfg.pollTrackingEvents()
+		if !cfg.Enabled {
+			continue
 		}
+		if !cfg.pinned && (cfg.Secret == "" || cfg.tenantSecretStale()) {
+			cfg = cfg.fetchTenantSecret()
+		}
+		cfg.pollTrackingEvents()
 	}
 }
