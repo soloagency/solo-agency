@@ -449,3 +449,72 @@ func TestSeedTxtClassification(t *testing.T) {
 		t.Fatalf("txt classification: email=%v seed=%v phone=%v name=%v", haveEmail, haveSeed, havePhone, haveName)
 	}
 }
+
+func TestEnrichBandGates(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	if r := runGoStep(t, xstep{"2026-07-20T08:00:00Z", []string{"--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"}}); r.Code != 0 {
+		t.Fatal(r.Stderr)
+	}
+	add := func(id, extra string) {
+		body := `{"id": "` + id + `", "name": {"full": "Test ` + id + `"}, "identities": {"emails": [{"address": "` + id + `@law.com", "is_primary": true}]` + extra + `}}`
+		if r := runGoStep(t, xstep{"2026-07-20T08:01:00Z", []string{"--client-dir", ws, "contact", "add", "--json", body}}); r.Code != 0 {
+			t.Fatal(r.Stderr)
+		}
+	}
+	add("c_web", "")
+	add("c_fb", `, "socials": {"facebook": "https://facebook.com/attorney.jen"}`)
+	add("c_fbread", `, "socials": {"facebook": "https://facebook.com/attorney.tom"}`)
+
+	enrich := func(id, dossier string) map[string]any {
+		r := runGoStep(t, xstep{"2026-07-20T08:05:00Z", []string{"--client-dir", ws,
+			"enrich", "write", "--contact", id, "--json", dossier}})
+		if r.Code != 0 {
+			t.Fatal(r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	joined := func(res map[string]any) string {
+		var sb strings.Builder
+		for _, p := range mList(res, "problems") {
+			sb.WriteString(fmt.Sprint(p) + " | ")
+		}
+		return sb.String()
+	}
+
+	// 1. website-only signal, self-claimed 0.9 -> capped, and the read-date stamp is called out
+	res := enrich("c_web", `{"identity": {"still_active": "confirmed"},
+	  "hooks": [{"type": "website_update", "summary": "site touts bilingual practice", "evidence_url": "https://dolaw.example.com/about", "observed_date": "2026-07-20", "confidence": 0.9}],
+	  "writing_brief": {"personalization_confidence": 0.9}}`)
+	if mStr(res, "confidence_band") != "review_carefully" {
+		t.Fatalf("website-only must be capped: %v", res)
+	}
+	if !strings.Contains(joined(res), "band capped") || !strings.Contains(joined(res), "when the page was READ") {
+		t.Fatalf("cap reasons missing: %s", joined(res))
+	}
+
+	// 2. dated non-fb hook but the facebook profile on file was never read -> capped
+	res = enrich("c_fb", `{"identity": {"still_active": "confirmed"},
+	  "hooks": [{"type": "new_listing", "summary": "press mention", "evidence_url": "https://news.example.com/a", "observed_date": "2026-07-15", "confidence": 0.9}],
+	  "writing_brief": {"personalization_confidence": 0.9}}`)
+	if mStr(res, "confidence_band") != "review_carefully" || !strings.Contains(joined(res), "facebook-sourced hook") {
+		t.Fatalf("fb-unread must be capped: %v %s", res, joined(res))
+	}
+
+	// 3. facebook actually read (dated fb hook) -> high stands
+	res = enrich("c_fbread", `{"identity": {"still_active": "confirmed"},
+	  "hooks": [{"type": "social_post", "summary": "posted client Q&A reel", "evidence_url": "https://facebook.com/attorney.tom/videos/123", "observed_date": "2026-07-18", "confidence": 0.9}],
+	  "writing_brief": {"personalization_confidence": 0.9}}`)
+	if mStr(res, "confidence_band") != "high" {
+		t.Fatalf("fb-read high must stand: %v %s", res, joined(res))
+	}
+
+	// 4. stale hook (>60 days) alone cannot hold high either
+	res = enrich("c_web", `{"identity": {"still_active": "confirmed"},
+	  "hooks": [{"type": "award", "summary": "old award", "evidence_url": "https://bar.example.com/award", "observed_date": "2026-01-05", "confidence": 0.9}],
+	  "writing_brief": {"personalization_confidence": 0.9}}`)
+	if mStr(res, "confidence_band") != "review_carefully" {
+		t.Fatalf("stale-only must be capped: %v", res)
+	}
+}

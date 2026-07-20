@@ -818,6 +818,54 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 	for _, u := range urlOrder {
 		mergedHooks = append(mergedHooks, hooksByURL[u])
 	}
+
+	// --- evidence-derived band ceilings (code-enforced: the band is NOT the
+	// agent's self-report). "high" requires proof-of-life the store can see:
+	// at least one dated hook ≤60 days old that is not a website positioning
+	// line, and — when a readable Facebook profile is on file — at least one
+	// facebook-sourced hook (websites go stale; social is where recency lives).
+	strongRecent := 0
+	websiteStampedToday := false
+	fbRead := false
+	cutoff60 := isoDaysAgoFrom(60, now)[:10]
+	for _, hv := range mergedHooks {
+		h, ok := hv.(map[string]any)
+		if !ok {
+			continue
+		}
+		od := mStr(h, "observed_date")
+		htype := mStr(h, "type")
+		if len(od) >= 10 && od[:10] >= cutoff60 && htype != "website_update" {
+			strongRecent++
+		}
+		if htype == "website_update" && len(od) >= 10 && od[:10] == now[:10] {
+			websiteStampedToday = true
+		}
+		eu := strings.ToLower(mStr(h, "evidence_url"))
+		if strings.Contains(eu, "facebook.com") || strings.Contains(eu, "fb.watch") || strings.Contains(eu, "fb.com") {
+			fbRead = true
+		}
+	}
+	if websiteStampedToday {
+		problems = append(problems, "website_update observed_date equals the run date — that is when the page was READ, not when its content changed; use the content's own publish/update date or leave it empty (undated hooks never count as recent)")
+	}
+	if band == "high" && strongRecent == 0 {
+		band = "review_carefully"
+		problems = append(problems, "band capped to review_carefully: high requires >=1 dated hook <=60 days old that is not website_update — a website positioning line alone is not proof-of-life")
+	}
+	// a facebook profile counts whether it was already on file OR surfaced in
+	// this same dossier (identity.profiles / channels_found.profiles)
+	fbProfile := mStr(mMap(mMap(prevContact, "identities"), "socials"), "facebook")
+	if fbProfile == "" {
+		fbProfile = mStr(mMap(ident, "profiles"), "facebook")
+	}
+	if fbProfile == "" {
+		fbProfile = mStr(mMap(mMap(ident, "channels_found"), "profiles"), "facebook")
+	}
+	if band == "high" && fbProfile != "" && !fbRead {
+		band = "review_carefully"
+		problems = append(problems, "band capped to review_carefully: a Facebook profile is on file but no facebook-sourced hook exists — read it (collector fb.profile.header/posts/videos) before claiming high confidence")
+	}
 	rankedAngles := mList(brief, "ranked_angles")
 	if rankedAngles == nil {
 		rankedAngles = []any{}

@@ -492,6 +492,8 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] If the list was user-curated, did I treat it as pre-qualified — enrich + personalize only — with every curated lead either drafted or removed only by a logged hard floor?
 - [ ] Does every personalization detail trace to a dossier fact with an `evidence_url`?
 - [ ] Did the freshness gate pass (step-1 hooks in TTL; bumps from reserved points + `message_bank` with NO per-bump re-enrichment; stale-hook guard applied to every referenced time-sensitive hook)?
+- [ ] Social-FIRST enrichment: for every lead with a Facebook profile on file, did I READ it through the collector (`fb.profile.header` + recent posts/videos) and analyze 3–5 recent items, rather than saving the URL and stopping at the website? Did I refuse to treat a `website_update` line as proof-of-life?
+- [ ] Did any lead land `high` on website-only or stale (>60-day) signals? (The `enrich write` store caps those to `review_carefully` and emits a `problems` note — if the report shows such a lead as High, or a hook's `observed_date` equals the run date, the enrichment is wrong: re-run social-first before approving.)
 - [ ] Is every draft free of em dashes (`—`), and — when the campaign declares them — does the body carry the produced companion-doc URL (or the `on_fail` path) and 1–2 rotated `message_bank` messages this lead has not seen?
 - [ ] Is every step-1 subject free of `Re:`/`Fwd:`, and are continuation subjects truthful `Re:` on real in-thread replies?
 - [ ] Did I drop any draft with no verifiable hook to the honest no-hook fallback (or skip), never inventing detail?
