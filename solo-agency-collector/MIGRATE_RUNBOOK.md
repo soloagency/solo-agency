@@ -111,6 +111,33 @@ the carried (now path-rebased) prompt file as the run prompt:
 - Run the first daily task manually; confirm it reads the destination paths and
   notifies through the moved provider.
 
+## Maintenance as the system grows
+
+The export walks the whole data tree and copies everything by default, so most
+growth needs NO change here:
+
+- **New playbooks / code / tools** — not in the data tree (they ship from the
+  repo/dist; the destination bootstraps them). Export never touches them.
+- **New data files or directories** — copied automatically as `data`.
+- **New cursor / idempotency files** — copied verbatim like any data.
+
+Only two things couple to this code, and both now **fail loud instead of silent**:
+
+1. **A new SECRET file type** must be added to `portClassify` (bridge-go/
+   portability.go) so it travels encrypted, not as plaintext data. If you forget,
+   the export growth-guard flags it: secrets here are always written `0600`, so
+   any `0600` file the classifier didn't tag as secret is reported as
+   `unclassified_sensitive` in the export result (and logged). Register it, or
+   add it to `portBenign0600` if it is genuinely not a secret.
+2. **A new file that bakes in an absolute path** — auto-rebase only rewrites the
+   task prose (`schedule.md`, `automation/**`). Any other file carrying the
+   source path is reported by import under `residual_source_paths` (it scans
+   every text file), so the agent can fix it. Prefer relative paths / runtime-
+   derived paths in new writers to avoid this entirely.
+
+A bundle-format change (rare) bumps `portSchemaVersion`; import refuses a newer
+bundle than the destination bridge understands.
+
 ## Deactivate the source (finish the move)
 
 Only after the destination is verified: on the SOURCE, pause every campaign

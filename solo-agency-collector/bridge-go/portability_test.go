@@ -157,3 +157,93 @@ func sha256HexRaw(b []byte) string {
 	}
 	return string(out)
 }
+
+func TestPortClassifyContract(t *testing.T) {
+	secrets := []string{
+		"clients/leadup/main/outreach/sendboxes/sb-a/credentials.json",
+		"clients/leadup/main/integrations/providers/provider_config.local.json",
+		"clients/leadup/main/outreach/tracking/.tenant_secret.json",
+		"bridge/ui_token",
+		"secrets/oauth_client.json",
+	}
+	for _, s := range secrets {
+		if portClassify(s) != "secret" {
+			t.Errorf("%q must classify as secret, got %q", s, portClassify(s))
+		}
+	}
+	if portClassify("schedule.md") != "taskdef" || portClassify("automation/x_scheduled_run_prompt.md") != "taskdef" {
+		t.Error("schedule/automation must be taskdef")
+	}
+	if portClassify("clients_index.md") != "shared" || portClassify("provider_defaults.json") != "shared" {
+		t.Error("index/defaults must be shared")
+	}
+	if portClassify("clients/x/main/outreach/crm/contact_identities.jsonl") != "cursor" {
+		t.Error("identity index must be cursor")
+	}
+	// benign 0600 must NOT be flagged as secret
+	if portClassify("collector/inbox/completed_runs.json") == "secret" ||
+		!portBenign0600("collector/inbox/completed_runs.json") {
+		t.Error("completed_runs.json is benign 0600, not a secret")
+	}
+	if !portBenign0600("clients/x/main/outreach/ui_inbox/approval_decisions.jsonl") {
+		t.Error("ui_inbox events are benign 0600")
+	}
+}
+
+func TestPortGrowthGuards(t *testing.T) {
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "src", "daily-content-pipeline")
+	srcInstall := filepath.Dir(src)
+	mk := func(rel, body string, perm os.FileMode) {
+		p := filepath.Join(src, filepath.FromSlash(rel))
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte(body), 0o644)
+		os.Chmod(p, perm)
+	}
+	mk("clients/x/main/outreach/crm/contacts/c.json", `{"id":"c"}`, 0o644)
+	// GUARD 1: a NEW 0600 file the classifier doesn't know -> flagged (still copied)
+	mk("clients/x/main/outreach/vault/new_api_token.json", `{"token":"xyz"}`, 0o600)
+	// benign 0600 -> NOT flagged
+	mk("collector/inbox/completed_runs.json", `[]`, 0o600)
+	// GUARD 2: a non-taskdef data file carrying the source path -> reported on import
+	mk("clients/x/main/outreach/notes.md", "see "+src+"/clients/x for details", 0o644)
+
+	bundle := filepath.Join(tmp, "b.zip")
+	pass := []byte("pw")
+	res, err := exportBundle(src, "agency", nil, bundle, pass, "claude", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// guard 1: the unknown 0600 file surfaced, benign one did not
+	us, _ := res["unclassified_sensitive"].([]string)
+	found := false
+	for _, u := range us {
+		if strings.HasSuffix(u, "new_api_token.json") {
+			found = true
+		}
+		if strings.HasSuffix(u, "completed_runs.json") {
+			t.Fatal("benign 0600 must not be flagged")
+		}
+	}
+	if !found {
+		t.Fatalf("new 0600 file not flagged as unclassified_sensitive: %v", us)
+	}
+	_ = srcInstall
+
+	// guard 2: import reports the residual source path in the non-taskdef file
+	dst := filepath.Join(tmp, "dst", "daily-content-pipeline")
+	ir, err := importBundle(bundle, dst, pass, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resid, _ := ir["residual_source_paths"].([]string)
+	hit := false
+	for _, r := range resid {
+		if strings.HasSuffix(r, "notes.md") {
+			hit = true
+		}
+	}
+	if !hit {
+		t.Fatalf("residual source path in non-taskdef file not reported: %v", resid)
+	}
+}

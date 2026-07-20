@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -77,6 +78,10 @@ type portManifest struct {
 	SecretFiles      []string   `json:"secret_files"`
 	SecretKDF        string     `json:"secret_kdf,omitempty"`
 	SecretIters      int        `json:"secret_iters,omitempty"`
+	// growth guard: 0600 files the classifier did NOT tag as secret (a new
+	// secret file type someone forgot to register would surface here rather
+	// than travel as plaintext data). Warning only — does not change the copy.
+	UnclassifiedSensitive []string `json:"unclassified_sensitive,omitempty"`
 }
 
 // ---------- classification ----------
@@ -114,6 +119,11 @@ func portExcluded(rel string) bool {
 
 // portClassify returns the handling class for a data-root-relative path.
 // "secret" is returned separately (goes into the encrypted blob, never plain).
+//
+// MAINTENANCE: when a future feature writes a NEW secret file type, add its
+// name here. If you forget, export's 0600 growth-guard flags it as
+// `unclassified_sensitive` (secrets in this system are always written 0600),
+// so a missed secret is reported, not silently leaked. See portBenign0600.
 func portClassify(rel string) string {
 	base := filepath.Base(rel)
 	// secrets
@@ -141,6 +151,30 @@ func portClassify(rel string) string {
 		return "shared"
 	}
 	return "data"
+}
+
+// portBenign0600 lists the files known to be 0600 yet NOT secrets, so the
+// growth-guard doesn't false-positive on them. Anything else that is 0600 and
+// not classified secret is genuinely suspicious (a new unregistered secret).
+func portBenign0600(rel string) bool {
+	base := filepath.Base(rel)
+	if base == "completed_runs.json" {
+		return true // collector run-name dedup, 0600 but not a credential
+	}
+	if strings.Contains(rel, "/ui_inbox/") {
+		return true // approval-decision events (0600 dir), operator data not secrets
+	}
+	return false
+}
+
+// portTextExt reports whether a file is worth scanning for leftover source
+// paths on import (skip binaries: pdf/png/zip/... reading them is pointless).
+func portTextExt(rel string) bool {
+	switch strings.ToLower(filepath.Ext(rel)) {
+	case ".md", ".json", ".jsonl", ".txt", ".yaml", ".yml", ".html", ".htm", ".csv", ".log", ".sh", ".ps1", "":
+		return true
+	}
+	return false
 }
 
 // ---------- crypto (stdlib only) ----------
@@ -298,6 +332,11 @@ func exportBundle(dataRoot, scope string, clients []string, outPath string, pass
 			secretFiles = append(secretFiles, rel)
 		} else {
 			dataFiles = append(dataFiles, struct{ rel, abs string }{rel, p})
+			// growth guard: a 0600 file we're about to copy as PLAIN data is
+			// probably a new secret nobody registered — flag it (copy unchanged)
+			if info, ierr := d.Info(); ierr == nil && info.Mode().Perm() == 0o600 && !portBenign0600(rel) {
+				man.UnclassifiedSensitive = append(man.UnclassifiedSensitive, rel)
+			}
 		}
 		return nil
 	})
@@ -394,9 +433,17 @@ func exportBundle(dataRoot, scope string, clients []string, outPath string, pass
 	if err := os.Rename(tmp, outPath); err != nil {
 		return nil, err
 	}
-	return map[string]any{"ok": true, "out": outPath, "scope": scope, "clients": man.Clients,
+	if len(man.UnclassifiedSensitive) > 0 {
+		log.Printf("migrate export: WARNING — %d file(s) are 0600 but not classified as secret (possible new secret type not registered in portClassify): %v",
+			len(man.UnclassifiedSensitive), man.UnclassifiedSensitive)
+	}
+	res := map[string]any{"ok": true, "out": outPath, "scope": scope, "clients": man.Clients,
 		"data_files": len(man.Files), "secret_files": len(man.SecretFiles), "tasks": len(man.Tasks),
-		"secrets_encrypted": man.SecretsEncrypted}, nil
+		"secrets_encrypted": man.SecretsEncrypted}
+	if len(man.UnclassifiedSensitive) > 0 {
+		res["unclassified_sensitive"] = man.UnclassifiedSensitive
+	}
+	return res, nil
 }
 
 // portClientsFromFiles derives the distinct client slugs present in the bundle
@@ -661,13 +708,18 @@ func importBundle(bundlePath, destRoot string, passphrase []byte, dryRun, force 
 	return report, nil
 }
 
+// portResidualPaths scans EVERY placed text file (not just task prose) for the
+// source machine's install path. Auto-rebase only rewrites taskdef files, so a
+// future feature that bakes an absolute path into some other file is REPORTED
+// here for the agent to fix by hand — growth stays safe-by-detection without
+// touching the rebase logic.
 func portResidualPaths(destRoot string, man portManifest, dryRun bool) []string {
 	if dryRun || man.SourceInstall == "" {
 		return nil
 	}
 	var hits []string
 	for _, fm := range man.Files {
-		if fm.Class != "taskdef" {
+		if !portTextExt(fm.Rel) {
 			continue
 		}
 		abs := filepath.Join(destRoot, filepath.FromSlash(fm.Rel))
