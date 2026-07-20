@@ -63,6 +63,10 @@ func (b *bridge) pollCampaignReplies() {
 		}
 	}()
 
+	// pull open/click/unsub tracking events from WideCast into events.jsonl
+	// (no-op for clients without tracking configured)
+	b.pollTrackingForClients()
+
 	for _, c := range b.uiClients() {
 		clientDir := filepath.Join(c.Path, "outreach")
 		boxes := mapsOf(mList(loadSendboxesDoc(clientDir), "sendboxes"))

@@ -522,7 +522,7 @@ func formatAddr(name, addr string) string {
 
 // gmailBuildMIME mirrors build_mime: headers + compliance footer + optional
 // html alternative; mutates draft["token"] like the Python does.
-func gmailBuildMIME(sb, draft map[string]any, rfcMessageID, threadRefs, footer string) (*mimeMessage, error) {
+func gmailBuildMIME(sb, draft map[string]any, rfcMessageID, threadRefs, footer string, tc trackCfg) (*mimeMessage, error) {
 	fromName := mStr(draft, "from_name")
 	if fromName == "" {
 		fromName = mStr(sb, "from_name")
@@ -551,7 +551,14 @@ func gmailBuildMIME(sb, draft map[string]any, rfcMessageID, threadRefs, footer s
 	push("Subject", encodeHeaderWord(subject))
 	push("Message-ID", rfcMessageID)
 	push("Date", time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700"))
-	push("List-Unsubscribe", fmt.Sprintf("<mailto:%s+unsub-%s@%s?subject=unsubscribe>", local, token, dom))
+	mailtoUnsub := fmt.Sprintf("<mailto:%s+unsub-%s@%s?subject=unsubscribe>", local, token, dom)
+	// One-click unsubscribe (RFC 8058) when tracking is configured; the mailto
+	// stays as the durable second path. Harmless no-op when tracking is off.
+	listUnsub, unsubPost := tc.unsubHeader(rfcMessageID, mailtoUnsub)
+	push("List-Unsubscribe", listUnsub)
+	if unsubPost != "" {
+		push("List-Unsubscribe-Post", unsubPost)
+	}
 	if threadRefs != "" {
 		push("In-Reply-To", threadRefs)
 		push("References", threadRefs)
@@ -565,6 +572,9 @@ func gmailBuildMIME(sb, draft map[string]any, rfcMessageID, threadRefs, footer s
 		if footer != "" {
 			htmlBody = htmlBody + "<br><br>" + strings.ReplaceAll(pyHTMLEscape(footer, false), "\n", "<br>")
 		}
+		// click-wrap the companion link + append the open pixel (no-op if
+		// tracking is off or nothing to wrap)
+		htmlBody = tc.trackHTMLBody(htmlBody, rfcMessageID, mStr(draft, "companion_url"))
 		boundary := "==bnd-" + gmailMkToken()
 		push("MIME-Version", "1.0")
 		push("Content-Type", fmt.Sprintf(`multipart/alternative; boundary="%s"`, boundary))
@@ -691,7 +701,7 @@ func gmailCmdSend(clientDir, draftPath string, dryRun bool) (map[string]any, err
 	parts := strings.SplitN(mStr(sb, "email"), "@", 2)
 	rfcMessageID := fmt.Sprintf("<%x@%s>", rb, parts[len(parts)-1])
 	footer := complianceFooter(loadSendingIdentity(clientDir))
-	msg, err := gmailBuildMIME(sb, draft, rfcMessageID, threadRefs, footer)
+	msg, err := gmailBuildMIME(sb, draft, rfcMessageID, threadRefs, footer, loadTrackCfg(clientDir))
 	if err != nil {
 		if token != "" {
 			store.a.release(slug, day, token)

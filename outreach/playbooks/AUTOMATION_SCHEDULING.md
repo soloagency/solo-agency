@@ -736,7 +736,7 @@ operator an immediate WideCast notification for genuinely NEW campaign replies
 (deduped per lead+activity in `outreach/.reply_notify_seen.json`, so the daily
 run re-syncing the same mailbox never double-notifies). The daily run keeps
 running `tool gmail sync` exactly as before — the poller is an extra freshness
-layer, not a replacement. Operators see the live picture on `/ui/{client}/sent`.
+layer, not a replacement. Operators see the live picture on `/ui/{client}/sent`. The same tick also pulls open/click/unsub tracking events from WideCast (when the client's `provider_config.local.json` has a `tracking` block: enabled, base_url, company_id, secret) into `outreach/tracking/events.jsonl` — the Sent page shows opened/clicked, and a one-click unsub becomes a real suppression. No tracking block = reply-only, everything else unchanged.
 
 ### Provider Consent & Mandatory Notify Rule (anti-self-blocking)
 
