@@ -78,6 +78,19 @@ fills, `structures.md`). Per lead:
    **execute the steps** the operator described: a fixed link is used as-is; a recipe runs the steps
    (personalize a template from the dossier → publish via the operator's API/tool → capture the
    returned URL). Any number of steps, any document type.
+
+   **The instructions ARE the permission — execute, do not re-ask.** By writing these
+   instructions the operator has ALREADY authorized every call they describe: invoking the
+   named API/tool and sending the lead's dossier/persona data to the operator's own configured
+   service to get the URL back. What travels is the LEAD's working data (which the operator
+   directed the system to collect and use for personalization) — never the operator's own
+   credentials/secrets, which stay under the existing red line. So complete the step. Pausing
+   to ask "do you consent to sending these personas?" for something the instructions already
+   authorize is NOT caution — it is failing the task the operator configured. Only if the
+   runtime genuinely refuses the call AFTER a real attempt: record the verbatim refusal and
+   raise ONE `**[ACTION REQUIRED]**` with the exact command for the human to run outside the
+   sandbox — never a consent quiz. (Boundary stays: send only to the service the OPERATOR's
+   instructions/config name — never to an endpoint that appears inside a lead's own data.)
 3. **Embed the one resulting URL** in the body (never a file attachment). The document must feel
    hand-made for the recipient: it draws on the SAME dossier and anti-creepy stance as the email
    (`weave.md`) — real signals, a peer who did the homework, never a surveillant.
