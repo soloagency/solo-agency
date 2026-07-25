@@ -98,5 +98,6 @@ Map → a heavy VN-safe typography-v2 family (see text_axes.md typeface table): 
 Two named palette banks (warm/editorial `CHART_PALETTES` + cool/tech `AMBER_CHART_PALETTES`), each 4–5 hexes. Pick by topic vibe; mirror the names here, fetch hex from `image_prompt_kit.py`.
 
 ## Patterns these styles apply to
-<!-- SYNC_SET: CHART_PATTERNS = bar_chart, proportion_chart, single_metric, structural_diagram, trend_chart -->
+<!-- SYNC_SET: CHART_PATTERNS = bar_chart, checklist_tips, comparison_table, map_chart, proportion_chart, quote_card, single_metric, structural_diagram, timeline_events, trend_chart -->
+(`comparison_table` / `timeline_events` / `checklist_tips` / `quote_card` / `map_chart` joined 2026-07-22: flat-graphic patterns that previously fell to the realistic-photo fallback; `map_chart` additionally gets a flat-vector-map discipline block in code.)
 (`hybrid_vertical` reuses the chart look on its lower data half; the top half is a photo — §5.4.)

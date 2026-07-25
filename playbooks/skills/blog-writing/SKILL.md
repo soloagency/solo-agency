@@ -82,12 +82,17 @@ and tell the reader what they'll be able to do — without giving away the *how*
 - **Examples / mini case studies** make abstract points concrete.
 - **Credibility honesty (0.0–1.0, be conservative):** verifiable fact 0.9–1.0;
   industry standard 0.7–0.8; common-but-varies 0.5–0.6; vague/"they say" ≤0.4.
-  Below ~0.7, soften ("often", "many studies suggest") or cut. Never invent stats.
+  Below ~0.7, soften ("often", "typically") or cut. Never invent stats, and never
+  write "studies show" / "experts agree" / "nghiên cứu cho thấy" without naming the
+  actual source - if you can't name it, drop the citation phrasing and state the
+  mechanism instead.
 
 ### 6 — Scannability + formatting
-Short paragraphs (≤3–4 lines). **Bold** the load-bearing phrase in key spots.
-Bullets/numbered lists for series. One idea per sentence where possible. White
-space is a feature.
+Short paragraphs (≤3–4 lines). **Bold** the load-bearing phrase in key spots —
+only true load-bearing phrases; decorative bold everywhere reads as noise. No
+emoji in headings. Bullets/numbered lists for real series — if the thought flows,
+write it as prose. At most 2 em dashes in the whole piece; prefer periods. One
+idea per sentence where possible. White space is a feature.
 
 ### 7 — SEO (human-first)
 - **Primary keyword** in the title/H1, the intro, at least one H2, and naturally
@@ -109,8 +114,10 @@ space is a feature.
 hard target — pad nothing, cut ruthlessly.)
 
 ### 9 — Conclusion + CTA
-Summarize the value in 2–3 lines (don't just repeat), then **one clear next step**
-(read the related piece, try the first tactic, grab the resource). One ask.
+Land the value in 1–2 lines that ADD something (the rule of thumb, the sharpest
+takeaway — never a recap of the sections, never "In conclusion" / "Tóm lại"
+wallpaper), then **one clear next step** (read the related piece, try the first
+tactic, grab the resource). One ask.
 
 ## Voice
 Humble, second-person, conversational-but-precise. Personal **"I"** for opinion/
@@ -120,7 +127,12 @@ knowledgeable friend, not a textbook or a salesperson.
 ## Anti-fluff pass
 Cut "actually, basically, really, very, just, in order to, the fact that", and any
 sentence that doesn't advance the promise. If a paragraph has no takeaway, it's
-filler — delete or merge.
+filler — delete or merge. State each point once: a section that re-explains an
+earlier section without new information gets merged or cut. Never use words no
+professional says out loud — EN: "delve", "leverage", "seamless", "robust",
+"transformative", "elevate", "harness", "cutting-edge"; VI: "trong thời đại số",
+"hãy cùng tìm hiểu", "hãy cùng khám phá", "không thể phủ nhận", "nâng tầm",
+"bứt phá", "chìa khóa thành công", "trải nghiệm tuyệt vời".
 
 ## Pre-flight checklist
 - [ ] Title has a specific + keyword + curiosity; not banned-style/clickbait.
@@ -129,8 +141,9 @@ filler — delete or merge.
 - [ ] Stats are fact-checked + honestly framed (≥0.7) or softened/cut.
 - [ ] Skimmable: short paragraphs, subheads every ~150–250 words, lists where apt.
 - [ ] Keyword in title/intro/≥1 H2 + meta description written.
-- [ ] In the chosen length tier; no padding.
-- [ ] One CTA at the end.
+- [ ] In the chosen length tier; no padding; each point stated once.
+- [ ] ≤2 em dashes; no emoji headings; bold only on true key terms.
+- [ ] Ends on a takeaway + one CTA — not a summary recap.
 
 ## Repurpose to video (WideCast)
 A finished blog can become a video: call `create_video` with `source="blog"`,
