@@ -67,6 +67,23 @@ Drafts are written through `tool crm-store draft write`. When any instruction he
    `confidence_band`, flags `generic_opener`/`bump_step` warnings, marks the hooks `used_in`, and
    stores the draft in `pending_approval`.
 
+## Using what enrichment found (enforced in code)
+
+If the dossier holds ANY dated proof-of-life hook, the email must be built on it. Three refusals
+now come back from `draft write`, and each is a real defect, not a formality:
+
+- `hooks_available_but_unused` — the contact has dated hooks on file and the draft declared none.
+  Never send a generic opener to someone you DID find evidence on; open on the observed detail.
+- `hook_not_woven` — the draft declares a hook whose specifics appear nowhere in the subject or
+  body. Naming a hook in the metadata while writing a template misrepresents the record; weave the
+  observed detail (the place, the number, the topic, the date) into the sentence a human reads.
+- `no_evidenced_hook` — nothing evidenced was found and the campaign's `no_hook_fallback` is
+  `skip`. The lead is HELD (`draft_held_no_evidence`) and reported, not dropped: report the count
+  in the run summary so the operator can decide (search harder, accept generic, or drop).
+
+An undated `website_update` (i.e. "we opened their homepage today") is NOT proof-of-life and does
+not satisfy the hook bar, per `04_VERIFY_ENRICH.md`.
+
 ## Companion document (optional per-lead link)
 
 When the campaign's `goal.companion_doc` is set (`05_CAMPAIGN_MANAGEMENT.md` §1b), produce the link
