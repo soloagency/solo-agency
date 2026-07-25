@@ -87,6 +87,12 @@ video, the first line should be the video's hook, and the CTA drives to watch.
 - Hashtag walls / irrelevant tags.
 - More than one CTA. "Like, comment, share, follow, save" = none.
 - Hooks that over-promise and the body under-delivers.
+- Fake-profound kickers ("Let that sink in.", "Read that again.").
+- Em dashes as rhythm crutch — short copy gets zero or one.
+- Words no one says out loud: "delve", "leverage", "seamless", "robust",
+  "transformative", "elevate", "harness", "cutting-edge"; VI: "trong thời đại số",
+  "hãy cùng tìm hiểu", "không thể phủ nhận", "nâng tầm", "bứt phá",
+  "chìa khóa thành công".
 
 ## Pre-flight checklist
 - [ ] First line works as a standalone hook and earns the "…more" tap.
@@ -94,7 +100,10 @@ video, the first line should be the video's hook, and the CTA drives to watch.
 - [ ] Length + hashtag count fit the platform norm.
 - [ ] One CTA, matched to the goal.
 - [ ] Voice matches the brand; specific (number/name/result), no banned openers.
-- [ ] Any stat is honest (would score ≥0.7) or softened/cut.
+- [ ] Any stat is honest (would score ≥0.7) or softened/cut; no "studies show"
+      without a named source.
+- [ ] Zero/one em dash; no fake-profound kickers; ends on value or a real
+      question, not a recap.
 
 ## Output format
 When the user names platforms, deliver **one labeled variant per platform**
