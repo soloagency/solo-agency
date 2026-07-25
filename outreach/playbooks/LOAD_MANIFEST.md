@@ -9,8 +9,8 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 497 | deb12399b61ef2d8ae6056df9ac197ed8ed0555d569e0656448098af7543da82 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 736 | 895b6fb68ae2843c0c15122b9552af7091496897fe41e8284accd8faaf976808 | --- |
 | playbooks/02_SENDBOX_SETUP.md | 264 | bc89fb41f2cf1b7705a24d208d8e1cb2455b7e5758ab7f0a5b58bb07947fb79a | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| playbooks/03_IMPORT_LIST.md | 324 | a28f827257f5f4f2070f617703011e33f9d3c958b73bd5659f23d14daddfb87a | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
-| playbooks/04_VERIFY_ENRICH.md | 145 | 1335367f4967cdb198e80f2c515e4bb5c61bae01cd35d52640dccf0850bae03e | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/03_IMPORT_LIST.md | 324 | fcfdf069cf778eafd8b9dc0236786c38149cc2b548f18e02527b4d3b03326bf6 | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
+| playbooks/04_VERIFY_ENRICH.md | 158 | bb2246edef29d289ea5d01310da45dcb37d154259b9c4cacf2cd4f2851182605 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/05_CAMPAIGN_MANAGEMENT.md | 264 | 099451b14db9a865be121b2c01081fbbdea36b151fcafb084dd79ad62c7e9a37 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/06_EMAIL_WRITING_STANDARD.md | 162 | 2cb279a62ea8f7e576e557723cd8fda49c5e8637e509e48c028be2fd9fd4745e | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1446 | a7cea1bcab915ccd17911f365bb9b7ab3875ee81f3fcf2ba783c0bba55ae5012 | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule. |
