@@ -292,6 +292,66 @@ func TestImportLeadsFlow(t *testing.T) {
 	}
 }
 
+// A rich operator list carries research clues in columns the mapping does not
+// claim (NPN, license, years in practice...). Import must KEEP them on the
+// contact (custom_fields) and in the list audit, so enrichment can use them as
+// starting points instead of re-researching from scratch.
+func TestImportKeepsUnmappedColumns(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	// "City" is a recognized column (maps to the canonical slot); the rest are
+	// real-world names the auto-mapper does NOT know and used to be dropped.
+	csvBody := "Full Name,Email,Agency,NPN,License Type,Years In Practice,City,Bus State,Notes\n" +
+		"Pat Nguyen,pat@ins.com,Statewide Ins,8123456,P&C,12,Garden Grove,CA,referred by AL\n"
+	csvPath := filepath.Join(t.TempDir(), "rich.csv")
+	if err := os.WriteFile(csvPath, []byte(csvBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if r := runGoStep(t, xstep{"2026-07-21T09:00:00Z", []string{"--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"}}); r.Code != 0 {
+		t.Fatal(r.Stderr)
+	}
+	leads := func(now string, argv ...string) xresult {
+		return runCLIStep(t, xstep{now, argv}, runImportLeadsCLI)
+	}
+	imp := parseOut(t, leads("2026-07-21T09:01:00Z", "import", "--client-dir", ws,
+		"--file", csvPath, "--list-slug", "insurance", "--no-mx-check"))
+	if mInt(mMap(imp, "manifest"), "contacts_created", -1) != 1 {
+		t.Fatalf("import: %v", imp)
+	}
+
+	// the contact keeps every unmapped column as a clue
+	store := newCrmStore(ws)
+	lead := store.a.findByIdentity("email", "pat@ins.com")
+	if lead == "" {
+		t.Fatal("contact not created")
+	}
+	cf := mMap(store.getContact(lead), "custom_fields")
+	for k, want := range map[string]string{
+		"NPN": "8123456", "License Type": "P&C", "Years In Practice": "12",
+		"Notes": "referred by AL", "Agency": "Statewide Ins",
+	} {
+		if mStr(cf, k) != want {
+			t.Errorf("custom_fields[%q] = %q, want %q (unmapped clue dropped)", k, mStr(cf, k), want)
+		}
+	}
+	// mapped fields still win their canonical slots
+	if mStr(cf, "city") != "Garden Grove" {
+		t.Errorf("mapped city lost: %v", cf)
+	}
+	// an unrecognized column name (the shape real operator lists use) survives
+	// verbatim instead of being silently dropped
+	if mStr(cf, "Bus State") != "CA" {
+		t.Errorf("unrecognized column dropped: %v", cf)
+	}
+
+	// the list audit row carries them too (same `norm`), so nothing is lost
+	rows := readJSONLines(filepath.Join(ws, "lists", "insurance", "leads.jsonl"))
+	if len(rows) != 1 || mStr(mMap(mMap(rows[0], "normalized"), "extra"), "NPN") != "8123456" {
+		t.Fatalf("audit row missing extra clues: %v", rows)
+	}
+}
+
 func TestSeedLeadFlow(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "dcp")
 	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")

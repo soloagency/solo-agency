@@ -87,6 +87,19 @@ wins.
    `skip` (a hookless step-1 draft is rejected), or the explicit opt-in `generic_honest_opener`
    (grounded in license/roster facts). One evidenced Layer-B point already clears the floor — only
    mark no-hook at genuine zero. Inactive leads: `still_active: inactive`, stop — do not draft.
+4b. **Start from the clues the list already gave you (`custom_fields`).** Import keeps EVERY
+   column of the operator's list, including the ones the canonical mapping did not claim (NPN,
+   license number/type, years in practice, agency/brokerage, MLS or DRE id, business address,
+   the operator's own notes...). Read `custom_fields` BEFORE searching blind: a licence number
+   or NPN resolves to an official roster page in one lookup, an agency name plus a personal name
+   finds the profile far faster than a name alone, and a roster page is often where a real
+   business email lives. These are research starting points, not evidence: a hook still needs
+   its own dated `evidence_url`, and a roster/licence fact only ever grounds a
+   `generic_honest_opener`. Personal attributes that may ride along in the source list (age,
+   gender, home address/phone) are stored for provenance but are NOT search fuel, NOT
+   segmentation criteria, and never appear in copy — treat them exactly like `personal`
+   signals: push them to `do_not_mention`.
+
 5. **Anchorless leads — resolution ladder first (DESIGN §9.1b): seed → profile → email → hooks.**
    When `enrich status` says `seed_unresolved`, Tier 1's FIRST move is origin resolution: open the
    seed content itself (reel/video/post/blog — Local Collector for Facebook surfaces, the browser

@@ -759,12 +759,34 @@ func normalizeLeadRow(raw map[string]string, mapping map[string]string) map[stri
 		}
 		email = ""
 	}
+	// Columns the mapping did NOT claim are kept verbatim as `extra` instead of
+	// being dropped: a rich operator list carries real research clues (NPN,
+	// license type/number, years in practice, agency, brokerage, business
+	// address, MLS id...). Enrichment uses them as starting points to hunt for
+	// the profile/email, and the writer can lean on the business ones. Storing
+	// is not using: which of them may appear in copy is decided later by the
+	// enrichment/writing rules (personal signals land in do_not_mention).
+	claimed := map[string]bool{}
+	for _, col := range mapping {
+		if col != "" {
+			claimed[col] = true
+		}
+	}
+	extra := map[string]any{}
+	for col, val := range raw {
+		if claimed[col] {
+			continue
+		}
+		if v := strings.TrimSpace(val); v != "" {
+			extra[strings.TrimSpace(col)] = v
+		}
+	}
 	return map[string]any{
 		"full_name": full, "first_name": g("first_name"), "last_name": g("last_name"),
 		"email": normalizeEmail(email), "phone": normalizePhone(g("phone")),
 		"company": g("company"), "website": website,
 		"city": g("city"), "state": g("state"), "socials": socials,
-		"seeds": orEmptyList(seeds),
+		"seeds": orEmptyList(seeds), "extra": extra,
 	}
 }
 
@@ -796,6 +818,12 @@ func leadToContactFields(norm map[string]any) map[string]any {
 			"seeds": orEmptyList(seedEntries)},
 	}
 	custom := map[string]any{}
+	// unmapped source columns first, so a mapped field always wins on a name clash
+	for k, v := range mMap(norm, "extra") {
+		if k != "" {
+			custom[k] = v
+		}
+	}
 	for _, k := range []string{"company", "city", "state"} {
 		if mStr(norm, k) != "" {
 			custom[k] = norm[k]
