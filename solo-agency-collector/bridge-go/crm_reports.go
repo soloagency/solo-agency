@@ -124,6 +124,63 @@ type draftArgs struct {
 	CompanionURL     string
 }
 
+// hookWovenGenericTerms are words too generic to prove a hook was actually used
+// (they appear in every templated outreach email), so they never count as a weave.
+var hookWovenGenericTerms = map[string]bool{
+	"content": true, "video": true, "videos": true, "professional": true, "professionals": true,
+	"public": true, "publicly": true, "posted": true, "posts": true, "shared": true,
+	"about": true, "their": true, "there": true, "these": true, "those": true, "which": true,
+	"insurance": true, "estate": true, "agency": true, "business": true, "company": true,
+	"website": true, "profile": true, "recent": true, "recently": true, "audience": true,
+	"education": true, "educational": true, "social": true, "media": true, "online": true,
+	"experience": true, "practice": true, "clients": true, "customers": true, "people": true,
+}
+
+// hookWovenIntoBody reports whether at least one distinctive detail of a declared
+// hook actually shows up in the email. Heuristic on purpose: it must be lenient
+// enough that any genuine paraphrase passes (one shared distinctive word or
+// number is enough), yet strict enough to catch a pure template. Validated on the
+// live audit set: 0 of 57 template drafts passed, while hook-derived copy does.
+func hookWovenIntoBody(text string, cleanHooks []any, evidenceByURL map[string]map[string]any) bool {
+	low := strings.ToLower(text)
+	for _, h := range cleanHooks {
+		hm, ok := h.(map[string]any)
+		if !ok {
+			continue
+		}
+		dh := evidenceByURL[mStr(hm, "evidence_url")]
+		if dh == nil {
+			continue
+		}
+		summary := strings.ToLower(mStr(dh, "summary"))
+		for _, w := range regexp.MustCompile(`[a-z]{5,}`).FindAllString(summary, -1) {
+			if !hookWovenGenericTerms[w] && strings.Contains(low, w) {
+				return true
+			}
+		}
+		// a distinctive number (view count, street number, "40k") also proves use
+		for _, n := range regexp.MustCompile(`\d{2,}`).FindAllString(summary, -1) {
+			if strings.Contains(low, n) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// holdNoEvidence records that a lead was deliberately NOT drafted for lack of
+// usable evidence. The point is that it is HELD and visible (contact timeline +
+// countable in reports), never silently dropped — the operator picked these
+// leads and must be able to see and decide. Best-effort: never fails the caller.
+func (c *crmStore) holdNoEvidence(leadID, campaignSlug, reason string, hooksAvailable int) {
+	summary := "draft held: no usable proof-of-life evidence"
+	if reason == "hooks_available_but_unused" {
+		summary = fmt.Sprintf("draft held: %d dated hook(s) on file were not used", hooksAvailable)
+	}
+	_, _ = c.logActivity("draft_held_no_evidence", leadID, summary, "rule", nil,
+		map[string]any{"campaign": campaignSlug, "reason": reason, "hooks_available": hooksAvailable})
+}
+
 func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[string]any, error) {
 	leadID := c.resolve(contactID)
 	contact := c.getContact(leadID)
@@ -208,13 +265,56 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 		}
 		cleanHooks = append(cleanHooks, map[string]any{"type": dh["type"], "evidence_url": url})
 	}
+	// ---- personalization gates (code, not prose) --------------------------------
+	// An audit of 108 live drafts found the failure these close: enrichment had
+	// dated hooks on file, yet the emails were mail-merge templates. Three
+	// distinct faults, each now refused at write time.
+
+	// (1) A hook only counts as proof-of-life if it is DATED and is not just
+	// "we read their website today" (04_VERIFY_ENRICH / Stage 9 already say so;
+	// nothing enforced it, so 54 of 57 declared hooks were undated website_update).
+	provable := map[string]map[string]any{}
+	for url, h := range evidenceByURL {
+		if mStr(h, "observed_date") == "" {
+			continue
+		}
+		if hookType(h) == "website_update" {
+			continue
+		}
+		provable[url] = h
+	}
+	usedProvable := 0
+	for _, h := range cleanHooks {
+		if hm, ok := h.(map[string]any); ok {
+			if _, isProvable := provable[mStr(hm, "evidence_url")]; isProvable {
+				usedProvable++
+			}
+		}
+	}
+
+	// (2) Never write a generic email to someone we DID find evidence on. This
+	// is the 18-lead miss: hooks on file, hooks_used empty.
+	if step == 1 && usedProvable == 0 && len(provable) > 0 {
+		c.holdNoEvidence(leadID, campaignSlug, "hooks_available_but_unused", len(provable))
+		return nil, storageErrf("hooks_available_but_unused: this contact has %d dated proof-of-life hook(s) on file; a step-1 email must be built on them, not on a generic opener (see the hooks in enrichment.hooks)", len(provable))
+	}
+
+	// (3) A declared hook must actually be WOVEN into the body. Declaring a hook
+	// while sending a template misrepresents the record and reads as generic.
+	if len(cleanHooks) > 0 && !hookWovenIntoBody(a.Subject+" "+a.BodyText, cleanHooks, evidenceByURL) {
+		return nil, storageErrf("hook_not_woven: the email declares a hook but its specifics appear nowhere in the subject/body — weave the observed detail in, or drop the hook claim")
+	}
+
 	if step == 1 && len(cleanHooks) == 0 {
 		fallback := mStr(mMap(mMap(cfg, "audience"), "personalization"), "no_hook_fallback")
 		if fallback == "" {
 			fallback = "skip"
 		}
 		if fallback != "generic_honest_opener" {
-			return nil, storageErrf("no_evidenced_hook: this campaign requires a recent evidenced hook (proof-of-life) for a step-1 email; no_hook_fallback=skip")
+			// Held, NOT silently dropped: the lead stays visible so the operator
+			// can decide (User-Curated List Rule), and no send quota is burned.
+			c.holdNoEvidence(leadID, campaignSlug, "no_evidenced_hook", 0)
+			return nil, storageErrf("no_evidenced_hook: this campaign requires a recent evidenced hook (proof-of-life) for a step-1 email; no_hook_fallback=skip (the lead is held as held_no_evidence, not dropped)")
 		}
 	}
 	sendbox := c.pickSendbox(cfg, contact, "")
@@ -228,6 +328,16 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 	warnings := []any{}
 	if len(cleanHooks) == 0 {
 		warnings = append(warnings, "generic_opener")
+	}
+	// min_confidence was documented on every campaign but read by NO code, so a
+	// fallback-band contact could still be drafted as "high". It does not block
+	// (the Drafting Decision Checklist wants those routed to Review carefully),
+	// it caps the band so an under-evidenced draft can never claim confidence.
+	if minConf := asFloat(mMap(mMap(cfg, "audience"), "personalization")["min_confidence"], 0); minConf > 0 {
+		if conf := asFloat(mMap(mMap(contact, "enrichment"), "writing_brief")["personalization_confidence"], 0); conf < minConf && band == "high" {
+			band = "review_carefully"
+			warnings = append(warnings, "below_min_confidence")
+		}
 	}
 	if step > 1 {
 		warnings = append(warnings, "bump_step")

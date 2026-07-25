@@ -2543,8 +2543,56 @@ func (c *crmStore) campaignUpdate(slug string, patch map[string]any) (map[string
 					return nil, storageErrf("goal.%s is not operator-editable", gk)
 				}
 			}
+		case "audience":
+			// Only the PERSONALIZATION POLICY is operator-editable here (the
+			// segment itself is campaign design, not a knob): whether a lead with
+			// no proof-of-life may still be emailed, and the confidence floor.
+			ap, ok := val.(map[string]any)
+			if !ok {
+				return nil, storageErrf("audience must be an object")
+			}
+			for ak, av := range ap {
+				if ak != "personalization" {
+					return nil, storageErrf("audience.%s is not operator-editable (only audience.personalization)", ak)
+				}
+				pm, ok := av.(map[string]any)
+				if !ok {
+					return nil, storageErrf("audience.personalization must be an object")
+				}
+				aud := mMap(cfg, "audience")
+				if aud == nil {
+					aud = map[string]any{}
+					cfg["audience"] = aud
+				}
+				pers := mMap(aud, "personalization")
+				if pers == nil {
+					pers = map[string]any{}
+					aud["personalization"] = pers
+				}
+				for pk, pv := range pm {
+					switch pk {
+					case "no_hook_fallback":
+						s, _ := pv.(string)
+						if s != "skip" && s != "generic_honest_opener" {
+							return nil, storageErrf("no_hook_fallback must be skip|generic_honest_opener, got %q", s)
+						}
+						setStr(pers, "no_hook_fallback", s, "audience.personalization.no_hook_fallback")
+					case "min_confidence":
+						f := asFloat(pv, -1)
+						if f < 0 || f > 1 {
+							return nil, storageErrf("min_confidence must be 0..1, got %v", pv)
+						}
+						if asFloat(pers["min_confidence"], -1) != f {
+							pers["min_confidence"] = f
+							changed = append(changed, "audience.personalization.min_confidence")
+						}
+					default:
+						return nil, storageErrf("audience.personalization.%s is not operator-editable", pk)
+					}
+				}
+			}
 		default:
-			return nil, storageErrf("%s is not operator-editable (allowed: status, daily_quota, goal.*)", key)
+			return nil, storageErrf("%s is not operator-editable (allowed: status, daily_quota, goal.*, audience.personalization.*)", key)
 		}
 	}
 	p, err := c.campaignConfigPath(slug)

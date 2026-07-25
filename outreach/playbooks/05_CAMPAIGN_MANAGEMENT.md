@@ -182,7 +182,8 @@ Defaults are filled in for any field you omit: a 4-step sequence (step 1 cold + 
 Creating a campaign makes its `queue/`, `outbox/pending_approval/`, `outbox/approved/`, and
 `history/` folders.
 
-- **`no_hook_fallback` defaults to `skip`** — except for a campaign whose audience comes from a USER-CURATED list (`list_origin: user_curated`): there it defaults to `"generic_honest_opener"`, because the human already chose those leads and none may be silently dropped (User-Curated List Rule). A step-1 draft with no evidenced hook is REJECTED by
+- **`no_hook_fallback` defaults to `skip`** — except for a campaign whose audience comes from a USER-CURATED list (`list_origin: user_curated`): there it defaults to `"generic_honest_opener"`, because the human already chose those leads and none may be silently dropped (User-Curated List Rule).
+  **Resolving the tension (2026-07-25, after a 108-draft audit found template emails going to enriched leads):** a refused draft is now HELD and reported, never silently dropped — `draft write` logs a `draft_held_no_evidence` activity on the contact, so `skip` honors the User-Curated List Rule (the operator still sees every lead and decides) WITHOUT burning send quota on mail-merge. Prefer `skip` once a list has been enriched: an email with nothing specific to say converts poorly and spends a scarce sendbox slot. Both knobs are operator-editable: `campaign update --json '{"audience":{"personalization":{"no_hook_fallback":"skip","min_confidence":0.7}}}'`. A step-1 draft with no evidenced hook is REJECTED by
   `draft write` (`no_evidenced_hook`); recent evidenced activity is the reason an email exists. Set
   `no_hook_fallback: "generic_honest_opener"` only to explicitly opt a campaign into a
   generic-but-honest opener (grounded in license/roster facts, flagged `generic_opener`). Bumps and

@@ -808,3 +808,117 @@ func TestConsolidationFlow(t *testing.T) {
 		t.Fatalf("cleared suspects must queue: %v", q)
 	}
 }
+
+// TestPersonalizationGates locks the fixes for the 108-draft audit: enrichment
+// data on file must actually reach the email, a declared hook must be woven,
+// and an undated website_update never counts as proof-of-life.
+func TestPersonalizationGates(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult {
+		return runGoStep(t, xstep{FakeNow: now, Argv: argv})
+	}
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-21T10:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+	mustOK(run("2026-07-21T10:01:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	mustOK(run("2026-07-21T10:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "demo",
+		"--json", `{"audience":{"segment":"all","personalization":{"no_hook_fallback":"generic_honest_opener"}},"sendboxes":["sb-a"],"daily_quota":50}`))
+
+	// A: contact WITH a dated, real hook
+	mustOK(run("2026-07-21T10:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_hot","name":{"full":"Maria Mendez"},"identities":{"emails":[{"address":"maria@re.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-21T10:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_hot", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"July 15 video tour of a remodeled Cerritos townhome","evidence_url":"https://fb/1","observed_date":"2026-07-15","confidence":0.9}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+
+	// 1. hooks on file + generic email (no hooks_used) => REFUSED, even though
+	//    the campaign allows a generic opener when there is nothing to say.
+	r := run("2026-07-21T10:05:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_hot",
+		"--campaign", "demo", "--json",
+		`{"step":1,"subject":"Maria: a 30-day plan","body_text":"Hi Maria, I prepared a personalized plan based on your work as a real estate professional."}`)
+	if r.Code == 0 || !strings.Contains(r.Stderr, "hooks_available_but_unused") {
+		t.Fatalf("generic email to an enriched contact must be refused: %d %s", r.Code, r.Stderr)
+	}
+	// held, not dropped: an activity records it for the operator
+	held := false
+	for _, p := range mustGlob(t, filepath.Join(ws, "crm", "activities", "*", "activities.jsonl")) {
+		for _, a := range readJSONLines(p) {
+			if mStr(a, "type") == "draft_held_no_evidence" && mStr(a, "contact_id") == "c_hot" {
+				held = true
+			}
+		}
+	}
+	if !held {
+		t.Fatal("a refused draft must be recorded as held_no_evidence, not silently dropped")
+	}
+
+	// 2. declares the hook but writes a template => REFUSED (decorative hook)
+	r = run("2026-07-21T10:07:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_hot",
+		"--campaign", "demo", "--json",
+		`{"step":1,"subject":"Maria: content angles","body_text":"Hi Maria, I prepared a refreshed 30-day content plan for your business.","hooks_used":[{"type":"social_post","evidence_url":"https://fb/1"}]}`)
+	if r.Code == 0 || !strings.Contains(r.Stderr, "hook_not_woven") {
+		t.Fatalf("decorative hook must be refused: %d %s", r.Code, r.Stderr)
+	}
+
+	// 3. genuinely woven (mentions Cerritos) => ACCEPTED
+	ok := mustOK(run("2026-07-21T10:08:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_hot",
+		"--campaign", "demo", "--json",
+		`{"step":1,"subject":"That Cerritos townhome tour","body_text":"Hi Maria, your Cerritos tour answered the question buyers keep asking, which is why it deserves a series.","hooks_used":[{"type":"social_post","evidence_url":"https://fb/1"}]}`))
+	if mStr(ok, "draft_id") == "" && mStr(ok, "id") == "" {
+		t.Fatalf("woven draft should be written: %v", ok)
+	}
+
+	// B: contact whose ONLY "hook" is an undated website_update => not proof of
+	// life, so it falls to the no-hook path (generic opener allowed here).
+	mustOK(run("2026-07-21T10:09:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_web","name":{"full":"David G"},"identities":{"emails":[{"address":"d@hub.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-21T10:10:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_web", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"website_update","summary":"Insurance Brokers | HUB International","evidence_url":"https://hub.com/","confidence":0.5}],
+		  "writing_brief":{"personalization_confidence":0.5}}`))
+	gen := mustOK(run("2026-07-21T10:11:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_web",
+		"--campaign", "demo", "--json",
+		`{"step":1,"subject":"David: content angles","body_text":"Hi David, I put together a plan for your agency."}`))
+	if !containsStr(mList(gen, "warnings"), "generic_opener") {
+		t.Fatalf("undated website_update must not count as proof-of-life: %v", gen)
+	}
+
+	// 4. with no_hook_fallback=skip the same lead is HELD, not drafted
+	mustOK(run("2026-07-21T10:12:00Z", "--client-dir", ws, "campaign", "update", "--slug", "demo",
+		"--json", `{"audience":{"personalization":{"no_hook_fallback":"skip"}}}`))
+	mustOK(run("2026-07-21T10:13:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_bare","name":{"full":"No Data"},"identities":{"emails":[{"address":"n@x.com","is_primary":true}]}}`))
+	r = run("2026-07-21T10:14:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_bare",
+		"--campaign", "demo", "--json", `{"step":1,"subject":"Hello","body_text":"Hi there, a quick note."}`)
+	if r.Code == 0 || !strings.Contains(r.Stderr, "no_evidenced_hook") {
+		t.Fatalf("skip policy must refuse a hookless draft: %d %s", r.Code, r.Stderr)
+	}
+}
+
+func containsStr(l []any, want string) bool {
+	for _, x := range l {
+		if fmt.Sprint(x) == want {
+			return true
+		}
+	}
+	return false
+}
+
+func mustGlob(t *testing.T, pat string) []string {
+	t.Helper()
+	m, err := filepath.Glob(pat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
