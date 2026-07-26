@@ -678,3 +678,31 @@ func TestDataPointContactsSurviveToRecord(t *testing.T) {
 		t.Fatalf("record.phones = %v, want [+14155550100]", record["phones"])
 	}
 }
+
+// Different profile.php identities must NOT collapse onto one dedupe key: stripping
+// the whole query merged three unrelated contacts into "facebook.com/profile.php".
+func TestNormalizeSocialKeepsIdentityParams(t *testing.T) {
+	a := normalizeSocial("https://www.facebook.com/profile.php?id=100036761349955")
+	b := normalizeSocial("https://www.facebook.com/profile.php?id=61571718372622")
+	if a == b {
+		t.Fatalf("distinct profiles collapsed to the same key: %q", a)
+	}
+	if a != "facebook.com/profile.php?id=100036761349955" {
+		t.Fatalf("unexpected key: %q", a)
+	}
+	// Tracking params must NOT split one identity, and param order must not matter.
+	withNoise := normalizeSocial("https://www.facebook.com/profile.php?fbclid=XYZ&id=100036761349955&utm_source=x")
+	if withNoise != a {
+		t.Fatalf("tracking params changed the key: %q vs %q", withNoise, a)
+	}
+	// Content identities too (all FB/YouTube videos previously became one key).
+	v1 := normalizeSocial("https://www.facebook.com/watch/?v=111")
+	v2 := normalizeSocial("https://www.facebook.com/watch/?v=222")
+	if v1 == v2 {
+		t.Fatalf("distinct videos collapsed to the same key: %q", v1)
+	}
+	// Plain vanity profiles keep working unchanged.
+	if got := normalizeSocial("https://www.facebook.com/absellsaz/"); got != "facebook.com/absellsaz" {
+		t.Fatalf("vanity url regressed: %q", got)
+	}
+}

@@ -191,6 +191,23 @@ func normalizePhone(number string) string {
 var schemeRe = regexp.MustCompile(`^https?://`)
 var wwwRe = regexp.MustCompile(`^www\.`)
 
+// Query params that CARRY THE IDENTITY of a profile or a piece of content. Dropping
+// them collapses different people (or different videos) onto one dedupe key: every
+// `facebook.com/profile.php?id=<N>` became plain `facebook.com/profile.php`, so three
+// unrelated contacts merged into one. Anything not listed here is treated as tracking
+// noise and removed, which keeps `?fbclid=…`/`?utm_*` from splitting one identity.
+var identityQueryParams = map[string]bool{
+	"id":         true, // facebook.com/profile.php?id=<numeric>
+	"v":          true, // facebook.com/watch/?v=<id>, youtube.com/watch?v=<id>
+	"story_fbid": true, // facebook.com/permalink.php?story_fbid=…&id=…
+	"fbid":       true, // photo.php?fbid=…
+	"set":        true, // photo albums
+	"p":          true, // some permalink shapes
+}
+
+// normalizeSocial builds the dedupe/identity key for a social or content URL:
+// lowercase, no scheme/www/fragment/trailing slash, and only identity-bearing query
+// params kept (sorted, so param order never changes the key).
 func normalizeSocial(url string) string {
 	if url == "" {
 		return ""
@@ -198,13 +215,36 @@ func normalizeSocial(url string) string {
 	s := strings.ToLower(strings.TrimSpace(url))
 	s = schemeRe.ReplaceAllString(s, "")
 	s = wwwRe.ReplaceAllString(s, "")
-	if i := strings.Index(s, "?"); i >= 0 {
-		s = s[:i]
-	}
 	if i := strings.Index(s, "#"); i >= 0 {
 		s = s[:i]
 	}
-	return strings.TrimRight(s, "/")
+	query := ""
+	if i := strings.Index(s, "?"); i >= 0 {
+		query = s[i+1:]
+		s = s[:i]
+	}
+	s = strings.TrimRight(s, "/")
+	if query == "" {
+		return s
+	}
+	kept := make([]string, 0, 2)
+	for _, part := range strings.Split(query, "&") {
+		if part == "" {
+			continue
+		}
+		name := part
+		if j := strings.Index(part, "="); j >= 0 {
+			name = part[:j]
+		}
+		if identityQueryParams[name] {
+			kept = append(kept, part)
+		}
+	}
+	if len(kept) == 0 {
+		return s
+	}
+	sort.Strings(kept)
+	return s + "?" + strings.Join(kept, "&")
 }
 
 // --- Cond matching (flat fields, dotted paths) --------------------------------
