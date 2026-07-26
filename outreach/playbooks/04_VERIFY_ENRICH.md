@@ -106,7 +106,11 @@ wins.
    elsewhere), identify the OWNER via the byline/channel/handle, and record the profile in
    `identity.channels_found.profiles` — the store writes it back into `identities.socials` as a
    canonical dedupe-eligible identity and marks the seed `resolved`. A `name_only_fragment` lead
-   gets a name+company+location search instead. Then continue as a profile-seeded lead.
+   gets a name+company+location search instead — run it through the Local Collector's
+   **`fb.people.search`** capability and take candidates from **`records.items`** ONLY; NEVER the DOM
+   `entity_candidates` (it grabs the operator's open Messenger-chat contact — see `channel_reality.md`).
+   If `records` is null, re-run with more scroll or record no-result; never accept a DOM candidate.
+   Then continue as a profile-seeded lead.
 
    **Batch-resolve BEFORE deep enrichment (reel-heavy lists).** User lists routinely carry many
    content links of the SAME person. So: resolve ALL unresolved seeds to owner profiles FIRST
