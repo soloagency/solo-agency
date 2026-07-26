@@ -92,14 +92,30 @@ yields no usable name, pull the person's own words + place-names from `fb.profil
 `fb.profile.posts` captions before ever falling back to a slug. Pass a `profile.php` URL only WITH
 its `?id=<numeric_id>` — a bare `profile.php` resolves to the operator, not the lead.
 
-**Running the Facebook people-search — GraphQL only, never the DOM scan.** Execute a
-name+company+location person search through the Local Collector's **`fb.people.search`** capability
-(source `capability:"fb.people.search"`, `inputs.query` = the built query, enough scroll to trigger
-the results query). Take candidates ONLY from **`records.items`** (`ProfileSummary[]`). **NEVER** use
-`entity_candidates` / `new_private_sources` (the DOM scan) — with a Messenger chat open it captures the
-OPERATOR'S OWN chat contact as a candidate (one wrong "Bob Nguyen" polluted 32 searches). If `records`
-is `null`, the results query was not captured — re-run with more scroll; if still null, treat as
-no-result. Never accept a DOM candidate. (See `channel_reality.md`.)
+**Running the Facebook people-search — search BROAD, then FILTER. GraphQL only, never the DOM scan.**
+Run it through the Local Collector's **`fb.people.search`** capability (source
+`capability:"fb.people.search"`). Two rules decide whether this works at all:
+
+1. **The query is the NAME ONLY (2–3 tokens).** Facebook ANDs every token, so a
+   name+company+city+state+industry query matches NOBODY. Measured on 89 real searches: 1–3-token
+   queries returned results **87%** of the time; **6+ token queries returned 0/56**. Same lead, same
+   minute: `Sheryl Lynn Fanning Waltersak Insurance Kenai AK` → 0 results;
+   `Sheryl Lynn Fanning` → 36 results including her. Never paste the CRM's
+   company/city/state/industry into the FB query.
+   **Ladder** (stop at the first rung that returns records): `First Middle Last` →
+   `First Last` (drop the middle name) → `First Last <state>` (only if the name is very common).
+   A rung returning `records: null` means that phrasing matched nobody — go to the next rung.
+   Exhausted the ladder → genuine no-result; do NOT fabricate and do NOT fall back to the DOM.
+2. **Company / city / state are FILTERS, not query tokens.** Pick the right person by matching them
+   against each candidate's `name` + `subtitle` in **`records.items`** (`ProfileSummary[]`): accept a
+   candidate whose name matches the lead AND whose subtitle corroborates employer, city/region, or
+   trade. A name-only match with nothing corroborating is NOT an identity — leave it unresolved
+   rather than enrich the wrong person.
+
+Take candidates ONLY from **`records.items`**. **NEVER** use `entity_candidates` /
+`new_private_sources` (the DOM scan) — with a Messenger chat open it captures the OPERATOR'S OWN chat
+contact as a candidate (one wrong "Bob Nguyen" polluted 32 searches). Never accept a DOM candidate.
+(See `channel_reality.md`.)
 
 **The springboard (industry-agnostic, iterative).** From ANY seed — a name, an email, a single URL
 — pivot to find the rest and loop until returns diminish: social → website (email + tagline) →

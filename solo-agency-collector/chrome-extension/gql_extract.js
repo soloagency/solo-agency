@@ -1454,12 +1454,21 @@
     try { if (el) el.scrollTop = el.scrollHeight; } catch (e) { /* ignore */ }
     try { window.scrollBy(0, Math.round((window.innerHeight || 800) * 0.9)); } catch (e) { /* ignore */ }
   }
+  // A search that genuinely matches NOBODY never fires the paginated results query
+  // (there is nothing to page through), so retrying is pure waste — measured at ~8s
+  // per lead across a 131-lead batch. Detect Facebook's empty state and bail early.
+  function looksLikeNoResults() {
+    var t = (document.body ? document.body.innerText : "") || "";
+    return /we (?:did ?n[o']?t|could ?n[o']?t) find any results|no results found|check the spelling or try different keywords|không tìm thấy kết quả|hãy thử từ khóa khác/i.test(t);
+  }
   function ensureCapture(scope, maxTries, stepMs) {
     if (!scope || hasCaptureForScope(scope)) return Promise.resolve(true);
     var tries = 0;
     function loop() {
       if (hasCaptureForScope(scope)) return Promise.resolve(true);
       if (tries >= maxTries) return Promise.resolve(false);
+      // Only after a couple of tries, so a slow render is not mistaken for empty.
+      if (tries >= 2 && looksLikeNoResults()) return Promise.resolve(false);
       tries += 1;
       scrollResultsFeed();
       return wait(stepMs).then(loop);
