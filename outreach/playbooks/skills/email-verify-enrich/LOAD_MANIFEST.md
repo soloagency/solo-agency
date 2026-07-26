@@ -5,6 +5,6 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 
 | module | lines | sha256 | last_line |
 |---|---|---|---|
-| SKILL.md | 216 | d7dfe61e53c457918ae9d4854cb8243a5b629896b6a24952b612635769a10153 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| channel_reality.md | 37 | e3b3931095b5f7f5acefa6a9efda41b004424b191091f30d6ee2ce90591f78b7 |   this pass (it may become a hook on a later refresh), not a fabricated hook. |
+| SKILL.md | 236 | d493840ad601d1c4321cd4f5d892dabddab5d4f891c7caa21dafc65b3e181d90 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| channel_reality.md | 39 | 5cc05b0c794d7e7fb0ec244231f12568c2b016476a7fff74523d17e3096432e8 |   this pass (it may become a hook on a later refresh), not a fabricated hook. |
 | etiquette.md | 33 | 42c6956562404e718da0ec689119b23dd48a7a4182333b87ef54650f7dcf58c9 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |

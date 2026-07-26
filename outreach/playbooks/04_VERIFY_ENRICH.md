@@ -101,9 +101,16 @@ wins.
    signals: push them to `do_not_mention`.
 
 5. **Anchorless leads — resolution ladder first (DESIGN §9.1b): seed → profile → email → hooks.**
-   When `enrich status` says `seed_unresolved`, Tier 1's FIRST move is origin resolution: open the
-   seed content itself (reel/video/post/blog — Local Collector for Facebook surfaces, the browser
-   elsewhere), identify the OWNER via the byline/channel/handle, and record the profile in
+   When `enrich status` says `seed_unresolved`, Tier 1's FIRST move is origin resolution. **Take the
+   owner from the URL whenever the URL carries it — do not spend a collector call:**
+   `/<vanity>/posts/…` → `facebook.com/<vanity>`; `/<numeric>/posts/…` → `facebook.com/<numeric>`;
+   `permalink.php`/`story.php?…&id=<numeric>` (incl. `m.facebook.com`) → `facebook.com/profile.php?id=<numeric>`.
+   Measured on 19 real seeds: URL-derived owners 11/11 correct, while the collector's DOM
+   `profile_candidates` on those same post pages was 7/7 WRONG (unrelated profiles, even group URLs)
+   and 4 pages timed out. Only `/reel/<id>` and group permalinks need the collector (a reel URL has
+   no owner in it) — reels are reliable (8/8 verified) when you read the `sk=reels_tab` "See Owner"
+   link and reject any record with `url_drifted: true`. For non-Facebook content (YouTube/TikTok/blogs)
+   open it in the browser and read the byline/channel/handle. Record the profile in
    `identity.channels_found.profiles` — the store writes it back into `identities.socials` as a
    canonical dedupe-eligible identity and marks the seed `resolved`. A `name_only_fragment` lead
    gets a name search instead — run it through the Local Collector's **`fb.people.search`**
