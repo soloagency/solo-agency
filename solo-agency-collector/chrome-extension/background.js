@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.46-noresult-exit";
+const EXTENSION_BUILD = "0.1.47-reel-noscroll";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -446,6 +446,18 @@ function graphqlCaptureEnabled(job) {
 // A bare `profile.php` (no id), `/me`, etc. resolve to the LOGGED-IN operator,
 // not the target — collecting it would pollute leads with the operator's own
 // profile. Reject before navigating so the source errors cleanly instead.
+// A reel URL opens Facebook's immersive player: scrolling there NAVIGATES to the next
+// recommended reel (the address bar changes), so the page must be read without scrolling.
+function isImmersivePlayerUrl(rawUrl) {
+  return /facebook\.com\/reel\/\d+/i.test(String(rawUrl || ""));
+}
+// The single item a URL pins to, so we can tell whether the page we actually read is
+// still the page that was requested.
+function pinnedItemId(rawUrl) {
+  const m = String(rawUrl || "").match(/\/reel\/(\d+)/) || String(rawUrl || "").match(/[?&]v=(\d+)/);
+  return m ? m[1] : "";
+}
+
 function isSelfOrAmbiguousFbUrl(rawUrl) {
   let u;
   try { u = new URL(String(rawUrl)); } catch (e) { return false; }
@@ -493,10 +505,16 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // a permalink it just wastes time. Force 0 scroll steps for write actions.
     const WRITE_ACTIONS = new Set(["fb.post.react", "fb.post.comment", "fb.message.send"]);
     const wantAction = !!source.capability && WRITE_ACTIONS.has(String(source.capability));
+    // A single-reel URL opens the IMMERSIVE PLAYER, where a scroll is a NAVIGATION:
+    // it advances to the next recommended reel and rewrites the address bar. Reading
+    // such a page after scrolling captures a DIFFERENT creator's reel — measured 5/5
+    // (100%) drift on enrich runs that opened a reel to identify its owner. So a reel
+    // player must not be scrolled on the READ path either, not just for write actions.
+    const noScrollTarget = wantAction || isImmersivePlayerUrl(source.url);
     const discoveryMode = isDiscoveryCollection(job, source);
-    const maxScrollSteps = wantAction ? 0 : maxScrollStepsForCollection(job, source);
+    const maxScrollSteps = noScrollTarget ? 0 : maxScrollStepsForCollection(job, source);
     const collectOptions = {
-      scrollSteps: wantAction ? 0 : Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
+      scrollSteps: noScrollTarget ? 0 : Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
       maxScrollSteps,
       scrollMode: discoveryMode ? "discovery" : "standard",
       stopAfterNoMoveScrolls: discoveryMode ? 3 : 0,
@@ -651,6 +669,13 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         purpose: source.purpose || "",
         source_index: sourceIndex || 0,
         current_url: cap.url || "",
+        // True when the page we actually read is NOT the item that was requested (a
+        // reel player can advance to a recommended reel). Everything below then
+        // describes a DIFFERENT creator — consumers must reject the record, not use it.
+        url_drifted: (() => {
+          const want = pinnedItemId(source.url);
+          return want ? !String(cap.url || "").includes(want) : false;
+        })(),
         post_url: postUrls[0] || cap.url || "",
         profile_url: profileCandidates[0] || "",
         profile_candidates: profileCandidates,
