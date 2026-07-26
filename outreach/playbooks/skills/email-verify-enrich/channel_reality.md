@@ -15,6 +15,7 @@ email (a months-old listing, a wrong person). Per hook type, use the reachable s
 | Brokerage roster (e.g. kw.com) | ⚠️ SPA | often an empty shell on WebFetch → browser tool | Presence on the roster ⇒ still there; email domain is a hint, not a guess. |
 | Facebook header | ✅ via Local Collector | `fb.profile.header` (name, category, followers, verified, website) | Collector is LIVE (operator's logged-in Chrome, `127.0.0.1:17321`). Read the header FIRST to get the real name/category, THEN search — never from the URL slug. Bare `profile.php` (no `?id=`) resolves to the operator, not the lead. |
 | Facebook posts/videos | ✅ via Local Collector | `fb.profile.posts` / `fb.profile.videos` (captions, view counts) | Logged-out fetch still walled — use the Local Collector, not WebFetch. Captions carry the person's own words + place names. |
+| Facebook people-search | ✅ via Local Collector (GraphQL) | `fb.people.search` → read **`records.items`** (`ProfileSummary[]`); source `capability:"fb.people.search"`, `inputs.query` = name+company+location | Take candidates ONLY from `records.items`. **NEVER** use `entity_candidates` / `new_private_sources` (the DOM scan) — with a Messenger chat open it captures the OPERATOR'S OWN chat contact as a candidate (one wrong "Bob Nguyen" polluted 32 searches). If `records` is `null`, the results query wasn't captured → re-run with more scroll; if still null, no-result. Never accept a DOM candidate. |
 | LinkedIn | ❌ logged-out wall | store the URL only | Career-change hooks live here but are unreadable now. |
 
 ## Consequences to encode
@@ -27,5 +28,10 @@ email (a months-old listing, a wrong person). Per hook type, use the reachable s
   usually write-ready even when the freshest post is walled.)
 - A source marked ❌ here must **never** produce a hook — store the profile URL for later and move
   on. Do not paraphrase a search snippet's guess about a Facebook post as if you read it.
+- **Facebook candidates come from GraphQL `records.items` ONLY, never the DOM `entity_candidates`.**
+  The DOM entity/candidate scan reads the whole logged-in page, so an open Messenger chat, a "People
+  you may know" rail, or a suggested-friends widget leaks the operator's own contacts in as "leads".
+  Trust `records` (the typed capability output); if it is null, the search failed — retry or record
+  no-result, never fall back to the DOM list.
 - When a source needs a browser tool and none is available in the run, record it as unreadable
   this pass (it may become a hook on a later refresh), not a fabricated hook.

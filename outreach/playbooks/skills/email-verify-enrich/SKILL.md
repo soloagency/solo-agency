@@ -92,6 +92,15 @@ yields no usable name, pull the person's own words + place-names from `fb.profil
 `fb.profile.posts` captions before ever falling back to a slug. Pass a `profile.php` URL only WITH
 its `?id=<numeric_id>` — a bare `profile.php` resolves to the operator, not the lead.
 
+**Running the Facebook people-search — GraphQL only, never the DOM scan.** Execute a
+name+company+location person search through the Local Collector's **`fb.people.search`** capability
+(source `capability:"fb.people.search"`, `inputs.query` = the built query, enough scroll to trigger
+the results query). Take candidates ONLY from **`records.items`** (`ProfileSummary[]`). **NEVER** use
+`entity_candidates` / `new_private_sources` (the DOM scan) — with a Messenger chat open it captures the
+OPERATOR'S OWN chat contact as a candidate (one wrong "Bob Nguyen" polluted 32 searches). If `records`
+is `null`, the results query was not captured — re-run with more scroll; if still null, treat as
+no-result. Never accept a DOM candidate. (See `channel_reality.md`.)
+
 **The springboard (industry-agnostic, iterative).** From ANY seed — a name, an email, a single URL
 — pivot to find the rest and loop until returns diminish: social → website (email + tagline) →
 industry / directory page (volume, reviews) → reverse search (email / name → other profiles).
