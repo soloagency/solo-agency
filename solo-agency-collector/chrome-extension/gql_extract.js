@@ -1425,9 +1425,51 @@
 
   var DOM_CAPABILITIES = { "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader };
 
+  // The typed extraction is PASSIVE — it reads whatever GraphQL response is already in
+  // the ring buffer. On a search/list page the results query (e.g.
+  // SearchCometResultsPaginatedResultsQuery) normally fires on load, but it can be
+  // MISSED when the tab is busy (verified: the operator actively using Messenger in the
+  // SAME tab left 32 people-searches with no SearchComet capture → records null → the
+  // flow fell back to the DOM scan and leaked the chat contact). So before extracting,
+  // actively ensure the scoped query fired: scroll the results feed + wait, retrying
+  // until the capture appears (or a small cap). No-op when the capture is already there.
+  function hasCaptureForScope(scope) {
+    var caps = (window.__soloGql && window.__soloGql.captures) || [];
+    for (var i = caps.length - 1; i >= 0; i--) {
+      var c = caps[i];
+      if (c && c.response && (!scope || String(c.queryName || "").indexOf(scope) !== -1)) return true;
+    }
+    return false;
+  }
+  function scrollResultsFeed() {
+    var el = document.querySelector('[role="feed"]');
+    if (!el) {
+      var best = null, bestH = 0, nodes = document.querySelectorAll("div");
+      for (var i = 0; i < nodes.length && i < 4000; i++) {
+        var n = nodes[i], sh = n.scrollHeight, ch = n.clientHeight;
+        if (sh > ch + 200 && ch > 300 && sh > bestH) { bestH = sh; best = n; }
+      }
+      el = best;
+    }
+    try { if (el) el.scrollTop = el.scrollHeight; } catch (e) { /* ignore */ }
+    try { window.scrollBy(0, Math.round((window.innerHeight || 800) * 0.9)); } catch (e) { /* ignore */ }
+  }
+  function ensureCapture(scope, maxTries, stepMs) {
+    if (!scope || hasCaptureForScope(scope)) return Promise.resolve(true);
+    var tries = 0;
+    function loop() {
+      if (hasCaptureForScope(scope)) return Promise.resolve(true);
+      if (tries >= maxTries) return Promise.resolve(false);
+      tries += 1;
+      scrollResultsFeed();
+      return wait(stepMs).then(loop);
+    }
+    return loop();
+  }
+
   // Extract page-1 from natural captures, then replay forward until has_next_page
   // is false or max_pages is reached. inputs.max_pages (default 8, cap 40).
-  window.__soloGqlPaginate = function (capabilityId, inputs) {
+  var __soloGqlPaginateImpl = function (capabilityId, inputs) {
     inputs = inputs || {};
     if (DOM_CAPABILITIES[capabilityId]) { try { return DOM_CAPABILITIES[capabilityId](inputs); } catch (e) { return Promise.resolve({ capability: capabilityId, available: false, count: 0, items: [], error: String(e && e.message || e) }); } }
     var base = window.__soloGqlExtractCapability(capabilityId, inputs);
@@ -1484,5 +1526,17 @@
       base.available = base.count > 0;
       return base;
     });
+  };
+
+  // Public entry: for a paginated GraphQL capability, make sure its results query was
+  // captured (actively trigger it if the tab was busy) BEFORE the passive extraction.
+  window.__soloGqlPaginate = function (capabilityId, inputs) {
+    inputs = inputs || {};
+    var cfg = CAPABILITY_PAGINATION[capabilityId];
+    if (DOM_CAPABILITIES[capabilityId] || !cfg || !cfg.scope || !window.__soloGql) {
+      return __soloGqlPaginateImpl(capabilityId, inputs);
+    }
+    var tries = inputs.ensure_tries != null ? inputs.ensure_tries : 8;
+    return ensureCapture(cfg.scope, tries, 1000).then(function () { return __soloGqlPaginateImpl(capabilityId, inputs); });
   };
 })();
