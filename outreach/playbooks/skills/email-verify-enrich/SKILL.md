@@ -71,8 +71,28 @@ fresh, on-goal → high). Springboard exhausted and still 0 Layer-B → **NOT wr
 **Seed normalization — resolve a REAL identity before the first search.** A search query is built
 from a real person/business, NEVER from a URL. **Content-clue seeds come first:** when the lead's
 only data is a CONTENT link (`identities.seeds[]` — a reel/video/post/blog URL, status
-`unresolved`), open that content itself (Local Collector for Facebook surfaces; the browser for
-YouTube/TikTok/blogs) and identify the AUTHOR — the byline/channel/handle links to the profile.
+`unresolved`), identify the AUTHOR. **Read the owner out of the URL FIRST — only open the page when
+the URL does not carry it:**
+
+| Seed URL shape | Owner | How |
+|---|---|---|
+| `/<vanity>/posts/…` | `facebook.com/<vanity>` | **from the URL** — no collector call |
+| `/<numeric-id>/posts/…` | `facebook.com/<numeric-id>` | **from the URL** |
+| `permalink.php?…&id=<numeric>` · `story.php?…&id=<numeric>` (incl. `m.facebook.com`) | `facebook.com/profile.php?id=<numeric>` | **from the URL** |
+| `/reel/<id>` | — | **Local Collector** (the URL has no owner) |
+| `/groups/<g>/permalink/…` | — | Local Collector (poster is not in the URL) |
+
+Measured on 19 real seeds: URL-derived owners were right **11/11**, while the collector's DOM
+`profile_candidates` on those same post pages was wrong **7/7** (it returned unrelated profiles and
+even GROUP urls — e.g. a `fcglawfirm` post resolved to `groups/1722262131424406`), and 4 of the post
+pages timed out at 240s. So for posts/permalinks/stories: **parse the URL, do NOT spend a collector
+call.** For a `/reel/<id>` the collector IS required and IS reliable (verified 8/8, `url_drifted:false`,
+owner taken from the on-page "See Owner"/`sk=reels_tab` link) — never take a reel owner from
+`profile_candidates[0]` blindly; prefer the `reels_tab` link and reject any record whose
+`url_drifted` is true.
+
+For non-Facebook content (YouTube/TikTok/blogs) open the content in the browser and read the
+byline/channel/handle, which links to the profile.
 Record the found profile in `identity.channels_found.profiles` (the store writes it back as a
 canonical `identities.socials` entry and marks the seed `resolved`), then continue below as a
 profile-seeded lead. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
