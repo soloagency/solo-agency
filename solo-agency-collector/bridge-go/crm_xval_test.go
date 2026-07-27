@@ -922,3 +922,60 @@ func mustGlob(t *testing.T, pat string) []string {
 	}
 	return m
 }
+
+// TestNoVerifiableHookCache locks the negative cache that was written but never
+// read: a lead whose springboard was already exhausted must not be re-hunted
+// every hookTTL (10d) forever, and the mark must clear the moment a hook IS found.
+func TestNoVerifiableHookCache(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult {
+		return runGoStep(t, xstep{FakeNow: now, Argv: argv})
+	}
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-01T10:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	mustOK(run("2026-07-01T10:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_dry","name":{"full":"Dry Lead"},"identities":{"emails":[{"address":"dry@x.com","is_primary":true}]}}`))
+
+	// springboard exhausted, nothing evidenced -> mark_no_hook
+	mustOK(run("2026-07-01T10:02:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_dry", "--json",
+		`{"identity":{"still_active":"confirmed"},"hooks":[],"mark_no_hook":true,
+		  "writing_brief":{"personalization_confidence":0.2}}`))
+
+	// 12 days later: hooks are stale (TTL 10) but the negative cache must hold —
+	// this is exactly the case that used to re-burn collector calls every 10 days
+	st := mustOK(run("2026-07-13T10:00:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_dry"))
+	if st["needs"] != "skip" || st["reason"] != "no_verifiable_hook_recent" {
+		t.Fatalf("inside the 30d window the lead must be skipped, got: %v", st)
+	}
+
+	// after the 30-day window it becomes workable again (not abandoned forever)
+	st = mustOK(run("2026-08-05T10:00:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_dry"))
+	if st["needs"] == "skip" {
+		t.Fatalf("after 30d the lead must be retryable, got: %v", st)
+	}
+
+	// and a pass that DOES find a hook clears the mark immediately
+	mustOK(run("2026-08-05T10:01:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_dry", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"opened a second office in Tustin","evidence_url":"https://z/9","observed_date":"2026-08-04","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+	doc, err := readJSONFile(filepath.Join(ws, "crm", "contacts", "c_dry.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mStr(mMap(doc, "enrichment"), "no_verifiable_hook_at") != "" {
+		t.Fatal("finding a hook must clear no_verifiable_hook_at, else the lead stays skipped with good data")
+	}
+	st = mustOK(run("2026-08-05T10:02:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_dry"))
+	if st["reason"] != "dossier_fresh" {
+		t.Fatalf("with a fresh hook the lead must be workable: %v", st)
+	}
+}

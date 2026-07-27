@@ -625,6 +625,7 @@ func (c *crmStore) enrichStatus(contactID, now string) map[string]any {
 	identFresh := mStr(ident, "enriched_at") != "" && mStr(ident, "enriched_at") >= isoDaysAgoFrom(identityTTLDays, now)
 	hooksFresh := mStr(en, "hooks_refreshed_at") != "" && mStr(en, "hooks_refreshed_at") >= isoDaysAgoFrom(hookTTLDays, now)
 	nf := mStr(en, "email_not_found_at")
+	nh := mStr(en, "no_verifiable_hook_at")
 	if mStr(ident, "still_active") == "inactive" && identFresh {
 		return map[string]any{"needs": "skip", "reason": "known_inactive"}
 	}
@@ -633,6 +634,14 @@ func (c *crmStore) enrichStatus(contactID, now string) map[string]any {
 	}
 	if nf != "" && nf >= isoDaysAgoFrom(negRetryDays, now) {
 		return map[string]any{"needs": "skip", "reason": "email_not_found_recent"}
+	}
+	// `no_verifiable_hook_at` was WRITTEN by enrich write but never read here, so a
+	// lead the springboard had already exhausted came back as "hooks_stale" every
+	// hookTTLDays (10) forever — re-burning collector calls and tokens on the most
+	// hopeless leads. It is a negative cache like email_not_found and honors the
+	// same 30-day window: don't re-hunt a hook we already failed to find.
+	if nh != "" && nh >= isoDaysAgoFrom(negRetryDays, now) {
+		return map[string]any{"needs": "skip", "reason": "no_verifiable_hook_recent"}
 	}
 	if !hooksFresh {
 		return map[string]any{"needs": "refresh", "reason": "hooks_stale"}
@@ -911,6 +920,20 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 	}
 	patch := map[string]any{"enrichment": enrichment}
 	found := mMap(ident, "channels_found")
+	// A later enrich that SUCCEEDS must CLEAR the matching negative cache. Both
+	// flags were carried forward unconditionally, so once a lead was marked
+	// no-hook / email-not-found it kept that mark even after a later pass found
+	// what it lacked — and would then be skipped for the whole retry window while
+	// holding perfectly good data.
+	// NOTE: clearing must WRITE an empty value, not delete the key — the patch is
+	// merged with deepUpdate, which only overwrites keys present in the patch and
+	// leaves absent ones untouched, so a delete here would never reach the record.
+	if len(mergedHooks) > 0 {
+		enrichment["no_verifiable_hook_at"] = ""
+	}
+	if len(mList(found, "emails")) > 0 {
+		enrichment["email_not_found_at"] = ""
+	}
 	var emails, phones []any
 	for _, e := range mList(found, "emails") {
 		if s, ok := e.(string); ok && s != "" && !skipIdent["email|"+normalizeEmail(s)] {

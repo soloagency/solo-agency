@@ -150,7 +150,12 @@ wins.
 - Hooks are fresh — TTL ~10 days; a stale-hook contact returns `needs: refresh` (revisit known
   URLs), not a full re-enrich.
 - `email_not_found` / `no_verifiable_hook` are inherited negative caches so a second campaign does
-  not re-burn the same dead end within its retry window.
+  not re-burn the same dead end within its retry window. **Both windows are 30 days, and both are
+  enforced in `enrich status`**: a lead whose springboard was exhausted returns
+  `skip / no_verifiable_hook_recent` instead of coming back as `hooks_stale` every 10 days. The
+  mark clears itself the moment a later pass DOES find a hook (or an email), so a cached failure
+  never outlives the fact that produced it. Only set `mark_no_hook` when the springboard is
+  genuinely exhausted: it costs the lead a month.
 
 ## Completion Gates
 
