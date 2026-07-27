@@ -979,3 +979,33 @@ func TestNoVerifiableHookCache(t *testing.T) {
 		t.Fatalf("with a fresh hook the lead must be workable: %v", st)
 	}
 }
+
+// TestFacebookURLShapeClassification locks the story.php misclassification: a
+// post URL that lands in identities.socials is treated as a reachable profile
+// anchor, so the seed -> profile -> email ladder never runs for that lead and
+// the post URL becomes the person's dedupe key.
+func TestFacebookURLShapeClassification(t *testing.T) {
+	cases := []struct{ url, wantKind, wantSub string }{
+		// the bug: one path segment + "story_fbid=" (which contains "id=")
+		{"https://m.facebook.com/story.php?story_fbid=pfbid0abc&id=100001", "seed", "post"},
+		{"https://www.facebook.com/story.php?story_fbid=pfbid0abc", "seed", "post"},
+		{"https://www.facebook.com/permalink.php?story_fbid=123&id=456", "seed", "post"},
+		{"https://www.facebook.com/share.php?u=x", "seed", "post"},
+		{"https://www.facebook.com/photo.php?fbid=99", "seed", "post"},
+		{"https://www.facebook.com/susan.vo/posts/12345", "seed", "post"},
+		{"https://www.facebook.com/reel/1004302002391157/", "seed", "reel"},
+		{"https://www.facebook.com/groups/realtors/permalink/9/", "seed", "group"},
+		// real profiles must still classify as profiles
+		{"https://www.facebook.com/susan.vo", "profile", ""},
+		{"https://www.facebook.com/profile.php?id=100001", "profile", ""},
+	}
+	for _, c := range cases {
+		kind, platform, sub := classifyLeadURLFull(c.url)
+		if kind != c.wantKind || sub != c.wantSub {
+			t.Errorf("%s => (%s,%s,%s), want (%s,facebook,%s)", c.url, kind, platform, sub, c.wantKind, c.wantSub)
+		}
+		if platform != "facebook" {
+			t.Errorf("%s => platform %q, want facebook", c.url, platform)
+		}
+	}
+}

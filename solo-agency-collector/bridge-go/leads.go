@@ -106,13 +106,25 @@ func classifyLeadURLFull(raw string) (kind, platform, seedKind string) {
 		if has("videos", "video", "watch") {
 			return "seed", "facebook", "video"
 		}
-		if has("posts", "story", "share", "permalink.php", "photo", "photo.php") {
+		if has("posts", "story", "story.php", "share", "share.php", "permalink.php", "photo", "photo.php") {
 			return "seed", "facebook", "post"
 		}
 		if has("groups") {
 			return "seed", "facebook", "group"
 		}
-		if len(segs) == 1 || strings.Contains(path, "profile.php") || strings.Contains(query, "id=") {
+		// Only profile.php and a bare vanity handle (facebook.com/johndoe) name a
+		// PERSON. Two ways a post used to slip through as a profile anchor:
+		//   - story.php has exactly ONE path segment, so it matched the vanity rule
+		//   - "story_fbid=" CONTAINS the substring "id=", so it matched the id rule
+		// Misclassifying content as a profile is expensive: the contact looks like
+		// it has a reachable anchor, so the seed→profile→email ladder never runs,
+		// and the post URL becomes the person's dedupe key.
+		if strings.Contains(path, "profile.php") {
+			return "profile", "facebook", ""
+		}
+		idParam := strings.HasPrefix(query, "id=") || strings.Contains(query, "&id=") ||
+			strings.Contains(query, "?id=")
+		if !strings.HasSuffix(path, ".php") && (len(segs) == 1 || idParam) {
 			return "profile", "facebook", ""
 		}
 		return "seed", "facebook", "post"
