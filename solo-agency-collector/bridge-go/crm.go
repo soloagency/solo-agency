@@ -627,8 +627,19 @@ func contactHasUsableEmail(ct map[string]any) bool {
 // result, so it has not earned the right to declare the address unfindable.
 // Deliberately checks the DATA the dossier carries, not a checklist the agent
 // fills in — a self-reported ladder is exactly what drifts.
-// dossierReadAboutTab: did any evidence URL in this dossier point at a profile's
-// About / Contact-info tab? Verifiable from the data, unlike a self-reported
+// fbContactSurfaces are the Facebook URLs that actually expose an address. The
+// About TAB alone is not one of them: on most business profiles About renders a
+// chooser and the address lives in a sub-page (Contact info / Intro / Basic info
+// / Links), each a distinct URL. Checking only "/about" would both miss those and
+// reject a run that correctly visited them.
+var fbContactSurfaces = []string{
+	"directory_contact_info", "directory_intro", "directory_basic_info", "directory_links",
+	"sk=about_contact_and_basic_info", "sk=about_details", "sk=about_overview", "sk=about",
+	"/about",
+}
+
+// dossierReadAboutTab: did any evidence URL point at a Facebook surface that can
+// actually show an address? Verifiable from the data, unlike a self-reported
 // "I checked the profile".
 func dossierReadAboutTab(dossier, ident map[string]any) bool {
 	for _, u := range dossierEvidenceURLs(dossier, ident) {
@@ -636,9 +647,10 @@ func dossierReadAboutTab(dossier, ident map[string]any) bool {
 		if !strings.Contains(l, "facebook.com") {
 			continue
 		}
-		if strings.Contains(l, "sk=about") || strings.HasSuffix(strings.TrimRight(l, "/"), "/about") ||
-			strings.Contains(l, "/about?") || strings.Contains(l, "sk=about_contact_and_basic_info") {
-			return true
+		for _, s := range fbContactSurfaces {
+			if strings.Contains(l, s) {
+				return true
+			}
 		}
 	}
 	return false
@@ -1065,7 +1077,7 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 			// search never opened the one page where the address usually sits: two
 			// LeadUp profiles published their address there and still came back
 			// "no email". If we know the profile, that tab must have been visited.
-			problems = append(problems, "mark_email_not_found REFUSED: a Facebook profile is on file but no evidence URL points at its About / Contact-info tab (`/about` or `…&sk=about`) — that tab is where the address usually is, and the collector only reads the page you point it at; open the profile and its About tab, then the website listed there, before declaring an address unfindable")
+			problems = append(problems, "mark_email_not_found REFUSED: a Facebook profile is on file but no evidence URL points at a surface that can show an address. A business profile almost always publishes it on Facebook itself: read the bio on the profile (expand \"See more\"), then /directory_contact_info, /directory_intro, /directory_basic_info, /directory_links — each is a SEPARATE url, and the collector only reads the page you point it at. Only after those come up empty is the website hop worth spending")
 		case dossierLookedBeyondFacebook(dossier, ident):
 			enrichment["email_not_found_at"] = now
 		default:

@@ -162,6 +162,21 @@
     var emails = extractEmailsFromText(text);
     var phones = extractPhonesFromText(text);
     if (doc) {
+      // ALSO scan the page's own visible text, not just the caller's cleaned text.
+      // filtering.js is tuned for feeds/posts and drops About/contact blocks, so an
+      // address printed right there on screen never reached the extractor: a profile
+      // showing its address in About returned `emails: []` while one whose address sat
+      // in the intro line was found. This stays within scope — it reads only what is
+      // already VISIBLE on the captured page, expanding nothing and navigating nowhere.
+      try {
+        var bodyText = doc.body && typeof doc.body.innerText === "string" ? doc.body.innerText : "";
+        if (bodyText) {
+          var vEmails = extractEmailsFromText(bodyText);
+          for (var v = 0; v < vEmails.length; v++) emails.push(vEmails[v]);
+          var vPhones = extractPhonesFromText(bodyText);
+          for (var w = 0; w < vPhones.length; w++) phones.push(vPhones[w]);
+        }
+      } catch (e) { /* visible-text scan is best-effort */ }
       var anchor = harvestAnchorContacts(doc);
       for (var i = 0; i < anchor.emails.length; i++) {
         if (!isJunkEmail(anchor.emails[i])) emails.push(anchor.emails[i]);

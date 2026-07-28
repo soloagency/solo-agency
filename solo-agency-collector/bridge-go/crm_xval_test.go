@@ -1117,14 +1117,15 @@ func TestEmailDiscoveryNotExhausted(t *testing.T) {
 		`{"identity":{"still_active":"confirmed","evidence":[{"fact":"no address on the site","url":"https://agentx-realty.com/contact","retrieved_at":"2026-07-28"}]},
 		  "hooks":[],"mark_email_not_found":true,
 		  "writing_brief":{"personalization_confidence":0.7}}`))
-	if !strings.Contains(fmt.Sprint(mList(res2, "problems")), "About / Contact-info tab") {
+	if !strings.Contains(fmt.Sprint(mList(res2, "problems")), "directory_contact_info") {
 		t.Fatalf("skipping the About tab must be refused when a profile is on file: %v", res2["problems"])
 	}
 
-	// the full ladder: About tab visited AND the website checked
+	// the real contact surfaces are sub-pages, not "/about": a run that visited
+	// directory_contact_info has done the high-yield step and is accepted
 	mustOK(run("2026-07-28T09:04:30Z", "--client-dir", ws, "enrich", "write", "--contact", "c_reel", "--json",
 		`{"identity":{"still_active":"confirmed","evidence":[
-		    {"fact":"About tab shows no address","url":"https://www.facebook.com/agent.x/about","retrieved_at":"2026-07-28"},
+		    {"fact":"Contact info page shows no address","url":"https://www.facebook.com/agent.x/directory_contact_info","retrieved_at":"2026-07-28"},
 		    {"fact":"no address on the site","url":"https://agentx-realty.com/contact","retrieved_at":"2026-07-28"}]},
 		  "hooks":[],"mark_email_not_found":true,
 		  "writing_brief":{"personalization_confidence":0.7}}`))
@@ -1284,5 +1285,31 @@ func TestSearchURLNeverBecomesIdentity(t *testing.T) {
 		  "writing_brief":{"personalization_confidence":0.5}}`))
 	if len(mapsOf(mList(res, "consolidated"))) != 1 {
 		t.Fatalf("a genuine shared profile must still consolidate: %v", res)
+	}
+}
+
+// TestFacebookContactSurfaces: About is a chooser, the address lives in a
+// sub-page. Each of these must satisfy the "did you look where it actually is"
+// gate, or a run that did the right thing would be refused.
+func TestFacebookContactSurfaces(t *testing.T) {
+	for _, u := range []string{
+		"https://www.facebook.com/bgvinvest/directory_contact_info",
+		"https://www.facebook.com/bgvinvest/directory_intro",
+		"https://www.facebook.com/bgvinvest/directory_basic_info",
+		"https://www.facebook.com/bgvinvest/directory_links",
+		"https://www.facebook.com/Khanhngo.us/about",
+		"https://www.facebook.com/profile.php?id=123&sk=about_contact_and_basic_info",
+	} {
+		d := map[string]any{"hooks": []any{}}
+		id := map[string]any{"evidence": []any{map[string]any{"url": u}}}
+		if !dossierReadAboutTab(d, id) {
+			t.Errorf("%s is a real contact surface and must satisfy the gate", u)
+		}
+	}
+	// the reel page itself never counts: it is where the run wrongly stopped
+	d := map[string]any{"hooks": []any{}}
+	id := map[string]any{"evidence": []any{map[string]any{"url": "https://www.facebook.com/reel/12345"}}}
+	if dossierReadAboutTab(d, id) {
+		t.Error("a reel page must not count as having looked for contact details")
 	}
 }

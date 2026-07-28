@@ -131,18 +131,25 @@ wins.
    `info@bgv.com.vn` in the contact-info block of its bio. Both came back "no email" because nobody
    opened those pages.
 
-   So the ladder does NOT end at the owner URL. Continue in this order until an address appears:
+   So the ladder does NOT end at the owner URL. And "open the About tab" is not one step: on a
+   business profile About renders a CHOOSER, and the address lives in a sub-page that is its own
+   URL. Walk these in order and stop at the first hit (`bgvinvest` shown as the example):
 
    | # | Open | Why |
    |---|---|---|
-   | 1 | the owner's **profile page** | the bio/intro often carries the address outright |
-   | 2 | the profile's **About / Contact info** tab (`/about`, or `…&sk=about`) | highest-yield surface; on a Page it is "Contact info", on a person it hides behind "See more" |
-   | 3 | the **website** listed there | Facebook links it, the site publishes the mailbox |
-   | 4 | that website's **Contact / Team / About** page and footer | where a business address is actually published |
-   | 5 | licence roster or directory, then web search, then reverse search | the off-platform ladder |
+   | 1 | `facebook.com/bgvinvest` — the profile itself, and **expand "See more"** on the bio | very often printed right there; `Khanhngo.us` only reveals `khanh8601@gmail.com` after See more |
+   | 2 | `…/directory_contact_info` | the dedicated Contact-info page: the single highest-yield surface |
+   | 3 | `…/directory_intro` | some profiles put it in the intro instead |
+   | 4 | `…/directory_basic_info` | fallback field for the same data |
+   | 5 | `…/directory_links` | no address, but the WEBSITE is here |
+   | 6 | the website from #5, its Contact/Team/About page and footer | only worth the hop after 1-5 are empty |
+   | 7 | licence roster or directory, web search, reverse search | the off-platform ladder, last |
 
-   Each row is a SEPARATE collector job or fetch. "I enriched the profile" is not a step; the step
-   is the URL you opened.
+   **Rows 1-5 are where the answer usually is.** A person selling a service publishes a way to be
+   contacted; that is the whole point of their page. Treat the website hop (6) and the off-platform
+   ladder (7) as the EXCEPTION, not the routine next step. Each row is a separate collector job:
+   the collector reads only the page you point it at, so "I enriched the profile" is not a step,
+   the URL you opened is.
 
    **Batch-resolve BEFORE deep enrichment (reel-heavy lists).** User lists routinely carry many
    content links of the SAME person. So: resolve ALL unresolved seeds to owner profiles FIRST

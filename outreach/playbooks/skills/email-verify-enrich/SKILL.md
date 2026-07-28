@@ -98,11 +98,15 @@ canonical `identities.socials` entry and marks the seed `resolved`), then contin
 profile-seeded lead. **Do not stop at the owner URL.** The reel/post page holds the content and the
 owner link and nothing else, so a pass that ends there reports `contacts.emails: []` even when the
 address is one click away (`facebook.com/Khanhngo.us` hides `khanh8601@gmail.com` behind "See more"
-in About; `facebook.com/bgvinvest` prints `info@bgv.com.vn` in its contact-info block). Open, in
-order: the profile page, its **About / Contact info** tab (`/about` or `…&sk=about`), the website
-listed there, that site's Contact/Team/About page and footer, then the off-platform ladder. Each is
-a separate job or fetch: the collector reads only the page you point it at. `enrich write` refuses
-`mark_email_not_found` when a profile is on file and no evidence URL points at its About tab. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
+in About; `facebook.com/bgvinvest` prints `info@bgv.com.vn` in its contact-info block). Open, in order, stopping at
+the first hit: **(1)** the profile itself with the bio expanded via "See more", **(2)**
+`…/directory_contact_info`, **(3)** `…/directory_intro`, **(4)** `…/directory_basic_info`, **(5)**
+`…/directory_links` (no address, but the website is here), **(6)** that website's Contact/Team/About
+page and footer, **(7)** the off-platform ladder. About is a CHOOSER, not a page — each sub-page is
+its own URL, and rows 1-5 are where a business address almost always is; the website hop is the
+exception, not the routine next step. Each row is a separate job: the collector reads only the page
+you point it at. `enrich write` refuses `mark_email_not_found` when a profile is on file and no
+evidence URL points at one of those Facebook contact surfaces. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
 to its owner profile before any deep enrichment — the store auto-consolidates fragments that
 share a profile/email (full union: all reels + hooks kept; result reports `consolidated`), so
 you deep-enrich each unique person exactly ONCE. Always continue against the returned `lead_id`

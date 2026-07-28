@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.49-selfland-guard";
+const EXTENSION_BUILD = "0.1.50-contactinfo-tab";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -680,6 +680,11 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         // profile URL / unsupported tab slug). Consumers must reject such a record:
         // its email/phone belong to the operator, not the lead.
         landed_on_self: !!cap.landedOnSelf,
+        // Audit trail for the contact-info dig: how many truncated blocks were
+        // expanded and whether the About > Contact info sub-tab was opened. A record
+        // with 0/false has NOT exhausted the page — do not conclude "no email".
+        expanded_truncations: Number(cap.expandedTruncations || 0),
+        opened_contact_tab: !!cap.openedContactTab,
         post_url: postUrls[0] || cap.url || "",
         profile_url: profileCandidates[0] || "",
         profile_candidates: profileCandidates,
@@ -1457,6 +1462,29 @@ async function collectCleanPage(opts) {
     }
     return clicked;
   }
+  // On a profile's About tab the address usually lives under the "Contact info"
+  // SUB-TAB, which is a separate in-page view: reading /about alone returns no email
+  // even though the address is two clicks away. Clicking the sub-tab is more reliable
+  // than guessing a URL, because the numeric-profile URL forms silently bounce to the
+  // operator's own page. Same profile, same tab strip — it never navigates away.
+  async function openContactInfoTab() {
+    const LABELS = /^(contact info|contact and basic info|contact & basic info|thông tin liên hệ|thông tin liên hệ và cơ bản)$/i;
+    const nodes = document.querySelectorAll('a[role="link"], [role="tab"], [role="button"], [role="listitem"] a');
+    for (const node of nodes) {
+      const label = (node.innerText || node.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+      if (!LABELS.test(label)) continue;
+      const box = node.getBoundingClientRect();
+      if (box.width <= 0 || box.height <= 0) continue;
+      try { node.click(); await wait(1800); return true; } catch (error) { /* keep looking */ }
+    }
+    return false;
+  }
+  let openedContactTab = false;
+  try {
+    if (/facebook\.com/i.test(location.hostname) && /\/about|sk=about|directory_contact_info/i.test(location.href)) {
+      openedContactTab = await openContactInfoTab();
+    }
+  } catch (error) { /* optional */ }
   let expandedCount = 0;
   try { expandedCount = await expandTruncatedText(); } catch (error) { /* optional */ }
   // Facebook silently falls back to the LOGGED-IN operator's own profile when a
@@ -1529,6 +1557,7 @@ async function collectCleanPage(opts) {
     last.scrollStepsUsed = scrollStepsUsed;
     last.expandedTruncations = expandedCount;
     last.landedOnSelf = landedSelf;
+    last.openedContactTab = openedContactTab;
     last.requestedScrollSteps = steps;
     last.scrollStoppedReason = stoppedReason;
     last.scrollDebug = scrollDebug.slice(-20);
