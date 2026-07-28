@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.58-settle-tabs";
+const EXTENSION_BUILD = "0.1.59-drift-allseeds";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -454,8 +454,28 @@ function isImmersivePlayerUrl(rawUrl) {
 // The single item a URL pins to, so we can tell whether the page we actually read is
 // still the page that was requested.
 function pinnedItemId(rawUrl) {
-  const m = String(rawUrl || "").match(/\/reel\/(\d+)/) || String(rawUrl || "").match(/[?&]v=(\d+)/);
-  return m ? m[1] : "";
+  // Every CONTENT url shape a seed can take, not just reels: a post/permalink/story seed
+  // used to get no drift check at all, so a job that came back with some other tab's
+  // content still reported `url_drifted: false` and its hooks could be attributed to the
+  // wrong item. Post ids are `pfbid…` (letters+digits), which a digits-only pattern also
+  // missed. PROFILE urls are deliberately not pinned: `profile.php?id=<n>` legitimately
+  // redirects to the vanity name, and landing on the wrong profile is what
+  // `landed_on_self` covers.
+  const url = String(rawUrl || "");
+  const patterns = [
+    /\/reel\/([A-Za-z0-9]+)/,
+    /[?&]v=([A-Za-z0-9]+)/,
+    /\/videos\/([A-Za-z0-9]+)/,
+    /\/posts\/([A-Za-z0-9]+)/,
+    /[?&]story_fbid=([A-Za-z0-9]+)/,
+    /\/permalink\/([A-Za-z0-9]+)/,
+    /[?&]fbid=([A-Za-z0-9]+)/
+  ];
+  for (const pattern of patterns) {
+    const m = url.match(pattern);
+    if (m && m[1] && m[1].length >= 6) return m[1];
+  }
+  return "";
 }
 
 function isSelfOrAmbiguousFbUrl(rawUrl) {
