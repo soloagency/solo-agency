@@ -10,7 +10,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 736 | 895b6fb68ae2843c0c15122b9552af7091496897fe41e8284accd8faaf976808 | --- |
 | playbooks/02_SENDBOX_SETUP.md | 264 | bc89fb41f2cf1b7705a24d208d8e1cb2455b7e5758ab7f0a5b58bb07947fb79a | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/03_IMPORT_LIST.md | 324 | fcfdf069cf778eafd8b9dc0236786c38149cc2b548f18e02527b4d3b03326bf6 | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
-| playbooks/04_VERIFY_ENRICH.md | 177 | 031ac40bca0356cef3ca4a32adc11677d12623eb1c6558773b9187ff88e17e50 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/04_VERIFY_ENRICH.md | 190 | 9bdda566cbd1d12b70ebcdbee7c061fbbece52f3ae306fae6a0bfc33955d50a0 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/05_CAMPAIGN_MANAGEMENT.md | 265 | f5f9ebcacd0da37be78a3e9768a019743fbb5de6a9357df15a4c3b1e8e819edb | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/06_EMAIL_WRITING_STANDARD.md | 179 | e74126412c53f7570e3f61bfea2ccb23409b4602dff3873e758abd41b6dc6026 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1446 | a7cea1bcab915ccd17911f365bb9b7ab3875ee81f3fcf2ba783c0bba55ae5012 | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule. |

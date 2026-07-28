@@ -526,6 +526,7 @@ func TestEnrichBandGates(t *testing.T) {
 	add("c_web", "")
 	add("c_fb", `, "socials": {"facebook": "https://facebook.com/attorney.jen"}`)
 	add("c_fbread", `, "socials": {"facebook": "https://facebook.com/attorney.tom"}`)
+	add("c_months", "")
 
 	enrich := func(id, dossier string) map[string]any {
 		r := runGoStep(t, xstep{"2026-07-20T08:05:00Z", []string{"--client-dir", ws,
@@ -570,12 +571,70 @@ func TestEnrichBandGates(t *testing.T) {
 		t.Fatalf("fb-read high must stand: %v %s", res, joined(res))
 	}
 
-	// 4. stale hook (>60 days) alone cannot hold high either
+	// 4. a hook older than the recency window (360d) alone cannot hold high
 	res = enrich("c_web", `{"identity": {"still_active": "confirmed"},
-	  "hooks": [{"type": "award", "summary": "old award", "evidence_url": "https://bar.example.com/award", "observed_date": "2026-01-05", "confidence": 0.9}],
+	  "hooks": [{"type": "award", "summary": "old award", "evidence_url": "https://bar.example.com/award", "observed_date": "2024-11-05", "confidence": 0.9}],
 	  "writing_brief": {"personalization_confidence": 0.9}}`)
 	if mStr(res, "confidence_band") != "review_carefully" {
 		t.Fatalf("stale-only must be capped: %v", res)
+	}
+
+	// 5. a hook INSIDE the year-long window holds high (this is what the old
+	// 60-day rule was killing: a real signal a few months back)
+	res = enrich("c_months", `{"identity": {"still_active": "confirmed"},
+	  "hooks": [{"type": "social_post", "summary": "opened a second office", "evidence_url": "https://facebook.com/agent.x/posts/9", "observed_date": "2026-03-02", "confidence": 0.9}],
+	  "writing_brief": {"personalization_confidence": 0.9}}`)
+	if mStr(res, "confidence_band") != "high" {
+		t.Fatalf("a signal inside the recency window must hold high: %v %s", res, joined(res))
+	}
+}
+
+// TestOperatorSeedExemptsRecency: a reel/post the OPERATOR saved is pre-qualified
+// by that human act — its age is irrelevant. A hook the SYSTEM found is not.
+func TestOperatorSeedExemptsRecency(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult {
+		return runGoStep(t, xstep{FakeNow: now, Argv: argv})
+	}
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-27T10:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+
+	// the operator pasted this reel link; the store stamps source: import
+	mustOK(run("2026-07-27T10:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_saved","identities":{"emails":[{"address":"a@x.com","is_primary":true}],
+		  "seeds":[{"url":"https://www.facebook.com/reel/777","kind":"reel","platform":"facebook"}]}}`))
+	doc, _ := readJSONFile(filepath.Join(ws, "crm", "contacts", "c_saved.json"))
+	sd := mapsOf(mList(mMap(doc, "identities"), "seeds"))
+	if len(sd) != 1 || mStr(sd[0], "source") != "import" || mStr(sd[0], "status") != "unresolved" {
+		t.Fatalf("store must stamp seed provenance itself: %v", sd)
+	}
+
+	// a hook citing THAT saved reel, two years old, still supports high
+	res := mustOK(run("2026-07-27T10:02:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_saved", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"walkthrough of a renovated Whittier home","evidence_url":"https://www.facebook.com/reel/777","observed_date":"2024-06-01","confidence":0.9}],
+		  "writing_brief":{"personalization_confidence":0.9}}`))
+	if mStr(res, "confidence_band") != "high" {
+		t.Fatalf("a hook on an operator-saved seed is exempt from recency: %v", res)
+	}
+
+	// but an equally old hook the system found elsewhere is NOT exempt
+	mustOK(run("2026-07-27T10:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_found","identities":{"emails":[{"address":"b@x.com","is_primary":true}]}}`))
+	res = mustOK(run("2026-07-27T10:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_found", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"old post we dug up","evidence_url":"https://www.facebook.com/reel/999","observed_date":"2024-06-01","confidence":0.9}],
+		  "writing_brief":{"personalization_confidence":0.9}}`))
+	if mStr(res, "confidence_band") != "review_carefully" {
+		t.Fatalf("a system-found old hook must still be capped: %v", res)
 	}
 }
 

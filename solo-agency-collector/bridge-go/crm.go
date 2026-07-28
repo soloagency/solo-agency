@@ -594,9 +594,20 @@ func isEmptyValue(v any) bool {
 // --- enrichment ----------------------------------------------------------------
 
 const (
-	identityTTLDays = 90
-	hookTTLDays     = 10
+	// Operator decision 2026-07-27: identity and hooks stay usable for a YEAR.
+	// The 90/10 pair dragged every contact back through full enrichment ~4x and
+	// hook-refresh ~36x a year, which contradicted the enrich-once doctrine and
+	// burned collector budget on leads that had nothing new to say. The accepted
+	// trade: a person who changed jobs is caught later, at SEND time, by the
+	// bounce path (hard_bounce -> suppress + freeze), not proactively.
+	identityTTLDays = 360
+	hookTTLDays     = 360
 	negRetryDays    = 30
+	// A hook older than this cannot carry a `high` band ON ITS OWN. Was 60 days,
+	// which skipped real leads over a one-day miss; a substantive signal from
+	// within the past year is still worth writing about in cold outreach.
+	// Hooks that cite a URL the OPERATOR supplied are exempt entirely (below).
+	hookRecencyDays = 360
 )
 
 func (c *crmStore) enrichStatus(contactID, now string) map[string]any {
@@ -623,7 +634,12 @@ func (c *crmStore) enrichStatus(contactID, now string) map[string]any {
 	en := mMap(ct, "enrichment")
 	ident := mMap(en, "identity")
 	identFresh := mStr(ident, "enriched_at") != "" && mStr(ident, "enriched_at") >= isoDaysAgoFrom(identityTTLDays, now)
-	hooksFresh := mStr(en, "hooks_refreshed_at") != "" && mStr(en, "hooks_refreshed_at") >= isoDaysAgoFrom(hookTTLDays, now)
+	// A dossier with ZERO hooks is never "fresh" no matter how recently we looked:
+	// the long hook TTL is there so a lead that HAS material is not re-hunted, not
+	// so a lead we found nothing on is parked for a year. Empty-handed leads are
+	// governed by the no_verifiable_hook negative cache below (30 days) instead.
+	hooksFresh := len(mList(en, "hooks")) > 0 &&
+		mStr(en, "hooks_refreshed_at") != "" && mStr(en, "hooks_refreshed_at") >= isoDaysAgoFrom(hookTTLDays, now)
 	nf := mStr(en, "email_not_found_at")
 	nh := mStr(en, "no_verifiable_hook_at")
 	if mStr(ident, "still_active") == "inactive" && identFresh {
@@ -858,7 +874,22 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 	strongRecent := 0
 	websiteStampedToday := false
 	fbRead := false
-	cutoff60 := isoDaysAgoFrom(60, now)[:10]
+	cutoffRecent := isoDaysAgoFrom(hookRecencyDays, now)[:10]
+	// Seeds the OPERATOR handed us (a reel/post they saw, judged relevant and
+	// saved) are pre-qualified by that human act: their AGE is irrelevant, the
+	// signal was verified when it was chosen. A hook citing one of those URLs is
+	// therefore exempt from the recency rule. Hooks the SYSTEM found on its own
+	// are not exempt — they still have to be recent. Provenance comes from the
+	// stored seed, not from anything the dossier claims, so the agent cannot
+	// grant itself the exemption.
+	operatorSeeds := map[string]bool{}
+	for _, sd := range mapsOf(mList(mMap(prevContact, "identities"), "seeds")) {
+		if mStr(sd, "source") == "import" {
+			if u := normalizeSocial(mStr(sd, "url")); u != "" {
+				operatorSeeds[u] = true
+			}
+		}
+	}
 	for _, hv := range mergedHooks {
 		h, ok := hv.(map[string]any)
 		if !ok {
@@ -866,7 +897,8 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 		}
 		od := mStr(h, "observed_date")
 		htype := mStr(h, "type")
-		if len(od) >= 10 && od[:10] >= cutoff60 && htype != "website_update" {
+		fromOperatorSeed := operatorSeeds[normalizeSocial(mStr(h, "evidence_url"))]
+		if fromOperatorSeed || (len(od) >= 10 && od[:10] >= cutoffRecent && htype != "website_update") {
 			strongRecent++
 		}
 		if htype == "website_update" && len(od) >= 10 && od[:10] == now[:10] {
@@ -882,7 +914,7 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 	}
 	if band == "high" && strongRecent == 0 {
 		band = "review_carefully"
-		problems = append(problems, "band capped to review_carefully: high requires >=1 dated hook <=60 days old that is not website_update — a website positioning line alone is not proof-of-life")
+		problems = append(problems, "band capped to review_carefully: high requires >=1 dated hook within the recency window that is not website_update, or a hook citing a URL the operator supplied — a website positioning line alone is not proof-of-life")
 	}
 	// a facebook profile counts whether it was already on file OR surfaced in
 	// this same dossier (identity.profiles / channels_found.profiles)
@@ -1323,6 +1355,17 @@ func mergeIntoContact(rec, patch map[string]any) {
 					cp := map[string]any{}
 					for sk, sv := range sd {
 						cp[sk] = sv
+					}
+					// Provenance is stamped by the STORE, not taken from the caller:
+					// a seed arriving on an add/import patch came from the operator
+					// (they pasted or imported that URL). A future discovery path that
+					// mints seeds on its own must stamp its own source and is NOT
+					// covered by the operator-seed recency exemption.
+					if mStr(cp, "source") == "" {
+						cp["source"] = "import"
+					}
+					if mStr(cp, "status") == "" {
+						cp["status"] = "unresolved"
 					}
 					seeds = append(seeds, cp)
 				}
