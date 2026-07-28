@@ -76,6 +76,11 @@
     var digits = trimmed.replace(/\D/g, "");
     if (digits.length < 10 || digits.length > 15) return ""; // spec: keep 10..15 digits
     if (/^(\d)\1+$/.test(digits)) return ""; // all-same-digit junk (e.g. 0000000000)
+    // A long UNFORMATTED digit run is an ID, not a phone number. Facebook pages are
+    // full of 15-16 digit object ids (207758010937335, 961722973531427) which used to
+    // be reported as "phones". Real numbers past 11 digits are written with a country
+    // code (+…) or with separators; require one of those before trusting them.
+    if (!hasPlus && digits.length > 11 && !/[\s().\-‐-―]/.test(trimmed)) return "";
     if (hasPlus) return "+" + digits; // country code explicitly present
     // Bare NANP number carrying the country code 1 (11 digits starting with 1).
     if (digits.length === 11 && digits.charAt(0) === "1") return "+" + digits;
