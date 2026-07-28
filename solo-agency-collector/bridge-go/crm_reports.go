@@ -622,8 +622,10 @@ func (c *crmStore) buildApproval(campaignSlug, now string, numberByDraft map[str
 	md := []string{fmt.Sprintf("# Approval Report — %s", now[:10]),
 		fmt.Sprintf("%d draft(s) awaiting your approval. Reply in chat: "+
 			"`approve all` · `approve 1-20, 35` · `reject 7: reason` · `edit 12: ...` · `hold 5`.", len(drafts)),
-		"", fmt.Sprintf("## High confidence (%d)", len(high)),
-		"*(verified email + strong evidenced hook)*", ""}
+	}
+	md = append(md, researchPendingBanner(c.researchPending(campaignSlug, now))...)
+	md = append(md, "", fmt.Sprintf("## High confidence (%d)", len(high)),
+		"*(verified email + strong evidenced hook)*", "")
 	md = appendCardsOrNone(md, high, card)
 	md = append(md, "", fmt.Sprintf("## Review carefully (%d)", len(review)),
 		"*(weak/no hook or fallback opener — read before approving)*", "")
@@ -637,6 +639,56 @@ func (c *crmStore) buildApproval(campaignSlug, now string, numberByDraft map[str
 type numberedDraft struct {
 	N int
 	D map[string]any
+}
+
+// researchPendingReasons are the enrich-status verdicts that mean "this lead is
+// mid-hunt", as opposed to a lead genuinely exhausted.
+var researchPendingReasons = []string{"email_discovery", "seed_hook_unharvested", "seed_unresolved"}
+
+// researchPending tallies what this campaign has NOT finished researching, taking
+// the store's own per-lead verdict — never the run's account of itself.
+//
+// The run summary is narrated by the agent, and "skipped: 54" reads as a finding.
+// On the last live batch, 35 of those 54 were leads whose email hunt or whose
+// curated seed had simply been abandoned partway; the store knew (enrich status
+// says so lead by lead) but nothing ever turned that into a number the operator
+// sees. The rule "report them as research pending, never as skipped" was written
+// into three playbooks and drifted anyway — so it is a count here instead.
+func (c *crmStore) researchPending(campaignSlug, now string) map[string]int {
+	out := map[string]int{}
+	seen := map[string]bool{}
+	for _, row := range readJSONLines(c.enrichQueuePath(campaignSlug)) {
+		lid := c.resolve(mStr(row, "lead_id"))
+		if lid == "" || seen[lid] {
+			continue
+		}
+		seen[lid] = true
+		reason := mStr(c.enrichStatus(lid, now), "reason")
+		for _, r := range researchPendingReasons {
+			if reason == r {
+				out[r]++
+			}
+		}
+	}
+	return out
+}
+
+func researchPendingBanner(pend map[string]int) []string {
+	total := 0
+	for _, r := range researchPendingReasons {
+		total += pend[r]
+	}
+	if total == 0 {
+		return nil
+	}
+	return []string{"",
+		fmt.Sprintf("> **Research pending: %d lead(s) — these are NOT skipped.** "+
+			"%d mid email hunt (address not yet found, ladder unfinished) · "+
+			"%d whose curated content has not been read into a hook · "+
+			"%d whose origin is still unresolved. "+
+			"Reporting any of them as \"skipped\" claims a hunt that did not happen.",
+			total, pend["email_discovery"], pend["seed_hook_unharvested"], pend["seed_unresolved"]),
+	}
 }
 
 func appendCardsOrNone(md []string, items []numberedDraft, card func(int, map[string]any) string) []string {
@@ -687,8 +739,14 @@ func (c *crmStore) renderApprovalReport(campaignSlug string) (map[string]any, er
 	}
 	res := renderReportFile(rendererRequest{Input: mdPath, OutputHTML: htmlPath,
 		Title: "Approval Report", ReportKind: "Approval Report"})
+	pend := c.researchPending(campaignSlug, now)
+	pendTotal := 0
+	for _, r := range researchPendingReasons {
+		pendTotal += pend[r]
+	}
 	out := map[string]any{"drafts": len(index), "md": mdPath, "index": idxPath,
-		"html": nil, "html_rendered": res.RC == 0}
+		"html": nil, "html_rendered": res.RC == 0,
+		"research_pending": pendTotal, "research_pending_by_reason": pend}
 	if res.RC == 0 {
 		out["html"] = htmlPath
 	}

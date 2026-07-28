@@ -906,6 +906,7 @@ func doLeadImport(clientDir, file, listSlug string, mapping map[string]string, m
 		}
 	}
 	created, matched, suppressed, skipped, errored := 0, 0, 0, 0, 0
+	seedRows := 0
 	seq := 0
 	lf, err := os.OpenFile(leadsPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
@@ -955,6 +956,9 @@ func doLeadImport(clientDir, file, listSlug string, mapping map[string]string, m
 			}
 		}
 		fields := leadToContactFields(norm)
+		if len(mList(mMap(fields, "identities"), "seeds")) > 0 {
+			seedRows++
+		}
 		if mStr(norm, "email") != "" && mStr(norm, "_email_status") != "" {
 			if ems := mList(mMap(fields, "identities"), "emails"); len(ems) > 0 {
 				if em, ok := ems[0].(map[string]any); ok {
@@ -985,8 +989,23 @@ func doLeadImport(clientDir, file, listSlug string, mapping map[string]string, m
 	if err != nil {
 		absFile = file
 	}
+	// list_origin decides whether the User-Curated List Rule applies downstream —
+	// a curated lead may never be dropped on fit judgment, and no_hook_fallback
+	// defaults to an honest opener instead of skip. It was documented but nothing
+	// ever WROTE it, so on the last live campaign it was null and every curated
+	// protection stayed switched off while 100 hand-picked leads flowed through.
+	//
+	// A row whose only usable datum is a link to a REEL/POST is hand-picked by
+	// construction: nobody buys a list of reel URLs, and the operator chose that
+	// content as the reason to make contact. Majority, not any: one stray post URL
+	// in a purchased CSV must not reclassify the whole list.
+	listOrigin := "unclassified"
+	if seedRows*2 > seq {
+		listOrigin = "user_curated"
+	}
 	manifest := map[string]any{
 		"schema_version": 1, "list_slug": listSlug, "source_file": absFile,
+		"list_origin": listOrigin, "content_seed_rows": seedRows,
 		"source_format": strings.TrimPrefix(filepath.Ext(file), "."), "imported_at": nowISO(),
 		"idempotency_key": idem, "column_mapping": stringMapAny(mapping), "row_count": seq,
 		"contacts_created": created, "contacts_matched_existing": matched,

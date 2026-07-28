@@ -1348,3 +1348,197 @@ func TestContactsCapabilityLadderSatisfiesGate(t *testing.T) {
 		t.Error("no email_discovery record at all must not count as having run the ladder")
 	}
 }
+
+// TestEmailDiscoveryRecordPersistsAddress: the playbook tells the agent to copy
+// the collector's contacts record into the dossier as `email_discovery`,
+// verbatim. Before this, the store read only `.checked` from it, so an agent
+// that complied literally had the found address dropped in silence — nothing
+// persisted, `problems` empty, no error to notice.
+func TestEmailDiscoveryRecordPersistsAddress(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	mustOK(run("2026-07-28T09:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_ed","identities":{"socials":{"facebook":"https://www.facebook.com/bgvinvest"}}}`))
+
+	// exactly the shape the playbook asks for: the record copied verbatim, with
+	// NOTHING mirrored into channels_found
+	mustOK(run("2026-07-28T09:02:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_ed", "--json",
+		`{"identity":{"still_active":"confirmed"},"hooks":[],
+		  "email_discovery":{"profile_url":"https://www.facebook.com/bgvinvest",
+		    "emails":["info@bgv.com.vn"],"websites":["https://bgv.com.vn"],
+		    "found_on":"current_page","checked":["current_page","about","directory_contact_info"]}}`))
+	got := fmt.Sprint(mustOK(run("2026-07-28T09:03:00Z", "--client-dir", ws, "contact", "get", "--id", "c_ed")))
+	if !strings.Contains(got, "info@bgv.com.vn") {
+		t.Fatalf("an address the collector found and the agent copied verbatim must reach identities: %v", got)
+	}
+	if !strings.Contains(got, "bgv.com.vn") {
+		t.Errorf("the website the dig turned up is the website hop's input and must be kept: %v", got)
+	}
+	st := mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_ed"))
+	if st["reason"] == "email_discovery" {
+		t.Errorf("a lead whose address was just persisted must not stay queued for email discovery: %v", st)
+	}
+}
+
+// TestCuratedSeedMustBecomeAHook: the operator saved a reel as the reason to
+// contact this person. A dossier returning hooks:[] while that reel sits unread
+// is not a finding — and the real failure was SILENT: on the live batch, 58
+// leads had a resolved reel seed, zero hooks, and mark_no_hook set on exactly 0
+// of them. So the check fires on the empty array, not on a declaration nobody
+// makes.
+func TestCuratedSeedMustBecomeAHook(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	reel := "https://www.facebook.com/reel/1279836950620488/"
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	mustOK(run("2026-07-28T09:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_seed","identities":{"socials":{"facebook":"https://www.facebook.com/maytraveljsc"},
+		  "emails":[{"address":"info@maytravel.vn","is_primary":true}],
+		  "seeds":[{"url":"`+reel+`","kind":"reel","platform":"facebook","status":"resolved"}]}}`))
+
+	// the silent case: empty hooks, no declaration at all
+	res := mustOK(run("2026-07-28T09:02:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_seed", "--json",
+		`{"identity":{"still_active":"confirmed"},"hooks":[],
+		  "writing_brief":{"personalization_confidence":0}}`))
+	if !strings.Contains(fmt.Sprint(mList(res, "problems")), reel) {
+		t.Fatalf("an empty hooks array while the operator's own saved reel is unread must be called out, by url: %v", res["problems"])
+	}
+	// and it must not hide under `hooks_stale`, which reads as a routine refresh
+	st := mustOK(run("2026-07-28T09:03:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_seed"))
+	if st["reason"] != "seed_hook_unharvested" {
+		t.Fatalf("a curated seed nobody read is its own state, not a stale refresh: %v", st)
+	}
+	// declaring no-hook is no way out either
+	res2 := mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_seed", "--json",
+		`{"identity":{"still_active":"confirmed"},"hooks":[],"mark_no_hook":true,
+		  "writing_brief":{"personalization_confidence":0}}`))
+	if !strings.Contains(fmt.Sprint(mList(res2, "problems")), "mark_no_hook REFUSED") {
+		t.Fatalf("the springboard is not exhausted while the seed is unread: %v", res2["problems"])
+	}
+
+	// reading the reel and citing it clears the state — the point is to make the
+	// curated content usable, not to park the lead forever
+	mustOK(run("2026-07-28T09:05:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_seed", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"reel walking through a Da Nang itinerary","evidence_url":"`+reel+`","observed_date":"2026-07-20","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.7}}`))
+	st = mustOK(run("2026-07-28T09:06:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_seed"))
+	if st["reason"] == "seed_hook_unharvested" {
+		t.Fatalf("a hook citing the seed resolves it: %v", st)
+	}
+}
+
+// TestApprovalReportCountsResearchPending: the run narrates its own summary, and
+// "skipped: 54" reads as a finding. On the live batch 35 of those 54 were leads
+// abandoned mid-hunt; the store knew, lead by lead, but nothing ever turned that
+// into a number the operator sees. The rule "report them as research pending,
+// never as skipped" was written into three playbooks and drifted anyway.
+func TestApprovalReportCountsResearchPending(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	mustOK(run("2026-07-28T09:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_p1","identities":{"socials":{"facebook":"https://www.facebook.com/x1"},
+		  "emails":[{"address":"a@b.com","is_primary":true}],
+		  "seeds":[{"url":"https://www.facebook.com/reel/111","kind":"reel","platform":"facebook","status":"resolved"}]}}`))
+	mustOK(run("2026-07-28T09:02:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	mustOK(run("2026-07-28T09:03:00Z", "--client-dir", ws, "campaign", "create",
+		"--slug", "intro", "--json", `{"audience":{"segment":"all"},"sendboxes":["sb-a"],"daily_quota":10}`))
+	mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "campaign", "queue", "--slug", "intro"))
+	// enrich comes back with nothing, while the operator's own reel sits unread
+	mustOK(run("2026-07-28T09:05:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_p1",
+		"--campaign", "intro", "--json",
+		`{"identity":{"still_active":"confirmed"},"hooks":[],"writing_brief":{"personalization_confidence":0}}`))
+
+	rep := mustOK(run("2026-07-28T09:06:00Z", "--client-dir", ws, "approval-report", "--campaign", "intro"))
+	if mInt(rep, "research_pending", 0) < 1 {
+		t.Fatalf("a lead the store still has work queued on must be COUNTED, not narrated away: %v", rep)
+	}
+	md, err := os.ReadFile(mStr(rep, "md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(md), "Research pending") {
+		t.Fatalf("the operator reads the report, so the number belongs IN it:\n%s", md)
+	}
+}
+
+// TestImportStampsCuratedListOrigin: list_origin decides whether the
+// User-Curated List Rule applies downstream — a curated lead may never be
+// dropped on fit judgment, and no_hook_fallback defaults to an honest opener
+// instead of skip. It was documented but nothing ever WROTE it, so on the live
+// campaign it stayed null and every curated protection was switched off while
+// 100 hand-picked leads flowed through.
+func TestImportStampsCuratedListOrigin(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+
+	write := func(name, body string) string {
+		p := filepath.Join(t.TempDir(), name)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	// nobody buys a list of reel urls — the operator picked each one by hand
+	curated := write("curated.csv", "link\n"+
+		"https://www.facebook.com/reel/111\n"+
+		"https://www.facebook.com/reel/222\n"+
+		"https://www.facebook.com/somepage/posts/333\n")
+	imp := func(now, slug, file string) map[string]any {
+		t.Helper()
+		return mMap(mustOK(runCLIStep(t, xstep{FakeNow: now, Argv: []string{"import",
+			"--client-dir", ws, "--list-slug", slug, "--file", file, "--no-mx-check"}}, runImportLeadsCLI)), "manifest")
+	}
+	m := imp("2026-07-28T09:01:00Z", "curated", curated)
+	if mStr(m, "list_origin") != "user_curated" {
+		t.Fatalf("a list that is mostly saved CONTENT is hand-picked by construction: %v", m)
+	}
+
+	// but one stray post url inside a bought list must not reclassify the list
+	bought := write("bought.csv", "email,link\n"+
+		"a@x.com,\nb@x.com,\nc@x.com,\nd@x.com,https://www.facebook.com/p/posts/9\n")
+	m2 := imp("2026-07-28T09:02:00Z", "bought", bought)
+	if mStr(m2, "list_origin") == "user_curated" {
+		t.Fatalf("one stray content link does not make a purchased list curated: %v", m2)
+	}
+}

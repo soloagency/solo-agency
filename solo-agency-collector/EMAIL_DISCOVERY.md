@@ -113,7 +113,10 @@ time. That is why "we opened the About tab" is not evidence that no email exists
 3. **Read `records.items[0].emails`.** Empty → check `checked` before drawing a conclusion.
 4. **Copy the record into the dossier as `email_discovery`** — `{profile_url, emails, websites,
    found_on, checked}`, verbatim from the collector. The store's `mark_email_not_found` gate
-   reads it; a dossier without it is refused (see below).
+   reads its `checked`; a dossier without it is refused (see below). **Also put any address into
+   `identity.channels_found.emails`** — that is the canonical field that creates the identity.
+   (`email_discovery.emails` is accepted as a source too, so a verbatim copy no longer loses the
+   address, but `channels_found` is what the rest of the pipeline reads.)
 5. **Only then escalate:** `websites` → that site's Contact/Team/About page and footer →
    off-platform search.
 

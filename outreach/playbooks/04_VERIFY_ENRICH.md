@@ -152,7 +152,9 @@ wins.
    shell with no contact block, which is how a run can claim it "checked" a page it never saw.
 
    **Copy its record into the dossier as `email_discovery`** — `{profile_url, emails, websites,
-   found_on, checked}`, verbatim. `checked` lists the surfaces that actually rendered and is the
+   found_on, checked}`, verbatim — and put any address it found into
+   `identity.channels_found.emails` as well: that is the field the store reads to create the
+   identity. (`email_discovery.emails` is now also accepted, but `channels_found` stays canonical.) `checked` lists the surfaces that actually rendered and is the
    audit trail `mark_email_not_found` is gated on; a dossier without it gets the conclusion
    refused. Rows 6-7 stay separate steps, and their input is that record's `websites` — do not
    re-scan the profile to find the site. Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`.
@@ -166,6 +168,16 @@ wins.
    four `directory_*` sub-pages, never further down a feed, so scrolling only fires GraphQL queries
    for posts this task discards. Hooks come from `fb.profile.posts` / `fb.profile.videos`, which
    DO paginate. The catalog states this per capability (`scroll: "max_scroll"` vs `scroll: "none"`).
+
+   **The seed the operator saved IS the hook — read it, do not go looking for a new one.**
+   A lead added from a reel/post link came with its own reason to be contacted: the human picked
+   that content. So the job is `curated content → resolve owner → open THAT content → confirm the
+   owner matches and `url_drifted` is false → record the professional detail as a hook whose
+   `evidence_url` IS the seed url`. Hunt a substitute only when the content is unreadable, drifted,
+   or carries nothing professional. Writing `hooks: []` while that link sits unread is not a
+   finding, and `enrich write` now says so: the lead comes back as `seed_hook_unharvested`, not as
+   a routine `hooks_stale` refresh, and reporting it "skipped" claims a hunt that never happened.
+   (Measured on the last live batch: 100 curated seeds in, 19 hooks citing them.)
 
    **Run contacts FIRST, and spend the post job only where it pays.** No address means the lead
    cannot be emailed, so its hooks are worthless: do not scroll a feed for someone you cannot

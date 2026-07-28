@@ -93,6 +93,11 @@ owner taken from the on-page "See Owner"/`sk=reels_tab` link) — never take a r
 
 For non-Facebook content (YouTube/TikTok/blogs) open the content in the browser and read the
 byline/channel/handle, which links to the profile.
+**A content seed IS hook material.** When the lead came from a reel/post the operator saved, that
+content is the reason they chose this person: open it, confirm the owner and `url_drifted:false`,
+and record the professional detail as a hook whose `evidence_url` IS the seed url. Do not go hunting
+a fresh hook while the curated one is unread — `enrich write` flags it and the lead comes back as
+`seed_hook_unharvested`, never as a skip.
 Record the found profile in `identity.channels_found.profiles` (the store writes it back as a
 canonical `identities.socials` entry and marks the seed `resolved`), then continue below as a
 profile-seeded lead. **Do not stop at the owner URL.** The reel/post page holds the content and the
@@ -108,7 +113,8 @@ exception, not the routine next step. **Rows 1-5 are ONE job, not five:** enqueu
 `fb.profile.contacts` against the PROFILE url and it walks them itself — entering About, CLICKING
 each sub-tab (a fetch of those returns the app shell with no contact block) and expanding "See
 more". Copy its record into the dossier as `email_discovery` `{profile_url, emails, websites,
-found_on, checked}`; rows 6-7 stay separate steps and take their input from `websites`. `enrich
+found_on, checked}`, and put any address it found into `identity.channels_found.emails` too —
+that is the field that creates the identity. Rows 6-7 stay separate steps, input from `websites`. `enrich
 write` refuses `mark_email_not_found` unless `email_discovery.checked` shows the ladder got past
 `current_page` (a `directory_*` sub-tab rendered, or `about` with no sub-tab offered — the normal
 case for a personal profile). Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed

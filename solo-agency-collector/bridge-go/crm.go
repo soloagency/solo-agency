@@ -638,6 +638,96 @@ var fbContactSurfaces = []string{
 	"/about",
 }
 
+// contentSeedKinds are the seed kinds that ARE hook material. A profile or an
+// email seed identifies a person; a reel/post/video IS a story about them, and
+// when the operator saved one they were choosing the reason to make contact.
+var contentSeedKinds = map[string]bool{
+	"reel": true, "post": true, "video": true, "watch": true, "blog": true, "content": true,
+}
+
+// normSeedURL: a hook cites the seed by URL; compare them forgivingly.
+func normSeedURL(u string) string {
+	return strings.TrimRight(strings.ToLower(strings.TrimSpace(u)), "/")
+}
+
+// unharvestedSeedHooks: which of this contact's curated content seeds does no
+// hook cite? Those are not "no hook found" — they are hook material nobody read.
+func unharvestedSeedHooks(ct map[string]any, hooks []any) []string {
+	cited := map[string]bool{}
+	for _, h := range mapsOf(hooks) {
+		if u := mStr(h, "evidence_url"); u != "" {
+			cited[normSeedURL(u)] = true
+		}
+	}
+	var out []string
+	for _, sd := range mapsOf(mList(mMap(ct, "identities"), "seeds")) {
+		u := mStr(sd, "url")
+		if u == "" || !contentSeedKinds[strings.ToLower(mStr(sd, "kind"))] {
+			continue
+		}
+		if !cited[normSeedURL(u)] {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
+// withEmailDiscovery folds the collector's contacts record into channels_found.
+//
+// The playbook has the agent copy that record into the dossier as
+// `email_discovery`, VERBATIM. It carries the address the dig found — but the
+// store only ever read `email_discovery.checked` (the audit trail the
+// mark_email_not_found gate reads), so an agent doing exactly what it was told
+// had the address dropped in silence: nothing persisted, `problems` empty, no
+// error to notice. channels_found.emails stays the canonical home; this only
+// makes literal compliance work. Copies rather than mutates: the dossier is
+// snapshotted to disk verbatim and must stay the agent's own words.
+func withEmailDiscovery(found, ed map[string]any) map[string]any {
+	if len(ed) == 0 {
+		return found
+	}
+	out := map[string]any{}
+	for k, v := range found {
+		out[k] = v
+	}
+	emails := append([]any{}, mList(found, "emails")...)
+	seen := map[string]bool{}
+	for _, e := range emails {
+		seen[normalizeEmail(fmt.Sprint(e))] = true
+	}
+	for _, e := range mList(ed, "emails") {
+		s, ok := e.(string)
+		if !ok || s == "" || seen[normalizeEmail(s)] {
+			continue
+		}
+		seen[normalizeEmail(s)] = true
+		emails = append(emails, s)
+	}
+	if len(emails) > 0 {
+		out["emails"] = emails
+	}
+	// the site the dig turned up is the website hop's input — keep it as an
+	// identity too, but never overwrite a website the dossier named itself.
+	if pm, ok := out["profiles"].(map[string]any); !ok || mStr(pm, "website") == "" {
+		for _, w := range mList(ed, "websites") {
+			s, ok := w.(string)
+			if !ok || s == "" {
+				continue
+			}
+			np := map[string]any{}
+			if pm != nil {
+				for k, v := range pm {
+					np[k] = v
+				}
+			}
+			np["website"] = s
+			out["profiles"] = np
+			break
+		}
+	}
+	return out
+}
+
 // dossierContactsLadderRan: the collector's `fb.profile.contacts` capability walks
 // the whole ladder inside ONE job, so its record's URL is the profile BASE — no
 // evidence URL ever carries a directory_* slug even on a perfect run. What it does
@@ -792,6 +882,17 @@ func (c *crmStore) enrichStatus(contactID, now string) map[string]any {
 	// hookTTLDays (10) forever — re-burning collector calls and tokens on the most
 	// hopeless leads. It is a negative cache like email_not_found and honors the
 	// same 30-day window: don't re-hunt a hook we already failed to find.
+	// A curated content seed that no hook cites is UNFINISHED WORK, and it must
+	// not hide under `hooks_stale` — that reads like a routine refresh, so a run
+	// counted these leads as "skipped" and moved on. The lead the operator
+	// hand-picked is precisely the one that must never be quietly dropped.
+	// Deliberately ahead of the no-hook negative cache: leads parked by an older
+	// build that had no such check are exactly the ones worth re-opening.
+	if len(mList(en, "hooks")) == 0 {
+		if u := unharvestedSeedHooks(ct, nil); len(u) > 0 {
+			return map[string]any{"needs": "enrich", "reason": "seed_hook_unharvested", "seed_urls": u}
+		}
+	}
 	if nh != "" && nh >= isoDaysAgoFrom(negRetryDays, now) {
 		return map[string]any{"needs": "skip", "reason": "no_verifiable_hook_recent"}
 	}
@@ -1117,11 +1218,26 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 			problems = append(problems, "mark_email_not_found REFUSED: every evidence URL in this dossier is on facebook.com, so the email hunt never left the Facebook pass — follow the official website / About-Contact page / licence roster or directory / web search / reverse search before declaring an address unfindable (the hooks you gathered were kept, the lead stays queued for email discovery)")
 		}
 	}
+	// The operator's own curated seed IS hook material: they saved that reel/post
+	// as the reason to contact this person. On the last live batch 58 leads
+	// carried a resolved reel seed, zero hooks, and NO declaration of any kind —
+	// the dossier simply came back with an empty array and the run reported them
+	// "skipped". So this checks the SILENT case, not the declared one:
+	// `mark_no_hook` was set on exactly 0 of those 58. One of them had already
+	// opened the reel to resolve its owner and then discarded the content.
+	unharvested := unharvestedSeedHooks(prevContact, mergedHooks)
+	if len(mergedHooks) == 0 && len(unharvested) > 0 {
+		problems = append(problems, fmt.Sprintf("no hooks recorded, but this lead's own curated content is still unread: %s. The operator SAVED that link as the reason to reach this person — open it, confirm the owner matches and url_drifted is false, and record the professional detail as a hook whose evidence_url IS that url. Hunt a substitute only once the content is unreadable, drifted, or carries nothing professional", strings.Join(unharvested, ", ")))
+	}
 	if len(usableHooks) == 0 && truthy(dossier["mark_no_hook"]) {
-		enrichment["no_verifiable_hook_at"] = now
+		if len(unharvested) > 0 {
+			problems = append(problems, "mark_no_hook REFUSED: the springboard is not exhausted while the operator's own saved content is unread — read the seed first (the hooks you did gather were kept)")
+		} else {
+			enrichment["no_verifiable_hook_at"] = now
+		}
 	}
 	patch := map[string]any{"enrichment": enrichment}
-	found := mMap(ident, "channels_found")
+	found := withEmailDiscovery(mMap(ident, "channels_found"), mMap(dossier, "email_discovery"))
 	// A later enrich that SUCCEEDS must CLEAR the matching negative cache. Both
 	// flags were carried forward unconditionally, so once a lead was marked
 	// no-hook / email-not-found it kept that mark even after a later pass found
