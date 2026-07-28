@@ -143,6 +143,23 @@ wins.
    end) and the contact becomes an **assisted-channel candidate** (manual SMS/Messenger/Zalo).
    Never invent a guessed address.
 
+   **Reading the content is NOT the email hunt (code-enforced).** A Facebook/social pass finds
+   HOOKS; it almost never finds an address, because addresses live on the website's About/Contact
+   page, in a licence roster or directory listing, or in a search result. Two separate ladders run
+   per lead, and finishing one says nothing about the other:
+
+   | Ladder | Done when |
+   |---|---|
+   | Hooks | ≥1 evidenced Layer-B point, or genuinely zero after the springboard |
+   | **Email** | an address is found, **or** the hunt has actually left the social pass |
+
+   `enrich write` **REFUSES `mark_email_not_found`** when every evidence URL in the dossier is on
+   facebook.com: a run that never left Facebook has not earned the right to call an address
+   unfindable. The refusal is non-destructive — the hooks you gathered are still written, only the
+   negative cache is withheld, and `enrich status` keeps returning **`needs: enrich`, reason
+   `email_discovery`** so the lead stays visible as UNFINISHED WORK. Report those leads as
+   **research pending**, never as "skipped": "skipped" claims you looked everywhere.
+
 ## TTL, inheritance, negative cache (all in `enrich status`)
 
 - Identity (still-active, company, role, profile URLs) is durable — TTL **360 days**, reused as-is by

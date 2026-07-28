@@ -610,6 +610,57 @@ const (
 	hookRecencyDays = 360
 )
 
+// contactHasUsableEmail: at least one syntactically valid address on file.
+func contactHasUsableEmail(ct map[string]any) bool {
+	for _, e := range mapsOf(mList(mMap(ct, "identities"), "emails")) {
+		if validEmail(mStr(e, "address")) {
+			return true
+		}
+	}
+	return false
+}
+
+// dossierLookedBeyondFacebook reports whether this dossier carries ANY evidence
+// URL from outside Facebook. It is the verifiable proxy for "the email hunt
+// actually left the Facebook pass": a run that only read seeds/profiles on
+// facebook.com cannot have consulted a website, roster, directory or search
+// result, so it has not earned the right to declare the address unfindable.
+// Deliberately checks the DATA the dossier carries, not a checklist the agent
+// fills in — a self-reported ladder is exactly what drifts.
+func dossierLookedBeyondFacebook(dossier, ident map[string]any) bool {
+	fbHost := func(u string) bool {
+		l := strings.ToLower(u)
+		return strings.Contains(l, "facebook.com") || strings.Contains(l, "fb.com") ||
+			strings.Contains(l, "fb.watch") || strings.Contains(l, "fbcdn.net")
+	}
+	var urls []string
+	for _, h := range mapsOf(mList(dossier, "hooks")) {
+		urls = append(urls, mStr(h, "evidence_url"))
+	}
+	for _, e := range mapsOf(mList(ident, "evidence")) {
+		urls = append(urls, mStr(e, "url"))
+	}
+	found := mMap(ident, "channels_found")
+	switch pv := found["profiles"].(type) {
+	case map[string]any:
+		for _, u := range pv {
+			urls = append(urls, fmt.Sprint(u))
+		}
+	case []any:
+		for _, u := range pv {
+			urls = append(urls, fmt.Sprint(u))
+		}
+	}
+	urls = append(urls, mStr(ident, "website"), mStr(found, "website"))
+	for _, u := range urls {
+		u = strings.TrimSpace(u)
+		if u != "" && !fbHost(u) && (strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *crmStore) enrichStatus(contactID, now string) map[string]any {
 	if now == "" {
 		now = nowISO()
@@ -661,6 +712,15 @@ func (c *crmStore) enrichStatus(contactID, now string) map[string]any {
 	}
 	if !hooksFresh {
 		return map[string]any{"needs": "refresh", "reason": "hooks_stale"}
+	}
+	// Hooks in hand but still no address, and nobody has declared the search
+	// exhausted (`email_not_found_at` empty): the email hunt is UNFINISHED WORK,
+	// not a dead end. It stays in the due queue under its own reason so the run
+	// reports "research pending" instead of quietly counting the lead as skipped.
+	// This is the exact case that produced "99 hooks, 0 emails, 100 skipped".
+	if !contactHasUsableEmail(ct) {
+		return map[string]any{"needs": "enrich", "reason": "email_discovery",
+			"confidence_band": en["confidence_band"]}
 	}
 	return map[string]any{"needs": "skip", "reason": "dossier_fresh", "confidence_band": en["confidence_band"]}
 }
@@ -945,7 +1005,16 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 		"no_verifiable_hook_at": prevEn["no_verifiable_hook_at"],
 	}
 	if truthy(dossier["mark_email_not_found"]) {
-		enrichment["email_not_found_at"] = now
+		// Refuse the CONCLUSION, keep the WORK: a dossier whose every evidence URL
+		// is on facebook.com never left the Facebook pass, so it cannot declare the
+		// address unfindable. The hooks it did gather are still written; only the
+		// negative cache is withheld, so the lead stays queued as email_discovery
+		// instead of disappearing into "skipped".
+		if dossierLookedBeyondFacebook(dossier, ident) {
+			enrichment["email_not_found_at"] = now
+		} else {
+			problems = append(problems, "mark_email_not_found REFUSED: every evidence URL in this dossier is on facebook.com, so the email hunt never left the Facebook pass — follow the official website / About-Contact page / licence roster or directory / web search / reverse search before declaring an address unfindable (the hooks you gathered were kept, the lead stays queued for email discovery)")
+		}
 	}
 	if len(usableHooks) == 0 && truthy(dossier["mark_no_hook"]) {
 		enrichment["no_verifiable_hook_at"] = now

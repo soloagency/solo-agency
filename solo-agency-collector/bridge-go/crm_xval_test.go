@@ -1068,3 +1068,67 @@ func TestFacebookURLShapeClassification(t *testing.T) {
 		}
 	}
 }
+
+// TestEmailDiscoveryNotExhausted reproduces the live failure: 100 Facebook seeds
+// produced 99 hooks and 0 emails, and the run reported "skipped 100" although the
+// email hunt had never left the Facebook pass.
+func TestEmailDiscoveryNotExhausted(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult {
+		return runGoStep(t, xstep{FakeNow: now, Argv: argv})
+	}
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	// a hand-saved reel, resolved to its owner, hook found, still no address
+	mustOK(run("2026-07-28T09:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_reel","identities":{"socials":{"facebook":"https://www.facebook.com/agent.x"},
+		  "seeds":[{"url":"https://www.facebook.com/reel/555","kind":"reel","platform":"facebook"}]}}`))
+
+	// the Facebook-only pass: real hook, but mark_email_not_found must be REFUSED
+	res := mustOK(run("2026-07-28T09:02:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_reel", "--json",
+		`{"identity":{"still_active":"confirmed","channels_found":{"profiles":{"facebook":"https://www.facebook.com/agent.x"}}},
+		  "hooks":[{"type":"social_post","summary":"reel about a Whittier listing","evidence_url":"https://www.facebook.com/reel/555","observed_date":"2026-07-20","confidence":0.8}],
+		  "mark_email_not_found":true,
+		  "writing_brief":{"personalization_confidence":0.7}}`))
+	if !strings.Contains(fmt.Sprint(mList(res, "problems")), "mark_email_not_found REFUSED") {
+		t.Fatalf("a facebook-only dossier must not be allowed to declare the email unfindable: %v", res)
+	}
+	if mInt(res, "usable_hooks", -1) != 1 {
+		t.Fatalf("the hooks it DID gather must still be kept: %v", res)
+	}
+	// and the lead stays queued as unfinished research, not skipped
+	st := mustOK(run("2026-07-28T09:03:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_reel"))
+	if st["needs"] != "enrich" || st["reason"] != "email_discovery" {
+		t.Fatalf("lead must remain queued for email discovery, got: %v", st)
+	}
+
+	// now the agent actually leaves Facebook: a website evidence URL is present
+	mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_reel", "--json",
+		`{"identity":{"still_active":"confirmed","evidence":[{"fact":"no address on the site","url":"https://agentx-realty.com/contact","retrieved_at":"2026-07-28"}]},
+		  "hooks":[],"mark_email_not_found":true,
+		  "writing_brief":{"personalization_confidence":0.7}}`))
+	st = mustOK(run("2026-07-28T09:05:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_reel"))
+	if st["needs"] != "skip" || st["reason"] != "email_not_found_recent" {
+		t.Fatalf("after a genuine off-Facebook hunt the negative cache must apply: %v", st)
+	}
+
+	// a contact WITH an address is never held for email discovery
+	mustOK(run("2026-07-28T09:06:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_has","identities":{"emails":[{"address":"has@x.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-28T09:07:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_has", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"posted a market update","evidence_url":"https://www.facebook.com/has/posts/1","observed_date":"2026-07-25","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+	st = mustOK(run("2026-07-28T09:08:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_has"))
+	if st["reason"] != "dossier_fresh" {
+		t.Fatalf("a contact with an address must be workable: %v", st)
+	}
+}
