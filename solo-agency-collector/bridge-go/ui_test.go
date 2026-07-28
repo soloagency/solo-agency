@@ -900,8 +900,8 @@ func TestCampaignEditPageRendersKeyMessages(t *testing.T) {
 	err := uiTpl.ExecuteTemplate(&sb, "campaign", map[string]any{
 		"Title": "c", "Client": uiClient{Slug: "leadup"}, "Slug": "camp",
 		"Status": "active", "Quota": 40, "GoalTypes": sortedGoalTypes(),
-		"Bank":  "Platforms reward posting that is correct, regular and complete",
-		"Proof": "30 realtors, 400 videos in 2025 | https://x.test/results",
+		"Bank":              "Platforms reward posting that is correct, regular and complete",
+		"Proof":             "30 realtors, 400 videos in 2025 | https://x.test/results",
 		"BankOperatorCount": 1, "CompanionOnFail": "skip",
 	})
 	if err != nil {
