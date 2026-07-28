@@ -1,7 +1,7 @@
 {
   "object": "collector_capabilities",
   "version": "0.1.0",
-  "updated_at": "2026-07-17",
+  "updated_at": "2026-07-28",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
@@ -100,6 +100,12 @@
       "target_preview": "{actor, snippet, url}",
       "error": "string | null",
       "ts": "ISO8601"
+    },
+    "ContactRecord": {
+      "profile_url": "string",
+      "emails": "string[] — published addresses found on the profile",
+      "found_on": "string — current_page | directory_contact_info | directory_intro | directory_basic_info | directory_links",
+      "checked": "string[] — surfaces actually inspected (audit: never conclude no-email unless the ladder ran)"
     }
   },
   "capabilities": [
@@ -487,6 +493,26 @@
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)",
         "paused": "2026-07-17 — pending dedicated multi-platform text-input module (FB/X/Reddit)"
+      }
+    },
+    {
+      "id": "fb.profile.contacts",
+      "title": "Dig a Facebook profile for a published email/contact",
+      "when_to_use": "Find the address a business publishes on its OWN profile. Checks the rendered page (the collector expands \"See more\" first, which is where many bios hide the address) then the About sub-tabs in order: contact_info → intro → basic_info → links. Submit the profile URL. Only go to the website/off-platform ladder after this returns nothing.",
+      "inputs": {
+        "profile_url": "string (optional) — defaults to the page the job opened; vanity or profile.php?id=<numeric>",
+        "stop_at_first": "bool (optional, default true) — stop at the first surface with an address; false = collect from all"
+      },
+      "output_schema": "ContactRecord",
+      "provider": "facebook-dom",
+      "coverage": "what the logged-in operator can already see on the profile",
+      "status": "beta",
+      "_impl": {
+        "screen": "profile + About sub-tabs",
+        "method": "reads the rendered page text, then same-origin authenticated fetch of /<profile>/directory_{contact_info,intro,basic_info,links} (numeric: &sk=<tab>), strips script/style, regex + junk-domain filter.",
+        "validated_on": "2026-07-28 bgvinvest (info@bgv.com.vn on all 5 surfaces) and Khanhngo.us (khanh8601@gmail.com on MAIN once \"See more\" expanded, and on contact_info; absent from intro/basic_info/links)",
+        "note": "`checked` is the audit trail — do not conclude email_not_found unless the ladder actually ran.",
+        "fallback": "website/off-platform search"
       }
     }
   ]

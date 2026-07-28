@@ -1423,7 +1423,92 @@
     return Promise.resolve(out);
   }
 
-  var DOM_CAPABILITIES = { "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader };
+  // fb.profile.contacts — dig the whole profile for a published address in ONE job.
+  // A business almost always prints its email somewhere on its own profile, but it can
+  // be in any of several places: the main page bio (often behind "See more"), or one of
+  // the About sub-tabs (contact_info → intro → basic_info → links). Measured: bgvinvest
+  // showed it on all five, Khanhngo.us only on MAIN (once "See more" was expanded) and
+  // contact_info — so a pass that checks only one surface misses real addresses.
+  // The sub-tabs are fetched SAME-ORIGIN from the operator's own session (never a login,
+  // never a hidden section — the same pages a click would open) so one job covers the
+  // ladder without navigating the tab away.
+  var CONTACT_TABS = ["directory_contact_info", "directory_intro", "directory_basic_info", "directory_links"];
+  var C_EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+  var C_JUNK_DOMAIN = /(^|\.)(example|test|domain|yourdomain|sentry|facebook|fbcdn|whatsapp|instagram)\.[a-z]{2,}$/i;
+  var C_ASSET = /\.(png|jpe?g|gif|svg|webp|bmp|ico|css|js|json|woff2?|ttf|mp4)$/i;
+  function contactEmailsFrom(text) {
+    var out = [], seen = {};
+    var m = String(text || "").match(C_EMAIL_RE) || [];
+    for (var i = 0; i < m.length; i++) {
+      var e = m[i].toLowerCase().replace(/[.,;:)]+$/, "");
+      var at = e.lastIndexOf("@"); if (at <= 0) continue;
+      var dom = e.slice(at + 1);
+      if (C_ASSET.test(e) || C_JUNK_DOMAIN.test(dom) || /@\d+x/.test(e)) continue;
+      if (seen[e]) continue; seen[e] = 1; out.push(e);
+    }
+    return out;
+  }
+  function stripMarkup(html) {
+    return String(html || "")
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/\\u0040/gi, "@").replace(/&#64;/g, "@").replace(/&amp;/g, "&");
+  }
+  function profileBaseFrom(href) {
+    try {
+      var u = new URL(href, location.origin);
+      var id = u.searchParams.get("id");
+      if (/\/profile\.php$/i.test(u.pathname) && id) return { numeric: true, id: id, base: u.origin + "/profile.php?id=" + id };
+      var seg = u.pathname.split("/").filter(Boolean)[0] || "";
+      if (!seg || /^(profile\.php|me|reel|watch|groups|search)$/i.test(seg)) return null;
+      return { numeric: false, id: seg, base: u.origin + "/" + seg };
+    } catch (e) { return null; }
+  }
+  function profileContacts(inputs) {
+    inputs = inputs || {};
+    var target = String(inputs.profile_url || location.href);
+    var info = profileBaseFrom(target);
+    var checked = [], emails = [], foundOn = "";
+    function addFrom(text, label) {
+      var got = contactEmailsFrom(text);
+      for (var i = 0; i < got.length; i++) if (emails.indexOf(got[i]) === -1) { emails.push(got[i]); if (!foundOn) foundOn = label; }
+    }
+    // 1) whatever is already rendered here (background.js has expanded "See more").
+    addFrom(document.body ? document.body.innerText : "", "current_page");
+    checked.push("current_page");
+    if (!info) {
+      return Promise.resolve({ capability: "fb.profile.contacts", schema: "ContactRecord", available: emails.length > 0, count: emails.length ? 1 : 0, items: emails.length ? [{ profile_url: target, emails: emails, found_on: foundOn, checked: checked }] : [], error: emails.length ? null : "could not resolve a profile base from the url" });
+    }
+    // 2) walk the About sub-tabs until an address turns up.
+    var stopEarly = inputs.stop_at_first !== false;
+    var idx = 0;
+    function step() {
+      if (idx >= CONTACT_TABS.length || (stopEarly && emails.length)) return Promise.resolve();
+      var tab = CONTACT_TABS[idx++];
+      var url = info.numeric ? (info.base + "&sk=" + tab) : (info.base + "/" + tab);
+      checked.push(tab);
+      return fetch(url, { credentials: "include" })
+        .then(function (r) { return r.ok ? r.text() : ""; })
+        .then(function (html) { addFrom(stripMarkup(html), tab); return wait(250).then(step); })
+        .catch(function () { return step(); });
+    }
+    return step().then(function () {
+      var ok = emails.length > 0;
+      // available:true whenever the LADDER RAN — background.js nulls out a record whose
+      // capability reports unavailable, which threw away the `checked` audit trail for
+      // exactly the leads that need it: a playbook could no longer tell "dug the whole
+      // profile, genuinely no address" from "never looked". Emptiness is carried by
+      // `emails: []`, not by hiding the record.
+      return {
+        capability: "fb.profile.contacts", schema: "ContactRecord", available: true, found: ok, count: ok ? 1 : 0,
+        items: [{ profile_url: info.base, emails: emails, found_on: foundOn || null, checked: checked }],
+        checked: checked,
+        error: ok ? null : "no published address found on the profile or its About sub-tabs"
+      };
+    });
+  }
+
+  var DOM_CAPABILITIES = { "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader, "fb.profile.contacts": profileContacts };
 
   // The typed extraction is PASSIVE — it reads whatever GraphQL response is already in
   // the ring buffer. On a search/list page the results query (e.g.

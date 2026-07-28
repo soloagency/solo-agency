@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.50-contactinfo-tab";
+const EXTENSION_BUILD = "0.1.53-contacts-audit";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -1443,7 +1443,11 @@ async function collectCleanPage(opts) {
   // Expanding is a UI toggle on ALREADY-PUBLIC text the viewer can see; it does not
   // open a private/hidden section and does not navigate (anchors are skipped).
   async function expandTruncatedText() {
-    const LABELS = /^(see more|see more\.\.\.|xem thêm|…\s*see more|show more)$/i;
+    // Match the START of the label, not the whole string: a profile's bio expander is
+    // labelled "See more about <Name>", so an exact-match test silently skipped the one
+    // button that reveals the address. Kept to a small set of expander verbs so this
+    // never clicks a navigating control ("See all photos", "See friendship" …).
+    const LABELS = /^\s*(?:…\s*)?(see more|show more|xem thêm|see more about|xem thêm về)\b/i;
     let clicked = 0;
     for (let pass = 0; pass < 2 && clicked < 12; pass += 1) {
       const nodes = document.querySelectorAll('[role="button"], span[tabindex], div[tabindex]');
