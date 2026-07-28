@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.53-contacts-audit";
+const EXTENSION_BUILD = "0.1.54-info-noscroll";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -510,11 +510,21 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // such a page after scrolling captures a DIFFERENT creator's reel — measured 5/5
     // (100%) drift on enrich runs that opened a reel to identify its owner. So a reel
     // player must not be scrolled on the READ path either, not just for write actions.
-    const noScrollTarget = wantAction || isImmersivePlayerUrl(source.url);
+    // Profile-INFO capabilities answer "who is this / how do I reach them" from the
+    // header, bio and About tabs. Scrolling only pulls in POSTS they never read, which
+    // costs ~5 extra scroll cycles and a burst of GraphQL feed requests per profile —
+    // pure waste and needless rate-limit exposure on a big email dig. Separate the job
+    // kinds explicitly: info tasks never scroll for content.
+    const INFO_ONLY_CAPABILITIES = new Set(["fb.profile.contacts", "fb.profile.header", "fb.profile.about"]);
+    const infoOnly = !!source.capability && INFO_ONLY_CAPABILITIES.has(String(source.capability));
+    const noScrollTarget = wantAction || infoOnly || isImmersivePlayerUrl(source.url);
     const discoveryMode = isDiscoveryCollection(job, source);
     const maxScrollSteps = noScrollTarget ? 0 : maxScrollStepsForCollection(job, source);
+    // NOTE: `||` would swallow an explicit 0 (a job asking for "no scrolling" silently
+    // got the default 5) — read the number, then fall back only when it is absent.
+    const requestedScroll = Number(job.pacing?.scroll_steps);
     const collectOptions = {
-      scrollSteps: noScrollTarget ? 0 : Number(job.pacing?.scroll_steps || settings.scrollSteps || 5),
+      scrollSteps: noScrollTarget ? 0 : (Number.isFinite(requestedScroll) ? requestedScroll : Number(settings.scrollSteps || 5)),
       maxScrollSteps,
       scrollMode: discoveryMode ? "discovery" : "standard",
       stopAfterNoMoveScrolls: discoveryMode ? 3 : 0,

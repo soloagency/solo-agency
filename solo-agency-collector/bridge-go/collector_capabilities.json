@@ -141,7 +141,8 @@
         },
         "validated_on": "2026-07-15 (aven-ngo, real group feed)",
         "fallback": "html"
-      }
+      },
+      "scroll": "max_scroll"
     },
     {
       "id": "fb.group.search_posts",
@@ -166,7 +167,8 @@
         "note": "Use the /search/?q= form, NOT /search/posts/. Entity results (groups/people) excluded by requiring click_model.story.",
         "validated_on": "2026-07-15 (live verified on aven-ngo — keywords nha, cho thue, all matched)",
         "fallback": "html"
-      }
+      },
+      "scroll": "max_scroll"
     },
     {
       "id": "fb.profile.friends",
@@ -198,7 +200,8 @@
         },
         "validated_on": "2026-07-15 (aven-ngo, nhu.white.75/friends)",
         "fallback": "html"
-      }
+      },
+      "scroll": "max_scroll"
     },
     {
       "id": "fb.profile.about",
@@ -222,7 +225,8 @@
         "fallback": "html",
         "finding": "2026-07-15: structured About fields (work/education/city) are NOT available via GraphQL interception — server-rendered. The captured ProfileCometAppSectionFeedPaginationQuery carries only nav sections + pageItems urls, no field text. Needs a dedicated About-tab DOM parser.",
         "recommended_alternative": "For inferring a person industry (e.g. FoF lead filtering), call fb.people.search with the person name — the SERP row returns their occupation subtitle + industry_hint. Also the friend vanity url often encodes the trade (e.g. edsocalrealtor)."
-      }
+      },
+      "scroll": "none"
     },
     {
       "id": "fb.groups.search",
@@ -246,7 +250,8 @@
         "fallback": "html",
         "edge_path": "data.serpResponse.results.edges → rendering_strategy.view_model.profile (filter __typename Group / /groups/ url)",
         "validated_on": "2026-07-15 (live verified on aven-ngo)"
-      }
+      },
+      "scroll": "max_scroll"
     },
     {
       "id": "fb.people.search",
@@ -271,7 +276,8 @@
         "fallback": "html",
         "edge_path": "data.serpResponse.results.edges → rendering_strategy.view_model.profile (filter __typename User); subtitle=primary_snippet_text_with_entities.text",
         "validated_on": "2026-07-15 (live verified on aven-ngo)"
-      }
+      },
+      "scroll": "max_scroll"
     },
     {
       "id": "fb.profile.posts",
@@ -296,7 +302,8 @@
         "edge_path": "data.node.timeline_list_feed_units.edges[].node (same PostRecord helpers as group.posts)",
         "fallback": "html",
         "validated_on": "2026-07-15 (live verified on aven-ngo)"
-      }
+      },
+      "scroll": "max_scroll"
     },
     {
       "id": "fb.newsfeed",
@@ -320,7 +327,8 @@
         "fallback": "html",
         "edge_path": "data.viewer.news_feed.edges[].node (skip ads/suggestions: require comet_sections + story message)",
         "validated_on": "2026-07-15 (live verified on aven-ngo)"
-      }
+      },
+      "scroll": "max_scroll"
     },
     {
       "id": "fb.post.comments",
@@ -343,7 +351,8 @@
         "graphql_query": null,
         "fallback": "html",
         "finding": "2026-07-15: no comment GraphQL query fires on a passive permalink scroll. The first page of comments is server-rendered (initial document/RSC payload); only load-more PAGINATION uses GraphQL (CometUFICommentsProviderQuery), which needs enough comments to trigger. Needs HTML/RSC parsing of first-page comments, or a comment-pagination trigger."
-      }
+      },
+      "scroll": "max_scroll"
     },
     {
       "id": "fb.reels.feed",
@@ -369,7 +378,8 @@
         "validated_on": "2026-07-17 absellsaz/reels/ → 60 reels with views (2.8K…190K) via grid mode",
         "grid_mode": "profile reels TAB (/…/reels/) → scrape a[href*=\"/reel/<id>\"] cards: reel_id + view count overlay (parseCount) + url; infinite-scroll, stop after 2 dry scrolls. Player mode (/reel/<id>) still advances + scrapes caption/creator.",
         "graphql_for_captions": "ProfileCometAppCollectionReelsRendererPaginationQuery (captured; future extractor for captions like fb.profile.videos)"
-      }
+      },
+      "scroll": "none"
     },
     {
       "id": "web.search",
@@ -393,7 +403,8 @@
         "validated_on": "2026-07-16 (live DDG 10 results; Google DOM parses 9 organic in in-app browser)",
         "fallback": "html",
         "engines_note": "DuckDuckGo default = clean markup + low bot-detection (best for bulk). Google = best coverage but can trigger 'unusual traffic' CAPTCHA when hit at volume; prefer for low-volume, high-value lookups. Runs in the user's real logged-in Chrome, which lowers (but does not remove) that risk."
-      }
+      },
+      "scroll": "none"
     },
     {
       "id": "fb.profile.header",
@@ -415,7 +426,8 @@
         "note": "Server-rendered; robust to class churn by keying off text/links. One record = the profile.",
         "validated_on": "2026-07-16 discovery on absellsaz (followers 10K, verified, Realtor, hasReels confirmed in DOM)",
         "fallback": "html"
-      }
+      },
+      "scroll": "none"
     },
     {
       "id": "fb.profile.videos",
@@ -445,7 +457,8 @@
         },
         "validated_on": "2026-07-16 discovery on absellsaz/videos (raw text shows 2.3K–12.7K views per video)",
         "fallback": "html"
-      }
+      },
+      "scroll": "none (paginates via max_pages cursor replay, not scrolling)"
     },
     {
       "id": "fb.post.react",
@@ -469,7 +482,8 @@
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)",
         "validated_on": "2026-07-17 real like on reel/4524074751166406 → done/verified; drift-guard + scrollSteps=0 for writes"
-      }
+      },
+      "scroll": "none"
     },
     {
       "id": "fb.post.comment",
@@ -493,7 +507,8 @@
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)",
         "paused": "2026-07-17 — pending dedicated multi-platform text-input module (FB/X/Reddit)"
-      }
+      },
+      "scroll": "none"
     },
     {
       "id": "fb.profile.contacts",
@@ -512,8 +527,11 @@
         "method": "reads the rendered page text, then same-origin authenticated fetch of /<profile>/directory_{contact_info,intro,basic_info,links} (numeric: &sk=<tab>), strips script/style, regex + junk-domain filter.",
         "validated_on": "2026-07-28 bgvinvest (info@bgv.com.vn on all 5 surfaces) and Khanhngo.us (khanh8601@gmail.com on MAIN once \"See more\" expanded, and on contact_info; absent from intro/basic_info/links)",
         "note": "`checked` is the audit trail — do not conclude email_not_found unless the ladder actually ran.",
-        "fallback": "website/off-platform search"
-      }
+        "fallback": "website/off-platform search",
+        "scroll": "NONE. The address lives in the bio and the four directory_* sub-pages, never further down a feed. Scrolling this job only queries posts that the contact task discards."
+      },
+      "scroll": "none"
     }
-  ]
+  ],
+  "scroll_contract": "SCROLL CONTRACT: a capability scrolls ONLY when it declares max_scroll in its inputs. Everything else must not be scrolled by the runner; some of those still paginate, but via max_pages cursor replay, which is not scrolling. Scrolling a single-surface job (for example reading a published contact address) fires GraphQL queries whose results are discarded, costs time, and widens the request footprint for nothing."
 }

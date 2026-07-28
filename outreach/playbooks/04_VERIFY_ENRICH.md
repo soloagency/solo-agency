@@ -145,6 +145,18 @@ wins.
    | 6 | the website from #5, its Contact/Team/About page and footer | only worth the hop after 1-5 are empty |
    | 7 | licence roster or directory, web search, reverse search | the off-platform ladder, last |
 
+   **Getting the address and getting the hooks are two DIFFERENT jobs — do not merge them.**
+   `fb.profile.contacts` walks rows 1-5 and must NOT scroll: the address sits in the bio and the
+   four `directory_*` sub-pages, never further down a feed, so scrolling only fires GraphQL queries
+   for posts this task discards. Hooks come from `fb.profile.posts` / `fb.profile.videos`, which
+   DO paginate. The catalog states this per capability (`scroll: "max_scroll"` vs `scroll: "none"`).
+
+   **Run contacts FIRST, and spend the post job only where it pays.** No address means the lead
+   cannot be emailed, so its hooks are worthless: do not scroll a feed for someone you cannot
+   reach. And a lead from an operator-saved reel/post ALREADY has its hook (that saved content) —
+   it needs the contacts job only. On the last live batch this ordering would have been ~128 page
+   loads instead of ~200, with nothing lost.
+
    **Rows 1-5 are where the answer usually is.** A person selling a service publishes a way to be
    contacted; that is the whole point of their page. Treat the website hop (6) and the off-platform
    ladder (7) as the EXCEPTION, not the routine next step. Each row is a separate collector job:
