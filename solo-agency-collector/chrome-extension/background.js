@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.47-reel-noscroll";
+const EXTENSION_BUILD = "0.1.49-selfland-guard";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -676,6 +676,10 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
           const want = pinnedItemId(source.url);
           return want ? !String(cap.url || "").includes(want) : false;
         })(),
+        // True when Facebook fell back to the OPERATOR's own profile (malformed
+        // profile URL / unsupported tab slug). Consumers must reject such a record:
+        // its email/phone belong to the operator, not the lead.
+        landed_on_self: !!cap.landedOnSelf,
         post_url: postUrls[0] || cap.url || "",
         profile_url: profileCandidates[0] || "",
         profile_candidates: profileCandidates,
@@ -1427,6 +1431,53 @@ async function collectCleanPage(opts) {
     total: steps,
     text: `Preparing local capture for ${location.href}`
   });
+  // Facebook TRUNCATES long bio/About/post text behind a "See more" toggle, so the
+  // rest of that text is not in the DOM at all and never reaches the capture — a
+  // profile with its email in the bio (e.g. khanh8601@gmail.com) read as having no
+  // email, while a profile whose email fits the untruncated bio was found fine.
+  // Expanding is a UI toggle on ALREADY-PUBLIC text the viewer can see; it does not
+  // open a private/hidden section and does not navigate (anchors are skipped).
+  async function expandTruncatedText() {
+    const LABELS = /^(see more|see more\.\.\.|xem thêm|…\s*see more|show more)$/i;
+    let clicked = 0;
+    for (let pass = 0; pass < 2 && clicked < 12; pass += 1) {
+      const nodes = document.querySelectorAll('[role="button"], span[tabindex], div[tabindex]');
+      let hitThisPass = 0;
+      for (const node of nodes) {
+        if (clicked >= 12) break;
+        if (node.tagName === "A" || node.closest("a")) continue; // never follow a link
+        const label = (node.innerText || "").replace(/\s+/g, " ").trim();
+        if (!LABELS.test(label)) continue;
+        const box = node.getBoundingClientRect();
+        if (box.width <= 0 || box.height <= 0) continue;
+        try { node.click(); clicked += 1; hitThisPass += 1; } catch (error) { /* keep going */ }
+      }
+      if (!hitThisPass) break;
+      await wait(400);
+    }
+    return clicked;
+  }
+  let expandedCount = 0;
+  try { expandedCount = await expandTruncatedText(); } catch (error) { /* optional */ }
+  // Facebook silently falls back to the LOGGED-IN operator's own profile when a
+  // profile URL is malformed or a tab slug is unsupported — verified: both
+  // `profile.php?id=<X>/about` and `profile.php?id=<X>&sk=about_contact_and_basic_info`
+  // landed on the operator's own page (only `&sk=about` stays on the target). Reading
+  // that page would harvest the OPERATOR's email/phone and attribute it to the lead,
+  // so detect it from the page itself (an own-profile view offers editing controls)
+  // rather than trusting the URL, which still looks correct.
+  function landedOnOwnProfile() {
+    try {
+      const SELF = /^(edit profile|chỉnh sửa trang cá nhân|edit public details|add to story|thêm vào tin)$/i;
+      const nodes = document.querySelectorAll('[role="button"], a[role="link"], [aria-label]');
+      for (const node of nodes) {
+        const label = (node.getAttribute("aria-label") || node.innerText || "").replace(/\s+/g, " ").trim();
+        if (SELF.test(label)) return true;
+      }
+    } catch (error) { /* best effort */ }
+    return false;
+  }
+  const landedSelf = landedOnOwnProfile();
   for (let i = 0; i <= steps; i += 1) {
     try {
       last = (typeof window.__collectorCapture === "function") ? window.__collectorCapture(prev, {}) : last;
@@ -1476,6 +1527,8 @@ async function collectCleanPage(opts) {
   }
   if (last) {
     last.scrollStepsUsed = scrollStepsUsed;
+    last.expandedTruncations = expandedCount;
+    last.landedOnSelf = landedSelf;
     last.requestedScrollSteps = steps;
     last.scrollStoppedReason = stoppedReason;
     last.scrollDebug = scrollDebug.slice(-20);

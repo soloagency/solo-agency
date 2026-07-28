@@ -1110,9 +1110,22 @@ func TestEmailDiscoveryNotExhausted(t *testing.T) {
 		t.Fatalf("lead must remain queued for email discovery, got: %v", st)
 	}
 
-	// now the agent actually leaves Facebook: a website evidence URL is present
-	mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_reel", "--json",
+	// leaving Facebook is not enough on its own: with a profile on file, the
+	// About / Contact-info tab is where the address usually lives, and a run that
+	// skipped it has not exhausted the hunt
+	res2 := mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_reel", "--json",
 		`{"identity":{"still_active":"confirmed","evidence":[{"fact":"no address on the site","url":"https://agentx-realty.com/contact","retrieved_at":"2026-07-28"}]},
+		  "hooks":[],"mark_email_not_found":true,
+		  "writing_brief":{"personalization_confidence":0.7}}`))
+	if !strings.Contains(fmt.Sprint(mList(res2, "problems")), "About / Contact-info tab") {
+		t.Fatalf("skipping the About tab must be refused when a profile is on file: %v", res2["problems"])
+	}
+
+	// the full ladder: About tab visited AND the website checked
+	mustOK(run("2026-07-28T09:04:30Z", "--client-dir", ws, "enrich", "write", "--contact", "c_reel", "--json",
+		`{"identity":{"still_active":"confirmed","evidence":[
+		    {"fact":"About tab shows no address","url":"https://www.facebook.com/agent.x/about","retrieved_at":"2026-07-28"},
+		    {"fact":"no address on the site","url":"https://agentx-realty.com/contact","retrieved_at":"2026-07-28"}]},
 		  "hooks":[],"mark_email_not_found":true,
 		  "writing_brief":{"personalization_confidence":0.7}}`))
 	st = mustOK(run("2026-07-28T09:05:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_reel"))

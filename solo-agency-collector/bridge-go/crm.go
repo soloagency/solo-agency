@@ -627,6 +627,46 @@ func contactHasUsableEmail(ct map[string]any) bool {
 // result, so it has not earned the right to declare the address unfindable.
 // Deliberately checks the DATA the dossier carries, not a checklist the agent
 // fills in — a self-reported ladder is exactly what drifts.
+// dossierReadAboutTab: did any evidence URL in this dossier point at a profile's
+// About / Contact-info tab? Verifiable from the data, unlike a self-reported
+// "I checked the profile".
+func dossierReadAboutTab(dossier, ident map[string]any) bool {
+	for _, u := range dossierEvidenceURLs(dossier, ident) {
+		l := strings.ToLower(u)
+		if !strings.Contains(l, "facebook.com") {
+			continue
+		}
+		if strings.Contains(l, "sk=about") || strings.HasSuffix(strings.TrimRight(l, "/"), "/about") ||
+			strings.Contains(l, "/about?") || strings.Contains(l, "sk=about_contact_and_basic_info") {
+			return true
+		}
+	}
+	return false
+}
+
+// dossierEvidenceURLs collects every URL this dossier cites.
+func dossierEvidenceURLs(dossier, ident map[string]any) []string {
+	var urls []string
+	for _, h := range mapsOf(mList(dossier, "hooks")) {
+		urls = append(urls, mStr(h, "evidence_url"))
+	}
+	for _, e := range mapsOf(mList(ident, "evidence")) {
+		urls = append(urls, mStr(e, "url"))
+	}
+	found := mMap(ident, "channels_found")
+	switch pv := found["profiles"].(type) {
+	case map[string]any:
+		for _, u := range pv {
+			urls = append(urls, fmt.Sprint(u))
+		}
+	case []any:
+		for _, u := range pv {
+			urls = append(urls, fmt.Sprint(u))
+		}
+	}
+	return append(urls, mStr(ident, "website"), mStr(found, "website"))
+}
+
 func dossierLookedBeyondFacebook(dossier, ident map[string]any) bool {
 	fbHost := func(u string) bool {
 		l := strings.ToLower(u)
@@ -1010,9 +1050,25 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 		// address unfindable. The hooks it did gather are still written; only the
 		// negative cache is withheld, so the lead stays queued as email_discovery
 		// instead of disappearing into "skipped".
-		if dossierLookedBeyondFacebook(dossier, ident) {
+		fbProf := mStr(mMap(mMap(prevContact, "identities"), "socials"), "facebook")
+		if fbProf == "" {
+			fbProf = mStr(mMap(ident, "profiles"), "facebook")
+		}
+		if fbProf == "" {
+			fbProf = mStr(mMap(mMap(ident, "channels_found"), "profiles"), "facebook")
+		}
+		switch {
+		case fbProf != "" && !dossierReadAboutTab(dossier, ident):
+			// The highest-yield surface for an address is the profile's About /
+			// Contact-info tab, and the collector only reads the page it is pointed
+			// at. A pass that resolved a reel owner and then jumped straight to web
+			// search never opened the one page where the address usually sits: two
+			// LeadUp profiles published their address there and still came back
+			// "no email". If we know the profile, that tab must have been visited.
+			problems = append(problems, "mark_email_not_found REFUSED: a Facebook profile is on file but no evidence URL points at its About / Contact-info tab (`/about` or `…&sk=about`) — that tab is where the address usually is, and the collector only reads the page you point it at; open the profile and its About tab, then the website listed there, before declaring an address unfindable")
+		case dossierLookedBeyondFacebook(dossier, ident):
 			enrichment["email_not_found_at"] = now
-		} else {
+		default:
 			problems = append(problems, "mark_email_not_found REFUSED: every evidence URL in this dossier is on facebook.com, so the email hunt never left the Facebook pass — follow the official website / About-Contact page / licence roster or directory / web search / reverse search before declaring an address unfindable (the hooks you gathered were kept, the lead stays queued for email discovery)")
 		}
 	}

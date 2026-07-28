@@ -122,6 +122,28 @@ wins.
    operator's open Messenger-chat contact — see `channel_reality.md`). Ladder exhausted → genuine
    no-result; never accept a DOM candidate. Then continue as a profile-seeded lead.
 
+   **Resolving the OWNER is only half the job: the reel page has no contact info.** The collector
+   reads the page you POINT IT AT; it never wanders to another tab on its own. A reel/post page
+   carries the content and the owner link and nothing else, so a pass that stops there returns
+   `contacts.emails: []` for a person whose address is sitting one click away. Two real profiles
+   from the LeadUp list show where it actually lives: `facebook.com/Khanhngo.us` reveals
+   `khanh8601@gmail.com` only after "See more" in About, and `facebook.com/bgvinvest` carries
+   `info@bgv.com.vn` in the contact-info block of its bio. Both came back "no email" because nobody
+   opened those pages.
+
+   So the ladder does NOT end at the owner URL. Continue in this order until an address appears:
+
+   | # | Open | Why |
+   |---|---|---|
+   | 1 | the owner's **profile page** | the bio/intro often carries the address outright |
+   | 2 | the profile's **About / Contact info** tab (`/about`, or `…&sk=about`) | highest-yield surface; on a Page it is "Contact info", on a person it hides behind "See more" |
+   | 3 | the **website** listed there | Facebook links it, the site publishes the mailbox |
+   | 4 | that website's **Contact / Team / About** page and footer | where a business address is actually published |
+   | 5 | licence roster or directory, then web search, then reverse search | the off-platform ladder |
+
+   Each row is a SEPARATE collector job or fetch. "I enriched the profile" is not a step; the step
+   is the URL you opened.
+
    **Batch-resolve BEFORE deep enrichment (reel-heavy lists).** User lists routinely carry many
    content links of the SAME person. So: resolve ALL unresolved seeds to owner profiles FIRST
    (cheap header reads), submitting each via `enrich write` with just `channels_found.profiles`

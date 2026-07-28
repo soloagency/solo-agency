@@ -95,7 +95,14 @@ For non-Facebook content (YouTube/TikTok/blogs) open the content in the browser 
 byline/channel/handle, which links to the profile.
 Record the found profile in `identity.channels_found.profiles` (the store writes it back as a
 canonical `identities.socials` entry and marks the seed `resolved`), then continue below as a
-profile-seeded lead. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
+profile-seeded lead. **Do not stop at the owner URL.** The reel/post page holds the content and the
+owner link and nothing else, so a pass that ends there reports `contacts.emails: []` even when the
+address is one click away (`facebook.com/Khanhngo.us` hides `khanh8601@gmail.com` behind "See more"
+in About; `facebook.com/bgvinvest` prints `info@bgv.com.vn` in its contact-info block). Open, in
+order: the profile page, its **About / Contact info** tab (`/about` or `…&sk=about`), the website
+listed there, that site's Contact/Team/About page and footer, then the off-platform ladder. Each is
+a separate job or fetch: the collector reads only the page you point it at. `enrich write` refuses
+`mark_email_not_found` when a profile is on file and no evidence URL points at its About tab. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
 to its owner profile before any deep enrichment — the store auto-consolidates fragments that
 share a profile/email (full union: all reels + hooks kept; result reports `consolidated`), so
 you deep-enrich each unique person exactly ONCE. Always continue against the returned `lead_id`
