@@ -111,8 +111,7 @@ more". Copy its record into the dossier as `email_discovery` `{profile_url, emai
 found_on, checked}`; rows 6-7 stay separate steps and take their input from `websites`. `enrich
 write` refuses `mark_email_not_found` unless `email_discovery.checked` shows the ladder got past
 `current_page` (a `directory_*` sub-tab rendered, or `about` with no sub-tab offered — the normal
-case for a personal profile). One empty result is not evidence: render timing flips the same
-profile between runs, so retry once. Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
+case for a personal profile). Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
 to its owner profile before any deep enrichment — the store auto-consolidates fragments that
 share a profile/email (full union: all reels + hooks kept; result reports `consolidated`), so
 you deep-enrich each unique person exactly ONCE. Always continue against the returned `lead_id`
