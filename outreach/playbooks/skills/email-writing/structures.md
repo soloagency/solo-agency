@@ -27,7 +27,24 @@ defuse objection → ROI anchor → **release** → CTA. This table only defines
   conclusion — but multi-point weaving is the norm, not the exception.
 - Length adapts to data richness (`weave.md`, Pillar 4): RICH = full weave, MEDIUM = tight arc, THIN
   = the short honest opener. "3–5 sentences" is the THIN mode only, never a universal cap.
-- `proof_points` from the goal must each carry evidence; weave them as conclusions, don't dump a wall.
+- **The hook must be USED, not complimented — this is the move most drafts skip.** A hook says why
+  you are writing to THIS person. It is not the argument. The argument is a key message from
+  `goal.message_bank`: the sender's own expertise, reframing what the hook shows. So the shape is
+  `hook → your expertise reads that hook → offer → one small ask`, and the test is simple: **if you
+  could swap in a different lead's hook and the rest of the email still stood, you complimented the
+  hook instead of using it.** A live batch failed exactly there — 22 of 53 drafts shared the
+  sentence "That kind of specific, practical guidance shows expertise while answering a question
+  prospective clients already have", which fits every hook because it engages with none.
+  `draft write` refuses an email that lands no key message (`no_key_message`) when the campaign
+  declares a bank.
+- **Never paste a dossier summary into the body.** The hook summary is an internal note written for
+  you, in the third person, about the lead. Quoting it verbatim reads like a pasted database row —
+  one live draft went out as `I saw your recent content about "A public post addresses life
+  insurance agents who still rely on cold dialing..."`. Say what the content SAID, in your own voice.
+- `proof_points` from the goal must each carry evidence; weave them as conclusions, don't dump a
+  wall. A `proof_point` is `{claim, evidence_url}` and is optional; a key message is what you teach
+  and is not. If a key message asserts a fact and no proof point backs it, soften it to experience
+  rather than dropping it.
 - The CTA friction must be near zero at step 1 — a one-word reply or a single click, never a
   30-minute booking ask on a cold first touch. (Even `book_meeting` opens with a *tiny* time.)
 - No fake urgency, no guarantees (`guardrails.banned_claims`), no `Re:`/`Fwd:` on step 1.
