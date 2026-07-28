@@ -168,6 +168,35 @@ func hookWovenIntoBody(text string, cleanHooks []any, evidenceByURL map[string]m
 	return false
 }
 
+// bankMessageWoven reports whether a declared key message actually shows up in
+// the email, on the same lenient-paraphrase principle as hookWovenIntoBody: one
+// shared distinctive word is enough, so any honest rewording passes.
+//
+// It exists because `bank_messages_used` was a self-report nobody checked, and it
+// drifted exactly the way an unchecked field does: across 53 live drafts, 50
+// claimed the SAME two messages, and 0 of the 53 contained any bank message at
+// all. Meanwhile `hooks_used` — which has a gate — was honest in every draft.
+func bankMessageWoven(text, msg string) bool {
+	low := strings.ToLower(text)
+	for _, w := range regexp.MustCompile(`[a-z]{5,}`).FindAllString(strings.ToLower(msg), -1) {
+		if !hookWovenGenericTerms[w] && strings.Contains(low, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// bankMessagesInBody returns the campaign's key messages this email really lands.
+func bankMessagesInBody(text string, bank []any) []string {
+	var out []string
+	for _, e := range mapsOf(bank) {
+		if msg := mStr(e, "msg"); msg != "" && bankMessageWoven(text, msg) {
+			out = append(out, msg)
+		}
+	}
+	return out
+}
+
 // holdNoEvidence records that a lead was deliberately NOT drafted for lack of
 // usable evidence. The point is that it is HELD and visible (contact timeline +
 // countable in reports), never silently dropped — the operator picked these
@@ -303,6 +332,23 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 	// while sending a template misrepresents the record and reads as generic.
 	if len(cleanHooks) > 0 && !hookWovenIntoBody(a.Subject+" "+a.BodyText, cleanHooks, evidenceByURL) {
 		return nil, storageErrf("hook_not_woven: the email declares a hook but its specifics appear nowhere in the subject/body — weave the observed detail in, or drop the hook claim")
+	}
+
+	// (3b) The campaign's key messages are what the reader is supposed to LEARN —
+	// the sender's own expertise, the only part of the email a competitor could
+	// not also write. When a campaign declares a bank, every email must land at
+	// least one, and `bank_messages_used` must be the truth rather than a
+	// constant. Silent on campaigns with no bank: this asks nothing of an
+	// operator who has not declared any.
+	if bank := mList(mMap(cfg, "goal"), "message_bank"); len(bank) > 0 {
+		landed := bankMessagesInBody(a.Subject+" "+a.BodyText, bank)
+		if len(landed) == 0 {
+			return nil, storageErrf("no_key_message: this campaign declares %d key message(s) and none of them is in the email. The hook says why you are writing to THIS person; a key message is what you actually teach them, and it is the only part a competitor could not also send. Weave 1-2 in (see goal.message_bank), or the email is a template with a personalized first line", len(bank))
+		}
+		a.BankMessagesUsed = make([]any, len(landed))
+		for i, m := range landed {
+			a.BankMessagesUsed[i] = m
+		}
 	}
 
 	if step == 1 && len(cleanHooks) == 0 {

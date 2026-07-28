@@ -8,5 +8,5 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 | SKILL.md | 105 | 8cec844646ec9be84fb6381226aa2ac012a6c41ad6e389bd6c925354d6af115f | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | channels.md | 70 | 0f5277b2778d80110ed1e5b7ab0b621efb667f72341fa424ec1188b99c270c5a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | followup.md | 169 | eec6b2cbcfe1c5722d756c5504a88fd3efa8966a34516ce6ab2bd5e58be8d541 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| structures.md | 37 | be76077722951ea71d472a0d4e2c1e17acada653fb086e85cf6fd1c612c58cc2 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| structures.md | 54 | 5d69fe392e13187faf8ccef4112e240f5c81333b696595cbef23c0893c69fb8e | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | weave.md | 283 | c83934d77426d9332a4a9e211e7ac0c40bc492c7a8e856a2b52ad3ddf5289c0a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |

@@ -1542,3 +1542,84 @@ func TestImportStampsCuratedListOrigin(t *testing.T) {
 		t.Fatalf("one stray content link does not make a purchased list curated: %v", m2)
 	}
 }
+
+// TestKeyMessageMustBeLanded: `bank_messages_used` was a self-report nobody
+// checked, and it drifted the way unchecked fields do — across 53 live drafts 50
+// claimed the SAME two messages and 0 actually contained one. The hook gate,
+// which IS enforced, was honest in every draft. So the bank gets a gate too.
+func mustJSON(t *testing.T, v any) []byte {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func TestKeyMessageMustBeLanded(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+	mustOK(run("2026-07-28T09:01:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	mustOK(run("2026-07-28T09:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "intro",
+		"--json", `{"audience":{"segment":"all"},"sendboxes":["sb-a"],"daily_quota":10,
+		  "goal":{"goal_type":"get_reply","message_bank":[
+		    {"msg":"Platforms reward posting that is correct, regular and complete","source":"operator","approved":true},
+		    {"msg":"Every piece has to be genuinely useful to the viewer","source":"operator","approved":true}]}}`))
+	mustOK(run("2026-07-28T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_k","identities":{"emails":[{"address":"k@x.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_k",
+		"--campaign", "intro", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"reel about escrow timelines in Whittier","evidence_url":"https://www.facebook.com/reel/9","observed_date":"2026-07-20","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+
+	draft := func(now, body string) xresult {
+		return run(now, "--client-dir", ws, "draft", "write", "--contact", "c_k", "--campaign", "intro",
+			"--json", string(mustJSON(t, map[string]any{"step": 1, "subject": "About your escrow reel", "body_text": body,
+				"hooks_used": []any{map[string]any{"evidence_url": "https://www.facebook.com/reel/9"}}})))
+	}
+	// hook woven, but the email teaches nothing — this is the live shape: a
+	// template with a personalized first line
+	bad := draft("2026-07-28T09:05:00Z",
+		"Hi there,\n\nI saw your reel about escrow timelines in Whittier. That kind of practical guidance is exactly the material that can become a steady series.\n\nWe prepared a 30-day plan: https://x.test/p\n\nBinh")
+	if bad.Code == 0 {
+		t.Fatalf("an email that lands no key message is a template with a personalized opener: %s", bad.Stdout)
+	}
+	if !strings.Contains(bad.Stdout+bad.Stderr, "no_key_message") {
+		t.Fatalf("the refusal must name the missing thing: %s%s", bad.Stdout, bad.Stderr)
+	}
+
+	// same hook, but now the sender's own expertise reframes it
+	good := mustOK(draft("2026-07-28T09:06:00Z",
+		"Hi there,\n\nI saw your reel about escrow timelines in Whittier. The reason one clear answer like that outperforms a dozen listing posts is that platforms reward posting which is correct, regular and complete - and every piece has to be genuinely useful to the viewer before it earns reach.\n\nWe prepared a 30-day plan: https://x.test/p\n\nBinh"))
+	raw, err := os.ReadFile(mStr(good, "path"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rec map[string]any
+	if err := json.Unmarshal(raw, &rec); err != nil {
+		t.Fatal(err)
+	}
+	used := mList(rec, "bank_messages_used")
+	if len(used) == 0 {
+		t.Fatalf("bank_messages_used must be DERIVED from the body, not accepted on trust: %s", raw)
+	}
+	for _, u := range used {
+		if !strings.Contains(strings.ToLower(fmt.Sprint(u)), "platform") &&
+			!strings.Contains(strings.ToLower(fmt.Sprint(u)), "useful") {
+			t.Errorf("only messages actually landed may be reported: %v", u)
+		}
+	}
+}

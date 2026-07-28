@@ -2920,6 +2920,39 @@ func (c *crmStore) campaignUpdate(slug string, patch map[string]any) (map[string
 							changed = append(changed, "goal.proof_points")
 						}
 					}
+				case "message_bank":
+					// The key messages every email must land. Editable by the
+					// operator because an agent-authored bank is the product
+					// paraphrasing itself — which is what the live campaign had:
+					// 12 entries, all source:agent, and not one of them teaching
+					// anything. `source` is preserved so that stays visible.
+					if l, ok := gv.([]any); ok {
+						norm := make([]any, 0, len(l))
+						for _, e := range l {
+							em, ok := e.(map[string]any)
+							if !ok {
+								if s, isStr := e.(string); isStr && strings.TrimSpace(s) != "" {
+									em = map[string]any{"msg": s}
+								} else {
+									continue
+								}
+							}
+							msg := strings.TrimSpace(mStr(em, "msg"))
+							if msg == "" {
+								continue
+							}
+							src := mStr(em, "source")
+							if src != "agent" {
+								src = "operator"
+							}
+							norm = append(norm, map[string]any{"msg": msg, "source": src,
+								"approved": src == "operator" || truthy(em["approved"])})
+						}
+						if string(marshalLineJSON(goal["message_bank"])) != string(marshalLineJSON(norm)) {
+							goal["message_bank"] = norm
+							changed = append(changed, "goal.message_bank")
+						}
+					}
 				case "cta":
 					if cm, ok := gv.(map[string]any); ok {
 						cta := mMap(goal, "cta")

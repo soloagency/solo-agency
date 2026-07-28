@@ -110,10 +110,27 @@ color. The fix is a **message bank**: the operator's key messages (USPs, benefit
 proof) that the writer draws 1–2 of into each touch, mixed with a fresh data point. A different bank
 message per touch = a different color across the sequence.
 
-**Campaign intake — ask this at setup (after the goal + companion doc):**
-> "List every key message you want to land across the first email and the follow-ups: your USPs,
-> strengths, benefits, the lessons or values you teach, anything you'd say to win this. Or tell me to
-> propose a set and you edit it."
+**Campaign intake — ask this at setup (after the goal + companion doc). Ask for what they KNOW,
+not for what they sell:**
+> "What do you know from doing this work that your prospects mostly get wrong? The rules of the
+> game, what actually works and why, the mistakes you watch people make. Those are the things each
+> email will teach. Or tell me to propose a set and you edit it."
+
+Asking "what are your USPs" produces slogans, and slogans are what a competitor can also write. A
+live campaign proved it: 12 bank entries, all agent-authored, every one a vendor claim
+("end-to-end done-for-you content workflow"), not one of them teaching anything — and the 53 emails
+built on that bank were 55% identical below the first line. What survives contact with a reader is
+the sender's expertise: *platforms reward posting that is correct, regular and complete*; *every
+piece has to be genuinely useful before it earns reach*. Those are positions someone earned. Push
+for those.
+
+**`message_bank` is not `proof_points`.** A key message is what you TEACH ("video is currently the
+cheapest way to build a personal brand"); a proof point is evidence you are worth believing, and it
+is `{claim, evidence_url}` — a claim WITH a checkable source. They are different jobs and neither
+replaces the other. The link between them is one rule: **a key message that asserts a fact needs a
+proof point, or it must be softened into experience** ("what I keep seeing is..."). An unbacked
+factual claim is hype, which `guardrails.banned_claims` already forbids. `proof_points` is genuinely
+OPTIONAL and empty is a normal answer for a young product; a bank is not.
 
 **Then EXPAND it — do not stop at the operator's list.** The operator recalls only part of what is
 true, from memory; you are trained on far more of their field. Take their bullets and add the ones a
