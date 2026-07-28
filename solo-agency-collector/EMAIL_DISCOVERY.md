@@ -75,7 +75,7 @@ made discovery flaky.
 in the generic capture step before this capability is even injected, and is not re-run on the
 sub-tabs the ladder then clicks into. An address truncated *inside* a sub-tab can be missed, so
 a sub-tab miss is weaker evidence than a main-page miss. It has not bitten a real lead yet
-(sub-tab contact blocks are short), but it is why retrying once is worth it.
+(sub-tab contact blocks are short).
 
 ### Measured on a 71-lead run (2026-07-28)
 
@@ -89,9 +89,6 @@ a sub-tab miss is weaker evidence than a main-page miss. It has not bitten a rea
 truncated reports no email until the toggle is clicked. All of them were found on the rendered
 profile page; the sub-tabs added 2 more. Two consecutive runs on the remaining leads produced no
 further addresses, so 38% is a converged figure, not an untried one.
-
-**Retry once before concluding.** The same profile on the same build returned an address in one
-run and nothing in the next, purely from render timing. A single empty result is not evidence.
 
 **"No Contact info tab" is a valid conclusion.** Most personal profiles simply do not offer that
 sub-tab — verified by hand on 13 profiles, of which 12 genuinely had none. `checked` lists only

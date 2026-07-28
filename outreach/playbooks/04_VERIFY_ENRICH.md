@@ -157,11 +157,9 @@ wins.
    refused. Rows 6-7 stay separate steps, and their input is that record's `websites` — do not
    re-scan the profile to find the site. Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`.
 
-   **One empty result is not evidence.** The same profile on the same build has returned an
-   address in one run and nothing in the next, purely from render timing — retry once before
-   concluding. And "no Contact info tab" is a legitimate finding: most personal profiles simply
-   do not offer one (12 of 13 verified by hand), so `checked: [current_page, about]` with no
-   sub-tab means the tab is absent, not that a click was missed.
+   **"No Contact info tab" is a legitimate finding.** Most personal profiles simply do not offer
+   one (12 of 13 verified by hand), so `checked: [current_page, about]` with no sub-tab means the
+   tab is absent, not that a click was missed.
 
    **Getting the address and getting the hooks are two DIFFERENT jobs — do not merge them.**
    `fb.profile.contacts` walks rows 1-5 and must NOT scroll: the address sits in the bio and the
