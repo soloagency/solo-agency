@@ -892,3 +892,26 @@ func TestAddrInUseFlapGuard(t *testing.T) {
 		t.Fatal("foreign HTTP server must not probe healthy")
 	}
 }
+
+// TestCampaignEditPageRendersKeyMessages: the operator edits the bank here, so a
+// template that panics or silently drops the field is the whole feature gone.
+func TestCampaignEditPageRendersKeyMessages(t *testing.T) {
+	var sb strings.Builder
+	err := uiTpl.ExecuteTemplate(&sb, "campaign", map[string]any{
+		"Title": "c", "Client": uiClient{Slug: "leadup"}, "Slug": "camp",
+		"Status": "active", "Quota": 40, "GoalTypes": sortedGoalTypes(),
+		"Bank":  "Platforms reward posting that is correct, regular and complete",
+		"Proof": "30 realtors, 400 videos in 2025 | https://x.test/results",
+		"BankOperatorCount": 1, "CompanionOnFail": "skip",
+	})
+	if err != nil {
+		t.Fatalf("campaign page must render: %v", err)
+	}
+	out := sb.String()
+	for _, want := range []string{"Key messages", "f-bank", "Platforms reward posting",
+		"claim | link", "1 of them are yours"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("campaign page is missing %q", want)
+		}
+	}
+}
