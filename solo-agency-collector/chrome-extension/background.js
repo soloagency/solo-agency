@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.54-info-noscroll";
+const EXTENSION_BUILD = "0.1.58-settle-tabs";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -1452,14 +1452,31 @@ async function collectCleanPage(opts) {
   // email, while a profile whose email fits the untruncated bio was found fine.
   // Expanding is a UI toggle on ALREADY-PUBLIC text the viewer can see; it does not
   // open a private/hidden section and does not navigate (anchors are skipped).
+  // Facebook streams the intro/About card in AFTER first paint, so expanding straight
+  // away only clicks the toggles that happen to exist yet. Measured: the same profile
+  // expanded 4 toggles when run alone but only 1 inside a 15-source batch (slower
+  // render), and its address stayed hidden — that, not scrolling, is what made email
+  // discovery flaky. Wait until the visible text stops growing before clicking.
+  async function waitForContentSettled(maxMs) {
+    let last = -1, stable = 0, waited = 0;
+    while (waited < (maxMs || 6000)) {
+      const len = (document.body && document.body.innerText ? document.body.innerText.length : 0);
+      if (len === last && len > 0) { stable += 1; if (stable >= 2) return len; } else { stable = 0; }
+      last = len;
+      await wait(400); waited += 400;
+    }
+    return last;
+  }
+
   async function expandTruncatedText() {
     // Match the START of the label, not the whole string: a profile's bio expander is
     // labelled "See more about <Name>", so an exact-match test silently skipped the one
     // button that reveals the address. Kept to a small set of expander verbs so this
     // never clicks a navigating control ("See all photos", "See friendship" …).
     const LABELS = /^\s*(?:…\s*)?(see more|show more|xem thêm|see more about|xem thêm về)\b/i;
+    await waitForContentSettled(6000);
     let clicked = 0;
-    for (let pass = 0; pass < 2 && clicked < 12; pass += 1) {
+    for (let pass = 0; pass < 4 && clicked < 12; pass += 1) {
       const nodes = document.querySelectorAll('[role="button"], span[tabindex], div[tabindex]');
       let hitThisPass = 0;
       for (const node of nodes) {
@@ -1471,8 +1488,9 @@ async function collectCleanPage(opts) {
         if (box.width <= 0 || box.height <= 0) continue;
         try { node.click(); clicked += 1; hitThisPass += 1; } catch (error) { /* keep going */ }
       }
-      if (!hitThisPass) break;
-      await wait(400);
+      // Keep going even when a pass found nothing: a later chunk of the profile may
+      // still be streaming in, and that chunk is often the one holding the address.
+      await wait(hitThisPass ? 700 : 900);
     }
     return clicked;
   }

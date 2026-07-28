@@ -40,6 +40,17 @@ Output — `records.items[0]` is a `ContactRecord`:
 
 ### What it actually does (the ladder)
 
+**The sub-tabs are CLICKED, never fetched.** A same-origin `fetch()` of
+`/directory_contact_info` returns the SPA shell without the contact block: across 68 profiles
+every address came from the rendered page and **zero** came from a fetched tab — including one
+whose email sat in Contact info the whole time. Worse, counting those fetches as "checked"
+produced an audit trail that claimed the ladder had run when it had not. The capability now
+enters About and clicks each sub-tab (matched by the slug in its `href`, since the visible
+label differs between Pages, personal profiles and locales), waiting for the text to stop
+changing before reading — a fixed pause was not enough, and that race, not scrolling, is what
+made discovery flaky.
+
+
 1. **The rendered profile page** — including text the collector just un-truncated, because
    Facebook hides the rest of a long bio behind **"See more"** and that text is not in the
    DOM until it is expanded.
@@ -52,7 +63,27 @@ Output — `records.items[0]` is a `ContactRecord`:
 Sub-tabs are fetched same-origin from the operator's own logged-in session — the same
 pages a click would open. Nothing hidden is expanded and the tab never navigates away.
 
-### Measured on real profiles (2026-07-28)
+### Measured on a 71-lead run (2026-07-28)
+
+| Outcome | Leads | Share |
+|---|---|---|
+| Email published on Facebook | 30 | 42% |
+| No email, but a website/channel is listed | 14 | 20% |
+| Nothing on Facebook → external sources | 27 | 38% |
+
+**82% of the emails were only reachable after expanding "See more"** — a profile whose bio is
+truncated reports no email until the toggle is clicked. All of them were found on the rendered
+profile page; the sub-tabs added 2 more. Two consecutive runs on the remaining leads produced no
+further addresses, so 38% is a converged figure, not an untried one.
+
+**Retry once before concluding.** The same profile on the same build returned an address in one
+run and nothing in the next, purely from render timing. A single empty result is not evidence.
+
+**"No Contact info tab" is a valid conclusion.** Most personal profiles simply do not offer that
+sub-tab — verified by hand on 13 profiles, of which 12 genuinely had none. `checked` lists only
+the surfaces that really rendered, so a missing tab is absence of the tab, not a missed click.
+
+### Earlier per-profile detail (2026-07-28)
 
 | Profile | main page | contact_info | intro | basic_info | links |
 |---|---|---|---|---|---|

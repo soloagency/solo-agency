@@ -1448,6 +1448,26 @@
     }
     return out;
   }
+  // The profile also publishes a WEBSITE (usually under directory_links). When no
+  // address is on Facebook that link is the next step, so return it instead of making
+  // the caller re-scan — my own ad-hoc scan of the record missed sites that were plainly
+  // there, which mislabelled those leads "nothing anywhere".
+  var C_SOCIAL_HOST = /(facebook|fbcdn|fbsbx|messenger|whatsapp)\./i;
+  function contactWebsitesFrom(text) {
+    var out = [], seen = {};
+    var m = String(text || "").match(/https?:\/\/[^\s"'<>\\)]+/g) || [];
+    for (var i = 0; i < m.length; i++) {
+      var u = m[i].replace(/[",.);]+$/, "");
+      if (C_SOCIAL_HOST.test(u) || C_ASSET.test(u.split("?")[0])) continue;
+      try {
+        var h = new URL(u).hostname.replace(/^www\./, "");
+        if (!h || seen[h]) continue; seen[h] = 1; out.push(u.split("?")[0]);
+      } catch (e) { /* skip */ }
+      if (out.length >= 6) break;
+    }
+    return out;
+  }
+
   function stripMarkup(html) {
     return String(html || "")
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -1464,35 +1484,123 @@
       return { numeric: false, id: seg, base: u.origin + "/" + seg };
     } catch (e) { return null; }
   }
+  // Wait for the tab's content to actually render before reading it. A fixed pause
+  // is not enough: the SAME profile on the SAME build reached only the main page in
+  // one run and the full ladder in the next, purely from render timing — that race,
+  // not a selector bug, is what made contact discovery flaky.
+  function settleThenScan(maxMs) {
+    var last = -1, stable = 0, waited = 0;
+    function tick() {
+      var len = document.body && document.body.innerText ? document.body.innerText.length : 0;
+      if (len === last && len > 0) { stable += 1; if (stable >= 2) return Promise.resolve(len); }
+      else { stable = 0; }
+      last = len; waited += 350;
+      if (waited >= (maxMs || 5000)) return Promise.resolve(len);
+      return wait(350).then(tick);
+    }
+    return tick();
+  }
+
   function profileContacts(inputs) {
     inputs = inputs || {};
     var target = String(inputs.profile_url || location.href);
     var info = profileBaseFrom(target);
-    var checked = [], emails = [], foundOn = "";
+    var checked = [], emails = [], websites = [], foundOn = "";
     function addFrom(text, label) {
       var got = contactEmailsFrom(text);
       for (var i = 0; i < got.length; i++) if (emails.indexOf(got[i]) === -1) { emails.push(got[i]); if (!foundOn) foundOn = label; }
+      var sites = contactWebsitesFrom(text);
+      for (var w = 0; w < sites.length; w++) if (websites.indexOf(sites[w]) === -1 && websites.length < 6) websites.push(sites[w]);
     }
     // 1) whatever is already rendered here (background.js has expanded "See more").
     addFrom(document.body ? document.body.innerText : "", "current_page");
     checked.push("current_page");
     if (!info) {
-      return Promise.resolve({ capability: "fb.profile.contacts", schema: "ContactRecord", available: emails.length > 0, count: emails.length ? 1 : 0, items: emails.length ? [{ profile_url: target, emails: emails, found_on: foundOn, checked: checked }] : [], error: emails.length ? null : "could not resolve a profile base from the url" });
+      return Promise.resolve({ capability: "fb.profile.contacts", schema: "ContactRecord", available: true, found: emails.length > 0, count: emails.length ? 1 : 0, items: [{ profile_url: target, emails: emails, websites: websites, found_on: foundOn || null, checked: checked }], error: emails.length ? null : "could not resolve a profile base from the url" });
     }
-    // 2) walk the About sub-tabs until an address turns up.
+    // 2) walk the About sub-tabs by CLICKING them, never by fetching them.
+    // A same-origin fetch of /directory_contact_info returns the SPA shell, not the
+    // rendered contact block: across 68 profiles every single address came from the
+    // rendered page and ZERO came from a fetched tab — including one whose email was
+    // sitting in Contact info the whole time. Worse, counting those fetches as
+    // "checked" produced an audit trail that claimed the ladder had run when it had
+    // not. Clicking makes Facebook render the tab for real, in the same job.
     var stopEarly = inputs.stop_at_first !== false;
+    var TAB_LABELS = {
+      directory_contact_info: /^(contact info|contact and basic info|thông tin liên hệ)/i,
+      directory_intro: /^(intro|giới thiệu)/i,
+      directory_basic_info: /^(basic info|overview|thông tin cơ bản|tổng quan)/i,
+      directory_links: /^(links|websites and social links|liên kết)/i
+    };
+    function clickTabAndScan(tab) {
+      var re = TAB_LABELS[tab];
+      // Prefer the tab's own HREF (href*= slug first): the visible label differs between
+      // Pages and personal profiles and across locales, and matching text alone missed
+      // "Contact info" on 13 of 29 profiles (they clicked Intro and stopped). The slug
+      // in the link is the same everywhere.
+      var byHref = document.querySelectorAll('a[href*="' + tab + '"]');
+      for (var h = 0; h < byHref.length; h++) {
+        var hb = byHref[h].getBoundingClientRect();
+        if (hb.width <= 0 || hb.height <= 0) continue;
+        try { byHref[h].click(); } catch (e) { break; }
+        return wait(600).then(function () { return settleThenScan(5000); }).then(function () {
+          addFrom(document.body ? document.body.innerText : "", tab);
+          checked.push(tab);
+          return true;
+        });
+      }
+      var nodes = document.querySelectorAll('a[role="link"], [role="tab"], [role="button"], [role="listitem"] a');
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        var label = (n.innerText || n.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+        if (!re.test(label)) continue;
+        var box = n.getBoundingClientRect();
+        if (box.width <= 0 || box.height <= 0) continue;
+        try { n.click(); } catch (e) { return Promise.resolve(false); }
+        return wait(600).then(function () { return settleThenScan(5000); }).then(function () {
+          addFrom(document.body ? document.body.innerText : "", tab);
+          checked.push(tab);
+          return true;
+        });
+      }
+      return Promise.resolve(false); // tab not offered by this profile
+    }
+    // The sub-tab strip only exists INSIDE the About section — on the main profile
+    // there is just an Intro card — so enter About first, otherwise every sub-tab click
+    // finds nothing and the ladder silently does nothing.
+    function enterAboutSection() {
+      if (/\/about|sk=about|directory_/i.test(location.href)) return Promise.resolve(true);
+      var re = /^(about|giới thiệu)$/i;
+      var byHref = document.querySelectorAll('a[href*="sk=about"], a[href$="/about"], a[href*="/about?"]');
+      for (var h = 0; h < byHref.length; h++) {
+        var hb = byHref[h].getBoundingClientRect();
+        if (hb.width <= 0 || hb.height <= 0) continue;
+        try { byHref[h].click(); } catch (e) { break; }
+        return wait(700).then(function () { return settleThenScan(5000); }).then(function () { addFrom(document.body ? document.body.innerText : "", "about"); checked.push("about"); return true; });
+      }
+      var nodes = document.querySelectorAll('a[role="link"], [role="tab"], [role="button"]');
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        var label = (n.innerText || n.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+        if (!re.test(label)) continue;
+        var box = n.getBoundingClientRect();
+        if (box.width <= 0 || box.height <= 0) continue;
+        try { n.click(); } catch (e) { return Promise.resolve(false); }
+        return wait(700).then(function () { return settleThenScan(5000); }).then(function () { addFrom(document.body ? document.body.innerText : "", "about"); checked.push("about"); return true; });
+      }
+      return Promise.resolve(false);
+    }
     var idx = 0;
     function step() {
       if (idx >= CONTACT_TABS.length || (stopEarly && emails.length)) return Promise.resolve();
       var tab = CONTACT_TABS[idx++];
-      var url = info.numeric ? (info.base + "&sk=" + tab) : (info.base + "/" + tab);
-      checked.push(tab);
-      return fetch(url, { credentials: "include" })
-        .then(function (r) { return r.ok ? r.text() : ""; })
-        .then(function (html) { addFrom(stripMarkup(html), tab); return wait(250).then(step); })
-        .catch(function () { return step(); });
+      return clickTabAndScan(tab).then(function () { return wait(200).then(step); });
     }
-    return step().then(function () {
+    function runLadder() {
+      if (stopEarly && emails.length) return Promise.resolve();
+      return enterAboutSection().then(step);
+    }
+    return runLadder().then(function () {
       var ok = emails.length > 0;
       // available:true whenever the LADDER RAN — background.js nulls out a record whose
       // capability reports unavailable, which threw away the `checked` audit trail for
@@ -1501,7 +1609,7 @@
       // `emails: []`, not by hiding the record.
       return {
         capability: "fb.profile.contacts", schema: "ContactRecord", available: true, found: ok, count: ok ? 1 : 0,
-        items: [{ profile_url: info.base, emails: emails, found_on: foundOn || null, checked: checked }],
+        items: [{ profile_url: info.base, emails: emails, websites: websites, found_on: foundOn || null, checked: checked }],
         checked: checked,
         error: ok ? null : "no published address found on the profile or its About sub-tabs"
       };
