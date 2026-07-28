@@ -1197,3 +1197,79 @@ func TestEmailChannelBecomesUsable(t *testing.T) {
 		t.Fatalf("suppression must stay terminal, got %q", st)
 	}
 }
+
+// TestSearchURLNeverBecomesIdentity reproduces the corruption: a live run stored
+// Bing SEARCH URLs as "found profiles". normalizeSocial drops the query string,
+// so every search collapsed to the key "bing.com/search", unrelated leads
+// appeared to share an identity, and consolidation chain-merged 54 reels from
+// different people into one contact.
+func TestSearchURLNeverBecomesIdentity(t *testing.T) {
+	// 1. the classifier refuses search/aggregator hosts outright
+	for _, u := range []string{
+		"https://www.bing.com/search?q=alex+lehr+realtor",
+		"https://www.google.com/search?q=huong+ly",
+		"https://duckduckgo.com/?q=realtor+magazine",
+		"https://l.facebook.com/l.php?u=https%3A%2F%2Fx.com",
+	} {
+		if k, p, _ := classifyLeadURLFull(u); k != "" || p != "" {
+			t.Errorf("%s must not classify as anything usable, got kind=%q platform=%q", u, k, p)
+		}
+	}
+
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult {
+		return runGoStep(t, xstep{FakeNow: now, Argv: argv})
+	}
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T11:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+
+	// 2. two unrelated reels, each "resolved" to a Bing search URL. Before the
+	//    fix this made them share an identity and merged them together.
+	for _, id := range []string{"c_r1", "c_r2"} {
+		mustOK(run("2026-07-28T11:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+			`{"id":"`+id+`","identities":{"seeds":[{"url":"https://www.facebook.com/reel/`+id+`","kind":"reel","platform":"facebook"}]}}`))
+	}
+	for i, id := range []string{"c_r1", "c_r2"} {
+		res := mustOK(run("2026-07-28T11:0"+string(rune('2'+i))+":00Z", "--client-dir", ws, "enrich", "write", "--contact", id, "--json",
+			`{"identity":{"still_active":"confirmed","channels_found":{"profiles":{"facebook":"https://www.bing.com/search?q=some+name"}}},
+			  "writing_brief":{"personalization_confidence":0.5}}`))
+		if !strings.Contains(fmt.Sprint(mList(res, "problems")), "not a facebook PROFILE url") {
+			t.Fatalf("a search URL must be rejected as identity: %v", res["problems"])
+		}
+		if len(mapsOf(mList(res, "consolidated"))) != 0 {
+			t.Fatalf("a rejected identity must never trigger a merge: %v", res["consolidated"])
+		}
+	}
+	// both contacts must still be independent and un-merged
+	for _, id := range []string{"c_r1", "c_r2"} {
+		d, err := readJSONFile(filepath.Join(ws, "crm", "contacts", id+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mStr(mMap(d, "merge"), "status") == "merged" {
+			t.Fatalf("%s was wrongly merged on a search URL", id)
+		}
+		if truthy(mMap(mMap(d, "identities"), "socials")["facebook"]) {
+			t.Fatalf("%s stored a search URL as its facebook identity", id)
+		}
+	}
+
+	// 3. a REAL profile URL still resolves and consolidates normally
+	mustOK(run("2026-07-28T11:05:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_r1", "--json",
+		`{"identity":{"still_active":"confirmed","channels_found":{"profiles":{"facebook":"https://www.facebook.com/alex.lehr"}}},
+		  "writing_brief":{"personalization_confidence":0.5}}`))
+	res := mustOK(run("2026-07-28T11:06:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_r2", "--json",
+		`{"identity":{"still_active":"confirmed","channels_found":{"profiles":{"facebook":"https://www.facebook.com/alex.lehr"}}},
+		  "writing_brief":{"personalization_confidence":0.5}}`))
+	if len(mapsOf(mList(res, "consolidated"))) != 1 {
+		t.Fatalf("a genuine shared profile must still consolidate: %v", res)
+	}
+}

@@ -153,6 +153,17 @@ wins.
    | Hooks | ≥1 evidenced Layer-B point, or genuinely zero after the springboard |
    | **Email** | an address is found, **or** the hunt has actually left the social pass |
 
+   **A search result is EVIDENCE, never an IDENTITY (code-enforced).** When the hunt goes through
+   Google/Bing/DuckDuckGo, what you report back as a found profile must be the **profile page
+   itself**, never the search URL that led you there. `channels_found.profiles` is validated: the
+   URL must classify as a PROFILE and match the platform it is filed under, and search/aggregator
+   hosts are refused outright. Why this matters more than it looks: identities are **dedupe keys**,
+   and the key drops the query string, so every search on one engine collapses to a single value.
+   A live run filed Bing search URLs as Facebook profiles; dozens of unrelated leads then "shared
+   an identity" and consolidation chain-merged **54 reels from different people into one contact**,
+   destroying the cluster. Cite the search URL in `identity.evidence[]` if it is useful; keep it
+   out of `profiles`.
+
    **What "having an email" MEANS here (do not raise this bar yourself).** An address is usable for
    drafting when it is a REAL found address (never guessed), it parses, its domain accepts mail
    (`tool verify-email` → `mx_ok`), and the identity is not suppressed. That is the whole bar.

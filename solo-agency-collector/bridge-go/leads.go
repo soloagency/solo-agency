@@ -59,6 +59,23 @@ func classifyLeadURL(raw string) (kind, platform string) {
 	return k, p
 }
 
+// searchOrAggregatorHost: hosts whose URLs describe a QUERY, not a person. Their
+// links may be cited as evidence in a dossier, but must never become an identity,
+// a dedupe key, or a lead record.
+func searchOrAggregatorHost(host string) bool {
+	for _, h := range []string{
+		"google.", "bing.com", "duckduckgo.com", "search.yahoo.", "yandex.",
+		"baidu.com", "ecosia.org", "brave.com/search", "startpage.com",
+		"search.marcia", "lite.duckduckgo.com", "webcache.googleusercontent.com",
+		"translate.google.", "l.facebook.com", "lm.facebook.com",
+	} {
+		if strings.HasPrefix(host, h) || strings.Contains(host, h) {
+			return true
+		}
+	}
+	return false
+}
+
 func classifyLeadURLFull(raw string) (kind, platform, seedKind string) {
 	v := strings.ToLower(strings.TrimSpace(raw))
 	if v == "" || strings.Contains(v, "@") || !urlishRe.MatchString(v) {
@@ -73,6 +90,15 @@ func classifyLeadURLFull(raw string) (kind, platform, seedKind string) {
 	}
 	host, path, _ := strings.Cut(u, "/")
 	path = strings.Trim(path, "/")
+	// A search-engine or aggregator URL is EVIDENCE of looking, never an identity
+	// and never a lead. Two properties made this catastrophic before it was
+	// blocked: normalizeSocial strips the query string, so every query on the same
+	// engine collapses to one key ("bing.com/search"), and identities are dedupe
+	// keys — so unrelated leads "shared an identity" and consolidation
+	// chain-merged 54 reels from different people into a single contact.
+	if searchOrAggregatorHost(host) {
+		return "", "", ""
+	}
 	query := ""
 	if i := strings.Index(v, "?"); i >= 0 {
 		query = v[i+1:]

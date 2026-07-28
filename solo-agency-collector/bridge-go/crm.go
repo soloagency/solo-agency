@@ -1057,8 +1057,23 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 			if s, ok := u.(string); ok && s != "" {
 				if platform == "website" {
 					foundWebsite = s
-				} else if !skipIdent["social|"+normalizeSocial(s)] {
-					foundSocials[platform] = s
+					continue
+				}
+				// The map form used to trust the caller completely: whatever string
+				// sat under "facebook" became the person's Facebook identity. A live
+				// run stored SEARCH-RESULT URLs there, and because normalizeSocial
+				// drops the query string every Bing search collapsed to the single
+				// key "bing.com/search" — so dozens of unrelated leads shared one
+				// identity and consolidation chain-merged 54 reels into one contact.
+				// A profile identity must now LOOK like a profile and match the
+				// platform it is filed under; the classifier decides, not the caller.
+				kind, plat, _ := classifyLeadURLFull(s)
+				if kind != "profile" || plat == "" || (platform != "" && plat != platform) {
+					problems = append(problems, fmt.Sprintf("channels_found.profiles[%s] rejected: %s is not a %s PROFILE url (classified %s/%s) — a search-result, post or directory link is evidence, never an identity; give the profile page itself", pyRepr(platform), pyRepr(s), platform, kind, plat))
+					continue
+				}
+				if !skipIdent["social|"+normalizeSocial(s)] {
+					foundSocials[plat] = s
 				}
 			}
 		}
@@ -1852,6 +1867,27 @@ func (c *crmStore) merge(loserID, winnerID string) (map[string]any, error) {
 	return win, nil
 }
 
+// maxConsolidationChain caps how many records one identity may absorb
+// automatically. Beyond it the identity is treated as suspect rather than
+// authoritative: a genuine "many reels, one creator" cluster is plausible at this
+// size, an identity swallowing more is far more likely to be a bad join key.
+const maxConsolidationChain = 12
+
+// mergedIntoCount counts tombstones already pointing at this survivor.
+func mergedIntoCount(c *crmStore, survivorID string) int {
+	rows, err := c.a.query("contacts", []cond{{"merge.status", "=", "merged"}}, nil, -1, 0)
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, doc := range rows {
+		if c.resolve(mStr(mMap(doc, "merge"), "merged_into")) == survivorID {
+			n++
+		}
+	}
+	return n
+}
+
 // anchorScore ranks which record should SURVIVE an auto-consolidation:
 // verified reachability first (emails), then phones, profiles, enrichment, name.
 func anchorScore(contact map[string]any) int {
@@ -2047,6 +2083,20 @@ func (c *crmStore) consolidateOnDiscovery(leadID string, found map[string]any) (
 				suspects = append(suspects, map[string]any{"other_id": other, "via": cd.kind, "value": cd.val})
 				flagged[other] = true
 			}
+			continue
+		}
+		// Blast-radius guard: consolidation is meant for "several reels of ONE
+		// person". If a single identity has already absorbed a crowd, the identity
+		// itself is suspect (that is exactly how a shared search-result URL merged
+		// 54 unrelated reels into one contact). Stop merging on it and flag both
+		// records for the operator instead of growing the pile.
+		if len(mapsOf(mList(othDoc, "duplicate_suspects"))) == 0 && mergedIntoCount(c, other) >= maxConsolidationChain {
+			skip[cd.kind+"|"+cd.val] = true
+			if err := c.noteDuplicateSuspects(cur, other, cd.kind, cd.val); err != nil {
+				return cur, consolidated, suspects, skip, err
+			}
+			suspects = append(suspects, map[string]any{"other_id": other, "via": cd.kind, "value": cd.val,
+				"reason": "consolidation_chain_too_long"})
 			continue
 		}
 		winner, loser := cur, other
