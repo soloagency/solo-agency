@@ -145,10 +145,23 @@ wins.
 
 ## TTL, inheritance, negative cache (all in `enrich status`)
 
-- Identity (still-active, company, role, profile URLs) is durable — TTL ~90 days, reused as-is by
-  other campaigns.
-- Hooks are fresh — TTL ~10 days; a stale-hook contact returns `needs: refresh` (revisit known
-  URLs), not a full re-enrich.
+- Identity (still-active, company, role, profile URLs) is durable — TTL **360 days**, reused as-is by
+  other campaigns. (Operator decision 2026-07-27: the old 90/10 pair dragged every contact back
+  through full enrichment ~4x and hook-refresh ~36x a year, against the enrich-once doctrine. The
+  accepted trade is that someone who changed jobs is caught at SEND time by the bounce path
+  instead of proactively.)
+- Hooks are fresh — TTL **360 days**; a stale-hook contact returns `needs: refresh` (revisit known
+  URLs), not a full re-enrich. A dossier holding **zero** hooks is never "fresh" regardless of when
+  you last looked — those leads are governed by the `no_verifiable_hook` 30-day cache instead, so
+  an empty-handed lead is retried in a month, not parked for a year.
+
+**Recency, and the one exemption (code-enforced).** A hook needs a date within the past **360 days**
+to carry a `high` band on its own. The exemption: **a hook whose `evidence_url` is a URL the OPERATOR
+supplied** (a reel/post they saw, judged relevant and saved — it lives in `identities.seeds[]` with
+`source: import`) is exempt from recency entirely, at any age. The human act of saving it IS the
+qualification, exactly like the User-Curated List Rule. This is NOT a judgment you make: the store
+compares the hook's URL against the stored seeds and decides. Hooks the system dug up on its own get
+no exemption — they must still be recent. Do not add a seed yourself to manufacture the exemption.
 - `email_not_found` / `no_verifiable_hook` are inherited negative caches so a second campaign does
   not re-burn the same dead end within its retry window. **Both windows are 30 days, and both are
   enforced in `enrich status`**: a lead whose springboard was exhausted returns
