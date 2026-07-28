@@ -1132,3 +1132,68 @@ func TestEmailDiscoveryNotExhausted(t *testing.T) {
 		t.Fatalf("a contact with an address must be workable: %v", st)
 	}
 }
+
+// TestEmailChannelBecomesUsable: the drafting bar is a REAL address that parses,
+// not a mailbox probe. `channels.email.status` used to read "needs_data" forever,
+// which a live run mistook for a blocker and refused to draft 28 valid contacts.
+func TestEmailChannelBecomesUsable(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult {
+		return runGoStep(t, xstep{FakeNow: now, Argv: argv})
+	}
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	readC := func(id string) map[string]any {
+		d, err := readJSONFile(filepath.Join(ws, "crm", "contacts", id+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	mustOK(run("2026-07-28T10:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+
+	// a seed-only contact starts with no address: needs_data is correct here
+	mustOK(run("2026-07-28T10:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_seed","identities":{"seeds":[{"url":"https://www.facebook.com/reel/31","kind":"reel","platform":"facebook"}]}}`))
+	if st := mStr(mMap(mMap(readC("c_seed"), "channels"), "email"), "status"); st != "needs_data" {
+		t.Fatalf("no address yet => needs_data, got %q", st)
+	}
+
+	// enrichment finds a real address off the website: the channel must flip
+	mustOK(run("2026-07-28T10:02:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_seed", "--json",
+		`{"identity":{"still_active":"confirmed","channels_found":{"emails":["agent@realty.com"]},
+		   "evidence":[{"fact":"address on the contact page","url":"https://realty.com/contact","retrieved_at":"2026-07-28"}]},
+		  "hooks":[{"type":"social_post","summary":"reel about a Whittier listing","evidence_url":"https://www.facebook.com/reel/31","observed_date":"2026-07-20","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+	if st := mStr(mMap(mMap(readC("c_seed"), "channels"), "email"), "status"); st != "usable" {
+		t.Fatalf("a real found address must make the email channel usable, got %q", st)
+	}
+	// enrichment addresses are stored `unverified` (no mailbox probe exists);
+	// that must NOT stop drafting
+	em := mapsOf(mList(mMap(readC("c_seed"), "identities"), "emails"))
+	if len(em) != 1 || mStr(em[0], "status") != "unverified" {
+		t.Fatalf("enrich addresses stay unverified by design: %v", em)
+	}
+	st := mustOK(run("2026-07-28T10:03:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_seed"))
+	if st["reason"] != "dossier_fresh" {
+		t.Fatalf("with hooks + an address the lead is workable: %v", st)
+	}
+
+	// suppression stays terminal: a bounced channel is never flipped back
+	mustOK(run("2026-07-28T10:04:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_bad","identities":{"emails":[{"address":"bad@x.com","is_primary":true}]},
+		  "channels":{"email":{"status":"bounced"}}}`))
+	mustOK(run("2026-07-28T10:05:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_bad","identities":{"emails":[{"address":"bad@x.com"}]}}`))
+	if st := mStr(mMap(mMap(readC("c_bad"), "channels"), "email"), "status"); st != "bounced" {
+		t.Fatalf("suppression must stay terminal, got %q", st)
+	}
+}

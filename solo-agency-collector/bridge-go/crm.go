@@ -1579,6 +1579,27 @@ func (c *crmStore) setContact(leadID string, patch map[string]any) (map[string]a
 	leadID = c.resolve(leadID)
 	rec, err := c.a.update("contacts", leadID, func(rec map[string]any) map[string]any {
 		mergeIntoContact(rec, patch)
+		// `channels.email.status` is seeded "needs_data" when a contact is created
+		// and nothing ever cleared it, so it kept reading "needs_data" long after a
+		// real address was on file. A live run read that as a blocker and refused to
+		// draft 28 contacts that were perfectly draftable. Keep the field truthful:
+		// once a valid address exists the channel is usable. Suppression states
+		// (opted_out / bounced) are terminal and never overwritten here.
+		if contactHasUsableEmail(rec) {
+			chans := mMap(rec, "channels")
+			if chans == nil {
+				chans = map[string]any{}
+				rec["channels"] = chans
+			}
+			em, _ := chans["email"].(map[string]any)
+			if em == nil {
+				em = map[string]any{}
+				chans["email"] = em
+			}
+			if s := mStr(em, "status"); s == "" || s == "needs_data" {
+				em["status"] = "usable"
+			}
+		}
 		return rec
 	})
 	if err != nil {

@@ -153,6 +153,22 @@ wins.
    | Hooks | ≥1 evidenced Layer-B point, or genuinely zero after the springboard |
    | **Email** | an address is found, **or** the hunt has actually left the social pass |
 
+   **What "having an email" MEANS here (do not raise this bar yourself).** An address is usable for
+   drafting when it is a REAL found address (never guessed), it parses, its domain accepts mail
+   (`tool verify-email` → `mx_ok`), and the identity is not suppressed. That is the whole bar.
+   There is **no mailbox-verification step in this system** and none is planned: probing a mailbox
+   (SMTP `RCPT TO`) is unreliable against Gmail and risks the sending reputation of every sendbox,
+   so it is deliberately not done. Consequences to internalize:
+
+   - `identities.emails[].status: "unverified"` is the NORMAL state for an enrichment-found address.
+     It means "not mailbox-probed", which is expected. It is **not** a blocker.
+   - `channels.email.status` flips to `usable` on its own once a valid address is on file. If you
+     ever see `needs_data` next to a real address, that is stale data, not a gate.
+   - `draft write` enforces the real bar in code (a parseable address, suppression, hooks). If it
+     accepts the draft, the lead was draftable. Do **not** invent an extra verification step and
+     skip the lead for failing it: a run that reports "0 drafts, emails not verified" while holding
+     real addresses has failed the task, not protected it.
+
    `enrich write` **REFUSES `mark_email_not_found`** when every evidence URL in the dossier is on
    facebook.com: a run that never left Facebook has not earned the right to call an address
    unfindable. The refusal is non-destructive — the hooks you gathered are still written, only the
