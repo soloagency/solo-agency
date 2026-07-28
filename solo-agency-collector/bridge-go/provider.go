@@ -104,6 +104,8 @@ func providerBlock(config map[string]any, provider string) map[string]any {
 	return orEmptyMap(mMap(mMap(config, "providers"), provider))
 }
 
+// activeProvider: the client's configured provider, else the caller's DEFAULT.
+// Callers that pass a hardcoded default (e.g. tracking) rely on config winning.
 func activeProvider(config map[string]any, fallback string) string {
 	if v := mStr(config, "active_provider"); v != "" {
 		return v
@@ -111,8 +113,30 @@ func activeProvider(config map[string]any, fallback string) string {
 	return fallback
 }
 
+// resolveProvider: an EXPLICIT --provider is a route selection and outranks
+// config; without one, fall back to the client's active_provider, then widecast.
+// The two were previously conflated: --provider was passed into activeProvider's
+// `fallback` slot, so `--provider widecast_proposals call --operation
+// createProposal` was silently rerouted to the config's active provider and then
+// failed as "operation missing". Flipping activeProvider itself would have
+// broken every caller that passes a default instead of a choice.
+func resolveProvider(config map[string]any, explicit string) string {
+	if v := strings.TrimSpace(explicit); v != "" {
+		return v
+	}
+	return activeProvider(config, "widecast")
+}
+
 func providerAPIKey(config map[string]any, provider string) (string, error) {
 	block := providerBlock(config, provider)
+	// A scoped route (e.g. widecast_proposals) may share the credentials of
+	// another block on the same account, so one secret stays in one place and the
+	// relationship is auditable. One hop only — never follow a chain or a loop.
+	if cp := mStr(block, "credential_provider"); cp != "" && cp != provider {
+		if borrowed := providerBlock(config, cp); len(borrowed) > 0 {
+			block = borrowed
+		}
+	}
 	for _, env := range []string{"OUTREACHCRM_PROVIDER_API_KEY", "SOLO_AGENCY_PROVIDER_API_KEY"} {
 		if v := os.Getenv(env); v != "" {
 			return v, nil
@@ -420,7 +444,7 @@ func parseOpenAPI(raw []byte, contentType string) (*openAPISpec, string, error) 
 }
 
 func loadSpec(discoveryURLFlag, providerFlag string, config, defaults map[string]any) (string, *openAPISpec, string, error) {
-	provider := activeProvider(config, providerFlag)
+	provider := resolveProvider(config, providerFlag)
 	u := discoveryURLFlag
 	if u == "" {
 		u = providerDiscoveryURL(defaults, config, provider)
@@ -734,7 +758,7 @@ func providerCmdNotify(na notifyArgs) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	provider := activeProvider(config, na.Provider)
+	provider := resolveProvider(config, na.Provider)
 	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
 	reportPath := na.ReportPath
 	if reportPath == "" {
@@ -926,7 +950,7 @@ func runProviderCLI(args []string) int {
 		return crmUsageErr("a subcommand is required (discover | call | account | upload-report | notify)")
 	}
 	pa := providerArgs{Config: a.get("--config"), Defaults: a.get("--defaults"),
-		Provider: strOr(a.get("--provider"), "widecast"), DiscoveryURL: a.get("--discovery-url")}
+		Provider: a.get("--provider"), DiscoveryURL: a.get("--discovery-url")}
 	fail := func(rc int, err error) int {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())

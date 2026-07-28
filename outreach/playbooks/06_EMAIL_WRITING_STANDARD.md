@@ -111,13 +111,18 @@ fills, `structures.md`). Per lead:
 3. **Embed the one resulting URL** in the body (never a file attachment). The document must feel
    hand-made for the recipient: it draws on the SAME dossier and anti-creepy stance as the email
    (`weave.md`) — real signals, a peer who did the homework, never a surveillant.
-4. **Produce ONCE per lead, then REUSE.** Run the recipe at the lead's FIRST touch and store the
-   result by passing `companion_url` in the `draft write` JSON. Every later bump reads the lead's
-   prior drafts (`campaigns/{slug}/outbox/**`) and REUSES that same `companion_url` — the sequence
-   references one artifact, not a fresh one per touch. Re-run the recipe only when no prior draft
-   carries a URL.
-5. **On failure** (no URL produced), apply `companion_doc.on_fail`: `default_link` → embed it;
-   `skip` → do not draft this lead (record it like a no-hook skip). Never send an empty or broken
+4. **Produce ONCE per lead, then REUSE only a VERIFIED SUCCESS.** Run the recipe at the lead's
+   FIRST touch and store the successful result by passing `companion_url` in the `draft write`
+   JSON. Every later bump reads the lead's prior drafts (`campaigns/{slug}/outbox/**`) and reuses
+   that URL **only when it came from the recipe's documented success response**. A URL equal to
+   `companion_doc.default_link`, or one recorded after a failure/fallback, is NOT a personalized
+   result: never reuse it as one, and never let it stop a later attempt. When no verified
+   successful URL exists, run the recipe again per its retry policy. The sequence references one
+   SUCCESSFUL artifact, not a fresh one per touch, and not a fallback frozen in place.
+5. **On failure, after the recipe's retry policy is exhausted** (no successful URL produced), apply
+   `companion_doc.on_fail`: `default_link` → embed it **as an explicitly non-personalized
+   fallback**, and never write copy claiming a document was prepared for them; `skip` → do not
+   draft this lead (record it like a no-hook skip). Never send an empty or broken
    link, and never invent one. A FIXED companion link cannot fail — it is a static string used
    as-is; `on_fail` never fires for it, and the link's domain (including widecast.ai) is
    irrelevant to the WideCast notification-only rule.

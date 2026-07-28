@@ -138,3 +138,44 @@ func TestProviderNotifyDegrades(t *testing.T) {
 		t.Fatalf("degrade: %d %v", r.Code, out)
 	}
 }
+
+// TestProviderRouting: an explicit --provider is a ROUTE, not a fallback. A live
+// run lost `--provider widecast_proposals call --operation createProposal` to the
+// config's active_provider and got "operation missing" with no request sent.
+func TestProviderRouting(t *testing.T) {
+	cfg := map[string]any{
+		"active_provider": "widecast",
+		"providers": map[string]any{
+			"widecast":           map[string]any{"api_key_local": "k-main"},
+			"widecast_proposals": map[string]any{"credential_provider": "widecast"},
+			"other":              map[string]any{"api_key_local": "k-other"},
+		},
+	}
+	if got := resolveProvider(cfg, "widecast_proposals"); got != "widecast_proposals" {
+		t.Fatalf("explicit --provider must win over active_provider, got %q", got)
+	}
+	if got := resolveProvider(cfg, ""); got != "widecast" {
+		t.Fatalf("no flag => the client's active_provider, got %q", got)
+	}
+	if got := resolveProvider(map[string]any{}, ""); got != "widecast" {
+		t.Fatalf("no flag and no config => widecast, got %q", got)
+	}
+	// callers passing a DEFAULT (not a choice) still let config win
+	if got := activeProvider(cfg, "widecast"); got != "widecast" {
+		t.Fatalf("activeProvider semantics changed: %q", got)
+	}
+	if got := activeProvider(map[string]any{"active_provider": "other"}, "widecast"); got != "other" {
+		t.Fatalf("config must beat a caller default, got %q", got)
+	}
+	// a scoped route borrows the named block's credentials, one hop only
+	k, err := providerAPIKey(cfg, "widecast_proposals")
+	if err != nil || k != "k-main" {
+		t.Fatalf("credential_provider borrow failed: %q %v", k, err)
+	}
+	// self-reference must not loop or hide a missing key
+	selfCfg := map[string]any{"providers": map[string]any{
+		"loop": map[string]any{"credential_provider": "loop"}}}
+	if _, err := providerAPIKey(selfCfg, "loop"); err == nil {
+		t.Fatal("a self-referencing credential_provider must still report the missing key")
+	}
+}
