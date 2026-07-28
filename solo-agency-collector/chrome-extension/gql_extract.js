@@ -1429,9 +1429,9 @@
   // the About sub-tabs (contact_info → intro → basic_info → links). Measured: bgvinvest
   // showed it on all five, Khanhngo.us only on MAIN (once "See more" was expanded) and
   // contact_info — so a pass that checks only one surface misses real addresses.
-  // The sub-tabs are fetched SAME-ORIGIN from the operator's own session (never a login,
-  // never a hidden section — the same pages a click would open) so one job covers the
-  // ladder without navigating the tab away.
+  // The sub-tabs are CLICKED, never fetched — see clickTabAndScan below for why a
+  // same-origin fetch returns the SPA shell without the contact block. One job still
+  // covers the whole ladder; it just walks it the way a person would.
   var CONTACT_TABS = ["directory_contact_info", "directory_intro", "directory_basic_info", "directory_links"];
   var C_EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
   var C_JUNK_DOMAIN = /(^|\.)(example|test|domain|yourdomain|sentry|facebook|fbcdn|whatsapp|instagram)\.[a-z]{2,}$/i;

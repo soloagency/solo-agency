@@ -104,8 +104,9 @@
     "ContactRecord": {
       "profile_url": "string",
       "emails": "string[] — published addresses found on the profile",
-      "found_on": "string — current_page | directory_contact_info | directory_intro | directory_basic_info | directory_links",
-      "checked": "string[] — surfaces actually inspected (audit: never conclude no-email unless the ladder ran)"
+      "websites": "string[] — outbound links published on the profile (usually from directory_links). Use these for the website hop instead of re-scanning.",
+      "found_on": "string|null — current_page | directory_contact_info | directory_intro | directory_basic_info | directory_links; null when nothing was found",
+      "checked": "string[] — surfaces that actually RENDERED, in visit order. May also contain \"about\" (the ladder entered the About section). This is the audit trail: never conclude email_not_found unless it shows the ladder ran past current_page."
     }
   },
   "capabilities": [
@@ -524,11 +525,13 @@
       "status": "beta",
       "_impl": {
         "screen": "profile + About sub-tabs",
-        "method": "reads the rendered page text, then same-origin authenticated fetch of /<profile>/directory_{contact_info,intro,basic_info,links} (numeric: &sk=<tab>), strips script/style, regex + junk-domain filter.",
+        "method": "reads the rendered page text (background.js has already expanded \"See more\"), then enters About and CLICKS each sub-tab /<profile>/directory_{contact_info,intro,basic_info,links} (numeric: &sk=<tab>), waiting for the text to stop changing before reading. A same-origin fetch of those tabs returns the SPA shell without the contact block — across 68 profiles it yielded zero addresses — so they are never fetched. Then strips script/style, regex + junk-domain filter.",
         "validated_on": "2026-07-28 bgvinvest (info@bgv.com.vn on all 5 surfaces) and Khanhngo.us (khanh8601@gmail.com on MAIN once \"See more\" expanded, and on contact_info; absent from intro/basic_info/links)",
         "note": "`checked` is the audit trail — do not conclude email_not_found unless the ladder actually ran.",
         "fallback": "website/off-platform search",
-        "scroll": "NONE. The address lives in the bio and the four directory_* sub-pages, never further down a feed. Scrolling this job only queries posts that the contact task discards."
+        "scroll": "NONE. The address lives in the bio and the four directory_* sub-pages, never further down a feed. Scrolling this job only queries posts that the contact task discards.",
+        "known_limit": "\"See more\" expansion runs ONCE, on the entry page, before this capability is injected — it is not re-run on the sub-tabs. An address truncated inside a sub-tab can therefore be missed; a sub-tab miss is weaker evidence than a main-page miss.",
+        "audit_field": "`checked`, not `opened_contact_tab`. `opened_contact_tab` is a generic pipeline flag that only fires when the JOB URL was already an about/directory URL, so it stays false on a normal profile-URL job even when the ladder ran correctly. Do not gate on it."
       },
       "scroll": "none"
     }

@@ -1117,8 +1117,8 @@ func TestEmailDiscoveryNotExhausted(t *testing.T) {
 		`{"identity":{"still_active":"confirmed","evidence":[{"fact":"no address on the site","url":"https://agentx-realty.com/contact","retrieved_at":"2026-07-28"}]},
 		  "hooks":[],"mark_email_not_found":true,
 		  "writing_brief":{"personalization_confidence":0.7}}`))
-	if !strings.Contains(fmt.Sprint(mList(res2, "problems")), "directory_contact_info") {
-		t.Fatalf("skipping the About tab must be refused when a profile is on file: %v", res2["problems"])
+	if !strings.Contains(fmt.Sprint(mList(res2, "problems")), "fb.profile.contacts") {
+		t.Fatalf("skipping the contact dig must be refused when a profile is on file, and the refusal must name the one job that does it: %v", res2["problems"])
 	}
 
 	// the real contact surfaces are sub-pages, not "/about": a run that visited
@@ -1311,5 +1311,40 @@ func TestFacebookContactSurfaces(t *testing.T) {
 	id := map[string]any{"evidence": []any{map[string]any{"url": "https://www.facebook.com/reel/12345"}}}
 	if dossierReadAboutTab(d, id) {
 		t.Error("a reel page must not count as having looked for contact details")
+	}
+}
+
+// TestContactsCapabilityLadderSatisfiesGate: the collector now walks the whole
+// ladder inside ONE job whose record URL is the profile BASE, so no evidence URL
+// carries a directory_* slug even on a perfect run. The gate must read the
+// capability's own `checked` audit trail, or every correct run gets refused and
+// the lead is parked forever — the exact loop this gate was built to end.
+func TestContactsCapabilityLadderSatisfiesGate(t *testing.T) {
+	ed := func(checked ...string) map[string]any {
+		c := make([]any, len(checked))
+		for i, s := range checked {
+			c[i] = s
+		}
+		return map[string]any{"hooks": []any{}, "email_discovery": map[string]any{
+			"profile_url": "https://www.facebook.com/bgvinvest", "emails": []any{}, "checked": c}}
+	}
+	id := map[string]any{"evidence": []any{map[string]any{"url": "https://www.facebook.com/bgvinvest"}}}
+
+	// a sub-tab rendered — the high-yield surface was genuinely read
+	if !dossierReadAboutTab(ed("current_page", "about", "directory_contact_info"), id) {
+		t.Error("a run whose checked list reached directory_contact_info must satisfy the gate")
+	}
+	// most PERSONAL profiles offer no Contact-info sub-tab at all (12 of 13 verified
+	// by hand). Entering About and finding nothing to click is the honest outcome;
+	// refusing it would park every personal-profile lead for good.
+	if !dossierReadAboutTab(ed("current_page", "about"), id) {
+		t.Error("entering About and finding no sub-tab is a real outcome and must satisfy the gate")
+	}
+	// but a bare page read is NOT the ladder — that is what the failing passes did
+	if dossierReadAboutTab(ed("current_page"), id) {
+		t.Error("reading only the rendered profile page must not count as having run the ladder")
+	}
+	if dossierReadAboutTab(map[string]any{"hooks": []any{}}, id) {
+		t.Error("no email_discovery record at all must not count as having run the ladder")
 	}
 }

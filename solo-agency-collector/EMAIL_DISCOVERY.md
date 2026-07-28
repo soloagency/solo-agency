@@ -1,6 +1,6 @@
 # Finding a lead's email on Facebook — collector capability + how a playbook must use it
 
-Status: capability shipped in extension build `0.1.51-profile-contacts`; the ladder itself
+Status: capability shipped in extension build `0.1.58`; the ladder itself
 was measured on real profiles (evidence below). Read this before writing any enrichment
 prose about "we couldn't find an email".
 
@@ -33,10 +33,20 @@ One job digs the whole profile and returns any published address.
 Output — `records.items[0]` is a `ContactRecord`:
 
 ```json
-{ "profile_url": "...", "emails": ["info@bgv.com.vn"],
+{ "profile_url": "https://www.facebook.com/bgvinvest",
+  "emails": ["info@bgv.com.vn"],
+  "websites": ["https://bgv.com.vn"],
   "found_on": "current_page",
-  "checked": ["current_page", "directory_contact_info"] }
+  "checked": ["current_page", "about", "directory_contact_info"] }
 ```
+
+| Output | Meaning |
+|---|---|
+| `profile_url` | the profile BASE the job resolved — **not** a sub-tab URL, even when the answer came from one |
+| `emails` | published addresses, junk domains filtered |
+| `websites` | outbound links found on the profile (usually from `directory_links`). This IS the website hop's input — do not re-scan the profile for it. |
+| `found_on` | the surface that yielded the address, or `null` |
+| `checked` | the surfaces that actually RENDERED, in visit order. Includes `about` when the ladder had to enter the About section first — which is the normal case for a plain profile URL. |
 
 ### What it actually does (the ladder)
 
@@ -58,10 +68,14 @@ made discovery flaky.
    `profile.php?id=<id>&sk=directory_contact_info`.
 3. **`directory_intro`**
 4. **`directory_basic_info`**
-5. **`directory_links`** — often carries the website when no address is published.
+5. **`directory_links`** — often carries the website when no address is published; what it
+   yields comes back in `websites`.
 
-Sub-tabs are fetched same-origin from the operator's own logged-in session — the same
-pages a click would open. Nothing hidden is expanded and the tab never navigates away.
+**Known limit — "See more" is expanded once, on the entry page only.** The un-truncation runs
+in the generic capture step before this capability is even injected, and is not re-run on the
+sub-tabs the ladder then clicks into. An address truncated *inside* a sub-tab can be missed, so
+a sub-tab miss is weaker evidence than a main-page miss. It has not bitten a real lead yet
+(sub-tab contact blocks are short), but it is why retrying once is worth it.
 
 ### Measured on a 71-lead run (2026-07-28)
 
@@ -100,20 +114,30 @@ time. That is why "we opened the About tab" is not evidence that no email exists
    collector (`sk=reels_tab` link); post/permalink/story → owner is in the URL itself.
 2. **Run `fb.profile.contacts` on that profile.** One job. Do not hand-write a tab crawl.
 3. **Read `records.items[0].emails`.** Empty → check `checked` before drawing a conclusion.
-4. **Only then escalate:** website found on the profile → its Contact/Team/About page and
-   footer → off-platform search.
+4. **Copy the record into the dossier as `email_discovery`** — `{profile_url, emails, websites,
+   found_on, checked}`, verbatim from the collector. The store's `mark_email_not_found` gate
+   reads it; a dossier without it is refused (see below).
+5. **Only then escalate:** `websites` → that site's Contact/Team/About page and footer →
+   off-platform search.
 
 ### Completion gate — when `email_not_found` is allowed
 
-Do NOT mark `email_not_found` unless ALL of these hold:
+Enforced in code (`enrich write`). Do NOT mark `email_not_found` unless ALL of these hold:
 
 - `fb.profile.contacts` ran against the resolved **profile** URL (not the reel/post), and
-- its `checked` array contains `current_page` **and** `directory_contact_info`, and
-- the data point shows `expanded_truncations` ≥ 0 with `opened_contact_tab` recorded
-  (the collector attempted the un-truncation and the contact sub-tab), and
-- the website ladder ran if `directory_links` produced one.
+- the dossier carries `email_discovery.checked` from that run, and it shows the ladder got
+  **past `current_page`** — either a `directory_*` sub-tab rendered, or `about` is present and
+  the profile offered no sub-tab to click (the normal case for a personal profile), and
+- the website ladder ran if `websites` produced one.
 
 Anything less is "not looked for yet", not "not there".
+
+**Gate on `checked`, never on `opened_contact_tab`.** `opened_contact_tab` and
+`expanded_truncations` are generic pipeline flags on the data point, not this capability's audit
+trail. `opened_contact_tab` only goes true when the JOB's url was *already* an about/directory
+url, so on the recommended job shape (a plain profile URL) it stays **false even on a run that
+clicked every sub-tab and found the address**. And `expanded_truncations` is a count, so "≥ 0"
+is true of every run ever. Neither can carry a gate.
 
 ### Records that must be REJECTED outright
 
@@ -122,8 +146,8 @@ someone other than the lead, so its email/phone must never be written to the dos
 
 | Field | Meaning |
 |---|---|
-| `landed_on_self: true` | Facebook fell back to the **operator's own profile** (malformed profile URL or an unsupported tab slug). Its contact details are the operator's. |
-| `url_drifted: true` | The page read is not the item that was requested (a reel player can advance to a recommended reel). |
+| `landed_on_self: true` | Facebook fell back to the **operator's own profile** (malformed profile URL or an unsupported tab slug). Its contact details are the operator's. Detected on the job's ENTRY page, before the ladder's own clicks. |
+| `url_drifted: true` | The page read is not the item that was requested. Only fires for reel/video jobs (a reel player can advance to a recommended reel) — it is inert on a profile job, so it is not a contacts-run health check. |
 
 Known trap: for a numeric profile, `profile.php?id=<id>/about` and
 `profile.php?id=<id>&sk=about_contact_and_basic_info` both land on the operator's own page.

@@ -638,10 +638,43 @@ var fbContactSurfaces = []string{
 	"/about",
 }
 
+// dossierContactsLadderRan: the collector's `fb.profile.contacts` capability walks
+// the whole ladder inside ONE job, so its record's URL is the profile BASE — no
+// evidence URL ever carries a directory_* slug even on a perfect run. What it does
+// carry is `checked`: the surfaces that actually RENDERED, written by the extension,
+// not by the agent. Copy it into the dossier as `email_discovery.checked` and this
+// counts as having read the contact surfaces.
+//
+// Passing needs more than "current_page": a bare page read is what the old failing
+// passes already did. Either a directory_* sub-tab rendered, or the ladder entered
+// About and found no sub-tab to click — which is the honest outcome for most personal
+// profiles (12 of 13 verified by hand), and refusing those would park them forever.
+func dossierContactsLadderRan(dossier map[string]any) bool {
+	ed := mMap(dossier, "email_discovery")
+	if ed == nil {
+		return false
+	}
+	for _, v := range mList(ed, "checked") {
+		s := strings.ToLower(fmt.Sprint(v))
+		if s == "about" {
+			return true
+		}
+		for _, t := range fbContactSurfaces {
+			if strings.Contains(s, t) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // dossierReadAboutTab: did any evidence URL point at a Facebook surface that can
 // actually show an address? Verifiable from the data, unlike a self-reported
 // "I checked the profile".
 func dossierReadAboutTab(dossier, ident map[string]any) bool {
+	if dossierContactsLadderRan(dossier) {
+		return true
+	}
 	for _, u := range dossierEvidenceURLs(dossier, ident) {
 		l := strings.ToLower(u)
 		if !strings.Contains(l, "facebook.com") {
@@ -1077,7 +1110,7 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 			// search never opened the one page where the address usually sits: two
 			// LeadUp profiles published their address there and still came back
 			// "no email". If we know the profile, that tab must have been visited.
-			problems = append(problems, "mark_email_not_found REFUSED: a Facebook profile is on file but no evidence URL points at a surface that can show an address. A business profile almost always publishes it on Facebook itself: read the bio on the profile (expand \"See more\"), then /directory_contact_info, /directory_intro, /directory_basic_info, /directory_links — each is a SEPARATE url, and the collector only reads the page you point it at. Only after those come up empty is the website hop worth spending")
+			problems = append(problems, "mark_email_not_found REFUSED: a Facebook profile is on file but nothing in this dossier shows the profile was dug for an address. Run ONE collector job — capability fb.profile.contacts on the PROFILE url — and copy its record into the dossier as email_discovery {checked, found_on, emails, websites}. That capability walks the bio (expanding \"See more\") and the About sub-tabs contact_info/intro/basic_info/links itself; its `checked` list is the audit trail this gate reads. Only after it comes back empty is the website hop worth spending")
 		case dossierLookedBeyondFacebook(dossier, ident):
 			enrichment["email_not_found_at"] = now
 		default:
