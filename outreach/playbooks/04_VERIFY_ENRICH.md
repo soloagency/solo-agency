@@ -145,6 +145,24 @@ wins.
    | 6 | the website from #5, its Contact/Team/About page and footer | only worth the hop after 1-5 are empty |
    | 7 | licence roster or directory, web search, reverse search | the off-platform ladder, last |
 
+   **Rows 1-5 are ONE collector job, not five.** Submit capability `fb.profile.contacts` against
+   the PROFILE url (a reel/post url is not a profile — resolve the owner first). The capability
+   enters About and CLICKS each sub-tab itself, waiting for the render, and expands "See more"
+   on the bio. Do NOT hand-write a five-job tab crawl: fetching those sub-tabs returns the app
+   shell with no contact block, which is how a run can claim it "checked" a page it never saw.
+
+   **Copy its record into the dossier as `email_discovery`** — `{profile_url, emails, websites,
+   found_on, checked}`, verbatim. `checked` lists the surfaces that actually rendered and is the
+   audit trail `mark_email_not_found` is gated on; a dossier without it gets the conclusion
+   refused. Rows 6-7 stay separate steps, and their input is that record's `websites` — do not
+   re-scan the profile to find the site. Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`.
+
+   **One empty result is not evidence.** The same profile on the same build has returned an
+   address in one run and nothing in the next, purely from render timing — retry once before
+   concluding. And "no Contact info tab" is a legitimate finding: most personal profiles simply
+   do not offer one (12 of 13 verified by hand), so `checked: [current_page, about]` with no
+   sub-tab means the tab is absent, not that a click was missed.
+
    **Getting the address and getting the hooks are two DIFFERENT jobs — do not merge them.**
    `fb.profile.contacts` walks rows 1-5 and must NOT scroll: the address sits in the bio and the
    four `directory_*` sub-pages, never further down a feed, so scrolling only fires GraphQL queries
@@ -158,10 +176,10 @@ wins.
    loads instead of ~200, with nothing lost.
 
    **Rows 1-5 are where the answer usually is.** A person selling a service publishes a way to be
-   contacted; that is the whole point of their page. Treat the website hop (6) and the off-platform
-   ladder (7) as the EXCEPTION, not the routine next step. Each row is a separate collector job:
-   the collector reads only the page you point it at, so "I enriched the profile" is not a step,
-   the URL you opened is.
+   contacted; that is the whole point of their page. On the last measured 71-lead run, 42% had the
+   address published on Facebook — and **82% of those were only readable after "See more" was
+   expanded**, which is why "we opened the profile" was never the same as having looked. Treat the
+   website hop (6) and the off-platform ladder (7) as the EXCEPTION, not the routine next step.
 
    **Batch-resolve BEFORE deep enrichment (reel-heavy lists).** User lists routinely carry many
    content links of the SAME person. So: resolve ALL unresolved seeds to owner profiles FIRST

@@ -104,9 +104,15 @@ the first hit: **(1)** the profile itself with the bio expanded via "See more", 
 `…/directory_links` (no address, but the website is here), **(6)** that website's Contact/Team/About
 page and footer, **(7)** the off-platform ladder. About is a CHOOSER, not a page — each sub-page is
 its own URL, and rows 1-5 are where a business address almost always is; the website hop is the
-exception, not the routine next step. Each row is a separate job: the collector reads only the page
-you point it at. `enrich write` refuses `mark_email_not_found` when a profile is on file and no
-evidence URL points at one of those Facebook contact surfaces. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
+exception, not the routine next step. **Rows 1-5 are ONE job, not five:** enqueue capability
+`fb.profile.contacts` against the PROFILE url and it walks them itself — entering About, CLICKING
+each sub-tab (a fetch of those returns the app shell with no contact block) and expanding "See
+more". Copy its record into the dossier as `email_discovery` `{profile_url, emails, websites,
+found_on, checked}`; rows 6-7 stay separate steps and take their input from `websites`. `enrich
+write` refuses `mark_email_not_found` unless `email_discovery.checked` shows the ladder got past
+`current_page` (a `directory_*` sub-tab rendered, or `about` with no sub-tab offered — the normal
+case for a personal profile). One empty result is not evidence: render timing flips the same
+profile between runs, so retry once. Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
 to its owner profile before any deep enrichment — the store auto-consolidates fragments that
 share a profile/email (full union: all reels + hooks kept; result reports `consolidated`), so
 you deep-enrich each unique person exactly ONCE. Always continue against the returned `lead_id`
