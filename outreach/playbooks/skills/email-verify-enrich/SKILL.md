@@ -183,7 +183,17 @@ and STOP — do not run Tier 2 (don't spend the proof-of-life pass on a dead lea
 for what each actually yields) and **gather as MANY evidenced Layer-B proof-of-life points as you
 can find — do NOT cap at one or three.** Each point is a conclusion-basis the writer will weave, so
 more solid, fresh, on-goal points = a richer message and a higher `personalization_confidence`;
-there is no upside to stopping early. **Write `summary` in the CONTENT's own language, quoting its
+there is no upside to stopping early. **Record the profile's NAME while you are there.** Set
+`identity.name` to the name the profile actually shows, `identity.entity_type` to
+`person|company|page`, and for a person `identity.name_given` to the single word a greeting uses
+(Vietnamese: the LAST word of "Nguyễn Văn An" is "An"; English: the first word of "Charlie Bui" is
+"Charlie" — code cannot know the order, you can). This is what stops the CRM showing `c_...` and
+what lets a writer greet properly. **Never copy a page's tagline or bio into `name`** — the header
+element often holds "Mortgage Broker based in DFW servicing all of Texas" or "🌿 Dược sĩ Diễm Phúc";
+`enrich write` refuses those with a reason, and a wrong value would appear as the reader's name in
+a real greeting. If the page name embeds a person ("Sống khoẻ cùng Liêm"), the name is the page
+name and `name_given` is the person ("Liêm"). `current_company` is the EMPLOYER, never a restatement
+of `name`. **Write `summary` in the CONTENT's own language, quoting its
 distinctive phrase** (a Vietnamese post gets a Vietnamese summary carrying e.g. "hồ sơ di trú", not
 an English paraphrase): the summary is what the draft gate matches against the email body, and an
 email in the recipient's language can never overlap a paraphrase in another one — a translated

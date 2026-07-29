@@ -100,6 +100,32 @@ wins.
    segmentation criteria, and never appear in copy — treat them exactly like `personal`
    signals: push them to `do_not_mention`.
 
+4c. **Record the profile's NAME while you are reading it.** Set `identity.name` (the name the
+   profile actually shows), `identity.entity_type` (`person|company|page`), and for a person
+   `identity.name_given` — the ONE word a greeting uses (Vietnamese: the last word of "Nguyễn Văn
+   An" is "An"; English: the first word of "Charlie Bui"; code cannot know the order, you can).
+   `enrich write` promotes it to `contact.name` when the contact has none — this is what stops the
+   CRM listing leads as `c_...` — and refuses values that are not names (page chrome, phone/Zalo
+   numbers, emoji taglines, bios), because a bad value becomes the reader's NAME in a real
+   greeting. A page name or a "Person - Tagline" composite is stored as displayable but NOT
+   greetable. `current_company` is the EMPLOYER, never a copy of the name.
+
+4d. **Classify every owner-lookup failure — an infrastructure hiccup is not an exhausted search.**
+   Stamp `identities.seeds[].resolution = {state, attempts, last_error, last_attempt_at}`:
+   `resolved`, `retryable` (the COLLECTOR failed in a fixable way), or `exhausted` (the owner
+   genuinely cannot be resolved). `retryable` covers a Messenger/chat overlay rendered instead of
+   the page, an empty result, a timeout, or a `url_drifted` record. On `retryable`: close the
+   overlay, open the URL in a clean tab, retry — up to 3 attempts total — and only then mark
+   `exhausted`. **Why this is a hard rule:** on one live batch, 134 of 136 unresolved reel seeds
+   were Messenger-overlay contamination. The owner filter refused that data correctly (it had
+   already prevented a wrong merge), but every one was then counted as an ordinary unresolved lead,
+   the run drafted whatever was ready, and reported — infrastructure noise was indistinguishable
+   from finished work. `enrich status` now answers `seed_retryable_failure` for these and the
+   approval report counts them in their own bucket: **a run with any left is not complete**, however
+   many drafts it produced. And never merge or delete an unresolved seed record to make the number
+   go down — with no verified profile, email or phone there is no identity to dedupe on, so the
+   merge would be a guess.
+
 5. **Anchorless leads — resolution ladder first (DESIGN §9.1b): seed → profile → email → hooks.**
    When `enrich status` says `seed_unresolved`, Tier 1's FIRST move is origin resolution. **Take the
    owner from the URL whenever the URL carries it — do not spend a collector call:**

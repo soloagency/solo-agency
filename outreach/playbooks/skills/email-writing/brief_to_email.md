@@ -99,7 +99,11 @@ tells you what to derive; the email only ever contains the RESULT.
 
 ## Addressing — how the name is used
 
-- **A person**: greet by GIVEN name only — "anh Liêm", "chị Hà", "Hi Grant" — never the full
+- **Read the brief first**: `lead.name_greetable` says whether the stored name may follow
+  "Chào"/"Hi" at all, and `lead.name_missing` says there is no name. Not greetable (a page name, a
+  "Person - Tagline" composite) or missing → neutral greeting ("Chào bạn", "Hi team"). **Never
+  invent a name from the profile URL slug** — the enrich skill forbids it and a slug is not a name.
+- **A person**: greet by GIVEN name only (`lead.name.given` when the brief carries it) — "anh Liêm", "chị Hà", "Hi Grant" — never the full
   name glued after a gender word ("anh Quang Ngô" is a form letter; "anh Quang" is a person).
 - **A page or company**: the name alone, NO gender word ever — "Chào BGV Invest", "Hi team".
   A page is not a person: "anh Sống khoẻ cùng Liêm" shipped in a live draft and reads absurd.
