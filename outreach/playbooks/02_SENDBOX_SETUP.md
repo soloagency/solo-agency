@@ -140,7 +140,13 @@ Field enums and meaning:
 
 ## 4. Warmup Ramp (documented, operator-set)
 
-New mailboxes must ramp volume slowly or they get flagged. The ramp is documented policy that the operator sets on the box's `quota_today`; the tool does not auto-increase it.
+New mailboxes must ramp volume slowly or they get flagged. **The ramp is now CONFIG, computed in
+code** — set `warmup_ramp: {start_date, start_quota, step_per_day, max_quota}` on the box (the
+operator does it on the Sendboxes page, "Daily quota & warm-up"), and every consumer (send cap,
+rotation, the UI) derives today's cap as `min(max_quota, start_quota + step_per_day × days)`.
+Nothing mutates daily and restarts change nothing. A box with no `warmup_ramp` uses its fixed
+`quota_today`. The old contract ("documented policy the operator sets by hand; the tool does not
+auto-increase it") is retired: hand-advanced ramps were never advanced.
 
 - **Start at 20/day** (`warmup_stage: week_1`; this is the default `quota_today` a freshly authed box gets).
 - **Increase by roughly +5 per week** as the box behaves (few bounces, some replies, no spam complaints): ~25 in week 2, then continue upward.

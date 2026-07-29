@@ -8,7 +8,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | OUTREACHCRM_PLAYBOOK.md | 465 | 523f4d5c1185a5203b33ec80d0e93419ccc353c496cb469053af036ce675162a | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 497 | deb12399b61ef2d8ae6056df9ac197ed8ed0555d569e0656448098af7543da82 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 736 | 895b6fb68ae2843c0c15122b9552af7091496897fe41e8284accd8faaf976808 | --- |
-| playbooks/02_SENDBOX_SETUP.md | 264 | bc89fb41f2cf1b7705a24d208d8e1cb2455b7e5758ab7f0a5b58bb07947fb79a | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/02_SENDBOX_SETUP.md | 270 | 0025a818d3bcb5ea7f88197fbe3d48a08dfb3f4750099329865d6bef44690533 | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/03_IMPORT_LIST.md | 324 | fcfdf069cf778eafd8b9dc0236786c38149cc2b548f18e02527b4d3b03326bf6 | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/04_VERIFY_ENRICH.md | 303 | b9d261f9422208953fc00a54b02e50e6408d19f5bc826655367559bf92071839 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/05_CAMPAIGN_MANAGEMENT.md | 312 | 62a31235549b8dc5de313dca4d437c090a8300b0612d8da3a5fb7fef30df8b99 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
