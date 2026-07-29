@@ -224,6 +224,55 @@ func bankMessagesInBody(text string, bank []any) []string {
 	return out
 }
 
+var draftWordTokRe = regexp.MustCompile(`[\p{L}\p{N}]+`)
+
+func draftWords(s string) []string {
+	return draftWordTokRe.FindAllString(strings.ToLower(s), -1)
+}
+
+// longestSharedWordRun: the longest run of CONSECUTIVE words the two texts
+// share, and the run itself. Calibrated on the 13 operator-approved drafts:
+// genuine weaving tops out at 7 consecutive words (reusing the content's own
+// key phrase once); the pasted draft ran 13, four times, in quotes.
+func longestSharedWordRun(a, b []string) (int, string) {
+	best, bestEnd := 0, 0
+	prev := map[int]int{}
+	for i := range a {
+		cur := map[int]int{}
+		for j := range b {
+			if a[i] == b[j] {
+				v := prev[j-1] + 1
+				cur[j] = v
+				if v > best {
+					best, bestEnd = v, i
+				}
+			}
+		}
+		prev = cur
+	}
+	if best == 0 {
+		return 0, ""
+	}
+	return best, strings.Join(a[bestEnd-best+1:bestEnd+1], " ")
+}
+
+// repeatedSixGram: any 6-word phrase occurring >=3 times in one body. Nobody
+// writes that way; a template variable expanded does.
+func repeatedSixGram(ws []string) string {
+	if len(ws) < 6 {
+		return ""
+	}
+	c := map[string]int{}
+	for i := 0; i+6 <= len(ws); i++ {
+		g := strings.Join(ws[i:i+6], " ")
+		c[g]++
+		if c[g] >= 3 {
+			return g
+		}
+	}
+	return ""
+}
+
 // vnMailMergeRe: "anh/chị" is a mail-merge blank, not an address. The operator's
 // rule is to read the gender from the name (anh / chị) and fall back to "bạn" —
 // it was written into the playbook and 22 of 22 Vietnamese drafts on the next
@@ -476,9 +525,44 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 		}
 	}
 
+	// (3b2) Weaving means saying what the content said in YOUR voice — and the
+	// overlap heuristic in hook_not_woven quietly rewards the opposite: pasting
+	// the summary verbatim is the surest way to pass it. One live draft did
+	// exactly that, quoting a truncated ENGLISH dossier summary four times
+	// inside a Vietnamese email. Bound it from above: share the content's key
+	// phrase, never a lifted block.
+	{
+		bodyWords := draftWords(a.BodyText)
+		for _, h := range cleanHooks {
+			hm, _ := h.(map[string]any)
+			dh := evidenceByURL[mStr(hm, "evidence_url")]
+			if dh == nil {
+				continue
+			}
+			sumWords := draftWords(mStr(dh, "summary"))
+			run, phrase := longestSharedWordRun(sumWords, bodyWords)
+			reps := 0
+			if phrase != "" {
+				reps = strings.Count(strings.Join(bodyWords, " "), phrase)
+			}
+			if run >= 10 || (run >= 6 && reps >= 2) {
+				return nil, storageErrf("summary_pasted: %d consecutive words of the hook summary appear verbatim in the body (%q, ×%d) — that is the internal note lifted, not the content woven. Say what the content SAID in your own voice, in the email's language, reusing at most its short key phrase. If the stored summary is in a different language than this email, fix the dossier first: re-run enrich write with the summary in the CONTENT's own language, then draft", run, phrase, reps)
+			}
+		}
+		if g := repeatedSixGram(bodyWords); g != "" {
+			return nil, storageErrf("phrase_stuffing: the phrase %q appears three or more times in one email — a template variable expanded, not a person writing. Name the topic once, then refer to it naturally (\"chủ đề đó\", \"góc đó\", a pronoun)", g)
+		}
+	}
+
 	// (3c) House-style gates that measured drift on live batches.
 	if vnMailMergeRe.MatchString(a.Subject + " " + a.BodyText) {
 		return nil, storageErrf("vn_register: the draft addresses the reader as \"anh/chị\" — a mail-merge blank, not a person. Read the gender from the NAME: \"anh\" for a male name, \"chị\" for a female name, and \"bạn\" when the name does not settle it")
+	}
+	if gm := regexp.MustCompile(`(?i)chào\s+(anh|chị)\b`).FindString(a.BodyText); gm != "" {
+		rest := strings.Replace(strings.ToLower(a.BodyText), "bạn bè", "", -1)
+		if regexp.MustCompile(`(^|[^\p{L}])bạn([^\p{L}]|$)`).MatchString(rest) {
+			return nil, storageErrf("vn_register: the email greets with %q and later addresses the reader as \"bạn\" — one person, one register. Pick the gendered address or \"bạn\" and hold it for the whole email", strings.TrimSpace(gm))
+		}
 	}
 	// The reader knows their own name. One live draft repeated the page name four
 	// times ("anh Sống khoẻ cùng Liêm" ×3 + once more) — a form letter announcing

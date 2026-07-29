@@ -1863,3 +1863,61 @@ func TestNameOveruseAndPageAsPerson(t *testing.T) {
 		t.Fatalf("given-name greeting with the page named once must pass: %s%s", r3.Stdout, r3.Stderr)
 	}
 }
+
+// TestSummaryPastedAndRegisterMix: the hook-woven overlap check quietly rewards
+// pasting — the surest way to pass it is to quote the summary verbatim, and one
+// live draft quoted a truncated ENGLISH summary four times inside a Vietnamese
+// email, greeting "anh Charlie" then switching to "bạn". Calibrated on the 13
+// approved drafts: genuine weaving tops out at 7 consecutive shared words.
+func TestSummaryPastedAndRegisterMix(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+	mustOK(run("2026-07-28T09:01:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	mustOK(run("2026-07-28T09:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "intro",
+		"--json", `{"audience":{"segment":"all"},"sendboxes":["sb-a"],"daily_quota":10,"goal":{"goal_type":"direct_sale"}}`))
+	mustOK(run("2026-07-28T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_ch","name":{"full":"Charlie Bui"},"identities":{"emails":[{"address":"ch@x.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_ch",
+		"--campaign", "intro", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"A public post advises homebuyers not to use all available cash for the down payment and keep reserves","evidence_url":"https://www.facebook.com/reel/88","observed_date":"2026-07-20","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+	write := func(body string) xresult {
+		return run("2026-07-28T09:05:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_ch",
+			"--campaign", "intro", "--json", string(mustJSON(t, map[string]any{
+				"step": 1, "subject": "Về lời khuyên down payment", "body_text": body,
+				"hooks_used": []any{map[string]any{"evidence_url": "https://www.facebook.com/reel/88"}}})))
+	}
+
+	// the summary lifted wholesale is refused
+	r := write(`Chào anh Charlie, mình dừng lại ở nội dung "advises homebuyers not to use all available cash for the down payment and" vì nó cụ thể. https://x.test/p`)
+	if r.Code == 0 || !strings.Contains(r.Stdout+r.Stderr, "summary_pasted") {
+		t.Fatalf("a lifted summary block must be refused: %s%s", r.Stdout, r.Stderr)
+	}
+	// the same phrase stuffed 3x is refused even when each instance is short of the paste bar
+	r2 := write(`Chào anh Charlie, góc lời khuyên giữ lại tiền dự phòng khi mua nhà rất đáng nói. Video quanh lời khuyên giữ lại tiền dự phòng khi mua nhà sẽ chạy tốt. Kế hoạch lấy lời khuyên giữ lại tiền dự phòng khi mua nhà làm trục: https://x.test/p`)
+	if r2.Code == 0 || !strings.Contains(r2.Stdout+r2.Stderr, "phrase_stuffing") {
+		t.Fatalf("a phrase repeated three times must be refused: %s%s", r2.Stdout, r2.Stderr)
+	}
+	// greeting anh then switching to bạn is refused
+	r3 := write(`Chào anh Charlie, video khuyên người mua nhà đừng dốc hết tiền mặt vào down payment là góc rất thật. Bạn có thể mở kế hoạch 30 ngày ở đây: https://x.test/p`)
+	if r3.Code == 0 || !strings.Contains(r3.Stdout+r3.Stderr, "vn_register") {
+		t.Fatalf("mixed address register must be refused: %s%s", r3.Stdout, r3.Stderr)
+	}
+	// woven in the writer's own voice, one register — passes
+	if r4 := write(`Chào anh Charlie, video khuyên người mua nhà đừng dốc hết tiền mặt vào down payment mà giữ lại quỹ dự phòng là lời khuyên hiếm ai chịu nói. Anh xem kế hoạch 30 ngày ở đây: https://x.test/p`); r4.Code != 0 {
+		t.Fatalf("a genuine weave must pass: %s%s", r4.Stdout, r4.Stderr)
+	}
+}
