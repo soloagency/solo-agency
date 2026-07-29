@@ -1812,3 +1812,54 @@ func TestVnRegisterAndTemplateSentence(t *testing.T) {
 		t.Fatalf("distinct wording must pass: %s%s", r3.Stdout, r3.Stderr)
 	}
 }
+
+// TestNameOveruseAndPageAsPerson: a live draft greeted a PAGE as a person and
+// repeated its full name four times ("anh Sống khoẻ cùng Liêm") — a form letter
+// announcing itself. The rule: given name for a person, bare page name for a
+// company, and the name at most twice.
+func TestNameOveruseAndPageAsPerson(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+	mustOK(run("2026-07-28T09:01:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	mustOK(run("2026-07-28T09:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "intro",
+		"--json", `{"audience":{"segment":"all"},"sendboxes":["sb-a"],"daily_quota":10,"goal":{"goal_type":"direct_sale"}}`))
+	mustOK(run("2026-07-28T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_pg","name":{"full":"Sống khoẻ cùng Liêm"},"identities":{"emails":[{"address":"liem@x.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_pg",
+		"--campaign", "intro", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"video về cách cơ bắp được tạo ra","evidence_url":"https://www.facebook.com/reel/77","observed_date":"2026-07-20","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+	write := func(body string) xresult {
+		return run("2026-07-28T09:05:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_pg",
+			"--campaign", "intro", "--json", string(mustJSON(t, map[string]any{
+				"step": 1, "subject": "Về video cơ bắp của kênh", "body_text": body,
+				"hooks_used": []any{map[string]any{"evidence_url": "https://www.facebook.com/reel/77"}}})))
+	}
+	// a gender word glued to a page name is refused
+	r := write("Chào anh Sống khoẻ cùng Liêm, video về cách cơ bắp được tạo ra rất dễ hiểu và đáng nhân rộng. https://x.test/p")
+	if r.Code == 0 || !strings.Contains(r.Stdout+r.Stderr, "vn_register") {
+		t.Fatalf("a page greeted as a person must be refused: %s%s", r.Stdout, r.Stderr)
+	}
+	// name repeated 3+ times is refused
+	r2 := write("Chào Sống khoẻ cùng Liêm. Video của Sống khoẻ cùng Liêm về cách cơ bắp được tạo ra rất rõ. Kế hoạch cho Sống khoẻ cùng Liêm ở đây: https://x.test/p")
+	if r2.Code == 0 || !strings.Contains(r2.Stdout+r2.Stderr, "name_overuse") {
+		t.Fatalf("a name repeated through the body must be refused: %s%s", r2.Stdout, r2.Stderr)
+	}
+	// bare page name once, person greeted by given name — passes
+	if r3 := write("Chào anh Liêm, video về cách cơ bắp được tạo ra trả lời đúng một câu hỏi người tập hay bỏ qua, và đó là kiểu nội dung giữ người xem quay lại. Kế hoạch 30 ngày ở đây: https://x.test/p"); r3.Code != 0 {
+		t.Fatalf("given-name greeting with the page named once must pass: %s%s", r3.Stdout, r3.Stderr)
+	}
+}

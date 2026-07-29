@@ -480,6 +480,22 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 	if vnMailMergeRe.MatchString(a.Subject + " " + a.BodyText) {
 		return nil, storageErrf("vn_register: the draft addresses the reader as \"anh/chị\" — a mail-merge blank, not a person. Read the gender from the NAME: \"anh\" for a male name, \"chị\" for a female name, and \"bạn\" when the name does not settle it")
 	}
+	// The reader knows their own name. One live draft repeated the page name four
+	// times ("anh Sống khoẻ cùng Liêm" ×3 + once more) — a form letter announcing
+	// itself. And a gender word glued to a multi-word PAGE name is not a person
+	// being addressed; when a page name embeds a person, greet that person.
+	if full := strings.TrimSpace(mStr(mMap(contact, "name"), "full")); full != "" && strings.Count(full, " ") >= 1 {
+		lowBody := strings.ToLower(a.BodyText)
+		lowFull := strings.ToLower(full)
+		if n := strings.Count(lowBody, lowFull); n >= 3 {
+			return nil, storageErrf("name_overuse: %q appears %d times in the body — the reader knows who they are; use the name in the greeting (given name for a person, bare page name for a company) and at most once more", full, n)
+		}
+		if strings.Count(full, " ") >= 2 {
+			if m, _ := regexp.MatchString(`(?i)\b(anh|chị)\s+`+regexp.QuoteMeta(lowFull), lowBody); m {
+				return nil, storageErrf("vn_register: %q is a PAGE name, and a gender word glued to it addresses a page as a person. Use the bare page name, or if the name embeds a person, greet that person by given name", full)
+			}
+		}
+	}
 	if owners := c.campaignSentenceOwners(campaignSlug, leadID); len(owners) > 0 {
 		for _, sent := range draftSentenceSet(a.BodyText) {
 			if other, ok := owners[sent]; ok {
