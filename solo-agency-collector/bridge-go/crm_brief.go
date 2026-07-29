@@ -194,17 +194,17 @@ func (c *crmStore) draftBrief(contactID, campaignSlug, now string) (map[string]a
 		"schema_version": 1, "issued_at": now,
 		"campaign": campaignSlug, "lead_id": leadID,
 		"client": client,
+		// description + profile ARE the goal; the old objective/offer/value_prop
+		// campaign fields were copies of profile sections the brief already
+		// carries, and two sources for one fact is how contradictions ship.
 		"campaign_goal": map[string]any{
-			"description":       mStr(goal, "description"),
-			"goal_type":         mStr(goal, "goal_type"),
-			"objective":         mStr(goal, "objective"),
-			"offer":             mStr(goal, "offer"),
-			"value_proposition": mStr(goal, "value_proposition"),
-			"proof_points":      mList(goal, "proof_points"),
-			"cta":               mMap(goal, "cta"),
-			"companion_doc":     mMap(goal, "companion_doc"),
-			"message_bank":      bank,
+			"description":   mStr(goal, "description"),
+			"goal_type":     mStr(goal, "goal_type"),
+			"cta":           mMap(goal, "cta"),
+			"companion_doc": mMap(goal, "companion_doc"),
+			"message_bank":  bank,
 		},
+		"signature": c.senderSignature(),
 		"bank_rotation": map[string]any{
 			"already_taught_this_lead": orEmptyList(anySlice(used)),
 			"fresh_for_this_lead":      orEmptyList(anySlice(fresh)),
@@ -232,6 +232,27 @@ func (c *crmStore) draftBrief(contactID, campaignSlug, now string) (map[string]a
 		return nil, err
 	}
 	return brief, nil
+}
+
+var profileFieldRe = regexp.MustCompile(`(?m)^(from_name|from_title|signature_block):\s*(.+)$`)
+
+// senderSignature pulls who signs from the profile's sending_identity — the
+// writer must end the email as this person, and the missing_signature gate
+// verifies it did.
+func (c *crmStore) senderSignature() map[string]any {
+	out := map[string]any{}
+	p := c.clientProfilePath()
+	if p == "" {
+		return out
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		return out
+	}
+	for _, m := range profileFieldRe.FindAllStringSubmatch(string(raw), -1) {
+		out[m[1]] = strings.TrimSpace(m[2])
+	}
+	return out
 }
 
 func anySlice(ss []string) []any {

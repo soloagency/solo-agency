@@ -647,8 +647,8 @@ func TestUICampaignPages(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("campaign detail: %d", rec.Code)
 	}
-	for _, want := range []string{"book 5 calls", "free sample video", "use https://x/demo",
-		"Pause campaign", "did 40 videos for KW", "Worth a look?"} {
+	for _, want := range []string{"use https://x/demo",
+		"Pause campaign", "Worth a look?", "f-goaldesc", "Key messages"} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("campaign detail missing %q", want)
 		}
@@ -909,9 +909,9 @@ func TestCampaignEditPageRendersKeyMessages(t *testing.T) {
 		t.Fatalf("campaign page must render: %v", err)
 	}
 	out := sb.String()
-	for _, want := range []string{"f-goaldesc", "gioi thieu dich vu video", "agent&rsquo;s reading",
+	for _, want := range []string{"f-goaldesc", "gioi thieu dich vu video",
 		"Key messages", "f-bank", "Platforms reward posting",
-		"claim | link", "1 of them are yours"} {
+		"1 of them are yours"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("campaign page is missing %q", want)
 		}

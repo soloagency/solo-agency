@@ -273,6 +273,22 @@ func repeatedSixGram(ws []string) string {
 	return ""
 }
 
+// vnFoldReplacer folds Vietnamese diacritics to ASCII so "Bình" matches a
+// profile from_name stored as "Binh" (and vice versa) without pulling in a
+// normalization library.
+var vnFoldReplacer = strings.NewReplacer(
+	"á", "a", "à", "a", "ả", "a", "ã", "a", "ạ", "a", "ă", "a", "ắ", "a", "ằ", "a", "ẳ", "a", "ẵ", "a", "ặ", "a",
+	"â", "a", "ấ", "a", "ầ", "a", "ẩ", "a", "ẫ", "a", "ậ", "a", "đ", "d",
+	"é", "e", "è", "e", "ẻ", "e", "ẽ", "e", "ẹ", "e", "ê", "e", "ế", "e", "ề", "e", "ể", "e", "ễ", "e", "ệ", "e",
+	"í", "i", "ì", "i", "ỉ", "i", "ĩ", "i", "ị", "i",
+	"ó", "o", "ò", "o", "ỏ", "o", "õ", "o", "ọ", "o", "ô", "o", "ố", "o", "ồ", "o", "ổ", "o", "ỗ", "o", "ộ", "o",
+	"ơ", "o", "ớ", "o", "ờ", "o", "ở", "o", "ỡ", "o", "ợ", "o",
+	"ú", "u", "ù", "u", "ủ", "u", "ũ", "u", "ụ", "u", "ư", "u", "ứ", "u", "ừ", "u", "ử", "u", "ữ", "u", "ự", "u",
+	"ý", "y", "ỳ", "y", "ỷ", "y", "ỹ", "y", "ỵ", "y",
+)
+
+func vnFold(s string) string { return vnFoldReplacer.Replace(strings.ToLower(s)) }
+
 // vnMailMergeRe: "anh/chị" is a mail-merge blank, not an address. The operator's
 // rule is to read the gender from the name (anh / chị) and fall back to "bạn" —
 // it was written into the playbook and 22 of 22 Vietnamese drafts on the next
@@ -551,6 +567,23 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 		}
 		if g := repeatedSixGram(bodyWords); g != "" {
 			return nil, storageErrf("phrase_stuffing: the phrase %q appears three or more times in one email — a template variable expanded, not a person writing. Name the topic once, then refer to it naturally (\"chủ đề đó\", \"góc đó\", a pronoun)", g)
+		}
+	}
+
+	// (3b3) An unsigned email reads as a broadcast. The profile's
+	// sending_identity says who signs; the tail of the body must contain that
+	// name (diacritic-folded, so "Bình" satisfies a from_name of "Binh"). The
+	// rule lived only in the experiment prompts before — the batch written
+	// without those prompts shipped with no signature at all.
+	if fromName := mStr(c.senderSignature(), "from_name"); fromName != "" {
+		lines := strings.Split(strings.TrimSpace(a.BodyText), "\n")
+		tail := lines
+		if len(lines) > 4 {
+			tail = lines[len(lines)-4:]
+		}
+		given := vnFold(strings.Fields(fromName)[0])
+		if !strings.Contains(vnFold(strings.Join(tail, "\n")), given) {
+			return nil, storageErrf("missing_signature: the email does not end with the sender's sign-off — close with the sender's given name and the client name (profile sending_identity.from_name is %q; \"Bình\" / \"Binh\" both satisfy it), above nothing else", fromName)
 		}
 	}
 

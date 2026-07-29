@@ -962,24 +962,6 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 	}
 	goal := mMap(cfg, "goal")
 	cd := mMap(goal, "companion_doc")
-	// A proof point is {claim, evidence_url} — a claim WITH its source. The form
-	// used to render it with fmt.Sprint (so a real one showed up as Go map syntax)
-	// and saved it back as a bare string, which SILENTLY dropped every
-	// evidence_url: opening this page and pressing Save was enough to destroy the
-	// structure. One row per line, `claim | url`, round-trips both halves.
-	var proofLines []string
-	for _, p := range mList(goal, "proof_points") {
-		switch v := p.(type) {
-		case map[string]any:
-			line := mStr(v, "claim")
-			if u := mStr(v, "evidence_url"); u != "" {
-				line += " | " + u
-			}
-			proofLines = append(proofLines, line)
-		default:
-			proofLines = append(proofLines, fmt.Sprint(p))
-		}
-	}
 	// The message bank is what the operator actually wants to fill — the key
 	// messages every email must land — and it was not on this page at all, while
 	// proof_points (rarely applicable, and broken) was. Operator-authored entries
@@ -1011,10 +993,7 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 		"Segment":   mStr(mMap(cfg, "audience"), "segment"),
 		"Sendboxes": mList(cfg, "sendboxes"),
 		"GoalType":  mStr(goal, "goal_type"), "GoalTypes": sortedGoalTypes(),
-		"GoalDesc":  mStr(goal, "description"),
-		"Objective": mStr(goal, "objective"), "Offer": mStr(goal, "offer"),
-		"ValueProp":             mStr(goal, "value_proposition"),
-		"Proof":                 strings.Join(proofLines, "\n"),
+		"GoalDesc":              mStr(goal, "description"),
 		"Bank":                  strings.Join(bankLines, "\n"),
 		"BankOperatorCount":     operatorMsgs,
 		"CTAText":               mStr(mMap(goal, "cta"), "text"),
@@ -2108,20 +2087,10 @@ document.getElementById('submit').addEventListener('click',function(){
 <div class="card">
 <label>Goal <span class="mut">(your words. What should these emails achieve, and what are you offering? The agent derives everything below from this + your client profile.)</span>
 <textarea id="f-goaldesc" style="min-height:90px" placeholder="e.g. Gioi thieu dich vu video cho cac professional, muc tieu la ho mo xem proposal ca nhan hoa va reply">{{.GoalDesc}}</textarea></label>
-<p class="mut" style="margin:-.4rem 0 .9rem;font-size:.85rem">The fields below are <strong>the agent&rsquo;s reading</strong> of your goal and profile. Edit any that read wrong; you never have to fill them yourself.</p>
-<label>Goal type
-<select id="f-goaltype">{{$gt := .GoalType}}{{range .GoalTypes}}<option value="{{.}}"{{if eq . $gt}} selected{{end}}>{{.}}</option>{{end}}</select></label>
-<label>Objective <span class="mut">(one line: what success looks like)</span>
-<input id="f-objective" type="text" value="{{.Objective}}" placeholder="e.g. book 5 intro calls with realtors this month"></label>
-<label>Offer <span class="mut">(what you're actually proposing to them)</span>
-<textarea id="f-offer" style="min-height:70px">{{.Offer}}</textarea></label>
-<label>Value proposition <span class="mut">(why it's worth their time)</span>
-<textarea id="f-valueprop" style="min-height:70px">{{.ValueProp}}</textarea></label>
+<p class="mut" style="margin:-.4rem 0 .9rem;font-size:.85rem">That one answer is all the setup asks for &mdash; the agent derives the rest from it and your client profile (offer, audience, pain points are already there from onboarding).</p>
 <label>Key messages <span class="mut">(one per line — what you want every email to TEACH the reader: the things you know from doing this work that they don't. Not slogans.)</span>
 <textarea id="f-bank" style="min-height:110px" placeholder="e.g. Platforms reward posting that is correct, regular and complete&#10;e.g. Every piece has to be genuinely useful to the viewer — give away knowledge">{{.Bank}}</textarea></label>
 <p class="mut" style="margin:-.4rem 0 .9rem;font-size:.85rem">Each email weaves 1&ndash;2 of these and rotates across the follow-ups, so the reader learns something instead of being pitched. Lines you write here are yours; lines the agent suggested are marked <em>(agent)</em> and you can edit or delete them. {{if eq .BankOperatorCount 0}}<strong>None of these are yours yet</strong> &mdash; an all-agent bank is the product describing itself.{{else}}{{.BankOperatorCount}} of them are yours.{{end}}</p>
-<label>Proof points <span class="mut">(optional &mdash; only real, checkable evidence, one per line as <code>claim | link</code>. Leave empty if you have none yet; an unbacked claim is hype and gets stripped.)</span>
-<textarea id="f-proof" style="min-height:70px" placeholder="e.g. 30 realtors, 400 videos produced in 2025 | https://leadupteam.com/results">{{.Proof}}</textarea></label>
 <label>Call-to-action text <span class="mut">(the one ask at the end of the email)</span>
 <input id="f-cta" type="text" value="{{.CTAText}}" placeholder="e.g. Worth a quick look?"></label>
 </div>
@@ -2167,16 +2136,10 @@ document.getElementById('campform').addEventListener('submit',function(e){
  e.preventDefault();
  var btn=this.querySelector('button[type=submit]');btn.disabled=true;btn.setAttribute('aria-busy','true');
  var msg=document.getElementById('savemsg');msg.textContent='Saving…';
- var proof=document.getElementById('f-proof').value.split('\n').map(function(s){return s.trim()}).filter(Boolean)
-   .map(function(s){var i=s.lastIndexOf('|');return i<0?{claim:s,evidence_url:''}:{claim:s.slice(0,i).trim(),evidence_url:s.slice(i+1).trim()}});
  var bank=document.getElementById('f-bank').value.split('\n').map(function(s){return s.trim()}).filter(Boolean)
    .map(function(s){var a=/\s*\(agent\)\s*$/.test(s);return {msg:s.replace(/\s*\(agent\)\s*$/,''),source:a?'agent':'operator',approved:true}});
  var instructions=document.getElementById('f-comp-instructions').value.trim();
- var goal={goal_type:document.getElementById('f-goaltype').value,
-  objective:document.getElementById('f-objective').value.trim(),
-  offer:document.getElementById('f-offer').value.trim(),
-  value_proposition:document.getElementById('f-valueprop').value.trim(),
-  proof_points:proof,
+ var goal={
   message_bank:bank,
   description:document.getElementById('f-goaldesc').value.trim(),
   cta:{text:document.getElementById('f-cta').value.trim()},

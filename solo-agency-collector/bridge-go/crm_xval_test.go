@@ -1665,12 +1665,17 @@ func TestDraftBriefGateAndRotation(t *testing.T) {
 		  "hooks":[{"type":"social_post","summary":"reel about escrow timelines in Whittier","evidence_url":"https://www.facebook.com/reel/9","observed_date":"2026-07-20","confidence":0.8}],
 		  "writing_brief":{"personalization_confidence":0.8}}`))
 
-	body1 := "Hi, your reel on escrow timelines in Whittier makes the point well. Platforms reward posting that is correct, regular and complete, which is why one clear answer beats ten generic posts. Worth a look: https://x.test/p"
+	body1 := "Hi, your reel on escrow timelines in Whittier makes the point well. Platforms reward posting that is correct, regular and complete, which is why one clear answer beats ten generic posts. Worth a look: https://x.test/p\n\nBinh\nLeadUp"
 	wArgs := func(body string) string {
 		return string(mustJSON(t, map[string]any{"step": 1, "subject": "Your escrow reel", "body_text": body,
 			"hooks_used":     []any{map[string]any{"evidence_url": "https://www.facebook.com/reel/9"}},
 			"pain_addressed": "no time to publish consistently"}))
 	}
+
+	// an unsigned body is refused (the fixture profile declares from_name)
+	unsignedArgs := wArgs("Hi, your reel on escrow timelines in Whittier makes the point well. Platforms reward posting that is correct, regular and complete. https://x.test/p")
+	// (brief not yet issued either — no_brief fires first, which is fine; the
+	// signature case is asserted after briefing below)
 
 	// a described campaign refuses an unbriefed draft
 	bad := run("2026-07-28T09:05:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_b",
@@ -1694,6 +1699,13 @@ func TestDraftBriefGateAndRotation(t *testing.T) {
 		t.Fatalf("both messages are fresh before the first touch: %v", br["bank_rotation"])
 	}
 
+	// briefed but unsigned → missing_signature
+	uns := run("2026-07-28T09:06:30Z", "--client-dir", ws, "draft", "write", "--contact", "c_b",
+		"--campaign", "intro", "--json", unsignedArgs)
+	if uns.Code == 0 || !strings.Contains(uns.Stdout+uns.Stderr, "missing_signature") {
+		t.Fatalf("an unsigned email must be refused when the profile declares the sender: %s%s", uns.Stdout, uns.Stderr)
+	}
+
 	// briefed, the draft lands and records the audit fields
 	good := mustOK(run("2026-07-28T09:07:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_b",
 		"--campaign", "intro", "--json", wArgs(body1)))
@@ -1712,11 +1724,11 @@ func TestDraftBriefGateAndRotation(t *testing.T) {
 				"subject": "One more thought", "body_text": body,
 				"hooks_used": []any{map[string]any{"evidence_url": "https://www.facebook.com/reel/9"}}})))
 	}
-	rep := step2("Following your escrow reel in Whittier: platforms reward posting that is correct, regular and complete. https://x.test/p")
+	rep := step2("Following your escrow reel in Whittier: platforms reward posting that is correct, regular and complete. https://x.test/p\n\nBinh\nLeadUp")
 	if rep.Code == 0 || !strings.Contains(rep.Stdout+rep.Stderr, "rotate_bank") {
 		t.Fatalf("re-teaching an already-taught message while fresh ones remain must be refused: %s%s", rep.Stdout, rep.Stderr)
 	}
-	fresh := step2("Back to your escrow reel in Whittier: every piece must be genuinely useful to the viewer before it earns reach. https://x.test/p")
+	fresh := step2("Back to your escrow reel in Whittier: every piece must be genuinely useful to the viewer before it earns reach. https://x.test/p\n\nBình\nLeadUp")
 	if fresh.Code != 0 {
 		t.Fatalf("teaching the fresh message must pass: %s%s", fresh.Stdout, fresh.Stderr)
 	}
