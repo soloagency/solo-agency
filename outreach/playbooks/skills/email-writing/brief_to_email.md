@@ -89,7 +89,9 @@ when unsure, write SHORTER, not more generic.
 - Declarations set: `hooks_used`, `pain_addressed`; the companion URL per the goal.
 
 `draft write` enforces what it can (`no_brief`, `hook_not_woven`, `no_key_message`,
-`rotate_bank`); this checklist covers what only you can judge. The Approval Report prints
+`rotate_bank`, `vn_register` — "anh/chị" is refused outright, and `template_sentence` — any
+sentence already used verbatim in another lead's live draft in this campaign is refused, INCLUDING
+the offer and CTA lines: render them fresh per email); this checklist covers what only you can judge. The Approval Report prints
 Evidence / Teaches / Pain addressed / Briefed per card — the operator sees exactly which of
 these you did.
 

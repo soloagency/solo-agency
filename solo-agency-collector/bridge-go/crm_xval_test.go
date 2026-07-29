@@ -1755,3 +1755,60 @@ func TestBilingualBankRendering(t *testing.T) {
 		t.Fatalf("an unrelated body must not match either rendering: %v", got)
 	}
 }
+
+// TestVnRegisterAndTemplateSentence: both rules existed in the playbook and
+// drifted on the very next live batch — 22 of 22 Vietnamese drafts addressed
+// the reader as "anh/chị", and 18 distinct sentences repeated 208 times across
+// 53 drafts (the CTA pasted verbatim in 31). Prose drifts; gates do not.
+func TestVnRegisterAndTemplateSentence(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+	mustOK(run("2026-07-28T09:01:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	mustOK(run("2026-07-28T09:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "intro",
+		"--json", `{"audience":{"segment":"all"},"sendboxes":["sb-a"],"daily_quota":10,"goal":{"goal_type":"direct_sale"}}`))
+	for _, id := range []string{"c_t1", "c_t2"} {
+		mustOK(run("2026-07-28T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+			`{"id":"`+id+`","identities":{"emails":[{"address":"`+id+`@x.com","is_primary":true}]}}`))
+		mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", id,
+			"--campaign", "intro", "--json",
+			`{"identity":{"still_active":"confirmed"},
+			  "hooks":[{"type":"social_post","summary":"reel ve ho so di tru cho nguoi Viet o `+id+`ville","evidence_url":"https://www.facebook.com/reel/`+id+`","observed_date":"2026-07-20","confidence":0.8}],
+			  "writing_brief":{"personalization_confidence":0.8}}`))
+	}
+	write := func(id, body string) xresult {
+		return run("2026-07-28T09:05:00Z", "--client-dir", ws, "draft", "write", "--contact", id,
+			"--campaign", "intro", "--json", string(mustJSON(t, map[string]any{
+				"step": 1, "subject": "Ke hoach tu reel " + id, "body_text": body,
+				"hooks_used": []any{map[string]any{"evidence_url": "https://www.facebook.com/reel/" + id}}})))
+	}
+
+	// "anh/chị" is refused outright
+	r := write("c_t1", "Chào anh/chị, tôi vừa xem reel về hồ sơ di trú cho người Việt ở c_t1ville và thấy rất rõ ràng. https://x.test/p")
+	if r.Code == 0 || !strings.Contains(r.Stdout+r.Stderr, "vn_register") {
+		t.Fatalf("addressing the reader as anh/chị must be refused: %s%s", r.Stdout, r.Stderr)
+	}
+	// gendered address passes
+	first := mustOK(write("c_t1", "Chào anh, tôi vừa xem reel về hồ sơ di trú cho người Việt ở c_t1ville. Phần giải thích rất đáng để nhân rộng thành chuỗi video. https://x.test/p"))
+	_ = first
+	// a second lead reusing a sentence verbatim is a template — refused, naming the other lead
+	r2 := write("c_t2", "Chào bạn, reel về hồ sơ di trú ở c_t2ville nói đúng chuyện khó. Phần giải thích rất đáng để nhân rộng thành chuỗi video. https://x.test/p")
+	if r2.Code == 0 || !strings.Contains(r2.Stdout+r2.Stderr, "template_sentence") || !strings.Contains(r2.Stdout+r2.Stderr, "c_t1") {
+		t.Fatalf("a sentence shared across leads must be refused and attributed: %s%s", r2.Stdout, r2.Stderr)
+	}
+	// its own words pass
+	if r3 := write("c_t2", "Chào bạn, reel về hồ sơ di trú ở c_t2ville nói đúng cái khó của người mới qua. Mỗi video chỉ cần trả lời một câu hỏi thật cụ thể là đủ giữ người xem. https://x.test/p"); r3.Code != 0 {
+		t.Fatalf("distinct wording must pass: %s%s", r3.Stdout, r3.Stderr)
+	}
+}

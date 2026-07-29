@@ -224,6 +224,67 @@ func bankMessagesInBody(text string, bank []any) []string {
 	return out
 }
 
+// vnMailMergeRe: "anh/chị" is a mail-merge blank, not an address. The operator's
+// rule is to read the gender from the name (anh / chị) and fall back to "bạn" —
+// it was written into the playbook and 22 of 22 Vietnamese drafts on the next
+// live batch used "anh/chị" anyway. Prose drifts; this does not.
+var vnMailMergeRe = regexp.MustCompile(`(?i)anh\s*/\s*chị`)
+
+var draftURLRe = regexp.MustCompile(`https?://\S+`)
+var draftWSRe = regexp.MustCompile(`\s+`)
+var draftSentSplitRe = regexp.MustCompile(`[.?!]+(\s+|$)`)
+
+// draftSentenceSet normalizes a body into comparable sentences (URLs collapsed,
+// whitespace flattened, lowercased, short lines dropped so greetings and
+// signatures never collide).
+func draftSentenceSet(text string) []string {
+	t := draftURLRe.ReplaceAllString(text, " <link> ")
+	var out []string
+	for _, s := range draftSentSplitRe.Split(t, -1) {
+		s = strings.ToLower(strings.TrimSpace(draftWSRe.ReplaceAllString(s, " ")))
+		if len([]rune(s)) >= 25 {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// campaignSentenceOwners maps every normalized sentence in this campaign's live
+// drafts (pending/approved/held — not rejected) to the lead that first used it.
+// The disease this feeds: a batch where the opener is personalized and
+// everything below it is one email duplicated. 18 distinct sentences appeared
+// 208 times across the last live 53 — including the CTA pasted verbatim 31
+// times. Cross-LEAD only: a follow-up to the same lead may echo its own thread.
+func (c *crmStore) campaignSentenceOwners(campaignSlug, excludeLead string) map[string]string {
+	owners := map[string]string{}
+	dir, err := c.campaignDir(campaignSlug)
+	if err != nil {
+		return owners
+	}
+	root := filepath.Join(dir, "outbox")
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasPrefix(info.Name(), "draft_") || !strings.HasSuffix(info.Name(), ".json") {
+			return nil
+		}
+		d, rerr := readJSONFile(path)
+		if rerr != nil {
+			return nil
+		}
+		st := mStr(d, "status")
+		lid := mStr(d, "lead_id")
+		if lid == "" || lid == excludeLead || (st != "pending_approval" && st != "approved" && st != "hold") {
+			return nil
+		}
+		for _, sent := range draftSentenceSet(mStr(d, "body_text")) {
+			if _, ok := owners[sent]; !ok {
+				owners[sent] = lid
+			}
+		}
+		return nil
+	})
+	return owners
+}
+
 // holdNoEvidence records that a lead was deliberately NOT drafted for lack of
 // usable evidence. The point is that it is HELD and visible (contact timeline +
 // countable in reports), never silently dropped — the operator picked these
@@ -412,6 +473,18 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 		a.BankMessagesUsed = make([]any, len(landed))
 		for i, m := range landed {
 			a.BankMessagesUsed[i] = m
+		}
+	}
+
+	// (3c) House-style gates that measured drift on live batches.
+	if vnMailMergeRe.MatchString(a.Subject + " " + a.BodyText) {
+		return nil, storageErrf("vn_register: the draft addresses the reader as \"anh/chị\" — a mail-merge blank, not a person. Read the gender from the NAME: \"anh\" for a male name, \"chị\" for a female name, and \"bạn\" when the name does not settle it")
+	}
+	if owners := c.campaignSentenceOwners(campaignSlug, leadID); len(owners) > 0 {
+		for _, sent := range draftSentenceSet(a.BodyText) {
+			if other, ok := owners[sent]; ok {
+				return nil, storageErrf("template_sentence: this sentence already appears in %s's draft in this campaign: %q. Every email renders its own words, including the offer and the CTA — on the last live batch 31 drafts shared one closing block, which is a template with a personalized first line", other, sent)
+			}
 		}
 	}
 
