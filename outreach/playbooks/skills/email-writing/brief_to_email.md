@@ -3,6 +3,30 @@
 Load rule: load AFTER running `tool crm-store draft brief` for the lead, alongside `weave.md`.
 This module is the WRITING PROCEDURE; `weave.md` is the rhetoric it drives. LOAD LEDGER applies.
 
+## Who writes — the writer runs ALONE, in a fresh context
+
+The orchestrating session (the daily run, with its ledgers, queues and tool loops) **never writes
+body text inline**. Writing is a SEPARATE, fresh-context call — one writer per lead, or one per
+batch of at most 5 — whose entire input is exactly two things: this module and the lead's brief
+(plus `weave.md`). Nothing else. No ledgers, no queue state, no other leads' drafts.
+
+This is measured, not stylistic preference. The same skill and the same briefs produced the
+operator-approved batch when written by fresh-context writers (13/13 pass every style gate,
+longest summary overlap 7 words, zero repeated sentences) and produced 22/22 "anh/chị", 18
+sentences repeated 208 times, and a pasted English summary when written inline from a long
+orchestration loop. By the thirtieth email of a loop, the rules sit a hundred thousand tokens
+back and the cheapest continuation is a template. No prose survives that; isolation does.
+
+The orchestrator's job around each writer call is mechanical: run `draft brief`, hand the writer
+the brief + this module, take back `{subject, body_text, pain_addressed, hooks_used}`, run
+`draft write`, and on a refusal send the FULL error message back to the same writer for a rewrite
+— never patch the body itself, and never retry by pasting.
+
+The style gates (`vn_register`, `name_overuse`, `template_sentence`, `summary_pasted`,
+`phrase_stuffing`) are TRIPWIRES, not a workflow: with an isolated writer they are expected to
+fire ZERO times. A firing means the writing setup is wrong (stale summary language, inline
+writing, degraded context) — fix the setup, don't iterate against the gate.
+
 ## The contract
 
 The brief is the only source of facts. It carries: the client profile sections
