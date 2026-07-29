@@ -51,10 +51,15 @@ Drafts are written through `tool crm-store draft write`. When any instruction he
    --campaign <slug>` FIRST — it assembles the write-time context (client profile sections, the
    goal in the operator's own words + derived fields, key-message rotation for this lead, hooks,
    every prior touch) and records on disk exactly what you had in hand. On a campaign with a
-   `goal.description`, `draft write` refuses an unbriefed draft (`no_brief`). Then load the skill
-   and **weave** the email from the brief via the derivation chain (`brief_to_email.md`, engine in
-   `weave.md`) — the same four inputs as always (client profile, campaign goal, the dossier's
-   ranked angles + hooks, step intent), now delivered instead of remembered. Match depth to the dossier's Layer-B
+   `goal.description`, `draft write` refuses an unbriefed draft (`no_brief`). Then **spawn a
+   fresh-context WRITER** (a sub-agent/subtask in your runtime; one lead per call, max 5 per
+   batch) whose ONLY input is `brief_to_email.md` + `weave.md` + the brief — the orchestrating
+   session never writes body text inline among its ledgers and queues. Measured, not preference:
+   inline writing is where every template batch came from; isolated writers produced the
+   operator-approved one. Take the writer's `{subject, body_text, pain_addressed, hooks_used}` to
+   `draft write`; on a refusal, relay the FULL error back to the SAME writer to rewrite — never
+   patch the body yourself. The four inputs are unchanged (client profile, campaign goal, the
+   dossier's ranked angles + hooks, step intent), now delivered instead of remembered. Match depth to the dossier's Layer-B
    richness (RICH/MEDIUM/THIN), and package for the channel (`channels.md`). If the campaign declares
    a `goal.companion_doc`, first produce this lead's companion link (see "Companion document" below)
    and weave it in as the offer/release link, before writing the draft.
