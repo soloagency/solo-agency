@@ -575,15 +575,26 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 	// name (diacritic-folded, so "Bình" satisfies a from_name of "Binh"). The
 	// rule lived only in the experiment prompts before — the batch written
 	// without those prompts shipped with no signature at all.
-	if fromName := mStr(c.senderSignature(), "from_name"); fromName != "" {
+	if sender := c.senderSignature(); mStr(sender, "from_name") != "" {
+		fromName := mStr(sender, "from_name")
 		lines := strings.Split(strings.TrimSpace(a.BodyText), "\n")
 		tail := lines
-		if len(lines) > 4 {
-			tail = lines[len(lines)-4:]
+		if len(lines) > 5 {
+			tail = lines[len(lines)-5:]
 		}
+		folded := vnFold(strings.Join(tail, "\n"))
 		given := vnFold(strings.Fields(fromName)[0])
-		if !strings.Contains(vnFold(strings.Join(tail, "\n")), given) {
-			return nil, storageErrf("missing_signature: the email does not end with the sender's sign-off — close with the sender's given name and the client name (profile sending_identity.from_name is %q; \"Bình\" / \"Binh\" both satisfy it), above nothing else", fromName)
+		if !strings.Contains(folded, given) {
+			return nil, storageErrf("missing_signature: the email does not end with the sender's sign-off — render the profile's signature_block, one segment per line (from_name is %q; \"Bình\" / \"Binh\" both satisfy it), above nothing else", fromName)
+		}
+		// The signature_block is the operator's declared footer; if it names a
+		// website, the sign-off carries it. A live batch dropped the website
+		// line because a playbook example out-shouted the profile data — the
+		// data is what this gate answers to.
+		if u := regexp.MustCompile(`https?://[^\s|]+`).FindString(mStr(sender, "signature_block")); u != "" {
+			if !strings.Contains(strings.ToLower(a.BodyText), strings.ToLower(strings.TrimRight(u, "/.,"))) {
+				return nil, storageErrf("missing_signature: the profile's signature_block includes %s and the email's sign-off dropped it — render the signature_block in full, one segment per line", u)
+			}
 		}
 	}
 

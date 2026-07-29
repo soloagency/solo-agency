@@ -1933,3 +1933,52 @@ func TestSummaryPastedAndRegisterMix(t *testing.T) {
 		t.Fatalf("a genuine weave must pass: %s%s", r4.Stdout, r4.Stderr)
 	}
 }
+
+// TestSignatureBlockWebsiteEnforced: the operator's signature_block names a
+// website; a live batch dropped that line because a playbook example
+// out-shouted the profile data. The gate answers to the data.
+func TestSignatureBlockWebsiteEnforced(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-29T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+	if err := os.WriteFile(filepath.Join(ws, "client_profile_leadup_video_us.md"), []byte(
+		"# P\n\n## sending_identity\n\nfrom_name: Binh Nguyen\nsignature_block: Bình | LeadUp | https://leadupteam.com\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mustOK(run("2026-07-29T09:01:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	mustOK(run("2026-07-29T09:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "intro",
+		"--json", `{"audience":{"segment":"all"},"sendboxes":["sb-a"],"daily_quota":10,"goal":{"goal_type":"direct_sale"}}`))
+	mustOK(run("2026-07-29T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_s","identities":{"emails":[{"address":"s@x.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-29T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_s",
+		"--campaign", "intro", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"reel về kế hoạch tài chính cho chủ tiệm nail","evidence_url":"https://www.facebook.com/reel/55","observed_date":"2026-07-25","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+	write := func(body string) xresult {
+		return run("2026-07-29T09:05:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_s",
+			"--campaign", "intro", "--json", string(mustJSON(t, map[string]any{
+				"step": 1, "subject": "Kế hoạch cho tiệm nail", "body_text": body,
+				"hooks_used": []any{map[string]any{"evidence_url": "https://www.facebook.com/reel/55"}}})))
+	}
+	// signed with name+client but the block's website dropped → refused, naming the URL
+	r := write("Chào bạn, video bàn chuyện tài chính cho chủ tiệm nail nói rất đúng điều ít ai chịu tính sớm. Xem thử: https://x.test/p\n\nBình\nLeadUp")
+	if r.Code == 0 || !strings.Contains(r.Stdout+r.Stderr, "leadupteam.com") {
+		t.Fatalf("dropping the signature_block website must be refused, naming the URL: %s%s", r.Stdout, r.Stderr)
+	}
+	// the full block, one segment per line → passes
+	if r2 := write("Chào bạn, video bàn chuyện tài chính cho chủ tiệm nail nói rất đúng điều ít ai chịu tính sớm. Xem thử: https://x.test/p\n\nBình\nLeadUp\nhttps://leadupteam.com"); r2.Code != 0 {
+		t.Fatalf("the full signature_block must pass: %s%s", r2.Stdout, r2.Stderr)
+	}
+}
