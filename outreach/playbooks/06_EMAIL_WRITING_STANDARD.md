@@ -47,9 +47,14 @@ Drafts are written through `tool crm-store draft write`. When any instruction he
 
 ## The run
 
-1. For each enriched, due lead (Stage 4), load the skill and **weave** the email (`weave.md`) from
-   four inputs: client profile (voice/offer), campaign goal (objective/CTA/proof), the contact
-   dossier's ranked angles + hooks, and the step intent. Match depth to the dossier's Layer-B
+1. For each enriched, due lead (Stage 4): run `tool crm-store draft brief --contact <lead>
+   --campaign <slug>` FIRST — it assembles the write-time context (client profile sections, the
+   goal in the operator's own words + derived fields, key-message rotation for this lead, hooks,
+   every prior touch) and records on disk exactly what you had in hand. On a campaign with a
+   `goal.description`, `draft write` refuses an unbriefed draft (`no_brief`). Then load the skill
+   and **weave** the email from the brief via the derivation chain (`brief_to_email.md`, engine in
+   `weave.md`) — the same four inputs as always (client profile, campaign goal, the dossier's
+   ranked angles + hooks, step intent), now delivered instead of remembered. Match depth to the dossier's Layer-B
    richness (RICH/MEDIUM/THIN), and package for the channel (`channels.md`). If the campaign declares
    a `goal.companion_doc`, first produce this lead's companion link (see "Companion document" below)
    and weave it in as the offer/release link, before writing the draft.
