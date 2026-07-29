@@ -56,11 +56,15 @@ is never asked for goal_type, objective, offer, value_proposition or CTA. They a
 hard questions once, at setup — asking again at campaign time is asking twice, and fields extracted
 under pressure come out as slogans.
 
-**Derive, show once, then write.** From `description` + profile, fill `goal_type` (the structure
-switch below), `objective`, `offer`, `value_proposition`, `cta` — then show the operator ONE
-compact reading ("đây là cách tôi hiểu goal của bạn: ...") for a nod or a correction before the
-first draft. The derived fields are stored and stay visible/editable on the campaign page, marked
-as the agent's reading: a wrong inference must be correctable, which means it must be visible.
+**Derive what the system needs, and nothing else.** From `description` + profile, fill
+`goal_type` (the structure switch below — internal, never shown on the campaign page) and
+`cta.text` (the one ask — visible and editable, since it appears in every email) — then show the
+operator ONE compact reading ("đây là cách tôi hiểu goal của bạn: ...") for a nod before the
+first draft. `objective`, `offer`, `value_proposition` and campaign-level `proof_points` are
+RETIRED: they were copies of profile sections the brief already delivers (offer, value_prop,
+proof_points all live in the client profile from setup), and two sources for one fact is how
+contradictions ship. Do not derive them, do not show them, do not ask for them; old configs may
+still carry them and they are ignored.
 Setting `goal.description` also arms the brief gate: Stage 6's `draft write` refuses any draft for
 this campaign unless `draft brief` ran for that lead (`no_brief`) — the delivery mechanism that
 makes "the agent derives it" real instead of hoped-for.
@@ -72,14 +76,14 @@ It selects the email structure in Stage 6 (e.g. `book_meeting` → short, one ti
 
 ```json
 {"goal_type": "book_meeting",
- "description": "operator's own words, verbatim — the source every derived field answers to",
- "objective": "get the realtor to accept a free sample video for their newest listing",
- "offer": "1 free vertical video from their current listing photos",
- "value_proposition": "listings with video tours in AL metros sell 2-3x faster",
- "proof_points": [{"claim": "agent X in Hoover +40% inquiries", "evidence_url": "https://..."}],
+ "description": "operator's own words, verbatim — the source everything else answers to",
+ "message_bank": [{"msg": "…", "msg_en": "…", "source": "operator", "approved": true}],
  "cta": {"type": "reply_yes", "text": "Reply 'sample' and I'll send it over today"},
  "success_event": {"on": "reply_positive", "create_deal_stage": "new_reply"}}
 ```
+
+(Offer, value proposition and proof points live in the CLIENT PROFILE, written once at setup;
+the brief hands them to the writer from there.)
 
 `success_event` wires straight into the rules engine: a positive reply on this campaign creates a
 deal at the named stage (Stage 10 / `tool crm-store apply-rules`).
@@ -154,8 +158,9 @@ cheapest way to build a personal brand"); a proof point is evidence you are wort
 is `{claim, evidence_url}` — a claim WITH a checkable source. They are different jobs and neither
 replaces the other. The link between them is one rule: **a key message that asserts a fact needs a
 proof point, or it must be softened into experience** ("what I keep seeing is..."). An unbacked
-factual claim is hype, which `guardrails.banned_claims` already forbids. `proof_points` is genuinely
-OPTIONAL and empty is a normal answer for a young product; a bank is not.
+factual claim is hype, which `guardrails.banned_claims` already forbids. Proof points live in the PROFILE
+(`proof_points.items[]`, written at setup), are genuinely OPTIONAL, and empty is a normal answer
+for a young product; a bank is not.
 
 **Then EXPAND it — do not stop at the operator's list.** The operator recalls only part of what is
 true, from memory; you are trained on far more of their field. Take their bullets and add the ones a
