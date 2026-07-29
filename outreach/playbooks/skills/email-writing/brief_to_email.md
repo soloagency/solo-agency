@@ -61,7 +61,21 @@ and the draft record shows it (`pain_addressed` empty, `Teaches` line missing).
    `structures.md`. One ask. Never two.
 
 Then write the email as ONE argument — the moves are derivation steps, not paragraph headers.
-A reader must never be able to see the seams.
+A reader must never be able to see the seams. **Never narrate a move in the email itself**: "the
+pain I picked for you is..." / "nút thắt em chọn cho anh là..." / "with you, this lesson shows
+clearly..." is the scaffolding read aloud, and one live draft shipped exactly that. The chain
+tells you what to derive; the email only ever contains the RESULT.
+
+## Addressing — how the name is used
+
+- **A person**: greet by GIVEN name only — "anh Liêm", "chị Hà", "Hi Grant" — never the full
+  name glued after a gender word ("anh Quang Ngô" is a form letter; "anh Quang" is a person).
+- **A page or company**: the name alone, NO gender word ever — "Chào BGV Invest", "Hi team".
+  A page is not a person: "anh Sống khoẻ cùng Liêm" shipped in a live draft and reads absurd.
+  When the page name embeds a person ("Sống khoẻ cùng Liêm"), address THAT person: "anh Liêm".
+- **The name appears at most twice in the whole email** — the greeting plus at most one natural
+  mention. The reader knows who they are; a name repeated in every sentence is mail merge, and
+  `draft write` refuses it (`name_overuse`, ≥3 occurrences of the stored full name).
 
 ## The degradation matrix — what changes when the data thins
 
@@ -75,7 +89,7 @@ when unsure, write SHORTER, not more generic.
 | No hook, fallback allowed (`generic_honest_opener`) | Skip 3. Open with the segment observation (move 2 framed as the field's reality), grounded in a roster/licence fact if one exists. The teach still runs — it is what makes an opener honest instead of empty. |
 | Segment unmatched | Use the profession you can SEE (from the hook/profile header), the closest pain, and drop segment-specific claims entirely. |
 | No proof point | Move 6 softens to experience. Do not smuggle the claim back in as fact. |
-| Vietnamese recipient | Whole email in Vietnamese. Address by gender READ FROM THE NAME: "anh" for a male name, "chị" for a female name, and "bạn" when the name does not settle it. NEVER write "anh/chị" — it reads as a mail-merge blank. The teach must read as a peer's insight, not a translated slogan. |
+| Vietnamese recipient | Whole email in Vietnamese. Addressing per the rules below; gender READ FROM THE NAME ("anh" male, "chị" female, "bạn" unsettled). NEVER "anh/chị". The teach must read as a peer's insight, not a translated slogan. |
 | Follow-up (step ≥2) | New FRESH message (rotation is enforced), new angle on the same pain or the next-ranked pain, reference the prior touch in ≤1 clause, never "just following up", never re-pitch the same mechanism. Reply drafts: answer first, teach second, ask last. |
 
 ## Self-check before `draft write`
