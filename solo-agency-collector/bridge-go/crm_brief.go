@@ -255,6 +255,76 @@ func (c *crmStore) senderSignature() map[string]any {
 	return out
 }
 
+// senderIdentityUpdate edits from_name / from_title / signature_block inside the
+// profile's `## sending_identity` section — the operator-facing half of the
+// signature contract (the brief and the missing_signature gate read these).
+// Scoped line edits only: the profile is the setup interview's canonical record,
+// so everything outside the three lines is preserved byte-for-byte, and a
+// timestamped copy is left beside it first (the same convention agents use, and
+// the same pattern clientProfilePath already excludes from canonical pick).
+func (c *crmStore) senderIdentityUpdate(fields map[string]string) ([]string, error) {
+	path := c.clientProfilePath()
+	if path == "" {
+		return nil, storageErrf("no client profile file found in %s — run client setup first", c.clientDir)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(string(raw), "\n")
+	secStart, secEnd := -1, len(lines)
+	for i, l := range lines {
+		if strings.TrimSpace(l) == "## sending_identity" {
+			secStart = i
+			continue
+		}
+		if secStart >= 0 && strings.HasPrefix(l, "## ") {
+			secEnd = i
+			break
+		}
+	}
+	if secStart < 0 {
+		secStart = len(lines)
+		lines = append(lines, "", "## sending_identity", "")
+		secEnd = len(lines)
+	}
+	var changed []string
+	for _, key := range []string{"from_name", "from_title", "signature_block"} {
+		val := strings.TrimSpace(strings.ReplaceAll(fields[key], "\n", " | "))
+		if val == "" {
+			continue
+		}
+		found := false
+		for i := secStart; i < secEnd; i++ {
+			if strings.HasPrefix(strings.TrimSpace(lines[i]), key+":") {
+				if strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(lines[i]), key+":")) != val {
+					lines[i] = key + ": " + val
+					changed = append(changed, key)
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			ins := key + ": " + val
+			lines = append(lines[:secEnd], append([]string{ins}, lines[secEnd:]...)...)
+			secEnd++
+			changed = append(changed, key)
+		}
+	}
+	if len(changed) == 0 {
+		return nil, nil
+	}
+	bak := strings.TrimSuffix(path, ".md") + "_" + strings.NewReplacer("-", "", ":", "", "T", "_", "Z", "").Replace(nowISO()[:16]) + ".md"
+	if err := os.WriteFile(bak, raw, 0o644); err != nil {
+		return nil, err
+	}
+	if err := atomicWriteFile(path, strings.Join(lines, "\n")); err != nil {
+		return nil, err
+	}
+	return changed, nil
+}
+
 func anySlice(ss []string) []any {
 	out := make([]any, len(ss))
 	for i, s := range ss {

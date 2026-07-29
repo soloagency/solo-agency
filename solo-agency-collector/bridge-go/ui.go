@@ -1186,8 +1186,15 @@ func (b *bridge) uiRenderSendboxes(w http.ResponseWriter, slug string) {
 		http.Error(w, "unknown client", http.StatusNotFound)
 		return
 	}
+	store := newCrmStore(filepath.Join(c.Path, "outreach"))
+	// every key present, else a missing one renders as a literal "<no value>"
+	sender := map[string]any{"from_name": "", "from_title": "", "signature_block": ""}
+	for k, v := range store.senderSignature() {
+		sender[k] = v
+	}
 	b.uiRender(w, "sendboxes", map[string]any{
 		"Title": "Sendboxes", "Client": c, "Sendboxes": b.uiClientSendboxes(c),
+		"Sender": sender,
 	})
 }
 
@@ -1438,6 +1445,28 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(map[string]any{"ok": true, "campaign": campSlug, "changed": res["changed"],
 			"note": "saved — takes effect from the next run; the agent is notified via ui_inbox"})
+	case "sender-update":
+		// Operator-owned sender identity: edits from_name / from_title /
+		// signature_block in the client profile's sending_identity section —
+		// the fields the brief hands the writer and the missing_signature gate
+		// verifies. Same contract as campaign-update: instant effect (the file
+		// is read fresh per brief/draft), agent notified via ui_inbox.
+		store := newCrmStore(filepath.Join(c.Path, "outreach"))
+		changed, err := store.senderIdentityUpdate(map[string]string{
+			"from_name":       mStr(body, "from_name"),
+			"from_title":      mStr(body, "from_title"),
+			"signature_block": mStr(body, "signature_block"),
+		})
+		if err != nil {
+			writeJSON(map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		if len(changed) > 0 {
+			_ = appendUIInbox(filepath.Join(c.Path, "outreach", "ui_inbox", "profile_edits.jsonl"),
+				map[string]any{"ts": now, "section": "sending_identity", "changed": changed, "ui_session": session})
+		}
+		writeJSON(map[string]any{"ok": true, "changed": changed,
+			"note": "saved — every new draft signs as this from the next brief on; the agent is notified"})
 	case "reveal-extension":
 		info := b.uiExtensionInfo(c)
 		folder := mStr(info, "Folder")
@@ -2199,6 +2228,20 @@ document.getElementById('sentfilter').addEventListener('input',function(){
 </tr>{{end}}</table></div>
 {{else}}<div class="empty"><b>No sendboxes yet.</b><br>Connect the first one below.</div>{{end}}
 
+<h2>Sender identity <span class="mut" style="font-size:.8rem">who every email is from and how it signs off</span></h2>
+<div class="card" style="max-width:560px">
+<form id="senderform">
+<label>From name <span class="mut">(the person who signs; drafts must end with this given name or they are refused)</span>
+<input id="f-fromname" type="text" value="{{.Sender.from_name}}" placeholder="e.g. Binh Nguyen"></label>
+<label>Title <span class="mut">(optional)</span>
+<input id="f-fromtitle" type="text" value="{{.Sender.from_title}}" placeholder="e.g. Founder, LeadUp"></label>
+<label>Signature block <span class="mut">(the footer line; keep it one line)</span>
+<input id="f-sigblock" type="text" value="{{.Sender.signature_block}}" placeholder="e.g. Binh Nguyen | Founder, LeadUp | https://leadupteam.com"></label>
+<button class="ok" type="submit">Save sender identity</button>
+<span id="sendermsg" class="mut"></span>
+</form>
+</div>
+
 <h2 id="connect">Connect a sending mailbox (Gmail App Password)</h2>
 <div class="card" style="max-width:560px">
 <form id="authform">
@@ -2220,6 +2263,19 @@ var CLIENT="{{.Client.Slug}}";
 document.querySelectorAll('.pick-box').forEach(function(a){a.addEventListener('click',function(){
  document.getElementById('f-email').value=this.dataset.email;
  document.getElementById('f-pass').focus()})});
+document.getElementById('senderform').addEventListener('submit',function(e){
+ e.preventDefault();
+ var btn=this.querySelector('button');btn.disabled=true;btn.setAttribute('aria-busy','true');
+ var msg=document.getElementById('sendermsg');msg.textContent='Saving…';
+ fetch('/api/ui/'+CLIENT+'/sender-update',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({from_name:document.getElementById('f-fromname').value,
+   from_title:document.getElementById('f-fromtitle').value,
+   signature_block:document.getElementById('f-sigblock').value})})
+ .then(function(r){return r.json()})
+ .then(function(j){btn.disabled=false;btn.removeAttribute('aria-busy');
+  msg.textContent=j.ok?((j.changed&&j.changed.length)?'✓ saved ('+j.changed.join(', ')+')':'✓ nothing changed'):'✗ '+(j.error||'failed');})
+ .catch(function(){btn.disabled=false;btn.removeAttribute('aria-busy');msg.textContent='✗ network error';});
+});
 document.getElementById('authform').addEventListener('submit',function(e){
  e.preventDefault();
  var btn=this.querySelector('button');btn.disabled=true;btn.setAttribute('aria-busy','true');

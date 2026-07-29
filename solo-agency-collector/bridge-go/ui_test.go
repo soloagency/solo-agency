@@ -917,3 +917,82 @@ func TestCampaignEditPageRendersKeyMessages(t *testing.T) {
 		}
 	}
 }
+
+// TestSenderIdentityUIRoundTrip: the brief and the missing_signature gate read
+// sending_identity from the profile, so the operator needs a place to change it
+// without asking the agent. The card edits ONLY the three lines and preserves
+// the rest of the interview record byte-for-byte.
+func TestSenderIdentityUIRoundTrip(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	if err := os.MkdirAll(filepath.Join(ws, "outreach"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	uiAuthedRequest := func(t *testing.T, _ *bridge, method, url, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		var req *http.Request
+		if body == "" {
+			req = httptest.NewRequest(method, url, nil)
+		} else {
+			req = httptest.NewRequest(method, url, strings.NewReader(body))
+		}
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+	c := struct{ Path string }{Path: ws}
+	profile := filepath.Join(c.Path, "outreach", "client_profile_leadup_video_us.md")
+	orig := "# Profile\n\n## business_description\n\nvalue: LeadUp is a video team.\nstatus: provided_by_human\n\n" +
+		"## sending_identity\n\nstatus: configured\nfrom_name: Binh Nguyen\nfrom_title: Founder\n" +
+		"signature_block: Binh Nguyen | LeadUp\nreply_to: x@y.com\n\n## brand_voice\n\ndo:\n- plain words\n"
+	if err := os.WriteFile(profile, []byte(orig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// the page shows the current identity
+	rec := uiAuthedRequest(t, b, "GET", "/ui/leadup/sendboxes", "")
+	page := rec.Body.String()
+	for _, want := range []string{"Sender identity", "Binh Nguyen", "f-fromname", "sender-update"} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("sendboxes page missing %q", want)
+		}
+	}
+
+	// saving edits the three lines, leaves everything else alone, backs up first
+	rec = uiAuthedRequest(t, b, "POST", "/api/ui/leadup/sender-update",
+		`{"from_name":"Bình Nguyễn","from_title":"Founder, LeadUp","signature_block":"Bình | LeadUp | leadupteam.com"}`)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("sender-update: %d %s", rec.Code, rec.Body.String())
+	}
+	now, _ := os.ReadFile(profile)
+	got := string(now)
+	for _, want := range []string{"from_name: Bình Nguyễn", "from_title: Founder, LeadUp",
+		"signature_block: Bình | LeadUp | leadupteam.com", "reply_to: x@y.com",
+		"value: LeadUp is a video team.", "- plain words", "status: configured"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("profile after edit missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "Binh Nguyen |") {
+		t.Fatalf("old signature line must be replaced:\n%s", got)
+	}
+	baks, _ := filepath.Glob(strings.TrimSuffix(profile, ".md") + "_*.md")
+	if len(baks) != 1 {
+		t.Fatalf("exactly one timestamped backup expected, got %v", baks)
+	}
+	// the store now reads the new identity (what the brief and gate consume)
+	store := newCrmStore(filepath.Join(c.Path, "outreach"))
+	if mStr(store.senderSignature(), "from_name") != "Bình Nguyễn" {
+		t.Fatalf("senderSignature must reflect the edit: %v", store.senderSignature())
+	}
+	// and the agent was notified
+	inbox, _ := os.ReadFile(filepath.Join(c.Path, "outreach", "ui_inbox", "profile_edits.jsonl"))
+	if !strings.Contains(string(inbox), "sending_identity") {
+		t.Fatalf("ui_inbox must record the edit: %s", inbox)
+	}
+}
