@@ -82,10 +82,14 @@ and the draft record shows it (`pain_addressed` empty, `Teaches` line missing).
    rendered naturally in the email's language: if the campaign asks them to VIEW the plan, the
    ask is opening the link, and you do NOT append a reply request as a second ask (two asks
    halve each other). `get_reply` ends on the question and carries no link; other types per
-   `structures.md`. One ask. Never two. **Then sign**: end with the sender's given name and the
-   client name, from the brief's `signature` (e.g. "Bình\nLeadUp" — the Vietnamese form of the
-   given name is fine in any language), nothing after it. `draft write` refuses an unsigned body
-   (`missing_signature`).
+   `structures.md`. One ask. Never two. **Then sign — from the DATA, never from an example**:
+   the sign-off is the brief's `signature.signature_block`, rendered one `|`-separated segment
+   per line (the given name may take its Vietnamese form in any language); if the profile has no
+   `signature_block`, fall back to given name + client name. Nothing after the sign-off.
+   `draft write` refuses a body missing the given name or dropping the block's website
+   (`missing_signature`). A live batch lost its website line because an over-specific example
+   HERE beat the profile's own data; the profile decides what the signature contains, this
+   module only says where it goes.
 
 Then write the email as ONE argument — the moves are derivation steps, not paragraph headers.
 A reader must never be able to see the seams. **Never narrate a move in the email itself**: "the
@@ -128,7 +132,8 @@ when unsure, write SHORTER, not more generic.
 - No dossier-summary pasting; no sentence you have used for another lead this batch.
 - House Style: no em dash, no `Re:`/`Fwd:`, subject specific to THIS email's argument.
 - Declarations set: `hooks_used`, `pain_addressed`; the companion URL per the goal.
-- Signed: the body ends with the sender's given name + client name (brief `signature`).
+- Signed: the sign-off renders `signature.signature_block` in full (website line included when
+  the profile declares one).
 
 `draft write` enforces what it can: `no_brief`, `hook_not_woven`, `no_key_message`,
 `rotate_bank`, `vn_register` ("anh/chị", pages greeted as people, and register mixing — greeting
