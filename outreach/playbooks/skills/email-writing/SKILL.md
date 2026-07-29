@@ -10,11 +10,21 @@ description: >-
 
 # Email Writing (Stage 6 skill)
 
-This is an INDEX. The engine is **`weave.md`** — the rhetorical method (the four pillars, the
-fact→conclusion move, tension→release, the arc, the 3 data-richness modes). **Load it whenever you
-draft.** Then load `structures.md` (goal_type → emotional landing + release move) for a step-1,
-`channels.md` (email vs messenger packaging — same weave, different wrapper) for the channel you're
-sending on, and `followup.md` (bumps + reply drafts) for Stage 10 follow-ups.
+This is an INDEX. The flow for every draft:
+
+1. **`tool crm-store draft brief --contact <lead> --campaign <slug>` FIRST.** It assembles
+   everything the system knows (client profile sections, goal + the operator's own words, key
+   messages with this lead's rotation state, hooks, every earlier touch) and writes the brief to
+   disk as the auditable record of what you had in hand. On a campaign with a `goal.description`,
+   `draft write` REFUSES an unbriefed draft (`no_brief`) — and briefs are per-lead, so run it for
+   each lead, then READ what it returned. The operator answers one question at setup; the brief is
+   how everything else still reaches you.
+2. **`brief_to_email.md`** — the derivation chain (seven moves) + the degradation matrix. This is
+   the writing procedure.
+3. **`weave.md`** — the rhetorical engine the chain drives (four pillars, fact→conclusion,
+   tension→release, richness modes). Load whenever you draft.
+4. `structures.md` (goal_type → landing + release), `channels.md` (packaging per channel),
+   `followup.md` (bumps + replies — rotation is enforced in code: `rotate_bank`).
 
 ## Hard gates
 

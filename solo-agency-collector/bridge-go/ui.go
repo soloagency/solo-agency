@@ -1011,6 +1011,7 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 		"Segment":   mStr(mMap(cfg, "audience"), "segment"),
 		"Sendboxes": mList(cfg, "sendboxes"),
 		"GoalType":  mStr(goal, "goal_type"), "GoalTypes": sortedGoalTypes(),
+		"GoalDesc":  mStr(goal, "description"),
 		"Objective": mStr(goal, "objective"), "Offer": mStr(goal, "offer"),
 		"ValueProp":             mStr(goal, "value_proposition"),
 		"Proof":                 strings.Join(proofLines, "\n"),
@@ -2105,6 +2106,9 @@ document.getElementById('submit').addEventListener('click',function(){
 <form id="campform">
 <h2>Goal <span class="mut" style="font-size:.8rem">what every email in this campaign is trying to achieve</span></h2>
 <div class="card">
+<label>Goal <span class="mut">(your words. What should these emails achieve, and what are you offering? The agent derives everything below from this + your client profile.)</span>
+<textarea id="f-goaldesc" style="min-height:90px" placeholder="e.g. Gioi thieu dich vu video cho cac professional, muc tieu la ho mo xem proposal ca nhan hoa va reply">{{.GoalDesc}}</textarea></label>
+<p class="mut" style="margin:-.4rem 0 .9rem;font-size:.85rem">The fields below are <strong>the agent&rsquo;s reading</strong> of your goal and profile. Edit any that read wrong; you never have to fill them yourself.</p>
 <label>Goal type
 <select id="f-goaltype">{{$gt := .GoalType}}{{range .GoalTypes}}<option value="{{.}}"{{if eq . $gt}} selected{{end}}>{{.}}</option>{{end}}</select></label>
 <label>Objective <span class="mut">(one line: what success looks like)</span>
@@ -2174,6 +2178,7 @@ document.getElementById('campform').addEventListener('submit',function(e){
   value_proposition:document.getElementById('f-valueprop').value.trim(),
   proof_points:proof,
   message_bank:bank,
+  description:document.getElementById('f-goaldesc').value.trim(),
   cta:{text:document.getElementById('f-cta').value.trim()},
   companion_doc: instructions ? {instructions:instructions,
     on_fail:document.getElementById('f-comp-onfail').value,

@@ -1623,3 +1623,135 @@ func TestKeyMessageMustBeLanded(t *testing.T) {
 		}
 	}
 }
+
+// TestDraftBriefGateAndRotation: the one-question intake only works if the
+// profile demonstrably reaches the writer and the sequence rotates what it
+// teaches. Playbook 06 said "compose from the client profile" for weeks while
+// the drafting path never opened the profile once — delivery has to be a
+// mechanism, not an instruction.
+func TestDraftBriefGateAndRotation(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-28T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+	if err := os.WriteFile(filepath.Join(ws, "client_profile_leadup_video_us.md"), []byte(
+		"# Profile\n\n## business_description\n\nvalue: LeadUp is a done-for-you video team.\n\n"+
+			"## pain_points\n\nitems:\n- pain: No time to script, record and publish consistently\n\n"+
+			"## sending_identity\n\nfrom_name: Binh\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mustOK(run("2026-07-28T09:01:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	mustOK(run("2026-07-28T09:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "intro",
+		"--json", `{"audience":{"segment":"all"},"sendboxes":["sb-a"],"daily_quota":10,
+		  "goal":{"goal_type":"direct_sale","description":"gioi thieu dich vu video, muc tieu la ho mo proposal",
+		    "message_bank":[
+		      {"msg":"Platforms reward posting that is correct, regular and complete","source":"operator","approved":true},
+		      {"msg":"Every piece must be genuinely useful to the viewer","source":"operator","approved":true}]}}`))
+	mustOK(run("2026-07-28T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_b","identities":{"emails":[{"address":"b@x.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-28T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_b",
+		"--campaign", "intro", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"reel about escrow timelines in Whittier","evidence_url":"https://www.facebook.com/reel/9","observed_date":"2026-07-20","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+
+	body1 := "Hi, your reel on escrow timelines in Whittier makes the point well. Platforms reward posting that is correct, regular and complete, which is why one clear answer beats ten generic posts. Worth a look: https://x.test/p"
+	wArgs := func(body string) string {
+		return string(mustJSON(t, map[string]any{"step": 1, "subject": "Your escrow reel", "body_text": body,
+			"hooks_used":     []any{map[string]any{"evidence_url": "https://www.facebook.com/reel/9"}},
+			"pain_addressed": "no time to publish consistently"}))
+	}
+
+	// a described campaign refuses an unbriefed draft
+	bad := run("2026-07-28T09:05:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_b",
+		"--campaign", "intro", "--json", wArgs(body1))
+	if bad.Code == 0 || !strings.Contains(bad.Stdout+bad.Stderr, "no_brief") {
+		t.Fatalf("a described campaign must refuse a draft with no brief on record: %s%s", bad.Stdout, bad.Stderr)
+	}
+
+	// the brief delivers the profile and the rotation state
+	br := mustOK(run("2026-07-28T09:06:00Z", "--client-dir", ws, "draft", "brief", "--contact", "c_b", "--campaign", "intro"))
+	if !strings.Contains(fmt.Sprint(mMap(br, "client")), "done-for-you video team") {
+		t.Fatalf("the brief must carry the client profile sections: %v", br["client"])
+	}
+	if !strings.Contains(fmt.Sprint(mMap(br, "client")), "record and publish consistently") {
+		t.Fatalf("pain_points must reach the writer: %v", br["client"])
+	}
+	if strings.Contains(fmt.Sprint(mMap(br, "client")), "from_name") {
+		t.Fatalf("operational sections must stay out of the brief: %v", br["client"])
+	}
+	if len(mList(mMap(br, "bank_rotation"), "fresh_for_this_lead")) != 2 {
+		t.Fatalf("both messages are fresh before the first touch: %v", br["bank_rotation"])
+	}
+
+	// briefed, the draft lands and records the audit fields
+	good := mustOK(run("2026-07-28T09:07:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_b",
+		"--campaign", "intro", "--json", wArgs(body1)))
+	raw, err := os.ReadFile(mStr(good, "path"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "no time to publish consistently") || !strings.Contains(string(raw), "briefed_at") {
+		t.Fatalf("pain_addressed and briefed_at must persist on the draft: %s", raw)
+	}
+
+	// step 2 re-teaching the SAME message is refused while a fresh one remains
+	step2 := func(body string) xresult {
+		return run("2026-07-28T09:09:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_b",
+			"--campaign", "intro", "--json", string(mustJSON(t, map[string]any{"step": 2,
+				"subject": "One more thought", "body_text": body,
+				"hooks_used": []any{map[string]any{"evidence_url": "https://www.facebook.com/reel/9"}}})))
+	}
+	rep := step2("Following your escrow reel in Whittier: platforms reward posting that is correct, regular and complete. https://x.test/p")
+	if rep.Code == 0 || !strings.Contains(rep.Stdout+rep.Stderr, "rotate_bank") {
+		t.Fatalf("re-teaching an already-taught message while fresh ones remain must be refused: %s%s", rep.Stdout, rep.Stderr)
+	}
+	fresh := step2("Back to your escrow reel in Whittier: every piece must be genuinely useful to the viewer before it earns reach. https://x.test/p")
+	if fresh.Code != 0 {
+		t.Fatalf("teaching the fresh message must pass: %s%s", fresh.Stdout, fresh.Stderr)
+	}
+}
+
+// TestVietnameseKeyMessageLands: the woven checks tokenized on [a-z]{5,}, and
+// Vietnamese diacritics break almost every token — a VN bank could never match
+// a VN body, so the campaign whose recipients ARE Vietnamese would have every
+// draft refused as no_key_message. Unicode letters fix it.
+func TestVietnameseKeyMessageLands(t *testing.T) {
+	bank := []any{map[string]any{"msg": "Từng nội dung phải hữu ích với người xem, trao kiến thức kinh nghiệm", "source": "operator"}}
+	body := "Chào anh, mỗi video chỉ cần trả lời đúng một câu hỏi mà người xem đang gặp, trao kinh nghiệm thật thay vì quảng cáo."
+	if got := bankMessagesInBody(body, bank); len(got) != 1 {
+		t.Fatalf("a Vietnamese key message woven into a Vietnamese body must land: %v", got)
+	}
+	if got := bankMessagesInBody("Hello, quick note about your listing photos.", bank); len(got) != 0 {
+		t.Fatalf("an unrelated body must not match: %v", got)
+	}
+}
+
+// TestBilingualBankRendering: the operator's key messages are Vietnamese; an
+// English body can teach their substance but shares no tokens with the VN
+// original, so without an approved rendering the EN sequence deadlocks at the
+// last fresh message. msg_en lands as the SAME canonical message.
+func TestBilingualBankRendering(t *testing.T) {
+	bank := []any{map[string]any{
+		"msg":    "Từng nội dung phải hữu ích với người xem, trao kiến thức kinh nghiệm thật",
+		"msg_en": "Every piece must be genuinely useful to the viewer, handing over real knowledge and experience",
+		"source": "operator"}}
+	en := "Content earns attention when it is genuinely useful to the viewer, handing over knowledge they can act on."
+	got := bankMessagesInBody(en, bank)
+	if len(got) != 1 || !strings.Contains(got[0], "Từng nội dung") {
+		t.Fatalf("an English body landing the approved rendering must credit the canonical message: %v", got)
+	}
+	if got := bankMessagesInBody("Quick note about your open house next week.", bank); len(got) != 0 {
+		t.Fatalf("an unrelated body must not match either rendering: %v", got)
+	}
+}

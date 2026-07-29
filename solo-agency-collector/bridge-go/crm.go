@@ -277,7 +277,7 @@ func (c *crmStore) createCampaign(slug string, config map[string]any) (map[strin
 	}
 	cfg := map[string]any{
 		"schema_version": 1, "campaign_slug": slug,
-		"goal": map[string]any{"goal_type": gt, "objective": "", "offer": "",
+		"goal": map[string]any{"goal_type": gt, "description": "", "objective": "", "offer": "",
 			"value_proposition": "", "proof_points": []any{},
 			"cta":           map[string]any{"type": "reply_yes", "text": ""},
 			"success_event": map[string]any{"on": "reply_positive", "create_deal_stage": "new_reply"}},
@@ -2910,7 +2910,7 @@ func (c *crmStore) campaignUpdate(slug string, patch map[string]any) (map[string
 						return nil, storageErrf("goal_type %q not in %v", s, sortedGoalTypes())
 					}
 					setStr(goal, "goal_type", s, "goal.goal_type")
-				case "objective", "offer", "value_proposition":
+				case "description", "objective", "offer", "value_proposition":
 					s, _ := gv.(string)
 					setStr(goal, gk, s, "goal."+gk)
 				case "proof_points":
@@ -2945,8 +2945,12 @@ func (c *crmStore) campaignUpdate(slug string, patch map[string]any) (map[string
 							if src != "agent" {
 								src = "operator"
 							}
-							norm = append(norm, map[string]any{"msg": msg, "source": src,
-								"approved": src == "operator" || truthy(em["approved"])})
+							ne := map[string]any{"msg": msg, "source": src,
+								"approved": src == "operator" || truthy(em["approved"])}
+							if en := strings.TrimSpace(mStr(em, "msg_en")); en != "" {
+								ne["msg_en"] = en
+							}
+							norm = append(norm, ne)
 						}
 						if string(marshalLineJSON(goal["message_bank"])) != string(marshalLineJSON(norm)) {
 							goal["message_bank"] = norm

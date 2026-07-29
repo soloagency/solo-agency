@@ -320,7 +320,14 @@ func runCrmStoreCLI(args []string) int {
 				Step: mInt(d, "step", 1), Subject: mStr(d, "subject"), BodyText: mStr(d, "body_text"),
 				BodyHTML: mStr(d, "body_html"), HooksUsed: mapsOf(mList(d, "hooks_used")),
 				Tracking: mStr(d, "tracking"), IsReply: truthy(d["is_reply"]),
-				BankMessagesUsed: mList(d, "bank_messages_used"), CompanionURL: mStr(d, "companion_url")})
+				BankMessagesUsed: mList(d, "bank_messages_used"), CompanionURL: mStr(d, "companion_url"),
+				PainAddressed: mStr(d, "pain_addressed")})
+			if err != nil {
+				return crmFail(err)
+			}
+			return crmOut(res, 0)
+		case "brief":
+			res, err := store.draftBrief(a.get("--contact"), a.get("--campaign"), "")
 			if err != nil {
 				return crmFail(err)
 			}

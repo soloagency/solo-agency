@@ -183,7 +183,11 @@ and STOP — do not run Tier 2 (don't spend the proof-of-life pass on a dead lea
 for what each actually yields) and **gather as MANY evidenced Layer-B proof-of-life points as you
 can find — do NOT cap at one or three.** Each point is a conclusion-basis the writer will weave, so
 more solid, fresh, on-goal points = a richer message and a higher `personalization_confidence`;
-there is no upside to stopping early. Record each with `type`, `summary`, `evidence_url`,
+there is no upside to stopping early. **Write `summary` in the CONTENT's own language, quoting its
+distinctive phrase** (a Vietnamese post gets a Vietnamese summary carrying e.g. "hồ sơ di trú", not
+an English paraphrase): the summary is what the draft gate matches against the email body, and an
+email in the recipient's language can never overlap a paraphrase in another one — a translated
+summary gets a genuinely woven draft refused as `hook_not_woven`. Record each with `type`, `summary`, `evidence_url`,
 `observed_date`, `confidence`, and `analysis` where `analysis.sensitivity` gates copy eligibility
 and **`analysis.angle` is the conclusion that hook supports** (the implication the writer can draw
 from it, e.g. a share count → "people are already passing your version along"). **Always set

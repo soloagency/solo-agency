@@ -49,12 +49,30 @@ instruction here disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.
 
 ## 1. The goal object (Stage 6 consumes it)
 
+**Intake is ONE question.** Ask the operator what the campaign should achieve, in their own words,
+and store the answer verbatim as `goal.description`. That sentence plus the client profile (offer,
+icp, pain_points — all collected at setup) is enough to DERIVE every other goal field; the operator
+is never asked for goal_type, objective, offer, value_proposition or CTA. They already answered the
+hard questions once, at setup — asking again at campaign time is asking twice, and fields extracted
+under pressure come out as slogans.
+
+**Derive, show once, then write.** From `description` + profile, fill `goal_type` (the structure
+switch below), `objective`, `offer`, `value_proposition`, `cta` — then show the operator ONE
+compact reading ("đây là cách tôi hiểu goal của bạn: ...") for a nod or a correction before the
+first draft. The derived fields are stored and stay visible/editable on the campaign page, marked
+as the agent's reading: a wrong inference must be correctable, which means it must be visible.
+Setting `goal.description` also arms the brief gate: Stage 6's `draft write` refuses any draft for
+this campaign unless `draft brief` ran for that lead (`no_brief`) — the delivery mechanism that
+makes "the agent derives it" real instead of hoped-for.
+
 `goal_type` ∈ `book_meeting | get_reply | direct_sale | reactivation | nurture_upsell | event_invite`.
+Internal, DERIVED from the description — never ask the operator to pick one.
 It selects the email structure in Stage 6 (e.g. `book_meeting` → short, one time-bound CTA;
 `get_reply` → ends on a question, no link; `direct_sale` → value + one offer link). The full goal:
 
 ```json
 {"goal_type": "book_meeting",
+ "description": "operator's own words, verbatim — the source every derived field answers to",
  "objective": "get the realtor to accept a free sample video for their newest listing",
  "offer": "1 free vertical video from their current listing photos",
  "value_proposition": "listings with video tours in AL metros sell 2-3x faster",
@@ -123,6 +141,13 @@ built on that bank were 55% identical below the first line. What survives contac
 the sender's expertise: *platforms reward posting that is correct, regular and complete*; *every
 piece has to be genuinely useful before it earns reach*. Those are positions someone earned. Push
 for those.
+
+**Bilingual audiences: every operator message gets an approved English rendering (`msg_en`).**
+The operator writes key messages in their own language; a recipient-language body can only be
+credited with a message whose words it can actually carry, so each bank entry stores
+`{msg, msg_en}` — propose the renderings at intake (faithful translation, no new claims), get one
+nod, store both. Rotation and the report always credit the ONE canonical `msg`. Without this, a
+sequence in the other language deadlocks at the first untranslatable message (`rotate_bank`).
 
 **`message_bank` is not `proof_points`.** A key message is what you TEACH ("video is currently the
 cheapest way to build a personal brand"); a proof point is evidence you are worth believing, and it

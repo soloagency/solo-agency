@@ -122,6 +122,7 @@ type draftArgs struct {
 	IsReply          bool
 	BankMessagesUsed []any
 	CompanionURL     string
+	PainAddressed    string
 }
 
 // hookWovenGenericTerms are words too generic to prove a hook was actually used
@@ -153,7 +154,7 @@ func hookWovenIntoBody(text string, cleanHooks []any, evidenceByURL map[string]m
 			continue
 		}
 		summary := strings.ToLower(mStr(dh, "summary"))
-		for _, w := range regexp.MustCompile(`[a-z]{5,}`).FindAllString(summary, -1) {
+		for _, w := range regexp.MustCompile(`[\p{L}]{5,}`).FindAllString(summary, -1) {
 			if !hookWovenGenericTerms[w] && strings.Contains(low, w) {
 				return true
 			}
@@ -162,6 +163,22 @@ func hookWovenIntoBody(text string, cleanHooks []any, evidenceByURL map[string]m
 		for _, n := range regexp.MustCompile(`\d{2,}`).FindAllString(summary, -1) {
 			if strings.Contains(low, n) {
 				return true
+			}
+		}
+		// Phrase overlap, for languages the token rule cannot see: Vietnamese
+		// words are 2-4 letters (diacritics included), so a VN summary woven into
+		// a VN body shares almost no [\p{L}]{5,} token — "hồ sơ di trú" carries
+		// the hook and every word is under five letters. A contiguous multi-word
+		// phrase of the summary (≥10 chars) appearing in the body is at least as
+		// strong a proof as one shared long token.
+		words := regexp.MustCompile(`[\p{L}]+`).FindAllString(summary, -1)
+		for i := 0; i < len(words); i++ {
+			ph := words[i]
+			for j := i + 1; j < len(words) && j < i+5; j++ {
+				ph += " " + words[j]
+				if len([]rune(ph)) >= 10 && strings.Contains(low, ph) {
+					return true
+				}
 			}
 		}
 	}
@@ -178,7 +195,7 @@ func hookWovenIntoBody(text string, cleanHooks []any, evidenceByURL map[string]m
 // all. Meanwhile `hooks_used` — which has a gate — was honest in every draft.
 func bankMessageWoven(text, msg string) bool {
 	low := strings.ToLower(text)
-	for _, w := range regexp.MustCompile(`[a-z]{5,}`).FindAllString(strings.ToLower(msg), -1) {
+	for _, w := range regexp.MustCompile(`[\p{L}]{5,}`).FindAllString(strings.ToLower(msg), -1) {
 		if !hookWovenGenericTerms[w] && strings.Contains(low, w) {
 			return true
 		}
@@ -187,10 +204,20 @@ func bankMessageWoven(text, msg string) bool {
 }
 
 // bankMessagesInBody returns the campaign's key messages this email really lands.
+// A message may carry an approved English rendering (`msg_en`) for bilingual
+// audiences: the operator's Vietnamese originals share almost no tokens with an
+// English body, so without it an English sequence deadlocks — by touch three the
+// only FRESH message left is the untranslatable one, and rotate_bank refuses
+// every draft forever. Landing either rendering counts as teaching the ONE
+// canonical message (`msg`), which is what rotation and the report record.
 func bankMessagesInBody(text string, bank []any) []string {
 	var out []string
 	for _, e := range mapsOf(bank) {
-		if msg := mStr(e, "msg"); msg != "" && bankMessageWoven(text, msg) {
+		msg := mStr(e, "msg")
+		if msg == "" {
+			continue
+		}
+		if bankMessageWoven(text, msg) || (mStr(e, "msg_en") != "" && bankMessageWoven(text, mStr(e, "msg_en"))) {
 			out = append(out, msg)
 		}
 	}
@@ -334,6 +361,26 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 		return nil, storageErrf("hook_not_woven: the email declares a hook but its specifics appear nowhere in the subject/body — weave the observed detail in, or drop the hook claim")
 	}
 
+	// (3a) A described campaign requires the brief. `goal.description` marks a
+	// campaign created under the one-question intake: the operator said what they
+	// want in their own words and everything else is derived from the profile —
+	// which only works if the writer demonstrably HAD the profile. The brief file
+	// is that proof (draft brief writes it; it records exactly what the writer
+	// saw). No file, no draft. Campaigns without a description keep the old
+	// contract untouched.
+	briefedAt := ""
+	if mStr(mMap(cfg, "goal"), "description") != "" {
+		bp, berr := c.briefPath(campaignSlug, leadID)
+		if berr != nil {
+			return nil, berr
+		}
+		bdoc, berr := readJSONFile(bp)
+		if berr != nil {
+			return nil, storageErrf("no_brief: this campaign derives its writing inputs from the client profile, and no brief exists for this lead — run `draft brief --contact %s --campaign %s`, READ it, then write. The brief is the auditable record of what the writer had in hand", leadID, campaignSlug)
+		}
+		briefedAt = mStr(bdoc, "issued_at")
+	}
+
 	// (3b) The campaign's key messages are what the reader is supposed to LEARN —
 	// the sender's own expertise, the only part of the email a competitor could
 	// not also write. When a campaign declares a bank, every email must land at
@@ -344,6 +391,23 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 		landed := bankMessagesInBody(a.Subject+" "+a.BodyText, bank)
 		if len(landed) == 0 {
 			return nil, storageErrf("no_key_message: this campaign declares %d key message(s) and none of them is in the email. The hook says why you are writing to THIS person; a key message is what you actually teach them, and it is the only part a competitor could not also send. Weave 1-2 in (see goal.message_bank), or the email is a template with a personalized first line", len(bank))
+		}
+		// Rotation: while a message this lead has never been taught remains, the
+		// email must land at least one of those. Without this, 50 of 53 live
+		// drafts settled on the same two messages — the sequence in one color.
+		_, fresh := bankRotation(bank, c.priorDraftsForLead(campaignSlug, leadID))
+		if len(fresh) > 0 {
+			freshLanded := false
+			for _, m := range landed {
+				for _, f := range fresh {
+					if strings.EqualFold(strings.TrimSpace(m), strings.TrimSpace(f)) {
+						freshLanded = true
+					}
+				}
+			}
+			if !freshLanded {
+				return nil, storageErrf("rotate_bank: every key message in this email was already taught to this lead in an earlier touch, while %d fresh message(s) remain — teach one of those instead (see bank_rotation.fresh_for_this_lead in the brief)", len(fresh))
+			}
 		}
 		a.BankMessagesUsed = make([]any, len(landed))
 		for i, m := range landed {
@@ -406,6 +470,7 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 		"confidence_band": band, "hooks_used": cleanHooks, "tracking": a.Tracking,
 		"warnings": warnings, "guessed_approved": false, "is_reply": a.IsReply,
 		"bank_messages_used": a.BankMessagesUsed, "companion_url": a.CompanionURL,
+		"pain_addressed": a.PainAddressed, "briefed_at": briefedAt,
 		"status": "pending_approval", "decided_at": "", "decided_by": "", "reject_reason": "", "blocker": ""}
 	cd, err := c.campaignDir(campaignSlug)
 	if err != nil {
@@ -660,6 +725,22 @@ func (c *crmStore) buildApproval(campaignSlug, now string, numberByDraft map[str
 				}
 			}
 			lines = append(lines, "- **Evidence:** "+strings.Join(parts, "  ·  "))
+		}
+		// The persuasion checklist: code-verified where possible, declared where
+		// not — so the operator sees at a glance what each email is built on
+		// instead of trusting the run's narration.
+		if bm := mList(d, "bank_messages_used"); len(bm) > 0 {
+			var ms []string
+			for _, m := range bm {
+				ms = append(ms, fmt.Sprint(m))
+			}
+			lines = append(lines, "- **Teaches:** "+strings.Join(ms, "  ·  "))
+		}
+		if pa := mStr(d, "pain_addressed"); pa != "" {
+			lines = append(lines, "- **Pain addressed:** "+pa)
+		}
+		if mStr(d, "briefed_at") != "" {
+			lines = append(lines, "- **Briefed:** yes ("+mStr(d, "briefed_at")+")")
 		}
 		lines = append(lines, "", fmt.Sprintf("**Subject:** %s", mStr(d, "subject")), "",
 			"> "+strings.ReplaceAll(mStr(d, "body_text"), "\n", "\n> "), "")

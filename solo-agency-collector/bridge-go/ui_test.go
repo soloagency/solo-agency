@@ -900,6 +900,7 @@ func TestCampaignEditPageRendersKeyMessages(t *testing.T) {
 	err := uiTpl.ExecuteTemplate(&sb, "campaign", map[string]any{
 		"Title": "c", "Client": uiClient{Slug: "leadup"}, "Slug": "camp",
 		"Status": "active", "Quota": 40, "GoalTypes": sortedGoalTypes(),
+		"GoalDesc":          "gioi thieu dich vu video",
 		"Bank":              "Platforms reward posting that is correct, regular and complete",
 		"Proof":             "30 realtors, 400 videos in 2025 | https://x.test/results",
 		"BankOperatorCount": 1, "CompanionOnFail": "skip",
@@ -908,7 +909,8 @@ func TestCampaignEditPageRendersKeyMessages(t *testing.T) {
 		t.Fatalf("campaign page must render: %v", err)
 	}
 	out := sb.String()
-	for _, want := range []string{"Key messages", "f-bank", "Platforms reward posting",
+	for _, want := range []string{"f-goaldesc", "gioi thieu dich vu video", "agent&rsquo;s reading",
+		"Key messages", "f-bank", "Platforms reward posting",
 		"claim | link", "1 of them are yours"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("campaign page is missing %q", want)
