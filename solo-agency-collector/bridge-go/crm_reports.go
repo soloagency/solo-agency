@@ -59,7 +59,7 @@ func (c *crmStore) pickSendbox(campaignCfg, contact map[string]any, day string) 
 	}
 	var boxes []map[string]any
 	for _, b := range c.sendboxes() {
-		if mStr(b, "status") != "healthy" || mInt(b, "quota_today", 0) <= 0 {
+		if mStr(b, "status") != "healthy" || effectiveQuota(b, "") <= 0 {
 			continue
 		}
 		if len(refs) > 0 && !refs[mStr(b, "slug")] {
@@ -71,7 +71,7 @@ func (c *crmStore) pickSendbox(campaignCfg, contact map[string]any, day string) 
 		return ""
 	}
 	load := func(b map[string]any) float64 {
-		q := mInt(b, "quota_today", 1)
+		q := effectiveQuota(b, "")
 		if q == 0 {
 			q = 1
 		}

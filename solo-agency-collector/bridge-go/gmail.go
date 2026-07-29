@@ -222,11 +222,55 @@ func gmailAuthWithPassword(clientDir, slug, emailAddr, appPassword string) (map[
 		"domain": domain, "quota_today": quota, "warmup_stage": warmup,
 		"status": "healthy", "historyId": nil,
 		"imap_uid_cursor": cursor, "last_successful_sync_ts": lastSync}
+	// re-auth preserves the operator's ramp plan, like it preserves the quota
+	if existing != nil {
+		if r, ok := existing["warmup_ramp"]; ok && r != nil {
+			sb["warmup_ramp"] = r
+		}
+	}
 	if err := saveSendbox(clientDir, sb); err != nil {
 		return nil, err
 	}
 	return map[string]any{"ok": true, "sendbox": slug, "email": emailAddr, "smtp": "ok", "imap": "ok",
 		"quota_today": quota, "warmup_stage": warmup}, nil
+}
+
+// effectiveQuota is the box's daily cap for TODAY. With a warmup_ramp declared
+// it is start_quota + step_per_day per elapsed day, capped at max_quota — the
+// ramp playbook 02 described as "documented policy the operator sets by hand"
+// and which, being prose, nobody ever advanced: a box authed at 20/day stayed
+// at 20/day forever. The ramp is config now; the arithmetic runs here so every
+// consumer (send cap, rotation, UI) agrees, and a restart loses nothing because
+// nothing is mutated daily.
+func effectiveQuota(sb map[string]any, now string) int {
+	if now == "" {
+		now = nowISO()
+	}
+	base := mInt(sb, "quota_today", 0)
+	r := mMap(sb, "warmup_ramp")
+	if len(r) == 0 {
+		return base
+	}
+	start := mStr(r, "start_date")
+	sq := mInt(r, "start_quota", base)
+	step := mInt(r, "step_per_day", 0)
+	maxQ := mInt(r, "max_quota", sq)
+	days := 0
+	if t0, err0 := time.Parse("2006-01-02", start); err0 == nil {
+		if t1, err1 := time.Parse("2006-01-02", now[:10]); err1 == nil {
+			if d := int(t1.Sub(t0).Hours() / 24); d > 0 {
+				days = d
+			}
+		}
+	}
+	q := sq + step*days
+	if q > maxQ {
+		q = maxQ
+	}
+	if q < 1 {
+		q = 1
+	}
+	return q
 }
 
 func gmailCmdHealth(clientDir, slug string) (map[string]any, error) {
@@ -316,7 +360,7 @@ func gmailCmdQuota(clientDir, slug, day string) map[string]any {
 	sb := getSendbox(clientDir, slug)
 	cap := 0
 	if sb != nil {
-		cap = mInt(sb, "quota_today", 0)
+		cap = effectiveQuota(sb, "")
 	}
 	sent := gmailSentCountToday(clientDir, slug, day)
 	store := newCrmStore(clientDir)
@@ -456,7 +500,7 @@ func gmailPresendCheck(store *crmStore, clientDir string, sb, draft map[string]a
 	if step > 1 && assigned != "" && assigned != slug {
 		return false, "wrong_sendbox_for_sticky_sender", "", nil
 	}
-	cap := mInt(sb, "quota_today", 0)
+	cap := effectiveQuota(sb, "")
 	if gmailSentCountToday(clientDir, slug, day) >= cap {
 		return false, "quota_exhausted", "", nil
 	}

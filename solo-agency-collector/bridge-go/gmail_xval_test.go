@@ -185,3 +185,36 @@ func TestStripAppPasswordWhitespace(t *testing.T) {
 		t.Errorf("non-space chars altered: %q", got)
 	}
 }
+
+// TestEffectiveQuotaRamp: playbook 02 called the warm-up ramp "documented
+// policy the operator sets by hand" — prose, so no box was ever advanced: a
+// box authed at 20/day stayed 20/day forever. The ramp is config now and the
+// arithmetic is computed on read, so restarts change nothing.
+func TestEffectiveQuotaRamp(t *testing.T) {
+	sb := map[string]any{"quota_today": 20}
+	if got := effectiveQuota(sb, "2026-07-29T09:00:00Z"); got != 20 {
+		t.Fatalf("no ramp → the stored quota: %d", got)
+	}
+	sb["warmup_ramp"] = map[string]any{"start_date": "2026-07-29", "start_quota": 20,
+		"step_per_day": 5, "max_quota": 50}
+	for _, tc := range []struct {
+		now  string
+		want int
+	}{
+		{"2026-07-29T09:00:00Z", 20}, // day 0
+		{"2026-07-30T09:00:00Z", 25},
+		{"2026-08-01T23:00:00Z", 35},
+		{"2026-08-04T00:00:00Z", 50}, // 20+5*6=50, at cap
+		{"2026-09-01T00:00:00Z", 50}, // cap holds forever
+		{"2026-07-20T00:00:00Z", 20}, // clock before start → start_quota, never negative
+	} {
+		if got := effectiveQuota(sb, tc.now); got != tc.want {
+			t.Fatalf("at %s want %d got %d", tc.now, tc.want, got)
+		}
+	}
+	// a malformed start date degrades to start_quota, not to zero
+	sb["warmup_ramp"] = map[string]any{"start_date": "junk", "start_quota": 30, "step_per_day": 5, "max_quota": 50}
+	if got := effectiveQuota(sb, "2026-08-01T00:00:00Z"); got != 30 {
+		t.Fatalf("bad start_date must fall back to start_quota: %d", got)
+	}
+}

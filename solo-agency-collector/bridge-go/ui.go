@@ -441,12 +441,14 @@ func (b *bridge) uiJobs() []uiJob {
 }
 
 type uiSendbox struct {
-	Client string
-	Slug   string
-	Email  string
-	Status string
-	Quota  string
-	Warmup string
+	RampStep int
+	RampMax  int
+	Client   string
+	Slug     string
+	Email    string
+	Status   string
+	Quota    string
+	Warmup   string
 }
 
 func (b *bridge) uiSendboxes() []uiSendbox {
@@ -465,11 +467,11 @@ func (b *bridge) uiSendboxes() []uiSendbox {
 			row.Email, _ = sb["email"].(string)
 			row.Status, _ = sb["status"].(string)
 			row.Warmup, _ = sb["warmup_stage"].(string)
-			for _, k := range []string{"quota_today", "daily_quota"} {
-				if v, ok := sb[k]; ok {
-					row.Quota = fmt.Sprintf("%v", v)
-					break
-				}
+			row.Quota = fmt.Sprintf("%d", effectiveQuota(sb, ""))
+			if r := mMap(sb, "warmup_ramp"); len(r) > 0 {
+				row.Warmup = fmt.Sprintf("+%d/day → %d", mInt(r, "step_per_day", 0), mInt(r, "max_quota", 0))
+				row.RampStep = mInt(r, "step_per_day", 0)
+				row.RampMax = mInt(r, "max_quota", 0)
 			}
 			out = append(out, row)
 		}
@@ -1171,13 +1173,27 @@ func (b *bridge) uiRenderExtension(w http.ResponseWriter, slug string) {
 	})
 }
 
-// uiClientSendboxes reads {ws}/outreach/sendboxes/sendboxes.json for one client.
+// uiClientSendboxes reads {ws}/outreach/sendboxes/sendboxes.json for one client,
+// annotating each box with today's COMPUTED quota and the ramp description so
+// the page shows the number the send engine will actually honor.
 func (b *bridge) uiClientSendboxes(c uiClient) []map[string]any {
 	p := filepath.Join(c.Path, "outreach", "sendboxes", "sendboxes.json")
-	if m, err := readJSONFile(p); err == nil {
-		return mapsOf(mList(m, "sendboxes"))
+	m, err := readJSONFile(p)
+	if err != nil {
+		return nil
 	}
-	return nil
+	boxes := mapsOf(mList(m, "sendboxes"))
+	for _, sb := range boxes {
+		sb["quota_effective"] = effectiveQuota(sb, "")
+		sb["ramp_step"], sb["ramp_max"] = 0, 0
+		sb["warmup_desc"] = mStr(sb, "warmup_stage")
+		if r := mMap(sb, "warmup_ramp"); len(r) > 0 {
+			sb["ramp_step"] = mInt(r, "step_per_day", 0)
+			sb["ramp_max"] = mInt(r, "max_quota", 0)
+			sb["warmup_desc"] = fmt.Sprintf("+%d/day → %d", mInt(r, "step_per_day", 0), mInt(r, "max_quota", 0))
+		}
+	}
+	return boxes
 }
 
 func (b *bridge) uiRenderSendboxes(w http.ResponseWriter, slug string) {
@@ -1467,6 +1483,51 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(map[string]any{"ok": true, "changed": changed,
 			"note": "saved — every new draft signs as this from the next brief on; the agent is notified"})
+	case "sendbox-quota":
+		// Operator-owned daily cap + warm-up ramp. Playbook 02's ramp was
+		// "documented policy the operator sets by hand" — prose, so no box was
+		// ever advanced. The plan is config now: effectiveQuota() computes
+		// today's cap everywhere (send cap, rotation, this page), nothing
+		// mutates daily, restarts lose nothing.
+		slug := strings.TrimSpace(mStr(body, "slug"))
+		quota := mInt(body, "quota", 0)
+		step := mInt(body, "step_per_day", 0)
+		maxQ := mInt(body, "max_quota", 0)
+		if slug == "" || quota < 1 || quota > 500 {
+			http.Error(w, "slug + quota (1..500) required", http.StatusBadRequest)
+			return
+		}
+		clientDir := filepath.Join(c.Path, "outreach")
+		sb := getSendbox(clientDir, slug)
+		if sb == nil {
+			writeJSON(map[string]any{"ok": false, "error": "unknown sendbox " + slug})
+			return
+		}
+		sb["quota_today"] = quota
+		if step > 0 {
+			if maxQ < quota {
+				maxQ = quota
+			}
+			if maxQ > 500 {
+				maxQ = 500
+			}
+			sb["warmup_ramp"] = map[string]any{"start_date": now[:10], "start_quota": quota,
+				"step_per_day": step, "max_quota": maxQ}
+		} else {
+			delete(sb, "warmup_ramp")
+		}
+		if err := saveSendbox(clientDir, sb); err != nil {
+			writeJSON(map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		_ = appendUIInbox(filepath.Join(clientDir, "ui_inbox", "sendbox_edits.jsonl"),
+			map[string]any{"ts": now, "sendbox": slug, "quota": quota,
+				"step_per_day": step, "max_quota": maxQ, "ui_session": session})
+		note := "saved — takes effect immediately (send cap, rotation and this page all compute from it)"
+		if strings.HasSuffix(strings.ToLower(mStr(sb, "domain")), "gmail.com") && (quota > 50 || maxQ > 50) {
+			note += ". Caution: consumer @gmail.com boxes above ~50 cold emails/day get flagged (playbook 02 §8)"
+		}
+		writeJSON(map[string]any{"ok": true, "sendbox": slug, "effective_today": effectiveQuota(sb, ""), "note": note})
 	case "reveal-extension":
 		info := b.uiExtensionInfo(c)
 		folder := mStr(info, "Folder")
@@ -2222,9 +2283,9 @@ document.getElementById('sentfilter').addEventListener('input',function(){
 {{range .Sendboxes}}<tr>
 <td><code>{{.slug}}</code></td><td>{{.email}}</td>
 <td><span class="pill{{if eq .status "healthy"}} band-high{{else}} band-review_carefully{{end}}"><span class="dot{{if eq .status "healthy"}} ok{{else}} warn{{end}}"></span>{{.status}}</span></td>
-<td>{{.quota_today}}</td><td class="mut">{{.warmup_stage}}</td>
+<td>{{.quota_effective}}</td><td class="mut">{{.warmup_desc}}</td>
 <td class="mut">{{.last_successful_sync_ts}}</td>
-<td><a href="#connect" class="pick-box" data-email="{{.email}}">connect / re-auth</a></td>
+<td><a href="#quota" class="pick-quota" data-slug="{{.slug}}" data-quota="{{.quota_effective}}" data-step="{{.ramp_step}}" data-max="{{.ramp_max}}">quota</a> · <a href="#connect" class="pick-box" data-email="{{.email}}">connect / re-auth</a></td>
 </tr>{{end}}</table></div>
 {{else}}<div class="empty"><b>No sendboxes yet.</b><br>Connect the first one below.</div>{{end}}
 
@@ -2240,6 +2301,24 @@ document.getElementById('sentfilter').addEventListener('input',function(){
 <button class="ok" type="submit">Save sender identity</button>
 <span id="sendermsg" class="mut"></span>
 </form>
+</div>
+
+<h2 id="quota">Daily quota &amp; warm-up <span class="mut" style="font-size:.8rem">today's cap, and how it grows by itself</span></h2>
+<div class="card" style="max-width:560px">
+<form id="quotaform">
+<label>Sendbox
+<select id="q-slug">{{range .Sendboxes}}<option value="{{.slug}}">{{.slug}} — {{.email}}</option>{{end}}</select></label>
+<label>Quota today <span class="mut">(emails/day from today)</span>
+<input id="q-quota" type="number" min="1" max="500" value="20"></label>
+<label>Auto-increase per day <span class="mut">(0 = fixed; e.g. 5 ramps a new box up automatically)</span>
+<input id="q-step" type="number" min="0" max="50" value="0"></label>
+<label>Cap <span class="mut">(the ramp stops here; consumer @gmail.com should stay ≤ ~50 cold/day)</span>
+<input id="q-max" type="number" min="1" max="500" value="50"></label>
+<button class="ok" type="submit">Save quota</button>
+<span id="quotamsg" class="mut"></span>
+</form>
+<p class="mut" style="font-size:.8rem;margin-bottom:0">The ramp is computed, not scheduled: every send, rotation decision and this page derive today's
+cap from <code>start + step × days</code>, so restarts change nothing and no one has to remember to raise it.</p>
 </div>
 
 <h2 id="connect">Connect a sending mailbox (Gmail App Password)</h2>
@@ -2263,6 +2342,27 @@ var CLIENT="{{.Client.Slug}}";
 document.querySelectorAll('.pick-box').forEach(function(a){a.addEventListener('click',function(){
  document.getElementById('f-email').value=this.dataset.email;
  document.getElementById('f-pass').focus()})});
+document.querySelectorAll('.pick-quota').forEach(function(a){a.addEventListener('click',function(){
+ document.getElementById('q-slug').value=this.dataset.slug;
+ document.getElementById('q-quota').value=this.dataset.quota;
+ document.getElementById('q-step').value=this.dataset.step||0;
+ if((this.dataset.max||"0")!=="0")document.getElementById('q-max').value=this.dataset.max;
+ document.getElementById('q-quota').focus()})});
+document.getElementById('quotaform').addEventListener('submit',function(e){
+ e.preventDefault();
+ var btn=this.querySelector('button');btn.disabled=true;btn.setAttribute('aria-busy','true');
+ var msg=document.getElementById('quotamsg');msg.textContent='Saving…';
+ fetch('/api/ui/'+CLIENT+'/sendbox-quota',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({slug:document.getElementById('q-slug').value,
+   quota:parseInt(document.getElementById('q-quota').value,10),
+   step_per_day:parseInt(document.getElementById('q-step').value,10)||0,
+   max_quota:parseInt(document.getElementById('q-max').value,10)||0})})
+ .then(function(r){return r.json()})
+ .then(function(j){btn.disabled=false;btn.removeAttribute('aria-busy');
+  if(j.ok){msg.textContent='✓ '+(j.note||'saved')+' — today: '+j.effective_today+'/day';setTimeout(function(){location.reload()},1200);}
+  else{msg.textContent='✗ '+(j.error||'failed');}})
+ .catch(function(){btn.disabled=false;btn.removeAttribute('aria-busy');msg.textContent='✗ network error';});
+});
 document.getElementById('senderform').addEventListener('submit',function(e){
  e.preventDefault();
  var btn=this.querySelector('button');btn.disabled=true;btn.setAttribute('aria-busy','true');

@@ -995,4 +995,45 @@ func TestSenderIdentityUIRoundTrip(t *testing.T) {
 	if !strings.Contains(string(inbox), "sending_identity") {
 		t.Fatalf("ui_inbox must record the edit: %s", inbox)
 	}
+
+	// --- quota + ramp round-trip on the same page ---
+	if err := os.MkdirAll(filepath.Join(c.Path, "outreach", "sendboxes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(c.Path, "outreach", "sendboxes", "sendboxes.json"), []byte(
+		`{"sendboxes":[{"slug":"sb-a","email":"a@gmail.com","domain":"gmail.com","quota_today":20,"warmup_stage":"week_1","status":"healthy"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rec = uiAuthedRequest(t, b, "POST", "/api/ui/leadup/sendbox-quota",
+		`{"slug":"sb-a","quota":20,"step_per_day":5,"max_quota":60}`)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("sendbox-quota: %d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "gmail.com boxes above ~50") {
+		t.Fatalf("a >50 cap on consumer gmail must warn: %s", rec.Body.String())
+	}
+	doc, _ := os.ReadFile(filepath.Join(c.Path, "outreach", "sendboxes", "sendboxes.json"))
+	for _, want := range []string{`"warmup_ramp"`, `"step_per_day": 5`, `"max_quota": 60`} {
+		if !strings.Contains(string(doc), want) {
+			t.Fatalf("ramp must persist (%q):\n%s", want, doc)
+		}
+	}
+	// the page shows the computed cap and the ramp, and the edit link carries it
+	rec = uiAuthedRequest(t, b, "GET", "/ui/leadup/sendboxes", "")
+	// html/template renders "+" as &#43;, so assert on the un-ambiguous part
+	for _, want := range []string{"5/day → 60", "pick-quota", "Daily quota"} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("sendboxes page missing %q", want)
+		}
+	}
+	// step 0 clears the ramp back to a fixed quota
+	rec = uiAuthedRequest(t, b, "POST", "/api/ui/leadup/sendbox-quota",
+		`{"slug":"sb-a","quota":30,"step_per_day":0}`)
+	if rec.Code != 200 {
+		t.Fatalf("clear ramp: %d %s", rec.Code, rec.Body.String())
+	}
+	doc, _ = os.ReadFile(filepath.Join(c.Path, "outreach", "sendboxes", "sendboxes.json"))
+	if strings.Contains(string(doc), "warmup_ramp") || !strings.Contains(string(doc), `"quota_today": 30`) {
+		t.Fatalf("step 0 must clear the ramp and fix the quota:\n%s", doc)
+	}
 }
