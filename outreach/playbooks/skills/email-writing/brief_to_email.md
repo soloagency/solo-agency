@@ -102,10 +102,16 @@ when unsure, write SHORTER, not more generic.
 - House Style: no em dash, no `Re:`/`Fwd:`, subject specific to THIS email's argument.
 - Declarations set: `hooks_used`, `pain_addressed`; the companion URL per the goal.
 
-`draft write` enforces what it can (`no_brief`, `hook_not_woven`, `no_key_message`,
-`rotate_bank`, `vn_register` — "anh/chị" is refused outright, and `template_sentence` — any
-sentence already used verbatim in another lead's live draft in this campaign is refused, INCLUDING
-the offer and CTA lines: render them fresh per email); this checklist covers what only you can judge. The Approval Report prints
+`draft write` enforces what it can: `no_brief`, `hook_not_woven`, `no_key_message`,
+`rotate_bank`, `vn_register` ("anh/chị", pages greeted as people, and register mixing — greeting
+"anh" then switching to "bạn"), `name_overuse`, `template_sentence` (a sentence already used in
+another lead's live draft, INCLUDING offer/CTA lines — render them fresh per email),
+`summary_pasted` (≥10 consecutive words of the hook summary lifted verbatim, or ≥6 lifted twice —
+weaving reuses the content's short key phrase, never a block; if the stored summary is in a
+different language than the email, FIX THE DOSSIER SUMMARY first, then draft), and
+`phrase_stuffing` (the same 6-word phrase three times in one email is a template variable, not a
+person — name the topic once, then use a natural reference). This checklist covers what only you
+can judge. The Approval Report prints
 Evidence / Teaches / Pain addressed / Briefed per card — the operator sees exactly which of
 these you did.
 
