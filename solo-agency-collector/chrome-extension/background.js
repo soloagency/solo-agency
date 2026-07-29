@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.59-drift-allseeds";
+const EXTENSION_BUILD = "0.1.60-owner-wait";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -710,6 +710,12 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         // profile URL / unsupported tab slug). Consumers must reject such a record:
         // its email/phone belong to the operator, not the lead.
         landed_on_self: !!cap.landedOnSelf,
+        // For a reel: did the owner link ever render? false means the read was too
+        // early (a RETRYABLE timing miss), not that the reel has no owner. Consumers
+        // must requeue on false instead of concluding "unresolved".
+        owner_resolution: /\/reel\/[A-Za-z0-9]+/.test(String(source.url || ""))
+          ? (cap.ownerAffordanceSeen ? "resolved" : "retryable_not_rendered")
+          : "n/a",
         // Audit trail for the contact-info dig: how many truncated blocks were
         // expanded and whether the About > Contact info sub-tab was opened. A record
         // with 0/false has NOT exhausted the page — do not conclude "no email".
@@ -1557,6 +1563,20 @@ async function collectCleanPage(opts) {
     } catch (error) { /* best effort */ }
     return false;
   }
+  // On a reel the OWNER affordance ("See Owner" → a link carrying sk=reels_tab) renders
+  // after the player itself. Reading before it appears yields a record with no owner at
+  // all: 178 of 737 reel jobs came back that way, and 99% of the successful ones had
+  // "See Owner" present versus 1% of the failures — while a Messenger panel was open in
+  // 67% of the SUCCESSES too, so the chat overlay was noise, not the cause. Wait for the
+  // affordance, and report whether it ever arrived so the caller can retry a timing miss
+  // instead of recording "this reel has no owner".
+  let ownerAffordanceSeen = false;
+  if (/\/reel\/[A-Za-z0-9]+/.test(location.pathname)) {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if (document.querySelector('a[href*="reels_tab"]')) { ownerAffordanceSeen = true; break; }
+      await wait(400);
+    }
+  }
   const landedSelf = landedOnOwnProfile();
   for (let i = 0; i <= steps; i += 1) {
     try {
@@ -1609,6 +1629,7 @@ async function collectCleanPage(opts) {
     last.scrollStepsUsed = scrollStepsUsed;
     last.expandedTruncations = expandedCount;
     last.landedOnSelf = landedSelf;
+    last.ownerAffordanceSeen = ownerAffordanceSeen;
     last.openedContactTab = openedContactTab;
     last.requestedScrollSteps = steps;
     last.scrollStoppedReason = stoppedReason;
