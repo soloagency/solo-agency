@@ -638,6 +638,142 @@ var fbContactSurfaces = []string{
 	"/about",
 }
 
+// --- the contact's NAME: display vs greetable ---------------------------------
+//
+// The dossier schema had no field for the name enrichment discovers, so the
+// header processor improvised: it wrote the observed name into
+// enrichment.context.header_name AND identity.current_company (identical value
+// in 182 of 182 live contacts, which also means a person's name was being
+// stored as their COMPANY). enrichWrite never promoted either to
+// contact.name.full, so the UI fell back to the ShortID and 360 of 404 live
+// contacts displayed as "c_...".
+//
+// Fixing that is a promotion, but a blind promotion is worse than the bug: 34
+// of those 182 values are not names at all (UI text "Post 2"/"Facebook", phone
+// numbers, emoji taglines, marketing sentences), and a wrong name goes into the
+// GREETING of a real email. So two questions, deliberately separate:
+//
+//   displayNameOK  — fit to show as this contact's name in the CRM?
+//   greetableName  — safe for a writer to put after "Chào"/"Hi"?
+//
+// They differ on the middle class Facebook pages love: "Jessie Nguyen -
+// Mortgage Advisor", "Cuộc Sống Mỹ - Mai Vu". Perfectly good display names, and
+// greeting with one whole would read as a mail merge. Measured on the live pool:
+// 148 displayable, 114 of those greetable.
+
+var (
+	uiTextNameRe     = regexp.MustCompile(`(?i)^\s*(post|reel|video|photos?|stor(y|ies)|facebook|meta|new message|messages?|message|home|follow(ing)?|see more|xem thêm|tin nhắn|trang chủ|theo dõi|about|intro)\b\s*\d*\s*$`)
+	contactishNameRe = regexp.MustCompile(`(?i)(zalo|phone|\+?\d[\d.\s-]{7,})`)
+	sentenceyNameRe  = regexp.MustCompile(`(?i)[.!?…]\s|[.!?…]$|\bhelping\b|\bchia sẻ\b|\bgiúp\b|\btôi đã\b`)
+	titleishNameRe   = regexp.MustCompile(`(?i)\b(realtor|broker|nmls|dre|llc|inc|co\.|lpa|law firm|services|mortgage|advisor|expert|group|team)\b`)
+	compositeNameRe  = regexp.MustCompile(`[-–—:|,]`)
+)
+
+func nameHasEmoji(s string) bool {
+	for _, r := range s {
+		if unicode.In(r, unicode.So, unicode.Sk) {
+			return true
+		}
+	}
+	return false
+}
+
+// displayNameOK reports whether s is fit to be a contact's displayed name, and
+// why not when it is not. Thresholds calibrated against the live pool, so a real
+// business name ("Catholic MTA USA – Immigration Services") passes while a bio
+// ("Helping Families Build Wealth Through Real Estate, Retirement and ...")
+// does not.
+func displayNameOK(s string) (bool, string) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false, "empty"
+	}
+	if uiTextNameRe.MatchString(s) {
+		return false, "page-chrome text, not a name"
+	}
+	if contactishNameRe.MatchString(s) {
+		return false, "a phone/Zalo number, not a name"
+	}
+	if len([]rune(s)) > 60 {
+		return false, "longer than 60 characters — a bio or tagline, not a name"
+	}
+	if len(strings.Fields(s)) > 8 {
+		return false, "more than 8 words — a tagline, not a name"
+	}
+	if sentenceyNameRe.MatchString(s) {
+		return false, "reads as a marketing sentence, not a name"
+	}
+	if nameHasEmoji(s) {
+		return false, "emoji-decorated tagline, not a name"
+	}
+	letters, digits := 0, 0
+	for _, r := range s {
+		switch {
+		case unicode.IsLetter(r):
+			letters++
+		case unicode.IsDigit(r):
+			digits++
+		}
+	}
+	if letters < 2 {
+		return false, "no letters"
+	}
+	if digits*2 >= letters {
+		return false, "mostly digits"
+	}
+	return true, ""
+}
+
+// greetableName reports whether a writer may address the reader with s as-is.
+// Stricter than display: no composites (the person is one half of them), no
+// role/licence words, at most four words.
+func greetableName(s string) bool {
+	if ok, _ := displayNameOK(s); !ok {
+		return false
+	}
+	s = strings.TrimSpace(s)
+	if compositeNameRe.MatchString(s) || titleishNameRe.MatchString(s) {
+		return false
+	}
+	return len(strings.Fields(s)) <= 4
+}
+
+// seedResolutionState reads the seed's own account of WHY it is unresolved.
+//
+// The state machine could not tell a lead nobody can resolve from a collector
+// job that hiccuped. On the live batch that mattered: 134 of 136 unresolved reel
+// seeds came back with a Messenger overlay in the DOM instead of the owner link.
+// The owner filter correctly refused that data (it had already prevented one
+// wrong merge), but the run then treated all 136 as ordinary "unresolved",
+// drafted the leads that were ready, and reported. Infrastructure noise looked
+// exactly like an exhausted search.
+//
+// resolution.state ∈ resolved | retryable | exhausted. Written by the agent that
+// ran the job, because only it knows what came back; enforced here.
+func seedResolutionState(sd map[string]any) string {
+	if st := strings.ToLower(strings.TrimSpace(mStr(mMap(sd, "resolution"), "state"))); st != "" {
+		return st
+	}
+	if strings.EqualFold(mStr(sd, "status"), "resolved") {
+		return "resolved"
+	}
+	return "" // unclassified: an older record, or a job that never reported back
+}
+
+// contactRetryableSeeds returns the seeds whose owner lookup failed for a reason
+// that a retry can fix.
+func contactRetryableSeeds(ct map[string]any) []string {
+	var out []string
+	for _, sd := range mapsOf(mList(mMap(ct, "identities"), "seeds")) {
+		if seedResolutionState(sd) == "retryable" {
+			if u := mStr(sd, "url"); u != "" {
+				out = append(out, u)
+			}
+		}
+	}
+	return out
+}
+
 // contentSeedKinds are the seed kinds that ARE hook material. A profile or an
 // email seed identifies a person; a reel/post/video IS a story about them, and
 // when the operator saved one they were choosing the reason to make contact.
@@ -848,6 +984,13 @@ func (c *crmStore) enrichStatus(contactID, now string) map[string]any {
 	// phone/profile/website) must first be traced back to its origin profile —
 	// from its content seeds when it has any, else from the name fragment.
 	if !hasContactAnchor(ct) {
+		// A collector failure that a retry can fix is NOT an exhausted search, and
+		// must not hide inside seed_unresolved — that reads as "the hunt is done
+		// and came up empty", which is how 134 overlay-contaminated jobs got
+		// counted as finished work.
+		if urls := contactRetryableSeeds(ct); len(urls) > 0 {
+			return map[string]any{"needs": "enrich", "reason": "seed_retryable_failure", "seed_urls": urls}
+		}
 		for _, sd := range mapsOf(mList(mMap(ct, "identities"), "seeds")) {
 			if mStr(sd, "status") != "resolved" {
 				return map[string]any{"needs": "enrich", "reason": "seed_unresolved"}
@@ -1237,6 +1380,40 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 		}
 	}
 	patch := map[string]any{"enrichment": enrichment}
+
+	// Promote the discovered name to the canonical contact.name, which is what
+	// every consumer (UI list, greeting, name_overuse gate) reads. Only when the
+	// contact has none: an operator-supplied name always outranks an observed
+	// one. Junk is refused with the reason rather than stored — blank displays as
+	// the id, which is ugly; a tagline displays as the reader's NAME in a real
+	// greeting, which is worse.
+	if strings.TrimSpace(mStr(mMap(prevContact, "name"), "full")) == "" {
+		if observed := strings.TrimSpace(mStr(ident, "name")); observed != "" {
+			if ok, why := displayNameOK(observed); ok {
+				np := map[string]any{"full": observed, "source": "enrich"}
+				if g := strings.TrimSpace(mStr(ident, "name_given")); g != "" {
+					np["given"] = g
+				}
+				if et := strings.TrimSpace(mStr(ident, "entity_type")); et != "" {
+					np["entity_type"] = et
+				}
+				np["greetable"] = greetableName(observed) || mStr(ident, "name_given") != ""
+				patch["name"] = np
+			} else {
+				problems = append(problems, fmt.Sprintf("identity.name %s rejected: %s. Give the profile's actual name (a person's name, or the page/company name) — the value ends up in the CRM list and in the email greeting, so a tagline or page-chrome string must not be stored as a name", pyRepr(observed), why))
+			}
+		}
+	}
+	// A person's name in current_company is the header processor's improvisation
+	// showing through: 182 live contacts carry the same string in both. The
+	// dossier now has identity.name for the name; current_company means the
+	// employer and nothing else.
+	if cc := strings.TrimSpace(mStr(ident, "current_company")); cc != "" &&
+		strings.EqualFold(cc, strings.TrimSpace(mStr(ident, "name"))) &&
+		mStr(ident, "entity_type") == "person" {
+		problems = append(problems, "identity.current_company duplicates identity.name for a PERSON — current_company is the employer, not the person. Leave it empty when the employer is unknown")
+	}
+
 	found := withEmailDiscovery(mMap(ident, "channels_found"), mMap(dossier, "email_discovery"))
 	// A later enrich that SUCCEEDS must CLEAR the matching negative cache. Both
 	// flags were carried forward unconditionally, so once a lead was marked

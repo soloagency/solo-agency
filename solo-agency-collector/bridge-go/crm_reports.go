@@ -618,10 +618,21 @@ func (c *crmStore) draftWrite(contactID, campaignSlug string, a draftArgs) (map[
 		if n := strings.Count(lowBody, lowFull); n >= 3 {
 			return nil, storageErrf("name_overuse: %q appears %d times in the body — the reader knows who they are; use the name in the greeting (given name for a person, bare page name for a company) and at most once more", full, n)
 		}
-		if strings.Count(full, " ") >= 2 {
-			if m, _ := regexp.MatchString(`(?i)\b(anh|chị)\s+`+regexp.QuoteMeta(lowFull), lowBody); m {
-				return nil, storageErrf("vn_register: %q is a PAGE name, and a gender word glued to it addresses a page as a person. Use the bare page name, or if the name embeds a person, greet that person by given name", full)
+		// Is the stored name a page/company? Prefer the dossier's own statement;
+		// fall back to the word-count heuristic for records written before
+		// entity_type existed. The heuristic alone mislabels a three-word
+		// Vietnamese person name ("Nguyễn Văn An") as a page, so the refusal was
+		// right for the wrong reason — with entity_type the message is accurate.
+		entity := strings.ToLower(strings.TrimSpace(mStr(mMap(contact, "name"), "entity_type")))
+		isPageName := entity == "page" || entity == "company"
+		if entity == "" {
+			isPageName = strings.Count(full, " ") >= 2
+		}
+		if m, _ := regexp.MatchString(`(?i)\b(anh|chị)\s+`+regexp.QuoteMeta(lowFull), lowBody); m {
+			if isPageName {
+				return nil, storageErrf("vn_register: %q is a PAGE/COMPANY name, and a gender word glued to it addresses a page as a person. Use the bare name, or if it embeds a person, greet that person by given name", full)
 			}
+			return nil, storageErrf("vn_register: %q is the reader's FULL name and a gender word glued to it reads as a form letter — greet by given name only (see name.given)", full)
 		}
 	}
 	if owners := c.campaignSentenceOwners(campaignSlug, leadID); len(owners) > 0 {
@@ -987,7 +998,8 @@ type numberedDraft struct {
 
 // researchPendingReasons are the enrich-status verdicts that mean "this lead is
 // mid-hunt", as opposed to a lead genuinely exhausted.
-var researchPendingReasons = []string{"email_discovery", "seed_hook_unharvested", "seed_unresolved"}
+var researchPendingReasons = []string{"email_discovery", "seed_hook_unharvested",
+	"seed_unresolved", "seed_retryable_failure"}
 
 // researchPending tallies what this campaign has NOT finished researching, taking
 // the store's own per-lead verdict — never the run's account of itself.
@@ -1029,9 +1041,12 @@ func researchPendingBanner(pend map[string]int) []string {
 		fmt.Sprintf("> **Research pending: %d lead(s) — these are NOT skipped.** "+
 			"%d mid email hunt (address not yet found, ladder unfinished) · "+
 			"%d whose curated content has not been read into a hook · "+
-			"%d whose origin is still unresolved. "+
+			"%d whose origin is still unresolved · "+
+			"**%d blocked by a RETRYABLE collector failure** (infrastructure, not an exhausted "+
+			"search: retry those before calling this run complete). "+
 			"Reporting any of them as \"skipped\" claims a hunt that did not happen.",
-			total, pend["email_discovery"], pend["seed_hook_unharvested"], pend["seed_unresolved"]),
+			total, pend["email_discovery"], pend["seed_hook_unharvested"],
+			pend["seed_unresolved"], pend["seed_retryable_failure"]),
 	}
 }
 

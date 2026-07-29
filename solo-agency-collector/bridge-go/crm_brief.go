@@ -211,7 +211,13 @@ func (c *crmStore) draftBrief(contactID, campaignSlug, now string) (map[string]a
 		},
 		"lead": map[string]any{
 			"id": leadID, "name": mMap(ct, "name"),
-			"emails": mList(ids, "emails"), "socials": mMap(ids, "socials"),
+			// Whether the writer may greet with the stored name at all. A blank or
+			// non-greetable name (a page name, a "Person - Tagline" composite) means
+			// a NEUTRAL greeting — never a name guessed from the profile slug, which
+			// is the failure the enrich skill already forbids.
+			"name_missing":   strings.TrimSpace(mStr(mMap(ct, "name"), "full")) == "",
+			"name_greetable": nameGreetableForBrief(mMap(ct, "name")),
+			"emails":         mList(ids, "emails"), "socials": mMap(ids, "socials"),
 			"website": ids["website"], "seeds": mList(ids, "seeds"),
 			"custom_fields":   mMap(ct, "custom_fields"),
 			"hooks":           mList(en, "hooks"),
@@ -323,6 +329,19 @@ func (c *crmStore) senderIdentityUpdate(fields map[string]string) ([]string, err
 		return nil, err
 	}
 	return changed, nil
+}
+
+// nameGreetableForBrief: may the writer put this contact's stored name straight
+// after "Chào"/"Hi"? An explicit name.given always can; otherwise the stored
+// full name must pass greetableName on its own.
+func nameGreetableForBrief(n map[string]any) bool {
+	if strings.TrimSpace(mStr(n, "given")) != "" {
+		return true
+	}
+	if g, ok := n["greetable"].(bool); ok {
+		return g
+	}
+	return greetableName(mStr(n, "full"))
 }
 
 func anySlice(ss []string) []any {

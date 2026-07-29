@@ -478,10 +478,29 @@ Field notes:
 
 ### 7.2 Dossier (`campaigns/{campaign_slug}/queue/enriched/YYYY-MM-DD/{lead_id}.json`)
 
+- **`identity.name` / `name_given` / `entity_type`** — the name observed ON the profile, the single
+  word to greet with, and what kind of entity this is. `enrich write` promotes `name` to the
+  canonical `contact.name` when the contact has none (an operator-supplied name always wins), and
+  refuses values that are not names — page chrome ("Post 2", "Facebook"), phone/Zalo numbers,
+  emoji taglines, marketing sentences, bios over 60 characters. It also stores
+  `contact.name.greetable`: a page name or a "Person - Tagline" composite is fine to DISPLAY and
+  must not be used as a greeting. `name_given` is required for a person because code cannot know
+  the order (Vietnamese given name is the LAST word, English the first) — the agent that just read
+  the profile can. `current_company` is the EMPLOYER; putting the person's own name there is
+  flagged (it was the header processor's improvisation before `identity.name` existed, and it hit
+  182 live contacts).
+- **`identities.seeds[].resolution`** = `{state: resolved|retryable|exhausted, attempts, last_error,
+  last_attempt_at}` — why this seed is still unresolved. `retryable` means the COLLECTOR failed in a
+  way a retry can fix (Messenger overlay in the DOM, empty result, timeout); `exhausted` means the
+  owner genuinely cannot be resolved. `enrich status` reports `seed_retryable_failure` for the
+  former, and the approval report counts it in its own bucket, because infrastructure noise must
+  never look like a finished search.
+
 The dossier belongs to the **contact** (client-scope); a distilled copy lands in `contact.enrichment`. Campaigns reference `lead_id`; the enrich queue is client-level, deduped by `lead_id`. The email-writing skill consumes `writing_brief`, not raw data.
 
 ```json
 {"lead_id":"","identity":{"still_active":"confirmed|inactive|unknown",
+   "name":"","name_given":"","entity_type":"person|company|page",
    "evidence":[{"fact":"","url":"","retrieved_at":""}],"current_company":"","role":"",
    "profiles":{"zillow":"","website":"","facebook":"","instagram":"","gbp":""},
    "channels_found":{"emails":[],"phones":[]}},

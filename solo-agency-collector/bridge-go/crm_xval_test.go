@@ -1982,3 +1982,157 @@ func TestSignatureBlockWebsiteEnforced(t *testing.T) {
 		t.Fatalf("the full signature_block must pass: %s%s", r2.Stdout, r2.Stderr)
 	}
 }
+
+// TestNamePromotionAndValidator: 360 of 404 live contacts displayed as "c_..."
+// while 182 already carried the observed name — in enrichment.context.header_name
+// and (wrongly) identity.current_company, never promoted. Promotion is the fix;
+// a BLIND promotion is worse, because 34 of those 182 are taglines, phone
+// numbers or page chrome, and a name goes into a real greeting.
+func TestNamePromotionAndValidator(t *testing.T) {
+	// calibrated against the live pool: real names and business names in, bios out
+	for _, s := range []string{"Tri Tran", "Sunday Phuong Nguyen", "Thu Thủy",
+		"Legacy Financial Partners", "Catholic MTA USA – Immigration Services",
+		"Jessie Nguyen - Mortgage Advisor", "The Retired Contractor"} {
+		if ok, why := displayNameOK(s); !ok {
+			t.Errorf("%q is a usable display name, rejected as %q", s, why)
+		}
+	}
+	for _, s := range []string{"Post 2", "Facebook", "✅ Zalo/Phone: 0989.148.707",
+		"Zalo 0961.155.911", "VSAM 1040", "🌿 Dược sĩ Diễm Phúc",
+		"Helping you make smarter money moves", "Wealth isn’t luck.It’s mindset,discipline and strategy.",
+		"Mortgage Broker based in DFW servicing all of Texas",
+		"Giúp bạn tụt từ 6 đến 8kg mỡ, nhỏ đi từ 8 đến 15cm vòng bụng trong 1 tháng"} {
+		if ok, _ := displayNameOK(s); ok {
+			t.Errorf("%q is not a name and must be refused", s)
+		}
+	}
+	// greetable is stricter: composites and role words are displayable, not greetable
+	for _, s := range []string{"Tri Tran", "Thu Thủy", "Josh Rincon"} {
+		if !greetableName(s) {
+			t.Errorf("%q must be greetable", s)
+		}
+	}
+	for _, s := range []string{"Jessie Nguyen - Mortgage Advisor", "Cuộc Sống Mỹ - Mai Vu",
+		"Catholic MTA USA – Immigration Services", "Win Nguyen Real Estate Group"} {
+		if greetableName(s) {
+			t.Errorf("%q is displayable but must NOT be greeted with as-is", s)
+		}
+	}
+
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-29T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	enrich := func(id, dossier string) map[string]any {
+		return mustOK(run("2026-07-29T09:02:00Z", "--client-dir", ws, "enrich", "write",
+			"--contact", id, "--json", dossier))
+	}
+	nameOf := func(id string) map[string]any {
+		return mMap(mustOK(run("2026-07-29T09:03:00Z", "--client-dir", ws, "contact", "get", "--id", id)), "name")
+	}
+
+	// blank name + a good observed name → promoted, with given/entity/greetable
+	mustOK(run("2026-07-29T09:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_n1","identities":{"emails":[{"address":"n1@x.com","is_primary":true}]}}`))
+	enrich("c_n1", `{"identity":{"still_active":"confirmed","name":"Claire Hanh Lam",
+	  "name_given":"Claire","entity_type":"person"},"hooks":[]}`)
+	n := nameOf("c_n1")
+	if mStr(n, "full") != "Claire Hanh Lam" || mStr(n, "given") != "Claire" ||
+		mStr(n, "source") != "enrich" || n["greetable"] != true {
+		t.Fatalf("a good observed name must be promoted whole: %v", n)
+	}
+
+	// junk is refused WITH the reason, and the name stays blank
+	mustOK(run("2026-07-29T09:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_n2","identities":{"emails":[{"address":"n2@x.com","is_primary":true}]}}`))
+	res := enrich("c_n2", `{"identity":{"still_active":"confirmed","name":"Post 2"},"hooks":[]}`)
+	if !strings.Contains(fmt.Sprint(mList(res, "problems")), "page-chrome") {
+		t.Fatalf("page chrome must be refused with the reason: %v", res["problems"])
+	}
+	if mStr(nameOf("c_n2"), "full") != "" {
+		t.Fatalf("a refused value must not be stored: %v", nameOf("c_n2"))
+	}
+
+	// an operator-supplied name always outranks an observed one
+	mustOK(run("2026-07-29T09:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_n3","name":{"full":"Charlie Bui"},"identities":{"emails":[{"address":"n3@x.com","is_primary":true}]}}`))
+	enrich("c_n3", `{"identity":{"still_active":"confirmed","name":"Do Good Mortgage","entity_type":"page"},"hooks":[]}`)
+	if got := mStr(nameOf("c_n3"), "full"); got != "Charlie Bui" {
+		t.Fatalf("the operator's name must win, got %q", got)
+	}
+
+	// a person's name duplicated into current_company is called out
+	mustOK(run("2026-07-29T09:01:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_n4","identities":{"emails":[{"address":"n4@x.com","is_primary":true}]}}`))
+	res = enrich("c_n4", `{"identity":{"still_active":"confirmed","name":"Tri Tran",
+	  "current_company":"Tri Tran","entity_type":"person"},"hooks":[]}`)
+	if !strings.Contains(fmt.Sprint(mList(res, "problems")), "current_company duplicates") {
+		t.Fatalf("a person's name stored as their company must be flagged: %v", res["problems"])
+	}
+}
+
+// TestRetryableSeedIsNotAnExhaustedSearch: 134 of 136 unresolved reel seeds came
+// back with a Messenger overlay in the DOM. The owner filter refused that data
+// correctly, but the run counted all 136 as ordinary unresolved leads, drafted
+// the ready ones and reported — infrastructure noise indistinguishable from an
+// exhausted search.
+func TestRetryableSeedIsNotAnExhaustedSearch(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-29T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	writeFixture(t, ws)
+	mustOK(run("2026-07-29T09:01:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	mustOK(run("2026-07-29T09:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "intro",
+		"--json", `{"audience":{"segment":"all"},"sendboxes":["sb-a"],"daily_quota":10,"goal":{"goal_type":"direct_sale"}}`))
+	// anchorless lead whose reel job hit the Messenger overlay
+	mustOK(run("2026-07-29T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_r1","identities":{"seeds":[{"url":"https://www.facebook.com/reel/777","kind":"reel",
+		  "platform":"facebook","status":"unresolved",
+		  "resolution":{"state":"retryable","attempts":1,"last_error":"messenger_overlay"}}]}}`))
+	st := mustOK(run("2026-07-29T09:04:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_r1"))
+	if st["reason"] != "seed_retryable_failure" {
+		t.Fatalf("a retryable collector failure is its own state, got %v", st)
+	}
+	if !strings.Contains(fmt.Sprint(mList(st, "seed_urls")), "reel/777") {
+		t.Fatalf("the state must name the url to retry: %v", st)
+	}
+	// exhausted reads as the ordinary unresolved state (the hunt really is over)
+	mustOK(run("2026-07-29T09:05:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_r2","identities":{"seeds":[{"url":"https://www.facebook.com/reel/888","kind":"reel",
+		  "platform":"facebook","status":"unresolved",
+		  "resolution":{"state":"exhausted","attempts":3}}]}}`))
+	if st := mustOK(run("2026-07-29T09:06:00Z", "--client-dir", ws, "enrich", "status", "--contact", "c_r2")); st["reason"] != "seed_unresolved" {
+		t.Fatalf("an exhausted seed is ordinary unresolved work, got %v", st)
+	}
+	// and the report separates infrastructure from research
+	mustOK(run("2026-07-29T09:07:00Z", "--client-dir", ws, "campaign", "queue", "--slug", "intro"))
+	rep := mustOK(run("2026-07-29T09:08:00Z", "--client-dir", ws, "approval-report", "--campaign", "intro"))
+	if mInt(mMap(rep, "research_pending_by_reason"), "seed_retryable_failure", 0) < 1 {
+		t.Fatalf("a retryable failure must be counted in its own bucket: %v", rep["research_pending_by_reason"])
+	}
+	md, err := os.ReadFile(mStr(rep, "md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(md), "RETRYABLE collector failure") {
+		t.Fatalf("the operator must see it in the report:\n%s", md)
+	}
+}
