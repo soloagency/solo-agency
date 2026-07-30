@@ -683,11 +683,24 @@ func TestCampaignUpdateAndPause(t *testing.T) {
 		t.Fatalf("update not persisted: %v", got)
 	}
 
-	// 2. non-whitelisted key rejected loudly
+	// 2. non-whitelisted key rejected loudly (sendboxes IS editable now, so probe
+	// with a key that genuinely is not)
 	bad := run("2026-07-20T10:06:00Z", "--client-dir", ws, "campaign", "update",
-		"--slug", "demo", "--json", `{"sendboxes": ["sb-evil"]}`)
+		"--slug", "demo", "--json", `{"schema_version": 99}`)
 	if bad.Code == 0 || !strings.Contains(bad.Stderr, "not operator-editable") {
 		t.Fatalf("unknown key must be rejected: %d %s", bad.Code, bad.Stderr)
+	}
+	// 2b. sendboxes is editable, but only to boxes that exist — a typo must not
+	// silently narrow a campaign to nothing
+	bad = run("2026-07-20T10:06:30Z", "--client-dir", ws, "campaign", "update",
+		"--slug", "demo", "--json", `{"sendboxes": ["sb-evil"]}`)
+	if bad.Code == 0 || !strings.Contains(bad.Stderr, "unknown sendbox") {
+		t.Fatalf("an unknown sendbox slug must be rejected: %d %s", bad.Code, bad.Stderr)
+	}
+	okSb := mustOK(run("2026-07-20T10:06:45Z", "--client-dir", ws, "campaign", "update",
+		"--slug", "demo", "--json", `{"sendboxes": ["sb-a","sb-b"]}`))
+	if !strings.Contains(fmt.Sprint(mList(okSb, "changed")), "sendboxes") {
+		t.Fatalf("widening the sendbox list must apply: %v", okSb)
 	}
 	// 3. invalid goal_type rejected
 	bad = run("2026-07-20T10:07:00Z", "--client-dir", ws, "campaign", "update",
@@ -2158,6 +2171,85 @@ func TestCompanionAuthorizationTravelsWithTheBrief(t *testing.T) {
 	for _, leak := range []string{"createProposal", "proposal", "widecast", "LeadUp"} {
 		if strings.Contains(strings.ToLower(got), strings.ToLower(leak)) {
 			t.Errorf("authorization must not name a client-specific operation (%q)", leak)
+		}
+	}
+}
+
+// TestRotationCountsQueuedNotJustSent: rotation used sentToday only, and nothing
+// is sent during a drafting run, so every box scored identically and the stable
+// sort handed all of them to the first one. A live run queued 91 drafts onto a
+// single 20/day box while ten healthy boxes sat idle, unreferenced by the
+// campaign. Both halves are covered here.
+func TestRotationCountsQueuedNotJustSent(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "dcp")
+	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
+	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
+	mustOK := func(r xresult) map[string]any {
+		t.Helper()
+		if r.Code != 0 {
+			t.Fatalf("exit %d: %s%s", r.Code, r.Stdout, r.Stderr)
+		}
+		return parseOut(t, r)
+	}
+	mustOK(run("2026-07-29T09:00:00Z", "--pipeline", root, "--client", "leadup",
+		"--business", "video", "--location", "us", "init-client"))
+	if err := os.MkdirAll(filepath.Join(ws, "sendboxes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// three healthy boxes, 2/day each
+	if err := os.WriteFile(filepath.Join(ws, "sendboxes", "sendboxes.json"), []byte(
+		`{"sendboxes":[
+		  {"slug":"sb-a","email":"a@gmail.com","domain":"gmail.com","quota_today":2,"status":"healthy"},
+		  {"slug":"sb-b","email":"b@gmail.com","domain":"gmail.com","quota_today":2,"status":"healthy"},
+		  {"slug":"sb-c","email":"c@gmail.com","domain":"gmail.com","quota_today":2,"status":"healthy"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mustOK(run("2026-07-29T09:01:00Z", "--client-dir", ws, "segment", "set", "--json",
+		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
+	// campaign references NO boxes → every healthy box is eligible
+	mustOK(run("2026-07-29T09:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "intro",
+		"--json", `{"audience":{"segment":"all"},"sendboxes":[],"daily_quota":50,"goal":{"goal_type":"direct_sale"}}`))
+
+	seen := map[string]int{}
+	for i := 1; i <= 6; i++ {
+		id := fmt.Sprintf("c_rot%d", i)
+		mustOK(run("2026-07-29T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+			`{"id":"`+id+`","identities":{"emails":[{"address":"`+id+`@x.com","is_primary":true}]}}`))
+		mustOK(run("2026-07-29T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", id,
+			"--campaign", "intro", "--json",
+			`{"identity":{"still_active":"confirmed"},
+			  "hooks":[{"type":"social_post","summary":"reel about escrow timing in `+id+`ville","evidence_url":"https://x.test/r`+id+`","observed_date":"2026-07-25","confidence":0.8}],
+			  "writing_brief":{"personalization_confidence":0.8}}`))
+		res := mustOK(run("2026-07-29T09:05:00Z", "--client-dir", ws, "draft", "write", "--contact", id,
+			"--campaign", "intro", "--json", string(mustJSON(t, map[string]any{
+				"step": 1, "subject": "Escrow timing in " + id + "ville",
+				// every body distinct: the template_sentence gate refuses a shared
+				// closing line, and it is right to (it caught this fixture first).
+				"body_text":  fmt.Sprintf("Hi, your reel on escrow timing in %sville lands a point worth repeating, and case %d is where it shows most. Plan %d: https://x.test/p%d\n\nBinh\nLeadUp", id, i, i, i),
+				"hooks_used": []any{map[string]any{"evidence_url": "https://x.test/r" + id}}}))))
+		seen[mStr(res, "sendbox")]++
+	}
+	// 6 drafts over 3 boxes of 2/day: every box used, none over its cap
+	if len(seen) != 3 {
+		t.Fatalf("drafting must spread across every eligible box, got %v", seen)
+	}
+	for slug, n := range seen {
+		if n != 2 {
+			t.Fatalf("box %s took %d of 6 — queued drafts must count toward its load (%v)", slug, n, seen)
+		}
+	}
+
+	// the report names the bottleneck when the campaign references a subset
+	mustOK(run("2026-07-29T09:06:00Z", "--client-dir", ws, "campaign", "update", "--slug", "intro",
+		"--json", `{"sendboxes":["sb-a"]}`))
+	rep := mustOK(run("2026-07-29T09:07:00Z", "--client-dir", ws, "approval-report", "--campaign", "intro"))
+	md, err := os.ReadFile(mStr(rep, "md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Sending capacity", "healthy sendbox(es) are idle", "sb-b", "sb-c"} {
+		if !strings.Contains(string(md), want) {
+			t.Fatalf("the report must surface the bottleneck (%q):\n%s", want, md)
 		}
 	}
 }

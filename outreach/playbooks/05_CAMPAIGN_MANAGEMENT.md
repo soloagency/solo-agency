@@ -262,7 +262,9 @@ whitelist underneath (`campaignUpdate`):
   '{"status":"paused"}'   # or: {"daily_quota":25} / {"goal":{"objective":"...","companion_doc":{...}}}
 ```
 
-Whitelist: `status` (active|paused), `daily_quota` (1..500), `goal.goal_type` (validated),
+Whitelist: `status` (active|paused), `daily_quota` (1..500), `sendboxes` (list of connected slugs;
+EMPTY means every healthy box — an unknown slug is refused rather than silently narrowing the
+campaign to nothing), `goal.goal_type` (validated),
 `goal.objective|offer|value_proposition`, `goal.proof_points`, `goal.cta.text`,
 `goal.companion_doc{instructions, on_fail, default_link}` (`null` deletes it). Anything else —
 sequence, guardrails, audience, sendboxes — is rejected (`not operator-editable`); those change

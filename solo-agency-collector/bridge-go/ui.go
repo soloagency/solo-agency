@@ -996,7 +996,20 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 		"Quota":     mInt(cfg, "daily_quota", 40),
 		"Segment":   mStr(mMap(cfg, "audience"), "segment"),
 		"Sendboxes": mList(cfg, "sendboxes"),
-		"GoalType":  mStr(goal, "goal_type"), "GoalTypes": sortedGoalTypes(),
+		"AllSendboxes": func() []map[string]any {
+			picked := map[string]bool{}
+			for _, r := range mList(cfg, "sendboxes") {
+				if sl, ok := r.(string); ok {
+					picked[sl] = true
+				}
+			}
+			boxes := b.uiClientSendboxes(c)
+			for _, sb := range boxes {
+				sb["picked"] = picked[mStr(sb, "slug")]
+			}
+			return boxes
+		}(),
+		"GoalType": mStr(goal, "goal_type"), "GoalTypes": sortedGoalTypes(),
 		"GoalDesc":              mStr(goal, "description"),
 		"Bank":                  strings.Join(bankLines, "\n"),
 		"BankOperatorCount":     operatorMsgs,
@@ -2282,6 +2295,14 @@ document.getElementById('submit').addEventListener('click',function(){
 <div class="card">
 <label>Daily draft budget <span class="mut">(max new drafts per day for this campaign)</span>
 <input id="f-quota" type="number" min="1" max="500" value="{{.Quota}}" style="width:8rem"></label>
+<label style="margin-bottom:.3rem">Sendboxes <span class="mut">(which mailboxes this campaign rotates onto. Tick none = every healthy box. Sending capacity is the sum of the ticked boxes' daily quotas.)</span></label>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem 1.1rem;margin-bottom:.9rem">
+{{range .AllSendboxes}}<label style="display:flex;align-items:center;gap:.35rem;margin:0;font-weight:400">
+<input type="checkbox" class="f-sbox" value="{{.slug}}"{{if .picked}} checked{{end}}{{if ne .status "healthy"}} disabled{{end}} style="margin:0">
+<span{{if ne .status "healthy"}} class="mut" title="{{.status}}"{{end}}><code>{{.slug}}</code> {{.email}} <span class="mut">{{.quota_effective}}/day</span></span>
+</label>{{else}}<span class="mut">No sendboxes connected yet.</span>{{end}}
+</div>
+<p class="mut" style="font-size:.82rem;margin:-.5rem 0 0">Ticked: <b id="sbox-sum">–</b></p>
 </div>
 
 <div class="acts">
@@ -2290,6 +2311,19 @@ document.getElementById('submit').addEventListener('click',function(){
 </div>
 </form>
 <script>
+(function(){
+ var boxes=document.querySelectorAll('.f-sbox');
+ if(!boxes.length)return;
+ var caps={};{{range .AllSendboxes}}caps["{{.slug}}"]={{.quota_effective}};{{end}}
+ function sum(){
+  var n=0,c=0;
+  boxes.forEach(function(b){if(b.checked){n++;c+=(caps[b.value]||0)}});
+  var el=document.getElementById('sbox-sum');
+  if(el)el.textContent = n? (n+' box(es), '+c+' emails/day of sending capacity') : 'none ticked — every healthy box will be used';
+ }
+ boxes.forEach(function(b){b.addEventListener('change',sum)});
+ sum();
+})();
 var CLIENT="{{.Client.Slug}}", CAMP="{{.Slug}}";
 function postUpdate(patch, done){
  fetch('/api/ui/'+CLIENT+'/campaign-update',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -2315,7 +2349,8 @@ document.getElementById('campform').addEventListener('submit',function(e){
   companion_doc: instructions ? {instructions:instructions,
     on_fail:document.getElementById('f-comp-onfail').value,
     default_link:document.getElementById('f-comp-default').value.trim()} : null};
- postUpdate({goal:goal, daily_quota:parseInt(document.getElementById('f-quota').value,10)},
+ var sboxes=Array.prototype.slice.call(document.querySelectorAll('.f-sbox:checked')).map(function(x){return x.value});
+ postUpdate({goal:goal, daily_quota:parseInt(document.getElementById('f-quota').value,10), sendboxes:sboxes},
   function(j){btn.disabled=false;btn.removeAttribute('aria-busy');
    if(j.ok){msg.textContent = (j.changed&&j.changed.length) ? '✓ saved ('+j.changed.join(', ')+'): takes effect from the next run; the agent is notified' : '✓ nothing changed';}
    else{msg.textContent='✗ '+j.error}})});

@@ -3069,6 +3069,36 @@ func (c *crmStore) campaignUpdate(slug string, patch map[string]any) (map[string
 				cfg["daily_quota"] = q
 				changed = append(changed, "daily_quota")
 			}
+		case "sendboxes":
+			// Which boxes this campaign may rotate onto. An EMPTY list means every
+			// healthy box, which is usually what an operator who connected eleven of
+			// them meant: a live campaign kept the single-box list it was created with
+			// and queued 91 drafts onto one 20/day box while ten sat idle.
+			l, ok := val.([]any)
+			if !ok {
+				return nil, storageErrf("sendboxes must be a list of slugs, got %T", val)
+			}
+			known := map[string]bool{}
+			for _, b := range c.sendboxes() {
+				known[mStr(b, "slug")] = true
+			}
+			norm := []any{}
+			seen := map[string]bool{}
+			for _, e := range l {
+				sl := strings.TrimSpace(fmt.Sprint(e))
+				if sl == "" || seen[sl] {
+					continue
+				}
+				if !known[sl] {
+					return nil, storageErrf("unknown sendbox %q — connect it on the Sendboxes page first", sl)
+				}
+				seen[sl] = true
+				norm = append(norm, sl)
+			}
+			if string(marshalLineJSON(cfg["sendboxes"])) != string(marshalLineJSON(norm)) {
+				cfg["sendboxes"] = norm
+				changed = append(changed, "sendboxes")
+			}
 		case "goal":
 			gp, ok := val.(map[string]any)
 			if !ok {

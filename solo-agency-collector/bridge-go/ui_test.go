@@ -681,11 +681,17 @@ func TestUICampaignPages(t *testing.T) {
 		}
 	}
 
-	// API: non-whitelisted key refused, nothing appended
+	// API: non-whitelisted key refused, nothing appended (sendboxes IS editable
+	// now, so probe the whitelist with a key that is not)
 	rec = authed("POST", "/api/ui/leadup/campaign-update",
-		`{"slug":"camp-a","patch":{"sendboxes":["evil"]}}`)
+		`{"slug":"camp-a","patch":{"schema_version":99}}`)
 	if !strings.Contains(rec.Body.String(), "not operator-editable") {
 		t.Fatalf("whitelist must hold on the API too: %s", rec.Body.String())
+	}
+	// and an editable key with a bad value is refused just as loudly
+	if rec = authed("POST", "/api/ui/leadup/campaign-update",
+		`{"slug":"camp-a","patch":{"sendboxes":["evil"]}}`); !strings.Contains(rec.Body.String(), "unknown sendbox") {
+		t.Fatalf("a typo'd sendbox slug must be refused: %s", rec.Body.String())
 	}
 	inbox2, _ := os.ReadFile(filepath.Join(ws, "outreach", "ui_inbox", "campaign_edits.jsonl"))
 	if string(inbox2) != string(inbox) {

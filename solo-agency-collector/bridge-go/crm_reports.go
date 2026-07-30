@@ -44,6 +44,49 @@ func (c *crmStore) sentToday(sendboxSlug, day string) int {
 	return n
 }
 
+// pendingBySendbox counts drafts already ASSIGNED to each box but not yet sent
+// (pending_approval + approved), across every campaign — a sendbox is shared
+// client-wide, so its commitment is too.
+//
+// Without this, rotation was a no-op during a drafting run: the load ratio used
+// only sentToday, nothing is sent while drafting, so every box scored identically
+// and the stable sort handed all of them to the first box. A live run put all 91
+// drafts on one 20/day box — a 5-day queue with ten healthy boxes idle.
+func (c *crmStore) pendingBySendbox() map[string]int {
+	out := map[string]int{}
+	campRoot := filepath.Join(c.clientDir, "campaigns")
+	entries, err := os.ReadDir(campRoot)
+	if err != nil {
+		return out
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		for _, status := range []string{"pending_approval", "approved"} {
+			_ = filepath.Walk(filepath.Join(campRoot, e.Name(), "outbox", status),
+				func(path string, info os.FileInfo, werr error) error {
+					if werr != nil || info.IsDir() || !strings.HasPrefix(info.Name(), "draft_") ||
+						!strings.HasSuffix(info.Name(), ".json") {
+						return nil
+					}
+					d, rerr := readJSONFile(path)
+					if rerr != nil {
+						return nil
+					}
+					if st := mStr(d, "status"); st != "pending_approval" && st != "approved" {
+						return nil
+					}
+					if sb := mStr(d, "sendbox"); sb != "" {
+						out[sb]++
+					}
+					return nil
+				})
+		}
+	}
+	return out
+}
+
 func (c *crmStore) pickSendbox(campaignCfg, contact map[string]any, day string) string {
 	if s := mStr(contact, "assigned_sendbox"); s != "" {
 		return s
@@ -70,12 +113,17 @@ func (c *crmStore) pickSendbox(campaignCfg, contact map[string]any, day string) 
 	if len(boxes) == 0 {
 		return ""
 	}
+	// Load = what this box has already SENT today plus what is already QUEUED on
+	// it. Counting only sends makes rotation useless mid-run (nothing is sent yet),
+	// which is how 91 drafts landed on one box.
+	pending := c.pendingBySendbox()
 	load := func(b map[string]any) float64 {
 		q := effectiveQuota(b, "")
 		if q == 0 {
 			q = 1
 		}
-		return float64(c.sentToday(mStr(b, "slug"), day)) / float64(q)
+		slug := mStr(b, "slug")
+		return float64(c.sentToday(slug, day)+pending[slug]) / float64(q)
 	}
 	sort.SliceStable(boxes, func(i, j int) bool {
 		li, lj := load(boxes[i]), load(boxes[j])
@@ -979,6 +1027,7 @@ func (c *crmStore) buildApproval(campaignSlug, now string, numberByDraft map[str
 			"`approve all` · `approve 1-20, 35` · `reject 7: reason` · `edit 12: ...` · `hold 5`.", len(drafts)),
 	}
 	md = append(md, researchPendingBanner(c.researchPending(campaignSlug, now))...)
+	md = append(md, c.sendingCapacityBanner(campaignSlug)...)
 	md = append(md, "", fmt.Sprintf("## High confidence (%d)", len(high)),
 		"*(verified email + strong evidenced hook)*", "")
 	md = appendCardsOrNone(md, high, card)
@@ -1025,6 +1074,61 @@ func (c *crmStore) researchPending(campaignSlug, now string) map[string]int {
 				out[r]++
 			}
 		}
+	}
+	return out
+}
+
+// sendingCapacityBanner: how long the approved queue will actually take to go
+// out, per box. The bottleneck was invisible until send time — a run reported 91
+// drafts ready while ten healthy boxes sat unreferenced by the campaign and the
+// one referenced box could pass 20 a day.
+func (c *crmStore) sendingCapacityBanner(campaignSlug string) []string {
+	cfg := c.getCampaign(campaignSlug)
+	if cfg == nil {
+		return nil
+	}
+	refs := map[string]bool{}
+	for _, r := range mList(cfg, "sendboxes") {
+		if s, ok := r.(string); ok {
+			refs[s] = true
+		}
+	}
+	pending := c.pendingBySendbox()
+	queued, capacity := 0, 0
+	var idle []string
+	var lines []string
+	for _, b := range c.sendboxes() {
+		slug := mStr(b, "slug")
+		healthy := mStr(b, "status") == "healthy"
+		referenced := len(refs) == 0 || refs[slug]
+		if healthy && !referenced {
+			idle = append(idle, slug)
+			continue
+		}
+		if !healthy || !referenced {
+			continue
+		}
+		q := effectiveQuota(b, "")
+		capacity += q
+		queued += pending[slug]
+		if pending[slug] > 0 {
+			days := (pending[slug] + q - 1) / max(q, 1)
+			lines = append(lines, fmt.Sprintf("%s %d queued / %d per day → %d day(s)", slug, pending[slug], q, days))
+		}
+	}
+	if queued == 0 {
+		return nil
+	}
+	days := 1
+	if capacity > 0 {
+		days = (queued + capacity - 1) / capacity
+	}
+	out := []string{"", fmt.Sprintf("> **Sending capacity: %d queued across %d per day → about %d day(s) to clear.** %s",
+		queued, capacity, days, strings.Join(lines, " · "))}
+	if len(idle) > 0 {
+		sort.Strings(idle)
+		out = append(out, "", fmt.Sprintf("> **%d healthy sendbox(es) are idle** (%s): this campaign's `sendboxes` list does not reference them, so nothing rotates onto them. Widen the list on the Campaigns page (or clear it to mean \"every healthy box\") and the queue spreads out. Leaving them out is a valid choice; leaving them out by accident costs days.",
+			len(idle), strings.Join(idle, ", ")))
 	}
 	return out
 }
