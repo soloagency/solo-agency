@@ -433,9 +433,22 @@ func exportBundle(dataRoot, scope string, clients []string, outPath string, pass
 	if err := os.Rename(tmp, outPath); err != nil {
 		return nil, err
 	}
-	if len(man.UnclassifiedSensitive) > 0 {
-		log.Printf("migrate export: WARNING — %d file(s) are 0600 but not classified as secret (possible new secret type not registered in portClassify): %v",
-			len(man.UnclassifiedSensitive), man.UnclassifiedSensitive)
+	// The guard's premise — "our writers 0600 only secrets" — holds for THIS
+	// bridge but not for every agent that touches the tree: Codex's runtime
+	// writes ordinary data 0600 (its umask), and the first cross-agent export
+	// flagged 4616 contacts and queue files, burying any real signal. When 0600
+	// is ambient, permissions carry no information; say so once and keep the
+	// list to a sample instead of a flood.
+	if n := len(man.UnclassifiedSensitive); n > 0 {
+		if n > 25 {
+			log.Printf("migrate export: NOTE — %d file(s) are 0600 but not name-classified as secrets. At this volume 0600 is the source agent's default file mode, not a secret marker; relying on name-based classification. Sample: %v",
+				n, man.UnclassifiedSensitive[:10])
+			man.UnclassifiedSensitive = append(man.UnclassifiedSensitive[:10],
+				fmt.Sprintf("... and %d more (0600 is ambient in this tree — the permission carries no signal)", n-10))
+		} else {
+			log.Printf("migrate export: WARNING — %d file(s) are 0600 but not classified as secret (possible new secret type not registered in portClassify): %v",
+				n, man.UnclassifiedSensitive)
+		}
 	}
 	res := map[string]any{"ok": true, "out": outPath, "scope": scope, "clients": man.Clients,
 		"data_files": len(man.Files), "secret_files": len(man.SecretFiles), "tasks": len(man.Tasks),
@@ -701,8 +714,19 @@ func importBundle(bundlePath, destRoot string, passphrase []byte, dryRun, force 
 	}
 	report["reindexed"] = rebuilt
 
-	// residual source-path scan (anything the rebase missed -> agent must fix)
-	report["residual_source_paths"] = portResidualPaths(destRoot, man, dryRun)
+	// residual source-path scan: runtime residuals must be fixed by hand before
+	// the tasks run; history residuals are the old machine's past and harmless.
+	runtimeRes, historyRes := portResidualPaths(destRoot, man, dryRun)
+	report["residual_source_paths"] = runtimeRes
+	if len(historyRes) > 0 {
+		total := 0
+		for _, n := range historyRes {
+			total += n
+		}
+		report["residual_in_history"] = historyRes
+		report["residual_in_history_total"] = total
+		report["residual_note"] = fmt.Sprintf("%d history file(s) still mention the source path (old reports, collector job logs, provenance notes) — the past recorded on the old machine, nothing the destination executes. Only residual_source_paths needs fixing.", total)
+	}
 	report["ok"] = true
 	report["next_steps"] = portNextSteps(man)
 	return report, nil
@@ -713,22 +737,61 @@ func importBundle(bundlePath, destRoot string, passphrase []byte, dryRun, force 
 // future feature that bakes an absolute path into some other file is REPORTED
 // here for the agent to fix by hand — growth stays safe-by-detection without
 // touching the rebase logic.
-func portResidualPaths(destRoot string, man portManifest, dryRun bool) []string {
-	if dryRun || man.SourceInstall == "" {
-		return nil
+// portResidualIsRuntime: does a leftover source path in this file matter? A
+// residual in something the destination will EXECUTE or read as config
+// (automation prompts, schedule.md, provider/campaign config) breaks the next
+// run and must be fixed by hand. A residual in history — an old rendered
+// report, a collector job's status file, a contact activity's provenance note —
+// is the past faithfully recorded on the old machine and harms nothing.
+//
+// The distinction exists because on the first real cross-agent export the flat
+// list came back with 906 entries, 78% of them collector job metadata; the two
+// classes buried the only ones worth reading (which that time numbered zero,
+// the rebase having caught them all).
+func portResidualIsRuntime(rel string) bool {
+	if rel == "schedule.md" || strings.HasPrefix(rel, "automation/") {
+		return true
 	}
-	var hits []string
+	base := filepath.Base(rel)
+	return strings.HasSuffix(base, "campaign_config.json") ||
+		strings.HasPrefix(base, "provider_config") || base == "provider_defaults.json" ||
+		base == "sendboxes.json"
+}
+
+func portResidualArea(rel string) string {
+	switch {
+	case strings.Contains(rel, "/outputs/"):
+		return "outputs (rendered reports)"
+	case strings.Contains(rel, "/collector/") || strings.HasPrefix(rel, "collector/"):
+		return "collector job history"
+	case strings.Contains(rel, "/crm/"):
+		return "crm records (provenance notes)"
+	default:
+		return "other history"
+	}
+}
+
+func portResidualPaths(destRoot string, man portManifest, dryRun bool) (runtime []string, history map[string]int) {
+	history = map[string]int{}
+	if dryRun || man.SourceInstall == "" {
+		return nil, history
+	}
 	for _, fm := range man.Files {
 		if !portTextExt(fm.Rel) {
 			continue
 		}
 		abs := filepath.Join(destRoot, filepath.FromSlash(fm.Rel))
 		b, err := os.ReadFile(abs)
-		if err == nil && bytes.Contains(b, []byte(man.SourceInstall)) {
-			hits = append(hits, fm.Rel)
+		if err != nil || !bytes.Contains(b, []byte(man.SourceInstall)) {
+			continue
+		}
+		if portResidualIsRuntime(fm.Rel) {
+			runtime = append(runtime, fm.Rel)
+		} else {
+			history[portResidualArea(fm.Rel)]++
 		}
 	}
-	return hits
+	return runtime, history
 }
 
 func portNextSteps(man portManifest) []string {

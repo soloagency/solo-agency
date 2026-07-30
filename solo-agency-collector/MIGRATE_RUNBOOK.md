@@ -69,9 +69,17 @@ playbooks. So on the destination, first:
    - If the destination already has one of the clients, it REFUSES unless you add
      `--force` (guards against clobbering a live install — you should have
      deactivated the source instead).
-   - `residual_source_paths` in the report lists any automation file where a
-     source path could not be rebased automatically (different checkout layout) —
-     fix those by hand before running the tasks.
+   - `residual_source_paths` lists RUNTIME files (automation prompts, schedule,
+     configs) still carrying a source-machine path after the auto-rebase — fix
+     those by hand before running the tasks. History files that mention the old
+     path (rendered reports, collector job logs, provenance notes) are counted
+     separately under `residual_in_history` and are harmless: they are the past,
+     recorded on the old machine, and nothing the destination executes. On the
+     first real Codex export that split was 0 runtime vs 906 history.
+   - `unclassified_sensitive` may note that 0600 is the source agent's DEFAULT
+     file mode (Codex's runtime writes ordinary data 0600) — at that volume the
+     permission carries no secret-signal and the list is capped to a sample;
+     name-based classification is what actually routes secrets.
 
 ## Destination: re-register the automation tasks (the cross-agent seam)
 
@@ -137,6 +145,26 @@ Only two things couple to this code, and both now **fail loud instead of silent*
 
 A bundle-format change (rare) bumps `portSchemaVersion`; import refuses a newer
 bundle than the destination bridge understands.
+
+## Codex → Claude, verified end-to-end (2026-07-29)
+
+The full path was exercised against the live Codex tree: 9,241 data files +
+13 secrets (11 sendbox App Passwords, provider config, ui_token) exported,
+imported into a scratch root, checksums verified, automation prompts rebased
+(14 path rewrites), identity index rebuilt, IMAP cursors and sent logs intact
+(no double-send risk), briefs/campaign config/profile all carried. Two
+Codex-specific truths the reports now handle:
+
+- Codex's runtime writes ordinary files 0600, so the permission-based secret
+  guard has no signal there (noted once, list capped).
+- Its history files keep source paths (collector logs, reports) — counted, not
+  listed, because none of it executes.
+
+One trap that is NOT the exporter's to fix: config edited by an OUTDATED
+binary loses fields the old whitelist did not know (a live bank lost its
+`msg_en` renderings that way). The destination must run setup_collector (and
+the source should pull) BEFORE further config edits, and after import spot-check
+recently edited configs against what you expect.
 
 ## Deactivate the source (finish the move)
 

@@ -207,6 +207,9 @@ func TestPortGrowthGuards(t *testing.T) {
 	mk("collector/inbox/completed_runs.json", `[]`, 0o600)
 	// GUARD 2: a non-taskdef data file carrying the source path -> reported on import
 	mk("clients/x/main/outreach/notes.md", "see "+src+"/clients/x for details", 0o644)
+	// a RUNTIME file carrying a source path: config is executed, not archived
+	mk("clients/x/main/outreach/campaigns/demo/campaign_config.json",
+		`{"campaign_slug":"demo","note":"copied from `+src+`/old"}`, 0o644)
 
 	bundle := filepath.Join(tmp, "b.zip")
 	pass := []byte("pw")
@@ -236,14 +239,24 @@ func TestPortGrowthGuards(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// runtime residuals are LISTED (they break the next run); history residuals
+	// are COUNTED (the old machine's past, harmless). notes.md is history now —
+	// the first real cross-agent import returned 906 flat entries, 78% collector
+	// job logs, burying the runtime ones.
 	resid, _ := ir["residual_source_paths"].([]string)
-	hit := false
+	hitRuntime := false
 	for _, r := range resid {
+		if strings.HasSuffix(r, "campaign_config.json") {
+			hitRuntime = true
+		}
 		if strings.HasSuffix(r, "notes.md") {
-			hit = true
+			t.Fatalf("a history file must not crowd the runtime list: %v", resid)
 		}
 	}
-	if !hit {
-		t.Fatalf("residual source path in non-taskdef file not reported: %v", resid)
+	if !hitRuntime {
+		t.Fatalf("a source path left in executable config must be listed: %v", resid)
+	}
+	if n, _ := ir["residual_in_history_total"].(int); n < 1 {
+		t.Fatalf("history residuals must still be counted, got %v", ir["residual_in_history_total"])
 	}
 }
