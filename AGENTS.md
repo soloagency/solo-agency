@@ -6,7 +6,7 @@ Human-facing required actions must use the Solo Agency `**[ACTION REQUIRED]**` b
 
 During Setup Flow, never run, create, generate, show, refresh, or update a report in the setup chat, even if the human explicitly asks. Treat the request as a handoff request: verify/resync the client-specific automation task, tell the human the exact task name to run, and do not load the scheduled-run entrypoint or perform public research/private collection/report generation inside Setup Flow.
 
-Do not install, start, or configure `solo-agency-collector/` before the playbook explicitly reaches the Local Collector/private data source stage and the human approves it.
+Do not install, start, or configure `solo-agency-collector/` before the playbook explicitly reaches the Local Collector/private data source stage and the human approves it. This is a SETUP-FLOW gate only: on a live install, running the already-installed bridge binary and its tools (`tool crm-store`, `tool gmail`, `tool migrate`...) IS normal operation for the operating agent — this line never forbids it, and citing it to avoid running a tool on a live system is a self-invented gate.
 
 Solo Agency must run in an AI agent runtime that supports local workspace files, automation/scheduled tasks, and multiple parallel/sub-agent work streams, such as Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or a comparable desktop/local agent environment. Do not present a plain web chat as the primary runtime for Solo Agency; web chat can review outputs, but it cannot reliably host the automation, file state, Local Collector handoff, and parallel agent work the playbook requires.
 
@@ -30,6 +30,18 @@ with a bridge already answering on `127.0.0.1:17321` — means you are the SECON
 system, even if this chat says "set up" or "get started".
 
 Take over in this order, and do not skip step 2:
+
+0. **Probe what THIS surface can do, before promising anything.** Run the installed bridge
+   binary once (`<bridge> tool crm-store --help`). If the runtime cannot execute local binaries
+   or reach the machine's localhost (a cloud/Cowork session attached to the folder through a
+   file bridge cannot), then per the runtime rule above this surface is REVIEW-ONLY: say exactly
+   that — "this surface can read and edit files but cannot operate the system; open the agent's
+   local CLI/desktop runtime on this machine to run it" — and stop there. Do not blend real
+   runtime limits with playbook citations; the playbooks never forbid the operating agent from
+   running the installed tools (see the setup-gate note above). Operating includes sending:
+   Stage 8 is `tool crm-store ingest-ui` (apply the operator's Approvals-page decisions), then
+   `tool gmail send` per the send playbook — the operating brain runs these itself; the human
+   never pastes commands into a terminal.
 
 1. **Update first.** Run the standard update flow (`playbooks/11_UPDATE_AND_VERSION_WATCH.md`):
    verified fresh checkout against GitHub `main`, refresh playbooks and the collector per
