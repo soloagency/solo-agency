@@ -19,6 +19,39 @@ Whenever the agent hits a blocker, unexpected behavior, repeated failure, unclea
 After setup/routine exists, offer or maintain the daily `Solo Agency - GitHub Update Watch` automation task described in `playbooks/11_UPDATE_AND_VERSION_WATCH.md`. It checks GitHub for new Solo Agency versions, classifies changes, writes an internal/local update notice, and applies/resyncs updates only when the human has approved auto-apply. Update-watch must not send Telegram, WideCast/email-fallback, provider notifications, social posts, or client notifications because version maintenance is internal user/agency work. If bridge Go/runtime or extension files changed, the update handoff must include the current setup's exact bridge rerun command and Chrome extension reload/Load unpacked steps for every client profile.
 
 
+## Brain swap — taking over a live install on the same machine
+
+The filesystem is the system; the agent is only the brain. The data root
+(`daily-content-pipeline/`), the bridge, the Chrome extension, the playbooks and every credential
+are brain-agnostic: when the human switches agent (Codex ran out of quota and opens Claude, or the
+reverse), NOTHING is exported, imported, re-set-up, re-cloned or re-authenticated. Recognize this
+case by what is on disk: a `daily-content-pipeline/` with clients and a collector config — usually
+with a bridge already answering on `127.0.0.1:17321` — means you are the SECOND brain on a LIVE
+system, even if this chat says "set up" or "get started".
+
+Take over in this order, and do not skip step 2:
+
+1. **Update first.** Run the standard update flow (`playbooks/11_UPDATE_AND_VERSION_WATCH.md`):
+   verified fresh checkout against GitHub `main`, refresh playbooks and the collector per
+   `solo-agency-collector/setup_collector.sh`. A stale binary silently corrupts config it touches
+   (an outdated whitelist drops fields it does not know — this has happened), so no operation
+   precedes the update.
+2. **Report before acting.** Read the state and tell the human what you see — active/paused
+   campaigns, drafts pending approval, research-pending counts, sendbox health, the automation
+   tasks declared in `daily-content-pipeline/automation/` — and reconcile against
+   `automation_manifest.md`. A takeover begins by proving you can read the system, not by
+   changing it.
+3. **Re-register the automations in THIS runtime's scheduler**, using the carried prompt files
+   (`daily-content-pipeline/automation/*_scheduled_run_prompt.md`) and the cadence/timezone
+   recorded in `schedule.md` / the automation manifest, then resync the manifest per the
+   Automation Resync contract with this runtime's native task ids.
+4. **One brain owns the schedule.** Confirm with the human that the OTHER agent's scheduled tasks
+   are disabled (only the human can do that inside the other runtime) before your first scheduled
+   run executes: two brains running the same schedule against one campaign double-sends. The other
+   agent stays installed as a cold standby; the swap back is this same procedure in reverse.
+5. Then operate normally — same playbooks, same tools, same gates. Nothing about the system knows
+   or cares which brain is driving.
+
 Use the canonical terms `public data sources` and `private data sources` in human-facing text. Do not shorten them, omit `data`, or use slash labels.
 
 Client-facing deliverables are client-blind by default and must stay that way. Do not mention `Solo Agency`, `WideCast`, PDNA/provider tooling, `OpenAPI`, `MCP`, `Local Collector`, Chrome extensions, automation/scheduled tasks, API keys, Telegram, config files, agent/tool/debug details, or `INTERNAL_REPORT` in reports, PDFs, videos, blogs, captions, comments, or other assets intended for the client's client/customer. Client-facing output should read like a professional agency deliverable: insight, evidence, recommendation, draft, next action.
