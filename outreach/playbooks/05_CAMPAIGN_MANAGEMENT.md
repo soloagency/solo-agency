@@ -218,10 +218,19 @@ reverse index); a segment filters on `lifecycle_stage`, `tags`, `custom_fields.*
             "message_bank":[{"msg":"done-for-you: you record 5 min, we do the rest","source":"operator"},
                             {"msg":"consistency compounds: 30 steady videos beat one viral hit","source":"agent","approved":true}]},
     "audience":{"segment":"al-realtors-active","personalization":{"min_confidence":0.7,"no_hook_fallback":"skip"}},
-    "sendboxes":["sb-a"],"daily_quota":40,"channel_strategy":"email_first"}'
+    "sendboxes":[],"daily_quota":40,"channel_strategy":"email_first"}'
 ```
 (`companion_doc` and `message_bank` are optional — include them exactly when the intake in §1b/§1c
 produced them; both persist verbatim on the goal.)
+
+**Leave `sendboxes` EMPTY unless the operator asks to restrict.** Empty means "every healthy box",
+including the ones connected LATER, which is almost always what an operator wants. Listing slugs
+pins the campaign to exactly those boxes forever: a live campaign created when one box existed kept
+`["sb-a"]` after ten more were connected, so 91 drafts queued behind a single 20/day mailbox while
+ten sat idle — and the list had been copied out of an EXAMPLE in this playbook, not chosen. The
+store already defaults to `[]`; do not overwrite that default with a snapshot of whichever boxes
+happen to exist today. Only enumerate when the operator states a reason (dedicated boxes per client,
+a domain kept separate), and say back which boxes that leaves out.
 
 Defaults are filled in for any field you omit: a 4-step sequence (step 1 cold + 3 bumps with
 `gap_days` 4/5/7, the last a breakup), `approval_mode: manual_all`,
