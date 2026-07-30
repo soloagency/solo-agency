@@ -553,6 +553,10 @@ A draft is written to `outbox/pending_approval/YYYY-MM-DD/{draft_id}.json` and, 
 - **`guessed_approved`** must be `true` before a `guessed_only` address may send; the flag is enforced **in `tool gmail send`** plus a daily guessed-send cap, never only in prose.
 - **`status`** ∈ `pending_approval | approved | rejected | hold | sent | blocked`. A failed send is never silent: a TERMINAL blocker (suppressed, channel unusable, frozen, bad recipient/headers, already sent) flips the draft to `status: blocked`; a TRANSIENT one (quota, SMTP/auth, sendbox health, missing sending identity) keeps `status: approved` and stamps `blocker` + `blocked_at` so the next run retries naturally (enforced in `tool gmail`).
 - **`is_reply`** — a reply draft (answering an inbound message); exempt from the daily draft budget.
+- **`sendbox`** — EMPTY on a pending draft. The mailbox is chosen at SEND time from live health and
+  quota (`tool gmail send`), not at draft time, and is written here once the email actually goes out.
+  A value on an old pending draft is advisory only; stickiness for follow-ups lives on
+  `contact.assigned_sendbox`, set by the first successful send.
 - **`bank_messages_used`** — which `goal.message_bank` messages this touch wove in; later bumps read prior drafts to rotate the bank (skill `followup.md`).
 - **`companion_url`** — the per-lead companion link; produced at the first touch, REUSED by every later bump (Stage 6 §Companion).
 
