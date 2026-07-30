@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -480,6 +481,7 @@ func (b *bridge) uiSendboxes() []uiSendbox {
 }
 
 type uiContact struct {
+	N               int // 1-based row number, continuous across pages
 	ID              string
 	ShortID         string
 	Name            string
@@ -768,7 +770,7 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 	case len(parts) == 2 && parts[1] == "reports":
 		b.uiRenderReports(w, parts[0])
 	case len(parts) == 2 && parts[1] == "crm":
-		b.uiRenderCRM(w, parts[0])
+		b.uiRenderCRM(w, parts[0], r)
 	case len(parts) == 3 && parts[1] == "contact":
 		b.uiRenderContact(w, parts[0], parts[2])
 	case len(parts) == 2 && parts[1] == "campaigns":
@@ -1645,7 +1647,39 @@ func (b *bridge) uiRenderReports(w http.ResponseWriter, slug string) {
 	b.uiRender(w, "reports", map[string]any{"Title": "Reports", "Client": c, "Files": files})
 }
 
-func (b *bridge) uiRenderCRM(w http.ResponseWriter, slug string) {
+const uiCRMPageSize = 100
+
+// uiContactStats answers the questions the operator actually asks of this page:
+// how many leads are there, and how many of them are ACTUALLY workable — an
+// address to send to and a dossier to write from. "Both" is the number that
+// matters, because either alone cannot produce an email.
+type uiContactStats struct {
+	Total, WithEmail, Enriched, Both, SeedUnresolved int
+}
+
+func uiComputeContactStats(all []uiContact) uiContactStats {
+	var st uiContactStats
+	st.Total = len(all)
+	for _, ct := range all {
+		hasEmail := ct.Email != ""
+		enriched := ct.Band != ""
+		if hasEmail {
+			st.WithEmail++
+		}
+		if enriched {
+			st.Enriched++
+		}
+		if hasEmail && enriched {
+			st.Both++
+		}
+		if !enriched && ct.SeedsUnresolved > 0 {
+			st.SeedUnresolved++
+		}
+	}
+	return st
+}
+
+func (b *bridge) uiRenderCRM(w http.ResponseWriter, slug string, r *http.Request) {
 	c, ok := b.uiFindClient(slug)
 	if !ok {
 		http.Error(w, "unknown client", http.StatusNotFound)
@@ -1670,9 +1704,40 @@ func (b *bridge) uiRenderCRM(w http.ResponseWriter, slug string) {
 	for _, d := range deals {
 		stages[d.Stage] = append(stages[d.Stage], d)
 	}
+	// count over everything, display one page: the stats must describe the whole
+	// list, not the slice being looked at.
+	all := b.uiContacts(c, 100000)
+	stats := uiComputeContactStats(all)
+	pages := (len(all) + uiCRMPageSize - 1) / uiCRMPageSize
+	if pages < 1 {
+		pages = 1
+	}
+	page := 1
+	if n, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && n > 0 {
+		page = n
+	}
+	if page > pages {
+		page = pages
+	}
+	start := (page - 1) * uiCRMPageSize
+	end := start + uiCRMPageSize
+	if end > len(all) {
+		end = len(all)
+	}
+	rows := all[start:end]
+	for i := range rows {
+		rows[i].N = start + i + 1 // continuous numbering, not per-page
+	}
+	var pageNums []int
+	for i := 1; i <= pages; i++ {
+		pageNums = append(pageNums, i)
+	}
 	b.uiRender(w, "crm", map[string]any{
 		"Title": "CRM", "Client": c,
-		"Contacts": b.uiContacts(c, 500), "StageOrder": order, "Stages": stages,
+		"Contacts": rows, "StageOrder": order, "Stages": stages,
+		"Stats": stats, "Page": page, "Pages": pages, "PageNums": pageNums,
+		"From": start + 1, "To": end,
+		"PrevPage": page - 1, "NextPage": page + 1,
 	})
 }
 
@@ -1947,16 +2012,30 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 {{$st := .Stages}}{{range .StageOrder}}<div class="card"><strong>{{.}}</strong>
 {{range index $st .}}<div class="mut">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</div>{{else}}<div class="mut" style="opacity:.5">empty</div>{{end}}</div>{{end}}</div>
 {{else}}<div class="empty" style="margin-top:0"><b>No deals yet.</b><br>Replies become deals here automatically; approve some drafts and let the campaign run.</div>{{end}}
-<h2>Contacts <span class="mut" style="font-size:.8rem">({{len .Contacts}}): click a row for the full profile and its latest activities</span></h2>
-<div class="wrap"><table><tr><th>name</th><th>email</th><th>phone</th><th>social</th><th>vertical</th><th>state</th></tr>
+<h2>Contacts <span class="mut" style="font-size:.8rem">click a row for the full profile and its latest activities</span></h2>
+<div class="statrow">
+<div class="stat"><b>{{.Stats.Total}}</b><span>leads total</span></div>
+<div class="stat"><b>{{.Stats.WithEmail}}</b><span>have an email</span></div>
+<div class="stat"><b>{{.Stats.Enriched}}</b><span>enriched</span></div>
+<div class="stat"><b>{{.Stats.Both}}</b><span>email + enriched <span class="mut">(writable)</span></span></div>
+{{if .Stats.SeedUnresolved}}<div class="stat"><b>{{.Stats.SeedUnresolved}}</b><span>origin unresolved</span></div>{{end}}
+</div>
+<div class="wrap"><table><tr><th>#</th><th>name</th><th>email</th><th>phone</th><th>social</th><th>vertical</th><th>state</th></tr>
 {{$slug := .Client.Slug}}{{range .Contacts}}<tr style="cursor:pointer" onclick="location.href='/ui/{{$slug}}/contact/{{.ID}}'">
+<td class="mut" style="text-align:right;font-variant-numeric:tabular-nums">{{.N}}</td>
 <td>{{if .Name}}<strong>{{.Name}}</strong>{{else}}<span class="mut" title="{{.ID}}">{{.ShortID}}</span>{{end}}</td>
 <td class="mut">{{if .Email}}{{.Email}}{{else}}·{{end}}</td>
 <td class="mut">{{if .Phone}}{{.Phone}}{{else}}·{{end}}</td>
 <td class="mut">{{if .Social}}<a href="{{.Social}}" target="_blank" rel="noopener" onclick="event.stopPropagation()">link ↗</a>{{else}}·{{end}}</td>
 <td>{{.Vertical}}</td>
 <td>{{if .Band}}<span class="pill band-high">enriched</span>{{else if .SeedsUnresolved}}<span class="pill band-review_carefully">seed: trace origin</span>{{else}}<span class="pill">{{if .Stage}}{{.Stage}}{{else}}new{{end}}</span>{{end}}</td>
-</tr>{{else}}<tr><td colspan="6" class="mut">no contacts yet: import a list or run discovery</td></tr>{{end}}</table></div>
+</tr>{{else}}<tr><td colspan="7" class="mut">no contacts yet: import a list or run discovery</td></tr>{{end}}</table></div>
+{{if gt .Pages 1}}<nav class="pager">
+<span class="mut">{{.From}}&ndash;{{.To}} of {{.Stats.Total}}</span>
+{{if gt .Page 1}}<a href="?page={{.PrevPage}}">&larr; prev</a>{{else}}<span class="mut" style="opacity:.4">&larr; prev</span>{{end}}
+{{$cur := .Page}}{{$slug2 := .Client.Slug}}{{range .PageNums}}{{if eq . $cur}}<strong class="here">{{.}}</strong>{{else}}<a href="?page={{.}}">{{.}}</a>{{end}}{{end}}
+{{if lt .Page .Pages}}<a href="?page={{.NextPage}}">next &rarr;</a>{{else}}<span class="mut" style="opacity:.4">next &rarr;</span>{{end}}
+</nav>{{end}}
 {{template "foot" .}}{{end}}
 
 {{define "contact"}}{{template "head" .}}

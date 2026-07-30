@@ -246,4 +246,9 @@ a.stat{display:block;text-decoration:none;color:var(--tx)}
 a.stat b{color:var(--tx)}
 a.stat.hot b{color:var(--acc)}
 a.stat:hover{border-color:var(--tx3);color:var(--tx)}
+.pager{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0 2px;font-size:.88rem}
+.pager a,.pager strong{padding:3px 9px;border-radius:8px;border:1px solid var(--line);text-decoration:none;min-width:30px;text-align:center;color:var(--tx2)}
+.pager a:hover{border-color:var(--acc);color:var(--acc)}
+.pager strong.here{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+.pager .mut{border:0;padding:3px 4px}
 `

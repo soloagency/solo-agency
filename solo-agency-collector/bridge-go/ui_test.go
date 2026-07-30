@@ -1037,3 +1037,83 @@ func TestSenderIdentityUIRoundTrip(t *testing.T) {
 		t.Fatalf("step 0 must clear the ramp and fix the quota:\n%s", doc)
 	}
 }
+
+// TestCRMPagingNumberingAndStats: the operator asked for a row number, 100 per
+// page, and counts. Numbering must be CONTINUOUS across pages (page 2 starts at
+// 101), and the stats must describe the whole list, not the slice on screen.
+func TestCRMPagingNumberingAndStats(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	dir := filepath.Join(ws, "outreach", "crm", "contacts")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// 250 contacts: every 2nd has an email, every 3rd is enriched
+	for i := 1; i <= 250; i++ {
+		doc := map[string]any{"id": fmt.Sprintf("c_%04d", i), "name": map[string]any{"full": ""}}
+		ids := map[string]any{}
+		if i%2 == 0 {
+			ids["emails"] = []any{map[string]any{"address": fmt.Sprintf("p%d@x.com", i)}}
+		}
+		doc["identities"] = ids
+		if i%3 == 0 {
+			doc["enrichment"] = map[string]any{"confidence_band": "high"}
+		}
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("c_%04d.json", i)),
+			[]byte(marshalIndentJSON(doc)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	get := func(url string) string {
+		req := httptest.NewRequest("GET", url, nil)
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != 200 {
+			t.Fatalf("%s → %d", url, rec.Code)
+		}
+		return rec.Body.String()
+	}
+
+	// stats describe all 250 regardless of the page shown
+	p1 := get("/ui/leadup/crm")
+	for _, want := range []string{">250<", "leads total", "have an email", "email + enriched", "1&ndash;100 of 250"} {
+		if !strings.Contains(p1, want) {
+			t.Errorf("page 1 missing %q", want)
+		}
+	}
+	// 125 have an email (every 2nd), 83 enriched (every 3rd), 41 both (every 6th)
+	for _, want := range []string{">125<", ">83<", ">41<"} {
+		if !strings.Contains(p1, want) {
+			t.Errorf("page 1 missing stat %q", want)
+		}
+	}
+	// page 1 numbers 1..100 and stops
+	if !strings.Contains(p1, ">100<") || strings.Contains(p1, ">101<") {
+		t.Error("page 1 must number 1..100 only")
+	}
+
+	// numbering continues on page 2, and the window moves
+	p2 := get("/ui/leadup/crm?page=2")
+	if !strings.Contains(p2, ">101<") || !strings.Contains(p2, ">200<") {
+		t.Error("page 2 must number 101..200")
+	}
+	if !strings.Contains(p2, "101&ndash;200 of 250") {
+		t.Error("page 2 must report its window")
+	}
+	// last page is partial, and an over-range page clamps to it rather than 404ing
+	p3 := get("/ui/leadup/crm?page=3")
+	if !strings.Contains(p3, ">250<") || !strings.Contains(p3, "201&ndash;250 of 250") {
+		t.Error("page 3 must be the partial last page")
+	}
+	if got := get("/ui/leadup/crm?page=99"); !strings.Contains(got, "201&ndash;250 of 250") {
+		t.Error("an over-range page must clamp to the last one")
+	}
+	if got := get("/ui/leadup/crm?page=abc"); !strings.Contains(got, "1&ndash;100 of 250") {
+		t.Error("a junk page param must fall back to page 1")
+	}
+}
