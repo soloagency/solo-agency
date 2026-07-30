@@ -163,8 +163,10 @@ func TestCrmStoreScenario(t *testing.T) {
 	dw := mustOK(run("2026-07-19T10:12:00Z", "--client-dir", ws, "draft", "write",
 		"--contact", "c_lead1", "--campaign", "demo", "--json",
 		`{"step": 1, "subject": "Idea for 123 Main St", "body_text": "Hi Susan...", "hooks_used": [{"type": "new_listing", "evidence_url": "https://z/1"}]}`))
-	if mStr(dw, "sendbox") != "sb-a" || mStr(dw, "confidence_band") != "high" || len(mList(dw, "warnings")) != 0 {
-		t.Fatalf("draft write: %v", dw) // sb-b is needs_reauth -> rotation picks sb-a
+	// the sendbox is deliberately NOT decided here: a draft is content, the mailbox
+	// is delivery, and it is chosen at send time from live capacity
+	if mStr(dw, "sendbox") != "" || mStr(dw, "confidence_band") != "high" || len(mList(dw, "warnings")) != 0 {
+		t.Fatalf("draft write: %v", dw)
 	}
 
 	bad := run("2026-07-19T10:13:00Z", "--client-dir", ws, "draft", "write",
@@ -2175,12 +2177,13 @@ func TestCompanionAuthorizationTravelsWithTheBrief(t *testing.T) {
 	}
 }
 
-// TestRotationCountsQueuedNotJustSent: rotation used sentToday only, and nothing
-// is sent during a drafting run, so every box scored identically and the stable
-// sort handed all of them to the first one. A live run queued 91 drafts onto a
-// single 20/day box while ten healthy boxes sat idle, unreferenced by the
-// campaign. Both halves are covered here.
-func TestRotationCountsQueuedNotJustSent(t *testing.T) {
+// TestSendboxChosenAtSendTime: a draft is content, the mailbox is delivery. The
+// choice used to be made and written at DRAFT time, which froze an
+// infrastructure decision into an artifact that might not go out for days — and
+// produced the failure that exposed it: 91 drafts written in one run all carried
+// the same box (nothing is sent mid-run, so every box scored an identical load),
+// and widening the campaign to eleven boxes afterwards could not free them.
+func TestSendboxChosenAtSendTime(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "dcp")
 	ws := filepath.Join(root, "clients", "leadup", "video_us", "outreach")
 	run := func(now string, argv ...string) xresult { return runGoStep(t, xstep{FakeNow: now, Argv: argv}) }
@@ -2196,60 +2199,112 @@ func TestRotationCountsQueuedNotJustSent(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(ws, "sendboxes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// three healthy boxes, 2/day each
 	if err := os.WriteFile(filepath.Join(ws, "sendboxes", "sendboxes.json"), []byte(
 		`{"sendboxes":[
 		  {"slug":"sb-a","email":"a@gmail.com","domain":"gmail.com","quota_today":2,"status":"healthy"},
 		  {"slug":"sb-b","email":"b@gmail.com","domain":"gmail.com","quota_today":2,"status":"healthy"},
-		  {"slug":"sb-c","email":"c@gmail.com","domain":"gmail.com","quota_today":2,"status":"healthy"}]}`), 0o644); err != nil {
+		  {"slug":"sb-c","email":"c@gmail.com","domain":"gmail.com","quota_today":2,"status":"needs_reauth"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	mustOK(run("2026-07-29T09:01:00Z", "--client-dir", ws, "segment", "set", "--json",
 		`{"id":"all","name":"all","where":[["lifecycle_stage","=","lead"]]}`))
-	// campaign references NO boxes → every healthy box is eligible
 	mustOK(run("2026-07-29T09:02:00Z", "--client-dir", ws, "campaign", "create", "--slug", "intro",
 		"--json", `{"audience":{"segment":"all"},"sendboxes":[],"daily_quota":50,"goal":{"goal_type":"direct_sale"}}`))
+	mustOK(run("2026-07-29T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_st","identities":{"emails":[{"address":"st@x.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-29T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", "c_st",
+		"--campaign", "intro", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"reel about escrow timing in Whittier","evidence_url":"https://x.test/r1","observed_date":"2026-07-25","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
 
-	seen := map[string]int{}
-	for i := 1; i <= 6; i++ {
-		id := fmt.Sprintf("c_rot%d", i)
-		mustOK(run("2026-07-29T09:03:00Z", "--client-dir", ws, "contact", "add", "--json",
-			`{"id":"`+id+`","identities":{"emails":[{"address":"`+id+`@x.com","is_primary":true}]}}`))
-		mustOK(run("2026-07-29T09:04:00Z", "--client-dir", ws, "enrich", "write", "--contact", id,
-			"--campaign", "intro", "--json",
-			`{"identity":{"still_active":"confirmed"},
-			  "hooks":[{"type":"social_post","summary":"reel about escrow timing in `+id+`ville","evidence_url":"https://x.test/r`+id+`","observed_date":"2026-07-25","confidence":0.8}],
-			  "writing_brief":{"personalization_confidence":0.8}}`))
-		res := mustOK(run("2026-07-29T09:05:00Z", "--client-dir", ws, "draft", "write", "--contact", id,
-			"--campaign", "intro", "--json", string(mustJSON(t, map[string]any{
-				"step": 1, "subject": "Escrow timing in " + id + "ville",
-				// every body distinct: the template_sentence gate refuses a shared
-				// closing line, and it is right to (it caught this fixture first).
-				"body_text":  fmt.Sprintf("Hi, your reel on escrow timing in %sville lands a point worth repeating, and case %d is where it shows most. Plan %d: https://x.test/p%d\n\nBinh\nLeadUp", id, i, i, i),
-				"hooks_used": []any{map[string]any{"evidence_url": "https://x.test/r" + id}}}))))
-		seen[mStr(res, "sendbox")]++
+	// 1. the draft carries NO box
+	dw := mustOK(run("2026-07-29T09:05:00Z", "--client-dir", ws, "draft", "write", "--contact", "c_st",
+		"--campaign", "intro", "--json", string(mustJSON(t, map[string]any{
+			"step": 1, "subject": "Escrow timing in Whittier",
+			"body_text":  "Hi, your reel on escrow timing in Whittier makes a point worth repeating. Worth a look: https://x.test/p\n\nBinh\nLeadUp",
+			"hooks_used": []any{map[string]any{"evidence_url": "https://x.test/r1"}}}))))
+	if got := mStr(dw, "sendbox"); got != "" {
+		t.Fatalf("draft time must not bind a mailbox, got %q", got)
 	}
-	// 6 drafts over 3 boxes of 2/day: every box used, none over its cap
-	if len(seen) != 3 {
-		t.Fatalf("drafting must spread across every eligible box, got %v", seen)
+	raw, err := os.ReadFile(mStr(dw, "path"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	for slug, n := range seen {
-		if n != 2 {
-			t.Fatalf("box %s took %d of 6 — queued drafts must count toward its load (%v)", slug, n, seen)
-		}
+	var rec map[string]any
+	if err := json.Unmarshal(raw, &rec); err != nil {
+		t.Fatal(err)
+	}
+	if mStr(rec, "sendbox") != "" {
+		t.Fatalf("the stored draft must not carry a mailbox: %s", raw)
 	}
 
-	// the report names the bottleneck when the campaign references a subset
-	mustOK(run("2026-07-29T09:06:00Z", "--client-dir", ws, "campaign", "update", "--slug", "intro",
+	// 2. but drafting still refuses when NO box could ever send it
+	if err := os.WriteFile(filepath.Join(ws, "sendboxes", "sendboxes.json"), []byte(
+		`{"sendboxes":[{"slug":"sb-c","email":"c@gmail.com","domain":"gmail.com","quota_today":2,"status":"needs_reauth"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mustOK(run("2026-07-29T09:06:00Z", "--client-dir", ws, "contact", "add", "--json",
+		`{"id":"c_st2","identities":{"emails":[{"address":"st2@x.com","is_primary":true}]}}`))
+	mustOK(run("2026-07-29T09:06:10Z", "--client-dir", ws, "enrich", "write", "--contact", "c_st2",
+		"--campaign", "intro", "--json",
+		`{"identity":{"still_active":"confirmed"},
+		  "hooks":[{"type":"social_post","summary":"post about permit delays in Norwalk","evidence_url":"https://x.test/r2","observed_date":"2026-07-25","confidence":0.8}],
+		  "writing_brief":{"personalization_confidence":0.8}}`))
+	bad := run("2026-07-29T09:06:20Z", "--client-dir", ws, "draft", "write", "--contact", "c_st2",
+		"--campaign", "intro", "--json", string(mustJSON(t, map[string]any{
+			"step": 1, "subject": "Permit delays in Norwalk",
+			"body_text":  "Hi, your post on permit delays in Norwalk is the sort of detail buyers never hear. Take a look: https://x.test/q\n\nBinh\nLeadUp",
+			"hooks_used": []any{map[string]any{"evidence_url": "https://x.test/r2"}}})))
+	if bad.Code == 0 || !strings.Contains(bad.Stdout+bad.Stderr, "no healthy sendbox") {
+		t.Fatalf("with no usable box at all, drafting must still refuse: %s%s", bad.Stdout, bad.Stderr)
+	}
+
+	// 3. the choice happens at send time, from LIVE load
+	if err := os.WriteFile(filepath.Join(ws, "sendboxes", "sendboxes.json"), []byte(
+		`{"sendboxes":[
+		  {"slug":"sb-a","email":"a@gmail.com","domain":"gmail.com","quota_today":2,"status":"healthy"},
+		  {"slug":"sb-b","email":"b@gmail.com","domain":"gmail.com","quota_today":2,"status":"healthy"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := newCrmStore(ws)
+	cfg := store.getCampaign("intro")
+	if got := store.pickSendbox(cfg, map[string]any{}, "2026-07-29"); got != "sb-a" {
+		t.Fatalf("an idle pair breaks the tie by slug, got %q", got)
+	}
+	// sb-a has now spent its day: the next pick moves to sb-b
+	sentDir := filepath.Join(ws, "campaigns", "intro", "sent", "2026-07")
+	if err := os.MkdirAll(sentDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sentDir, "sent_log.jsonl"), []byte(
+		`{"lead_id":"c_x1","campaign":"intro","step":1,"sent_at":"2026-07-29T10:00:00Z","sendbox":"sb-a","rfc_message_id":"<a1@x>"}`+"\n"+
+			`{"lead_id":"c_x2","campaign":"intro","step":1,"sent_at":"2026-07-29T10:05:00Z","sendbox":"sb-a","rfc_message_id":"<a2@x>"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store = newCrmStore(ws)
+	if got := store.pickSendbox(store.getCampaign("intro"), map[string]any{}, "2026-07-29"); got != "sb-b" {
+		t.Fatalf("a box that spent its quota must yield to the idle one, got %q", got)
+	}
+
+	// 4. stickiness still wins: a follow-up threads from the box that started it
+	if got := store.pickSendbox(store.getCampaign("intro"),
+		map[string]any{"assigned_sendbox": "sb-a"}, "2026-07-29"); got != "sb-a" {
+		t.Fatalf("a contact's assigned box must hold for follow-ups, got %q", got)
+	}
+
+	// 5. the report states capacity and names boxes the campaign excludes
+	mustOK(run("2026-07-29T09:08:00Z", "--client-dir", ws, "campaign", "update", "--slug", "intro",
 		"--json", `{"sendboxes":["sb-a"]}`))
-	rep := mustOK(run("2026-07-29T09:07:00Z", "--client-dir", ws, "approval-report", "--campaign", "intro"))
+	rep := mustOK(run("2026-07-29T09:09:00Z", "--client-dir", ws, "approval-report", "--campaign", "intro"))
 	md, err := os.ReadFile(mStr(rep, "md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Sending capacity", "healthy sendbox(es) are idle", "sb-b", "sb-c"} {
+	for _, want := range []string{"Sending capacity", "picks its box when it is actually sent",
+		"healthy sendbox(es) are idle", "sb-b"} {
 		if !strings.Contains(string(md), want) {
-			t.Fatalf("the report must surface the bottleneck (%q):\n%s", want, md)
+			t.Fatalf("the report must surface capacity and idle boxes (%q):\n%s", want, md)
 		}
 	}
 }

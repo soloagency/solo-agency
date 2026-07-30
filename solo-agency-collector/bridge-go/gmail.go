@@ -695,7 +695,27 @@ func gmailCmdSend(clientDir, draftPath string, dryRun bool) (map[string]any, err
 		return nil, err
 	}
 	store := newCrmStore(clientDir)
-	slug := mStr(draft, "sendbox")
+
+	// Choose the mailbox NOW, at send time. The draft may have been written days
+	// ago; only this moment knows which boxes are healthy, what their warm-up
+	// ramp has reached, and how much of today each has already spent. A box
+	// recorded on the draft is treated as ADVISORY, not binding — that is what
+	// let 91 drafts stay pinned to one 20/day box after the campaign was widened
+	// to eleven. Stickiness still wins where it must: a follow-up threads onto the
+	// conversation the recipient already has, so contact.assigned_sendbox (set by
+	// the first successful send) decides for step >= 2, and pickSendbox honours it.
+	day := todayStr("")
+	leadForPick := store.resolve(mStr(draft, "lead_id"))
+	slug := store.pickSendbox(store.getCampaign(mStr(draft, "campaign_slug")),
+		store.getContact(leadForPick), day)
+	if slug == "" {
+		// nothing eligible right now: keep the draft approved and retry next run
+		if !dryRun {
+			persistSendBlocker(draftPath, draft, "no_eligible_sendbox")
+		}
+		return map[string]any{"ok": false, "blocker": "no_eligible_sendbox",
+			"note": "no healthy sendbox this campaign references has capacity left today; the draft stays approved and sends on the next run"}, nil
+	}
 	sb := getSendbox(clientDir, slug)
 	if sb == nil {
 		if !dryRun {
@@ -723,7 +743,6 @@ func gmailCmdSend(clientDir, draftPath string, dryRun bool) (map[string]any, err
 		return map[string]any{"ok": false, "blocker": "campaign_paused",
 			"campaign": draft["campaign_slug"]}, nil
 	}
-	day := todayStr("")
 	leadID := store.resolve(mStr(draft, "lead_id"))
 	step := mInt(draft, "step", 1)
 	ok, reason, token, err := gmailPresendCheck(store, clientDir, sb, draft, day, !dryRun)
@@ -808,6 +827,7 @@ func gmailCmdSend(clientDir, draftPath string, dryRun bool) (map[string]any, err
 		}
 	}
 	draft["status"] = "sent"
+	draft["sendbox"] = slug // the box actually used, decided at this moment
 	draft["decided_at"] = sentAt
 	if err := os.WriteFile(draftPath, []byte(marshalIndentJSON(draft)), 0o644); err != nil {
 		return nil, err

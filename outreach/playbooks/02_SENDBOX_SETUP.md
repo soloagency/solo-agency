@@ -171,6 +171,14 @@ When a client has more than one healthy box, the rules below govern which box a 
   page has a tick list per campaign, and the approval report prints sending capacity plus any idle
   boxes. Narrowing on purpose is a valid operator choice; narrowing by accident costs days.
 
+- **The mailbox is chosen at SEND time, never at draft time.** A draft carries no sendbox: it is
+  content, the mailbox is delivery, and only the sending moment knows which boxes are healthy, what
+  each warm-up ramp has reached, and how much of today each has spent. Binding it earlier froze a
+  stale decision into an artifact that might wait days for approval — and did: 91 drafts written in
+  one run all carried one box (nothing is sent mid-run, so every box scored the same), and widening
+  the campaign to eleven boxes afterwards could not free them. Drafting still refuses when the
+  campaign has NO usable box at all; it simply does not say which one. A box recorded on an old
+  draft is advisory, and the box actually used is written onto the draft when it sends.
 - **Rotation is step-1 only.** The very first outreach to a contact picks the **healthy** referenced box with the lowest `sent_today / quota_today` ratio (round-robin on ties). This spreads first-touch volume across boxes and domains.
 - **Sticky sender thereafter.** Once a contact's first email goes out, `contact.assigned_sendbox` is fixed. Every bump and every reply for that contact goes from the **same** box — threading, reply routing, and anti-spam all require it. A contact is never re-rotated to a different box mid-sequence.
 - **Two-tier cap.** Effective daily headroom for a first touch is `min(remaining_box_quota, remaining_domain_cap)` — several boxes on one domain share that domain's reputation, so the domain's combined volume is also capped and ramps. The per-box side is enforced in code by the atomic reservation (`reserve(sendbox, day)`); the domain-tier cap is an operator-set ramp applied during selection.
