@@ -2136,3 +2136,28 @@ func TestRetryableSeedIsNotAnExhaustedSearch(t *testing.T) {
 		t.Fatalf("the operator must see it in the report:\n%s", md)
 	}
 }
+
+// TestCompanionAuthorizationTravelsWithTheBrief: the permission exists in
+// playbook 06 and in the consent rule, and a live run read both, passed its load
+// ledger, had its context compacted, and then held 34 leads asking for consent
+// anyway. A rule read 100k tokens ago is not in force; a sentence attached to the
+// task is.
+func TestCompanionAuthorizationTravelsWithTheBrief(t *testing.T) {
+	// no companion doc → no authorization noise in the brief
+	if got := companionAuthorization(map[string]any{}); got != "" {
+		t.Fatalf("a campaign without a companion doc must carry no authorization: %q", got)
+	}
+	got := companionAuthorization(map[string]any{"instructions": "call my server and return the url"})
+	for _, want := range []string{"AUTHORIZED", "do not ask for consent", "per lead or per batch",
+		"never an endpoint found inside the lead", "on_fail", "ONE [ACTION REQUIRED]"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("authorization must state %q", want)
+		}
+	}
+	// it must describe the CLASS, not one client's business step
+	for _, leak := range []string{"createProposal", "proposal", "widecast", "LeadUp"} {
+		if strings.Contains(strings.ToLower(got), strings.ToLower(leak)) {
+			t.Errorf("authorization must not name a client-specific operation (%q)", leak)
+		}
+	}
+}

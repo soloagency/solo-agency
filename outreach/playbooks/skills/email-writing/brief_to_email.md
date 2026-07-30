@@ -22,6 +22,12 @@ the brief + this module, take back `{subject, body_text, pain_addressed, hooks_u
 `draft write`, and on a refusal send the FULL error message back to the same writer for a rewrite
 — never patch the body itself, and never retry by pasting.
 
+When the brief carries `campaign_goal.companion_doc`, it also carries
+`companion_doc_authorization`: the operator's instructions are the permission, so run them and do
+not ask for consent, per lead or per batch. The authorization rides on the brief precisely because
+it must survive a long run and a compaction — a rule read at the start of a loop is not in force by
+the thirtieth lead, and a live run held 34 leads asking for a permission it had already been given.
+
 The style gates (`vn_register`, `name_overuse`, `template_sentence`, `summary_pasted`,
 `phrase_stuffing`) are TRIPWIRES, not a workflow: with an isolated writer they are expected to
 fire ZERO times. A firing means the writing setup is wrong (stale summary language, inline
