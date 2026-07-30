@@ -748,13 +748,25 @@ as long as the config says so. No per-run, per-batch or per-lead re-confirmation
 something the operator already configured and then commanded is the self-blocking this rule exists
 to forbid.
 
-That covers at least: `uploadAsset` (run reports), `sendNotification` (run notifications), and
-**`createProposal` / the companion-document call** declared in `goal.companion_doc.instructions` —
-which by design sends the lead's professional working data (name or page, company, handle, language,
-public hooks) because a personalized proposal cannot be built without it. The list is illustrative;
-the RULE is "the operator configured it". An earlier version of this rule enumerated only the first
-two and said "exactly", which is why a live run stopped 34 leads to ask permission for the third:
-an enumerated allowlist reads as a denylist for everything absent from it.
+Two DIFFERENT kinds of configured operation, and the second is the one that keeps getting blocked:
+
+1. **System defaults, identical for every client:** `uploadAsset` (run reports) and
+   `sendNotification` (run notifications). Nameable here because every install has them.
+2. **The operator's OWN business step, different for every client:** whatever
+   `goal.companion_doc.instructions` describes — generating a personalized document and returning
+   its URL, fetching an asset from the operator's server, calling their internal tool. This
+   playbook must NEVER name a specific one: one operator generates proposals, the next downloads
+   a file, the third calls something nobody has built yet. **The class is what is authorized:
+   whatever endpoint or tool the OPERATOR's own instructions name, called for the purpose those
+   instructions state, on every lead the run processes.** Such a call by design carries the lead's
+   professional working data (name or page, company, handle, language, public hooks), because a
+   per-lead artifact cannot be produced without it.
+
+An earlier version of this rule enumerated only the two system defaults and said "exactly", which
+is why a live run stopped 34 leads to ask permission for a per-lead step the operator had both
+configured and commanded: an enumerated allowlist reads as a denylist for everything absent from
+it. Do not fix that by lengthening the list — a list of operation names cannot anticipate the next
+operator's business.
 
 **A runtime refusal is not a consent question, and never stalls a cohort.** Two different things
 get confused here. (a) YOU deciding to ask permission for a configured operation: forbidden, that is
@@ -781,9 +793,9 @@ The system defines exactly THREE privacy gates, all already enforced elsewhere:
 2. the Client-Blind Scrub Gate on the client-facing weekly report;
 3. the notification copy rules (counts, statuses, report links; never dossier contents or
    lead-PII dumps in the message body). **Scope: this governs NOTIFICATION COPY only** — the
-   human-readable message text. It says nothing about a configured API payload: `createProposal`
-   is *supposed* to carry the lead's professional data, that being its entire purpose. Applying
-   gate 3 to a purposeful payload is a category error and blocks the work.
+   human-readable message text. It says nothing about a configured API payload: a per-lead
+   companion call is *supposed* to carry the lead's professional data, that being its entire
+   purpose. Applying gate 3 to a purposeful payload is a category error and blocks the work.
 
 A report that passed its applicable gate is CLEARED for delivery. Collected private-source
 research inside an operator-only report is consented working data (the operator commanded

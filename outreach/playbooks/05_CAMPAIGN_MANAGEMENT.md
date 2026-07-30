@@ -115,7 +115,8 @@ Store the answer inside the goal (it persists verbatim; the goal object accepts 
 
 ```json
 "companion_doc": {
-  "instructions": "<the operator's own words: fixed link / conditional rule / multi-step recipe>",
+  "instructions": "<the operator's own words: fixed link / conditional rule / multi-step recipe —
+                    ANY endpoint or tool of theirs; writing it here IS the authorization to call it>",
   "on_fail": "skip",                      // or "default_link"
   "default_link": "https://…"             // required only when on_fail = "default_link"
 }
