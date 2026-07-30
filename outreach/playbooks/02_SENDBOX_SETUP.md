@@ -161,6 +161,16 @@ Real scale is not one big box: it is **2–3 variant domains, 1–2 boxes each**
 
 When a client has more than one healthy box, the rules below govern which box a contact is emailed from. Selection happens at draft/queue time (Stage 5/8) and is recorded on the draft's `sendbox` field and on `contact.assigned_sendbox`; `tool gmail send` then honors that box and performs the atomic per-box quota reservation.
 
+- **A connected box is idle until a campaign REFERENCES it.** `campaign_config.sendboxes` is the
+  eligibility list: a non-empty list means ONLY those boxes rotate, an EMPTY list means every
+  healthy box. So after connecting a box, offer to add it to the active campaigns — and when a
+  campaign is backlogged while healthy boxes sit unreferenced, SAY SO instead of quoting the
+  backlog as fate. A live run reported "sb-a can only send 20 a day, I will not move the other 91
+  drafts" while ten healthy boxes were connected and unreferenced: the honest answer was "this
+  campaign references 1 of your 11 boxes, widen it and the queue clears in a day". The Campaigns
+  page has a tick list per campaign, and the approval report prints sending capacity plus any idle
+  boxes. Narrowing on purpose is a valid operator choice; narrowing by accident costs days.
+
 - **Rotation is step-1 only.** The very first outreach to a contact picks the **healthy** referenced box with the lowest `sent_today / quota_today` ratio (round-robin on ties). This spreads first-touch volume across boxes and domains.
 - **Sticky sender thereafter.** Once a contact's first email goes out, `contact.assigned_sendbox` is fixed. Every bump and every reply for that contact goes from the **same** box — threading, reply routing, and anti-spam all require it. A contact is never re-rotated to a different box mid-sequence.
 - **Two-tier cap.** Effective daily headroom for a first touch is `min(remaining_box_quota, remaining_domain_cap)` — several boxes on one domain share that domain's reputation, so the domain's combined volume is also capped and ramps. The per-box side is enforced in code by the atomic reservation (`reserve(sendbox, day)`); the domain-tier cap is an operator-set ramp applied during selection.

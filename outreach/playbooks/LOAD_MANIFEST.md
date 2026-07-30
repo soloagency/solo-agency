@@ -8,10 +8,10 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | OUTREACHCRM_PLAYBOOK.md | 465 | 523f4d5c1185a5203b33ec80d0e93419ccc353c496cb469053af036ce675162a | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 497 | deb12399b61ef2d8ae6056df9ac197ed8ed0555d569e0656448098af7543da82 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 736 | 895b6fb68ae2843c0c15122b9552af7091496897fe41e8284accd8faaf976808 | --- |
-| playbooks/02_SENDBOX_SETUP.md | 270 | 0025a818d3bcb5ea7f88197fbe3d48a08dfb3f4750099329865d6bef44690533 | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/02_SENDBOX_SETUP.md | 280 | 3a6fc71afe615e62246473a726683ed9ecc7476ddb3c1d7f3738a967dbc14081 | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/03_IMPORT_LIST.md | 324 | fcfdf069cf778eafd8b9dc0236786c38149cc2b548f18e02527b4d3b03326bf6 | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/04_VERIFY_ENRICH.md | 329 | 658d814493fdc3ab374c53b5855bfcf8a8d684a5ef066baf0707acc08a44e1e9 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| playbooks/05_CAMPAIGN_MANAGEMENT.md | 313 | 35583a75f61defe694164716eddbe5fc9954ecd8f319920ba19a7e33a10e4210 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/05_CAMPAIGN_MANAGEMENT.md | 315 | a8c0b5b13bb99173ba1bb7b1cebe2d41ce5a9579cc06e90640a894c61fc1f63b | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/06_EMAIL_WRITING_STANDARD.md | 194 | 0369480258a2abac4fa60425bec5c3b521e211f7b68b502a526267165a765389 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1465 | 1215f7335d8218f2cc2591b6062b753d8abf4f2d575f5a8f0e44e646d0af0fcf | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule. |
 | playbooks/08_SEND_ENGINE_PROTOCOL.md | 185 | 8caf2ddf55566e1c1f2a78097bdccbd2c141f6bc9b1622ec108048c74132eb45 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
