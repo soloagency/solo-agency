@@ -168,6 +168,17 @@ For every active or configured client, check and update:
 - `daily-content-pipeline/collector/collector_config.json` when collector schema changed.
 - `daily-content-pipeline/provider_defaults.json`.
 - the client's `integrations/providers/provider_capabilities.json`, `provider_openapi_cache.yaml`, and `provider_health.md` schema expectations when provider tooling changed.
+
+Version watch covers the PROVIDER, not only this repo. The PDNA provider is the operator's own
+product and ships new API operations on its own schedule with no Solo Agency commit involved, so a
+repo-only watch misses exactly the changes the operator cares most about (a live client ran 9 days
+blind to the provider's new `addToProductionPlan` operation). For every client with a verified
+provider config, the update-watch task also runs the drift check from playbook 03 "Discovery
+freshness": GET the discovery URL, SHA-256 the raw bytes, compare to
+`provider_capabilities.json.spec_sha256`; on mismatch/missing hash/`discovered_at` older than 7
+days, re-run discovery, refresh the three provider files, and record operations added/removed in
+the internal update notice. Update-watch itself still sends NO provider notifications (its
+standing rule); the next scheduled run's operator notification carries the drift lines instead.
 - `daily-content-pipeline/schedule.md`.
 - `daily-content-pipeline/automation/automation_manifest.md`.
 - `daily-content-pipeline/automation/scheduled_run_prompt.md`.
