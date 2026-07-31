@@ -446,7 +446,16 @@ WideCast remains the maintained all-in-one reference path, but the integration m
 4. Parse the OpenAPI `servers`, `securitySchemes`, `operationId`, request schemas, response schemas, and relevant descriptions.
 5. Select the API server from the current client's provider config/defaults before trusting server order in the spec. For WideCast, the current production server is `https://widecast.ai/app/dashboard`; `https://api.widecast.ai` is a planned/disabled vanity host and must not be called unless a future playbook explicitly enables it.
 6. Cache the spec as `provider_openapi_cache.yaml`.
-7. Write discovered operations and capability groups to `provider_capabilities.json`, including the selected `server_url` and any disabled/skipped server URLs.
+7. Write discovered operations and capability groups to `provider_capabilities.json`, including the selected `server_url`, any disabled/skipped server URLs, and `spec_sha256` — the SHA-256 of the raw fetched spec bytes. The hash is what makes cheap drift detection possible later; a capabilities file without it forces a full re-discovery on the next freshness check, which is the intended self-healing for older caches.
+
+### Discovery freshness and capability drift (the provider updates itself)
+
+The provider is the operator's own product and ships new operations on ITS schedule, with no Solo Agency release involved — that is by design (operations are discovered per client, never hardcoded in this repo). What must not happen is a stale cache hiding a shipped capability: a live client ran daily for 9 days on a cache that predated the provider's `addToProductionPlan` operation and never saw it.
+
+- **The cached spec is fresh for at most 7 days.** `discovered_at` older than that → re-discover before relying on the cache, even if nothing seems wrong.
+- **Drift check (cheap, run per scheduled run and by update-watch):** GET the discovery URL, SHA-256 the raw bytes, compare to `spec_sha256`. Same hash → cache is current, done (one request to the operator's own server, no credits). Different or missing hash → re-run discovery (this section's steps) and record the drift: operations added, operations removed, in `provider_health.md` and the run's `INTERNAL_REPORT`.
+- **New operations are surfaced, not silently adopted:** the run's operator notification carries one line per newly discovered operation ("provider now exposes `addToProductionPlan` — say the word to wire it into the flow"). Adopting a new operation into playbook flow stays a human decision.
+- **A removed operation that playbooks or automation currently call is an `**[ACTION REQUIRED]**`** — the flow that depends on it will fail, and the operator must know before it does.
 8. Verify the account with the provider's account operation before any credit, publish, upload, analytics, or notification action. For WideCast this is `getAccount`.
 9. Save the verified provider account identity and PDNA status into the per-client provider config and `provider_health.md`.
 10. Log every provider call to `provider_calls.jsonl` with secrets redacted.
