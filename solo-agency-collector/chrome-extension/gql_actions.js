@@ -115,8 +115,12 @@
 
   function wrapCap(capId, status, extra) {
     var rec = Object.assign({ capability: capId, status: status, verified: false, error: null, ts: nowISO() }, extra || {});
-    var ok = status !== "not_found" && status !== "error" && status !== "redirected";
-    return { available: ok, capability: capId, count: 1, items: [rec], _debug: { href: location.href } };
+    // ALWAYS available: background.js discards a record whose capability reports
+    // unavailable, which threw away the very thing a write action must report — WHY it
+    // refused (recipient_mismatch, ambiguous_composer, redirected…). The caller then saw
+    // an empty record and could not tell "a guard stopped this" from "the job broke".
+    // Success/failure is carried by `status` and `verified`, not by hiding the record.
+    return { available: true, capability: capId, status: status, count: 1, items: [rec], _debug: { href: location.href } };
   }
   function wrap(status, extra) { return wrapCap("fb.post.react", status, extra); }
 
@@ -301,13 +305,100 @@
     });
   }
 
+  // ---- P3: fb.message.send -------------------------------------------------
+  // Send a Messenger DM. The job's url must be the THREAD (facebook.com/messages/t/<id>),
+  // never the profile: clicking "Message" on a profile leaves the page holding several
+  // "Write to <someone>" composers at once — the recipient's plus every chat head already
+  // docked there — and the profile's own name is not readable (its h1 is "Notifications"),
+  // so there is no way to tell them apart. A thread page renders exactly ONE composer.
+  var WRITE_TO = /^write to\s+(.+)$/i;
+  function findMessageComposers() {
+    var out = [];
+    var boxes = document.querySelectorAll('div[contenteditable="true"][role="textbox"]');
+    for (var i = 0; i < boxes.length; i++) {
+      var lbl = norm(boxes[i].getAttribute("aria-label") || "");
+      var r = boxes[i].getBoundingClientRect();
+      if (WRITE_TO.test(lbl) && r.width > 0 && r.height > 0) out.push({ el: boxes[i], label: lbl });
+    }
+    return out;
+  }
+  // Threads predating end-to-end encryption open behind a "Continue" gate and have no
+  // composer until it is clicked; doing so also rewrites the url to /messages/e2ee/t/<thread>,
+  // which is why the recipient is verified by NAME rather than by the url.
+  async function passE2eeGate() {
+    if (findMessageComposers().length) return false;
+    var btns = document.querySelectorAll('[role="button"]');
+    for (var i = 0; i < btns.length; i++) {
+      var lbl = norm(btns[i].innerText || btns[i].getAttribute("aria-label") || "");
+      if (!/^(continue|tiếp tục)$/i.test(lbl)) continue;
+      var r = btns[i].getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      click(btns[i]);
+      await waitFor(function () { return findMessageComposers().length > 0; }, 8000, 400);
+      return true;
+    }
+    return false;
+  }
+  async function doMessage(inputs) {
+    var text = String(inputs.text || inputs.message || "").trim();
+    var expected = norm(inputs.recipient_name || "");
+    if (!text) return wrapCap("fb.message.send", "error", { error: "no message text provided" });
+    if (!expected) return wrapCap("fb.message.send", "error", { text: text, error: "recipient_name is required — it is the only way to prove the open thread belongs to the intended person" });
+
+    var passedGate = await passE2eeGate();
+    var found = await waitFor(function () { var c = findMessageComposers(); return c.length ? c : null; }, 10000, 400) || [];
+
+    // Guard 1: exactly one thread composer, or we cannot know which one is the target.
+    if (found.length !== 1) {
+      return wrapCap("fb.message.send", "error", {
+        text: text, recipient_expected: expected, composers_found: found.length,
+        composer_labels: found.map(function (c) { return c.label; }),
+        passed_e2ee_gate: passedGate,
+        error: found.length === 0 ? "no message composer on this page — open facebook.com/messages/t/<id>, not the profile"
+                                  : "ambiguous_composer: more than one open chat — refusing to guess the recipient"
+      });
+    }
+    // Guard 2: that composer must name the intended recipient.
+    var box = found[0].el, label = found[0].label;
+    var who = (label.match(WRITE_TO) || [])[1] || "";
+    if (lower(who) !== lower(expected)) {
+      return wrapCap("fb.message.send", "error", {
+        text: text, recipient_expected: expected, recipient_open: who, passed_e2ee_gate: passedGate,
+        error: "recipient_mismatch: the open thread is with \"" + who + "\" — nothing was typed"
+      });
+    }
+
+    if (inputs.dry_run) {
+      return wrapCap("fb.message.send", "dry_run", { text: text, recipient: who, passed_e2ee_gate: passedGate });
+    }
+
+    await jitter();
+    await typeInto(box, text);
+    if (!composerText(box)) return wrapCap("fb.message.send", "error", { text: text, recipient: who, error: "failed to enter text into the composer" });
+
+    await jitter();
+    ["keydown", "keypress", "keyup"].forEach(function (t) { try { box.dispatchEvent(new KeyboardEvent(t, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true })); } catch (e) { /* ignore */ } });
+
+    var cleared = await waitFor(function () { return !composerText(box); }, 8000, 400);
+    var probe = text.slice(0, 30);
+    var appeared = await waitFor(function () {
+      try { return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; }
+    }, 6000, 400);
+    var sent = !!cleared && !!appeared;
+    return wrapCap("fb.message.send", sent ? "done" : "error", {
+      text: text, recipient: who, verified: sent, cleared: !!cleared, appeared: !!appeared,
+      passed_e2ee_gate: passedGate, thread_url: location.href,
+      error: sent ? null : (cleared ? "composer cleared but the message did not appear" : "message not confirmed (composer still holds text)")
+    });
+  }
+
   // ---- dispatcher ---------------------------------------------------------
   window.__soloActRun = async function (capId, inputs) {
     inputs = inputs && typeof inputs === "object" ? inputs : {};
     try {
       if (capId === "fb.post.react") return await doReact(inputs);
       if (capId === "fb.post.comment") return await doComment(inputs);
-      // P3: fb.message.send — added later.
+      if (capId === "fb.message.send") return await doMessage(inputs);
       return { available: false, capability: capId, count: 0, items: [{ status: "error", error: "unknown or unimplemented action: " + capId }], _debug: { href: location.href } };
     } catch (e) {
       return { available: false, capability: capId, count: 0, items: [{ status: "error", error: String(e && e.message || e) }], _debug: { href: location.href, error: String(e) } };
