@@ -204,25 +204,30 @@
   }
 
   // ---- P2: fb.post.comment ------------------------------------------------
-  var COMMENT_LBL = /comment|bình luận|viết bình luận|write a comment|leave a comment/i;
+  // Facebook labels the comment composer "Comment as <your name>" on every surface —
+  // post permalink, group post and reel alike (verified live on all three). Match that
+  // prefix instead of any box whose label merely contains "comment": the loose pattern
+  // also matched the search field and the status composer, which is how a comment could
+  // land somewhere other than the post it was meant for.
+  var COMMENT_AS = /^(comment as|bình luận với tư cách|viết bình luận)/i;
   function findCommentBox(root) {
     var scope = root || document;
-    var boxes = scope.querySelectorAll('div[contenteditable="true"][role="textbox"], textarea');
+    var boxes = scope.querySelectorAll('div[contenteditable="true"][role="textbox"]');
     for (var i = 0; i < boxes.length; i++) {
-      var lbl = (boxes[i].getAttribute("aria-label") || boxes[i].getAttribute("placeholder") || "");
+      var lbl = boxes[i].getAttribute("aria-label") || "";
       var r = boxes[i].getBoundingClientRect();
-      if (COMMENT_LBL.test(lbl) && r.width > 0 && r.height > 0) return boxes[i];
+      if (COMMENT_AS.test(lbl) && r.width > 0 && r.height > 0) return boxes[i];
     }
-    // fallback: first visible editable textbox in scope
-    for (var j = 0; j < boxes.length; j++) { var rr = boxes[j].getBoundingClientRect(); if (rr.width > 0 && rr.height > 0) return boxes[j]; }
-    return null;
+    return null; // no guessing — a wrong box means commenting in the wrong place
   }
-  // A "Comment" action that reveals the composer (reels / collapsed posts).
+  // Reels ship without a composer until the comment panel is opened; a post permalink
+  // already has one. The opener's label is exactly "Comment" (not "Comment with a GIF").
   function findCommentOpener(root) {
-    var btns = (root || document).querySelectorAll('[role="button"][aria-label], div[role="button"]');
+    var btns = (root || document).querySelectorAll('[role="button"]');
     for (var i = 0; i < btns.length; i++) {
-      var lbl = lower(btns[i].getAttribute("aria-label") || btns[i].innerText || "");
-      if (/^comment$|^bình luận$|write a comment|leave a comment/.test(lbl)) return btns[i];
+      var lbl = norm(btns[i].getAttribute("aria-label") || btns[i].innerText || "");
+      var r = btns[i].getBoundingClientRect();
+      if (/^(comment|bình luận)$/i.test(lbl) && r.width > 0 && r.height > 0) return btns[i];
     }
     return null;
   }
@@ -259,25 +264,40 @@
 
     var root = scope === document ? null : scope;
     var box = findCommentBox(root);
-    if (!box) { var opener = findCommentOpener(root); if (opener) { click(opener); box = await waitFor(function () { return findCommentBox(root); }, 5000, 250); } }
-    if (!box) box = await waitFor(function () { return findCommentBox(root); }, 6000, 300);
-    if (!box) return wrapCap("fb.post.comment", "not_found", { text: text, target_preview: preview, error: "comment composer not found" });
+    var openedPanel = false;
+    if (!box) {
+      // A reel has no composer until its comment panel is opened; a permalink already
+      // does. Open it, then WAIT for the composer to render — it arrives a beat later,
+      // and reading too early is what made this look unreliable on reels.
+      var opener = findCommentOpener(root);
+      if (opener) { click(opener); openedPanel = true; }
+      box = await waitFor(function () { return findCommentBox(root); }, 8000, 350);
+    }
+    if (!box) return wrapCap("fb.post.comment", "not_found", { text: text, target_preview: preview, opened_panel: openedPanel, error: "comment composer not found" });
 
     await jitter();
+    try { box.scrollIntoView({ block: "center" }); } catch (e) { /* ignore */ }
+    await sleep(300);
     await typeInto(box, text);
-    if (!composerText(box)) return wrapCap("fb.post.comment", "error", { text: text, target_preview: preview, error: "failed to enter text into composer" });
+    if (!composerText(box)) return wrapCap("fb.post.comment", "error", { text: text, target_preview: preview, opened_panel: openedPanel, error: "failed to enter text into composer" });
 
     await jitter();
     // Enter (no shift) posts a Facebook comment; Shift+Enter would be a newline.
-    ["keydown", "keyup"].forEach(function (t) { try { box.dispatchEvent(new KeyboardEvent(t, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true })); } catch (e) { /* ignore */ } });
+    // keypress is included because the composer listens for the full key sequence.
+    ["keydown", "keypress", "keyup"].forEach(function (t) { try { box.dispatchEvent(new KeyboardEvent(t, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true })); } catch (e) { /* ignore */ } });
 
-    // Verify: the composer clears after a successful post.
-    var cleared = await waitFor(function () { return !composerText(box); }, 6000, 400);
-    var appeared = false;
-    try { appeared = (document.body.innerText || "").indexOf(text.slice(0, 40)) > -1; } catch (e) { /* ignore */ }
-    return wrapCap("fb.post.comment", cleared ? "done" : "error", {
-      text: text, verified: !!cleared, appeared: appeared, target_preview: preview,
-      error: cleared ? null : "comment not confirmed (composer still holds text)"
+    // Two-part proof, because either alone can lie: the composer must EMPTY (the edit
+    // was consumed) AND the text must be ON the page (it actually posted).
+    var cleared = await waitFor(function () { return !composerText(box); }, 8000, 400);
+    var probe = text.slice(0, 40);
+    var appeared = await waitFor(function () {
+      try { return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; }
+    }, 6000, 400);
+    var posted = !!cleared && !!appeared;
+    return wrapCap("fb.post.comment", posted ? "done" : "error", {
+      text: text, verified: posted, cleared: !!cleared, appeared: !!appeared,
+      opened_panel: openedPanel, target_preview: preview,
+      error: posted ? null : (cleared ? "composer cleared but the comment did not appear" : "comment not confirmed (composer still holds text)")
     });
   }
 

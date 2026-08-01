@@ -1,7 +1,7 @@
 {
   "object": "collector_capabilities",
   "version": "0.1.0",
-  "updated_at": "2026-07-28",
+  "updated_at": "2026-07-29",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
@@ -489,7 +489,7 @@
     {
       "id": "fb.post.comment",
       "title": "Comment on a Facebook post / video / reel",
-      "when_to_use": "PAUSED (2026-07-17) — being redone as a dedicated multi-platform (Facebook/X/Reddit) commenting module focused on DOM editors + text-input mechanics. The current DOM impl works on reels/permalinks (execCommand insertText + Enter), but match_caption profile-targeting is flaky (use direct permalinks). Do not rely on it in the daily-report flow yet.",
+      "when_to_use": "WRITE ACTION. Post a comment on a single post, group post, or reel. Submit the post PERMALINK (a group post permalink works the same as a profile one). Approval is handled upstream by the daily report — only create this job for content the operator approved.",
       "inputs": {
         "post_url": "string (required) — permalink: /watch/?v=, /<user>/posts/<id>, /permalink.php?..., /reel/<id>; OR a profile URL when using match_caption",
         "text": "string (required) — the comment body",
@@ -499,15 +499,15 @@
       "output_schema": "CommentResult",
       "provider": "facebook-dom",
       "coverage": "the logged-in operator comments as themselves via the real UI",
-      "status": "paused",
+      "status": "beta",
       "write": true,
       "_impl": {
         "screen": "post_permalink | reel | timeline(match_caption)",
-        "method": "DOM automation (gql_actions.js): resolve scope (whole page, or the article matching match_caption); find the comment composer (contenteditable[role=textbox], EN+VI aria-labels), open it if collapsed; type via execCommand insertText (fallback beforeinput/input); submit with Enter; verify the composer cleared.",
+        "method": "DOM automation (gql_actions.js): find the composer by its aria-label prefix \"Comment as …\" (the same on post, group post and reel — a looser match also hit the search box); on a reel first click the [role=button] labelled exactly \"Comment\" and WAIT for the composer to render; type with execCommand insertText (Lexical accepts it); submit with Enter keydown/keypress/keyup; verify BOTH that the composer emptied AND that the text appears on the page.",
         "note": "One comment per job. Pacing/caps/approval live in the flow layer + daily report.",
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)",
-        "paused": "2026-07-17 — pending dedicated multi-platform text-input module (FB/X/Reddit)"
+        "validated_on": "2026-07-29 live on all three surfaces: profile post permalink, group post permalink (correct post targeted), and reel (needed the panel-open click)"
       },
       "scroll": "none"
     },
