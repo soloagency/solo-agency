@@ -107,6 +107,17 @@
       "websites": "string[] — outbound links published on the profile (usually from directory_links). Use these for the website hop instead of re-scanning.",
       "found_on": "string|null — current_page | directory_contact_info | directory_intro | directory_basic_info | directory_links; null when nothing was found",
       "checked": "string[] — surfaces that actually RENDERED, in visit order. May also contain \"about\" (the ladder entered the About section). This is the audit trail: never conclude email_not_found unless it shows the ladder ran past current_page."
+    },
+    "MessageResult": {
+      "capability": "string (fb.message.send)",
+      "status": "done | dry_run | error",
+      "recipient": "string — the name on the open thread, proven to match recipient_name",
+      "text": "string",
+      "verified": "boolean — composer emptied AND the message appeared",
+      "passed_e2ee_gate": "boolean — a pre-encryption thread needed its Continue button clicked first",
+      "thread_url": "string — the e2ee thread url after the gate",
+      "error": "string | null",
+      "ts": "ISO8601"
     }
   },
   "capabilities": [
@@ -534,6 +545,30 @@
         "audit_field": "`checked`, not `opened_contact_tab`. `opened_contact_tab` is a generic pipeline flag that only fires when the JOB URL was already an about/directory URL, so it stays false on a normal profile-URL job even when the ladder ran correctly. Do not gate on it."
       },
       "scroll": "none"
+    },
+    {
+      "id": "fb.message.send",
+      "title": "Send a Messenger DM to one person",
+      "when_to_use": "WRITE ACTION. Send a direct message. The job url MUST be the THREAD (https://www.facebook.com/messages/t/<profile_id>) — NEVER the profile page. `recipient_name` is required and is checked against the open thread before a single character is typed. Approval is handled upstream by the daily report.",
+      "inputs": {
+        "thread_url": "string (required) — https://www.facebook.com/messages/t/<profile_id>",
+        "recipient_name": "string (REQUIRED) — the person you intend to message; the run aborts if the open thread names anyone else",
+        "text": "string (required) — the message body",
+        "dry_run": "bool (optional) — resolve + verify the recipient WITHOUT sending"
+      },
+      "output_schema": "MessageResult",
+      "provider": "facebook-dom",
+      "coverage": "the logged-in operator messages as themselves",
+      "status": "beta",
+      "write": true,
+      "_impl": {
+        "screen": "messenger thread",
+        "method": "DOM automation (gql_actions.js): click the E2EE \"Continue\" gate when present, then require EXACTLY ONE composer matching /^write to (.+)$/ and require that name to equal recipient_name; type via execCommand insertText (Lexical) and submit with Enter; verify the composer emptied AND the text appeared.",
+        "why_not_the_profile_route": "Clicking Message on a profile leaves several \"Write to <someone>\" composers in the DOM at once (the target plus every docked chat head), and the profile page does not expose its owner name (h1 is \"Notifications\") — there is no reliable way to tell them apart, so a profile url is rejected.",
+        "validated_on": "2026-07-29 live send to a test thread: composers_found=1, label matched recipient_name, composer cleared and the message appeared",
+        "audit": "result appended to outbox/actions_log.jsonl by the bridge",
+        "fallback": "none (write action)"
+      }
     }
   ],
   "scroll_contract": "SCROLL CONTRACT: a capability scrolls ONLY when it declares max_scroll in its inputs. Everything else must not be scrolled by the runner; some of those still paginate, but via max_pages cursor replay, which is not scrolling. Scrolling a single-surface job (for example reading a published contact address) fires GraphQL queries whose results are discarded, costs time, and widens the request footprint for nothing."
