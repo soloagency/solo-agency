@@ -895,38 +895,69 @@ The agent must not send a notification that only says the report is ready withou
 If the current WideCast OpenAPI spec or integration exposes only media upload and does not support `.html` report upload, the agent must not pretend the report was uploaded. It must:
 
 - log `provider_required_operation_missing` or `widecast_report_upload_unavailable`;
-- send the best available combined `{client-name}-client-report.html` path/link, PDF companion path/status, and INTERNAL_REPORT path/status through WideCast Telegram if possible;
+- send the client notification only if a client-openable hosted link exists (an earlier upload or the minted magic link); otherwise skip the client notification and record the delivery blocker with the local HTML/PDF/INTERNAL_REPORT paths in the run output and `INTERNAL_REPORT`;
 - tell the human whether the blocker is missing provider config, failed auth, failed OpenAPI discovery, missing operation, or upload failure;
 - continue the scheduled run instead of failing the entire pipeline.
 
-If the provider config is missing, auth fails, or OpenAPI discovery does not expose WideCast Telegram/report notification sending, log the provider-neutral blocker and the legacy WideCast alias when useful, then use the best authorized fallback channel or local HTML report path plus PDF companion path/status plus INTERNAL_REPORT path/status.
+If the provider config is missing, auth fails, or OpenAPI discovery does not expose WideCast Telegram/report notification sending, log the provider-neutral blocker and the legacy WideCast alias when useful, surface the local HTML/PDF/INTERNAL_REPORT paths to the OPERATOR in the run output, and send a client notification through an authorized fallback channel only when it can carry a client-openable hosted link.
+
+### Client Notification Contract
+
+The provider notification channel belongs to the CLIENT's own account (WideCast
+`sendNotification` delivers to the client's email/Telegram), so the notification body is a
+CLIENT-FACING artifact: write it in the client's report language
+(`language.human_report_language`) and run the Client-Blind Scrub Gate on it exactly as on
+report HTML — no Solo Agency/WideCast/provider names, no AI/agent/automation mechanics, no
+Local Collector/extension/session details, no local machine paths, no INTERNAL_REPORT mention,
+no internal status codes.
 
 Every notification must include:
 
-- Agent identity, such as `Claude Schedule`, `Codex`, `OpenAI Agent`, `Hermes Collector`, or another explicit agent name.
-- Event type.
-- Client name or number of clients affected.
-- Short status summary.
-- The exact HTML report URL/path to open. This field is mandatory for report-ready notifications.
-- The exact PDF companion URL/path, or the exact PDF blocker/status.
-- The exact INTERNAL_REPORT URL/path/status for operator-only diagnostics.
-- What action the human needs to take, if any.
-- Timestamp when possible.
+- A subject line carrying the single most valuable finding of the run, in plain language.
+- The most valuable finding(s) in 2-4 plain sentences: what was found and why it matters to
+  the client's customers this week.
+- The hosted HTML report URL (mandatory), the PDF URL when hosted, and the no-login Saved
+  Ideas link when minted — each with its validity window stated plainly ("link works for 7
+  days"). Never a path on the operator's machine.
+- Only decisions that belong to the CLIENT, asked plainly (for example: open the report and
+  pick the script version you like). Never operator tasks.
+- Key numbers in plain framing (ideas found, ideas queued to the plan, leads worth watching,
+  competitors checked).
+- Coverage gaps as their CONSEQUENCE for the client, never the mechanics: "one community
+  source could not be checked today, so the lead count may be lower than reality" — not which
+  tool failed or why.
 
-Notifications are human-facing and must be written in the same language the human uses.
+Operator-only content NEVER goes into the notification: run progress blocks, automation
+freshness checks, `**[ACTION REQUIRED]**` items (extension loading, discovery approvals,
+provider/config fixes), feature-discovery blocks, renderer/tooling diagnostics, local
+`outputs/...` paths, INTERNAL_REPORT links, event-type codes, and agent identity. All of that
+lives in the run's chat/task output and `INTERNAL_REPORT`. The audit record is unchanged:
+`notifications/notification_log.md` still records agent identity, event type, lane status,
+and every link.
+
+A client notification is valid only when it carries at least one client-openable hosted link
+(uploaded report URL or minted magic link). If nothing could be hosted, do NOT send a
+link-less or local-path notification to the client — record the delivery blocker (with the
+local HTML/PDF/INTERNAL_REPORT paths) in the run output and `INTERNAL_REPORT` instead.
 
 If the daily result is short enough, send the useful summary directly through WideCast OpenAPI Telegram/email fallback.
 
 If the result is too long, send a concise notification instead:
 
 ```md
-Agent: Claude Schedule
-Event: daily_run_completed
-Status: 10 client outputs are ready.
-Report: {uploaded WideCast HTML report URL if available; otherwise local HTML report path}
-PDF: {uploaded PDF URL if available; otherwise local PDF path or PDF blocker}
-Internal: {local INTERNAL_REPORT path or status}
-Action needed: Review scripts and approve which ones should become production assets.
+{Client name} - {the most valuable finding, one line}
+
+{2-4 plain sentences: what was found and why it matters this week}
+
+Report (link works for 24 hours): {uploaded HTML report URL}
+PDF: {uploaded PDF URL when hosted}
+Saved ideas (no login, works for 7 days): {magic_url}
+
+{Key numbers, 2-3 plain lines}
+
+{Coverage gap as its consequence, when relevant}
+
+{The one decision asked of the client, when there is one}
 ```
 
 For private session issues:

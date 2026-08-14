@@ -770,7 +770,7 @@ For each daily run:
 6. Update or copy `outputs/latest_master_digest.md`.
 7. Update or copy `outputs/latest_master_digest.html`.
 8. Present the daily digest to the human.
-9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendNotification`, send a notification to the human/operator that includes run status, client-facing HTML report path/link, PDF companion path/status, INTERNAL_REPORT path/status, clients processed, blockers, lead/competitor counts, and required actions.
+9. If the configured provider notification capability is available, preferably WideCast OpenAPI `sendNotification`, send the notification composed per the Client Notification Contract (playbook 03): the channel belongs to the client's account, so the body carries the hosted report link, valuable findings, plain numbers, and client-safe coverage gaps — while run status, operator blockers, INTERNAL_REPORT path/status, and required operator actions go to the run output, notification log, and INTERNAL_REPORT.
 10. If another authorized channel can send the HTML/PDF files or links more conveniently, use it.
 11. Log the notification attempt in `notifications/notification_log.md`.
 
@@ -778,7 +778,7 @@ The daily run is complete only when every active client is processed or explicit
 
 When presenting the daily idea list to the human, include reference URLs next to data points, top ideas, and the selected best idea so the human can verify the information. For private data, include the captured source URL and note that it may require the human's logged-in session.
 
-Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the scrubbed mobile-friendly client-facing HTML result plus PDF companion path/status plus INTERNAL_REPORT path/status, or a result-ready notification with those paths/statuses, has been sent through the configured notification channel, preferably WideCast OpenAPI Telegram/email fallback when configured for that client.
+Scheduled runs must assume the human may not be present in the AI agent UI. The run is not fully operationally complete until the client notification (hosted report link, per the Client Notification Contract in playbook 03) has been sent through the configured notification channel when a hosted link exists, AND the operator record (local HTML/PDF/INTERNAL_REPORT paths, blockers, statuses) is written to the run output and notification log.
 
 ---
 
