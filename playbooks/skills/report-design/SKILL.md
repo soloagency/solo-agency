@@ -25,14 +25,6 @@ Default reading:
 Reading this as: agency intelligence report for a busy owner/operator, with a polished editorial landing-page language, leaning toward standalone HTML, strong hierarchy, print-safe CSS, and no remote dependencies.
 ```
 
-**The look is CODE, not prose.** The visual design lives in the renderer (`tool render-report`:
-dark editorial theme, ink `#070a08` + lime `#a6dc16`, matching the operator's proposal template;
-print flips to paper automatically for the PDF). You do NOT write CSS or page chrome — you write
-CONTENT (markdown; h2 per section, tables, short cards) and the renderer dresses it. Where an old
-rule below talks about authoring HTML/CSS by hand, the renderer now owns it; your job is section
-order (Top 3 ideas → five script versions → idea matrix → leads → the rest, per 06), plain non-technical language, and
-substance.
-
 Report dials:
 
 - `DESIGN_VARIANCE: 7` - use asymmetry, editorial spacing, visual contrast, and memorable section rhythm.
@@ -57,16 +49,14 @@ Use this order unless a specific client/report language requires a natural local
 translation:
 
 1. Hero: report promise, date, lane status, top recommendation, confidence.
-2. Top 3 ideas of the day: three role cards — hottest, new development, foundation — as short action cards.
-3. Draft/recommendation: the five script versions for the selected idea as polished editable
-   review blocks, directly under the Top 3 — not raw prompt output.
-4. Idea Matrix: grouped by audience value, pain point, source signal, and business fit.
+2. Executive snapshot: what changed, why it matters, what to do next.
+3. Source coverage and data quality: public data sources or private data sources lane state.
+4. Evidence ledger: compact, reference-linked, confidence-labeled.
 5. Lead & Competitor Opportunities: clear opportunity cards or a mobile-safe table.
-6. Executive snapshot: what changed, why it matters, what to do next.
-7. Best idea details: rationale, approval state, confidence.
-8. Source coverage and data quality: public data sources or private data sources lane state.
-9. Evidence ledger: compact, reference-linked, confidence-labeled.
-10. Limits and blockers: client-safe coverage limits and next action.
+6. Idea Matrix: grouped by audience value, pain point, source signal, and business fit.
+7. Best idea: one recommended action with rationale and approval state.
+8. Draft/recommendation: polished review blocks, not raw prompt output.
+9. Limits and blockers: client-safe coverage limits and next action.
 
 The daily report is a staging cover/index. It should be shorter, but the
 delivered client-facing HTML must be the combined `{client-name}-client-report.html`
