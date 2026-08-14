@@ -71,6 +71,11 @@ The current canonical runtime/data layout is:
               new_private_sources.jsonl
               source_status.jsonl
               snapshots/
+      source_registry.json
+      search_pool.json
+      public_pool/
+        {uid_hash}/
+          YYYY-MM-DD.md
       logs/
         bridge_events.jsonl
         extension_health.jsonl
@@ -196,6 +201,11 @@ Use one folder per client/business/location:
               new_private_sources.jsonl
               source_status.jsonl
               snapshots/
+      source_registry.json
+      search_pool.json
+      public_pool/
+        {uid_hash}/
+          YYYY-MM-DD.md
       logs/
         bridge_events.jsonl
         extension_health.jsonl
@@ -203,6 +213,13 @@ Use one folder per client/business/location:
         agent_handoff.jsonl
     browser_profiles/
       {source_slug}/
+
+Shared-scan files (cross-client, maintained through `tools/solo_tool source-registry` and `tool search-pool` — never hand-edited, always through the tool so concurrent runs cannot corrupt them):
+
+- `collector/source_registry.json` — one entry per canonical source UID across ALL clients: `uid`, `uid_hash`, `sample_url`, `domain`, `platform`, `source_type`, `kind` (private|public), `scope` (`shared` | `exclusive` | `unclassified` — auto-created entries stay `unclassified` and are never served as reuse until an explicit `register`), `subscribers[]` (client_slug, priority, scan_cadence, registered_at), `last_scan` (completed_at, run_id, client_slug, data_dir, status, kind — reuse requires the lane to match), `last_failed`, `scan_claim` (client_slug, claimed_at — an in-progress marker so concurrent runs `wait` instead of duplicating a scan; expires after 2h, released by `record`), and a top-level `freshness_ttl_hours` (default 20). The freshness check is a rolling TTL against `last_scan.completed_at`, never a calendar-day compare.
+- `collector/search_pool.json` — shared public keyword-search results keyed by (industry, normalized keyword): `searched_at`, `client_slug`, `results[]` of client-neutral `{url, title, note}`. Entries older than 7 days are pruned on write.
+- `collector/public_pool/{uid_hash}/YYYY-MM-DD.md` — client-neutral raw findings from visiting a shared PUBLIC source (facts, URLs, quotes, dates only — no client analysis, no client names), written by the run that visited it and registered via `source-registry record --data-dir`; other subscriber runs consume it through the registry pointer and do their own client-specific filtering.
+- Collector data points/leads/competitors carry bridge-stamped `source_uid` + `point_uid` — key-based dedup for shared-scan consumption.
     test_logs/
       YYYY-MM/
     outputs/

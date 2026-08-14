@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.63-guard-audit";
+const EXTENSION_BUILD = "0.1.64-shared-scan";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -318,6 +318,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
           run_id: runId,
           client_slug: job.client_slug || binding.client_slug || "",
           source_name: source.name || "",
+          source_url: source.url || "",
           platform: source.platform || "",
           competitor_type: source.competitor_type || "unknown",
           name_or_page: source.name || collected.dataPoint.title || "",

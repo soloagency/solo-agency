@@ -100,6 +100,9 @@ func portExcluded(rel string) bool {
 	case ".DS_Store", "bridge_health.json":
 		return true
 	}
+	if strings.HasSuffix(base, ".lock") || strings.HasSuffix(base, ".tmp") {
+		return true // flock/atomic-write siblings of the shared-scan files — transient, never data
+	}
 	if strings.HasSuffix(rel, ".backup") || portTimestampBackupRe.MatchString(rel) || portSnapshotSiblingRe.MatchString(base) {
 		return true // external snapshot-wrapper twins, not our schema
 	}
@@ -160,6 +163,9 @@ func portBenign0600(rel string) bool {
 	base := filepath.Base(rel)
 	if base == "completed_runs.json" {
 		return true // collector run-name dedup, 0600 but not a credential
+	}
+	if base == "source_registry.json" || base == "search_pool.json" {
+		return true // shared-scan bookkeeping (written 0600 by withLockedJSON), operator data not secrets
 	}
 	if strings.Contains(rel, "/ui_inbox/") {
 		return true // approval-decision events (0600 dir), operator data not secrets

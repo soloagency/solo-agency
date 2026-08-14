@@ -1785,6 +1785,26 @@ func (b *bridge) appendRecord(w http.ResponseWriter, r *http.Request, kind, file
 	record["received_at"] = time.Now().UTC().Format(time.RFC3339)
 	record["bridge_runtime"] = runtime.GOOS + "/" + runtime.GOARCH
 
+	// Cross-client identity stamps (source_registry.go): source_uid keys the
+	// record to its canonical source, point_uid to the specific item, so any
+	// client consuming a shared scan can dedup by key instead of fuzzy text.
+	// point_uid is stamped ONLY when the basis genuinely identifies an item:
+	// a page-level aggregate (post_url empty, or equal to the source/current
+	// page) would give every run of the source the same key, and key-first
+	// dedup would then silently discard fresh captures as old duplicates.
+	if kind == "data_point" || kind == "lead" || kind == "competitor" {
+		if srcURL := getString(record, "source_url", ""); srcURL != "" {
+			if uid, _ := sourceUID(srcURL); uid != "" {
+				record["source_uid"] = uid
+				basis := normalizeSocial(getString(record, "post_url", ""))
+				if basis != "" && basis != normalizeSocial(srcURL) &&
+					basis != normalizeSocial(getString(record, "current_url", "")) {
+					record["point_uid"] = uidHash(uid + "|" + basis)
+				}
+			}
+		}
+	}
+
 	if err := b.writeJSONL(target.outputDir, filename, record); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

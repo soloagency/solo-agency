@@ -111,6 +111,8 @@ func maybeRunToolCLI(args []string) (handled bool, exitCode int) {
 		fmt.Fprintln(os.Stderr, "usage: tool verify-email check --email a@b.com | check-file --in emails.txt")
 		fmt.Fprintln(os.Stderr, "       tool crm-store [--client-dir DIR | --pipeline R --client S] <subcommand> ...")
 		fmt.Fprintln(os.Stderr, "       tool migrate export|import ...   (see MIGRATE_RUNBOOK.md)")
+		fmt.Fprintln(os.Stderr, "       tool source-registry --pipeline DIR register|due|record|set-scope|list ...")
+		fmt.Fprintln(os.Stderr, "       tool search-pool --pipeline DIR check|record ...")
 		return 2
 	}
 	if len(args) < 2 {
@@ -119,6 +121,10 @@ func maybeRunToolCLI(args []string) (handled bool, exitCode int) {
 	switch args[1] {
 	case "crm-store":
 		return true, runCrmStoreCLI(args[2:])
+	case "source-registry":
+		return true, runSourceRegistryCLI(args[2:])
+	case "search-pool":
+		return true, runSearchPoolCLI(args[2:])
 	case "import-leads":
 		return true, runImportLeadsCLI(args[2:])
 	case "render-report":

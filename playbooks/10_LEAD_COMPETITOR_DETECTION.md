@@ -361,6 +361,14 @@ The optional `emails` and `phones` arrays are additive: they are populated when 
 
 Do not store unnecessary personal data. Keep safe summaries and source URLs. The human can inspect the original post in their logged-in session when needed.
 
+## Shared-Source Lead Collisions
+
+When lead/competitor data comes from a SHARED source scan (records carry `source_uid`/`point_uid` and the source has multiple subscribers in `collector/source_registry.json`), the same person can surface as a lead for several clients at once — and nothing else stops two clients from both reaching out to them.
+
+- Surface the opportunity to every subscriber client normally (each report shows what its client's audience is doing).
+- In each client's `INTERNAL_REPORT`, flag any lead whose source is shared: `also surfaced for N other client(s) via shared source {uid}` — the operator decides which client (if any) acts on it.
+- Never let two clients' outreach both add the same shared-source person without that flag having appeared; the operator's assignment decision is the gate.
+
 ## Completion Checklist
 
 Before claiming lead/competitor work is complete, verify:
