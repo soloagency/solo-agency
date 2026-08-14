@@ -220,6 +220,11 @@ Shared-scan files (cross-client, maintained through `tools/solo_tool source-regi
 - `collector/search_pool.json` — shared public keyword-search results keyed by (industry, normalized keyword): `searched_at`, `client_slug`, `results[]` of client-neutral `{url, title, note}`. Entries older than 7 days are pruned on write.
 - `collector/public_pool/{uid_hash}/YYYY-MM-DD.md` — client-neutral raw findings from visiting a shared PUBLIC source (facts, URLs, quotes, dates only — no client analysis, no client names), written by the run that visited it and registered via `source-registry record --data-dir`; other subscriber runs consume it through the registry pointer and do their own client-specific filtering.
 - Collector data points/leads/competitors carry bridge-stamped `source_uid` + `point_uid` — key-based dedup for shared-scan consumption.
+
+Scheduling files (maintained through `tool schedule-slots` and the operator web UI, same no-hand-edit rule):
+
+- `system_settings.json` (data-root level) — the operator's GLOBAL system config, editable in the web UI at `/ui/settings` without any agent chat: `operator_email` (where agents send operator notifications when an operator push channel is used — client notifications stay on each client's own channel), `max_concurrent_tasks` (default 10), `slot_step_minutes` (15), `slot_horizon_days` (35), `default_task_duration_min` (30). Agents READ these settings (`tool system-settings get`); they never overwrite the operator's values.
+- `automation/task_slots.json` — machine-readable registry of every automation task's run time: `task_name`, `client_slug`, `cadence_hours` or `monthly`, `run_time` "HH:MM" local, `anchor_date`, `duration_min`, `status` (active|paused). `tool schedule-slots suggest` projects all of it onto a timeline to pick collision-free start times; `schedule.md` and the automation manifest remain the human-readable views.
     test_logs/
       YYYY-MM/
     outputs/
