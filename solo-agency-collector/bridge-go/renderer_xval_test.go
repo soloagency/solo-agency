@@ -176,3 +176,29 @@ func TestRendererPackage(t *testing.T) {
 		t.Error("section labels missing")
 	}
 }
+
+func TestPDFLanded(t *testing.T) {
+	tmp := t.TempDir()
+	p := filepath.Join(tmp, "out.pdf")
+	if pdfLanded(p) {
+		t.Fatal("missing file must not count as landed")
+	}
+	if err := os.WriteFile(p, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if pdfLanded(p) {
+		t.Fatal("empty file must not count as landed")
+	}
+	if err := os.WriteFile(p, []byte("<html>not a pdf</html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if pdfLanded(p) {
+		t.Fatal("wrong magic must not count as landed")
+	}
+	if err := os.WriteFile(p, []byte("%PDF-1.7 fake body long enough"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !pdfLanded(p) {
+		t.Fatal("stable %PDF file must count as landed")
+	}
+}

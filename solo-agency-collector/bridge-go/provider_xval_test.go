@@ -5,8 +5,11 @@ package main
 // expectations below are the Python-verified outcomes asserted directly.
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -78,6 +81,26 @@ func TestProviderStubFlow(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(tmp, "provider_capabilities.json")); err != nil {
 		t.Fatalf("capabilities file: %v", err)
+	}
+	// spec_sha256 = full SHA-256 of the exact spec bytes fetched — playbook 03's
+	// drift check depends on it being present in the cache.
+	capsFile, err := readJSONFile(filepath.Join(tmp, "provider_capabilities.json"))
+	if err != nil {
+		t.Fatalf("read capabilities: %v", err)
+	}
+	gotSha := mStr(capsFile, "spec_sha256")
+	if len(gotSha) != 64 {
+		t.Fatalf("spec_sha256 must be full 64-hex sha256, got %q", gotSha)
+	}
+	specResp, err := http.Get(srv.URL + "/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	specBytes, _ := io.ReadAll(specResp.Body)
+	specResp.Body.Close()
+	wantSum := sha256.Sum256(specBytes)
+	if gotSha != hex.EncodeToString(wantSum[:]) {
+		t.Fatalf("spec_sha256 mismatch: got %s want %s", gotSha, hex.EncodeToString(wantSum[:]))
 	}
 
 	// account call

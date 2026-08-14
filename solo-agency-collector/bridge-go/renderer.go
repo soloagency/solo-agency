@@ -984,8 +984,40 @@ func fileURI(p string) string {
 	return "file://" + (&url.URL{Path: abs}).EscapedPath()
 }
 
+// pdfExportTimeout is how long ONE print attempt may run. Big reports genuinely
+// need minutes: a live 28-page report printed in ~10 minutes while the old 90s
+// ceiling declared `pdf blocked` at 3:00 — the sixth false "blocked" from the
+// same ceiling. Overridable per call with --pdf-timeout-sec.
+var pdfExportTimeout = 12 * time.Minute
+
+// pdfLanded reports whether a real, finished PDF sits at path: nonzero size,
+// stable across two probes, and the %PDF magic. Used after a timeout kill —
+// the print may have completed at (or despite) the kill, and a completed PDF
+// must never be reported as blocked. Callers delete any pre-existing file
+// before printing, so a landed file always belongs to THIS attempt.
+func pdfLanded(path string) bool {
+	st1, err := os.Stat(path)
+	if err != nil || st1.Size() == 0 {
+		return false
+	}
+	time.Sleep(2 * time.Second)
+	st2, err := os.Stat(path)
+	if err != nil || st2.Size() != st1.Size() {
+		return false
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	head := make([]byte, 5)
+	n, _ := f.Read(head)
+	return n >= 5 && string(head[:5]) == "%PDF-"
+}
+
 func exportPDFWithChrome(htmlPath, pdfPath string) (bool, string) {
 	var errors []string
+	_ = os.Remove(pdfPath) // anything found after this belongs to this run
 	for _, chrome := range chromeCandidates() {
 		for _, headlessFlag := range []string{"--headless=new", "--headless"} {
 			if err := os.MkdirAll(filepath.Dir(pdfPath), 0o755); err != nil {
@@ -1000,11 +1032,18 @@ func exportPDFWithChrome(htmlPath, pdfPath string) (bool, string) {
 				"--user-data-dir="+tmp, "--print-to-pdf="+pdfPath, fileURI(htmlPath))
 			var outBuf, errBuf strings.Builder
 			cmd.Stdout, cmd.Stderr = &outBuf, &errBuf
-			err = runWithTimeout(cmd, 90*time.Second)
+			err = runWithTimeout(cmd, pdfExportTimeout)
 			os.RemoveAll(tmp)
 			if err == errTimeout {
-				errors = append(errors, filepath.Base(chrome)+" "+headlessFlag+": timeout")
-				continue
+				if pdfLanded(pdfPath) {
+					return true, "" // finished at the wire — a real PDF is never "blocked"
+				}
+				// A timeout means Chrome RUNS but the report needs longer than
+				// the ceiling — retrying another flag or binary would just
+				// double the wait for the same outcome. Stop here and say how
+				// to raise the ceiling.
+				return false, fmt.Sprintf("chrome_print_timeout after %s (%s %s) — re-run with --pdf-timeout-sec above %d",
+					pdfExportTimeout, filepath.Base(chrome), headlessFlag, int(pdfExportTimeout.Seconds()))
 			}
 			if st, statErr := os.Stat(pdfPath); err == nil && statErr == nil && st.Size() > 0 {
 				return true, ""
@@ -1057,7 +1096,7 @@ func exportPDFWithWkhtmltopdf(htmlPath, pdfPath string) (bool, string) {
 	cmd := exec.Command(binary, htmlPath, pdfPath)
 	var outBuf, errBuf strings.Builder
 	cmd.Stdout, cmd.Stderr = &outBuf, &errBuf
-	runErr := runWithTimeout(cmd, 90*time.Second)
+	runErr := runWithTimeout(cmd, pdfExportTimeout)
 	if st, statErr := os.Stat(pdfPath); runErr == nil && statErr == nil && st.Size() > 0 {
 		return true, ""
 	}
@@ -1088,7 +1127,7 @@ func exportPDF(htmlPath, pdfPath string) (string, string) {
 func runRenderReportCLI(args []string) int {
 	valueFlags := map[string]bool{"--input": true, "--output-html": true, "--output-pdf": true,
 		"--title": true, "--subtitle": true, "--client-name": true, "--report-kind": true,
-		"--report-date": true, "--status-note": true, "--inputs": true}
+		"--report-date": true, "--status-note": true, "--inputs": true, "--pdf-timeout-sec": true}
 	boolFlags := map[string]bool{"--client-facing": true, "--fail-on-scrub": true}
 	if len(args) == 0 {
 		return crmUsageErr("render-report needs a subcommand (render | package)")
@@ -1113,6 +1152,9 @@ func runRenderReportCLI(args []string) int {
 	a, err := parseCLIArgs(rest, valueFlags, boolFlags)
 	if err != nil {
 		return crmUsageErr(err.Error())
+	}
+	if v := a.getInt("--pdf-timeout-sec", 0); v > 0 {
+		pdfExportTimeout = time.Duration(v) * time.Second
 	}
 	printStatus := func(rc int, status map[string]any) int {
 		if rc == 3 {

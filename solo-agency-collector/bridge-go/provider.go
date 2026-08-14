@@ -8,7 +8,9 @@ package main
 // 16-column notification_log.md row). Either side's API-key env var works.
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -611,9 +613,14 @@ func providerCmdDiscover(pa providerArgs, outDir string) (int, error) {
 	if discoveryURL == "" {
 		discoveryURL = providerDiscoveryURL(defaults, config, provider)
 	}
+	specSum := sha256.Sum256([]byte(rawText))
 	out := map[string]any{
 		"schema_version": 1, "provider": provider,
 		"discovered_at": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		// Full SHA-256 of the exact spec bytes fetched — playbook 03's cheap
+		// drift check compares this against a fresh `curl | shasum -a 256`;
+		// without it every run has to hand-hash the cache (a live run did).
+		"spec_sha256":   hex.EncodeToString(specSum[:]),
 		"discovery_url": discoveryURL, "server_url": spec.ServerURL,
 		"server_urls_discovered":       strsToAny(spec.ServerURLs),
 		"server_urls_skipped_disabled": strsToAny(spec.Skipped),
