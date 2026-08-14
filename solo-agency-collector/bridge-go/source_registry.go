@@ -117,6 +117,83 @@ func uidHash(uid string) string {
 	return hex.EncodeToString(sum[:])[:12]
 }
 
+// Tracking params that never carry identity on ANY site — stripped when
+// cleaning a URL for STORAGE. (normalizeSocial has its own identity-param
+// allowlist for social hosts; this list is for conservative cleaning of
+// arbitrary websites, where unknown params must be kept.)
+var storeTrackingParams = map[string]bool{
+	"fbclid": true, "gclid": true, "msclkid": true, "mibextid": true, "igsh": true,
+	"ref": true, "refsrc": true, "ref_src": true, "tracking": true,
+	"__cft__": true, "__tn__": true,
+	"utm_source": true, "utm_medium": true, "utm_campaign": true, "utm_term": true, "utm_content": true,
+}
+
+var socialStoreHostRe = regexp.MustCompile(`^(facebook|instagram|tiktok|linkedin|reddit|youtube|twitter|x)\.com(/|\?|$)`)
+
+// canonicalStoreURL cleans a source URL for SAVING (profile
+// private_data_sources, collector_config, registry sample_url) — the browsable
+// twin of sourceUID's identity key. Operators paste whatever the address bar
+// held; every variant of a Facebook group must be stored as exactly
+// `https://www.facebook.com/groups/<name>`:
+//
+//	https://www.facebook.com/groups/nhacuamy/          -> https://www.facebook.com/groups/nhacuamy
+//	https://www.facebook.com/groups/nhacuamy?abd=x&y=k -> https://www.facebook.com/groups/nhacuamy
+//	https://m.facebook.com/groups/nhacuamy/about       -> https://www.facebook.com/groups/nhacuamy
+//
+// Known social hosts rebuild from the uid (their vanity paths are
+// case-insensitive, so lowercasing is safe; identity params like
+// profile.php?id= survive because the uid keeps them). Arbitrary websites are
+// cleaned CONSERVATIVELY — path case and unknown params can be load-bearing
+// there, so only the fragment, known tracking params, and the trailing slash
+// go. ok=false means the URL has no derivable identity (an opaque redirector):
+// do not store it, surface it to the operator instead.
+func canonicalStoreURL(rawURL string) (clean string, ok bool) {
+	raw := strings.TrimSpace(rawURL)
+	// Resolve link redirectors to their destination FIRST — the store form of
+	// an l.facebook.com wrapper is the wrapped page, never the wrapper.
+	for depth := 0; depth < 3 && redirectorHostRe.MatchString(strings.ToLower(raw)); depth++ {
+		parseable := raw
+		if !schemeRe.MatchString(strings.ToLower(parseable)) {
+			parseable = "https://" + parseable
+		}
+		u, err := url.Parse(parseable)
+		if err != nil {
+			return "", false
+		}
+		dest := strings.TrimSpace(u.Query().Get("u"))
+		if dest == "" {
+			return "", false
+		}
+		raw = dest
+	}
+	uid, _ := sourceUID(raw)
+	if uid == "" {
+		return "", false
+	}
+	if socialStoreHostRe.MatchString(uid) {
+		return "https://www." + uid, true
+	}
+	parseable := strings.TrimSpace(raw)
+	if !schemeRe.MatchString(strings.ToLower(parseable)) {
+		parseable = "https://" + parseable
+	}
+	u, err := url.Parse(parseable)
+	if err != nil || u.Host == "" {
+		return "https://" + uid, true // uid-shaped fallback beats storing a dirty string
+	}
+	u.Fragment = ""
+	u.Host = strings.ToLower(u.Host)
+	q := u.Query()
+	for name := range q {
+		if storeTrackingParams[strings.ToLower(name)] {
+			q.Del(name)
+		}
+	}
+	u.RawQuery = q.Encode()
+	u.Path = strings.TrimRight(u.Path, "/")
+	return u.String(), true
+}
+
 // --- registry file -------------------------------------------------------------
 
 type registrySubscriber struct {
@@ -315,7 +392,10 @@ func sourceRegistryUsage() int {
               wait while another client's claimed scan (< 2h) is still running (use stale_data_dir if present)
   record   --client S --run RUNID --kind private|public (--url U ... | --urls-file F) [--status complete|failed] [--data-dir D]
   set-scope --url U --scope shared|exclusive
-  list     [--client S]`)
+  list     [--client S]
+  normalize (--url U ... | --urls-file F)   -> clean store-form URLs (no --pipeline needed):
+           every pasted Facebook-group variant becomes https://www.facebook.com/groups/<name>;
+           save ONLY the returned clean_url into profiles/config`)
 	return 2
 }
 
@@ -347,6 +427,29 @@ func runSourceRegistryCLI(args []string) int {
 	}
 	if len(a.pos) == 0 {
 		return sourceRegistryUsage()
+	}
+	if a.pos[0] == "normalize" {
+		// Pure string cleaning — touches no registry file, needs no --pipeline.
+		urls, err := collectURLArgs(a)
+		if err != nil {
+			return crmFail(err)
+		}
+		if len(urls) == 0 {
+			return crmUsageErr("normalize needs at least one --url (or --urls-file)")
+		}
+		var out []map[string]any
+		for _, u := range urls {
+			clean, ok := canonicalStoreURL(u)
+			if !ok {
+				out = append(out, map[string]any{"url": u, "ok": false,
+					"reason": "no_derivable_identity_do_not_store"})
+				continue
+			}
+			uid, _ := sourceUID(u)
+			out = append(out, map[string]any{"url": u, "ok": true, "clean_url": clean,
+				"changed": clean != strings.TrimSpace(u), "uid": uid, "uid_hash": uidHash(uid)})
+		}
+		return crmOut(map[string]any{"ok": true, "normalized": out}, 0)
 	}
 	pipeline := a.get("--pipeline")
 	if pipeline == "" {

@@ -352,3 +352,61 @@ func TestPointUIDStability(t *testing.T) {
 		t.Errorf("different posts must not share point_uid")
 	}
 }
+
+func TestCanonicalStoreURL(t *testing.T) {
+	cases := []struct {
+		in, want string
+		ok       bool
+	}{
+		// The operator's paste variants all collapse to the canonical store form.
+		{"https://www.facebook.com/groups/nhacuamy", "https://www.facebook.com/groups/nhacuamy", true},
+		{"https://www.facebook.com/groups/nhacuamy/", "https://www.facebook.com/groups/nhacuamy", true},
+		{"https://www.facebook.com/groups/nhacuamy?abd=xqj&nsfn=ksdj", "https://www.facebook.com/groups/nhacuamy", true},
+		{"https://m.facebook.com/groups/nhacuamy/about?ref=share", "https://www.facebook.com/groups/nhacuamy", true},
+		{"facebook.com/groups/NhaCuaMy", "https://www.facebook.com/groups/nhacuamy", true},
+		// Identity params survive on social hosts.
+		{"https://www.facebook.com/profile.php?id=100001&fbclid=XYZ", "https://www.facebook.com/profile.php?id=100001", true},
+		// Arbitrary websites: conservative — path case kept, unknown params kept,
+		// tracking params/fragment/trailing slash dropped.
+		{"https://Example.com/Contact-Us/?utm_source=x&page=2#top", "https://example.com/Contact-Us?page=2", true},
+		// Opaque redirector: refuse to store.
+		{"https://l.facebook.com/l.php?h=AT999", "", false},
+		{"", "", false},
+	}
+	for _, c := range cases {
+		got, ok := canonicalStoreURL(c.in)
+		if got != c.want || ok != c.ok {
+			t.Errorf("canonicalStoreURL(%q) = (%q, %v), want (%q, %v)", c.in, got, ok, c.want, c.ok)
+		}
+	}
+	// Redirector WITH destination stores the destination's clean form.
+	got, ok := canonicalStoreURL("https://l.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2Fa%2F&h=AT1")
+	if !ok || got != "https://example.com/a" {
+		t.Errorf("redirector destination store form = (%q, %v)", got, ok)
+	}
+}
+
+func TestNormalizeCLI(t *testing.T) {
+	code := 0
+	out := captureStdout(t, func() {
+		code = runSourceRegistryCLI([]string{"normalize",
+			"--url", "https://www.facebook.com/groups/nhacuamy?abd=xqj&nsfn=ksdj",
+			"--url", "https://l.facebook.com/l.php?h=opaque"})
+	})
+	if code != 0 {
+		t.Fatalf("normalize exited %d", code)
+	}
+	var res map[string]any
+	if err := json.Unmarshal([]byte(out), &res); err != nil {
+		t.Fatalf("bad JSON: %v\n%s", err, out)
+	}
+	rows := mList(res, "normalized")
+	first := rows[0].(map[string]any)
+	if first["clean_url"] != "https://www.facebook.com/groups/nhacuamy" || first["changed"] != true {
+		t.Fatalf("dirty group url not cleaned: %v", first)
+	}
+	second := rows[1].(map[string]any)
+	if second["ok"] != false {
+		t.Fatalf("opaque redirector must be refused for storage: %v", second)
+	}
+}
