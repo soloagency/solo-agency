@@ -317,7 +317,7 @@ For each daily run:
       - Continue keyword rotation until at least 3 source-backed candidate ideas are new or newly angled against `history/YYYY-MM/content_log.md`. If fewer than 3 qualify after 10+ distinct keywords and due public data sources have been checked, record the coverage limitation instead of fabricating weak ideas.
       - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
       - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
-      - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
+      - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically — normalizing each URL first (`tool source-registry normalize`; store only the `clean_url`).
       - Include this record in the daily report section `Public Search Keywords Used Today`.
       - If no search was possible, explicitly explain the blocker in that same section.
    7. Before deciding whether to skip private data sources, perform Collector Runtime Verification whenever any of these are true:
