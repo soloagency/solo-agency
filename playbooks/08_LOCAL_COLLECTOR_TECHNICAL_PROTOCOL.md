@@ -1329,16 +1329,19 @@ Every private data point must include:
 - `source_login_status`
 - `collector_identity`
 - `confidence`
+- `source_uid` and `point_uid` (stamped by the bridge when `source_url` is present; `point_uid` only when `post_url` identifies a real item distinct from the scanned page)
 
-Every detected lead must include both:
-
-- `profile_url`
-- `post_url` or `current_url`
-
-Every detected competitor must include both:
+Every detected lead must include:
 
 - `profile_url`
 - `post_url` or `current_url`
+- `source_url` (the source the lead was detected in — required for the bridge's `source_uid` stamp and the shared-source lead-collision flag)
+
+Every detected competitor must include:
+
+- `profile_url`
+- `post_url` or `current_url`
+- `source_url` (required for the bridge's `source_uid` stamp)
 
 Every new private data source candidate must include:
 
@@ -1545,6 +1548,27 @@ daily-content-pipeline/collector/jobs/pending/{timestamp}_{client_slug}_{run_id}
 ```
 
 The agent should write this file atomically: write a temporary file in the same folder first, then rename it to a unique `.json` filename only after the JSON is complete. For multiple clients, write one queued file per client/run. Do not reuse a filename.
+
+### Shared-Scan Gate — check the source registry before every job
+
+Many clients monitor the SAME sources. The registry `daily-content-pipeline/collector/source_registry.json` gives every source one canonical identity (UID) across clients and remembers the last completed scan. The per-client extension/account model is unchanged — whichever client's run scans, scans with its own extension and login; sharing happens through the recorded data pointer, never through a shared login.
+
+Discovery jobs are NOT scans: any job with `job_type: private_data_source_discovery` (or a group-keyword-search discovery purpose) bypasses this gate completely — discovery enumerates candidate sources, it does not collect source content, so never pass discovery URLs to `due` or `record`.
+
+Before assembling any content-scan job's `sources[]`:
+
+1. Run `tools/solo_tool source-registry --pipeline {setup-root}/daily-content-pipeline due --client {client_slug} --kind private --url URL1 --url URL2 ...` (or `--urls-file F`, one URL per line) with every source the run wants scanned. Always pass the ABSOLUTE pipeline root — the registry file location and stored pointers must not depend on the caller's cwd. Public recurring sources use `--kind public`; the two lanes never satisfy each other's freshness.
+2. Put ONLY the returned `scan` entries into the job's `sources[]`. Each `reuse` entry carries `data_dir`, `scanned_by`, `completed_at`, `uid`, `uid_hash` — that scan's output is this run's data for that source. A reuse `data_dir` is the scanning client's WHOLE run directory: keep only the JSONL records whose `source_uid` equals the reused entry's `uid`; never read `snapshots/` or any other source's records from it. Freshness is a rolling TTL (`freshness_ttl_hours` in the registry file, default 20h), never a calendar-day compare.
+3. `wait` entries mean another client claimed this source less than 2 hours ago and is scanning it right now: use the `stale_data_dir` pointer when present (same source_uid filter), otherwise skip the source this run and note `waiting_shared_scan` — never start a duplicate scan of a claimed source.
+4. If every source is fresh, do not create a collector job at all — record `all_sources_reused` in the run notes and continue with the pointed-to data.
+5. After the run reaches a terminal state, record what was actually scanned: `... source-registry --pipeline {setup-root}/daily-content-pipeline record --client {client_slug} --run {run_id} --kind private --url ...` (use `--status failed` for sources the collector could not read — a failed attempt never overwrites the last good scan, and the next subscriber's run retries with its own login; recording also releases this client's scan claim).
+6. `scope: exclusive` sources (a client's OWN page/group/site) are never served as reuse — every run that queues one scans it itself with its own client login. Set with `... source-registry --pipeline {setup-root}/daily-content-pipeline set-scope --url U --scope exclusive`.
+
+First use on an existing install (no `source_registry.json` yet): BACKFILL before the first `due` — for each client, `register` every approved private source (Stage 2 scope rule: `--scope exclusive` for the client's own assets, shared otherwise) and every recurring public source (`--kind public`). A `due` on an unregistered URL auto-creates the entry as scope `unclassified`, which scans normally but is NEVER served as reuse until an explicit `register` decides shared vs exclusive — so skipping the backfill costs sharing, never correctness.
+
+Facebook group identity caveat: a numeric-ID URL and a vanity URL of the SAME group do not merge automatically. Register each group under ONE canonical form (prefer the vanity URL shown on the group page) and keep every client registering that same form.
+
+Data points, leads, and competitors written by the bridge carry `source_uid` (canonical source identity, stamped when the record has `source_url`) and `point_uid` (identity of the specific post/item, stamped only when `post_url` identifies a real item distinct from the scanned page — page-level aggregate records carry no `point_uid` and dedup by visible text). Consumers dedup shared data by key equality first, visible-text matching second.
 
 The running Local Collector app should pick up pending jobs on the next `/status` check from the matching Chrome extension, usually within a few seconds while Chrome is active. After claiming a pending job, the Local Collector app must move it through the queue lifecycle so it cannot loop forever:
 
