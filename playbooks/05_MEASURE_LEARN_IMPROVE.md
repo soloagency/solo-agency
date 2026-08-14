@@ -4,12 +4,12 @@ Stage: `05`
 
 ## Load Rule
 
-Load once content has been published, during daily published-content checks, during weekly/monthly performance review, and on any scheduled run to record measurement status even when nothing is published yet (`measurement_status: no_published_urls_yet`).
+Load once content has been published, during published-content checks on every scheduled run (any cadence), during weekly/monthly performance review, and on any scheduled run to record measurement status even when nothing is published yet (`measurement_status: no_published_urls_yet`).
 
 ## Hard Gates For This Stage
 
-- Measure content from yesterday and the last 7 days when available.
-- Measure each published URL daily for up to 7 days after publishing.
+- At every run, measure (a) every URL published inside the run_window — since the previous completed run (Stage 4's Run Window anchor), regardless of the URL's age — and (b) every URL still 7 days old or less. (a) guarantees every published URL is measured at least once even on a weekly/monthly cadence; (b) gives fine-grained history when the cadence allows it.
+- Measurement resolution equals run cadence: inside its 7-day window a URL collects roughly 7 ÷ cadence-days readings (7 on daily, 3–4 on 48h, 1 on weekly). Record one reading per run; never anchor a measurement list on calendar-yesterday.
 - Use connected provider analytics first when available.
 - Reuse the Local Collector for visible published URL measurement when useful and authorized.
 - Do not invent metrics; mark unavailable metrics clearly.
@@ -31,7 +31,7 @@ For each published content item, the agent must:
 
 1. Use connected provider analytics when available.
 2. If provider OpenAPI/tools are connected and verified for this client, call the relevant operations to retrieve:
-   - videos/posts published yesterday;
+   - videos/posts published inside the run_window (since the previous completed run);
    - videos/posts published in the last 7 days;
    - published URLs;
    - title;
@@ -42,7 +42,7 @@ For each published content item, the agent must:
    - publish date;
    - topic/video/content IDs;
    - account/platform analytics when available.
-3. Measure each published URL daily for up to 7 days after publishing.
+3. Measure each published URL at every run while it is 7 days old or less — and always at least once on the first run after publishing, even when the cadence made it older than 7 days by then.
 4. Reuse the Solo Agency Local Collector to open each published URL when useful and authorized, because some metrics/comments require a logged-in browser.
 5. Capture visible:
    - views;
@@ -87,10 +87,10 @@ Then continue with report generation, recommendations, and schedule setup if app
 The agent must:
 
 1. Load the published content ledger, publishing logs, provider history, or connected provider account data.
-2. Retrieve the list of videos/posts published yesterday.
+2. Retrieve the list of videos/posts published inside the run_window (since the previous completed run).
 3. Retrieve the list of videos/posts published in the last 7 days.
 4. Extract every available published URL, platform, title, caption/description, hashtags, publish date, topic/video/content ID, and source output/script path.
-5. For every published URL still inside its 7-day measurement window, open or inspect that URL using the best authorized source:
+5. For every published URL from steps 2–3 that still needs measurement (inside its 7-day window, or never measured at all), open or inspect that URL using the best authorized source:
    - connected provider analytics first;
    - platform/account analytics if available;
    - Solo Agency Local Collector for visible URL/page/comment metrics when useful and authorized;
@@ -152,7 +152,7 @@ The agent should inspect the discovered WideCast OpenAPI operation list at runti
 
 If WideCast OpenAPI exposes a list of published posts, recent videos, production history, publishing history, analytics dashboard, or platform statistics, the agent must use those sources first after verifying that the API key belongs to the current client.
 
-For each published content item from the last 7 days, the agent should measure it daily for up to 7 days after publishing:
+For each published content item from the run_window or the last 7 days, the agent should measure it at every run while it is inside its 7-day window — and at least once even when the run cadence skipped past that window:
 
 1. Retrieve the published URL and metadata through WideCast OpenAPI when available.
 2. Save URL, title, description, caption, hashtags, platform, publish date, and related script/output file.
@@ -287,7 +287,7 @@ Before claiming a weekly/monthly performance review or learning loop is complete
 Measurement is not complete until:
 
 - Stage 5 was loaded in full (LOAD LEDGER);
-- yesterday's and the last-7-day published content were checked when published URLs exist, or `measurement_status: no_published_urls_yet` was recorded;
+- run-window and last-7-day published content were checked when published URLs exist, or `measurement_status: no_published_urls_yet` was recorded;
 - every metric shown is real or explicitly marked unavailable — never invented;
 - comment signals were reviewed and logged in the client's `analytics/comment_signal_log.md`;
 - learnings were written to the client's `analytics/learning_log.md` and fed into source priority, content pillars, hooks, CTAs, lead-gen angles, and future idea selection;

@@ -72,7 +72,7 @@ At the start of every scheduled run, the agent must load or re-load the relevant
 7. Before any video provider creation request, load `playbooks/skills/video-script-writing/SKILL.md` and its required modules through the verified client provider when available or repo-local/static fallback when PDNA is missing. If a report version/code is already selected or recommended, apply that existing skill only to that selected version/code and continue into Stage 2 visual treatment/final handoff. Generate five options only when no version is selected or recommended. Do not edit/reimplement the skill and do not send report drafts unchanged.
 8. Load Stage 3A: `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` after any vendored writing/provider skill when provider or video actions are relevant to the run.
 9. Load Stage 3B: `playbooks/skills/video-editing/SKILL.md` after provider video creation returns reviewable scenes or when editing a provider video.
-10. Load Stage 5 when any published content exists or when yesterday/last-7-day measurement is due.
+10. Load Stage 5 when any published content exists or when run-window/last-7-day measurement is due.
 11. Load Stage 6 and then `playbooks/skills/report-design/SKILL.md` whenever generating, reviewing, fixing, or packaging the human-facing HTML/PDF report.
 12. Load Stage 10 whenever lead/competitor opportunities, comments, opportunity logs, or competitor monitoring are part of the run. This is normally every first run and every scheduled daily run.
 13. Load Stage 11 when the task is `Solo Agency - GitHub Update Watch`, when an update/upgrade/sync-latest request is being handled, or when blocker recovery checks GitHub for a newer Solo Agency version.
@@ -253,13 +253,38 @@ Run the daily content pipeline for every active client in clients_index.md. Prod
 
 ## Run Locking And Notification Dedup
 
-Scheduled runs can overlap (yesterday's run still finishing, a manual re-run, or a master/all-clients task and a client-specific task both touching one client). Protect against duplicate work and duplicate notifications:
+Scheduled runs can overlap (a previous run still finishing, a manual re-run, or a master/all-clients task and a client-specific task both touching one client). Protect against duplicate work and duplicate notifications:
 
 - Before starting a client's daily run, create or check `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-run_lock.json` (`started_at`, task name, session hint). If a fresh lock exists (younger than about 3 hours), do not start a duplicate run for that client — log it and stop. A stale lock (older than the window, or from a run that clearly died) may be taken over, with a note in the run record. Remove or close the lock on completion.
 - Master/all-clients digest tasks only READ client reports; they never rebuild `{client-name}-client-report.html` or the `outputs/latest/` client files. Only the client's own run rebuilds them.
 - Before sending any `public_report_ready` or `private_report_ready` notification, read `notifications/notification_log.md` and `{client-name}-report_state.json` for the same client/day. If an equivalent notification was already sent, do not re-send. A resumed run records `resumed_from` in the report state so retries stay idempotent.
 
 ---
+
+## Run Window — Cadence-Aware Time Anchor
+
+Clients run on different cadences (daily, every 48/72/96 hours, weekly, monthly). Every "new
+since last time" window in a run is anchored to the PREVIOUS COMPLETED RUN of this client's
+task — never to the calendar:
+
+- `previous_run_date` = the date of the most recent completed run for this client, read from
+  real run history on disk: the newest dated `outputs/YYYY-MM/YYYY-MM-DD/` folder containing
+  this client's `{client-name}-report_state.json`, or the newest canonical
+  `outputs/YYYY-MM/YYYY-MM-DD.md` report. Never compute it as `today − 1 day`, and never
+  derive it from the cadence configured in `schedule.md` — configured cadence says when runs
+  SHOULD happen; history says when one actually DID.
+- `run_window` = everything after that previous completed run, up to now. On a daily cadence
+  the run_window happens to equal one calendar day; on any other cadence it does not.
+- First run ever (no run history on disk): the run_window is unbounded — treat all collected
+  data as new and say so in the report.
+- Late, missed, or manually re-triggered runs need no special handling: anchoring on real
+  history stretches or shrinks the window automatically.
+
+Wherever a playbook says "yesterday", "yesterday's data", or "today's data" about collected
+data, published content, or measurement windows, read it as the run_window. On a
+multi-day/weekly/monthly cadence, comparing against a literal `today − 1 day` folder finds
+nothing and silently treats every old data point as new — that is the failure this anchor
+exists to prevent.
 
 ## Daily Run Algorithm
 
@@ -273,7 +298,7 @@ For each daily run:
    3. If the Client Intelligence Profile is incomplete, enter setup repair mode.
    4. Prepare the current month folder key `YYYY-MM`.
    5. Load saved `public_data_sources` and visit/check active due public data sources before or alongside keyword search.
-      - Visit sources where `visit_in_scheduled_runs: true` and cadence is due today.
+      - Visit sources where `visit_in_scheduled_runs: true` and cadence is due at this run.
       - Prioritize `active_public_source` daily sources, then due `weekly_public_source` sources, then relevant `occasional_public_source` sources when the topic/event matches.
       - Record source status, useful URLs, useful signals, weak/noisy results, and whether the source should stay active, be promoted, or be demoted.
    6. Use Google Search or an available equivalent search tool with rotating keywords from `public_search_keywords`.
@@ -325,14 +350,14 @@ For each daily run:
       - Do not leave stale `scan in progress`, `partial`, `pending`, or old recommended-source totals in one artifact after another artifact says the private scan is complete.
    15. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
    16. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, collector-status-unverified, wrong-workspace, or unavailable private data sources.
-   17. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
+   17. Load the private data stored by earlier completed runs for this client when available — at minimum the previous completed run (per the Run Window anchor: located from run history on disk, never `today − 1 day`), extended to all stored data from the last 7 days or the last 3 completed runs, whichever covers more — and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
    18. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
    19. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
    20. Load Stage 10 and detect hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors during the same research/private-scan pass. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private data source when safe; normal daily runs use 5 scrolls per approved private data source by default.
    21. For every useful lead or competitor opportunity, preserve profile URLs and post/current URLs when available, safe context summaries, reasoning, suggested human action, and a copy-ready value-first comment in the same language as the post.
-   22. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from today's data into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`. The matrix lives in the REPORT (the report is the idea archive); it is never bulk-queued into the provider production plan — only the TOP 3 (best idea + both runners-up, the same three the report leads with) are queued (see the notification step), because ten queued look-alikes a day would bury the plan. The operator promotes any other matrix idea by asking.
+   22. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from this run's collected data (the run_window) into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`. The matrix lives in the REPORT (the report is the idea archive); it is never bulk-queued into the provider production plan — only the TOP 3 (best idea + both runners-up, the same three the report leads with) are queued (see the notification step), because ten queued look-alikes a day would bury the plan. The operator promotes any other matrix idea by asking.
    23. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
-   24. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
+   24. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, this run's new angle, and why the re-angle is materially different.
    25. Select the best idea of the day.
    26. Write the configured production-ready draft using OpenAPI/native/MCP access when available, or the account-free writing skill fallback when provider/account access is unavailable. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
    27. Before any video provider creation request, load Stage 3 and the existing WideCast video script-writing skill again, treat the report/draft script as reference only, and create the final WideCast-grade script/brief with research plus inline-media/direct-image/video-URL workflow where verifiable. If the report already has a selected/recommended version/code, process only that one selected version; do not create a second five-version set. Do not edit or reimplement the skill.
@@ -435,7 +460,7 @@ Exact schedule contract:
 }
 ```
 
-- Timezone definition: `"timezone": "local"` means the human machine's local timezone as recorded in `daily-content-pipeline/schedule.md`. All dates, `YYYY-MM-DD` folder keys, "yesterday", and 7-day measurement windows use that timezone. The AI scheduled-task environment may be a cloud/sandbox running at UTC; before computing any date key or window, the scheduled run must read the recorded timezone from `schedule.md` so a run does not split one logical day across two date folders or mis-window measurement.
+- Timezone definition: `"timezone": "local"` means the human machine's local timezone as recorded in `daily-content-pipeline/schedule.md`. All dates, `YYYY-MM-DD` folder keys, run_window boundaries, and 7-day measurement windows use that timezone. The AI scheduled-task environment may be a cloud/sandbox running at UTC; before computing any date key or window, the scheduled run must read the recorded timezone from `schedule.md` so a run does not split one logical day across two date folders or mis-window measurement.
 - For multiple scheduled runs per day, add multiple enabled items to `scheduled_windows`, for example `morning`, `midday`, and `afternoon`.
 - For manual-only mode, set all `scheduled_windows[].enabled` values to `false` and rely only on `/jobs/run_now`.
 - If the human has not activated private data source monitoring yet, configure the recurring schedule as public data sources only and clearly mark private data sources as `pending_private_activation`.

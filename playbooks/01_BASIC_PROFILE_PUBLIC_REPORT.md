@@ -736,7 +736,7 @@ For each daily run:
       - Do not leave stale `scan in progress`, `partial`, `pending`, or old recommended-source totals in one artifact after another artifact says the private scan is complete.
    13. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
    14. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, or unavailable private data sources.
-   15. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
+   15. Load the private data stored by earlier completed runs for this client when available — at minimum the previous completed run (per Stage 4's Run Window anchor: located from run history on disk, never `today − 1 day`) — and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
    16. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
    17. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
    17b. Load `playbooks/10_LEAD_COMPETITOR_DETECTION.md` (Stage 10, print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md`) before detecting, scoring, or reporting any leads or competitors.

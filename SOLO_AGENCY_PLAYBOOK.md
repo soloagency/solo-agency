@@ -55,7 +55,8 @@ Required plain-language meanings:
 - `draft`: a proposed script, blog, or caption waiting for human review, not published content.
 - `Production & Distribution & Notification & Analytics` / `PDNA`: production creates real assets such as video/blog/social outputs, distribution posts or sends approved outputs, notification sends reports/blockers, and analytics measures performance.
 - `analytics/statistics`: visible performance numbers such as views, likes, comments, shares, saves, clicks, followers, and unavailable metrics when a platform hides them.
-- `learning loop`: using yesterday and 7-day results to improve the next ideas, hooks, CTAs, sources, and content choices.
+- `learning loop`: using the latest run-window and 7-day results to improve the next ideas, hooks, CTAs, sources, and content choices.
+- `run_window`: the time since this client's previous completed run — the anchor for every "new since last time" window on any cadence (daily, 48/72/96 hours, weekly, monthly). Defined in Stage 4 (`04_DAILY_SCHEDULE.md`, "Run Window — Cadence-Aware Time Anchor").
 - `schedule/routine`: when and how often the agent runs automatically.
 
 Canonical terminology rule:
@@ -500,7 +501,7 @@ After schedule/automation exists, recommend the daily `Solo Agency - GitHub Upda
 | 3A | `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` | Load after any vendored writing/provider/video-editing skill when video creation, scene editing, credits, media upload, render/export, publishing, notification, analytics, or provider account actions are relevant. It overrides provider-specific MCP calls by resolving Client tools first: the current client's provider config, verified OpenAPI capabilities, and provider capability cache. |
 | 3B | `playbooks/skills/video-editing/SKILL.md` | Load after provider video creation returns reviewable scenes, or whenever a human asks to edit/finish/review a provider video. It audits and fixes scenes before final render/export. Load through the client-scoped provider `getEditingSkill` capability when available; otherwise use the local repo skill files. |
 | 4 | `playbooks/04_DAILY_SCHEDULE.md` | Load during routine setup after the profile/source plan is known, and during scheduled/manual run execution. |
-| 5 | `playbooks/05_MEASURE_LEARN_IMPROVE.md` | Load once any content has been published, and during yesterday/7-day analytics review. |
+| 5 | `playbooks/05_MEASURE_LEARN_IMPROVE.md` | Load once any content has been published, and during run-window/7-day analytics review. |
 | 6 | `playbooks/06_AGENCY_REPORT_STANDARD.md` | Load whenever generating, reviewing, or fixing a human-facing report. |
 | 6A | `playbooks/skills/report-design/SKILL.md` | Load immediately after Stage 6 before writing, fixing, or packaging report HTML/PDF. It adapts `leonxlnx/taste-skill` into Solo Agency's report design standard and requires the reusable renderer path. |
 | 7 | `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` | Load whenever creating files, updating profile/history/logs, adding clients, or reading prior context. |
