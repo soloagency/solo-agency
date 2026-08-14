@@ -379,9 +379,12 @@ ACT on, and background sinks to the bottom:
    short card: what the video/post says, why their customers will care this week, what to do next.
    All three are queued to the production plan (04/entrypoint own that step), so the Saved Ideas
    screen the notification links to shows exactly these three cards.
-2. **The full idea matrix** — every credible idea found today, in its buckets.
-3. **Lead & Competitor Opportunities.**
-4. Everything else (coverage, evidence totals, delivery status, next action) follows.
+2. **The five script versions** — the `Production-Ready Drafts` selection surface for the
+   selected idea (Version 1: VE through Version 5: MB), directly under the Top 3 so the reader
+   picks a direction while the ideas are still on screen.
+3. **The full idea matrix** — every credible idea found today, in its buckets.
+4. **Lead & Competitor Opportunities.**
+5. Everything else (coverage, evidence totals, delivery status, next action) follows.
 
 **Language rule — written for a non-technical, non-marketer reader.** Every heading and sentence
 must survive the test "would a realtor with 30 seconds understand this without asking?". Concretely:
@@ -1126,7 +1129,7 @@ The HTML report is not a data dump. It is a professional agency decision report.
 
 The report must feel like it came from a capable media strategist, not from a crawler. It should combine research, judgment, prioritization, production readiness, and clear client communication.
 
-Required report hierarchy (this hierarchy governs the combined `{client-name}-client-report.html` and its PDF companion):
+Required report hierarchy (this list defines what each section CONTAINS for the combined `{client-name}-client-report.html` and its PDF companion; the display ORDER of sections follows the Reading Order rule and the Recommended HTML section order — Top 3 ideas first, then the five script versions, then the idea matrix, then leads, then the rest):
 
 1. `Executive Snapshot`
    - Client name.
@@ -1340,20 +1343,21 @@ Professional presentation rules:
 Recommended HTML section order (this order applies to the combined `{client-name}-client-report.html`):
 
 ```text
-1. Executive Snapshot
-2. Public Data Source Intelligence
-3. Private Data Source Intelligence
-4. Today's Recommendation
-5. Evidence Ledger
-6. Source Coverage And Data Quality
-7. Private Data Source Discovery
-8. Idea Portfolio
-9. Decision Scorecard
-10. Public Lead & Competitor Opportunities / Private Lead & Competitor Opportunities
-11. Production-Ready Drafts
-12. Compliance And Brand Safety
-13. Next Action
-14. Appendix / Raw References, optional
+1. Top 3 Ideas Of The Day
+2. Production-Ready Drafts (the five script versions, directly under the Top 3)
+3. Idea Portfolio
+4. Public Lead & Competitor Opportunities / Private Lead & Competitor Opportunities
+5. Executive Snapshot
+6. Public Data Source Intelligence
+7. Private Data Source Intelligence
+8. Today's Recommendation
+9. Evidence Ledger
+10. Source Coverage And Data Quality
+11. Private Data Source Discovery
+12. Decision Scorecard
+13. Compliance And Brand Safety
+14. Next Action
+15. Appendix / Raw References, optional
 ```
 
 Static HTML reports are not application UIs. The agent must not create buttons that imply an action will happen when the human taps them unless the button is backed by a real working URL or local browser action. For approval, revision, choosing another idea, production, publishing, or outreach, the client-facing report should say what decision to make or what wording to approve without naming Solo Agency, WideCast, providers, or tools. Operator-only instructions about where to open WideCast or another provider belong in `INTERNAL_REPORT`. For lead/competitor comments, a local `Copy comment` button is allowed only if it copies the suggested comment text and does not imply auto-posting.
