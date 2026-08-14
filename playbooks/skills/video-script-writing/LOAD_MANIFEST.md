@@ -5,10 +5,10 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 
 | module | lines | sha256 | last_line |
 |---|---|---|---|
-| SKILL.md | 225 | 9856c2acdf96eedd74547c7e09d3526ad5e431a45352c0a337bceb2e596a5889 | **Right now → load `method` (the full 8-step workflow) AND `formats` (per-format playbooks).** Then start Stage 1 step 1: lock the audience + the angle, research the facts, write every fitting format. Reach hook drafting → load `hooks`. Reach CTA → load `ctas`. Reach Stage 2 step 5 → load `research_visuals`. Reach hand-off → load `handoff`. |
-| ctas.md | 55 | 98289799b5cd34ff820cf566277eada68d284ac1b4a2e97b9efd1eddb53cf8d4 | - Salesy urgency with no real reason ("act now!!!"). |
-| formats.md | 97 | 2cb9d4c2ad5bb6e0f8c167ff4b8b3220bce7a644f51ea63b979580234b4e84ce | Never strawman a belief nobody holds. The myth must be one your audience genuinely believes, and your correction must be honestly defensible (≥0.7). |
+| SKILL.md | 228 | d99b2c150c1995c412f87f287f7cdf30785fa28be4d90bef0ecc6984d9dc74fb | **Right now → load `method` (the full 8-step workflow) AND `formats` (per-format playbooks).** Then start Stage 1 step 1: lock the audience + the angle, research the facts, write every fitting format. Reach hook drafting → load `hooks`. Reach CTA → load `ctas`. Reach Stage 2 step 5 → load `research_visuals`. Reach hand-off → load `handoff`. |
+| ctas.md | 70 | 8d01cf39f569fb9ce2c5467560a8530661af37d5277e936b7d9a59720d3f6cf4 |   otherwise prefer a Bank 2 invite that makes the viewer say something real. |
+| formats.md | 97 | aebe8de5df183b024024c8e146ac90978e9445a699c8a83427c225ef4a336782 | Never strawman a belief nobody holds. The myth must be one your audience genuinely believes, and your correction must be honestly defensible (≥0.7). |
 | handoff.md | 65 | 3dda032be581f7d144d81dd11df3fa8411525c5105a4ef8f500adc9b2a9ab09f | - `research_visuals.md` — R-ladder for image sourcing + inline media format rules |
-| hooks.md | 76 | ea24e24a5243f922e3754854aaff6e153b1159a63e929fb68a21cc502f31b3e8 | spoken hook is in the content language. |
+| hooks.md | 93 | cfc2d34621f8aa0348d25721b76f2c10387d8a9ba5b749f3dd6e2218a130f28e | spoken hook is in the content language. |
 | method.md | 176 | 2c687830db4665418b321cb8a40ccaee6118ac04f6a68a49e84c02ffc5f14cba | - **A production answer** (`faceless` / `face_clone` / `teleprompter`) = implicit approval → call `widecast_create_video` (see `handoff.md` for the full call shape) with `source="text"`, `script_text` = the picked script with inline URLs verbatim, `media_pool=[urls they picked from the backup pool]` if any, `production_mode` = their literal choice, `script_approved=true`. |
 | research_visuals.md | 54 | b223d23258a5eb48fa42fa2e06243d16ebfe74cd03170da3fd764af568b29ddc | ``` |

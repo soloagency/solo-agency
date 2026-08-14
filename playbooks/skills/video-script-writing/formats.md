@@ -14,9 +14,9 @@ The classic high-retention explainer. **Opens with a 3-Layer Hook**, the highest
 - **Layer 2 · Curiosity tension** — a gap they must close: *"X but actually Y"*, a hidden cost, a wrong belief, a missed mechanism.
 - **Layer 3 · Reward signal** — hint the transformation; show the *what*, hide the *how*. It must feel like a **loss if skipped**.
 
-Hook rules: **10–22 words. Reveal ~30%, hide ~70%. Never** summarize the conclusion. **Banned:** "secrets", "everything you need to know", "complete guide", "in this video", salesy tone. (Generate a few hooks, score on urgency, specificity, partial-reward, identity-match, keep the winner.)
+Hook rules: **10–22 words. Reveal ~30%, hide ~70%. Never** summarize the conclusion. **Banned:** "secrets", "everything you need to know", "complete guide", "in this video", salesy tone. The revealed ~30% must be a CONCRETE detail from the content (a number, a named object, a consequence); a hook that only announces hidden value ("what pros notice and newbies miss") is a banned meta-announcement. If the idea promises a count, the number goes in the hook — and the script delivers all of them. (Generate a few hooks, score on urgency, specificity, partial-reward, identity-match, keep the winner.)
 
-**Arc: curiosity → "aha" → confidence.**
+**Arc: curiosity → "aha" → confidence.** Mini-proofs are mechanisms and numbers — never a client story.
 
 Then choose the body structure:
 
@@ -31,7 +31,7 @@ End with one CTA (~15–18 words), specific + actionable, routed to the narrator
 
 The format for service businesses where trust and accuracy beat entertainment (insurance, law, medicine, real estate, finance, accounting). **No separate hook — the customer's question IS the opening**, because the right viewer recognizes their own question instantly.
 
-**Arc: worry → relief.**
+**Arc: worry → relief.** The asker is the only composite person here — answer with mechanism and typical numbers; no client-story scene.
 
 Spine:
 
@@ -49,7 +49,7 @@ The persona is the narrator as a calm expert answering a real person. Use "you" 
 
 Immersive, second-person, emotional. **Opens with `POV:` + a scenario** and puts the viewer *inside* the moment as the main character.
 
-**Arc: tension → empathy → way out.**
+**Arc: tension → empathy → way out.** The viewer IS the scenario — no client case.
 
 Spine:
 
@@ -76,7 +76,7 @@ Spine:
 4. **The resolution** — the outcome (realistic, consistent with the figures).
 5. **The lesson, named** — pull the general principle out of the specific story so the viewer can apply it.
 
-The story is a vehicle; every number in it is peer-defensible (two-tier CORE RULE) and the internal math holds. The outcome is a representative case, not a fantasy outlier — or flag it ("best case I've seen").
+The story is a vehicle; every number in it is peer-defensible (two-tier CORE RULE) and the internal math holds. The outcome is a representative case, not a fantasy outlier — or flag it ("best case I've seen"). CS is the ONLY format that carries a client-story scene, and its sequence must be logically airtight in-domain (who did what, for whom, in an order a peer would confirm possible).
 
 ---
 
@@ -84,7 +84,7 @@ The story is a vehicle; every number in it is peer-defensible (two-tier CORE RUL
 
 Contrarian, pattern-interrupt, highly shareable. **Opens by negating a costly false belief.**
 
-**Arc: indignation → revelation → empowerment.**
+**Arc: indignation → revelation → empowerment.** Show the myth's cost on the viewer or at pattern level — no client-story scene.
 
 Spine:
 

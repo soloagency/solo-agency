@@ -25,6 +25,14 @@ Default reading:
 Reading this as: agency intelligence report for a busy owner/operator, with a polished editorial landing-page language, leaning toward standalone HTML, strong hierarchy, print-safe CSS, and no remote dependencies.
 ```
 
+**The look is CODE, not prose.** The visual design lives in the renderer (`tool render-report`:
+dark editorial theme, ink `#070a08` + lime `#a6dc16`, matching the operator's proposal template;
+print flips to paper automatically for the PDF). You do NOT write CSS or page chrome — you write
+CONTENT (markdown; h2 per section, tables, short cards) and the renderer dresses it. Where an old
+rule below talks about authoring HTML/CSS by hand, the renderer now owns it; your job is section
+order (Top 3 ideas → idea matrix → leads → the rest, per 06), plain non-technical language, and
+substance.
+
 Report dials:
 
 - `DESIGN_VARIANCE: 7` - use asymmetry, editorial spacing, visual contrast, and memorable section rhythm.
