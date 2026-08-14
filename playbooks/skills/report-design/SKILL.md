@@ -57,7 +57,7 @@ Use this order unless a specific client/report language requires a natural local
 translation:
 
 1. Hero: report promise, date, lane status, top recommendation, confidence.
-2. Top 3 ideas of the day: the best idea plus both runners-up, as short action cards.
+2. Top 3 ideas of the day: three role cards — hottest, new development, foundation — as short action cards.
 3. Draft/recommendation: the five script versions for the selected idea as polished editable
    review blocks, directly under the Top 3 — not raw prompt output.
 4. Idea Matrix: grouped by audience value, pain point, source signal, and business fit.

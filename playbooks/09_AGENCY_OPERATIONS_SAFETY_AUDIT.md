@@ -649,7 +649,7 @@ For each daily run:
       - Rewrite or reject ideas that mainly praise, position, or advertise the client's product/service as `promotional_not_value_first`.
    20. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
    21. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
-   22. Select the best idea of the day only from ideas that pass the Audience Value-First Gate.
+   22. Select the Top 3 by role per Stage 4's Top 3 Role Rule (hottest / new development / foundation), only from ideas that pass the Audience Value-First Gate; when the profile has no `foundation_bank` yet, generate it in setup-repair mode first (no questions to the human).
    23. Write the configured production-ready draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the writing skill fallback if provider/account access is unavailable. Drafts must preserve the viewer-value lesson and must not become direct ads for the client's product/service. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
    24. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
    25. Generate the three-file scrubbed staging HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html` (staging index).
