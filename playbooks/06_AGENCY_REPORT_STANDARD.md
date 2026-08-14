@@ -371,6 +371,26 @@ outputs/YYYY-MM/YYYY-MM-DD/{client-name}-client-report.pdf
 outputs/latest/{client-name}-client-report.pdf
 ```
 
+**Reading order — the client's money comes first.** The reader is a busy owner (a realtor, an
+insurance agent) checking their phone between appointments; the report opens with what they can
+ACT on, and background sinks to the bottom:
+
+1. **Top 3 ideas of the day** — three, not one: the best idea plus the two runners-up, each as a
+   short card: what the video/post says, why their customers will care this week, what to do next.
+   All three are queued to the production plan (04/entrypoint own that step), so the Saved Ideas
+   screen the notification links to shows exactly these three cards.
+2. **The full idea matrix** — every credible idea found today, in its buckets.
+3. **Lead & Competitor Opportunities.**
+4. Everything else (coverage, evidence totals, delivery status, next action) follows.
+
+**Language rule — written for a non-technical, non-marketer reader.** Every heading and sentence
+must survive the test "would a realtor with 30 seconds understand this without asking?". Concretely:
+no pipeline/tooling vocabulary ("lane", "staging", "coverage", "evidence totals", "data quality
+pass"), no marketing jargon ("angle", "hook", "positioning", "funnel") — say "video ideas", "what
+we found today", "where we looked", "people asking about X", "posts your competitors ran". Numbers
+get plain framing ("9 new conversations about flood insurance in your area" beats "9 evidence
+items, 3 sources"). Section headings are plain questions or plain nouns a customer would use.
+
 The package HTML must be a standalone, mobile-friendly, print-friendly, client-blind document assembled from scrubbed staging files:
 
 1. `{client-name}-daily-report.html` for the cover, executive snapshot, lane status, blockers, delivery status, and next action.

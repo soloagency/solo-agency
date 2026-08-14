@@ -5,4 +5,4 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 
 | module | lines | sha256 | last_line |
 |---|---|---|---|
-| SKILL.md | 118 | 193f85fdddfbb152a88eb7c1e99bb189651f143958db91413a08a55a34319215 | ending with a watch CTA. |
+| SKILL.md | 124 | 80917d5052b06b2f69fce286eb086e0848da95947c66b89b56b99df61372988a | ending with a watch CTA. |

@@ -23,6 +23,17 @@ Every strong hook stacks three jobs into one or two sentences:
 - **Reveal ~30%, hide ~70%.** Never state the conclusion in the hook.
 - **Loss-framing > curiosity.** "Interesting to know" loses to "costly to miss."
 - **Specific > clever.** A number, a name, a concrete cost beats wordplay.
+- **The revealed ~30% must be CONCRETE** — a number, a named object, a place, a
+  consequence pulled from THIS content. Withholding means hiding the *how*,
+  never hiding everything.
+- **Meta-announcement ban.** A hook that only announces that value exists —
+  "here's what pros notice and newbies miss", "nobody tells you this",
+  "điều dân trong nghề luôn để ý mà ít ai nói ra" — is dead on arrival: it fits
+  every video ever made, so it hooks no one. Test: if the hook still works with
+  the topic swapped out, rewrite it around one specific from this script.
+- **A promised number goes in the hook.** If the idea promises a count
+  ("8 things"), the number belongs in the hook — and the script must then
+  deliver all of them.
 - **Banned phrases:** "secrets", "everything you need to know", "the complete
   guide", "in this video", "let's dive in", "stay tuned", and any salesy tone.
 
@@ -45,8 +56,10 @@ Write **five** hook variants, score each, ship the winner:
    rule you think it is."
 4. **The cost of inaction** — "Every month you delay this one setting, you pay for
    it twice."
-5. **Insider contradiction** — "Pros do the exact opposite of what beginners are
-   taught about ___."
+5. **Insider contradiction** — "Pros read the HOA reserve study before they look
+   at the kitchen; beginners are taught to count bedrooms." Name the actual
+   insider move — left as a blank "pros know better", this template collapses
+   into a banned meta-announcement.
 6. **Stakes + countdown** — "You have about 90 seconds to fix the thing killing
    your open rates."
 7. **"I wish I'd known"** — "If I'd known this one number, I'd have saved two years."
@@ -68,6 +81,10 @@ Write **five** hook variants, score each, ship the winner:
   bed."
 - ❌ "The complete guide to saving money." (banned + generic)
   ✅ "The 'small' subscription that costs the average person $4,200 over a decade."
+- ❌ "Going to your first open house? Here's what pros always check." (meta-
+  announcement — announces value, shows none)
+  ✅ "That gorgeous open house? Ten minutes of checks can surface an
+  eight-thousand-dollar crack the staging hides."
 
 ## Per-language note
 Write the hook in the **target language** naturally (don't translate word-for-

@@ -176,11 +176,13 @@ Mirror the user's brand/source on six axes: **tone** (formal/casual, authoritati
 
 **EMOTION = stakes made concrete.** Name what it costs (money, time, sleep, embarrassment) and show the moment it bites (at claim time, at closing, at tax season). One vivid concrete detail beats three adjectives. Each format runs its own arc (per-format arcs in `formats.md`): VE curiosity→aha→confidence · QA worry→relief · POV tension→empathy→way-out · CS context→tension→turn→result · MB indignation→revelation→empowerment.
 
+**CLIENT-CASE SCENES LIVE IN CS ONLY.** A composite client case is the heart of the CS format and belongs nowhere else — a user posting many videos cannot open the same "my client" scene in every one. Every other format builds its FELT MOMENT on the viewer instead: one mini-scenario in "you" — 2–3 segments, present tense, a concrete number, the second it bites — plus at most a one-clause pattern observation ("I see this every week").
+
 **NO SAG, NO SECOND ENDING.** State the setup once — never restate the myth or the problem again in different words. A segment that adds no new information and no new feeling gets cut. When the lesson lands, go straight to the CTA: one ending, no stacked moral-of-the-story lines.
 
 ## Length + pacing
 
-Narration pace ≈ **3.14 words/second**. In Stage 1, keep **every script at ~240–280 words (≈75–95s; hard cap 300)** — the short-form retention sweet spot, and short enough to compare five at a glance. If, after picking, the user wants a longer version (~2–3 min / ~600–800 words), and it exceeds the `source="text"` 500-word cap, hand WideCast a brief via `source="idea"` (5–1000 words) and let the engine expand it.
+Narration pace ≈ **3.14 words/second**. In Stage 1, keep **every script at ~240–280 words (≈75–95s; hard cap 300)** — the short-form retention sweet spot, and short enough to compare five at a glance. Exception, not a second target: when the idea promises a numbered list of 6+ points (or a required arc beat would be amputated), extend up to **~360 words (≈120s absolute ceiling)** — a promised count is a contract ("8 things" = all 8 delivered; dropping promised points to fit is a worse failure than running long). But extension is earned by density, never padding: a script that can land in 90s must land in 90s. If, after picking, the user wants a longer version (~2–3 min / ~600–800 words), and it exceeds the `source="text"` 500-word cap, hand WideCast a brief via `source="idea"` (5–1000 words) and let the engine expand it.
 
 > **WideCast API note:** `source="text"` accepts **80–500 words** (used verbatim). A short script (~150–300w) is the sweet spot. For a >500-word piece, either tighten it, or use `source="idea"` (5–1000 words).
 
@@ -195,8 +197,9 @@ Narration pace ≈ **3.14 words/second**. In Stage 1, keep **every script at ~24
 - [ ] Each opens by its format's rule (VE hook / QA question / POV "POV:" / CS in-medias-res / MB myth-negation).
 - [ ] Every number in every invented scenario is peer-defensible (tier 1 researched ≥0.7; tier 2 composite true-to-context) AND the internal math is consistent; frames are signalled as illustrative, never masquerading as a documented real case; no figure attributed to a nonexistent source; no guaranteed outcomes.
 - [ ] Narrator persona locked & used (name / business / services); no "ask a professional" for what the narrator sells; every CTA routes value back to the narrator or their channel.
-- [ ] Each ~240–280 words (cap 300); written for the ear (one-breath sentences, contractions, no essay-speak, no em dashes, one pronoun register); one idea per sentence; setup stated once, one ending only.
+- [ ] Each ~240–280 words (cap 300; up to 360 ONLY when a promised 6+ count demands it — then every promised point is delivered); written for the ear (one-breath sentences, contractions, no essay-speak, no em dashes, one pronoun register); one idea per sentence; setup stated once, one ending only.
 - [ ] 7-test self-check passed per script: proud · spoken · safe · emotion · owner · budget · peer (≥1 insider detail).
+- [ ] Client-story scene only in CS; every other format carries a viewer felt-moment + at most one pattern-level clause.
 - [ ] `### Research` bullets shown; closing line invites a pick by code.
 - [ ] **Presentation mode declared** (`HTML-ARTIFACT` or `MARKDOWN`) per `method.md` step 4b. If the host can render interactive HTML artifacts, the versions were delivered as the editable + Copy-button artifact — NOT plain markdown.
 - [ ] No image inlining yet (that's Stage 2).

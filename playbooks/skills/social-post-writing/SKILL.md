@@ -59,8 +59,12 @@ stall on the inferable; don't silently guess past a real blocker.
    truncation point (see table). Test: does it earn the "…more" tap?
 3. **Body** per platform format (below): a tight insight, a micro-story, a list,
    or a contrarian take. Keep one idea.
-4. **One CTA**, matched to the goal — engagement ("which one surprised you?") for
-   reach, a clear link line for click. Never stack asks.
+4. **One CTA**, matched to the goal — an interaction invite for reach, a clear
+   link line for click. Never stack asks. An interaction invite names WHAT to
+   comment and shows the payoff: "Comment your situation and I'll take a look" /
+   "Got a trick I missed? Drop it below so everyone can steal it" / "Team X or
+   team Y? Defend it below" / "What should I break down next?". "Thoughts?"
+   with no named ask is not a CTA.
 5. **Hashtags** per platform norm (relevance over volume).
 6. **Voice/brand:** match tone + POV; humble (no "I'm an expert"); "I" for
    personal, "We" for brand — stay consistent.
@@ -86,6 +90,8 @@ video, the first line should be the video's hook, and the CTA drives to watch.
 - A buried lede ("After years of work, I'm humbled to announce…").
 - Hashtag walls / irrelevant tags.
 - More than one CTA. "Like, comment, share, follow, save" = none.
+- Empty bait ("Comment YES if you agree", "drop a 🔥") — hollow comments, zero
+  lead value; invite something real (a situation, a tip, a side, a question).
 - Hooks that over-promise and the body under-delivers.
 - Fake-profound kickers ("Let that sink in.", "Read that again.").
 - Em dashes as rhythm crutch — short copy gets zero or one.
