@@ -1624,6 +1624,7 @@ Before using collected data, verify:
 
 - [ ] Did I remove obvious duplicates against earlier completed runs' data (Run Window anchor, not calendar-yesterday; `point_uid` key equality first, then visible-text matching)?
 - [ ] Did I run the Shared-Scan Gate (`source-registry due`) before creating collector jobs, reuse fresh shared scans via their data pointers, and `record` the scan outcomes after the run?
+- [ ] Does every `foundation_bank` entry trace to THIS client's own pain_points × segments — with no entry matching a playbook example title (verbatim or translated)? An example-derived title is a generator defect: regenerate it from the profile.
 - [ ] Did I avoid parsing private-platform HTML as the main source of truth?
 - [ ] Did I keep reference URLs for every important data point?
 - [ ] Did I separate public data from private data?
