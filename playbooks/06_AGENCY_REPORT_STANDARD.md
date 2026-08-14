@@ -375,8 +375,15 @@ outputs/latest/{client-name}-client-report.pdf
 insurance agent) checking their phone between appointments; the report opens with what they can
 ACT on, and background sinks to the bottom:
 
-1. **Top 3 ideas of the day** — three, not one: the best idea plus the two runners-up, each as a
-   short card: what the video/post says, why their customers will care this week, what to do next.
+1. **Top 3 ideas of the day** — three ROLES, not one leaderboard (selected per Stage 4's Top 3
+   Role Rule): the hottest signal of the run; the newest development from a different source or
+   layer (a fresh policy or market change that affects the client's customers beats a hotter
+   lookalike trend); and one foundation topic from the client's `foundation_bank` — the evergreen
+   video every professional in their field should have. Each is a short card: what the video/post
+   says, why their customers will care this week, what to do next. Label the cards in plain reader
+   language ("People are asking about this right now", "A new rule that affects your clients",
+   "A video every agent should have") — never with internal role/slot jargon. On a signal-poor
+   run, foundation cards may fill more than one slot; never pad with weak or repeated ideas.
    All three are queued to the production plan (04/entrypoint own that step), so the Saved Ideas
    screen the notification links to shows exactly these three cards.
 2. **The five script versions** — the `Production-Ready Drafts` selection surface for the
@@ -1232,10 +1239,10 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - Empty weak buckets are allowed. Do not fill a bucket with filler just to make the report look complete, and do not drop credible harvested ideas merely because the bucket already has another idea.
 
 9. `Decision Scorecard`
-   - Compare the top candidate ideas before choosing the best one.
+   - Compare the top candidate ideas per slot of the Top 3 Role Rule (Stage 4): candidates for the hottest slot, candidates for the new-development slot, and the chosen foundation entry.
    - Score at least: trend heat, audience pain intensity, business relevance, lead potential, novelty/history risk, evidence strength, and production effort.
    - Include the Idea Novelty Check result for the winner and the strongest rejected candidate: whether the idea is new, newly angled, or rejected as too close to prior history.
-   - Briefly explain why the selected idea won and why the other strong candidates did not win today.
+   - Briefly explain why each Top 3 card won its slot and why the other strong candidates did not win today.
 
 10. `Public Lead & Competitor Opportunities` and `Private Lead & Competitor Opportunities`
    - Use these lane-specific titles for English reports, or natural same-language titles for the human/report language.

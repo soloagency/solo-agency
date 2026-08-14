@@ -57,6 +57,7 @@ Required plain-language meanings:
 - `analytics/statistics`: visible performance numbers such as views, likes, comments, shares, saves, clicks, followers, and unavailable metrics when a platform hides them.
 - `learning loop`: using the latest run-window and 7-day results to improve the next ideas, hooks, CTAs, sources, and content choices.
 - `run_window`: the time since this client's previous completed run — the anchor for every "new since last time" window on any cadence (daily, 48/72/96 hours, weekly, monthly). Defined in Stage 4 (`04_DAILY_SCHEDULE.md`, "Run Window — Cadence-Aware Time Anchor").
+- `foundation bank`: the client's saved list of canonical evergreen topics (seeded at setup from pain points × audience segments, grown from real audience questions) that fills the Top 3's foundation slot and backfills any slot on a signal-poor run. Entries are ticked off as they are produced, so foundation topics never repeat.
 - `schedule/routine`: when and how often the agent runs automatically.
 
 Canonical terminology rule:

@@ -58,6 +58,7 @@ The agent must not ask the human to define:
 - `target_audience`
 - `pain_points`
 - `content_pillars`
+- `foundation_bank`
 - `public_data_sources`
 - `private_data_sources`
 - `idea categories`
@@ -111,7 +112,7 @@ Required setup sequence, aligned to the visible 9-item roadmap. Do not introduce
 
 1. Ask for the client's product/service, profession, expertise, business description, or public website/profile URL.
 2. Infer and show `industry`, `sub_industry`, `related_industries`, `business_offer`, likely `target_audience`, language assumptions, and whether the business is location-dependent. If the target location is required and cannot be inferred, ask only for `target_location`.
-3. Infer and show `pain_points`, `content_pillars`, how each pillar maps to pain points and the business offer, which pillars are `primary_industry` vs `related_industry`, and the planned content mix rule.
+3. Infer and show `pain_points`, `content_pillars`, how each pillar maps to pain points and the business offer, which pillars are `primary_industry` vs `related_industry`, and the planned content mix rule. Then generate and save the `foundation_bank`: 20-30 canonical evergreen topics every professional in this industry must cover, each derived from a pain point × audience segment and phrased as a concrete content title (for example "5 things to check before an open house", "8 things to do right after a car accident"). Ask the human nothing for this; show only a 3-5 topic sample in chat with a line such as `+20 more saved as the foundation topic bank`. The full bank is saved in the profile; the Top 3's foundation slot draws from it and entries are ticked off as they are produced, so topics never repeat by construction.
 4. Select public data sources and build the keyword bank. Show only a compact `Pain-Point Keyword Sample`, not a generic industry keyword dump. Then show the complete setup summary, ask the human to correct only what is wrong, and save the Client Intelligence Profile after that correction chance.
 5. Configure the schedule/routine before the first agency run, using the best scheduling mechanism available in the environment, and create or verify the client-specific automation task. Configure the initial task as public data sources only unless active private data sources are already verified healthy.
    - The setup handoff must include the client-specific automation task name; task status; whether the task currently runs public data sources only or public plus activated private data sources; a visible `Solo Agency one-time setup process` progress roadmap; and the exact next action.
@@ -311,6 +312,7 @@ The agent must infer:
 - `target_audience`
 - `pain_points`
 - `content_pillars`
+- `foundation_bank`
 - `business_offer`
 - `public_data_sources`
 - `brand_voice`
@@ -323,7 +325,7 @@ Then the agent must follow the same 9-item setup model. Do not introduce Add Cli
 
 1. Show the inferred setup summary to the human and ask them to correct only what is wrong.
 2. Create or update the client pipeline folder, Client Intelligence Profile, history folder, outputs folder, and `clients_index.md` row.
-3. Save the inferred pain points, content pillars, business offer, language assumptions, and compliance notes.
+3. Save the inferred pain points, content pillars, foundation bank, business offer, language assumptions, and compliance notes.
 4. Save the public data source plan and keyword bank.
 5. Configure the recurring schedule/routine once the basic source plan is known, prepare or verify the client-specific extension folder under `extensions/{client_slug}/`, and create/resync the client-specific automation task with the task name beginning with the client name, for example `Nguyen Law - Solo Agency First Run` or `Nguyen Law - Solo Agency Daily Run`. Configure the initial task as public data sources only unless active private data sources are already verified.
 6. Ask and resolve private data sources once after automation exists: record provided sources as `pending_private_review`, declined/no sources, pending Local Collector activation, private data source discovery approved/pending, or `discovery_declined_or_postponed`. If private data sources exist or discovery is approved/pending, guide Local Collector setup now, or record private data sources as `pending_private_activation` so the first automation run can continue with public data sources only if needed. Update the Client Intelligence Profile, `schedule.md`, collector config, extension registry, automation manifest, scheduled-run prompt/task body, and resync log so the already-created task has the newest source state. Finish the setup handoff by telling the human the exact automation task name to run for the first report, the absolute extension folder path, the matching Chrome profile/account to use when private data sources are active/pending, exact `chrome://extensions` -> Developer mode -> `Load unpacked` steps when needed, and whether private data sources are active, pending, stale, declined, or not requested. Do not merely say "extension created."
@@ -435,7 +437,7 @@ This is the planned automation process for this client. You only need to reply w
 
 ✓ 1. You provided the product/service, profession, expertise, business description, or public website/profile URL
 ✓ 2. I inferred the industry, sub-industry, related industries, audience, and offer
-✓ 3. I inferred pain points and content pillars
+✓ 3. I inferred pain points, content pillars, and the foundation topic bank
 ✓ 4. I selected public data sources and search keywords
 ✓ 5. I configured the automatic schedule/routine and client-specific automation task
 – 6. Private data sources/Local Collector are pending or postponed; this automation run uses public data sources only
@@ -747,7 +749,7 @@ For each daily run:
       - Do not make the client's product/service name the premise of the idea. If an idea only says the client/product wins, out-positions, is better, or should be chosen, rewrite it into an educational viewer lesson or reject it as `promotional_not_value_first`.
    21. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
    22. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
-   23. Select the best idea of the day only from ideas that pass the Audience Value-First Gate.
+   23. Select the Top 3 by role per Stage 4's Top 3 Role Rule (hottest / new development / foundation), only from ideas that pass the Audience Value-First Gate; when the profile has no `foundation_bank` yet, generate it in setup-repair mode first (no questions to the human).
    24. Write the configured production-ready draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the account-free writing skill fallback when provider/account access is unavailable. Drafts must preserve the same viewer-value lesson and must not become direct ads for the client's product/service. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
    25. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
    25b. Before writing any client-facing report HTML, load `playbooks/06_AGENCY_REPORT_STANDARD.md` (Stage 6) and then `playbooks/skills/report-design/SKILL.md` (LOAD LEDGER for each). Render/package with `tools/solo_tool render-report` (`render` for staging HTML, `package` for the combined client report + PDF) rather than hand-writing one-off HTML/PDF scripts.

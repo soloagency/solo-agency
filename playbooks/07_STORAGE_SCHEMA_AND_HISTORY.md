@@ -1202,6 +1202,19 @@ rationale:
 items:
 -
 
+## foundation_bank
+
+status:
+rationale:
+items:
+- topic:
+  pain_point:
+  segment:
+  status: available | queued | produced | re_angled | excluded
+  source: setup_seed | audience_question | operator
+  angle_history:
+  last_used_date:
+
 ## content_pillars
 
 status:
