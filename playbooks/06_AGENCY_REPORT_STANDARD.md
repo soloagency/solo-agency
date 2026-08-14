@@ -385,7 +385,9 @@ ACT on, and background sinks to the bottom:
    "A video every agent should have") — never with internal role/slot jargon. On a signal-poor
    run, foundation cards may fill more than one slot; never pad with weak or repeated ideas.
    All three are queued to the production plan (04/entrypoint own that step), so the Saved Ideas
-   screen the notification links to shows exactly these three cards.
+   screen the notification links to shows exactly these three cards — and the best-idea card
+   travels with its five script versions attached (`recommended: true`), so the reader can pick
+   a direction right on that screen.
 2. **The five script versions** — the `Production-Ready Drafts` selection surface for the
    selected idea (Version 1: VE through Version 5: MB), directly under the Top 3 so the reader
    picks a direction while the ideas are still on screen.
@@ -1266,6 +1268,7 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
      - `Version 4: CS — Case Study`
      - `Version 5: MB — Myth-Buster`
    - Each version should be a usable draft, not only a one-line angle, unless the report explicitly labels it as an angle preview.
+   - These five versions are also ATTACHED to the queued best idea in the provider production plan (04/entrypoint own that payload: `recommended: true` + `scripts[]` + `recommended_format`) — the report and the Saved Ideas screen must show the same five versions, verbatim.
    - For each version, include hook/opening, body, CTA, tone, estimated length, source references, and production notes.
    - Do not spend report time sourcing or vetting inline image/video URLs for all five video options. Label video options as `script option, visual treatment pending` unless a selected-version WideCast skill pass has already produced the final inline media treatment.
    - If visual/media URLs are required for immediate video creation but are missing, label the draft as `script-ready, media-pending`.
