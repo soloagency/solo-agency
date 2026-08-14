@@ -16,7 +16,7 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 - Scheduled runs must load Stage 10 and produce Lead & Competitor Opportunities, or explicitly mark them as not found, not scanned, pending activation, or unavailable.
 - Scheduled runs must run published-URL analytics and measurement-learning only when published URLs/metrics exist. On the first run with no published history, record `measurement_status: no_published_urls_yet` instead of pretending it ran.
 - Scheduled runs must load the needed playbooks again at run time; they must not rely on memory from setup.
-- Every scheduled-run human-facing reply, notification, or report handoff must include an updated progress block. If the agent sends multiple progress updates during the scheduled run, each update must show the current completed/current/remaining state.
+- Every scheduled-run human-facing reply or report handoff must include an updated progress block. If the agent sends multiple progress updates during the scheduled run, each update must show the current completed/current/remaining state. The provider notification is read by the CLIENT and never carries progress blocks (Client Notification Contract, playbook 03).
 - If private collection is blocked, continue public data sources and notify the human. Do not fall back to Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser for private data sources.
 - Store schedule config and notification channel.
 - After any human-approved change made after the schedule/automation was created, perform Automation Resync before claiming the next scheduled run is updated.
@@ -93,7 +93,7 @@ Scheduled run completion requires the same end-to-end path as a manual daily run
 
 Scheduled runs are meant to be automatic, but the human still needs visible state whenever the agent speaks.
 
-Every scheduled-run reply, notification, or report handoff must include:
+Every scheduled-run reply or report handoff must include:
 
 - completed steps;
 - current active step;
@@ -108,7 +108,7 @@ Use this title:
 Solo Agency daily run progress
 ```
 
-The agent may use a compact form in notifications, but it must not send only a report link or summary while steps remain.
+This progress state is operator material: it appears in the run reply/report handoff, never in the client notification (Client Notification Contract, playbook 03). The run must not end with only a report link or summary while steps remain.
 
 Use this compact automation freshness line in scheduled-run updates and setup/repair progress blocks after a schedule exists:
 
@@ -212,7 +212,7 @@ The playbook does not require one specific scheduler because different AI servic
 
 The agent must record the chosen method in `schedule.md`.
 
-The agent must also record the notification channel in `schedule.md`. If the client has verified WideCast OpenAPI config and the discovered spec exposes `sendNotification`, record WideCast email+Telegram as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email when the account supports it. If WideCast OpenAPI notification is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast API key + Telegram/email fallback or Gmail/email. The notification channel is governed by the Provider Consent & Mandatory Notify Rule (outreach AUTOMATION_SCHEDULING carries the full text, and it applies to content runs identically): configuring WideCast IS the operator's consent to upload reports and send notifications to their own account; the only privacy gates are the operator-secrets red line, the client-facing scrub, and the notification copy rules; "the report contains private-source research" is never a valid blocker. If an upload is refused for any reason (including a runtime/sandbox safety layer), STILL send `sendNotification` with counts + the local report path; only a refused `sendNotification` attempt itself may end as `notification_blocked_by_environment` + one `**[ACTION REQUIRED]**` with the exact outside-sandbox command. A run whose operator was never notified (and no environment-block recorded) is incomplete.
+The agent must also record the notification channel in `schedule.md`. If the client has verified WideCast OpenAPI config and the discovered spec exposes `sendNotification`, record WideCast email+Telegram as the preferred notification channel for scheduled runs, even if Telegram is not connected yet, because WideCast can fall back to email when the account supports it. If WideCast OpenAPI notification is unavailable but Gmail/email is connected, record Gmail/email as the secondary fallback notification channel. If neither is available, record `notification_channel: local_path_only` and tell the human how to connect WideCast API key + Telegram/email fallback or Gmail/email. The notification channel is governed by the Provider Consent & Mandatory Notify Rule (outreach AUTOMATION_SCHEDULING carries the full text, and it applies to content runs identically): configuring WideCast IS the operator's consent to upload reports and send notifications to their own account; the only privacy gates are the operator-secrets red line, the client-facing scrub, and the notification copy rules; "the report contains private-source research" is never a valid blocker. If an upload is refused for any reason (including a runtime/sandbox safety layer), STILL send `sendNotification` when a client-openable hosted link exists (an earlier upload or the minted magic link), composed per the Client Notification Contract (playbook 03) — never with local machine paths; when no hosted link exists at all, record the delivery blocker with the local paths in the run output and INTERNAL_REPORT instead of notifying the client. Only a refused `sendNotification` attempt itself may end as `notification_blocked_by_environment` + one `**[ACTION REQUIRED]**` with the exact outside-sandbox command. A run whose completion was never surfaced (no client notification when a hosted link existed, and no run-output record or environment-block recorded) is incomplete.
 
 Scheduled runs should be designed as unattended runs. The human may not be watching the AI agent UI, so the agent must proactively notify the human when the run finishes or when human action is required.
 

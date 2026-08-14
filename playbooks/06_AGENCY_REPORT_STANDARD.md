@@ -69,7 +69,7 @@ Allowed:
 - Save `.md` internally for agent memory, history, learning, diffing, and regeneration.
 - Mention that a Markdown source file exists only when explaining internal storage or troubleshooting.
 - Deliver the combined `{client-name}-client-report.html` path/link to the human.
-- Send Telegram/WideCast notifications with the `.html` path/link.
+- Send Telegram/WideCast notifications with the hosted `.html` report link, composed per the Client Notification Contract (playbook 03).
 - Deliver a `.pdf` companion alongside the `.html` path/link, or state the exact PDF blocker/status if generation is unavailable or unsafe.
 
 Not allowed:
@@ -145,7 +145,7 @@ Required order for every client-facing report:
 8. Create or update `{client-name}-report_state.json` with reconciled counts, statuses, and timestamps on success — not only on the PDF-failure branch.
 9. Refresh the `outputs/latest/` copies: `{client-name}-client-report.html`, `{client-name}-client-report.pdf`, `{client-name}-INTERNAL_REPORT.html`, and the staging files.
 10. Run the count/status reconciliation across all artifacts (staging lanes, combined client report, PDF, report state, INTERNAL_REPORT, notification log) so no artifact says `in progress`/`partial` while another says `complete`.
-11. Send the notification per the delivery rules (combined client report link plus PDF companion status plus INTERNAL_REPORT path/status).
+11. Send the notification per the delivery rules and the Client Notification Contract (playbook 03): hosted combined client report link plus PDF availability; INTERNAL_REPORT path/status goes to the run output and notification log, never the notification.
 
 Default render command pattern:
 
@@ -501,11 +501,10 @@ Before writing a report, the agent must read the existing source/state file when
 Notification rule:
 
 - Two notifications are acceptable: one after the public report is ready and one after the private report is ready/blocked.
-- Notifications to the user/operator must normally point to `{client-name}-client-report.html` or its uploaded URL. Daily/public/private staging links must not be the primary report link and should be omitted unless the human explicitly asks for diagnostic lane files.
-- Notifications to the user/operator must include the PDF companion path/status beside the HTML link and should include `{client-name}-INTERNAL_REPORT.html` as an operator-only secondary link/path.
-- The notification text must say whether the report set is `public_report_ready`, `private_report_ready`, `private_report_blocked`, or `daily_report_ready`.
+- Notifications are read by the CLIENT and follow the Client Notification Contract (playbook 03). They point to the hosted `{client-name}-client-report.html` URL as the primary link; staging lane links, local paths, and `{client-name}-INTERNAL_REPORT.html` never appear in them (INTERNAL_REPORT is operator material — run output and notification log only).
+- The notification text states the situation plainly in the client's language ("your report is ready"); event codes like `public_report_ready`, `private_report_ready`, `private_report_blocked`, or `daily_report_ready` go in the notification LOG entry, never in the client text.
 - Do not send repeated notifications for the same lane in the same run unless correcting a missing/broken report link.
-- Log each notification with lane, report path/URL, and report state.
+- Log each notification with lane, event code, report path/URL, and report state.
 
 Template:
 
@@ -1302,14 +1301,14 @@ When the agent announces a report in chat, Telegram, email, or another human-fac
 
 Report-ready notification validity rule:
 
-- A report-ready notification without an HTML report URL/path and PDF companion status is invalid.
+- A report-ready notification without a client-openable hosted HTML report URL is invalid; state PDF availability plainly. Local machine paths are never valid client notification content — when nothing could be hosted, record the delivery blocker for the operator (run output + INTERNAL_REPORT) instead of notifying the client.
 - Before deciding provider upload or notification is unavailable, the agent must run a Provider Report Delivery Capability Check using Client tools first and record the details in `INTERNAL_REPORT`: the current client's provider config, OpenAPI discovery, verified identity, and capability cache, with legacy/global MCP/native tool discovery only as fallback after identity match.
-- If WideCast OpenAPI notification/Telegram/email fallback is available, the agent must try to deliver the report to the user/operator through WideCast notification.
-- If WideCast OpenAPI exposes an HTML-capable report/file/asset upload operation, upload the client-facing `.html` report for operator delivery and send the uploaded URL to the user/operator. Treat provider-hosted URLs as operator handoff links, not client-share links, because the URL/domain may reveal the provider.
+- If WideCast OpenAPI notification/Telegram/email fallback is available, the agent must try to deliver the report through WideCast notification — the channel belongs to the client's own account, so the recipient is the CLIENT and the body follows the Client Notification Contract (playbook 03).
+- If WideCast OpenAPI exposes an HTML-capable report/file/asset upload operation, upload the client-facing `.html` report and send the uploaded URL in the notification.
 - If the verified client provider exposes PDF upload, upload the PDF companion too; otherwise include the local PDF path/status.
-- If WideCast report upload is unavailable or fails, the agent must log the exact provider blocker in `INTERNAL_REPORT` and still include the best available local/hosted `.html` report path/link plus PDF companion path/status in the operator notification.
+- If WideCast report upload is unavailable or fails, the agent must log the exact provider blocker in `INTERNAL_REPORT`, surface the local `.html`/PDF paths to the OPERATOR in the run output, and send the client notification only when a client-openable hosted link (earlier upload or minted magic link) exists.
 - If the current AI connector/tool surface does not expose WideCast upload or Telegram tools, check Client tools first before concluding capability is missing. Do not claim that WideCast itself lacks the API or capability unless verified from the current client's provider config, account/API, and OpenAPI status.
-- If the agent accidentally sends a notification without a report URL/path or PDF companion status, it must immediately send a correction notification containing the HTML report URL/path plus PDF status and log the correction.
+- If the agent accidentally sends a notification with a missing/broken report link, it must immediately send a correction notification containing the working hosted link and log the correction.
 
 Do not end a report handoff with:
 
@@ -1429,7 +1428,7 @@ When the result is long, the agent should send or surface the HTML report plus P
 
 The agent must deliver the client-facing HTML report, PDF companion path/status, and operator-only `INTERNAL_REPORT` path/status to the user/operator by the most convenient available channel:
 
-- Configured provider notification, preferably WideCast OpenAPI `sendNotification`, with the uploaded operator-delivery HTML report URL when report upload is available, the PDF companion URL/path/status, and the `INTERNAL_REPORT` path/status. WideCast's notification API may automatically fall back to email when the human has not connected Telegram yet.
+- Configured provider notification, preferably WideCast OpenAPI `sendNotification`, with the uploaded HTML report URL when report upload is available and the PDF URL when hosted — composed per the Client Notification Contract (playbook 03); `INTERNAL_REPORT` path/status stays in the run output and notification log. WideCast's notification API may automatically fall back to email when the client has not connected Telegram yet.
 - If the configured provider notification itself is unavailable, use a connected Gmail/email MCP, connector, or tool to email the HTML/PDF reports or links to the human if available and authorized.
 - Agent chat file attachment if supported.
 - Local file path in the automation/thread output.
@@ -1451,7 +1450,7 @@ Notification fallback rule:
 - Do not send only a local file path when an uploaded WideCast report URL is available.
 - If provider config is missing, auth fails, OpenAPI discovery fails, account verification mismatches, or the current WideCast OpenAPI spec cannot upload `.html` files, log the exact provider-neutral blocker and any useful legacy WideCast alias, send the best available HTML path/link plus PDF companion path/status, and state the upload blocker clearly.
 - If OpenAPI discovery does not expose a WideCast Telegram/notification send operation, log `provider_required_operation_missing` and any useful legacy WideCast alias. Do not claim WideCast itself lacks notification capability merely because a legacy/global MCP/native tool surface is not exposed.
-- Never send a report-ready notification that contains only a status summary. The notification must include an `HTML report` URL/path field and a `PDF companion` URL/path/status field.
+- Never send a report-ready notification that contains only a status summary. The notification must include a client-openable hosted `HTML report` URL (plus the PDF URL when hosted and the no-login Saved Ideas link when minted).
 - The agent should not switch to Gmail/email merely because Telegram is not connected in WideCast if WideCast email fallback can deliver.
 - Use Gmail/email only when provider notification is unavailable or blocked.
 - If Gmail/email is available and provider notification is unavailable, send the HTML/PDF reports or a link/path to the HTML report plus PDF companion path/status by email to the human, using the same language the human uses.

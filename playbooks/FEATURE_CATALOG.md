@@ -2,7 +2,7 @@
 
 This is the single canonical menu of user-facing capabilities across BOTH products (Solo Agency content pipeline + the OutreachCRM cold-email/CRM module). The Feature Discovery Rule draws from this catalog to introduce unused capabilities to the human. It is the honesty guardrail: only surface features listed here, phrased with their real value, prerequisites, and exact trigger phrase — never invent a capability.
 
-Load this file when composing a feature-discovery suggestion (setup completion, report/notification handoffs, the weekly re-surface, or a lead-detected moment). Keep each surfaced item to one scannable line.
+Load this file when composing a feature-discovery suggestion (setup completion, report handoffs in the run reply, the weekly re-surface, or a lead-detected moment — never the client notification). Keep each surfaced item to one scannable line.
 
 ## How to use this catalog
 
