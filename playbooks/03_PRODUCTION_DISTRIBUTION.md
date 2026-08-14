@@ -178,7 +178,7 @@ This item is not complete until the agent has covered all four capability groups
 1. Production: video/blog/social creation path.
 2. Distribution: publishing or upload/posting path.
 3. Notification: report-ready and blocker notification path.
-4. Analytics: published-content measurement path for yesterday and the last 7 days.
+4. Analytics: published-content measurement path for the run_window and the last 7 days.
 
 The agent must explicitly record one of these statuses before moving to private data source setup or scheduling:
 

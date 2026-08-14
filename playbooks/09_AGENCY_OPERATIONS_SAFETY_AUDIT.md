@@ -639,7 +639,7 @@ For each daily run:
    11. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
    12. If the collector bridge was started in `agent_on_demand` mode, stop it after collection completes or after timeout.
    13. Log skipped, pending-activation, expired, rate-limited, warning-triggered, collector-unavailable, extension-unavailable, Chrome-not-running, stale-extension, bridge-offline, or unavailable private data sources.
-   14. Load yesterday's private data for this client when available and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
+   14. Load the private data stored by earlier completed runs for this client when available — at minimum the previous completed run (per Stage 4's Run Window anchor: located from run history on disk, never `today − 1 day`) — and filter duplicate or near-duplicate data points using visible text matching. Do not parse private-platform HTML for duplicate detection.
    15. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
    16. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
    17. Detect hot and warm leads, including profile URLs, post/current URLs, safe summaries, and reasoning.
@@ -1621,7 +1621,7 @@ Before claiming private data sources were collected, verify:
 
 Before using collected data, verify:
 
-- [ ] Did I remove obvious duplicate data from yesterday?
+- [ ] Did I remove obvious duplicates against earlier completed runs' data (Run Window anchor, not calendar-yesterday)?
 - [ ] Did I avoid parsing private-platform HTML as the main source of truth?
 - [ ] Did I keep reference URLs for every important data point?
 - [ ] Did I separate public data from private data?

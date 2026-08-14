@@ -437,7 +437,7 @@ For each published content item, the agent must:
 
 1. Use connected provider analytics when available.
 2. If provider OpenAPI/tools are connected and verified for this client, call the relevant operations to retrieve:
-   - videos/posts published yesterday;
+   - videos/posts published inside the run_window (since the previous completed run — Stage 4's Run Window anchor);
    - videos/posts published in the last 7 days;
    - published URLs;
    - title;
@@ -448,7 +448,7 @@ For each published content item, the agent must:
    - publish date;
    - topic/video/content IDs;
    - account/platform analytics when available.
-3. Measure each published URL daily for up to 7 days after publishing.
+3. Measure each published URL at every run while it is 7 days old or less — and always at least once on the first run after publishing, even when the cadence made it older than 7 days by then.
 4. Reuse the Solo Agency Local Collector to open each published URL when useful and authorized, because some metrics/comments require a logged-in browser.
 5. Capture visible:
    - views;
@@ -1200,12 +1200,12 @@ The agent must collect by:
 
 The agent must not depend on fragile HTML parsing for private social platforms. Facebook, X, Reddit, LinkedIn, Instagram, and TikTok can change markup frequently. Prefer visible text, accessible labels, current URL, profile URL candidates, post/current URL candidates, timestamps visible to the human, and engagement text visible on screen.
 
-Before accepting data points from private data sources for today's report:
+Before accepting data points from private data sources for this run's report:
 
-- Load yesterday's collected private data for the same client when available.
-- Compare new visible text summaries against yesterday's text using text matching.
+- Load the private data collected by earlier completed runs for the same client when available — at minimum the previous completed run, located from real run history on disk (Stage 4's Run Window anchor), never computed as `today − 1 day`.
+- Compare new visible text summaries against that earlier-run text using text matching.
 - Remove exact duplicates.
-- Remove near-duplicates when the same source, same current URL/post URL, or highly similar text already appeared yesterday.
+- Remove near-duplicates when the same source, same current URL/post URL, or highly similar text already appeared in an earlier run.
 - Keep updated items only if the new version has materially new comments, engagement, date, URL, or context.
 - Record skipped duplicates in source status notes when useful.
 
