@@ -765,6 +765,8 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 		b.uiRender(w, "jobs", map[string]any{"Title": "Jobs", "Jobs": b.uiJobs(), "Active": b.uiActiveRuns()})
 	case len(parts) == 1 && parts[0] == "status":
 		b.uiRenderStatus(w)
+	case len(parts) == 1 && parts[0] == "settings":
+		b.uiRenderSettings(w)
 	case len(parts) == 1 && parts[0] != "":
 		b.uiRenderClient(w, parts[0])
 	case len(parts) == 2 && parts[1] == "reports":
@@ -1383,6 +1385,53 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// Global (non-client) endpoint: the operator settings page saves here.
+	if parts[0] == "system" && parts[1] == "settings" {
+		var body map[string]any
+		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxJSONBodyBytes))
+		if err := dec.Decode(&body); err != nil {
+			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		saved, err := saveSystemSettings(b.uiDataRoot, func(s *systemSettings) error {
+			if v, ok := body["operator_email"].(string); ok {
+				v = strings.TrimSpace(v)
+				if v != "" && !strings.Contains(v, "@") {
+					return fmt.Errorf("operator_email is not an email address")
+				}
+				s.OperatorEmail = v
+			}
+			intField := func(key string, dst *int, min, max int) error {
+				v, ok := body[key].(float64)
+				if !ok {
+					return nil
+				}
+				n := int(v)
+				if n < min || n > max {
+					return fmt.Errorf("%s must be between %d and %d", key, min, max)
+				}
+				*dst = n
+				return nil
+			}
+			if err := intField("max_concurrent_tasks", &s.MaxConcurrentTasks, 1, 500); err != nil {
+				return err
+			}
+			if err := intField("slot_step_minutes", &s.SlotStepMinutes, 1, 240); err != nil {
+				return err
+			}
+			if err := intField("slot_horizon_days", &s.SlotHorizonDays, 7, 366); err != nil {
+				return err
+			}
+			return intField("default_task_duration_min", &s.DefaultTaskDurationMin, 5, 480)
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "settings": saved})
+		return
+	}
 	c, ok := b.uiFindClient(parts[0])
 	if !ok {
 		http.Error(w, "unknown client", http.StatusNotFound)
@@ -1623,6 +1672,42 @@ func (b *bridge) uiRenderStatus(w http.ResponseWriter) {
 	})
 }
 
+// uiRenderSettings — the operator's global system config page (/ui/settings):
+// system parameters editable without chatting with an agent. Settings persist
+// in {data root}/system_settings.json; agents and `tool schedule-slots` read
+// the same file.
+func (b *bridge) uiRenderSettings(w http.ResponseWriter) {
+	settings := loadSystemSettings(b.uiDataRoot)
+	var tasks []taskSlot
+	if reg, err := withTaskSlots(b.uiDataRoot, func(*taskSlotRegistry) error { return nil }); err == nil {
+		tasks = reg.Tasks
+	}
+	sortedTasks := append([]taskSlot{}, tasks...)
+	sort.Slice(sortedTasks, func(i, j int) bool { return sortedTasks[i].TaskName < sortedTasks[j].TaskName })
+	rows := make([]map[string]string, 0, len(sortedTasks))
+	for _, t := range sortedTasks {
+		cad := "monthly"
+		if !t.Monthly {
+			switch t.CadenceHours {
+			case 24:
+				cad = "daily"
+			case 168:
+				cad = "weekly"
+			default:
+				cad = fmt.Sprintf("%gh", t.CadenceHours)
+			}
+		}
+		rows = append(rows, map[string]string{
+			"Task": t.TaskName, "Client": t.ClientSlug, "Cadence": cad,
+			"Time": t.RunTime, "Anchor": t.AnchorDate,
+			"Duration": fmt.Sprintf("%d min", t.DurationMin), "Status": t.Status,
+		})
+	}
+	b.uiRender(w, "settings", map[string]any{
+		"Title": "Settings", "Settings": settings, "Tasks": rows,
+	})
+}
+
 func (b *bridge) uiRenderClient(w http.ResponseWriter, slug string) {
 	c, ok := b.uiFindClient(slug)
 	if !ok {
@@ -1781,7 +1866,8 @@ func (b *bridge) uiRender(w http.ResponseWriter, page string, data map[string]an
 // uiIcons — inline SVG path data vendored from Tabler Icons (MIT,
 // https://tabler.io/icons), one family, 24px grid, stroked.
 var uiIcons = map[string]string{
-	"bolt":     `<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"/>`,
+	"bolt":        `<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"/>`,
+	"adjustments": `<path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M6 4v4"/><path d="M6 12v8"/><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M12 4v10"/><path d="M12 18v2"/><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M18 4v1"/><path d="M18 9v11"/>`,
 	"home":     `<path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/>`,
 	"activity": `<path d="M3 12h4l3 8l4 -16l3 8h4"/>`,
 	"heart":    `<path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572"/>`,
@@ -1870,6 +1956,7 @@ var uiTpl = template.Must(template.New("ui").Funcs(uiTplFuncs).Parse(`
 <a href="/ui"{{if eq .NavPage "home"}} class="on"{{end}}>{{icon "home"}}Home</a>
 <a href="/ui/jobs"{{if eq .NavPage "jobs"}} class="on"{{end}}>{{icon "activity"}}Jobs</a>
 <a href="/ui/status"{{if eq .NavPage "status"}} class="on"{{end}}>{{icon "heart"}}Status</a>
+<a href="/ui/settings"{{if eq .NavPage "settings"}} class="on"{{end}}>{{icon "adjustments"}}Settings</a>
 {{with .Client}}
 <div class="ngroup">{{.Slug}}</div>
 <a href="/ui/{{.Slug}}"{{if eq $.NavPage "client"}} class="on"{{end}}>{{icon "layout"}}Overview</a>
@@ -1974,6 +2061,47 @@ es.onopen=function(){var l=document.getElementById('livedot');if(l)l.classList.a
 {{range .Extensions}}<tr><td>{{.Client}}</td><td class="mut">{{.Instance}}</td><td>{{.Name}}</td><td class="mut">{{.Last}}</td></tr>{{else}}<tr><td colspan="4" class="mut">no extension check-ins yet</td></tr>{{end}}</table></div>
 <h2>Sendboxes</h2><div class="wrap"><table><tr><th>client</th><th>slug</th><th>email</th><th>status</th><th>quota</th><th>warmup</th></tr>
 {{range .Sendboxes}}<tr><td>{{.Client}}</td><td>{{.Slug}}</td><td>{{.Email}}</td><td><span class="pill">{{.Status}}</span></td><td>{{.Quota}}</td><td class="mut">{{.Warmup}}</td></tr>{{else}}<tr><td colspan="6" class="mut">none configured</td></tr>{{end}}</table></div>
+{{template "foot" .}}{{end}}
+
+{{define "settings"}}{{template "head" .}}
+<p class="sub">Global system configuration for this Solo Agency install. Changes apply from the next run — no agent chat needed.</p>
+<div class="card">
+<h2 style="margin-top:0">Operator</h2>
+<label>Operator email
+<input type="email" id="s-email" value="{{.Settings.OperatorEmail}}" placeholder="you@example.com">
+<small class="mut">Where agents send operator notifications (blockers, action-required) when an operator channel is used. Client notifications are separate and go to each client's own channel.</small></label>
+<h2>Task scheduling</h2>
+<label>Max tasks running in the same time slot
+<input type="number" id="s-max" value="{{.Settings.MaxConcurrentTasks}}" min="1" max="500">
+<small class="mut">When a new automation task would land in a slot already holding this many tasks (projected across cadences: daily/48h/72h/weekly/monthly), its start time is pushed later in steps until a free slot is found.</small></label>
+<div class="grid">
+<label>Push step (minutes)
+<input type="number" id="s-step" value="{{.Settings.SlotStepMinutes}}" min="1" max="240"></label>
+<label>Projection horizon (days)
+<input type="number" id="s-horizon" value="{{.Settings.SlotHorizonDays}}" min="7" max="366"></label>
+<label>Default task duration (minutes)
+<input type="number" id="s-duration" value="{{.Settings.DefaultTaskDurationMin}}" min="5" max="480"></label>
+</div>
+<button class="ok" id="s-save">Save settings</button>
+<span class="mut" id="s-msg" style="font-size:.83rem;margin-left:8px"></span>
+</div>
+<h2>Registered automation tasks</h2>
+<div class="wrap"><table><tr><th>task</th><th>client</th><th>cadence</th><th>time</th><th>anchor date</th><th>duration</th><th>status</th></tr>
+{{range .Tasks}}<tr><td>{{.Task}}</td><td>{{.Client}}</td><td><span class="pill">{{.Cadence}}</span></td><td>{{.Time}}</td><td class="mut">{{.Anchor}}</td><td class="mut">{{.Duration}}</td><td><span class="pill">{{.Status}}</span></td></tr>{{else}}<tr><td colspan="7" class="mut">no tasks registered yet — tasks appear here as agents create them (tool schedule-slots register)</td></tr>{{end}}</table></div>
+<script>
+document.getElementById('s-save').onclick=function(){
+ var m=document.getElementById('s-msg');m.textContent='saving...';
+ fetch('/api/ui/system/settings',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({operator_email:document.getElementById('s-email').value,
+   max_concurrent_tasks:+document.getElementById('s-max').value,
+   slot_step_minutes:+document.getElementById('s-step').value,
+   slot_horizon_days:+document.getElementById('s-horizon').value,
+   default_task_duration_min:+document.getElementById('s-duration').value})})
+ .then(function(r){return r.ok?r.json():r.text().then(function(t){throw new Error(t)})})
+ .then(function(){m.textContent='saved ✓'})
+ .catch(function(e){m.textContent='error: '+e.message});
+};
+</script>
 {{template "foot" .}}{{end}}
 
 {{define "client"}}{{template "head" .}}

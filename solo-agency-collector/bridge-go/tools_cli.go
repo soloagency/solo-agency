@@ -113,6 +113,8 @@ func maybeRunToolCLI(args []string) (handled bool, exitCode int) {
 		fmt.Fprintln(os.Stderr, "       tool migrate export|import ...   (see MIGRATE_RUNBOOK.md)")
 		fmt.Fprintln(os.Stderr, "       tool source-registry --pipeline DIR register|due|record|set-scope|list ...")
 		fmt.Fprintln(os.Stderr, "       tool search-pool --pipeline DIR check|record ...")
+		fmt.Fprintln(os.Stderr, "       tool schedule-slots --pipeline DIR suggest|register|remove|list ...")
+		fmt.Fprintln(os.Stderr, "       tool system-settings --pipeline DIR get|set ...")
 		return 2
 	}
 	if len(args) < 2 {
@@ -125,6 +127,10 @@ func maybeRunToolCLI(args []string) (handled bool, exitCode int) {
 		return true, runSourceRegistryCLI(args[2:])
 	case "search-pool":
 		return true, runSearchPoolCLI(args[2:])
+	case "schedule-slots":
+		return true, runScheduleSlotsCLI(args[2:])
+	case "system-settings":
+		return true, runSystemSettingsCLI(args[2:])
 	case "import-leads":
 		return true, runImportLeadsCLI(args[2:])
 	case "render-report":

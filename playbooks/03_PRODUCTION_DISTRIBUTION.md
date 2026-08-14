@@ -933,7 +933,9 @@ provider/config fixes), feature-discovery blocks, renderer/tooling diagnostics, 
 `outputs/...` paths, INTERNAL_REPORT links, event-type codes, and agent identity. All of that
 lives in the run's chat/task output and `INTERNAL_REPORT`. The audit record is unchanged:
 `notifications/notification_log.md` still records agent identity, event type, lane status,
-and every link.
+and every link. When an operator PUSH channel is ever needed for operator material, the
+operator's contact email lives in `system_settings.json` (`operator_email`, set by the
+operator in the web UI at `/ui/settings`) — read it from there, never ask for it in chat.
 
 A client notification is valid only when it carries at least one client-openable hosted link
 (uploaded report URL or minted magic link). If nothing could be hosted, do NOT send a
