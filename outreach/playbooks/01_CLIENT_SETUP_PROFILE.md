@@ -561,7 +561,7 @@ The agent must:
 4. Save one Client Intelligence Profile per client.
 5. Add every client to `clients_index.md`.
 6. Configure each client's sendbox, list, first campaign goal, sending identity, and notification per the nine steps — each client gets its own sendbox(es), suppression, and data (no shared quota, no cross-client visibility).
-7. Configure the schedule and create one automation task per client, each pinning its own `target_client_slug`.
+7. Configure the schedule and create one automation task **per campaign** — `{Client Name} - {Campaign} Daily Run`, each pinning both its own `target_client_slug` and its `campaign_slug`. A client with an email, a Messenger and a comment campaign therefore has three tasks, so each can be paused or run independently; the per-client `run_lock` serializes them and the Approval Report still aggregates all of them into one screen. See `AUTOMATION_SCHEDULING.md` and `docs/DESIGN.md` §2.4.
 8. Reach `ready_for_automation_first_run` for each client. Send nothing.
 
 If entries are incomplete, infer what is possible and ask only for the missing critical items (a sendbox to send from, a physical address for the footer, a list). Never fabricate a workspace: if the client name or enough business context is missing, ask for it and keep the root ready.

@@ -53,6 +53,12 @@ No auto-DM, auto-comment, follow, or any outreach. Leads are review signals for
 the human. Suggested comments are copy-to-clipboard only (Stage 10 report
 contract). This loop's job ends at "here are qualified leads for you to review".
 
+This holds even once the human approves: **this loop never becomes a sender.**
+Approved agency outreach is executed elsewhere — OutreachCRM Stages 16/17, from
+the operator's own brand and accounts, with its own per-message approval and
+per-account caps. Keeping the scanner read-only is what stops a monitoring pass
+from quietly turning into a mass-messaging pass.
+
 ## Privacy / data-minimization
 
 - Data collection + analysis is consented by the operator's own setup and

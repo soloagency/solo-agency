@@ -103,10 +103,28 @@ Rules:
   is barred from every client-facing and send-capable channel (see GitHub Update Watch
   Scheduling Rule).
 
-For multi-client daily operations, prefer separate client tasks. Only a client's own run
-mutates that client's data. OutreachCRM defines exactly two automation task kinds: one
-client-specific Daily Run task per active client and the single agency-wide
-`OutreachCRM - GitHub Update Watch` task — there is no agency-wide client-processing task.
+For multi-client daily operations, tasks are always separated — never one task processing
+several clients. Only a client's own run mutates that client's data. OutreachCRM defines
+exactly two automation task kinds: a Daily Run task **per campaign**, and the single
+agency-wide `OutreachCRM - GitHub Update Watch` task — there is no agency-wide
+client-processing task.
+
+**One task per CAMPAIGN, not per client** (`{Client Name} - {Campaign} Daily Run`, pinning
+both `target_client_slug` and `campaign_slug`; `docs/DESIGN.md` §2.4, amended by operator
+decision 2026-07-19 and reaffirmed 2026-08-15). A client now runs several campaigns at once —
+email, Messenger and comment — and they advance at genuinely different rates: email may be at
+lead 1,000 of 65,000 while the comment campaign is at post 100 of 5,000 and the DM campaign at
+lead 30 of 2,000. Some days one should run and another should not. A single per-client task
+would force them to move in lockstep, which is exactly what the operator does not want.
+
+Two things make this safe rather than chaotic, and neither should be "simplified" away:
+- The per-client `run_lock` **serializes** same-client campaign tasks — they queue, they do
+  not race. Client-level steps (inbox sync, triage, follow-ups) are idempotent across them.
+- The Approval Report is **client-wide and always aggregates every campaign**, so each render
+  produces the same complete report rather than three competing partial ones. The operator
+  drains one queue containing all channels, filtering by campaign when they want to work one
+  at a time. Approval is a queue the campaigns feed — not a synchronization point between
+  them.
 
 ## Source Preservation Rule
 
@@ -490,9 +508,16 @@ For each client, pinning `target_client_slug`, in this exact order:
    during this run are included. The ordered pre-send re-check chain runs in code. Approval
    happens in chat or on the Approvals page, at any time — the run sends only what is already
    approved.
-8. **Assisted channels:** draft SMS/Messenger/Zalo for no-email contacts only if the campaign
-   allows and consent/legal basis exists (DESIGN §9/§16) → Today View copy buttons. The human
-   sends and reports back → `assisted_sent` activity.
+8. **Collector-executed channels (Messenger DM, Facebook comment):** for campaigns whose
+   `channel_strategy` is `messenger` or `comment`, send the drafts the operator already
+   approved, through the Local Collector, within the per-account daily caps from the account
+   pool. Rotation is by least-loaded eligible account; a thread's sender is **sticky**. Log
+   the outcome from the returned record → `messenger_sent` / `comment_posted` activity.
+   Stages 16/17.
+9. **Assisted channels:** draft SMS/Zalo for no-email contacts only if the campaign allows and
+   consent/legal basis exists (DESIGN §9/§16) → Today View copy buttons. The human sends and
+   reports back → `assisted_sent` activity. (Messenger left this bucket once a verified
+   capability existed for it — see "Channel Execution Model" in `OUTREACHCRM_PLAYBOOK.md`.)
 9. **Compile Today View + regenerate kanban** via `tool render-report`.
 10. **Reports:** daily ops HTML + **refreshed** Approval Report HTML (first rendered at the end
     of the drafting pass in step 6, per DESIGN §14) + INTERNAL_REPORT (operator-only, not
@@ -647,10 +672,19 @@ For each active client:
     decisions made during the run are included. Approval itself happens in chat or on the
     Approvals page, any time; the run only sends what is already approved.
 
-### H. Assisted channels (DESIGN §9/§16)
+### H. Collector-executed and assisted channels (DESIGN §9/§16)
 
-19. For no-email contacts, draft SMS/Messenger/Zalo only when the campaign allows and a
-    documented legal basis exists (US SMS gated on `{optin_source, optin_at,
+19. **Messenger DM / Facebook comment (agent executes).** For a campaign whose
+    `channel_strategy` is `messenger` or `comment`, take only drafts already in
+    `outbox/approved/` and execute them through the Local Collector — `fb.message.send`
+    against `messenger.com/e2ee/t/<profile_id_or_vanity>`, or `fb.post.comment` against the
+    resolved post permalink. Respect the account pool's per-account daily caps, keep a
+    thread's sender sticky, and jitter between sends exactly as email does. A send counts as
+    done only when the returned record says so (`status: done`, `verified: true`, and for DM
+    `id_verified: true`); anything else is a failure to log, not a retry to hammer. Log →
+    `messenger_sent` / `comment_posted` activity. Stages 16/17.
+20. **SMS / Zalo (human executes).** For no-email contacts, draft only when the campaign
+    allows and a documented legal basis exists (US SMS gated on `{optin_source, optin_at,
     evidence_activity_id}` or existing relationship; Zalo cold-messaging strangers stays off by
     default). Surface each draft with its legal basis in Today View copy buttons. The human
     sends and reports back → `assisted_sent` activity.

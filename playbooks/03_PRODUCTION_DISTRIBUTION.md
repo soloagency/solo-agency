@@ -1108,6 +1108,8 @@ Repurposing must preserve the same factual references and reference URLs. If the
 
 The agent may monitor comments, questions, and community discussions if tools allow it, but must not reply, message, comment, or engage from the account without explicit permission.
 
+This ban is about acting **as, or on behalf of, a client**, and it is absolute: a client is a read-only data subject whose signals are collected to produce content *for* them. No approval makes it acceptable to comment or message from a client's identity. The agency's OWN outreach is a different lane entirely — the operator's brand, the operator's accounts, finding the operator new clients — and it runs under OutreachCRM with per-message operator approval before anything is sent. See "Channel Execution Model" in `outreach/OUTREACHCRM_PLAYBOOK.md`. Do not read that lane as a loophole in this one.
+
 The agent should extract:
 
 - Repeated questions.
