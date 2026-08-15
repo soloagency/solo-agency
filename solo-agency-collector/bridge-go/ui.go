@@ -767,6 +767,8 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 		b.uiRenderStatus(w)
 	case len(parts) == 1 && parts[0] == "settings":
 		b.uiRenderSettings(w)
+	case len(parts) == 1 && parts[0] == "fleet":
+		b.uiRenderFleet(w)
 	case len(parts) == 1 && parts[0] != "":
 		b.uiRenderClient(w, parts[0])
 	case len(parts) == 2 && parts[1] == "reports":
@@ -1959,6 +1961,7 @@ var uiTpl = template.Must(template.New("ui").Funcs(uiTplFuncs).Parse(`
 <a href="/ui"{{if eq .NavPage "home"}} class="on"{{end}}>{{icon "home"}}Home</a>
 <a href="/ui/jobs"{{if eq .NavPage "jobs"}} class="on"{{end}}>{{icon "activity"}}Jobs</a>
 <a href="/ui/status"{{if eq .NavPage "status"}} class="on"{{end}}>{{icon "heart"}}Status</a>
+<a href="/ui/fleet"{{if eq .NavPage "fleet"}} class="on"{{end}}>{{icon "radar"}}Fleet</a>
 <a href="/ui/settings"{{if eq .NavPage "settings"}} class="on"{{end}}>{{icon "adjustments"}}Settings</a>
 {{with .Client}}
 <div class="ngroup">{{.Slug}}</div>
@@ -2064,6 +2067,30 @@ es.onopen=function(){var l=document.getElementById('livedot');if(l)l.classList.a
 {{range .Extensions}}<tr><td>{{.Client}}</td><td class="mut">{{.Instance}}</td><td>{{.Name}}</td><td class="mut">{{.Last}}</td></tr>{{else}}<tr><td colspan="4" class="mut">no extension check-ins yet</td></tr>{{end}}</table></div>
 <h2>Sendboxes</h2><div class="wrap"><table><tr><th>client</th><th>slug</th><th>email</th><th>status</th><th>quota</th><th>warmup</th></tr>
 {{range .Sendboxes}}<tr><td>{{.Client}}</td><td>{{.Slug}}</td><td>{{.Email}}</td><td><span class="pill">{{.Status}}</span></td><td>{{.Quota}}</td><td class="mut">{{.Warmup}}</td></tr>{{else}}<tr><td colspan="6" class="mut">none configured</td></tr>{{end}}</table></div>
+{{template "foot" .}}{{end}}
+
+{{define "fleet"}}{{template "head" .}}
+<p class="sub">Toàn bộ client trên một màn: post gần nhất, hiệu quả, và ai đang cần chú ý — xấu nhất nằm trên cùng. Data do từng run ghi lại lúc kết thúc; màn này không bao giờ tự query.</p>
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.Tiles.total}}</div><div class="mut">clients</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:#4ade80">{{.Tiles.green}}</div><div class="mut">đang đều</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:#eab308">{{.Tiles.yellow}}</div><div class="mut">sắp trễ ({{.GapHours}}h)</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:#ef4444">{{.Tiles.red}}</div><div class="mut">báo động đỏ</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.SumPosts}}</div><div class="mut">posts 7 ngày</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.SumViews}}</div><div class="mut">views 7 ngày</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.SumDrafts}}</div><div class="mut">drafts chờ duyệt</div></div>
+</div>
+<div class="wrap"><table>
+<tr><th></th><th>client</th><th>post gần nhất</th><th>posts 7d/30d</th><th>views 7d</th><th>likes 7d</th><th>leads 🔥/ấm</th><th>ideas queued</th><th>drafts chờ</th><th>report</th><th>cập nhật</th></tr>
+{{range .Rows}}<tr>
+<td><span class="dot{{if ne .Color "none"}} {{.Color}}{{end}}"></span></td>
+<td><a href="/ui/{{.Client}}">{{.Name}}</a></td>
+<td>{{.LastPost}}{{if .Reminders}}<br><span class="mut" style="font-size:.75rem">{{.Reminders}}</span>{{end}}</td>
+<td>{{.Posts}}</td><td>{{.Views7}}</td><td>{{.Likes7}}</td><td>{{.Leads}}</td><td>{{.IdeasQ}}</td><td>{{.DraftsPend}}</td>
+<td>{{if .ReportHref}}<a href="{{.ReportHref}}" target="_blank" rel="noopener">mở ↗</a>{{else}}<span class="mut">–</span>{{end}}</td>
+<td class="mut">{{.Updated}}{{if .Stale}} <span class="pill band-review_carefully">stale</span>{{end}}</td>
+</tr>{{else}}<tr><td colspan="11" class="mut">chưa có snapshot nào — mỗi client sẽ xuất hiện ở đây sau lần chạy report kế tiếp (fleet/{client}.json)</td></tr>{{end}}
+</table></div>
 {{template "foot" .}}{{end}}
 
 {{define "settings"}}{{template "head" .}}
