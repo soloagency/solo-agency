@@ -53,6 +53,7 @@ Treat these as critical workflow violations:
 - Setup Flow runs a report directly instead of directing the human to the automation task.
 - A client-specific task name does not begin with the client name.
 - An extension for client A receives, writes, or completes a job for client B.
+- A third-party source is flipped to `scope: exclusive` — or a `scope_policy` note is written into a profile — without a verbatim, dated operator instruction. Sharing third-party sources is the mandatory agency norm (02); an agent-authored exclusivity policy is drift to be reverted (`set-scope --scope shared`, delete the invented note), never precedent for later runs.
 - An agent reads private data source output from another client's collector inbox — EXCEPT through a shared-scan reuse pointer: reading the exact `data_dir` returned by `tool source-registry due` for a shared-scope source this client subscribes to is the designed sharing path (playbook 08), and even then only records whose `source_uid` matches the reused source, never `snapshots/` or other sources' records.
 - A global `extension_health.status: recent` is used as proof that the target client's extension is healthy without checking the matching `client_slug + extension_instance_id`.
 - A private data source pass overwrites, regenerates, or summarizes away `{client-name}-public-data-sources-report.html`.
