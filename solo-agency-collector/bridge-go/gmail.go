@@ -1350,14 +1350,20 @@ func gmailAppendSyncLog(clientDir, slug string, record map[string]any) error {
 
 func runGmailCLI(args []string) int {
 	valueFlags := map[string]bool{"--client-dir": true, "--sendbox": true, "--email": true,
-		"--day": true, "--draft": true, "--max": true}
+		"--day": true, "--draft": true, "--max": true,
+		"--pipeline": true, "--subject": true, "--body": true, "--body-file": true}
 	boolFlags := map[string]bool{"--dry-run": true}
 	a, err := parseCLIArgs(args, valueFlags, boolFlags)
 	if err != nil {
 		return crmUsageErr(err.Error())
 	}
 	if len(a.pos) == 0 {
-		return crmUsageErr("a subcommand is required (auth | health | quota | send | sync)")
+		return crmUsageErr("a subcommand is required (auth | health | quota | send | sync | send-operator)")
+	}
+	if a.pos[0] == "send-operator" {
+		// Pipeline-level, not client-level: mails the OPERATOR through any
+		// healthy sendbox across all clients (accountability escalation).
+		return runGmailSendOperator(a)
 	}
 	cd := a.get("--client-dir")
 	if cd == "" {

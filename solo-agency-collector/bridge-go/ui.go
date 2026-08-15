@@ -1422,7 +1422,10 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 			if err := intField("slot_horizon_days", &s.SlotHorizonDays, 7, 366); err != nil {
 				return err
 			}
-			return intField("default_task_duration_min", &s.DefaultTaskDurationMin, 5, 480)
+			if err := intField("default_task_duration_min", &s.DefaultTaskDurationMin, 5, 480); err != nil {
+				return err
+			}
+			return intField("accountability_max_gap_hours", &s.AccountabilityMaxGapHours, 1, 720)
 		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -2082,6 +2085,10 @@ es.onopen=function(){var l=document.getElementById('livedot');if(l)l.classList.a
 <label>Default task duration (minutes)
 <input type="number" id="s-duration" value="{{.Settings.DefaultTaskDurationMin}}" min="5" max="480"></label>
 </div>
+<h2>Client accountability</h2>
+<label>Posting-gap alert threshold (hours)
+<input type="number" id="s-gap" value="{{.Settings.AccountabilityMaxGapHours}}" min="1" max="720">
+<small class="mut">A client who has not posted a video for longer than this gets a reminder (their own channel, separate from reports). Default 72h — a weekend gap is normal. After 3 unheeded reminders the operator gets an email at the address above.</small></label>
 <button class="ok" id="s-save">Save settings</button>
 <span class="mut" id="s-msg" style="font-size:.83rem;margin-left:8px"></span>
 </div>
@@ -2096,7 +2103,8 @@ document.getElementById('s-save').onclick=function(){
    max_concurrent_tasks:+document.getElementById('s-max').value,
    slot_step_minutes:+document.getElementById('s-step').value,
    slot_horizon_days:+document.getElementById('s-horizon').value,
-   default_task_duration_min:+document.getElementById('s-duration').value})})
+   default_task_duration_min:+document.getElementById('s-duration').value,
+   accountability_max_gap_hours:+document.getElementById('s-gap').value})})
  .then(function(r){return r.ok?r.json():r.text().then(function(t){throw new Error(t)})})
  .then(function(){m.textContent='saved ✓'})
  .catch(function(e){m.textContent='error: '+e.message});

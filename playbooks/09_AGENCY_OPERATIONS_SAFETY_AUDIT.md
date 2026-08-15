@@ -1626,6 +1626,8 @@ Before using collected data, verify:
 - [ ] Did I remove obvious duplicates against earlier completed runs' data (Run Window anchor, not calendar-yesterday; `point_uid` key equality first, then visible-text matching)?
 - [ ] Did I run the Shared-Scan Gate (`source-registry due`) before creating collector jobs, reuse fresh shared scans via their data pointers, and `record` the scan outcomes after the run?
 - [ ] Is every stored source URL the normalized `clean_url` form (`tool source-registry normalize`) — no trailing slash, no tracking params, no `m.facebook.com`, a group always exactly `https://www.facebook.com/groups/<name>`?
+- [ ] Did the posting-accountability check run with Stage 5's already-fetched publish dates, respect the ladder (max 1 reminder per run, 3 per episode, dedup via `accountability_log.md`), keep the reminder a SEPARATE client notification, and escalate to the operator (`gmail send-operator`) exactly once per episode after the 3rd?
+- [ ] Was the fleet snapshot `fleet/{client_slug}.json` rewritten at the end of the run with real values (null for unavailable — never invented)?
 - [ ] Does every `foundation_bank` entry trace to THIS client's own pain_points × segments — with no entry matching a playbook example title (verbatim or translated)? An example-derived title is a generator defect: regenerate it from the profile.
 - [ ] Did I avoid parsing private-platform HTML as the main source of truth?
 - [ ] Did I keep reference URLs for every important data point?

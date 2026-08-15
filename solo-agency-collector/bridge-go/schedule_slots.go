@@ -47,16 +47,20 @@ type systemSettings struct {
 	SlotStepMinutes        int    `json:"slot_step_minutes"`
 	SlotHorizonDays        int    `json:"slot_horizon_days"`
 	DefaultTaskDurationMin int    `json:"default_task_duration_min"`
-	UpdatedAt              string `json:"updated_at,omitempty"`
+	// AccountabilityMaxGapHours: a client silent longer than this gets a
+	// posting reminder (default 72h — a weekend gap is normal, Sat→Mon).
+	AccountabilityMaxGapHours int    `json:"accountability_max_gap_hours"`
+	UpdatedAt                 string `json:"updated_at,omitempty"`
 }
 
 func defaultSystemSettings() systemSettings {
 	return systemSettings{
-		SchemaVersion:          1,
-		MaxConcurrentTasks:     10,
-		SlotStepMinutes:        15,
-		SlotHorizonDays:        35,
-		DefaultTaskDurationMin: 30,
+		SchemaVersion:             1,
+		MaxConcurrentTasks:        10,
+		SlotStepMinutes:           15,
+		SlotHorizonDays:           35,
+		DefaultTaskDurationMin:    30,
+		AccountabilityMaxGapHours: 72,
 	}
 }
 
@@ -82,6 +86,9 @@ func loadSystemSettings(pipeline string) systemSettings {
 	}
 	if s.DefaultTaskDurationMin <= 0 {
 		s.DefaultTaskDurationMin = 30
+	}
+	if s.AccountabilityMaxGapHours <= 0 {
+		s.AccountabilityMaxGapHours = 72
 	}
 	return s
 }
@@ -436,7 +443,8 @@ func runScheduleSlotsCLI(args []string) int {
 
 func runSystemSettingsCLI(args []string) int {
 	valueFlags := map[string]bool{"--pipeline": true, "--email": true, "--max-concurrent": true,
-		"--step-minutes": true, "--horizon-days": true, "--default-duration-min": true}
+		"--step-minutes": true, "--horizon-days": true, "--default-duration-min": true,
+		"--accountability-gap-hours": true}
 	a, err := parseCLIArgs(args, valueFlags, map[string]bool{})
 	if err != nil {
 		return crmUsageErr(err.Error())
@@ -478,6 +486,9 @@ func runSystemSettingsCLI(args []string) int {
 			}
 			if v := a.getInt("--default-duration-min", 0); v > 0 {
 				s.DefaultTaskDurationMin = v
+			}
+			if v := a.getInt("--accountability-gap-hours", 0); v > 0 {
+				s.AccountabilityMaxGapHours = v
 			}
 			return nil
 		})
