@@ -11,6 +11,7 @@ Load once content has been published, during published-content checks on every s
 - At every run, measure (a) every URL published inside the run_window — since the previous completed run (Stage 4's Run Window anchor), regardless of the URL's age — and (b) every URL still 7 days old or less. (a) guarantees every published URL is measured at least once even on a weekly/monthly cadence; (b) gives fine-grained history when the cadence allows it.
 - Measurement resolution equals run cadence: inside its 7-day window a URL collects roughly 7 ÷ cadence-days readings (7 on daily, 3–4 on 48h, 1 on weekly). Record one reading per run; never anchor a measurement list on calendar-yesterday.
 - Use connected provider analytics first when available.
+- The publish dates this stage retrieves also feed the posting-accountability check (`playbooks/ACCOUNTABILITY_POSTING.md`) — reuse them; never re-query the provider for `last_posted_at`.
 - Reuse the Local Collector for visible published URL measurement when useful and authorized.
 - Do not invent metrics; mark unavailable metrics clearly.
 - Feed learnings back into source priority, content pillars, hooks, CTAs, lead-gen angles, future ideas, and the public search keyword bank.

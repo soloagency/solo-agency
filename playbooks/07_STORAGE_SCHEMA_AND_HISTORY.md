@@ -225,6 +225,12 @@ Scheduling files (maintained through `tool schedule-slots` and the operator web 
 
 - `system_settings.json` (data-root level) — the operator's GLOBAL system config, editable in the web UI at `/ui/settings` without any agent chat: `operator_email` (where agents send operator notifications when an operator push channel is used — client notifications stay on each client's own channel), `max_concurrent_tasks` (default 10), `slot_step_minutes` (15), `slot_horizon_days` (35), `default_task_duration_min` (30). Agents READ these settings (`tool system-settings get`); they never overwrite the operator's values.
 - `automation/task_slots.json` — machine-readable registry of every automation task's run time: `task_name`, `client_slug`, `cadence_hours` or `monthly`, `run_time` "HH:MM" local, `anchor_date`, `duration_min`, `status` (active|paused). `tool schedule-slots suggest` projects all of it onto a timeline to pick collision-free start times; `schedule.md` and the automation manifest remain the human-readable views.
+- `system_settings.json` also carries `accountability_max_gap_hours` (default 72) — the posting-gap reminder threshold (`playbooks/ACCOUNTABILITY_POSTING.md`), editable at `/ui/settings`.
+- `automation/operator_mail_log.jsonl` — audit line per operator escalation email sent by `tool gmail send-operator` (ts, to, from, sendbox, subject).
+
+Operator dashboard feed (written by runs, only ever READ by the dashboard):
+
+- `fleet/{client_slug}.json` — one snapshot per client, rewritten at the END of every run (04 step 33c). Schema (unavailable values null/absent, never invented): `schema_version`, `client_slug`, `client_name`, `updated_at`, `run_id`, `posting` {`last_posted_at`, `gap_hours`, `source` (provider|ledger|collector), `status` (ok|warning|breach)}, `accountability` {`reminders_sent_this_episode`, `last_reminder_at`, `operator_escalated_at`}, `totals` {`posts_7d`, `posts_30d`}, `engagement` {`views_7d`, `likes_7d`, `comments_7d`, `shares_7d`, `followers`, `top_post` {`url`, `title`, `views`}}, `production` {`ideas_queued`, `drafts_pending_approval`, `videos_produced_7d`}, `leads` {`hot`, `warm`, `watch`}, `report` {`last_report_at`, `html_path`, `pdf_status`}, `blockers` [operator-facing strings]. Per-client `analytics/accountability_log.md` holds the reminder-episode state the snapshot summarizes.
     test_logs/
       YYYY-MM/
     outputs/

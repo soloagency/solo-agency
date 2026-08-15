@@ -942,6 +942,11 @@ A client notification is valid only when it carries at least one client-openable
 link-less or local-path notification to the client — record the delivery blocker (with the
 local HTML/PDF/INTERNAL_REPORT paths) in the run output and `INTERNAL_REPORT` instead.
 
+One additional client-notification class exists beside report delivery: the posting-
+accountability reminder (`playbooks/ACCOUNTABILITY_POSTING.md`) — always its OWN message,
+same contract (client language, client-blind, service tone, the Saved Ideas link satisfies
+the hosted-link requirement), ladder-deduplicated via the accountability log.
+
 If the daily result is short enough, send the useful summary directly through WideCast OpenAPI Telegram/email fallback.
 
 If the result is too long, send a concise notification instead:
