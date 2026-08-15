@@ -368,6 +368,7 @@ When lead/competitor data comes from a SHARED source scan (records carry `source
 - Surface the opportunity to every subscriber client normally (each report shows what its client's audience is doing).
 - In each client's `INTERNAL_REPORT`, flag any lead whose source is shared: `also surfaced for N other client(s) via shared source {uid}` — the operator decides which client (if any) acts on it.
 - Never let two clients' outreach both add the same shared-source person without that flag having appeared; the operator's assignment decision is the gate.
+- The flag IS the protection — it is the whole design. Making a shared third-party source `exclusive` to "prevent" collisions is FORBIDDEN: it silently abandons the shared-scan model (duplicate scans, duplicate account footprint) to solve a problem this flag already solves, and it is a scope decision only the operator may make (02's scope rule). An agent that reasons its way to exclusivity from this section has misread it.
 
 ## Completion Checklist
 
