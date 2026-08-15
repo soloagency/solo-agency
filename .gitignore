@@ -42,6 +42,9 @@ AUDIT_FINDINGS_*.md
 PROPOSED_ADDITIONS_*.md
 TODO.md
 handoff.md
+# Agency-internal roadmap: distribution channels (messenger/comment). Stays on the
+# operator's machine for future brains to absorb; must never reach the public repo.
+outreach/docs/DISTRIBUTION_CHANNELS_PLAN.md
 
 # Build artifacts — rebuilt by deploy-soloagency.sh every run; NOT committed.
 # The collector-bridge binaries zip is ~11 MB and changes each build, so committing
