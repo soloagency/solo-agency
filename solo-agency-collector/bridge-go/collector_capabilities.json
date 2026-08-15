@@ -1,7 +1,7 @@
 {
   "object": "collector_capabilities",
   "version": "0.1.0",
-  "updated_at": "2026-07-29",
+  "updated_at": "2026-08-15",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
@@ -84,22 +84,36 @@
     },
     "ReactionResult": {
       "capability": "string (fb.post.react)",
-      "status": "string — done | already | dry_run | not_found | error",
+      "status": "string — done | already | dry_run | not_found | redirected | no_match | ambiguous_match | listing_unavailable | unresolved_match | error",
       "reaction": "string — like | love | care | haha | wow | sad | angry",
       "verified": "boolean — reaction confirmed present after the click",
       "target_preview": "{author, snippet, url} — so the report can confirm the right post",
       "error": "string | null",
-      "ts": "ISO8601"
+      "ts": "ISO8601",
+      "_match_fields": "when the job named its target by match_text, the MatchOutcome fields are merged into this record"
     },
     "CommentResult": {
       "capability": "string (fb.post.comment)",
-      "status": "string — done | dry_run | not_found | error",
+      "status": "string — done | dry_run | not_found | redirected | no_match | ambiguous_match | listing_unavailable | unresolved_match | error",
       "text": "string — the comment that was posted",
       "verified": "boolean — composer cleared after submit (post confirmed)",
       "appeared": "boolean — the text was found in the on-page comment list",
       "target_preview": "{actor, snippet, url}",
       "error": "string | null",
-      "ts": "ISO8601"
+      "ts": "ISO8601",
+      "_match_fields": "when the job named its target by match_text, the MatchOutcome fields are merged into this record"
+    },
+    "MatchOutcome": {
+      "_note": "Merged into a Comment/Reaction result when the job named its target by CONTENT (match_text) instead of by permalink. The match is made in code, never by the agent: exactly ONE hit is required — 0 or >1 writes NOTHING and returns no_match / ambiguous_match.",
+      "matched_post": "{url, text, post_id, created_time, from} — the post that was acted on. `from` is graphql | dom (see sources_read).",
+      "candidates_considered": "number — distinct posts read from the listing (duplicates across captures/replayed pages are collapsed first)",
+      "candidates": "[{url, text, created_time, from}] — on no_match the posts that WERE read; on ambiguous_match the colliding hits. This is the audit trail for a refusal: it shows the resolver actually read the feed.",
+      "sources_read": "{graphql, dom} — how many posts each source supplied. TWO sources are merged on purpose: Facebook server-renders the TOP of a feed into the first document and only FETCHES older pages, so the GraphQL intercept is systematically blind to the NEWEST posts — the ones most worth acting on. Measured on a live group, graphql=2 (older posts) while the newest post was on screen the whole time and only the DOM source saw it. The DOM half comes from filtering.js, which pairs each permalink with its BODY and stops at the first comment boundary; a hand-rolled scan was tried first and attached a commenter's words to the post instead.",
+      "match_text": "string — the needle that was searched for",
+      "match_mode": "string — contains | exact | regex",
+      "list_capability": "string — the listing extractor used (fb.group.posts | fb.profile.posts | …)",
+      "resolved_from": "string — the listing url the job pointed at",
+      "listing_url": "string — where the search actually ran"
     },
     "ContactRecord": {
       "profile_url": "string",
@@ -114,6 +128,12 @@
       "recipient": "string — the name on the open thread, proven to match recipient_name",
       "text": "string",
       "verified": "boolean — composer emptied AND the message appeared",
+      "requested_id": "string — the profile id / vanity the job asked for (the identity anchor)",
+      "open_id": "string — the id actually in the address when the action started",
+      "id_verified": "boolean — requested_id was still the open thread BEFORE the E2EE gate was touched. This is the primary identity proof. false is NOT an accusation: once a thread is encrypted Messenger rewrites /t/<profile_id> to /t/<thread_id>, and from the url a legitimate rewrite and a wrong thread look identical — so false only means the anchor was unavailable and the NAME had to decide instead.",
+      "name_matched": "boolean | null — whether the open thread's name equals recipient_name; null when no recipient_name was given. Informational when id_verified is true (people rename themselves); decisive when it is false.",
+      "title_check": "string — match | mismatch | unavailable | unchecked. The page title independently names the thread on messenger.com (\"<Name> | Messenger\"). \"unavailable\" = the title carried no name (facebook.com/messages); \"unchecked\" = no recipient_name was supplied. Neither is a failure.",
+      "recipient_title": "string — the name read from the page title, when there was one",
       "passed_e2ee_gate": "boolean — a pre-encryption thread needed its Continue button clicked first",
       "thread_url": "string — the e2ee thread url after the gate",
       "error": "string | null",
@@ -475,10 +495,12 @@
     {
       "id": "fb.post.react",
       "title": "React to a Facebook post/video/reel (like, love, …)",
-      "when_to_use": "WRITE ACTION. Add a reaction (default love/like) to a single post, video, or reel. Submit the post PERMALINK as the url. Approval is handled upstream by the daily report — only create this job for content the operator has approved. Idempotent: if the post is already reacted, it is left unchanged.",
+      "when_to_use": "WRITE ACTION. Add a reaction (default love/like) to a single post, video, or reel. Submit the post PERMALINK as the url — or, when you only know what the post SAYS, point the url at the group/timeline and pass match_text (see fb.post.comment; the resolution is identical). Approval is handled upstream by the daily report — only create this job for content the operator has approved. Idempotent: if the post is already reacted, it is left unchanged.",
       "inputs": {
-        "post_url": "string (required) — permalink: /watch/?v=, /<user>/posts/<id>, /permalink.php?..., /reel/<id>, story_fbid",
+        "post_url": "string (required) — permalink: /watch/?v=, /<user>/posts/<id>, /permalink.php?..., /reel/<id>, story_fbid; OR a group/timeline url when using match_text",
         "reaction": "string (optional, default like) — like | love | care | haha | wow | sad | angry",
+        "match_text": "string (optional) — identify the post by its CONTENT instead of a permalink. Same semantics as fb.post.comment.",
+        "match_mode": "string (optional, default contains) — contains | exact | regex",
         "dry_run": "bool (optional) — locate + preview the target WITHOUT clicking (debug only; not the approval gate)"
       },
       "output_schema": "ReactionResult",
@@ -500,11 +522,15 @@
     {
       "id": "fb.post.comment",
       "title": "Comment on a Facebook post / video / reel",
-      "when_to_use": "WRITE ACTION. Post a comment on a single post, group post, or reel. Submit the post PERMALINK (a group post permalink works the same as a profile one). Approval is handled upstream by the daily report — only create this job for content the operator approved.",
+      "when_to_use": "WRITE ACTION. Post a comment on a single post, group post, or reel. Submit the post PERMALINK (a group post permalink works the same as a profile one). When you only know what the post SAYS and not its url, point the url at the GROUP or TIMELINE and pass match_text — the collector finds the post in code. Do NOT list the feed yourself and pick a url by eye: that is the judgement call this input exists to remove. Approval is handled upstream by the daily report — only create this job for content the operator approved.",
       "inputs": {
-        "post_url": "string (required) — permalink: /watch/?v=, /<user>/posts/<id>, /permalink.php?..., /reel/<id>; OR a profile URL when using match_caption",
+        "post_url": "string (required) — permalink: /watch/?v=, /<user>/posts/<id>, /permalink.php?..., /reel/<id>; OR a group/timeline URL when using match_text (or the older match_caption)",
         "text": "string (required) — the comment body",
-        "match_caption": "string (optional) — when post_url is a profile/timeline, scroll to the post whose caption contains this text and comment on THAT post",
+        "match_text": "string (optional) — identify the target post by its CONTENT. The collector reads the listing with fb.group.posts / fb.profile.posts, filters IN CODE, and requires exactly one hit: 0 matches returns no_match and >1 returns ambiguous_match, and in both cases NOTHING is written. On a hit it navigates to that permalink and comments there, echoing matched_post + candidates_considered.",
+        "match_mode": "string (optional, default contains) — contains | exact | regex. All are case-insensitive and whitespace-normalised; regex also accepts match_flags.",
+        "match_source": "string (optional) — force the listing extractor (fb.group.posts | fb.profile.posts | fb.group.search_posts | fb.newsfeed) instead of inferring it from the url",
+        "match_max_pages": "number (optional, default 3) — how many cursor pages of the listing to search before giving up",
+        "match_caption": "string (optional, LEGACY) — in-page variant that scopes the action to a matching [role=article] on the CURRENT page. Prefer match_text: it resolves to a permalink first, so it cannot comment into a neighbouring post's composer.",
         "dry_run": "bool (optional) — locate composer + preview WITHOUT posting (debug only; not the approval gate)"
       },
       "output_schema": "CommentResult",
@@ -513,12 +539,13 @@
       "status": "beta",
       "write": true,
       "_impl": {
-        "screen": "post_permalink | reel | timeline(match_caption)",
+        "screen": "post_permalink | reel | group_or_timeline(match_text) | timeline(match_caption)",
         "method": "DOM automation (gql_actions.js): find the composer by its aria-label prefix \"Comment as …\" (the same on post, group post and reel — a looser match also hit the search box); on a reel first click the [role=button] labelled exactly \"Comment\" and WAIT for the composer to render; type with execCommand insertText (Lexical accepts it); submit with Enter keydown/keypress/keyup; verify BOTH that the composer emptied AND that the text appears on the page.",
+        "match_text_flow": "Two phases in one job. Phase 1 (__soloActResolve, a separate entry point that is structurally unable to write): the listing page is scrolled so Facebook fires its feed query, gql_extract's fb.group.posts / fb.profile.posts reads it, duplicates are collapsed by canonical permalink, and match_mode filters what remains. Phase 2 runs only on exactly one hit: background.js navigates the SAME tab to that permalink, re-injects, and comments there. It must NOT comment inline on the listing — a feed holds one \"Comment as …\" composer PER POST, so the first-match selector would land on the wrong one. The resolved permalink is re-checked against a host allowlist (facebook.com only, which excludes the l.facebook.com link shim) before the tab is navigated, and again in-page after the load, because the url comes from page-supplied data.",
         "note": "One comment per job. Pacing/caps/approval live in the flow layer + daily report.",
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)",
-        "validated_on": "2026-07-29 live on all three surfaces: profile post permalink, group post permalink (correct post targeted), and reel (needed the panel-open click)"
+        "validated_on": "2026-08-15 match_text live on group 668676178569386: resolved \"Post 5 post 5 post 5\" to /posts/676092881161049/ and commented there (done/verified); match_text \"Post\" returned ambiguous_match over 3 candidates and wrote nothing. Earlier, 2026-07-29 on all three permalink surfaces: profile post, group post, and reel (needed the panel-open click)"
       },
       "scroll": "none"
     },
@@ -549,10 +576,11 @@
     {
       "id": "fb.message.send",
       "title": "Send a Messenger DM to one person",
-      "when_to_use": "WRITE ACTION. Send a direct message. The job url MUST be the THREAD (https://www.facebook.com/messages/t/<profile_id>) — NEVER the profile page. `recipient_name` is required and is checked against the open thread before a single character is typed. Approval is handled upstream by the daily report.",
+      "when_to_use": "WRITE ACTION. Send a direct message. The job url MUST be the THREAD — prefer https://www.messenger.com/e2ee/t/<vanity_or_profile_id>, which accepts a VANITY so no numeric-id lookup is needed first. NEVER the profile page. Identity is anchored to the PROFILE ID in that url, not to the display name, so a recipient who has renamed themselves still receives the message. Approval is handled upstream by the daily report.",
       "inputs": {
-        "thread_url": "string (required) — https://www.facebook.com/messages/t/<profile_id>",
-        "recipient_name": "string (REQUIRED) — the person you intend to message; the run aborts if the open thread names anyone else",
+        "thread_url": "string (required) — PREFERRED https://www.messenger.com/e2ee/t/<vanity_or_profile_id>; also accepted: messenger.com/t/<id>, facebook.com/messages/t/<profile_id>. A profile url is rejected outright (not_a_thread_url), and so is any url that is not a real thread — a photo id, for example, opens a page with no composer at all.",
+        "recipient_name": "string (OPTIONAL, was required before 0.1.71) — a display name is a label, not an identity: the same profile can be \"Bob Nguyen\" today and \"Alex Nguyen\" next week, and gating on it would refuse a correct send. Pass it when you have it: it is recorded as name_matched, and it becomes the DECIDING guard whenever the thread id could not be verified. A mismatch alone no longer aborts a send whose id checked out.",
+        "recipient_id": "string (optional) — override the id to verify against; defaults to the id in thread_url",
         "text": "string (required) — the message body",
         "dry_run": "bool (optional) — resolve + verify the recipient WITHOUT sending"
       },
@@ -562,10 +590,12 @@
       "status": "beta",
       "write": true,
       "_impl": {
-        "screen": "messenger thread",
-        "method": "DOM automation (gql_actions.js): click the E2EE \"Continue\" gate when present, then require EXACTLY ONE composer matching /^write to (.+)$/ and require that name to equal recipient_name; type via execCommand insertText (Lexical) and submit with Enter; verify the composer emptied AND the text appeared.",
-        "why_not_the_profile_route": "Clicking Message on a profile leaves several \"Write to <someone>\" composers in the DOM at once (the target plus every docked chat head), and the profile page does not expose its owner name (h1 is \"Notifications\") — there is no reliable way to tell them apart, so a profile url is rejected.",
-        "validated_on": "2026-07-29 live send to a test thread: composers_found=1, label matched recipient_name, composer cleared and the message appeared",
+        "screen": "messenger thread (messenger.com/e2ee/t/<vanity_or_id> preferred; facebook.com/messages/t/<id> still accepted)",
+        "method": "DOM automation (gql_actions.js), guards in order, and NOTHING is typed until they pass: (0) the url must be a thread url; (1) read the id out of the address BEFORE touching the E2EE gate — that is the only moment it still exists, because passing the gate rewrites the address to /e2ee/t/<thread_id>; (2) click the \"Continue\" gate when present, then require EXACTLY ONE composer matching /^write to (.+)$/; (3) if the id could not be verified, the name must match (and with neither id nor name there is nothing left to prove identity, so it refuses). Then type via execCommand insertText (Lexical) and submit with Enter; verify the composer emptied AND the text appeared.",
+        "why_id_not_name": "A display name is a label the recipient can change at will — the same profile is \"Bob Nguyen\" today and \"Alex Nguyen\" next week — so a name guard eventually refuses correct sends and trains the operator to switch it off. The profile id in the url is stable, and checking it before the gate also catches the real failure: when Messenger cannot resolve an id it quietly falls back to the inbox or another thread, and the requested id vanishes from the address.",
+        "why_messenger_com": "messenger.com/e2ee/t/ accepts a VANITY (no numeric-id lookup first), is a dedicated surface with no docked chat heads to make the composer count ambiguous, and titles the tab \"<Name> | Messenger\" — a third, independent read on the recipient alongside the id and the composer's aria-label. Verified live on the vanity thaian.nguyen.731572 and the profile id 100026030446486.",
+        "why_not_the_profile_route": "Clicking Message on a profile leaves several \"Write to <someone>\" composers in the DOM at once (the target plus every docked chat head), and the profile page does not expose its owner name (h1 is \"Notifications\") — there is no reliable way to tell them apart, so a profile url is rejected outright as not_a_thread_url.",
+        "validated_on": "2026-08-15 live on messenger.com: vanity thaian.nguyen.731572 sent (done/verified, id_verified, title agreed); profile id 100026030446486 accepted with NO recipient_name (id_verified=true); a photo id refused with composers_found=0; a wrong name on an unverifiable id refused with nothing typed",
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)"
       }

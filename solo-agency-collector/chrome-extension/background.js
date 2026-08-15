@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.64-shared-scan";
+const EXTENSION_BUILD = "0.1.71-id-anchored-dm";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -489,6 +489,22 @@ function isSelfOrAmbiguousFbUrl(rawUrl) {
   return false;
 }
 
+// A match_text write resolves its target from the PAGE's own feed payload, then this
+// layer navigates the tab there. That makes the url attacker-influencable content, so the
+// host is checked against an allowlist rather than a /facebook\.com$/ pattern — which
+// would also admit l.facebook.com, the link shim that forwards anywhere off-platform.
+// gql_actions.js applies the same allowlist in-page; this is the second, independent gate.
+const FB_PERMALINK_HOSTS = new Set(["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com"]);
+function safeFacebookPermalink(rawUrl) {
+  const s = String(rawUrl || "").trim();
+  if (!/^https?:\/\//i.test(s)) return "";
+  try {
+    const u = new URL(s);
+    if (!FB_PERMALINK_HOSTS.has(u.hostname.toLowerCase())) return "";
+    return u.href;
+  } catch (e) { return ""; }
+}
+
 async function collectSource(source, job, settings, binding, sourceIndex) {
   if (!source.url || !/^https?:\/\//i.test(source.url)) {
     throw new Error("source url must start with http:// or https://");
@@ -526,6 +542,15 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // a permalink it just wastes time. Force 0 scroll steps for write actions.
     const WRITE_ACTIONS = new Set(["fb.post.react", "fb.post.comment", "fb.message.send"]);
     const wantAction = !!source.capability && WRITE_ACTIONS.has(String(source.capability));
+    // Content-addressed targeting: the job names the post by TEXT and points `url` at a
+    // listing (group feed / profile timeline) instead of a permalink. The match is made in
+    // code by gql_actions.js, then THIS layer navigates to the winner — the resolver must
+    // never act where it searched, because a feed carries one composer per post.
+    const MATCH_RESOLVABLE = new Set(["fb.post.react", "fb.post.comment"]);
+    const sourceInputs = source.inputs && typeof source.inputs === "object" ? source.inputs : {};
+    const wantMatchResolve = wantAction
+      && MATCH_RESOLVABLE.has(String(source.capability))
+      && !!String(sourceInputs.match_text || "").trim();
     // A single-reel URL opens the IMMERSIVE PLAYER, where a scroll is a NAVIGATION:
     // it advances to the next recommended reel and rewrites the address bar. Reading
     // such a page after scrolling captures a DIFFERENT creator's reel — measured 5/5
@@ -538,7 +563,12 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // kinds explicitly: info tasks never scroll for content.
     const INFO_ONLY_CAPABILITIES = new Set(["fb.profile.contacts", "fb.profile.header", "fb.profile.about"]);
     const infoOnly = !!source.capability && INFO_ONLY_CAPABILITIES.has(String(source.capability));
-    const noScrollTarget = wantAction || infoOnly || isImmersivePlayerUrl(source.url);
+    // A match_text write STARTS on a listing page, and that listing is exactly what has to
+    // scroll: Facebook only fires the feed GraphQL query the resolver reads once the feed
+    // moves. The reason writes never scroll is the reel player, where a scroll is a
+    // NAVIGATION to the next recommended reel — that hazard belongs to the target page, and
+    // the resolver never writes on the page it scrolled. Immersive players stay excluded.
+    const noScrollTarget = (wantAction && !wantMatchResolve) || infoOnly || isImmersivePlayerUrl(source.url);
     const discoveryMode = isDiscoveryCollection(job, source);
     const maxScrollSteps = noScrollTarget ? 0 : maxScrollStepsForCollection(job, source);
     // NOTE: `||` would swallow an explicit 0 (a job asking for "no scrolling" silently
@@ -586,24 +616,137 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
           // Surface action failures instead of letting them fall through as a
           // silent null (which reads as "nothing happened" in the report).
           try {
-            await withTimeout(chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              world: "MAIN",
-              files: ["gql_actions.js"]
-            }), 8000, "inject_gql_actions_timeout");
             // Pass the REQUESTED url so the action can verify the page didn't get
             // redirected to different content before it writes (FB reels/permalinks
             // can drift to a recommended item; a write must never hit the wrong one).
-            const actionInputs = Object.assign({}, (source.inputs && typeof source.inputs === "object" ? source.inputs : {}), { _target_url: String(source.url || "") });
-            const [ares] = await withTimeout(chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              world: "MAIN",
-              func: async (capId, capInputs) => (typeof window.__soloActRun === "function" ? await window.__soloActRun(capId, capInputs) : { __nolib: true }),
-              args: [String(source.capability), actionInputs]
-            }), 60000, "gql_action_timeout");
-            const ar = ares && ares.result;
-            if (ar && ar.__nolib) gqlRecords = { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: "action lib not present (frame navigated before inject?)" }], _debug: { href: source.url } };
-            else gqlRecords = ar || { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: "action returned no result" }], _debug: { href: source.url } };
+            let actionInputs = Object.assign({}, sourceInputs, { _target_url: String(source.url || "") });
+            let resolvedMatch = null;
+            let refusal = null;
+
+            if (wantMatchResolve) {
+              // PHASE 1 — turn "the post that says X" into a permalink, in code. The listing
+              // extractor lives in the READ lib, so both libs go into the page here.
+              // __soloActResolve is a separate entry point from __soloActRun exactly so this
+              // call is structurally incapable of writing on the listing page.
+              // The GraphQL intercept only sees what Facebook FETCHES. The top of a feed is
+              // server-rendered into the first document, so the newest posts — the ones worth
+              // acting on — never appear in a capture: measured on the test group, the
+              // listing returned two older posts while the newest was on screen the whole
+              // time. filtering.js (already injected, ISOLATED world) reads the rendered feed
+              // and pairs each permalink with its BODY, stopping at the first comment
+              // boundary. Reuse it rather than re-scraping in the MAIN world, where a
+              // hand-rolled scan mistook a comment's article for its post. The two worlds
+              // share only the DOM, so the array has to be relayed through here.
+              // Poll rather than read once: a group feed can still be rendering its intro
+              // card when the capture ends. Measured back to back on the same group — one
+              // run read three posts, the very next read the "Featured" card and nothing
+              // else, and refused. Resolution is a WRITE PRECONDITION, so a slow render must
+              // cost time, not correctness. Nudging the page between tries is what makes the
+              // feed mount; never do that on an immersive player, where a scroll NAVIGATES.
+              const canNudge = !isImmersivePlayerUrl(source.url);
+              let domPosts = [];
+              for (let attempt = 0; attempt < 6 && domPosts.length === 0; attempt++) {
+                if (attempt) await delay(2000);
+                try {
+                  const [dres] = await withTimeout(chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: (nudge) => {
+                      try {
+                        if (nudge) window.scrollBy(0, Math.round((window.innerHeight || 800) * 0.8));
+                        const filter = globalThis.SocialHtmlFilter;
+                        if (!filter || typeof filter.filterCurrentPage !== "function") return [];
+                        const res = filter.filterCurrentPage({ currentUrl: location.href, outputBaseUrl: location.href });
+                        return (res && Array.isArray(res.posts) ? res.posts : [])
+                          .map((p) => ({ url: String((p && p.postUrl) || ""), text: String((p && p.content) || "") }))
+                          .filter((p) => p.url && p.text);
+                      } catch (e) { return []; }
+                    },
+                    args: [attempt > 0 && canNudge]
+                  }), 20000, "dom_posts_timeout");
+                  domPosts = (dres && Array.isArray(dres.result)) ? dres.result : [];
+                } catch (domErr) {
+                  domPosts = []; // best-effort second source; keep trying, the GraphQL listing still stands
+                }
+              }
+              // Only the RESOLVE call carries the feed; the write itself has no use for it and
+              // serialising the whole listing into that call again would be pure overhead.
+              const resolveInputs = Object.assign({}, actionInputs, { _dom_posts: domPosts });
+
+              await withTimeout(chrome.scripting.executeScript({
+                target: { tabId: tab.id }, world: "MAIN", files: ["gql_extract.js"]
+              }), 8000, "inject_gql_extract_timeout");
+              await withTimeout(chrome.scripting.executeScript({
+                target: { tabId: tab.id }, world: "MAIN", files: ["gql_actions.js"]
+              }), 8000, "inject_gql_actions_timeout");
+              const [rres] = await withTimeout(chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                world: "MAIN",
+                func: async (capId, capInputs) => (typeof window.__soloActResolve === "function" ? await window.__soloActResolve(capId, capInputs) : { __nolib: true }),
+                args: [String(source.capability), resolveInputs]
+              }), 60000, "gql_action_resolve_timeout");
+              const rr = rres && rres.result;
+              const rItem = rr && Array.isArray(rr.items) ? rr.items[0] : null;
+              const targetUrl = rItem && rItem.matched_post ? safeFacebookPermalink(rItem.matched_post.url) : "";
+
+              if (!rr || rr.__nolib) {
+                refusal = { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: "resolve lib not present (frame navigated before inject?)" }], _debug: { href: source.url } };
+              } else if (rr.status !== "resolved") {
+                // no_match / ambiguous_match / listing_unavailable: a deliberate refusal, and
+                // WHY nothing was written is the entire value of the record. Return verbatim.
+                refusal = rr;
+              } else if (!targetUrl) {
+                if (rItem) {
+                  rItem.status = "error";
+                  rItem.error = "matched permalink rejected by the host allowlist: " + String((rItem.matched_post && rItem.matched_post.url) || "empty");
+                }
+                rr.status = "error";
+                refusal = rr;
+              } else {
+                // PHASE 2 — navigate to the winner, then re-inject: a fresh document has no
+                // lib. Subscribe to the load BEFORE asking for it; "complete" can fire before
+                // a listener attached afterwards would ever see it.
+                const navigated = waitForTabLoad(tab.id, 25000);
+                await chrome.tabs.update(tab.id, { url: targetUrl });
+                await navigated;
+                await delay(randomDelayMs(settings, job.pacing || {}));
+                resolvedMatch = rItem;
+                // _resolved_url is the proof the write is running on the resolved permalink
+                // and not on the listing; gql_actions.js refuses a match_text write without it.
+                actionInputs = Object.assign({}, actionInputs, { _target_url: targetUrl, _resolved_url: targetUrl });
+              }
+            }
+
+            if (refusal) {
+              gqlRecords = refusal;
+            } else {
+              await withTimeout(chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                world: "MAIN",
+                files: ["gql_actions.js"]
+              }), 8000, "inject_gql_actions_timeout");
+              const [ares] = await withTimeout(chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                world: "MAIN",
+                func: async (capId, capInputs) => (typeof window.__soloActRun === "function" ? await window.__soloActRun(capId, capInputs) : { __nolib: true }),
+                args: [String(source.capability), actionInputs]
+              }), 60000, "gql_action_timeout");
+              const ar = ares && ares.result;
+              if (ar && ar.__nolib) gqlRecords = { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: "action lib not present (frame navigated before inject?)" }], _debug: { href: source.url } };
+              else gqlRecords = ar || { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: "action returned no result" }], _debug: { href: source.url } };
+              // Carry the resolution into the write's own record: which post was picked, out
+              // of how many read, from which listing. That IS the audit trail for a write
+              // whose target was chosen by the machine rather than named by the caller.
+              if (resolvedMatch && gqlRecords && Array.isArray(gqlRecords.items) && gqlRecords.items[0]) {
+                const written = gqlRecords.items[0];
+                written.matched_post = resolvedMatch.matched_post;
+                written.candidates_considered = resolvedMatch.candidates_considered;
+                written.match_text = resolvedMatch.match_text;
+                written.match_mode = resolvedMatch.match_mode;
+                written.list_capability = resolvedMatch.list_capability;
+                written.sources_read = resolvedMatch.sources_read;
+                written.resolved_from = String(source.url || "");
+              }
+            }
           } catch (actErr) {
             gqlRecords = { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: String(actErr && actErr.message || actErr) }], _debug: { href: source.url } };
           }

@@ -1,8 +1,81 @@
 # Handoff — Facebook WRITE actions in the Local Collector
 
-Written 2026-08-01, at the end of the session that built react / comment / DM.
-Everything described as DONE is live on `origin/main` (last commit `b821d11`) and in the
-published `dist` branch. Two tasks are left; they are specified at the bottom.
+Written 2026-08-01 (react / comment / DM), updated 2026-08-15 (Task A + Task B landed,
+extension `0.1.71-id-anchored-dm`). Task C stays blocked — see §4.
+
+## What changed on 2026-08-15 (read this before §4)
+
+Both open tasks are DONE and verified live on `aven-ngo`.
+
+**Task A — target a post by CONTENT (`match_text`), option A.** `fb.post.comment` and
+`fb.post.react` now accept `match_text` + `match_mode` (`contains` | `exact` | `regex`)
+with `url` pointing at a GROUP or TIMELINE. Two phases in one job:
+
+1. `window.__soloActResolve` (gql_actions.js) — a separate entry point from `__soloActRun`
+   so it is structurally unable to write — reads the listing and filters IN CODE. Exactly
+   one hit is required: 0 → `no_match`, >1 → `ambiguous_match`, and both write NOTHING and
+   return `candidates` so the refusal is auditable.
+2. `background.js` then navigates the SAME tab to the resolved permalink, re-injects, and
+   writes there. It must never act on the listing — a feed carries one "Comment as …"
+   composer PER POST.
+
+Live: `"Post 5 post 5 post 5"` → `/posts/676092881161049/`, commented, `done`/`verified`.
+`"Post"` → `ambiguous_match` over 3 candidates, nothing written.
+
+**Three things measured that no amount of code-reading would have shown:**
+
+- **The GraphQL listing is blind to the NEWEST posts.** Facebook server-renders the top of
+  a feed into the first document and only FETCHES older pages, and `gql_intercept.js`
+  hooks fetch/XHR. On the test group `fb.group.posts` returned Post 2 and Post 3 while
+  "Post 5" — the target — was on screen the whole time. Several runs had
+  `graphql_capture_count: 0` and the DOM source did all the work. So the resolver merges
+  TWO sources and reports `sources_read: {graphql, dom}`. **Do not "simplify" it back to
+  GraphQL only.**
+- **Do not scrape the feed yourself.** A hand-rolled `[role="article"]` scan looked right
+  and was wrong: Facebook renders each COMMENT as its own article, and a comment's
+  permalink is the POST's url plus `?comment_id=…`, which survives the query strip. The
+  scan produced the RIGHT url carrying a commenter's words. `filtering.js`
+  (`SocialHtmlFilter.filterCurrentPage().posts`, ISOLATED world) already pairs each
+  permalink with its BODY and stops at the first comment boundary — reuse it. The two
+  worlds share only the DOM, so `background.js` relays the array in as `_dom_posts`.
+- **The feed is often not rendered when the capture ends.** Back-to-back runs on the same
+  group: one read three posts, the next read only the "Featured" card and refused. The
+  resolve step now polls up to 6× with a nudge-scroll between tries. A slow render must
+  cost time, not correctness.
+
+**Task B — DM via `messenger.com/e2ee/t/<vanity_or_profile_id>`, identity anchored to the
+ID.** The operator's correction drove this: *a display name is not an identity* — the same
+profile is "Bob Nguyen" today and "Alex Nguyen" next week, and a name gate would refuse a
+correct send. So:
+
+- `recipient_name` is **no longer required**. The anchor is the id in the url, read BEFORE
+  the E2EE gate is touched — that is the only moment it still exists, because passing the
+  gate rewrites the address to `/e2ee/t/<thread_id>`.
+- A name mismatch **no longer aborts** a send whose `id_verified` is true; it is recorded
+  as `name_matched: false`.
+- `id_verified: false` deliberately does NOT abort on its own. Once a thread is encrypted
+  Messenger rewrites `/t/<profile_id>` → `/t/<thread_id>`, and from the url a legitimate
+  rewrite and a wrong thread look identical. It only means the anchor is unavailable, and
+  the NAME becomes the deciding guard again — a different thread is a different person.
+- With neither a verified id nor a name → `unverified_recipient`, refuse.
+
+Live: vanity sent (`done`/`verified`, `id_verified`, title agreed); profile id
+`100026030446486` accepted with **no** `recipient_name`; a wrong name on an unverifiable id
+refused with nothing typed.
+
+**Gotcha the operator hit:** `1307949203416082` is a PHOTO id, not a profile. A non-thread
+id opens a page with **no composer at all** (`composers_found: 0`) — which is the guard
+working, not a bug. The real test profile is `100026030446486`.
+
+Offline harness (34 → 48 checks) lives at `scratchpad/test_actions.js` in that session; it
+runs `gql_actions.js` in a `vm` context with a fake DOM. Worth recreating — it caught the
+regex/dedupe/allowlist cases long before a browser round-trip could.
+
+---
+
+## Original 2026-08-01 handoff follows
+
+Everything described as DONE is live on `origin/main` and in the published `dist` branch.
 
 ---
 
@@ -142,9 +215,9 @@ away exactly WHY a write refused. Success/failure lives in `status` / `verified`
 
 ---
 
-## 4. What is NOT done
+## 4. The task list as it stood on 2026-08-01 (A and B are now done — see the top)
 
-### Task A (approved in principle, needs the user to confirm A vs B) — find the post by CONTENT, in code
+### Task A — DONE 2026-08-15 (option A was chosen). Kept below for the reasoning; see the top of this file for what shipped.
 
 **The problem.** `fb.post.comment` only accepts a permalink that the CALLER already has.
 Turning "the post that says X" into a permalink is currently done by the AGENT: it runs
@@ -173,9 +246,9 @@ wrong one. Resolve to the permalink, navigate, then comment.
 **Option B:** a separate `fb.post.find` capability that only returns the permalink. Fewer
 moving parts per capability, but the agent still carries the url between two jobs.
 
-The user was asked to pick A or B and had not answered when the session ended.
+The user picked **A**, and asked for it on `fb.post.react` too. Both shipped.
 
-### Task B — switch DM to the messenger.com url (verified working, just not shipped)
+### Task B — DONE 2026-08-15, and then hardened further (identity moved off the NAME onto the ID). Kept below for the reasoning; see the top of this file.
 
 The user found a better entry point than `facebook.com/messages/t/<numeric_id>`:
 
@@ -234,8 +307,14 @@ just text, and text already works.
    remove 700 MB of committed binaries.
 5. **Client extension builds must come from the FULL template** — never strip
    capabilities per client (see the rule in `AGENT_RUNBOOK.md`).
-6. Ask before touching production clients (`leadup`, `angela-do`, `binh-nguyen`).
-   `aven-ngo` is the test client.
+6. **Never touch the production clients** (`leadup`, `angela-do`, `binh-nguyen`) — not their
+   extensions, not their client data. Clarified by the operator 2026-08-15: those are live
+   field installs running as real users under a DIFFERENT agent (Codex), which owns
+   rebuilding and reloading them. Develop in the canonical repo and verify on **`aven-ngo`**,
+   the test client, and stop there. When a live client needs the new build, say so and let
+   the operator route it — do not offer to do it. (Shared infrastructure — the bridge binary,
+   `daily-content-pipeline/collector/collector_capabilities.json` — is genuinely shared;
+   changes there need the operator's explicit go-ahead, which they give as a command to run.)
 
 ## 6. First moves in the new session
 

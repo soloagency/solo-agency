@@ -10,7 +10,10 @@
 //
 // P1 implements fb.post.react. P2 (comment) and P3 (message.send) land later.
 (function () {
-  if (window.__soloActRun) return;
+  // Re-run when an OLDER copy of the lib is already installed (it has __soloActRun but
+  // not the newer __soloActResolve): re-executing only reassigns the window globals, and
+  // silently keeping a stale lib is how a resolve call turns into "function not present".
+  if (window.__soloActRun && window.__soloActResolve) return;
 
   // ---- tiny utils ---------------------------------------------------------
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
@@ -163,10 +166,218 @@
     return null; // caption never appeared
   }
 
+  // ---- content-addressed targeting (match_text) -----------------------------
+  // "Comment on the post that says X" used to be the AGENT's job: it listed the feed,
+  // eyeballed which item matched, and handed the permalink back. That is judgement, not
+  // mechanism — two agents gave two answers, and a wrong pick writes to the wrong post.
+  // The match now happens HERE, in code: one deterministic filter over the SAME listing
+  // extractor the read path uses, and a refusal — never a guess — when the answer is not
+  // exactly one post.
+  //
+  // This resolver only ever RETURNS a permalink. It must not act inline on the listing
+  // page: a feed holds one "Comment as …" composer PER POST, so acting there would land
+  // on whichever one the selector happened to reach first. background.js navigates to the
+  // resolved permalink and re-injects before anything is written.
+  var LIST_CAPS = { "fb.group.posts": 1, "fb.profile.posts": 1, "fb.group.search_posts": 1, "fb.newsfeed": 1 };
+  function listCapabilityFor(url, override) {
+    if (override && LIST_CAPS[override]) return override;
+    return /\/groups\/[^/?#]+/i.test(String(url || "")) ? "fb.group.posts" : "fb.profile.posts";
+  }
+
+  // The permalink is lifted from the PAGE's own GraphQL payload — untrusted data that is
+  // about to become a tab navigation. Pin the host to an allowlist rather than a
+  // /facebook\.com$/ test: that pattern also admits l.facebook.com, the link shim, which
+  // forwards anywhere. A write must never be steered off-platform by feed content.
+  var FB_HOSTS = { "facebook.com": 1, "www.facebook.com": 1, "m.facebook.com": 1, "web.facebook.com": 1 };
+  function safeFbPermalink(raw) {
+    var s = String(raw || "").trim();
+    if (!/^https?:\/\//i.test(s)) return "";
+    try {
+      var u = new URL(s);
+      if (!FB_HOSTS[lower(u.hostname)]) return "";
+      return u.href;
+    } catch (e) { return ""; }
+  }
+
+  function matchesText(hay, needle, mode, flags) {
+    var h = norm(hay);
+    if (mode === "regex") { try { return new RegExp(needle, flags || "i").test(h); } catch (e) { return false; } }
+    if (mode === "exact") return lower(h) === lower(needle);
+    return lower(h).indexOf(lower(needle)) > -1; // contains (default)
+  }
+  // One post arrives in several captures AND again in every replayed page. Without a
+  // dedupe key every single match would come back as "ambiguous_match" and nothing would
+  // ever be actionable. Prefer the canonical permalink; fall back to the story id.
+  function dedupeKey(it) {
+    var u = safeFbPermalink(it && it.url);
+    if (u) { try { var p = new URL(u); return lower(p.origin + p.pathname.replace(/\/+$/, "")); } catch (e) { /* fall through */ } }
+    return String((it && (it.post_id || it.id)) || "");
+  }
+  function candidatePreview(it) {
+    return { url: String((it && it.url) || ""), text: norm(it && it.text).slice(0, 140), created_time: (it && it.created_time) || 0, from: (it && it._from) || "graphql" };
+  }
+
+  // Facebook server-renders the TOP of a feed into the initial document and only fetches
+  // OLDER pages over GraphQL. gql_intercept.js hooks fetch/XHR, so the listing extractor
+  // is systematically blind to the NEWEST posts — exactly the ones worth acting on.
+  // Measured on the test group: fb.group.posts returned "Post 2" and "Post 3" while the
+  // newest post ("Post 5 post 5 post 5") was rendered on the page the whole time. So read
+  // the rendered feed as a SECOND source and merge; the canonical-url dedupe collapses the
+  // overlap, and GraphQL items win because they carry post_id and created_time.
+  // This lives here rather than in gql_extract.js on purpose: the read path is proven and
+  // in daily use, and a write-targeting fix has no business changing what it returns.
+  function domPermalink(rawHref) {
+    var abs;
+    try { abs = new URL(String(rawHref || ""), location.origin); } catch (e) { return ""; }
+    if (!FB_HOSTS[lower(abs.hostname)]) return "";
+    // /posts/<id> and /permalink/<id> carry their identity in the PATH, so drop the query
+    // (Facebook hangs __cft__/__tn__ tracking blobs off feed links). permalink.php keeps
+    // its query — that is where story_fbid lives.
+    if (/\/(posts|permalink)\/[^/]+/i.test(abs.pathname)) return abs.origin + abs.pathname;
+    return abs.href;
+  }
+  // The rendered-feed posts, extracted by filtering.js in the ISOLATED world and handed in
+  // by background.js as _dom_posts. They are NOT re-scraped here on purpose. A hand-rolled
+  // [role="article"] scan was tried first and measured wrong live: Facebook renders each
+  // COMMENT as its own article whose permalink is the POST's url plus ?comment_id=…, so the
+  // scan produced the right url carrying a commenter's words instead of the post body.
+  // filtering.js already solves exactly that — selectContent() stops at the first comment
+  // boundary — and it has been doing so in the daily read pipeline for months. The two
+  // worlds share only the DOM, so the array has to travel through background.js.
+  function providedDomPosts(inputs) {
+    var raw = Array.isArray(inputs._dom_posts) ? inputs._dom_posts : [];
+    var out = [];
+    for (var i = 0; i < raw.length; i++) {
+      var p = raw[i];
+      if (!p) continue;
+      var url = domPermalink(p.url);   // absolutise + re-apply the host allowlist
+      var text = norm(p.text);
+      if (!url || !text) continue;
+      out.push({ id: "", post_id: "", url: url, text: text, created_time: 0, _from: "dom" });
+    }
+    return out;
+  }
+
+  async function resolveByContent(capId, inputs) {
+    var needle = norm(inputs.match_text || "");
+    var mode = lower(inputs.match_mode || "contains");
+    if (["contains", "exact", "regex"].indexOf(mode) < 0) mode = "contains";
+    if (!needle) return wrapCap(capId, "error", { error: "match_text is empty" });
+
+    var listCap = listCapabilityFor(inputs._target_url || location.href, lower(inputs.match_source || ""));
+    var base = { match_text: needle, match_mode: mode, list_capability: listCap, listing_url: location.href };
+    var hasPaginate = typeof window.__soloGqlPaginate === "function";
+    if (!hasPaginate && typeof window.__soloGqlExtractCapability !== "function") {
+      return wrapCap(capId, "error", Object.assign({}, base, { error: "listing extractor not present — gql_extract.js was not injected into this page" }));
+    }
+
+    var listing = null;
+    try {
+      var lim = Number(inputs.match_max_pages);
+      var lin = { max_pages: Number.isFinite(lim) ? lim : 3 };
+      listing = hasPaginate ? await window.__soloGqlPaginate(listCap, lin) : window.__soloGqlExtractCapability(listCap, lin);
+    } catch (e) {
+      // Not fatal: the rendered feed is a second, independent source and often holds the
+      // post anyway. Record why the capture failed and carry on with the DOM.
+      base.listing_error = String(e && e.message || e);
+    }
+
+    // GraphQL first so its richer records win the dedupe; the rendered feed then supplies
+    // whatever the intercept never saw (the newest posts).
+    var gqlItems = (listing && Array.isArray(listing.items)) ? listing.items : [];
+    var domItems = providedDomPosts(inputs);
+    var items = gqlItems.concat(domItems);
+    base.sources_read = { graphql: gqlItems.length, dom: domItems.length };
+
+    var seen = {}, considered = [], hits = [];
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (!it) continue;
+      var key = dedupeKey(it);
+      if (!key || seen[key]) continue;
+      seen[key] = 1;
+      considered.push(it);
+      if (matchesText(it.text || "", needle, mode, inputs.match_flags)) hits.push(it);
+    }
+
+    // "nothing was readable" is not "nothing matched" — the first is a capture problem to
+    // retry, the second is an answer. Never collapse them into one status.
+    if (!considered.length) {
+      return wrapCap(capId, "listing_unavailable", Object.assign({}, base, {
+        candidates_considered: 0, listing_reason: String((listing && listing.reason) || "no_items"),
+        error: "no posts readable on this page — neither the " + listCap + " capture nor the rendered feed returned any; cannot resolve match_text"
+      }));
+    }
+    if (!hits.length) {
+      return wrapCap(capId, "no_match", Object.assign({}, base, {
+        candidates_considered: considered.length,
+        candidates: considered.slice(0, 5).map(candidatePreview),
+        error: "no post matched match_text (" + mode + ") among " + considered.length + " posts read — nothing was written"
+      }));
+    }
+    if (hits.length > 1) {
+      return wrapCap(capId, "ambiguous_match", Object.assign({}, base, {
+        candidates_considered: considered.length,
+        candidates: hits.slice(0, 5).map(candidatePreview),
+        error: "match_text matched " + hits.length + " posts — refusing to guess; nothing was written"
+      }));
+    }
+
+    var hit = hits[0];
+    var permalink = safeFbPermalink(hit.url);
+    if (!permalink) {
+      return wrapCap(capId, "error", Object.assign({}, base, {
+        candidates_considered: considered.length, matched_text: norm(hit.text).slice(0, 220),
+        error: "the matched post carries no usable facebook.com permalink (" + String(hit.url || "empty") + ")"
+      }));
+    }
+    return wrapCap(capId, "resolved", Object.assign({}, base, {
+      matched_post: { url: permalink, text: norm(hit.text).slice(0, 220), post_id: String(hit.post_id || hit.id || ""), created_time: hit.created_time || 0, from: hit._from || "graphql" },
+      candidates_considered: considered.length
+    }));
+  }
+
+  // Fail-safe for a half-updated install: match_text asks for a post that only the
+  // orchestration layer can navigate to, so a write that sees it WITHOUT the resolved
+  // marker is running on the listing page — where the first composer belongs to the wrong
+  // post. Refuse rather than write somewhere plausible.
+  function unresolvedMatch(capId, inputs) {
+    if (!norm(inputs.match_text || "") || inputs._resolved_url) return null;
+    return wrapCap(capId, "unresolved_match", {
+      match_text: norm(inputs.match_text),
+      error: "match_text was not resolved to a permalink before this ran (stale background.js?) — refusing to act on the listing page"
+    });
+  }
+
+  // On the resolved path driftInfo() is not enough: targetIdFrom only recognises NUMERIC
+  // ids, so a pfbid permalink pins nothing and any page would pass. Compare the paths
+  // directly instead. This is the last thing standing between "the second navigation
+  // landed" and writing onto the listing page we just searched.
+  function resolvedDrift(capId, inputs) {
+    var want = String(inputs._resolved_url || "");
+    if (!want) return null;
+    try {
+      var w = new URL(want);
+      var wp = lower(w.pathname.replace(/\/+$/, ""));
+      if (lower(new URL(location.href).pathname.replace(/\/+$/, "")) === wp) return null;
+      // Facebook may re-shape a permalink (…/posts/<id> ↔ permalink.php?story_fbid=<id>);
+      // the post token surviving anywhere in the landed url still proves the same item.
+      var tok = (wp.match(/(pfbid[0-9a-z]+|\d{6,})/i) || [])[1] || "";
+      if (tok && lower(location.href).indexOf(lower(tok)) > -1) return null;
+      return wrapCap(capId, "redirected", {
+        resolved_url: want, landed_url: location.href,
+        error: "the navigation to the matched post landed on a different page (" + location.href + ") — nothing was written"
+      });
+    } catch (e) { return null; }
+  }
+
   // ---- P1: fb.post.react --------------------------------------------------
   async function doReact(inputs) {
     var reaction = lower(inputs.reaction || "like");
     var want = REACT[reaction] ? reaction : "like";
+
+    var unresolved = unresolvedMatch("fb.post.react", inputs) || resolvedDrift("fb.post.react", inputs);
+    if (unresolved) return unresolved;
 
     var drift = driftInfo(inputs);
     if (drift) return wrap("redirected", { reaction: want, requested_id: drift.want, landed_url: drift.here, error: "page redirected to a different item (" + drift.here + ") — not reacting" });
@@ -254,6 +465,9 @@
   async function doComment(inputs) {
     var text = String(inputs.text || inputs.comment || "").trim();
 
+    var unresolved = unresolvedMatch("fb.post.comment", inputs) || resolvedDrift("fb.post.comment", inputs);
+    if (unresolved) return unresolved;
+
     var drift = driftInfo(inputs);
     if (drift) return wrapCap("fb.post.comment", "redirected", { text: text, requested_id: drift.want, landed_url: drift.here, error: "page redirected to a different item (" + drift.here + ") — not commenting" });
 
@@ -311,7 +525,46 @@
   // "Write to <someone>" composers at once — the recipient's plus every chat head already
   // docked there — and the profile's own name is not readable (its h1 is "Notifications"),
   // so there is no way to tell them apart. A thread page renders exactly ONE composer.
+  //
+  // messenger.com/e2ee/t/<vanity-or-id> is the preferred entry point over
+  // facebook.com/messages/t/<numeric_id>, for three measured reasons: it accepts a
+  // VANITY (no numeric-id lookup first), it is a dedicated surface with no docked chat
+  // heads to confuse the composer count, and its page title becomes "<Name> | Messenger"
+  // — a second, independent proof of who the thread is with. Both forms stay accepted.
   var WRITE_TO = /^write to\s+(.+)$/i;
+  var THREAD_URL = [
+    /^https?:\/\/(www\.)?messenger\.com\/(e2ee\/)?t\/[^/?#]+/i,
+    /^https?:\/\/([\w-]+\.)?facebook\.com\/messages\/(e2ee\/)?t\/[^/?#]+/i
+  ];
+  function isThreadUrl(u) {
+    var s = String(u || "");
+    for (var i = 0; i < THREAD_URL.length; i++) { if (THREAD_URL[i].test(s)) return true; }
+    return false;
+  }
+  // The identity anchor is the PROFILE ID (or vanity) in the requested url, not the display
+  // name: people rename themselves, and a name guard would refuse a perfectly correct send
+  // the day the recipient becomes someone else on paper. The id is stable; the name is a
+  // label that happens to be on it today.
+  //
+  // The catch is that passing the E2EE gate rewrites the address to /e2ee/t/<thread_id>,
+  // dropping the id — which is exactly why the original guard had nothing but the name to
+  // work with. So the id is checked BEFORE the gate is touched: when Messenger cannot
+  // resolve the id it falls back to the inbox (or another thread), and the requested id is
+  // no longer in the address. That silent fallback is the failure this catches.
+  function threadKeyFrom(u) {
+    var m = String(u || "").match(/\/t\/([^/?#]+)/i);
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+  // "(3) Bob Nguyen | Messenger" -> "Bob Nguyen". Returns "" when the title carries no
+  // name (facebook.com/messages renders a bare "Messenger"), which is NOT a failure —
+  // guard 3 simply has nothing to check there and stands down.
+  function recipientFromTitle() {
+    var t = norm(document.title).replace(/^\(\s*\d+\s*\)\s*/, "");
+    var m = t.match(/^(.+?)\s*[|·\-–]\s*(messenger|facebook)\b/i);
+    var who = m ? norm(m[1]) : "";
+    if (!who || /^(messenger|facebook|chats?|inbox)$/i.test(who)) return "";
+    return who;
+  }
   function findMessageComposers() {
     var out = [];
     var boxes = document.querySelectorAll('div[contenteditable="true"][role="textbox"]');
@@ -343,7 +596,31 @@
     var text = String(inputs.text || inputs.message || "").trim();
     var expected = norm(inputs.recipient_name || "");
     if (!text) return wrapCap("fb.message.send", "error", { error: "no message text provided" });
-    if (!expected) return wrapCap("fb.message.send", "error", { text: text, error: "recipient_name is required — it is the only way to prove the open thread belongs to the intended person" });
+
+    // Guard 0: the job url must be a THREAD. Previously a profile url was caught only
+    // downstream, by the "more than one composer" guard — true but indirect, and it
+    // depended on chat heads happening to be docked. Reject the wrong surface up front.
+    var jobUrl = String(inputs._target_url || location.href);
+    if (!isThreadUrl(jobUrl) && !isThreadUrl(location.href)) {
+      return wrapCap("fb.message.send", "error", {
+        text: text, recipient_expected: expected, job_url: jobUrl,
+        error: "not_a_thread_url: open messenger.com/e2ee/t/<vanity-or-id> (or facebook.com/messages/t/<id>) — a profile url cannot identify its own owner"
+      });
+    }
+
+    // Guard 1: the requested id must still be the open thread. Read this BEFORE the gate,
+    // while the address still carries it.
+    var wantKey = threadKeyFrom(inputs.recipient_id || jobUrl);
+    var entryUrl = location.href;
+    var entryKey = threadKeyFrom(entryUrl);
+    var idVerified = !!wantKey && !!entryKey && lower(wantKey) === lower(entryKey);
+    // A mismatch here is NOT proof of the wrong thread, and must not refuse on its own:
+    // Messenger rewrites /t/<profile_id> to /t/<thread_id> once a thread is encrypted, and
+    // on a thread that needs no gate that rewrite can happen before this code ever runs.
+    // From the url alone "resolved my id" and "opened someone else" look identical. So a
+    // mismatch only means the anchor is UNAVAILABLE — the name below becomes the evidence,
+    // exactly as it was before this change. A genuine wrong thread is still caught there,
+    // because a different thread is a different person with a different name.
 
     var passedGate = await passE2eeGate();
     var found = await waitFor(function () { var c = findMessageComposers(); return c.length ? c : null; }, 10000, 400) || [];
@@ -354,22 +631,38 @@
         text: text, recipient_expected: expected, composers_found: found.length,
         composer_labels: found.map(function (c) { return c.label; }),
         passed_e2ee_gate: passedGate,
-        error: found.length === 0 ? "no message composer on this page — open facebook.com/messages/t/<id>, not the profile"
+        error: found.length === 0 ? "no message composer on this page — open messenger.com/e2ee/t/<vanity-or-profile-id>. A url that is not a real thread (a photo id, say) lands on a page with no composer at all."
                                   : "ambiguous_composer: more than one open chat — refusing to guess the recipient"
       });
     }
-    // Guard 2: that composer must name the intended recipient.
+    // Guard 3: the NAME, now a fallback rather than the anchor. A display name is not an
+    // identity — the same profile is "Bob Nguyen" today and "Alex Nguyen" next week — so a
+    // name that no longer matches must not veto a send whose id already checked out. It
+    // still carries real weight when the id could NOT be verified: there it is the only
+    // evidence left, and the old refusal stands.
     var box = found[0].el, label = found[0].label;
     var who = (label.match(WRITE_TO) || [])[1] || "";
-    if (lower(who) !== lower(expected)) {
-      return wrapCap("fb.message.send", "error", {
-        text: text, recipient_expected: expected, recipient_open: who, passed_e2ee_gate: passedGate,
-        error: "recipient_mismatch: the open thread is with \"" + who + "\" — nothing was typed"
-      });
+    var titleWho = recipientFromTitle();
+    var nameMatched = !expected ? null : (lower(who) === lower(expected));
+    var titleCheck = !titleWho ? "unavailable" : (!expected ? "unchecked" : (lower(titleWho) === lower(expected) ? "match" : "mismatch"));
+    var identity = {
+      requested_id: wantKey, open_id: entryKey, id_verified: idVerified, entry_url: entryUrl,
+      recipient_open: who, recipient_expected: expected || null, name_matched: nameMatched,
+      recipient_title: titleWho, title_check: titleCheck
+    };
+    if (!idVerified && expected && nameMatched === false) {
+      return wrapCap("fb.message.send", "error", Object.assign({ text: text, passed_e2ee_gate: passedGate }, identity, {
+        error: "recipient_mismatch: the thread id could not be verified AND the open thread is with \"" + who + "\", not \"" + expected + "\" — nothing was typed"
+      }));
+    }
+    if (!idVerified && !expected) {
+      return wrapCap("fb.message.send", "error", Object.assign({ text: text, passed_e2ee_gate: passedGate }, identity, {
+        error: "unverified_recipient: the thread id could not be read from the url and no recipient_name was given — there is nothing left to prove who this is"
+      }));
     }
 
     if (inputs.dry_run) {
-      return wrapCap("fb.message.send", "dry_run", { text: text, recipient: who, passed_e2ee_gate: passedGate });
+      return wrapCap("fb.message.send", "dry_run", Object.assign({ text: text, recipient: who, passed_e2ee_gate: passedGate }, identity));
     }
 
     await jitter();
@@ -385,14 +678,23 @@
       try { return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; }
     }, 6000, 400);
     var sent = !!cleared && !!appeared;
-    return wrapCap("fb.message.send", sent ? "done" : "error", {
+    return wrapCap("fb.message.send", sent ? "done" : "error", Object.assign({
       text: text, recipient: who, verified: sent, cleared: !!cleared, appeared: !!appeared,
       passed_e2ee_gate: passedGate, thread_url: location.href,
       error: sent ? null : (cleared ? "composer cleared but the message did not appear" : "message not confirmed (composer still holds text)")
-    });
+    }, identity));
   }
 
   // ---- dispatcher ---------------------------------------------------------
+  // Phase 1 of a match_text write: read the listing and return AT MOST one permalink.
+  // Deliberately separate from __soloActRun so this call can never write anything —
+  // background.js navigates to the result and calls __soloActRun on the target page.
+  window.__soloActResolve = async function (capId, inputs) {
+    inputs = inputs && typeof inputs === "object" ? inputs : {};
+    try { return await resolveByContent(String(capId || ""), inputs); }
+    catch (e) { return wrapCap(String(capId || ""), "error", { error: "resolve failed: " + String(e && e.message || e) }); }
+  };
+
   window.__soloActRun = async function (capId, inputs) {
     inputs = inputs && typeof inputs === "object" ? inputs : {};
     try {
