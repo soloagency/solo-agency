@@ -49,8 +49,22 @@ type systemSettings struct {
 	DefaultTaskDurationMin int    `json:"default_task_duration_min"`
 	// AccountabilityMaxGapHours: a client silent longer than this gets a
 	// posting reminder (default 72h — a weekend gap is normal, Sat→Mon).
-	AccountabilityMaxGapHours int    `json:"accountability_max_gap_hours"`
-	UpdatedAt                 string `json:"updated_at,omitempty"`
+	AccountabilityMaxGapHours int `json:"accountability_max_gap_hours"`
+	// --- distribution caps, per Facebook account, per day ------------------
+	// The scarce resource in Messenger/comment outreach is ACCOUNT HEALTH, not
+	// throughput: an email bounce costs one lead, but an account that looks like
+	// a bulk sender gets restricted and takes its warmup history with it. These
+	// are budgets spent down toward a cliff, so they start low and rise only on
+	// evidence. Agency-wide ceilings; a campaign may ask for less, never more.
+	DMPerAccountPerDay            int `json:"dm_per_account_per_day"`
+	CommentGroupsPerAccountPerDay int `json:"comment_groups_per_account_per_day"`
+	CommentsPerGroupPerDay        int `json:"comments_per_group_per_day"`
+	// PostsPerAccountPerDay: posting INTO a group is the most exposed action of the
+	// three — it is a standalone piece of content in front of the whole group, it is
+	// what members report as spam, and many groups hold posts for admin approval. The
+	// default is deliberately the lowest of the set.
+	PostsPerAccountPerDay int    `json:"posts_per_account_per_day"`
+	UpdatedAt             string `json:"updated_at,omitempty"`
 }
 
 func defaultSystemSettings() systemSettings {
@@ -61,6 +75,12 @@ func defaultSystemSettings() systemSettings {
 		SlotHorizonDays:           35,
 		DefaultTaskDurationMin:    30,
 		AccountabilityMaxGapHours: 72,
+		// Operator-set 2026-08-15. 5 groups × 1 comment = 5 comments/account/day,
+		// deliberately the same order of magnitude as the DM budget.
+		DMPerAccountPerDay:            10,
+		CommentGroupsPerAccountPerDay: 5,
+		CommentsPerGroupPerDay:        1,
+		PostsPerAccountPerDay:         2,
 	}
 }
 
@@ -89,6 +109,21 @@ func loadSystemSettings(pipeline string) systemSettings {
 	}
 	if s.AccountabilityMaxGapHours <= 0 {
 		s.AccountabilityMaxGapHours = 72
+	}
+	// A missing or zero distribution cap must fall back to the safe default, never
+	// to "unlimited": an older settings file predating these fields would otherwise
+	// read as 0 and a naive caller could treat that as no ceiling at all.
+	if s.DMPerAccountPerDay <= 0 {
+		s.DMPerAccountPerDay = 10
+	}
+	if s.CommentGroupsPerAccountPerDay <= 0 {
+		s.CommentGroupsPerAccountPerDay = 5
+	}
+	if s.CommentsPerGroupPerDay <= 0 {
+		s.CommentsPerGroupPerDay = 1
+	}
+	if s.PostsPerAccountPerDay <= 0 {
+		s.PostsPerAccountPerDay = 2
 	}
 	return s
 }

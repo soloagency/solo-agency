@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -178,6 +179,67 @@ func TestSettingsTemplateRenders(t *testing.T) {
 	for _, want := range []string{"Operator email", "Max tasks running", "X - Daily Run", "/api/ui/system/settings"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("settings page missing %q", want)
+		}
+	}
+}
+
+// The distribution caps govern how hard a real Facebook account is pushed, so the two
+// things that must never break are: a settings file written before these fields existed
+// must not read as "unlimited", and an out-of-range value must be refused rather than
+// clamped silently.
+func TestDistributionCapsDefaultsAndBounds(t *testing.T) {
+	pipeline := t.TempDir()
+
+	s := loadSystemSettings(pipeline)
+	if s.DMPerAccountPerDay != 10 || s.CommentGroupsPerAccountPerDay != 5 || s.CommentsPerGroupPerDay != 1 || s.PostsPerAccountPerDay != 2 {
+		t.Fatalf("distribution defaults wrong: %+v", s)
+	}
+
+	// A settings file predating these fields: the zero value must fall back to the safe
+	// default, never to 0 (which a caller could read as "no ceiling").
+	legacy := `{"schema_version":1,"operator_email":"op@example.com","max_concurrent_tasks":12}`
+	if err := os.WriteFile(systemSettingsPath(pipeline), []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s = loadSystemSettings(pipeline)
+	if s.OperatorEmail != "op@example.com" || s.MaxConcurrentTasks != 12 {
+		t.Fatalf("legacy fields lost: %+v", s)
+	}
+	if s.DMPerAccountPerDay != 10 || s.CommentGroupsPerAccountPerDay != 5 || s.CommentsPerGroupPerDay != 1 || s.PostsPerAccountPerDay != 2 {
+		t.Fatalf("missing caps must fall back to defaults, not zero: %+v", s)
+	}
+
+	// Values persist through the store.
+	if _, err := saveSystemSettings(pipeline, func(s *systemSettings) error {
+		s.DMPerAccountPerDay = 7
+		s.CommentGroupsPerAccountPerDay = 3
+		s.CommentsPerGroupPerDay = 2
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if s = loadSystemSettings(pipeline); s.DMPerAccountPerDay != 7 || s.CommentGroupsPerAccountPerDay != 3 || s.CommentsPerGroupPerDay != 2 {
+		t.Fatalf("caps did not persist: %+v", s)
+	}
+}
+
+func TestSettingsPageShowsDistributionCaps(t *testing.T) {
+	var sb strings.Builder
+	if err := uiTpl.ExecuteTemplate(&sb, "settings", map[string]any{
+		"Title": "Settings", "NavPage": "settings",
+		"Settings": defaultSystemSettings(),
+		"Tasks":    []map[string]string{},
+	}); err != nil {
+		t.Fatalf("settings template failed to render: %v", err)
+	}
+	html := sb.String()
+	for _, want := range []string{
+		"Distribution caps", `id="s-dm"`, `id="s-cgroups"`, `id="s-cper"`, `id="s-posts"`,
+		"dm_per_account_per_day", "comment_groups_per_account_per_day", "comments_per_group_per_day",
+		"posts_per_account_per_day",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("settings page missing distribution control %q", want)
 		}
 	}
 }
