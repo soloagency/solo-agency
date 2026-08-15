@@ -28,7 +28,7 @@ You can start with a dedicated Gmail account and an App Password — no Google C
 
 ## What stays in your control
 
-Nothing sends without your explicit approval in chat. The agent drafts and waits. Suppression (bounces, unsubscribes, complaints) is checked before every send. Opt-outs are honored immediately. Assisted-channel messages (SMS / Messenger) are drafted for *you* to send manually. Compliance guardrails (CAN-SPAM address + opt-out, truthful subjects, no fake `Re:`) are built into the send path.
+Nothing sends without your explicit approval in chat. The agent drafts and waits. Suppression (bounces, unsubscribes, complaints) is checked before every send. Opt-outs are honored immediately. Once you approve, the agent performs the send itself for email, Messenger DMs and Facebook comments. SMS and Zalo are drafted for *you* to send by hand. Compliance guardrails (CAN-SPAM address + opt-out, truthful subjects, no fake `Re:`) are built into the send path.
 
 ## Best first prompt
 

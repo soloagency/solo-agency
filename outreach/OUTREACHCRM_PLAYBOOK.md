@@ -172,7 +172,22 @@ Every personalized detail in a drafted email must correspond to a hook in the co
 
 ## Approval-Before-Send Rule
 
-Nothing leaves the system without explicit human approval given in chat. The agent drafts, renders an Approval Report (operator-only), and waits. The operator approves via chat grammar (`approve all` / `approve 1-20, 35` / `reject N: reason` / `edit N: ...` / `hold N`). Approved drafts send immediately in-session within quota. Default `approval_mode` is `manual_all` for every campaign and every step, including follow-up bumps. Assisted-channel messages (SMS/Messenger/Zalo) are also drafted for the human to send manually — the agent never sends them.
+Nothing leaves the system without explicit human approval given in chat. The agent drafts, renders an Approval Report (operator-only), and waits. The operator approves via chat grammar (`approve all` / `approve 1-20, 35` / `reject N: reason` / `edit N: ...` / `hold N`). Approved drafts send immediately in-session within quota. Default `approval_mode` is `manual_all` for every campaign and every step, including follow-up bumps. Assisted-channel drafts (SMS/Zalo) are handed to the human to send by hand — the agent never sends those. See the Channel Execution Model below for which channels the agent may execute after approval.
+
+## Channel Execution Model
+
+Approval is the gate; it never moves. What changes per channel is only **whose hand performs the send after the operator has approved** — and that depends on one thing: whether a verified capability exists to do it correctly.
+
+| Channel | After approval, who sends | Why |
+|---|---|---|
+| **Email** | the agent, via `tool gmail send` | SMTP send path with a full pre-send gate chain |
+| **Messenger (DM)** | **the agent, via the Local Collector** (`fb.message.send`) | a live-verified capability exists: the thread is identified by the recipient's **profile id**, not their display name, and the send is confirmed by reading the result back |
+| **Facebook comment** | **the agent, via the Local Collector** (`fb.post.comment`) | a live-verified capability exists: the target post is resolved **in code** and the run refuses unless exactly one post matches |
+| **SMS, Zalo** | the human, by hand | no capability exists; these remain assisted-channel drafts |
+
+`channels.{channel}.mode` on a contact records this: `auto_execute_after_approval` for email/messenger/comment, `assisted` for SMS/Zalo. A channel is only ever promoted out of `assisted` when a capability for it has been verified live — never on the assumption that one will work.
+
+**Scope — this is the AGENCY's own outreach.** These modules run under the operator's own brand to find new clients. The agent never comments or messages *as* a paying client, or on their behalf; a paying client is a read-only data subject whose signals are collected to produce content *for* them. The content-pipeline bans on acting as a client (`playbooks/03` §23.7, `playbooks/10`, `playbooks/skills/lead-engine/safety.md`) remain fully in force and are not relaxed by this rule.
 
 ## Conversion-Evidence Rule
 
