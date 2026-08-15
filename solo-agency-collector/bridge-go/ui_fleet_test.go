@@ -55,7 +55,7 @@ func TestFleetRowsRankingAndColors(t *testing.T) {
 	if rows[1].Color != "warn" {
 		t.Fatalf("yellow row wrong: %+v", rows[1])
 	}
-	if rows[2].Color != "none" || rows[2].LastPost != "chưa có post" {
+	if rows[2].Color != "none" || rows[2].LastPost != "no posts yet" {
 		t.Fatalf("gray row wrong: %+v", rows[2])
 	}
 	if rows[3].Color != "ok" || !rows[3].Stale {
@@ -73,19 +73,19 @@ func TestFleetTemplateRenders(t *testing.T) {
 		"Tiles":    map[string]int{"total": 2, "green": 1, "yellow": 0, "red": 1, "gray": 0},
 		"SumViews": 1234, "SumPosts": 5, "SumDrafts": 2, "GapHours": 72,
 		"Rows": []fleetRow{
-			{Client: "red", Name: "Red Client", Color: "err", LastPost: "200h trước",
-				Reminders: "nhắc 3/3 · đã báo operator", Posts: "0 / 2", Views7: "10",
-				Likes7: "1", Leads: "0 / 1", IdeasQ: "3", DraftsPend: "2", Updated: "1h trước"},
-			{Client: "green", Name: "Green", Color: "ok", LastPost: "10h trước", Posts: "3 / 12",
+			{Client: "red", Name: "Red Client", Color: "err", LastPost: "200h ago",
+				Reminders: "reminded 3/3 · operator emailed", Posts: "0 / 2", Views7: "10",
+				Likes7: "1", Leads: "0 / 1", IdeasQ: "3", DraftsPend: "2", Updated: "1h ago"},
+			{Client: "green", Name: "Green", Color: "ok", LastPost: "10h ago", Posts: "3 / 12",
 				Views7: "1234", Likes7: "99", Leads: "1 / 2", IdeasQ: "6", DraftsPend: "0",
-				ReportHref: "/files/outputs/x.html", Updated: "100h trước", Stale: true},
+				ReportHref: "/files/outputs/x.html", Updated: "100h ago", Stale: true},
 		},
 	})
 	if err != nil {
 		t.Fatalf("fleet template failed: %v", err)
 	}
 	html := sb.String()
-	for _, want := range []string{"Red Client", "nhắc 3/3", "stale", "/files/outputs/x.html", "báo động đỏ"} {
+	for _, want := range []string{"Red Client", "reminded 3/3", "stale", "/files/outputs/x.html", "red alerts"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("fleet page missing %q", want)
 		}

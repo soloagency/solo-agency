@@ -109,16 +109,16 @@ func fleetRows(dataRoot string, now time.Time) []fleetRow {
 		}
 		if hasGap {
 			row.GapHours = gap
-			row.LastPost = fmt.Sprintf("%.0fh trước", gap)
+			row.LastPost = fmt.Sprintf("%.0fh ago", gap)
 		} else if lastPosted != "" {
 			row.LastPost = lastPosted
 		} else {
-			row.LastPost = "chưa có post"
+			row.LastPost = "no posts yet"
 		}
 		if reminders > 0 {
-			row.Reminders = fmt.Sprintf("nhắc %d/3", reminders)
+			row.Reminders = fmt.Sprintf("reminded %d/3", reminders)
 			if escalated {
-				row.Reminders += " · đã báo operator"
+				row.Reminders += " · operator emailed"
 			}
 		}
 
@@ -143,7 +143,7 @@ func fleetRows(dataRoot string, now time.Time) []fleetRow {
 		if up := mStr(snap, "updated_at"); up != "" {
 			if t, perr := time.Parse(time.RFC3339, up); perr == nil {
 				age := now.Sub(t).Hours()
-				row.Updated = fmt.Sprintf("%.0fh trước", age)
+				row.Updated = fmt.Sprintf("%.0fh ago", age)
 				cad := cadence[slug]
 				if cad == 0 {
 					cad = 33 // no registered task: assume daily-ish, flag past ~1.4 days

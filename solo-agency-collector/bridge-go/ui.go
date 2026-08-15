@@ -2070,26 +2070,26 @@ es.onopen=function(){var l=document.getElementById('livedot');if(l)l.classList.a
 {{template "foot" .}}{{end}}
 
 {{define "fleet"}}{{template "head" .}}
-<p class="sub">Toàn bộ client trên một màn: post gần nhất, hiệu quả, và ai đang cần chú ý — xấu nhất nằm trên cùng. Data do từng run ghi lại lúc kết thúc; màn này không bao giờ tự query.</p>
+<p class="sub">Every client on one screen: last post, performance, and who needs attention — worst first. Data is written by each run as it finishes; this page never queries anything.</p>
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
 <div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.Tiles.total}}</div><div class="mut">clients</div></div>
-<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:#4ade80">{{.Tiles.green}}</div><div class="mut">đang đều</div></div>
-<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:#eab308">{{.Tiles.yellow}}</div><div class="mut">sắp trễ ({{.GapHours}}h)</div></div>
-<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:#ef4444">{{.Tiles.red}}</div><div class="mut">báo động đỏ</div></div>
-<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.SumPosts}}</div><div class="mut">posts 7 ngày</div></div>
-<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.SumViews}}</div><div class="mut">views 7 ngày</div></div>
-<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.SumDrafts}}</div><div class="mut">drafts chờ duyệt</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:#4ade80">{{.Tiles.green}}</div><div class="mut">posting on time</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:#eab308">{{.Tiles.yellow}}</div><div class="mut">approaching {{.GapHours}}h</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:#ef4444">{{.Tiles.red}}</div><div class="mut">red alerts</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.SumPosts}}</div><div class="mut">posts, 7 days</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.SumViews}}</div><div class="mut">views, 7 days</div></div>
+<div class="card" style="text-align:center"><div style="font-size:1.6rem;font-weight:700">{{.SumDrafts}}</div><div class="mut">drafts pending</div></div>
 </div>
 <div class="wrap"><table>
-<tr><th></th><th>client</th><th>post gần nhất</th><th>posts 7d/30d</th><th>views 7d</th><th>likes 7d</th><th>leads 🔥/ấm</th><th>ideas queued</th><th>drafts chờ</th><th>report</th><th>cập nhật</th></tr>
+<tr><th></th><th>client</th><th>last post</th><th>posts 7d/30d</th><th>views 7d</th><th>likes 7d</th><th>leads hot/warm</th><th>ideas queued</th><th>drafts pending</th><th>report</th><th>updated</th></tr>
 {{range .Rows}}<tr>
 <td><span class="dot{{if ne .Color "none"}} {{.Color}}{{end}}"></span></td>
 <td><a href="/ui/{{.Client}}">{{.Name}}</a></td>
 <td>{{.LastPost}}{{if .Reminders}}<br><span class="mut" style="font-size:.75rem">{{.Reminders}}</span>{{end}}</td>
 <td>{{.Posts}}</td><td>{{.Views7}}</td><td>{{.Likes7}}</td><td>{{.Leads}}</td><td>{{.IdeasQ}}</td><td>{{.DraftsPend}}</td>
-<td>{{if .ReportHref}}<a href="{{.ReportHref}}" target="_blank" rel="noopener">mở ↗</a>{{else}}<span class="mut">–</span>{{end}}</td>
+<td>{{if .ReportHref}}<a href="{{.ReportHref}}" target="_blank" rel="noopener">open ↗</a>{{else}}<span class="mut">–</span>{{end}}</td>
 <td class="mut">{{.Updated}}{{if .Stale}} <span class="pill band-review_carefully">stale</span>{{end}}</td>
-</tr>{{else}}<tr><td colspan="11" class="mut">chưa có snapshot nào — mỗi client sẽ xuất hiện ở đây sau lần chạy report kế tiếp (fleet/{client}.json)</td></tr>{{end}}
+</tr>{{else}}<tr><td colspan="11" class="mut">no snapshots yet — each client appears here after its next report run (fleet/{client}.json)</td></tr>{{end}}
 </table></div>
 {{template "foot" .}}{{end}}
 
