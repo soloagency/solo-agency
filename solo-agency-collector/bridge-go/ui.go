@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -253,7 +254,12 @@ func (b *bridge) uiFingerprint() string {
 		stamp(filepath.Join(root, "collector", "jobs", d))
 	}
 	stamp(filepath.Join(root, "collector", "inbox"))
-	stamp(filepath.Join(root, "collector", "logs", "extension_health.jsonl"))
+	// NOT extension_health.jsonl. It is a HEARTBEAT, not content: every installed extension
+	// appends to it every ~5s just to say it is alive, so including it made the fingerprint
+	// change perpetually and every open page reload itself every few seconds — forever, on
+	// every screen, wiping whatever the operator was typing. Measured: that file moved three
+	// times in eight seconds while every other stamped path sat still. Liveness belongs to the
+	// "live" dot and /status, not to a page reload.
 	for _, ws := range b.uiClients() {
 		stamp(filepath.Join(ws.Path, "outputs"))
 		stamp(filepath.Join(ws.Path, "outreach", "outputs"))
@@ -493,6 +499,88 @@ type uiContact struct {
 	Band            string // enrichment.confidence_band ("" = not enriched)
 	Seeds           int
 	SeedsUnresolved int
+	CreatedAt       string // RFC3339; drives the lead-growth panel
+}
+
+// uiLeadGrowth summarises how the lead list is GROWING, which is a different question from
+// how big it is. Bucketed by week rather than by day on purpose: leads arrive in bursts (an
+// import, a scan harvest), so a daily chart is mostly empty columns and reads as broken —
+// measured on the live list, all 488 contacts landed on two days.
+type uiLeadGrowth struct {
+	Total         int
+	ThisWeek      int
+	LastWeek      int
+	Delta         int    // ThisWeek - LastWeek
+	DaysSinceLast int    // -1 when nothing has ever been added
+	LastAdded     string // YYYY-MM-DD of the most recent contact
+	Weeks         []uiLeadWeek
+	Max           int
+}
+
+type uiLeadWeek struct {
+	Label string // week starting, e.g. "Jul 28"
+	Count int
+	Pct   int // bar height as a percentage of Max
+}
+
+// leadGrowth buckets contacts into the last 12 ISO weeks (Monday-based) by created_at.
+func leadGrowth(all []uiContact, now time.Time) uiLeadGrowth {
+	const weeks = 12
+	g := uiLeadGrowth{Total: len(all), DaysSinceLast: -1}
+	now = now.Local()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	// Monday of the current week.
+	offset := (int(today.Weekday()) + 6) % 7
+	thisMonday := today.AddDate(0, 0, -offset)
+
+	counts := make([]int, weeks) // counts[weeks-1] == current week
+	var newest time.Time
+	for _, ct := range all {
+		if ct.CreatedAt == "" {
+			continue
+		}
+		t, err := time.Parse(time.RFC3339, ct.CreatedAt)
+		if err != nil {
+			continue
+		}
+		t = t.Local()
+		if t.After(newest) {
+			newest = t
+		}
+		day := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+		// Bucket by the Monday of the contact's own week, then count whole weeks back.
+		// Rounding the day difference keeps a DST week (167h or 169h) from landing in the
+		// neighbouring bucket.
+		cMonday := day.AddDate(0, 0, -((int(day.Weekday()) + 6) % 7))
+		back := int(math.Round(thisMonday.Sub(cMonday).Hours()/24)) / 7
+		idx := weeks - 1 - back
+		if idx >= 0 && idx < weeks {
+			counts[idx]++
+		}
+	}
+	for i, n := range counts {
+		start := thisMonday.AddDate(0, 0, -7*(weeks-1-i))
+		if n > g.Max {
+			g.Max = n
+		}
+		g.Weeks = append(g.Weeks, uiLeadWeek{Label: start.Format("Jan 2"), Count: n})
+	}
+	for i := range g.Weeks {
+		if g.Max > 0 {
+			g.Weeks[i].Pct = g.Weeks[i].Count * 100 / g.Max
+		}
+	}
+	g.ThisWeek = counts[weeks-1]
+	if weeks >= 2 {
+		g.LastWeek = counts[weeks-2]
+	}
+	g.Delta = g.ThisWeek - g.LastWeek
+	if !newest.IsZero() {
+		g.LastAdded = newest.Format("2006-01-02")
+		d := time.Date(newest.Year(), newest.Month(), newest.Day(), 0, 0, 0, 0, newest.Location())
+		g.DaysSinceLast = int(today.Sub(d).Hours() / 24)
+	}
+	return g
 }
 
 // shortID trims a ULID to a short, still-unique display code: the type prefix
@@ -549,7 +637,7 @@ func (b *bridge) uiContacts(c uiClient, cap int) []uiContact {
 			continue
 		}
 		id := strings.TrimSuffix(e.Name(), ".json")
-		ct := uiContact{ID: id, ShortID: shortID(id), Name: contactName(doc)}
+		ct := uiContact{ID: id, ShortID: shortID(id), Name: contactName(doc), CreatedAt: mStr(doc, "created_at")}
 		ids := mMap(doc, "identities")
 		if emails := mapsOf(mList(ids, "emails")); len(emails) > 0 {
 			ct.Email = mStr(emails[0], "address")
@@ -956,6 +1044,62 @@ func (b *bridge) uiRenderCampaigns(w http.ResponseWriter, slug string) {
 	})
 }
 
+// uiSlugify turns operator-typed text into a campaign slug. The slug becomes a DIRECTORY
+// name, so anything that could escape the campaigns folder or collide with path syntax is
+// dropped rather than escaped — a campaign called "../x" must be impossible, not merely ugly.
+func uiSlugify(s string) string {
+	var b strings.Builder
+	prevDash := false
+	for _, r := range strings.ToLower(strings.TrimSpace(s)) {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+			prevDash = false
+		case r == '-' || r == '_' || r == ' ' || r == '.' || r == '/':
+			if b.Len() > 0 && !prevDash {
+				b.WriteByte('-')
+				prevDash = true
+			}
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if len(out) > 60 {
+		out = strings.Trim(out[:60], "-")
+	}
+	return out
+}
+
+// uiScannedGroups lists the Facebook groups this client's collector already scans daily.
+// A comment campaign's group list is PREFILLED from here and then narrowed by the operator —
+// it is not a live pointer at this list, because scanning a group for leads and commenting in
+// it are different decisions with different risk.
+func (b *bridge) uiScannedGroups(clientSlug string) []string {
+	doc, err := loadCollectorConfig(b.cfg)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, c := range mapsOf(mList(doc, "clients")) {
+		if mStr(c, "client_slug") != clientSlug {
+			continue
+		}
+		for _, s := range mapsOf(mList(c, "sources")) {
+			u := strings.TrimRight(strings.TrimSpace(mStr(s, "url")), "/")
+			if u == "" || !strings.Contains(strings.ToLower(u), "facebook.com/groups/") {
+				continue
+			}
+			if seen[strings.ToLower(u)] {
+				continue
+			}
+			seen[strings.ToLower(u)] = true
+			out = append(out, u)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 	c, ok := b.uiFindClient(slug)
 	if !ok {
@@ -1012,6 +1156,35 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 				sb["picked"] = picked[mStr(sb, "slug")]
 			}
 			return boxes
+		}(),
+		"Channel": strOr(mStr(cfg, "channel_strategy"), "email_first"), "Channels": sortedChannelStrategies(),
+		// A comment campaign watches its OWN group list. Offer the client's already-scanned
+		// groups as the pick-list so the operator narrows an existing set instead of retyping
+		// urls, but keep the two independent once saved.
+		"Groups": func() []map[string]any {
+			picked := map[string]bool{}
+			for _, g := range mList(mMap(cfg, "audience"), "groups") {
+				picked[strings.ToLower(strings.TrimRight(fmt.Sprint(g), "/"))] = true
+			}
+			seen := map[string]bool{}
+			var out []map[string]any
+			add := func(u string, inScan bool) {
+				k := strings.ToLower(strings.TrimRight(u, "/"))
+				if k == "" || seen[k] {
+					return
+				}
+				seen[k] = true
+				out = append(out, map[string]any{"url": u, "picked": picked[k], "scanned": inScan})
+			}
+			for _, u := range b.uiScannedGroups(slug) {
+				add(u, true)
+			}
+			// A group the operator added by hand that is no longer in the scan list must not
+			// silently vanish from the page — it is still being commented in.
+			for _, g := range mList(mMap(cfg, "audience"), "groups") {
+				add(strings.TrimRight(fmt.Sprint(g), "/"), false)
+			}
+			return out
 		}(),
 		"GoalType": mStr(goal, "goal_type"), "GoalTypes": sortedGoalTypes(),
 		"GoalDesc":              mStr(goal, "description"),
@@ -1427,7 +1600,23 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 			if err := intField("default_task_duration_min", &s.DefaultTaskDurationMin, 5, 480); err != nil {
 				return err
 			}
-			return intField("accountability_max_gap_hours", &s.AccountabilityMaxGapHours, 1, 720)
+			if err := intField("accountability_max_gap_hours", &s.AccountabilityMaxGapHours, 1, 720); err != nil {
+				return err
+			}
+			// The upper bounds here are a safety rail, not a formality: these caps
+			// govern how hard a real Facebook account is pushed, and a mistyped 500
+			// would spend that account's standing in a single run. Refuse the value
+			// rather than accept it and hope the campaign asks for less.
+			if err := intField("dm_per_account_per_day", &s.DMPerAccountPerDay, 1, 50); err != nil {
+				return err
+			}
+			if err := intField("comment_groups_per_account_per_day", &s.CommentGroupsPerAccountPerDay, 1, 20); err != nil {
+				return err
+			}
+			if err := intField("comments_per_group_per_day", &s.CommentsPerGroupPerDay, 1, 10); err != nil {
+				return err
+			}
+			return intField("posts_per_account_per_day", &s.PostsPerAccountPerDay, 1, 10)
 		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -1507,6 +1696,37 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(map[string]any{"ok": true, "queued": n,
 			"note": "recorded in ui_inbox; tell your agent to apply the shortlist decisions"})
+	case "campaign-create":
+		// Creating a campaign was CLI-only, so the operator had to go through the agent for
+		// the one action that starts everything. Same store call, same validation — the agent
+		// route keeps working unchanged, this just adds a second door to it.
+		campSlug := uiSlugify(mStr(body, "slug"))
+		if campSlug == "" {
+			http.Error(w, "slug required (letters, numbers and dashes)", http.StatusBadRequest)
+			return
+		}
+		channel := strings.TrimSpace(mStr(body, "channel_strategy"))
+		if channel == "" {
+			channel = "email_first"
+		}
+		cfg := map[string]any{"channel_strategy": channel}
+		if d := strings.TrimSpace(mStr(body, "goal_description")); d != "" {
+			cfg["goal"] = map[string]any{"description": d}
+		}
+		if q := int(asFloat(body["daily_quota"], 0)); q > 0 {
+			cfg["daily_quota"] = q
+		}
+		store := newCrmStore(filepath.Join(c.Path, "outreach"))
+		created, err := store.createCampaign(campSlug, cfg)
+		if err != nil {
+			writeJSON(map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		_ = appendUIInbox(filepath.Join(c.Path, "outreach", "ui_inbox", "campaign_edits.jsonl"),
+			map[string]any{"ts": now, "campaign": campSlug, "created": true,
+				"channel_strategy": mStr(created, "channel_strategy"), "ui_session": session})
+		writeJSON(map[string]any{"ok": true, "campaign": campSlug,
+			"url": "/ui/" + c.Slug + "/campaign/" + campSlug})
 	case "campaign-update":
 		// Operator-owned campaign config: applied through the SAME whitelist
 		// as `tool crm-store campaign update` (instant effect — the daily run
@@ -1838,7 +2058,8 @@ func (b *bridge) uiRenderCRM(w http.ResponseWriter, slug string, r *http.Request
 	b.uiRender(w, "crm", map[string]any{
 		"Title": "CRM", "Client": c,
 		"Contacts": rows, "StageOrder": order, "Stages": stages,
-		"Stats": stats, "Page": page, "Pages": pages, "PageNums": pageNums,
+		"Growth": leadGrowth(all, time.Now()),
+		"Stats":  stats, "Page": page, "Pages": pages, "PageNums": pageNums,
 		"From": start + 1, "To": end,
 		"PrevPage": page - 1, "NextPage": page + 1,
 	})
@@ -1985,8 +2206,36 @@ var uiTpl = template.Must(template.New("ui").Funcs(uiTplFuncs).Parse(`
 <main class="content"><h1>{{.Title}}</h1>{{end}}
 
 {{define "foot"}}</main></div></div><script>
-try{var es=new EventSource('/events');es.addEventListener('change',function(){location.reload()});
-es.onopen=function(){var l=document.getElementById('livedot');if(l)l.classList.add('on')}}catch(e){}
+// Live pages reload themselves when the data behind them changes. That is fine until the
+// operator is halfway through typing a goal or ticking groups — an auto-reload then throws
+// their work away, silently. So: track whether anything on the page has unsaved input, and
+// when it does, offer the refresh instead of performing it.
+try{
+ var dirty=false;
+ document.addEventListener('input',function(e){
+  var t=e.target;
+  if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'))dirty=true;
+ },true);
+ document.addEventListener('change',function(e){
+  var t=e.target;
+  if(t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA'))dirty=true;
+ },true);
+ document.addEventListener('submit',function(){dirty=false},true);
+ function offerRefresh(){
+  if(document.getElementById('stalebar'))return;
+  var bar=document.createElement('button');
+  bar.id='stalebar';bar.type='button';
+  bar.textContent='New data arrived — refresh';
+  bar.title='Refreshing now would discard what you have typed on this page.';
+  bar.style.cssText='position:fixed;right:16px;bottom:16px;z-index:9999;width:auto;'+
+   'padding:.5rem .9rem;border-radius:999px;box-shadow:0 2px 10px rgba(0,0,0,.25);cursor:pointer';
+  bar.addEventListener('click',function(){dirty=false;location.reload()});
+  document.body.appendChild(bar);
+ }
+ var es=new EventSource('/events');
+ es.addEventListener('change',function(){ if(dirty){offerRefresh()} else {location.reload()} });
+ es.onopen=function(){var l=document.getElementById('livedot');if(l)l.classList.add('on')};
+}catch(e){}
 </script></body></html>{{end}}
 
 {{define "locked"}}{{template "head" .}}
@@ -2116,6 +2365,19 @@ es.onopen=function(){var l=document.getElementById('livedot');if(l)l.classList.a
 <label>Posting-gap alert threshold (hours)
 <input type="number" id="s-gap" value="{{.Settings.AccountabilityMaxGapHours}}" min="1" max="720">
 <small class="mut">A client who has not posted a video for longer than this gets a reminder (their own channel, separate from reports). Default 72h — a weekend gap is normal. After 3 unheeded reminders the operator gets an email at the address above.</small></label>
+<h2>Distribution caps (per Facebook account, per day)</h2>
+<p class="mut" style="font-size:.83rem;margin-top:0">Agency-wide ceilings for Messenger and comment outreach. The scarce resource is <strong>account health</strong>: a bounced email costs one lead, but an account that looks like a bulk sender gets restricted and takes its warmup history with it. Start low and raise only on evidence. A campaign may ask for less than these; never more.</p>
+<div class="grid">
+<label>Direct messages / account / day
+<input type="number" id="s-dm" value="{{.Settings.DMPerAccountPerDay}}" min="1" max="50"></label>
+<label>Groups commented in / account / day
+<input type="number" id="s-cgroups" value="{{.Settings.CommentGroupsPerAccountPerDay}}" min="1" max="20"></label>
+<label>Comments / group / day
+<input type="number" id="s-cper" value="{{.Settings.CommentsPerGroupPerDay}}" min="1" max="10"></label>
+<label>New posts into groups / account / day
+<input type="number" id="s-posts" value="{{.Settings.PostsPerAccountPerDay}}" min="1" max="10"></label>
+</div>
+<small class="mut">Groups × comments-per-group is the daily comment ceiling for one account. The group count is a <em>diversity</em> cap — spreading across a few groups reads as human, hammering one does not. <strong>Posting</strong> is the most exposed of the three: a standalone piece of content in front of the whole group, the thing members report as spam, and often held for admin approval — keep it lowest, and never push the same post into many groups on the same day.</small>
 <button class="ok" id="s-save">Save settings</button>
 <span class="mut" id="s-msg" style="font-size:.83rem;margin-left:8px"></span>
 </div>
@@ -2131,7 +2393,11 @@ document.getElementById('s-save').onclick=function(){
    slot_step_minutes:+document.getElementById('s-step').value,
    slot_horizon_days:+document.getElementById('s-horizon').value,
    default_task_duration_min:+document.getElementById('s-duration').value,
-   accountability_max_gap_hours:+document.getElementById('s-gap').value})})
+   accountability_max_gap_hours:+document.getElementById('s-gap').value,
+   dm_per_account_per_day:+document.getElementById('s-dm').value,
+   comment_groups_per_account_per_day:+document.getElementById('s-cgroups').value,
+   comments_per_group_per_day:+document.getElementById('s-cper').value,
+   posts_per_account_per_day:+document.getElementById('s-posts').value})})
  .then(function(r){return r.ok?r.json():r.text().then(function(t){throw new Error(t)})})
  .then(function(){m.textContent='saved ✓'})
  .catch(function(e){m.textContent='error: '+e.message});
@@ -2188,6 +2454,31 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 {{$st := .Stages}}{{range .StageOrder}}<div class="card"><strong>{{.}}</strong>
 {{range index $st .}}<div class="mut">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</div>{{else}}<div class="mut" style="opacity:.5">empty</div>{{end}}</div>{{end}}</div>
 {{else}}<div class="empty" style="margin-top:0"><b>No deals yet.</b><br>Replies become deals here automatically; approve some drafts and let the campaign run.</div>{{end}}
+<h2>Lead growth <span class="mut" style="font-size:.8rem">how the list is growing, not just how big it is</span></h2>
+<div class="card">
+<div class="statrow" style="margin-bottom:.9rem">
+<div class="stat"><b>{{.Growth.Total}}</b><span>leads total</span></div>
+<div class="stat{{if .Growth.ThisWeek}} hot{{end}}"><b>{{.Growth.ThisWeek}}</b><span>added this week</span></div>
+<div class="stat"><b>{{.Growth.LastWeek}}</b><span>last week</span></div>
+<div class="stat"><b>{{if gt .Growth.Delta 0}}+{{end}}{{.Growth.Delta}}</b><span>week over week</span></div>
+{{if ge .Growth.DaysSinceLast 0}}<div class="stat"><b>{{.Growth.DaysSinceLast}}d</b><span>since the last new lead</span></div>{{end}}
+</div>
+{{if .Growth.Max}}
+<div style="display:flex;align-items:flex-end;gap:4px;height:90px;padding-top:4px">
+{{range .Growth.Weeks}}<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%" title="week of {{.Label}}: {{.Count}} new">
+<span class="mut" style="font-size:.7rem;line-height:1">{{if .Count}}{{.Count}}{{end}}</span>
+<div style="width:100%;background:var(--accent,#2a6);opacity:{{if .Count}}.85{{else}}.12{{end}};height:{{if .Count}}{{.Pct}}%{{else}}2px{{end}};border-radius:2px 2px 0 0;min-height:2px"></div>
+</div>{{end}}
+</div>
+<div style="display:flex;gap:4px;margin-top:3px">
+{{range .Growth.Weeks}}<span class="mut" style="flex:1;text-align:center;font-size:.62rem;white-space:nowrap;overflow:hidden">{{.Label}}</span>{{end}}
+</div>
+<p class="mut" style="font-size:.78rem;margin:.7rem 0 0">New contacts per week, last 12 weeks. Leads arrive in bursts — an import, or a harvest from a comment run — so an empty week is normal; a long empty stretch is the signal.{{if ge .Growth.DaysSinceLast 7}} <strong>Nothing new since {{.Growth.LastAdded}}</strong> — the pipeline is not feeding itself right now.{{end}}</p>
+{{else}}
+<p class="mut" style="margin:0">No contacts carry a creation date yet, so growth cannot be charted. Totals above still hold.</p>
+{{end}}
+</div>
+
 <h2>Contacts <span class="mut" style="font-size:.8rem">click a row for the full profile and its latest activities</span></h2>
 <div class="statrow">
 <div class="stat"><b>{{.Stats.Total}}</b><span>leads total</span></div>
@@ -2289,6 +2580,7 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 <label><input type="checkbox" id="checkall" checked> All</label>
 <button class="ok" id="approvechecked">Approve checked (<span id="ckcount">0</span>)</button>
 <a href="#" id="onlyhigh" class="mut" style="font-size:.83rem">select high-confidence only</a>
+<label id="campwrap" class="mut" style="font-size:.83rem;margin:0">campaign <select id="campfilter" style="width:auto;display:inline-block;margin:0 0 0 .3rem;padding:.1rem .3rem;font-size:.83rem"><option value="">all</option></select></label>
 <span class="mut" id="batchmsg" style="font-size:.83rem"></span>
 </div>
 {{end}}
@@ -2317,19 +2609,27 @@ function payload(card){var p={draft_id:card.dataset.id,campaign:card.dataset.cam
  var s=card.querySelector('.subj'),b=card.querySelector('.body');
  if(s.value!==s.defaultValue)p.edited_subject=s.value;
  if(b.value!==b.defaultValue)p.edited_body=b.value;return p}
-function pickable(){return Array.prototype.slice.call(document.querySelectorAll('.draft:not(.done)'))}
+function allCards(){return Array.prototype.slice.call(document.querySelectorAll('.draft'))}
+// Hidden cards are NOT pickable. Everything that acts in bulk — the All checkbox,
+// "select high-confidence only", "Approve checked" — runs off this list, so a filtered
+// view can never approve a draft belonging to a campaign the operator cannot see.
+function pickable(){return allCards().filter(function(c){return !c.classList.contains('done')&&c.style.display!=='none'})}
 function checkedCards(){return pickable().filter(function(c){var p=c.querySelector('.pick');return p&&p.checked})}
 function updateCount(){var all=document.getElementById('checkall');if(!all)return;
  var cards=pickable(),n=checkedCards().length;
  document.getElementById('ckcount').textContent=n;
  all.checked=n>0&&n===cards.length;all.indeterminate=n>0&&n<cards.length;
- document.getElementById('approvechecked').disabled=(n===0)}
+ document.getElementById('approvechecked').disabled=(n===0);
+ var left=document.getElementById('left');
+ if(left){var total=allCards().filter(function(c){return !c.classList.contains('done')}).length;
+  // Say "3 of 50" while filtered — never let the headline imply the hidden ones are gone.
+  left.textContent=(cards.length===total)?String(total):(cards.length+' of '+total)}}
 function send(card,act,note){var p=payload(card);p.decision=act;if(note)p.note=note;
  return fetch('/api/ui/'+CLIENT+'/approval',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
  .then(function(){if(act!=='edit'){card.classList.add('done');card.querySelector('.acts').innerHTML='<span class="pill">'+act+' ✓ queued</span>'}
   else{card.querySelector('.subj').defaultValue=card.querySelector('.subj').value;card.querySelector('.body').defaultValue=card.querySelector('.body').value}
-  var n=document.querySelectorAll('.draft:not(.done)').length;document.getElementById('left').textContent=n;updateCount()})
+  updateCount()})
  .catch(function(e){alert('Failed: '+e.message)})}
 document.addEventListener('click',function(e){var b=e.target.closest('button[data-act]');if(!b)return;
  var card=b.closest('.draft');var act=b.getAttribute('data-act');
@@ -2342,6 +2642,18 @@ document.addEventListener('change',function(e){
 var onlyHigh=document.getElementById('onlyhigh');
 if(onlyHigh)onlyHigh.addEventListener('click',function(e){e.preventDefault();
  pickable().forEach(function(c){c.querySelector('.pick').checked=(c.dataset.band==='high')});updateCount()});
+// Campaign filter. One client now runs several campaigns at once — email, comment and DM —
+// each at its own pace, and they all land in this one queue. The options are derived from
+// the cards themselves rather than passed from Go, so the list always matches what is
+// actually pending. Hidden when there is only one campaign to choose from.
+var campSel=document.getElementById('campfilter');
+if(campSel){var seen={},order=[];
+ allCards().forEach(function(c){var k=c.dataset.campaign||'';if(!k||seen[k])return;seen[k]=1;order.push(k)});
+ order.sort().forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;campSel.appendChild(o)});
+ if(order.length<2){var w=document.getElementById('campwrap');if(w)w.style.display='none'}
+ campSel.addEventListener('change',function(){var want=campSel.value;
+  allCards().forEach(function(c){c.style.display=(!want||c.dataset.campaign===want)?'':'none'});
+  updateCount()})}
 var batchBtn=document.getElementById('approvechecked');
 if(batchBtn)batchBtn.addEventListener('click',function(){
  var cards=checkedCards();
@@ -2404,7 +2716,60 @@ document.getElementById('submit').addEventListener('click',function(){
 </div>
 {{end}}
 </div>
-{{else}}<div class="empty"><b>No campaigns yet.</b><br>Tell the agent: <code>set up a cold-email campaign</code> (3 questions and it runs).</div>{{end}}
+{{else}}<div class="empty"><b>No campaigns yet.</b><br>Create one below, or tell the agent: <code>set up a cold-email campaign</code> (3 questions and it runs).</div>{{end}}
+
+<h2>New campaign</h2>
+<div class="card">
+<p class="mut" style="font-size:.85rem;margin-top:0">One campaign per channel, each with its own goal — the same offer needs a different pen for a cold email, a direct message, a public comment and a standalone group post. You can also just tell the agent <code>set up a comment campaign</code>; both routes create the same thing.</p>
+<div class="grid">
+<label>Name <span class="mut">(becomes the campaign id)</span>
+<input id="nc-slug" type="text" placeholder="e.g. leadup comments" autocomplete="off"></label>
+<label>Channel
+<select id="nc-channel">
+<option value="email_first">Email</option>
+<option value="messenger">Messenger DM</option>
+<option value="comment">Facebook comments</option>
+<option value="post">Posts into groups</option>
+</select></label>
+<label>Daily budget <span class="mut">(max new drafts/day)</span>
+<input id="nc-quota" type="number" min="1" max="500" value="40" style="width:8rem"></label>
+</div>
+<label>Goal <span class="mut">(your words — what should this campaign achieve, and what are you offering? Everything else is derived from this plus your client profile. You can refine it after creating.)</span>
+<textarea id="nc-goal" style="min-height:80px" placeholder="e.g. Draw attention to the profile with genuinely useful answers on other people's posts, so readers click through and discover LeadUp"></textarea></label>
+<p class="mut" id="nc-hint" style="font-size:.8rem;margin:-.3rem 0 .8rem"></p>
+<button class="ok" id="nc-create">Create campaign</button>
+<span class="mut" id="nc-msg" style="font-size:.85rem;margin-left:8px"></span>
+</div>
+<script>
+(function(){
+ var slug=document.getElementById('nc-slug'), ch=document.getElementById('nc-channel'),
+     hint=document.getElementById('nc-hint'), btn=document.getElementById('nc-create'),
+     msg=document.getElementById('nc-msg');
+ function slugify(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)}
+ function sync(){
+  var v=ch.value, id=slugify(slug.value);
+  var what = v==='comment' ? 'After creating, pick which groups to comment in — prefilled from the groups this client already scans.'
+    : v==='post' ? 'After creating, pick which groups to post into. Posting is the most exposed channel, so its daily cap is the lowest.'
+    : v==='messenger' ? 'Targets contacts that have a Facebook profile. Nothing sends without your approval.'
+    : 'Targets a segment of contacts that have an email address.';
+  hint.innerHTML = (id? 'id: <code>'+id+'</code> &middot; ' : '') + what;
+ }
+ slug.addEventListener('input',sync); ch.addEventListener('change',sync); sync();
+ btn.addEventListener('click',function(){
+  var id=slugify(slug.value);
+  if(!id){msg.textContent='Give it a name first.';return}
+  btn.disabled=true;btn.setAttribute('aria-busy','true');msg.textContent='Creating…';
+  fetch('/api/ui/{{$slug}}/campaign-create',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({slug:id,channel_strategy:ch.value,goal_description:document.getElementById('nc-goal').value.trim(),
+    daily_quota:parseInt(document.getElementById('nc-quota').value,10)})})
+  .then(function(r){return r.ok?r.json():r.text().then(function(t){throw new Error(t)})})
+  .then(function(j){
+   if(j.ok){msg.textContent='✓ created — opening…';location.href=j.url}
+   else{btn.disabled=false;btn.removeAttribute('aria-busy');msg.textContent='✗ '+j.error}})
+  .catch(function(e){btn.disabled=false;btn.removeAttribute('aria-busy');msg.textContent='✗ '+e.message});
+ });
+})();
+</script>
 {{template "foot" .}}{{end}}
 
 {{define "campaign"}}{{template "head" .}}
@@ -2428,7 +2793,33 @@ document.getElementById('submit').addEventListener('click',function(){
 </div>
 
 <form id="campform">
-<h2>Goal <span class="mut" style="font-size:.8rem">what every email in this campaign is trying to achieve</span></h2>
+<h2>Channel <span class="mut" style="font-size:.8rem">how this campaign reaches people — it decides how the goal is written</span></h2>
+<div class="card">
+<label>Channel
+<select id="f-channel">
+{{$ch := .Channel}}{{range .Channels}}<option value="{{.}}"{{if eq . $ch}} selected{{end}}>{{if eq . "email_first"}}Email{{else if eq . "messenger"}}Messenger DM{{else if eq . "comment"}}Facebook comments{{else if eq . "post"}}Posts into groups{{else}}{{.}}{{end}}</option>{{end}}
+</select>
+<small class="mut">One campaign per channel, each with its own goal: the same offer needs a different pen for a cold email, a direct message, a public comment, and a standalone group post. Email and Messenger target a segment of people; comments and posts target a list of groups.</small></label>
+</div>
+
+<div class="card" id="groupcard">
+<h2 style="margin-top:0" id="grouphead">Groups</h2>
+<p class="mut" style="font-size:.85rem;margin-top:0">Prefilled with the groups this client's collector already scans daily &mdash; untick the ones you don't want to act in. Scanning a group for leads and acting in it are different decisions, so this list is the campaign's own: changing it here does not change what the collector monitors.</p>
+<div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.8rem">
+{{range .Groups}}<label style="display:flex;align-items:center;gap:.4rem;margin:0;font-weight:400">
+<input type="checkbox" class="f-group" value="{{.url}}"{{if .picked}} checked{{end}} style="margin:0">
+<span><code>{{.url}}</code>{{if not .scanned}} <span class="pill">not in the daily scan</span>{{end}}</span>
+</label>{{else}}<span class="mut">This client has no Facebook groups in its collector sources yet — add one below, or add it as a private data source first so it gets scanned too.</span>{{end}}
+</div>
+<label>Add a group <span class="mut">(a full facebook.com/groups/… url)</span>
+<div style="display:flex;gap:.5rem">
+<input id="f-groupadd" type="text" placeholder="https://www.facebook.com/groups/…" style="flex:1">
+<button type="button" id="f-groupaddbtn" style="width:auto">Add</button>
+</div></label>
+<p class="mut" style="font-size:.8rem;margin-bottom:0">The acting account must be a <strong>member</strong> of the group. Groups no account has joined are skipped and reported — joining is never automated.</p>
+</div>
+
+<h2>Goal <span class="mut" style="font-size:.8rem">what every message in this campaign is trying to achieve</span></h2>
 <div class="card">
 <label>Goal <span class="mut">(your words. What should these emails achieve, and what are you offering? The agent derives everything below from this + your client profile.)</span>
 <textarea id="f-goaldesc" style="min-height:90px" placeholder="e.g. Gioi thieu dich vu video cho cac professional, muc tieu la ho mo xem proposal ca nhan hoa va reply">{{.GoalDesc}}</textarea></label>
@@ -2487,6 +2878,40 @@ document.getElementById('submit').addEventListener('click',function(){
  boxes.forEach(function(b){b.addEventListener('change',sum)});
  sum();
 })();
+// The group list belongs to comment campaigns only — show it when that channel is chosen,
+// including immediately after the operator switches to it, so the list is filled in the same
+// pass rather than after a save-and-reload.
+(function(){
+ var sel=document.getElementById('f-channel'), card=document.getElementById('groupcard'),
+     head=document.getElementById('grouphead');
+ if(!sel||!card)return;
+ function usesGroups(v){return v==='comment'||v==='post'}
+ function sync(){
+  card.style.display=usesGroups(sel.value)?'':'none';
+  if(head)head.textContent=(sel.value==='post')?'Groups to post in':'Groups to comment in';
+ }
+ sel.addEventListener('change',sync);sync();
+ var add=document.getElementById('f-groupaddbtn'), input=document.getElementById('f-groupadd');
+ if(!add||!input)return;
+ add.addEventListener('click',function(){
+  var u=input.value.trim().replace(/\/+$/,'');
+  if(!u)return;
+  if(u.toLowerCase().indexOf('facebook.com/groups/')<0){alert('That is not a Facebook group url.');return}
+  var dup=Array.prototype.slice.call(document.querySelectorAll('.f-group'))
+    .some(function(x){return x.value.toLowerCase()===u.toLowerCase()});
+  if(dup){alert('That group is already listed.');input.value='';return}
+  var row=document.createElement('label');
+  row.style.cssText='display:flex;align-items:center;gap:.4rem;margin:0;font-weight:400';
+  var cb=document.createElement('input');cb.type='checkbox';cb.className='f-group';cb.value=u;cb.checked=true;cb.style.margin='0';
+  var sp=document.createElement('span');
+  var code=document.createElement('code');code.textContent=u;sp.appendChild(code);
+  var pill=document.createElement('span');pill.className='pill';pill.textContent='not in the daily scan';
+  sp.appendChild(document.createTextNode(' '));sp.appendChild(pill);
+  row.appendChild(cb);row.appendChild(sp);
+  input.parentNode.parentNode.parentNode.querySelector('div[style*="flex-direction:column"]').appendChild(row);
+  input.value='';
+ });
+})();
 var CLIENT="{{.Client.Slug}}", CAMP="{{.Slug}}";
 function postUpdate(patch, done){
  fetch('/api/ui/'+CLIENT+'/campaign-update',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -2513,7 +2938,14 @@ document.getElementById('campform').addEventListener('submit',function(e){
     on_fail:document.getElementById('f-comp-onfail').value,
     default_link:document.getElementById('f-comp-default').value.trim()} : null};
  var sboxes=Array.prototype.slice.call(document.querySelectorAll('.f-sbox:checked')).map(function(x){return x.value});
- postUpdate({goal:goal, daily_quota:parseInt(document.getElementById('f-quota').value,10), sendboxes:sboxes},
+ var patch={goal:goal, daily_quota:parseInt(document.getElementById('f-quota').value,10), sendboxes:sboxes,
+   channel_strategy:document.getElementById('f-channel').value};
+ // Only a group-targeting campaign owns a group list. Sending it on an email or DM campaign
+ // would let a stray tick quietly arm a channel the operator did not choose.
+ if(patch.channel_strategy==='comment'||patch.channel_strategy==='post'){
+  patch['audience.groups']=Array.prototype.slice.call(document.querySelectorAll('.f-group:checked')).map(function(x){return x.value});
+ }
+ postUpdate(patch,
   function(j){btn.disabled=false;btn.removeAttribute('aria-busy');
    if(j.ok){msg.textContent = (j.changed&&j.changed.length) ? '✓ saved ('+j.changed.join(', ')+'): takes effect from the next run; the agent is notified' : '✓ nothing changed';}
    else{msg.textContent='✗ '+j.error}})});

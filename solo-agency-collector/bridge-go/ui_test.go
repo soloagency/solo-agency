@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -1121,5 +1122,456 @@ func TestCRMPagingNumberingAndStats(t *testing.T) {
 	}
 	if got := get("/ui/leadup/crm?page=abc"); !strings.Contains(got, "1&ndash;100 of 250") {
 		t.Error("a junk page param must fall back to page 1")
+	}
+}
+
+// One client now runs several campaigns at once — email, comment and DM — each advancing at
+// its own pace and all landing in this single approval queue. The page must aggregate them
+// (so the operator can drain whatever is ready in one pass) while still offering a filter to
+// work one campaign at a time.
+func TestUIApprovalsCampaignFilter(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	write := func(rel, body string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("outreach/campaigns/leadup-email/outbox/pending_approval/2026-08-15/e1.json",
+		`{"id":"e1","status":"pending_approval","to":"jane@x.com","subject":"Email draft","body_text":"hi","confidence_band":"high","step":1}`)
+	write("outreach/campaigns/leadup-comment/outbox/pending_approval/2026-08-15/c1.json",
+		`{"id":"c1","status":"pending_approval","to":"post 676092881161049","subject":"","body_text":"a useful comment","confidence_band":"high","step":1}`)
+	write("outreach/campaigns/leadup-dm/outbox/pending_approval/2026-08-15/m1.json",
+		`{"id":"m1","status":"pending_approval","to":"Bob Nguyen","subject":"","body_text":"thanks for the post","confidence_band":"medium","step":1}`)
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+
+	req := httptest.NewRequest("GET", "/ui/leadup/approvals", nil)
+	req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("approvals page: %d", rec.Code)
+	}
+	body := rec.Body.String()
+
+	// All three campaigns aggregate into the one screen.
+	for _, want := range []string{"jane@x.com", "a useful comment", "thanks for the post"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("approvals page missing draft %q — campaigns must aggregate", want)
+		}
+	}
+	// Each card is tagged so the filter (and the approve POST) can tell them apart.
+	for _, want := range []string{
+		`data-campaign="leadup-email"`, `data-campaign="leadup-comment"`, `data-campaign="leadup-dm"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("approvals page missing campaign tag %q", want)
+		}
+	}
+	// The filter control itself.
+	for _, want := range []string{`id="campfilter"`, `id="campwrap"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("approvals page missing campaign filter %q", want)
+		}
+	}
+	// SAFETY INVARIANT: bulk actions must run off the visible set only. If pickable() ever
+	// goes back to scanning every .draft regardless of display, filtering to one campaign and
+	// hitting "Approve checked" would silently approve another campaign's hidden drafts.
+	if !strings.Contains(body, `c.style.display!=='none'`) {
+		t.Fatal("pickable() must exclude hidden cards, or a filtered batch-approve leaks into other campaigns")
+	}
+}
+
+// A campaign declares its CHANNEL at creation because the channel decides what else it
+// needs: email/messenger target a segment of people, comment targets a list of GROUPS.
+func TestCampaignChannelAndGroups(t *testing.T) {
+	root := t.TempDir()
+	store := newCrmStore(filepath.Join(root, "outreach"))
+
+	// A mistyped channel must be refused, not written through.
+	if _, err := store.createCampaign("bad", map[string]any{"channel_strategy": "messanger"}); err == nil {
+		t.Fatal("a misspelled channel_strategy must be refused at create")
+	}
+
+	cfg, err := store.createCampaign("leadup-comments", map[string]any{"channel_strategy": "comment"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mStr(cfg, "channel_strategy") != "comment" {
+		t.Fatalf("channel not stored: %v", cfg["channel_strategy"])
+	}
+	// Both targeting fields always exist, so a campaign can be inspected without first
+	// knowing its channel.
+	aud := mMap(cfg, "audience")
+	if _, ok := aud["segment"]; !ok {
+		t.Fatal("audience.segment must always exist")
+	}
+	if _, ok := aud["groups"]; !ok {
+		t.Fatal("audience.groups must always exist")
+	}
+
+	// Groups round-trip, normalise, and de-duplicate.
+	res, err := store.campaignUpdate("leadup-comments", map[string]any{"audience.groups": []any{
+		"https://www.facebook.com/groups/marketingforinsurance/",
+		"https://www.facebook.com/groups/MarketingForInsurance", // same group, different case + slash
+		"https://www.facebook.com/groups/770941550605805/",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mList(res, "changed")) == 0 {
+		t.Fatal("group change was not recorded")
+	}
+	got := mList(mMap(store.getCampaign("leadup-comments"), "audience"), "groups")
+	if len(got) != 2 {
+		t.Fatalf("expected 2 groups after dedupe/normalise, got %v", got)
+	}
+	if fmt.Sprint(got[0]) != "https://www.facebook.com/groups/marketingforinsurance" {
+		t.Fatalf("trailing slash not normalised: %v", got[0])
+	}
+
+	// A non-group url is a typo that would leave the campaign watching nothing — refuse it.
+	if _, err := store.campaignUpdate("leadup-comments", map[string]any{
+		"audience.groups": []any{"https://www.facebook.com/nguyenhuubinh"}}); err == nil {
+		t.Fatal("a non-group url must be refused")
+	}
+	// The refusal must not have partially applied.
+	if len(mList(mMap(store.getCampaign("leadup-comments"), "audience"), "groups")) != 2 {
+		t.Fatal("a rejected group patch must leave the stored list untouched")
+	}
+}
+
+// The campaign page must offer the client's already-scanned groups as the pick-list, and must
+// only submit a group list when the chosen channel is comment — otherwise a stray tick could
+// arm a channel the operator did not pick.
+func TestCampaignPageGroupPicker(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	store := newCrmStore(filepath.Join(ws, "outreach"))
+	if _, err := store.createCampaign("leadup-comments", map[string]any{
+		"channel_strategy": "comment",
+		"audience":         map[string]any{"groups": []any{"https://www.facebook.com/groups/handpicked"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	collectorDir := filepath.Join(root, "collector")
+	if err := os.MkdirAll(collectorDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfgFile := filepath.Join(collectorDir, "collector_config.json")
+	if err := os.WriteFile(cfgFile, []byte(`{"clients":[{"client_slug":"leadup","sources":[
+		{"url":"https://www.facebook.com/groups/marketingforinsurance/"},
+		{"url":"https://www.facebook.com/nguyenhuubinh"},
+		{"url":"https://www.facebook.com/groups/smmforlifeinsurance"}]}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321, configFile: cfgFile}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	req := httptest.NewRequest("GET", "/ui/leadup/campaign/leadup-comments", nil)
+	req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("campaign page: %d", rec.Code)
+	}
+	html := rec.Body.String()
+
+	// Scanned groups are offered; a non-group source is not.
+	for _, want := range []string{"marketingforinsurance", "smmforlifeinsurance", "handpicked", `id="groupcard"`, `id="f-channel"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("campaign page missing %q", want)
+		}
+	}
+	if strings.Contains(html, "nguyenhuubinh") {
+		t.Error("a non-group collector source must not be offered as a comment target")
+	}
+	// The hand-added group is ticked; a merely-scanned one is not.
+	if !strings.Contains(html, `value="https://www.facebook.com/groups/handpicked" checked`) {
+		t.Error("a group already on the campaign must render ticked")
+	}
+	if strings.Contains(html, `value="https://www.facebook.com/groups/smmforlifeinsurance" checked`) {
+		t.Error("a scanned-but-unpicked group must not be pre-ticked")
+	}
+	if !strings.Contains(html, `patch.channel_strategy==='comment'`) {
+		t.Error("the group list must only be submitted for a comment campaign")
+	}
+}
+
+// Posting INTO a group is a fourth channel with the same group-list shape as comment, and
+// the most exposed of the set — so it must be a real, validated channel rather than a free
+// string, and it must share the group picker.
+func TestPostChannelSharesGroupList(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	store := newCrmStore(filepath.Join(ws, "outreach"))
+	if _, err := store.createCampaign("leadup-group-posts", map[string]any{"channel_strategy": "post"}); err != nil {
+		t.Fatal(err)
+	}
+	if !channelUsesGroups("post") || !channelUsesGroups("comment") {
+		t.Fatal("comment and post both target groups")
+	}
+	if channelUsesGroups("email_first") || channelUsesGroups("messenger") {
+		t.Fatal("email and messenger target a segment, not groups")
+	}
+	if _, err := store.campaignUpdate("leadup-group-posts", map[string]any{
+		"audience.groups": []any{"https://www.facebook.com/groups/marketingforinsurance"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	collectorDir := filepath.Join(root, "collector")
+	if err := os.MkdirAll(collectorDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfgFile := filepath.Join(collectorDir, "collector_config.json")
+	if err := os.WriteFile(cfgFile, []byte(`{"clients":[{"client_slug":"leadup","sources":[
+		{"url":"https://www.facebook.com/groups/smmforlifeinsurance"}]}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321, configFile: cfgFile}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	req := httptest.NewRequest("GET", "/ui/leadup/campaign/leadup-group-posts", nil)
+	req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("campaign page: %d", rec.Code)
+	}
+	html := rec.Body.String()
+	for _, want := range []string{`value="post" selected`, "Posts into groups", "Groups to post in", "smmforlifeinsurance", "marketingforinsurance"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("post campaign page missing %q", want)
+		}
+	}
+	if !strings.Contains(html, `patch.channel_strategy==='comment'||patch.channel_strategy==='post'`) {
+		t.Error("a post campaign must submit its group list too")
+	}
+}
+
+// Lead growth is bucketed by WEEK because leads arrive in bursts — measured on the live list,
+// all 488 contacts landed on two consecutive days. A day-bucketed chart would be almost
+// entirely empty columns and would read as broken rather than as "nothing new lately".
+func TestLeadGrowthBuckets(t *testing.T) {
+	now := time.Date(2026, 8, 15, 10, 0, 0, 0, time.Local) // a Saturday
+	mk := func(day string, n int) []uiContact {
+		var out []uiContact
+		for i := 0; i < n; i++ {
+			out = append(out, uiContact{CreatedAt: day})
+		}
+		return out
+	}
+	var all []uiContact
+	all = append(all, mk("2026-08-11T09:00:00Z", 3)...)  // this week (Mon 11th)
+	all = append(all, mk("2026-08-05T09:00:00Z", 7)...)  // last week
+	all = append(all, mk("2026-07-29T09:00:00Z", 375)...)// 3 weeks back — the real burst
+	all = append(all, mk("2026-07-28T09:00:00Z", 113)...)
+	all = append(all, uiContact{CreatedAt: ""}) // no timestamp: counted in Total, not charted
+
+	g := leadGrowth(all, now)
+	if g.Total != len(all) {
+		t.Fatalf("Total must count every contact, got %d want %d", g.Total, len(all))
+	}
+	if g.ThisWeek != 3 || g.LastWeek != 7 {
+		t.Fatalf("week buckets wrong: this=%d last=%d", g.ThisWeek, g.LastWeek)
+	}
+	if g.Delta != -4 {
+		t.Fatalf("delta should be this-last = -4, got %d", g.Delta)
+	}
+	if len(g.Weeks) != 12 {
+		t.Fatalf("expected 12 week buckets, got %d", len(g.Weeks))
+	}
+	if g.Max != 488 {
+		t.Fatalf("the burst week should set Max=488, got %d", g.Max)
+	}
+	// 2026-07-28 (Tue) and 2026-07-29 (Wed) share the week of Mon 2026-07-27.
+	var burst int
+	for _, w := range g.Weeks {
+		if w.Label == "Jul 27" {
+			burst = w.Count
+		}
+	}
+	if burst != 488 {
+		t.Fatalf("both burst days belong to the week of Jul 27, got %d", burst)
+	}
+	// The headline the operator actually needs when the pipeline has stalled.
+	if g.LastAdded != "2026-08-11" || g.DaysSinceLast != 4 {
+		t.Fatalf("stall headline wrong: last=%q days=%d", g.LastAdded, g.DaysSinceLast)
+	}
+	// Bars are percentages of the tallest week, never over 100.
+	for _, w := range g.Weeks {
+		if w.Pct < 0 || w.Pct > 100 {
+			t.Fatalf("bar %q out of range: %d", w.Label, w.Pct)
+		}
+	}
+
+	// An empty list must not divide by zero or claim a last-added date.
+	if e := leadGrowth(nil, now); e.Max != 0 || e.DaysSinceLast != -1 || e.LastAdded != "" {
+		t.Fatalf("empty list should chart nothing: %+v", e)
+	}
+}
+
+// Creating a campaign was CLI-only, so the one action that starts everything had to go
+// through the agent. The UI route uses the same store call — and must not become a way to
+// destroy a running campaign or to write outside the campaigns folder.
+func TestUICampaignCreate(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	if err := os.MkdirAll(filepath.Join(ws, "outreach"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	post := func(body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/ui/leadup/campaign-create", strings.NewReader(body))
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := post(`{"slug":"LeadUp Comments!","channel_strategy":"comment","goal_description":"be useful","daily_quota":12}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create: %d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("create failed: %s", rec.Body.String())
+	}
+	store := newCrmStore(filepath.Join(ws, "outreach"))
+	cfg := store.getCampaign("leadup-comments") // slugified from the typed name
+	if cfg == nil {
+		t.Fatal("campaign not created under the slugified id")
+	}
+	if mStr(cfg, "channel_strategy") != "comment" || mInt(cfg, "daily_quota", 0) != 12 {
+		t.Fatalf("create did not apply channel/quota: %v", cfg)
+	}
+	if mStr(mMap(cfg, "goal"), "description") != "be useful" {
+		t.Fatalf("goal description lost: %v", cfg["goal"])
+	}
+
+	// Re-creating the same slug must REFUSE, not silently overwrite a live campaign's goal,
+	// message bank and sendbox list.
+	if _, err := store.campaignUpdate("leadup-comments", map[string]any{"daily_quota": 99}); err != nil {
+		t.Fatal(err)
+	}
+	rec = post(`{"slug":"leadup-comments","channel_strategy":"email_first"}`)
+	if strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatal("recreating an existing campaign must be refused")
+	}
+	if got := mInt(store.getCampaign("leadup-comments"), "daily_quota", 0); got != 99 {
+		t.Fatalf("a refused create must leave the campaign untouched, quota=%d", got)
+	}
+
+	// A bad channel is refused.
+	if rec = post(`{"slug":"x-camp","channel_strategy":"telepathy"}`); strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatal("an unknown channel must be refused")
+	}
+
+	// The slug becomes a DIRECTORY name. The invariant is containment, not refusal: a
+	// traversal attempt may be sanitised into a harmless slug, but it must never write
+	// outside the campaigns folder.
+	for _, evil := range []string{"..", "/", "....//", "../.."} {
+		body, _ := json.Marshal(map[string]any{"slug": evil, "channel_strategy": "comment"})
+		if rec = post(string(body)); strings.Contains(rec.Body.String(), `"ok":true`) {
+			t.Fatalf("slug %q reduces to nothing and must be refused", evil)
+		}
+	}
+	body, _ := json.Marshal(map[string]any{"slug": "../../etc/passwd", "channel_strategy": "comment"})
+	if rec = post(string(body)); !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("a sanitisable slug should still create: %s", rec.Body.String())
+	}
+	if store.getCampaign("etc-passwd") == nil {
+		t.Fatal("traversal input should be flattened into a contained slug")
+	}
+	for _, escaped := range []string{
+		filepath.Join(root, "clients", "leadup", "etc"),
+		filepath.Join(root, "clients", "etc"),
+		filepath.Join(root, "etc"),
+	} {
+		if _, err := os.Stat(escaped); !os.IsNotExist(err) {
+			t.Fatalf("a traversal slug escaped the campaigns folder: %s", escaped)
+		}
+	}
+}
+
+func TestUISlugify(t *testing.T) {
+	cases := map[string]string{
+		"LeadUp Comments!":  "leadup-comments",
+		"  spaced  out  ":   "spaced-out",
+		"..":                "",
+		"///":               "",
+		"a_b.c":             "a-b-c",
+		"Tiếng Việt":        "ting-vit",   // non-ASCII is dropped outright, never smuggled into a path
+		"../../etc/passwd":  "etc-passwd", // traversal flattens to a contained name
+	}
+	for in, want := range cases {
+		if got := uiSlugify(in); got != want {
+			t.Errorf("uiSlugify(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if len(uiSlugify(strings.Repeat("abcde-", 30))) > 60 {
+		t.Error("slug must be length-capped")
+	}
+}
+
+// The "live" reload exists so a page shows new drafts/reports without a manual refresh. It
+// must key off real data changes only — and it must never throw away what the operator is
+// typing.
+func TestLiveReloadIgnoresHeartbeatAndProtectsForms(t *testing.T) {
+	root := t.TempDir()
+	logs := filepath.Join(root, "collector", "logs")
+	if err := os.MkdirAll(logs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	health := filepath.Join(logs, "extension_health.jsonl")
+	if err := os.WriteFile(health, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	b.uiDataRoot = root
+
+	before := b.uiFingerprint()
+	// Every installed extension appends here every few seconds purely to say it is alive.
+	// That must NOT read as "the data changed" — otherwise every open page reloads forever.
+	if err := os.WriteFile(health, []byte("{}\n{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.Chtimes(health, time.Now().Add(time.Hour), time.Now().Add(time.Hour))
+	if after := b.uiFingerprint(); after != before {
+		t.Fatal("an extension heartbeat must not change the fingerprint — it reloads every open page")
+	}
+
+	// A real change still does.
+	inbox := filepath.Join(root, "collector", "inbox")
+	if err := os.MkdirAll(inbox, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if b.uiFingerprint() == before {
+		t.Fatal("a new collector inbox must change the fingerprint")
+	}
+
+	// The shell must guard unsaved input rather than reloading over it.
+	var sb strings.Builder
+	if err := uiTpl.ExecuteTemplate(&sb, "foot", map[string]any{}); err != nil {
+		t.Fatalf("foot template: %v", err)
+	}
+	shell := sb.String()
+	for _, want := range []string{"if(dirty)", "offerRefresh", "New data arrived"} {
+		if !strings.Contains(shell, want) {
+			t.Errorf("live-reload guard missing %q — a reload would discard typed input", want)
+		}
 	}
 }

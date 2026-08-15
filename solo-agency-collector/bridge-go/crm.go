@@ -266,6 +266,61 @@ func sortedGoalTypes() []string {
 	return out
 }
 
+// A campaign's CHANNEL is declared at creation, because it decides what else the campaign
+// needs: an email or messenger campaign targets a segment of contacts, a comment campaign
+// targets a list of GROUPS. It also decides how the goal is written — the same offer needs a
+// different pen for a cold email, a DM, and a public comment, which is why each channel gets
+// its own campaign with its own goal rather than one campaign fanning out.
+//
+// `email_first` is the historical value and stays the default so existing configs keep
+// working untouched.
+var channelStrategies = map[string]bool{
+	"email_first": true, // email; the original and default
+	"messenger":   true, // Messenger DM, executed by the collector after approval
+	"comment":     true, // Facebook comments on group posts, executed by the collector
+	"post":        true, // new posts INTO groups — highest exposure, lowest caps
+}
+
+// channelUsesGroups reports whether a campaign targets places (groups) rather than a segment
+// of people. Comment and post campaigns both do.
+func channelUsesGroups(channel string) bool {
+	return channel == "comment" || channel == "post"
+}
+
+func sortedChannelStrategies() []string {
+	out := make([]string, 0, len(channelStrategies))
+	for k := range channelStrategies {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// normalizeGroupURLs cleans a group list into canonical, de-duplicated facebook group urls,
+// preserving the operator's ordering. A group the agent cannot recognise is rejected rather
+// than stored: a typo here means a comment campaign silently watches nothing.
+func normalizeGroupURLs(raw []any) ([]any, error) {
+	seen := map[string]bool{}
+	out := []any{}
+	for _, item := range raw {
+		s := strings.TrimSpace(fmt.Sprint(item))
+		if s == "" {
+			continue
+		}
+		if !strings.Contains(strings.ToLower(s), "facebook.com/groups/") {
+			return nil, storageErrf("not a facebook group url: %q", s)
+		}
+		s = strings.TrimRight(s, "/")
+		key := strings.ToLower(s)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, s)
+	}
+	return out, nil
+}
+
 func (c *crmStore) createCampaign(slug string, config map[string]any) (map[string]any, error) {
 	goal := mMap(config, "goal")
 	gt := mStr(goal, "goal_type")
@@ -275,13 +330,28 @@ func (c *crmStore) createCampaign(slug string, config map[string]any) (map[strin
 	if gt == "" {
 		gt = "get_reply"
 	}
+	// Validate the channel here rather than letting deepUpdate write anything through: a
+	// mistyped channel would produce a campaign that looks configured and is never picked up
+	// by any send engine.
+	if cs := mStr(config, "channel_strategy"); cs != "" && !channelStrategies[cs] {
+		return nil, storageErrf("channel_strategy %q not in %v", cs, sortedChannelStrategies())
+	}
+	// Refuse to overwrite a live campaign. This used to write straight through, which was
+	// survivable while creation was CLI-only and deliberate; with a Create button on the
+	// operator's screen, one repeated slug would silently wipe a running campaign's goal,
+	// message bank and sendbox list. Editing is what `campaignUpdate` is for.
+	if existing := c.getCampaign(slug); existing != nil {
+		return nil, storageErrf("campaign %q already exists — edit it instead of recreating it", slug)
+	}
 	cfg := map[string]any{
 		"schema_version": 1, "campaign_slug": slug,
 		"goal": map[string]any{"goal_type": gt, "description": "", "objective": "", "offer": "",
 			"value_proposition": "", "proof_points": []any{},
 			"cta":           map[string]any{"type": "reply_yes", "text": ""},
 			"success_event": map[string]any{"on": "reply_positive", "create_deal_stage": "new_reply"}},
-		"audience": map[string]any{"segment": "", "personalization": map[string]any{
+		// `segment` targets people (email / messenger); `groups` targets places (comment).
+		// Both fields always exist so a campaign can be inspected without knowing its channel.
+		"audience": map[string]any{"segment": "", "groups": []any{}, "personalization": map[string]any{
 			"required_hook_types": []any{}, "min_confidence": 0.7, "no_hook_fallback": "skip"}},
 		"sequence": []any{
 			map[string]any{"step": 1, "intent": "hook + offer, one CTA", "tracking": "plain_text"},
@@ -3060,6 +3130,35 @@ func (c *crmStore) campaignUpdate(slug string, patch map[string]any) (map[string
 				return nil, storageErrf("status must be active|paused, got %q", s)
 			}
 			setStr(cfg, "status", s, "status")
+		case "channel_strategy":
+			s, _ := val.(string)
+			if !channelStrategies[s] {
+				return nil, storageErrf("channel_strategy must be one of %v, got %q", sortedChannelStrategies(), s)
+			}
+			setStr(cfg, "channel_strategy", s, "channel_strategy")
+		case "audience.groups":
+			// The groups a COMMENT campaign watches. Operator-owned and deliberately its own
+			// list rather than a pointer at the client's scanned sources: reading a group for
+			// leads and commenting in it carry different risk, so the operator must be able to
+			// narrow this without touching what the read pipeline monitors.
+			l, ok := val.([]any)
+			if !ok {
+				return nil, storageErrf("audience.groups must be a list of group urls, got %T", val)
+			}
+			groups, err := normalizeGroupURLs(l)
+			if err != nil {
+				return nil, err
+			}
+			aud := mMap(cfg, "audience")
+			if aud == nil {
+				aud = map[string]any{}
+				cfg["audience"] = aud
+			}
+			before := fmt.Sprint(mList(aud, "groups"))
+			if before != fmt.Sprint(groups) {
+				aud["groups"] = groups
+				changed = append(changed, "audience.groups")
+			}
 		case "daily_quota":
 			q := int(asFloat(val, -1))
 			if q < 1 || q > 500 {
