@@ -1575,3 +1575,46 @@ func TestLiveReloadIgnoresHeartbeatAndProtectsForms(t *testing.T) {
 		}
 	}
 }
+
+// A campaign form must only show what its channel actually uses. Sendboxes are mailboxes:
+// meaningless on a comment or post campaign, and leaving them on screen invites the operator
+// to configure something no send engine will ever read.
+func TestCampaignFormHidesIrrelevantSections(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	store := newCrmStore(filepath.Join(ws, "outreach"))
+	if _, err := store.createCampaign("c1", map[string]any{"channel_strategy": "comment"}); err != nil {
+		t.Fatal(err)
+	}
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	req := httptest.NewRequest("GET", "/ui/leadup/campaign/c1", nil)
+	req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("campaign page: %d", rec.Code)
+	}
+	html := rec.Body.String()
+
+	// The toggles must exist and be wired to the channel.
+	for _, want := range []string{
+		`id="sboxblock"`, `id="companionsec"`, `id="sendinghead"`, `id="fbcapnote"`,
+		`show('sboxblock', v==='email_first')`,
+		`show('companionsec', v==='email_first'||v==='messenger')`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("campaign form missing channel-aware section %q", want)
+		}
+	}
+	// Saving must not write controls the operator could not see.
+	if !strings.Contains(html, `if(patch.channel_strategy==='email_first'){`) {
+		t.Error("sendboxes must only be submitted on an email campaign")
+	}
+	// The daily budget is NOT hidden — every channel has one.
+	if !strings.Contains(html, `id="f-quota"`) {
+		t.Error("the daily budget applies to every channel and must stay")
+	}
+}

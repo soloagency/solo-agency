@@ -2831,7 +2831,8 @@ document.getElementById('submit').addEventListener('click',function(){
 <input id="f-cta" type="text" value="{{.CTAText}}" placeholder="e.g. Worth a quick look?"></label>
 </div>
 
-<h2>Companion link <span class="mut" style="font-size:.8rem">the support link each email carries (demo page, sample video...)</span></h2>
+<section id="companionsec">
+<h2>Companion link <span class="mut" style="font-size:.8rem">the support link each message carries (demo page, sample video...)</span></h2>
 <div class="card">
 <label>How to get the link for each lead <span class="mut">(write it like instructions to an assistant: a fixed link, a per-language rule, or a step-by-step recipe; the agent follows it exactly)</span>
 <textarea id="f-comp-instructions" style="min-height:90px" placeholder="e.g. use https://leadup.example/demo for every lead&#10;or: US lead → https://…/en, Vietnamese lead → https://…/vi&#10;or: personalize template X from the dossier, upload via API Y, use the returned URL">{{.CompanionInstructions}}</textarea></label>
@@ -2842,13 +2843,15 @@ document.getElementById('submit').addEventListener('click',function(){
 </select></label>
 <label>Default link <span class="mut">(required when falling back)</span>
 <input id="f-comp-default" type="text" value="{{.CompanionDefault}}" placeholder="https://…"></label>
-<p class="mut" style="font-size:.78rem;margin-bottom:0">Leave the instructions empty to send emails without a companion link.</p>
+<p class="mut" style="font-size:.78rem;margin-bottom:0">Leave the instructions empty to send messages without a companion link.</p>
 </div>
+</section>
 
-<h2>Sending</h2>
+<h2 id="sendinghead">Sending</h2>
 <div class="card">
-<label>Daily draft budget <span class="mut">(max new drafts per day for this campaign)</span>
+<label id="quotalabel">Daily draft budget <span class="mut">(max new drafts per day for this campaign)</span>
 <input id="f-quota" type="number" min="1" max="500" value="{{.Quota}}" style="width:8rem"></label>
+<div id="sboxblock">
 <label style="margin-bottom:.3rem">Sendboxes <span class="mut">(which mailboxes this campaign rotates onto. Tick none = every healthy box. Sending capacity is the sum of the ticked boxes' daily quotas.)</span></label>
 <div style="display:flex;flex-wrap:wrap;gap:.5rem 1.1rem;margin-bottom:.9rem">
 {{range .AllSendboxes}}<label style="display:flex;align-items:center;gap:.35rem;margin:0;font-weight:400">
@@ -2857,6 +2860,8 @@ document.getElementById('submit').addEventListener('click',function(){
 </label>{{else}}<span class="mut">No sendboxes connected yet.</span>{{end}}
 </div>
 <p class="mut" style="font-size:.82rem;margin:-.5rem 0 0">Ticked: <b id="sbox-sum">–</b></p>
+</div>
+<p class="mut" id="fbcapnote" style="font-size:.82rem;margin:-.2rem 0 0;display:none">Which Facebook account acts is decided by the account pool, not here — least-loaded eligible account, and for a group it must be a member. Per-account daily ceilings live in <a href="/ui/settings">agency settings</a>.</p>
 </div>
 
 <div class="acts">
@@ -2886,9 +2891,26 @@ document.getElementById('submit').addEventListener('click',function(){
      head=document.getElementById('grouphead');
  if(!sel||!card)return;
  function usesGroups(v){return v==='comment'||v==='post'}
+ function show(id,on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none'}
+ // Only show what the chosen channel actually uses. Sendboxes are mailboxes — meaningless on
+ // a comment or post campaign, and leaving them on screen invites the operator to configure
+ // something that will never be read. The daily budget stays: every channel has one.
  function sync(){
-  card.style.display=usesGroups(sel.value)?'':'none';
-  if(head)head.textContent=(sel.value==='post')?'Groups to post in':'Groups to comment in';
+  var v=sel.value, groups=usesGroups(v);
+  card.style.display=groups?'':'none';
+  if(head)head.textContent=(v==='post')?'Groups to post in':'Groups to comment in';
+  show('sboxblock', v==='email_first');
+  show('fbcapnote', v!=='email_first');
+  show('companionsec', v==='email_first'||v==='messenger');
+  var sh=document.getElementById('sendinghead');
+  if(sh)sh.textContent=(v==='email_first')?'Sending':'Volume';
+  var ql=document.getElementById('quotalabel');
+  if(ql){
+   var what = v==='comment' ? 'comment drafts' : v==='post' ? 'post drafts' : v==='messenger' ? 'message drafts' : 'drafts';
+   ql.childNodes[0].nodeValue='Daily draft budget ';
+   var hint=ql.querySelector('span');
+   if(hint)hint.textContent='(max new '+what+' per day for this campaign)';
+  }
  }
  sel.addEventListener('change',sync);sync();
  var add=document.getElementById('f-groupaddbtn'), input=document.getElementById('f-groupadd');
@@ -2937,9 +2959,14 @@ document.getElementById('campform').addEventListener('submit',function(e){
   companion_doc: instructions ? {instructions:instructions,
     on_fail:document.getElementById('f-comp-onfail').value,
     default_link:document.getElementById('f-comp-default').value.trim()} : null};
- var sboxes=Array.prototype.slice.call(document.querySelectorAll('.f-sbox:checked')).map(function(x){return x.value});
- var patch={goal:goal, daily_quota:parseInt(document.getElementById('f-quota').value,10), sendboxes:sboxes,
+ var patch={goal:goal, daily_quota:parseInt(document.getElementById('f-quota').value,10),
    channel_strategy:document.getElementById('f-channel').value};
+ // Never submit a field the operator could not see. Sendboxes are hidden on non-email
+ // channels, so saving must leave whatever is stored alone rather than writing the state of
+ // controls nobody looked at.
+ if(patch.channel_strategy==='email_first'){
+  patch.sendboxes=Array.prototype.slice.call(document.querySelectorAll('.f-sbox:checked')).map(function(x){return x.value});
+ }
  // Only a group-targeting campaign owns a group list. Sending it on an email or DM campaign
  // would let a stray tick quietly arm a channel the operator did not choose.
  if(patch.channel_strategy==='comment'||patch.channel_strategy==='post'){
