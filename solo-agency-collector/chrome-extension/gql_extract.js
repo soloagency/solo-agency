@@ -2034,7 +2034,56 @@
     var target = String(inputs.profile_url || location.href);
     var info = profileBaseFrom(target);
     var emails = [], websites = [], foundOn = "", checked = [], missing = [];
-    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [];
+    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [], seeMoreClicks = 0;
+
+    // ---- GraphQL probe -------------------------------------------------------------------
+    // Which query does Facebook fire when a sub-tab is clicked? If a tab's content arrives in
+    // one named query, that query can be replayed by doc_id the way fb.profile.hovercard already
+    // replays CometHovercardQueryRendererQuery — and the clicking goes away entirely. This is
+    // how that hovercard call was found: watch the capture store across a real interaction
+    // rather than guess a query name. Recording the names is cheap and always on; the full
+    // variables only come along under probe_graphql, because they are large and mostly noise.
+    var gqlBySurface = {};
+    function captureMark() {
+      var s = window.__soloGql;
+      return s && Array.isArray(s.captures) ? s.captures.length : -1;
+    }
+    function recordGql(label, mark) {
+      var s = window.__soloGql;
+      if (mark < 0 || !s || !Array.isArray(s.captures)) return;
+      var out = [];
+      for (var i = mark; i < s.captures.length && out.length < 12; i++) {
+        var c = s.captures[i] || {};
+        var row = { query: String(c.queryName || ""), doc_id: String(c.docId || "") };
+        if (inputs.probe_graphql) {
+          try { row.variables = JSON.stringify(c.variables).slice(0, 900); } catch (e) { row.variables = "<unserialisable>"; }
+          row.has_fb_dtsg = !!c.fbDtsg;
+        }
+        out.push(row);
+      }
+      if (out.length) gqlBySurface[label] = (gqlBySurface[label] || []).concat(out);
+    }
+
+    // "See more" truncates a bio mid-sentence, and the collector only expands it ONCE, on the
+    // entry page, before this capability is injected — so text truncated inside a sub-tab stayed
+    // truncated. That was recorded as a known limit; expanding per surface removes it, and the
+    // probe then shows whether the expansion is a local re-render or its own query.
+    function expandSeeMore() {
+      var hits = [], nodes = [];
+      try { nodes = document.querySelectorAll('[role="button"], span[role="button"], div[role="button"]') || []; } catch (e) { return Promise.resolve(0); }
+      for (var i = 0; i < nodes.length && hits.length < 6; i++) {
+        var t = (nodes[i].innerText || "").replace(/\s+/g, " ").trim();
+        // EXACT labels only. "See all friends" and "See all photos" navigate away, and a walk
+        // that wanders off the profile reports whatever page it landed on as the lead.
+        if (!/^(see more|xem thêm)$/i.test(t)) continue;
+        var b = nodes[i].getBoundingClientRect ? nodes[i].getBoundingClientRect() : { width: 1, height: 1 };
+        if (b.width <= 0 || b.height <= 0) continue;
+        hits.push(nodes[i]);
+      }
+      if (!hits.length) return Promise.resolve(0);
+      for (var h = 0; h < hits.length; h++) { try { hits[h].click(); } catch (e) { /* ignore */ } }
+      return wait(350).then(function () { return settleThenScan(Math.min(settleMs, 1500)); }).then(function () { return hits.length; });
+    }
 
     function addSite(u) {
       if (!u || websites.length >= 8) return;
@@ -2132,6 +2181,7 @@
     }
 
     function enterAbout() {
+      var aboutMark = captureMark();
       if (/\/about|sk=about|directory_/i.test(location.href)) { checked.push("about(already)"); return Promise.resolve(true); }
       var re = /^(about|giới thiệu)$/i;
       var byHref = document.querySelectorAll('a[href*="sk=about"], a[href$="/about"], a[href*="/about?"]');
@@ -2140,7 +2190,11 @@
         if (hb.width <= 0 || hb.height <= 0) continue;
         try { byHref[h].click(); } catch (e) { break; }
         return wait(600).then(function () { return settleThenScan(settleMs); })
-          .then(function () { about.about = harvestDelta("about"); checked.push("about"); return true; });
+          .then(expandSeeMore).then(function (n) {
+            if (n) seeMoreClicks += n;
+            recordGql("about", aboutMark);
+            about.about = harvestDelta("about"); checked.push("about"); return true;
+          });
       }
       var nodes = document.querySelectorAll('a[role="link"], [role="tab"], [role="button"]');
       for (var i = 0; i < nodes.length; i++) {
@@ -2151,7 +2205,11 @@
         if (box.width <= 0 || box.height <= 0) continue;
         try { n.click(); } catch (e) { return Promise.resolve(false); }
         return wait(600).then(function () { return settleThenScan(settleMs); })
-          .then(function () { about.about = harvestDelta("about"); checked.push("about"); return true; });
+          .then(expandSeeMore).then(function (n) {
+            if (n) seeMoreClicks += n;
+            recordGql("about", aboutMark);
+            about.about = harvestDelta("about"); checked.push("about"); return true;
+          });
       }
       return Promise.resolve(false);
     }
@@ -2207,11 +2265,19 @@
         return Promise.resolve();
       }
       var t = plan[idx++];
+      var mark = captureMark();
       var open = t.slug ? clickSlug(t.slug) : clickInto(t.tab);
       return open.then(function (opened) {
-        if (opened) { about[t.key] = harvestDelta(t.key); checked.push(t.key); }
-        else missing.push(t.key);
-        return wait(150).then(step);
+        if (!opened) { missing.push(t.key); return wait(150).then(step); }
+        // Expand BEFORE harvesting, or the delta records the truncated line and the expanded
+        // one never gets read — the harvest only ever sees each line once.
+        return expandSeeMore().then(function (n) {
+          if (n) seeMoreClicks += n;
+          recordGql(t.key, mark);
+          about[t.key] = harvestDelta(t.key);
+          checked.push(t.key);
+          return wait(150).then(step);
+        });
       });
     }
 
@@ -2230,6 +2296,13 @@
       // before it started.
       if (hdr && hdr.reason === "self_profile") return hdr;
       var header = (hdr && hdr.items && hdr.items[0]) || {};
+      var mainMark = captureMark();
+      // Expand here too even though background.js already ran one pass before injection: that
+      // pass happens before this capability exists, so its result is invisible to the probe and
+      // a bio that grew a second "See more" after the first click stays cut.
+      return Promise.resolve(expandSeeMore()).then(function (n) {
+      if (n) seeMoreClicks += n;
+      recordGql("main", mainMark);
       about.main = harvestDelta("main");
       checked.push("main");
       if (!info) {
@@ -2291,6 +2364,12 @@
             // profile publishes nothing" and "this code no longer recognises the sub-nav",
             // which is the exact confusion that made the first live run unreadable.
             discovered_tabs: discovered,
+            // Which GraphQL query each surface fired, keyed the same way as `about`. A surface
+            // whose content arrives in ONE named query can be replayed by doc_id instead of
+            // clicked — that is how fb.profile.hovercard stopped needing a real hover. Pass
+            // probe_graphql:true to get the variables as well.
+            graphql_by_surface: gqlBySurface,
+            see_more_expansions: seeMoreClicks,
             budget_exhausted: budgetExhausted,
             elapsed_ms: Date.now() - startedAt
           };
@@ -2306,6 +2385,7 @@
             error: ok ? null : "profile opened but yielded no name, address or About text"
           };
         });
+      });
       });
     });
   }
