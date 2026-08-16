@@ -55,6 +55,10 @@ function makeCtx(opts) {
   const offers = opts.offers || Object.keys(TAB_SLUG);
   const pages = opts.pages || PAGES;
   const state = { current: "main", clicks: [] };
+  // Facebook fires a named GraphQL query when a sub-tab renders. The probe exists to learn
+  // WHICH one, so the fake has to produce them or the test proves nothing.
+  const captures = [];
+  let seeMoreLeft = opts.seeMore === undefined ? 1 : opts.seeMore;
 
   function anchor(href, text, onClick) {
     return {
@@ -64,7 +68,13 @@ function makeCtx(opts) {
       click: onClick,
     };
   }
-  function navTo(key) { return () => { state.current = key; state.clicks.push(key); }; }
+  function navTo(key) {
+    return () => {
+      state.current = key; state.clicks.push(key);
+      captures.push({ queryName: "ProfileCometAbout" + key + "Query", docId: "doc_" + key,
+                      variables: { id: "1369773994", scale: 1 }, fbDtsg: "TOKEN" });
+    };
+  }
 
   const document = {
     title: "Claire Hanh Lam | Facebook",
@@ -96,6 +106,19 @@ function makeCtx(opts) {
         const first = (pages[state.current] || "").split("\n").find((l) => /Claire/.test(l));
         return first ? [{ innerText: first }] : [];
       }
+      // the "See more" control that truncates a bio
+      if (/role="button"/.test(sel) && seeMoreLeft > 0) {
+        return [{
+          innerText: "See more",
+          getAttribute: () => null,
+          getBoundingClientRect: () => ({ width: 60, height: 16 }),
+          click: () => {
+            seeMoreLeft -= 1;
+            captures.push({ queryName: "CometTextWithEntitiesSeeMoreQuery", docId: "doc_seemore",
+                            variables: { id: "x" }, fbDtsg: "TOKEN" });
+          },
+        }];
+      }
       // label-fallback / CTA sweep — no extra nodes, the href path already covers the tabs
       return [];
     },
@@ -112,7 +135,7 @@ function makeCtx(opts) {
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
-  ctx.window.__soloGql = { captures: [], origFetch: null };
+  ctx.window.__soloGql = { captures, origFetch: null };
   return { ctx, state };
 }
 
@@ -224,6 +247,42 @@ async function run() {
     check("the walk still ran", (it.checked || []).indexOf("work_and_education") !== -1, it.checked);
     check("the job title was still collected", (it.about_lines || []).some((l) => /Loan Officer/.test(l)), (it.about_lines || []).slice(0, 6));
     check("the record was not replaced by the header's failure envelope", res.capability === "fb.profile.dossier", res.capability);
+  }
+
+  console.log("\n== the walk reports which GraphQL query each surface fired ==");
+  {
+    const { ctx } = makeCtx({ seeMore: 0 });
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    const g = it.graphql_by_surface || {};
+    // The point of the probe: a surface whose content arrives in ONE named query can be
+    // replayed by doc_id instead of clicked, the way fb.profile.hovercard already is.
+    check("a query name is recorded for a tab that opened",
+      (g.work_and_education || []).some((r) => /ProfileCometAbout/.test(r.query)), g.work_and_education);
+    check("its doc_id comes along, since that is what replay needs",
+      (g.work_and_education || []).every((r) => !!r.doc_id), g.work_and_education);
+    check("variables are withheld unless asked for",
+      (g.work_and_education || []).every((r) => r.variables === undefined), g.work_and_education);
+  }
+
+  console.log("\n== probe_graphql adds what a replay would need ==");
+  {
+    const { ctx } = makeCtx({ seeMore: 0 });
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", { settle_ms: 1, probe_graphql: true });
+    const it = (res.items || [])[0] || {};
+    const rows = (it.graphql_by_surface || {}).work_and_education || [];
+    check("variables are captured", rows.some((r) => /1369773994/.test(r.variables || "")), rows);
+    check("the auth token's presence is reported, never the token", rows.every((r) => r.has_fb_dtsg === true && !/TOKEN/.test(JSON.stringify(r))), rows);
+  }
+
+  console.log("\n== a truncated bio gets expanded on every surface, not just the entry page ==");
+  {
+    const { ctx } = makeCtx({ seeMore: 3 });
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    check("See more was clicked more than once across the walk", (it.see_more_expansions || 0) >= 2, it.see_more_expansions);
+    check("the expansion's own query is recorded",
+      Object.keys(it.graphql_by_surface || {}).some((k) => (it.graphql_by_surface[k] || []).some((r) => /SeeMore/.test(r.query))), it.graphql_by_surface);
   }
 
   console.log("\n== the operator's own profile IS refused ==");

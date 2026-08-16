@@ -142,7 +142,9 @@
       "missing": "string[] — surfaces that WERE discovered and then failed to open, or that the budget cut off. A surface the profile simply does not publish is absent from discovered_tabs instead: found-then-lost and never-offered are different facts and are not merged.",
       "budget_exhausted": "boolean — true when the internal deadline stopped the walk early; the record is partial and `missing` says what was skipped",
       "elapsed_ms": "number",
-      "discovered_tabs": "string[] — the About sub-nav slugs found on the page. The walk DISCOVERS the sub-nav instead of guessing slugs, so this is the honest answer to 'did we look at their work history?'. Empty means no About links were found at all and the walk fell back to label matching — that is a code/layout problem, not an empty profile."
+      "discovered_tabs": "string[] — the About sub-nav slugs found on the page. The walk DISCOVERS the sub-nav instead of guessing slugs, so this is the honest answer to 'did we look at their work history?'. Empty means no About links were found at all and the walk fell back to label matching — that is a code/layout problem, not an empty profile.",
+      "graphql_by_surface": "object — the GraphQL queries each surface fired, keyed like `about`: {surface: [{query, doc_id}]}. Read this to find out whether a surface can be REPLAYED instead of clicked: one named query per surface means it can be called by doc_id the way fb.profile.hovercard calls CometHovercardQueryRendererQuery, and the tab-clicking goes away. With probe_graphql:true each row also carries `variables` (truncated to 900 chars) and `has_fb_dtsg` — the token's PRESENCE, never the token.",
+      "see_more_expansions": "number — how many truncated 'See more' blocks were expanded across the whole walk. The collector's own expansion runs once, on the entry page, before this capability is injected; this one runs per surface, so a bio cut off inside a sub-tab is no longer lost."
     },
     "ContactRecord": {
       "profile_url": "string",
@@ -645,7 +647,8 @@
       "inputs": {
         "profile_url": "string (optional) — defaults to the page the job opened; vanity or profile.php?id=<numeric>",
         "budget_ms": "int (optional, default 30000) — hard deadline for the About walk. The capability is killed at 45s, so raising this trades tabs-visited against losing the whole record.",
-        "settle_ms": "int (optional, default 2800) — how long to wait for one tab's text to stop changing"
+        "settle_ms": "int (optional, default 2800) — how long to wait for one tab's text to stop changing",
+        "probe_graphql": "bool (optional, default false) — also record each captured query's variables and whether an fb_dtsg was present. Use when investigating whether a surface can be replayed by doc_id instead of clicked; leave off in production, the variables are large."
       },
       "output_schema": "ProfileDossier",
       "provider": "facebook-dom",
@@ -657,7 +660,7 @@
         "note": "NOT a classifier and must not become one. It returns what the profile says about itself as text; the reading agent picks the industry. Two keyword maps in this codebase already show why a fixed list here goes wrong: `category` only knows real-estate/insurance wording, and industryHint() only knows 14 trades — every other job is invisible to both.",
         "differences_from_fb.profile.contacts": "walks Work and education (contacts never did), never stops at the first email (contacts stops by default), and KEEPS the tab text (contacts ran two regexes over it and discarded the rest). fb.profile.contacts stays as-is for jobs that only want an address as fast as possible.",
         "timeout": "background.js kills a capability at 45s and an earlier version of this ladder (fb.profile.about) blew that twice and was deleted. Hence a 2.8s per-tab settle and an internal 30s deadline: when the budget runs out the walk stops and returns a PARTIAL record with `budget_exhausted: true` and the unvisited tabs listed in `missing`, rather than being killed and returning nothing.",
-        "known_limit": "\"See more\" expansion runs ONCE, on the entry page, before this capability is injected — it is not re-run on the sub-tabs, so text truncated inside a sub-tab can still be missed.",
+        "known_limit": "Superseded: 'See more' is now expanded on EVERY surface, not just the entry page, and the expansion happens before the harvest so the delta records the full line rather than the truncated one.",
         "validated_on": "not yet live-tested — the tab slugs for personal profiles (about_*) versus Pages (directory_*) still need a real run to confirm which matcher carries the work_education tab",
         "fallback": "website/off-platform search when `emails` is empty and `checked` shows the ladder ran"
       },
