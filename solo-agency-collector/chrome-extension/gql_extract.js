@@ -2187,7 +2187,7 @@
     var target = String(inputs.profile_url || location.href);
     var info = profileBaseFrom(target);
     var emails = [], websites = [], foundOn = "", checked = [], missing = [];
-    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [], skipped = [], seenAll = [], seeMoreClicks = 0, panelFound = false, gqlAbout = null;
+    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [], skipped = [], seenAll = [], seeMoreClicks = 0, panelFound = false, gqlAbout = null, feedLinesCache = null;
 
     // ---- GraphQL probe -------------------------------------------------------------------
     // Which query does Facebook fire when a sub-tab is clicked? If a tab's content arrives in
@@ -2400,15 +2400,26 @@
       try { root = document.querySelector('[role="main"]'); } catch (e) { /* ignore */ }
       root = root || document.body;
       if (!root) return "";
-      var feedLines = {}, feeds = [];
-      try { feeds = root.querySelectorAll('[role="article"], [role="feed"]') || []; } catch (e) { feeds = []; }
-      for (var f = 0; f < feeds.length; f++) {
-        var ft = String(feeds[f].innerText || "").split("\n");
-        for (var i = 0; i < ft.length; i++) {
-          var fl = ft[i].replace(/\s+/g, " ").trim();
-          if (fl) feedLines[fl] = 1;
+      // ONCE, not once per tab. Reading .innerText forces a layout pass, and a Page's About
+      // renders dozens of post and review cards, so recomputing this on every harvest turned a
+      // 12-second walk into a capability killed at the 45-second ceiling. The feed does not
+      // change while the About sub-nav is being walked, so one pass is the whole answer.
+      if (!feedLinesCache) {
+        feedLinesCache = {};
+        var feeds = [];
+        try { feeds = root.querySelectorAll('[role="article"], [role="feed"]') || []; } catch (e) { feeds = []; }
+        // Bounded as well: an infinite feed can keep growing while the walk runs, and the cost
+        // of scanning it is unbounded in a way the budget check between tabs cannot interrupt.
+        var lim = Math.min(feeds.length, 40);
+        for (var f = 0; f < lim; f++) {
+          var ft = String(feeds[f].innerText || "").split("\n");
+          for (var i = 0; i < ft.length; i++) {
+            var fl = ft[i].replace(/\s+/g, " ").trim();
+            if (fl) feedLinesCache[fl] = 1;
+          }
         }
       }
+      var feedLines = feedLinesCache;
       var out = [], raw = String(root.innerText || "").split("\n");
       for (var r = 0; r < raw.length; r++) {
         var line = raw[r].replace(/\s+/g, " ").trim();

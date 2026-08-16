@@ -67,6 +67,7 @@ function makeCtx(opts) {
   // Facebook fires a named GraphQL query when a sub-tab renders. The probe exists to learn
   // WHICH one, so the fake has to produce them or the test proves nothing.
   const captures = [];
+  let feedScans = 0;
   let seeMoreLeft = opts.seeMore === undefined ? 1 : opts.seeMore;
 
   function anchor(href, text, onClick) {
@@ -107,7 +108,16 @@ function makeCtx(opts) {
       if (/role="main"/.test(sel)) {
         return {
           get innerText() { return (pages[state.current] || "") + (opts.feed ? "\n" + opts.feed : ""); },
-          querySelectorAll: () => (opts.feed ? [{ innerText: opts.feed }] : []),
+          querySelectorAll: (q) => {
+            if (/article|feed/.test(q)) {
+              feedScans += 1;
+              // innerText is a layout-forcing read. Counting the scans is how an offline harness
+              // can see a cost blowup at all: the real failure was a 45s capability timeout on a
+              // Page whose About renders dozens of post and review cards.
+              return opts.feed ? [{ get innerText() { return opts.feed; } }] : [];
+            }
+            return [];
+          },
         };
       }
       // the About panel, reached from a sub-nav link exactly as the real walk reaches it
@@ -201,7 +211,7 @@ function makeCtx(opts) {
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
   ctx.window.__soloGql = { captures, origFetch: null };
-  return { ctx, state };
+  return { ctx, state, feedScans: () => feedScans };
 }
 
 // settle_ms: 1 makes settleThenScan return after a single 350ms tick, so the whole ladder
@@ -491,6 +501,21 @@ async function run() {
     // The default is DOM, and the record says WHY rather than leaving it to be inferred.
     check("and the reason is recorded", (it.graphql_about || {}).reason === "graphql_disabled_by_default", it.graphql_about);
     check("the walk still produced a record", res.available === true && !!it.profile_url, res.available);
+  }
+
+  console.log("\n== the feed is scanned once, not once per tab ==");
+  {
+    // Reading .innerText forces a layout pass. Rescanning every post and review card on each of
+    // ten sub-tabs turned a 12-second walk into a capability killed at the 45-second ceiling —
+    // and the record came back as an error, so the whole run collected nothing.
+    const h = makeCtx({ feed: "Mickey Nguyen's Post\n12K", seeMore: 0 });
+    const res = await h.ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    const tabs = (it.checked || []).length;
+    check("more than one surface was harvested", tabs >= 3, tabs);
+    check("but the feed was scanned only once", h.feedScans() === 1, { scans: h.feedScans(), tabs });
+    check("and post text still did not reach the record",
+      !(it.about_lines || []).some((l) => /Post/.test(l)), it.about_lines);
   }
 
   console.log("\n== the operator's own profile IS refused ==");
