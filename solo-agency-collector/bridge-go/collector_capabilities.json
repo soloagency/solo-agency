@@ -120,6 +120,29 @@
       "resolved_from": "string — the listing url the job pointed at",
       "listing_url": "string — where the search actually ran"
     },
+    "ProfileDossier": {
+      "profile_url": "string",
+      "name": "string",
+      "category": "string — Facebook's own label when it has one. NARROW: only real-estate/insurance wording is ever recognised, so an empty category means nothing.",
+      "follower_count": "number | null",
+      "verified": "boolean",
+      "intro_bio": "string — the profile's own blurb",
+      "work": "string[] — EMPLOYERS only (parsed from 'Works at <X>'). The job TITLE is not here — it is in about.work_education.",
+      "education": "string[]",
+      "location": "string[]",
+      "intro_lines": "string[] — intro card lines as written, capped at 20",
+      "about": "object — the text each About sub-tab added, keyed by tab: main, about, contact_info, work_education, intro, basic_info, links. Only tabs the profile actually offers appear. Each value is that tab's NEW lines (page furniture repeated on every tab is not restated).",
+      "about_lines": "string[] — every about.* line flattened in visit order, capped at 120. READ THIS to work out the trade: 'Loan Officer at Wells Fargo' lands here, and the title is what separates Loan & Mortgage from Banking & Financial. The employer alone does not.",
+      "emails": "string[] — published addresses found anywhere in the walk",
+      "websites": "string[] — outbound links published on the profile",
+      "website": "string — the single best external site",
+      "cta": "string[] — button labels (Book Now, Get Quote, View Shop, ...) — weak corroboration for retail vs service",
+      "found_on": "string|null — which surface the first address came from",
+      "checked": "string[] — surfaces that actually RENDERED, in visit order. The audit trail: never conclude email_not_found or 'no trade stated' unless this shows the ladder ran.",
+      "missing": "string[] — tabs this profile did not offer, or that the budget cut off. A key here means NOT LOOKED, which is different from looked-and-empty.",
+      "budget_exhausted": "boolean — true when the internal deadline stopped the walk early; the record is partial and `missing` says what was skipped",
+      "elapsed_ms": "number"
+    },
     "ContactRecord": {
       "profile_url": "string",
       "emails": "string[] — published addresses found on the profile",
@@ -611,6 +634,31 @@
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)",
         "validated_on": "2026-08-15 match_text live on group 668676178569386: resolved \"Post 5 post 5 post 5\" to /posts/676092881161049/ and commented there (done/verified); match_text \"Post\" returned ambiguous_match over 3 candidates and wrote nothing. Earlier, 2026-07-29 on all three permalink surfaces: profile post, group post, and reel (needed the panel-open click)"
+      },
+      "scroll": "none"
+    },
+    {
+      "id": "fb.profile.dossier",
+      "title": "Whole profile in ONE visit: header + every About tab (contact AND trade)",
+      "when_to_use": "The DEFAULT capability for enriching a person. One tab load returns everything fb.profile.header and fb.profile.contacts returned separately, plus the About 'Work and education' tab that neither of them opened. Use this instead of calling those two on the same profile: it halves the requests per lead, which doubles how many leads a run can finish. Read `about_lines` to decide what the person does for a living — the JOB TITLE ('Loan Officer at Wells Fargo') is there, while `work` only ever holds the employer. Submit the profile's main URL.",
+      "inputs": {
+        "profile_url": "string (optional) — defaults to the page the job opened; vanity or profile.php?id=<numeric>",
+        "budget_ms": "int (optional, default 30000) — hard deadline for the About walk. The capability is killed at 45s, so raising this trades tabs-visited against losing the whole record.",
+        "settle_ms": "int (optional, default 2800) — how long to wait for one tab's text to stop changing"
+      },
+      "output_schema": "ProfileDossier",
+      "provider": "facebook-dom",
+      "coverage": "what the logged-in operator can already see on the profile and its About section",
+      "status": "beta",
+      "_impl": {
+        "screen": "profile + About sub-tabs",
+        "method": "reads the landing page first (name, category, followers, website, CTA, Intro card), then enters About and CLICKS every sub-tab in order: contact_info -> work_education -> intro -> basic_info -> links. Matches each tab by href slug (directory_* on Pages, about_* on personal profiles) and falls back to the visible label in English or Vietnamese. Keeps each tab's NEW text lines, not the whole page. Re-reads the header afterwards and unions work/education/location, because a line the main page truncated is often complete on a sub-tab.",
+        "note": "NOT a classifier and must not become one. It returns what the profile says about itself as text; the reading agent picks the industry. Two keyword maps in this codebase already show why a fixed list here goes wrong: `category` only knows real-estate/insurance wording, and industryHint() only knows 14 trades — every other job is invisible to both.",
+        "differences_from_fb.profile.contacts": "walks Work and education (contacts never did), never stops at the first email (contacts stops by default), and KEEPS the tab text (contacts ran two regexes over it and discarded the rest). fb.profile.contacts stays as-is for jobs that only want an address as fast as possible.",
+        "timeout": "background.js kills a capability at 45s and an earlier version of this ladder (fb.profile.about) blew that twice and was deleted. Hence a 2.8s per-tab settle and an internal 30s deadline: when the budget runs out the walk stops and returns a PARTIAL record with `budget_exhausted: true` and the unvisited tabs listed in `missing`, rather than being killed and returning nothing.",
+        "known_limit": "\"See more\" expansion runs ONCE, on the entry page, before this capability is injected — it is not re-run on the sub-tabs, so text truncated inside a sub-tab can still be missed.",
+        "validated_on": "not yet live-tested — the tab slugs for personal profiles (about_*) versus Pages (directory_*) still need a real run to confirm which matcher carries the work_education tab",
+        "fallback": "website/off-platform search when `emails` is empty and `checked` shows the ladder ran"
       },
       "scroll": "none"
     },
