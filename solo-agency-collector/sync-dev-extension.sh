@@ -46,6 +46,20 @@ for f in "$SRC"/*; do
   fi
 done
 
+# manifest.json is never copied (it carries the client's branding), but its CAPABILITY parts —
+# permissions / host_permissions / content_scripts — are code, and a drift there fails silently
+# (2026-08-16: the "offscreen" permission for the operator chime; without it the chime never
+# plays and the only trace is human_gate.alert.ok:false). Warn; patch by hand or full rebuild.
+python3 - "$SRC/manifest.json" "$DEST/manifest.json" <<'PY' || true
+import json, sys
+a, b = (json.load(open(p)) for p in sys.argv[1:3])
+for key in ("permissions", "host_permissions", "content_scripts"):
+    if a.get(key) != b.get(key):
+        print("  WARNING manifest.%s differs (repo vs dev) — not synced by design; patch the dev manifest by hand:" % key)
+        print("      repo:", json.dumps(a.get(key), ensure_ascii=False))
+        print("      dev :", json.dumps(b.get(key), ensure_ascii=False))
+PY
+
 repo_ver="$(python3 -c "import json;print(json.load(open('$SRC/manifest.json'))['version'])")"
 dev_ver="$(python3 -c "import json;print(json.load(open('$DEST/manifest.json'))['version'])")"
 

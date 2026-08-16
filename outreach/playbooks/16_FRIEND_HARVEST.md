@@ -68,9 +68,14 @@ judgement), decide against the GOAL only:
   evidenced by the record (`about_lines`, `work[]`, `posts[]` captions, subtitle). Then:
   (a) create-or-match the contact in ONE call — `tool crm-store --client-dir {outreach}
   contact add --json '{"name":{"full":"…","given":"…","entity_type":"person|company|page"},
-  "identities":{"socials":{"facebook":"<profile_url>"},"emails":[…when the record has one…]},
+  "identities":{"socials":{"facebook":"<profile_url>"},
+  "emails":[{"address":"<email>","source":"friend_harvest","status":"unverified","is_primary":true}],
+  "phones":[{"number":"<phone>","type":"cell","source":"friend_harvest"}]},
   "tags":["friend_harvest"],"custom_fields":{"source":"friend_harvest","harvest_seed":"<seed
-  url>","harvest_campaign":"X"}}'` — it returns `lead_id` + `outcome` (`matched` when the
+  url>","harvest_campaign":"X"}}'` (emails/phones are LISTS OF OBJECTS — `{address}` /
+  `{number}` — never plain strings: the store's identity index silently drops a bare string,
+  which would create an un-mailable contact and defeat dedup; omit the key when the record has
+  none) — it returns `lead_id` + `outcome` (`matched` when the
   identity already exists in the CRM: that contact is REUSED, never duplicated, per Stage 13;
   `created` otherwise); name/`given`/`entity_type` follow the enrich skill's addressing rules;
   (b) **finish the email ladder for a kept friend** — the enrich record already covered

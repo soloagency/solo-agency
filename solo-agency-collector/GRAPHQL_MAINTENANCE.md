@@ -42,7 +42,9 @@ clients run from a separate `oneman_agency` tree — see [§6 Deploy](#6-deploy)
 | `chrome-extension/gql_intercept.js` | **Interceptor.** MAIN world, `document_start`, on `*.facebook.com`. Hooks `fetch` + `XHR`, buffers the last 50 GraphQL request/response pairs into `window.__soloGql.captures`. Passive only — never replays, never sends anything. |
 | `chrome-extension/gql_extract.js` | **Extractors + dispatcher.** Runs in MAIN world during a job. `window.__soloGqlExtract()` = generic best-effort + manifest. `window.__soloGqlExtractCapability(id, inputs)` = per-screen precise extractor via `CAPABILITY_EXTRACTORS`. **This is the file you edit to add/fix a screen.** |
 | `chrome-extension/background.js` | Service worker. Injects the capture files, drives scrolling (`collectCleanPage`), then reads GraphQL: generic (`__soloGqlExtract`) + capability (`__soloGqlExtractCapability`) and writes new `data_point` fields. Key constant `EXTENSION_BUILD` (bump on each deploy so `/status` shows which build a client runs). |
-| `chrome-extension/manifest.json` | Declares the MAIN-world `content_scripts` entry for `gql_intercept.js` (`run_at: document_start`, `world: MAIN`). |
+| `chrome-extension/manifest.json` | Declares the MAIN-world `content_scripts` entry for `gql_intercept.js` (`run_at: document_start`, `world: MAIN`) and the `offscreen` permission (operator chime). **`sync-dev-extension.sh` never copies this file** — a permission change must be patched into each client manifest by hand or by a full rebuild. |
+| `chrome-extension/zillow_extract.js` | **Non-Facebook capabilities (Zillow).** Own MAIN-world lib, injected by `background.js` only for `zillow.*` jobs and dispatched via `window.__soloZillowRun`; reads Next.js `__NEXT_DATA__`, no GraphQL. The template for any further non-Facebook site: new file + prefix branch in `background.js`, `gql_extract.js` untouched. Contract: `ZILLOW_CAPABILITIES.md`. |
+| `chrome-extension/offscreen.html` / `offscreen.js` | Offscreen document that plays the operator alert (gentle chime) while a job waits for a human — today the Zillow bot check (`background.js` `zillowHumanGate`). Service workers cannot play audio and a collector-opened tab has no user gesture, hence this page. |
 | `bridge-go/collector_capabilities.json` | **The capability catalog** (English). `//go:embed`-ed into the bridge as the default; also copied next to the running config so it can be edited live. |
 | `bridge-go/main.go` | The Go bridge. Serves the catalog at `GET /capabilities` (`handleCapabilities`, `resolveCapabilitiesPath`, `capabilitiesJSON`). |
 
@@ -249,6 +251,17 @@ Same loop, proven on 6 screens:
 > **Tip:** batch discovery of several screens in ONE collector run (multiple
 > `sources`), then draft extractors in parallel. That is how the current 6 were
 > built.
+
+**A NON-Facebook site (no GraphQL intercept)** follows the Zillow pattern instead
+(`zillow_extract.js`, added 2026-08-16): a separate MAIN-world file that registers a
+`window.__solo<Site>Run(capId, inputs)` entry, a `/^<site>\./` prefix branch in
+`background.js` (inject the file, route the dispatch, `infoOnly` = no scrolling), catalog
+entries with a `provider` that names the source (`zillow-nextdata+dom`), and an offline
+harness with fixtures taken from the live page structure — `gql_extract.js` stays untouched.
+Discover the page's own state first (`__NEXT_DATA__`, `__PRELOADED_STATE__`, JSON-LD) from
+the operator's Chrome before writing a single CSS selector. If the site has a bot check, wire
+it into the human gate (`zillowHumanGate` — the probe is the only Zillow-specific part).
+Caller contract example: `ZILLOW_CAPABILITIES.md`.
 
 ---
 
