@@ -133,7 +133,7 @@
       "intro_lines": "string[] — intro card lines as written, capped at 20",
       "about": "object — the text each About surface added, keyed by the SLUG actually found on the page (contact_info, work_and_education, basic_info, links, ... — Facebook names them differently on Pages vs personal profiles, so the keys vary). Only surfaces that opened appear. Each value is that surface's NEW lines; furniture repeated on every tab is not restated. Read about_lines rather than keying off a specific tab name.",
       "about_lines": "string[] — every about.* line flattened in visit order, capped at 120. READ THIS to work out the trade: 'Loan Officer at Wells Fargo' lands here, and the title is what separates Loan & Mortgage from Banking & Financial. The employer alone does not.",
-      "emails": "string[] — published addresses found anywhere in the walk",
+      "emails": "string[] — published addresses found anywhere in the walk. Measured empty on all five test profiles, and no directory_contact_info tab appeared on any of them: absence of a contact tab is absence of published contact data, not a collector failure. Read `discovered_tabs` before concluding an address does not exist.",
       "websites": "string[] — outbound links published on the profile",
       "website": "string — the single best external site",
       "cta": "string[] — button labels (Book Now, Get Quote, View Shop, ...) — weak corroboration for retail vs service",
@@ -661,8 +661,9 @@
         "differences_from_fb.profile.contacts": "walks Work and education (contacts never did), never stops at the first email (contacts stops by default), and KEEPS the tab text (contacts ran two regexes over it and discarded the rest). fb.profile.contacts stays as-is for jobs that only want an address as fast as possible.",
         "timeout": "background.js kills a capability at 45s and an earlier version of this ladder (fb.profile.about) blew that twice and was deleted. Hence a 2.8s per-tab settle and an internal 30s deadline: when the budget runs out the walk stops and returns a PARTIAL record with `budget_exhausted: true` and the unvisited tabs listed in `missing`, rather than being killed and returning nothing.",
         "known_limit": "Superseded: 'See more' is now expanded on EVERY surface, not just the entry page, and the expansion happens before the harvest so the delta records the full line rather than the truncated one.",
-        "validated_on": "not yet live-tested — the tab slugs for personal profiles (about_*) versus Pages (directory_*) still need a real run to confirm which matcher carries the work_education tab",
-        "fallback": "website/off-platform search when `emails` is empty and `checked` shows the ladder ran"
+        "validated_on": "2026-08-15, five personal profiles on aven-ngo. The About sub-nav is really directory_{intro,work,education,category,personal_details,names,privacy_and_legal_info} — Work and Education are TWO tabs, and directory_work_and_education / directory_basic_info / directory_links do not exist. Discovery carried 4 of 5; the fifth failed to enter About and collected only its landing page. Whole walk 1865-11780ms against the 45s ceiling.",
+        "fallback": "website/off-platform search when `emails` is empty and `checked` shows the ladder ran",
+        "replay_candidate": "Every About surface is served by ONE query: ProfileCometAboutAppSectionQuery, doc_id 27470497829312569. Its section selector is NOT a constant, though: collectionToken is 'app_collection:pfbid...' and appSectionFeedKey is opaque, both minted per profile AND per section. So replay can remove the per-tab CLICKING but not the page visit — load the profile, enter About once, harvest every section token from that response, then fire the sections in parallel by doc_id."
       },
       "scroll": "none"
     },

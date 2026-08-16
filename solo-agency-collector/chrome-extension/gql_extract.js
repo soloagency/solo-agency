@@ -2007,18 +2007,28 @@
   // the budget runs out the walk STOPS and returns what it has with `checked[]` and
   // `budget_exhausted: true` — a partial dossier that says which tabs it read beats a record the
   // 45s timeout turned into nothing.
+  // MEASURED, not guessed. A live run on five profiles reported the real sub-nav slugs:
+  //   directory_intro, directory_work, directory_education, directory_category,
+  //   directory_personal_details, directory_names, directory_privacy_and_legal_info
+  // The list this replaces was invented — contact_info / work_and_education / basic_info /
+  // links — and only `intro` existed. Work and Education are TWO tabs, not one, and there is no
+  // `work_and_education` anywhere. Four of five profiles were saved by discovery; the fifth
+  // discovered nothing, fell through to the invented list, and collected only its landing page.
+  //
+  // This stays a FALLBACK. Discovery is the real path: these slugs are what Facebook used on one
+  // day for personal profiles, and Pages or a future layout will differ. Anything hard-coded here
+  // is a guess with a shelf life.
   var DOSSIER_TABS = [
-    // Facebook uses `directory_*` slugs on Pages and `about_*` on personal profiles, and the
-    // visible label changes with the viewer's locale. Match on either slug first and fall back to
-    // the label, so neither convention nor a Vietnamese UI silently skips a tab.
-    { key: "contact_info", hrefs: ["directory_contact_info", "about_contact_and_basic_info"],
-      label: /^(contact info|contact and basic info|thông tin liên hệ)/i },
-    { key: "work_and_education", hrefs: ["directory_work_and_education", "about_work_and_education"],
-      label: /^(work and education|work & education|công việc và học vấn|công việc và giáo dục)/i },
     { key: "intro", hrefs: ["directory_intro"], label: /^(intro|giới thiệu)/i },
-    { key: "basic_info", hrefs: ["directory_basic_info", "about_overview"],
-      label: /^(basic info|overview|thông tin cơ bản|tổng quan)/i },
-    { key: "links", hrefs: ["directory_links"], label: /^(links|websites and social links|liên kết)/i }
+    { key: "work", hrefs: ["directory_work", "about_work_and_education"],
+      label: /^(work|work and education|công việc)/i },
+    { key: "education", hrefs: ["directory_education"], label: /^(education|college|học vấn|giáo dục)/i },
+    { key: "category", hrefs: ["directory_category"], label: /^(category|hạng mục|danh mục)/i },
+    { key: "personal_details", hrefs: ["directory_personal_details", "about_contact_and_basic_info"],
+      label: /^(personal details|basic info|contact and basic info|thông tin cá nhân|thông tin liên hệ)/i },
+    { key: "contact_info", hrefs: ["directory_contact_info"],
+      label: /^(contact info|thông tin liên hệ)/i },
+    { key: "names", hrefs: ["directory_names"], label: /^(names|tên)/i }
   ];
   var DOSSIER_CHROME = /^(like|comment|share|follow|following|message|add friend|see all|see more|more|photos|videos|reels|friends|about|posts|intro|edit profile|create|log in|sign up|suggested for you|sponsored|thích|bình luận|chia sẻ|theo dõi|nhắn tin|xem thêm|xem tất cả|giới thiệu|bạn bè|ảnh|video)$/i;
 
