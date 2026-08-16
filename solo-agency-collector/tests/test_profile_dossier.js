@@ -561,6 +561,10 @@ async function run() {
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
     check("chrome was refused as a bio", !/unread|notification/i.test(it.intro_bio || ""), it.intro_bio);
+    // With chrome gone the display name became the longest survivor on a profile whose real
+    // intro lines are all short. The name is already in `name`; repeating it as a bio says
+    // nothing, and an empty bio is the honest answer.
+    check("the display name is not returned as a bio", (it.intro_bio || "") !== it.name, { bio: it.intro_bio, name: it.name });
   }
 
   console.log("\n== the operator's own profile IS refused ==");
