@@ -67,9 +67,19 @@ refused with nothing typed.
 id opens a page with **no composer at all** (`composers_found: 0`) — which is the guard
 working, not a bug. The real test profile is `100026030446486`.
 
-Offline harness (34 → 48 checks) lives at `scratchpad/test_actions.js` in that session; it
-runs `gql_actions.js` in a `vm` context with a fake DOM. Worth recreating — it caught the
-regex/dedupe/allowlist cases long before a browser round-trip could.
+Offline harnesses now live in the repo at `solo-agency-collector/tests/` (`test_gql_actions.js`,
+`test_gql_extract.js` — 57 checks, plain `node`, no browser). Run them before spending an
+extension reload; they caught the regex/dedupe/allowlist and streamed-chunk cases long before a
+browser round-trip could.
+
+**If a group scan ever comes back short, read `GRAPHQL_MAINTENANCE.md` §9.0 FIRST.** A scan
+returning 2 of 6 posts cost four wrong diagnoses and a dozen reloads in one session. The causes
+were: Facebook streams the reply in `@stream`/`@defer` chunks that must be ASSEMBLED (an
+`@stream` path addresses a slot that does not exist yet, so walking the full path silently
+discards the post); the pagination reply nests `page_info` somewhere else than the initial
+query, so pagination had never once run; `"cursor": null` is not the same as omitting `cursor`;
+and an anonymous post keeps its real author at an un-redacted nested path. §9.0 also records
+the method lesson — print the shape of every chunk before theorising about why data is absent.
 
 ---
 
