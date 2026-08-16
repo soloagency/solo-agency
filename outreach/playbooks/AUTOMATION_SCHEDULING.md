@@ -688,7 +688,9 @@ For each active client:
     friend lists and enriching friends all day within the operator's budgets; the run's only
     job is judgement: `harvest pending --campaign X` → decide each enriched record against the
     campaign GOAL → `harvest decide --campaign X --profile <envelope profile_url> --status …`
-    (kept → `contact add` first — matched or created — then `--lead-id`, source `friend_harvest`;
+    (kept → `contact add` first — matched or created — then, when the record has a website but no
+    email, the Stage 4 website/off-platform email ladder for that person, then `enrich write`
+    hooks + email findings, then `--lead-id`, source `friend_harvest`;
     rejected / enrich_failed remembered client-wide). Loop until `remaining`
     is 0 or time is up. Never enqueue friends/enrich jobs yourself for a harvest campaign. One
     progress line per campaign in the run reply.

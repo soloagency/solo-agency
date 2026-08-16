@@ -73,11 +73,22 @@ judgement), decide against the GOAL only:
   url>","harvest_campaign":"X"}}'` — it returns `lead_id` + `outcome` (`matched` when the
   identity already exists in the CRM: that contact is REUSED, never duplicated, per Stage 13;
   `created` otherwise); name/`given`/`entity_type` follow the enrich skill's addressing rules;
-  (b) `enrich write --contact <lead_id>` with the record's hooks (each with `evidence_url`) so
-  the dossier is write-ready for any later campaign; (c) `tool crm-store --client-dir
-  {outreach} harvest decide --campaign X --profile <profile_url exactly as the envelope's
-  profile_url> --status kept --lead-id <lead_id> --reason "<one line: which goal trait
-  matched, from which evidence>"`.
+  (b) **finish the email ladder for a kept friend** — the enrich record already covered
+  Facebook (bio + About sub-tabs, `checked[]`); if `emails[]` is empty but `websites[]` is not,
+  run rows 6-7 of the Stage 4 ladder NOW, for this person only: fetch the website's
+  Contact/Team/About page and footer (WebFetch, read-only), then the off-platform search
+  when the site yields nothing. This is the cheapest moment to do it (only goal-matched
+  people, one fetch each) and the reason the CRM ends up with a reachable lead instead of a
+  name; a kept friend with a website and no email attempt is a Stage 4 violation. Record the
+  outcome exactly as Stage 4 does: an address goes into `identity.channels_found.emails`
+  (with its `evidence_url`), and `email_discovery` carries the enrich record's
+  `{profile_url, emails, websites, found_on, checked}` plus the website surfaces you read,
+  so `mark_email_not_found` is honest when nothing was published anywhere; then
+  (c) `enrich write --contact <lead_id>` with the record's hooks (each with `evidence_url`)
+  and the email findings, so the dossier is write-ready for any later campaign; (d) `tool
+  crm-store --client-dir {outreach} harvest decide --campaign X --profile <profile_url
+  exactly as the envelope's profile_url> --status kept --lead-id <lead_id> --reason "<one
+  line: which goal trait matched, from which evidence>"`.
 - **rejected** — does not match the goal (wrong trade, wrong place, no professional signal at
   all). `harvest decide --campaign X --profile <profile_url> --status rejected --reason "<one
   line>"`. Never create a contact "just in case": the client-wide seen registry guarantees this
@@ -112,6 +123,9 @@ just waits — nothing is lost between runs.
   across every harvest campaign of every client.
 - **The goal decides, not the agent's taste.** A friend who is clearly a great person but not
   the goal's trade/place is `rejected`. The operator widens the goal if they want more.
+- **Only kept friends get the website hop.** Rows 6-7 cost a live fetch per person; spending
+  them on friends the goal will reject is waste. Judge first, then hunt the address for the
+  ones you keep — never the other way round.
 - **Kept = in the CRM, not in a campaign.** Harvest fills the CRM. Whether a kept contact
   enters an email/DM campaign is a separate, normal decision (queue rules, approvals) — this
   channel never sends and never queues into another campaign on its own.
