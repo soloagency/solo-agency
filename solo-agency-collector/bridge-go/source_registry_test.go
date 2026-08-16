@@ -359,11 +359,11 @@ func TestCanonicalStoreURL(t *testing.T) {
 		ok       bool
 	}{
 		// The operator's paste variants all collapse to the canonical store form.
-		{"https://www.facebook.com/groups/nhacuamy", "https://www.facebook.com/groups/nhacuamy", true},
-		{"https://www.facebook.com/groups/nhacuamy/", "https://www.facebook.com/groups/nhacuamy", true},
-		{"https://www.facebook.com/groups/nhacuamy?abd=xqj&nsfn=ksdj", "https://www.facebook.com/groups/nhacuamy", true},
-		{"https://m.facebook.com/groups/nhacuamy/about?ref=share", "https://www.facebook.com/groups/nhacuamy", true},
-		{"facebook.com/groups/NhaCuaMy", "https://www.facebook.com/groups/nhacuamy", true},
+		{"https://www.facebook.com/groups/examplegroup", "https://www.facebook.com/groups/examplegroup", true},
+		{"https://www.facebook.com/groups/examplegroup/", "https://www.facebook.com/groups/examplegroup", true},
+		{"https://www.facebook.com/groups/examplegroup?abd=xqj&nsfn=ksdj", "https://www.facebook.com/groups/examplegroup", true},
+		{"https://m.facebook.com/groups/examplegroup/about?ref=share", "https://www.facebook.com/groups/examplegroup", true},
+		{"facebook.com/groups/ExampleGroup", "https://www.facebook.com/groups/examplegroup", true},
 		// Identity params survive on social hosts.
 		{"https://www.facebook.com/profile.php?id=100001&fbclid=XYZ", "https://www.facebook.com/profile.php?id=100001", true},
 		// Arbitrary websites: conservative — path case kept, unknown params kept,
@@ -390,7 +390,7 @@ func TestNormalizeCLI(t *testing.T) {
 	code := 0
 	out := captureStdout(t, func() {
 		code = runSourceRegistryCLI([]string{"normalize",
-			"--url", "https://www.facebook.com/groups/nhacuamy?abd=xqj&nsfn=ksdj",
+			"--url", "https://www.facebook.com/groups/examplegroup?abd=xqj&nsfn=ksdj",
 			"--url", "https://l.facebook.com/l.php?h=opaque"})
 	})
 	if code != 0 {
@@ -402,7 +402,7 @@ func TestNormalizeCLI(t *testing.T) {
 	}
 	rows := mList(res, "normalized")
 	first := rows[0].(map[string]any)
-	if first["clean_url"] != "https://www.facebook.com/groups/nhacuamy" || first["changed"] != true {
+	if first["clean_url"] != "https://www.facebook.com/groups/examplegroup" || first["changed"] != true {
 		t.Fatalf("dirty group url not cleaned: %v", first)
 	}
 	second := rows[1].(map[string]any)

@@ -18,7 +18,7 @@ func harvestFixture(t *testing.T) (clientDir string, store *crmStore) {
 	if _, err := store.createCampaign("friends-oc", map[string]any{
 		"channel_strategy": harvestChannel,
 		"goal":             map[string]any{"description": "Realtors and loan officers in Orange County"},
-		"seed_profiles":    []any{"https://www.facebook.com/nhu.white.75/", "https://m.facebook.com/nhu.white.75?ref=x"},
+		"seed_profiles":    []any{"https://www.facebook.com/seed.example.person/", "https://m.facebook.com/seed.example.person?ref=x"},
 		"harvest":          map[string]any{"goal_keywords": []any{"realtor", "loan"}, "daily_budget": 3},
 	}); err != nil {
 		t.Fatal(err)
@@ -30,12 +30,12 @@ func TestHarvestCampaignCreateNormalizesSeeds(t *testing.T) {
 	_, store := harvestFixture(t)
 	cfg := store.getCampaign("friends-oc")
 	seeds := mList(cfg, "seed_profiles")
-	if len(seeds) != 1 || seeds[0] != "https://www.facebook.com/nhu.white.75" {
+	if len(seeds) != 1 || seeds[0] != "https://www.facebook.com/seed.example.person" {
 		t.Fatalf("seed variants must collapse to one clean url: %v", seeds)
 	}
 	// A group is refused as a seed.
 	if _, err := store.createCampaign("bad", map[string]any{"channel_strategy": harvestChannel,
-		"seed_profiles": []any{"https://www.facebook.com/groups/nhacuamy"}}); err == nil {
+		"seed_profiles": []any{"https://www.facebook.com/groups/examplegroup"}}); err == nil {
 		t.Fatal("group url must be refused as a seed profile")
 	}
 	// Non-harvest channels don't get harvest keys.
@@ -58,10 +58,10 @@ func TestHarvestSeedSyncIngestDedupDecide(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.Seeds) != 1 || p.Seeds[0].FriendsURL != "https://www.facebook.com/nhu.white.75/friends" {
+	if len(p.Seeds) != 1 || p.Seeds[0].FriendsURL != "https://www.facebook.com/seed.example.person/friends" {
 		t.Fatalf("seed sync wrong: %+v", p.Seeds)
 	}
-	if p.CurrentSeed != "https://www.facebook.com/nhu.white.75" {
+	if p.CurrentSeed != "https://www.facebook.com/seed.example.person" {
 		t.Fatalf("current seed not chosen: %q", p.CurrentSeed)
 	}
 
@@ -69,7 +69,7 @@ func TestHarvestSeedSyncIngestDedupDecide(t *testing.T) {
 	leg1 := []map[string]any{
 		{"url": "https://www.facebook.com/alice.realtor", "name": "Alice", "subtitle": "Realtor at OC Homes"},
 		{"url": "https://www.facebook.com/bob.smith", "name": "Bob", "subtitle": "12 mutual friends"},
-		{"url": "https://www.facebook.com/nhu.white.75", "name": "Nhu (the seed herself)"},
+		{"url": "https://www.facebook.com/seed.example.person", "name": "The seed herself"},
 	}
 	res, err := ingestLeg(clientDir, "friends-oc", seed, legOutcome{Items: leg1, EndCursor: "CURSOR1", HasNext: true, HasNextKnown: true}, hc.GoalKeywords, "ext-a")
 	if err != nil {
@@ -187,7 +187,7 @@ func TestHarvestCLIRoundTrip(t *testing.T) {
 	writeJSONT(t, recs, []any{map[string]any{"url": "https://www.facebook.com/dan.agent", "name": "Dan", "subtitle": "Realtor"}})
 	out = captureStdout(t, func() {
 		code = runCrmStoreCLI([]string{"--client-dir", clientDir, "harvest", "ingest", "--campaign", "friends-oc",
-			"--seed", "https://www.facebook.com/nhu.white.75", "--records", recs, "--end-cursor", "C1", "--has-next", "true"})
+			"--seed", "https://www.facebook.com/seed.example.person", "--records", recs, "--end-cursor", "C1", "--has-next", "true"})
 	})
 	if code != 0 {
 		t.Fatalf("harvest ingest exited %d: %s", code, out)
@@ -261,7 +261,7 @@ func TestHarvestLegTriStateAndSeedError(t *testing.T) {
 
 	// A seed that returns NOTHING on two different boxes before any real leg -> Error, not done.
 	if _, err := store.campaignUpdate("friends-oc", map[string]any{"seed_profiles": []any{
-		"https://www.facebook.com/nhu.white.75", "https://www.facebook.com/private.person"}}); err != nil {
+		"https://www.facebook.com/seed.example.person", "https://www.facebook.com/private.person"}}); err != nil {
 		t.Fatal(err)
 	}
 	hc = harvestConfigFrom(store.getCampaign("friends-oc"), defaultSystemSettings())
@@ -280,7 +280,7 @@ func TestHarvestLegTriStateAndSeedError(t *testing.T) {
 		t.Fatalf("private seed must be flagged, never 'done': %+v", p.Seeds[1])
 	}
 	// Removing a seed from the config flags it Removed on reconcile, cursor kept.
-	store.campaignUpdate("friends-oc", map[string]any{"seed_profiles": []any{"https://www.facebook.com/nhu.white.75"}})
+	store.campaignUpdate("friends-oc", map[string]any{"seed_profiles": []any{"https://www.facebook.com/seed.example.person"}})
 	hc = harvestConfigFrom(store.getCampaign("friends-oc"), defaultSystemSettings())
 	_, _ = withProgress(clientDir, "friends-oc", func(p *harvestProgress) error {
 		reconcileSeeds(p, hc, clientDir, "friends-oc")

@@ -136,9 +136,9 @@ var socialStoreHostRe = regexp.MustCompile(`^(facebook|instagram|tiktok|linkedin
 // held; every variant of a Facebook group must be stored as exactly
 // `https://www.facebook.com/groups/<name>`:
 //
-//	https://www.facebook.com/groups/nhacuamy/          -> https://www.facebook.com/groups/nhacuamy
-//	https://www.facebook.com/groups/nhacuamy?abd=x&y=k -> https://www.facebook.com/groups/nhacuamy
-//	https://m.facebook.com/groups/nhacuamy/about       -> https://www.facebook.com/groups/nhacuamy
+//	https://www.facebook.com/groups/examplegroup/          -> https://www.facebook.com/groups/examplegroup
+//	https://www.facebook.com/groups/examplegroup?abd=x&y=k -> https://www.facebook.com/groups/examplegroup
+//	https://m.facebook.com/groups/examplegroup/about       -> https://www.facebook.com/groups/examplegroup
 //
 // Known social hosts rebuild from the uid (their vanity paths are
 // case-insensitive, so lowercasing is safe; identity params like

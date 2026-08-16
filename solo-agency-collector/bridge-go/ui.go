@@ -2938,7 +2938,7 @@ document.getElementById('submit').addEventListener('click',function(){
 <h2 style="margin-top:0">Seed profiles</h2>
 <p class="mut" style="font-size:.85rem;margin-top:0">Leads From Friends walks each seed's friend list in legs, enriches every friend once (20–40s apart, rotating collector accounts, spread across the day), and the agent keeps the ones that match the goal straight into the CRM — nothing is sent, so nothing needs approval. Paste any profile url form; each is cleaned and de-duplicated on save.</p>
 <label>Profile urls <span class="mut">(one per line)</span>
-<textarea id="f-seeds" rows="6" placeholder="https://www.facebook.com/nhu.white.75&#10;https://www.facebook.com/profile.php?id=100001234567890" spellcheck="false">{{range .Seeds}}{{.}}
+<textarea id="f-seeds" rows="6" placeholder="https://www.facebook.com/example.seed.profile&#10;https://www.facebook.com/profile.php?id=100000000000000" spellcheck="false">{{range .Seeds}}{{.}}
 {{end}}</textarea></label>
 <div class="grid">
 <label>Goal keywords <span class="mut">(comma-separated; friends whose list subtitle mentions one are enriched first)</span>
