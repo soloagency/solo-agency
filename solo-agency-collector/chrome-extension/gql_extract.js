@@ -1634,9 +1634,15 @@
     var likesRaw = m1(/([\d.,]+\s*[KMB]?)\s*likes/i);
     // name: a level-1 heading in the profile that is not Facebook chrome (the
     // logged-in tab title is just "(N) Facebook"; og:title is often generic).
-    var GENERIC = /^(Notifications|Facebook|Menu|Search|Marketplace|Home|Watch|Groups|Gaming|Messenger|Reels|Videos|Photos|About|Profile|Friends|Create|Feed|Pages)$/i;
+    // Facebook renders its own chrome as level-1 headings too — the chat rail's "Chats" won
+    // this race on all 50 profiles of a live sweep, so every record came back named "Chats".
+    // Anything on this list is furniture, never a person.
+    var GENERIC = /^(Notifications?|Facebook|Menu|Search|Marketplace|Home|Watch|Groups?|Gaming|Messenger|Chats?|Contacts?|Reels|Videos|Photos|About|Profile|Friends|Create|Feed|Pages?|Stories|Shortcuts|Explore|Saved|Events|Memories|Your shortcuts|Sponsored|Suggested for you)$/i;
     var name = "";
-    var heads = document.querySelectorAll('h1, [role="heading"][aria-level="1"]');
+    // Prefer headings inside the main column: the chat rail and left nav also emit h1s.
+    var main = document.querySelector('[role="main"]') || document;
+    var heads = main.querySelectorAll('h1, [role="heading"][aria-level="1"]');
+    if (!heads.length) heads = document.querySelectorAll('h1, [role="heading"][aria-level="1"]');
     for (var hi = 0; hi < heads.length; hi++) {
       var ht = (heads[hi].innerText || "").replace(/\s+/g, " ").trim();
       if (ht.length >= 2 && ht.length <= 70 && !GENERIC.test(ht)) { name = ht; break; }
@@ -1694,7 +1700,60 @@
       if (/^(Book Now|Send Message|Message|Call Now|Contact|Contact Us|Learn More|Sign Up|Shop Now|Get Quote|View Shop|WhatsApp)$/i.test(t) && !seenC[t.toLowerCase()]) { seenC[t.toLowerCase()] = 1; cta.push(t); }
     }
 
+    // NARROW ON PURPOSE, and not the answer to "what does this person do". This whitelist only
+    // recognises real-estate and insurance wording, matched anywhere in the page text — so any
+    // other trade reads as empty here, and a post that merely mentions "real estate" reads as a
+    // realtor. Kept for backward compatibility; `intro`/`work` below are what an agent should
+    // actually read.
     var category = m1(/\b(Real Estate Agent|Realtor|Real Estate Company|Real Estate Service|Estate Agent|Mortgage Broker|Loan Officer|Insurance Agent|Insurance Broker|Real Estate)\b/i) || "";
+
+    // THE INTRO CARD — what the profile says about itself, on the page already loaded.
+    // People who work for a living say so on their own profile, so this is both cheaper and
+    // more reliable than inferring a trade from their posts. No extra navigation: the About
+    // sub-tab ladder is what made a previous attempt at this blow the capability timeout.
+    // Returned as TEXT for the agent to read, not squeezed into a fixed taxonomy — a fixed
+    // list is exactly what makes every trade outside it invisible.
+    var INTRO_PAT = {
+      work: [/^works?\s+at\s+(.+)$/i, /^working\s+at\s+(.+)$/i, /^worked\s+at\s+(.+)$/i,
+             /^former\s+.*\bat\s+(.+)$/i, /^(?:từng\s+)?làm\s+việc\s+tại\s+(.+)$/i],
+      education: [/^stud(?:ied|ies)\s+at\s+(.+)$/i, /^went\s+to\s+(.+)$/i, /^(?:từng\s+)?học\s+(?:tại|ở)\s+(.+)$/i],
+      location: [/^lives?\s+in\s+(.+)$/i, /^from\s+(.+)$/i, /^sống\s+(?:tại|ở)\s+(.+)$/i, /^đến\s+từ\s+(.+)$/i]
+    };
+    function tidy(x) { return String(x == null ? "" : x).replace(/\s+/g, " ").trim(); }
+    var introWork = [], introEdu = [], introLoc = [], introLines = [];
+    (function () {
+      var CHROME = /^(like|comment|share|follow|message|add friend|see all|more|photos|videos|reels|friends|about|posts|intro|edit profile|create|log in|sign up|thích|bình luận|chia sẻ|theo dõi|nhắn tin|xem thêm|giới thiệu)$/i;
+      var raw = String(body).split("\n");
+      var seen = {};
+      for (var i = 0; i < raw.length && introLines.length < 40; i++) {
+        var line = tidy(raw[i]);
+        if (!line || line.length < 3 || line.length > 220 || seen[line] || CHROME.test(line)) continue;
+        seen[line] = 1;
+        var pushed = false;
+        for (var g in INTRO_PAT) {
+          for (var k = 0; k < INTRO_PAT[g].length; k++) {
+            var mm = line.match(INTRO_PAT[g][k]);
+            if (!mm) continue;
+            var val = tidy(mm[1]).slice(0, 160);
+            var bucket = g === "work" ? introWork : (g === "education" ? introEdu : introLoc);
+            if (val && bucket.indexOf(val) === -1) bucket.push(val);
+            pushed = true; break;
+          }
+          if (pushed) break;
+        }
+        introLines.push(line);
+      }
+    })();
+    // The self-declared blurb: the longest line that is not one of the structured facts and not
+    // page furniture. Facebook does not label it, so it cannot be keyed off a prefix.
+    var introBio = "";
+    for (var li = 0; li < introLines.length; li++) {
+      var L = introLines[li];
+      if (L.length < 20 || L.length > 300) continue;
+      if (/^(works?|worked|stud|went to|lives?|from|làm việc|từng|học|sống|đến từ)/i.test(L)) continue;
+      if (/\d+\s*(followers|following|friends|likes|người theo dõi)/i.test(L)) continue;
+      if (L.length > introBio.length) introBio = L;
+    }
 
     var header = {
       name: name,
@@ -1704,6 +1763,13 @@
       like_count: parseCount(likesRaw),
       verified: !!verified,
       category: category,
+      // What the profile SAYS about itself. Read these to work out a trade — `category` above
+      // only ever recognises real-estate/insurance wording and is blind to every other job.
+      intro_bio: introBio,
+      work: introWork,
+      education: introEdu,
+      location: introLoc,
+      intro_lines: introLines.slice(0, 20),
       website: website,
       cta: cta,
       has_reels_tab: !!hasReels,
@@ -1908,7 +1974,243 @@
     });
   }
 
+  // --- diagnostic: what does HOVERING a profile fire? ----------------------
+  // Hovering a friend opens Facebook's preview card, which fetches more about that person.
+  // If that fetch is GraphQL, the query can be replayed directly and the whole hover step
+  // disappears. gql_intercept already records every GraphQL call, so the only missing piece
+  // is triggering the hover and reporting what arrived because of it.
+  //
+  // The pointer chain here is the same one the reaction flyout uses, which Facebook accepts —
+  // a bare element.hover() does not open these cards.
+  function diagHover(inputs) {
+    inputs = inputs || {};
+    var store = window.__soloGql;
+    var res = { capability: "_diag.hover_probe", schema: "Diagnostic", available: true, count: 0, items: [], diagnostic: {} };
+    if (!store || !Array.isArray(store.captures)) { res.diagnostic.error = "no capture store"; return Promise.resolve(res); }
+
+    function pev(el, type, Ctor) {
+      try { el.dispatchEvent(new Ctor(type, { bubbles: true, cancelable: true, view: window })); }
+      catch (e) { try { el.dispatchEvent(new MouseEvent(type.replace("pointer", "mouse"), { bubbles: true, cancelable: true, view: window })); } catch (e2) { /* ignore */ } }
+    }
+    function hoverEl(el) {
+      var P = window.PointerEvent || MouseEvent;
+      pev(el, "pointerover", P); pev(el, "mouseover", MouseEvent);
+      pev(el, "pointerenter", P); pev(el, "mouseenter", MouseEvent);
+      pev(el, "pointermove", P); pev(el, "mousemove", MouseEvent);
+    }
+    function unhover(el) {
+      var P = window.PointerEvent || MouseEvent;
+      pev(el, "pointerout", P); pev(el, "mouseout", MouseEvent);
+      pev(el, "pointerleave", P); pev(el, "mouseleave", MouseEvent);
+    }
+
+    // Friend rows link to a profile. Take the first N distinct profile links that are visible.
+    var targets = [], seenHref = {};
+    var links = document.querySelectorAll('a[href*="facebook.com/"], a[role="link"][href]');
+    for (var i = 0; i < links.length && targets.length < (Number(inputs.count) || 3); i++) {
+      var a = links[i], href = a.getAttribute("href") || "";
+      if (!href || /\/(groups|photo|watch|events|marketplace)\//i.test(href)) continue;
+      if (!/facebook\.com\/[^/?#]+/i.test(href) && href.charAt(0) !== "/") continue;
+      var r = a.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0 || r.top < 0) continue;
+      var key = href.split("?")[0];
+      if (seenHref[key]) continue;
+      seenHref[key] = 1;
+      targets.push(a);
+    }
+    var before = store.captures.length;
+    var beforeNames = {};
+    for (var b = 0; b < store.captures.length; b++) beforeNames[String(store.captures[b].queryName || "")] = 1;
+
+    var idx = 0;
+    function step() {
+      if (idx >= targets.length) return Promise.resolve();
+      var el = targets[idx++];
+      try { el.scrollIntoView({ block: "center" }); } catch (e) { /* ignore */ }
+      return wait(300).then(function () {
+        hoverEl(el);
+        // The card is lazy: it waits out a short intent delay before fetching.
+        return wait(Number(inputs.hover_ms) || 2200);
+      }).then(function () {
+        unhover(el);
+        return wait(400).then(step);
+      });
+    }
+
+    return step().then(function () {
+      var added = store.captures.slice(before);
+      res.diagnostic = {
+        hovered: targets.length,
+        hover_targets: targets.map(function (t) { return String(t.getAttribute("href") || "").split("?")[0].slice(0, 80); }),
+        captures_before: before,
+        captures_after: store.captures.length,
+        new_captures: added.length
+      };
+      res.items = added.map(function (c) {
+        var sk = null;
+        try { sk = skeletonize(firstChunkOf(c), 0, { n: 700 }, 14); } catch (e) { /* ignore */ }
+        return {
+          queryName: c.queryName || "",
+          docId: c.docId || "",
+          is_new_query_name: !beforeNames[String(c.queryName || "")],
+          variable_keys: c.variables ? Object.keys(c.variables) : [],
+          variables: c.variables || {},
+          response_skeleton: sk
+        };
+      });
+      res.count = res.items.length;
+      return res;
+    });
+  }
+
+  // --- fb.profile.hovercard -------------------------------------------------
+  // Facebook's hover preview is a plain GraphQL call, CometHovercardQueryRendererQuery, whose
+  // only varying input is entityID — measured by hovering three profiles and diffing the
+  // capture buffer. So the hover itself is unnecessary: give it an id and it answers.
+  // fb.profile.friends already returns each friend's id, which makes the two compose directly.
+  //
+  // Auth (fb_dtsg, av) is borrowed from any capture the page already made, and the doc_id is
+  // taken from Facebook's own module registry so it can never go stale.
+  function hovercardSeed(store) {
+    var caps = (store && store.captures) || [];
+    var withName = null, anyAuth = null;
+    for (var i = caps.length - 1; i >= 0; i--) {
+      var c = caps[i];
+      if (!c || !c.fbDtsg) continue;
+      if (!anyAuth) anyAuth = c;
+      if (String(c.queryName || "").indexOf("CometHovercard") > -1) { withName = c; break; }
+    }
+    return withName || anyAuth;
+  }
+  function profileHovercard(inputs) {
+    inputs = inputs || {};
+    var store = window.__soloGql;
+    var out = { capability: "fb.profile.hovercard", schema: "HovercardRecord", available: true, count: 0, items: [] };
+    var entityId = String(inputs.entity_id || inputs.profile_id || "").trim();
+    if (!entityId) { out.error = "entity_id is required (fb.profile.friends returns it for every friend)"; return Promise.resolve(out); }
+    var seed = hovercardSeed(store);
+    if (!seed || typeof store.origFetch !== "function") {
+      out.error = "no captured request to borrow auth from — open a Facebook page first";
+      return Promise.resolve(out);
+    }
+    var docId = docIdFromRegistry("CometHovercardQueryRendererQuery")
+      || (String(seed.queryName || "").indexOf("CometHovercard") > -1 ? seed.docId : "")
+      || "27713673081633221"; // measured 2026-08-16; registry lookup is preferred and tried first
+    var vars = {
+      actionBarRenderLocation: "WWW_COMET_HOVERCARD",
+      context: "DEFAULT",
+      entityID: entityId,
+      scale: webPixelRatio(),
+      __relay_internal__pv__WorkCometIsEmployeeGKProviderrelayprovider: false
+    };
+    var cap = { queryName: "CometHovercardQueryRendererQuery", docId: docId, fbDtsg: seed.fbDtsg, av: seed.av, url: seed.url, variables: vars };
+    return replayPage(store, cap, undefined, null).then(function (resp) {
+      var m = mergeStreamed(resp);
+      var user = findInChunks(m.chunks, "data.node.comet_hovercard_renderer.user")
+        || deepFindKeyObj(m.chunks, "user");
+      if (!isObj(user)) {
+        out.error = "hovercard returned no user node for entity " + entityId;
+        out.response_skeleton = (function () { try { return skeletonize(firstChunkOf({ response: m.chunks }), 0, { n: 600 }, 12); } catch (e) { return null; } })();
+        return out;
+      }
+      // timeline_context_items is what the card actually SHOWS under the name — "Works at X",
+      // "Studied at Y", "Lives in Z", "Followed by N people". It is the only part of this
+      // payload that says what someone DOES, which is the whole point of asking: an agent
+      // cannot tell a realtor from an insurance agent from a name and an avatar.
+      // Collected tolerantly (any *.text under each node) because the row shapes differ per
+      // item type, and a row missed is a signal lost.
+      function contextRows(u) {
+        var rows = [], nodes = getPath(u, "timeline_context_items.nodes");
+        if (!Array.isArray(nodes)) return rows;
+        for (var i = 0; i < nodes.length && rows.length < 12; i++) {
+          var n = nodes[i];
+          if (!isObj(n)) continue;
+          var t = getPath(n, "title.text") || getPath(n, "renderer.context_item.title.text") || "";
+          if (!t) { try { t = deepText(n, 0) || ""; } catch (e) { t = ""; } }
+          t = String(t).replace(/\s+/g, " ").trim().slice(0, 160);
+          if (t && rows.indexOf(t) === -1) rows.push(t);
+        }
+        return rows;
+      }
+      var ctx = contextRows(user);
+      var rec = {
+        id: user.id ? String(user.id) : entityId,
+        name: typeof user.name === "string" ? user.name : "",
+        url: (typeof user.url === "string" && user.url) ? user.url : (typeof user.profile_url === "string" ? user.profile_url : ""),
+        context: ctx,
+        work: ctx.filter(function (t) { return /^(works?|worked|làm việc|từng làm)/i.test(t); }),
+        education: ctx.filter(function (t) { return /^(stud|went to|học|từng học)/i.test(t); }),
+        location: ctx.filter(function (t) { return /^(lives?|from|sống|đến từ)/i.test(t); }),
+        gender: getPath(user, "primaryActions.0.client_handler.profile_action.profile_owner.gender")
+          || (function () { var g = deepFindKeyStr(user, "gender"); return g || ""; })(),
+        is_verified: !!user.is_verified,
+        memorialized: !!user.is_visibly_memorialized,
+        profile_picture: getPath(user, "profile_picture.uri") || getPath(user, "profile_picture_depth_0.uri") || "",
+        bio: getPath(user, "bio_text.text") || getPath(user, "profile_intro_card.bio.text") || "",
+        category: getPath(user, "profile_plus_transition_page_category") || getPath(user, "category_name") || "",
+        subscribe_status: user.subscribe_status || "",
+        friendship_status: user.friendship_status || "",
+        mutual_friends: firstNumber(user, { mutual_friends_count: 1, count: 1 }) || 0,
+        actions: (function () {
+          var acts = [], list = Array.isArray(user.primaryActions) ? user.primaryActions : [];
+          for (var i = 0; i < list.length && i < 6; i++) {
+            var t = getPath(list[i], "title.text") || getPath(list[i], "label.text") || "";
+            if (t) acts.push(String(t));
+          }
+          return acts;
+        })()
+      };
+      out.items = [rec];
+      out.count = 1;
+      out.found = !!(rec.name || rec.url);
+      // Ship the shape too: this query returns different fields for a person, a page and a
+      // stranger, and guessing which ones exist is how a field silently becomes empty.
+      if (inputs.debug) {
+        try { out.user_skeleton = skeletonize(user, 0, { n: 1400 }, 14); } catch (e) { /* ignore */ }
+        try {
+          var cn = getPath(user, "timeline_context_items.nodes");
+          if (Array.isArray(cn) && cn.length) out.context_node_skeleton = skeletonize(cn[0], 0, { n: 900 }, 14);
+        } catch (e) { /* ignore */ }
+      }
+      return out;
+    }).catch(function (e) {
+      out.error = "hovercard call failed: " + String(e && e.message || e);
+      return out;
+    });
+  }
+  function deepFindKeyStr(obj, key) {
+    var found = "";
+    (function walk(n, d) {
+      if (found || d > 8 || !isObj(n)) return;
+      for (var k in n) {
+        if (found) return;
+        var v = n[k];
+        if (k === key && typeof v === "string" && v) { found = v; return; }
+        if (isObj(v)) walk(v, d + 1);
+        else if (Array.isArray(v)) for (var j = 0; j < v.length && j < 6; j++) if (isObj(v[j])) walk(v[j], d + 1);
+      }
+    })(obj, 0);
+    return found;
+  }
+
+  function deepFindKeyObj(response, key) {
+    var chunks = chunksOf(response), found = null;
+    function walk(n, d) {
+      if (found || d > 10 || !isObj(n)) return;
+      for (var k in n) {
+        if (found) return;
+        var v = n[k];
+        if (k === key && isObj(v) && (v.id || v.name)) { found = v; return; }
+        if (isObj(v)) walk(v, d + 1);
+      }
+    }
+    for (var i = 0; i < chunks.length && !found; i++) walk(chunks[i], 0);
+    return found;
+  }
+
   var DOM_CAPABILITIES = {
+    "_diag.hover_probe": diagHover,
+    "fb.profile.hovercard": profileHovercard,
     "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader,
     "fb.profile.contacts": profileContacts };
 
