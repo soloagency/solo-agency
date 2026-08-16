@@ -1750,9 +1750,16 @@
     })();
     // The self-declared blurb: the longest line that is not one of the structured facts and not
     // page furniture. Facebook does not label it, so it cannot be keyed off a prefix.
+    // "Longest line that is not a structured fact" picked a REVIEW on all three live pages —
+    // "Cảm ơn Ann Vương…", "Family and Friends; If you are looking for a realestate agent…" —
+    // because a recommendation is always longer than a bio. Position settles it: the intro card
+    // is above the reviews, always. Stop reading at the first review marker instead of trying to
+    // recognise review prose, which is unbounded and multilingual.
+    var REVIEW_MARK = /recommends|%\s*recommend|\(\d+\s*Reviews?\)|^Reviews?$|^Rating and reviews$|^Đánh giá$/i;
     var introBio = "";
     for (var li = 0; li < introLines.length; li++) {
       var L = introLines[li];
+      if (REVIEW_MARK.test(L)) break;   // everything from here down belongs to other people
       if (L.length < 20 || L.length > 300) continue;
       if (/^(works?|worked|stud|went to|lives?|from|làm việc|từng|học|sống|đến từ)/i.test(L)) continue;
       if (/\d+\s*(followers|following|friends|likes|người theo dõi)/i.test(L)) continue;
@@ -2029,6 +2036,9 @@
   // its menu order would spend the budget on hobbies.
   var DOSSIER_RANK = {};
   for (var _d = 0; _d < DOSSIER_TABS.length; _d++) DOSSIER_RANK[DOSSIER_TABS[_d].key] = _d;
+  // Headings Facebook writes in the About panel. They label the value below them and are never
+  // the value themselves.
+  var SECTION_LABEL = /^(all|followers|category|details|links|services|work|education|contact info|personal details|privacy and legal info|names|reviews|social media|bio|address|phone|mobile|email|messenger|hours|website|rating and reviews|intro|giới thiệu|địa chỉ|điện thoại)$/i;
   var DOSSIER_CHROME = /^(like|comment|share|follow|following|message|add friend|see all|see more|more|photos|videos|reels|friends|about|posts|intro|edit profile|create|log in|sign up|suggested for you|sponsored|thích|bình luận|chia sẻ|theo dõi|nhắn tin|xem thêm|xem tất cả|giới thiệu|bạn bè|ảnh|video)$/i;
 
   // ---- About sections by GraphQL replay, no clicking ---------------------------------------
@@ -2687,6 +2697,37 @@
             for (var i = 0; i < (b || []).length; i++) if (out.indexOf(b[i]) === -1) out.push(b[i]);
             return out;
           }
+          // work / education / location came back EMPTY on every live profile, and dedup was not
+          // why. The header parses them from sentence patterns — "Works at <X>", "Lives in <X>" —
+          // and Facebook does not write those: a Page prints "Owner/President at Reach Home
+          // Loans" under a Work heading, and an address under an "Address" label. The text was
+          // always in about_lines; it just never reached a typed field.
+          //
+          // So read them by LABEL. That is structural, not interpretive: taking the value under
+          // a heading the page itself wrote is nothing like guessing a trade from keywords, and
+          // it is why industry stays the agent's call while these do not.
+          function sectionValues(key) {
+            var raw = (about && about[key]) || [], out = [];
+            for (var i = 0; i < raw.length; i++) {
+              var L = String(raw[i]).replace(/\s+/g, " ").trim();
+              if (!L || L.length > 160) continue;
+              if (SECTION_LABEL.test(L)) continue;                    // the heading itself
+              if (/^\d+[\d.,]*\s*(followers?|following|likes?)/i.test(L)) continue;
+              if (out.indexOf(L) === -1 && out.length < 8) out.push(L);
+            }
+            return out;
+          }
+          // A labelled value sits on the NEXT line: "Address" then the address, "Phone" then the
+          // number. Searching the flat list keeps this working whichever section rendered it.
+          function afterLabel(re) {
+            var out = [];
+            for (var i = 0; i < aboutLines.length - 1; i++) {
+              if (!re.test(String(aboutLines[i]).trim())) continue;
+              var v = String(aboutLines[i + 1]).replace(/\s+/g, " ").trim();
+              if (v && v.length <= 160 && !SECTION_LABEL.test(v) && out.indexOf(v) === -1) out.push(v);
+            }
+            return out;
+          }
           var item = {
             profile_url: info.base,
             name: header.name || later.name || "",
@@ -2695,9 +2736,11 @@
             verified: !!header.verified,
             // ---- what the profile says it does. TEXT, for an agent to read. ----
             intro_bio: header.intro_bio || later.intro_bio || "",
-            work: union(header.work, later.work),
-            education: union(header.education, later.education),
-            location: union(header.location, later.location),
+            work: union(union(header.work, later.work), sectionValues("work")),
+            education: union(union(header.education, later.education), sectionValues("education")),
+            // "Lives in <X>" is a personal-profile phrasing; a Page states an Address instead.
+            location: union(union(header.location, later.location), afterLabel(/^(address|địa chỉ)$/i)),
+            phones: afterLabel(/^(phone|mobile|điện thoại|số điện thoại)$/i),
             intro_lines: union(header.intro_lines, later.intro_lines).slice(0, 20),
             // The job TITLE lives here and nowhere else — see the note above DOSSIER_TABS.
             about: about,
