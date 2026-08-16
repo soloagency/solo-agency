@@ -48,6 +48,11 @@ const (
 
 var harvestRunning sync.Mutex
 
+// harvestSleepGap: if the daemon's own ticker skips this long, the machine
+// was asleep (laptop lid, no wifi). Failures recorded around that gap were
+// the machine's, not the accounts' — so on wake the breaker forgives them.
+const harvestSleepGap = 3 * time.Minute
+
 func (b *bridge) startHarvestDaemon(stop <-chan struct{}) {
 	go func() {
 		select {
@@ -58,15 +63,65 @@ func (b *bridge) startHarvestDaemon(stop <-chan struct{}) {
 		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 		ticker := time.NewTicker(harvestTickInterval)
 		defer ticker.Stop()
+		lastTick := time.Now()
 		for {
 			select {
 			case <-stop:
 				return
 			case <-ticker.C:
-				b.harvestTick(rng, time.Now())
+				now := time.Now()
+				if now.Sub(lastTick) > harvestSleepGap {
+					b.harvestWakeAmnesty(now, lastTick)
+				}
+				lastTick = now
+				b.harvestTick(rng, now)
 			}
 		}
 	}()
+}
+
+// harvestWakeAmnesty runs once after the machine wakes: every quarantine
+// caused by machine-side symptoms (stale jobs, no_record, source error —
+// what a sleeping Chrome produces) is lifted and the failure counter reset,
+// so the walk resumes immediately instead of waiting out a 2h bench that was
+// never the account's fault. Genuine account symptoms (landed_on_self, an
+// explicit checkpoint/error string) are NOT forgiven.
+func (b *bridge) harvestWakeAmnesty(now, sleptAt time.Time) {
+	lifted := 0
+	_, _ = withLedger(b.uiDataRoot, now, func(l *harvestLedger) error {
+		for id, bx := range l.Boxes {
+			if !bx.quarantined(now) && bx.ConsecutiveFailures == 0 {
+				continue
+			}
+			if !isMachineSideFailure(bx.LastError) {
+				continue
+			}
+			bx.QuarantinedUntil = ""
+			bx.ConsecutiveFailures = 0
+			bx.LastError = "cleared: machine was asleep " + sleptAt.Format("15:04") + "–" + now.Format("15:04")
+			lifted++
+			_ = id
+		}
+		return nil
+	})
+	if lifted > 0 {
+		log.Printf("harvest: machine woke after %s asleep — lifted quarantine on %d collector(s)", now.Sub(sleptAt).Round(time.Minute), lifted)
+	}
+}
+
+// isMachineSideFailure: symptoms a sleeping/offline machine produces, as
+// opposed to a Facebook account being restricted.
+func isMachineSideFailure(reason string) bool {
+	r := strings.ToLower(reason)
+	if strings.Contains(r, "landed_on_self") || strings.Contains(r, "checkpoint") || strings.Contains(r, "restricted") {
+		return false
+	}
+	for _, k := range []string{"stale", "never claimed", "no_record", "source error", "timeout", "capture", "navigation", "no result"} {
+		if strings.Contains(r, k) {
+			return true
+		}
+	}
+	return false
 }
 
 type harvestCollector struct {

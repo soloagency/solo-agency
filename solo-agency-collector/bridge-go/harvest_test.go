@@ -431,3 +431,29 @@ func TestHarvestDrilldownRowsAndTemplate(t *testing.T) {
 		}
 	}
 }
+
+func TestHarvestWakeAmnesty(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	withLedger(root, now, func(l *harvestLedger) error {
+		a := l.box("ext-a")
+		a.ConsecutiveFailures, a.LastError = 3, "job stale after 20m (never claimed)"
+		a.QuarantinedUntil = now.Add(time.Hour).UTC().Format(time.RFC3339)
+		b := l.box("ext-b")
+		b.ConsecutiveFailures, b.LastError = 3, "landed_on_self"
+		b.QuarantinedUntil = now.Add(time.Hour).UTC().Format(time.RFC3339)
+		return nil
+	})
+	br := &bridge{uiDataRoot: root}
+	br.harvestWakeAmnesty(now, now.Add(-10*time.Minute))
+	l, _ := withLedger(root, now, func(*harvestLedger) error { return nil })
+	if l.Boxes["ext-a"].quarantined(now) || l.Boxes["ext-a"].ConsecutiveFailures != 0 {
+		t.Fatalf("machine-side quarantine must be lifted on wake: %+v", l.Boxes["ext-a"])
+	}
+	if !l.Boxes["ext-b"].quarantined(now) {
+		t.Fatalf("account-side quarantine (landed_on_self) must survive wake: %+v", l.Boxes["ext-b"])
+	}
+	if !isMachineSideFailure("no_record") || !isMachineSideFailure("source error") || isMachineSideFailure("account checkpoint") {
+		t.Fatal("machine-side classification wrong")
+	}
+}
