@@ -70,7 +70,12 @@
       "website": "string — external site link when shown",
       "cta": "array of button labels (Book Now, Send Message, ...)",
       "has_reels_tab": "boolean",
-      "has_videos_tab": "boolean"
+      "has_videos_tab": "boolean",
+      "intro_bio": "string — the profile's own blurb, when it has one",
+      "work": "string[] — employers the profile declares (Works at / Worked at / Làm việc tại)",
+      "education": "string[] — schools the profile declares",
+      "location": "string[] — Lives in / From",
+      "intro_lines": "string[] — the intro card lines as written, capped at 20. READ THESE to work out a trade:  is a narrow hard-coded whitelist (real-estate and insurance wording only) that is blind to every other job and can false-positive on a page that merely mentions the words."
     },
     "VideoRecord": {
       "id": "string",
@@ -151,6 +156,20 @@
       "approval_notice": "string | null — the group's own wording when the post is held for admin approval",
       "error": "string | null",
       "ts": "ISO8601"
+    },
+    "HovercardRecord": {
+      "id": "string — the profile id asked for",
+      "name": "string",
+      "url": "string",
+      "context": "string[] — the card's context lines AS WRITTEN (\"Works at X\", \"15 mutual friends including …\"). Read these; they are the only part that says what someone does.",
+      "work": "string[] — context lines that matched a work prefix",
+      "education": "string[]",
+      "location": "string[]",
+      "gender": "string",
+      "is_verified": "boolean",
+      "memorialized": "boolean",
+      "profile_picture": "string — avatar uri",
+      "actions": "string[] — the card's buttons (Message / Add friend / Follow), which reveal the viewer's relationship to this person"
     }
   },
   "capabilities": [
@@ -481,6 +500,29 @@
         "note": "Server-rendered; robust to class churn by keying off text/links. One record = the profile.",
         "validated_on": "2026-07-16 discovery on absellsaz (followers 10K, verified, Realtor, hasReels confirmed in DOM)",
         "fallback": "html"
+      },
+      "scroll": "none"
+    },
+    {
+      "id": "fb.profile.hovercard",
+      "title": "Read Facebook's hover preview card for one profile",
+      "when_to_use": "Cheap per-person enrichment: the card Facebook shows when you hover a name. Returns the context lines the profile itself declares (\"Works at X\", \"Studied at Y\", \"Lives in Z\"), plus gender, verified and avatar — one request per person, no page navigation. Use it to SIFT a large list (fb.profile.friends gives you the entity ids) before spending fb.profile.header / fb.profile.contacts on the few worth a full look. It does NOT return a trade or a title: read `context` and decide.",
+      "inputs": {
+        "entity_id": "string (required) — the numeric profile id. fb.profile.friends returns it for every friend.",
+        "debug": "bool (optional) — include the raw user/context node skeletons for shape work"
+      },
+      "output_schema": "HovercardRecord",
+      "provider": "facebook-graphql",
+      "coverage": "what the hover card shows the logged-in operator",
+      "status": "beta",
+      "_impl": {
+        "screen": "any Facebook page (the call is made from whatever page is open)",
+        "graphql_query": "CometHovercardQueryRendererQuery — issued directly, no hover needed. Found by hovering three profiles and diffing the capture buffer: the ONLY varying input is entityID.",
+        "doc_id": "taken from Facebook's own module registry via window.require(\"<QueryName>.graphql\").params.id so it can never go stale; a measured value is the last-resort fallback.",
+        "auth": "fb_dtsg/av borrowed from any request the open page already made",
+        "fields": "context[] is the payload's timeline_context_items rendered as text, kept RAW alongside the parsed work/education/location split — the split keys off English/Vietnamese prefixes, and anything that does not match a prefix would otherwise vanish.",
+        "limits": "Only what the card shows. A person who declares no workplace yields an empty context, and an employer name alone often does not reveal a trade (\"Works at Caliduadon llc\"). For trade classification prefer fb.profile.header's intro_lines + website.",
+        "validated_on": "2026-08-16 live on a friends list: called by entity_id with no hover, returned name, gender, verified, avatar and \"Works at …\"."
       },
       "scroll": "none"
     },
