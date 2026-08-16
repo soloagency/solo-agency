@@ -58,8 +58,12 @@ resolve the person, then read their SOCIAL presence BEFORE their website — soc
 professional activity lives; a website is a background/confirmation source only. Order: **social
 (read it, don't just save the URL) → website → industry/directory page → reverse search**, looping
 until returns diminish. Concretely: any lead with a Facebook profile MUST be read through the
-collector (`fb.profile.header`, then `fb.profile.posts` / `fb.profile.videos`) and its 3–5 most
-recent readable posts/videos analyzed for dated signals BEFORE the lead can reach `high`. Saving a
+collector and its 3–5 most recent readable posts/videos analyzed for dated signals BEFORE the lead
+can reach `high`. Use **`fb.profile.enrich`** with the profile's ROOT url: one page load returns the
+recent posts AND the About section (trade, address, contact) in a single record. It replaces the old
+`fb.profile.header` + `fb.profile.posts` + `fb.profile.contacts` sequence, which read the same
+profile two or three times. Submit the root url, never `/about` — the timeline query only fires on
+the root, so `/about` returns the About half with `posts: []`. Saving a
 Facebook URL without reading it is NOT enrichment. Stopping at the website is the #1 failure mode —
 websites are months out of date; the whole point of Layer B is RECENT activity.
 

@@ -200,6 +200,13 @@
       "memorialized": "boolean",
       "profile_picture": "string — avatar uri",
       "actions": "string[] — the card's buttons (Message / Add friend / Follow), which reveal the viewer's relationship to this person"
+    },
+    "ProfileEnrich": {
+      "_note": "Every ProfileDossier field, plus the timeline. One record, one page load.",
+      "…ProfileDossier": "name, category, emails, phones, websites, work, education, location, intro_bio, about, about_lines, checked, discovered_tabs, source, elapsed_ms — see ProfileDossier.",
+      "posts": "PostRecord[] — the most recent timeline posts, capped by max_posts (default 5). These are the DATED proof-of-life Stage 4 requires before a lead can reach a `high` confidence band.",
+      "videos": "VideoRecord[] — present only when a Videos capture happened to exist on the landing page. This capability never navigates to the Videos tab; a second page load is the cost it exists to remove.",
+      "timeline": "object {landed_on, posts_available, posts_reason, posts_seen, posts_kept, videos_available, videos_seen}. posts_available:false with a reason means the timeline had NOT RENDERED — which needs the opposite fix from 'this person has no posts', so the two are never merged."
     }
   },
   "capabilities": [
@@ -641,6 +648,28 @@
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)",
         "validated_on": "2026-08-15 match_text live on group 668676178569386: resolved \"Post 5 post 5 post 5\" to /posts/676092881161049/ and commented there (done/verified); match_text \"Post\" returned ambiguous_match over 3 candidates and wrote nothing. Earlier, 2026-07-29 on all three permalink surfaces: profile post, group post, and reel (needed the panel-open click)"
+      },
+      "scroll": "none"
+    },
+    {
+      "id": "fb.profile.enrich",
+      "title": "One tab, the whole lead: recent posts AND the About section",
+      "when_to_use": "The capability for Stage 4 enrichment, which needs BOTH halves of a person: dated posts for proof-of-life and the About section for the trade and the address. Submit the profile's ROOT url (https://www.facebook.com/<profile> or profile.php?id=<numeric>) — NOT /about. That is not a style preference: the timeline query only fires when the tab lands on the root, and this capability reads it from the capture store before walking into About in the same tab. Submitting /about returns the About half with an empty `posts` and posts_available:false. Use fb.profile.dossier instead when you only want the About half and want to enter at /about directly.",
+      "inputs": {
+        "profile_url": "string (optional) — defaults to the page the job opened. The ROOT url, vanity or profile.php?id=<numeric>. Not the /about form; see when_to_use.",
+        "max_posts": "int (optional, default 5, max 25) — how many of the most recent posts to keep. Stage 4 asks for 3-5.",
+        "budget_ms": "int (optional, default 30000) — deadline for the About walk",
+        "settle_ms": "int (optional, default 2500) — how long to wait for the timeline query to land before reading captures"
+      },
+      "output_schema": "ProfileEnrich",
+      "provider": "facebook-graphql+dom",
+      "coverage": "what the logged-in operator can already see on the profile",
+      "status": "beta",
+      "_impl": {
+        "method": "Lands on the profile root, waits for the timeline GraphQL to be captured by gql_intercept, reads it with the same capture-only extractor fb.profile.posts uses (no scroll, no second request), then runs the fb.profile.dossier About walk in the SAME tab and merges both into one record.",
+        "why": "Stage 4 requires posts AND About (04_VERIFY_ENRICH.md: 3-5 recent posts analysed for dated signals before a lead can reach `high`), and they were separate capabilities — so enriching one person cost two or three page loads of the same profile.",
+        "order_is_forced": "Posts first, About second, and it cannot be reversed: the timeline query fires on the root and never on /about, so navigating to About first loses the posts entirely.",
+        "validated_on": "not yet live-tested"
       },
       "scroll": "none"
     },
