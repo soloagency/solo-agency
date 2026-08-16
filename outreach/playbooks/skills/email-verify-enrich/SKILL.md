@@ -109,30 +109,35 @@ the first hit: **(1)** the profile itself with the bio expanded via "See more", 
 `…/directory_links` (no address, but the website is here), **(6)** that website's Contact/Team/About
 page and footer, **(7)** the off-platform ladder. About is a CHOOSER, not a page — each sub-page is
 its own URL, and rows 1-5 are where a business address almost always is; the website hop is the
-exception, not the routine next step. **Rows 1-5 are ONE job, not five:** enqueue capability
-`fb.profile.contacts` against the PROFILE url and it walks them itself — entering About, CLICKING
-each sub-tab (a fetch of those returns the app shell with no contact block) and expanding "See
-more". Copy its record into the dossier as `email_discovery` `{profile_url, emails, websites,
-found_on, checked}`, and put any address it found into `identity.channels_found.emails` too —
-that is the field that creates the identity. Rows 6-7 stay separate steps, input from `websites`. `enrich
+exception, not the routine next step. **Rows 1-5 come out of the SAME `fb.profile.enrich` job that
+returns the hooks — one page load per profile, never a second:** enqueue `fb.profile.enrich`
+against the PROFILE ROOT url (vanity or `profile.php?id=<numeric>`, never `/about`) and it reads
+the timeline first, then enters About in the same tab, CLICKING each sub-tab (a fetch of those
+returns the app shell with no contact block) and expanding "See more". Copy the contact half of
+its record into the dossier as `email_discovery` `{profile_url, emails, websites, found_on,
+checked}`, and put any address it found into `identity.channels_found.emails` too — that is the
+field that creates the identity. Rows 6-7 stay separate steps, input from `websites`. `enrich
 write` refuses `mark_email_not_found` unless `email_discovery.checked` shows the ladder got past
 `current_page` (a `directory_*` sub-tab rendered, or `about` with no sub-tab offered — the normal
-case for a personal profile). Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
+case for a personal profile). Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`. Enqueuing
+`fb.profile.contacts` after an enrich pass on the same profile is a defect (same profile, second
+load); it stays only for a contact-only re-check when the hooks are already current. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
 to its owner profile before any deep enrichment — the store auto-consolidates fragments that
 share a profile/email (full union: all reels + hooks kept; result reports `consolidated`), so
 you deep-enrich each unique person exactly ONCE. Always continue against the returned `lead_id`
 (the survivor). A `duplicate_suspected` result means a CONFLICTING record shares that identity
 (shared page ≠ same person) — not merged, both held out of queues; surface it to the operator
 instead of picking a side yourself. If the only seed is a Facebook/social URL (or the CRM
-`name` is blank), FIRST read the profile with the Local Collector's `fb.profile.header` — the Phase-4
+`name` is blank), FIRST read the profile with the Local Collector's `fb.profile.enrich` — the Phase-4
 collector is now LIVE (operator's own logged-in Chrome; bridge `127.0.0.1:17321`, enqueue capability
-`fb.profile.header` with the profile URL; see `solo-agency-collector`). Take its `name` + `category`
+`fb.profile.enrich` with the profile ROOT URL; see `solo-agency-collector`). Take its `name` + `category`
 + a location signal (city from the header/intro) and build the first query as `"<name>" <category>
 <city>`. **Do NOT build a query from a URL path/slug** (e.g. `absellsaz`, or "videos/reels insurance
 agent" stitched from URL words) — slug queries return directory junk, not the person. If the header
-yields no usable name, pull the person's own words + place-names from `fb.profile.videos` /
-`fb.profile.posts` captions before ever falling back to a slug. Pass a `profile.php` URL only WITH
-its `?id=<numeric_id>` — a bare `profile.php` resolves to the operator, not the lead.
+yields no usable name, pull the person's own words + place-names from the SAME record's `posts[]`
+captions (posts and reels are mixed there) before ever falling back to a slug — no second job.
+Pass a `profile.php` URL only WITH its `?id=<numeric_id>` — a bare `profile.php` resolves to the
+operator, not the lead.
 
 **Running the Facebook people-search — search BROAD, then FILTER. GraphQL only, never the DOM scan.**
 Run it through the Local Collector's **`fb.people.search`** capability (source
@@ -204,9 +209,10 @@ from it, e.g. a share count → "people are already passing your version along")
 `observed_date`** — a usable hook missing it is kept but `enrich write` flags a `problems` note
 (recency unverified), and recency is what makes proof-of-life real. **Social BEFORE website, and
 reading BEFORE claiming:** a website is a background/confirmation source that goes stale; any lead
-with a Facebook profile MUST have it read (collector `fb.profile.header` then `fb.profile.posts`/
-`fb.profile.videos`), analyzing the 3–5 latest readable posts/videos for DATED signals, before that
-lead can be `high`. Saving the profile URL without reading it, or resting on a `website_update`
+with a Facebook profile MUST have it read — ONE `fb.profile.enrich` job on the ROOT url, whose
+`posts[]` holds the 3–5 latest posts and reels mixed, each dated with its own permalink — analyzing
+them for DATED signals, before that lead can be `high`. Never enqueue `fb.profile.videos` for the
+reels: they are already in `posts[]`, and a second job is a second load of the same profile. Saving the profile URL without reading it, or resting on a `website_update`
 line, is not proof-of-life — `enrich write` will cap the band and tell you so. `observed_date` is
 the CONTENT's publish/update date, never the date you read it. Distill a `writing_brief`: a one-liner, ranked angles (freshness × goal-fit ×
 confidence), a `do_not_mention` list, and a `personalization_confidence` set by the **COUNT +

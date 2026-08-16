@@ -109,8 +109,13 @@ time. That is why "we opened the About tab" is not evidence that no email exists
 
 1. **Resolve the profile first.** A reel/post seed is not a profile. Reel → owner via the
    collector (`sk=reels_tab` link); post/permalink/story → owner is in the URL itself.
-2. **Run `fb.profile.contacts` on that profile.** One job. Do not hand-write a tab crawl.
-3. **Read `records.items[0].emails`.** Empty → check `checked` before drawing a conclusion.
+2. **In enrichment, this ladder is walked by `fb.profile.enrich`** (submitted at the profile
+   ROOT url) — the same job that returns the hooks; its record carries the contact half
+   (`emails`, `websites`, `found_on`, `checked`) beside `posts[]`. Do not enqueue a separate
+   `fb.profile.contacts` after it: that is a second load of the same profile. Run
+   `fb.profile.contacts` alone only for a contact-only re-check on a profile whose hooks are
+   already current. Either way: one job, never a hand-written tab crawl.
+3. **Read the record's `emails`.** Empty → check `checked` before drawing a conclusion.
 4. **Copy the record into the dossier as `email_discovery`** — `{profile_url, emails, websites,
    found_on, checked}`, verbatim from the collector. The store's `mark_email_not_found` gate
    reads its `checked`; a dossier without it is refused (see below). **Also put any address into
