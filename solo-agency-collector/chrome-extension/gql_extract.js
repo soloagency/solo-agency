@@ -1767,6 +1767,10 @@
       // two live profiles came back with "Number of unread notifications" as their bio, because
       // their real intro lines were short ("Mortgage Brokers", "📍Expert IL/GA Realtor").
       if (/^(number of unread|new notification|unread |active status|notifications?$|search$|menu$)/i.test(L)) continue;
+      // The display name is not a bio. A profile whose every intro line is short — "Mortgage
+      // Brokers", an emoji tagline — leaves the name as the longest survivor, and returning it
+      // says nothing a caller does not already have in `name`.
+      if (name && L === name) continue;
       if (L.length > introBio.length) introBio = L;
     }
 
