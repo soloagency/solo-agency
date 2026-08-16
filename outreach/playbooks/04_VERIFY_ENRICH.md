@@ -78,7 +78,7 @@ wins.
    (gather as MANY evidenced Layer-B points as you can find — `public_business` only, do NOT cap;
    each is a conclusion-basis the writer weaves), distill a `writing_brief`.
 2b. **Decide the lead's `industry`, from the closed dictionary.** Read
-   `solo-agency-collector/bridge-go/lead_industries.json` — 42 entries, each with `aliases`,
+   `solo-agency-collector/bridge-go/lead_industries.json` — 43 entries, each with `aliases`,
    `positive_signals` and `exclusions` — and store exactly one `industry` value **verbatim**: same
    case, same `&`, same commas. That file is the single source of truth; it is deliberately NOT
    reproduced here, because a second copy is a copy that drifts. YOU classify, by reading signals.
@@ -95,9 +95,9 @@ wins.
      `fb.profile.dossier` returns all of this from ONE page load — read `about_lines`.
    - **Do NOT read their posts for this.** A person's trade is published on their profile; reading
      the feed costs many times the tokens for a weaker signal.
-   - **Check `exclusions`, not just `positive_signals`.** Sixteen pairs in that list overlap on
-     purpose-built boundaries — Real Estate vs Loan & Mortgage, Immigration vs Work Abroad &
-     Immigration, Logistics vs Transportation — and the exclusions are what make two runs on the
+   - **Check `exclusions`, not just `positive_signals`.** Seventeen pairs in that list overlap on
+     purpose-built boundaries — P&C Insurance vs L&H Insurance, Real Estate vs Loan & Mortgage,
+     Immigration vs Work Abroad & Immigration — and the exclusions are what make two runs on the
      same lead agree. When two entries are genuinely co-equal, prefer the REGULATED trade the person
      is licensed for: a licence is a fact about them, a self-description is a claim.
    - **Record the decision, not just the answer:** `industry`, `industry_confidence` (0–1),
