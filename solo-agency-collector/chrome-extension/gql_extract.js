@@ -3292,11 +3292,28 @@
       return Promise.resolve(base);
     }
 
-    var items = base.items.slice();
+    // A RESUMING leg starts empty. base.items comes from the capture sitting on the page, and on
+    // a list screen that capture IS the head of the connection — so carrying it forward would
+    // staple the first rows onto every leg, and leg 16 of a 5,000-friend walk would still ship
+    // rows 1-8. The caller already has them from leg 1. Each leg returning exactly its own slice
+    // is what makes "from here to there" true rather than approximately true.
+    var resuming = typeof inputs.start_cursor === "string" && !!inputs.start_cursor;
+    var items = resuming ? [] : base.items.slice();
     var seen = {};
     items.forEach(function (it) { if (it && it.id) seen[it.id] = 1; });
     var pi = seedInfo || {};
-    var state = { cursor: pi.end_cursor, hasNext: !!pi.has_next_page, pages: 0, added: 0, head: 0, headVia: "not_run" };
+    // RESUMING. A connection larger than one job's page budget cannot be drained in one pass —
+    // 5,000 friends is ~623 pages at 8 per page, and both the 40-page cap and the 45-second
+    // capability timeout stop long before that. Without a way to say where to continue, a second
+    // job re-walks from the head and returns the same first 336 rows again, which is the shape of
+    // "we collected it 16 times" rather than "we collected it".
+    //
+    // So a caller may hand back the end_cursor of the previous leg. It is Facebook's own opaque
+    // cursor, replayed into the same persisted query, so a leg boundary is exactly a page
+    // boundary — no overlap to dedupe, no gap to notice later.
+    var startCursor = typeof inputs.start_cursor === "string" && inputs.start_cursor ? inputs.start_cursor : null;
+    var state = { cursor: startCursor || pi.end_cursor, hasNext: startCursor ? true : !!pi.has_next_page,
+                  pages: 0, added: 0, head: 0, headVia: startCursor ? "skipped_resuming" : "not_run" };
 
     // PAGE 1 NEVER REACHES THIS LAYER. Facebook server-renders the top of a feed into the
     // initial document, so nothing is fetched for it and gql_intercept — which hooks
@@ -3343,7 +3360,10 @@
       }).catch(function () { state.hasNext = false; });
     }
 
-    return headPage().then(step).then(function () {
+    // The head page is the FIRST leg's job only. Re-fetching it while resuming would re-add rows
+    // the caller already has and, worse, overwrite state.cursor with the head's page_info —
+    // sending the walk back to the start of the connection every time.
+    return (startCursor ? Promise.resolve() : headPage()).then(step).then(function () {
       base.items = items;
       base.count = items.length;
       base.paginated = true;
@@ -3357,6 +3377,13 @@
       // early" — a caller cannot tell them apart from a short list alone.
       base.page_cap_hit = !!(state.hasNext && state.cursor && state.pages >= maxPages);
       base.max_pages = maxPages;
+      // The handle for the next leg. `has_next_page:false` is the ONLY honest end-of-connection
+      // signal — a short page is not one, and neither is page_cap_hit, which means the budget ran
+      // out with more waiting. A caller that stops on anything else stops early and cannot tell.
+      base.start_cursor = startCursor;
+      base.end_cursor = state.cursor || null;
+      base.has_next_page = !!state.hasNext;
+      base.resumable = !!(state.hasNext && state.cursor);
       base = applyTimeWindow(base, inputs);
       // The base extraction runs BEFORE the head fetch and the pagination walk, so on a screen
       // whose natural capture held nothing it stamps reason:"no_match" — which then survived

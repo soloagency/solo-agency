@@ -8,7 +8,7 @@
     "how_to_invoke": "POST /jobs/run_now with sources[] where each source is { \"url\": \"<screen url>\", \"capability\": \"<capability id>\", \"inputs\": { ... } }. Read results from the run's private_data_points.jsonl; typed output is in the record's 'records' field, keyed by the capability's output_schema.",
     "orchestration_note": "Multi-step work (visiting many profiles, friend-of-friend traversal, filtering by industry, writing reports) is the playbook agent's job. Each capability only reads ONE screen into typed data.",
     "status_meaning": "stable=live-verified; beta=unit-verified, live pending; planned=not built; not_graphql=this screen is not served by GraphQL interception (server-rendered / interaction-gated) and needs a DOM/HTML approach or an alternative capability.",
-    "pagination": "Deep collection via cursor replay: set inputs.max_pages (default 8, max 40) on any paginated capability (group.posts, group.search_posts, groups.search, people.search, profile.posts, profile.friends, newsfeed). Instead of relying on scroll to load more, the collector replays the captured query with each end_cursor to pull further pages directly. Example: fb.group.search_posts with max_pages:10 returned 66 posts vs 6 without."
+    "pagination": "Deep collection via cursor replay: set inputs.max_pages (default 8, max 40) on any paginated capability (group.posts, group.search_posts, groups.search, people.search, profile.posts, profile.friends, newsfeed). Instead of relying on scroll, the collector replays the captured query with each end_cursor. Example: fb.group.search_posts with max_pages:10 returned 66 posts vs 6 without.\n\nLEGS, for a connection bigger than one job. Every paginated result now carries `end_cursor`, `has_next_page` and `resumable`; pass that end_cursor back as inputs.start_cursor to continue where the last job stopped. A resuming leg skips the head page and drops the page's own capture, so each leg returns EXACTLY its own slice — no overlap to dedupe, no gap. Stop only on has_next_page:false: a short page is not the end, and neither is page_cap_hit, which means the budget ran out with more waiting. Measured on fb.profile.friends: 8 rows per page, ~34s for 40 pages against a 45s capability ceiling — so ~336 rows per leg, and a 5,000-friend list is ~623 pages, i.e. ~16 legs."
   },
   "record_schemas": {
     "EntityRef": {
@@ -288,7 +288,8 @@
       "inputs": {
         "profile_url": "string (required) — the profile whose friends to read",
         "max_scroll": "int (optional)",
-        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+        "max_pages": "int (optional, default 8, max 40) — pages of 8 rows each. 40 pages is ~34s against the 45s capability ceiling, so ~336 rows is the practical ceiling for one leg.",
+        "start_cursor": "string (optional) — the `end_cursor` returned by the previous leg. Continues from there instead of from the head, and the leg returns only its own slice. Omit for the first leg."
       },
       "output_schema": "ProfileSummary[]",
       "provider": "facebook-graphql",
@@ -310,7 +311,8 @@
           "mutual_friends": "parsed from subtitle when it is a mutual-friends line"
         },
         "validated_on": "2026-07-15 (aven-ngo, nhu.white.75/friends)",
-        "fallback": "html"
+        "fallback": "html",
+        "large_lists": "A 5,000-friend list is ~623 pages and cannot be drained in one job: the 40-page cap and the 45s timeout both stop first. Chain legs on start_cursor/end_cursor. Before doing that, consider whether the whole list is needed — this capability returns only name/url/subtitle and industry_hint is always null here, so identifying trades still costs one fb.profile.enrich PER PERSON. Filtering on `subtitle` at this stage and enriching only the matches is cheaper by orders of magnitude."
       },
       "scroll": "max_scroll"
     },
