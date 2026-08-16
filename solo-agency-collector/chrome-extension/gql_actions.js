@@ -486,6 +486,165 @@
     });
   }
 
+  // ---- P4: fb.group.post ---------------------------------------------------
+  // Publish a NEW post into a group. This is the most exposed write of the set: a comment
+  // sits under someone else's post, a DM is private, but a post stands alone in front of the
+  // whole group and is the thing members report as spam. So it guards harder, not softer.
+  //
+  // Shape of the surface (why this is not the comment flow):
+  //   - the group page shows a TRIGGER ("Write something...", "Viết gì đó..."), not a composer;
+  //   - clicking it opens a MODAL dialog which holds the real contenteditable;
+  //   - submission is a "Post" BUTTON, not the Enter key — Enter inserts a newline here.
+  var GROUP_URL = /^https?:\/\/([\w-]+\.)?facebook\.com\/groups\/[^/?#]+/i;
+  var COMPOSER_TRIGGER = /(write something|create (a )?public post|viết gì đó|bạn viết gì đi)/i;
+  var POST_BUTTON = /^(post|đăng)$/i;
+
+  function isGroupUrl(u) { return GROUP_URL.test(String(u || "")); }
+  function groupIdFrom(u) {
+    var m = String(u || "").match(/\/groups\/([^/?#]+)/i);
+    return m ? m[1] : "";
+  }
+  // The composer dialog is the only [role=dialog] holding a textbox. Requiring exactly one
+  // is the same rule the DM path uses, for the same reason: several open composers mean the
+  // page is not in the state we think it is, and typing into "the first one" is a guess.
+  function findComposerDialogs() {
+    var out = [], dialogs = document.querySelectorAll('[role="dialog"]');
+    for (var i = 0; i < dialogs.length; i++) {
+      var r = dialogs[i].getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      if (dialogs[i].querySelector('div[contenteditable="true"][role="textbox"]')) out.push(dialogs[i]);
+    }
+    return out;
+  }
+  function findComposerTrigger() {
+    var els = document.querySelectorAll('[role="button"], [role="textbox"], div[tabindex]');
+    for (var i = 0; i < els.length; i++) {
+      var lbl = norm(els[i].getAttribute("aria-label") || els[i].innerText || "");
+      var r = els[i].getBoundingClientRect();
+      if (COMPOSER_TRIGGER.test(lbl) && r.width > 0 && r.height > 0) return els[i];
+    }
+    return null;
+  }
+  function findPostButton(dialog) {
+    var btns = dialog.querySelectorAll('[role="button"], button');
+    for (var i = 0; i < btns.length; i++) {
+      var lbl = norm(btns[i].getAttribute("aria-label") || btns[i].innerText || "");
+      var r = btns[i].getBoundingClientRect();
+      if (POST_BUTTON.test(lbl) && r.width > 0 && r.height > 0) return btns[i];
+    }
+    return null;
+  }
+  // Many groups hold member posts for an admin to approve. "Submitted" is NOT "published",
+  // and reporting the first as the second would corrupt the ledger and the operator's read of
+  // what is actually live. Facebook says so in a toast/notice — look for it before claiming.
+  var PENDING_APPROVAL = /(pending (admin )?approval|waiting for approval|admin will review|chờ (quản trị viên )?phê duyệt|đang chờ duyệt)/i;
+  function approvalNotice() {
+    try {
+      var t = document.body.innerText || "";
+      var m = t.match(PENDING_APPROVAL);
+      return m ? norm(m[0]) : "";
+    } catch (e) { return ""; }
+  }
+
+  async function doGroupPost(inputs) {
+    var text = String(inputs.text || inputs.message || "").trim();
+    if (!text) return wrapCap("fb.group.post", "error", { error: "no post text provided" });
+
+    // Guard 0: the job url must be a GROUP. A permalink or profile would open a different
+    // composer entirely — on a profile it would post to the operator's own timeline.
+    var jobUrl = String(inputs._target_url || location.href);
+    if (!isGroupUrl(jobUrl) || !isGroupUrl(location.href)) {
+      return wrapCap("fb.group.post", "error", {
+        text: text, job_url: jobUrl, landed_url: location.href,
+        error: "not_a_group_url: open facebook.com/groups/<id> — a permalink or profile opens a different composer, and on a profile this would post to the operator's own timeline"
+      });
+    }
+    // Guard 1: the group we landed on must be the group we were sent to.
+    var wantGroup = groupIdFrom(jobUrl), hereGroup = groupIdFrom(location.href);
+    if (wantGroup && hereGroup && lower(wantGroup) !== lower(hereGroup)) {
+      return wrapCap("fb.group.post", "error", {
+        text: text, requested_group: wantGroup, landed_group: hereGroup,
+        error: "group_mismatch: asked for \"" + wantGroup + "\" but landed on \"" + hereGroup + "\" — nothing was typed"
+      });
+    }
+
+    // Open the composer. On a group page the box is a trigger, not an editor.
+    var dialogs = findComposerDialogs();
+    var openedDialog = false;
+    if (!dialogs.length) {
+      var trigger = findComposerTrigger();
+      if (!trigger) {
+        return wrapCap("fb.group.post", "error", {
+          text: text, group: hereGroup,
+          error: "no composer trigger on this page — the account may not be a member, or posting is restricted to admins"
+        });
+      }
+      click(trigger);
+      openedDialog = true;
+      await waitFor(function () { return findComposerDialogs().length > 0; }, 8000, 300);
+      dialogs = findComposerDialogs();
+    }
+    // Guard 2: exactly ONE composer dialog.
+    if (dialogs.length !== 1) {
+      return wrapCap("fb.group.post", "error", {
+        text: text, group: hereGroup, dialogs_found: dialogs.length, opened_dialog: openedDialog,
+        error: dialogs.length === 0
+          ? "the composer dialog did not open"
+          : "ambiguous_composer: " + dialogs.length + " composer dialogs are open — nothing was typed"
+      });
+    }
+    var dialog = dialogs[0];
+    var box = dialog.querySelector('div[contenteditable="true"][role="textbox"]');
+    if (!box) {
+      return wrapCap("fb.group.post", "error", { text: text, group: hereGroup, error: "composer dialog has no text box" });
+    }
+
+    if (inputs.dry_run) {
+      return wrapCap("fb.group.post", "dry_run", {
+        text: text, group: hereGroup, opened_dialog: openedDialog,
+        post_button_found: !!findPostButton(dialog)
+      });
+    }
+
+    await jitter();
+    await typeInto(box, text);
+    if (!composerText(box)) {
+      return wrapCap("fb.group.post", "error", { text: text, group: hereGroup, error: "failed to enter text into the composer" });
+    }
+
+    // Submit with the BUTTON. Enter inserts a newline in this composer — the comment flow's
+    // Enter trick would silently do nothing here except break the post into lines.
+    var btn = findPostButton(dialog);
+    if (!btn) {
+      return wrapCap("fb.group.post", "error", {
+        text: text, group: hereGroup, typed: true,
+        error: "no enabled Post button in the composer — text was typed but NOT submitted"
+      });
+    }
+    await jitter();
+    click(btn);
+
+    // Two-part proof, same rule as the comment path: the dialog must close (the submit was
+    // consumed) AND the text must be on the page (it actually went somewhere).
+    var closed = await waitFor(function () { return findComposerDialogs().length === 0; }, 12000, 500);
+    var probe = text.slice(0, 40);
+    var appeared = await waitFor(function () {
+      try { return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; }
+    }, 8000, 500);
+    var pending = approvalNotice();
+
+    // published | pending_admin_approval | error — never collapse the middle one into "done".
+    var status = pending ? "pending_admin_approval" : ((closed && appeared) ? "done" : "error");
+    return wrapCap("fb.group.post", status, {
+      text: text, group: hereGroup, group_url: location.href,
+      verified: status === "done", closed: !!closed, appeared: !!appeared,
+      opened_dialog: openedDialog, approval_notice: pending || null,
+      error: status === "error"
+        ? (closed ? "the composer closed but the post did not appear" : "the composer did not close — the post may not have been submitted")
+        : null
+    });
+  }
+
   // ---- P3: fb.message.send -------------------------------------------------
   // Send a Messenger DM. The job's url must be the THREAD (facebook.com/messages/t/<id>),
   // never the profile: clicking "Message" on a profile leaves the page holding several
@@ -668,6 +827,7 @@
       if (capId === "fb.post.react") return await doReact(inputs);
       if (capId === "fb.post.comment") return await doComment(inputs);
       if (capId === "fb.message.send") return await doMessage(inputs);
+      if (capId === "fb.group.post") return await doGroupPost(inputs);
       return { available: false, capability: capId, count: 0, items: [{ status: "error", error: "unknown or unimplemented action: " + capId }], _debug: { href: location.href } };
     } catch (e) {
       return { available: false, capability: capId, count: 0, items: [{ status: "error", error: String(e && e.message || e) }], _debug: { href: location.href, error: String(e) } };

@@ -138,6 +138,19 @@
       "thread_url": "string — the e2ee thread url after the gate",
       "error": "string | null",
       "ts": "ISO8601"
+    },
+    "GroupPostResult": {
+      "capability": "string (fb.group.post)",
+      "status": "done | pending_admin_approval | dry_run | error",
+      "text": "string — the post body that was submitted",
+      "group": "string — the group id actually posted into",
+      "group_url": "string — the url at submit time",
+      "verified": "boolean — true only for status done: the composer closed AND the text appeared",
+      "closed": "boolean — the composer dialog closed (the submit was consumed)",
+      "appeared": "boolean — the text was found on the page afterwards",
+      "approval_notice": "string | null — the group's own wording when the post is held for admin approval",
+      "error": "string | null",
+      "ts": "ISO8601"
     }
   },
   "capabilities": [
@@ -148,7 +161,11 @@
       "inputs": {
         "group_url": "string (required) — e.g. https://www.facebook.com/groups/<id>",
         "max_scroll": "int (optional) — how many feed pages to load",
-        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay",
+        "within_days": "int (optional) — keep only posts newer than N days. Omit for no time limit.",
+        "since": "string|int (optional) — ISO date or unix seconds; keep posts at or after this.",
+        "until": "string|int (optional) — ISO date or unix seconds; keep posts at or before this.",
+        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it."
       },
       "output_schema": "PostRecord[]",
       "provider": "facebook-graphql",
@@ -172,7 +189,8 @@
           "comments": "...feedback_target_with_context.comment_rendering_instance.comments.total_count"
         },
         "validated_on": "2026-07-15 (aven-ngo, real group feed)",
-        "fallback": "html"
+        "fallback": "html",
+        "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
       },
       "scroll": "max_scroll"
     },
@@ -183,7 +201,11 @@
       "inputs": {
         "group_search_url": "string (required) — https://www.facebook.com/groups/<id>/search/?q=<keyword> (URL-encode the keyword)",
         "max_scroll": "int (optional)",
-        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay",
+        "within_days": "int (optional) — keep only posts newer than N days. Omit for no time limit.",
+        "since": "string|int (optional) — ISO date or unix seconds; keep posts at or after this.",
+        "until": "string|int (optional) — ISO date or unix seconds; keep posts at or before this.",
+        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it."
       },
       "output_schema": "PostRecord[]",
       "provider": "facebook-graphql",
@@ -198,7 +220,8 @@
         "edge_path": "data.serpResponse.results.edges → rendering_strategy.view_model.click_model.story (identical story-node shape as group_feed; reuses postRecordFromStoryNode)",
         "note": "Use the /search/?q= form, NOT /search/posts/. Entity results (groups/people) excluded by requiring click_model.story.",
         "validated_on": "2026-07-15 (live verified on aven-ngo — keywords nha, cho thue, all matched)",
-        "fallback": "html"
+        "fallback": "html",
+        "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
       },
       "scroll": "max_scroll"
     },
@@ -238,27 +261,17 @@
     {
       "id": "fb.profile.about",
       "title": "Facebook profile About / bio",
-      "when_to_use": "Read a single profile's About section — work, education, current city, hometown, public contact, bio text — to classify a person (e.g. infer industry).",
-      "inputs": {
-        "profile_url": "string (required)"
-      },
+      "when_to_use": "NOT AVAILABLE — do not submit jobs with this capability. Use fb.profile.header (category, follower count, website, CTA), fb.profile.contacts (published email/websites) and fb.profile.posts (what the person actually posts about) instead; together they cover profile classification.",
+      "inputs": {},
       "output_schema": "AboutRecord",
-      "provider": "facebook-graphql",
+      "provider": "none",
       "coverage": "only fields the profile makes visible to the logged-in user",
-      "status": "not_graphql",
+      "status": "not_built",
       "_impl": {
-        "screen": "profile_about",
-        "url_match": [
-          "facebook.com/<user>/about",
-          "facebook.com/profile.php?id=<id>&sk=about"
-        ],
-        "graphql_query": null,
-        "note": "About is a single-node response (not an edges connection); several sections load lazily and need their own queries.",
-        "fallback": "html",
-        "finding": "2026-07-15: structured About fields (work/education/city) are NOT available via GraphQL interception — server-rendered. The captured ProfileCometAppSectionFeedPaginationQuery carries only nav sections + pageItems urls, no field text. Needs a dedicated About-tab DOM parser.",
-        "recommended_alternative": "For inferring a person industry (e.g. FoF lead filtering), call fb.people.search with the person name — the SERP row returns their occupation subtitle + industry_hint. Also the friend vanity url often encodes the trade (e.g. edsocalrealtor)."
-      },
-      "scroll": "none"
+        "history": "Twice attempted, twice withdrawn. A DOM implementation walking About + its four directory_* sub-tabs could not finish inside the orchestrator's 45s capability timeout even after the settle time was cut and a wall-clock budget added; both runs returned records:null. Removed on operator instruction — the other profile capabilities already carry enough to classify a person, and this one cost more than it was worth.",
+        "what_it_exposed": "Its failures were INVISIBLE, and fixing that was the durable win: a DOM capability that threw used to answer available:false, which the bridge turns into records:null — making \"the capability crashed\" and \"this page has nothing\" the same output. That path now reports available:true with the error, catches promise rejections as well as synchronous throws, and background.js writes an explicit error record instead of leaving null.",
+        "if_revived": "Do not walk five surfaces in one job. Fetch is useless here (the SPA shell has no rendered block), so each surface costs a real click plus a settle; either split the ladder across jobs or raise the capability timeout deliberately."
+      }
     },
     {
       "id": "fb.groups.search",
@@ -318,7 +331,11 @@
       "inputs": {
         "profile_url": "string (required)",
         "max_scroll": "int (optional)",
-        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay",
+        "within_days": "int (optional) — keep only posts newer than N days. Omit for no time limit.",
+        "since": "string|int (optional) — ISO date or unix seconds; keep posts at or after this.",
+        "until": "string|int (optional) — ISO date or unix seconds; keep posts at or before this.",
+        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it."
       },
       "output_schema": "PostRecord[]",
       "provider": "facebook-graphql",
@@ -333,7 +350,8 @@
         "graphql_query": "ProfileCometTimelineFeedRefetchQuery (+ initial variant)",
         "edge_path": "data.node.timeline_list_feed_units.edges[].node (same PostRecord helpers as group.posts)",
         "fallback": "html",
-        "validated_on": "2026-07-15 (live verified on aven-ngo)"
+        "validated_on": "2026-07-15 (live verified on aven-ngo)",
+        "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
       },
       "scroll": "max_scroll"
     },
@@ -343,7 +361,11 @@
       "when_to_use": "Read the logged-in user's home feed. Note the feed mixes many story types (ads, suggestions, reels, memories); expect noisier output.",
       "inputs": {
         "max_scroll": "int (optional)",
-        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay",
+        "within_days": "int (optional) — keep only posts newer than N days. Omit for no time limit.",
+        "since": "string|int (optional) — ISO date or unix seconds; keep posts at or after this.",
+        "until": "string|int (optional) — ISO date or unix seconds; keep posts at or before this.",
+        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it."
       },
       "output_schema": "PostRecord[]",
       "provider": "facebook-graphql",
@@ -358,7 +380,8 @@
         "graphql_query": "CometNewsFeedPaginationQuery",
         "fallback": "html",
         "edge_path": "data.viewer.news_feed.edges[].node (skip ads/suggestions: require comet_sections + story message)",
-        "validated_on": "2026-07-15 (live verified on aven-ngo)"
+        "validated_on": "2026-07-15 (live verified on aven-ngo)",
+        "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
       },
       "scroll": "max_scroll"
     },
@@ -599,6 +622,29 @@
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)"
       }
+    },
+    {
+      "id": "fb.group.post",
+      "title": "Publish a new post into a Facebook group",
+      "when_to_use": "WRITE ACTION. Publish a standalone post into a group the acting account is a MEMBER of. Submit the GROUP url (facebook.com/groups/<id>) — not a permalink, and never a profile url, which would post to the operator's own timeline. This is the most exposed write the collector has: a comment sits under someone else's post, a DM is private, but a post stands alone in front of the whole group and is what members report as spam. Keep the daily cap low (agency settings: posts_per_account_per_day, default 2) and never push the same text into several groups on the same day. Approval is handled upstream by the daily report.",
+      "inputs": {
+        "group_url": "string (required) — https://www.facebook.com/groups/<id>. A permalink or profile url is refused (not_a_group_url), and the group landed on must match the one requested (group_mismatch).",
+        "text": "string (required) — the post body",
+        "dry_run": "bool (optional) — open the composer and report whether the Post button is present, WITHOUT publishing"
+      },
+      "output_schema": "GroupPostResult",
+      "provider": "facebook-dom",
+      "coverage": "the logged-in operator posts as themselves via the real UI",
+      "status": "beta",
+      "write": true,
+      "_impl": {
+        "screen": "group feed (composer modal)",
+        "method": "DOM automation (gql_actions.js). A group page shows a TRIGGER (\"Write something...\"), not a composer: click it, wait for the [role=dialog] that contains a contenteditable, require EXACTLY ONE such dialog (several open composers mean the page is not in the state we think it is), type via execCommand insertText, then submit by clicking the \"Post\" BUTTON — Enter only inserts a newline in this composer, unlike the comment box. Verify BOTH that the dialog closed AND that the text is on the page.",
+        "approval_states": "A group may hold member posts for an admin to approve. The result distinguishes done (published) from pending_admin_approval (submitted, not visible yet). Never treat the second as the first: it would tell the operator something is live when it is queued.",
+        "guards": "not_a_group_url · group_mismatch (landed on a different group) · no composer trigger (the account may not be a member, or posting is admin-only) · ambiguous_composer (more than one composer dialog) · text typed but no Post button found (reported explicitly — the text was NOT submitted)",
+        "fallback": "none (write action)"
+      },
+      "scroll": "none"
     }
   ],
   "scroll_contract": "SCROLL CONTRACT: a capability scrolls ONLY when it declares max_scroll in its inputs. Everything else must not be scrolled by the runner; some of those still paginate, but via max_pages cursor replay, which is not scrolling. Scrolling a single-surface job (for example reading a published contact address) fires GraphQL queries whose results are discarded, costs time, and widens the request footprint for nothing."

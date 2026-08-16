@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.90-clear-stale-reason";
+const EXTENSION_BUILD = "0.1.95-drop-about";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -540,7 +540,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // Write actions must NOT pre-scroll: on a reels/immersive player, scrolling
     // ADVANCES to the next (recommended) reel, drifting the write off-target; on
     // a permalink it just wastes time. Force 0 scroll steps for write actions.
-    const WRITE_ACTIONS = new Set(["fb.post.react", "fb.post.comment", "fb.message.send"]);
+    const WRITE_ACTIONS = new Set(["fb.post.react", "fb.post.comment", "fb.message.send", "fb.group.post"]);
     const wantAction = !!source.capability && WRITE_ACTIONS.has(String(source.capability));
     // Content-addressed targeting: the job names the post by TEXT and points `url` at a
     // listing (group feed / profile timeline) instead of a permalink. The match is made in
@@ -561,7 +561,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // costs ~5 extra scroll cycles and a burst of GraphQL feed requests per profile —
     // pure waste and needless rate-limit exposure on a big email dig. Separate the job
     // kinds explicitly: info tasks never scroll for content.
-    const INFO_ONLY_CAPABILITIES = new Set(["fb.profile.contacts", "fb.profile.header", "fb.profile.about"]);
+    const INFO_ONLY_CAPABILITIES = new Set(["fb.profile.contacts", "fb.profile.header"]);
     const infoOnly = !!source.capability && INFO_ONLY_CAPABILITIES.has(String(source.capability));
     // A match_text write STARTS on a listing page, and that listing is exactly what has to
     // scroll: Facebook only fires the feed GraphQL query the resolver reads once the feed
@@ -754,7 +754,19 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
           }
         }
       } catch (error) {
-        // GraphQL/capability + action layer is best-effort; never fail HTML collection.
+        // Best-effort: a failure here must never fail HTML collection. But it must not be
+        // INVISIBLE either. This block used to swallow the error and leave gqlRecords null,
+        // which the bridge then wrote as records:null — indistinguishable from "the capability
+        // ran and found nothing". A slow DOM capability that blew the 45s dispatch timeout
+        // therefore looked exactly like an empty profile. Say what happened instead.
+        if (!gqlRecords && wantCapability) {
+          gqlRecords = {
+            available: true, capability: String(source.capability), count: 0, items: [{
+              capability: String(source.capability), status: "error", verified: false,
+              error: "capability did not complete: " + String(error && error.message || error)
+            }], _debug: { href: source.url }
+          };
+        }
       }
     }
     const gqlAvailable = !!(gql && gql.available);
