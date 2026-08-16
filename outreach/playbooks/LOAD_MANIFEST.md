@@ -5,7 +5,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 480 | 5a724869b60e65585031de25b3864ee742c53ecf3d25544567ea5aec6a58295d | If any required stage was not loaded, load it before proceeding. |
+| OUTREACHCRM_PLAYBOOK.md | 481 | 50d56ba46e7a6d0a340343eb9861cab8a044488bfc70aa4e51e7dfdcbe01c8cf | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 497 | deb12399b61ef2d8ae6056df9ac197ed8ed0555d569e0656448098af7543da82 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 736 | 13e60b41a100d0d4ea9026daab0cc402d5752717fb70fb50028396ccabde5851 | --- |
 | playbooks/02_SENDBOX_SETUP.md | 288 | a27aeb6aab632d7e7427ca4fc7d6bbef68264787f5132752cee36fd77fce225b | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
@@ -13,14 +13,15 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/04_VERIFY_ENRICH.md | 387 | f19324f450f37667880c13dc360ddb0e161fe2f358ef37fd6f89e6a450914567 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/05_CAMPAIGN_MANAGEMENT.md | 324 | 8b972d318cfc93cdb2574616c80a460f43074bcf62ad8aac19ad79df97cea0b7 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/06_EMAIL_WRITING_STANDARD.md | 194 | 0369480258a2abac4fa60425bec5c3b521e211f7b68b502a526267165a765389 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1472 | c4efccd65bd48101d11460964386b0198a682c5b24d936151ed1cfe34a77cb0f | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule. |
+| playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md | 1476 | 877130228f6228015ec7b23959ccc7054d7619ab463ca37641db6a5bea483f9e | Surface any unmet gate with the `[ACTION REQUIRED]` contract: one purpose, one exact next step, one command or path. When nothing is needed, end with next-action guidance per the Next-Action Guidance Rule. |
 | playbooks/08_SEND_ENGINE_PROTOCOL.md | 185 | 8caf2ddf55566e1c1f2a78097bdccbd2c141f6bc9b1622ec108048c74132eb45 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| playbooks/09_OPERATIONS_SAFETY_AUDIT.md | 651 | 2afb217568b5a072b9a83b7eec28ac29cab88b9b3911314d9fbc5eac696e2138 | This is the intended operating model. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/09_OPERATIONS_SAFETY_AUDIT.md | 651 | f32340712bab1b1c83590cfbfe66806c3e9df8ebe77ad5634bc938239ff682c5 | This is the intended operating model. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/10_FOLLOWUP_REPLY_MANAGEMENT.md | 182 | 5b39cd1d9487a9596bc2094160a033756c237e149d7a0427d2837305dd137ba6 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/11_UPDATE_AND_VERSION_WATCH.md | 413 | 6f3d51855cc38d5d8caa256dee7e141986ca79d1adccd74b7aef24d64c5a821b | - If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And GitHub Issue Escalation Rule. |
 | playbooks/13_CRM_CORE.md | 77 | 849f2703c8f56beed2346cf132088adf9c9066be29343d7b390bdf6b8b33395a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/14_TASKS_TODAY_VIEW.md | 77 | 6a50e4defa145664db81d4cb6ae57210db3fa461df7bbe5b06c23de3a622bd90 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| playbooks/AUTOMATION_SCHEDULING.md | 987 | 2d2c82e48b92e3ba7246717cee5ffc3002bd354eeaa7ed68f0f71e33a41fec01 | instruction to connect WideCast (API key + Telegram/email fallback) or Gmail/email. |
+| playbooks/16_FRIEND_HARVEST.md | 136 | aea8f86186e38103a4ee3204eae9908c5e973cb1df97c6a94bd85ffd031d5363 |   did the reading — a reader never keeps another client's lead material. |
+| playbooks/AUTOMATION_SCHEDULING.md | 996 | 8da1688b78efb869fed5e2b181d2c3d421062d5372da2c2f3d5376a6d86552a1 | instruction to connect WideCast (API key + Telegram/email fallback) or Gmail/email. |
 | playbooks/LOAD_LEDGER_PROTOCOL.md | 61 | eb6eb58c360495ffff347a8dbbee9d06538599a4e4999e3bd7c22ae5c38268d7 | `playbooks/LOAD_MANIFEST.md` lists `OUTREACHCRM_PLAYBOOK.md` plus every `playbooks/**/*.md` with `path \| lines \| sha256 \| last_line`. It is regenerated automatically by the root `deploy-soloagency.sh` `generate_outreach_artifacts` step (`--outreach-only`) on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection. |
 | playbooks/SCHEDULED_RUN_ENTRYPOINT.md | 138 | b7fa8f0450aea6a7f84d799d44f262541716ef1977f58be4fabde4c2d76bc44b | Notification is operator-facing status only, never outbound marketing to a contact. |
 | playbooks/SETUP_FLOW_ENTRYPOINT.md | 98 | b8b3704a6c03ea1bd3b2b61d1f28f63666cb6f290bc87e86baab20f8a56b6587 | Do not ask whether to send now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not enrich, draft-to-send, or notify in Setup Flow. |

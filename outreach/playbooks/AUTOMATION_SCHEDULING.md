@@ -683,6 +683,15 @@ For each active client:
     done only when the returned record says so (`status: done`, `verified: true`, and for DM
     `id_verified: true`); anything else is a failure to log, not a retry to hammer. Log →
     `messenger_sent` / `comment_posted` activity. Stages 16/17.
+19b. **Leads From Friends (daemon walks, agent judges).** For every campaign with
+    `channel_strategy: friend_harvest` (Stage 16), the bridge daemon has been walking seed
+    friend lists and enriching friends all day within the operator's budgets; the run's only
+    job is judgement: `harvest pending --campaign X` → decide each enriched record against the
+    campaign GOAL → `harvest decide --campaign X --profile <envelope profile_url> --status …`
+    (kept → `contact add` first — matched or created — then `--lead-id`, source `friend_harvest`;
+    rejected / enrich_failed remembered client-wide). Loop until `remaining`
+    is 0 or time is up. Never enqueue friends/enrich jobs yourself for a harvest campaign. One
+    progress line per campaign in the run reply.
 20. **SMS / Zalo (human executes).** For no-email contacts, draft only when the campaign
     allows and a documented legal basis exists (US SMS gated on `{optin_source, optin_at,
     evidence_activity_id}` or existing relationship; Zalo cold-messaging strangers stays off by

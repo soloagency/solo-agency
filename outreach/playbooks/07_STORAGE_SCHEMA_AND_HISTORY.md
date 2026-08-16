@@ -56,6 +56,10 @@ daily-content-pipeline/              # shared Solo Agency data root — data/con
         sendboxes.json
         {sendbox_slug}/credentials.json  {sendbox_slug}/token.json   # gitignored, chmod 600
       lists/{list_slug}/list_manifest.json  leads.jsonl  import_log.md
+      harvest/                          # Leads From Friends (Stage 16) — daemon-written, agent-decided
+        seen_profiles.json              # CLIENT-WIDE uid -> {status seed|queued|enriched|kept|rejected|enrich_failed, seed, campaign, lead_id, reason, ts}
+        {campaign_slug}/progress.json   # per seed cursor/legs/counters, queue[], in_flight{}, await_decision[], day counters
+        {campaign_slug}/enriched/{uid_hash}.json   # enrich record awaiting `harvest decide`; removed on decision
       crm/
         accounts/{account_id}.json
         contacts/{lead_id}.json
