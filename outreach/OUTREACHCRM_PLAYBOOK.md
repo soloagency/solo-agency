@@ -233,6 +233,7 @@ Operator-only reports (Approval Report, Today View, daily ops, `INTERNAL_REPORT`
 | 13 | `playbooks/13_CRM_CORE.md` | Objects, lifecycle, stage rules, dedupe/merge. |
 | 14 | `playbooks/14_TASKS_TODAY_VIEW.md` | Task engine, SLA, Today View. |
 | 15 | `playbooks/15_CRM_REPORTING.md` *(planned)* | Pipeline report, forecast, weekly client report. |
+| 16 | `playbooks/16_FRIEND_HARVEST.md` | Leads From Friends (`friend_harvest` channel): daemon walks seed friend lists + enriches within budgets; the agent judges each friend against the goal into the CRM. Load whenever such a campaign exists. |
 | 6A | `playbooks/skills/report-design/SKILL.md` | Immediately before rendering any report HTML/PDF. |
 | Auto | `playbooks/AUTOMATION_SCHEDULING.md` | Configuring the schedule or any automation task in Setup Flow; the start of every scheduled run; any Automation Resync. Defines the Daily Run order, run_lock, and resync machinery. |
 | Setup Entrypoint | `playbooks/SETUP_FLOW_ENTRYPOINT.md` | Setup/configuration sessions. Setup Flow configures; it never sends. |

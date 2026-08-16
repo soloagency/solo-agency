@@ -275,10 +275,86 @@ func sortedGoalTypes() []string {
 // `email_first` is the historical value and stays the default so existing configs keep
 // working untouched.
 var channelStrategies = map[string]bool{
-	"email_first": true, // email; the original and default
-	"messenger":   true, // Messenger DM, executed by the collector after approval
-	"comment":     true, // Facebook comments on group posts, executed by the collector
-	"post":        true, // new posts INTO groups — highest exposure, lowest caps
+	"email_first":    true, // email; the original and default
+	"messenger":      true, // Messenger DM, executed by the collector after approval
+	"comment":        true, // Facebook comments on group posts, executed by the collector
+	"post":           true, // new posts INTO groups — highest exposure, lowest caps
+	"friend_harvest": true, // Leads From Friends: walk seed profiles' friend lists into the CRM (harvest.go); sends nothing
+}
+
+// normalizeSeedProfiles cleans a pasted list of profile urls (one per line in
+// the UI) into canonical store-form urls, de-duplicated by identity.
+func normalizeSeedProfiles(raw []any) ([]any, error) {
+	var out []any
+	seen := map[string]bool{}
+	for _, v := range raw {
+		s := strings.TrimSpace(sprint(v))
+		if s == "" {
+			continue
+		}
+		clean, ok := canonicalStoreURL(s)
+		if !ok {
+			return nil, storageErrf("seed profile %q has no derivable identity (an opaque share link?) — paste the profile page url", s)
+		}
+		uid, _ := sourceUID(clean)
+		if strings.HasPrefix(uid, "facebook.com/groups/") {
+			return nil, storageErrf("seed %q is a GROUP, not a profile — Leads From Friends walks a person's friend list", s)
+		}
+		if seen[uid] {
+			continue
+		}
+		seen[uid] = true
+		out = append(out, clean)
+	}
+	return out, nil
+}
+
+// validateHarvestBlock keeps only known keys with sane ranges. Zero/absent =
+// "use the system setting" (harvestConfigFrom does the fallback).
+func validateHarvestBlock(h map[string]any) (map[string]any, error) {
+	out := map[string]any{}
+	intIn := func(key string, min, max int) error {
+		if v, ok := h[key]; ok && v != nil {
+			n := int(asFloat(v, -1))
+			if n == 0 {
+				return nil
+			}
+			if n < min || n > max {
+				return storageErrf("harvest.%s must be %d..%d, got %v", key, min, max, v)
+			}
+			out[key] = n
+		}
+		return nil
+	}
+	if err := intIn("daily_budget", 1, 5000); err != nil {
+		return nil, err
+	}
+	if err := intIn("per_collector_budget", 1, 2000); err != nil {
+		return nil, err
+	}
+	if err := intIn("leg_pages", 1, 40); err != nil {
+		return nil, err
+	}
+	for _, key := range []string{"quiet_from", "quiet_to"} {
+		if v := strings.TrimSpace(mStr(h, key)); v != "" {
+			if !runTimeRe.MatchString(v) {
+				return nil, storageErrf("harvest.%s must be HH:MM, got %q", key, v)
+			}
+			out[key] = v
+		}
+	}
+	if kw, ok := h["goal_keywords"].([]any); ok {
+		var list []any
+		for _, k := range kw {
+			if s := strings.ToLower(strings.TrimSpace(sprint(k))); s != "" {
+				list = append(list, s)
+			}
+		}
+		if len(list) > 0 {
+			out["goal_keywords"] = list
+		}
+	}
+	return out, nil
 }
 
 // channelUsesGroups reports whether a campaign targets places (groups) rather than a segment
@@ -366,6 +442,29 @@ func (c *crmStore) createCampaign(slug string, config map[string]any) (map[strin
 	}
 	deepUpdate(cfg, config)
 	cfg["campaign_slug"] = slug
+	// Leads-From-Friends: seed profiles and the harvest block go through the same
+	// validators as campaignUpdate, so a create-with-JSON cannot smuggle a dirty
+	// url or an out-of-range budget past what the UI edit path refuses.
+	if mStr(cfg, "channel_strategy") == harvestChannel {
+		if raw, ok := cfg["seed_profiles"].([]any); ok {
+			seeds, err := normalizeSeedProfiles(raw)
+			if err != nil {
+				return nil, err
+			}
+			cfg["seed_profiles"] = seeds
+		} else {
+			cfg["seed_profiles"] = []any{}
+		}
+		if hm, ok := cfg["harvest"].(map[string]any); ok {
+			clean, err := validateHarvestBlock(hm)
+			if err != nil {
+				return nil, err
+			}
+			cfg["harvest"] = clean
+		} else {
+			cfg["harvest"] = map[string]any{}
+		}
+	}
 	dir, err := c.campaignDir(slug)
 	if err != nil {
 		return nil, err
@@ -3187,6 +3286,52 @@ func (c *crmStore) campaignUpdate(slug string, patch map[string]any) (map[string
 			if before != fmt.Sprint(groups) {
 				aud["groups"] = groups
 				changed = append(changed, "audience.groups")
+			}
+		case "seed_profiles":
+			// Leads-From-Friends: the profiles whose friend lists this campaign walks.
+			// One per line in the UI; each is normalized to its clean store form and
+			// de-duplicated by identity so a pasted variant never becomes a second seed.
+			l, ok := val.([]any)
+			if !ok {
+				return nil, storageErrf("seed_profiles must be a list of profile urls, got %T", val)
+			}
+			seeds, err := normalizeSeedProfiles(l)
+			if err != nil {
+				return nil, err
+			}
+			if fmt.Sprint(mList(cfg, "seed_profiles")) != fmt.Sprint(seeds) {
+				cfg["seed_profiles"] = seeds
+				changed = append(changed, "seed_profiles")
+			}
+		case "harvest":
+			// Per-campaign harvest overrides (daily_budget, per_collector_budget, leg_pages,
+			// quiet_from/to, goal_keywords). Blank fields fall back to system settings.
+			hm, ok := val.(map[string]any)
+			if !ok {
+				return nil, storageErrf("harvest must be an object, got %T", val)
+			}
+			clean, err := validateHarvestBlock(hm)
+			if err != nil {
+				return nil, err
+			}
+			// MERGE, don't replace: the UI submits only the fields it shows
+			// (goal_keywords + daily_budget); a per_collector_budget/leg_pages/
+			// quiet override set via CLI must survive a page save. A key sent
+			// explicitly as 0/"" clears that override.
+			merged := map[string]any{}
+			for k, v := range mMap(cfg, "harvest") {
+				merged[k] = v
+			}
+			for k, v := range hm {
+				if cv, ok := clean[k]; ok {
+					merged[k] = cv
+				} else if v == nil || asFloat(v, -1) == 0 || (fmt.Sprint(v) == "") {
+					delete(merged, k) // explicit clear
+				}
+			}
+			if fmt.Sprint(mMap(cfg, "harvest")) != fmt.Sprint(merged) {
+				cfg["harvest"] = merged
+				changed = append(changed, "harvest")
 			}
 		case "daily_quota":
 			q := int(asFloat(val, -1))

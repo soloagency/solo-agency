@@ -166,7 +166,8 @@ func runCrmStoreCLI(args []string) int {
 		"--json", "--id", "--loser", "--winner", "--where", "--file", "--kind", "--value", "--reason",
 		"--tier", "--tag", "--email", "--phone", "--contact", "--stage", "--evidence", "--sendbox",
 		"--day", "--cap", "--event", "--activity", "--events", "--slug", "--limit", "--campaign",
-		"--client-name", "--days", "--month", "--other"} {
+		"--client-name", "--days", "--month", "--other",
+		"--profile", "--seed", "--records", "--end-cursor", "--has-next", "--box", "--lead-id", "--status"} {
 		valueFlags[f] = true
 	}
 	boolFlags := map[string]bool{"--confirm": true, "--rebuild-index": true}
@@ -222,6 +223,8 @@ func runCrmStoreCLI(args []string) int {
 			return crmFail(err)
 		}
 		return crmOut(res, 0)
+	case "harvest":
+		return runHarvestCLI(store, a, op)
 	case "campaign":
 		switch op {
 		case "create":

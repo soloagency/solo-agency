@@ -1158,6 +1158,84 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 			return boxes
 		}(),
 		"Channel": strOr(mStr(cfg, "channel_strategy"), "email_first"), "Channels": sortedChannelStrategies(),
+		"Seeds": func() []string {
+			var out []string
+			for _, s := range mList(cfg, "seed_profiles") {
+				out = append(out, sprint(s))
+			}
+			return out
+		}(),
+		"HarvestKeywords": func() string {
+			var kw []string
+			for _, k := range mList(mMap(cfg, "harvest"), "goal_keywords") {
+				kw = append(kw, sprint(k))
+			}
+			return strings.Join(kw, ", ")
+		}(),
+		"HarvestDaily": func() string {
+			if v := mInt(mMap(cfg, "harvest"), "daily_budget", 0); v > 0 {
+				return fmt.Sprint(v)
+			}
+			return ""
+		}(),
+		"HarvestDefaults": map[string]any{"daily": loadSystemSettings(b.uiDataRoot).HarvestDailyBudget},
+		"HarvestStatus": func() map[string]any {
+			if mStr(cfg, "channel_strategy") != harvestChannel {
+				return nil
+			}
+			outreachDir := filepath.Join(c.Path, "outreach")
+			p, err := withProgress(outreachDir, camp, func(*harvestProgress) error { return nil })
+			if err != nil || len(p.Seeds) == 0 {
+				return nil
+			}
+			pos := 0
+			for i, s := range p.Seeds {
+				if s.URL == p.CurrentSeed {
+					pos = i + 1
+				}
+			}
+			hc := harvestConfigFrom(cfg, loadSystemSettings(b.uiDataRoot))
+			// Per-seed kept counts come from the client-wide seen registry.
+			keptBySeed := map[string]int{}
+			rejBySeed := map[string]int{}
+			if reg, rerr := withSeen(outreachDir, func(*seenRegistry) error { return nil }); rerr == nil {
+				for _, sp := range reg.Profiles {
+					switch sp.Status {
+					case "kept":
+						keptBySeed[sp.Seed]++
+					case "rejected":
+						rejBySeed[sp.Seed]++
+					}
+				}
+			}
+			var seedRows []map[string]any
+			for _, s := range p.Seeds {
+				state := "waiting"
+				switch {
+				case s.Error != "":
+					state = "error: " + s.Error
+				case s.Exhausted:
+					state = "done"
+				case s.URL == p.CurrentSeed:
+					state = "walking"
+				}
+				last := ""
+				if s.LastLegAt != "" {
+					if t, perr := time.Parse(time.RFC3339, s.LastLegAt); perr == nil {
+						last = fmt.Sprintf("%.0fh ago", time.Since(t).Hours())
+					}
+				}
+				seedRows = append(seedRows, map[string]any{"url": s.URL, "friends_seen": s.FriendsSeen,
+					"legs": s.LegsDone, "state": state, "kept": keptBySeed[s.URL], "rejected": rejBySeed[s.URL],
+					"last_leg": last, "box": s.LastLegBox})
+			}
+			live := len(b.liveCollectors(time.Now()))
+			return map[string]any{"seed_pos": pos, "seed_total": len(p.Seeds), "friends_seen": p.Totals["friends_seen"],
+				"queue": len(p.Queue), "in_flight": len(p.InFlight), "await": len(p.AwaitDecision),
+				"kept": p.Totals["kept"], "rejected": p.Totals["rejected"],
+				"day_enriched": p.DayEnriched, "day_budget": hc.DailyBudget, "live_collectors": live,
+				"last_enrich": p.LastEnrichAt, "seeds": seedRows}
+		}(),
 		// A comment campaign watches its OWN group list. Offer the client's already-scanned
 		// groups as the pick-list so the operator narrows an existing set instead of retyping
 		// urls, but keep the two independent once saved.
@@ -1616,7 +1694,27 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 			if err := intField("comments_per_group_per_day", &s.CommentsPerGroupPerDay, 1, 10); err != nil {
 				return err
 			}
-			return intField("posts_per_account_per_day", &s.PostsPerAccountPerDay, 1, 10)
+			if err := intField("posts_per_account_per_day", &s.PostsPerAccountPerDay, 1, 10); err != nil {
+				return err
+			}
+			if err := intField("harvest_daily_budget", &s.HarvestDailyBudget, 1, 5000); err != nil {
+				return err
+			}
+			if err := intField("harvest_per_collector_budget", &s.HarvestPerCollectorBudget, 1, 2000); err != nil {
+				return err
+			}
+			for key, dst := range map[string]*string{"harvest_quiet_from": &s.HarvestQuietFrom, "harvest_quiet_to": &s.HarvestQuietTo} {
+				if v, ok := body[key].(string); ok {
+					v = strings.TrimSpace(v)
+					if v != "" && !runTimeRe.MatchString(v) {
+						return fmt.Errorf("%s must be HH:MM", key)
+					}
+					if v != "" {
+						*dst = v
+					}
+				}
+			}
+			return nil
 		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -2378,7 +2476,19 @@ try{
 <input type="number" id="s-posts" value="{{.Settings.PostsPerAccountPerDay}}" min="1" max="10"></label>
 </div>
 <small class="mut">Groups × comments-per-group is the daily comment ceiling for one account. The group count is a <em>diversity</em> cap — spreading across a few groups reads as human, hammering one does not. <strong>Posting</strong> is the most exposed of the three: a standalone piece of content in front of the whole group, the thing members report as spam, and often held for admin approval — keep it lowest, and never push the same post into many groups on the same day.</small>
-<button class="ok" id="s-save">Save settings</button>
+<h2>Leads From Friends (harvest pacing)</h2>
+<div class="grid">
+<label>Profiles enriched per day, per campaign
+<input type="number" id="s-hd" value="{{.Settings.HarvestDailyBudget}}" min="1" max="5000"></label>
+<label>Per collector account, per day
+<input type="number" id="s-hb" value="{{.Settings.HarvestPerCollectorBudget}}" min="1" max="2000"></label>
+<label>Quiet hours from (HH:MM)
+<input type="text" id="s-hqf" value="{{.Settings.HarvestQuietFrom}}" placeholder="01:00"></label>
+<label>Quiet hours to (HH:MM)
+<input type="text" id="s-hqt" value="{{.Settings.HarvestQuietTo}}" placeholder="06:00"></label>
+</div>
+<small class="mut">The harvest daemon spreads enrichment across the day (20–40s between profiles), rotates collector accounts every leg, and never exceeds these caps. With N collectors the effective daily ceiling is min(daily, N × per-collector) — add extensions to raise it. Nothing runs inside quiet hours.</small>
+<button class="ok" id="s-save" style="margin-top:12px">Save settings</button>
 <span class="mut" id="s-msg" style="font-size:.83rem;margin-left:8px"></span>
 </div>
 <h2>Registered automation tasks</h2>
@@ -2397,7 +2507,11 @@ document.getElementById('s-save').onclick=function(){
    dm_per_account_per_day:+document.getElementById('s-dm').value,
    comment_groups_per_account_per_day:+document.getElementById('s-cgroups').value,
    comments_per_group_per_day:+document.getElementById('s-cper').value,
-   posts_per_account_per_day:+document.getElementById('s-posts').value})})
+   posts_per_account_per_day:+document.getElementById('s-posts').value,
+   harvest_daily_budget:+document.getElementById('s-hd').value,
+   harvest_per_collector_budget:+document.getElementById('s-hb').value,
+   harvest_quiet_from:document.getElementById('s-hqf').value,
+   harvest_quiet_to:document.getElementById('s-hqt').value})})
  .then(function(r){return r.ok?r.json():r.text().then(function(t){throw new Error(t)})})
  .then(function(){m.textContent='saved ✓'})
  .catch(function(e){m.textContent='error: '+e.message});
@@ -2730,6 +2844,7 @@ document.getElementById('submit').addEventListener('click',function(){
 <option value="messenger">Messenger DM</option>
 <option value="comment">Facebook comments</option>
 <option value="post">Posts into groups</option>
+<option value="friend_harvest">Leads From Friends</option>
 </select></label>
 <label>Daily budget <span class="mut">(max new drafts/day)</span>
 <input id="nc-quota" type="number" min="1" max="500" value="40" style="width:8rem"></label>
@@ -2797,7 +2912,7 @@ document.getElementById('submit').addEventListener('click',function(){
 <div class="card">
 <label>Channel
 <select id="f-channel">
-{{$ch := .Channel}}{{range .Channels}}<option value="{{.}}"{{if eq . $ch}} selected{{end}}>{{if eq . "email_first"}}Email{{else if eq . "messenger"}}Messenger DM{{else if eq . "comment"}}Facebook comments{{else if eq . "post"}}Posts into groups{{else}}{{.}}{{end}}</option>{{end}}
+{{$ch := .Channel}}{{range .Channels}}<option value="{{.}}"{{if eq . $ch}} selected{{end}}>{{if eq . "email_first"}}Email{{else if eq . "messenger"}}Messenger DM{{else if eq . "comment"}}Facebook comments{{else if eq . "post"}}Posts into groups{{else if eq . "friend_harvest"}}Leads From Friends{{else}}{{.}}{{end}}</option>{{end}}
 </select>
 <small class="mut">One campaign per channel, each with its own goal: the same offer needs a different pen for a cold email, a direct message, a public comment, and a standalone group post. Email and Messenger target a segment of people; comments and posts target a list of groups.</small></label>
 </div>
@@ -2817,6 +2932,37 @@ document.getElementById('submit').addEventListener('click',function(){
 <button type="button" id="f-groupaddbtn" style="width:auto">Add</button>
 </div></label>
 <p class="mut" style="font-size:.8rem;margin-bottom:0">The acting account must be a <strong>member</strong> of the group. Groups no account has joined are skipped and reported — joining is never automated.</p>
+</div>
+
+<div class="card" id="harvestcard">
+<h2 style="margin-top:0">Seed profiles</h2>
+<p class="mut" style="font-size:.85rem;margin-top:0">Leads From Friends walks each seed's friend list in legs, enriches every friend once (20–40s apart, rotating collector accounts, spread across the day), and the agent keeps the ones that match the goal straight into the CRM — nothing is sent, so nothing needs approval. Paste any profile url form; each is cleaned and de-duplicated on save.</p>
+<label>Profile urls <span class="mut">(one per line)</span>
+<textarea id="f-seeds" rows="6" placeholder="https://www.facebook.com/nhu.white.75&#10;https://www.facebook.com/profile.php?id=100001234567890" spellcheck="false">{{range .Seeds}}{{.}}
+{{end}}</textarea></label>
+<div class="grid">
+<label>Goal keywords <span class="mut">(comma-separated; friends whose list subtitle mentions one are enriched first)</span>
+<input id="f-hkw" type="text" value="{{.HarvestKeywords}}" placeholder="realtor, loan officer, insurance"></label>
+<label>Daily budget override <span class="mut">(blank = system setting {{.HarvestDefaults.daily}})</span>
+<input id="f-hdaily" type="number" min="1" max="5000" value="{{.HarvestDaily}}"></label>
+</div>
+{{if .HarvestStatus}}
+<h3 style="margin:.9rem 0 .3rem">Progress</h3>
+<div class="statrow">
+<div class="stat"><b>{{.HarvestStatus.day_enriched}}/{{.HarvestStatus.day_budget}}</b><span>enriched today</span></div>
+<div class="stat"><b>{{.HarvestStatus.friends_seen}}</b><span>friends seen</span></div>
+<div class="stat"><b>{{.HarvestStatus.queue}}</b><span>queued to enrich</span></div>
+<div class="stat"><b>{{.HarvestStatus.await}}</b><span>awaiting decision</span></div>
+<div class="stat"><b>{{.HarvestStatus.kept}}</b><span>kept → CRM</span></div>
+<div class="stat"><b>{{.HarvestStatus.rejected}}</b><span>rejected</span></div>
+<div class="stat"><b>{{.HarvestStatus.live_collectors}}</b><span>collectors live</span></div>
+</div>
+<div class="wrap"><table>
+<tr><th>seed</th><th>state</th><th>friends seen</th><th>legs</th><th>kept</th><th>rejected</th><th>last leg</th></tr>
+{{range .HarvestStatus.seeds}}<tr><td><code>{{.url}}</code></td><td><span class="pill">{{.state}}</span></td><td>{{.friends_seen}}</td><td>{{.legs}}</td><td>{{.kept}}</td><td>{{.rejected}}</td><td class="mut">{{.last_leg}}{{if .box}} · {{.box}}{{end}}</td></tr>{{end}}
+</table></div>
+<p class="mut" style="font-size:.8rem">Ask the agent for the same view any time: <code>tool crm-store harvest status --campaign {{.Slug}}</code>. The daemon walks one seed at a time, top to bottom; "awaiting decision" clears on the next scheduled run.</p>
+{{end}}
 </div>
 
 <h2>Goal <span class="mut" style="font-size:.8rem">what every message in this campaign is trying to achieve</span></h2>
@@ -2898,6 +3044,7 @@ document.getElementById('submit').addEventListener('click',function(){
  function sync(){
   var v=sel.value, groups=usesGroups(v);
   card.style.display=groups?'':'none';
+  show('harvestcard', v==='friend_harvest');
   if(head)head.textContent=(v==='post')?'Groups to post in':'Groups to comment in';
   show('sboxblock', v==='email_first');
   show('fbcapnote', v!=='email_first');
@@ -2971,6 +3118,13 @@ document.getElementById('campform').addEventListener('submit',function(e){
  // would let a stray tick quietly arm a channel the operator did not choose.
  if(patch.channel_strategy==='comment'||patch.channel_strategy==='post'){
   patch['audience.groups']=Array.prototype.slice.call(document.querySelectorAll('.f-group:checked')).map(function(x){return x.value});
+ }
+ // Leads From Friends owns its seed list + harvest overrides; only submit them on that channel.
+ if(patch.channel_strategy==='friend_harvest'){
+  patch.seed_profiles=document.getElementById('f-seeds').value.split('\n').map(function(s){return s.trim()}).filter(Boolean);
+  var kw=document.getElementById('f-hkw').value.split(',').map(function(s){return s.trim().toLowerCase()}).filter(Boolean);
+  var hd=parseInt(document.getElementById('f-hdaily').value,10);
+  patch.harvest={goal_keywords:kw, daily_budget: isNaN(hd)?0:hd};
  }
  postUpdate(patch,
   function(j){btn.disabled=false;btn.removeAttribute('aria-busy');

@@ -63,8 +63,15 @@ type systemSettings struct {
 	// three — it is a standalone piece of content in front of the whole group, it is
 	// what members report as spam, and many groups hold posts for admin approval. The
 	// default is deliberately the lowest of the set.
-	PostsPerAccountPerDay int    `json:"posts_per_account_per_day"`
-	UpdatedAt             string `json:"updated_at,omitempty"`
+	PostsPerAccountPerDay int `json:"posts_per_account_per_day"`
+	// Friend-harvest pacing (Leads From Friends campaigns): profiles enriched
+	// per day per campaign, per collector account per day, and the nightly
+	// window in which the harvest daemon does not touch Facebook at all.
+	HarvestDailyBudget        int    `json:"harvest_daily_budget"`
+	HarvestPerCollectorBudget int    `json:"harvest_per_collector_budget"`
+	HarvestQuietFrom          string `json:"harvest_quiet_from"`
+	HarvestQuietTo            string `json:"harvest_quiet_to"`
+	UpdatedAt                 string `json:"updated_at,omitempty"`
 }
 
 func defaultSystemSettings() systemSettings {
@@ -81,6 +88,10 @@ func defaultSystemSettings() systemSettings {
 		CommentGroupsPerAccountPerDay: 5,
 		CommentsPerGroupPerDay:        1,
 		PostsPerAccountPerDay:         2,
+		HarvestDailyBudget:            harvestDefaultDaily,
+		HarvestPerCollectorBudget:     harvestDefaultPerBox,
+		HarvestQuietFrom:              harvestDefaultQuietFrom,
+		HarvestQuietTo:                harvestDefaultQuietTo,
 	}
 }
 
@@ -124,6 +135,18 @@ func loadSystemSettings(pipeline string) systemSettings {
 	}
 	if s.PostsPerAccountPerDay <= 0 {
 		s.PostsPerAccountPerDay = 2
+	}
+	if s.HarvestDailyBudget <= 0 {
+		s.HarvestDailyBudget = harvestDefaultDaily
+	}
+	if s.HarvestPerCollectorBudget <= 0 {
+		s.HarvestPerCollectorBudget = harvestDefaultPerBox
+	}
+	if !runTimeRe.MatchString(s.HarvestQuietFrom) {
+		s.HarvestQuietFrom = harvestDefaultQuietFrom
+	}
+	if !runTimeRe.MatchString(s.HarvestQuietTo) {
+		s.HarvestQuietTo = harvestDefaultQuietTo
 	}
 	return s
 }

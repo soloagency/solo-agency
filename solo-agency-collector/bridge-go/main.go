@@ -562,6 +562,7 @@ func (b *bridge) run() error {
 	// operator is notified within minutes, not at the next daily run.
 	if b.cfg.persistent && b.uiDataRoot != "" {
 		b.startReplyPoller(ctx.Done())
+		b.startHarvestDaemon(ctx.Done())
 		log.Printf("reply poller enabled (every %s)", replyPollInterval)
 	}
 
@@ -971,7 +972,12 @@ func (b *bridge) enqueueRunNowPayload(payload map[string]any, now time.Time, sou
 		status["request"] = filepath.Base(b.runNowRequestPath)
 	}
 	status["consumed"] = source != "file"
-	_ = b.writeRunNowRequestStatus(status)
+	// Daemon-issued harvest jobs must not clobber the shared run-now status
+	// file the agents' own run-now requests are tracked through — a harvest
+	// campaign would otherwise rewrite it every 30-45s.
+	if source != "harvest" {
+		_ = b.writeRunNowRequestStatus(status)
+	}
 	return resp, nil
 }
 
@@ -1101,7 +1107,16 @@ func (b *bridge) activateRunNowJobForIdentity(job map[string]any, now time.Time,
 	}
 	month := monthForRun(runID, now)
 	clientSlug := getString(job, "client_slug", "")
-	if clientSlug != "" {
+	if owner := getString(job, "harvest_owner", ""); owner != "" {
+		// Leads-From-Friends job: the reading extension may belong to ANOTHER
+		// client (collector rotation), but the data is the OWNING client's lead
+		// material — it lands under the owner's tree, never under the reader's.
+		outputDir := filepath.Join(b.outputRoot, month, safeFilename(owner), "harvest", safeFilename(runID))
+		job["output_dir"] = outputDir
+		if err := os.MkdirAll(filepath.Join(outputDir, "snapshots"), 0o700); err != nil {
+			return nil, err
+		}
+	} else if clientSlug != "" {
 		outputDir := filepath.Join(b.outputRoot, month, safeFilename(clientSlug), safeFilename(runID))
 		job["output_dir"] = outputDir
 		if err := os.MkdirAll(filepath.Join(outputDir, "snapshots"), 0o700); err != nil {
@@ -1172,7 +1187,9 @@ func (b *bridge) activateRunNowJobForIdentity(job map[string]any, now time.Time,
 		for key, value := range resp {
 			status[key] = value
 		}
-		_ = b.writeRunNowRequestStatus(status)
+		if getString(job, "harvest_owner", "") == "" { // harvest jobs never touch the shared status file
+			_ = b.writeRunNowRequestStatus(status)
+		}
 	}
 	return resp, nil
 }
@@ -2085,7 +2102,9 @@ func (b *bridge) handleComplete(w http.ResponseWriter, r *http.Request) {
 		if status["request"] == "queue" {
 			status["request"] = "jobs/pending"
 		}
-		_ = b.writeRunNowRequestStatus(status)
+		if getString(activeJob, "harvest_owner", "") == "" {
+			_ = b.writeRunNowRequestStatus(status)
+		}
 	}
 	if persistent {
 		_ = b.writeRunStatus("completed", "collector marked run complete", runID, outputDir, counts, true)

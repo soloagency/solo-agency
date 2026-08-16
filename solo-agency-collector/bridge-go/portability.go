@@ -165,8 +165,10 @@ func portBenign0600(rel string) bool {
 		return true // collector run-name dedup, 0600 but not a credential
 	}
 	if base == "source_registry.json" || base == "search_pool.json" ||
-		base == "task_slots.json" || base == "system_settings.json" {
-		return true // shared-scan/scheduling bookkeeping (written 0600 by withLockedJSON), operator data not secrets
+		base == "task_slots.json" || base == "system_settings.json" ||
+		base == "harvest_ledger.json" || base == "seen_profiles.json" || base == "progress.json" ||
+		strings.Contains(rel, "/harvest/") {
+		return true // shared-scan/scheduling/harvest bookkeeping (written 0600 by withLockedJSON), operator data not secrets
 	}
 	if strings.Contains(rel, "/ui_inbox/") {
 		return true // approval-decision events (0600 dir), operator data not secrets
