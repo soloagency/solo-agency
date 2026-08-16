@@ -1834,8 +1834,50 @@ func (b *bridge) appendRecord(w http.ResponseWriter, r *http.Request, kind, file
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// A source that is waiting for the OPERATOR (Zillow's "Press & Hold" bot check) can take
+	// an hour or more; the extension posts this status every ~2 minutes while it waits. Push
+	// the run's expiry out on each heartbeat so the wait cannot expire the job underneath it —
+	// otherwise the data point posted after the operator finally passes the check would meet
+	// "no active collector job" and be lost. Only this status extends; nothing else changes.
+	if kind == "source_status" && getString(record, "status", "") == humanWaitSourceStatus {
+		b.extendActiveRunExpiry(target.activeKey, time.Now())
+	}
 	b.increment(target, countKey)
 	writeJSON(w, map[string]any{"ok": true, "record_type": kind})
+}
+
+// humanWaitSourceStatus is the source_status the extension heartbeats while a human gate is
+// engaged (background.js zillowHumanGate). humanWaitExpiryFloor is how far each heartbeat
+// pushes the run's expiry (never shortens it): comfortably longer than the heartbeat interval.
+const humanWaitSourceStatus = "waiting_for_human_captcha"
+const humanWaitExpiryFloor = 30 * time.Minute
+
+// extendActiveRunExpiry pushes the active run's run_now/scheduled expiry to at least
+// now+humanWaitExpiryFloor. Persistent mode only (activeRuns); a no-op for unknown keys.
+func (b *bridge) extendActiveRunExpiry(activeKey string, now time.Time) bool {
+	if activeKey == "" {
+		return false
+	}
+	floor := now.Add(humanWaitExpiryFloor).UTC()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	run := b.activeRuns[activeKey]
+	if run == nil || run.job == nil {
+		return false
+	}
+	extended := false
+	for _, key := range []string{"run_now_expires_at", "scheduled_expires_at"} {
+		raw := getString(run.job, key, "")
+		if raw == "" {
+			continue
+		}
+		if cur, err := time.Parse(time.RFC3339, raw); err == nil && cur.After(floor) {
+			continue
+		}
+		run.job[key] = floor.Format(time.RFC3339)
+		extended = true
+	}
+	return extended
 }
 
 func (b *bridge) handleSnapshot(w http.ResponseWriter, r *http.Request) {
