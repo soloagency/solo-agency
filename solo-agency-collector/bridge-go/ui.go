@@ -1181,6 +1181,62 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 			return ""
 		}(),
 		"HarvestDefaults": map[string]any{"daily": loadSystemSettings(b.uiDataRoot).HarvestDailyBudget},
+		"ZillowLocations": func() []string {
+			var out []string
+			for _, l := range mList(cfg, "zillow_locations") {
+				out = append(out, sprint(l))
+			}
+			return out
+		}(),
+		"ZillowKeywords": func() string {
+			var kw []string
+			for _, k := range mList(cfg, "zillow_keywords") {
+				kw = append(kw, sprint(k))
+			}
+			return strings.Join(kw, ", ")
+		}(),
+		"ZillowStatus": func() map[string]any {
+			if mStr(cfg, "channel_strategy") != zillowChannel {
+				return nil
+			}
+			outreachDir := filepath.Join(c.Path, "outreach")
+			p, err := withProgress(outreachDir, camp, func(*harvestProgress) error { return nil })
+			if err != nil {
+				return nil
+			}
+			hc := harvestConfigFrom(cfg, loadSystemSettings(b.uiDataRoot))
+			hc.Channel, hc.Zillow = zillowChannel, zillowConfigFrom(cfg)
+			st := b.harvestCommonStatus(p, hc, outreachDir)
+			zc := p.zillow()
+			loc, kw := "", ""
+			if zc.LocIdx < len(hc.Zillow.Locations) {
+				loc = hc.Zillow.Locations[zc.LocIdx]
+			}
+			if zc.KwIdx < len(hc.Zillow.Keywords) {
+				kw = hc.Zillow.Keywords[zc.KwIdx]
+			}
+			walk := "walking"
+			switch {
+			case zc.Exhausted:
+				walk = "done — every location × keyword walked"
+			case len(hc.Zillow.Locations) == 0 || len(hc.Zillow.Keywords) == 0:
+				walk = "waiting for locations + keywords"
+			}
+			var blocked []string
+			for box := range zc.Blocked {
+				blocked = append(blocked, box)
+			}
+			sort.Strings(blocked)
+			st["walk_state"] = walk
+			st["location"] = loc
+			st["keyword"] = kw
+			st["page"] = zc.Page
+			st["queries_done"] = len(zc.QueriesDone)
+			st["queries_total"] = len(hc.Zillow.Locations) * len(hc.Zillow.Keywords)
+			st["cards_seen"] = zc.CardsSeen
+			st["blocked"] = strings.Join(blocked, ", ")
+			return st
+		}(),
 		"HarvestStatus": func() map[string]any {
 			if mStr(cfg, "channel_strategy") != harvestChannel {
 				return nil
@@ -1231,70 +1287,10 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 					"legs": s.LegsDone, "state": state, "kept": keptBySeed[s.URL], "rejected": rejBySeed[s.URL],
 					"last_leg": last, "box": s.LastLegBox})
 			}
-			nowT := time.Now()
-			liveBoxes := b.liveCollectors(nowT)
-			live := len(liveBoxes)
-			// Kept/rejected from the registry (the single source of truth — decisions
-			// made before progress.json existed, e.g. a backfill, live only there);
-			// daemon state + quarantine from the operator-wide ledger.
-			keptTotal, rejTotal := 0, 0
-			for _, sp := range keptBySeed {
-				keptTotal += sp
-			}
-			for _, sp := range rejBySeed {
-				rejTotal += sp
-			}
-			quarantined, quarantineUntil := 0, ""
-			eligible := 0
-			if l, lerr := withLedger(b.uiDataRoot, nowT, func(*harvestLedger) error { return nil }); lerr == nil {
-				for _, bx := range liveBoxes {
-					lb := l.Boxes[bx.InstanceID]
-					if lb != nil && lb.quarantined(nowT) {
-						quarantined++
-						if quarantineUntil == "" || lb.QuarantinedUntil < quarantineUntil {
-							quarantineUntil = lb.QuarantinedUntil
-						}
-					} else if lb == nil || lb.DayJobs < hc.PerBoxBudget {
-						eligible++
-					}
-				}
-			}
-			state := "walking"
-			switch {
-			case len(p.InFlight) > 0:
-				state = "a collector job is running"
-			case inQuietHours(nowT, hc.QuietFrom, hc.QuietTo):
-				state = "quiet hours (" + hc.QuietFrom + "–" + hc.QuietTo + ") — nothing runs"
-			case p.DayEnriched >= hc.DailyBudget:
-				state = "daily budget reached — resumes tomorrow"
-			case live == 0:
-				state = "no collector is checking in — open the client Chrome profiles with the extension"
-			case eligible == 0 && quarantined > 0:
-				until := quarantineUntil
-				if t, perr := time.Parse(time.RFC3339, quarantineUntil); perr == nil {
-					until = t.Local().Format("15:04")
-				}
-				state = fmt.Sprintf("paused: all %d live collector(s) quarantined after repeated failures — first one back at %s", quarantined, until)
-			case eligible == 0:
-				state = "paused: every live collector is at its per-collector daily cap"
-			case len(p.Queue) == 0:
-				state = "reading the next friend-list leg"
-			default:
-				state = "pacing 20–40 s between profiles"
-			}
-			// Effective ceiling for the rest of today: the budget is a CAP, never a
-			// quota — the real bound is min(daily, live boxes × per-box, minutes left ÷ ~0.5).
-			minsLeft := 24*60 - (nowT.Hour()*60 + nowT.Minute())
-			ceiling := hc.DailyBudget
-			byBoxes := live * hc.PerBoxBudget
-			byTime := p.DayEnriched + minsLeft*2 // ~30s per profile
-			reason := "daily budget"
-			if byBoxes < ceiling {
-				ceiling, reason = byBoxes, fmt.Sprintf("%d collectors × %d per collector", live, hc.PerBoxBudget)
-			}
-			if byTime < ceiling {
-				ceiling, reason = byTime, fmt.Sprintf("~%d min left at 20–40s per profile", minsLeft)
-			}
+			st := b.harvestCommonStatus(p, hc, outreachDir)
+			keptTotal, rejTotal := st["kept"].(int), st["rejected"].(int)
+			live, quarantined, eligible := st["live_collectors"].(int), st["quarantined"].(int), st["eligible"].(int)
+			state, ceiling, reason := st["state"].(string), st["ceiling"].(int), st["ceiling_reason"].(string)
 			return map[string]any{"seed_pos": pos, "seed_total": len(p.Seeds), "friends_seen": p.Totals["friends_seen"],
 				"already_known": p.Totals["already_known"], "retried": p.Totals["requeued"],
 				"queue": len(p.Queue), "in_flight": len(p.InFlight), "await": len(p.AwaitDecision),
@@ -2948,6 +2944,7 @@ document.getElementById('submit').addEventListener('click',function(){
 <option value="comment">Facebook comments</option>
 <option value="post">Posts into groups</option>
 <option value="friend_harvest">Leads From Friends</option>
+<option value="zillow_harvest">Leads From Zillow</option>
 </select></label>
 <label>Daily budget <span class="mut">(max new drafts/day)</span>
 <input id="nc-quota" type="number" min="1" max="500" value="40" style="width:8rem"></label>
@@ -3003,10 +3000,10 @@ document.getElementById('submit').addEventListener('click',function(){
 </div>
 </div>
 {{if eq .Status "paused"}}
-<button class="ok" id="toggle" data-to="active">{{if eq .Channel "friend_harvest"}}Start harvest{{else}}Resume campaign{{end}}</button>
-{{if eq .Channel "friend_harvest"}}<span class="mut" style="font-size:.83rem;margin-left:8px">Created paused on purpose: finish the seeds and the goal, save, then start. The daemon begins walking within a minute of starting.</span>{{end}}
+<button class="ok" id="toggle" data-to="active">{{if or (eq .Channel "friend_harvest") (eq .Channel "zillow_harvest")}}Start harvest{{else}}Resume campaign{{end}}</button>
+{{if or (eq .Channel "friend_harvest") (eq .Channel "zillow_harvest")}}<span class="mut" style="font-size:.83rem;margin-left:8px">Created paused on purpose: finish the inputs, save, then start. The daemon begins within a minute of starting.</span>{{end}}
 {{else}}
-<button id="toggle" data-to="paused">{{if eq .Channel "friend_harvest"}}Pause harvest{{else}}Pause campaign{{end}}</button>
+<button id="toggle" data-to="paused">{{if or (eq .Channel "friend_harvest") (eq .Channel "zillow_harvest")}}Pause harvest{{else}}Pause campaign{{end}}</button>
 {{end}}
 </div>
 </div>
@@ -3016,7 +3013,7 @@ document.getElementById('submit').addEventListener('click',function(){
 <div class="card">
 <label>Channel
 <select id="f-channel">
-{{$ch := .Channel}}{{range .Channels}}<option value="{{.}}"{{if eq . $ch}} selected{{end}}>{{if eq . "email_first"}}Email{{else if eq . "messenger"}}Messenger DM{{else if eq . "comment"}}Facebook comments{{else if eq . "post"}}Posts into groups{{else if eq . "friend_harvest"}}Leads From Friends{{else}}{{.}}{{end}}</option>{{end}}
+{{$ch := .Channel}}{{range .Channels}}<option value="{{.}}"{{if eq . $ch}} selected{{end}}>{{if eq . "email_first"}}Email{{else if eq . "messenger"}}Messenger DM{{else if eq . "comment"}}Facebook comments{{else if eq . "post"}}Posts into groups{{else if eq . "friend_harvest"}}Leads From Friends{{else if eq . "zillow_harvest"}}Leads From Zillow{{else}}{{.}}{{end}}</option>{{end}}
 </select>
 <small class="mut">One campaign per channel, each with its own goal: the same offer needs a different pen for a cold email, a direct message, a public comment, and a standalone group post. Email and Messenger target a segment of people; comments and posts target a list of groups.</small></label>
 </div>
@@ -3036,6 +3033,38 @@ document.getElementById('submit').addEventListener('click',function(){
 <button type="button" id="f-groupaddbtn" style="width:auto">Add</button>
 </div></label>
 <p class="mut" style="font-size:.8rem;margin-bottom:0">The acting account must be a <strong>member</strong> of the group. Groups no account has joined are skipped and reported — joining is never automated.</p>
+</div>
+
+<div class="card" id="zillowcard">
+<h2 style="margin-top:0">Zillow directory</h2>
+<p class="mut" style="font-size:.85rem;margin-top:0">Leads From Zillow walks the agent directory: each location url × each keyword, page by page (Zillow serves at most 25 pages per query — coverage comes from more keywords and locations, not depth). Every agent profile is read once; a profile with an email or phone goes straight into the CRM (the data is published by the agent — no review step); one with neither is skipped. Zillow's "Press &amp; Hold" bot check pauses the collector and chimes until you pass it — then it continues.</p>
+<label>Location urls <span class="mut">(one per line — a zillow.com/professionals/… page; keyword and page params are added automatically)</span>
+<textarea id="f-zlocs" rows="4" placeholder="https://www.zillow.com/professionals/real-estate-agent-reviews/example-city-ca/?name=" spellcheck="false">{{range .ZillowLocations}}{{.}}
+{{end}}</textarea></label>
+<label>Keywords <span class="mut">(comma-separated; each is tried against every location — surnames work well)</span>
+<input id="f-zkws" type="text" value="{{.ZillowKeywords}}" placeholder="kim, nguyen, tran"></label>
+<label>Daily budget override <span class="mut">(blank = system setting {{.HarvestDefaults.daily}})</span>
+<input id="f-zdaily" type="number" min="1" max="5000" value="{{.HarvestDaily}}"></label>
+{{if .ZillowStatus}}
+<h3 style="margin:.9rem 0 .3rem">Progress</h3>
+<div class="statrow">
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=listed" style="text-decoration:none"><b>{{.ZillowStatus.day_enriched}}/{{.ZillowStatus.day_budget}}</b><span>profiles read today</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=listed" style="text-decoration:none"><b>{{.ZillowStatus.cards_seen}}</b><span>agent cards listed</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=known" style="text-decoration:none"><b>{{.ZillowStatus.already_known}}</b><span>skipped (already known)</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=queued" style="text-decoration:none"><b>{{.ZillowStatus.queue}}</b><span>queued to read</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=in_flight" style="text-decoration:none"><b>{{.ZillowStatus.in_flight}}</b><span>reading now</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=kept" style="text-decoration:none"><b>{{.ZillowStatus.kept}}</b><span>added to CRM</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=rejected" style="text-decoration:none"><b>{{.ZillowStatus.rejected}}</b><span>skipped (no email/phone)</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=retried" style="text-decoration:none"><b>{{.ZillowStatus.retried}}</b><span>retried</span></a>
+<div class="stat"><b>{{.ZillowStatus.eligible}}/{{.ZillowStatus.live_collectors}}</b><span>collectors usable / live{{if .ZillowStatus.quarantined}} · {{.ZillowStatus.quarantined}} quarantined{{end}}</span></div>
+</div>
+<p style="font-size:.9rem;margin:-4px 0 6px"><strong>Daemon:</strong> {{.ZillowStatus.state}}</p>
+<div class="wrap"><table>
+<tr><th>walking now</th><th>location</th><th>keyword</th><th>page</th><th>queries done</th><th>blocked on</th></tr>
+<tr><td><span class="pill">{{.ZillowStatus.walk_state}}</span></td><td><code>{{.ZillowStatus.location}}</code></td><td>{{.ZillowStatus.keyword}}</td><td>{{.ZillowStatus.page}}</td><td>{{.ZillowStatus.queries_done}} of {{.ZillowStatus.queries_total}}</td><td class="mut">{{if .ZillowStatus.blocked}}{{.ZillowStatus.blocked}}{{else}}–{{end}}</td></tr>
+</table></div>
+<p class="mut" style="font-size:.8rem">Ask the agent for the same view any time: <code>tool crm-store harvest status --campaign {{.Slug}}</code>.</p>
+{{end}}
 </div>
 
 <div class="card" id="harvestcard">
@@ -3154,6 +3183,7 @@ document.getElementById('submit').addEventListener('click',function(){
   var v=sel.value, groups=usesGroups(v);
   card.style.display=groups?'':'none';
   show('harvestcard', v==='friend_harvest');
+  show('zillowcard', v==='zillow_harvest');
   if(head)head.textContent=(v==='post')?'Groups to post in':'Groups to comment in';
   show('sboxblock', v==='email_first');
   show('fbcapnote', v!=='email_first');
@@ -3229,6 +3259,12 @@ document.getElementById('campform').addEventListener('submit',function(e){
   patch['audience.groups']=Array.prototype.slice.call(document.querySelectorAll('.f-group:checked')).map(function(x){return x.value});
  }
  // Leads From Friends owns its seed list + harvest overrides; only submit them on that channel.
+ if(patch.channel_strategy==='zillow_harvest'){
+  patch.zillow_locations=document.getElementById('f-zlocs').value.split('\n').map(function(s){return s.trim()}).filter(Boolean);
+  patch.zillow_keywords=document.getElementById('f-zkws').value;
+  var zd=parseInt(document.getElementById('f-zdaily').value,10);
+  patch.harvest={daily_budget: isNaN(zd)?0:zd};
+ }
  if(patch.channel_strategy==='friend_harvest'){
   patch.seed_profiles=document.getElementById('f-seeds').value.split('\n').map(function(s){return s.trim()}).filter(Boolean);
   var kw=document.getElementById('f-hkw').value.split(',').map(function(s){return s.trim().toLowerCase()}).filter(Boolean);
@@ -3425,3 +3461,105 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 </script>
 {{template "foot" .}}{{end}}
 `))
+
+// harvestCommonStatus computes the channel-agnostic half of a harvest campaign's
+// Progress panel: kept/rejected from the client-wide registry (the source of
+// truth), collector availability from the operator-wide ledger, the daemon's
+// current state in words, and today's real ceiling. Shared by the Friends and
+// Zillow cards.
+func (b *bridge) harvestCommonStatus(p *harvestProgress, hc harvestConfig, outreachDir string) map[string]any {
+	campaign := p.Campaign
+	seedOf := map[string]bool{}
+	for _, sd := range p.Seeds {
+		seedOf[sd.URL] = true
+	}
+	keptTotal, rejTotal := 0, 0
+	if reg, rerr := withSeen(outreachDir, func(*seenRegistry) error { return nil }); rerr == nil {
+		for _, sp := range reg.Profiles {
+			// This campaign's decisions: recorded under it, or (Friends) reached via one of its seeds.
+			if sp.Campaign != campaign && !seedOf[sp.Seed] {
+				continue
+			}
+			switch sp.Status {
+			case "kept":
+				keptTotal++
+			case "rejected":
+				rejTotal++
+			}
+		}
+	}
+	nowT := time.Now()
+	liveBoxes := b.liveCollectors(nowT)
+	live := len(liveBoxes)
+	quarantined, quarantineUntil := 0, ""
+	eligible, zillowBlocked := 0, 0
+	if l, lerr := withLedger(b.uiDataRoot, nowT, func(*harvestLedger) error { return nil }); lerr == nil {
+		for _, bx := range liveBoxes {
+			lb := l.Boxes[bx.InstanceID]
+			if lb != nil && lb.quarantined(nowT) {
+				quarantined++
+				if quarantineUntil == "" || lb.QuarantinedUntil < quarantineUntil {
+					quarantineUntil = lb.QuarantinedUntil
+				}
+			} else if lb == nil || lb.DayJobs < hc.PerBoxBudget {
+				// Zillow: a box that hit the final bot-check block today is not used for
+				// Zillow even though the ledger considers it eligible.
+				if hc.Channel == zillowChannel && p.Zillow != nil && p.Zillow.zillowBoxBlocked(bx.InstanceID, nowT) {
+					zillowBlocked++
+					continue
+				}
+				eligible++
+			}
+		}
+	}
+	state := "walking"
+	switch {
+	case len(p.InFlight) > 0:
+		state = "a collector job is running"
+	case inQuietHours(nowT, hc.QuietFrom, hc.QuietTo):
+		state = "quiet hours (" + hc.QuietFrom + "–" + hc.QuietTo + ") — nothing runs"
+	case p.DayEnriched >= hc.DailyBudget:
+		state = "daily budget reached — resumes tomorrow"
+	case live == 0:
+		state = "no collector is checking in — open the client Chrome profiles with the extension"
+	case eligible == 0 && zillowBlocked > 0:
+		state = fmt.Sprintf("paused: every usable collector (%d) hit Zillow's bot check today — open zillow.com in that Chrome profile and pass the check once; the walk resumes on its own", zillowBlocked)
+	case eligible == 0 && quarantined > 0:
+		until := quarantineUntil
+		if t, perr := time.Parse(time.RFC3339, quarantineUntil); perr == nil {
+			until = t.Local().Format("15:04")
+		}
+		state = fmt.Sprintf("paused: all %d live collector(s) quarantined after repeated failures — first one back at %s", quarantined, until)
+	case eligible == 0:
+		state = "paused: every live collector is at its per-collector daily cap"
+	case len(p.Queue) == 0 && hc.Channel == zillowChannel && p.Zillow != nil && p.Zillow.Exhausted:
+		state = "walk finished — every location × keyword page was read; pause the campaign or add locations/keywords"
+	case len(p.Queue) == 0 && hc.Channel == zillowChannel:
+		state = "reading the next directory page"
+	case len(p.Queue) == 0:
+		state = "reading the next friend-list leg"
+	default:
+		state = "pacing 20–40 s between profiles"
+	}
+	// Effective ceiling for the rest of today: the budget is a CAP, never a
+	// quota — the real bound is min(daily, live boxes × per-box, minutes left ÷ ~0.5).
+	minsLeft := 24*60 - (nowT.Hour()*60 + nowT.Minute())
+	ceiling := hc.DailyBudget
+	byBoxes := live * hc.PerBoxBudget
+	byTime := p.DayEnriched + minsLeft*2 // ~30s per profile
+	reason := "daily budget"
+	if byBoxes < ceiling {
+		ceiling, reason = byBoxes, fmt.Sprintf("%d collectors × %d per collector", live, hc.PerBoxBudget)
+	}
+	if byTime < ceiling {
+		ceiling, reason = byTime, fmt.Sprintf("~%d min left at 20–40s per profile", minsLeft)
+	}
+	return map[string]any{
+		"kept": keptTotal, "rejected": rejTotal, "live_collectors": live,
+		"quarantined": quarantined, "eligible": eligible, "zillow_blocked": zillowBlocked, "state": state,
+		"ceiling": ceiling, "ceiling_reason": reason,
+		"day_enriched": p.DayEnriched, "day_budget": hc.DailyBudget,
+		"queue": len(p.Queue), "in_flight": len(p.InFlight), "await": len(p.AwaitDecision),
+		"already_known": p.Totals["already_known"], "retried": p.Totals["requeued"],
+	}
+}

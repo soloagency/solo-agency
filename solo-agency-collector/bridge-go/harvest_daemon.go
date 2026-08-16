@@ -158,6 +158,14 @@ func (b *bridge) liveCollectors(now time.Time) []harvestCollector {
 // first one the ledger considers eligible (not quarantined, under cap, past
 // its own pacing gap) and not equal to avoidBox.
 func pickCollector(live []harvestCollector, lastBox, avoidBox string, ledger *harvestLedger, now time.Time, cap int, gap time.Duration) (harvestCollector, bool) {
+	return pickCollectorSkip(live, lastBox, avoidBox, nil, ledger, now, cap, gap)
+}
+
+// pickCollectorSkip is pickCollector with an exclusion predicate — boxes the
+// caller must not use for THIS job class (e.g. Zillow-benched boxes) are
+// skipped INSIDE the rotation so the next live box is tried, and no_collector
+// is returned only when nothing eligible remains.
+func pickCollectorSkip(live []harvestCollector, lastBox, avoidBox string, skip func(string) bool, ledger *harvestLedger, now time.Time, cap int, gap time.Duration) (harvestCollector, bool) {
 	if len(live) == 0 {
 		return harvestCollector{}, false
 	}
@@ -168,14 +176,28 @@ func pickCollector(live []harvestCollector, lastBox, avoidBox string, ledger *ha
 			break
 		}
 	}
+	// avoidBox is a PREFERENCE, not a ban: prefer any other eligible box, but if
+	// the avoided box is the only one eligible right now, use it — a second try
+	// on the same account beats a walk that stalls on one friend forever (a
+	// live campaign did exactly that: 2 boxes quarantined, the third avoided).
+	var avoided *harvestCollector
 	for k := 0; k < len(live); k++ {
 		c := live[(start+k)%len(live)]
-		if c.InstanceID == avoidBox && len(live) > 1 {
+		if skip != nil && skip(c.InstanceID) {
 			continue
 		}
-		if ledger.Boxes[c.InstanceID].eligible(now, cap, gap) {
-			return c, true
+		if !ledger.Boxes[c.InstanceID].eligible(now, cap, gap) {
+			continue
 		}
+		if c.InstanceID == avoidBox {
+			cc := c
+			avoided = &cc
+			continue
+		}
+		return c, true
+	}
+	if avoided != nil {
+		return *avoided, true
 	}
 	return harvestCollector{}, false
 }
@@ -197,10 +219,13 @@ func (b *bridge) harvestTick(rng *rand.Rand, now time.Time) {
 		store := newCrmStore(outreachDir)
 		for _, cfg := range store.listCampaigns() {
 			camp := mStr(cfg, "campaign_slug")
-			if camp == "" || mStr(cfg, "channel_strategy") != harvestChannel || mStr(cfg, "status") != "active" {
+			ch := mStr(cfg, "channel_strategy")
+			if camp == "" || (ch != harvestChannel && ch != zillowChannel) || mStr(cfg, "status") != "active" {
 				continue
 			}
 			hc := harvestConfigFrom(cfg, settings)
+			hc.Channel = ch
+			hc.Zillow = zillowConfigFrom(cfg)
 			if inQuietHours(now, hc.QuietFrom, hc.QuietTo) {
 				continue
 			}
@@ -274,7 +299,9 @@ func (b *bridge) harvestStep(rng *rand.Rand, now time.Time, c uiClient, outreach
 	ledger, lerr := withLedger(b.uiDataRoot, now, func(l *harvestLedger) error {
 		_, err := withProgress(outreachDir, campaign, func(p *harvestProgress) error {
 			p.resetDayIfNeeded(now)
-			reconcileSeeds(p, hc, outreachDir, campaign)
+			if hc.Channel != zillowChannel {
+				reconcileSeeds(p, hc, outreachDir, campaign)
+			}
 			if len(p.InFlight) > 0 {
 				action = "wait" // one job at a time per campaign; stale ones are handled in collect
 				return nil
@@ -286,7 +313,12 @@ func (b *bridge) harvestStep(rng *rand.Rand, now time.Time, c uiClient, outreach
 			// Enrich queue first: friends already discovered are cheaper to finish.
 			if len(p.Queue) > 0 {
 				var ok bool
-				box, ok = pickCollector(live, p.LastBox, p.Queue[0].AvoidBox, l, now, hc.PerBoxBudget, gap)
+				var skip func(string) bool
+				if hc.Channel == zillowChannel {
+					zc := p.zillow()
+					skip = func(id string) bool { return zc.zillowBoxBlocked(id, now) }
+				}
+				box, ok = pickCollectorSkip(live, p.LastBox, p.Queue[0].AvoidBox, skip, l, now, hc.PerBoxBudget, gap)
 				if !ok {
 					action = "no_collector"
 					return nil
@@ -305,7 +337,39 @@ func (b *bridge) harvestStep(rng *rand.Rand, now time.Time, c uiClient, outreach
 				action = "enrich"
 				return nil
 			}
-			// Queue empty: read the next leg of the first walkable seed.
+			// Queue empty: read the next leg.
+			if hc.Channel == zillowChannel {
+				zc := p.zillow()
+				loc, kw, legURL := hc.Zillow.currentQuery(zc)
+				if legURL == "" {
+					action = "done"
+					return nil
+				}
+				var ok bool
+				// A box that hit Zillow's FINAL bot-check block today is skipped for Zillow
+				// (both legs and enrich) — inside the rotation, so the next box is tried.
+				box, ok = pickCollectorSkip(live, zc.LastLegBox, "", func(id string) bool { return zc.zillowBoxBlocked(id, now) }, l, now, hc.PerBoxBudget, gap)
+				if !ok {
+					action = "no_collector"
+					return nil
+				}
+				if box.InstanceID == zc.LastLegBox && zc.LastLegAt != "" {
+					if t, err := time.Parse(time.RFC3339, zc.LastLegAt); err == nil && now.Sub(t) < harvestLegBaseWait {
+						action = "leg_rest"
+						return nil
+					}
+				}
+				runID := "harvest_zleg_" + now.UTC().Format("20060102_150405") + "_" + uidHash(legURL)
+				flight = harvestInFlight{URL: legURL, Seed: legURL, RunID: runID, Box: box.InstanceID, QueuedAt: nowISO(),
+					Name: kw, Subtitle: loc}
+				p.InFlight["zleg:"+uidHash(legURL)] = flight
+				zc.LastLegURL, zc.LastLegAt, zc.LastLegBox = legURL, nowISO(), box.InstanceID
+				p.CurrentSeed = legURL
+				p.Totals["leg_jobs"]++
+				l.box(box.InstanceID).recordJob(now, "leg")
+				action = "zleg"
+				return nil
+			}
 			for i := range p.Seeds {
 				s := &p.Seeds[i]
 				if s.Exhausted || s.Removed || s.Error != "" {
@@ -351,15 +415,23 @@ func (b *bridge) harvestStep(rng *rand.Rand, now time.Time, c uiClient, outreach
 
 	switch action {
 	case "enrich":
-		path := b.harvestEnqueue(now, c.Slug, campaign, box, flight.RunID, "fb.profile.enrich", next.URL,
+		capName, platform := "fb.profile.enrich", "facebook"
+		if hc.Channel == zillowChannel {
+			capName, platform = "zillow.profile.enrich", "zillow"
+		}
+		path := b.harvestEnqueue(now, c.Slug, campaign, box, flight.RunID, capName, platform, next.URL,
 			map[string]any{"profile_url": next.URL, "max_posts": 5}, next.UID, next.Seed)
 		b.harvestRememberPath(outreachDir, campaign, next.UID, path)
+	case "zleg":
+		path := b.harvestEnqueue(now, c.Slug, campaign, box, flight.RunID, "zillow.agents.list", "zillow", flight.URL,
+			map[string]any{}, "zleg:"+uidHash(flight.URL), flight.URL)
+		b.harvestRememberPath(outreachDir, campaign, "zleg:"+uidHash(flight.URL), path)
 	case "leg":
 		inputs := map[string]any{"profile_url": seed.URL, "max_pages": hc.LegPages}
 		if seed.EndCursor != "" {
 			inputs["start_cursor"] = seed.EndCursor
 		}
-		path := b.harvestEnqueue(now, c.Slug, campaign, box, flight.RunID, "fb.profile.friends", seed.FriendsURL, inputs, "leg:"+seed.UID, seed.URL)
+		path := b.harvestEnqueue(now, c.Slug, campaign, box, flight.RunID, "fb.profile.friends", "facebook", seed.FriendsURL, inputs, "leg:"+seed.UID, seed.URL)
 		b.harvestRememberPath(outreachDir, campaign, "leg:"+seed.UID, path)
 	}
 }
@@ -380,7 +452,13 @@ func (b *bridge) harvestRememberPath(outreachDir, campaign, tag, path string) {
 // harvestEnqueue writes one collector job bound to the chosen collector's
 // extension, tagged so the result is routed to the OWNING client's harvest
 // dir. Returns the pending-file path (for cancellation while unclaimed).
-func (b *bridge) harvestEnqueue(now time.Time, ownerSlug, campaign string, box harvestCollector, runID, capability, url string, inputs map[string]any, tag, seed string) string {
+func (b *bridge) harvestEnqueue(now time.Time, ownerSlug, campaign string, box harvestCollector, runID, capability, platform, url string, inputs map[string]any, tag, seed string) string {
+	ttl, sourceType := 15, "harvest"
+	if platform == "zillow" {
+		// The bot check may wait on the operator for hours; the extension heartbeats
+		// to extend the run, but the max TTL costs nothing (ZILLOW_CAPABILITIES §1).
+		ttl, sourceType = 120, "public"
+	}
 	job := map[string]any{
 		"run_id":                         runID,
 		"job_type":                       "run_now",
@@ -391,10 +469,10 @@ func (b *bridge) harvestEnqueue(now time.Time, ownerSlug, campaign string, box h
 		"harvest_campaign":               campaign,
 		"harvest_tag":                    tag,
 		"harvest_seed":                   seed,
-		"run_now_ttl_minutes":            15,
+		"run_now_ttl_minutes":            ttl,
 		"sources": []any{map[string]any{
-			"name": "harvest " + capability, "url": url, "platform": "facebook",
-			"source_type": "harvest", "capability": capability, "inputs": inputs, "priority": "high",
+			"name": "harvest " + capability, "url": url, "platform": platform,
+			"source_type": sourceType, "capability": capability, "inputs": inputs, "priority": "high",
 		}},
 		"pacing":           map[string]any{"min_delay_seconds": 3, "max_delay_seconds": 6, "max_sources": 1, "scroll_steps": 0, "max_text_chars": 12000},
 		"collector_policy": defaultCollectorPolicy(),
@@ -423,6 +501,11 @@ func (b *bridge) harvestCollectResults(now time.Time, c uiClient, outreachDir, c
 	for tag, f := range p.InFlight {
 		out, done := b.harvestReadJob(f.RunID)
 		if !done {
+			// A job parked on Zillow's bot check is alive as long as the extension
+			// heartbeats — the operator will pass it when they are back.
+			if b.harvestJobWaitingForHuman(f.RunID, now) {
+				continue
+			}
 			// Stale?
 			if t, perr := time.Parse(time.RFC3339, f.QueuedAt); perr == nil && now.Sub(t) > harvestJobStaleAfter {
 				stillPending := false
@@ -436,8 +519,21 @@ func (b *bridge) harvestCollectResults(now time.Time, c uiClient, outreachDir, c
 				if stillPending {
 					reason += " (never claimed — collector busy or offline)"
 				}
-				b.harvestFail(now, outreachDir, campaign, tag, f, reason)
+				if hc.Channel == zillowChannel && !strings.HasPrefix(tag, "zleg:") {
+					// zillow enrich: retry elsewhere / give up as enrich_failed — never await_decision
+					b.harvestZillowEnrichDone(now, c, outreachDir, campaign, tag, f, legOutcome{Failed: true, Reason: reason})
+				} else {
+					b.harvestFail(now, outreachDir, campaign, tag, f, reason)
+				}
 			}
+			continue
+		}
+		if strings.HasPrefix(tag, "zleg:") {
+			b.harvestZillowLegDone(now, outreachDir, campaign, tag, f, out, hc)
+			continue
+		}
+		if hc.Channel == zillowChannel {
+			b.harvestZillowEnrichDone(now, c, outreachDir, campaign, tag, f, out)
 			continue
 		}
 		if strings.HasPrefix(tag, "leg:") {
@@ -520,6 +616,15 @@ func (b *bridge) harvestFail(now time.Time, outreachDir, campaign, tag string, f
 	}
 	_, _ = withProgress(outreachDir, campaign, func(p *harvestProgress) error {
 		delete(p.InFlight, tag)
+		if strings.HasPrefix(tag, "zleg:") {
+			// Zillow directory page: cursor untouched (same page retried on the next
+			// box), failure counted; no budget/queue side effects — a leg is not a friend.
+			zc := p.zillow()
+			zc.LegFailures++
+			zc.LastLegAt, zc.LastLegBox = nowISO(), f.Box
+			p.Totals["leg_failures"]++
+			return nil
+		}
 		if strings.HasPrefix(tag, "leg:") {
 			for i := range p.Seeds {
 				if "leg:"+p.Seeds[i].UID == tag {
@@ -564,6 +669,47 @@ func isTransient(reason string) bool {
 		if strings.Contains(r, k) {
 			return true
 		}
+	}
+	return false
+}
+
+// harvestJobWaitingForHuman reports whether the job's most recent source_status
+// heartbeat says the collector is waiting for the operator to pass Zillow's
+// bot check. Such a job is IN PROGRESS: never stale, never a failure, never
+// a reason to quarantine — the operator may be away for hours (ceiling 6h).
+// Liveness: the extension heartbeats every ~2 min while waiting; a heartbeat
+// older than harvestHumanWaitLiveness means the extension/tab is gone and the
+// job must fall through to the normal stale path (cancel + retry elsewhere).
+// After the operator passes the check the extension still needs up to ~70 s to
+// settle + read + post; `human_captcha_solved` gets a grace window so a job
+// solved 25 minutes after enqueue is not cut down while finishing.
+const (
+	harvestHumanWaitLiveness = 10 * time.Minute
+	harvestHumanSolvedGrace  = 5 * time.Minute
+)
+
+func (b *bridge) harvestJobWaitingForHuman(runID string, now time.Time) bool {
+	matches, _ := filepath.Glob(filepath.Join(b.outputRoot, "*", "*", "harvest", safeFilename(runID)))
+	if len(matches) == 0 {
+		return false
+	}
+	last, lastAt := "", ""
+	for _, row := range readJSONLines(filepath.Join(matches[0], "source_status.jsonl")) {
+		if st := mStr(row, "status"); st != "" {
+			last = st
+			lastAt = strOr(mStr(row, "received_at"), mStr(row, "captured_at"))
+		}
+	}
+	t, err := time.Parse(time.RFC3339, lastAt)
+	if err != nil {
+		return false
+	}
+	age := now.Sub(t)
+	switch last {
+	case "waiting_for_human_captcha":
+		return age <= harvestHumanWaitLiveness
+	case "human_captcha_solved":
+		return age <= harvestHumanSolvedGrace
 	}
 	return false
 }
@@ -627,6 +773,28 @@ func (b *bridge) harvestReadJob(runID string) (out legOutcome, done bool) {
 					continue
 				}
 				out.Items = append(out.Items, m)
+			}
+		}
+		// Zillow directory envelope (zillow.agents.list): status/has_more/page/page_count.
+		if cap := mStr(recs, "capability"); strings.HasPrefix(cap, "zillow.") {
+			out.Zillow.Status = mStr(recs, "status")
+			if v, ok := recs["has_more"].(bool); ok {
+				out.Zillow.HasMore, out.Zillow.HasMoreKnown = v, true
+			}
+			out.Zillow.Page = mInt(recs, "page", 0)
+			out.Zillow.PageCount = mInt(recs, "page_count", 0)
+			if out.Zillow.Status == "blocked" {
+				out.Failed = true
+				out.Reason = "blocked_bot_check"
+			}
+			if out.Zillow.Status == "error" {
+				out.Failed = true
+				out.Reason = strOr(mStr(recs, "error"), "zillow error")
+			}
+			// "empty" is a valid end-of-query, not a failure.
+			if out.Zillow.Status == "empty" && out.Reason == "no result" {
+				out.Failed = false
+				out.Reason = ""
 			}
 		}
 		if pi := mMap(recs, "page_info"); pi != nil {

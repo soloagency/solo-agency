@@ -259,13 +259,18 @@ func (b *bridge) uiRenderHarvest(w http.ResponseWriter, slug, camp string, r *ht
 	}
 	store := newCrmStore(filepath.Join(c.Path, "outreach"))
 	cfg := store.getCampaign(camp)
-	if cfg == nil || mStr(cfg, "channel_strategy") != harvestChannel {
+	ch := mStr(cfg, "channel_strategy")
+	if cfg == nil || (ch != harvestChannel && ch != zillowChannel) {
 		http.NotFound(w, r)
 		return
 	}
 	stage := r.URL.Query().Get("stage")
 	if stage == "" {
-		stage = "await"
+		if ch == zillowChannel {
+			stage = "kept"
+		} else {
+			stage = "await"
+		}
 	}
 	label, help := harvestStageLabel(stage)
 	rows := b.harvestRows(c, camp, stage, time.Now())

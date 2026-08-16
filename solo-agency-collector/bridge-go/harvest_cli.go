@@ -30,14 +30,21 @@ func runHarvestCLI(store *crmStore, a *cliArgs, op string) int {
 	if cfg == nil {
 		return crmFail(fmt.Errorf("campaign %q not found", campaign))
 	}
-	if mStr(cfg, "channel_strategy") != harvestChannel {
-		return crmFail(fmt.Errorf("campaign %q is channel %q, not %s", campaign, mStr(cfg, "channel_strategy"), harvestChannel))
+	ch := mStr(cfg, "channel_strategy")
+	if ch != harvestChannel && ch != zillowChannel {
+		return crmFail(fmt.Errorf("campaign %q is channel %q, not %s or %s", campaign, ch, harvestChannel, zillowChannel))
 	}
 	settings := loadSystemSettings(pipelineRootFromClientDir(clientDir))
 	hc := harvestConfigFrom(cfg, settings)
+	hc.Channel = ch
+	hc.Zillow = zillowConfigFrom(cfg)
 
 	switch op {
 	case "seed":
+		if hc.Channel == zillowChannel {
+			return crmOut(map[string]any{"ok": true, "note": "zillow campaigns have no seeds — the daemon walks zillow_locations × zillow_keywords",
+				"locations": hc.Zillow.Locations, "keywords": hc.Zillow.Keywords}, 0)
+		}
 		p, err := syncSeeds(clientDir, campaign, hc)
 		if err != nil {
 			return crmFail(err)
@@ -49,14 +56,19 @@ func runHarvestCLI(store *crmStore, a *cliArgs, op string) int {
 		if err != nil {
 			return crmFail(err)
 		}
-		return crmOut(map[string]any{"ok": true, "campaign": campaign, "config": map[string]any{
+		out := map[string]any{"ok": true, "campaign": campaign, "channel": hc.Channel, "config": map[string]any{
 			"daily_budget": hc.DailyBudget, "per_collector_budget": hc.PerBoxBudget,
 			"leg_pages": hc.LegPages, "quiet_from": hc.QuietFrom, "quiet_to": hc.QuietTo,
-			"seed_profiles": hc.SeedProfiles, "goal_keywords": hc.GoalKeywords},
+			"seed_profiles": hc.SeedProfiles, "goal_keywords": hc.GoalKeywords,
+			"zillow_locations": hc.Zillow.Locations, "zillow_keywords": hc.Zillow.Keywords},
 			"seeds": p.Seeds, "current_seed": p.CurrentSeed, "queue_len": len(p.Queue),
 			"in_flight": len(p.InFlight), "await_decision": len(p.AwaitDecision),
 			"day_key": p.DayKey, "day_enriched": p.DayEnriched, "day_per_box": p.DayPerBox,
-			"totals": p.Totals, "updated_at": p.UpdatedAt}, 0)
+			"totals": p.Totals, "updated_at": p.UpdatedAt}
+		if hc.Channel == zillowChannel {
+			out["zillow"] = p.zillow() // always present, even before the first tick
+		}
+		return crmOut(out, 0)
 
 	case "pending":
 		limit := a.getInt("--limit", harvestDecideBatch)

@@ -280,6 +280,55 @@ var channelStrategies = map[string]bool{
 	"comment":        true, // Facebook comments on group posts, executed by the collector
 	"post":           true, // new posts INTO groups — highest exposure, lowest caps
 	"friend_harvest": true, // Leads From Friends: walk seed profiles' friend lists into the CRM (harvest.go); sends nothing
+	"zillow_harvest": true, // Leads From Zillow: walk agent-directory queries into the CRM (harvest_zillow.go); sends nothing
+}
+
+// normalizeZillowLocations validates + cleans pasted Zillow directory urls
+// (one per line in the UI): zillow.com/professionals/... only, name/page
+// params stripped (the walker owns them), deduped.
+func normalizeZillowLocations(raw []any) ([]any, error) {
+	var out []any
+	seen := map[string]bool{}
+	for _, v := range raw {
+		sv := strings.TrimSpace(sprint(v))
+		if sv == "" {
+			continue
+		}
+		clean, err := zillowDirectoryURL(sv)
+		if err != nil {
+			return nil, storageErrf("zillow location: %v", err)
+		}
+		if seen[clean] {
+			continue
+		}
+		seen[clean] = true
+		out = append(out, clean)
+	}
+	return out, nil
+}
+
+// normalizeZillowKeywords: comma- or newline-separated, lower-cased, deduped.
+func normalizeZillowKeywords(raw any) []any {
+	var parts []string
+	switch v := raw.(type) {
+	case string:
+		parts = strings.FieldsFunc(v, func(r rune) bool { return r == ',' || r == '\n' || r == ';' })
+	case []any:
+		for _, x := range v {
+			parts = append(parts, strings.FieldsFunc(sprint(x), func(r rune) bool { return r == ',' || r == '\n' || r == ';' })...)
+		}
+	}
+	var out []any
+	seen := map[string]bool{}
+	for _, p := range parts {
+		s := strings.ToLower(strings.TrimSpace(p))
+		if s == "" || seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out
 }
 
 // normalizeSeedProfiles cleans a pasted list of profile urls (one per line in
@@ -445,6 +494,31 @@ func (c *crmStore) createCampaign(slug string, config map[string]any) (map[strin
 	// Leads-From-Friends: seed profiles and the harvest block go through the same
 	// validators as campaignUpdate, so a create-with-JSON cannot smuggle a dirty
 	// url or an out-of-range budget past what the UI edit path refuses.
+	if mStr(cfg, "channel_strategy") == zillowChannel {
+		// Same contract as friend_harvest: created PAUSED, inputs validated on create.
+		if _, explicit := config["status"]; !explicit {
+			cfg["status"] = "paused"
+		}
+		if raw, ok := cfg["zillow_locations"].([]any); ok {
+			locs, err := normalizeZillowLocations(raw)
+			if err != nil {
+				return nil, err
+			}
+			cfg["zillow_locations"] = locs
+		} else {
+			cfg["zillow_locations"] = []any{}
+		}
+		cfg["zillow_keywords"] = normalizeZillowKeywords(cfg["zillow_keywords"])
+		if hm, ok := cfg["harvest"].(map[string]any); ok {
+			clean, err := validateHarvestBlock(hm)
+			if err != nil {
+				return nil, err
+			}
+			cfg["harvest"] = clean
+		} else {
+			cfg["harvest"] = map[string]any{}
+		}
+	}
 	if mStr(cfg, "channel_strategy") == harvestChannel {
 		// A harvest campaign touches Facebook on its own (no approval gate), so it
 		// must never start the moment it is saved: the operator is still pasting
@@ -3309,6 +3383,25 @@ func (c *crmStore) campaignUpdate(slug string, patch map[string]any) (map[string
 			if fmt.Sprint(mList(cfg, "seed_profiles")) != fmt.Sprint(seeds) {
 				cfg["seed_profiles"] = seeds
 				changed = append(changed, "seed_profiles")
+			}
+		case "zillow_locations":
+			l, ok := val.([]any)
+			if !ok {
+				return nil, storageErrf("zillow_locations must be a list of directory urls, got %T", val)
+			}
+			locs, err := normalizeZillowLocations(l)
+			if err != nil {
+				return nil, err
+			}
+			if fmt.Sprint(mList(cfg, "zillow_locations")) != fmt.Sprint(locs) {
+				cfg["zillow_locations"] = locs
+				changed = append(changed, "zillow_locations")
+			}
+		case "zillow_keywords":
+			kws := normalizeZillowKeywords(val)
+			if fmt.Sprint(mList(cfg, "zillow_keywords")) != fmt.Sprint(kws) {
+				cfg["zillow_keywords"] = kws
+				changed = append(changed, "zillow_keywords")
 			}
 		case "harvest":
 			// Per-campaign harvest overrides (daily_budget, per_collector_budget, leg_pages,

@@ -146,6 +146,7 @@ type harvestProgress struct {
 	LastEnrichAt  string                     `json:"last_enrich_at,omitempty"`
 	LastBox       string                     `json:"last_box,omitempty"`
 	Totals        map[string]int             `json:"totals"`
+	Zillow        *zillowCursor              `json:"zillow,omitempty"` // Leads From Zillow cursor (harvest_zillow.go)
 	UpdatedAt     string                     `json:"updated_at"`
 }
 
@@ -213,6 +214,8 @@ func withProgress(clientDir, campaign string, fn func(*harvestProgress) error) (
 // --- campaign config for the channel ---------------------------------------------
 
 type harvestConfig struct {
+	Channel        string       // friend_harvest | zillow_harvest
+	Zillow         zillowConfig // Leads From Zillow inputs (harvest_zillow.go)
 	SeedProfiles   []string
 	DailyBudget    int
 	PerBoxBudget   int
@@ -355,6 +358,7 @@ type legOutcome struct {
 	HasNextKnown bool
 	Failed       bool   // no usable records / error item / landed_on_self
 	Reason       string // collector's own error string when it gave one
+	Zillow       zillowLegFacts // directory envelope facts for zillow.agents.list
 }
 
 // terminalSeen: statuses that mean "this person is handled" for the whole

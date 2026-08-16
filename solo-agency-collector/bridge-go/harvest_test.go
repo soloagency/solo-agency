@@ -165,10 +165,18 @@ func TestHarvestPacingHelpers(t *testing.T) {
 	if _, ok := pickCollector(live, "", "", full, now, 150, 0); ok {
 		t.Fatal("all at cap must yield no collector")
 	}
-	// avoid_box skips the box that just failed the friend (failover to another).
+	// avoid_box skips the box that just failed the friend (failover to another)...
 	c, ok = pickCollector(live, "", "a", &harvestLedger{Boxes: map[string]*ledgerBox{}}, now, 150, 0)
 	if !ok || c.InstanceID != "b" {
 		t.Fatalf("avoid_box must skip a: got %v", c)
+	}
+	// ...but it is a preference, not a ban: when the avoided box is the ONLY eligible
+	// one (others quarantined), it is used rather than stalling the walk (live bug).
+	quar := now.Add(time.Hour).UTC().Format(time.RFC3339)
+	onlyA := &harvestLedger{Boxes: map[string]*ledgerBox{"b": {QuarantinedUntil: quar}, "c": {QuarantinedUntil: quar}}}
+	c, ok = pickCollector(live, "", "a", onlyA, now, 150, 0)
+	if !ok || c.InstanceID != "a" {
+		t.Fatalf("avoided box must be used when it is the only eligible one: got %v %v", c, ok)
 	}
 	// Quarantined box is never picked; pacing gap on the BOX (cross-campaign) is honoured.
 	q := &harvestLedger{Boxes: map[string]*ledgerBox{"a": {QuarantinedUntil: now.Add(time.Hour).UTC().Format(time.RFC3339)},

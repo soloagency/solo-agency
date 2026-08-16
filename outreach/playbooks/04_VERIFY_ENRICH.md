@@ -68,6 +68,11 @@ profile two or three times. Submit the root url, never `/about` — the timeline
 the root, so `/about` returns the About half with `posts: []`. Saving a
 Facebook URL without reading it is NOT enrichment. Stopping at the website is the #1 failure mode —
 websites are months out of date; the whole point of Layer B is RECENT activity.
+A lead whose anchor is a **Zillow agent profile** is read the same way with
+**`zillow.profile.enrich`** (`zillow.com/profile/<screenName>`): the record has the SAME field
+names (`name`, `about_lines[]`, `work[]`, `emails[]`, `phones[]`, `website`, `posts[]` = dated
+reviews received + closed sales, `industry:"Real Estate"`), so the rules above apply unchanged —
+see `solo-agency-collector/ZILLOW_CAPABILITIES.md`.
 
 ## Source Preservation Rule
 

@@ -312,6 +312,35 @@ Minimum job:
 }
 ```
 
+Capability job (typed read of ONE screen — the `capability` id and its `inputs` come from
+`bridge-go/collector_capabilities.json`; the result is `records` in that run's
+`private_data_points.jsonl`). Example, a Zillow agent profile:
+
+```json
+{
+  "run_id": "zillow_profile_143000",
+  "client_slug": "demo-client",
+  "run_now_ttl_minutes": 120,
+  "pacing": { "scroll_steps": 0, "min_delay_seconds": 2, "max_delay_seconds": 3, "max_sources": 1 },
+  "sources": [
+    {
+      "name": "zillow profile tykunkle",
+      "url": "https://www.zillow.com/profile/tykunkle",
+      "source_type": "public",
+      "platform": "zillow",
+      "capability": "zillow.profile.enrich",
+      "inputs": { "max_posts": 5 }
+    }
+  ]
+}
+```
+
+Zillow specifics (`ZILLOW_CAPABILITIES.md`): the caller owns the directory pagination
+(`zillow.agents.list` reads exactly the `?name=&page=` url it is given); a Zillow bot check makes
+the job WAIT for the operator (chime from the extension, `source_status:
+waiting_for_human_captcha` heartbeat, then it continues by itself) — do not treat a long
+`waiting_for_human_captcha` job as stuck.
+
 ## Shared Collector Config
 
 Create `daily-content-pipeline/collector/collector_config.json` during setup if missing.

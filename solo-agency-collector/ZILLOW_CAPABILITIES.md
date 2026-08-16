@@ -14,7 +14,10 @@ explains how to use them and does not repeat every field.
 
 Code: `chrome-extension/zillow_extract.js` (MAIN world, own file; injected by `background.js`
 only for `zillow.*` jobs and dispatched through `window.__soloZillowRun` — the Facebook library
-`gql_extract.js` is untouched). Offline test: `node solo-agency-collector/tests/test_zillow_extract.js`.
+`gql_extract.js` is untouched), plus the **human gate** in `background.js` (`zillowHumanGate`)
+and the operator chime in `chrome-extension/offscreen.html/js` (manifest permission `offscreen`).
+Offline tests: `node solo-agency-collector/tests/test_zillow_extract.js` and
+`node solo-agency-collector/tests/test_offscreen_alert.js`.
 Both pages are Next.js: the extractor parses `<script id="__NEXT_DATA__">` (no CSS selectors) and
 falls back to a thin DOM read only when that JSON is missing (`source: "dom"`).
 
@@ -55,7 +58,10 @@ Rules the caller must respect:
 - Do not set `graphql_capture: false` on the job — capability dispatch is gated behind it.
 - Pacing: keep Zillow jobs on ONE Chrome profile ≥ 15–30 s apart and the hourly volume modest.
   A Chrome profile that has never visited zillow.com should be warmed by the operator opening
-  it once by hand. See §5 for what to do when Zillow pushes back.
+  it once by hand. See §5 for what happens when Zillow shows its bot check.
+- Give Zillow jobs `run_now_ttl_minutes: 120` (the max). A job that hits the bot check waits
+  for the operator; the extension heartbeats the bridge to keep the run alive (bridge builds
+  from 2026-08-16 on — see §5), but a generous TTL costs nothing.
 - Jobs are serialized per client; the extension for `<client_slug>` must be loaded in that
   Chrome profile (a stale extension returns `records: null` for a capability it does not know —
   reload after every sync, and check the version in `chrome://extensions`).
@@ -76,13 +82,18 @@ source, `collector_status.json.completed === true` when done. The typed output i
 | `empty` | page rendered, no agent cards (e.g. a location/keyword with no agents) | not an error; move on |
 | `no_next_data` | the Next.js payload was missing; the DOM fallback ran (`source: "dom"`, fewer fields) | usable but degraded — treat as a layout-change alarm and tell the operator |
 | `no_display_user` | profile page without a `displayUser` (not an agent profile / removed) | skip |
-| `blocked` | Zillow bot check (`reason: "blocked_bot_check"`) | **STOP** — see §5 |
+| `blocked` | Zillow bot check (`reason: "blocked_bot_check"`) that the operator did NOT pass within the wait ceiling (§5) | **STOP** Zillow jobs on that Chrome profile and hand the operator an ACTION REQUIRED |
 | `error` | the extractor threw (`error` says what) | log, retry once later, then report |
 
 `available` is always `true` for these two capabilities, so `records` is never null because of
 the page; **`records: null` means the extension did not run the capability at all** (stale
 extension without `zillow_extract.js`, injection failure, or the 45 s dispatch timeout) —
 that is a collector problem, not a page problem.
+
+The data point also carries **`human_gate`** when a bot check happened on that page:
+`{engaged, solved, waited_ms, wait_ceiling_minutes, alert}` — `engaged:true, solved:true` means
+the operator passed the check and the read that follows is a normal read (nothing to do);
+`solved:false` pairs with `records.status: "blocked"`. Absent = the page opened cleanly.
 
 ## 3. Walking a directory (the caller owns pagination)
 
@@ -129,15 +140,17 @@ judgment step is required:
 | dated proof-of-life | `posts[]` (`kind: "review"|"sale"`, `date`, `created_time`, `text`, `url`), typed in `zillow.recent_reviews[]` / `zillow.recent_sales[]` | newest first, `max_posts` (default 5); `timeline.posts_available` |
 | trade facts | `about_lines[]` (one `Label: value` line each), `zillow.licenses[]`, `zillow.years_in_industry`, `zillow.specialties[]`, `zillow.sales{last_12_months,total,price_range,average_price}`, `zillow.rating{average,count}`, `zillow.listings{for_sale,for_rent}`, `zillow.is_top_agent`, `zillow.team{role,team_name,lead,members[],member_count}` | |
 
-Example `contact add` shape (the operating brain still runs the CRM write, exactly as for FB):
+Example `contact add` shape (for an AD-HOC read; harvest campaigns write this automatically —
+note emails/phones are lists of OBJECTS, a bare string is silently dropped by the store):
 
 ```json
-{"name":{"full":"Tyler Kunkle"},
- "identities":{"emails":["tyler@pardeeproperties.com"],"phones":["(310) 993-7333"],
+{"name":{"full":"Tyler Kunkle","given":"Tyler","entity_type":"person"},
+ "identities":{"emails":[{"address":"tyler@pardeeproperties.com","source":"zillow_harvest","status":"unverified","is_primary":true}],
+               "phones":[{"number":"(310) 993-7333","type":"cell","source":"zillow_harvest"}],
                "socials":{"zillow":"https://www.zillow.com/profile/tykunkle","instagram":"https://www.instagram.com/tykunkle/"},
                "website":"https://pardeeproperties.com/team/tyler-kunkle/"},
- "tags":["zillow_directory"],
- "custom_fields":{"source":"zillow.profile.enrich","industry":"Real Estate","brokerage":"Pardee Properties","location":"Venice, CA 90291"}}
+ "tags":["zillow_directory","zillow_harvest"],
+ "custom_fields":{"source":"zillow_harvest","industry":"Real Estate","brokerage":"Pardee Properties","location":"Venice, CA 90291"}}
 ```
 
 `bridge-go/leads.go` `classifyLeadURLFull` knows Zillow: `/profile/<x>` → `profile`/`zillow`
@@ -147,32 +160,56 @@ deploy** (`deploy-soloagency.sh --collector-only`); a bridge built before 2026-0
 Zillow profile url under `channels_found.profiles` — put it in `identities.socials.zillow` via
 `contact add` instead until then.
 
-## 5. When Zillow pushes back — the blocked contract
+## 5. When Zillow shows its bot check — the human gate
 
-Zillow runs PerimeterX. Its "Press & Hold to confirm you are a human" page is detected
-(`#px-captcha`, title "Access to this page has been denied") and returned as
-`status: "blocked"`, `reason: "blocked_bot_check"`, `available: true`, `count: 0`. Measured: a
-fresh, non-human browser was blocked on its 2nd navigation; the operator's real Chrome was not
-blocked across 5 live jobs.
+Zillow runs PerimeterX. Its "Press & Hold to confirm you are a human" page (`#px-captcha`,
+title "Access to this page has been denied") is handled by the collector itself, **the caller
+does nothing special** — the operator asked for exactly this: the job stops and waits, a
+gentle chime plays until the check is passed, then everything continues as if nothing happened.
+What happens, in order (`background.js` `zillowHumanGate`, live-verified 2026-08-16 against a
+simulated block page):
 
-The caller MUST:
-1. stop submitting Zillow jobs for that Chrome profile / client immediately (a harvest walker
-   should quarantine the collector, not retry the page);
-2. hand the operator one `**[ACTION REQUIRED]**`: open `https://www.zillow.com/` in that Chrome
-   profile, pass the Press & Hold check once by hand, reply `done`;
-3. resume at a slower pace after `done`. Never automate the check, never spoof it, never route
-   the page through another browser.
+1. Right after the tab loads (and again if the capability itself reports `blocked`), the tab
+   is probed for the check page.
+2. If present: the tab is brought to the front and its window focused ONCE; the extension's
+   offscreen document starts a **soft two-note chime every ~3 s** (peak gain 0.06, fades in);
+   the extension popup shows `waiting_for_operator`; the bridge receives
+   `source_status: "waiting_for_human_captcha"` (repeated every 2 min as a heartbeat, which the
+   bridge — builds from 2026-08-16 on — uses to push the run's expiry out, so a long absence
+   does not expire the job).
+3. The tab is polled every 4 s. Nothing is clicked, typed, solved or spoofed by code — the
+   operator passes the check by hand; PerimeterX then loads the real page.
+4. The moment the check page is gone: chime off, `source_status: "human_captcha_solved"`
+   (with `waited_ms`), the document is left to settle, and the normal read runs. The data
+   point carries `human_gate: {engaged:true, solved:true, waited_ms}` and a normal record.
+5. Ceiling: `pacing.zillow_human_wait_minutes` or `inputs.human_wait_minutes` (default 360,
+   max 1440). If it passes, chime off, `source_status: "human_captcha_wait_expired"`, and the
+   capability records `status: "blocked"` for that page. Closing the tab skips the source
+   (`source_status: "error"`).
+
+So the caller only reacts to a **final** `records.status: "blocked"` (ceiling passed): stop
+Zillow jobs for that Chrome profile, tell the operator with one `**[ACTION REQUIRED]**` (open
+`https://www.zillow.com/` there, pass the check once), resume slower after `done`. A harvest
+walker (Phase 2) must treat `waiting_for_human_captcha` on the current job as "in progress,
+do not time out, do not quarantine" and only quarantine on the final blocked record.
+
+Measured: a fresh, non-human browser was blocked on its 2nd navigation; the operator's real
+Chrome was not blocked across 7 live jobs. Reference for the detection heuristics: the
+operator's own gubo-browser `modules/zillow.js` (`detectCaptcha`, `playAlert`), adapted — the
+chime moved to an offscreen document because a tab the collector opened has had no user gesture
+and its AudioContext stays suspended.
 
 ## 6. What these capabilities do NOT do (by design, as agreed 2026-08-16)
 
+- No solving, spoofing or bypassing of the bot check — the gate waits for a human (§5).
 - No pagination, no keyword generation — caller-owned (§3).
 - No CRM write — the record is parked in `private_data_points.jsonl` like every other data point;
   the operating brain maps it (§4).
-- No harvest-daemon integration yet: `bridge-go/harvest_daemon.go` still hardcodes
-  `fb.profile.friends` / `fb.profile.enrich` (`harvestStep`, ~line 298) and `platform: "facebook"`
-  (~line 341); `harvest.go` names its seed leg `FriendsURL`/`EndCursor`. A `source_kind: "zillow"`
-  branch there (leg = `zillow.agents.list` on `seed_url + ?page=N`, enrich = `zillow.profile.enrich`)
-  is the natural Phase 2 — the state machine, ledger and UI are already capability-agnostic.
+- Harvest integration EXISTS (2026-08-16, `bridge-go/harvest_zillow.go`, Playbook 17): a
+  campaign with `channel_strategy: zillow_harvest` is walked by the bridge daemon (leg =
+  `zillow.agents.list` on `location + ?name=<kw>&page=N`, enrich = `zillow.profile.enrich`) and
+  the daemon writes the CRM itself (email or phone → `contact add`; neither → skipped). The
+  "no CRM write" bullet above applies to AD-HOC single-profile reads only.
 - Only the real-estate-agent directory. Lender / property-manager / photographer directories are
   other Zillow surfaces and are not read.
 - `education[]`, `follower_count`, `verified`, `cta[]`, `discovered_tabs`, `graphql_*` are present
@@ -181,10 +218,18 @@ The caller MUST:
 ## 7. Maintenance
 
 - Offline: `node solo-agency-collector/tests/test_zillow_extract.js` (fixtures = the live-observed
-  `__NEXT_DATA__` shapes; 63 checks). Run it before every sync.
+  `__NEXT_DATA__` shapes; 63 checks) and `node solo-agency-collector/tests/test_offscreen_alert.js`
+  (chime protocol, 15 checks). Run both before every sync. Bridge: `go test ./...` in
+  `bridge-go/` (`TestHumanWaitHeartbeatKeepsRunAlive`, `TestZillowURLShapeClassification`).
 - Dev loop: `solo-agency-collector/sync-dev-extension.sh` → operator reloads the aven-ngo
   extension (version must change) → submit jobs (§1) → read `records` (§2). The repo's
-  `chrome-extension/` is never loaded into Chrome directly.
+  `chrome-extension/` is never loaded into Chrome directly. **The sync script never copies
+  `manifest.json`** — the `offscreen` permission was patched into the aven-ngo manifest by hand
+  on 2026-08-16; a client built before that needs a full rebuild (`prepare_client_extension.sh`)
+  or the same one-line permission patch, or the chime silently does not play (`human_gate.alert.ok:false`).
+- To try the gate without a real block: serve a local page whose title is "Access to this page
+  has been denied" with a visible `#px-captcha` and a button that navigates to a real profile,
+  and submit `zillow.profile.enrich` at that url — that is how it was verified.
 - Catalog: the running bridge serves its embedded catalog until a rebuild; to expose the new
   entries live before that, copy `bridge-go/collector_capabilities.json` next to the running
   `collector_config.json` (read fresh, no restart) — operator's call, it is shared infrastructure.

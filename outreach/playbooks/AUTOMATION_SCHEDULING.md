@@ -694,6 +694,12 @@ For each active client:
     rejected / enrich_failed remembered client-wide). Loop until `remaining`
     is 0 or time is up. Never enqueue friends/enrich jobs yourself for a harvest campaign. One
     progress line per campaign in the run reply.
+19c. **Leads From Zillow (daemon walks, daemon writes the CRM).** For every campaign with
+    `channel_strategy: zillow_harvest` (Stage 17) the daemon walks the agent directory and adds
+    every profile with an email or phone to the CRM itself — the run only reports `harvest
+    status` (location/keyword/page, cards, added, skipped, collectors) and raises ONE
+    `**[ACTION REQUIRED]**` when `zillow.blocked` names an account (pass Zillow's bot check
+    once in that Chrome profile). Never enqueue Zillow jobs yourself for a harvest campaign.
 20. **SMS / Zalo (human executes).** For no-email contacts, draft only when the campaign
     allows and a documented legal basis exists (US SMS gated on `{optin_source, optin_at,
     evidence_activity_id}` or existing relationship; Zalo cold-messaging strangers stays off by
