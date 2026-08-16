@@ -2031,6 +2031,128 @@
   for (var _d = 0; _d < DOSSIER_TABS.length; _d++) DOSSIER_RANK[DOSSIER_TABS[_d].key] = _d;
   var DOSSIER_CHROME = /^(like|comment|share|follow|following|message|add friend|see all|see more|more|photos|videos|reels|friends|about|posts|intro|edit profile|create|log in|sign up|suggested for you|sponsored|thích|bình luận|chia sẻ|theo dõi|nhắn tin|xem thêm|xem tất cả|giới thiệu|bạn bè|ảnh|video)$/i;
 
+  // ---- About sections by GraphQL replay, no clicking ---------------------------------------
+  //
+  // Measured on three live pages: landing on /about surfaces 6, 10 and 10 section tokens with
+  // ZERO clicks, all served by one persisted query (ProfileCometAboutAppSectionQuery,
+  // doc_id 27470497829312569). So the sections can be fetched directly.
+  //
+  // This is not an optimisation. Scoping the DOM to the About card failed three times — first by
+  // not clicking posts' "See more", then by filtering role=article/feed, then by walking up to a
+  // container — and each fix was outflanked by a section type the last one did not anticipate
+  // (it was a Reviews card, which is neither article nor feed). Facebook renders About, Reviews,
+  // Posts and Photos into ONE tree, so any boundary drawn with selectors is a guess that holds
+  // until the next layout. A GraphQL response for an About section cannot contain a review: the
+  // separation is structural, not positional, and that is why this replaces the walk instead of
+  // patching it.
+  var ABOUT_TOKEN_RE = /^YXBwX2NvbGxl/;   // base64 of "app_colle…" — an app_collection token
+
+  // Every string leaf, which is all a section needs to be: the caller wants plain text, and
+  // parsing a fixed shape out of these responses would be one more thing to guess wrong when
+  // Facebook moves a field.
+  function textLeaves(node, out, depth) {
+    if (!node || depth > 12 || out.length >= 200) return out;
+    if (typeof node === "string") {
+      var s = node.replace(/\s+/g, " ").trim();
+      if (s.length >= 2 && s.length <= 400 && !/^[A-Za-z0-9+/=_-]{40,}$/.test(s) && !/^https?:\/\/(scontent|static)\./.test(s)) out.push(s);
+      return out;
+    }
+    if (typeof node !== "object") return out;
+    if (Array.isArray(node)) { for (var i = 0; i < node.length; i++) textLeaves(node[i], out, depth + 1); return out; }
+    for (var k in node) {
+      if (k === "__typename" || k === "id" || /token|cursor|key$/i.test(k)) continue;
+      textLeaves(node[k], out, depth + 1);
+    }
+    return out;
+  }
+
+  // Collect every app_collection token the page already received, with a label when one sits
+  // beside it — the nav entry carries both, so the section can be named rather than numbered.
+  function collectSectionTokens(caps) {
+    var found = [], seen = {};
+    function walk(node, label, depth) {
+      if (!node || typeof node !== "object" || depth > 14) return;
+      if (Array.isArray(node)) { for (var i = 0; i < node.length; i++) walk(node[i], label, depth + 1); return; }
+      var here = label;
+      for (var t in node) {
+        var v = node[t];
+        if (typeof v === "string" && /^(title|name|label|text)$/i.test(t) && v.length < 60) here = v;
+      }
+      for (var k in node) {
+        var val = node[k];
+        if (typeof val === "string" && ABOUT_TOKEN_RE.test(val)) {
+          if (!seen[val]) { seen[val] = 1; found.push({ token: val, label: here || ("section_" + found.length) }); }
+        } else walk(val, here, depth + 1);
+      }
+    }
+    for (var c = 0; c < caps.length; c++) { try { walk(caps[c].response, "", 0); } catch (e) { /* skip */ } }
+    return found;
+  }
+
+  function replaySection(store, seed, token) {
+    var vars = {};
+    for (var k in seed.variables) vars[k] = seed.variables[k];
+    // Only the selector changes. Every relay provider flag and the profile-scoped
+    // appSectionFeedKey are carried over untouched: an unrecognised provider dropped here comes
+    // back as an empty section, not an error, which is the hardest kind of failure to notice.
+    vars.collectionToken = token;
+    vars.sectionToken = token;
+    var p = new URLSearchParams();
+    p.set("av", seed.av || "");
+    p.set("__a", "1");
+    p.set("fb_dtsg", seed.fbDtsg || "");
+    p.set("fb_api_caller_class", "RelayModern");
+    p.set("fb_api_req_friendly_name", seed.queryName || "");
+    p.set("variables", JSON.stringify(vars));
+    p.set("doc_id", docIdFromRegistry(seed.queryName) || seed.docId);
+    p.set("server_timestamps", "true");
+    return store.origFetch(seed.url || "/api/graphql/", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "X-FB-Friendly-Name": seed.queryName || "" },
+      body: p.toString()
+    }).then(function (r) { return r.text(); }).then(function (text) {
+      return store.parseResponse ? store.parseResponse(text) : JSON.parse(String(text).replace(/^for\s*\(;;\);/, ""));
+    });
+  }
+
+  function aboutViaGraphQL(inputs) {
+    var store = window.__soloGql;
+    if (!store || !Array.isArray(store.captures) || typeof store.origFetch !== "function") {
+      return Promise.resolve({ ok: false, reason: "no_capture_store" });
+    }
+    var caps = store.captures, seed = null;
+    for (var i = caps.length - 1; i >= 0; i--) {
+      var c = caps[i];
+      if (!c || !/AboutAppSection/i.test(String(c.queryName || ""))) continue;
+      if (!c.docId || !c.fbDtsg || !c.variables) continue;
+      seed = c; break;
+    }
+    if (!seed) return Promise.resolve({ ok: false, reason: "no_about_query_captured" });
+    var tokens = collectSectionTokens(caps);
+    if (!tokens.length) return Promise.resolve({ ok: false, reason: "no_section_tokens_in_responses" });
+
+    var sections = {}, order = [], failed = [];
+    var idx = 0;
+    function step() {
+      if (idx >= tokens.length) return Promise.resolve();
+      var t = tokens[idx++];
+      return replaySection(store, seed, t.token).then(function (res) {
+        var lines = textLeaves(res && res.data, [], 0);
+        var key = String(t.label || ("section_" + idx)).replace(/\s+/g, "_").toLowerCase();
+        if (sections[key]) key = key + "_" + idx;
+        sections[key] = lines;
+        order.push(key);
+      }).catch(function (e) {
+        failed.push({ label: t.label, error: String(e && e.message || e) });
+      }).then(step);
+    }
+    return step().then(function () {
+      return { ok: order.length > 0, sections: sections, order: order, failed: failed,
+               doc_id: String(seed.docId || ""), query: String(seed.queryName || ""),
+               tokens_found: tokens.length, reason: order.length ? null : "every_replay_failed" };
+    });
+  }
+
   function profileDossier(inputs) {
     inputs = inputs || {};
     var startedAt = Date.now();
@@ -2043,7 +2165,7 @@
     var target = String(inputs.profile_url || location.href);
     var info = profileBaseFrom(target);
     var emails = [], websites = [], foundOn = "", checked = [], missing = [];
-    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [], skipped = [], seenAll = [], seeMoreClicks = 0, panelFound = false;
+    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [], skipped = [], seenAll = [], seeMoreClicks = 0, panelFound = false, gqlAbout = null;
 
     // ---- GraphQL probe -------------------------------------------------------------------
     // Which query does Facebook fire when a sub-tab is clicked? If a tab's content arrives in
@@ -2196,24 +2318,64 @@
       var links = [];
       try { links = document.querySelectorAll('a[href*="directory_"]') || []; } catch (e) { return null; }
       if (!links.length) return null;
-      var node = links[0], hops = 0;
-      while (node.parentElement && hops < 12) {
-        node = node.parentElement; hops += 1;
+      // Climb to the smallest ancestor holding the whole sub-nav. That container is the NAV, and
+      // stopping one level above it was wrong: a live run came back with four lines — "Category,
+      // Details, Links, Contact info" — the menu and nothing else, no bio, no email.
+      var nav = links[0], hops = 0;
+      while (nav.parentElement && hops < 12) {
+        nav = nav.parentElement; hops += 1;
         var inside = 0;
-        try { inside = (node.querySelectorAll('a[href*="directory_"]') || []).length; } catch (e) { break; }
-        if (inside >= links.length) break;   // this ancestor now holds the entire sub-nav
+        try { inside = (nav.querySelectorAll('a[href*="directory_"]') || []).length; } catch (e) { break; }
+        if (inside >= links.length) break;
       }
-      return node.parentElement || node;     // one more level: the card holding nav AND content
+      // Then keep climbing while the ancestor adds nothing but the menu back. The card that also
+      // holds the content pane is the first one whose text is materially longer than the nav's.
+      // Measured by TEXT GROWTH rather than by a fixed number of hops, because the depth differs
+      // between Pages and personal profiles and a magic number would only be the next guess.
+      var navLen = String(nav.innerText || "").length;
+      var panel = nav, up = 0;
+      while (panel.parentElement && up < 8) {
+        panel = panel.parentElement; up += 1;
+        var len = String(panel.innerText || "").length;
+        // The FIRST ancestor that adds real content is the card wrapping the menu and the pane
+        // beside it. Anything holding Reviews and Posts as well is further up, so stopping at
+        // the first one is what keeps them out. An upper size cap was tried here and was itself
+        // a guess — it rejected the correct card on a rich profile.
+        if (len > navLen + 120) return panel;
+      }
+      return null;   // no ancestor carried content — say so rather than return the menu
     }
 
+    // Text length at each ancestor level above the sub-nav. Three attempts at scoping this panel
+    // have now failed on a different guess each time; this reports the actual shape of the tree
+    // so the next fix is chosen from measurements instead of a fourth guess.
+    function panelLadder() {
+      var out = [];
+      try {
+        var links = document.querySelectorAll('a[href*="directory_"]') || [];
+        if (!links.length) return out;
+        var n = links[0];
+        for (var i = 0; i < 14 && n.parentElement; i++) {
+          n = n.parentElement;
+          var t = String(n.innerText || "");
+          out.push({ level: i + 1, chars: t.length,
+                     navs: (n.querySelectorAll('a[href*="directory_"]') || []).length,
+                     head: t.replace(/\s+/g, " ").slice(0, 70) });
+        }
+      } catch (e) { /* ignore */ }
+      return out;
+    }
+
+    // Best-effort text for the FALLBACK path only. It does not try to find the About card any
+    // more: three attempts did, each drew the boundary somewhere different, and each was walked
+    // through by a section the last one had not met — the last one returned four lines of menu
+    // and lost every email. Facebook renders About, Reviews, Posts and Photos into one tree and
+    // the boundary is not reliably findable with selectors. So this subtracts what it can prove
+    // is foreign (article/feed subtrees) and the record says source:"dom", which is the reader's
+    // signal to distrust it. The GraphQL path above has no such problem and is the real answer.
     function profileText() {
-      var root = null, panel = null;
-      try { panel = aboutPanel(); } catch (e) { /* ignore */ }
-      if (panel) panelFound = true;
-      // No panel means the walk is not where it thinks it is. Fall back rather than return
-      // nothing, but SAY SO: a dossier quietly assembled from a whole timeline reads exactly
-      // like one assembled from an About section, and only this flag tells them apart.
-      try { root = panel || document.querySelector('[role="main"]'); } catch (e) { /* ignore */ }
+      var root = null;
+      try { root = document.querySelector('[role="main"]'); } catch (e) { /* ignore */ }
       root = root || document.body;
       if (!root) return "";
       var feedLines = {}, feeds = [];
@@ -2284,8 +2446,7 @@
         if (hb.width <= 0 || hb.height <= 0) continue;
         try { byHref[h].click(); } catch (e) { break; }
         return wait(600).then(function () { return settleThenScan(settleMs); })
-          .then(expandSeeMore).then(function (n) {
-            if (n) seeMoreClicks += n;
+          .then(function () {
             recordGql("about", aboutMark);
             about.about = harvestDelta("about"); checked.push("about"); return true;
           });
@@ -2299,8 +2460,7 @@
         if (box.width <= 0 || box.height <= 0) continue;
         try { n.click(); } catch (e) { return Promise.resolve(false); }
         return wait(600).then(function () { return settleThenScan(settleMs); })
-          .then(expandSeeMore).then(function (n) {
-            if (n) seeMoreClicks += n;
+          .then(function () {
             recordGql("about", aboutMark);
             about.about = harvestDelta("about"); checked.push("about"); return true;
           });
@@ -2376,8 +2536,7 @@
         if (!opened) { missing.push(t.key); return wait(150).then(step); }
         // Expand BEFORE harvesting, or the delta records the truncated line and the expanded
         // one never gets read — the harvest only ever sees each line once.
-        return expandSeeMore().then(function (n) {
-          if (n) seeMoreClicks += n;
+        return Promise.resolve().then(function () {
           recordGql(t.key, mark);
           about[t.key] = harvestDelta(t.key);
           checked.push(t.key);
@@ -2405,8 +2564,7 @@
       // Expand here too even though background.js already ran one pass before injection: that
       // pass happens before this capability exists, so its result is invisible to the probe and
       // a bio that grew a second "See more" after the first click stays cut.
-      return Promise.resolve(expandSeeMore()).then(function (n) {
-      if (n) seeMoreClicks += n;
+      return Promise.resolve().then(function () {
       recordGql("main", mainMark);
       about.main = harvestDelta("main");
       checked.push("main");
@@ -2423,6 +2581,34 @@
       //
       // So when the job already points at About, do not re-enter it and do not re-read what is
       // on screen. Clicking "About" from an About page was also what dragged the post feed in.
+      // GraphQL FIRST. When the sections come back as data there is nothing to scope, nothing to
+      // click, and structurally nothing for a review or a post to leak through. The DOM walk
+      // below stays only as a fallback for a page that never fires the About query.
+      function gatherAbout() {
+      return aboutViaGraphQL(inputs).then(function (gql) {
+        gqlAbout = gql;
+        if (gql && gql.ok) {
+          for (var sk = 0; sk < gql.order.length; sk++) {
+            var key = gql.order[sk], lines = gql.sections[key] || [];
+            about[key] = lines;
+            checked.push(key);
+            for (var li = 0; li < lines.length && aboutLines.length < 200; li++) {
+              var ln = lines[li];
+              if (seenLine[ln]) continue;
+              seenLine[ln] = 1;
+              if (DOSSIER_CHROME.test(ln)) continue;
+              aboutLines.push(ln);
+            }
+            addFrom(lines.join("\n"), key);
+          }
+          panelFound = true;   // the data came from the About query itself, not from a guess
+          return null;
+        }
+        return walkTheDom();
+      });
+    }
+
+    function walkTheDom() {
       var atAbout = /\/about|sk=about|directory_/i.test(location.href);
       return (atAbout ? Promise.resolve(true) : enterAbout()).then(function (entered) {
         if (atAbout) checked.push("about(already)");
@@ -2440,10 +2626,15 @@
           return wait(500).then(look);
         }
         return look();
-      }).then(step).then(function () {
-        // A second header read, now that the About tabs have rendered. Same DOM parser, more text
-        // to parse: "Works at"/"Studied at"/"Lives in" lines that the main page truncated are on
-        // these tabs in full. Union the two, never overwrite — the main page is not always poorer.
+      }).then(step);
+    }
+
+    // Reached by BOTH paths. When it lived at the tail of the DOM walk, the GraphQL path
+    // returned without ever building a record.
+    function buildRecord() {
+        // A second header read, now that the About sections have arrived. Same DOM parser, more
+        // text to parse: "Works at"/"Studied at"/"Lives in" lines the main page truncated are
+        // complete here. Union the two, never overwrite — the main page is not always poorer.
         return Promise.resolve(profileHeader(inputs)).then(function (h2) {
           var later = (h2 && h2.items && h2.items[0]) || {};
           function union(a, b) {
@@ -2494,6 +2685,15 @@
             // the panel was not located and the text is whatever the main column held — posts,
             // reviews and all. Treat a false here as a reason to distrust about_lines.
             about_panel_found: panelFound,
+            // How the sections were obtained. "graphql" means the About query was replayed by
+            // doc_id and nothing on the page was clicked or scraped — the only mode in which a
+            // review or a post cannot leak in. "dom" means the query never fired and the walk
+            // fell back to clicking, so about_lines is worth a second look.
+            source: gqlAbout && gqlAbout.ok ? "graphql" : "dom",
+            graphql_about: gqlAbout ? { ok: !!gqlAbout.ok, reason: gqlAbout.reason || null,
+              tokens_found: gqlAbout.tokens_found || 0, doc_id: gqlAbout.doc_id || null,
+              sections: (gqlAbout.order || []).length, failed: (gqlAbout.failed || []).length } : null,
+            _panel_ladder: inputs.debug_panel ? panelLadder() : undefined,
             budget_exhausted: budgetExhausted,
             elapsed_ms: Date.now() - startedAt
           };
@@ -2509,7 +2709,9 @@
             error: ok ? null : "profile opened but yielded no name, address or About text"
           };
         });
-      });
+    }
+
+    return gatherAbout().then(buildRecord);
       });
     });
   }
@@ -2522,6 +2724,78 @@
   //
   // The pointer chain here is the same one the reaction flyout uses, which Facebook accepts —
   // a bare element.hover() does not open these cards.
+  // _diag.about_sections — can the About sections be REPLAYED instead of clicked?
+  //
+  // Three attempts at scoping the DOM to the About card have failed, each on a different guess,
+  // because Facebook renders About, Reviews, Posts and Photos into one tree and the boundary
+  // between them is not something a selector can be relied on to find. A GraphQL response for an
+  // About section cannot contain a review: the separation is structural rather than positional.
+  //
+  // The probe already established that ONE query serves every section
+  // (ProfileCometAboutAppSectionQuery, doc_id 27470497829312569) and that its selector is a
+  // per-profile, per-section `collectionToken`. What decides whether replay is viable is a
+  // question only a live page can answer: does landing on /about surface EVERY section's token,
+  // or does each token appear only when its own tab is clicked? If it is the former, the DOM walk
+  // can be deleted outright. If the latter, replay saves nothing and the clicking has to stay.
+  function diagAboutSections(inputs) {
+    inputs = inputs || {};
+    var store = window.__soloGql;
+    var res = { capability: "_diag.about_sections", schema: "Diagnostic", available: true, count: 0, items: [], diagnostic: {} };
+    if (!store || !Array.isArray(store.captures)) { res.diagnostic.error = "no capture store"; return Promise.resolve(res); }
+
+    return settleThenScan(Number(inputs.settle_ms) || 5000).then(function () {
+      var caps = store.captures || [], calls = [], tokens = {}, scanned = 0;
+      for (var i = 0; i < caps.length; i++) {
+        var c = caps[i] || {};
+        var v = c.variables || {};
+        if (/AboutAppSection/i.test(String(c.queryName || ""))) {
+          calls.push({
+            query: String(c.queryName || ""), doc_id: String(c.docId || ""), has_dtsg: !!c.fbDtsg,
+            variable_keys: Object.keys(v).sort(),
+            pageID: v.pageID || null, userID: v.userID || null,
+            appSectionFeedKey: v.appSectionFeedKey ? String(v.appSectionFeedKey).slice(0, 40) + "…" : null,
+            collectionToken: v.collectionToken ? decodeToken(v.collectionToken) : null,
+            sectionToken: v.sectionToken ? decodeToken(v.sectionToken) : null
+          });
+        }
+        // The tokens are base64 in the variables and decode to "app_collection:pfbid…". If the
+        // page's own responses already carry every section's token, one load is all it takes.
+        var body = "";
+        try { body = JSON.stringify(c.response || ""); } catch (e) { body = ""; }
+        if (!body) continue;
+        scanned += 1;
+        var hits = body.match(/YXBwX2NvbGxl[A-Za-z0-9+/=_-]{20,}/g) || [];
+        for (var h = 0; h < hits.length; h++) {
+          var dec = decodeToken(hits[h]);
+          if (!dec) continue;
+          if (!tokens[dec]) tokens[dec] = { token: dec, seen_in: [] };
+          var qn = String(c.queryName || "?");
+          if (tokens[dec].seen_in.indexOf(qn) === -1) tokens[dec].seen_in.push(qn);
+        }
+      }
+      var list = [];
+      for (var t in tokens) list.push(tokens[t]);
+      res.diagnostic = {
+        url: location.href,
+        about_query_calls: calls,
+        distinct_section_tokens_in_responses: list.length,
+        section_tokens: list.slice(0, 25),
+        captures_scanned: scanned,
+        // The verdict this probe exists for, stated rather than left to be inferred.
+        verdict: list.length >= 3
+          ? "REPLAYABLE — one page load surfaced " + list.length + " section tokens, so the sections can be fetched by doc_id and the DOM walk deleted"
+          : "NOT REPLAYABLE FROM ONE LOAD — only " + list.length + " token(s) appeared without clicking; each section's token seems to arrive with its own click, so replay would save nothing"
+      };
+      res.count = 1;
+      res.items = [res.diagnostic];
+      return res;
+    });
+  }
+  function decodeToken(b64) {
+    try { return decodeURIComponent(escape(atob(String(b64).replace(/-/g, "+").replace(/_/g, "/")))); }
+    catch (e) { try { return atob(String(b64)); } catch (e2) { return null; } }
+  }
+
   function diagHover(inputs) {
     inputs = inputs || {};
     var store = window.__soloGql;
@@ -2749,7 +3023,7 @@
   }
 
   var DOM_CAPABILITIES = {
-    "_diag.hover_probe": diagHover,
+    "_diag.hover_probe": diagHover, "_diag.about_sections": diagAboutSections,
     "fb.profile.hovercard": profileHovercard,
     "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader,
     "fb.profile.contacts": profileContacts, "fb.profile.dossier": profileDossier };

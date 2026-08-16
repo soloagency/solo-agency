@@ -118,14 +118,30 @@ function makeCtx(opts) {
       // The sub-nav probe used to locate the About card. Its ancestors carry ONLY the panel's
       // own text, which is what keeps Reviews and Posts out of the record.
       if (sel === 'a[href*="directory_"]') {
-        if (state.current === "main" && !opts.aboutPanelOnMain) return [];
-        const panel = {
-          get innerText() { return pages[state.current] || ""; },
+        // The real shape, which the previous fake did not have: a NAV box carrying only the menu
+        // labels, wrapped in a CARD that also holds the content pane. Scoping to the nav box was
+        // what returned four lines of menu and no bio on a live run — a fake with one ancestor
+        // level could not have caught that.
+        const card = {
+          get innerText() { return (pages[state.current] || ""); },
           querySelectorAll: (q) => (/role="button"/.test(q) && seeMoreLeft > 0 ? [seeMoreBtn()] : []),
-          parentElement: null,
+          // The ancestor ABOVE the card is where Reviews and Posts live. The walk must stop
+          // before this one — that is the whole point of taking the first ancestor with content.
+          parentElement: { get innerText() { return (pages[state.current] || "") + "\n" + (opts.feed || ""); },
+                           querySelectorAll: () => [], parentElement: null },
         };
-        return [{ getAttribute: () => "/claire/directory_intro", parentElement: panel,
-                  getBoundingClientRect: () => ({ width: 80, height: 18 }) }];
+        const nav = {
+          innerText: Object.keys(SLUGS).join("\n"),
+          querySelectorAll: (q) => (/directory_/.test(q) ? navLinks() : []),
+          parentElement: card,
+        };
+        function navLinks() {
+          return offers.map((k) => ({ getAttribute: () => "/claire/" + SLUGS[k], parentElement: nav,
+                                      getBoundingClientRect: () => ({ width: 80, height: 18 }) }));
+        }
+        card.querySelectorAll = (q) => (/directory_/.test(q) ? navLinks()
+          : (/role="button"/.test(q) && seeMoreLeft > 0 ? [seeMoreBtn()] : []));
+        return navLinks();
       }
       // the About entry link
       if (/sk=about|\/about/.test(sel) && state.current === "main") return [anchor("/claire/about", "About", navTo("about"))];
@@ -324,14 +340,16 @@ async function run() {
     check("the auth token's presence is reported, never the token", rows.every((r) => r.has_fb_dtsg === true && !/TOKEN/.test(JSON.stringify(r))), rows);
   }
 
-  console.log("\n== a truncated bio gets expanded on every surface, not just the entry page ==");
+  console.log("\n== the DOM fallback clicks nothing at all ==");
   {
+    // "See more" is the control that clicked into Reviews and posts. The fallback no longer
+    // expands anything: a truncated bio is a smaller loss than a review thread recorded as a
+    // profile fact, and the GraphQL path returns the full text anyway.
     const { ctx } = makeCtx({ seeMore: 3 });
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
-    check("See more was clicked more than once across the walk", (it.see_more_expansions || 0) >= 2, it.see_more_expansions);
-    check("the expansion's own query is recorded",
-      Object.keys(it.graphql_by_surface || {}).some((k) => (it.graphql_by_surface[k] || []).some((r) => /SeeMore/.test(r.query))), it.graphql_by_surface);
+    check("nothing was expanded", (it.see_more_expansions || 0) === 0, it.see_more_expansions);
+    check("the record says the text came from the DOM, not GraphQL", it.source === "dom", it.source);
   }
 
   console.log("\n== every section the profile publishes gets opened ==");
@@ -405,6 +423,65 @@ async function run() {
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
     check("nothing inside a post was expanded", (it.see_more_expansions || 0) === 0, it.see_more_expansions);
+  }
+
+  console.log("\n== sections come from GraphQL, and the DOM is never touched ==");
+  {
+    // Measured live: landing on /about surfaced 6, 10 and 10 section tokens with zero clicks,
+    // all served by one persisted query. A response for an About section cannot contain a
+    // review — that is why this replaces the DOM walk rather than patching it.
+    const tok = (n) => Buffer.from("app_collection:pfbid0" + n).toString("base64");
+    const seed = {
+      queryName: "ProfileCometAboutAppSectionQuery", docId: "27470497829312569",
+      fbDtsg: "TOKEN", av: "100", url: "/api/graphql/",
+      variables: { pageID: "1", userID: "1", appSectionFeedKey: "KEY",
+                   collectionToken: tok("A"), sectionToken: tok("A"), scale: 1,
+                   __relay_internal__pv__FBProfile_enable_perf_improv_gkrelayprovider: true },
+      response: { data: { nav: [
+        { title: "Work", token: tok("A") },
+        { title: "Contact info", token: tok("B") },
+      ] } },
+    };
+    const served = {};
+    served[tok("A")] = { data: { section: { rows: ["Owner/President at Reach Home Loans", "NMLS: 2266637"] } } };
+    served[tok("B")] = { data: { section: { rows: ["Email", "info@annv.ca"] } } };
+
+    const { ctx } = makeCtx({ feed: "Mickey Nguyen's Post\n12K" });
+    ctx.window.__soloGql = {
+      captures: [seed],
+      parseResponse: (t) => JSON.parse(t),
+      origFetch: (url, opt) => {
+        const vars = JSON.parse(new URLSearchParams(opt.body).get("variables"));
+        // The provider flags and the profile-scoped key must survive: dropping one comes back as
+        // an empty section rather than an error, which is the hardest failure to notice.
+        if (!vars.appSectionFeedKey || !vars.__relay_internal__pv__FBProfile_enable_perf_improv_gkrelayprovider) {
+          return Promise.resolve({ text: () => Promise.resolve(JSON.stringify({ data: {} })) });
+        }
+        return Promise.resolve({ text: () => Promise.resolve(JSON.stringify(served[vars.collectionToken] || { data: {} })) });
+      },
+    };
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    check("the record says the sections came from GraphQL", it.source === "graphql", it.source);
+    check("every token found was fetched", (it.graphql_about || {}).sections === 2, it.graphql_about);
+    check("the doc_id used is reported", (it.graphql_about || {}).doc_id === "27470497829312569", it.graphql_about);
+    check("sections are named, not numbered", !!(it.about || {}).work && !!(it.about || {}).contact_info, Object.keys(it.about || {}));
+    check("the job title arrived", (it.about_lines || []).some((l) => /Reach Home Loans/.test(l)), it.about_lines);
+    check("the licence number arrived", (it.about_lines || []).some((l) => /NMLS/.test(l)), it.about_lines);
+    check("the address arrived", (it.emails || []).indexOf("info@annv.ca") !== -1, it.emails);
+    // The whole reason for the pivot: a post cannot reach a record assembled from section data.
+    check("no post text could reach the record", !(it.about_lines || []).some((l) => /Post|12K/.test(l)), it.about_lines);
+    check("nothing on the page was clicked", (it.see_more_expansions || 0) === 0, it.see_more_expansions);
+  }
+
+  console.log("\n== when the About query never fires, it falls back and says so ==");
+  {
+    const { ctx } = makeCtx({ seeMore: 0 });
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    check("it fell back to the DOM", it.source === "dom", it.source);
+    check("and the reason is recorded", !!(it.graphql_about || {}).reason, it.graphql_about);
+    check("the walk still produced a record", res.available === true && !!it.profile_url, res.available);
   }
 
   console.log("\n== the operator's own profile IS refused ==");
