@@ -2004,6 +2004,11 @@
       base.added_by_head_page = state.head;
       base.head_page_via = state.headVia;
       base.available = base.count > 0;
+      // The base extraction runs BEFORE the head fetch and the pagination walk, so on a screen
+      // whose natural capture held nothing it stamps reason:"no_match" — which then survived
+      // onto a result carrying five posts. Clear it once anything arrived, or every consumer
+      // reading `reason` is told the opposite of what happened.
+      if (base.available && base.reason === "no_match") delete base.reason;
       return base;
     });
   };
