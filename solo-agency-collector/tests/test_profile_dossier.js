@@ -34,18 +34,26 @@ const PAGES = {
   main: page(["Claire Hanh Lam", "1.2K followers", "Works at ZenWealth Solutions", "Lives in Houston, Texas"]),
   about: page(["About"]),
   contact_info: page(["Email", "claire@zenwealthsolutions.com", "Website", "zenwealthsolutions.com"]),
-  work_education: page(["Work", "Loan Officer at Wells Fargo", "Mortgage Advisor at ZenWealth Solutions", "College", "Studied at University of Houston"]),
+  work: page(["Work", "Loan Officer at Wells Fargo", "Mortgage Advisor at ZenWealth Solutions"]),
+  education: page(["College", "Studied at University of Houston"]),
   intro: page(["Helping families finance their first home with clarity"]),
-  basic_info: page(["Speaks English, Vietnamese"]),
-  links: page(["zenwealthsolutions.com", "instagram.com/clairehanh"]),
+  personal_details: page(["Speaks English, Vietnamese"]),
 };
 
+// The slugs a live run actually observed on five personal profiles. The set this replaces was
+// invented and only `intro` was real — a fake DOM built on invented slugs happily proved a walk
+// that could not work.
+// The slugs a live run actually observed on five personal profiles. The set this replaces was
+// invented — contact_info / work_and_education / basic_info / links — and only `intro` was real.
+// A fake DOM built on invented slugs happily proved a walk that could not work: Work and
+// Education are TWO tabs on Facebook, not one. Keys here match what discovery derives from the
+// slug, so the fake and the code cannot drift apart on naming.
 const TAB_SLUG = {
   contact_info: "directory_contact_info",
-  work_education: "directory_work_and_education",
+  work: "directory_work",
+  education: "directory_education",
   intro: "directory_intro",
-  basic_info: "directory_basic_info",
-  links: "directory_links",
+  personal_details: "directory_personal_details",
 };
 
 // `offers` decides which tabs this synthetic profile actually exposes — a profile that does
@@ -150,10 +158,10 @@ async function run() {
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
     check("the record is available even before judging content", res.available === true, res.available);
-    check("all five About tabs were opened", ["contact_info", "work_and_education", "intro", "basic_info", "links"].every((k) => (it.checked || []).indexOf(k) !== -1), it.checked);
+    check("all five About tabs were opened", ["contact_info", "work", "education", "intro", "personal_details"].every((k) => (it.checked || []).indexOf(k) !== -1), it.checked);
     // contact_info comes first and carries an address; the old ladder stopped right here and
     // never saw the job title two tabs later.
-    check("it did NOT stop after the tab that had the email", (it.checked || []).indexOf("work_and_education") !== -1, it.checked);
+    check("it did NOT stop after the tab that had the email", (it.checked || []).indexOf("work") !== -1, it.checked);
     check("nothing was reported missing", (it.missing || []).length === 0, it.missing);
     check("the sub-nav was DISCOVERED, not guessed", (it.discovered_tabs || []).length === 5, it.discovered_tabs);
     check("the budget was not exhausted", it.budget_exhausted === false, it.budget_exhausted);
@@ -164,7 +172,7 @@ async function run() {
     const { ctx } = makeCtx();
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
-    const we = (it.about && it.about.work_and_education) || [];
+    const we = (it.about && it.about.work) || [];
     check("the Work and education tab kept its text", we.some((l) => /Loan Officer at Wells Fargo/.test(l)), we);
     check("the title is in the flat about_lines an agent reads", (it.about_lines || []).some((l) => /Loan Officer/.test(l)), (it.about_lines || []).slice(0, 8));
     // This is the distinction the 42-value dictionary turns on: the employer alone cannot
@@ -204,7 +212,7 @@ async function run() {
     // by the budget. A reader asking "did we look at their work history?" reads discovered_tabs
     // — answering that from `missing` alone is what made the first live run unreadable.
     check("a tab the profile does not publish is absent from discovered_tabs",
-      (it.discovered_tabs || []).every((s) => !/work_and_education/.test(s)), it.discovered_tabs);
+      (it.discovered_tabs || []).every((s) => !/directory_work\b/.test(s)), it.discovered_tabs);
     check("discovered_tabs lists exactly what this profile does publish",
       (it.discovered_tabs || []).length === 2, it.discovered_tabs);
     check("missing stays empty — nothing was found and then lost", (it.missing || []).length === 0, it.missing);
@@ -219,7 +227,7 @@ async function run() {
     const it = (res.items || [])[0] || {};
     check("the record still exists", res.available === true && (res.items || []).length === 1, res.available);
     check("it says the budget ran out", it.budget_exhausted === true, it.budget_exhausted);
-    check("every unvisited tab is listed", ["contact_info", "work_and_education", "intro", "basic_info", "links"].every((k) => (it.missing || []).indexOf(k) !== -1), it.missing);
+    check("every unvisited tab is listed", ["contact_info", "work", "education", "intro", "personal_details"].every((k) => (it.missing || []).indexOf(k) !== -1), it.missing);
     check("the header read on the landing page is still there", !!it.name, it.name);
     check("elapsed_ms is reported", typeof it.elapsed_ms === "number", it.elapsed_ms);
   }
@@ -244,7 +252,7 @@ async function run() {
     ctx.document.title = "";                       // no title to fall back on
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
-    check("the walk still ran", (it.checked || []).indexOf("work_and_education") !== -1, it.checked);
+    check("the walk still ran", (it.checked || []).indexOf("work") !== -1, it.checked);
     check("the job title was still collected", (it.about_lines || []).some((l) => /Loan Officer/.test(l)), (it.about_lines || []).slice(0, 6));
     check("the record was not replaced by the header's failure envelope", res.capability === "fb.profile.dossier", res.capability);
   }
@@ -258,11 +266,11 @@ async function run() {
     // The point of the probe: a surface whose content arrives in ONE named query can be
     // replayed by doc_id instead of clicked, the way fb.profile.hovercard already is.
     check("a query name is recorded for a tab that opened",
-      (g.work_and_education || []).some((r) => /ProfileCometAbout/.test(r.query)), g.work_and_education);
+      (g.work || []).some((r) => /ProfileCometAbout/.test(r.query)), g.work);
     check("its doc_id comes along, since that is what replay needs",
-      (g.work_and_education || []).every((r) => !!r.doc_id), g.work_and_education);
+      (g.work || []).every((r) => !!r.doc_id), g.work);
     check("variables are withheld unless asked for",
-      (g.work_and_education || []).every((r) => r.variables === undefined), g.work_and_education);
+      (g.work || []).every((r) => r.variables === undefined), g.work);
   }
 
   console.log("\n== probe_graphql adds what a replay would need ==");
@@ -270,7 +278,7 @@ async function run() {
     const { ctx } = makeCtx({ seeMore: 0 });
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", { settle_ms: 1, probe_graphql: true });
     const it = (res.items || [])[0] || {};
-    const rows = (it.graphql_by_surface || {}).work_and_education || [];
+    const rows = (it.graphql_by_surface || {}).work || [];
     check("variables are captured", rows.some((r) => /1369773994/.test(r.variables || "")), rows);
     check("the auth token's presence is reported, never the token", rows.every((r) => r.has_fb_dtsg === true && !/TOKEN/.test(JSON.stringify(r))), rows);
   }
