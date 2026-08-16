@@ -2049,6 +2049,71 @@
   var SECTION_LABEL = /^(all|followers|category|details|links|services|work|education|contact info|personal details|privacy and legal info|names|reviews|social media|bio|address|phone|mobile|email|messenger|hours|website|rating and reviews|intro|giới thiệu|địa chỉ|điện thoại)$/i;
   var DOSSIER_CHROME = /^(like|comment|share|follow|following|message|add friend|see all|see more|more|photos|videos|reels|friends|about|posts|intro|edit profile|create|log in|sign up|suggested for you|sponsored|thích|bình luận|chia sẻ|theo dõi|nhắn tin|xem thêm|xem tất cả|giới thiệu|bạn bè|ảnh|video)$/i;
 
+  // fb.profile.enrich — ONE tab, the whole lead: recent posts AND the About section.
+  //
+  // Stage 4 requires both and they came from different capabilities, so enriching one person cost
+  // two or three page loads: fb.profile.posts for the dated proof-of-life a `high` band demands,
+  // then fb.profile.dossier for the address and the trade. Same person, same tab, twice the
+  // wall-clock and twice the rate-limit exposure.
+  //
+  // The order is forced and is the whole trick. The timeline query only fires when the tab LANDS
+  // on the profile root, and gql_intercept captures it there; the About walk then happens in the
+  // same tab, after. Submit /about and the timeline never renders, so there is nothing to read —
+  // which is why this capability takes the ROOT url while fb.profile.dossier takes /about. Reading
+  // the captures first also means no second navigation: the posts are already in the store.
+  function profileEnrich(inputs) {
+    inputs = inputs || {};
+    var maxPosts = Number(inputs.max_posts) > 0 ? Math.min(Number(inputs.max_posts), 25) : 5;
+    var startedAt = Date.now();
+
+    function takeCaptured(capId, n) {
+      // The synchronous, capture-reading extractor — no navigation, no scroll. It reports
+      // available:false when nothing matched, which here means "the timeline had not rendered
+      // yet", not "this person has no posts"; the difference is carried in `reason`.
+      var res;
+      try { res = window.__soloGqlExtractCapability(capId, inputs); }
+      catch (e) { return { available: false, reason: String(e && e.message || e), items: [] }; }
+      if (!res || !Array.isArray(res.items)) return { available: false, reason: (res && res.reason) || "no_items", items: [] };
+      return { available: res.available !== false, reason: res.reason || null, items: res.items.slice(0, n), total_seen: res.items.length };
+    }
+
+    // Give the timeline a moment to arrive. background.js has already waited for load, but the
+    // feed query lands after first paint and this capability is worthless without it.
+    return settleThenScan(Number(inputs.settle_ms) > 0 ? Number(inputs.settle_ms) : 2500).then(function () {
+      var posts = takeCaptured("fb.profile.posts", maxPosts);
+      // Videos live behind their own tab and normally have not fired here. Take them when the
+      // capture happens to exist and never navigate for them — a second page load is the cost
+      // this capability exists to remove.
+      var videos = takeCaptured("fb.profile.videos", maxPosts);
+      var landedOn = (location.href || "").split("?")[0];
+      return profileDossier(inputs).then(function (dos) {
+        if (dos && dos.reason === "self_profile") return dos;
+        var about = (dos && dos.items && dos.items[0]) || {};
+        var item = {};
+        for (var k in about) item[k] = about[k];
+        item.posts = posts.items;
+        item.videos = videos.items;
+        item.timeline = {
+          landed_on: landedOn,
+          posts_available: posts.available, posts_reason: posts.reason,
+          posts_seen: posts.total_seen || 0, posts_kept: posts.items.length,
+          videos_available: videos.available, videos_seen: videos.total_seen || 0
+        };
+        item.elapsed_ms = Date.now() - startedAt;
+        var ok = !!(item.name || (item.emails || []).length || (item.about_lines || []).length || posts.items.length);
+        return {
+          capability: "fb.profile.enrich", schema: "ProfileEnrich",
+          // available:true whenever the pass RAN. A profile with no public posts and a private
+          // About is a real answer; hiding the record makes it indistinguishable from a crash,
+          // which this file has been bitten by three times.
+          available: true, found: ok, count: ok ? 1 : 0, items: [item],
+          checked: item.checked || [],
+          error: ok ? null : "profile opened but yielded no name, address, About text or posts"
+        };
+      });
+    });
+  }
+
   // ---- About sections by GraphQL replay, no clicking ---------------------------------------
   //
   // Measured on three live pages: landing on /about surfaces 6, 10 and 10 section tokens with
@@ -3123,7 +3188,8 @@
     "_diag.hover_probe": diagHover, "_diag.about_sections": diagAboutSections,
     "fb.profile.hovercard": profileHovercard,
     "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader,
-    "fb.profile.contacts": profileContacts, "fb.profile.dossier": profileDossier };
+    "fb.profile.contacts": profileContacts, "fb.profile.dossier": profileDossier,
+    "fb.profile.enrich": profileEnrich };
 
   // The typed extraction is PASSIVE — it reads whatever GraphQL response is already in
   // the ring buffer. On a search/list page the results query (e.g.

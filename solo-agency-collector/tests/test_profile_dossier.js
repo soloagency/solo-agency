@@ -567,6 +567,39 @@ async function run() {
     check("the display name is not returned as a bio", (it.intro_bio || "") !== it.name, { bio: it.intro_bio, name: it.name });
   }
 
+  console.log("\n== fb.profile.enrich: one tab returns the posts AND the About section ==");
+  {
+    // Stage 4 needs both — dated posts for proof-of-life, About for the trade and the address —
+    // and they were two capabilities, so one person cost two page loads.
+    const { ctx } = makeCtx({ seeMore: 0 });
+    ctx.location.href = "https://www.facebook.com/jebsmith";      // the ROOT, not /about
+    ctx.window.__soloGqlExtractCapability = (id) => id === "fb.profile.posts"
+      ? { available: true, items: [{ id: "p1", text: "Just closed on Main St" }, { id: "p2", text: "Market update" },
+                                   { id: "p3", text: "Open house" }, { id: "p4", text: "old" }, { id: "p5", text: "older" },
+                                   { id: "p6", text: "oldest" }] }
+      : { available: false, reason: "no_capture_in_scope", items: [] };
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.enrich", { settle_ms: 1, max_posts: 3 });
+    const it = (res.items || [])[0] || {};
+    check("the record is one merged object", res.capability === "fb.profile.enrich" && (res.items || []).length === 1, res.capability);
+    check("max_posts is honoured", (it.posts || []).length === 3, (it.posts || []).length);
+    check("the About fields came along in the same record", Array.isArray(it.about_lines) && !!it.emails, Object.keys(it));
+    check("the About walk still ran", (it.checked || []).length > 0, it.checked);
+    // "no posts" and "the timeline had not rendered" need opposite fixes, so they are not merged.
+    check("an absent videos capture is reported, not silently empty",
+      it.timeline && it.timeline.videos_available === false, it.timeline);
+    check("it records which url it landed on", /jebsmith/.test((it.timeline || {}).landed_on || ""), it.timeline);
+  }
+
+  console.log("\n== enrich refuses the operator's own profile too ==");
+  {
+    const { ctx } = makeCtx({ seeMore: 0 });
+    ctx.location.pathname = "/me";
+    ctx.window.__soloGqlExtractCapability = () => ({ available: false, items: [] });
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.enrich", { settle_ms: 1 });
+    check("it refuses instead of returning the operator as a lead",
+      res.available === false && res.reason === "self_profile", { a: res.available, r: res.reason });
+  }
+
   console.log("\n== the operator's own profile IS refused ==");
   {
     const { ctx } = makeCtx();
