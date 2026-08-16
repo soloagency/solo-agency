@@ -75,7 +75,7 @@
       "work": "string[] — employers the profile declares (Works at / Worked at / Làm việc tại)",
       "education": "string[] — schools the profile declares",
       "location": "string[] — Lives in / From",
-      "intro_lines": "string[] — the intro card lines as written, capped at 20. READ THESE to work out a trade:  is a narrow hard-coded whitelist (real-estate and insurance wording only) that is blind to every other job and can false-positive on a page that merely mentions the words."
+      "intro_lines": "string[] — the intro card lines as written, capped at 20. READ THESE to work out a trade: `category` is a narrow hard-coded whitelist (real-estate and insurance wording only) that is blind to every other job and can false-positive on a page that merely mentions the words."
     },
     "VideoRecord": {
       "id": "string",
