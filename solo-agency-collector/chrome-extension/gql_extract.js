@@ -1622,7 +1622,11 @@
     try {
       var _p = location.pathname.replace(/\/+$/, "").toLowerCase();
       if ((_p === "/profile.php" && !new URLSearchParams(location.search).get("id")) || _p === "/me") {
-        return { capability: "fb.profile.header", available: false, count: 0, items: [], error: "resolved to the logged-in operator (ambiguous URL); need profile.php?id=<id> or a vanity URL", _debug: { href: location.href } };
+        // `reason` is a STABLE marker, not decoration: fb.profile.dossier has to tell this
+        // refusal apart from the ordinary available:false this function returns when it merely
+        // failed to read a name. Bailing on both would throw away a whole About walk over a
+        // missing heading. Never match on the error prose — it is not a contract.
+        return { capability: "fb.profile.header", available: false, reason: "self_profile", count: 0, items: [], error: "resolved to the logged-in operator (ambiguous URL); need profile.php?id=<id> or a vanity URL", _debug: { href: location.href } };
       }
     } catch (e) { /* ignore */ }
     var body = (document.body ? document.body.innerText : "").replace(/ /g, " ");
@@ -1974,6 +1978,276 @@
     });
   }
 
+  // fb.profile.dossier — ONE visit, the WHOLE profile. Header + the full About ladder in a
+  // single capability, because enrich previously needed two capabilities (fb.profile.header,
+  // then fb.profile.contacts) on the same person, which means two tab loads, twice the
+  // wall-clock and twice the rate-limit exposure for one lead. Halving the requests doubles
+  // how many leads a run can process, so this is a throughput change, not a tidy-up.
+  //
+  // Three things it does that the two older capabilities do not:
+  //   1) it walks "Work and education", which the contacts ladder never visited — that tab is
+  //      where a profile prints a JOB TITLE ("Loan Officer at Wells Fargo"). The title, not the
+  //      employer, is what separates Loan & Mortgage from Banking & Financial. `work[]` on
+  //      fb.profile.header only ever captured the employer, because its patterns are anchored
+  //      to "works at <X>".
+  //   2) it never stops at the first email. Stopping early is right when the goal is an address
+  //      and wrong when the goal is a dossier: the tabs after the hit are the ones with the trade.
+  //   3) it KEEPS the text of every tab it opens. The contacts ladder rendered those tabs and then
+  //      ran two regexes over them, discarding the profession it had just paid to load.
+  //
+  // Deliberately NOT a classifier. It returns what the profile says about itself as text and lets
+  // the reading agent choose an industry. A keyword map here is what makes every trade outside the
+  // map invisible — the failure already recorded on `category` (line ~1703) and `industryHint()`.
+  //
+  // TIMEOUT — read before raising any budget. background.js:752 kills a capability at 45s, and an
+  // earlier attempt at exactly this ladder (fb.profile.about) blew that limit twice and had to be
+  // deleted. Five tabs at the contacts ladder's 5s settle is ~35s worst case, which leaves no room
+  // for a slow profile. So: a 2.8s per-tab settle (an About sub-tab is small; settleThenScan
+  // returns as soon as the text stops growing, typically ~1s), and a hard internal deadline. When
+  // the budget runs out the walk STOPS and returns what it has with `checked[]` and
+  // `budget_exhausted: true` — a partial dossier that says which tabs it read beats a record the
+  // 45s timeout turned into nothing.
+  var DOSSIER_TABS = [
+    // Facebook uses `directory_*` slugs on Pages and `about_*` on personal profiles, and the
+    // visible label changes with the viewer's locale. Match on either slug first and fall back to
+    // the label, so neither convention nor a Vietnamese UI silently skips a tab.
+    { key: "contact_info", hrefs: ["directory_contact_info", "about_contact_and_basic_info"],
+      label: /^(contact info|contact and basic info|thông tin liên hệ)/i },
+    { key: "work_education", hrefs: ["directory_work_and_education", "about_work_and_education"],
+      label: /^(work and education|work & education|công việc và học vấn|công việc và giáo dục)/i },
+    { key: "intro", hrefs: ["directory_intro"], label: /^(intro|giới thiệu)/i },
+    { key: "basic_info", hrefs: ["directory_basic_info", "about_overview"],
+      label: /^(basic info|overview|thông tin cơ bản|tổng quan)/i },
+    { key: "links", hrefs: ["directory_links"], label: /^(links|websites and social links|liên kết)/i }
+  ];
+  var DOSSIER_CHROME = /^(like|comment|share|follow|following|message|add friend|see all|see more|more|photos|videos|reels|friends|about|posts|intro|edit profile|create|log in|sign up|suggested for you|sponsored|thích|bình luận|chia sẻ|theo dõi|nhắn tin|xem thêm|xem tất cả|giới thiệu|bạn bè|ảnh|video)$/i;
+
+  function profileDossier(inputs) {
+    inputs = inputs || {};
+    var startedAt = Date.now();
+    // Budget for the LADDER only. 30s of a 45s capability leaves ~15s for the landing-page
+    // settle background.js already did plus the header pass plus the record post.
+    var budgetMs = Number(inputs.budget_ms) > 0 ? Number(inputs.budget_ms) : 30000;
+    var settleMs = Number(inputs.settle_ms) > 0 ? Number(inputs.settle_ms) : 2800;
+    function budgetLeft() { return budgetMs - (Date.now() - startedAt); }
+
+    var target = String(inputs.profile_url || location.href);
+    var info = profileBaseFrom(target);
+    var emails = [], websites = [], foundOn = "", checked = [], missing = [];
+    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false;
+
+    function addSite(u) {
+      if (!u || websites.length >= 8) return;
+      var clean = String(u).split("?")[0].replace(/[",.);]+$/, "");
+      if (!clean || C_SOCIAL_HOST.test(clean) || C_ASSET.test(clean)) return;
+      var host = clean.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase();
+      if (!host) return;
+      for (var i = 0; i < websites.length; i++) {
+        var h = websites[i].replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase();
+        if (h === host) return;
+      }
+      websites.push(clean);
+    }
+    // Facebook prints a profile's site as a BARE DOMAIN under "Website" — no scheme — so a
+    // scheme-anchored regex over the page text returns nothing on the very tab that publishes
+    // it. contactWebsitesFrom() only matches https?://, which is why fb.profile.contacts can
+    // report an empty `websites` for a profile that plainly shows one. Read the anchors too
+    // (that is how fb.profile.header gets it right), and accept a bare domain when the line is
+    // nothing but a domain — narrow on purpose, so prose mentioning a company never counts.
+    var BARE_DOMAIN = /^[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)+(\/[^\s]*)?$/i;
+    function harvestAnchors() {
+      var links = [];
+      try { links = document.querySelectorAll('a[href]') || []; } catch (e) { return; }
+      for (var i = 0; i < links.length; i++) {
+        var h = links[i].getAttribute ? (links[i].getAttribute("href") || "") : "";
+        if (!h) continue;
+        if (/\/l\.php\?|l\.facebook\.com\/l\.php/.test(h)) {
+          var um = h.match(/[?&]u=([^&]+)/);
+          if (um) { try { addSite(decodeURIComponent(um[1])); } catch (e) { /* skip */ } }
+          continue;
+        }
+        if (/^https?:\/\//.test(h)) addSite(h);
+      }
+    }
+    function addFrom(text, label) {
+      var got = contactEmailsFrom(text);
+      for (var i = 0; i < got.length; i++) if (emails.indexOf(got[i]) === -1) { emails.push(got[i]); if (!foundOn) foundOn = label; }
+      var sites = contactWebsitesFrom(text);
+      for (var w = 0; w < sites.length; w++) addSite(sites[w]);
+      harvestAnchors();
+      var raw = String(text || "").split("\n");
+      for (var r = 0; r < raw.length; r++) {
+        var line = raw[r].replace(/\s+/g, " ").trim();
+        if (line.length < 4 || line.length > 100 || !BARE_DOMAIN.test(line)) continue;
+        if (/@/.test(line)) continue;
+        addSite(line);
+      }
+    }
+    // Harvest the DELTA, not the page. Every tab re-renders the same header, nav and footer, so
+    // storing each tab's full innerText would ship the same ~200 furniture lines five times and
+    // bury the handful of lines that are actually this tab's content. New-lines-only keeps the
+    // record small enough that an agent can read all of it, which is the whole point.
+    function harvestDelta(label) {
+      var text = document.body ? document.body.innerText : "";
+      addFrom(text, label);
+      var out = [], raw = String(text).split("\n");
+      for (var i = 0; i < raw.length && out.length < 40; i++) {
+        var line = raw[i].replace(/\s+/g, " ").trim();
+        if (!line || line.length < 3 || line.length > 220) continue;
+        if (seenLine[line]) continue;
+        seenLine[line] = 1;
+        if (DOSSIER_CHROME.test(line)) continue;
+        if (/^\d+[\d.,]*\s*(followers?|following|friends?|likes?|người theo dõi|bạn bè)$/i.test(line)) continue;
+        out.push(line);
+      }
+      for (var o = 0; o < out.length && aboutLines.length < 120; o++) aboutLines.push(out[o]);
+      return out;
+    }
+
+    function clickInto(tab) {
+      for (var s = 0; s < tab.hrefs.length; s++) {
+        var byHref = document.querySelectorAll('a[href*="' + tab.hrefs[s] + '"]');
+        for (var h = 0; h < byHref.length; h++) {
+          var hb = byHref[h].getBoundingClientRect();
+          if (hb.width <= 0 || hb.height <= 0) continue;
+          try { byHref[h].click(); } catch (e) { return Promise.resolve(false); }
+          return wait(500).then(function () { return settleThenScan(settleMs); }).then(function () { return true; });
+        }
+      }
+      var nodes = document.querySelectorAll('a[role="link"], [role="tab"], [role="button"], [role="listitem"] a');
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        var lab = (n.innerText || n.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+        if (!tab.label.test(lab)) continue;
+        var box = n.getBoundingClientRect();
+        if (box.width <= 0 || box.height <= 0) continue;
+        try { n.click(); } catch (e) { return Promise.resolve(false); }
+        return wait(500).then(function () { return settleThenScan(settleMs); }).then(function () { return true; });
+      }
+      return Promise.resolve(false); // this profile does not offer the tab
+    }
+
+    function enterAbout() {
+      if (/\/about|sk=about|directory_/i.test(location.href)) { checked.push("about(already)"); return Promise.resolve(true); }
+      var re = /^(about|giới thiệu)$/i;
+      var byHref = document.querySelectorAll('a[href*="sk=about"], a[href$="/about"], a[href*="/about?"]');
+      for (var h = 0; h < byHref.length; h++) {
+        var hb = byHref[h].getBoundingClientRect();
+        if (hb.width <= 0 || hb.height <= 0) continue;
+        try { byHref[h].click(); } catch (e) { break; }
+        return wait(600).then(function () { return settleThenScan(settleMs); })
+          .then(function () { about.about = harvestDelta("about"); checked.push("about"); return true; });
+      }
+      var nodes = document.querySelectorAll('a[role="link"], [role="tab"], [role="button"]');
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        var lab = (n.innerText || n.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+        if (!re.test(lab)) continue;
+        var box = n.getBoundingClientRect();
+        if (box.width <= 0 || box.height <= 0) continue;
+        try { n.click(); } catch (e) { return Promise.resolve(false); }
+        return wait(600).then(function () { return settleThenScan(settleMs); })
+          .then(function () { about.about = harvestDelta("about"); checked.push("about"); return true; });
+      }
+      return Promise.resolve(false);
+    }
+
+    var idx = 0;
+    function step() {
+      if (idx >= DOSSIER_TABS.length) return Promise.resolve();
+      // Stop on the BUDGET, never on a hit. One more tab needs a click, a settle and a scan;
+      // if that will not fit, stop honestly rather than get killed mid-tab at 45s.
+      if (budgetLeft() < settleMs + 1500) {
+        budgetExhausted = true;
+        for (var r = idx; r < DOSSIER_TABS.length; r++) missing.push(DOSSIER_TABS[r].key);
+        return Promise.resolve();
+      }
+      var tab = DOSSIER_TABS[idx++];
+      return clickInto(tab).then(function (opened) {
+        if (opened) { about[tab.key] = harvestDelta(tab.key); checked.push(tab.key); }
+        else missing.push(tab.key);
+        return wait(150).then(step);
+      });
+    }
+
+    // The landing page FIRST: name, category, followers, website, CTA and the Intro card are all
+    // on the main profile, and reading them before navigating means the dossier still carries the
+    // header even if the About ladder finds nothing (or the budget runs out on the first tab).
+    // Promise.resolve, not a bare .then: profileHeader returns a Promise on its normal path but
+    // a plain object from its self-profile guard. Calling .then on that throws, the dispatcher's
+    // catch turns the throw into a generic error record, and a refusal to scrape the operator's
+    // own profile comes back looking like available:true with no reason. Normalise both call
+    // sites instead of trusting the shape.
+    return Promise.resolve(profileHeader(inputs)).then(function (hdr) {
+      // Bail ONLY on the operator guard. profileHeader also reports available:false when it
+      // simply could not read a name, and a profile with an unreadable heading is exactly the
+      // one whose About tabs are worth walking — treating both the same would discard the walk
+      // before it started.
+      if (hdr && hdr.reason === "self_profile") return hdr;
+      var header = (hdr && hdr.items && hdr.items[0]) || {};
+      about.main = harvestDelta("main");
+      checked.push("main");
+      if (!info) {
+        return { capability: "fb.profile.dossier", schema: "ProfileDossier", available: true, found: false, count: 0,
+          items: [], checked: checked, error: "could not resolve a profile base from the url: " + target };
+      }
+      return enterAbout().then(function (entered) {
+        if (!entered) missing.push("about");
+        return step();
+      }).then(function () {
+        // A second header read, now that the About tabs have rendered. Same DOM parser, more text
+        // to parse: "Works at"/"Studied at"/"Lives in" lines that the main page truncated are on
+        // these tabs in full. Union the two, never overwrite — the main page is not always poorer.
+        return Promise.resolve(profileHeader(inputs)).then(function (h2) {
+          var later = (h2 && h2.items && h2.items[0]) || {};
+          function union(a, b) {
+            var out = (a || []).slice();
+            for (var i = 0; i < (b || []).length; i++) if (out.indexOf(b[i]) === -1) out.push(b[i]);
+            return out;
+          }
+          var item = {
+            profile_url: info.base,
+            name: header.name || later.name || "",
+            category: header.category || later.category || "",
+            follower_count: header.follower_count != null ? header.follower_count : later.follower_count,
+            verified: !!header.verified,
+            // ---- what the profile says it does. TEXT, for an agent to read. ----
+            intro_bio: header.intro_bio || later.intro_bio || "",
+            work: union(header.work, later.work),
+            education: union(header.education, later.education),
+            location: union(header.location, later.location),
+            intro_lines: union(header.intro_lines, later.intro_lines).slice(0, 20),
+            // The job TITLE lives here and nowhere else — see the note above DOSSIER_TABS.
+            about: about,
+            about_lines: aboutLines,
+            // ---- how to reach them ----
+            emails: emails,
+            websites: websites,
+            website: header.website || later.website || (websites.length ? websites[0] : ""),
+            cta: header.cta || [],
+            found_on: foundOn || null,
+            // ---- audit trail: what was actually opened, and what was not ----
+            checked: checked,
+            missing: missing,
+            budget_exhausted: budgetExhausted,
+            elapsed_ms: Date.now() - startedAt
+          };
+          var ok = !!(item.name || emails.length || aboutLines.length);
+          return {
+            capability: "fb.profile.dossier", schema: "ProfileDossier",
+            // available:true whenever the pass RAN. background.js nulls a record whose capability
+            // reports unavailable, which is how "walked the whole profile, it really says nothing"
+            // became indistinguishable from "never looked" — the exact bug fixed three times in
+            // this file already. Emptiness travels in the fields, not by hiding the record.
+            available: true, found: ok, count: ok ? 1 : 0,
+            items: [item], checked: checked,
+            error: ok ? null : "profile opened but yielded no name, address or About text"
+          };
+        });
+      });
+    });
+  }
+
   // --- diagnostic: what does HOVERING a profile fire? ----------------------
   // Hovering a friend opens Facebook's preview card, which fetches more about that person.
   // If that fetch is GraphQL, the query can be replayed directly and the whole hover step
@@ -2212,7 +2486,7 @@
     "_diag.hover_probe": diagHover,
     "fb.profile.hovercard": profileHovercard,
     "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader,
-    "fb.profile.contacts": profileContacts };
+    "fb.profile.contacts": profileContacts, "fb.profile.dossier": profileDossier };
 
   // The typed extraction is PASSIVE — it reads whatever GraphQL response is already in
   // the ring buffer. On a search/list page the results query (e.g.
