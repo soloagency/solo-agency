@@ -310,7 +310,7 @@
           "subtitle": "edge.node.subtitle_text.text",
           "mutual_friends": "parsed from subtitle when it is a mutual-friends line"
         },
-        "validated_on": "2026-07-15 (aven-ngo, nhu.white.75/friends)",
+        "validated_on": "2026-08-16 legs verified on a live friend list: three chained 5-page legs (56+40+40=136 ids) matched a single 15-page run (136 ids) EXACTLY — zero duplicates, zero missing, zero extra — and leg 3 ended on the same end_cursor as the 15-page run, so the chain stopped at the same position in the connection. Leg 1 returns head(8)+5*8+8 from the page's own capture; resuming legs return exactly 5*8=40 with head_page_via='skipped_resuming'. Had a resuming leg refetched the head, every leg would have returned 56 and the total 168 — 32 extra, and plausible enough to pass a count check.",
         "fallback": "html",
         "large_lists": "A 5,000-friend list is ~623 pages and cannot be drained in one job: the 40-page cap and the 45s timeout both stop first. Chain legs on start_cursor/end_cursor. Before doing that, consider whether the whole list is needed — this capability returns only name/url/subtitle and industry_hint is always null here, so identifying trades still costs one fb.profile.enrich PER PERSON. Filtering on `subtitle` at this stage and enriching only the matches is cheaper by orders of magnitude."
       },
