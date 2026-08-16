@@ -77,6 +77,40 @@ wins.
    reachability (still active? profile URLs + any real channel = Layer A), Tier 2 proof-of-life
    (gather as MANY evidenced Layer-B points as you can find — `public_business` only, do NOT cap;
    each is a conclusion-basis the writer weaves), distill a `writing_brief`.
+2b. **Decide the lead's `industry`, from the closed dictionary.** Read
+   `solo-agency-collector/bridge-go/lead_industries.json` — 42 entries, each with `aliases`,
+   `positive_signals` and `exclusions` — and store exactly one `industry` value **verbatim**: same
+   case, same `&`, same commas. That file is the single source of truth; it is deliberately NOT
+   reproduced here, because a second copy is a copy that drifts. YOU classify, by reading signals.
+   Never write a value the collector guessed: `fb.people.search` returns an `industry_hint` from a
+   14-value keyword map and `fb.profile.*` returns a `category` that only recognises real-estate and
+   insurance wording — both are blind to every trade outside their list, and neither is this
+   vocabulary.
+   - **What to read**, in order of weight: a licence or credential number (`NMLS #2509012`,
+     `DRE 01407449`, CPA, bar number) names a regulated trade outright and outranks self-description;
+     then the email and website DOMAIN (`reachhomeloans.com` says it plainly); then the JOB TITLE
+     under a Work heading — the employer alone is often ambiguous, since "at Wells Fargo" fits both
+     `Banking & Financial` and `Loan & Mortgage`; then the bio and intro lines. Facebook's own
+     `category` corroborates but never decides: it is blank on roughly a third of profiles.
+     `fb.profile.dossier` returns all of this from ONE page load — read `about_lines`.
+   - **Do NOT read their posts for this.** A person's trade is published on their profile; reading
+     the feed costs many times the tokens for a weaker signal.
+   - **Check `exclusions`, not just `positive_signals`.** Sixteen pairs in that list overlap on
+     purpose-built boundaries — Real Estate vs Loan & Mortgage, Immigration vs Work Abroad &
+     Immigration, Logistics vs Transportation — and the exclusions are what make two runs on the
+     same lead agree. When two entries are genuinely co-equal, prefer the REGULATED trade the person
+     is licensed for: a licence is a fact about them, a self-description is a claim.
+   - **Record the decision, not just the answer:** `industry`, `industry_confidence` (0–1),
+     `industry_reason` (one sentence), `industry_signals` (the lines you decided from). A stored
+     label nobody can audit is a label nobody can correct.
+   - **Thin signals → leave it EMPTY** and say why in `industry_reason`. A lead with no industry
+     still gets worked; a wrong one silently mis-targets every message after it, and mis-targeting
+     is invisible in a way an empty field is not.
+   - This is a different thing from the industry-AGNOSTIC rule in Layer B above. That rule governs
+     which EVIDENCE SOURCES you search for hooks and stays agnostic on purpose. This is a label ON
+     the lead. It is also not the CLIENT's own `industry` in the Client Intelligence Profile, and not
+     LeadUp's 10-value proposal taxonomy, which is remote, finer-grained in finance and law, and does
+     not map onto these 42.
 3. Write it: `tool crm-store enrich write --contact <lead_id> --campaign <slug> --json '<dossier>'`.
    It stores the full dossier under `campaigns/{slug}/queue/enriched/YYYY-MM-DD/` and a distilled
    copy into `contact.enrichment`, and returns `usable_hooks` / `confidence_band` / `problems`. A
