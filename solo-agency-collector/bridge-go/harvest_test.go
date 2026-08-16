@@ -29,6 +29,13 @@ func harvestFixture(t *testing.T) (clientDir string, store *crmStore) {
 func TestHarvestCampaignCreateNormalizesSeeds(t *testing.T) {
 	_, store := harvestFixture(t)
 	cfg := store.getCampaign("friends-oc")
+	// A harvest campaign is created PAUSED: saving must never start walking Facebook.
+	if mStr(cfg, "status") != "paused" {
+		t.Fatalf("friend_harvest campaign must be created paused, got %q", mStr(cfg, "status"))
+	}
+	if mStr(store.getCampaign("friends-oc"), "channel_strategy") != harvestChannel {
+		t.Fatal("channel lost")
+	}
 	seeds := mList(cfg, "seed_profiles")
 	if len(seeds) != 1 || seeds[0] != "https://www.facebook.com/seed.example.person" {
 		t.Fatalf("seed variants must collapse to one clean url: %v", seeds)

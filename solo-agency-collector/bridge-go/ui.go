@@ -2900,9 +2900,10 @@ document.getElementById('submit').addEventListener('click',function(){
 </div>
 </div>
 {{if eq .Status "paused"}}
-<button class="ok" id="toggle" data-to="active">Resume campaign</button>
+<button class="ok" id="toggle" data-to="active">{{if eq .Channel "friend_harvest"}}Start harvest{{else}}Resume campaign{{end}}</button>
+{{if eq .Channel "friend_harvest"}}<span class="mut" style="font-size:.83rem;margin-left:8px">Created paused on purpose: finish the seeds and the goal, save, then start. The daemon begins walking within a minute of starting.</span>{{end}}
 {{else}}
-<button id="toggle" data-to="paused">Pause campaign</button>
+<button id="toggle" data-to="paused">{{if eq .Channel "friend_harvest"}}Pause harvest{{else}}Pause campaign{{end}}</button>
 {{end}}
 </div>
 </div>

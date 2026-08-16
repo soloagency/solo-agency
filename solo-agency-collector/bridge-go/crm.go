@@ -446,6 +446,13 @@ func (c *crmStore) createCampaign(slug string, config map[string]any) (map[strin
 	// validators as campaignUpdate, so a create-with-JSON cannot smuggle a dirty
 	// url or an out-of-range budget past what the UI edit path refuses.
 	if mStr(cfg, "channel_strategy") == harvestChannel {
+		// A harvest campaign touches Facebook on its own (no approval gate), so it
+		// must never start the moment it is saved: the operator is still pasting
+		// seeds and writing the goal. It is created PAUSED; "Start harvest" on the
+		// campaign page (or `campaign update` status:active) is the deliberate on.
+		if _, explicit := config["status"]; !explicit {
+			cfg["status"] = "paused"
+		}
 		if raw, ok := cfg["seed_profiles"].([]any); ok {
 			seeds, err := normalizeSeedProfiles(raw)
 			if err != nil {
