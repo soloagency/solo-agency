@@ -23,9 +23,11 @@ Gates and `skills/email-writing/followup.md`). Its dependency is the skill `play
 - **Inherit before you enrich.** The dossier belongs to the contact and is reused across that
   client's campaigns. Always check `tool crm-store enrich status` first and act on its verdict.
 - **Read-only, logged-out.** WebSearch/WebFetch (+ browser tool only where `channel_reality.md`
-  says). Never log into an account. **Facebook is now readable via the Local Collector**
-  (`fb.profile.header` → real name/category, then `fb.profile.posts`/`fb.profile.videos`): read the
-  header to get the real name BEFORE searching, and never search from the URL slug. LinkedIn: store URL only.
+  says). Never log into an account. **Facebook is now readable via the Local Collector** — ONE
+  job per profile: `fb.profile.enrich` on the ROOT url returns name/category, the About section
+  (trade, address, contact) AND the recent timeline (posts and reels mixed, dated, with
+  permalinks) in a single record. Read that record to get the real name BEFORE any search, and
+  never search from the URL slug. LinkedIn: store URL only.
 
 ## The Write-Ready gate (what this stage must produce)
 
@@ -209,11 +211,16 @@ wins.
    | 6 | the website from #5, its Contact/Team/About page and footer | only worth the hop after 1-5 are empty |
    | 7 | licence roster or directory, web search, reverse search | the off-platform ladder, last |
 
-   **Rows 1-5 are ONE collector job, not five.** Submit capability `fb.profile.contacts` against
-   the PROFILE url (a reel/post url is not a profile — resolve the owner first). The capability
-   enters About and CLICKS each sub-tab itself, waiting for the render, and expands "See more"
-   on the bio. Do NOT hand-write a five-job tab crawl: fetching those sub-tabs returns the app
-   shell with no contact block, which is how a run can claim it "checked" a page it never saw.
+   **Rows 1-5 are covered by the SAME `fb.profile.enrich` job that already fetched the hooks —
+   not a second job.** Submitted against the PROFILE ROOT url (a reel/post url is not a profile
+   — resolve the owner first), the capability reads the timeline, then enters About in the same
+   tab and CLICKS each sub-tab itself, waiting for the render, expanding "See more" on the bio,
+   and returns emails/websites/about_lines/work[] beside `posts[]`. Do NOT hand-write a five-job
+   tab crawl, and do NOT enqueue `fb.profile.contacts` after an enrich pass on the same profile:
+   fetching those sub-tabs returns the app shell with no contact block (how a run can claim it
+   "checked" a page it never saw), and a second job is a second page load of the same profile —
+   the exact cost the merged capability exists to remove. `fb.profile.contacts` remains only for a
+   contact-only re-check on a profile whose hooks are already current.
 
    **Copy its record into the dossier as `email_discovery`** — `{profile_url, emails, websites,
    found_on, checked}`, verbatim — and put any address it found into
@@ -227,11 +234,16 @@ wins.
    one (12 of 13 verified by hand), so `checked: [current_page, about]` with no sub-tab means the
    tab is absent, not that a click was missed.
 
-   **Getting the address and getting the hooks are two DIFFERENT jobs — do not merge them.**
-   `fb.profile.contacts` walks rows 1-5 and must NOT scroll: the address sits in the bio and the
-   four `directory_*` sub-pages, never further down a feed, so scrolling only fires GraphQL queries
-   for posts this task discards. Hooks come from `fb.profile.posts` / `fb.profile.videos`, which
-   DO paginate. The catalog states this per capability (`scroll: "max_scroll"` vs `scroll: "none"`).
+   **Getting the address and getting the hooks are ONE job now — `fb.profile.enrich` — and the
+   order inside it is forced:** the timeline query only fires when the tab lands on the ROOT, so
+   the capability reads posts first (from the capture, no scroll, no second request) and walks
+   About second in the same tab. Submit `/about` and you get the About half with `posts: []`
+   (`timeline.posts_available: false`) — that is a wasted page load, not a valid pass. `posts[]`
+   carries posts AND reels mixed, each with caption, date and its own permalink: pick hooks from
+   there. Do NOT enqueue `fb.profile.videos` for "the reels" — they already arrive in `posts[]`
+   (`videos_available` is false by design; the Videos tab never fires on the root and the
+   capability will not navigate for it). `fb.profile.posts` (deep pagination, time windows) stays
+   for MONITORING a page over time, not for enrichment.
 
    **The seed the operator saved IS the hook — read it, do not go looking for a new one.**
    A lead added from a reel/post link came with its own reason to be contacted: the human picked
