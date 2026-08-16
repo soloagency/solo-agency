@@ -41,6 +41,14 @@ const (
 //go:embed collector_capabilities.json
 var embeddedCapabilities []byte
 
+// The closed vocabulary for a LEAD's industry, embedded so validation cannot disagree with the
+// playbook that instructs from it — they read the same bytes. Every agent-written enum in this
+// system is documented as prose and enforced nowhere; this one is enforced, because the operator's
+// rule was "phải chọn trong industry dictionary chứ không phải muốn điền gì là điền".
+//
+//go:embed lead_industries.json
+var embeddedLeadIndustries []byte
+
 type config struct {
 	host             string
 	port             int

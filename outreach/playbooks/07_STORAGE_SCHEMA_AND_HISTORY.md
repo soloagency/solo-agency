@@ -503,7 +503,8 @@ The dossier belongs to the **contact** (client-scope); a distilled copy lands in
    "name":"","name_given":"","entity_type":"person|company|page",
    "evidence":[{"fact":"","url":"","retrieved_at":""}],"current_company":"","role":"",
    "profiles":{"zillow":"","website":"","facebook":"","instagram":"","gbp":""},
-   "channels_found":{"emails":[],"phones":[]}},
+   "channels_found":{"emails":[],"phones":[]},
+   "industry":"","industry_confidence":0.0,"industry_reason":"","industry_signals":[]},
  "context":{"market":"","volume_signals":"","specialty":"","content_style":""},
  "hooks":[{"type":"new_listing|social_post|review|award|market_view|website_update",
    "summary":"","analysis":{"topic":"","angle":"","sensitivity":"public_business|personal"},
@@ -512,6 +513,8 @@ The dossier belongs to the **contact** (client-scope); a distilled copy lands in
 ```
 
 - **`identity.still_active`** ∈ `confirmed | inactive | unknown`; `inactive/unknown` stops enrichment before hooks.
+- **`identity.industry`** ∈ the 42 values in `solo-agency-collector/bridge-go/lead_industries.json`, stored **verbatim** (same case, same `&`, same commas) — or empty. That file is the single source of truth and is deliberately not reproduced here or in any playbook; a second copy is a copy that drifts. The ENRICH AGENT decides it by reading signals (Stage 4 step 2b), never a keyword map: the collector's own `industry_hint` and `category` are narrow regex classifiers blind to every trade outside their lists. Empty is a valid, honest answer when the signals are thin — a wrong label silently mis-targets every message after it, in a way an empty field does not. Not the CLIENT's `industry`/`sub_industry` (a different field on a different record), and not LeadUp's 10-value proposal taxonomy (remote, finer-grained in finance and law, does not map onto these 42).
+- **`identity.industry_confidence`** 0–1, **`identity.industry_reason`** one sentence, **`identity.industry_signals`** the lines it was decided from. Recorded together because a stored label nobody can audit is a label nobody can correct.
 - **`hooks[].type`** enum: `new_listing | social_post | review | award | market_view | website_update`.
 - **`hooks[].analysis.sensitivity`** ∈ `public_business | personal`. Etiquette hard rule: `public_business` signals are fair game; `personal` signals (family, health, vacations, children) are **default-banned from email copy** and go only into `do_not_mention`.
 - **`hooks[].used_in`** tracks `["campaign/step"]`; a second campaign may not open with a hook already used on that person.

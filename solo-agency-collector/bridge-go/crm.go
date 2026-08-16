@@ -1243,9 +1243,38 @@ func (c *crmStore) enrichWrite(contactID string, dossier map[string]any, campaig
 		}
 	}
 	prevIdent := mMap(prevEn, "identity")
+	// The industry gate sits HERE, before the merge, and DELETES a bad value rather than rejecting
+	// the write. Two reasons. Rejecting would throw away the hooks, the brief and the channels that
+	// came in the same dossier because one field was mistyped — an expensive punishment for a
+	// vocabulary error. And deleting lets the loop below fall back to prevIdent, so a bad submission
+	// cannot destroy a good stored value; a hard error would leave the old value in place too, but
+	// only by abandoning everything else in the same call.
+	//
+	// It is reported in `problems`, which the enrich playbook already tells the agent to read. A
+	// silently dropped field is the failure mode this file has been bitten by before: the address
+	// that "had the address dropped in silence: nothing persisted, problems empty, no ..." note a
+	// few hundred lines up is the same lesson.
+	if raw, ok := ident["industry"]; ok {
+		v := strings.TrimSpace(fmt.Sprint(raw))
+		if raw == nil || v == "" {
+			// Empty is a legitimate answer — the playbook says thin signals must leave it empty
+			// rather than guess, because a wrong label mis-targets every later message invisibly.
+			delete(ident, "industry")
+		} else if !validLeadIndustry(v) {
+			problems = append(problems, fmt.Sprintf("industry %s not in the lead industry dictionary; dropped (value must match lead_industries.json verbatim, including case and '&'). Allowed: %v", pyRepr(v), sortedLeadIndustries()))
+			delete(ident, "industry")
+			delete(ident, "industry_confidence")
+			delete(ident, "industry_reason")
+			delete(ident, "industry_signals")
+		}
+	}
 	hasIdentity := len(ident) > 0
 	mergedIdent := map[string]any{}
-	for _, k := range []string{"still_active", "current_company", "role", "profiles", "evidence"} {
+	// industry* travels with identity: the key list here is an ALLOWLIST, so a field missing from it
+	// is silently discarded no matter what the caller sent. That is how enrichment fields have gone
+	// missing before — the write succeeds, the field is simply not there afterwards.
+	for _, k := range []string{"still_active", "current_company", "role", "profiles", "evidence",
+		"industry", "industry_confidence", "industry_reason", "industry_signals"} {
 		if v, ok := ident[k]; ok && v != nil {
 			mergedIdent[k] = v
 		} else if pv, ok := prevIdent[k]; ok {
