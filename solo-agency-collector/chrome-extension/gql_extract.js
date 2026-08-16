@@ -1013,6 +1013,61 @@
   // when there is no capture, no extractor, or nothing matched — the caller
   // then falls back to the generic/HTML layers. `inputs` are the job source's
   // inputs (e.g. { debug: true }).
+  // --- time window ---------------------------------------------------------
+  // Restrict a post listing to a period: `within_days: 90`, or explicit `since`/`until`
+  // (ISO date or unix seconds). No window given → everything is kept, unchanged.
+  //
+  // The filter runs AFTER extraction and never stops pagination early. That is deliberate:
+  // group SEARCH results come back ranked by relevance, and even a group FEED sorted by
+  // RECENT_ACTIVITY floats an old post the moment someone comments on it — so "I have seen
+  // something older than the window, therefore the rest is older" is false on both surfaces.
+  // The bound on work is the page cap (`max_pages`), which the caller sets.
+  function toEpochSeconds(v) {
+    if (v === null || v === undefined || v === "") return 0;
+    if (typeof v === "number") return v > 1e11 ? Math.floor(v / 1000) : Math.floor(v);
+    var s = String(v).trim();
+    if (/^\d+$/.test(s)) { var n = parseInt(s, 10); return n > 1e11 ? Math.floor(n / 1000) : n; }
+    var t = Date.parse(s);
+    return isNaN(t) ? 0 : Math.floor(t / 1000);
+  }
+  function timeWindowFrom(inputs) {
+    inputs = inputs || {};
+    var since = toEpochSeconds(inputs.since);
+    var until = toEpochSeconds(inputs.until);
+    var days = Number(inputs.within_days);
+    if (!since && Number.isFinite(days) && days > 0) since = Math.floor(Date.now() / 1000) - Math.floor(days * 86400);
+    if (!since && !until) return null;
+    return { since: since || 0, until: until || 0, within_days: (Number.isFinite(days) && days > 0) ? days : null };
+  }
+  function applyTimeWindow(res, inputs) {
+    if (!res || !Array.isArray(res.items)) return res;
+    var win = timeWindowFrom(inputs);
+    if (!win) return res;
+    // A post with no readable timestamp cannot be judged against the window. Dropping it
+    // silently would hide real posts; keeping it silently would let a five-year-old post into
+    // a "last 90 days" run and get commented on. So: excluded by default, and COUNTED, with
+    // include_undated:true to override. Never invisible either way.
+    var keepUndated = inputs && inputs.include_undated === true;
+    var kept = [], older = 0, newer = 0, undated = 0;
+    for (var i = 0; i < res.items.length; i++) {
+      var it = res.items[i];
+      var t = Number(it && it.created_time) || 0;
+      if (!t) { undated += 1; if (keepUndated) kept.push(it); continue; }
+      if (win.since && t < win.since) { older += 1; continue; }
+      if (win.until && t > win.until) { newer += 1; continue; }
+      kept.push(it);
+    }
+    res.items = kept;
+    res.count = kept.length;
+    res.available = kept.length > 0;
+    res.time_window = {
+      since: win.since || null, until: win.until || null, within_days: win.within_days,
+      excluded_older: older, excluded_newer: newer,
+      undated: undated, undated_kept: !!keepUndated
+    };
+    return res;
+  }
+
   window.__soloGqlExtractCapability = function (capabilityId, inputs) {
     var out = { available: false, capability: capabilityId || "", count: 0, items: [] };
     try {
@@ -1037,6 +1092,7 @@
       var res = fn(mergedCaps, inputs || {});
       res.stream_chunks_merged = streamMerged;
       res.available = res.count > 0;
+      res = applyTimeWindow(res, inputs);
       if (!res.available) res.reason = "no_match";
       return res;
     } catch (err) {
@@ -1853,7 +1909,8 @@
   }
 
   var DOM_CAPABILITIES = {
-    "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader, "fb.profile.contacts": profileContacts };
+    "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader,
+    "fb.profile.contacts": profileContacts };
 
   // The typed extraction is PASSIVE — it reads whatever GraphQL response is already in
   // the ring buffer. On a search/list page the results query (e.g.
@@ -1910,7 +1967,19 @@
   // is false or max_pages is reached. inputs.max_pages (default 8, cap 40).
   var __soloGqlPaginateImpl = function (capabilityId, inputs) {
     inputs = inputs || {};
-    if (DOM_CAPABILITIES[capabilityId]) { try { return DOM_CAPABILITIES[capabilityId](inputs); } catch (e) { return Promise.resolve({ capability: capabilityId, available: false, count: 0, items: [], error: String(e && e.message || e) }); } }
+    if (DOM_CAPABILITIES[capabilityId]) {
+      // available:true even on failure. Reporting a broken DOM capability as unavailable makes
+      // background.js null the whole record, so "this capability crashed" and "this page has
+      // nothing" become the same output — which is how a capability that never completed once
+      // looked exactly like an empty profile. Also catch the PROMISE rejection: the old try
+      // only guarded the synchronous call, so anything that failed after the first await
+      // escaped and left a null record with no explanation at all.
+      function domFail(e) {
+        return { capability: capabilityId, available: true, count: 0, items: [{ capability: capabilityId, status: "error", error: String(e && e.message || e) }], error: String(e && e.message || e) };
+      }
+      try { return Promise.resolve(DOM_CAPABILITIES[capabilityId](inputs)).catch(domFail); }
+      catch (e) { return Promise.resolve(domFail(e)); }
+    }
     var base = window.__soloGqlExtractCapability(capabilityId, inputs);
     var cfg = CAPABILITY_PAGINATION[capabilityId];
     var store = window.__soloGql;
@@ -2004,6 +2073,12 @@
       base.added_by_head_page = state.head;
       base.head_page_via = state.headVia;
       base.available = base.count > 0;
+      // Whether the walk stopped because the feed ended or because it ran out of budget. With
+      // a time window this is the difference between "nothing else in range" and "I gave up
+      // early" — a caller cannot tell them apart from a short list alone.
+      base.page_cap_hit = !!(state.hasNext && state.cursor && state.pages >= maxPages);
+      base.max_pages = maxPages;
+      base = applyTimeWindow(base, inputs);
       // The base extraction runs BEFORE the head fetch and the pagination walk, so on a screen
       // whose natural capture held nothing it stamps reason:"no_match" — which then survived
       // onto a result carrying five posts. Clear it once anything arrived, or every consumer

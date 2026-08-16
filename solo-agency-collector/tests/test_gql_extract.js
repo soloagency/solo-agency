@@ -154,6 +154,48 @@ console.log("\n== streamed @stream / @defer chunks ==");
   check("the section header is not mistaken for a post", !(res.items || []).some((i) => /Recent activity/.test(i.text || "")), res.items && res.items.map((i) => i.text.slice(0, 20)));
 }
 
+console.log("\n== time window ==");
+{
+  const now = Math.floor(Date.now() / 1000), DAY = 86400;
+  const dated = (id, text, ago) => {
+    const e = namedStory(id, text, "Binh Nguyen");
+    e.node.creation_time = now - ago * DAY;
+    return e;
+  };
+  const undated = namedStory("444", "no timestamp", "Binh Nguyen");
+
+  // No window -> nothing is filtered.
+  let ctx = makeCtx([capture([dated("1", "recent", 10), dated("2", "old", 400), undated])]);
+  let res = ctx.window.__soloGqlExtractCapability("fb.group.posts", {});
+  check("no window keeps everything", res.count === 3 && !res.time_window, res.count);
+
+  // within_days keeps only what falls inside it.
+  ctx = makeCtx([capture([dated("1", "recent", 10), dated("2", "old", 400), dated("3", "edge", 80)])]);
+  res = ctx.window.__soloGqlExtractCapability("fb.group.posts", { within_days: 90 });
+  check("within_days keeps only the in-range posts", res.count === 2, (res.items || []).map((i) => i.text));
+  check("it reports what it dropped", res.time_window.excluded_older === 1, res.time_window);
+
+  // An undated post cannot be judged. Excluding it silently would hide real posts; keeping it
+  // silently would let a five-year-old post into a "last 90 days" run. So: excluded, COUNTED.
+  ctx = makeCtx([capture([dated("1", "recent", 10), undated])]);
+  res = ctx.window.__soloGqlExtractCapability("fb.group.posts", { within_days: 90 });
+  check("an undated post is excluded by default", res.count === 1, res.count);
+  check("but it is counted, never silent", res.time_window.undated === 1, res.time_window);
+
+  ctx = makeCtx([capture([dated("1", "recent", 10), undated])]);
+  res = ctx.window.__soloGqlExtractCapability("fb.group.posts", { within_days: 90, include_undated: true });
+  check("include_undated keeps it on request", res.count === 2 && res.time_window.undated_kept === true, res.time_window);
+
+  // Explicit since/until, ISO or unix.
+  ctx = makeCtx([capture([dated("1", "recent", 5), dated("2", "older", 200)])]);
+  res = ctx.window.__soloGqlExtractCapability("fb.group.posts", { since: new Date((now - 30 * DAY) * 1000).toISOString() });
+  check("an ISO `since` works", res.count === 1, res.count);
+
+  ctx = makeCtx([capture([dated("1", "recent", 5), dated("2", "older", 200)])]);
+  res = ctx.window.__soloGqlExtractCapability("fb.group.posts", { until: now - 100 * DAY });
+  check("`until` drops what is too new", res.count === 1 && res.time_window.excluded_newer === 1, res.time_window);
+}
+
 console.log("\n== duplicates collapse ==");
 {
   const ctx = makeCtx([capture([

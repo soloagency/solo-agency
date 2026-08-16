@@ -257,6 +257,55 @@ async function resolveWith(items, inputs, opts) {
     check("two composers -> ambiguous_composer (unchanged)", /ambiguous_composer/.test(r.items[0].error || ""), r.items[0].error);
   }
 
+  console.log("\n== fb.group.post: guards before anything is typed ==");
+  const dialogEl = (opts) => {
+    opts = opts || {};
+    const box = fakeEl({ "aria-label": "Create a public post" });
+    const btn = fakeEl({ "aria-label": "Post" });
+    btn.innerText = "Post";
+    const d = fakeEl({ role: "dialog" });
+    d.querySelector = (sel) => (String(sel).indexOf("contenteditable") > -1 && !opts.noBox ? box : null);
+    d.querySelectorAll = (sel) => (String(sel).indexOf("button") > -1 && !opts.noBtn ? [btn] : []);
+    d._box = box;
+    return d;
+  };
+  const groupDom = (dialogs, trigger) => (sel) => {
+    const s = String(sel);
+    if (s.indexOf('[role="dialog"]') > -1) return dialogs;
+    if (trigger && (s.indexOf('role="button"') > -1 || s.indexOf("tabindex") > -1)) return [trigger];
+    return [];
+  };
+
+  {
+    const ctx = makeCtx({ href: "https://www.facebook.com/nguyenhuubinh" });
+    const r = await ctx.window.__soloActRun("fb.group.post", { text: "hi", _target_url: "https://www.facebook.com/nguyenhuubinh" });
+    // Posting to a profile url would publish on the OPERATOR'S OWN timeline.
+    check("a profile url is refused outright", r.status === "error" && /not_a_group_url/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const ctx = makeCtx({ href: "https://www.facebook.com/groups/999999" });
+    const r = await ctx.window.__soloActRun("fb.group.post", { text: "hi", _target_url: "https://www.facebook.com/groups/668676178569386" });
+    check("landing on a different group refuses", r.status === "error" && /group_mismatch/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const ctx = makeCtx({ href: "https://www.facebook.com/groups/668676178569386", querySelectorAll: groupDom([], null) });
+    const r = await ctx.window.__soloActRun("fb.group.post", { text: "hi", _target_url: "https://www.facebook.com/groups/668676178569386" });
+    check("no composer trigger -> says so, types nothing", r.status === "error" && /composer trigger/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const two = [dialogEl(), dialogEl()];
+    const ctx = makeCtx({ href: "https://www.facebook.com/groups/668676178569386", querySelectorAll: groupDom(two, null) });
+    const r = await ctx.window.__soloActRun("fb.group.post", { text: "hi", _target_url: "https://www.facebook.com/groups/668676178569386" });
+    check("two composer dialogs -> ambiguous, nothing typed", r.status === "error" && /ambiguous_composer/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const d = dialogEl();
+    const ctx = makeCtx({ href: "https://www.facebook.com/groups/668676178569386", querySelectorAll: groupDom([d], null) });
+    const r = await ctx.window.__soloActRun("fb.group.post", { text: "hello group", dry_run: true, _target_url: "https://www.facebook.com/groups/668676178569386" });
+    check("dry_run reports readiness without publishing", r.status === "dry_run" && r.items[0].post_button_found === true, r.items[0]);
+    check("dry_run names the group it would post into", r.items[0].group === "668676178569386", r.items[0].group);
+  }
+
   console.log("\n" + (fail === 0 ? "ALL " + pass + " CHECKS PASSED" : pass + " passed, " + fail + " FAILED"));
   process.exit(fail === 0 ? 0 : 1);
 })();
