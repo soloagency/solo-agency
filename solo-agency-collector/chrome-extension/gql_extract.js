@@ -1763,6 +1763,10 @@
       if (L.length < 20 || L.length > 300) continue;
       if (/^(works?|worked|stud|went to|lives?|from|làm việc|từng|học|sống|đến từ)/i.test(L)) continue;
       if (/\d+\s*(followers|following|friends|likes|người theo dõi)/i.test(L)) continue;
+      // Facebook's own chrome reads like prose and is long enough to win a longest-line contest:
+      // two live profiles came back with "Number of unread notifications" as their bio, because
+      // their real intro lines were short ("Mortgage Brokers", "📍Expert IL/GA Realtor").
+      if (/^(number of unread|new notification|unread |active status|notifications?$|search$|menu$)/i.test(L)) continue;
       if (L.length > introBio.length) introBio = L;
     }
 

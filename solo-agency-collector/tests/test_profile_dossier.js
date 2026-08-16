@@ -548,6 +548,21 @@ async function run() {
     check("the bio is NOT the review", !/Cảm ơn/.test(it.intro_bio || ""), it.intro_bio);
   }
 
+  console.log("\n== Facebook's own chrome never becomes the bio ==");
+  {
+    // Two live profiles returned "Number of unread notifications" as their bio. Chrome reads
+    // like prose and is long, and their real intro lines were short — "Mortgage Brokers",
+    // "📍Expert IL/GA Realtor" — so nothing else qualified and the longest-line rule took it.
+    const pages = { main: ["Number of unread notifications", "New notification in settings",
+                           "Hannah Nguyen - Loan Officer", "Mortgage Brokers"].join("\n"),
+                    about: page([]) };
+    const { ctx } = makeCtx({ pages, slugs: {}, offers: [], seeMore: 0 });
+    ctx.document.title = "";
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    check("chrome was refused as a bio", !/unread|notification/i.test(it.intro_bio || ""), it.intro_bio);
+  }
+
   console.log("\n== the operator's own profile IS refused ==");
   {
     const { ctx } = makeCtx();
