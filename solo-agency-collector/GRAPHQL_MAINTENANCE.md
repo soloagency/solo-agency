@@ -252,7 +252,77 @@ Same loop, proven on 6 screens:
 
 ---
 
-## 9. Two hard-won rules (do not relearn these)
+## 9. Hard-won rules (do not relearn these)
+
+### 9.0 The Facebook feed-response traps — read this BEFORE debugging "missing posts"
+
+A group scan returned **2 of 6 posts** and it took four wrong diagnoses and a dozen
+extension reloads to find out why. Every trap below is real, was measured on a live group,
+and each one hid the next. If posts are missing, walk this list in order.
+
+**Trap 1 — the response arrives in PIECES that must be assembled.**
+Facebook answers a feed query with several chunks (`stream_initial_count`, `COMET_STREAM`):
+
+```
+chunk 0  data.node.group_feed.edges = [ GroupsSectionHeaderUnit "Recent activity" ]   ← skeleton only
+chunk 1  { label:"…$stream$…", path:["node","group_feed","edges",1], data:{node:{…post…}} }
+chunk 2  { label:"…$stream$…", path:["node","group_feed","edges",2], data:{node:{…post…}} }
+chunk 3  { label:"…$stream$…", path:["node","group_feed","edges",3], data:{node:{…post…}} }
+chunk 4  { label:"…$defer$…",  path:["node","group_feed"],           data:{page_info:{…}} }
+```
+
+Read the chunks separately and you see **a section header and no posts**. The killer detail:
+an `@stream` `path` addresses a slot that **does not exist yet** — `edges.1` when `edges`
+holds one element — so walking the *full* path lands on `undefined` and the payload is
+dropped silently. `mergeStreamed()` therefore walks to the **parent** and **assigns** into the
+slot (`@stream`), or merges keys into what is already there (`@defer`). Merging runs on both
+captured and replayed responses, and is additive: the merged root is prepended, the original
+chunks are kept.
+
+**Trap 2 — the pagination reply nests differently from the initial query.**
+`CAPABILITY_PAGINATION` paths were taken from the INITIAL query
+(`data.node.group_feed.page_info`). The pagination reply puts it at **`data.page_info`**. The
+path never matched, no seed was selected, and pagination returned early — meaning `max_pages`
+was **inert for every paginated capability** for as long as it had existed, with no symptom
+except a quietly short list. The configured path is now a *hint*: tried first, then the
+payload is searched (`resolvePageInfo`). If pagination cannot run, the result now carries
+`pagination_skipped` + `pagination_expected_path` instead of failing silently.
+
+**Trap 3 — `"cursor": null` ≠ omitting `cursor`.**
+To fetch the HEAD of a feed the key must be **absent**. Sending it as `null` returns a
+degenerate slice (one non-story edge). This one difference is why "you cannot page back to the
+top of the feed" looked true for hours. It is not true.
+
+**Trap 4 — replaying Facebook's own variables replays Facebook's own slice.**
+Captured variables describe the slice its UI wanted; replaying them (even with the cursor
+removed) walked the middle of the feed. Drive the query with a **known-good variable set** —
+see `FEED_VARS` in `gql_extract.js` (`RECENT_ACTIVITY`, `DISCUSSION`, small `count`,
+`stream_initial_count`, the `__relay_internal__pv__*` provider flags). Anything Facebook sent
+that we did not enumerate is carried underneath, so unknown flags are never lost. Prefer
+`docIdFromRegistry()` (`window.require("<QueryName>.graphql").params.id`) so the doc id is
+whatever the page itself would use and can never go stale.
+
+**Trap 5 — an ANONYMOUS post has an author; Facebook just hides it in a different place.**
+`story.actors` is scrubbed at the top level (that scrub is what renders "Anonymous member"),
+while the real actor — numeric id and all — still ships at
+`comet_sections.context_layout.story.comet_sections.actor_photo.story.actors[0]`. `storyActor()`
+tries the obvious path, then that one. A post is **never** rejected for lacking an actor, and a
+story keyed only by `post_id` is not dropped either.
+
+**Method, not just facts.** Four diagnoses were wrong in a row — server-rendered page 1, the
+extractor rejecting anonymous posts, Facebook not serving anonymous posts, omitting the cursor
+being sufficient — because each inferred a cause from *an absence* and then built on it. What
+ended it was dumping the **shape of every chunk** (keys, `label`, `path`, edge count,
+`post_id`s) instead of reasoning about what the shape must be. When a post is missing:
+
+1. Print the chunk shapes first. Absence of data is not evidence about its cause.
+2. Never conclude "Facebook does not return X" from one response. It usually does, elsewhere.
+3. If another tool gets the data, that is not a curiosity — it is proof the data is reachable,
+   and its code is the fastest route to the answer. Reverse-engineer it early, not last.
+4. Any probe you write must set `available: true`. `background.js` discards records whose
+   capability reports unavailable, so "found nothing" gets deleted and reads as a crash.
+
+## 9.1 Two hard-won rules (do not relearn these)
 
 1. **Never name an output field with a substring the bridge redacts.** The Go
    bridge's `sanitizeMap` redacts any key containing `auth`, `token`, `session`,
@@ -288,9 +358,20 @@ extractor**, so filtering/mapping is reused for free. `background.js` calls the
 paginator (not the plain extractor) for capability jobs.
 
 - **Control:** `inputs.max_pages` (default 8, max 40). Result carries
-  `paginated`, `pages_fetched`, `added_by_pagination`.
+  `paginated`, `pages_fetched`, `added_by_pagination`, `added_by_head_page`,
+  `head_page_via`, `stream_chunks_merged`, and — when it could not run at all —
+  `pagination_skipped` + `pagination_expected_path`.
+- **The HEAD of the feed is fetched first**, by replaying with the cursor key **omitted**
+  (not `null` — see §9.0 Trap 3). Forward paging then continues from *that* reply's
+  `page_info`, not from the captured seed's, whose cursor described a slice further down.
 - **Proven:** `fb.group.search_posts` "cho thue" → **66 posts across 10 pages**
-  (vs 6 from the single natural capture).
+  (vs 6 from the single natural capture). And `fb.group.posts` on the test group →
+  **6/6 posts including an anonymous one**, matching a third-party extension row for row
+  (was 2/6 before §9.0 was understood).
+- **Caveat on that first "Proven" line:** it predates the discovery that the group-feed
+  `pageInfoPath` never resolved (§9.0 Trap 2). Search pagination worked because its scope and
+  path did match; group-feed pagination did not, and reported nothing. Treat "pagination
+  works" as per-capability until each one shows a non-zero `pages_fetched`.
 - **To enable it for a new capability:** add an entry to `CAPABILITY_PAGINATION`
   with `scope` (query-name substring to find the replayable seed) and
   `pageInfoPath` (dotted path to the connection's `page_info` = `{has_next_page,
