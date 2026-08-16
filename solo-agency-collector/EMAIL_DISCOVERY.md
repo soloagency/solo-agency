@@ -111,10 +111,12 @@ time. That is why "we opened the About tab" is not evidence that no email exists
    collector (`sk=reels_tab` link); post/permalink/story → owner is in the URL itself.
 2. **In enrichment, this ladder is walked by `fb.profile.enrich`** (submitted at the profile
    ROOT url) — the same job that returns the hooks; its record carries the contact half
-   (`emails`, `websites`, `found_on`, `checked`) beside `posts[]`. Do not enqueue a separate
-   `fb.profile.contacts` after it: that is a second load of the same profile. Run
-   `fb.profile.contacts` alone only for a contact-only re-check on a profile whose hooks are
-   already current. Either way: one job, never a hand-written tab crawl.
+   (`emails`, `websites`, `found_on`, `checked`) beside `posts[]`. Never enqueue a
+   `fb.profile.contacts` after it: both read the same surfaces, so an empty `emails` in the enrich
+   record already IS the Facebook verdict — the only remaining source is the website ladder
+   (step 5). `fb.profile.contacts` is the standalone form of the same ladder for callers that are
+   not enriching (no hooks wanted); it is not a second pass. Either way: one job per profile,
+   never a hand-written tab crawl.
 3. **Read the record's `emails`.** Empty → check `checked` before drawing a conclusion.
 4. **Copy the record into the dossier as `email_discovery`** — `{profile_url, emails, websites,
    found_on, checked}`, verbatim from the collector. The store's `mark_email_not_found` gate

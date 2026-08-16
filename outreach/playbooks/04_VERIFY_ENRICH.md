@@ -219,8 +219,10 @@ wins.
    tab crawl, and do NOT enqueue `fb.profile.contacts` after an enrich pass on the same profile:
    fetching those sub-tabs returns the app shell with no contact block (how a run can claim it
    "checked" a page it never saw), and a second job is a second page load of the same profile —
-   the exact cost the merged capability exists to remove. `fb.profile.contacts` remains only for a
-   contact-only re-check on a profile whose hooks are already current.
+   the exact cost the merged capability exists to remove. There is NO scenario in enrichment where
+   `fb.profile.contacts` follows an enrich pass: both read the same surfaces (bio + the four
+   `directory_*` sub-tabs), so if the enrich record has no address, a contacts job cannot find one
+   either — the only remaining source is the website (rows 6-7, input from `websites`).
 
    **Copy its record into the dossier as `email_discovery`** — `{profile_url, emails, websites,
    found_on, checked}`, verbatim — and put any address it found into

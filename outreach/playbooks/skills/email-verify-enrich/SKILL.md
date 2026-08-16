@@ -120,8 +120,9 @@ field that creates the identity. Rows 6-7 stay separate steps, input from `websi
 write` refuses `mark_email_not_found` unless `email_discovery.checked` shows the ladder got past
 `current_page` (a `directory_*` sub-tab rendered, or `about` with no sub-tab offered — the normal
 case for a personal profile). Full contract: `solo-agency-collector/EMAIL_DISCOVERY.md`. Enqueuing
-`fb.profile.contacts` after an enrich pass on the same profile is a defect (same profile, second
-load); it stays only for a contact-only re-check when the hooks are already current. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
+`fb.profile.contacts` after an enrich pass on the same profile is a defect, always: it reads the
+same surfaces the enrich record already covered, so an empty `emails` there means Facebook has no
+published address — the next and only step is the website (rows 6-7), never a second profile job. **Batch-resolve first on reel-heavy lists:** resolve EVERY unresolved seed
 to its owner profile before any deep enrichment — the store auto-consolidates fragments that
 share a profile/email (full union: all reels + hooks kept; result reports `consolidated`), so
 you deep-enrich each unique person exactly ONCE. Always continue against the returned `lead_id`
