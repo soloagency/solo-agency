@@ -1,7 +1,7 @@
 {
   "object": "collector_capabilities",
   "version": "0.1.0",
-  "updated_at": "2026-08-15",
+  "updated_at": "2026-08-16",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
@@ -207,6 +207,38 @@
       "posts": "PostRecord[] — the most recent timeline posts, capped by max_posts (default 5). These are the DATED proof-of-life Stage 4 requires before a lead can reach a `high` confidence band.",
       "videos": "VideoRecord[] — present only when a Videos capture happened to exist on the landing page. This capability never navigates to the Videos tab; a second page load is the cost it exists to remove.",
       "timeline": "object {landed_on, posts_available, posts_reason, posts_seen, posts_kept, videos_available, videos_seen}. posts_available:false with a reason means the timeline had NOT RENDERED — which needs the opposite fix from 'this person has no posts', so the two are never merged."
+    },
+    "ZillowAgentCard": {
+      "_note": "One row of zillow.agents.list. The ENVELOPE around items[] carries the page facts the caller needs to walk on: page, page_count (+page_count_source: pager | estimated), results_found, has_more, next_page_url (same url with page=N+1 — keyword and filters preserved), query{url, location_text, name, applied_filters, region_id, region_name}, source (next_data | dom), status (ok | empty | no_next_data | blocked | error).",
+      "profile_url": "string — https://www.zillow.com/profile/<screenName> (spaces are %20). Submit THIS to zillow.profile.enrich.",
+      "screen_name": "string — the decoded profile handle ('Pardee Properties', 'tykunkle')",
+      "encoded_zuid": "string — Zillow's stable user id (X1-ZU…). Stable across renames; use it as the dedupe key together with profile_url.",
+      "name": "string — display name on the card",
+      "brokerage": "string — the card's second line (brokerage, or the team name on a TEAM card)",
+      "is_team": "boolean — the card is a TEAM (its stats are team totals; the profile lists the members)",
+      "is_top_agent": "boolean — Zillow 'Top Agent' badge",
+      "rating": "number | null — review average (e.g. 4.9)",
+      "reviews_count": "number | null — '(1,664)' -> 1664",
+      "price_range": "string | null — e.g. '$485K - $1.8M'; null when the card says 'No recent price range'",
+      "sales_last_12_months": "number | null — null when 'No sales last 12 months'",
+      "sales_in_region": "number | null — sales in the searched region (label in sales_in_region_label, e.g. 'sales in Los Angeles')",
+      "photo_url": "string",
+      "tags": "string[] — card tags as written ('TEAM')",
+      "stats": "[{label, value}] — every card stat verbatim, in case Zillow adds one"
+    },
+    "ZillowProfileEnrich": {
+      "_note": "Every ProfileDossier/ProfileEnrich field name, filled from a Zillow agent or team profile, PLUS `industry` and a typed `zillow{}` block. Readers built for fb.profile.enrich (harvest decide, the campaign UI drill-down, 04_VERIFY_ENRICH) can consume it unchanged; readers that want the typed facts read `zillow`.",
+      "…ProfileDossier": "profile_url, name, category, intro_bio, work[], education[] (always empty — Zillow publishes none), location[], about{}, about_lines[], emails[], phones[], websites[], website, found_on, checked[], missing[], source ('next_data' | 'dom'), elapsed_ms — see ProfileDossier. follower_count/verified/cta/intro_lines/discovered_tabs/graphql_* are present but empty/null (no Facebook meaning here).",
+      "category": "string — Zillow's own title when the agent set one ('Broker', 'Realtor'), else 'Real estate agent' / 'Real estate team lead'",
+      "work": "string[] — '<title or Real estate agent> at <brokerage>' plus a 'Lead of team X (N members)' / 'Member of team X (lead: Y)' line",
+      "location": "string[] — the business address city/state/zip ('Venice, CA 90291'); service areas are in zillow.service_areas",
+      "about_lines": "string[] — every published fact as one 'Label: value' line (brokerage, address, phones, email, website, socials, licences, years in industry, member since, specialties, languages, service areas, sales stats, listings, reviews, team). READ THIS the way the FB dossier is read.",
+      "emails": "string[] — displayUser.email when the agent published one (measured present on both live test profiles) + any mailto: on the page",
+      "phones": "string[] — cell/business/brokerage numbers, deduped by digits (labels are kept in zillow.phones)",
+      "posts": "PostRecord-like[] — the DATED public activity Zillow publishes: reviews received ({kind:'review'}) and closed sales ({kind:'sale'}), newest first, capped by max_posts (default 5). Each has text, date (YYYY-MM-DD), created_time (unix), url, actor. This is the proof-of-life Stage 4 asks for; a Zillow profile has no timeline of posts.",
+      "timeline": "{landed_on:'profile', posts_available, posts_reason ('zillow_reviews_and_sales' | 'no_reviews_or_sales_published' | 'no_next_data'), posts_seen, posts_kept, videos_available:false}",
+      "industry": "string — always 'Real Estate' (a fact of the source: the Zillow agent directory), not an inference",
+      "zillow": "object — screen_name, encoded_zuid, profile_types[], is_top_agent, title, brokerage, business_address{address1,address2,city,state,postal_code,line}, phones{cell,business,brokerage}, email, website, socials{facebook,instagram,linkedin,x,tiktok,youtube}, years_in_industry, member_since, specialties[], languages[], service_areas[] (+service_area_count), licenses[{number,state,status,type,expiration}], rating{average,count}, sales{last_12_months,total,price_range,average_price,raw{},is_team_total}, listings{for_sale,for_rent}, recent_sales[{price,sold_date,represented,address,url,zpid}], recent_reviews[{id,date,rating,snippet,work_description,reviewee_name,reviewee_screen_name}] (reviewer identities are NOT kept), team{role:'lead'|'member'|null, team_name, lead{name,screen_name,profile_url,…}, members[{name,screen_name,profile_url,encoded_zuid,rating,reviews_count,is_top_agent}], member_count}, photo_url. On a TEAM profile `team.members[]` is the list of member agents — each member's profile_url is a ready zillow.profile.enrich target."
     }
   },
   "capabilities": [
@@ -781,6 +813,59 @@
         "approval_states": "A group may hold member posts for an admin to approve. The result distinguishes done (published) from pending_admin_approval (submitted, not visible yet). Never treat the second as the first: it would tell the operator something is live when it is queued.",
         "guards": "not_a_group_url · group_mismatch (landed on a different group) · no composer trigger (the account may not be a member, or posting is admin-only) · ambiguous_composer (more than one composer dialog) · text typed but no Post button found (reported explicitly — the text was NOT submitted)",
         "fallback": "none (write action)"
+      },
+      "scroll": "none"
+    },
+    {
+      "id": "zillow.agents.list",
+      "title": "Zillow agent directory — ONE page of agent cards",
+      "when_to_use": "Read one page of Zillow's real-estate-agent directory into typed cards (name, profile url, brokerage, rating, reviews, sales, TEAM flag). Submit the directory url exactly as you want it read: https://www.zillow.com/professionals/real-estate-agent-reviews/<location-slug>/?name=<keyword>&page=<n>. The keyword (?name=) and the page (?page=) are the CALLER's to choose and to advance — this capability never paginates, never clicks; read `has_more`/`next_page_url`/`page_count` from the envelope and submit the next page as a NEW job. Zillow serves at most 25 directory pages per query (~15 cards each), whatever `results_found` says, so a large area is walked by varying the keyword/location, not by paging deeper. Then run zillow.profile.enrich on each card's profile_url.",
+      "inputs": {
+        "url": "string (required, the job's url) — a zillow.com/professionals/… directory page. Keep the ?name= keyword and ?page=N in the url; other Zillow filters in the url are honoured too (they are part of the page)."
+      },
+      "output_schema": "ZillowAgentCard[]",
+      "provider": "zillow-nextdata+dom",
+      "coverage": "the public Zillow agent directory, read from the operator's logged-in Chrome",
+      "status": "beta",
+      "_impl": {
+        "file": "chrome-extension/zillow_extract.js (MAIN world; injected by background.js only for zillow.* capabilities and dispatched via window.__soloZillowRun — gql_extract.js is untouched)",
+        "screen": "agent directory page (Next.js)",
+        "url_match": [
+          "zillow.com/professionals/"
+        ],
+        "method": "Parses <script id=__NEXT_DATA__> → props.pageProps.displayData.agentDirectoryFinderDisplay.searchResults: results.resultsCards[] become items; resultsFound/currentPage/regionId/titleLocation and userInput{locationText,name,page,appliedFilters} become the envelope. page_count comes from the pager's own 'Page N of M' text (page_count_source:'pager'); without a pager it is ceil(results_found/15) capped at 25 and marked 'estimated'. has_more follows the Next button when present. DOM fallback (source:'dom') reads a[href*='/profile/'] cards when the JSON is missing. Upsell cards Zillow mixes into resultsCards ('Get help finding an agent' → /ods/submit_lead) are skipped and counted in `non_profile_cards`.",
+        "no_scroll": "background.js treats zillow.* as info-only (0 scroll steps): the page state is complete at load and scrolling only adds bot-check exposure.",
+        "blocked": "Zillow's PerimeterX 'Press & Hold' page (#px-captcha / title 'Access to this page has been denied') returns status:'blocked', reason:'blocked_bot_check', available:true, count:0. The caller must STOP Zillow jobs on that Chrome profile — a human opens zillow.com there and passes the check once; the collector never solves or retries it. Measured: a fresh non-human browser was blocked on its 2nd navigation; the operator's real Chrome was not.",
+        "pacing": "Space Zillow jobs on one Chrome profile ≥15-30s apart and keep the hourly volume modest; a profile that has never visited zillow.com should be warmed by the operator browsing it once by hand.",
+        "validated_on": "2026-08-16 offline harness tests/test_zillow_extract.js (63 checks) + LIVE on aven-ngo via the shared bridge: los-angeles-ca/?name=kim → 16 resultsCards, 15 agent items + 1 upsell card skipped (non_profile_cards:1), page 1 of 24 (pager), has_more, next_page_url kept the keyword, scroll_count 0, extractor 1ms.",
+        "fallback": "html"
+      },
+      "scroll": "none"
+    },
+    {
+      "id": "zillow.profile.enrich",
+      "title": "Zillow agent/team profile — the whole lead in ONE page",
+      "when_to_use": "The enrichment capability for a Zillow lead: submit https://www.zillow.com/profile/<screenName> (from zillow.agents.list `profile_url`, or from a team profile's zillow.team.members[]) and get one ProfileEnrich-shaped record — name, brokerage, business address, PHONES, EMAIL when published, website + socials, licences, years in industry, specialties, service areas, sales stats, listings, recent sales and reviews (dated, in posts[]), team lead/members — with `industry` already 'Real Estate'. Same field names as fb.profile.enrich, so Stage 4 / harvest decide / the UI read it unchanged. One page load, no clicks, no scrolling.",
+      "inputs": {
+        "profile_url": "string (optional) — informational; the job's url is what is read",
+        "max_posts": "int (optional, default 5, max 25) — how many dated items (reviews + sales, newest first) to keep in posts[]",
+        "max_team_members": "int (optional, default 200, max 500) — cap on zillow.team.members[] for a TEAM profile (member_count still reports the full size)"
+      },
+      "output_schema": "ZillowProfileEnrich",
+      "provider": "zillow-nextdata+dom",
+      "coverage": "what Zillow publishes on the public profile, read from the operator's logged-in Chrome",
+      "status": "beta",
+      "_impl": {
+        "file": "chrome-extension/zillow_extract.js (MAIN world; see zillow.agents.list)",
+        "screen": "agent / team profile page (Next.js)",
+        "url_match": [
+          "zillow.com/profile/"
+        ],
+        "method": "Parses <script id=__NEXT_DATA__> → props.pageProps: displayUser (name, email, phoneNumbers, businessName, businessAddress, ratings, isTopAgent, profileTypes, screenName, encodedZuid), getToKnowMe (title, HTML description → intro_bio, yearsInIndustry, specialties, languages, websiteUrl, social urls), professionalInformation[] (address/phones/Websites/Member since/licences), agentLicenses[], serviceAreas[], pastSales{total,past_sales[]}, reviewsData.reviews[], teamDisplayInformation{teamLeadInfo{teamName,children[]}|teamMemberInfo{teamLead}}, graphQLData.premiumAgentHeader.salesStats.entries{salesLastTwelveMonths,totalSales,priceRange,averagePrice}, forSaleListings/forRentListings.listing_count. tel:/mailto: anchors are merged in. profile_url is rebuilt from screenName so it is canonical whatever url the job used. DOM fallback (source:'dom', missing:['next_data']) reads h1 / tel: / mailto: / breadcrumbs when the JSON is missing. Tracking params (utm_*, fbclid, gclid, msclkid) are stripped from every url the record carries.",
+        "no_classifier": "Like fb.profile.dossier it ships what the profile says; the one exception is `industry:'Real Estate'`, which the operator asked to default because the source IS the real-estate agent directory (lender/property-manager profiles live in other Zillow directories and are not read by this capability).",
+        "blocked": "same PerimeterX contract as zillow.agents.list — status:'blocked', stop, human passes the check once.",
+        "validated_on": "2026-08-16 offline harness tests/test_zillow_extract.js + LIVE on aven-ngo via the shared bridge: team-lead profile Pardee Properties (email + phone published, 35 team members, team sales totals, 5 dated posts from 10 seen) and team-member profile tykunkle (max_posts:3 honoured, role member + lead ref, personal sales 23/187). Both source:'next_data', 3-4ms, scroll_count 0.",
+        "fallback": "html"
       },
       "scroll": "none"
     }

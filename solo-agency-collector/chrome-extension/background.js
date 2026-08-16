@@ -519,12 +519,24 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
   const activateCollectionTab = shouldActivateCollectionTab(job, source);
   const captureOverlayText = collectorCaptureOverlayText(job, binding);
   const tabActivationPlan = collectionTabActivationPlan(job, source);
+  // Zillow capabilities (zillow_extract.js) — decided up front because they change three
+  // things below: no scrolling, an extra MAIN-world lib, and the human gate for Zillow's
+  // bot check. Guarded by prefix so no Facebook capability changes behaviour.
+  const isZillowCapability = !!source.capability && /^zillow\./.test(String(source.capability));
+  const gateContext = { job, source, settings, binding, sourceIndex };
+  let humanGate = null;
   const tab = await createTab({ url: source.url, active: tabActivationPlan.createActive });
   try {
     if (activateCollectionTab) {
       await activateTab(tab, tabActivationPlan);
     }
     await waitForTabLoad(tab.id, 25000);
+    // Zillow may answer the navigation with its PerimeterX "Press & Hold" page instead of the
+    // content. Wait for the OPERATOR to pass it (chime + tab to front + heartbeat), then go on
+    // as if nothing happened — see zillowHumanGate. Nothing is solved or retried by code.
+    if (isZillowCapability) {
+      humanGate = await zillowHumanGate(tab, gateContext);
+    }
     if (activateCollectionTab) {
       await installCollectorCaptureOverlayOnTab(tab, captureOverlayText);
     }
@@ -562,7 +574,9 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // pure waste and needless rate-limit exposure on a big email dig. Separate the job
     // kinds explicitly: info tasks never scroll for content.
     const INFO_ONLY_CAPABILITIES = new Set(["fb.profile.contacts", "fb.profile.header"]);
-    const infoOnly = !!source.capability && INFO_ONLY_CAPABILITIES.has(String(source.capability));
+    // Zillow capabilities read the page's Next.js state, which is complete at load; scrolling
+    // adds nothing but time and bot-check exposure (isZillowCapability is set at the top).
+    const infoOnly = !!source.capability && (INFO_ONLY_CAPABILITIES.has(String(source.capability)) || isZillowCapability);
     // A match_text write STARTS on a listing page, and that listing is exactly what has to
     // scroll: Facebook only fires the feed GraphQL query the resolver reads once the feed
     // moves. The reason writes never scroll is the reel player, where a scroll is a
@@ -728,6 +742,16 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
             world: "MAIN",
             files: ["gql_extract.js"]
           }), 8000, "inject_gql_extract_timeout");
+          // Zillow capabilities live in their own MAIN-world lib (zillow_extract.js) and are
+          // dispatched through window.__soloZillowRun below — injected ONLY for zillow.* jobs,
+          // so the Facebook path is byte-for-byte unchanged.
+          if (isZillowCapability) {
+            await withTimeout(chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              world: "MAIN",
+              files: ["zillow_extract.js"]
+            }), 8000, "inject_zillow_extract_timeout");
+          }
           // Facebook-only generic layer (graphql_records + graphql_manifest).
           if (isFbPage) {
             const [gres] = await withTimeout(chrome.scripting.executeScript({
@@ -740,17 +764,41 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
           // Capability dispatch (GraphQL or DOM) — runs on any page. Typed output
           // lands in the new `records` field; additive and best-effort.
           if (wantCapability) {
-            const [cres] = await withTimeout(chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              world: "MAIN",
-              func: async (capId, capInputs) => {
-                if (typeof window.__soloGqlPaginate === "function") return await window.__soloGqlPaginate(capId, capInputs);
-                if (typeof window.__soloGqlExtractCapability === "function") return window.__soloGqlExtractCapability(capId, capInputs);
-                return null;
-              },
-              args: [String(source.capability), source.inputs && typeof source.inputs === "object" ? source.inputs : {}]
-            }), 45000, "gql_capability_timeout");
-            gqlRecords = cres && cres.result ? cres.result : null;
+            const runCapabilityDispatch = async () => {
+              const [cres] = await withTimeout(chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                world: "MAIN",
+                func: async (capId, capInputs) => {
+                  // zillow.* -> zillow_extract.js. A missing lib is reported as a visible error
+                  // record (available:true) rather than falling through to the Facebook dispatcher,
+                  // whose "no_extractor" answer would null the record and hide the failure.
+                  if (/^zillow\./.test(String(capId))) {
+                    if (typeof window.__soloZillowRun === "function") return await window.__soloZillowRun(capId, capInputs);
+                    return { available: true, capability: String(capId), count: 0, status: "error", items: [{ capability: String(capId), status: "error", error: "zillow lib not present (zillow_extract.js failed to inject?)" }] };
+                  }
+                  if (typeof window.__soloGqlPaginate === "function") return await window.__soloGqlPaginate(capId, capInputs);
+                  if (typeof window.__soloGqlExtractCapability === "function") return window.__soloGqlExtractCapability(capId, capInputs);
+                  return null;
+                },
+                args: [String(source.capability), source.inputs && typeof source.inputs === "object" ? source.inputs : {}]
+              }), 45000, "gql_capability_timeout");
+              return cres && cres.result ? cres.result : null;
+            };
+            gqlRecords = await runCapabilityDispatch();
+            // Zillow: the bot check can also land AFTER the pre-load gate (PerimeterX interposes
+            // on a navigation the page made itself). The capability reports it as status
+            // "blocked"; wait for the operator again, re-inject the lib (the check reloads the
+            // document) and read the page once more. Bounded so a check that keeps coming back
+            // ends as a blocked record instead of an endless loop.
+            for (let attempt = 0; isZillowCapability && gqlRecords && gqlRecords.status === "blocked" && attempt < 2; attempt++) {
+              const gate = await zillowHumanGate(tab, gateContext);
+              humanGate = mergeHumanGate(humanGate, gate);
+              if (!gate.solved) break;
+              await withTimeout(chrome.scripting.executeScript({
+                target: { tabId: tab.id }, world: "MAIN", files: ["zillow_extract.js"]
+              }), 8000, "inject_zillow_extract_timeout");
+              gqlRecords = await runCapabilityDispatch();
+            }
           }
         }
       } catch (error) {
@@ -885,7 +933,11 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         records: gqlRecords && gqlRecords.available ? gqlRecords : null,
         // --- Structured contact layer (additive; emails/phones parsed from the
         // already-captured public page text + mailto:/tel: anchors) ---
-        contacts: contacts
+        contacts: contacts,
+        // --- Human gate (Zillow bot check) — present ONLY when a gate ran for this source:
+        // {engaged, solved, waited_ms, wait_ceiling_minutes, ...}. engaged:false = the page
+        // opened cleanly; solved:true = the operator passed the check and the read continued.
+        ...(humanGate ? { human_gate: humanGate } : {})
       },
       newPrivateSources: entityItems
         .filter((it) => it && /group|community|page|channel|profile|account/i.test(String(it.type || "")))
@@ -931,6 +983,11 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
       }
     };
   } finally {
+    // A gate that engaged for this source must never leave the chime playing (error paths,
+    // tab closed by the operator, dispatch timeout). Idempotent, per-source refcounted.
+    if (isZillowCapability) {
+      try { await operatorAlertRelease(gateContext); } catch (error) { /* ignore */ }
+    }
     if (settings.closeTabsAfterCollect) {
       try {
         await chrome.tabs.remove(tab.id);
@@ -939,6 +996,201 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
       }
     }
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Operator alert + human gate. Today's only user is Zillow's PerimeterX "Press & Hold" bot check
+// (ZILLOW_CAPABILITIES.md §5), but nothing here is Zillow-specific except the probe.
+//
+// The service worker cannot play audio and a tab the collector opened has had no user gesture
+// (its AudioContext would stay suspended), so the chime is played by the extension's OFFSCREEN
+// document (offscreen.html/js, permission "offscreen"), which is exempt from autoplay policy.
+// The gate itself lives here in background.js because a capability injected into the page is
+// killed after 45 s, while a human may take an hour: it polls the tab every 4 s, keeps the run
+// alive on the bridge with a source_status heartbeat, and resumes the normal flow the moment
+// the check is gone. Nothing solves, retries or spoofs the check — the operator does.
+const OPERATOR_ALERT_MSG = "solo_operator_alert";
+const operatorAlertHolders = new Set();
+
+function operatorAlertKey(ctx) {
+  return `${(ctx && ctx.job && ctx.job.run_id) || ""}#${(ctx && ctx.sourceIndex) || 0}#${(ctx && ctx.source && ctx.source.url) || ""}`;
+}
+async function ensureOffscreenDocument() {
+  if (!(chrome.offscreen && typeof chrome.offscreen.createDocument === "function")) return false;
+  try {
+    if (typeof chrome.offscreen.hasDocument === "function" && await chrome.offscreen.hasDocument()) return true;
+  } catch (error) { /* fall through and try to create */ }
+  try {
+    await chrome.offscreen.createDocument({
+      url: "offscreen.html",
+      reasons: ["AUDIO_PLAYBACK"],
+      justification: "Plays a gentle repeating chime while a collection job waits for the operator to pass a site's human check (e.g. Zillow Press & Hold)."
+    });
+    return true;
+  } catch (error) {
+    // "Only a single offscreen document may be created" = it already exists → fine.
+    return /single offscreen|already|exists/i.test(String(error && error.message || error));
+  }
+}
+async function operatorAlertMessage(payload) {
+  // The document may still be booting right after createDocument; a few short retries.
+  let lastError = null;
+  for (let i = 0; i < 6; i++) {
+    try { return await chrome.runtime.sendMessage(Object.assign({ type: OPERATOR_ALERT_MSG }, payload)); }
+    catch (error) { lastError = error; await delay(250); }
+  }
+  return { ok: false, error: String(lastError && lastError.message || lastError) };
+}
+async function operatorAlertAcquire(ctx, reason, detail) {
+  operatorAlertHolders.add(operatorAlertKey(ctx));
+  if (!(await ensureOffscreenDocument())) return { ok: false, error: "offscreen document unavailable (Chrome too old or permission missing)" };
+  return operatorAlertMessage({ action: "start", reason, detail });
+}
+async function operatorAlertRelease(ctx) {
+  operatorAlertHolders.delete(operatorAlertKey(ctx));
+  if (operatorAlertHolders.size > 0) return { ok: true, still_held: operatorAlertHolders.size };
+  const res = await operatorAlertMessage({ action: "stop" });
+  try {
+    if (chrome.offscreen && typeof chrome.offscreen.hasDocument === "function" && await chrome.offscreen.hasDocument()) {
+      await chrome.offscreen.closeDocument();
+    }
+  } catch (error) { /* ignore */ }
+  return res;
+}
+
+// Runs INSIDE the tab (serialized by chrome.scripting): is this the PerimeterX block page?
+// Mirrors zillow_extract.js blockedReason() and the operator's gubo-browser detectCaptcha():
+// a VISIBLE #px-captcha, the block page title, or a short document carrying the challenge text.
+function zillowBotCheckProbe() {
+  try {
+    const px = document.querySelector("#px-captcha, #px-captcha-wrapper");
+    if (px) {
+      const r = typeof px.getBoundingClientRect === "function" ? px.getBoundingClientRect() : null;
+      if (!r || r.width > 0 || r.height > 0 || px.offsetParent !== null) return { blocked: true, why: "px-captcha" };
+    }
+    if (/access to this page has been denied/i.test(String(document.title || ""))) return { blocked: true, why: "title" };
+    const body = String((document.body && document.body.innerText) || "").trim();
+    if (body.length < 2500) {
+      const lower = body.toLowerCase();
+      if (lower.indexOf("press & hold to confirm") !== -1 || lower.indexOf("press and hold to confirm") !== -1 || lower.indexOf("human verification challenge") !== -1) {
+        return { blocked: true, why: "text" };
+      }
+    }
+    return { blocked: false, why: "" };
+  } catch (error) {
+    return { blocked: false, why: "probe_error" };
+  }
+}
+// → true | false | "loading" (document mid-navigation, ask again) | null (tab is gone)
+async function zillowTabBlocked(tabId) {
+  let tab = null;
+  try { tab = await chrome.tabs.get(tabId); } catch (error) { return null; }
+  try {
+    const [res] = await withTimeout(chrome.scripting.executeScript({ target: { tabId }, func: zillowBotCheckProbe }), 8000, "bot_check_probe_timeout");
+    return !!(res && res.result && res.result.blocked);
+  } catch (error) {
+    if (tab && tab.status === "loading") return "loading";
+    return false;
+  }
+}
+async function waitForTabSettled(tabId, timeoutMs) {
+  const until = Date.now() + (timeoutMs || 20000);
+  while (Date.now() < until) {
+    try {
+      const t = await chrome.tabs.get(tabId);
+      if (t && t.status === "complete") return true;
+    } catch (error) { return false; }
+    await delay(500);
+  }
+  return false;
+}
+function mergeHumanGate(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  return Object.assign({}, prev, next, {
+    engaged: !!(prev.engaged || next.engaged),
+    waited_ms: Number(prev.waited_ms || 0) + Number(next.waited_ms || 0),
+    gates: Number(prev.gates || 1) + 1
+  });
+}
+// Wait until the tab is NOT on the bot-check page. Returns
+//   { engaged, solved, waited_ms, wait_ceiling_minutes, alert }:
+//   engaged:false            — the page opened cleanly, nothing happened (the common case)
+//   engaged:true solved:true — the operator passed the check; the caller continues normally
+//   engaged:true solved:false— the ceiling (pacing.zillow_human_wait_minutes / inputs.human_wait_minutes,
+//                              default 360, max 1440) passed; the caller goes on and the
+//                              capability will report status:"blocked" for this page.
+// Throws only when the tab disappears (the operator closed it = "skip this one").
+async function zillowHumanGate(tab, ctx) {
+  const { job, source, settings, binding, sourceIndex } = ctx;
+  const inputs = source && source.inputs && typeof source.inputs === "object" ? source.inputs : {};
+  const waitMinutes = clampNumber(Number(inputs.human_wait_minutes || (job.pacing && job.pacing.zillow_human_wait_minutes) || 360), 1, 1440, 360);
+  const maxWaitMs = waitMinutes * 60000;
+  const runId = String(job.run_id || (job.collector_bridge && job.collector_bridge.run_id) || "");
+  const bridgeBaseUrl = trimSlash(settings.bridgeBaseUrl);
+  const token = job.collector_bridge && job.collector_bridge.write_token ? job.collector_bridge.write_token : "";
+  const label = source.name || source.url || "";
+  const info = { engaged: false, solved: null, waited_ms: 0, wait_ceiling_minutes: waitMinutes, alert: null };
+  const started = Date.now();
+  let lastHeartbeat = 0;
+  const post = async (status, extra) => {
+    if (!token) return;
+    try {
+      await postToBridge(bridgeBaseUrl, token, "/collect/source_status", Object.assign({
+        run_id: runId, client_slug: job.client_slug || binding.client_slug || "",
+        source_name: source.name || "", source_url: source.url || "", platform: source.platform || "",
+        status, index: sourceIndex || 0, captured_at: new Date().toISOString(),
+        collector_identity: "chrome-extension-local-collector"
+      }, extra || {}), binding);
+    } catch (error) { /* a briefly unreachable bridge must not end the wait */ }
+  };
+  for (;;) {
+    const blocked = await zillowTabBlocked(tab.id);
+    if (blocked === null) {
+      if (info.engaged) await operatorAlertRelease(ctx);
+      throw new Error("zillow tab closed while waiting for the operator to pass the bot check (closing the tab skips the source)");
+    }
+    if (blocked === false) break;
+    if (blocked === "loading") { await delay(1500); continue; }
+    if (!info.engaged) {
+      info.engaged = true;
+      // Bring the check in front of the operator ONCE (the chime says "look at Chrome").
+      try { await chrome.tabs.update(tab.id, { active: true }); } catch (error) { /* ignore */ }
+      try { await chrome.windows.update(tab.windowId, { focused: true, drawAttention: true }); } catch (error) { /* ignore */ }
+      info.alert = await operatorAlertAcquire(ctx, "zillow_bot_check", { url: source.url || "", run_id: runId, source: label });
+      await setState({
+        status: "waiting_for_operator",
+        message: `Zillow bot check — please Press & Hold in the Zillow tab (${label}). The collector resumes by itself when the page loads.`,
+        runId, currentSource: label, updatedAt: new Date().toISOString()
+      });
+      await post("waiting_for_human_captcha", { message: "Zillow bot check (Press & Hold) — waiting for the operator; chime playing", waited_ms: 0, wait_ceiling_minutes: waitMinutes, alert: info.alert });
+      lastHeartbeat = Date.now();
+    } else if (Date.now() - lastHeartbeat >= 120000) {
+      // Heartbeat: keeps the bridge's run alive (it extends the job's expiry on this status).
+      await post("waiting_for_human_captcha", { message: "still waiting for the operator", waited_ms: Date.now() - started, wait_ceiling_minutes: waitMinutes });
+      lastHeartbeat = Date.now();
+    }
+    if (Date.now() - started >= maxWaitMs) {
+      info.solved = false;
+      info.waited_ms = Date.now() - started;
+      await operatorAlertRelease(ctx);
+      await post("human_captcha_wait_expired", { waited_ms: info.waited_ms, wait_ceiling_minutes: waitMinutes });
+      await setState({ status: "running", message: `Bot check not passed within ${waitMinutes} min — moving on (${label})`, runId, updatedAt: new Date().toISOString() });
+      return info;
+    }
+    await delay(4000);
+  }
+  info.waited_ms = Date.now() - started;
+  if (info.engaged) {
+    info.solved = true;
+    await operatorAlertRelease(ctx);
+    await post("human_captcha_solved", { waited_ms: info.waited_ms });
+    await setState({ status: "running", message: `Bot check passed — resuming ${label}`, runId, currentSource: label, updatedAt: new Date().toISOString() });
+    // The check reloads the document into the real page; let it finish before reading it.
+    await waitForTabSettled(tab.id, 20000);
+    await delay(1500);
+  }
+  return info;
 }
 
 async function fetchJSON(url, options, timeoutMs) {

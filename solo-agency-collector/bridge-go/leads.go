@@ -183,6 +183,24 @@ func classifyLeadURLFull(raw string) (kind, platform, seedKind string) {
 		return "profile", "x", ""
 	case strings.Contains(host, "zalo.me"):
 		return "profile", "zalo", ""
+	case host == "zillow.com" || strings.HasSuffix(host, ".zillow.com"):
+		// Zillow (agent directory read by the collector's zillow.* capabilities).
+		// Only /profile/<screenName> names a PERSON or TEAM and may become the
+		// identities.socials.zillow anchor. The directory itself
+		// (/professionals/real-estate-agent-reviews/<location>/?name=…&page=…) is
+		// a QUERY page like a search engine — evidence of looking, never an
+		// identity — so it classifies as nothing, exactly like searchOrAggregatorHost.
+		// Everything else on the host (homedetails, listings) is content evidence.
+		if len(segs) >= 2 && segs[0] == "profile" {
+			return "profile", "zillow", ""
+		}
+		if len(segs) >= 1 && segs[0] == "professionals" {
+			return "", "", ""
+		}
+		if len(segs) == 0 {
+			return "website", "", ""
+		}
+		return "seed", "zillow", "post"
 	}
 	if len(segs) == 0 {
 		return "website", "", ""

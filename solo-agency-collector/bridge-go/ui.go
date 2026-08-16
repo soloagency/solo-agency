@@ -1232,7 +1232,56 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 					"last_leg": last, "box": s.LastLegBox})
 			}
 			nowT := time.Now()
-			live := len(b.liveCollectors(nowT))
+			liveBoxes := b.liveCollectors(nowT)
+			live := len(liveBoxes)
+			// Kept/rejected from the registry (the single source of truth — decisions
+			// made before progress.json existed, e.g. a backfill, live only there);
+			// daemon state + quarantine from the operator-wide ledger.
+			keptTotal, rejTotal := 0, 0
+			for _, sp := range keptBySeed {
+				keptTotal += sp
+			}
+			for _, sp := range rejBySeed {
+				rejTotal += sp
+			}
+			quarantined, quarantineUntil := 0, ""
+			eligible := 0
+			if l, lerr := withLedger(b.uiDataRoot, nowT, func(*harvestLedger) error { return nil }); lerr == nil {
+				for _, bx := range liveBoxes {
+					lb := l.Boxes[bx.InstanceID]
+					if lb != nil && lb.quarantined(nowT) {
+						quarantined++
+						if quarantineUntil == "" || lb.QuarantinedUntil < quarantineUntil {
+							quarantineUntil = lb.QuarantinedUntil
+						}
+					} else if lb == nil || lb.DayJobs < hc.PerBoxBudget {
+						eligible++
+					}
+				}
+			}
+			state := "walking"
+			switch {
+			case len(p.InFlight) > 0:
+				state = "a collector job is running"
+			case inQuietHours(nowT, hc.QuietFrom, hc.QuietTo):
+				state = "quiet hours (" + hc.QuietFrom + "–" + hc.QuietTo + ") — nothing runs"
+			case p.DayEnriched >= hc.DailyBudget:
+				state = "daily budget reached — resumes tomorrow"
+			case live == 0:
+				state = "no collector is checking in — open the client Chrome profiles with the extension"
+			case eligible == 0 && quarantined > 0:
+				until := quarantineUntil
+				if t, perr := time.Parse(time.RFC3339, quarantineUntil); perr == nil {
+					until = t.Local().Format("15:04")
+				}
+				state = fmt.Sprintf("paused: all %d live collector(s) quarantined after repeated failures — first one back at %s", quarantined, until)
+			case eligible == 0:
+				state = "paused: every live collector is at its per-collector daily cap"
+			case len(p.Queue) == 0:
+				state = "reading the next friend-list leg"
+			default:
+				state = "pacing 20–40 s between profiles"
+			}
 			// Effective ceiling for the rest of today: the budget is a CAP, never a
 			// quota — the real bound is min(daily, live boxes × per-box, minutes left ÷ ~0.5).
 			minsLeft := 24*60 - (nowT.Hour()*60 + nowT.Minute())
@@ -1249,8 +1298,9 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 			return map[string]any{"seed_pos": pos, "seed_total": len(p.Seeds), "friends_seen": p.Totals["friends_seen"],
 				"already_known": p.Totals["already_known"], "retried": p.Totals["requeued"],
 				"queue": len(p.Queue), "in_flight": len(p.InFlight), "await": len(p.AwaitDecision),
-				"kept": p.Totals["kept"], "rejected": p.Totals["rejected"],
+				"kept": keptTotal, "rejected": rejTotal,
 				"day_enriched": p.DayEnriched, "day_budget": hc.DailyBudget, "live_collectors": live,
+				"quarantined": quarantined, "eligible": eligible, "state": state,
 				"ceiling": ceiling, "ceiling_reason": reason,
 				"last_enrich": p.LastEnrichAt, "seeds": seedRows}
 		}(),
@@ -3012,9 +3062,10 @@ document.getElementById('submit').addEventListener('click',function(){
 <a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=kept" style="text-decoration:none"><b>{{.HarvestStatus.kept}}</b><span>kept → CRM</span></a>
 <a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=rejected" style="text-decoration:none"><b>{{.HarvestStatus.rejected}}</b><span>rejected</span></a>
 <a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=retried" style="text-decoration:none"><b>{{.HarvestStatus.retried}}</b><span>retried</span></a>
-<div class="stat"><b>{{.HarvestStatus.live_collectors}}</b><span>collectors live</span></div>
+<div class="stat"><b>{{.HarvestStatus.eligible}}/{{.HarvestStatus.live_collectors}}</b><span>collectors usable / live{{if .HarvestStatus.quarantined}} · {{.HarvestStatus.quarantined}} quarantined{{end}}</span></div>
 </div>
-<p class="mut" style="font-size:.83rem;margin:-4px 0 10px">Today's real ceiling: <strong>{{.HarvestStatus.ceiling}}</strong> ({{.HarvestStatus.ceiling_reason}}). The budget is a cap, not a quota — the 20–40 s spacing between profiles is fixed, and raising the budget late in the day never compresses it. "Friends listed" counts names read from friend lists (cheap, one leg reads ~80); only "enriched" opens a profile.</p>
+<p style="font-size:.9rem;margin:-4px 0 6px"><strong>Daemon:</strong> {{.HarvestStatus.state}}</p>
+<p class="mut" style="font-size:.83rem;margin:0 0 10px">Today's real ceiling: <strong>{{.HarvestStatus.ceiling}}</strong> ({{.HarvestStatus.ceiling_reason}}). The budget is a cap, not a quota — the 20–40 s spacing between profiles is fixed, and raising the budget late in the day never compresses it. "Friends listed" counts names read from friend lists (cheap, one leg reads ~80); only "enriched" opens a profile.</p>
 <div class="wrap"><table>
 <tr><th>seed</th><th>state</th><th>friends seen</th><th>legs</th><th>kept</th><th>rejected</th><th>last leg</th></tr>
 {{range .HarvestStatus.seeds}}<tr><td><code>{{.url}}</code></td><td><span class="pill">{{.state}}</span></td><td>{{.friends_seen}}</td><td>{{.legs}}</td><td>{{.kept}}</td><td>{{.rejected}}</td><td class="mut">{{.last_leg}}{{if .box}} · {{.box}}{{end}}</td></tr>{{end}}
