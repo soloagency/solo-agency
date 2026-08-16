@@ -445,6 +445,7 @@ async function run() {
     const served = {};
     served[tok("A")] = { data: { section: { rows: ["Owner/President at Reach Home Loans", "NMLS: 2266637"] } } };
     served[tok("B")] = { data: { section: { rows: ["Email", "info@annv.ca"] } } };
+    served[tok("C")] = { data: { section: { rows: ["La Familia Rodriguez recommends", "100% recommend (7 Reviews)"] } } };
 
     const { ctx } = makeCtx({ feed: "Mickey Nguyen's Post\n12K" });
     ctx.window.__soloGql = {
@@ -460,12 +461,19 @@ async function run() {
         return Promise.resolve({ text: () => Promise.resolve(JSON.stringify(served[vars.collectionToken] || { data: {} })) });
       },
     };
-    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", { settle_ms: 1, use_graphql: true });
     const it = (res.items || [])[0] || {};
     check("the record says the sections came from GraphQL", it.source === "graphql", it.source);
-    check("every token found was fetched", (it.graphql_about || {}).sections === 2, it.graphql_about);
+    check("the two real sections were fetched", (it.graphql_about || {}).sections === 2, it.graphql_about);
+    // Reviews is a section of the About sub-nav, so replaying every token fetched it too.
+    // Excluding it by NAME is exact — the same exclusion could not be expressed against the DOM.
+    check("the Reviews section was not fetched", !(it.about || {}).reviews, Object.keys(it.about || {}));
+    check("no recommendation text reached the record",
+      !(it.about_lines || []).some((l) => /recommends|% recommend/.test(l)), it.about_lines);
     check("the doc_id used is reported", (it.graphql_about || {}).doc_id === "27470497829312569", it.graphql_about);
     check("sections are named, not numbered", !!(it.about || {}).work && !!(it.about || {}).contact_info, Object.keys(it.about || {}));
+    check("skipping the noise section did not abort the rest",
+      !!(it.about || {}).work && !!(it.about || {}).contact_info, Object.keys(it.about || {}));
     check("the job title arrived", (it.about_lines || []).some((l) => /Reach Home Loans/.test(l)), it.about_lines);
     check("the licence number arrived", (it.about_lines || []).some((l) => /NMLS/.test(l)), it.about_lines);
     check("the address arrived", (it.emails || []).indexOf("info@annv.ca") !== -1, it.emails);
@@ -479,8 +487,9 @@ async function run() {
     const { ctx } = makeCtx({ seeMore: 0 });
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
-    check("it fell back to the DOM", it.source === "dom", it.source);
-    check("and the reason is recorded", !!(it.graphql_about || {}).reason, it.graphql_about);
+    check("it used the DOM", it.source === "dom", it.source);
+    // The default is DOM, and the record says WHY rather than leaving it to be inferred.
+    check("and the reason is recorded", (it.graphql_about || {}).reason === "graphql_disabled_by_default", it.graphql_about);
     check("the walk still produced a record", res.available === true && !!it.profile_url, res.available);
   }
 

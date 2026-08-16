@@ -2081,7 +2081,7 @@
       for (var k in node) {
         var val = node[k];
         if (typeof val === "string" && ABOUT_TOKEN_RE.test(val)) {
-          if (!seen[val]) { seen[val] = 1; found.push({ token: val, label: here || ("section_" + found.length) }); }
+          if (!seen[val]) { seen[val] = 1; found.push({ token: val, key: k, label: here || ("section_" + found.length) }); }
         } else walk(val, here, depth + 1);
       }
     }
@@ -2092,11 +2092,11 @@
   function replaySection(store, seed, token) {
     var vars = {};
     for (var k in seed.variables) vars[k] = seed.variables[k];
-    // Only the selector changes. Every relay provider flag and the profile-scoped
-    // appSectionFeedKey are carried over untouched: an unrecognised provider dropped here comes
-    // back as an empty section, not an error, which is the hardest kind of failure to notice.
+    // ONLY collectionToken changes. sectionToken and rawSectionToken are separate variables in
+    // the captured call, and overwriting them with the collection token returned nine sections
+    // that were structurally fine and completely empty — the hardest failure to notice, because
+    // ok:true, failed:0 and sections:9 all say it worked.
     vars.collectionToken = token;
-    vars.sectionToken = token;
     var p = new URLSearchParams();
     p.set("av", seed.av || "");
     p.set("__a", "1");
@@ -2131,13 +2131,34 @@
     var tokens = collectSectionTokens(caps);
     if (!tokens.length) return Promise.resolve({ ok: false, reason: "no_section_tokens_in_responses" });
 
-    var sections = {}, order = [], failed = [];
+    // Reviews and Reels are sections of the About sub-nav too, so replaying every token fetched
+    // them as well — recommendations and view counts filed as profile facts. Excluding them by
+    // NAME is exact and stays exact; this is the same exclusion that was impossible to express
+    // against the DOM, where a Reviews card is not distinguishable by role or structure.
+    var SECTION_NOISE = /^(reviews?|reels?|photos?|videos?|posts?|community|đánh_giá)$/i;
+    // LOCAL. This function lives outside profileDossier, so reaching for that closure's `skipped`
+    // was a ReferenceError at runtime — and it threw mid-loop, which aborted the remaining
+    // sections and dropped the whole record. The offline test missed it only because the noise
+    // section happened to be last in the fixture, so the throw landed after the useful work.
+    var skippedSections = [], sections = {}, order = [], failed = [], sizes = [];
     var idx = 0;
     function step() {
       if (idx >= tokens.length) return Promise.resolve();
       var t = tokens[idx++];
+      if (SECTION_NOISE.test(String(t.label || "").replace(/\s+/g, "_"))) { skippedSections.push(String(t.label)); return step(); }
       return replaySection(store, seed, t.token).then(function (res) {
         var lines = textLeaves(res && res.data, [], 0);
+        // Bytes, not just line count: an empty section and a section whose text was filtered out
+        // by textLeaves look identical from the outside, and they need opposite fixes.
+        var bytes = 0;
+        try { bytes = JSON.stringify(res && res.data || {}).length; } catch (e) { bytes = -1; }
+        var err = null;
+        try {
+          var es = (res && (res.errors || res.error)) || null;
+          if (es) err = String(JSON.stringify(es)).slice(0, 220);
+          else if (bytes <= 2 && res) err = "empty data; top keys=" + Object.keys(res).join(",");
+        } catch (e) { /* ignore */ }
+        sizes.push({ label: String(t.label || ""), key: t.key || null, bytes: bytes, lines: lines.length, error: err });
         var key = String(t.label || ("section_" + idx)).replace(/\s+/g, "_").toLowerCase();
         if (sections[key]) key = key + "_" + idx;
         sections[key] = lines;
@@ -2148,6 +2169,7 @@
     }
     return step().then(function () {
       return { ok: order.length > 0, sections: sections, order: order, failed: failed,
+               skipped: skippedSections, sizes: sizes,
                doc_id: String(seed.docId || ""), query: String(seed.queryName || ""),
                tokens_found: tokens.length, reason: order.length ? null : "every_replay_failed" };
     });
@@ -2566,8 +2588,10 @@
       // a bio that grew a second "See more" after the first click stays cut.
       return Promise.resolve().then(function () {
       recordGql("main", mainMark);
-      about.main = harvestDelta("main");
-      checked.push("main");
+      // NOT harvested yet. Reading the landing page here swept in the review carousel and the
+      // reel view counts, and because the harvest records each line once, the GraphQL sections
+      // behind it deduped to empty — the clean data arrived and was discarded as duplicate.
+      // Only the fallback path needs this text, so only the fallback path takes it.
       if (!info) {
         return { capability: "fb.profile.dossier", schema: "ProfileDossier", available: true, found: false, count: 0,
           items: [], checked: checked, error: "could not resolve a profile base from the url: " + target };
@@ -2581,10 +2605,18 @@
       //
       // So when the job already points at About, do not re-enter it and do not re-read what is
       // on screen. Clicking "About" from an About page was also what dragged the post feed in.
-      // GraphQL FIRST. When the sections come back as data there is nothing to scope, nothing to
-      // click, and structurally nothing for a review or a post to leak through. The DOM walk
-      // below stays only as a fallback for a page that never fires the About query.
+      // DOM by default. The GraphQL path is real but not finished: it names every section
+      // correctly, skips Reviews and touches no DOM, yet every replayed response came back
+      // data:{} — the section token is being sent in the wrong variable, and collectionToken /
+      // sectionToken / rawSectionToken are three separate variables in the captured call. It is
+      // kept behind use_graphql because the framework is sound and only that mapping is missing;
+      // shipping it as the default would trade working-but-noisy for clean-and-empty.
+      //
+      // Nine empty sections reported ok:true, failed:0, sections:9. That is why `sizes` and the
+      // GraphQL `errors` are now recorded: without them the failure is indistinguishable from
+      // success at every level the caller can see.
       function gatherAbout() {
+      if (!inputs.use_graphql) { gqlAbout = { ok: false, reason: "graphql_disabled_by_default" }; return walkTheDom(); }
       return aboutViaGraphQL(inputs).then(function (gql) {
         gqlAbout = gql;
         if (gql && gql.ok) {
@@ -2609,6 +2641,8 @@
     }
 
     function walkTheDom() {
+      about.main = harvestDelta("main");
+      checked.push("main");
       var atAbout = /\/about|sk=about|directory_/i.test(location.href);
       return (atAbout ? Promise.resolve(true) : enterAbout()).then(function (entered) {
         if (atAbout) checked.push("about(already)");
@@ -2692,7 +2726,8 @@
             source: gqlAbout && gqlAbout.ok ? "graphql" : "dom",
             graphql_about: gqlAbout ? { ok: !!gqlAbout.ok, reason: gqlAbout.reason || null,
               tokens_found: gqlAbout.tokens_found || 0, doc_id: gqlAbout.doc_id || null,
-              sections: (gqlAbout.order || []).length, failed: (gqlAbout.failed || []).length } : null,
+              sections: (gqlAbout.order || []).length, failed: (gqlAbout.failed || []).length,
+              sizes: gqlAbout.sizes || [], skipped: gqlAbout.skipped || [] } : null,
             _panel_ladder: inputs.debug_panel ? panelLadder() : undefined,
             budget_exhausted: budgetExhausted,
             elapsed_ms: Date.now() - startedAt
