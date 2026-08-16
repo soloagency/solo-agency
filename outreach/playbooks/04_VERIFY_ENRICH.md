@@ -257,11 +257,16 @@ wins.
    a routine `hooks_stale` refresh, and reporting it "skipped" claims a hunt that never happened.
    (Measured on the last live batch: 100 curated seeds in, 19 hooks citing them.)
 
-   **Run contacts FIRST, and spend the post job only where it pays.** No address means the lead
-   cannot be emailed, so its hooks are worthless: do not scroll a feed for someone you cannot
-   reach. And a lead from an operator-saved reel/post ALREADY has its hook (that saved content) —
-   it needs the contacts job only. On the last live batch this ordering would have been ~128 page
-   loads instead of ~200, with nothing lost.
+   **One `fb.profile.enrich` job per profile — there is no "contacts first, posts later" ordering
+   any more, because there are no longer two jobs to order.** The merged record hands you the
+   address half and the hooks half from a single page load; use it as: address empty → the
+   lead's Facebook path is exhausted, go to the website ladder (rows 6-7) or mark
+   `email_not_found` — the hooks are still recorded but do not spend any further work on a lead
+   you cannot reach. A lead from an operator-saved reel/post already has its hook (that saved
+   content): the enrich pass still runs once (the address is needed either way), and its
+   `posts[]` only supplements the curated hook. (Historical note: under the old two-job model
+   this stage ordered contacts before posts to save ~70 page loads per 100 leads; the merged
+   capability removes that whole page-load class, so the ordering rule is retired.)
 
    **Rows 1-5 are where the answer usually is.** A person selling a service publishes a way to be
    contacted; that is the whole point of their page. On the last measured 71-lead run, 42% had the
@@ -271,7 +276,8 @@ wins.
 
    **Batch-resolve BEFORE deep enrichment (reel-heavy lists).** User lists routinely carry many
    content links of the SAME person. So: resolve ALL unresolved seeds to owner profiles FIRST
-   (cheap header reads), submitting each via `enrich write` with just `channels_found.profiles`
+   (owner from the URL for posts/permalinks, the reel page's owner link for reels — no profile
+   job yet), submitting each via `enrich write` with just `channels_found.profiles`
    — the store consolidates automatically (consolidation-on-discovery, DESIGN §9.1b): fragments
    sharing a profile/email auto-merge into ONE contact with a full union (every reel, every hook
    kept), and the result reports `consolidated: [{survivor, merged, ...}]`. Only THEN deep-enrich
