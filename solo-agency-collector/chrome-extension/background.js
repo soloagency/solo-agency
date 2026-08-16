@@ -20,7 +20,7 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.1.71-id-anchored-dm";
+const EXTENSION_BUILD = "0.1.89-full-feed";
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
@@ -637,41 +637,13 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
               // boundary. Reuse it rather than re-scraping in the MAIN world, where a
               // hand-rolled scan mistook a comment's article for its post. The two worlds
               // share only the DOM, so the array has to be relayed through here.
-              // Poll rather than read once: a group feed can still be rendering its intro
-              // card when the capture ends. Measured back to back on the same group — one
-              // run read three posts, the very next read the "Featured" card and nothing
-              // else, and refused. Resolution is a WRITE PRECONDITION, so a slow render must
-              // cost time, not correctness. Nudging the page between tries is what makes the
-              // feed mount; never do that on an immersive player, where a scroll NAVIGATES.
-              const canNudge = !isImmersivePlayerUrl(source.url);
-              let domPosts = [];
-              for (let attempt = 0; attempt < 6 && domPosts.length === 0; attempt++) {
-                if (attempt) await delay(2000);
-                try {
-                  const [dres] = await withTimeout(chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    func: (nudge) => {
-                      try {
-                        if (nudge) window.scrollBy(0, Math.round((window.innerHeight || 800) * 0.8));
-                        const filter = globalThis.SocialHtmlFilter;
-                        if (!filter || typeof filter.filterCurrentPage !== "function") return [];
-                        const res = filter.filterCurrentPage({ currentUrl: location.href, outputBaseUrl: location.href });
-                        return (res && Array.isArray(res.posts) ? res.posts : [])
-                          .map((p) => ({ url: String((p && p.postUrl) || ""), text: String((p && p.content) || "") }))
-                          .filter((p) => p.url && p.text);
-                      } catch (e) { return []; }
-                    },
-                    args: [attempt > 0 && canNudge]
-                  }), 20000, "dom_posts_timeout");
-                  domPosts = (dres && Array.isArray(dres.result)) ? dres.result : [];
-                } catch (domErr) {
-                  domPosts = []; // best-effort second source; keep trying, the GraphQL listing still stands
-                }
-              }
-              // Only the RESOLVE call carries the feed; the write itself has no use for it and
-              // serialising the whole listing into that call again would be pure overhead.
-              const resolveInputs = Object.assign({}, actionInputs, { _dom_posts: domPosts });
-
+              // The resolver reads the listing through GraphQL only. A rendered-feed source
+              // was relayed in here for a day and has been removed: it existed to recover a
+              // post GraphQL "could not see", and that premise proved wrong — the missing post
+              // was ANONYMOUS, which Facebook does not serve through the group feed query at
+              // all. What it did add was mispairing, because a comment's article carries the
+              // POST's permalink. gql_extract's own ensureCapture already waits and nudges the
+              // page when a capture has not arrived yet, so nothing here needs to poll for it.
               await withTimeout(chrome.scripting.executeScript({
                 target: { tabId: tab.id }, world: "MAIN", files: ["gql_extract.js"]
               }), 8000, "inject_gql_extract_timeout");
@@ -682,7 +654,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
                 target: { tabId: tab.id },
                 world: "MAIN",
                 func: async (capId, capInputs) => (typeof window.__soloActResolve === "function" ? await window.__soloActResolve(capId, capInputs) : { __nolib: true }),
-                args: [String(source.capability), resolveInputs]
+                args: [String(source.capability), actionInputs]
               }), 60000, "gql_action_resolve_timeout");
               const rr = rres && rres.result;
               const rItem = rr && Array.isArray(rr.items) ? rr.items[0] : null;
