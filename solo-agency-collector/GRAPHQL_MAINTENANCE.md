@@ -345,6 +345,20 @@ ended it was dumping the **shape of every chunk** (keys, `label`, `path`, edge c
 `fb.group.posts`, `fb.group.search_posts`; profile.posts/newsfeed have their own
 variants — if the story node shape changes, fix it in one place here).
 
+Feed-response plumbing (all added while fixing §9.0 — do not "simplify" any of them away):
+`mergeStreamed(response)` assembles `@stream`/`@defer` chunks · `resolvePageInfo(response,path)`
+tries the configured path then searches · `findInChunks` / `deepFindPageInfo` ·
+`collectEdgeArrays` + `extractReplayItems` (lets the capability's OWN extractor decide which
+`edges` array is real — picking by name grabbed a comment-sort dropdown and produced a phantom
+"Most relevant" record with no url) · `docIdFromRegistry(queryName)` ·
+`FEED_VARS` / `feedTargetId(cap)` · `storyActor(node)` (top-level actors, then the un-redacted
+avatar path — §9.0 Trap 5).
+
+**Offline harnesses** (`solo-agency-collector/tests/`, run with plain `node`, no browser):
+`test_gql_extract.js` pins the streamed-chunk shape, the anonymous actor path and the
+`post_id`-only story; `test_gql_actions.js` pins the write-action guards. Both run the real
+files in a `vm` with a fake DOM — use them before burning an extension reload.
+
 ## 12. Deep pagination (cursor replay)
 
 Facebook's search/list screens do **not** reliably load more results on passive
