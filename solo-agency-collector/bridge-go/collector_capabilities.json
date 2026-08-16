@@ -126,10 +126,10 @@
       "category": "string — Facebook's own label when it has one. NARROW: only real-estate/insurance wording is ever recognised, so an empty category means nothing.",
       "follower_count": "number | null",
       "verified": "boolean",
-      "intro_bio": "string — the profile's own blurb",
-      "work": "string[] — EMPLOYERS parsed from 'Works at <X>'. Measured on 5 live profiles: EMPTY on all five, because Facebook writes 'Realtor at the Carlbrook Group', not 'Works at ...'. Do not rely on this field; read about_lines.",
+      "intro_bio": "string — the profile's own blurb. Read stops at the first review marker: a recommendation is always longer than a bio, so the longest-line rule used to return a review on every Page that had one.",
+      "work": "string[] — employers from the intro card PLUS the titled entries under the Work heading ('Owner/President at Reach Home Loans'). The title matters: the employer alone cannot separate Loan & Mortgage from Banking & Financial.",
       "education": "string[]",
-      "location": "string[] — Lives in / From, parsed from the intro card. Often EMPTY even when the location is plainly stated: Pages print it as a bare city line ('Garden Grove, CA') or inside the Work section ('Boca Raton, Florida'), neither of which matches the 'Lives in <X>' pattern. Read about_lines for the real answer — same as with industry, the collector supplies the signal and the agent decides.",
+      "location": "string[] — 'Lives in / From' from the intro card, plus the value under an Address label. A Page states an address, never 'Lives in', which is why this was empty on every Page before.",
       "intro_lines": "string[] — intro card lines as written, capped at 20",
       "about": "object — plain text per About section, keyed by the section's own name (work, contact_info, education, ...). On the GraphQL path each value is the string leaves of that section's response.",
       "about_lines": "string[] — every about.* line flattened in visit order, capped at 120. READ THIS to work out the trade: 'Loan Officer at Wells Fargo' lands here, and the title is what separates Loan & Mortgage from Banking & Financial. The employer alone does not.",
@@ -147,7 +147,8 @@
       "see_more_expansions": "number — how many truncated 'See more' blocks were expanded across the whole walk. The collector's own expansion runs once, on the entry page, before this capability is injected; this one runs per surface, so a bio cut off inside a sub-tab is no longer lost.",
       "about_panel_found": "boolean — true when every line came from the About card itself. false means the panel was not located and the text is whatever the main column held, posts and reviews included. A dossier assembled from a timeline reads exactly like one assembled from an About section; this flag is the only thing that tells them apart, so distrust about_lines when it is false.",
       "source": "'graphql' | 'dom' — how the sections were obtained. graphql means the About query was replayed by doc_id and nothing on the page was touched, the only mode in which a review or a post cannot leak in. dom means the query never fired and the walk fell back to reading the main column.",
-      "graphql_about": "object | null — {ok, reason, tokens_found, doc_id, sections, failed}. `reason` says why replay was not used, so a dom-sourced record explains itself instead of just being worse."
+      "graphql_about": "object | null — {ok, reason, tokens_found, doc_id, sections, failed}. `reason` says why replay was not used, so a dom-sourced record explains itself instead of just being worse.",
+      "phones": "string[] — the value under a Phone/Mobile label."
     },
     "ContactRecord": {
       "profile_url": "string",

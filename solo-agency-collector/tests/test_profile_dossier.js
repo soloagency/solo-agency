@@ -243,8 +243,13 @@ async function run() {
     check("the Work and education tab kept its text", we.some((l) => /Loan Officer at Wells Fargo/.test(l)), we);
     check("the title is in the flat about_lines an agent reads", (it.about_lines || []).some((l) => /Loan Officer/.test(l)), (it.about_lines || []).slice(0, 8));
     // This is the distinction the 42-value dictionary turns on: the employer alone cannot
-    // separate Loan & Mortgage from Banking & Financial, so `work` is not enough on its own.
-    check("`work` still only holds the employer, not the title", (it.work || []).some((w) => /ZenWealth/.test(w)) && !(it.work || []).some((w) => /Loan Officer/.test(w)), it.work);
+    // separate Loan & Mortgage from Banking & Financial. `work` used to hold only the employer,
+    // because it was parsed from "Works at <X>" and Facebook writes "Loan Officer at Wells
+    // Fargo" under a Work heading instead — the title was in the record but never in a field.
+    // Reading the Work section by label puts it where a caller can use it.
+    check("`work` carries the employer from the intro card", (it.work || []).some((w) => /ZenWealth/.test(w)), it.work);
+    check("and the JOB TITLE from the Work section", (it.work || []).some((w) => /Loan Officer at Wells Fargo/.test(w)), it.work);
+    check("headings are not mistaken for values", !(it.work || []).some((w) => /^(Work|Education|Address)$/i.test(w)), it.work);
   }
 
   console.log("\n== contact data is collected across tabs, not just the first hit ==");
@@ -516,6 +521,31 @@ async function run() {
     check("but the feed was scanned only once", h.feedScans() === 1, { scans: h.feedScans(), tabs });
     check("and post text still did not reach the record",
       !(it.about_lines || []).some((l) => /Post/.test(l)), it.about_lines);
+  }
+
+  console.log("\n== a Page's address becomes location, and a review never becomes the bio ==");
+  {
+    // Two failures seen together on all three live pages: location stayed empty because it is
+    // parsed from "Lives in <X>" while a Page prints an "Address" label, and intro_bio picked a
+    // REVIEW because a recommendation is always longer than a bio.
+    const SLUGS = { contact_info: "directory_contact_info", intro: "directory_intro" };
+    const pages = {
+      main: page(["Ann Vuong - Nhà Canada House", "7.9K followers",
+                  "Top real estate broker in Canada, helping families and investors find success",
+                  "Reviews", "100% recommend (35 Reviews)",
+                  "Cảm ơn Ann Vương đã luôn nhiệt tình hỗ trợ, hướng dẫn chi tiết và chia sẻ nhiều thông tin hữu ích khi mình mua nhà"]),
+      contact_info: page(["Address", "30 Eglinton West, Mississauga, ON, Canada, L5R 3E7", "Phone", "+1 647-784-2888"]),
+      intro: page(["Real Estate Agent"]),
+    };
+    const { ctx } = makeCtx({ pages, slugs: SLUGS, offers: Object.keys(SLUGS), seeMore: 0 });
+    ctx.document.title = "";
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    check("the Page address became location",
+      (it.location || []).some((l) => /Mississauga, ON, Canada/.test(l)), it.location);
+    check("the phone was read from its label", (it.phones || []).some((p) => /647-784-2888/.test(p)), it.phones);
+    check("the bio is the profile's own line", /Top real estate broker in Canada/.test(it.intro_bio || ""), it.intro_bio);
+    check("the bio is NOT the review", !/Cảm ơn/.test(it.intro_bio || ""), it.intro_bio);
   }
 
   console.log("\n== the operator's own profile IS refused ==");
