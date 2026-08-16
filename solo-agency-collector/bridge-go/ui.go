@@ -869,6 +869,8 @@ func (b *bridge) handleUIRouter(w http.ResponseWriter, r *http.Request) {
 		b.uiRenderCampaigns(w, parts[0])
 	case len(parts) == 2 && parts[1] == "sent":
 		b.uiRenderSent(w, parts[0])
+	case len(parts) == 4 && parts[1] == "campaign" && parts[3] == "harvest":
+		b.uiRenderHarvest(w, parts[0], parts[2], r)
 	case len(parts) == 3 && parts[1] == "campaign":
 		b.uiRenderCampaign(w, parts[0], parts[2])
 	case len(parts) == 2 && parts[1] == "approvals":
@@ -2187,7 +2189,7 @@ func (b *bridge) uiRender(w http.ResponseWriter, page string, data map[string]an
 	switch page {
 	case "contact":
 		nav = "crm"
-	case "campaign":
+	case "campaign", "harvest":
 		nav = "campaigns"
 	}
 	data["NavPage"] = nav
@@ -2454,6 +2456,41 @@ try{
 <td class="mut">{{.Updated}}{{if .Stale}} <span class="pill band-review_carefully">stale</span>{{end}}</td>
 </tr>{{else}}<tr><td colspan="11" class="mut">no snapshots yet — each client appears here after its next report run (fleet/{client}.json)</td></tr>{{end}}
 </table></div>
+{{template "foot" .}}{{end}}
+
+{{define "harvest"}}{{template "head" .}}
+<p class="sub"><a href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}">← {{.Slug}}</a> · <strong>{{.StageLabel}}</strong> — {{.StageHelp}}. {{.Count}} profile(s).</p>
+<div class="toolbar" style="flex-wrap:wrap;gap:.4rem">
+{{$cur := .Stage}}{{$cl := .Client.Slug}}{{$sl := .Slug}}{{range .Stages}}<a class="pill{{if eq .Key $cur}} band-high{{end}}" href="/ui/{{$cl}}/campaign/{{$sl}}/harvest?stage={{.Key}}">{{.Label}}</a> {{end}}
+</div>
+{{if .Goal}}<div class="card mut" style="font-size:.85rem">Goal the agent judges against: <em>{{.Goal}}</em></div>{{end}}
+{{range .Rows}}
+<div class="card">
+<div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap">
+<strong>{{if .Name}}{{.Name}}{{else}}<span class="mut">(name not read yet)</span>{{end}}</strong>
+<span class="pill">{{.Status}}</span>
+{{if .OK}}<span class="pill{{if eq .OK "failed"}} band-review_carefully{{end}}">{{if eq .OK "ok"}}enriched ok{{else}}enrich failed{{end}}</span>{{end}}
+{{if .Priority}}<span class="pill">{{.Priority}}</span>{{end}}
+{{if .Attempts}}<span class="pill">attempt {{.Attempts}}</span>{{end}}
+{{if .LeadID}}<a class="pill band-high" href="/ui/{{$.Client.Slug}}/contact/{{.LeadID}}">CRM {{.LeadID}} ↗</a>{{end}}
+<span class="mut" style="font-size:.8rem;margin-left:auto">{{.When}}{{if .Box}} · {{.Box}}{{end}}</span>
+</div>
+<div class="mut" style="font-size:.85rem;margin-top:4px"><a href="{{.URL}}" target="_blank" rel="noopener">{{.URL}}</a>{{if .Subtitle}} · {{.Subtitle}}{{end}}{{if .Category}} · {{.Category}}{{end}}</div>
+{{if .Seed}}<div class="mut" style="font-size:.78rem">via seed {{.Seed}}</div>{{end}}
+{{if .Reason}}<div style="margin-top:6px"><span class="mut">Verdict reason:</span> {{.Reason}}</div>{{end}}
+{{if .Error}}<div style="margin-top:6px" class="mut">Error: {{.Error}}</div>{{end}}
+{{if .AvoidBox}}<div class="mut" style="font-size:.78rem">retry avoids {{.AvoidBox}}</div>{{end}}
+{{if or .About .Work .Emails .Websites .Posts}}
+<details style="margin-top:8px"><summary class="mut" style="cursor:pointer;font-size:.85rem">Collected data</summary>
+{{if .Work}}<div style="margin-top:6px"><span class="mut">Work:</span> {{range .Work}}<div>· {{.}}</div>{{end}}</div>{{end}}
+{{if .About}}<div style="margin-top:6px"><span class="mut">About:</span> {{range .About}}<div>· {{.}}</div>{{end}}</div>{{end}}
+{{if .Emails}}<div style="margin-top:6px"><span class="mut">Emails:</span> {{range .Emails}}<code>{{.}}</code> {{end}}</div>{{end}}
+{{if .Websites}}<div style="margin-top:6px"><span class="mut">Websites:</span> {{range .Websites}}<a href="{{.}}" target="_blank" rel="noopener">{{.}}</a> {{end}}</div>{{end}}
+{{if .Posts}}<div style="margin-top:6px"><span class="mut">Recent posts / reels:</span>{{range .Posts}}<div style="margin:4px 0 0 8px">{{if .date}}<span class="mut">{{.date}}</span> {{end}}{{.caption}}{{if .url}} <a href="{{.url}}" target="_blank" rel="noopener">↗</a>{{end}}</div>{{end}}</div>{{end}}
+</details>
+{{end}}
+</div>
+{{else}}<div class="card mut">Nothing at this stage right now.</div>{{end}}
 {{template "foot" .}}{{end}}
 
 {{define "settings"}}{{template "head" .}}
@@ -2966,15 +3003,15 @@ document.getElementById('submit').addEventListener('click',function(){
 {{if .HarvestStatus}}
 <h3 style="margin:.9rem 0 .3rem">Progress</h3>
 <div class="statrow">
-<div class="stat"><b>{{.HarvestStatus.day_enriched}}/{{.HarvestStatus.day_budget}}</b><span>enriched today</span></div>
-<div class="stat"><b>{{.HarvestStatus.friends_seen}}</b><span>friends listed</span></div>
-<div class="stat"><b>{{.HarvestStatus.already_known}}</b><span>skipped (already known)</span></div>
-<div class="stat"><b>{{.HarvestStatus.queue}}</b><span>queued to enrich</span></div>
-<div class="stat"><b>{{.HarvestStatus.in_flight}}</b><span>enriching now</span></div>
-<div class="stat"><b>{{.HarvestStatus.await}}</b><span>awaiting decision</span></div>
-<div class="stat"><b>{{.HarvestStatus.kept}}</b><span>kept → CRM</span></div>
-<div class="stat"><b>{{.HarvestStatus.rejected}}</b><span>rejected</span></div>
-<div class="stat"><b>{{.HarvestStatus.retried}}</b><span>retried</span></div>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=listed" style="text-decoration:none"><b>{{.HarvestStatus.day_enriched}}/{{.HarvestStatus.day_budget}}</b><span>enriched today</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=listed" style="text-decoration:none"><b>{{.HarvestStatus.friends_seen}}</b><span>friends listed</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=known" style="text-decoration:none"><b>{{.HarvestStatus.already_known}}</b><span>skipped (already known)</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=queued" style="text-decoration:none"><b>{{.HarvestStatus.queue}}</b><span>queued to enrich</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=in_flight" style="text-decoration:none"><b>{{.HarvestStatus.in_flight}}</b><span>enriching now</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=await" style="text-decoration:none"><b>{{.HarvestStatus.await}}</b><span>awaiting decision</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=kept" style="text-decoration:none"><b>{{.HarvestStatus.kept}}</b><span>kept → CRM</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=rejected" style="text-decoration:none"><b>{{.HarvestStatus.rejected}}</b><span>rejected</span></a>
+<a class="stat" href="/ui/{{.Client.Slug}}/campaign/{{.Slug}}/harvest?stage=retried" style="text-decoration:none"><b>{{.HarvestStatus.retried}}</b><span>retried</span></a>
 <div class="stat"><b>{{.HarvestStatus.live_collectors}}</b><span>collectors live</span></div>
 </div>
 <p class="mut" style="font-size:.83rem;margin:-4px 0 10px">Today's real ceiling: <strong>{{.HarvestStatus.ceiling}}</strong> ({{.HarvestStatus.ceiling_reason}}). The budget is a cap, not a quota — the 20–40 s spacing between profiles is fixed, and raising the budget late in the day never compresses it. "Friends listed" counts names read from friend lists (cheap, one leg reads ~80); only "enriched" opens a profile.</p>

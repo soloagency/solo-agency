@@ -3,6 +3,7 @@ package main
 import (
 	"math/rand"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -374,5 +375,59 @@ func TestHarvestDecideCLIValidates(t *testing.T) {
 	p, _ := withProgress(clientDir, "friends-oc", func(*harvestProgress) error { return nil })
 	if len(p.AwaitDecision) != 0 {
 		t.Fatalf("decide must clear await_decision: %+v", p.AwaitDecision)
+	}
+}
+
+func TestHarvestDrilldownRowsAndTemplate(t *testing.T) {
+	clientDir, store := harvestFixture(t)
+	hc := harvestConfigFrom(store.getCampaign("friends-oc"), defaultSystemSettings())
+	p, _ := syncSeeds(clientDir, "friends-oc", hc)
+	seed := p.Seeds[0].URL
+	ingestLeg(clientDir, "friends-oc", seed, legOutcome{Items: []map[string]any{
+		{"url": "https://www.facebook.com/alice.realtor", "name": "Alice", "subtitle": "Realtor at OC Homes"},
+		{"url": "https://www.facebook.com/bob.smith", "name": "Bob"},
+	}, EndCursor: "C1", HasNext: true, HasNextKnown: true}, hc.GoalKeywords, "ext-a")
+	// Park an enriched envelope for Alice and put her in await_decision.
+	env := map[string]any{"uid": "facebook.com/alice.realtor", "profile_url": "https://www.facebook.com/alice.realtor",
+		"seed": seed, "name": "Alice", "ok": true, "attempts": 1, "collector": "ext-a",
+		"record": map[string]any{"category": "Real Estate Agent", "about_lines": []any{"Realtor · OC Homes"},
+			"work": []any{map[string]any{"title": "Realtor", "employer": "OC Homes"}},
+			"posts": []any{map[string]any{"caption": "Just listed in Garden Grove", "date": "2026-08-10", "url": "https://www.facebook.com/alice.realtor/posts/1"}},
+			"emails": []any{"alice@example.com"}}}
+	writeJSONT(t, harvestEnrichedPath(clientDir, "friends-oc", "facebook.com/alice.realtor"), env)
+	_, _ = withProgress(clientDir, "friends-oc", func(p *harvestProgress) error {
+		p.Queue = p.Queue[1:] // alice popped
+		p.AwaitDecision = append(p.AwaitDecision, "facebook.com/alice.realtor")
+		return nil
+	})
+	recordDecisionOK := recordDecision(clientDir, "friends-oc", "facebook.com/bob.smith", "rejected", "", "no trade signal")
+	if recordDecisionOK != nil {
+		t.Fatal(recordDecisionOK)
+	}
+	b := &bridge{}
+	c := uiClient{Slug: "acme", Path: filepath.Dir(clientDir)}
+	rows := b.harvestRows(c, "friends-oc", "await", time.Now())
+	if len(rows) != 1 || rows[0].Name != "Alice" || rows[0].OK != "ok" || len(rows[0].Posts) != 1 || rows[0].Category != "Real Estate Agent" {
+		t.Fatalf("await drill-down wrong: %+v", rows)
+	}
+	if rows := b.harvestRows(c, "friends-oc", "rejected", time.Now()); len(rows) != 1 || rows[0].Reason != "no trade signal" {
+		t.Fatalf("rejected drill-down wrong: %+v", rows)
+	}
+	if rows := b.harvestRows(c, "friends-oc", "known", time.Now()); len(rows) < 2 { // seed + bob
+		t.Fatalf("known drill-down should include the seed and decided profiles: %+v", rows)
+	}
+	var sb strings.Builder
+	err := uiTpl.ExecuteTemplate(&sb, "harvest", map[string]any{
+		"Title": "x", "NavPage": "harvest", "Client": c, "Slug": "friends-oc", "Stage": "await",
+		"StageLabel": "Awaiting decision", "StageHelp": "h", "Stages": harvestStages, "Rows": rows, "Count": len(rows),
+		"Goal": "Realtors in OC"})
+	if err != nil {
+		t.Fatalf("harvest template: %v", err)
+	}
+	html := sb.String()
+	for _, want := range []string{"Alice", "Real Estate Agent", "Just listed in Garden Grove", "alice@example.com", "Realtors in OC"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("harvest page missing %q", want)
+		}
 	}
 }
