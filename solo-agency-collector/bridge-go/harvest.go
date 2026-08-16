@@ -443,6 +443,7 @@ func ingestLeg(clientDir, campaign, seedURL string, out legOutcome, keywords []s
 		}
 		p.Totals["legs"]++
 		p.Totals["friends_seen"] += len(out.Items)
+		p.Totals["already_known"] += res.AlreadySeen
 		return nil
 	})
 	if err != nil {

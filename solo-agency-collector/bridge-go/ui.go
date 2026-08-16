@@ -1229,11 +1229,27 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 					"legs": s.LegsDone, "state": state, "kept": keptBySeed[s.URL], "rejected": rejBySeed[s.URL],
 					"last_leg": last, "box": s.LastLegBox})
 			}
-			live := len(b.liveCollectors(time.Now()))
+			nowT := time.Now()
+			live := len(b.liveCollectors(nowT))
+			// Effective ceiling for the rest of today: the budget is a CAP, never a
+			// quota — the real bound is min(daily, live boxes × per-box, minutes left ÷ ~0.5).
+			minsLeft := 24*60 - (nowT.Hour()*60 + nowT.Minute())
+			ceiling := hc.DailyBudget
+			byBoxes := live * hc.PerBoxBudget
+			byTime := p.DayEnriched + minsLeft*2 // ~30s per profile
+			reason := "daily budget"
+			if byBoxes < ceiling {
+				ceiling, reason = byBoxes, fmt.Sprintf("%d collectors × %d per collector", live, hc.PerBoxBudget)
+			}
+			if byTime < ceiling {
+				ceiling, reason = byTime, fmt.Sprintf("~%d min left at 20–40s per profile", minsLeft)
+			}
 			return map[string]any{"seed_pos": pos, "seed_total": len(p.Seeds), "friends_seen": p.Totals["friends_seen"],
+				"already_known": p.Totals["already_known"], "retried": p.Totals["requeued"],
 				"queue": len(p.Queue), "in_flight": len(p.InFlight), "await": len(p.AwaitDecision),
 				"kept": p.Totals["kept"], "rejected": p.Totals["rejected"],
 				"day_enriched": p.DayEnriched, "day_budget": hc.DailyBudget, "live_collectors": live,
+				"ceiling": ceiling, "ceiling_reason": reason,
 				"last_enrich": p.LastEnrichAt, "seeds": seedRows}
 		}(),
 		// A comment campaign watches its OWN group list. Offer the client's already-scanned
@@ -2951,13 +2967,17 @@ document.getElementById('submit').addEventListener('click',function(){
 <h3 style="margin:.9rem 0 .3rem">Progress</h3>
 <div class="statrow">
 <div class="stat"><b>{{.HarvestStatus.day_enriched}}/{{.HarvestStatus.day_budget}}</b><span>enriched today</span></div>
-<div class="stat"><b>{{.HarvestStatus.friends_seen}}</b><span>friends seen</span></div>
+<div class="stat"><b>{{.HarvestStatus.friends_seen}}</b><span>friends listed</span></div>
+<div class="stat"><b>{{.HarvestStatus.already_known}}</b><span>skipped (already known)</span></div>
 <div class="stat"><b>{{.HarvestStatus.queue}}</b><span>queued to enrich</span></div>
+<div class="stat"><b>{{.HarvestStatus.in_flight}}</b><span>enriching now</span></div>
 <div class="stat"><b>{{.HarvestStatus.await}}</b><span>awaiting decision</span></div>
 <div class="stat"><b>{{.HarvestStatus.kept}}</b><span>kept → CRM</span></div>
 <div class="stat"><b>{{.HarvestStatus.rejected}}</b><span>rejected</span></div>
+<div class="stat"><b>{{.HarvestStatus.retried}}</b><span>retried</span></div>
 <div class="stat"><b>{{.HarvestStatus.live_collectors}}</b><span>collectors live</span></div>
 </div>
+<p class="mut" style="font-size:.83rem;margin:-4px 0 10px">Today's real ceiling: <strong>{{.HarvestStatus.ceiling}}</strong> ({{.HarvestStatus.ceiling_reason}}). The budget is a cap, not a quota — the 20–40 s spacing between profiles is fixed, and raising the budget late in the day never compresses it. "Friends listed" counts names read from friend lists (cheap, one leg reads ~80); only "enriched" opens a profile.</p>
 <div class="wrap"><table>
 <tr><th>seed</th><th>state</th><th>friends seen</th><th>legs</th><th>kept</th><th>rejected</th><th>last leg</th></tr>
 {{range .HarvestStatus.seeds}}<tr><td><code>{{.url}}</code></td><td><span class="pill">{{.state}}</span></td><td>{{.friends_seen}}</td><td>{{.legs}}</td><td>{{.kept}}</td><td>{{.rejected}}</td><td class="mut">{{.last_leg}}{{if .box}} · {{.box}}{{end}}</td></tr>{{end}}
