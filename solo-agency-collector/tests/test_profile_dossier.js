@@ -86,6 +86,11 @@ function makeCtx(opts) {
       }
       // profileHeader's external-link scan
       if (/^a\[href\^="http"\]$/.test(sel)) return [];
+      // discovery: every About link on the page, which is how the walk now builds its plan
+      if (sel === "a[href]") {
+        if (state.current === "main") return [anchor("/claire/about", "About", navTo("about"))];
+        return offers.map((k) => anchor("/claire/" + TAB_SLUG[k], k, navTo(k)));
+      }
       // the name heading
       if (/h1/.test(sel)) {
         const first = (pages[state.current] || "").split("\n").find((l) => /Claire/.test(l));
@@ -122,11 +127,12 @@ async function run() {
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
     check("the record is available even before judging content", res.available === true, res.available);
-    check("all five About tabs were opened", ["contact_info", "work_education", "intro", "basic_info", "links"].every((k) => (it.checked || []).indexOf(k) !== -1), it.checked);
+    check("all five About tabs were opened", ["contact_info", "work_and_education", "intro", "basic_info", "links"].every((k) => (it.checked || []).indexOf(k) !== -1), it.checked);
     // contact_info comes first and carries an address; the old ladder stopped right here and
     // never saw the job title two tabs later.
-    check("it did NOT stop after the tab that had the email", (it.checked || []).indexOf("work_education") !== -1, it.checked);
+    check("it did NOT stop after the tab that had the email", (it.checked || []).indexOf("work_and_education") !== -1, it.checked);
     check("nothing was reported missing", (it.missing || []).length === 0, it.missing);
+    check("the sub-nav was DISCOVERED, not guessed", (it.discovered_tabs || []).length === 5, it.discovered_tabs);
     check("the budget was not exhausted", it.budget_exhausted === false, it.budget_exhausted);
   }
 
@@ -135,7 +141,7 @@ async function run() {
     const { ctx } = makeCtx();
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
-    const we = (it.about && it.about.work_education) || [];
+    const we = (it.about && it.about.work_and_education) || [];
     check("the Work and education tab kept its text", we.some((l) => /Loan Officer at Wells Fargo/.test(l)), we);
     check("the title is in the flat about_lines an agent reads", (it.about_lines || []).some((l) => /Loan Officer/.test(l)), (it.about_lines || []).slice(0, 8));
     // This is the distinction the 42-value dictionary turns on: the employer alone cannot
@@ -169,9 +175,16 @@ async function run() {
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
     check("the tabs that exist were opened", (it.checked || []).indexOf("contact_info") !== -1, it.checked);
-    // "not looked" and "looked and empty" must never collapse into the same output — that
-    // conflation is the bug this file's sibling capabilities were fixed for three times.
-    check("work_education is reported as missing", (it.missing || []).indexOf("work_education") !== -1, it.missing);
+    // Since the plan is DISCOVERED, three states stay distinct instead of collapsing into one
+    // "missing" bucket: discovered_tabs says what the profile publishes, checked says what
+    // opened, and missing is reserved for a tab that WAS found and then failed or was cut off
+    // by the budget. A reader asking "did we look at their work history?" reads discovered_tabs
+    // — answering that from `missing` alone is what made the first live run unreadable.
+    check("a tab the profile does not publish is absent from discovered_tabs",
+      (it.discovered_tabs || []).every((s) => !/work_and_education/.test(s)), it.discovered_tabs);
+    check("discovered_tabs lists exactly what this profile does publish",
+      (it.discovered_tabs || []).length === 2, it.discovered_tabs);
+    check("missing stays empty — nothing was found and then lost", (it.missing || []).length === 0, it.missing);
     check("the record is still available", res.available === true, res.available);
   }
 
@@ -183,7 +196,7 @@ async function run() {
     const it = (res.items || [])[0] || {};
     check("the record still exists", res.available === true && (res.items || []).length === 1, res.available);
     check("it says the budget ran out", it.budget_exhausted === true, it.budget_exhausted);
-    check("every unvisited tab is listed", ["contact_info", "work_education", "intro", "basic_info", "links"].every((k) => (it.missing || []).indexOf(k) !== -1), it.missing);
+    check("every unvisited tab is listed", ["contact_info", "work_and_education", "intro", "basic_info", "links"].every((k) => (it.missing || []).indexOf(k) !== -1), it.missing);
     check("the header read on the landing page is still there", !!it.name, it.name);
     check("elapsed_ms is reported", typeof it.elapsed_ms === "number", it.elapsed_ms);
   }
@@ -208,7 +221,7 @@ async function run() {
     ctx.document.title = "";                       // no title to fall back on
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
-    check("the walk still ran", (it.checked || []).indexOf("work_education") !== -1, it.checked);
+    check("the walk still ran", (it.checked || []).indexOf("work_and_education") !== -1, it.checked);
     check("the job title was still collected", (it.about_lines || []).some((l) => /Loan Officer/.test(l)), (it.about_lines || []).slice(0, 6));
     check("the record was not replaced by the header's failure envelope", res.capability === "fb.profile.dossier", res.capability);
   }
