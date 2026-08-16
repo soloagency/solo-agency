@@ -12,8 +12,8 @@ import (
 // copy would, and would then pass while the real vocabulary was wrong.
 func TestLeadIndustryDictionaryLoads(t *testing.T) {
 	got := sortedLeadIndustries()
-	if len(got) != 42 {
-		t.Fatalf("expected 42 industries in lead_industries.json, got %d", len(got))
+	if len(got) != 43 {
+		t.Fatalf("expected 43 industries in lead_industries.json, got %d", len(got))
 	}
 	seen := map[string]bool{}
 	for _, v := range got {
@@ -27,8 +27,15 @@ func TestLeadIndustryDictionaryLoads(t *testing.T) {
 // Case and punctuation are load-bearing. Downstream code matches these strings exactly, so a
 // vocabulary that accepts near-misses has more than 42 members and nobody can tell which.
 func TestLeadIndustryIsExactMatch(t *testing.T) {
-	if !validLeadIndustry("Real Estate") {
-		t.Error("the canonical value must be accepted")
+	for _, ok := range []string{"Real Estate", "P&C Insurance", "L&H Insurance"} {
+		if !validLeadIndustry(ok) {
+			t.Errorf("canonical value %q must be accepted", ok)
+		}
+	}
+	// The merged value is GONE. Leaving it valid would let old records and new ones disagree
+	// while both looked correct, which is worse than a rejection anybody can see.
+	if validLeadIndustry("Insurance") {
+		t.Error(`"Insurance" was split into "P&C Insurance" and "L&H Insurance" and must no longer validate`)
 	}
 	for _, bad := range []string{
 		"real estate",                     // lowercased
@@ -50,6 +57,39 @@ func TestLeadIndustryIsExactMatch(t *testing.T) {
 // Every entry must carry exclusions: sixteen pairs in this list overlap (Real Estate vs
 // Loan & Mortgage, Immigration vs Work Abroad & Immigration, Logistics vs Transportation, ...),
 // and without a tie-break rule the same lead classifies differently on two runs.
+// P&C and L&H are the sharpest boundary in the file: an agent who sells both is exactly the lead
+// this split exists to disambiguate, so each must name the other as an exclusion.
+func TestInsuranceSplitIsMutuallyExclusive(t *testing.T) {
+	var doc struct {
+		Industries []struct {
+			Industry   string   `json:"industry"`
+			Exclusions []string `json:"exclusions"`
+		} `json:"industries"`
+	}
+	if err := jsonUnmarshalLeadIndustries(&doc); err != nil {
+		t.Fatal(err)
+	}
+	ex := map[string]string{}
+	for _, e := range doc.Industries {
+		ex[e.Industry] = strings.Join(e.Exclusions, " ")
+	}
+	if !strings.Contains(ex["P&C Insurance"], "L&H Insurance") {
+		t.Error("P&C Insurance must exclude L&H Insurance")
+	}
+	if !strings.Contains(ex["L&H Insurance"], "P&C Insurance") {
+		t.Error("L&H Insurance must exclude P&C Insurance")
+	}
+	// Nothing may still point at the merged value; a dangling "-> Insurance" is an exclusion that
+	// no longer resolves, which is an ambiguity dressed as a rule.
+	for ind, e := range ex {
+		for _, line := range strings.Split(e, " -> ") {
+			if strings.TrimSpace(line) == "Insurance" {
+				t.Errorf("%q still points at the removed value \"Insurance\"", ind)
+			}
+		}
+	}
+}
+
 func TestEveryIndustryHasTieBreakRules(t *testing.T) {
 	var doc struct {
 		Industries []struct {

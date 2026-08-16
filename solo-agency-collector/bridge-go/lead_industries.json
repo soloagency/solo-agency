@@ -1,6 +1,6 @@
 {
   "object": "lead_industry_dictionary",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "updated_at": "2026-08-15",
   "description": "The closed vocabulary for a LEAD's industry, decided during enrichment. Exactly one of `industries[].industry` may be stored on a contact, VERBATIM — same case, same '&', same commas. This file is the single source of truth: the Go bridge validates against it and the enrichment playbook instructs from it, so the two cannot drift. Do not copy the list into a playbook, a prompt, or a second file.",
   "not_to_be_confused_with": {
@@ -21,268 +21,821 @@
     "do_not_read": "Posts. A person's trade is published on their profile; reading their feed to infer it costs many times the tokens for a weaker signal.",
     "rules": [
       "Read the actual services, credentials, employer and stated audience. Do not classify from a single ambiguous keyword.",
-      "Compare against every entry's positive_signals AND exclusions before choosing. The exclusions exist because 16 pairs in this list overlap; skipping them is how the same lead gets two different answers on two runs.",
+      "Compare against every entry's positive_signals AND exclusions before choosing. The exclusions exist because 17 pairs in this list overlap; skipping them is how the same lead gets two different answers on two runs.",
       "When two entries are genuinely co-equal, prefer the one naming the REGULATED trade the person is licensed for. A licence is a fact about them; a self-description is a claim.",
       "Store the value character for character as written in `industry`. Not lowercased, not 'and' for '&', not singularised.",
       "When no entry fits, or the signals are too thin to choose, leave industry EMPTY and say why in reason. An empty industry is a lead that still gets worked; a wrong one silently mis-targets every message after it.",
       "Never infer an industry from a person's name, language, location or profile photo."
     ],
     "minimum_confidence": 0.75,
-    "required_decision_fields": ["industry", "confidence", "reason", "matched_signals"],
+    "required_decision_fields": [
+      "industry",
+      "confidence",
+      "reason",
+      "matched_signals"
+    ],
     "record_shape": "enrichment.identity.industry (the value), .industry_confidence (0-1), .industry_reason (one sentence), .industry_signals (the quoted lines it was decided from)"
   },
   "industries": [
     {
       "industry": "Real Estate",
-      "aliases": ["realtor", "real estate agent", "real estate broker", "realty", "listing agent", "buyer's agent"],
-      "positive_signals": ["licensed agent, Realtor or broker representing buyers, sellers, investors or landlords", "primary work is listing, showing, buying or selling property", "a DRE / state real estate licence number"],
-      "exclusions": ["a mortgage loan officer or lender, even one who works with the same buyers -> Loan & Mortgage", "a property and casualty insurance agent -> Insurance", "a real estate attorney with no brokerage practice -> Legal", "a stager, photographer or interior designer serving agents -> Home Improvement & Interior Design"]
+      "aliases": [
+        "realtor",
+        "real estate agent",
+        "real estate broker",
+        "realty",
+        "listing agent",
+        "buyer's agent"
+      ],
+      "positive_signals": [
+        "licensed agent, Realtor or broker representing buyers, sellers, investors or landlords",
+        "primary work is listing, showing, buying or selling property",
+        "a DRE / state real estate licence number"
+      ],
+      "exclusions": [
+        "a mortgage loan officer or lender, even one who works with the same buyers -> Loan & Mortgage",
+        "a property and casualty insurance agent -> P&C Insurance",
+        "a real estate attorney with no brokerage practice -> Legal",
+        "a stager, photographer or interior designer serving agents -> Home Improvement & Interior Design"
+      ]
     },
     {
       "industry": "Loan & Mortgage",
-      "aliases": ["loan officer", "mortgage broker", "mortgage advisor", "lender", "loan originator", "MLO"],
-      "positive_signals": ["originates, brokers or advises on mortgages, refinances or consumer loans", "an NMLS number, which is the licence for a mortgage loan originator and names the trade outright"],
-      "exclusions": ["a realtor who merely refers clients to a lender -> Real Estate", "a retail bank teller or branch employee not originating loans -> Banking & Financial", "commercial debt advisory with no consumer lending -> Banking & Financial"]
+      "aliases": [
+        "loan officer",
+        "mortgage broker",
+        "mortgage advisor",
+        "lender",
+        "loan originator",
+        "MLO"
+      ],
+      "positive_signals": [
+        "originates, brokers or advises on mortgages, refinances or consumer loans",
+        "an NMLS number, which is the licence for a mortgage loan originator and names the trade outright"
+      ],
+      "exclusions": [
+        "a realtor who merely refers clients to a lender -> Real Estate",
+        "a retail bank teller or branch employee not originating loans -> Banking & Financial",
+        "commercial debt advisory with no consumer lending -> Banking & Financial"
+      ]
     },
     {
       "industry": "Banking & Financial",
-      "aliases": ["financial advisor", "wealth management", "bank", "financial planner", "investment advisor"],
-      "positive_signals": ["banking, wealth management, retirement or general financial planning", "a bank, credit union, or a fiduciary advisory practice"],
-      "exclusions": ["mortgage origination -> Loan & Mortgage", "selling life or health insurance policies -> Insurance", "tax preparation, bookkeeping or IRS representation -> Tax, Accounting, Bookkeeping", "brokerage of stocks or crypto as the primary business -> Stock & Cryptocurrencies"]
+      "aliases": [
+        "financial advisor",
+        "wealth management",
+        "bank",
+        "financial planner",
+        "investment advisor"
+      ],
+      "positive_signals": [
+        "banking, wealth management, retirement or general financial planning",
+        "a bank, credit union, or a fiduciary advisory practice"
+      ],
+      "exclusions": [
+        "mortgage origination -> Loan & Mortgage",
+        "selling life or health insurance policies -> L&H Insurance",
+        "tax preparation, bookkeeping or IRS representation -> Tax, Accounting, Bookkeeping",
+        "brokerage of stocks or crypto as the primary business -> Stock & Cryptocurrencies"
+      ]
     },
     {
-      "industry": "Insurance",
-      "aliases": ["insurance agent", "insurance broker", "life insurance", "medicare agent", "P&C", "final expense"],
-      "positive_signals": ["sells or advises on insurance of any kind — life, health, Medicare, auto, home, commercial", "a licensed insurance agent or agency"],
-      "exclusions": ["a financial advisor whose practice is investments, where insurance is incidental -> Banking & Financial", "a public adjuster or restoration contractor -> Construction & Building"]
+      "industry": "L&H Insurance",
+      "aliases": [
+        "life insurance",
+        "health insurance",
+        "medicare agent",
+        "ACA",
+        "final expense",
+        "long term care",
+        "disability insurance",
+        "IUL",
+        "annuities"
+      ],
+      "positive_signals": [
+        "sells or advises on life, health, Medicare, ACA marketplace, disability or long-term-care coverage",
+        "a licensed life and health agent, or an agency whose book is consumer life and health"
+      ],
+      "exclusions": [
+        "home, auto, renters, umbrella, business or liability coverage -> P&C Insurance",
+        "an advisor whose practice is investments and retirement planning, where insurance is incidental -> Banking & Financial",
+        "employee-benefits consulting with no consumer life or health book -> Banking & Financial"
+      ]
+    },
+    {
+      "industry": "P&C Insurance",
+      "aliases": [
+        "P&C",
+        "property and casualty",
+        "auto insurance",
+        "homeowners insurance",
+        "commercial insurance",
+        "renters insurance",
+        "liability"
+      ],
+      "positive_signals": [
+        "sells or advises on home, auto, renters, umbrella, commercial, liability or other property and casualty coverage",
+        "a licensed P&C agent or an independent agency writing personal or commercial lines"
+      ],
+      "exclusions": [
+        "life, health, Medicare or long-term-care coverage -> L&H Insurance",
+        "a public adjuster or restoration contractor who does not sell coverage -> Construction & Building",
+        "real estate brokerage -> Real Estate"
+      ]
     },
     {
       "industry": "Stock & Cryptocurrencies",
-      "aliases": ["stock trading", "crypto", "trader", "brokerage", "web3", "day trading"],
-      "positive_signals": ["trading, brokerage, education or advisory centred on equities, derivatives or digital assets"],
-      "exclusions": ["general retirement and wealth planning -> Banking & Financial"]
+      "aliases": [
+        "stock trading",
+        "crypto",
+        "trader",
+        "brokerage",
+        "web3",
+        "day trading"
+      ],
+      "positive_signals": [
+        "trading, brokerage, education or advisory centred on equities, derivatives or digital assets"
+      ],
+      "exclusions": [
+        "general retirement and wealth planning -> Banking & Financial"
+      ]
     },
     {
       "industry": "Tax, Accounting, Bookkeeping",
-      "aliases": ["CPA", "accountant", "bookkeeper", "tax preparer", "enrolled agent", "tax resolution"],
-      "positive_signals": ["tax preparation or planning, bookkeeping, audit, payroll, or IRS representation", "a CPA licence or EA enrolment"],
-      "exclusions": ["investment or retirement advice as the primary practice -> Banking & Financial", "tax law practised by an attorney -> Legal"]
+      "aliases": [
+        "CPA",
+        "accountant",
+        "bookkeeper",
+        "tax preparer",
+        "enrolled agent",
+        "tax resolution"
+      ],
+      "positive_signals": [
+        "tax preparation or planning, bookkeeping, audit, payroll, or IRS representation",
+        "a CPA licence or EA enrolment"
+      ],
+      "exclusions": [
+        "investment or retirement advice as the primary practice -> Banking & Financial",
+        "tax law practised by an attorney -> Legal"
+      ]
     },
     {
       "industry": "Legal",
-      "aliases": ["attorney", "lawyer", "law firm", "counsel", "paralegal", "esquire"],
-      "positive_signals": ["practises law or provides legal services", "a bar admission or law-firm affiliation"],
-      "exclusions": ["an immigration practice, whether or not run by an attorney -> Immigration", "a workforce-export or overseas-placement agency -> Work Abroad & Immigration", "notary or document-preparation services with no legal practice -> Office Supplies & Equipment"]
+      "aliases": [
+        "attorney",
+        "lawyer",
+        "law firm",
+        "counsel",
+        "paralegal",
+        "esquire"
+      ],
+      "positive_signals": [
+        "practises law or provides legal services",
+        "a bar admission or law-firm affiliation"
+      ],
+      "exclusions": [
+        "an immigration practice, whether or not run by an attorney -> Immigration",
+        "a workforce-export or overseas-placement agency -> Work Abroad & Immigration",
+        "notary or document-preparation services with no legal practice -> Office Supplies & Equipment"
+      ]
     },
     {
       "industry": "Immigration",
-      "aliases": ["immigration lawyer", "immigration consultant", "visa services", "green card", "citizenship", "asylum"],
-      "positive_signals": ["visas, residency, citizenship, asylum or family petitions for people already choosing a destination"],
-      "exclusions": ["recruiting or placing workers into jobs abroad -> Work Abroad & Immigration", "placing students into schools abroad -> Study Abroad & International Education", "general legal practice where immigration is one of many areas -> Legal"]
+      "aliases": [
+        "immigration lawyer",
+        "immigration consultant",
+        "visa services",
+        "green card",
+        "citizenship",
+        "asylum"
+      ],
+      "positive_signals": [
+        "visas, residency, citizenship, asylum or family petitions for people already choosing a destination"
+      ],
+      "exclusions": [
+        "recruiting or placing workers into jobs abroad -> Work Abroad & Immigration",
+        "placing students into schools abroad -> Study Abroad & International Education",
+        "general legal practice where immigration is one of many areas -> Legal"
+      ]
     },
     {
       "industry": "Work Abroad & Immigration",
-      "aliases": ["labour export", "overseas employment", "work visa", "xuất khẩu lao động", "foreign worker recruitment"],
-      "positive_signals": ["recruits, trains or places workers into JOBS in another country, visa handling included"],
-      "exclusions": ["visa and residency work with no job placement -> Immigration", "placing students into schools -> Study Abroad & International Education", "domestic staffing and recruitment -> Information Technology & Services"]
+      "aliases": [
+        "labour export",
+        "overseas employment",
+        "work visa",
+        "xuất khẩu lao động",
+        "foreign worker recruitment"
+      ],
+      "positive_signals": [
+        "recruits, trains or places workers into JOBS in another country, visa handling included"
+      ],
+      "exclusions": [
+        "visa and residency work with no job placement -> Immigration",
+        "placing students into schools -> Study Abroad & International Education",
+        "domestic staffing and recruitment -> Information Technology & Services"
+      ]
     },
     {
       "industry": "Study Abroad & International Education",
-      "aliases": ["study abroad", "student visa", "du học", "university placement", "international admissions"],
-      "positive_signals": ["places students into schools or universities in another country, including student visas and applications"],
-      "exclusions": ["job placement abroad -> Work Abroad & Immigration", "domestic tutoring, courses or online learning -> Education & eLearning"]
+      "aliases": [
+        "study abroad",
+        "student visa",
+        "du học",
+        "university placement",
+        "international admissions"
+      ],
+      "positive_signals": [
+        "places students into schools or universities in another country, including student visas and applications"
+      ],
+      "exclusions": [
+        "job placement abroad -> Work Abroad & Immigration",
+        "domestic tutoring, courses or online learning -> Education & eLearning"
+      ]
     },
     {
       "industry": "Education & eLearning",
-      "aliases": ["tutor", "teacher", "course creator", "school", "training", "coaching academy", "LMS"],
-      "positive_signals": ["teaches, tutors, or sells courses and training, in person or online, within one country"],
-      "exclusions": ["sending students abroad -> Study Abroad & International Education", "childcare and preschool -> Childcare & Parenting", "fitness or nutrition coaching -> Sports & Fitness & Wellness"]
+      "aliases": [
+        "tutor",
+        "teacher",
+        "course creator",
+        "school",
+        "training",
+        "coaching academy",
+        "LMS"
+      ],
+      "positive_signals": [
+        "teaches, tutors, or sells courses and training, in person or online, within one country"
+      ],
+      "exclusions": [
+        "sending students abroad -> Study Abroad & International Education",
+        "childcare and preschool -> Childcare & Parenting",
+        "fitness or nutrition coaching -> Sports & Fitness & Wellness"
+      ]
     },
     {
       "industry": "Healthcare & Hospitals",
-      "aliases": ["doctor", "clinic", "dentist", "hospital", "nurse", "physical therapy", "medical practice"],
-      "positive_signals": ["diagnoses or treats patients, or operates a clinical facility", "a medical, dental or nursing licence"],
-      "exclusions": ["dispensing or manufacturing drugs -> Pharmaceuticals", "gyms, personal training and nutrition -> Sports & Fitness & Wellness", "aesthetic treatments with no clinical practice -> Spa & Cosmetics"]
+      "aliases": [
+        "doctor",
+        "clinic",
+        "dentist",
+        "hospital",
+        "nurse",
+        "physical therapy",
+        "medical practice"
+      ],
+      "positive_signals": [
+        "diagnoses or treats patients, or operates a clinical facility",
+        "a medical, dental or nursing licence"
+      ],
+      "exclusions": [
+        "dispensing or manufacturing drugs -> Pharmaceuticals",
+        "gyms, personal training and nutrition -> Sports & Fitness & Wellness",
+        "aesthetic treatments with no clinical practice -> Spa & Cosmetics"
+      ]
     },
     {
       "industry": "Pharmaceuticals",
-      "aliases": ["pharmacy", "pharmacist", "drug manufacturer", "nhà thuốc", "pharma sales"],
-      "positive_signals": ["dispenses, distributes or manufactures medicines"],
-      "exclusions": ["clinical treatment of patients -> Healthcare & Hospitals", "supplements and wellness products sold as consumer goods -> Sports & Fitness & Wellness"]
+      "aliases": [
+        "pharmacy",
+        "pharmacist",
+        "drug manufacturer",
+        "nhà thuốc",
+        "pharma sales"
+      ],
+      "positive_signals": [
+        "dispenses, distributes or manufactures medicines"
+      ],
+      "exclusions": [
+        "clinical treatment of patients -> Healthcare & Hospitals",
+        "supplements and wellness products sold as consumer goods -> Sports & Fitness & Wellness"
+      ]
     },
     {
       "industry": "Sports & Fitness & Wellness",
-      "aliases": ["personal trainer", "gym", "yoga", "nutritionist", "coach", "pilates", "wellness"],
-      "positive_signals": ["training, sport, nutrition or wellness coaching"],
-      "exclusions": ["massage, facials, nails or aesthetic treatment -> Spa & Cosmetics", "clinical physiotherapy inside a medical practice -> Healthcare & Hospitals"]
+      "aliases": [
+        "personal trainer",
+        "gym",
+        "yoga",
+        "nutritionist",
+        "coach",
+        "pilates",
+        "wellness"
+      ],
+      "positive_signals": [
+        "training, sport, nutrition or wellness coaching"
+      ],
+      "exclusions": [
+        "massage, facials, nails or aesthetic treatment -> Spa & Cosmetics",
+        "clinical physiotherapy inside a medical practice -> Healthcare & Hospitals"
+      ]
     },
     {
       "industry": "Spa & Cosmetics",
-      "aliases": ["spa", "salon", "beauty", "aesthetician", "nails", "med spa", "skincare", "makeup artist"],
-      "positive_signals": ["beauty, skincare, hair, nails, massage or aesthetic treatments, or sells cosmetics"],
-      "exclusions": ["fitness and nutrition coaching -> Sports & Fitness & Wellness", "a physician-run practice where treatment is clinical -> Healthcare & Hospitals"]
+      "aliases": [
+        "spa",
+        "salon",
+        "beauty",
+        "aesthetician",
+        "nails",
+        "med spa",
+        "skincare",
+        "makeup artist"
+      ],
+      "positive_signals": [
+        "beauty, skincare, hair, nails, massage or aesthetic treatments, or sells cosmetics"
+      ],
+      "exclusions": [
+        "fitness and nutrition coaching -> Sports & Fitness & Wellness",
+        "a physician-run practice where treatment is clinical -> Healthcare & Hospitals"
+      ]
     },
     {
       "industry": "Construction & Building",
-      "aliases": ["contractor", "builder", "roofing", "general contractor", "construction", "remodeler"],
-      "positive_signals": ["builds, renovates or performs licensed trade work — roofing, plumbing, electrical, HVAC, concrete"],
-      "exclusions": ["decorating, staging or furnishing without construction work -> Home Improvement & Interior Design", "selling the finished property -> Real Estate", "manufacturing building products in a factory -> Manufacturing & Industrial"]
+      "aliases": [
+        "contractor",
+        "builder",
+        "roofing",
+        "general contractor",
+        "construction",
+        "remodeler"
+      ],
+      "positive_signals": [
+        "builds, renovates or performs licensed trade work — roofing, plumbing, electrical, HVAC, concrete"
+      ],
+      "exclusions": [
+        "decorating, staging or furnishing without construction work -> Home Improvement & Interior Design",
+        "selling the finished property -> Real Estate",
+        "manufacturing building products in a factory -> Manufacturing & Industrial"
+      ]
     },
     {
       "industry": "Home Improvement & Interior Design",
-      "aliases": ["interior design", "home decor", "staging", "furniture", "landscaping", "home organiser"],
-      "positive_signals": ["designs, decorates, stages, furnishes or landscapes homes"],
-      "exclusions": ["structural or licensed trade work -> Construction & Building", "selling appliances -> Household Appliances", "selling the property itself -> Real Estate"]
+      "aliases": [
+        "interior design",
+        "home decor",
+        "staging",
+        "furniture",
+        "landscaping",
+        "home organiser"
+      ],
+      "positive_signals": [
+        "designs, decorates, stages, furnishes or landscapes homes"
+      ],
+      "exclusions": [
+        "structural or licensed trade work -> Construction & Building",
+        "selling appliances -> Household Appliances",
+        "selling the property itself -> Real Estate"
+      ]
     },
     {
       "industry": "Automotive Sales & Services",
-      "aliases": ["car dealership", "auto repair", "mechanic", "auto detailing", "tires", "body shop"],
-      "positive_signals": ["sells, repairs, services or details vehicles"],
-      "exclusions": ["auto INSURANCE -> Insurance", "auto loans and financing as the primary business -> Loan & Mortgage", "freight and trucking operations -> Transportation"]
+      "aliases": [
+        "car dealership",
+        "auto repair",
+        "mechanic",
+        "auto detailing",
+        "tires",
+        "body shop"
+      ],
+      "positive_signals": [
+        "sells, repairs, services or details vehicles"
+      ],
+      "exclusions": [
+        "auto INSURANCE -> P&C Insurance",
+        "auto loans and financing as the primary business -> Loan & Mortgage",
+        "freight and trucking operations -> Transportation"
+      ]
     },
     {
       "industry": "Transportation",
-      "aliases": ["trucking", "rideshare", "taxi", "delivery driver", "bus", "shuttle", "moving company"],
-      "positive_signals": ["moves people or goods as the service itself — driving, hauling, shuttling"],
-      "exclusions": ["freight forwarding, warehousing, customs or supply-chain coordination -> Logistics & Supply Chain", "tour operators selling travel experiences -> Travel & Tourism", "vehicle sales or repair -> Automotive Sales & Services"]
+      "aliases": [
+        "trucking",
+        "rideshare",
+        "taxi",
+        "delivery driver",
+        "bus",
+        "shuttle",
+        "moving company"
+      ],
+      "positive_signals": [
+        "moves people or goods as the service itself — driving, hauling, shuttling"
+      ],
+      "exclusions": [
+        "freight forwarding, warehousing, customs or supply-chain coordination -> Logistics & Supply Chain",
+        "tour operators selling travel experiences -> Travel & Tourism",
+        "vehicle sales or repair -> Automotive Sales & Services"
+      ]
     },
     {
       "industry": "Logistics & Supply Chain",
-      "aliases": ["freight forwarding", "3PL", "warehousing", "customs broker", "fulfilment", "supply chain"],
-      "positive_signals": ["coordinates freight, warehousing, customs, procurement or fulfilment"],
-      "exclusions": ["operating the vehicles that carry the goods -> Transportation"]
+      "aliases": [
+        "freight forwarding",
+        "3PL",
+        "warehousing",
+        "customs broker",
+        "fulfilment",
+        "supply chain"
+      ],
+      "positive_signals": [
+        "coordinates freight, warehousing, customs, procurement or fulfilment"
+      ],
+      "exclusions": [
+        "operating the vehicles that carry the goods -> Transportation"
+      ]
     },
     {
       "industry": "Travel & Tourism",
-      "aliases": ["travel agency", "tour operator", "hotel", "resort", "tour guide", "du lịch", "booking"],
-      "positive_signals": ["sells or operates travel — tours, flights, hotels, packages, destination experiences"],
-      "exclusions": ["providing the transport itself as a standalone service -> Transportation", "student or work placement abroad -> Study Abroad & International Education or Work Abroad & Immigration"]
+      "aliases": [
+        "travel agency",
+        "tour operator",
+        "hotel",
+        "resort",
+        "tour guide",
+        "du lịch",
+        "booking"
+      ],
+      "positive_signals": [
+        "sells or operates travel — tours, flights, hotels, packages, destination experiences"
+      ],
+      "exclusions": [
+        "providing the transport itself as a standalone service -> Transportation",
+        "student or work placement abroad -> Study Abroad & International Education or Work Abroad & Immigration"
+      ]
     },
     {
       "industry": "Restaurants & Food Ordering & Review",
-      "aliases": ["restaurant", "cafe", "food truck", "catering", "bakery", "chef", "food delivery"],
-      "positive_signals": ["prepares or serves food and drink, or runs ordering, delivery or review for them"],
-      "exclusions": ["selling packaged groceries -> Grocery & Supermarket", "growing or raising the food -> Agriculture & Farming", "event catering sold as part of a wedding package -> Events & Wedding Services"]
+      "aliases": [
+        "restaurant",
+        "cafe",
+        "food truck",
+        "catering",
+        "bakery",
+        "chef",
+        "food delivery"
+      ],
+      "positive_signals": [
+        "prepares or serves food and drink, or runs ordering, delivery or review for them"
+      ],
+      "exclusions": [
+        "selling packaged groceries -> Grocery & Supermarket",
+        "growing or raising the food -> Agriculture & Farming",
+        "event catering sold as part of a wedding package -> Events & Wedding Services"
+      ]
     },
     {
       "industry": "Grocery & Supermarket",
-      "aliases": ["grocery", "supermarket", "convenience store", "market", "siêu thị"],
-      "positive_signals": ["retails packaged and fresh groceries"],
-      "exclusions": ["preparing and serving meals -> Restaurants & Food Ordering & Review", "farming or wholesale produce -> Agriculture & Farming"]
+      "aliases": [
+        "grocery",
+        "supermarket",
+        "convenience store",
+        "market",
+        "siêu thị"
+      ],
+      "positive_signals": [
+        "retails packaged and fresh groceries"
+      ],
+      "exclusions": [
+        "preparing and serving meals -> Restaurants & Food Ordering & Review",
+        "farming or wholesale produce -> Agriculture & Farming"
+      ]
     },
     {
       "industry": "Agriculture & Farming",
-      "aliases": ["farm", "agriculture", "agritech", "livestock", "nông nghiệp", "produce grower"],
-      "positive_signals": ["grows crops, raises livestock, or supplies farming inputs and equipment"],
-      "exclusions": ["retailing the produce to consumers -> Grocery & Supermarket"]
+      "aliases": [
+        "farm",
+        "agriculture",
+        "agritech",
+        "livestock",
+        "nông nghiệp",
+        "produce grower"
+      ],
+      "positive_signals": [
+        "grows crops, raises livestock, or supplies farming inputs and equipment"
+      ],
+      "exclusions": [
+        "retailing the produce to consumers -> Grocery & Supermarket"
+      ]
     },
     {
       "industry": "Manufacturing & Industrial",
-      "aliases": ["factory", "manufacturer", "industrial", "OEM", "fabrication", "production plant"],
-      "positive_signals": ["manufactures, fabricates or processes goods at scale, or supplies industrial equipment"],
-      "exclusions": ["building on site -> Construction & Building", "handmade or small-batch craft goods -> Art & Crafts"]
+      "aliases": [
+        "factory",
+        "manufacturer",
+        "industrial",
+        "OEM",
+        "fabrication",
+        "production plant"
+      ],
+      "positive_signals": [
+        "manufactures, fabricates or processes goods at scale, or supplies industrial equipment"
+      ],
+      "exclusions": [
+        "building on site -> Construction & Building",
+        "handmade or small-batch craft goods -> Art & Crafts"
+      ]
     },
     {
       "industry": "Utilities & Energy",
-      "aliases": ["solar", "electricity", "gas utility", "energy", "water utility", "renewables"],
-      "positive_signals": ["supplies or installs power, water, gas, solar or energy services"],
-      "exclusions": ["electrical contracting inside buildings -> Construction & Building"]
+      "aliases": [
+        "solar",
+        "electricity",
+        "gas utility",
+        "energy",
+        "water utility",
+        "renewables"
+      ],
+      "positive_signals": [
+        "supplies or installs power, water, gas, solar or energy services"
+      ],
+      "exclusions": [
+        "electrical contracting inside buildings -> Construction & Building"
+      ]
     },
     {
       "industry": "Information Technology & Services",
-      "aliases": ["software", "IT services", "SaaS", "developer", "web design", "MSP", "cybersecurity", "staffing"],
-      "positive_signals": ["builds or services software, IT infrastructure, websites or technical systems, including consulting and staffing for them"],
-      "exclusions": ["selling devices to consumers -> Consumer Electronics", "network operators -> Telecommunications", "marketing services delivered through software -> Marketing & Advertising"]
+      "aliases": [
+        "software",
+        "IT services",
+        "SaaS",
+        "developer",
+        "web design",
+        "MSP",
+        "cybersecurity",
+        "staffing"
+      ],
+      "positive_signals": [
+        "builds or services software, IT infrastructure, websites or technical systems, including consulting and staffing for them"
+      ],
+      "exclusions": [
+        "selling devices to consumers -> Consumer Electronics",
+        "network operators -> Telecommunications",
+        "marketing services delivered through software -> Marketing & Advertising"
+      ]
     },
     {
       "industry": "Telecommunications",
-      "aliases": ["telecom", "mobile carrier", "ISP", "broadband", "network operator", "VoIP"],
-      "positive_signals": ["operates or resells telecom networks, mobile plans or internet service"],
-      "exclusions": ["selling handsets as retail -> Consumer Electronics", "IT consulting -> Information Technology & Services"]
+      "aliases": [
+        "telecom",
+        "mobile carrier",
+        "ISP",
+        "broadband",
+        "network operator",
+        "VoIP"
+      ],
+      "positive_signals": [
+        "operates or resells telecom networks, mobile plans or internet service"
+      ],
+      "exclusions": [
+        "selling handsets as retail -> Consumer Electronics",
+        "IT consulting -> Information Technology & Services"
+      ]
     },
     {
       "industry": "Consumer Electronics",
-      "aliases": ["phone shop", "laptop", "gadgets", "computer store", "điện thoại", "device repair"],
-      "positive_signals": ["retails or repairs phones, computers and consumer gadgets"],
-      "exclusions": ["large white goods — fridges, washing machines, air conditioners -> Household Appliances", "software and IT services -> Information Technology & Services"]
+      "aliases": [
+        "phone shop",
+        "laptop",
+        "gadgets",
+        "computer store",
+        "điện thoại",
+        "device repair"
+      ],
+      "positive_signals": [
+        "retails or repairs phones, computers and consumer gadgets"
+      ],
+      "exclusions": [
+        "large white goods — fridges, washing machines, air conditioners -> Household Appliances",
+        "software and IT services -> Information Technology & Services"
+      ]
     },
     {
       "industry": "Household Appliances",
-      "aliases": ["appliances", "white goods", "điện máy", "air conditioning retail", "kitchen appliances"],
-      "positive_signals": ["retails or services large home appliances"],
-      "exclusions": ["phones, laptops and small gadgets -> Consumer Electronics", "HVAC installation as a trade -> Construction & Building"]
+      "aliases": [
+        "appliances",
+        "white goods",
+        "điện máy",
+        "air conditioning retail",
+        "kitchen appliances"
+      ],
+      "positive_signals": [
+        "retails or services large home appliances"
+      ],
+      "exclusions": [
+        "phones, laptops and small gadgets -> Consumer Electronics",
+        "HVAC installation as a trade -> Construction & Building"
+      ]
     },
     {
       "industry": "Marketing & Advertising",
-      "aliases": ["marketing agency", "ads", "SEO", "social media manager", "branding", "PR", "media buyer"],
-      "positive_signals": ["sells marketing, advertising, branding, PR or content services to other businesses"],
-      "exclusions": ["producing entertainment or publishing media as the product -> Entertainment & Media", "software products sold to marketers -> Information Technology & Services"]
+      "aliases": [
+        "marketing agency",
+        "ads",
+        "SEO",
+        "social media manager",
+        "branding",
+        "PR",
+        "media buyer"
+      ],
+      "positive_signals": [
+        "sells marketing, advertising, branding, PR or content services to other businesses"
+      ],
+      "exclusions": [
+        "producing entertainment or publishing media as the product -> Entertainment & Media",
+        "software products sold to marketers -> Information Technology & Services"
+      ]
     },
     {
       "industry": "Entertainment & Media",
-      "aliases": ["film", "music", "publisher", "podcast", "broadcast", "creator", "production company"],
-      "positive_signals": ["produces or distributes entertainment or media as the product itself"],
-      "exclusions": ["producing content as a service for clients' marketing -> Marketing & Advertising", "photography as a service -> Art & Crafts"]
+      "aliases": [
+        "film",
+        "music",
+        "publisher",
+        "podcast",
+        "broadcast",
+        "creator",
+        "production company"
+      ],
+      "positive_signals": [
+        "produces or distributes entertainment or media as the product itself"
+      ],
+      "exclusions": [
+        "producing content as a service for clients' marketing -> Marketing & Advertising",
+        "photography as a service -> Art & Crafts"
+      ]
     },
     {
       "industry": "Fashion & Apparel",
-      "aliases": ["clothing", "boutique", "fashion", "apparel", "shoes", "thời trang", "tailor"],
-      "positive_signals": ["designs, makes or retails clothing, footwear or accessories"],
-      "exclusions": ["watches and jewellery -> Watches & Jewelry", "cosmetics and skincare -> Spa & Cosmetics"]
+      "aliases": [
+        "clothing",
+        "boutique",
+        "fashion",
+        "apparel",
+        "shoes",
+        "thời trang",
+        "tailor"
+      ],
+      "positive_signals": [
+        "designs, makes or retails clothing, footwear or accessories"
+      ],
+      "exclusions": [
+        "watches and jewellery -> Watches & Jewelry",
+        "cosmetics and skincare -> Spa & Cosmetics"
+      ]
     },
     {
       "industry": "Watches & Jewelry",
-      "aliases": ["jewelry", "jeweller", "watches", "gold", "trang sức", "diamonds"],
-      "positive_signals": ["sells or makes jewellery, watches or precious metals"],
-      "exclusions": ["clothing and general accessories -> Fashion & Apparel"]
+      "aliases": [
+        "jewelry",
+        "jeweller",
+        "watches",
+        "gold",
+        "trang sức",
+        "diamonds"
+      ],
+      "positive_signals": [
+        "sells or makes jewellery, watches or precious metals"
+      ],
+      "exclusions": [
+        "clothing and general accessories -> Fashion & Apparel"
+      ]
     },
     {
       "industry": "Gifts & Flowers",
-      "aliases": ["florist", "gift shop", "hoa tươi", "gift baskets", "souvenirs"],
-      "positive_signals": ["sells flowers, gifts or occasion items"],
-      "exclusions": ["planning the event itself -> Events & Wedding Services"]
+      "aliases": [
+        "florist",
+        "gift shop",
+        "hoa tươi",
+        "gift baskets",
+        "souvenirs"
+      ],
+      "positive_signals": [
+        "sells flowers, gifts or occasion items"
+      ],
+      "exclusions": [
+        "planning the event itself -> Events & Wedding Services"
+      ]
     },
     {
       "industry": "Events & Wedding Services",
-      "aliases": ["wedding planner", "event planning", "venue", "MC", "wedding photography", "tiệc cưới"],
-      "positive_signals": ["plans, hosts or supplies weddings and events end to end"],
-      "exclusions": ["selling flowers or gifts without planning -> Gifts & Flowers", "catering as a standalone restaurant business -> Restaurants & Food Ordering & Review"]
+      "aliases": [
+        "wedding planner",
+        "event planning",
+        "venue",
+        "MC",
+        "wedding photography",
+        "tiệc cưới"
+      ],
+      "positive_signals": [
+        "plans, hosts or supplies weddings and events end to end"
+      ],
+      "exclusions": [
+        "selling flowers or gifts without planning -> Gifts & Flowers",
+        "catering as a standalone restaurant business -> Restaurants & Food Ordering & Review"
+      ]
     },
     {
       "industry": "Art & Crafts",
-      "aliases": ["artist", "handmade", "photographer", "craft", "illustrator", "thủ công"],
-      "positive_signals": ["creates or sells art, handmade goods, photography or craft work"],
-      "exclusions": ["factory production -> Manufacturing & Industrial", "media produced for broadcast or publishing -> Entertainment & Media"]
+      "aliases": [
+        "artist",
+        "handmade",
+        "photographer",
+        "craft",
+        "illustrator",
+        "thủ công"
+      ],
+      "positive_signals": [
+        "creates or sells art, handmade goods, photography or craft work"
+      ],
+      "exclusions": [
+        "factory production -> Manufacturing & Industrial",
+        "media produced for broadcast or publishing -> Entertainment & Media"
+      ]
     },
     {
       "industry": "Pet Care & Supplies",
-      "aliases": ["veterinarian", "pet grooming", "pet shop", "thú cưng", "dog training", "boarding"],
-      "positive_signals": ["treats, grooms, boards, trains or supplies animals"],
-      "exclusions": ["livestock and farm animals -> Agriculture & Farming"]
+      "aliases": [
+        "veterinarian",
+        "pet grooming",
+        "pet shop",
+        "thú cưng",
+        "dog training",
+        "boarding"
+      ],
+      "positive_signals": [
+        "treats, grooms, boards, trains or supplies animals"
+      ],
+      "exclusions": [
+        "livestock and farm animals -> Agriculture & Farming"
+      ]
     },
     {
       "industry": "Childcare & Parenting",
-      "aliases": ["daycare", "preschool", "nanny", "parenting coach", "mầm non", "babysitting"],
-      "positive_signals": ["cares for young children or supports parents"],
-      "exclusions": ["school-age teaching and tutoring -> Education & eLearning"]
+      "aliases": [
+        "daycare",
+        "preschool",
+        "nanny",
+        "parenting coach",
+        "mầm non",
+        "babysitting"
+      ],
+      "positive_signals": [
+        "cares for young children or supports parents"
+      ],
+      "exclusions": [
+        "school-age teaching and tutoring -> Education & eLearning"
+      ]
     },
     {
       "industry": "Security & Safety Services",
-      "aliases": ["security guard", "alarm", "CCTV", "locksmith", "fire safety", "private investigator"],
-      "positive_signals": ["provides physical security, monitoring, alarms or safety services"],
-      "exclusions": ["cybersecurity -> Information Technology & Services"]
+      "aliases": [
+        "security guard",
+        "alarm",
+        "CCTV",
+        "locksmith",
+        "fire safety",
+        "private investigator"
+      ],
+      "positive_signals": [
+        "provides physical security, monitoring, alarms or safety services"
+      ],
+      "exclusions": [
+        "cybersecurity -> Information Technology & Services"
+      ]
     },
     {
       "industry": "Books & Stationery",
-      "aliases": ["bookstore", "stationery", "nhà sách", "publisher retail", "school supplies"],
-      "positive_signals": ["retails books, stationery or school supplies"],
-      "exclusions": ["publishing as a media business -> Entertainment & Media", "office furniture and equipment -> Office Supplies & Equipment"]
+      "aliases": [
+        "bookstore",
+        "stationery",
+        "nhà sách",
+        "publisher retail",
+        "school supplies"
+      ],
+      "positive_signals": [
+        "retails books, stationery or school supplies"
+      ],
+      "exclusions": [
+        "publishing as a media business -> Entertainment & Media",
+        "office furniture and equipment -> Office Supplies & Equipment"
+      ]
     },
     {
       "industry": "Office Supplies & Equipment",
-      "aliases": ["office supplies", "printers", "office furniture", "copiers", "văn phòng phẩm"],
-      "positive_signals": ["supplies or services office equipment, furniture and consumables"],
-      "exclusions": ["consumer stationery and books -> Books & Stationery", "computers and IT hardware -> Consumer Electronics"]
+      "aliases": [
+        "office supplies",
+        "printers",
+        "office furniture",
+        "copiers",
+        "văn phòng phẩm"
+      ],
+      "positive_signals": [
+        "supplies or services office equipment, furniture and consumables"
+      ],
+      "exclusions": [
+        "consumer stationery and books -> Books & Stationery",
+        "computers and IT hardware -> Consumer Electronics"
+      ]
     }
   ]
 }
