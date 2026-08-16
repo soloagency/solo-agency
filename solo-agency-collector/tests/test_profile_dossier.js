@@ -37,7 +37,7 @@ const PAGES = {
   work: page(["Work", "Loan Officer at Wells Fargo", "Mortgage Advisor at ZenWealth Solutions"]),
   education: page(["College", "Studied at University of Houston"]),
   intro: page(["Helping families finance their first home with clarity"]),
-  personal_details: page(["Speaks English, Vietnamese"]),
+  category: page(["Digital creator"]),
 };
 
 // The slugs a live run actually observed on five personal profiles. The set this replaces was
@@ -53,14 +53,15 @@ const TAB_SLUG = {
   work: "directory_work",
   education: "directory_education",
   intro: "directory_intro",
-  personal_details: "directory_personal_details",
+  category: "directory_category",
 };
 
 // `offers` decides which tabs this synthetic profile actually exposes — a profile that does
 // not publish Work and education must land in `missing`, never silently in `checked`.
 function makeCtx(opts) {
   opts = opts || {};
-  const offers = opts.offers || Object.keys(TAB_SLUG);
+  const SLUGS = opts.slugs || TAB_SLUG;
+  const offers = opts.offers || Object.keys(SLUGS);
   const pages = opts.pages || PAGES;
   const state = { current: "main", clicks: [] };
   // Facebook fires a named GraphQL query when a sub-tab renders. The probe exists to learn
@@ -98,7 +99,7 @@ function makeCtx(opts) {
       const m = sel.match(/href\*="([^"]+)"/);
       if (m) {
         const slug = m[1];
-        const key = Object.keys(TAB_SLUG).find((k) => TAB_SLUG[k] === slug);
+        const key = Object.keys(SLUGS).find((k) => SLUGS[k] === slug);
         if (key && offers.indexOf(key) !== -1) return [anchor("/claire/" + slug, key, navTo(key))];
         return [];
       }
@@ -107,7 +108,7 @@ function makeCtx(opts) {
       // discovery: every About link on the page, which is how the walk now builds its plan
       if (sel === "a[href]") {
         if (state.current === "main") return [anchor("/claire/about", "About", navTo("about"))];
-        return offers.map((k) => anchor("/claire/" + TAB_SLUG[k], k, navTo(k)));
+        return offers.map((k) => anchor("/claire/" + SLUGS[k], k, navTo(k)));
       }
       // the name heading
       if (/h1/.test(sel)) {
@@ -158,7 +159,7 @@ async function run() {
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
     check("the record is available even before judging content", res.available === true, res.available);
-    check("all five About tabs were opened", ["contact_info", "work", "education", "intro", "personal_details"].every((k) => (it.checked || []).indexOf(k) !== -1), it.checked);
+    check("all five About tabs were opened", ["contact_info", "work", "education", "intro", "category"].every((k) => (it.checked || []).indexOf(k) !== -1), it.checked);
     // contact_info comes first and carries an address; the old ladder stopped right here and
     // never saw the job title two tabs later.
     check("it did NOT stop after the tab that had the email", (it.checked || []).indexOf("work") !== -1, it.checked);
@@ -227,7 +228,7 @@ async function run() {
     const it = (res.items || [])[0] || {};
     check("the record still exists", res.available === true && (res.items || []).length === 1, res.available);
     check("it says the budget ran out", it.budget_exhausted === true, it.budget_exhausted);
-    check("every unvisited tab is listed", ["contact_info", "work", "education", "intro", "personal_details"].every((k) => (it.missing || []).indexOf(k) !== -1), it.missing);
+    check("every unvisited tab is listed", ["contact_info", "work", "education", "intro", "category"].every((k) => (it.missing || []).indexOf(k) !== -1), it.missing);
     check("the header read on the landing page is still there", !!it.name, it.name);
     check("elapsed_ms is reported", typeof it.elapsed_ms === "number", it.elapsed_ms);
   }
@@ -291,6 +292,29 @@ async function run() {
     check("See more was clicked more than once across the walk", (it.see_more_expansions || 0) >= 2, it.see_more_expansions);
     check("the expansion's own query is recorded",
       Object.keys(it.graphql_by_surface || {}).some((k) => (it.graphql_by_surface[k] || []).some((r) => /SeeMore/.test(r.query))), it.graphql_by_surface);
+  }
+
+  console.log("\n== the nine sections that answer nothing are never opened ==");
+  {
+    // The About sub-nav has about fourteen sections. Walking the ones that cannot decide an
+    // industry or yield an address costs a click, a settle and a scan each, for nothing. They
+    // are not merely deprioritised — they are not visited, and the record says so rather than
+    // implying the profile has nothing else.
+    const SLUGS = { hobbies: "directory_hobbies", travel: "directory_travel",
+                    contact_info: "directory_contact_info", work: "directory_work" };
+    const pages = { main: page(["Claire Hanh Lam"]), about: page(["About"]),
+                    hobbies: page(["Cycling"]), travel: page(["Da Nang"]),
+                    contact_info: page(["claire@zenwealthsolutions.com"]),
+                    work: page(["Loan Officer at Wells Fargo"]) };
+    const { ctx } = makeCtx({ pages, slugs: SLUGS, offers: ["hobbies", "travel", "contact_info", "work"], seeMore: 0 });
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    check("hobbies and travel were not opened",
+      ["hobbies", "travel"].every((k) => (it.checked || []).indexOf(k) === -1), it.checked);
+    check("but the record admits they exist", ["hobbies", "travel"].every((k) => (it.skipped_tabs || []).indexOf(k) !== -1), it.skipped_tabs);
+    check("contact_info was opened", (it.checked || []).indexOf("contact_info") !== -1, it.checked);
+    check("the address came back", (it.emails || []).length === 1, it.emails);
+    check("the job title came back", (it.about_lines || []).some((l) => /Loan Officer/.test(l)), it.about_lines);
   }
 
   console.log("\n== the operator's own profile IS refused ==");

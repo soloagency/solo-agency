@@ -2007,29 +2007,28 @@
   // the budget runs out the walk STOPS and returns what it has with `checked[]` and
   // `budget_exhausted: true` — a partial dossier that says which tabs it read beats a record the
   // 45s timeout turned into nothing.
-  // MEASURED, not guessed. A live run on five profiles reported the real sub-nav slugs:
-  //   directory_intro, directory_work, directory_education, directory_category,
-  //   directory_personal_details, directory_names, directory_privacy_and_legal_info
-  // The list this replaces was invented — contact_info / work_and_education / basic_info /
-  // links — and only `intro` existed. Work and Education are TWO tabs, not one, and there is no
-  // `work_and_education` anywhere. Four of five profiles were saved by discovery; the fifth
-  // discovered nothing, fell through to the invented list, and collected only its landing page.
+  // FIVE sections, and only five. The About sub-nav has about fourteen — Hobbies, Interests,
+  // Travel, Communities, Offers, Names, Privacy and legal info — and each one costs a click, a
+  // settle and a scan while answering neither question this capability exists for. These five
+  // do: contact_info is the only place a published address lives, and work / education / intro
+  // / category are what say what someone does for a living.
   //
-  // This stays a FALLBACK. Discovery is the real path: these slugs are what Facebook used on one
-  // day for personal profiles, and Pages or a future layout will differ. Anything hard-coded here
-  // is a guess with a shelf life.
+  // The slugs are a fixed vocabulary (/<profile>/directory_<section>), not something to infer.
+  // An earlier version of this list was invented — work_and_education, basic_info, links — and
+  // only `intro` was real; Work and Education are two separate sections.
   var DOSSIER_TABS = [
+    { key: "contact_info", hrefs: ["directory_contact_info"], label: /^(contact info|thông tin liên hệ)/i },
+    { key: "work", hrefs: ["directory_work"], label: /^(work|công việc)/i },
+    { key: "education", hrefs: ["directory_education"], label: /^(education|học vấn|giáo dục)/i },
     { key: "intro", hrefs: ["directory_intro"], label: /^(intro|giới thiệu)/i },
-    { key: "work", hrefs: ["directory_work", "about_work_and_education"],
-      label: /^(work|work and education|công việc)/i },
-    { key: "education", hrefs: ["directory_education"], label: /^(education|college|học vấn|giáo dục)/i },
-    { key: "category", hrefs: ["directory_category"], label: /^(category|hạng mục|danh mục)/i },
-    { key: "personal_details", hrefs: ["directory_personal_details", "about_contact_and_basic_info"],
-      label: /^(personal details|basic info|contact and basic info|thông tin cá nhân|thông tin liên hệ)/i },
-    { key: "contact_info", hrefs: ["directory_contact_info"],
-      label: /^(contact info|thông tin liên hệ)/i },
-    { key: "names", hrefs: ["directory_names"], label: /^(names|tên)/i }
+    { key: "category", hrefs: ["directory_category"], label: /^(category|hạng mục|danh mục)/i }
   ];
+  // Discovery drives the walk, so trimming the list above is not enough on its own: a profile
+  // that publishes all fourteen sections would still be walked end to end. Discovery is filtered
+  // to these keys, in this order — Facebook renders Hobbies before Contact info, and following
+  // its menu order would spend the budget on hobbies.
+  var DOSSIER_RANK = {};
+  for (var _d = 0; _d < DOSSIER_TABS.length; _d++) DOSSIER_RANK[DOSSIER_TABS[_d].key] = _d;
   var DOSSIER_CHROME = /^(like|comment|share|follow|following|message|add friend|see all|see more|more|photos|videos|reels|friends|about|posts|intro|edit profile|create|log in|sign up|suggested for you|sponsored|thích|bình luận|chia sẻ|theo dõi|nhắn tin|xem thêm|xem tất cả|giới thiệu|bạn bè|ảnh|video)$/i;
 
   function profileDossier(inputs) {
@@ -2044,7 +2043,7 @@
     var target = String(inputs.profile_url || location.href);
     var info = profileBaseFrom(target);
     var emails = [], websites = [], foundOn = "", checked = [], missing = [];
-    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [], seeMoreClicks = 0;
+    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [], skipped = [], seenAll = [], seeMoreClicks = 0;
 
     // ---- GraphQL probe -------------------------------------------------------------------
     // Which query does Facebook fire when a sub-tab is clicked? If a tab's content arrives in
@@ -2231,6 +2230,7 @@
     // actually on the page removes the guess entirely and survives Facebook renaming them.
     function discoverTabs() {
       var out = [], seen = {}, as = [];
+      seenAll = []; skipped = [];
       try { as = document.querySelectorAll('a[href]') || []; } catch (e) { return out; }
       for (var i = 0; i < as.length; i++) {
         var h = as[i].getAttribute ? (as[i].getAttribute("href") || "") : "";
@@ -2241,8 +2241,15 @@
         var b = as[i].getBoundingClientRect ? as[i].getBoundingClientRect() : { width: 1, height: 1 };
         if (b.width <= 0 || b.height <= 0) continue;
         seen[slug] = 1;
-        out.push({ key: slug.replace(/^(?:about|directory)_/, ""), slug: slug });
+        var key = slug.replace(/^(?:about|directory)_/, "");
+        seenAll.push(slug);
+        // Keep only the five that answer a question. Everything else is still reported in
+        // `discovered_tabs`, so the record says what the profile publishes even though the walk
+        // did not spend a second on it.
+        if (DOSSIER_RANK[key] === undefined) { skipped.push(key); continue; }
+        out.push({ key: key, slug: slug });
       }
+      out.sort(function (a, b) { return DOSSIER_RANK[a.key] - DOSSIER_RANK[b.key]; });
       return out;
     }
     function clickSlug(slug) {
@@ -2263,7 +2270,7 @@
       // Fall back to the label/slug list only when the page exposes no About links at all — a
       // profile with its About section closed, or a layout this discovery does not understand.
       plan = found.length ? found : DOSSIER_TABS.map(function (t) { return { key: t.key, tab: t }; });
-      discovered = found.map(function (t) { return t.slug; });
+      discovered = seenAll.slice();
     }
     function step() {
       if (idx >= plan.length) return Promise.resolve();
@@ -2374,6 +2381,10 @@
             // profile publishes nothing" and "this code no longer recognises the sub-nav",
             // which is the exact confusion that made the first live run unreadable.
             discovered_tabs: discovered,
+            // Sections the profile publishes that the walk deliberately did not open. Five
+            // sections answer the questions here; the other nine cost a second each and answer
+            // none. Listed so the record never reads as "this profile has nothing else".
+            skipped_tabs: skipped,
             // Which GraphQL query each surface fired, keyed the same way as `about`. A surface
             // whose content arrives in ONE named query can be replayed by doc_id instead of
             // clicked — that is how fb.profile.hovercard stopped needing a real hover. Pass
