@@ -217,47 +217,6 @@
     return { url: String((it && it.url) || ""), text: norm(it && it.text).slice(0, 140), created_time: (it && it.created_time) || 0, from: (it && it._from) || "graphql" };
   }
 
-  // Facebook server-renders the TOP of a feed into the initial document and only fetches
-  // OLDER pages over GraphQL. gql_intercept.js hooks fetch/XHR, so the listing extractor
-  // is systematically blind to the NEWEST posts — exactly the ones worth acting on.
-  // Measured on the test group: fb.group.posts returned "Post 2" and "Post 3" while the
-  // newest post ("Post 5 post 5 post 5") was rendered on the page the whole time. So read
-  // the rendered feed as a SECOND source and merge; the canonical-url dedupe collapses the
-  // overlap, and GraphQL items win because they carry post_id and created_time.
-  // This lives here rather than in gql_extract.js on purpose: the read path is proven and
-  // in daily use, and a write-targeting fix has no business changing what it returns.
-  function domPermalink(rawHref) {
-    var abs;
-    try { abs = new URL(String(rawHref || ""), location.origin); } catch (e) { return ""; }
-    if (!FB_HOSTS[lower(abs.hostname)]) return "";
-    // /posts/<id> and /permalink/<id> carry their identity in the PATH, so drop the query
-    // (Facebook hangs __cft__/__tn__ tracking blobs off feed links). permalink.php keeps
-    // its query — that is where story_fbid lives.
-    if (/\/(posts|permalink)\/[^/]+/i.test(abs.pathname)) return abs.origin + abs.pathname;
-    return abs.href;
-  }
-  // The rendered-feed posts, extracted by filtering.js in the ISOLATED world and handed in
-  // by background.js as _dom_posts. They are NOT re-scraped here on purpose. A hand-rolled
-  // [role="article"] scan was tried first and measured wrong live: Facebook renders each
-  // COMMENT as its own article whose permalink is the POST's url plus ?comment_id=…, so the
-  // scan produced the right url carrying a commenter's words instead of the post body.
-  // filtering.js already solves exactly that — selectContent() stops at the first comment
-  // boundary — and it has been doing so in the daily read pipeline for months. The two
-  // worlds share only the DOM, so the array has to travel through background.js.
-  function providedDomPosts(inputs) {
-    var raw = Array.isArray(inputs._dom_posts) ? inputs._dom_posts : [];
-    var out = [];
-    for (var i = 0; i < raw.length; i++) {
-      var p = raw[i];
-      if (!p) continue;
-      var url = domPermalink(p.url);   // absolutise + re-apply the host allowlist
-      var text = norm(p.text);
-      if (!url || !text) continue;
-      out.push({ id: "", post_id: "", url: url, text: text, created_time: 0, _from: "dom" });
-    }
-    return out;
-  }
-
   async function resolveByContent(capId, inputs) {
     var needle = norm(inputs.match_text || "");
     var mode = lower(inputs.match_mode || "contains");
@@ -277,17 +236,25 @@
       var lin = { max_pages: Number.isFinite(lim) ? lim : 3 };
       listing = hasPaginate ? await window.__soloGqlPaginate(listCap, lin) : window.__soloGqlExtractCapability(listCap, lin);
     } catch (e) {
-      // Not fatal: the rendered feed is a second, independent source and often holds the
-      // post anyway. Record why the capture failed and carry on with the DOM.
       base.listing_error = String(e && e.message || e);
     }
 
-    // GraphQL first so its richer records win the dedupe; the rendered feed then supplies
-    // whatever the intercept never saw (the newest posts).
-    var gqlItems = (listing && Array.isArray(listing.items)) ? listing.items : [];
-    var domItems = providedDomPosts(inputs);
-    var items = gqlItems.concat(domItems);
-    base.sources_read = { graphql: gqlItems.length, dom: domItems.length };
+    // GRAPHQL ONLY. A rendered-feed source was added here for a day and then removed: it was
+    // introduced to recover a post the GraphQL listing "could not see", and that premise was
+    // wrong. The missing post was an ANONYMOUS group post, which Facebook does not serve
+    // through the group feed query at all — the feed reported end-of-feed without it, and a
+    // dump of every edge showed both real posts present and accepted. Nothing was blind.
+    //
+    // What the DOM source did add was damage: Facebook renders each COMMENT as its own
+    // [role="article"] whose permalink is the POST's url plus ?comment_id=…, so a scan
+    // returned the right url carrying a commenter's words, and the group's "Featured" card —
+    // not a post — arrived wearing a real post's permalink. In GraphQL a story's id, url and
+    // text come from ONE node and cannot be mispaired.
+    //
+    // An anonymous post is also the one kind this campaign has no use for: no author to add as
+    // a lead, no profile for a reader to click through to. Losing it costs nothing.
+    var items = (listing && Array.isArray(listing.items)) ? listing.items : [];
+    base.sources_read = { graphql: items.length };
 
     var seen = {}, considered = [], hits = [];
     for (var i = 0; i < items.length; i++) {

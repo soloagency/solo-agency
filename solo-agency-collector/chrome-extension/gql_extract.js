@@ -412,11 +412,27 @@
   // results ARE posts (group feed, profile timeline, and in-group keyword search),
   // because they all carry the identical story-node shape (actors, comet_sections,
   // permalink_url, post_id, feedback, attachments, to). Returns null for non-posts.
+  // An ANONYMOUS group post has its top-level `story.actors` scrubbed — that scrubbing is
+  // what makes the UI read "Anonymous member". Facebook still ships the REAL actor, numeric
+  // id and all, further down inside the avatar renderer's own story, and does not redact it
+  // there. Reading only the obvious path produced a record with no author at all for every
+  // anonymous post; reading this one too recovers it. A post is never rejected for lacking an
+  // actor either way — an author is a field, not a precondition.
+  var ACTOR_FALLBACK_PATH = "comet_sections.context_layout.story.comet_sections.actor_photo.story.actors";
+  function storyActor(node) {
+    if (Array.isArray(node.actors) && isObj(node.actors[0])) return node.actors[0];
+    var deep = getPath(node, ACTOR_FALLBACK_PATH);
+    if (Array.isArray(deep) && isObj(deep[0])) return deep[0];
+    return null;
+  }
+
   function postRecordFromStoryNode(node) {
-    if (!isObj(node) || !node.id) return null;
-    var actor = Array.isArray(node.actors) ? node.actors[0] : null;
+    // Accept a story identified by EITHER id: the pagination reply keys some stories only by
+    // post_id, and gating on the story id alone silently dropped them.
+    if (!isObj(node) || (!node.id && !node.post_id)) return null;
+    var actor = storyActor(node);
     return {
-      id: String(node.id),
+      id: String(node.id || node.post_id),
       post_id: node.post_id ? String(node.post_id) : "",
       url: (typeof node.permalink_url === "string" && node.permalink_url)
         ? node.permalink_url
@@ -444,10 +460,12 @@
         sourceQuery = cap.queryName || sourceQuery;
         for (var i = 0; i < edges.length; i++) {
           var node = edges[i] && edges[i].node;
-          if (!isObj(node) || !node.id || seen[node.id]) continue;
-          var rec = postRecordFromStoryNode(node);
-          if (!rec) continue;
-          seen[node.id] = 1;
+          // Key on whichever id the story carries. Gating on the story id alone dropped
+          // stories that arrive keyed only by post_id, and the record builder already
+          // refuses a node that has neither.
+          var rec = isObj(node) ? postRecordFromStoryNode(node) : null;
+          if (!rec || seen[rec.id]) continue;
+          seen[rec.id] = 1;
           if (!firstNode) firstNode = node;
           items.push(rec);
         }
@@ -791,7 +809,7 @@
           if (seen[id]) continue;
           seen[id] = 1;
           if (!firstNode) firstNode = node;
-          var actor = Array.isArray(node.actors) ? node.actors[0] : null;
+          var actor = storyActor(node);   // top-level actors, then the un-redacted avatar path
           items.push({
             id: id,
             post_id: node.post_id ? String(node.post_id) : "",
@@ -851,8 +869,8 @@
           if (!firstNode) firstNode = node;
 
           // Actor: prefer the feed-unit actor, fall back to the content story's.
-          var actor = Array.isArray(node.actors) ? node.actors[0] : null;
-          if (!actor && isObj(contentStory) && Array.isArray(contentStory.actors)) actor = contentStory.actors[0];
+          var actor = storyActor(node);   // top-level actors, then the un-redacted avatar path
+          if (!actor && isObj(contentStory)) actor = storyActor(contentStory);
 
           // Attachments: node-level first, else the inner content story.
           var atts = postAttachments(node);
@@ -1002,7 +1020,22 @@
       if (!CAP || !Array.isArray(CAP.captures) || !CAP.captures.length) { out.reason = "no_capture"; return out; }
       var fn = CAPABILITY_EXTRACTORS[capabilityId];
       if (!fn) { out.reason = "no_extractor"; return out; }
-      var res = fn(CAP.captures, inputs || {});
+      // Facebook streams these replies: a capture's later chunks are @defer payloads that
+      // belong INSIDE chunk 0. Merge before extracting, or the story content is invisible and
+      // only the skeleton is read.
+      var streamMerged = 0;
+      var mergedCaps = CAP.captures.map(function (c) {
+        if (!c || !c.response) return c;
+        var mm = mergeStreamed(c.response);
+        streamMerged += mm.merged;
+        if (!mm.merged) return c;
+        var copy = {};
+        for (var k in c) copy[k] = c[k];
+        copy.response = mm.chunks;
+        return copy;
+      });
+      var res = fn(mergedCaps, inputs || {});
+      res.stream_chunks_merged = streamMerged;
       res.available = res.count > 0;
       if (!res.available) res.reason = "no_match";
       return res;
@@ -1042,11 +1075,214 @@
 
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+  // --- cursor discovery ----------------------------------------------------
+  // CAPABILITY_PAGINATION hard-codes one page_info path per capability, taken from the
+  // INITIAL feed query. The PAGINATION query for the same feed answers in a different shape:
+  // measured on a live group, the config expected data.node.group_feed.page_info while the
+  // cursor actually sat at data.page_info. The path was never found, so no feed ever
+  // paginated — and the only symptom was a quietly short list. Treat the configured path as a
+  // hint: try it, then search the payload. Hard-coding a second path just queues up the same
+  // failure for the next time Facebook moves it.
+  function chunksOf(response) {
+    return Array.isArray(response) ? response : (response ? [response] : []);
+  }
+  function findInChunks(response, path) {
+    var chunks = chunksOf(response);
+    for (var i = 0; i < chunks.length; i++) {
+      var hit = isObj(chunks[i]) ? getPath(chunks[i], path) : null;
+      if (isObj(hit)) return hit;
+    }
+    return null;
+  }
+  function deepFindPageInfo(response) {
+    var chunks = chunksOf(response), found = null;
+    function walk(node, depth) {
+      if (found || depth > 9 || !isObj(node)) return;
+      for (var k in node) {
+        if (found) return;
+        var v = node[k];
+        if (k === "page_info" && isObj(v) && ("end_cursor" in v || "has_next_page" in v)) { found = v; return; }
+        if (isObj(v)) walk(v, depth + 1);
+        else if (Array.isArray(v) && v.length && isObj(v[0])) walk(v[0], depth + 1);
+      }
+    }
+    for (var i = 0; i < chunks.length && !found; i++) walk(chunks[i], 0);
+    return found;
+  }
+  function resolvePageInfo(response, path) {
+    return findInChunks(response, path) || deepFindPageInfo(response);
+  }
+
+  // Facebook STREAMS this response. With stream_initial_count / COMET_STREAM, chunk 0 is a
+  // skeleton — its first edge is a "GroupsSectionHeaderUnit" titled "Recent activity", not a
+  // post — and the real story content arrives in later chunks as @defer payloads, each
+  // carrying a `path` telling you where it belongs in that skeleton. Reading the chunks
+  // SEPARATELY, which is what this file did, sees the skeleton and never the stories: the
+  // head fetch looked like it "returned nothing new" when in fact its content was sitting
+  // unmerged in chunks 1..4.
+  //
+  // Merging is additive and non-destructive: the merged root is prepended and the original
+  // chunks are kept, so anything an extractor used to find it still finds.
+  function mergeStreamed(response) {
+    var chunks = Array.isArray(response) ? response : (response ? [response] : []);
+    if (chunks.length < 2 || !isObj(chunks[0])) return { chunks: chunks, merged: 0, paths: [] };
+    var root = chunks[0], merged = 0, paths = [];
+    for (var i = 1; i < chunks.length; i++) {
+      var c = chunks[i];
+      if (!isObj(c) || !Array.isArray(c.path) || !c.path.length || c.data === undefined) continue;
+      // Walk to the PARENT of the target, never to the target itself. A @stream payload
+      // addresses a slot that does not exist yet — "node.group_feed.edges.1" when edges holds
+      // a single element — so resolving the full path lands on undefined and the payload gets
+      // silently discarded. That is exactly what happened: the anonymous post and Post 4 both
+      // arrived in stream chunks and were dropped on the floor for being "unmergeable".
+      var parent = root.data, ok = true;
+      for (var k = 0; k < c.path.length - 1; k++) {
+        parent = parent ? parent[c.path[k]] : null;
+        if (parent === null || parent === undefined || typeof parent !== "object") { ok = false; break; }
+      }
+      if (!ok) continue;
+      var last = c.path[c.path.length - 1];
+      var existing = parent[last];
+      // @defer refines a node that is already there (merge its keys); @stream delivers a new
+      // element (assign it into the slot).
+      if (isObj(existing) && isObj(c.data)) { for (var key in c.data) existing[key] = c.data[key]; }
+      else { parent[last] = c.data; }
+      merged += 1;
+      if (paths.length < 8) paths.push(c.path.join("."));
+    }
+    return { chunks: [root].concat(chunks.slice(1)), merged: merged, paths: paths };
+  }
+
+  // A reply can carry MANY `edges` arrays — the first one encountered was the comment-sort
+  // dropdown, which produced a phantom "Most relevant" record with no url. Never pick by name:
+  // collect the candidates and let the capability's OWN extractor decide which is real.
+  function collectEdgeArrays(response, limit) {
+    var out = [], chunks = chunksOf(response);
+    function walk(node, depth) {
+      if (out.length >= limit || depth > 9 || !isObj(node)) return;
+      for (var k in node) {
+        if (out.length >= limit) return;
+        var v = node[k];
+        if (k === "edges" && Array.isArray(v) && v.length) out.push(v);
+        else if (isObj(v)) walk(v, depth + 1);
+        else if (Array.isArray(v) && v.length && isObj(v[0])) walk(v[0], depth + 1);
+      }
+    }
+    for (var i = 0; i < chunks.length; i++) walk(chunks[i], 0);
+    return out;
+  }
+  function shapeAt(path, edges) {
+    var shell = {}, cur = shell, parts = String(path).split(".");
+    for (var p = 0; p < parts.length - 1; p++) { cur[parts[p]] = {}; cur = cur[parts[p]]; }
+    cur[parts[parts.length - 1]] = edges;
+    return [shell];
+  }
+  function extractReplayItems(resp, capabilityId, seed, pageInfoPath) {
+    var extractor = CAPABILITY_EXTRACTORS[capabilityId];
+    if (!extractor) return { items: [], via: "no_extractor" };
+    var m = mergeStreamed(resp);
+    resp = m.chunks;
+    function run(response) {
+      var r = extractor([{ queryName: seed.queryName, docId: seed.docId, variables: seed.variables, response: response }], {});
+      return (r && Array.isArray(r.items)) ? r.items : [];
+    }
+    var direct = run(resp);
+    if (direct.length) return { items: direct, via: "native_shape+merged" + m.merged };
+    var edgesPath = String(pageInfoPath || "").replace(/\.page_info$/, ".edges");
+    if (!edgesPath) return { items: [], via: "no_edges_path" };
+    var cands = collectEdgeArrays(resp, 12);
+    for (var i = 0; i < cands.length; i++) {
+      var items = run(shapeAt(edgesPath, cands[i]));
+      if (items.length) return { items: items, via: "reshaped_" + i + "_of_" + cands.length };
+    }
+    return { items: [], via: "no_candidate_matched_of_" + cands.length };
+  }
+
   // Replay one persisted query with a new cursor via the pristine fetch.
-  function replayPage(store, cap, cursor) {
+  // Ask Facebook's own module registry for the query artifact, which is how a working
+  // third-party extension does it: the doc_id is then always the CURRENT one the page itself
+  // would use, and can never go stale the way a captured value can.
+  function docIdFromRegistry(queryName) {
+    try {
+      if (typeof window.require !== "function" || !queryName) return "";
+      var mod = window.require(String(queryName) + ".graphql");
+      var id = mod && mod.params && mod.params.id;
+      return id ? String(id) : "";
+    } catch (e) { return ""; }
+  }
+
+  // The variable set a working third-party extension sends for this query, reproduced
+  // verbatim. Inheriting Facebook's own captured variables was not enough: those describe the
+  // slice its UI happened to want, and replaying them — even with the cursor removed — walked
+  // the same middle of the feed and returned 3 of 6 posts. Driving the query with a known-good
+  // set is what makes it answer from the top.
+  //
+  // count is deliberately SMALL: the reference implementation asks for 3 at a time and
+  // recurses, which is also gentler on the account than one large sweep.
+  function webPixelRatio() {
+    try { return window.require("WebPixelRatio").get(); } catch (e) { return 1; }
+  }
+  var FEED_VARS = {
+    "fb.group.posts": function (id, cursor) {
+      var v = {
+        count: 3,
+        feedLocation: "GROUP",
+        feedType: "DISCUSSION",
+        feedbackSource: 0,
+        focusCommentID: null,
+        privacySelectorRenderLocation: "COMET_STREAM",
+        renderLocation: "group",
+        scale: webPixelRatio(),
+        sortingSetting: "RECENT_ACTIVITY",
+        stream_initial_count: 1,
+        useDefaultActor: false,
+        useGroupFeedWithEntQL_EXPERIMENTAL: false,
+        id: id,
+        __relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider: true,
+        __relay_internal__pv__CometImmersivePhotoCanUserDisable3DMotionrelayprovider: false,
+        __relay_internal__pv__IsWorkUserrelayprovider: false,
+        __relay_internal__pv__IsMergQAPollsrelayprovider: false,
+        __relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider: false,
+        __relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider: false,
+        __relay_internal__pv__CometUFIShareActionMigrationrelayprovider: true,
+        __relay_internal__pv__IncludeCommentWithAttachmentrelayprovider: true,
+        __relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider: true,
+        __relay_internal__pv__EventCometCardImage_prefetchEventImagerelayprovider: false,
+        __relay_internal__pv__CometUFIReactionEnableShortNamerelayprovider: true
+      };
+      if (cursor) v.cursor = cursor;
+      return v;
+    }
+  };
+  // The group id: prefer what Facebook itself sent, fall back to the address bar.
+  function feedTargetId(cap) {
+    var id = cap && cap.variables && cap.variables.id;
+    if (id) return String(id);
+    var m = String(location.href).match(/\/groups\/(\d+)/);
+    return m ? m[1] : "";
+  }
+
+  // cursor === null means "the head of the connection". The key is DELETED rather than sent
+  // as null, and that distinction is the whole difference between working and not: sending
+  // "cursor": null returned a degenerate slice with a single non-story edge, while omitting
+  // the key returns the newest posts. A working third-party extension passes `undefined`
+  // here, which JSON.stringify drops — same thing, arrived at by accident on their side.
+  function replayPage(store, cap, cursor, capabilityId) {
     var vars = {};
-    for (var k in cap.variables) vars[k] = cap.variables[k];
-    vars.cursor = cursor;
+    var build = FEED_VARS[capabilityId];
+    if (build) {
+      // Known-good set, built from scratch. Anything Facebook sent that we did not enumerate
+      // is carried over underneath it, so an unrecognised provider flag is never lost.
+      var explicit = build(feedTargetId(cap), cursor);
+      for (var c0 in cap.variables) vars[c0] = cap.variables[c0];
+      delete vars.cursor;
+      for (var e0 in explicit) vars[e0] = explicit[e0];
+    } else {
+      for (var k in cap.variables) vars[k] = cap.variables[k];
+      // A null cursor means the HEAD of the connection, and the key must be DELETED rather
+      // than sent as null — Facebook answers "cursor": null with a degenerate slice.
+      if (cursor === null || cursor === undefined) delete vars.cursor; else vars.cursor = cursor;
+    }
     var p = new URLSearchParams();
     p.set("av", cap.av || "");
     p.set("__a", "1");
@@ -1054,7 +1290,7 @@
     p.set("fb_api_caller_class", "RelayModern");
     p.set("fb_api_req_friendly_name", cap.queryName || "");
     p.set("variables", JSON.stringify(vars));
-    p.set("doc_id", cap.docId);
+    p.set("doc_id", docIdFromRegistry(cap.queryName) || cap.docId);
     p.set("server_timestamps", "true");
     return store.origFetch(cap.url || "/api/graphql/", {
       method: "POST",
@@ -1616,7 +1852,8 @@
     });
   }
 
-  var DOM_CAPABILITIES = { "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader, "fb.profile.contacts": profileContacts };
+  var DOM_CAPABILITIES = {
+    "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader, "fb.profile.contacts": profileContacts };
 
   // The typed extraction is PASSIVE — it reads whatever GraphQL response is already in
   // the ring buffer. On a search/list page the results query (e.g.
@@ -1685,46 +1922,87 @@
     // Find the newest capture that (a) matches the query scope, (b) has a
     // replayable identity (docId + fb_dtsg), and (c) exposes this page_info.
     var caps = store.captures || [];
-    var seed = null, seedChunk = null;
+    var seed = null, seedInfo = null, scoped = 0, noIdentity = 0;
     for (var i = caps.length - 1; i >= 0; i--) {
       var c = caps[i];
-      if (!c || !c.docId || !c.fbDtsg || !c.response) continue;
+      if (!c || !c.response) continue;
       if (cfg.scope && String(c.queryName || "").indexOf(cfg.scope) === -1) continue;
-      var chunk = firstChunkOf(c);
-      if (chunk && getPath(chunk, cfg.pageInfoPath)) { seed = c; seedChunk = chunk; break; }
+      scoped += 1;
+      if (!c.docId || !c.fbDtsg) { noIdentity += 1; continue; }
+      var info = resolvePageInfo(c.response, cfg.pageInfoPath);
+      if (info) { seed = c; seedInfo = info; break; }
     }
-    if (!seed) return Promise.resolve(base);
+    if (!seed) {
+      // Say WHY instead of returning a quietly short list — a silent bail here is exactly
+      // what hid the broken group-feed pagination.
+      base.pagination_skipped = !scoped ? "no_capture_in_scope"
+        : noIdentity === scoped ? "capture_missing_doc_id_or_fb_dtsg"
+        : "no_page_info_in_response";
+      base.pagination_scope = cfg.scope;
+      base.pagination_candidates = scoped;
+      base.pagination_expected_path = cfg.pageInfoPath;
+      return Promise.resolve(base);
+    }
 
     var items = base.items.slice();
     var seen = {};
     items.forEach(function (it) { if (it && it.id) seen[it.id] = 1; });
-    var pi = getPath(seedChunk, cfg.pageInfoPath) || {};
-    var state = { cursor: pi.end_cursor, hasNext: !!pi.has_next_page, pages: 0, added: 0 };
+    var pi = seedInfo || {};
+    var state = { cursor: pi.end_cursor, hasNext: !!pi.has_next_page, pages: 0, added: 0, head: 0, headVia: "not_run" };
+
+    // PAGE 1 NEVER REACHES THIS LAYER. Facebook server-renders the top of a feed into the
+    // initial document, so nothing is fetched for it and gql_intercept — which hooks
+    // fetch/XHR — never sees it. The only feed query captured on a group page is
+    // GroupsCometFeedRegularStoriesPaginationQuery, which fires on SCROLL and walks BACKWARDS
+    // in time. Measured: the extractor returned "Post 2" and "Post 3" while the newest post
+    // sat on screen unseen. Replaying the same persisted query with a NULL cursor asks for the
+    // head of the connection, bringing the newest posts back through GraphQL — where a story's
+    // id, url and text come from ONE node and cannot be mispaired, unlike anything rebuilt
+    // from the DOM, where a comment's text can end up attached to the post it sits under.
+    function headPage() {
+      return replayPage(store, seed, null, capabilityId).then(function (resp) {
+        if (!resp) return;
+        var got = extractReplayItems(resp, capabilityId, seed, cfg.pageInfoPath);
+        state.headVia = got.via;
+        got.items.forEach(function (it) {
+          // A feed connection also carries non-story edges — the sort control came back as a
+          // record titled "Most relevant" with no permalink. Anything without a url is not a
+          // post, and a post with no url is useless downstream anyway: nothing can act on it.
+          if (it && it.id && it.url && !seen[it.id]) { seen[it.id] = 1; items.push(it); state.head += 1; }
+        });
+        // The head reply carries its own page_info. Continue forward from THERE — the
+        // captured seed's cursor described a slice further down the feed, and trusting its
+        // has_next_page could stop the walk before the newest pages are drained.
+        var hinfo = resolvePageInfo(resp, cfg.pageInfoPath);
+        if (hinfo && hinfo.end_cursor) { state.cursor = hinfo.end_cursor; state.hasNext = !!hinfo.has_next_page; }
+      }).catch(function () { state.headVia = "replay_failed"; });
+    }
 
     function step() {
       if (!state.hasNext || !state.cursor || state.pages >= maxPages) return Promise.resolve();
       state.pages += 1;
-      return replayPage(store, seed, state.cursor).then(function (resp) {
+      return replayPage(store, seed, state.cursor, capabilityId).then(function (resp) {
         if (!resp) { state.hasNext = false; return; }
-        var fakeCap = { queryName: seed.queryName, docId: seed.docId, variables: seed.variables, response: resp };
-        var page = CAPABILITY_EXTRACTORS[capabilityId]([fakeCap], {});
-        (page && page.items || []).forEach(function (it) {
+        var got = extractReplayItems(resp, capabilityId, seed, cfg.pageInfoPath);
+        got.items.forEach(function (it) {
           if (it && it.id && !seen[it.id]) { seen[it.id] = 1; items.push(it); state.added += 1; }
         });
-        var chunk = Array.isArray(resp) ? resp[0] : resp;
-        var pinfo = (isObj(chunk) ? getPath(chunk, cfg.pageInfoPath) : null) || {};
+        // A replayed page nests and streams just like the captured one.
+        var pinfo = resolvePageInfo(resp, cfg.pageInfoPath) || {};
         state.cursor = pinfo.end_cursor;
         state.hasNext = !!pinfo.has_next_page;
         return wait(400 + Math.floor((state.pages % 3) * 150)).then(step); // gentle pacing
       }).catch(function () { state.hasNext = false; });
     }
 
-    return step().then(function () {
+    return headPage().then(step).then(function () {
       base.items = items;
       base.count = items.length;
       base.paginated = true;
       base.pages_fetched = state.pages;
       base.added_by_pagination = state.added;
+      base.added_by_head_page = state.head;
+      base.head_page_via = state.headVia;
       base.available = base.count > 0;
       return base;
     });

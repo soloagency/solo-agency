@@ -135,49 +135,34 @@ async function resolveWith(items, inputs, opts) {
     check("no gql_extract injected -> explicit error, not a crash", r.status === "error" && /not present/i.test(r.items[0].error), r.items[0]);
   }
 
-  console.log("\n== Task A: DOM merge (posts GraphQL never saw) ==");
-  // Facebook server-renders the newest posts; only older pages come over GraphQL.
-  // filtering.js hands back {postUrl, content} pairs; background.js relays them as _dom_posts.
-  const domPost = (url, text) => ({ url, text });
+  console.log("\n== Task A: GraphQL is the only listing source ==");
   {
-    const G = "https://www.facebook.com/groups/668676178569386/posts/";
+    // A rendered-feed source lived here for a day and was removed. It was added to recover a
+    // post GraphQL "could not see" — the premise was wrong (that post was ANONYMOUS, which
+    // Facebook does not serve through the group feed query at all), and what it actually added
+    // was mispairing: a comment's article carries the POST's permalink, so the right url
+    // arrived holding a commenter's words. Anything handed in from the DOM must be ignored.
+    const G = "https://www.facebook.com/groups/1/posts/";
     const ctx = makeCtx({});
-    ctx.window.__soloGqlPaginate = async () => ({ available: true, items: [post("Post 2: Post 2", G + "668676911902646/"), post("Post 3: Post 3", G + "669851668451837/")] });
-    const r = await ctx.window.__soloActResolve("fb.post.comment", { match_text: "Post 5 post 5 post 5", _target_url: "https://www.facebook.com/groups/668676178569386",
-      _dom_posts: [domPost("/groups/668676178569386/posts/676092881161049/?__cft__[0]=AZX", "Post 5 post 5 post 5")] });
-    const it = r.items[0];
-    check("the newest post, invisible to GraphQL, is now found", r.status === "resolved", r.status);
-    check("resolved to the right permalink", it.matched_post && /676092881161049/.test(it.matched_post.url), it.matched_post);
-    check("tracking params (__cft__) stripped from the url", it.matched_post && !/__cft__/.test(it.matched_post.url), it.matched_post);
-    check("audit shows both sources", it.sources_read && it.sources_read.graphql === 2 && it.sources_read.dom === 1, it.sources_read);
-    check("matched_post records it came from the DOM", !!it.matched_post && it.matched_post.from === "dom", it.matched_post);
-    check("GraphQL posts still counted", it.candidates_considered === 3, it.candidates_considered);
+    ctx.window.__soloGqlPaginate = async () => ({ available: true, items: [post("Post 2: Post 2", G + "2/")] });
+    const r = await ctx.window.__soloActResolve("fb.post.comment", {
+      match_text: "Post 5 post 5 post 5",
+      _target_url: "https://www.facebook.com/groups/1",
+      // A caller (or a stale background.js) offering rendered-feed posts must change nothing.
+      _dom_posts: [{ url: G + "999/", text: "Post 5 post 5 post 5" }]
+    });
+    check("a DOM-supplied post is ignored, not merged", r.status === "no_match", r.status);
+    check("the audit reports GraphQL as the only source", JSON.stringify(r.items[0].sources_read) === '{"graphql":1}', r.items[0].sources_read);
+    check("only the GraphQL post was considered", r.items[0].candidates_considered === 1, r.items[0].candidates_considered);
   }
   {
-    // Same post in BOTH sources must not read as two candidates.
-    const url = "https://www.facebook.com/groups/1/posts/999/";
+    const G = "https://www.facebook.com/groups/1/posts/";
     const ctx = makeCtx({});
-    ctx.window.__soloGqlPaginate = async () => ({ available: true, items: [post("Post 5 post 5 post 5", url)] });
-    const r = await ctx.window.__soloActResolve("fb.post.comment", { match_text: "Post 5", _target_url: "https://www.facebook.com/groups/1",
-      _dom_posts: [domPost("/groups/1/posts/999/", "Post 5 post 5 post 5")] });
-    check("same post from both sources dedupes to one", r.status === "resolved" && r.items[0].candidates_considered === 1, r.items[0].candidates_considered);
-    check("GraphQL record wins the dedupe (richer)", r.items[0].matched_post.from === "graphql", r.items[0].matched_post.from);
-  }
-  {
-    // A needle that only appears in a COMMENT must not retarget the write onto that post.
-    const ctx = makeCtx({});
-    ctx.window.__soloGqlPaginate = async () => ({ available: true, items: [] });
-    const r = await ctx.window.__soloActResolve("fb.post.comment", { match_text: "findmeplease", _target_url: "https://www.facebook.com/groups/1",
-      _dom_posts: [domPost("/groups/1/posts/999/", "Totally unrelated body")] });
-    check("comment text never reaches the matcher (filtering.js strips it)", r.status === "no_match", r.status);
-  }
-
-  {
-    const ctx = makeCtx({});
-    ctx.window.__soloGqlPaginate = async () => ({ available: true, items: [] });
-    const r = await ctx.window.__soloActResolve("fb.post.comment", { match_text: "Post 5", _target_url: "https://www.facebook.com/groups/1",
-      _dom_posts: [domPost("https://l.facebook.com/l.php?u=https://evil.example/", "Post 5")] });
-    check("host allowlist is re-applied to DOM-supplied urls", r.status === "listing_unavailable", r.status);
+    ctx.window.__soloGqlPaginate = async () => ({ available: true, items: [
+      post("Post 2: Post 2", G + "2/"), post("Post 5 post 5 post 5", G + "5/")] });
+    const r = await ctx.window.__soloActResolve("fb.post.comment", {
+      match_text: "Post 5 post 5 post 5", _target_url: "https://www.facebook.com/groups/1" });
+    check("a post GraphQL DOES return still resolves", r.status === "resolved" && /\/5\//.test(r.items[0].matched_post.url), r.items[0]);
   }
 
   console.log("\n== Task A: fail-safe when orchestration is stale ==");
