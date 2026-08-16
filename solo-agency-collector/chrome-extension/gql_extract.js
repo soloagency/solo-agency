@@ -2013,7 +2013,7 @@
     // the label, so neither convention nor a Vietnamese UI silently skips a tab.
     { key: "contact_info", hrefs: ["directory_contact_info", "about_contact_and_basic_info"],
       label: /^(contact info|contact and basic info|thông tin liên hệ)/i },
-    { key: "work_education", hrefs: ["directory_work_and_education", "about_work_and_education"],
+    { key: "work_and_education", hrefs: ["directory_work_and_education", "about_work_and_education"],
       label: /^(work and education|work & education|công việc và học vấn|công việc và giáo dục)/i },
     { key: "intro", hrefs: ["directory_intro"], label: /^(intro|giới thiệu)/i },
     { key: "basic_info", hrefs: ["directory_basic_info", "about_overview"],
@@ -2034,7 +2034,7 @@
     var target = String(inputs.profile_url || location.href);
     var info = profileBaseFrom(target);
     var emails = [], websites = [], foundOn = "", checked = [], missing = [];
-    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false;
+    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [];
 
     function addSite(u) {
       if (!u || websites.length >= 8) return;
@@ -2054,7 +2054,11 @@
     // report an empty `websites` for a profile that plainly shows one. Read the anchors too
     // (that is how fb.profile.header gets it right), and accept a bare domain when the line is
     // nothing but a domain — narrow on purpose, so prose mentioning a company never counts.
-    var BARE_DOMAIN = /^[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)+(\/[^\s]*)?$/i;
+    // The TLD must be two or more LETTERS. Without that the pattern reads Facebook's own
+    // follower counters as hostnames — a live run came back with "4.2K", "6.8K" and "1.1K"
+    // sitting in `websites` next to real sites, which is worse than missing them: a lead whose
+    // website is "1.5K" looks enriched.
+    var BARE_DOMAIN = /^[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)*\.[a-z]{2,}(\/[^\s]*)?$/i;
     function harvestAnchors() {
       var links = [];
       try { links = document.querySelectorAll('a[href]') || []; } catch (e) { return; }
@@ -2152,20 +2156,61 @@
       return Promise.resolve(false);
     }
 
-    var idx = 0;
+    // DISCOVER the sub-nav instead of guessing its slugs. The first live run opened 0 of 5
+    // hard-coded tabs: the fixed list bet on `directory_*` (Pages) and `about_*` (profiles) and
+    // lost, because a slug this code does not know about is indistinguishable from a tab the
+    // profile does not offer — both come back as `missing`. Reading whatever About links are
+    // actually on the page removes the guess entirely and survives Facebook renaming them.
+    function discoverTabs() {
+      var out = [], seen = {}, as = [];
+      try { as = document.querySelectorAll('a[href]') || []; } catch (e) { return out; }
+      for (var i = 0; i < as.length; i++) {
+        var h = as[i].getAttribute ? (as[i].getAttribute("href") || "") : "";
+        var m = h.match(/(?:\/|sk=)((?:about|directory)_[a-z_]+)(?:[\/?&#]|$)/i);
+        if (!m) continue;
+        var slug = m[1].toLowerCase();
+        if (seen[slug]) continue;
+        var b = as[i].getBoundingClientRect ? as[i].getBoundingClientRect() : { width: 1, height: 1 };
+        if (b.width <= 0 || b.height <= 0) continue;
+        seen[slug] = 1;
+        out.push({ key: slug.replace(/^(?:about|directory)_/, ""), slug: slug });
+      }
+      return out;
+    }
+    function clickSlug(slug) {
+      var as = [];
+      try { as = document.querySelectorAll('a[href*="' + slug + '"]') || []; } catch (e) { return Promise.resolve(false); }
+      for (var i = 0; i < as.length; i++) {
+        var b = as[i].getBoundingClientRect ? as[i].getBoundingClientRect() : { width: 1, height: 1 };
+        if (b.width <= 0 || b.height <= 0) continue;
+        try { as[i].click(); } catch (e) { return Promise.resolve(false); }
+        return wait(500).then(function () { return settleThenScan(settleMs); }).then(function () { return true; });
+      }
+      return Promise.resolve(false);
+    }
+
+    var plan = [], idx = 0;
+    function buildPlan() {
+      var found = discoverTabs();
+      // Fall back to the label/slug list only when the page exposes no About links at all — a
+      // profile with its About section closed, or a layout this discovery does not understand.
+      plan = found.length ? found : DOSSIER_TABS.map(function (t) { return { key: t.key, tab: t }; });
+      discovered = found.map(function (t) { return t.slug; });
+    }
     function step() {
-      if (idx >= DOSSIER_TABS.length) return Promise.resolve();
+      if (idx >= plan.length) return Promise.resolve();
       // Stop on the BUDGET, never on a hit. One more tab needs a click, a settle and a scan;
       // if that will not fit, stop honestly rather than get killed mid-tab at 45s.
       if (budgetLeft() < settleMs + 1500) {
         budgetExhausted = true;
-        for (var r = idx; r < DOSSIER_TABS.length; r++) missing.push(DOSSIER_TABS[r].key);
+        for (var r = idx; r < plan.length; r++) missing.push(plan[r].key);
         return Promise.resolve();
       }
-      var tab = DOSSIER_TABS[idx++];
-      return clickInto(tab).then(function (opened) {
-        if (opened) { about[tab.key] = harvestDelta(tab.key); checked.push(tab.key); }
-        else missing.push(tab.key);
+      var t = plan[idx++];
+      var open = t.slug ? clickSlug(t.slug) : clickInto(t.tab);
+      return open.then(function (opened) {
+        if (opened) { about[t.key] = harvestDelta(t.key); checked.push(t.key); }
+        else missing.push(t.key);
         return wait(150).then(step);
       });
     }
@@ -2193,8 +2238,20 @@
       }
       return enterAbout().then(function (entered) {
         if (!entered) missing.push("about");
-        return step();
-      }).then(function () {
+        // The sub-nav can paint after the text has stopped growing, so one look is not enough:
+        // settleThenScan returns on stable LENGTH, and a nav rendering into already-counted
+        // space does not move it. Measured cost of the whole walk was 0.9-4.3s against a 30s
+        // budget, so a few hundred ms of retry is free — and cheaper than a run that reports
+        // every tab missing. Re-look up to three times before giving up on discovery.
+        var tries = 0;
+        function look() {
+          buildPlan();
+          if (discovered.length || tries >= 2 || budgetLeft() < 4000) return Promise.resolve();
+          tries += 1;
+          return wait(500).then(look);
+        }
+        return look();
+      }).then(step).then(function () {
         // A second header read, now that the About tabs have rendered. Same DOM parser, more text
         // to parse: "Works at"/"Studied at"/"Lives in" lines that the main page truncated are on
         // these tabs in full. Union the two, never overwrite — the main page is not always poorer.
@@ -2229,6 +2286,11 @@
             // ---- audit trail: what was actually opened, and what was not ----
             checked: checked,
             missing: missing,
+            // The About slugs actually found on the page. Empty means discovery saw no About
+            // links and the walk fell back to label matching — the difference between "this
+            // profile publishes nothing" and "this code no longer recognises the sub-nav",
+            // which is the exact confusion that made the first live run unreadable.
+            discovered_tabs: discovered,
             budget_exhausted: budgetExhausted,
             elapsed_ms: Date.now() - startedAt
           };

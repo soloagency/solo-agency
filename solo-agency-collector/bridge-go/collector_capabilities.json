@@ -127,11 +127,11 @@
       "follower_count": "number | null",
       "verified": "boolean",
       "intro_bio": "string — the profile's own blurb",
-      "work": "string[] — EMPLOYERS only (parsed from 'Works at <X>'). The job TITLE is not here — it is in about.work_education.",
+      "work": "string[] — EMPLOYERS parsed from 'Works at <X>'. Measured on 5 live profiles: EMPTY on all five, because Facebook writes 'Realtor at the Carlbrook Group', not 'Works at ...'. Do not rely on this field; read about_lines.",
       "education": "string[]",
       "location": "string[]",
       "intro_lines": "string[] — intro card lines as written, capped at 20",
-      "about": "object — the text each About sub-tab added, keyed by tab: main, about, contact_info, work_education, intro, basic_info, links. Only tabs the profile actually offers appear. Each value is that tab's NEW lines (page furniture repeated on every tab is not restated).",
+      "about": "object — the text each About surface added, keyed by the SLUG actually found on the page (contact_info, work_and_education, basic_info, links, ... — Facebook names them differently on Pages vs personal profiles, so the keys vary). Only surfaces that opened appear. Each value is that surface's NEW lines; furniture repeated on every tab is not restated. Read about_lines rather than keying off a specific tab name.",
       "about_lines": "string[] — every about.* line flattened in visit order, capped at 120. READ THIS to work out the trade: 'Loan Officer at Wells Fargo' lands here, and the title is what separates Loan & Mortgage from Banking & Financial. The employer alone does not.",
       "emails": "string[] — published addresses found anywhere in the walk",
       "websites": "string[] — outbound links published on the profile",
@@ -139,9 +139,10 @@
       "cta": "string[] — button labels (Book Now, Get Quote, View Shop, ...) — weak corroboration for retail vs service",
       "found_on": "string|null — which surface the first address came from",
       "checked": "string[] — surfaces that actually RENDERED, in visit order. The audit trail: never conclude email_not_found or 'no trade stated' unless this shows the ladder ran.",
-      "missing": "string[] — tabs this profile did not offer, or that the budget cut off. A key here means NOT LOOKED, which is different from looked-and-empty.",
+      "missing": "string[] — surfaces that WERE discovered and then failed to open, or that the budget cut off. A surface the profile simply does not publish is absent from discovered_tabs instead: found-then-lost and never-offered are different facts and are not merged.",
       "budget_exhausted": "boolean — true when the internal deadline stopped the walk early; the record is partial and `missing` says what was skipped",
-      "elapsed_ms": "number"
+      "elapsed_ms": "number",
+      "discovered_tabs": "string[] — the About sub-nav slugs found on the page. The walk DISCOVERS the sub-nav instead of guessing slugs, so this is the honest answer to 'did we look at their work history?'. Empty means no About links were found at all and the walk fell back to label matching — that is a code/layout problem, not an empty profile."
     },
     "ContactRecord": {
       "profile_url": "string",
