@@ -669,7 +669,8 @@
         "method": "Lands on the profile root, waits for the timeline GraphQL to be captured by gql_intercept, reads it with the same capture-only extractor fb.profile.posts uses (no scroll, no second request), then runs the fb.profile.dossier About walk in the SAME tab and merges both into one record.",
         "why": "Stage 4 requires posts AND About (04_VERIFY_ENRICH.md: 3-5 recent posts analysed for dated signals before a lead can reach `high`), and they were separate capabilities — so enriching one person cost two or three page loads of the same profile.",
         "order_is_forced": "Posts first, About second, and it cannot be reversed: the timeline query fires on the root and never on /about, so navigating to About first loses the posts entirely.",
-        "validated_on": "not yet live-tested"
+        "validated_on": "2026-08-16, three profiles entered at the ROOT url. posts_available true on all three (3, 3 and 6 seen; max_posts honoured), whole pass 9.0-16.8s including the About walk. Posts came back as reels with real captions and their own permalinks — the dated proof-of-life Stage 4 requires. work[] carried a job title, employer, city and dated history for the first time ('Owner/President at Reach Home Loans', 'Company NMLS: 2266637 Personal NMLS:342274').",
+        "videos_in_practice": "videos_available was false on all three, as designed — the Videos tab does not fire its query on the root and this capability will not navigate for it. In practice reels arrive inside `posts` anyway, so `videos` is close to redundant; keep reading `posts`."
       },
       "scroll": "none"
     },
