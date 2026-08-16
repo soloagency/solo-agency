@@ -39,7 +39,10 @@ so the WALK is done by the bridge daemon, in code, and the agent does only the j
    later, never dropped, because subtitles are often empty), `daily_budget` /
    `per_collector_budget` / `leg_pages` / `quiet_from` / `quiet_to` overrides. Blank = the
    operator's system settings (`/ui/settings`, "Leads From Friends" block).
-3. Nothing else: the daemon reconciles `seed_profiles` with its progress on EVERY tick —
+3. Start it deliberately. A harvest campaign is CREATED PAUSED (it touches Facebook on its
+   own, with no approval gate, so saving must never be the trigger): finish the seeds and the
+   goal, save, then press **Start harvest** on the campaign page (or `campaign update
+   --json '{"status":"active"}'`). Otherwise nothing else: the daemon reconciles `seed_profiles` with its progress on EVERY tick —
    a seed added later starts being walked, a seed removed stops (its cursor is kept, so
    re-adding resumes). `tool crm-store harvest seed --campaign X` is only a manual way to
    force that same sync. The daemon runs as long as the campaign `status` is `active` and at
