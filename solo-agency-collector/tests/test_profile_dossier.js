@@ -77,6 +77,19 @@ function makeCtx(opts) {
       click: onClick,
     };
   }
+  function seeMoreBtn() {
+    return {
+      innerText: "See more",
+      getAttribute: () => null,
+      getBoundingClientRect: () => ({ width: 60, height: 16 }),
+      parentElement: opts.inFeed ? { getAttribute: (a) => (a === "role" ? "article" : null), parentElement: null } : null,
+      click: () => {
+        seeMoreLeft -= 1;
+        captures.push({ queryName: "CometTextWithEntitiesSeeMoreQuery", docId: "doc_seemore",
+                        variables: { id: "x" }, fbDtsg: "TOKEN" });
+      },
+    };
+  }
   function navTo(key) {
     return () => {
       state.current = key; state.clicks.push(key);
@@ -89,10 +102,31 @@ function makeCtx(opts) {
     title: "Claire Hanh Lam | Facebook",
     get body() { return { innerText: pages[state.current] || "", innerHTML: "<div>" + (pages[state.current] || "") + "</div>" }; },
     querySelector: (sel) => {
-      if (/role="main"/.test(sel)) return null;   // fall back to document-wide search
+      // The main column, with a post feed rendered underneath the About panel — which is what
+      // Facebook actually does, and why body.innerText alone leaks post text into the dossier.
+      if (/role="main"/.test(sel)) {
+        return {
+          get innerText() { return (pages[state.current] || "") + (opts.feed ? "\n" + opts.feed : ""); },
+          querySelectorAll: () => (opts.feed ? [{ innerText: opts.feed }] : []),
+        };
+      }
+      // the About panel, reached from a sub-nav link exactly as the real walk reaches it
+      if (/href\*="directory_"/.test(sel)) return null;
       return null;                                 // no og:title meta
     },
     querySelectorAll: (sel) => {
+      // The sub-nav probe used to locate the About card. Its ancestors carry ONLY the panel's
+      // own text, which is what keeps Reviews and Posts out of the record.
+      if (sel === 'a[href*="directory_"]') {
+        if (state.current === "main" && !opts.aboutPanelOnMain) return [];
+        const panel = {
+          get innerText() { return pages[state.current] || ""; },
+          querySelectorAll: (q) => (/role="button"/.test(q) && seeMoreLeft > 0 ? [seeMoreBtn()] : []),
+          parentElement: null,
+        };
+        return [{ getAttribute: () => "/claire/directory_intro", parentElement: panel,
+                  getBoundingClientRect: () => ({ width: 80, height: 18 }) }];
+      }
       // the About entry link
       if (/sk=about|\/about/.test(sel) && state.current === "main") return [anchor("/claire/about", "About", navTo("about"))];
       // a tab addressed by its href slug
@@ -117,10 +151,16 @@ function makeCtx(opts) {
       }
       // the "See more" control that truncates a bio
       if (/role="button"/.test(sel) && seeMoreLeft > 0) {
+        return [seeMoreBtn()];
+      }
+      if (false) {
         return [{
           innerText: "See more",
           getAttribute: () => null,
           getBoundingClientRect: () => ({ width: 60, height: 16 }),
+          // opts.inFeed puts the button inside a role="article", i.e. a post
+          parentElement: opts.inFeed ? { getAttribute: (a) => (a === "role" ? "article" : null), parentElement: null } : null,
+          getAttribute: () => null,
           click: () => {
             seeMoreLeft -= 1;
             captures.push({ queryName: "CometTextWithEntitiesSeeMoreQuery", docId: "doc_seemore",
@@ -294,7 +334,7 @@ async function run() {
       Object.keys(it.graphql_by_surface || {}).some((k) => (it.graphql_by_surface[k] || []).some((r) => /SeeMore/.test(r.query))), it.graphql_by_surface);
   }
 
-  console.log("\n== the nine sections that answer nothing are never opened ==");
+  console.log("\n== every section the profile publishes gets opened ==");
   {
     // The About sub-nav has about fourteen sections. Walking the ones that cannot decide an
     // industry or yield an address costs a click, a settle and a scan each, for nothing. They
@@ -309,12 +349,62 @@ async function run() {
     const { ctx } = makeCtx({ pages, slugs: SLUGS, offers: ["hobbies", "travel", "contact_info", "work"], seeMore: 0 });
     const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
     const it = (res.items || [])[0] || {};
-    check("hobbies and travel were not opened",
-      ["hobbies", "travel"].every((k) => (it.checked || []).indexOf(k) === -1), it.checked);
-    check("but the record admits they exist", ["hobbies", "travel"].every((k) => (it.skipped_tabs || []).indexOf(k) !== -1), it.skipped_tabs);
-    check("contact_info was opened", (it.checked || []).indexOf("contact_info") !== -1, it.checked);
+    // Sections render in about a second, so there is no tail worth dropping — but order still
+    // matters, because the BUDGET can cut: losing Hobbies beats losing the address.
+    check("hobbies and travel were opened too", ["hobbies", "travel"].every((k) => (it.checked || []).indexOf(k) !== -1), it.checked);
+    check("contact_info was reached before hobbies",
+      (it.checked || []).indexOf("contact_info") < (it.checked || []).indexOf("hobbies"), it.checked);
     check("the address came back", (it.emails || []).length === 1, it.emails);
     check("the job title came back", (it.about_lines || []).some((l) => /Loan Officer/.test(l)), it.about_lines);
+  }
+
+  console.log("\n== entering at /about does not re-enter About, and does not re-read it ==");
+  {
+    // Measured on three live pages: landing on /about, the first harvest already carried the
+    // bio, the category and the email, and the clicks into contact_info/intro/category each
+    // returned ZERO new lines. Only work and education hold anything the overview does not.
+    const SLUGS = { work: "directory_work", education: "directory_education",
+                    contact_info: "directory_contact_info", intro: "directory_intro" };
+    const pages = { main: page(["Ann Vuong", "Real Estate Agent", "info@annv.ca"]),
+                    work: page(["Owner/President at Reach Home Loans"]),
+                    education: page(["Went to Juanita High School"]),
+                    contact_info: page(["info@annv.ca"]), intro: page(["Real Estate Agent"]) };
+    const { ctx } = makeCtx({ pages, slugs: SLUGS, offers: Object.keys(SLUGS), seeMore: 0 });
+    ctx.location.href = "https://www.facebook.com/AnnVuongHouse/about";
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    check("About was not re-entered", (it.checked || []).indexOf("about(already)") !== -1, it.checked);
+    check("work and education were still opened",
+      ["work", "education"].every((k) => (it.checked || []).indexOf(k) !== -1), it.checked);
+    check("every published section was still opened",
+      ["contact_info", "intro"].every((k) => (it.checked || []).indexOf(k) !== -1), it.checked);
+    check("the address came from the overview anyway", (it.emails || []).indexOf("info@annv.ca") !== -1, it.emails);
+    check("the job title still came back", (it.about_lines || []).some((l) => /Reach Home Loans/.test(l)), it.about_lines);
+  }
+
+  console.log("\n== the post feed under the About panel is not harvested ==");
+  {
+    // Facebook keeps the timeline rendered while About is open. Reading document.body wholesale
+    // pulled "<name>'s Post" and reel view counts into three live dossiers as profile facts.
+    const feed = ["Mickey Nguyen's Post", "Cảm ơn Ann Vương đã luôn nhiệt tình", "12K", "4.7K"].join("\n");
+    const { ctx } = makeCtx({ feed, seeMore: 0 });
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    const lines = it.about_lines || [];
+    check("no post text reached the record", !lines.some((l) => /Post|Cảm ơn/.test(l)), lines.filter((l) => /Post|Cảm ơn/.test(l)));
+    check("no reel view counts either", !lines.some((l) => /^(12K|4\.7K)$/.test(l)), lines);
+    check("the profile's own lines survived", lines.some((l) => /Claire Hanh Lam/.test(l)), lines.slice(0, 6));
+  }
+
+  console.log("\n== a post's See more is never clicked ==");
+  {
+    // Every post carries a "See more". Matching it across the document expanded posts and reels
+    // on three live pages — 5, 12 and 14 clicks — dragging "<name>'s Post" and reel view counts
+    // into the dossier as if they were profile facts.
+    const { ctx } = makeCtx({ seeMore: 3, inFeed: true });
+    const res = await ctx.window.__soloGqlPaginate("fb.profile.dossier", FAST);
+    const it = (res.items || [])[0] || {};
+    check("nothing inside a post was expanded", (it.see_more_expansions || 0) === 0, it.see_more_expansions);
   }
 
   console.log("\n== the operator's own profile IS refused ==");

@@ -2037,13 +2037,13 @@
     // Budget for the LADDER only. 30s of a 45s capability leaves ~15s for the landing-page
     // settle background.js already did plus the header pass plus the record post.
     var budgetMs = Number(inputs.budget_ms) > 0 ? Number(inputs.budget_ms) : 30000;
-    var settleMs = Number(inputs.settle_ms) > 0 ? Number(inputs.settle_ms) : 2800;
+    var settleMs = Number(inputs.settle_ms) > 0 ? Number(inputs.settle_ms) : 2000;
     function budgetLeft() { return budgetMs - (Date.now() - startedAt); }
 
     var target = String(inputs.profile_url || location.href);
     var info = profileBaseFrom(target);
     var emails = [], websites = [], foundOn = "", checked = [], missing = [];
-    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [], skipped = [], seenAll = [], seeMoreClicks = 0;
+    var about = {}, aboutLines = [], seenLine = {}, budgetExhausted = false, discovered = [], skipped = [], seenAll = [], seeMoreClicks = 0, panelFound = false;
 
     // ---- GraphQL probe -------------------------------------------------------------------
     // Which query does Facebook fire when a sub-tab is clicked? If a tab's content arrives in
@@ -2079,12 +2079,24 @@
     // probe then shows whether the expansion is a local re-render or its own query.
     function expandSeeMore() {
       var hits = [], nodes = [];
-      try { nodes = document.querySelectorAll('[role="button"], span[role="button"], div[role="button"]') || []; } catch (e) { return Promise.resolve(0); }
-      for (var i = 0; i < nodes.length && hits.length < 6; i++) {
+      // Scoped to the About panel, never the document. A Page's About url also renders Reviews,
+      // Posts and Photos below the panel, and every one of those cards carries its own
+      // "See more" — a live run clicked them 5, 12 and 14 times. No panel, no clicking: an
+      // un-expanded bio is a smaller loss than a review thread filed as a profile fact.
+      var panel = aboutPanel();
+      if (!panel) return Promise.resolve(0);
+      try { nodes = panel.querySelectorAll('[role="button"], span[role="button"], div[role="button"]') || []; } catch (e) { return Promise.resolve(0); }
+      for (var i = 0; i < nodes.length && hits.length < 3; i++) {
         var t = (nodes[i].innerText || "").replace(/\s+/g, " ").trim();
         // EXACT labels only. "See all friends" and "See all photos" navigate away, and a walk
         // that wanders off the profile reports whatever page it landed on as the lead.
         if (!/^(see more|xem thêm)$/i.test(t)) continue;
+        // EVERY POST HAS ONE. Matching "See more" across the whole document expanded posts and
+        // reels, not the bio: a live run clicked it 5, 12 and 14 times on three profiles and
+        // pulled "<name>'s Post", a comment thread and a row of reel view counts into the
+        // dossier — post text dressed as profile facts, which is exactly the DOM pollution this
+        // capability exists to avoid. Refuse anything inside a story/feed container.
+        if (inFeed(nodes[i])) continue;
         var b = nodes[i].getBoundingClientRect ? nodes[i].getBoundingClientRect() : { width: 1, height: 1 };
         if (b.width <= 0 || b.height <= 0) continue;
         hits.push(nodes[i]);
@@ -2092,6 +2104,15 @@
       if (!hits.length) return Promise.resolve(0);
       for (var h = 0; h < hits.length; h++) { try { hits[h].click(); } catch (e) { /* ignore */ } }
       return wait(350).then(function () { return settleThenScan(Math.min(settleMs, 1500)); }).then(function () { return hits.length; });
+    }
+    function inFeed(el) {
+      for (var n = el, hops = 0; n && hops < 12; n = n.parentElement, hops++) {
+        var role = n.getAttribute ? (n.getAttribute("role") || "") : "";
+        if (role === "article" || role === "feed") return true;
+        var lbl = n.getAttribute ? (n.getAttribute("aria-label") || "") : "";
+        if (/^(post|posts|reels?|bài viết|thước phim)\b/i.test(lbl)) return true;
+      }
+      return false;
     }
 
     function addSite(u) {
@@ -2149,8 +2170,72 @@
     // storing each tab's full innerText would ship the same ~200 furniture lines five times and
     // bury the handful of lines that are actually this tab's content. New-lines-only keeps the
     // record small enough that an agent can read all of it, which is the whole point.
+    // THE ABOUT PANEL ONLY — never the feed underneath it.
+    //
+    // Facebook keeps rendering the post feed while the About section is open, so
+    // document.body.innerText carries the whole timeline. fb.profile.contacts read the same
+    // polluted text and got away with it because it ran two regexes over it and threw the rest
+    // away; a dossier KEEPS the text, so the same read drags "<name>'s Post", a comment thread
+    // and a row of reel view counts into the record as if they were profile facts. Suppressing
+    // the "See more" clicks inside posts was not enough and could never have been: the post text
+    // is in innerText whether or not anything is clicked.
+    //
+    // Subtraction by LINE rather than by container, because the About panel has no stable
+    // selector to anchor on, while a post always sits in a role=article/feed subtree. Take the
+    // main column's text, drop every line that also appears inside one of those subtrees.
+    // The About CARD, found by the one thing that is always inside it: the sub-nav. Walk up from
+    // a directory_* link until the ancestor holds the whole nav, then one level more to take in
+    // the content pane beside it. That element is the About panel; everything below it —
+    // Reviews, Posts, Photos, Related Pages — is somebody else's content.
+    //
+    // Blacklisting containers was the wrong shape and kept losing. role=article/feed does not
+    // match a Reviews card, so the reviews under a Page's About kept being read and their
+    // "See more" kept being clicked. A whitelist cannot be outflanked by a section type nobody
+    // anticipated: if the panel is not found, nothing is expanded at all.
+    function aboutPanel() {
+      var links = [];
+      try { links = document.querySelectorAll('a[href*="directory_"]') || []; } catch (e) { return null; }
+      if (!links.length) return null;
+      var node = links[0], hops = 0;
+      while (node.parentElement && hops < 12) {
+        node = node.parentElement; hops += 1;
+        var inside = 0;
+        try { inside = (node.querySelectorAll('a[href*="directory_"]') || []).length; } catch (e) { break; }
+        if (inside >= links.length) break;   // this ancestor now holds the entire sub-nav
+      }
+      return node.parentElement || node;     // one more level: the card holding nav AND content
+    }
+
+    function profileText() {
+      var root = null, panel = null;
+      try { panel = aboutPanel(); } catch (e) { /* ignore */ }
+      if (panel) panelFound = true;
+      // No panel means the walk is not where it thinks it is. Fall back rather than return
+      // nothing, but SAY SO: a dossier quietly assembled from a whole timeline reads exactly
+      // like one assembled from an About section, and only this flag tells them apart.
+      try { root = panel || document.querySelector('[role="main"]'); } catch (e) { /* ignore */ }
+      root = root || document.body;
+      if (!root) return "";
+      var feedLines = {}, feeds = [];
+      try { feeds = root.querySelectorAll('[role="article"], [role="feed"]') || []; } catch (e) { feeds = []; }
+      for (var f = 0; f < feeds.length; f++) {
+        var ft = String(feeds[f].innerText || "").split("\n");
+        for (var i = 0; i < ft.length; i++) {
+          var fl = ft[i].replace(/\s+/g, " ").trim();
+          if (fl) feedLines[fl] = 1;
+        }
+      }
+      var out = [], raw = String(root.innerText || "").split("\n");
+      for (var r = 0; r < raw.length; r++) {
+        var line = raw[r].replace(/\s+/g, " ").trim();
+        if (line && feedLines[line]) continue;
+        out.push(raw[r]);
+      }
+      return out.join("\n");
+    }
+
     function harvestDelta(label) {
-      var text = document.body ? document.body.innerText : "";
+      var text = profileText();
       addFrom(text, label);
       var out = [], raw = String(text).split("\n");
       for (var i = 0; i < raw.length && out.length < 40; i++) {
@@ -2243,13 +2328,16 @@
         seen[slug] = 1;
         var key = slug.replace(/^(?:about|directory)_/, "");
         seenAll.push(slug);
-        // Keep only the five that answer a question. Everything else is still reported in
-        // `discovered_tabs`, so the record says what the profile publishes even though the walk
-        // did not spend a second on it.
-        if (DOSSIER_RANK[key] === undefined) { skipped.push(key); continue; }
         out.push({ key: key, slug: slug });
       }
-      out.sort(function (a, b) { return DOSSIER_RANK[a.key] - DOSSIER_RANK[b.key]; });
+      // Every section, none skipped — measured at about a second each, so there is no tail worth
+      // dropping. Order is still priority, because the BUDGET can still cut: if a profile
+      // publishes fourteen sections and the walk runs short, losing Hobbies beats losing the
+      // address. Sections outside the known set sort last rather than being dropped.
+      out.sort(function (a, b) {
+        var ra = DOSSIER_RANK[a.key], rb = DOSSIER_RANK[b.key];
+        return (ra === undefined ? 99 : ra) - (rb === undefined ? 99 : rb);
+      });
       return out;
     }
     function clickSlug(slug) {
@@ -2259,7 +2347,7 @@
         var b = as[i].getBoundingClientRect ? as[i].getBoundingClientRect() : { width: 1, height: 1 };
         if (b.width <= 0 || b.height <= 0) continue;
         try { as[i].click(); } catch (e) { return Promise.resolve(false); }
-        return wait(500).then(function () { return settleThenScan(settleMs); }).then(function () { return true; });
+        return wait(300).then(function () { return settleThenScan(settleMs); }).then(function () { return true; });
       }
       return Promise.resolve(false);
     }
@@ -2326,8 +2414,19 @@
         return { capability: "fb.profile.dossier", schema: "ProfileDossier", available: true, found: false, count: 0,
           items: [], checked: checked, error: "could not resolve a profile base from the url: " + target };
       }
-      return enterAbout().then(function (entered) {
-        if (!entered) missing.push("about");
+      // Landing straight on /about renders the About OVERVIEW, and the overview already contains
+      // the bio, the category and the published contact block. Measured on three pages entered
+      // that way: the first harvest returned 40 lines including the email, and the subsequent
+      // clicks into contact_info, intro and category each returned ZERO new lines — three
+      // clicks, three settles, three scans, nothing gained. Only work and education hold
+      // anything the overview does not ("Owner/President at Reach Home Loans", "NMLS: 2266637").
+      //
+      // So when the job already points at About, do not re-enter it and do not re-read what is
+      // on screen. Clicking "About" from an About page was also what dragged the post feed in.
+      var atAbout = /\/about|sk=about|directory_/i.test(location.href);
+      return (atAbout ? Promise.resolve(true) : enterAbout()).then(function (entered) {
+        if (atAbout) checked.push("about(already)");
+        else if (!entered) missing.push("about");
         // The sub-nav can paint after the text has stopped growing, so one look is not enough:
         // settleThenScan returns on stable LENGTH, and a nav rendering into already-counted
         // space does not move it. Measured cost of the whole walk was 0.9-4.3s against a 30s
@@ -2391,6 +2490,10 @@
             // probe_graphql:true to get the variables as well.
             graphql_by_surface: gqlBySurface,
             see_more_expansions: seeMoreClicks,
+            // true when every line in this record came from the About card itself. false means
+            // the panel was not located and the text is whatever the main column held — posts,
+            // reviews and all. Treat a false here as a reason to distrust about_lines.
+            about_panel_found: panelFound,
             budget_exhausted: budgetExhausted,
             elapsed_ms: Date.now() - startedAt
           };
