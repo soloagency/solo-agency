@@ -206,5 +206,24 @@ console.log("\n== duplicates collapse ==");
   check("the same story twice yields one record", res.count === 1, res.count);
 }
 
+console.log("\n== a capability that found nothing still returns a RECORD ==");
+{
+  // A live run of every read capability in hidden tabs produced records:null on seven of them,
+  // all because a hidden tab never renders a feed and so no capture existed. "Never looked",
+  // "nothing there" and "the code threw" were the same output. They need opposite fixes.
+  const ctx = makeCtx([]);                       // no captures at all
+  const res = ctx.window.__soloGqlExtractCapability("fb.group.posts", {});
+  check("the record exists", !!res, res);
+  check("available says the capability RAN", res.available === true, res.available);
+  check("found says it got nothing", res.found === false, res.found);
+  check("and the reason is nameable", res.reason === "no_capture", res.reason);
+
+  // With captures present, an unknown id reaches the extractor lookup and must name THAT — the
+  // no-capture check runs first, so this needs a populated store to be a real test.
+  const ctx2 = makeCtx([capture([namedStory("1", "x", "N")])]);
+  const unknown = ctx2.window.__soloGqlExtractCapability("fb.not.a.capability", {});
+  check("an unknown id is reported, not nulled", unknown.available === true && unknown.reason === "no_extractor", unknown.reason);
+}
+
 console.log("\n" + (fail === 0 ? "ALL " + pass + " CHECKS PASSED" : pass + " passed, " + fail + " FAILED"));
 process.exit(fail === 0 ? 0 : 1);
