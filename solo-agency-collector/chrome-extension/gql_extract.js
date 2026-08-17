@@ -2261,9 +2261,12 @@
   function profileDossier(inputs) {
     inputs = inputs || {};
     var startedAt = Date.now();
-    // Budget for the LADDER only. 30s of a 45s capability leaves ~15s for the landing-page
-    // settle background.js already did plus the header pass plus the record post.
-    var budgetMs = Number(inputs.budget_ms) > 0 ? Number(inputs.budget_ms) : 30000;
+    // Budget for the LADDER only, and the number that actually stops the walk — the capability
+    // timeout is the wall behind it, not the limit in practice. Raised with that ceiling from
+    // 45s to 60s: a background tab is throttled 2-3x, and at 30s the longer walks exhausted the
+    // budget and dropped their last section. 45s keeps ~15s for the landing-page settle, the
+    // second header pass and posting the record.
+    var budgetMs = Number(inputs.budget_ms) > 0 ? Number(inputs.budget_ms) : 45000;
     var settleMs = Number(inputs.settle_ms) > 0 ? Number(inputs.settle_ms) : 2000;
     function budgetLeft() { return budgetMs - (Date.now() - startedAt); }
 

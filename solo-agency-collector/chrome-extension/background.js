@@ -1,3 +1,11 @@
+// How long one capability may run inside the page before it is killed. Raised from 45s: a tab that
+// is never activated is throttled by Chrome and the same About walk took 2-3x longer than in an
+// active tab (measured: 6.2->18.3s, 12.3->27.4s, 13.0->29.8s), which left no room under 45s once
+// the walk's own budget was spent. It is ONE constant because the run-lock estimate below must
+// never be shorter than what a capability is allowed to take — a lock that expires mid-run hands
+// the same job to the next poll while the first is still working.
+const CAPABILITY_TIMEOUT_MS = 60000;
+
 const DEFAULT_SETTINGS = {
   enabled: true,
   bridgeBaseUrl: "http://127.0.0.1:17321",
@@ -781,7 +789,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
                   return null;
                 },
                 args: [String(source.capability), source.inputs && typeof source.inputs === "object" ? source.inputs : {}]
-              }), 45000, "gql_capability_timeout");
+              }), CAPABILITY_TIMEOUT_MS, "gql_capability_timeout");
               return cres && cres.result ? cres.result : null;
             };
             gqlRecords = await runCapabilityDispatch();
@@ -2736,7 +2744,7 @@ function activeRunLockMs(job) {
   const scrollCap = isDiscoveryCollection(job) ? DISCOVERY_SCROLL_CAP : NORMAL_SCROLL_CAP;
   const scrollSteps = clampNumber(pacing.scroll_steps, 0, scrollCap, DEFAULT_SETTINGS.scrollSteps);
   const maxDelaySeconds = clampNumber(pacing.max_delay_seconds, 5, 30, DEFAULT_SETTINGS.maxDelaySeconds);
-  const estimatedMs = maxSources * ((scrollSteps + 2) * maxDelaySeconds * 1000 + 45000);
+  const estimatedMs = maxSources * ((scrollSteps + 2) * maxDelaySeconds * 1000 + CAPABILITY_TIMEOUT_MS);
   const fallbackMs = ACTIVE_RUN_LOCK_MINUTES * 60 * 1000;
   return Math.max(30 * 60 * 1000, Math.min(fallbackMs, estimatedMs || fallbackMs));
 }
