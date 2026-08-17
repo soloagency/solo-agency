@@ -502,8 +502,33 @@
     }
     if (!box) {
       var join = findJoinAffordance();
+      // Two label-based selectors both missed, twice, on a post the collector could
+      // read perfectly and in a group the account belongs to. Guessing which label
+      // changed is how the last two attempts were spent — so report what is actually
+      // on the page instead. This is the evidence the next fix is written from.
+      var sawBoxes = [], sawButtons = [];
+      try {
+        var tb = document.querySelectorAll('div[contenteditable="true"], [role="textbox"], textarea');
+        for (var bi = 0; bi < tb.length && sawBoxes.length < 12; bi++) {
+          var br = tb[bi].getBoundingClientRect();
+          sawBoxes.push({
+            label: (tb[bi].getAttribute("aria-label") || "").slice(0, 80),
+            placeholder: (tb[bi].getAttribute("data-placeholder") || tb[bi].getAttribute("placeholder") || "").slice(0, 80),
+            role: tb[bi].getAttribute("role") || "", editable: tb[bi].getAttribute("contenteditable") || "",
+            visible: br.width > 0 && br.height > 0
+          });
+        }
+        var bt = document.querySelectorAll('[role="button"]');
+        for (var ci = 0; ci < bt.length && sawButtons.length < 25; ci++) {
+          var lb = norm(bt[ci].getAttribute("aria-label") || bt[ci].innerText || "");
+          if (!lb || lb.length > 40) continue;
+          var cr = bt[ci].getBoundingClientRect();
+          if (cr.width > 0 && cr.height > 0) sawButtons.push(lb.slice(0, 40));
+        }
+      } catch (e) { /* diagnostics must never be the thing that fails */ }
       return wrapCap("fb.post.comment", join ? "not_a_member" : "not_found", {
         text: text, target_preview: preview, opened_panel: openedPanel, join_prompt: join,
+        seen_textboxes: sawBoxes, seen_buttons: sawButtons, page_lang: (document.documentElement && document.documentElement.lang) || "",
         error: join
           ? "this account is not a member of the group — Facebook offers \"" + join + "\" instead of a composer. Join the group in that Chrome profile, then approve again."
           : "comment composer not found"
