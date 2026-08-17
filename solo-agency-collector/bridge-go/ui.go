@@ -2411,6 +2411,12 @@ var uiTpl = template.Must(template.New("ui").Funcs(uiTplFuncs).Parse(`
 .chan-comment{background:#0f9d58}
 .chan-post{background:#c2410c}
 .chan-messenger{background:#7c3aed}
+.chantabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:0 0 .8rem;border-bottom:1px solid rgba(128,128,128,.28);padding-bottom:.5rem}
+.chantab{width:auto;margin:0;padding:.35rem .9rem;font-size:.92rem;font-weight:600;line-height:1.2;
+ background:transparent;border:1px solid rgba(128,128,128,.35);border-radius:.45rem;cursor:pointer}
+.chantab .n{font-weight:400;opacity:.75}
+.chantab.on{background:var(--pico-primary,#2563eb);border-color:transparent;color:#fff}
+.chantab:disabled{opacity:.4;cursor:default}
 </style>
 </head><body>
 <div class="shell">
@@ -2869,16 +2875,24 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 {{define "approvals"}}{{template "head" .}}
 <p class="sub"><span id="left">{{len .Drafts}}</span> drafts waiting. Nothing sends without your approval; edits made here are kept.</p>
 {{if .Drafts}}
+<div class="chantabs" id="chantabs">
+<button class="chantab on" data-chan="">All <span class="n"></span></button>
+<button class="chantab" data-chan="email">Email <span class="n"></span></button>
+<button class="chantab" data-chan="comment">Comment <span class="n"></span></button>
+<button class="chantab" data-chan="post">Post <span class="n"></span></button>
+<button class="chantab" data-chan="messenger">DM <span class="n"></span></button>
+</div>
 <div class="toolbar">
 <label><input type="checkbox" id="checkall" checked> All</label>
 <button class="ok" id="approvechecked">Approve checked (<span id="ckcount">0</span>)</button>
 <a href="#" id="onlyhigh" class="mut" style="font-size:.83rem">select high-confidence only</a>
+
 <label id="campwrap" class="mut" style="font-size:.83rem;margin:0">campaign <select id="campfilter" style="width:auto;display:inline-block;margin:0 0 0 .3rem;padding:.1rem .3rem;font-size:.83rem"><option value="">all</option></select></label>
 <span class="mut" id="batchmsg" style="font-size:.83rem"></span>
 </div>
 {{end}}
 {{range .Drafts}}
-<div class="card draft" data-id="{{.ID}}" data-campaign="{{.Campaign}}" data-band="{{.Band}}">
+<div class="card draft" data-id="{{.ID}}" data-campaign="{{.Campaign}}" data-channel="{{.Channel}}" data-band="{{.Band}}">
 <div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap">
 <label style="margin:0;cursor:pointer"><input class="pick" type="checkbox" checked style="margin:0"></label>
 <span class="chanbadge chan-{{.Channel}}">{{if eq .Channel "comment"}}Comment{{else if eq .Channel "post"}}Post{{else if eq .Channel "messenger"}}DM{{else}}Email{{end}}</span>
@@ -2940,14 +2954,56 @@ if(onlyHigh)onlyHigh.addEventListener('click',function(e){e.preventDefault();
 // each at its own pace, and they all land in this one queue. The options are derived from
 // the cards themselves rather than passed from Go, so the list always matches what is
 // actually pending. Hidden when there is only one campaign to choose from.
+// Channel tabs, not a dropdown: the queue mixes three kinds of decision with three
+// different consequences — approving a comment or a post publishes it within seconds,
+// approving an email only queues it for the next run — and a dropdown hides which kind
+// you are about to act on behind a click. A tab with a count is always on screen.
+// Hidden cards are not pickable (see pickable()), so "Approve checked" can never reach
+// a draft the current tab is not showing.
+var tabs=document.getElementById('chantabs');
+if(tabs){
+ var buttons=Array.prototype.slice.call(tabs.querySelectorAll('.chantab'));
+ function chanOf(c){return c.dataset.channel||'email'}
+ var curChan="";
+ // Tab and campaign compose: the tab says WHAT KIND of decision, the select says
+ // whose. Both go through one function so a card can never be visible to one filter
+ // and hidden from the other — which is what would let a batch-approve reach a draft
+ // the operator cannot see.
+ window.applyFilters=function(){
+  var campSel=document.getElementById('campfilter');
+  var camp=campSel?campSel.value:"";
+  allCards().forEach(function(c){
+   var live=!c.classList.contains('done');
+   var show=live&&(!curChan||chanOf(c)===curChan)&&(!camp||(c.dataset.campaign||'')===camp);
+   c.style.display=show?'':'none';
+  });
+  buttons.forEach(function(b){b.classList.toggle('on',(b.dataset.chan||'')===curChan)});
+  updateCount();
+ };
+ function applyTab(want){curChan=want||"";window.applyFilters()}
+ function refreshTabCounts(){
+  var live=allCards().filter(function(c){return !c.classList.contains('done')});
+  buttons.forEach(function(b){
+   var want=b.dataset.chan||'';
+   var n=live.filter(function(c){return !want||chanOf(c)===want}).length;
+   var el=b.querySelector('.n');
+   if(el)el.textContent=n?('('+n+')'):'';
+   // A channel with nothing waiting is not a place to click.
+   b.disabled=(n===0&&want!=='');
+  });
+ }
+ buttons.forEach(function(b){b.addEventListener('click',function(){applyTab(b.dataset.chan||'')})});
+ window.refreshTabCounts=refreshTabCounts;
+ refreshTabCounts();
+}
+// The campaign select stays — a client runs several campaigns per channel, and it is
+// the only way to answer "just this one". It refines whatever tab is open.
 var campSel=document.getElementById('campfilter');
 if(campSel){var seen={},order=[];
  allCards().forEach(function(c){var k=c.dataset.campaign||'';if(!k||seen[k])return;seen[k]=1;order.push(k)});
  order.sort().forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;campSel.appendChild(o)});
  if(order.length<2){var w=document.getElementById('campwrap');if(w)w.style.display='none'}
- campSel.addEventListener('change',function(){var want=campSel.value;
-  allCards().forEach(function(c){c.style.display=(!want||c.dataset.campaign===want)?'':'none'});
-  updateCount()})}
+ campSel.addEventListener('change',function(){if(window.applyFilters)window.applyFilters()})}
 var batchBtn=document.getElementById('approvechecked');
 if(batchBtn)batchBtn.addEventListener('click',function(){
  var cards=checkedCards();
@@ -2959,6 +3015,7 @@ if(batchBtn)batchBtn.addEventListener('click',function(){
  q.then(function(){batchBtn.removeAttribute('aria-busy');batchBtn.disabled=false;
   msg.textContent='✓ '+cards.length+' approved and queued: applied by the next run';updateCount()})});
 updateCount();
+if(window.refreshTabCounts)window.refreshTabCounts();
 </script>
 {{template "footform" .}}{{end}}
 

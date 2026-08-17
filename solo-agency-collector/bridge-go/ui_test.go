@@ -1752,6 +1752,30 @@ func TestApprovalsChannelBadge(t *testing.T) {
 			t.Fatalf("approvals page missing badge %q", want)
 		}
 	}
+	// Tabs, not a dropdown, for the KIND of decision: approving a comment publishes it
+	// in seconds while an email only queues, and a dropdown hides which kind you are
+	// about to act on behind a click.
+	for _, want := range []string{
+		`id="chantabs"`,
+		`data-chan="">All`, `data-chan="email">Email`, `data-chan="comment">Comment`, `data-chan="post">Post`,
+		`data-channel="comment"`, `data-channel="post"`, `data-channel="email"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("approvals page missing channel tab bit %q", want)
+		}
+	}
+	// SAFETY INVARIANT: tab and campaign must be applied by ONE function. Two independent
+	// show/hide passes would let a card be visible to one filter and hidden from the other,
+	// and "Approve checked" runs off the visible set.
+	if !strings.Contains(page, "window.applyFilters=function()") ||
+		!strings.Contains(page, `c.style.display!=='none'`) {
+		t.Fatal("filters must compose in one pass, and pickable() must exclude hidden cards")
+	}
+	// The campaign refine survives the redesign — a client runs several campaigns per channel.
+	if !strings.Contains(page, `id="campfilter"`) {
+		t.Fatal("the campaign filter must still exist alongside the tabs")
+	}
+
 	// A comment and a post have no subject line; the input must not be offered.
 	if strings.Count(page, `<input class="subj"`) != 3 || strings.Count(page, `class="subj" type="text" value="" disabled`) != 2 {
 		t.Fatal("the subject box must be present but disabled on non-email drafts")
