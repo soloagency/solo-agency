@@ -387,6 +387,41 @@ async function resolveWith(items, inputs, opts) {
       r.status === "not_a_member" && /not a member/.test(r.items[0].error), r.status + " " + (r.items[0] && r.items[0].error));
   }
 
-  console.log("\n" + (fail === 0 ? "ALL " + pass + " CHECKS PASSED" : pass + " passed, " + fail + " FAILED"));
+  console.log("\n== the composer is found by structure, not by its label ==");
+{
+  // Measured on ONE post with TWO accounts at the same moment: "Answer as Binh" for one viewer
+  // and "Write an answer…" for the other. A question-style group renames Comment to Answer, and
+  // the wording differs per viewer on top of that. The label had already moved twice before.
+  const box = (attrs) => ({
+    tag: "DIV", attrs: Object.assign({ contenteditable: "true", role: "textbox" }, attrs),
+    getAttribute(k) { return this.attrs[k] === undefined ? null : this.attrs[k]; },
+    getBoundingClientRect: () => ({ width: 400, height: 40 }),
+    innerText: "", focus() {}, click() {},
+  });
+  const scopeOf = (boxes) => ({
+    querySelectorAll: () => boxes,
+    getBoundingClientRect: () => ({ width: 800, height: 600 }),
+  });
+  const ctx = makeCtx();
+  const find = (boxes) => ctx.window.__soloActFindCommentBox(scopeOf(boxes));
+
+  check("'Answer as Binh' is accepted", !!find([box({ "aria-label": "Answer as Binh" })]));
+  check("'Write an answer…' is accepted", !!find([box({ "data-placeholder": "Write an answer..." })]));
+  check("'Comment as X' still is", !!find([box({ "aria-label": "Comment as Binh Nguyen" })]));
+  check("Vietnamese 'Trả lời' is accepted", !!find([box({ "aria-label": "Trả lời với tư cách Binh" })]));
+
+  // The impostors are what stays stable across layouts, so those are what gets enumerated.
+  check("the search field is refused", !find([box({ "aria-label": "Search Facebook" })]));
+  check("the status composer is refused", !find([box({ "aria-label": "What's on your mind, Binh?" })]));
+  check("a Messenger box is refused", !find([box({ "aria-label": "Message" })]));
+
+  // An unlabelled box is taken only when it is the ONLY candidate in the post's scope. Guessing
+  // between two is how a comment lands on the wrong post, which is worse than not commenting.
+  check("a single unlabelled box in scope is taken", !!find([box({})]));
+  check("two unlabelled boxes are refused", !find([box({}), box({})]));
+  check("an invisible box never counts", !find([Object.assign(box({ "aria-label": "Answer as Binh" }), { getBoundingClientRect: () => ({ width: 0, height: 0 }) })]));
+}
+
+console.log("\n" + (fail === 0 ? "ALL " + pass + " CHECKS PASSED" : pass + " passed, " + fail + " FAILED"));
   process.exit(fail === 0 ? 0 : 1);
 })();

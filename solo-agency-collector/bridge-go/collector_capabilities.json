@@ -668,7 +668,7 @@
         "match_source": "string (optional) — force the listing extractor (fb.group.posts | fb.profile.posts | fb.group.search_posts | fb.newsfeed) instead of inferring it from the url",
         "match_max_pages": "number (optional, default 3) — how many cursor pages of the listing to search before giving up",
         "match_caption": "string (optional, LEGACY) — in-page variant that scopes the action to a matching [role=article] on the CURRENT page. Prefer match_text: it resolves to a permalink first, so it cannot comment into a neighbouring post's composer.",
-        "dry_run": "bool (optional) — locate composer + preview WITHOUT posting (debug only; not the approval gate)"
+        "dry_run": "bool (optional) — locate the composer and preview WITHOUT posting (debug only; not the approval gate). Returns box_found, box_label when found, and seen_textboxes (every editable box with its aria-label, data-placeholder, role and visibility) when not — the same evidence the not_found path reports, because dry_run is the mode you reach for when something is already wrong."
       },
       "output_schema": "CommentResult",
       "provider": "facebook-dom",
@@ -682,7 +682,8 @@
         "note": "One comment per job. Pacing/caps/approval live in the flow layer + daily report.",
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)",
-        "validated_on": "2026-08-15 match_text live on group 668676178569386: resolved \"Post 5 post 5 post 5\" to /posts/676092881161049/ and commented there (done/verified); match_text \"Post\" returned ambiguous_match over 3 candidates and wrote nothing. Earlier, 2026-07-29 on all three permalink surfaces: profile post, group post, and reel (needed the panel-open click)"
+        "validated_on": "2026-08-15 match_text live on group 668676178569386: resolved \"Post 5 post 5 post 5\" to /posts/676092881161049/ and commented there (done/verified); match_text \"Post\" returned ambiguous_match over 3 candidates and wrote nothing. Earlier, 2026-07-29 on all three permalink surfaces: profile post, group post, and reel (needed the panel-open click)",
+        "composer_match": "Found by STRUCTURE, not by label. Facebook's composer label has moved three times — 'Comment as <name>' originally, two guesses that both missed, and then, measured on ONE post with TWO accounts at the same moment, 'Answer as Binh' for one viewer and 'Write an answer...' for the other: a question-style group renames Comment to Answer and the wording also differs per viewer. So inside the post's own scope a visible contenteditable textbox IS the composer; the label is only a hint (comment / answer / reply / bình luận / trả lời, read from aria-label OR data-placeholder). What is enumerated instead is the impostors, because those are stable on every layout: the search field, a Messenger thread, and the create-a-post composer. An unlabelled box is accepted only when it is the ONLY candidate in scope — zero or several is still a refusal, since a wrong box comments on the wrong post."
       },
       "scroll": "none"
     },
