@@ -1618,3 +1618,88 @@ func TestCampaignFormHidesIrrelevantSections(t *testing.T) {
 		t.Error("the daily budget applies to every channel and must stay")
 	}
 }
+
+// TestUICampaignFieldsPerChannel: the campaign UI must only show — and only report —
+// what the chosen channel actually reads. A harvest campaign drafts nothing, so its card
+// must not report drafts against daily_quota (a key no harvest code path reads); it must
+// report today's enrich count against the harvest budget. The edit form must carry the
+// per-channel gates that hide Key messages / CTA / draft budget.
+func TestUICampaignFieldsPerChannel(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	mustJSON := func(rel, body string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// daily_quota is deliberately a small, wrong-looking number: if the card ever renders it
+	// again for a harvest campaign, this test fails instead of the operator being misled.
+	mustJSON("outreach/campaigns/friends/campaign_config.json",
+		`{"campaign_slug":"friends","status":"paused","channel_strategy":"friend_harvest",
+		  "daily_quota":7,"seed_profiles":["https://www.facebook.com/example.seed.001"],
+		  "goal":{"description":"realtors in Houston"}}`)
+	mustJSON("outreach/campaigns/zdir/campaign_config.json",
+		`{"campaign_slug":"zdir","status":"paused","channel_strategy":"zillow_harvest",
+		  "daily_quota":9,"zillow_locations":["https://www.zillow.com/professionals/real-estate-agent-reviews/tx-houston/"],
+		  "zillow_keywords":["nguyen"]}`)
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	get := func(url string) string {
+		req := httptest.NewRequest("GET", url, nil)
+		req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s -> %d", url, rec.Code)
+		}
+		return rec.Body.String()
+	}
+
+	list := get("/ui/leadup/campaigns")
+	def := defaultSystemSettings().HarvestDailyBudget
+	for _, want := range []string{
+		fmt.Sprintf("today 0/%d", def), "enriched", "0 kept",
+		"Leads From Friends", "Leads From Zillow",
+	} {
+		if !strings.Contains(list, want) {
+			t.Fatalf("campaigns list missing %q", want)
+		}
+	}
+	for _, bad := range []string{"0/7", "0/9", "awaiting approval"} {
+		if strings.Contains(list, bad) {
+			t.Fatalf("campaigns list still reports drafts for a harvest campaign: %q", bad)
+		}
+	}
+
+	// The edit form keeps every control in the DOM and gates it in one place; assert the
+	// gates exist, so deleting them is a test failure rather than a silent regression.
+	form := get("/ui/leadup/campaign/friends")
+	for _, want := range []string{
+		`id="goalsec"`, `id="bankblock"`, `id="ctablock"`, `id="sendingsec"`,
+		"show('goalsec', v!=='zillow_harvest')",
+		"show('bankblock', !harvest)",
+		"show('ctablock', !harvest)",
+		"show('sendingsec', !harvest)",
+	} {
+		if !strings.Contains(form, want) {
+			t.Fatalf("campaign form missing per-channel gate %q", want)
+		}
+	}
+	// ...and the save path must not write fields the operator could not see.
+	for _, want := range []string{
+		"if(!isHarvest){patch.daily_quota=",
+		"if(chv!=='zillow_harvest'){",
+		"if(chv==='email_first'||chv==='messenger'){",
+	} {
+		if !strings.Contains(form, want) {
+			t.Fatalf("campaign form save path missing guard %q", want)
+		}
+	}
+}

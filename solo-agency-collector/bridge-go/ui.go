@@ -1004,13 +1004,37 @@ func (b *bridge) uiCampaignRows(c uiClient) []map[string]any {
 	}
 	for _, cfg := range store.listCampaigns() {
 		slug := mStr(cfg, "campaign_slug")
+		ch := strOr(mStr(cfg, "channel_strategy"), "email_first")
 		row := map[string]any{
 			"Slug": slug, "Status": strOr(mStr(cfg, "status"), "active"),
+			"Channel":   ch,
 			"GoalType":  mStr(mMap(cfg, "goal"), "goal_type"),
 			"Objective": mStr(mMap(cfg, "goal"), "objective"),
 			"Quota":     mInt(cfg, "daily_quota", 40),
+			"UsedToday": 0,
 			"Pending":   pendingByCamp[slug],
 			"Sent":      0, "LastSent": "",
+		}
+		// A harvest campaign drafts nothing, approves nothing and sends nothing, so the
+		// drafts/awaiting-approval/sent card reports every one of them as an idle campaign
+		// forever. Show what it actually does: today's enrich count against the harvest
+		// budget (NOT daily_quota, which no harvest code reads), what it kept, and what is
+		// waiting for the agent's judgement.
+		if ch == harvestChannel || ch == zillowChannel {
+			row["IsHarvest"], row["Kept"], row["Await"], row["DaemonState"] = true, 0, 0, ""
+			outreachDir := filepath.Join(c.Path, "outreach")
+			if p, perr := withProgress(outreachDir, slug, func(*harvestProgress) error { return nil }); perr == nil {
+				hc := harvestConfigFrom(cfg, loadSystemSettings(b.uiDataRoot))
+				hc.Channel = ch
+				if ch == zillowChannel {
+					hc.Zillow = zillowConfigFrom(cfg)
+				}
+				st := b.harvestCommonStatus(p, hc, outreachDir)
+				row["Quota"], row["UsedToday"] = st["day_budget"], st["day_enriched"]
+				row["Kept"], row["Await"], row["DaemonState"] = st["kept"], st["await"], st["state"]
+			}
+			out = append(out, row)
+			continue
 		}
 		if budget, err := store.draftBudget(slug, ""); err == nil {
 			row["UsedToday"] = budget["used_today"]
@@ -2919,13 +2943,19 @@ document.getElementById('submit').addEventListener('click',function(){
 <strong>{{.Slug}}</strong>
 {{if eq .Status "paused"}}<span class="pill band-review_carefully">paused</span>{{else}}<span class="pill band-high">active</span>{{end}}
 </div>
-<span class="mut" style="font-size:.82rem">{{.GoalType}}{{if .Objective}}: {{.Objective}}{{end}}</span>
+<span class="mut" style="font-size:.82rem">{{if .IsHarvest}}{{if eq .Channel "zillow_harvest"}}Leads From Zillow{{else}}Leads From Friends{{end}} &middot; collected by the bridge{{else}}{{.GoalType}}{{if .Objective}}: {{.Objective}}{{end}}{{end}}</span>
 <div class="bar{{if ge (pct .UsedToday .Quota) 100}} full{{end}}"><i style="width:{{pct .UsedToday .Quota}}%"></i></div>
-<div class="mut" style="font-size:.78rem">today {{.UsedToday}}/{{.Quota}} drafts</div>
+<div class="mut" style="font-size:.78rem">today {{.UsedToday}}/{{.Quota}} {{if .IsHarvest}}enriched{{else}}drafts{{end}}</div>
 <div class="chips" style="margin-top:.5rem;font-size:.78rem">
+{{if .IsHarvest}}
+<span class="pill">{{.Kept}} kept</span>
+{{if .Await}}<span class="pill band-review_carefully">{{.Await}} awaiting decision</span>{{end}}
+{{else}}
 {{if .Pending}}<a class="pill band-high" style="text-decoration:none" href="/ui/{{$slug}}/approvals" onclick="event.stopPropagation()">{{.Pending}} awaiting approval</a>{{end}}
 <span class="pill">{{.Sent}} sent{{if .LastSent}}, last {{.LastSent}}{{end}}</span>
+{{end}}
 </div>
+{{if .DaemonState}}<div class="mut" style="font-size:.75rem;margin-top:.4rem">{{.DaemonState}}</div>{{end}}
 </div>
 {{end}}
 </div>
@@ -2946,10 +2976,10 @@ document.getElementById('submit').addEventListener('click',function(){
 <option value="friend_harvest">Leads From Friends</option>
 <option value="zillow_harvest">Leads From Zillow</option>
 </select></label>
-<label>Daily budget <span class="mut">(max new drafts/day)</span>
+<label id="nc-quota-wrap">Daily budget <span class="mut">(max new drafts/day)</span>
 <input id="nc-quota" type="number" min="1" max="500" value="40" style="width:8rem"></label>
 </div>
-<label>Goal <span class="mut">(your words — what should this campaign achieve, and what are you offering? Everything else is derived from this plus your client profile. You can refine it after creating.)</span>
+<label id="nc-goal-wrap"><span id="nc-goal-label">Goal</span> <span class="mut" id="nc-goal-help">(your words — what should this campaign achieve, and what are you offering? Everything else is derived from this plus your client profile. You can refine it after creating.)</span>
 <textarea id="nc-goal" style="min-height:80px" placeholder="e.g. Draw attention to the profile with genuinely useful answers on other people's posts, so readers click through and discover LeadUp"></textarea></label>
 <p class="mut" id="nc-hint" style="font-size:.8rem;margin:-.3rem 0 .8rem"></p>
 <button class="ok" id="nc-create">Create campaign</button>
@@ -2961,22 +2991,43 @@ document.getElementById('submit').addEventListener('click',function(){
      hint=document.getElementById('nc-hint'), btn=document.getElementById('nc-create'),
      msg=document.getElementById('nc-msg');
  function slugify(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)}
+ function show(id,on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none'}
  function sync(){
-  var v=ch.value, id=slugify(slug.value);
+  var v=ch.value, id=slugify(slug.value), harvest=(v==='friend_harvest'||v==='zillow_harvest');
   var what = v==='comment' ? 'After creating, pick which groups to comment in — prefilled from the groups this client already scans.'
     : v==='post' ? 'After creating, pick which groups to post into. Posting is the most exposed channel, so its daily cap is the lowest.'
     : v==='messenger' ? 'Targets contacts that have a Facebook profile. Nothing sends without your approval.'
+    : v==='friend_harvest' ? 'Created paused. After creating, paste the seed profiles whose friend lists to walk; the daily pace comes from agency settings and can be overridden there.'
+    : v==='zillow_harvest' ? 'Created paused. After creating, paste the Zillow directory urls and the name keywords; the daily pace comes from agency settings and can be overridden there.'
     : 'Targets a segment of contacts that have an email address.';
   hint.innerHTML = (id? 'id: <code>'+id+'</code> &middot; ' : '') + what;
+  // Only ask for what this channel reads. A harvest campaign has no drafts, so the draft
+  // budget would be written and never read; Zillow has no judgement step, so it has no goal.
+  show('nc-quota-wrap', !harvest);
+  show('nc-goal-wrap', v!=='zillow_harvest');
+  var gl=document.getElementById('nc-goal-label'), gh=document.getElementById('nc-goal-help');
+  if(gl&&gh){
+   if(v==='friend_harvest'){
+    gl.textContent='Who to keep';
+    gh.textContent='(your words — the agent judges every enriched friend against this and keeps or rejects them. Nothing is written or sent.)';
+   } else {
+    gl.textContent='Goal';
+    gh.textContent='(your words — what should this campaign achieve, and what are you offering? Everything else is derived from this plus your client profile. You can refine it after creating.)';
+   }
+  }
  }
  slug.addEventListener('input',sync); ch.addEventListener('change',sync); sync();
  btn.addEventListener('click',function(){
   var id=slugify(slug.value);
   if(!id){msg.textContent='Give it a name first.';return}
   btn.disabled=true;btn.setAttribute('aria-busy','true');msg.textContent='Creating…';
+  var v=ch.value, harvest=(v==='friend_harvest'||v==='zillow_harvest');
+  var body={slug:id,channel_strategy:v};
+  // Never submit a field the operator could not see (same rule as the edit form).
+  if(v!=='zillow_harvest'){body.goal_description=document.getElementById('nc-goal').value.trim()}
+  if(!harvest){body.daily_quota=parseInt(document.getElementById('nc-quota').value,10)}
   fetch('/api/ui/{{$slug}}/campaign-create',{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({slug:id,channel_strategy:ch.value,goal_description:document.getElementById('nc-goal').value.trim(),
-    daily_quota:parseInt(document.getElementById('nc-quota').value,10)})})
+   body:JSON.stringify(body)})
   .then(function(r){return r.ok?r.json():r.text().then(function(t){throw new Error(t)})})
   .then(function(j){
    if(j.ok){msg.textContent='✓ created — opening…';location.href=j.url}
@@ -3103,17 +3154,23 @@ document.getElementById('submit').addEventListener('click',function(){
 {{end}}
 </div>
 
-<h2>Goal <span class="mut" style="font-size:.8rem">what every message in this campaign is trying to achieve</span></h2>
+<section id="goalsec">
+<h2><span id="goalhead">Goal</span> <span class="mut" style="font-size:.8rem" id="goalheadhelp">what every message in this campaign is trying to achieve</span></h2>
 <div class="card">
-<label>Goal <span class="mut">(your words. What should these emails achieve, and what are you offering? The agent derives everything below from this + your client profile.)</span>
+<label><span id="goaldesclabel">Goal</span> <span class="mut" id="goaldeschelp">(your words. What should these emails achieve, and what are you offering? The agent derives everything below from this + your client profile.)</span>
 <textarea id="f-goaldesc" style="min-height:90px" placeholder="e.g. Gioi thieu dich vu video cho cac professional, muc tieu la ho mo xem proposal ca nhan hoa va reply">{{.GoalDesc}}</textarea></label>
-<p class="mut" style="margin:-.4rem 0 .9rem;font-size:.85rem">That one answer is all the setup asks for &mdash; the agent derives the rest from it and your client profile (offer, audience, pain points are already there from onboarding).</p>
+<p class="mut" id="goaldescnote" style="margin:-.4rem 0 .9rem;font-size:.85rem">That one answer is all the setup asks for &mdash; the agent derives the rest from it and your client profile (offer, audience, pain points are already there from onboarding).</p>
+<div id="bankblock">
 <label>Key messages <span class="mut">(one per line — what you want every email to TEACH the reader: the things you know from doing this work that they don't. Not slogans.)</span>
 <textarea id="f-bank" style="min-height:110px" placeholder="e.g. Platforms reward posting that is correct, regular and complete&#10;e.g. Every piece has to be genuinely useful to the viewer — give away knowledge">{{.Bank}}</textarea></label>
 <p class="mut" style="margin:-.4rem 0 .9rem;font-size:.85rem">Each email weaves 1&ndash;2 of these and rotates across the follow-ups, so the reader learns something instead of being pitched. Lines you write here are yours; lines the agent suggested are marked <em>(agent)</em> and you can edit or delete them. {{if eq .BankOperatorCount 0}}<strong>None of these are yours yet</strong> &mdash; an all-agent bank is the product describing itself.{{else}}{{.BankOperatorCount}} of them are yours.{{end}}</p>
+</div>
+<div id="ctablock">
 <label>Call-to-action text <span class="mut">(the one ask at the end of the email)</span>
 <input id="f-cta" type="text" value="{{.CTAText}}" placeholder="e.g. Worth a quick look?"></label>
 </div>
+</div>
+</section>
 
 <section id="companionsec">
 <h2>Companion link <span class="mut" style="font-size:.8rem">the support link each message carries (demo page, sample video...)</span></h2>
@@ -3131,6 +3188,7 @@ document.getElementById('submit').addEventListener('click',function(){
 </div>
 </section>
 
+<section id="sendingsec">
 <h2 id="sendinghead">Sending</h2>
 <div class="card">
 <label id="quotalabel">Daily draft budget <span class="mut">(max new drafts per day for this campaign)</span>
@@ -3147,6 +3205,7 @@ document.getElementById('submit').addEventListener('click',function(){
 </div>
 <p class="mut" id="fbcapnote" style="font-size:.82rem;margin:-.2rem 0 0;display:none">Which Facebook account acts is decided by the account pool, not here — least-loaded eligible account, and for a group it must be a member. Per-account daily ceilings live in <a href="/ui/settings">agency settings</a>.</p>
 </div>
+</section>
 
 <div class="acts">
 <button class="ok" type="submit">Save changes</button>
@@ -3176,11 +3235,16 @@ document.getElementById('submit').addEventListener('click',function(){
  if(!sel||!card)return;
  function usesGroups(v){return v==='comment'||v==='post'}
  function show(id,on){var el=document.getElementById(id);if(el)el.style.display=on?'':'none'}
- // Only show what the chosen channel actually uses. Sendboxes are mailboxes — meaningless on
- // a comment or post campaign, and leaving them on screen invites the operator to configure
- // something that will never be read. The daily budget stays: every channel has one.
+ // Only show what the chosen channel actually READS. A field on screen is a promise that
+ // setting it does something; leaving Key messages, a call-to-action or a draft budget on a
+ // harvest campaign invites the operator to configure something no code path will ever read.
+ // The matrix below is the code that reads each field, not a guess:
+ //   goal.description  — every drafting channel; friend_harvest (agent's keep/reject judgement)
+ //   message_bank/cta  — drafting channels only (draftBrief / draftWrite gates)
+ //   daily_quota       — drafting channels only (draftBudget); harvest paces on harvest.daily_budget
+ //   sendboxes         — email only;  groups — comment/post only;  companion link — email/DM only
  function sync(){
-  var v=sel.value, groups=usesGroups(v);
+  var v=sel.value, groups=usesGroups(v), harvest=(v==='friend_harvest'||v==='zillow_harvest');
   card.style.display=groups?'':'none';
   show('harvestcard', v==='friend_harvest');
   show('zillowcard', v==='zillow_harvest');
@@ -3188,6 +3252,31 @@ document.getElementById('submit').addEventListener('click',function(){
   show('sboxblock', v==='email_first');
   show('fbcapnote', v!=='email_first');
   show('companionsec', v==='email_first'||v==='messenger');
+  // Zillow has no judgement step at all — the daemon writes a contact whenever an email or a
+  // phone is published — so the whole Goal card is dead there. Friends keeps the description
+  // (the agent judges against it) but not the copywriting fields.
+  show('goalsec', v!=='zillow_harvest');
+  show('bankblock', !harvest);
+  show('ctablock', !harvest);
+  show('sendingsec', !harvest);
+  var gh=document.getElementById('goalhead'), ghh=document.getElementById('goalheadhelp'),
+      gl=document.getElementById('goaldesclabel'), glh=document.getElementById('goaldeschelp'),
+      gn=document.getElementById('goaldescnote');
+  if(gh&&ghh&&gl&&glh){
+   if(v==='friend_harvest'){
+    gh.textContent='Who to keep';
+    ghh.textContent='the test every enriched friend is judged against';
+    gl.textContent='Who to keep';
+    glh.textContent='(your words. The agent reads this on each run and keeps or rejects every profile the daemon enriched. Nothing is drafted or sent.)';
+    if(gn)gn.style.display='none';
+   } else {
+    gh.textContent='Goal';
+    ghh.textContent='what every message in this campaign is trying to achieve';
+    gl.textContent='Goal';
+    glh.textContent='(your words. What should these emails achieve, and what are you offering? The agent derives everything below from this + your client profile.)';
+    if(gn)gn.style.display='';
+   }
+  }
   var sh=document.getElementById('sendinghead');
   if(sh)sh.textContent=(v==='email_first')?'Sending':'Volume';
   var ql=document.getElementById('quotalabel');
@@ -3238,18 +3327,30 @@ document.getElementById('campform').addEventListener('submit',function(e){
  var bank=document.getElementById('f-bank').value.split('\n').map(function(s){return s.trim()}).filter(Boolean)
    .map(function(s){var a=/\s*\(agent\)\s*$/.test(s);return {msg:s.replace(/\s*\(agent\)\s*$/,''),source:a?'agent':'operator',approved:true}});
  var instructions=document.getElementById('f-comp-instructions').value.trim();
- var goal={
-  message_bank:bank,
-  description:document.getElementById('f-goaldesc').value.trim(),
-  cta:{text:document.getElementById('f-cta').value.trim()},
-  companion_doc: instructions ? {instructions:instructions,
-    on_fail:document.getElementById('f-comp-onfail').value,
-    default_link:document.getElementById('f-comp-default').value.trim()} : null};
- var patch={goal:goal, daily_quota:parseInt(document.getElementById('f-quota').value,10),
-   channel_strategy:document.getElementById('f-channel').value};
+ var chv=document.getElementById('f-channel').value;
+ var isHarvest=(chv==='friend_harvest'||chv==='zillow_harvest');
+ var patch={channel_strategy:chv};
  // Never submit a field the operator could not see. Sendboxes are hidden on non-email
  // channels, so saving must leave whatever is stored alone rather than writing the state of
- // controls nobody looked at.
+ // controls nobody looked at. The same holds for every field sync() hides: the goal patch is
+ // merged key by key on the server, so an omitted key keeps its stored value.
+ if(chv!=='zillow_harvest'){
+  var goal={description:document.getElementById('f-goaldesc').value.trim()};
+  if(!isHarvest){
+   goal.message_bank=bank;
+   goal.cta={text:document.getElementById('f-cta').value.trim()};
+  }
+  // The companion link is only offered on email and DM; on a comment or post campaign the
+  // controls are hidden, and an empty hidden textarea must not erase a stored link.
+  if(chv==='email_first'||chv==='messenger'){
+   goal.companion_doc = instructions ? {instructions:instructions,
+     on_fail:document.getElementById('f-comp-onfail').value,
+     default_link:document.getElementById('f-comp-default').value.trim()} : null;
+  }
+  patch.goal=goal;
+ }
+ // daily_quota bounds DRAFTS. Harvest campaigns draft nothing and pace on harvest.daily_budget.
+ if(!isHarvest){patch.daily_quota=parseInt(document.getElementById('f-quota').value,10)}
  if(patch.channel_strategy==='email_first'){
   patch.sendboxes=Array.prototype.slice.call(document.querySelectorAll('.f-sbox:checked')).map(function(x){return x.value});
  }
