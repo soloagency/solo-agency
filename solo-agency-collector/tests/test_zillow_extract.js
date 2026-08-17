@@ -327,6 +327,26 @@ function sensitiveKeys(o, pathStr, out) {
     check("20 found -> page_count 2 (estimated)", res2.page_count === 2 && res2.has_more === true, [res2.page_count, res2.has_more]);
   }
 
+  console.log("zillow.agents.list — truncation is STATED, because the pager cannot state it");
+  {
+    // Zillow serves 25 directory pages and then keeps serving page 25, so from the pager alone
+    // "the list ended" and "the list was cut off" are the same observation. results_found still
+    // tells the truth, and the gap between it and what is reachable is the number that decides
+    // whether a keyword must be split into narrower regions. Los Angeles reports 44,534 agents.
+    const ctx = makeCtx({ href: "https://www.zillow.com/professionals/real-estate-agent-reviews/los-angeles-ca/", nextData: listNextData({ found: 44534 }) });
+    const big = await ctx.window.__soloZillowRun("zillow.agents.list", {});
+    check("a query far over the ceiling is flagged truncated", big.truncated === true, big.truncated);
+    check("it says how many agents are unreachable", big.unreachable_estimate === 44534 - 375, big.unreachable_estimate);
+    check("and what fraction of them it can see", Math.abs((big.coverage_ratio || 0) - 375 / 44534) < 1e-9, big.coverage_ratio);
+    check("reachable_max is the ceiling, not the arithmetic", big.reachable_max === 375, big.reachable_max);
+
+    const ctx2 = makeCtx({ href: "https://www.zillow.com/professionals/real-estate-agent-reviews/los-angeles-ca/?name=kim", nextData: listNextData({ found: 348 }) });
+    const fits = await ctx2.window.__soloZillowRun("zillow.agents.list", {});
+    check("a query that fits is NOT flagged", fits.truncated === false, fits.truncated);
+    check("nothing is unreachable", fits.unreachable_estimate === 0, fits.unreachable_estimate);
+    check("coverage is complete", fits.coverage_ratio === 1, fits.coverage_ratio);
+  }
+
   console.log("zillow.agents.list — __NEXT_DATA__ missing: DOM fallback from /profile/ anchors, available stays true");
   {
     const cardBox = (href, name, txt) => el("div", { class: "StyledCard" }, "", [el("a", { href }, name), el("div", {}, txt)]);

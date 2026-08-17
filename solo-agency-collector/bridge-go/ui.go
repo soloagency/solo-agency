@@ -3536,6 +3536,8 @@ func (b *bridge) harvestCommonStatus(p *harvestProgress, hc harvestConfig, outre
 		state = "walk finished — every location × keyword page was read; pause the campaign or add locations/keywords"
 	case len(p.Queue) == 0 && hc.Channel == zillowChannel:
 		state = "reading the next directory page"
+	case len(p.Queue) == 0 && hc.Channel != zillowChannel && harvestAllSeedsDone(p):
+		state = "walk finished — every seed's friend list was read; pause the campaign or add seed profiles"
 	case len(p.Queue) == 0:
 		state = "reading the next friend-list leg"
 	default:
@@ -3562,4 +3564,17 @@ func (b *bridge) harvestCommonStatus(p *harvestProgress, hc harvestConfig, outre
 		"queue": len(p.Queue), "in_flight": len(p.InFlight), "await": len(p.AwaitDecision),
 		"already_known": p.Totals["already_known"], "retried": p.Totals["requeued"],
 	}
+}
+
+// harvestAllSeedsDone: no seed left to walk (each is exhausted, removed, or errored).
+func harvestAllSeedsDone(p *harvestProgress) bool {
+	if len(p.Seeds) == 0 {
+		return false
+	}
+	for _, sd := range p.Seeds {
+		if !sd.Exhausted && !sd.Removed && sd.Error == "" {
+			return false
+		}
+	}
+	return true
 }

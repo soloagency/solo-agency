@@ -136,7 +136,14 @@ just waits — nothing is lost between runs.
   channel never sends and never queues into another campaign on its own.
 - **Report, plainly.** The run reply carries one line per harvest campaign: seed N of M,
   friends seen, queued, awaiting decision, kept / rejected this run, today's enrich count vs
-  budget, collectors live. The Campaigns page shows the same progress line.
+  budget, collectors live. The Campaigns page shows the same progress line. Two states get an
+  extra sentence, because nothing else announces them: (1) `harvest status` shows every seed
+  `exhausted` (or errored/removed) with an empty queue → "campaign X finished its walk: N kept,
+  M rejected in total — add seed profiles or pause it" (the daemon does not pause it on its
+  own; nothing is lost either way); (2) any seed carries an `error` → surface it verbatim.
+- **Reaching the daily budget is not an event.** The daemon stops enqueuing for the day and
+  resumes after midnight (local) outside quiet hours, from the same cursor and queue; the
+  awaiting-decision records still wait for you. Do not report it as a blocker.
 
 ## Storage (Stage 7 addendum)
 
