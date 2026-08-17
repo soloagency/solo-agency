@@ -1576,6 +1576,7 @@ func (b *bridge) uiRenderSendboxes(w http.ResponseWriter, slug string) {
 
 type uiDraft struct {
 	ID        string
+	Channel   string // email | comment | post — the badge on the approvals card
 	Campaign  string
 	Step      any
 	To        string
@@ -1612,6 +1613,14 @@ func (b *bridge) uiPendingDrafts(c uiClient) []uiDraft {
 			}
 			dr := uiDraft{Campaign: camp.Name()}
 			dr.ID, _ = doc["id"].(string)
+			// The queue mixes channels now, and an email and a public group comment are
+			// not the same decision to make at a glance. Older email drafts carry no
+			// `channel` key at all, so absence means email.
+			if ch, _ := doc["channel"].(string); ch != "" {
+				dr.Channel = ch
+			} else {
+				dr.Channel = "email"
+			}
 			dr.Step = doc["step"]
 			dr.To, _ = doc["to"].(string)
 			dr.Subject, _ = doc["subject"].(string)
@@ -1785,6 +1794,9 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 			if err := intField("posts_per_account_per_day", &s.PostsPerAccountPerDay, 1, 10); err != nil {
 				return err
 			}
+			if err := intField("publish_gap_minutes", &s.PublishGapMinutes, 1, 240); err != nil {
+				return err
+			}
 			if err := intField("harvest_daily_budget", &s.HarvestDailyBudget, 1, 5000); err != nil {
 				return err
 			}
@@ -1847,6 +1859,24 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		if err := appendUIInbox(p, rec); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		// A COMMENT is published by the bridge the moment it is approved
+		// (operator ruling 2026-08-17): the draft already carries the permalink and
+		// the exact text, so nothing here needs a language model, and making the
+		// operator wait for the next agent run would mean commenting on a thread
+		// that has moved on. Email and DM keep going through the run's ingest,
+		// untouched. The ui_inbox line above is still written first — it stays the
+		// durable journal, and ingestUIDecisions skips a draft that is no longer
+		// pending_approval, so it can never be applied twice.
+		if decision == "approve" {
+			if out, handled, aerr := b.approveCommentDraft(filepath.Join(c.Path, "outreach"), draftID, time.Now()); handled {
+				if aerr != nil {
+					http.Error(w, aerr.Error(), http.StatusInternalServerError)
+					return
+				}
+				writeJSON(out)
+				return
+			}
 		}
 		writeJSON(map[string]any{"ok": true, "queued": draftID,
 			"note": "recorded in ui_inbox; the next run (or 'ingest UI approvals' in chat) applies it"})
@@ -2280,27 +2310,27 @@ func (b *bridge) uiRender(w http.ResponseWriter, page string, data map[string]an
 var uiIcons = map[string]string{
 	"bolt":        `<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"/>`,
 	"adjustments": `<path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M6 4v4"/><path d="M6 12v8"/><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M12 4v10"/><path d="M12 18v2"/><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M18 4v1"/><path d="M18 9v11"/>`,
-	"home":     `<path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/>`,
-	"activity": `<path d="M3 12h4l3 8l4 -16l3 8h4"/>`,
-	"heart":    `<path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572"/>`,
-	"layout":   `<path d="M4 4m0 1a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z"/><path d="M4 12m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z"/><path d="M16 12l4 0"/><path d="M16 16l4 0"/><path d="M16 20l4 0"/>`,
-	"send":     `<path d="M10 14l11 -11"/><path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5"/>`,
-	"checks":   `<path d="M7 12l5 5l10 -10"/><path d="M2 12l5 5m5 -5l5 -5"/>`,
-	"users":    `<path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/>`,
-	"file":     `<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 9l1 0"/><path d="M9 13l6 0"/><path d="M9 17l6 0"/>`,
-	"list":     `<path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/>`,
-	"mail":     `<path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z"/><path d="M3 7l9 6l9 -6"/>`,
-	"puzzle":   `<path d="M4 7h3a1 1 0 0 0 1 -1v-1a2 2 0 0 1 4 0v1a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h1a2 2 0 0 1 0 4h-1a1 1 0 0 0 -1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-1a2 2 0 0 0 -4 0v1a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h1a2 2 0 0 0 0 -4h-1a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1"/>`,
-	"video":    `<path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/>`,
-	"article":  `<path d="M3 4m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"/><path d="M7 8h10"/><path d="M7 12h10"/><path d="M7 16h10"/>`,
-	"radar":    `<path d="M21 12h-8a1 1 0 1 0 -1 1v8a9 9 0 0 0 9 -9"/><path d="M16 9a5 5 0 1 0 -7 7"/><path d="M20.486 9a9 9 0 1 0 -11.482 11.495"/>`,
-	"upload":   `<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/>`,
-	"calendar": `<path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3l0 4"/><path d="M8 3l0 4"/><path d="M4 11l16 0"/><path d="M8 15h2v2h-2z"/>`,
-	"adjust":   `<path d="M4 6l8 0"/><path d="M16 6l4 0"/><path d="M8 12l12 0"/><path d="M4 12l0 0"/><path d="M4 18l12 0"/><path d="M20 18l0 0"/><path d="M14 4m0 1a1 1 0 0 1 1 -1a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1a1 1 0 0 1 -1 -1z"/><path d="M6 10m0 1a1 1 0 0 1 1 -1a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1a1 1 0 0 1 -1 -1z"/><path d="M16 16m0 1a1 1 0 0 1 1 -1a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1a1 1 0 0 1 -1 -1z"/>`,
-	"refresh":  `<path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>`,
-	"kanban":   `<path d="M4 4h6v8h-6z"/><path d="M4 16h6v4h-6z"/><path d="M14 4h6v4h-6z"/><path d="M14 12h6v8h-6z"/>`,
-	"plug":     `<path d="M9.785 6l8.215 8.215l-2.054 2.054a5.81 5.81 0 1 1 -8.215 -8.215l2.054 -2.054z"/><path d="M4 20l3.5 -3.5"/><path d="M15 4l-3.5 3.5"/><path d="M20 9l-3.5 3.5"/>`,
-	"shield":   `<path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/>`,
+	"home":        `<path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/>`,
+	"activity":    `<path d="M3 12h4l3 8l4 -16l3 8h4"/>`,
+	"heart":       `<path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572"/>`,
+	"layout":      `<path d="M4 4m0 1a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z"/><path d="M4 12m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z"/><path d="M16 12l4 0"/><path d="M16 16l4 0"/><path d="M16 20l4 0"/>`,
+	"send":        `<path d="M10 14l11 -11"/><path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5"/>`,
+	"checks":      `<path d="M7 12l5 5l10 -10"/><path d="M2 12l5 5m5 -5l5 -5"/>`,
+	"users":       `<path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/>`,
+	"file":        `<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 9l1 0"/><path d="M9 13l6 0"/><path d="M9 17l6 0"/>`,
+	"list":        `<path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/>`,
+	"mail":        `<path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z"/><path d="M3 7l9 6l9 -6"/>`,
+	"puzzle":      `<path d="M4 7h3a1 1 0 0 0 1 -1v-1a2 2 0 0 1 4 0v1a1 1 0 0 0 1 1h3a1 1 0 0 1 1 1v3a1 1 0 0 0 1 1h1a2 2 0 0 1 0 4h-1a1 1 0 0 0 -1 1v3a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-1a2 2 0 0 0 -4 0v1a1 1 0 0 1 -1 1h-3a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h1a2 2 0 0 0 0 -4h-1a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1"/>`,
+	"video":       `<path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/>`,
+	"article":     `<path d="M3 4m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"/><path d="M7 8h10"/><path d="M7 12h10"/><path d="M7 16h10"/>`,
+	"radar":       `<path d="M21 12h-8a1 1 0 1 0 -1 1v8a9 9 0 0 0 9 -9"/><path d="M16 9a5 5 0 1 0 -7 7"/><path d="M20.486 9a9 9 0 1 0 -11.482 11.495"/>`,
+	"upload":      `<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/>`,
+	"calendar":    `<path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3l0 4"/><path d="M8 3l0 4"/><path d="M4 11l16 0"/><path d="M8 15h2v2h-2z"/>`,
+	"adjust":      `<path d="M4 6l8 0"/><path d="M16 6l4 0"/><path d="M8 12l12 0"/><path d="M4 12l0 0"/><path d="M4 18l12 0"/><path d="M20 18l0 0"/><path d="M14 4m0 1a1 1 0 0 1 1 -1a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1a1 1 0 0 1 -1 -1z"/><path d="M6 10m0 1a1 1 0 0 1 1 -1a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1a1 1 0 0 1 -1 -1z"/><path d="M16 16m0 1a1 1 0 0 1 1 -1a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1a1 1 0 0 1 -1 -1z"/>`,
+	"refresh":     `<path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>`,
+	"kanban":      `<path d="M4 4h6v8h-6z"/><path d="M4 16h6v4h-6z"/><path d="M14 4h6v4h-6z"/><path d="M14 12h6v8h-6z"/>`,
+	"plug":        `<path d="M9.785 6l8.215 8.215l-2.054 2.054a5.81 5.81 0 1 1 -8.215 -8.215l2.054 -2.054z"/><path d="M4 20l3.5 -3.5"/><path d="M15 4l-3.5 3.5"/><path d="M20 9l-3.5 3.5"/>`,
+	"shield":      `<path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/>`,
 }
 
 var uiTplFuncs = template.FuncMap{
@@ -2597,8 +2627,10 @@ try{
 <input type="number" id="s-cper" value="{{.Settings.CommentsPerGroupPerDay}}" min="1" max="10"></label>
 <label>New posts into groups / account / day
 <input type="number" id="s-posts" value="{{.Settings.PostsPerAccountPerDay}}" min="1" max="10"></label>
+<label>Minutes between two published actions
+<input type="number" id="s-pubgap" value="{{.Settings.PublishGapMinutes}}" min="1" max="240"></label>
 </div>
-<small class="mut">Groups × comments-per-group is the daily comment ceiling for one account. The group count is a <em>diversity</em> cap — spreading across a few groups reads as human, hammering one does not. <strong>Posting</strong> is the most exposed of the three: a standalone piece of content in front of the whole group, the thing members report as spam, and often held for admin approval — keep it lowest, and never push the same post into many groups on the same day.</small>
+<small class="mut">Groups × comments-per-group is the daily comment ceiling for one account. The group count is a <em>diversity</em> cap — spreading across a few groups reads as human, hammering one does not. Approving several drafts at once does not publish them at once: they are spaced by the gap below. <strong>Posting</strong> is the most exposed of the three: a standalone piece of content in front of the whole group, the thing members report as spam, and often held for admin approval — keep it lowest, and never push the same post into many groups on the same day.</small>
 <h2>Leads From Friends (harvest pacing)</h2>
 <div class="grid">
 <label>Profiles enriched per day, per campaign
@@ -2631,6 +2663,7 @@ document.getElementById('s-save').onclick=function(){
    comment_groups_per_account_per_day:+document.getElementById('s-cgroups').value,
    comments_per_group_per_day:+document.getElementById('s-cper').value,
    posts_per_account_per_day:+document.getElementById('s-posts').value,
+   publish_gap_minutes:+document.getElementById('s-pubgap').value,
    harvest_daily_budget:+document.getElementById('s-hd').value,
    harvest_per_collector_budget:+document.getElementById('s-hb').value,
    harvest_quiet_from:document.getElementById('s-hqf').value,
@@ -2811,6 +2844,14 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 </main></div></div></body></html>{{end}}
 
 {{define "approvals"}}{{template "head" .}}
+<style>
+.chanbadge{display:inline-block;padding:.18rem .7rem;border-radius:.4rem;font-size:1rem;
+ font-weight:700;letter-spacing:.02em;line-height:1.3;color:#fff;text-transform:uppercase}
+.chan-email{background:#2563eb}
+.chan-comment{background:#0f9d58}
+.chan-post{background:#c2410c}
+.chan-messenger{background:#7c3aed}
+</style>
 <p class="sub"><span id="left">{{len .Drafts}}</span> drafts waiting. Nothing sends without your approval; edits made here are kept.</p>
 {{if .Drafts}}
 <div class="toolbar">
@@ -2825,13 +2866,14 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 <div class="card draft" data-id="{{.ID}}" data-campaign="{{.Campaign}}" data-band="{{.Band}}">
 <div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap">
 <label style="margin:0;cursor:pointer"><input class="pick" type="checkbox" checked style="margin:0"></label>
+<span class="chanbadge chan-{{.Channel}}">{{if eq .Channel "comment"}}Comment{{else if eq .Channel "post"}}Post{{else if eq .Channel "messenger"}}DM{{else}}Email{{end}}</span>
 <strong>{{.To}}</strong> <span class="pill band-{{.Band}}">{{.Band}}</span>
-<span class="pill">{{.Campaign}}</span> <span class="pill">step {{.Step}}</span>
+<span class="pill">{{.Campaign}}</span>{{if eq .Channel "email"}} <span class="pill">step {{.Step}}</span>{{end}}
 {{if .Companion}}<a class="pill" href="{{.Companion}}" target="_blank" rel="noopener">companion ↗</a>{{end}}
 </div>
 {{if .Warnings}}<div style="margin-top:6px">{{range .Warnings}}<span class="pill band-review_carefully">⚠ {{.}}</span> {{end}}</div>{{end}}
 {{if .Hooks}}<div class="mut" style="margin-top:6px;font-size:13px">hooks: {{range .Hooks}}{{if index . "evidence_url"}}<a href="{{index . "evidence_url"}}" target="_blank" rel="noopener">{{index . "type"}}</a> {{else}}{{index . "type"}} {{end}}{{end}}</div>{{end}}
-<div style="margin-top:8px"><input class="subj" type="text" value="{{.Subject}}"></div>
+<div style="margin-top:8px"{{if ne .Channel "email"}} hidden{{end}}><input class="subj" type="text" value="{{.Subject}}"{{if ne .Channel "email"}} disabled{{end}}></div>
 <div style="margin-top:8px"><textarea class="body">{{.Body}}</textarea></div>
 <div class="acts">
 <button class="ok" data-act="approve">Approve</button>
@@ -2839,7 +2881,7 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 <button data-act="hold">Hold</button>
 <button data-act="reject">Reject…</button>
 </div></div>
-{{else}}<p class="mut">No drafts waiting for approval. New drafts appear here after the campaign's daily run.</p>{{end}}
+{{else}}<p class="mut">No drafts waiting for approval. New drafts appear here after the campaign's daily run. Approving a <b>Comment</b> or <b>Post</b> publishes it straight away; an <b>Email</b> goes out on the next run.</p>{{end}}
 <script>
 var CLIENT="{{.Client.Slug}}";
 function payload(card){var p={draft_id:card.dataset.id,campaign:card.dataset.campaign};

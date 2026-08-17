@@ -1703,3 +1703,57 @@ func TestUICampaignFieldsPerChannel(t *testing.T) {
 		}
 	}
 }
+
+// TestApprovalsChannelBadge: the queue mixes email, comment and post now, and those
+// are not the same decision — approving a comment publishes it in seconds, an email
+// waits for the run. The badge is the only thing that says which one you are looking
+// at, so its absence is a test failure, not a cosmetic regression.
+func TestApprovalsChannelBadge(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	write := func(rel, body string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("outreach/campaigns/mail/campaign_config.json", `{"campaign_slug":"mail","channel_strategy":"email_first"}`)
+	write("outreach/campaigns/talk/campaign_config.json", `{"campaign_slug":"talk","channel_strategy":"comment"}`)
+	write("outreach/campaigns/posts/campaign_config.json", `{"campaign_slug":"posts","channel_strategy":"post"}`)
+	// An older email draft carries no `channel` key at all — absence must read as email.
+	write("outreach/campaigns/mail/outbox/pending_approval/2026-08-17/d1.json",
+		`{"id":"d1","status":"pending_approval","to":"a@x.com","subject":"s","body_text":"b"}`)
+	write("outreach/campaigns/talk/outbox/pending_approval/2026-08-17/d2.json",
+		`{"id":"d2","status":"pending_approval","channel":"comment","to":"https://www.facebook.com/groups/1/posts/2/","body_text":"c"}`)
+	write("outreach/campaigns/posts/outbox/pending_approval/2026-08-17/d3.json",
+		`{"id":"d3","status":"pending_approval","channel":"post","to":"https://www.facebook.com/groups/1","body_text":"p"}`)
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	req := httptest.NewRequest("GET", "/ui/leadup/approvals", nil)
+	req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("approvals: %d", rec.Code)
+	}
+	page := rec.Body.String()
+	for _, want := range []string{
+		`class="chanbadge chan-email">Email`,
+		`class="chanbadge chan-comment">Comment`,
+		`class="chanbadge chan-post">Post`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("approvals page missing badge %q", want)
+		}
+	}
+	// A comment and a post have no subject line; the input must not be offered.
+	if strings.Count(page, `<input class="subj"`) != 3 || strings.Count(page, `class="subj" type="text" value="" disabled`) != 2 {
+		t.Fatal("the subject box must be present but disabled on non-email drafts")
+	}
+}

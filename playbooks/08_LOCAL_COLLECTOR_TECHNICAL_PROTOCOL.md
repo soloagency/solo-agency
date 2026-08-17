@@ -1523,6 +1523,7 @@ Exact manual run-now contract:
   "collector_policy": {
     "read_only": true,
     "do_not_comment": true,
+    "do_not_post": true,
     "do_not_message": true,
     "do_not_react": true,
     "do_not_exfiltrate_secrets": true
@@ -1530,7 +1531,7 @@ Exact manual run-now contract:
 }
 ```
 
-- `do_not_exfiltrate_secrets` (`true`) is the collector's single absolute data prohibition: the operator's own credentials and secrets — usernames, passwords, cookies, tokens, session/auth data, API keys — are never read, stored, or transmitted. Everything else is consented by the operator's setup + command: the collector may read, extract, and combine whatever the job directs, including a prospect's contact details (email/phone), surfaced in the optional `emails`/`phones` fields. The `read_only`/`do_not_message`/`do_not_comment`/`do_not_react` flags keep the **send/act** side gated — lead outreach still requires separate explicit human approval.
+- `do_not_exfiltrate_secrets` (`true`) is the collector's single absolute data prohibition: the operator's own credentials and secrets — usernames, passwords, cookies, tokens, session/auth data, API keys — are never read, stored, or transmitted. Everything else is consented by the operator's setup + command: the collector may read, extract, and combine whatever the job directs, including a prospect's contact details (email/phone), surfaced in the optional `emails`/`phones` fields. The `read_only`/`do_not_message`/`do_not_comment`/`do_not_react`/`do_not_post` flags keep the **send/act** side gated — lead outreach still requires separate explicit human approval. These flags are enforced by the collector itself (`background.js`, before a write action runs) and the permission is minted by the bridge from the job's OWN sources (`collectorPolicyForJob`, `main.go`): a job that carries `fb.post.comment` arrives with `do_not_comment` cleared and every other write still forbidden, and a job that carries no write capability is refused if it tries one. Until 2026-08-17 the flags were carried on every job and read by nothing — do not write a rule that depends on a flag without checking that something enforces it.
 - `run_id` must be unique for every manual run. A recommended pattern is `YYYY-MM-DD_client-slug_manual_HHMMSS`.
 - `job_type` names the job kind, for example `run_now`, `scheduled`, or `private_data_source_discovery`.
 - `allowed_extension_instance_ids` must be included whenever the client's extension instance id is known. It restricts which extension may claim the job and prevents another client's extension from cross-claiming the run.

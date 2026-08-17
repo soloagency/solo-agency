@@ -565,6 +565,7 @@ Exact manual run-now contract:
   "collector_policy": {
     "read_only": true,
     "do_not_comment": true,
+    "do_not_post": true,
     "do_not_message": true,
     "do_not_react": true,
     "do_not_exfiltrate_secrets": true

@@ -329,6 +329,53 @@ func runCrmStoreCLI(args []string) int {
 				return crmFail(err)
 			}
 			return crmOut(res, 0)
+		case "comment":
+			// The post-targeted writer. Deliberately a separate verb from `write`:
+			// it takes no --contact, because a commented author never becomes one,
+			// and its ceiling comes from publish capacity rather than daily_quota.
+			d, err := parseJSONArg(a.get("--json"))
+			if err != nil {
+				return crmUsageErr(err.Error())
+			}
+			res, err := store.channelDraftWrite(a.get("--campaign"), channelDraftArgs{
+				PostURL: mStr(d, "post_url"), GroupURL: mStr(d, "group_url"),
+				PostAuthor: mStr(d, "post_author"), PostExcerpt: mStr(d, "post_excerpt"),
+				BodyText: mStr(d, "body_text"), PostSeenAt: mStr(d, "post_seen_at"),
+			}, loadSystemSettings(pipelineRootFromClientDir(store.clientDir)))
+			if err != nil {
+				return crmFail(err)
+			}
+			return crmOut(res, 0)
+		case "post":
+			// A group post: the target is the GROUP, there is nothing to reply to, and
+			// the ceiling is posts-per-account rather than group diversity.
+			d, err := parseJSONArg(a.get("--json"))
+			if err != nil {
+				return crmUsageErr(err.Error())
+			}
+			res, err := store.channelDraftWrite(a.get("--campaign"), channelDraftArgs{
+				GroupURL: mStr(d, "group_url"), PostExcerpt: mStr(d, "basis"),
+				BodyText: mStr(d, "body_text"), PostSeenAt: mStr(d, "post_seen_at"),
+			}, loadSystemSettings(pipelineRootFromClientDir(store.clientDir)))
+			if err != nil {
+				return crmFail(err)
+			}
+			return crmOut(res, 0)
+		case "capacity":
+			cfg := store.getCampaign(a.get("--campaign"))
+			if cfg == nil {
+				return crmFail(storageErrf("campaign %q not found", a.get("--campaign")))
+			}
+			per, reason := channelCapacityPerDay(mStr(cfg, "channel_strategy"), cfg,
+				loadSystemSettings(pipelineRootFromClientDir(store.clientDir)))
+			alive, err := store.aliveChannelDrafts(a.get("--campaign"))
+			if err != nil {
+				return crmFail(err)
+			}
+			return crmOut(map[string]any{"ok": true, "campaign": a.get("--campaign"),
+				"capacity_per_day": per, "capacity_reason": reason,
+				"horizon_days": channelDraftHorizonDays, "ceiling": per * channelDraftHorizonDays,
+				"alive_drafts": alive, "remaining": max(0, per*channelDraftHorizonDays-alive)}, 0)
 		case "brief":
 			res, err := store.draftBrief(a.get("--contact"), a.get("--campaign"), "")
 			if err != nil {

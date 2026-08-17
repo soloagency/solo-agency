@@ -64,6 +64,12 @@ type systemSettings struct {
 	// what members report as spam, and many groups hold posts for admin approval. The
 	// default is deliberately the lowest of the set.
 	PostsPerAccountPerDay int `json:"posts_per_account_per_day"`
+	// PublishGapMinutes: the floor between two collector-published actions for one
+	// client (comment today, group post next). Approval is the command, so the
+	// operator can approve six drafts in one sitting — this is what stops six
+	// comments appearing within a minute, which is the shape Facebook reads as a
+	// bot. It is a pacing floor, not a cap: the daily caps above are the ceiling.
+	PublishGapMinutes int `json:"publish_gap_minutes"`
 	// Friend-harvest pacing (Leads From Friends campaigns): profiles enriched
 	// per day per campaign, per collector account per day, and the nightly
 	// window in which the harvest daemon does not touch Facebook at all.
@@ -88,6 +94,7 @@ func defaultSystemSettings() systemSettings {
 		CommentGroupsPerAccountPerDay: 5,
 		CommentsPerGroupPerDay:        1,
 		PostsPerAccountPerDay:         2,
+		PublishGapMinutes:             5,
 		HarvestDailyBudget:            harvestDefaultDaily,
 		HarvestPerCollectorBudget:     harvestDefaultPerBox,
 		HarvestQuietFrom:              harvestDefaultQuietFrom,
@@ -111,6 +118,9 @@ func loadSystemSettings(pipeline string) systemSettings {
 	}
 	if s.SlotStepMinutes <= 0 {
 		s.SlotStepMinutes = 15
+	}
+	if s.PublishGapMinutes <= 0 {
+		s.PublishGapMinutes = 5
 	}
 	if s.SlotHorizonDays <= 0 {
 		s.SlotHorizonDays = 35

@@ -563,6 +563,10 @@ func (b *bridge) run() error {
 	if b.cfg.persistent && b.uiDataRoot != "" {
 		b.startReplyPoller(ctx.Done())
 		b.startHarvestDaemon(ctx.Done())
+		// Drains the comment publish queue: an approval publishes at once, and the
+		// ones behind it come due on their spacing. Without this the queue would
+		// only ever move on the operator's next click.
+		b.startCommentDispatch(ctx.Done())
 		log.Printf("reply poller enabled (every %s)", replyPollInterval)
 	}
 
