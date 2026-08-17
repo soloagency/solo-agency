@@ -1246,6 +1246,13 @@ function createTab(createProperties) {
 
 function collectionTabActivationPlan(job, source) {
   const active = shouldActivateCollectionTab(job, source);
+  const asked = (
+    explicitTrue(job?.background_tab) || explicitTrue(job?.allow_background_tab) ||
+    explicitTrue(job?.pacing?.background_tab) || explicitTrue(job?.pacing?.allow_background_tab) ||
+    explicitTrue(source?.background_tab) || explicitTrue(source?.allow_background_tab) ||
+    explicitFalse(job?.activate_tab) || explicitFalse(job?.pacing?.activate_tab) ||
+    explicitFalse(source?.activate_tab)
+  );
   if (!active) {
     return {
       mode: "background_tab",
@@ -1266,7 +1273,11 @@ function collectionTabActivationPlan(job, source) {
   );
 
   return {
-    mode: focusWindow ? "active_tab_with_window_focus" : "active_tab_no_window_focus",
+    // When the operator asked for a hidden tab and the capability overrode it, SAY so. Otherwise
+    // the flag looks ignored, and the next person to debug it starts from the wrong place.
+    mode: asked && capabilityNeedsActiveTab(source)
+      ? "active_tab_required_by_capability"
+      : (focusWindow ? "active_tab_with_window_focus" : "active_tab_no_window_focus"),
     createActive: focusWindow,
     updateActive: true,
     focusWindow
@@ -2796,8 +2807,39 @@ function maxScrollStepsForCollection(job, source) {
   return isDiscoveryCollection(job, source) ? DISCOVERY_SCROLL_CAP : NORMAL_SCROLL_CAP;
 }
 
+// Capabilities whose data survives a tab that is never shown. MEASURED, not reasoned: hiding a tab
+// is a convenience and data is not, so a capability is on this list only after a run proved it
+// loses nothing — everything else activates, including anything not listed.
+//
+// What separates them is whether the page has to RENDER for the data to exist. Facebook defers feed
+// work on document.visibilityState, so a hidden tab never fires the timeline query: measured on two
+// profiles, fb.profile.enrich came back with posts_available:false and posts_seen:0 while its About
+// half was perfect. Anything reading a feed — timeline, newsfeed, group posts, reels, videos — has
+// the same dependency. The About section, a profile header, a hovercard fetched by entity_id and
+// Zillow's __NEXT_DATA__ are all present without being looked at.
+const HIDEABLE_CAPABILITIES = new Set([
+  "fb.profile.dossier",    // About sections; measured intact hidden, and 2% noise instead of ~30%
+  "fb.profile.header",     // header + intro card, rendered at load
+  "fb.profile.contacts",   // About sub-tabs, same walk as dossier
+  "fb.profile.hovercard",  // calls the hovercard query by entity_id; nothing on screen matters
+  "zillow.agents.list",    // __NEXT_DATA__ is in the served HTML
+  "zillow.profile.enrich", // same
+  "web.search"             // static results HTML
+]);
+
+function capabilityNeedsActiveTab(source) {
+  const cap = source && source.capability ? String(source.capability) : "";
+  if (!cap) return false;                 // no capability: generic extraction, nothing to render
+  return !HIDEABLE_CAPABILITIES.has(cap);
+}
+
 function shouldActivateCollectionTab(job, source) {
   const pacing = job && typeof job === "object" ? job.pacing || {} : {};
+  // The capability's need OUTRANKS the convenience flag. Honouring background_tab on a capability
+  // that reads a feed would return a record that looks complete and has no posts in it — the
+  // operator asked not to be interrupted, not to be given emptier data, and only one of those two
+  // failures is visible to them.
+  if (capabilityNeedsActiveTab(source)) return true;
   if (
     explicitFalse(job?.activate_tab) ||
     explicitFalse(job?.focus_collection_tab) ||
