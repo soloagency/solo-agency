@@ -249,7 +249,7 @@ func (b *bridge) approveCommentDraft(outreachDir, draftID string, now time.Time)
 		}
 		st.Queue = append(st.Queue, commentQueued{DraftID: draftID, Channel: channel, Campaign: campaign,
 			PostURL: postURL, GroupURL: groupURL, GroupID: groupID, Body: body,
-			ApprovedAt: nowISO(), DueAt: due.Format(time.RFC3339)})
+			Box: mStr(d, "collector"), ApprovedAt: nowISO(), DueAt: due.Format(time.RFC3339)})
 		st.Totals["queued"]++
 		return nil
 	}); serr != nil {
@@ -387,15 +387,35 @@ func (b *bridge) commentDispatchClient(c uiClient, outreachDir string, now time.
 	if t, perr := time.Parse(time.RFC3339, head.DueAt); perr == nil && t.After(now) {
 		return
 	}
+	// The publishing account is NOT interchangeable. Only the collector that READ the
+	// group is proven to be a member of it, and a non-member is served the post with
+	// no comment composer at all — which is exactly the failure measured live on
+	// 2026-08-17. So publish from the box that did the reading, or from none: a
+	// different account is a guess whose cost is paid in account standing.
 	var box harvestCollector
 	for _, live := range b.liveCollectors(now) {
-		if live.ClientSlug == c.Slug {
+		if live.ClientSlug != c.Slug {
+			continue
+		}
+		if head.Box == "" || live.InstanceID == head.Box {
 			box = live
 			break
 		}
 	}
 	if box.InstanceID == "" {
-		return // no collector checked in; the queue simply waits
+		// Nothing is lost and nothing is guessed: the item waits for its own account
+		// to check in. Surfaced on the campaign page as the reason it has not gone out.
+		_, _ = withCommentDispatch(outreachDir, now, func(st *commentDispatchState) error {
+			if len(st.Queue) > 0 && st.Queue[0].DraftID == head.DraftID {
+				if head.Box != "" {
+					st.Totals["waiting_for_its_collector"] = 1
+				} else {
+					st.Totals["waiting_for_a_collector"] = 1
+				}
+			}
+			return nil
+		})
+		return
 	}
 	capability, targetURL := "fb.post.comment", head.PostURL
 	inputs := map[string]any{"post_url": head.PostURL, "text": head.Body}
@@ -448,9 +468,18 @@ func (b *bridge) commentRecordOutcome(outreachDir string, item commentQueued, ou
 		return
 	}
 	p := filepath.Join(cd, "outbox", "approved", item.DraftID+".json")
+	movedBack := false
 	if d, rerr := readJSONFile(p); rerr == nil {
 		switch outcome {
 		case "published":
+			// Into the client's distribution log, beside the emails. The screen that
+			// used to be "Sent" answers "what has this client put out", and a comment
+			// or a group post belongs in that answer as much as an email does.
+			_ = gmailAppendSentLog(outreachDir, item.Campaign, map[string]any{
+				"channel": item.Channel, "campaign": item.Campaign, "draft_id": item.DraftID,
+				"target_url": strOr(item.PostURL, item.GroupURL), "group_url": item.GroupURL,
+				"collector": item.Box, "published_url": detail, "sent_at": nowISO(), "step": 1,
+			})
 			// "sent" is the status gmail.go uses for a published draft, and the
 			// capacity count keys off it — a comment must age out of the queue the
 			// same way an email does.
@@ -460,12 +489,29 @@ func (b *bridge) commentRecordOutcome(outreachDir string, item commentQueued, ou
 				d["published_url"] = detail
 			}
 		default:
-			d["status"] = "blocked"
+			// Back to the approval queue, not into a dead "blocked" pile. The failures
+			// seen here are environmental — the account is not a member of the group,
+			// the page never rendered — and every one of them is something the operator
+			// fixes and then retries. Leaving it in approved/ with status blocked gave
+			// him a draft he could see nowhere and re-approve never. The post is
+			// released from the dedupe index in the same pass, so this stays consistent.
+			d["status"] = "pending_approval"
+			d["decided_at"] = ""
+			d["decided_by"] = ""
 			d["blocker"] = detail
 			d["blocked_at"] = nowISO()
+			back := filepath.Join(cd, "outbox", "pending_approval", todayStr(nowISO()))
+			if os.MkdirAll(back, 0o755) == nil && atomicWriteFile(p, marshalIndentJSON(d)) == nil {
+				_ = os.Rename(p, filepath.Join(back, item.DraftID+".json"))
+			}
+			// Deliberately NOT returning: the dedupe release below must still run, or a
+			// draft handed back for another try would be refused as already_drafted.
+			movedBack = true
 		}
 		d["updated_at"] = nowISO()
-		_ = atomicWriteFile(p, marshalIndentJSON(d))
+		if !movedBack {
+			_ = atomicWriteFile(p, marshalIndentJSON(d))
+		}
 	}
 	key := "body:" + bodyFingerprint(item.Body)
 	if item.Channel != "post" {

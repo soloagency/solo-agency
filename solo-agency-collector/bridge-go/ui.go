@@ -932,7 +932,7 @@ var uiFeatures = []uiFeature{
 	{"Outreach + CRM", "Approve discovered sources", "Tick the monitoring shortlist the agent proposed after discovery", "ui", "shortlist", "", "", "list"},
 	{"Outreach + CRM", "Connect a sendbox", "Paste the Gmail App Password here, never into chat; verified live over SMTP and IMAP", "ui", "sendboxes", "", "", "mail"},
 	{"Outreach + CRM", "CRM pipeline", "Replies become deals moving through stages; every contact keeps its proof-of-life hooks", "ui", "crm", "", "", "kanban"},
-	{"Outreach + CRM", "Sent history", "Every email ever sent: campaign, step, sendbox, and its open/click/reply state in one place", "ui", "sent", "", "", "send"},
+	{"Outreach + CRM", "Distribution", "Everything this client has published: emails sent, comments and group posts, with their reply state", "ui", "sent", "", "", "send"},
 }
 
 func uiFeaturesFor(slug string) []map[string]any {
@@ -1407,7 +1407,10 @@ func (b *bridge) uiSentRows(c uiClient, limit int) (rows []map[string]any, total
 	nameCache := map[string]map[string]any{}
 	for _, p := range store.allSentLogs("") {
 		for _, r := range readJSONLines(p) {
-			if mStr(r, "rfc_message_id") == "" {
+			// A collector-published row (comment / group post) carries a channel and no
+			// rfc_message_id; only reservation rows carry neither.
+			chn := strOr(mStr(r, "channel"), "email")
+			if mStr(r, "rfc_message_id") == "" && chn == "email" {
 				continue // reservation rows etc.
 			}
 			total++
@@ -1431,10 +1434,15 @@ func (b *bridge) uiSentRows(c uiClient, limit int) (rows []map[string]any, total
 			if hasReply {
 				replied++
 			}
+			if chn != "email" {
+				// Nothing was addressed to a person: the target is the post or the group,
+				// and the "sendbox" is the collector account that published it.
+				to, name, lead = mStr(r, "target_url"), "", ""
+			}
 			rows = append(rows, map[string]any{
-				"Lead": lead, "Name": name, "To": to,
+				"Lead": lead, "Name": name, "To": to, "Channel": chn,
 				"Campaign": mStr(r, "campaign"), "Step": mInt(r, "step", 0),
-				"Sendbox": mStr(r, "sendbox"), "SentAt": mStr(r, "sent_at"),
+				"Sendbox": strOr(mStr(r, "sendbox"), mStr(r, "collector")), "SentAt": mStr(r, "sent_at"),
 				"Opened": opened[rid], "Clicked": clicked[rid], "Replied": hasReply,
 			})
 		}
@@ -1627,6 +1635,11 @@ func (b *bridge) uiPendingDrafts(c uiClient) []uiDraft {
 			dr.Body, _ = doc["body_text"].(string)
 			dr.Band, _ = doc["confidence_band"].(string)
 			dr.Companion, _ = doc["companion_url"].(string)
+			// A publish that failed sends the draft back here for another decision; the
+			// reason has to travel with it or the operator re-approves into the same wall.
+			if bl, _ := doc["blocker"].(string); bl != "" {
+				dr.Warnings = append(dr.Warnings, "last attempt failed: "+bl)
+			}
 			if ws, ok := doc["warnings"].([]any); ok {
 				for _, wv := range ws {
 					if s, ok := wv.(string); ok {
@@ -2389,6 +2402,16 @@ var uiTpl = template.Must(template.New("ui").Funcs(uiTplFuncs).Parse(`
 <title>{{.Title}} · Solo Agency</title>
 <link rel="stylesheet" href="/ui/assets/pico.min.css">
 <link rel="stylesheet" href="/ui/assets/app.css">
+<style>
+/* Channel badge: the approvals queue and the distribution list both mix email,
+   comment and post now, and those are not the same thing to read at a glance. */
+.chanbadge{display:inline-block;padding:.16rem .6rem;border-radius:.4rem;font-size:.95rem;
+ font-weight:700;letter-spacing:.02em;line-height:1.3;color:#fff;text-transform:uppercase;white-space:nowrap}
+.chan-email{background:#2563eb}
+.chan-comment{background:#0f9d58}
+.chan-post{background:#c2410c}
+.chan-messenger{background:#7c3aed}
+</style>
 </head><body>
 <div class="shell">
 <aside class="side">
@@ -2405,7 +2428,7 @@ var uiTpl = template.Must(template.New("ui").Funcs(uiTplFuncs).Parse(`
 <a href="/ui/{{.Slug}}"{{if eq $.NavPage "client"}} class="on"{{end}}>{{icon "layout"}}Overview</a>
 <a href="/ui/{{.Slug}}/campaigns"{{if eq $.NavPage "campaigns"}} class="on"{{end}}>{{icon "send"}}Campaigns</a>
 <a href="/ui/{{.Slug}}/approvals"{{if eq $.NavPage "approvals"}} class="on"{{end}}>{{icon "checks"}}Approvals{{if $.NavPending}}<span class="nbadge">{{$.NavPending}}</span>{{end}}</a>
-<a href="/ui/{{.Slug}}/sent"{{if eq $.NavPage "sent"}} class="on"{{end}}>{{icon "mail"}}Sent</a>
+<a href="/ui/{{.Slug}}/sent"{{if eq $.NavPage "sent"}} class="on"{{end}}>{{icon "send"}}Distribution</a>
 <a href="/ui/{{.Slug}}/crm"{{if eq $.NavPage "crm"}} class="on"{{end}}>{{icon "users"}}CRM</a>
 <a href="/ui/{{.Slug}}/reports"{{if eq $.NavPage "reports"}} class="on"{{end}}>{{icon "file"}}Reports</a>
 <a href="/ui/{{.Slug}}/shortlist"{{if eq $.NavPage "shortlist"}} class="on"{{end}}>{{icon "list"}}Shortlist</a>
@@ -2844,14 +2867,6 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 </main></div></div></body></html>{{end}}
 
 {{define "approvals"}}{{template "head" .}}
-<style>
-.chanbadge{display:inline-block;padding:.18rem .7rem;border-radius:.4rem;font-size:1rem;
- font-weight:700;letter-spacing:.02em;line-height:1.3;color:#fff;text-transform:uppercase}
-.chan-email{background:#2563eb}
-.chan-comment{background:#0f9d58}
-.chan-post{background:#c2410c}
-.chan-messenger{background:#7c3aed}
-</style>
 <p class="sub"><span id="left">{{len .Drafts}}</span> drafts waiting. Nothing sends without your approval; edits made here are kept.</p>
 {{if .Drafts}}
 <div class="toolbar">
@@ -3422,19 +3437,20 @@ document.getElementById('campform').addEventListener('submit',function(e){
 </main></div></div></body></html>{{end}}
 
 {{define "sent"}}{{template "head" .}}
-<p class="sub">Every email sent for this client, newest first. A reply freezes that lead's sequence automatically; only replies drive action, opens and clicks are directional.</p>
+<p class="sub">Everything published for this client, newest first — emails sent, comments answered and posts put into groups. A reply freezes that lead's sequence automatically; only replies drive action, opens and clicks are directional.</p>
 <div class="statrow">
-<div class="stat"><b>{{.Total}}</b><span>emails sent</span></div>
+<div class="stat"><b>{{.Total}}</b><span>published</span></div>
 <div class="stat hot"><b>{{.Replied}}</b><span>got a reply</span></div>
 {{if .Rate}}<div class="stat"><b>{{.Rate}}</b><span>reply rate</span></div>{{end}}
 </div>
 {{if .Rows}}
 <input id="sentfilter" type="search" placeholder="Filter by name, email, campaign, sendbox..." style="max-width:380px;margin-bottom:10px">
-<div class="wrap"><table id="senttable"><tr><th>to</th><th>campaign</th><th>step</th><th>sendbox</th><th>sent</th><th>status</th></tr>
-{{$slug := .Client.Slug}}{{range .Rows}}<tr style="cursor:pointer" onclick="location.href='/ui/{{$slug}}/contact/{{.Lead}}'">
-<td>{{if .Name}}<strong>{{.Name}}</strong> <span class="mut" style="font-size:.78rem">{{.To}}</span>{{else}}{{.To}}{{end}}</td>
+<div class="wrap"><table id="senttable"><tr><th>channel</th><th>to</th><th>campaign</th><th>step</th><th>account</th><th>published</th><th>status</th></tr>
+{{$slug := .Client.Slug}}{{range .Rows}}<tr{{if .Lead}} style="cursor:pointer" onclick="location.href='/ui/{{$slug}}/contact/{{.Lead}}'"{{end}}>
+<td><span class="chanbadge chan-{{.Channel}}">{{if eq .Channel "comment"}}Comment{{else if eq .Channel "post"}}Post{{else if eq .Channel "messenger"}}DM{{else}}Email{{end}}</span></td>
+<td>{{if .Name}}<strong>{{.Name}}</strong> <span class="mut" style="font-size:.78rem">{{.To}}</span>{{else if .Lead}}{{.To}}{{else}}<a href="{{.To}}" target="_blank" rel="noopener" class="mut" style="font-size:.8rem">{{.To}}</a>{{end}}</td>
 <td class="mut">{{.Campaign}}</td>
-<td>{{if eq .Step 1}}<span class="pill">cold</span>{{else}}<span class="pill">bump {{.Step}}</span>{{end}}</td>
+<td>{{if ne .Channel "email"}}<span class="mut">—</span>{{else if eq .Step 1}}<span class="pill">cold</span>{{else}}<span class="pill">bump {{.Step}}</span>{{end}}</td>
 <td class="mut">{{.Sendbox}}</td>
 <td class="mut" style="font-variant-numeric:tabular-nums">{{if ge (len .SentAt) 16}}{{slice .SentAt 0 16}}{{else}}{{.SentAt}}{{end}}</td>
 <td>

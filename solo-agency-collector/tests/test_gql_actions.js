@@ -345,6 +345,48 @@ async function resolveWith(items, inputs, opts) {
       /POLICY_FLAG[\s\S]{0,600}policy_refused/.test(bg), "missing");
   }
 
+  console.log("\n== Task G: the composer may arrive late, or never (not a member) ==");
+  {
+    // Measured live 2026-08-17: a group-post permalink returned opened_panel:false and
+    // "comment composer not found". The opener was searched ONCE, before the wait — so
+    // a page that renders a beat late could never recover. It must keep looking.
+    let ticks = 0, opened = false;
+    const opener = fakeEl({ "aria-label": "Comment" }, { innerText: "Comment" });
+    opener.dispatchEvent = () => { opened = true; return true; };
+    const boxEl = fakeEl({ "aria-label": "Comment as Fictional Operator", contenteditable: "true", role: "textbox" });
+    boxEl.innerText = "";
+    const ctx = makeCtx({
+      href: "https://www.facebook.com/groups/668676178569386/posts/123456789012345/",
+      querySelectorAll: (sel) => {
+        ticks++;
+        // Nothing at all for the first few polls: the page has not rendered yet.
+        if (ticks < 4) return [];
+        if (String(sel).indexOf("textbox") > -1) return opened ? [boxEl] : [];
+        if (String(sel).indexOf("role=\"button\"") > -1) return [opener];
+        return [];
+      }
+    });
+    const r = await ctx.window.__soloActRun("fb.post.comment", {
+      text: "hi", dry_run: false,
+      _target_url: "https://www.facebook.com/groups/668676178569386/posts/123456789012345/" });
+    check("a composer that renders late is still found", r.status !== "not_found", r.items[0] && r.items[0].error);
+    check("the opener was clicked during the wait, not only before it", opened === true, opened);
+  }
+  {
+    // No composer, no opener, but Facebook offers to let you join: that is not a bug in
+    // the extension and must not be reported as one.
+    const join = fakeEl({ "aria-label": "Join group" }, { innerText: "Join group" });
+    const ctx = makeCtx({
+      href: "https://www.facebook.com/groups/668676178569386/posts/123456789012345/",
+      querySelectorAll: (sel) => String(sel).indexOf("textbox") > -1 ? [] : [join]
+    });
+    const r = await ctx.window.__soloActRun("fb.post.comment", {
+      text: "hi",
+      _target_url: "https://www.facebook.com/groups/668676178569386/posts/123456789012345/" });
+    check("a non-member is told so, not told the composer is missing",
+      r.status === "not_a_member" && /not a member/.test(r.items[0].error), r.status + " " + (r.items[0] && r.items[0].error));
+  }
+
   console.log("\n" + (fail === 0 ? "ALL " + pass + " CHECKS PASSED" : pass + " passed, " + fail + " FAILED"));
   process.exit(fail === 0 ? 0 : 1);
 })();

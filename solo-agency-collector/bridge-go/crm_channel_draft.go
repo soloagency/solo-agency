@@ -51,6 +51,12 @@ type channelDraftArgs struct {
 	PostExcerpt string
 	BodyText    string
 	PostSeenAt  string // when the scan observed the post (RFC3339); freshness is judged from it
+	// Collector: the extension instance that READ this group. Publishing must come
+	// from that same account and no other — it is the only one proven to be a member
+	// of the group, and a non-member gets no composer at all (measured live
+	// 2026-08-17: "comment composer not found" on a post the collector could read
+	// perfectly well). Any other account is a guess with an account-shaped cost.
+	Collector string
 }
 
 // ---- post identity ---------------------------------------------------------
@@ -302,7 +308,8 @@ func (c *crmStore) channelDraftWrite(campaignSlug string, a channelDraftArgs, s 
 		// No lead_id: a commented author never becomes a contact (operator ruling
 		// 2026-08-17). `to` carries the post, which is what is being addressed.
 		"lead_id": "", "campaign_slug": campaignSlug, "channel": ch, "step": 1,
-		"to": strOr(a.PostURL, a.GroupURL), "post_url": a.PostURL, "group_url": a.GroupURL,
+		"collector": a.Collector,
+		"to":        strOr(a.PostURL, a.GroupURL), "post_url": a.PostURL, "group_url": a.GroupURL,
 		"post_author": a.PostAuthor, "post_excerpt": a.PostExcerpt, "post_seen_at": seenAt,
 		"subject": "", "body_text": body, "body_html": "",
 		"confidence_band": "review_carefully", "hooks_used": channelHooks(ch, a),

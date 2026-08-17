@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -161,9 +162,26 @@ func TestCommentOutcomeReleasesAFailedPost(t *testing.T) {
 	if _, still := idx.Posts[canonicalPostID(post)]; still {
 		t.Fatal("a failed comment must release the post for a later attempt")
 	}
-	d, _ := readJSONFile(filepath.Join(cd, "outbox", "approved", id+".json"))
-	if mStr(d, "status") != "blocked" || mStr(d, "blocker") != "action_blocked" {
-		t.Fatalf("failed draft: %v / %v", d["status"], d["blocker"])
+	// A failed publish goes BACK to the approval queue with the reason attached: the
+	// failures here are environmental (not a member, page never rendered) and the
+	// operator fixes them and retries. Left in approved/ as "blocked" it would be a
+	// draft he could see nowhere and re-approve never.
+	back := ""
+	_ = filepath.Walk(filepath.Join(cd, "outbox", "pending_approval"), func(p string, fi os.FileInfo, e error) error {
+		if e == nil && !fi.IsDir() && strings.HasSuffix(p, id+".json") {
+			back = p
+		}
+		return nil
+	})
+	if back == "" {
+		t.Fatal("a failed comment must return to pending_approval for another decision")
+	}
+	d, _ := readJSONFile(back)
+	if mStr(d, "status") != "pending_approval" || mStr(d, "blocker") != "action_blocked" {
+		t.Fatalf("returned draft: %v / %v", d["status"], d["blocker"])
+	}
+	if mStr(d, "decided_by") != "" {
+		t.Fatal("a returned draft must be undecided again")
 	}
 
 	// And the published case: remembered, and no longer counted as waiting work.
@@ -177,8 +195,10 @@ func TestCommentOutcomeReleasesAFailedPost(t *testing.T) {
 	if idx.Posts[canonicalPostID(post)].Status != "posted" {
 		t.Fatal("a published comment must be remembered as posted")
 	}
+	// The PUBLISHED one stops counting; the earlier failed one is back in the queue
+	// and counts again, because it is a decision the operator still owes.
 	alive, _ := store.aliveChannelDrafts("comments")
-	if alive != 0 {
-		t.Fatalf("a published comment must stop counting against capacity, alive=%d", alive)
+	if alive != 1 {
+		t.Fatalf("published should not count, returned should: alive=%d want 1", alive)
 	}
 }

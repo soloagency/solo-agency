@@ -56,6 +56,16 @@ know **what this group has been talking about for a week**. Read for two things:
 
 Never post into a group that is not in `audience.groups`; `draft post` refuses it.
 
+
+**Pin the scan to ONE collector account, and remember which.** Enqueue the read with
+`allowed_extension_instance_ids: ["<instance_id>"]`, chosen from the extensions the bridge lists
+on `/status`. That account is the only one PROVEN to be a member of the group — Facebook serves a
+non-member the post with no composer at all, which is exactly the failure measured on 2026-08-17:
+the collector read the post perfectly and then reported `comment composer not found`. Pass the same
+id as `"collector"` when you deposit the draft; the bridge publishes from that account and from no
+other, and an item whose account is not checked in waits rather than going out under a different
+name.
+
 ### 3. Decide whether there is anything worth posting
 
 Answer in order, stop at the first "no":
@@ -84,7 +94,8 @@ most campaigns should draft zero or one.
 tool crm-store --client-dir {outreach} draft post --campaign X --json '{
   "group_url": "<group url from audience.groups>",
   "body_text": "<the post>",
-  "basis": "<one line: what in the group's last week made this the post to write>" }'
+  "basis": "<one line: what in the group's last week made this the post to write>",
+  "collector": "<the extension instance id that read this group>" }'
 ```
 
 `tool crm-store draft capacity --campaign X` says how many more will be accepted. Refusals are
