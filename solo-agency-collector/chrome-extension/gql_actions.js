@@ -408,16 +408,56 @@
   // prefix instead of any box whose label merely contains "comment": the loose pattern
   // also matched the search field and the status composer, which is how a comment could
   // land somewhere other than the post it was meant for.
-  var COMMENT_AS = /^(comment as|bình luận với tư cách|viết bình luận)/i;
+  // Facebook's composer label is NOT a stable key. It has now moved three times: the original
+  // "Comment as <name>", two label guesses that both missed, and — measured on one post, two
+  // accounts, at the same moment — "Answer as Binh" for one and "Write an answer…" for the other.
+  // A question-style group renames Comment to Answer, and the wording also differs per viewer.
+  // Widening the pattern again would be the fourth guess.
+  //
+  // So the label is now a HINT and the structure is the key: inside the post's own scope, a
+  // visible contenteditable textbox is the composer. What is enumerated instead is the set of
+  // impostors, because those are stable — the search field, a Messenger thread, and the
+  // create-a-post composer are the same three boxes on every layout.
+  var COMPOSER_HINT = /(comment|answer|reply|bình luận|trả lời|phản hồi)/i;
+  var COMPOSER_IMPOSTOR = /(^| )(search|tìm kiếm|message|nhắn tin|aa|write something|create a post|what's on your mind|bạn đang nghĩ gì|viết gì đó|tạo bài viết)/i;
+  // Every editable box the page is showing, with the attributes a matcher could key on. Shared by
+  // dry_run and by the not_found path: both exist to answer "why did it not type", and answering
+  // it twice in two shapes is how the two answers drift apart.
+  function seenTextboxes() {
+    var out = [];
+    try {
+      var tb = document.querySelectorAll('div[contenteditable="true"], [role="textbox"], textarea');
+      for (var i = 0; i < tb.length && out.length < 12; i++) {
+        var r = tb[i].getBoundingClientRect();
+        out.push({
+          label: (tb[i].getAttribute("aria-label") || "").slice(0, 80),
+          placeholder: (tb[i].getAttribute("data-placeholder") || tb[i].getAttribute("placeholder") || "").slice(0, 80),
+          role: tb[i].getAttribute("role") || "", editable: tb[i].getAttribute("contenteditable") || "",
+          visible: r.width > 0 && r.height > 0
+        });
+      }
+    } catch (e) { /* diagnostics must never be the thing that fails */ }
+    return out;
+  }
+  function composerLabelOf(el) {
+    return norm((el.getAttribute("aria-label") || "") + " " + (el.getAttribute("data-placeholder") || el.getAttribute("placeholder") || ""));
+  }
   function findCommentBox(root) {
     var scope = root || document;
-    var boxes = scope.querySelectorAll('div[contenteditable="true"][role="textbox"]');
+    var boxes = scope.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"]');
+    var candidates = [];
     for (var i = 0; i < boxes.length; i++) {
-      var lbl = boxes[i].getAttribute("aria-label") || "";
+      var lbl = composerLabelOf(boxes[i]);
       var r = boxes[i].getBoundingClientRect();
-      if (COMMENT_AS.test(lbl) && r.width > 0 && r.height > 0) return boxes[i];
+      if (r.width <= 0 || r.height <= 0) continue;
+      if (COMPOSER_IMPOSTOR.test(lbl)) continue;             // search / chat / status composer
+      if (COMPOSER_HINT.test(lbl)) return boxes[i];          // said so itself, in either attribute
+      candidates.push(boxes[i]);
     }
-    return null; // no guessing — a wrong box means commenting in the wrong place
+    // No label matched. One surviving box inside the post's scope is unambiguous, so take it —
+    // that is what a reader would do. Zero or several is still a refusal: a wrong box means
+    // commenting in the wrong place, and that is worse than not commenting.
+    return candidates.length === 1 ? candidates[0] : null;
   }
   // Reels ship without a composer until the comment panel is opened; a post permalink
   // already has one. The opener's label is exactly "Comment" (not "Comment with a GIF").
@@ -475,7 +515,14 @@
     if (!text) return wrapCap("fb.post.comment", "error", { text: "", target_preview: preview, error: "no comment text provided" });
 
     if (inputs.dry_run) {
-      return wrapCap("fb.post.comment", "dry_run", { text: text, target_preview: preview, box_found: !!findCommentBox(scope === document ? null : scope) });
+      var dbox = findCommentBox(scope === document ? null : scope);
+      var out = { text: text, target_preview: preview, box_found: !!dbox };
+      if (dbox) out.box_label = composerLabelOf(dbox).slice(0, 80);
+      // dry_run is the mode you reach for BECAUSE something is wrong, so it carries the same
+      // evidence the failure path does. Reporting box_found:false alone sends the operator back
+      // to guessing, which is how the label was mis-guessed twice already.
+      else out.seen_textboxes = seenTextboxes();
+      return wrapCap("fb.post.comment", "dry_run", out);
     }
 
     var root = scope === document ? null : scope;
@@ -506,18 +553,8 @@
       // read perfectly and in a group the account belongs to. Guessing which label
       // changed is how the last two attempts were spent — so report what is actually
       // on the page instead. This is the evidence the next fix is written from.
-      var sawBoxes = [], sawButtons = [];
+      var sawBoxes = seenTextboxes(), sawButtons = [];
       try {
-        var tb = document.querySelectorAll('div[contenteditable="true"], [role="textbox"], textarea');
-        for (var bi = 0; bi < tb.length && sawBoxes.length < 12; bi++) {
-          var br = tb[bi].getBoundingClientRect();
-          sawBoxes.push({
-            label: (tb[bi].getAttribute("aria-label") || "").slice(0, 80),
-            placeholder: (tb[bi].getAttribute("data-placeholder") || tb[bi].getAttribute("placeholder") || "").slice(0, 80),
-            role: tb[bi].getAttribute("role") || "", editable: tb[bi].getAttribute("contenteditable") || "",
-            visible: br.width > 0 && br.height > 0
-          });
-        }
         var bt = document.querySelectorAll('[role="button"]');
         for (var ci = 0; ci < bt.length && sawButtons.length < 25; ci++) {
           var lb = norm(bt[ci].getAttribute("aria-label") || bt[ci].innerText || "");
@@ -890,6 +927,11 @@
   // Phase 1 of a match_text write: read the listing and return AT MOST one permalink.
   // Deliberately separate from __soloActRun so this call can never write anything —
   // background.js navigates to the result and calls __soloActRun on the target page.
+  // Exposed for the offline harness. The composer matcher is the piece that has been wrong three
+  // times, and driving it through a full fake post DOM tests the plumbing rather than the rule —
+  // this makes the rule itself assertable against the exact labels a live page produced.
+  window.__soloActFindCommentBox = findCommentBox;
+
   window.__soloActResolve = async function (capId, inputs) {
     inputs = inputs && typeof inputs === "object" ? inputs : {};
     try { return await resolveByContent(String(capId || ""), inputs); }
