@@ -1069,7 +1069,19 @@
   }
 
   window.__soloGqlExtractCapability = function (capabilityId, inputs) {
-    var out = { available: false, capability: capabilityId || "", count: 0, items: [] };
+    // available means THE CAPABILITY RAN, never "it found something". background.js nulls a record
+    // whose capability reports unavailable, so tying the flag to the row count made "the feed never
+    // rendered", "there is no capture for this query", "the extractor is missing" and "the code
+    // threw" produce the identical output: records:null, and nothing to tell them apart.
+    //
+    // Measured: a run of every read capability in hidden tabs returned records:null for seven of
+    // them — group.posts, group.search_posts, groups.search, newsfeed, people.search,
+    // profile.friends, profile.videos — all of which had simply never seen a capture, because a
+    // hidden tab does not render a feed. That is a diagnosable fact and it was thrown away.
+    //
+    // Emptiness travels in `found`, `count`, `items` and `reason`. This is the same contract the
+    // DOM capabilities were fixed to three times over; the GraphQL path still had the old one.
+    var out = { available: true, found: false, capability: capabilityId || "", count: 0, items: [] };
     try {
       var CAP = window.__soloGql;
       if (!CAP || !Array.isArray(CAP.captures) || !CAP.captures.length) { out.reason = "no_capture"; return out; }
@@ -1091,9 +1103,10 @@
       });
       var res = fn(mergedCaps, inputs || {});
       res.stream_chunks_merged = streamMerged;
-      res.available = res.count > 0;
+      res.available = true;
+      res.found = res.count > 0;
       res = applyTimeWindow(res, inputs);
-      if (!res.available) res.reason = "no_match";
+      if (!res.found) res.reason = res.reason || "no_match";
       return res;
     } catch (err) {
       out.error = String(err && err.message ? err.message : err);

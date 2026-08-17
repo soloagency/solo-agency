@@ -320,6 +320,23 @@
   // ids, so a pfbid permalink pins nothing and any page would pass. Compare the paths
   // directly instead. This is the last thing standing between "the second navigation
   // landed" and writing onto the listing page we just searched.
+  // The token that identifies the POST inside a permalink. Taking "the first long
+  // number in the path" is wrong for a group permalink: /groups/<gid>/posts/<pid>
+  // yields the GROUP id, which of course survives on the group feed — so a deleted
+  // post that redirects to its feed looked like "same item" and the comment would
+  // land under whatever post sits on top. Read the post segment explicitly, and only
+  // fall back to a bare number when there is no post segment at all.
+  function postTokenIn(path) {
+    var p = lower(String(path || ""));
+    var m = p.match(/\/posts\/(pfbid[0-9a-z]+|\d{6,})/)
+      || p.match(/\/permalink\/(pfbid[0-9a-z]+|\d{6,})/)
+      || p.match(/\/videos\/(\d{6,})/) || p.match(/\/reel\/(\d{6,})/)
+      || p.match(/(pfbid[0-9a-z]+)/);
+    if (m) return m[1];
+    // No post segment (a group root, a profile): the first long run is the best we have.
+    return (p.match(/(\d{6,})/) || [])[1] || "";
+  }
+
   function resolvedDrift(capId, inputs) {
     var want = String(inputs._resolved_url || "");
     if (!want) return null;
@@ -329,7 +346,7 @@
       if (lower(new URL(location.href).pathname.replace(/\/+$/, "")) === wp) return null;
       // Facebook may re-shape a permalink (…/posts/<id> ↔ permalink.php?story_fbid=<id>);
       // the post token surviving anywhere in the landed url still proves the same item.
-      var tok = (wp.match(/(pfbid[0-9a-z]+|\d{6,})/i) || [])[1] || "";
+      var tok = postTokenIn(wp);
       if (tok && lower(location.href).indexOf(lower(tok)) > -1) return null;
       return wrapCap(capId, "redirected", {
         resolved_url: want, landed_url: location.href,

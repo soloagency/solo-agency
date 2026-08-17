@@ -1103,7 +1103,7 @@ func (b *bridge) activateRunNowJobForIdentity(job map[string]any, now time.Time,
 	b.mu.Unlock()
 	job["pacing"] = pacingForJob(configDoc, job)
 	if _, ok := job["collector_policy"]; !ok {
-		job["collector_policy"] = defaultCollectorPolicy()
+		job["collector_policy"] = collectorPolicyForJob(job)
 	}
 	month := monthForRun(runID, now)
 	clientSlug := getString(job, "client_slug", "")
@@ -1672,8 +1672,44 @@ func defaultCollectorPolicy() map[string]any {
 		"do_not_message":            true,
 		"do_not_comment":            true,
 		"do_not_react":              true,
+		"do_not_post":               true,
 		"do_not_exfiltrate_secrets": true,
 	}
+}
+
+// writeCapabilityPolicyFlag maps each write capability to the collector_policy flag
+// that forbids it. Read capabilities are deliberately absent.
+var writeCapabilityPolicyFlag = map[string]string{
+	"fb.post.comment": "do_not_comment",
+	"fb.post.react":   "do_not_react",
+	"fb.message.send": "do_not_message",
+	"fb.group.post":   "do_not_post",
+}
+
+// collectorPolicyForJob: the deny-everything default with exactly the write flags
+// this job's OWN sources need cleared.
+//
+// The policy used to be decorative — the extension read only
+// `collector_policy.graphql_capture`, so `do_not_comment: true` rode along on every
+// job and forbade nothing, while the capability catalog advertised it as a guard.
+// The extension now enforces the flags, which means the default deny-all would
+// refuse the very write jobs the operator asked for; the permission has to be minted
+// here, from the sources the bridge is activating, and never copied from a field the
+// caller supplied. A discovery job carries no write capability and therefore keeps
+// the blanket deny it always claimed to have — and now actually gets.
+func collectorPolicyForJob(job map[string]any) map[string]any {
+	pol := defaultCollectorPolicy()
+	for _, s := range asSlice(job["sources"]) {
+		src, ok := s.(map[string]any)
+		if !ok {
+			continue
+		}
+		if flag, isWrite := writeCapabilityPolicyFlag[getString(src, "capability", "")]; isWrite {
+			pol[flag] = false
+			pol["read_only"] = false
+		}
+	}
+	return pol
 }
 
 func configuredSources(doc map[string]any, clientSlug string) []any {

@@ -642,6 +642,30 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
             // redirected to different content before it writes (FB reels/permalinks
             // can drift to a recommended item; a write must never hit the wrong one).
             let actionInputs = Object.assign({}, sourceInputs, { _target_url: String(source.url || "") });
+            // A DIRECT permalink write (no match_text) had no drift guard at all:
+            // driftInfo() pins on targetIdFrom(), which recognises NUMERIC ids only,
+            // so a `pfbid…` permalink pinned nothing and every page passed. A deleted
+            // post redirects to the group feed, findCommentBox takes the topmost
+            // composer, and the comment lands under a stranger's post reporting
+            // verified:true. The requested url IS the pin on this path, so say so and
+            // let resolvedDrift() — which understands pfbid — do its job. Scoped to the
+            // page-surface writes; fb.message.send has its own thread-identity guard.
+            const PIN_TARGET = new Set(["fb.post.comment", "fb.post.react", "fb.group.post"]);
+            if (wantAction && !wantMatchResolve && PIN_TARGET.has(String(source.capability))) {
+              actionInputs._resolved_url = String(source.url || "");
+            }
+            // collector_policy used to be advertised as a guard and read by nothing but
+            // graphql_capture. Enforce it here: the bridge mints the permission from the
+            // job's own sources, so a legitimate write arrives with its flag cleared and
+            // a discovery job's blanket deny finally means something.
+            const POLICY_FLAG = { "fb.post.comment": "do_not_comment", "fb.post.react": "do_not_react",
+                                  "fb.message.send": "do_not_message", "fb.group.post": "do_not_post" };
+            const denyFlag = POLICY_FLAG[String(source.capability)];
+            if (denyFlag && job.collector_policy && job.collector_policy[denyFlag] === true) {
+              refusal = { available: true, capability: String(source.capability), status: "policy_refused",
+                count: 1, items: [{ capability: String(source.capability), status: "policy_refused",
+                  verified: false, error: "collector_policy." + denyFlag + " forbids this write — nothing was done" }] };
+            }
             let resolvedMatch = null;
             let refusal = null;
 
@@ -938,7 +962,10 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         graphql_manifest: gqlAvailable ? (gql.manifest || []) : [],
         // --- Phase 2 capability layer (typed, per-screen; null when no capability) ---
         capability: source.capability || "",
-        records: gqlRecords && gqlRecords.available ? gqlRecords : null,
+        // A record that EXISTS is never discarded. Gating on `available` is what turned "the feed
+        // did not render in a hidden tab" into records:null on seven capabilities at once, which
+        // reads exactly like a crash. Only a genuinely absent result is null now.
+        records: gqlRecords || null,
         // --- Structured contact layer (additive; emails/phones parsed from the
         // already-captured public page text + mailto:/tel: anchors) ---
         contacts: contacts,

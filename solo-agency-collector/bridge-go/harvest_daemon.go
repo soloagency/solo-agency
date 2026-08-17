@@ -29,6 +29,7 @@ package main
 //   - all state is on disk under flock — the daemon dying mid-tick loses nothing.
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -508,16 +509,23 @@ func (b *bridge) harvestCollectResults(now time.Time, c uiClient, outreachDir, c
 			}
 			// Stale?
 			if t, perr := time.Parse(time.RFC3339, f.QueuedAt); perr == nil && now.Sub(t) > harvestJobStaleAfter {
-				stillPending := false
+				// A collector CLAIMS a pending job by renaming the file out of
+				// jobs/pending/, so os.Remove SUCCEEDING is the only proof nobody
+				// claimed it. Stat-then-Remove is a race — the claim lands between
+				// the two calls (the extension polls every ~5s) and the discarded
+				// Remove error then reports a job that is actually running as
+				// "never claimed". Branch on Remove itself and say which it was:
+				// "claimed but silent" is a different problem from "never picked
+				// up", and only the first can still write something.
+				cancelled := false
 				if f.PendingPath != "" {
-					if _, serr := os.Stat(f.PendingPath); serr == nil {
-						stillPending = true
-						_ = os.Remove(f.PendingPath) // cancel: nobody claimed it
-					}
+					cancelled = os.Remove(f.PendingPath) == nil
 				}
-				reason := "job stale after 20m"
-				if stillPending {
-					reason += " (never claimed — collector busy or offline)"
+				reason := fmt.Sprintf("job stale after %s", harvestJobStaleAfter)
+				if cancelled {
+					reason += " (never claimed — collector busy or offline; the job was cancelled)"
+				} else {
+					reason += " (a collector claimed it but never reported back)"
 				}
 				if hc.Channel == zillowChannel && !strings.HasPrefix(tag, "zleg:") {
 					// zillow enrich: retry elsewhere / give up as enrich_failed — never await_decision

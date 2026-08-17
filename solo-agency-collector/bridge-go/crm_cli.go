@@ -355,7 +355,12 @@ func runCrmStoreCLI(args []string) int {
 		if err != nil {
 			return crmUsageErr(err.Error())
 		}
-		res, err := store.approveApply(actions, "human")
+		// "cli", not "human": this command is run BY THE AGENT, so stamping the
+		// draft `decided_by: human` puts a claim in the audit trail that the code
+		// cannot support — and any later gate that trusts that field would be
+		// trusting the actor about itself. A real human decision comes through the
+		// Approvals page and is stamped `ui` by ingestUIDecisions.
+		res, err := store.approveApply(actions, "cli")
 		if err != nil {
 			return crmFail(err)
 		}
