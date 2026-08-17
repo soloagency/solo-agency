@@ -28,7 +28,15 @@ const AUDIT_KEY = "collector_audit";
 const BUILD_STATE_KEY = "collector_extension_build";
 const CAPTURE_FILES = ["collector_helpers.js", "readability.js", "filtering.js", "infinity_loops.js", "contact_extract.js"];
 const ACTIVE_RUN_LOCK_MINUTES = 120;
-const EXTENSION_BUILD = "0.2.1-name-and-catalog";
+// Read the real manifest version instead of a string someone has to remember to
+// bump. It was frozen at "0.2.1-name-and-catalog" across every build since, so the
+// bridge reported the same version for three extensions running three different
+// builds — and during a live debug there was no way to tell whether a reload had
+// even happened. The label is kept as a suffix so existing log greps still match.
+const EXTENSION_BUILD = (() => {
+  try { return chrome.runtime.getManifest().version + "-name-and-catalog"; }
+  catch (e) { return "0.2.1-name-and-catalog"; }
+})();
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
 
