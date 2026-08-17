@@ -636,7 +636,11 @@ For each active client:
 
 ### F. Load new pipeline (Stages 4/5/6)
 
-15. Maintain a JIT buffer of 3–7 days of drafts. Priority-pick from cold/trigger campaigns,
+15. **This drafting pass is for contact-addressed channels only** (email, DM). A `comment`
+    campaign drafts from POSTS, not from the contact pipeline, and its whole compose loop —
+    scan the groups, judge each post against the goal, `draft comment` — is **Stage 18**; its
+    ceiling is publish capacity, not `daily_quota`. Do not draft comments here.
+    Maintain a JIT buffer of 3–7 days of drafts. Priority-pick from cold/trigger campaigns,
     honoring cross-campaign rules: a contact in an active sequence of campaign A is not drafted
     by B; a hook already used on a person may not open a second campaign. **Bound the drafting
     pass by each campaign's `daily_quota`** (its daily draft budget):
@@ -682,7 +686,10 @@ For each active client:
     thread's sender sticky, and jitter between sends exactly as email does. A send counts as
     done only when the returned record says so (`status: done`, `verified: true`, and for DM
     `id_verified: true`); anything else is a failure to log, not a retry to hammer. Log →
-    `messenger_sent` / `comment_posted` activity. Stages 16/17.
+    `messenger_sent` activity. **Comment and group post are NOT executed here — Stages 18 and 19.**
+    The bridge publishes both the moment the operator approves them (`comment_dispatch.go`), with
+    its own spacing and per-account caps; a run that enqueues `fb.post.comment` or `fb.group.post`
+    would double-post.
 19b. **Leads From Friends (daemon walks, agent judges).** For every campaign with
     `channel_strategy: friend_harvest` (Stage 16), the bridge daemon has been walking seed
     friend lists and enriching friends all day within the operator's budgets; the run's only
