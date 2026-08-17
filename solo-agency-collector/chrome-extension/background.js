@@ -533,12 +533,6 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
   const isZillowCapability = !!source.capability && /^zillow\./.test(String(source.capability));
   const gateContext = { job, source, settings, binding, sourceIndex };
   let humanGate = null;
-  // Whatever the operator was reading, remembered BEFORE the collection tab exists. Data comes
-  // first — a capability that needs an active tab gets one, because a hidden tab silently returns
-  // a record with no posts in it — so the tab IS taken. Giving it back afterwards is the part that
-  // makes that acceptable, and it is best-effort: a failure here costs a moment of attention, not
-  // a row of data, so nothing in the collection path may depend on it.
-  const previousTab = await currentActiveTab();
   const tab = await createTab({ url: source.url, active: tabActivationPlan.createActive });
   try {
     if (activateCollectionTab) {
@@ -1037,43 +1031,9 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         // Ignore tab close races.
       }
     }
-    // Restore focus LAST, after the tab is gone, so the operator lands back where they were
-    // instead of on whatever Chrome picks when a tab closes. Only when the collection tab was
-    // actually activated: a hidden run never moved them, and re-selecting a tab they are already
-    // on would steal focus from a window they switched to in the meantime.
-    if (tabActivationPlan.updateActive) {
-      await restoreActiveTab(previousTab);
-    }
   }
 }
 
-// The operator's tab, captured before collection starts. Null when Chrome has nothing active for
-// this window — a fresh profile, or a window that lost focus — which is a normal state, not a
-// failure, and simply means there is nothing to restore.
-async function currentActiveTab() {
-  try {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const t = tabs && tabs[0];
-    return t && typeof t.id === "number" ? { id: t.id, windowId: t.windowId } : null;
-  } catch (error) {
-    return null;
-  }
-}
-
-async function restoreActiveTab(previous) {
-  if (!previous || typeof previous.id !== "number") return;
-  try {
-    // Verify it still exists. The operator may have closed it while collection ran, and
-    // tabs.update on a dead id throws — a caught throw here would still be a wasted round trip
-    // and an entry in the extension's error log for something that is not an error.
-    const live = await chrome.tabs.get(previous.id);
-    if (!live) return;
-    await chrome.tabs.update(previous.id, { active: true });
-  } catch (error) {
-    // The tab is gone, or the window was closed. Nothing to restore, and nothing to report:
-    // this path never affects what was collected.
-  }
-}
 
 // ---------------------------------------------------------------------------------------------
 // Operator alert + human gate. Today's only user is Zillow's PerimeterX "Press & Hold" bot check
