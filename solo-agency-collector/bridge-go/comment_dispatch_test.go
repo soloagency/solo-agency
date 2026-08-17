@@ -202,3 +202,35 @@ func TestCommentOutcomeReleasesAFailedPost(t *testing.T) {
 		t.Fatalf("published should not count, returned should: alive=%d want 1", alive)
 	}
 }
+
+// TestFailedPublishRefundsTheDailySlot: the per-group counter is spent at enqueue,
+// because a job in flight has already touched Facebook. But an action that provably
+// never landed touched nothing — and charging for it means one failure costs the
+// group its entire daily allowance. Measured live 2026-08-17: a single "composer not
+// found" pushed the operator's next two approvals past midnight.
+func TestFailedPublishRefundsTheDailySlot(t *testing.T) {
+	store := commentFixture(t)
+	b := &bridge{}
+	now := time.Now()
+	gid := "764877593708803"
+	if _, err := withCommentDispatch(store.clientDir, now, func(st *commentDispatchState) error {
+		st.PerGroup[gid] = 1
+		st.InFlight["run1"] = commentQueued{DraftID: "d1", Channel: "comment", GroupID: gid,
+			Campaign: "comments", StartedAt: now.Add(-time.Hour).Format(time.RFC3339)}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The job is long stale and its output never appeared: settled as failed.
+	b.commentDispatchClient(uiClient{Slug: "acme", Path: filepath.Dir(store.clientDir)}, store.clientDir, now)
+	st, _ := withCommentDispatch(store.clientDir, now, func(*commentDispatchState) error { return nil })
+	if n := st.PerGroup[gid]; n != 0 {
+		t.Fatalf("a failed publish must refund the group's daily slot, still charged %d", n)
+	}
+	if len(st.InFlight) != 0 {
+		t.Fatalf("the stale job must be settled, in_flight=%d", len(st.InFlight))
+	}
+	if st.Totals["failed"] == 0 {
+		t.Fatal("the failure must still be counted")
+	}
+}

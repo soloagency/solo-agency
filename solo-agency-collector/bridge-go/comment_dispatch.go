@@ -374,6 +374,25 @@ func (b *bridge) commentDispatchClient(c uiClient, outreachDir string, now time.
 		_, _ = withCommentDispatch(outreachDir, now, func(st *commentDispatchState) error {
 			delete(st.InFlight, o.runID)
 			st.Totals[o.outcome]++
+			if o.outcome == "failed" {
+				// Refund the day's slot. The counter is spent when the job is ENQUEUED,
+				// which is right — it is the account's footprint that matters, and a job
+				// in flight has already touched Facebook. But an action that provably
+				// never landed touched nothing, and charging for it means one failure
+				// silently costs the group its whole daily allowance: measured live,
+				// a single "composer not found" pushed the next two approvals past
+				// midnight.
+				if o.item.Channel == "post" {
+					if st.PerGroup["__posts__"] > 0 {
+						st.PerGroup["__posts__"]--
+					}
+				} else if o.item.GroupID != "" && st.PerGroup[o.item.GroupID] > 0 {
+					st.PerGroup[o.item.GroupID]--
+					if st.PerGroup[o.item.GroupID] == 0 {
+						delete(st.PerGroup, o.item.GroupID)
+					}
+				}
+			}
 			return nil
 		})
 	}
