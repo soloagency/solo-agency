@@ -430,6 +430,20 @@
     }
     return null;
   }
+  // A non-member sees the post and NO composer; what they do see is an invitation to
+  // join. That difference is the whole diagnosis — reporting it as "composer not found"
+  // sends the operator hunting for a bug in the extension when the fix is one click in
+  // Facebook. Returns the label found, or "".
+  var JOIN_LABEL = /^(join group|join this group|join|tham gia nhóm|tham gia)$/i;
+  function findJoinAffordance() {
+    var els = document.querySelectorAll('[role="button"], a[role="link"]');
+    for (var i = 0; i < els.length; i++) {
+      var lbl = norm(els[i].getAttribute("aria-label") || els[i].innerText || "");
+      var r = els[i].getBoundingClientRect();
+      if (JOIN_LABEL.test(lbl) && r.width > 0 && r.height > 0) return lbl;
+    }
+    return "";
+  }
   function composerText(box) { return norm(box.innerText || box.value || box.textContent || ""); }
   async function typeInto(box, text) {
     box.focus(); hover(box); click(box); box.focus();
@@ -468,14 +482,33 @@
     var box = findCommentBox(root);
     var openedPanel = false;
     if (!box) {
-      // A reel has no composer until its comment panel is opened; a permalink already
-      // does. Open it, then WAIT for the composer to render — it arrives a beat later,
-      // and reading too early is what made this look unreliable on reels.
-      var opener = findCommentOpener(root);
-      if (opener) { click(opener); openedPanel = true; }
-      box = await waitFor(function () { return findCommentBox(root); }, 8000, 350);
+      // The composer can be missing for two different reasons and the old order could
+      // only survive one: a reel ships without a composer until its panel is opened,
+      // while a permalink that has not finished rendering has neither the composer NOR
+      // the opener yet. Looking for the opener exactly once, BEFORE the wait, meant a
+      // slow page then waited 8s for a box that could only appear after a click that
+      // never happened — measured live on a group post permalink: opened_panel:false,
+      // "comment composer not found", on a page that had the composer moments later.
+      // Re-look for the opener on every poll instead.
+      box = await waitFor(function () {
+        var b = findCommentBox(root);
+        if (b) return b;
+        if (!openedPanel) {
+          var opener = findCommentOpener(root);
+          if (opener) { click(opener); openedPanel = true; }
+        }
+        return null;
+      }, 12000, 400);
     }
-    if (!box) return wrapCap("fb.post.comment", "not_found", { text: text, target_preview: preview, opened_panel: openedPanel, error: "comment composer not found" });
+    if (!box) {
+      var join = findJoinAffordance();
+      return wrapCap("fb.post.comment", join ? "not_a_member" : "not_found", {
+        text: text, target_preview: preview, opened_panel: openedPanel, join_prompt: join,
+        error: join
+          ? "this account is not a member of the group — Facebook offers \"" + join + "\" instead of a composer. Join the group in that Chrome profile, then approve again."
+          : "comment composer not found"
+      });
+    }
 
     await jitter();
     try { box.scrollIntoView({ block: "center" }); } catch (e) { /* ignore */ }

@@ -59,6 +59,16 @@ Groups are the operator's list. Never comment in a group that is not in `audienc
 never add one yourself — `draft comment` refuses it (`group_not_in_campaign`) and that refusal is
 correct, not an obstacle to route around.
 
+
+**Pin the scan to ONE collector account, and remember which.** Enqueue the read with
+`allowed_extension_instance_ids: ["<instance_id>"]`, chosen from the extensions the bridge lists
+on `/status`. That account is the only one PROVEN to be a member of the group — Facebook serves a
+non-member the post with no composer at all, which is exactly the failure measured on 2026-08-17:
+the collector read the post perfectly and then reported `comment composer not found`. Pass the same
+id as `"collector"` when you deposit the draft; the bridge publishes from that account and from no
+other, and an item whose account is not checked in waits rather than going out under a different
+name.
+
 ### 3. Judge each post, one at a time
 
 For every post the scan returned, answer in order and stop at the first "no":
@@ -89,7 +99,8 @@ scan.
 tool crm-store --client-dir {outreach} draft comment --campaign X --json '{
   "post_url": "<permalink>", "group_url": "<group url from audience.groups>",
   "post_author": "<display name as shown>", "post_excerpt": "<first ~200 chars of the post>",
-  "body_text": "<the comment>", "post_seen_at": "<ISO time the scan observed it>" }'
+  "body_text": "<the comment>", "post_seen_at": "<ISO time the scan observed it>",
+  "collector": "<the extension instance id that read this group>" }'
 ```
 
 This is the ONLY way a comment draft may enter the system. Never write a file into
