@@ -217,6 +217,10 @@
   // ONE directory page. Cards come from
   //   props.pageProps.displayData.agentDirectoryFinderDisplay.searchResults.results.resultsCards[]
   // and the page-level counters from searchResults + userInput. Verified 2026-08-16:
+  // Zillow's hard ceiling: 25 directory pages per query, and asking for page 26+ returns page 25
+  // again — so the pager can never signal "this is the end" versus "this is the wall". Everything
+  // that depends on the ceiling reads it from here.
+  var ZILLOW_PAGE_CAP = 25;
   // 16 cards/page, resultsFound 44,534 for los-angeles-ca (348 with ?name=kim), pager capped
   // at "Page 1 of 25" — so page_count, not resultsFound, is the walkable ceiling.
   function cardToItem(card) {
@@ -315,7 +319,7 @@
     var pageCount = pager.page_count, pageCountSource = pager.page_count ? "pager" : "";
     if (!pageCount && resultsFound != null) {
       // Zillow shows at most 25 directory pages per query, ~15 cards each. An ESTIMATE, marked as such.
-      pageCount = Math.max(1, Math.min(25, Math.ceil(resultsFound / 15)));
+      pageCount = Math.max(1, Math.min(ZILLOW_PAGE_CAP, Math.ceil(resultsFound / 15)));
       pageCountSource = "estimated";
     }
     var hasMore = pager.next_enabled != null ? pager.next_enabled : (pageCount ? page < pageCount : items.length >= 15);
@@ -328,6 +332,17 @@
       page: page, page_count: pageCount || null, page_count_source: pageCountSource || null,
       results_found: resultsFound, has_more: !!hasMore,
       next_page_url: hasMore ? withPage(href, page + 1) : null,
+      // TRUNCATION, stated rather than left to be inferred. Zillow serves 25 directory pages per
+      // query and no more: past page 25 it keeps returning page 25, so the pager cannot say
+      // whether a walk ended or hit the wall. `results_found` still tells the truth — Los Angeles
+      // reports 44,534 agents while a query reaches at most ~375 — so the gap is computable, and
+      // it is the number that decides whether a query needs splitting into narrower regions.
+      // Without it, a keyword matching 2,000 agents looks exactly like one matching 300, and the
+      // 1,600 nobody can reach are lost with nothing recording that they existed.
+      reachable_max: ZILLOW_PAGE_CAP * 15,
+      truncated: resultsFound != null && resultsFound > ZILLOW_PAGE_CAP * 15,
+      unreachable_estimate: resultsFound != null ? Math.max(0, resultsFound - ZILLOW_PAGE_CAP * 15) : null,
+      coverage_ratio: resultsFound ? Math.min(1, (ZILLOW_PAGE_CAP * 15) / resultsFound) : null,
       query: {
         url: href,
         location_text: clean(ui.locationText),
