@@ -306,6 +306,45 @@ async function resolveWith(items, inputs, opts) {
     check("dry_run names the group it would post into", r.items[0].group === "668676178569386", r.items[0].group);
   }
 
+  console.log("\n== Task F: a pfbid permalink pins the POST, not its group ==");
+  {
+    // The post was deleted, so Facebook served the group feed instead. targetIdFrom()
+    // only recognises numeric ids, so driftInfo() cannot fire on a pfbid permalink —
+    // resolvedDrift() is the only thing standing between this and a comment posted
+    // under a stranger's post. It must not accept the GROUP id as proof of the post.
+    const ctx = makeCtx({ href: "https://www.facebook.com/groups/668676178569386" });
+    ctx.document.querySelectorAll = () => [];
+    const url = "https://www.facebook.com/groups/668676178569386/posts/pfbid02xk9qz7m4rt6vh3n8pq/";
+    const r = await ctx.window.__soloActRun("fb.post.comment",
+      { text: "hi", dry_run: true, _target_url: url, _resolved_url: url });
+    check("deleted pfbid post -> landed on the group feed -> refuses", r.status === "redirected", r.status);
+  }
+  {
+    const url = "https://www.facebook.com/groups/668676178569386/posts/pfbid02xk9qz7m4rt6vh3n8pq/";
+    const ctx = makeCtx({ href: url + "?comment_id=9" });
+    ctx.document.querySelectorAll = () => [];
+    const r = await ctx.window.__soloActRun("fb.post.comment",
+      { text: "hi", dry_run: true, _target_url: url, _resolved_url: url });
+    check("same pfbid post (query string ignored) -> proceeds", r.status === "dry_run", r.status);
+  }
+  {
+    // A group ROOT url has no post segment; the group id is still the right pin there.
+    const url = "https://www.facebook.com/groups/668676178569386";
+    const ctx = makeCtx({ href: url + "/", querySelectorAll: groupDom([dialogEl()], null) });
+    const r = await ctx.window.__soloActRun("fb.group.post",
+      { text: "hi", dry_run: true, _target_url: url, _resolved_url: url });
+    check("pinning a group root does not false-refuse", r.status === "dry_run", r.status);
+  }
+  {
+    // background.js cannot run in this harness (service worker + chrome.*), so pin its
+    // two guards by source: they are one-liners that a refactor deletes silently.
+    const bg = fs.readFileSync(path.join(__dirname, "..", "chrome-extension", "background.js"), "utf8");
+    check("background.js pins _resolved_url on direct permalink writes",
+      /PIN_TARGET[\s\S]{0,400}actionInputs\._resolved_url\s*=/.test(bg), "missing");
+    check("background.js enforces collector_policy on write actions",
+      /POLICY_FLAG[\s\S]{0,600}policy_refused/.test(bg), "missing");
+  }
+
   console.log("\n" + (fail === 0 ? "ALL " + pass + " CHECKS PASSED" : pass + " passed, " + fail + " FAILED"));
   process.exit(fail === 0 ? 0 : 1);
 })();

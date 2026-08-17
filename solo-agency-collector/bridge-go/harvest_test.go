@@ -2,6 +2,7 @@ package main
 
 import (
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -463,5 +464,62 @@ func TestHarvestWakeAmnesty(t *testing.T) {
 	}
 	if !isMachineSideFailure("no_record") || !isMachineSideFailure("source error") || isMachineSideFailure("account checkpoint") {
 		t.Fatal("machine-side classification wrong")
+	}
+}
+
+// TestCancelPendingJobIsProofNotGuess: withdrawing a stale job must be decided by
+// os.Remove, never by a preceding os.Stat. The extension claims a job by renaming
+// the file, and it polls every ~5s, so a Stat-then-Remove pair loses the race often
+// enough to matter — and the two outcomes are opposites: a job that was never
+// claimed cannot write anything, while a claimed one still can.
+func TestCancelPendingJobIsProofNotGuess(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "job.json")
+	if err := os.WriteFile(path, []byte(`{"run_id":"r1"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !cancelPendingJob(path) {
+		t.Fatal("an unclaimed pending file must be reported as cancelled")
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatal("cancelling must actually remove the pending file")
+	}
+	// The claim landed first: the file is gone, and this is NOT a cancellation.
+	if cancelPendingJob(path) {
+		t.Fatal("a file already claimed (renamed away) must not be reported as cancelled")
+	}
+	if cancelPendingJob("") {
+		t.Fatal("no pending path recorded is not a cancellation")
+	}
+}
+
+// TestCollectorPolicyForJob: the policy stopped being decorative, so the bridge has
+// to mint the permission a legitimate write needs — and only that one.
+func TestCollectorPolicyForJob(t *testing.T) {
+	read := collectorPolicyForJob(map[string]any{"sources": []any{
+		map[string]any{"capability": "fb.profile.enrich"},
+	}})
+	for _, flag := range []string{"do_not_comment", "do_not_post", "do_not_message", "do_not_react", "read_only"} {
+		if read[flag] != true {
+			t.Fatalf("a read-only job must keep %s=true, got %v", flag, read[flag])
+		}
+	}
+	write := collectorPolicyForJob(map[string]any{"sources": []any{
+		map[string]any{"capability": "fb.post.comment"},
+	}})
+	if write["do_not_comment"] != false {
+		t.Fatal("a comment job must arrive with do_not_comment cleared, or the collector refuses it")
+	}
+	if write["read_only"] != false {
+		t.Fatal("a write job is not read_only")
+	}
+	for _, flag := range []string{"do_not_post", "do_not_message", "do_not_react"} {
+		if write[flag] != true {
+			t.Fatalf("a comment job must NOT be allowed to %s", flag)
+		}
+	}
+	// Nothing is derived from a capability the job does not actually carry.
+	if empty := collectorPolicyForJob(map[string]any{}); empty["do_not_comment"] != true {
+		t.Fatal("a job with no sources must be denied every write")
 	}
 }

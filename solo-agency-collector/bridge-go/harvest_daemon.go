@@ -517,10 +517,7 @@ func (b *bridge) harvestCollectResults(now time.Time, c uiClient, outreachDir, c
 				// "never claimed". Branch on Remove itself and say which it was:
 				// "claimed but silent" is a different problem from "never picked
 				// up", and only the first can still write something.
-				cancelled := false
-				if f.PendingPath != "" {
-					cancelled = os.Remove(f.PendingPath) == nil
-				}
+				cancelled := cancelPendingJob(f.PendingPath)
 				reason := fmt.Sprintf("job stale after %s", harvestJobStaleAfter)
 				if cancelled {
 					reason += " (never claimed — collector busy or offline; the job was cancelled)"
@@ -824,4 +821,19 @@ func (b *bridge) harvestReadJob(runID string) (out legOutcome, done bool) {
 		out.Reason = "no_record"
 	}
 	return out, true
+}
+
+// cancelPendingJob tries to withdraw a job that is still sitting in
+// collector/jobs/pending/, and reports whether it was PROVABLY withdrawn.
+//
+// A collector claims a job by RENAMING the file out of that directory, so
+// os.Remove succeeding is the only proof nobody claimed it. Statting first and
+// then ignoring Remove's error is a race the extension wins regularly — it polls
+// every ~5s — and it turns "claimed and running" into "never claimed", which is
+// the opposite conclusion: one may still write, the other cannot.
+func cancelPendingJob(path string) bool {
+	if path == "" {
+		return false
+	}
+	return os.Remove(path) == nil
 }
