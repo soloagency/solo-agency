@@ -58,6 +58,20 @@ for key in ("permissions", "host_permissions", "content_scripts"):
         print("  WARNING manifest.%s differs (repo vs dev) — not synced by design; patch the dev manifest by hand:" % key)
         print("      repo:", json.dumps(a.get(key), ensure_ascii=False))
         print("      dev :", json.dumps(b.get(key), ensure_ascii=False))
+
+# The dev manifest MUST NOT be the repo's. Its name is the client's, and that is how the operator
+# tells two loaded extensions apart in chrome://extensions — where they are otherwise identical
+# rows. It was silently lost once already: a full rebuild from the repo overwrote the aven-ngo
+# manifest and both extensions then read "Solo Agency Local Collector", visible only by noticing
+# the branding was gone. This check makes that loud, since the drift warning above never looked
+# at the name.
+brand = [k for k in ("name", "description") if a.get(k) == b.get(k)]
+if a.get("name") == b.get("name"):
+    print("  WARNING the dev manifest carries the REPO name %r — the client branding was overwritten," % b.get("name"))
+    print("      probably by a full rebuild. Restore it from a manifest_<date>.json backup in the dev folder;")
+    print("      chrome://extensions shows two identical rows until you do.")
+elif "description" in brand:
+    print("  note: dev manifest description matches the repo's — client branding may be partly overwritten")
 PY
 
 repo_ver="$(python3 -c "import json;print(json.load(open('$SRC/manifest.json'))['version'])")"
