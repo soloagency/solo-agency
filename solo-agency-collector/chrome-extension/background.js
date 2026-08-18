@@ -357,7 +357,12 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
         await postToBridge(bridgeBaseUrl, token, "/collect/new_private_source", candidate, binding);
         counts.newPrivateSources += 1;
       }
-      await postToBridge(bridgeBaseUrl, token, "/collect/snapshot", collected.snapshot, binding);
+      // A source can now finish without one — a run that never reached the site has nothing to
+      // snapshot. Posting null here would write an empty snapshot record for a page that was
+      // never seen.
+      if (collected.snapshot) {
+        await postToBridge(bridgeBaseUrl, token, "/collect/snapshot", collected.snapshot, binding);
+      }
       await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
         run_id: runId,
         client_slug: job.client_slug || binding.client_slug || "",
@@ -550,7 +555,32 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     if (activateCollectionTab) {
       await activateTab(tab, tabActivationPlan);
     }
-    await waitForTabLoad(tab.id, 25000);
+    const loadReason = await waitForTabLoad(tab.id, 25000);
+    // Before anything reads the page, establish whether the navigation reached the site at all.
+    // A network drop must be reported as a NETWORK fact, not as an empty profile: the harvest
+    // ledger quarantines the Facebook account for three consecutive failures, and a dropped
+    // connection produces exactly that on all three collectors at once.
+    const reach = await pageReachability(tab);
+    if (!reach.reachable) {
+      const dp = {
+        object: "collector_data_point", record_type: "data_point",
+        run_id: String(job.run_id || ""), client_slug: String(job.client_slug || binding?.client_slug || ""),
+        source_index: sourceIndex, source_name: source.name || "", source_url: source.url,
+        current_url: source.url, capability: String(source.capability || ""),
+        captured_at: new Date().toISOString(), read_only: true,
+        tab_load: loadReason, source_login_status: "unknown",
+        records: {
+          available: true, capability: String(source.capability || ""), count: 0, items: [{
+            capability: String(source.capability || ""), status: "network_unavailable", verified: false,
+            error: "the machine could not reach the site (" + reach.reason + (reach.detail ? ": " + reach.detail : "") + ")"
+          }],
+          status: "network_unavailable", reason: reach.reason
+        }
+      };
+      // Returned, not posted: collectSource hands its data point to the caller, which owns the
+      // bridge url and the token. Posting from here would need both threaded in for one branch.
+      return { dataPoint: dp, snapshot: null, newPrivateSources: [] };
+    }
     // Zillow may answer the navigation with its PerimeterX "Press & Hold" page instead of the
     // content. Wait for the OPERATOR to pass it (chime + tab to front + heartbeat), then go on
     // as if nothing happened — see zillowHumanGate. Nothing is solved or retried by code.
@@ -1652,24 +1682,62 @@ function installCollectorCaptureOverlay(options) {
   }
 }
 
+// Resolves with "complete" or "timeout". It used to resolve with nothing either way, so a page
+// that never loaded was indistinguishable from one that did — and the capability then ran against
+// whatever was on screen and reported an empty profile. Callers that ignore the reason behave
+// exactly as before; the ones that care can now tell.
 function waitForTabLoad(tabId, timeoutMs) {
   return new Promise((resolve) => {
     let done = false;
-    const timer = setTimeout(() => finish(), timeoutMs || 25000);
-    function finish() {
+    const timer = setTimeout(() => finish("timeout"), timeoutMs || 25000);
+    function finish(reason) {
       if (done) return;
       done = true;
       clearTimeout(timer);
       chrome.tabs.onUpdated.removeListener(listener);
-      resolve();
+      resolve(reason);
     }
     function listener(updatedTabId, changeInfo) {
       if (updatedTabId === tabId && changeInfo.status === "complete") {
-        finish();
+        finish("complete");
       }
     }
     chrome.tabs.onUpdated.addListener(listener);
   });
+}
+
+// Did the navigation actually reach the site? Chrome renders its own error document for a dropped
+// connection, and that document loads perfectly well — status "complete", no exception, a real
+// page. The capability then reads it, finds no profile, and the harvest ledger counts a failure
+// against the Facebook ACCOUNT for what was a few seconds of wifi.
+//
+// This matters because the three collectors share one machine and one connection. Measured over
+// 976 harvest runs: 75 of 102 failures fell in clusters where two or three DIFFERENT clients
+// failed inside the same ten minutes. Three independent Facebook accounts do not get throttled in
+// lockstep four times a day; a machine does.
+async function pageReachability(tab) {
+  try {
+    const [res] = await withTimeout(chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => ({
+        online: navigator.onLine !== false,
+        // Chrome's net-error document. Stable across versions and locales, unlike its text.
+        errorPage: !!document.querySelector("#main-frame-error, .neterror, #error-information-popup-container"),
+        errorCode: (document.querySelector(".error-code") || {}).textContent || "",
+        href: location.href,
+        title: document.title || ""
+      })
+    }), 5000, "reachability_probe_timeout");
+    const r = (res && res.result) || null;
+    if (!r) return { reachable: true, reason: "" };          // cannot tell: do not accuse
+    if (r.errorPage) return { reachable: false, reason: "chrome_error_page", detail: (r.errorCode || r.title || "").slice(0, 80) };
+    if (!r.online) return { reachable: false, reason: "browser_offline", detail: "" };
+    return { reachable: true, reason: "" };
+  } catch (error) {
+    // The probe failing is not evidence of anything. Never turn an inability to check into a
+    // verdict — that is how a diagnostic becomes a new source of false failures.
+    return { reachable: true, reason: "" };
+  }
 }
 
 async function withTimeout(promise, timeoutMs, label) {
