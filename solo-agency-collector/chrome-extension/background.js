@@ -534,6 +534,10 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
 
   const activateCollectionTab = shouldActivateCollectionTab(job, source);
   const captureOverlayText = collectorCaptureOverlayText(job, binding);
+  const captureOverlayScope = {
+    client: String(job?.client_name || binding?.client_name || job?.client_slug || binding?.client_slug || "").trim(),
+    campaign: collectorCaptureOverlayCampaign(job, source)
+  };
   const tabActivationPlan = collectionTabActivationPlan(job, source);
   // Zillow capabilities (zillow_extract.js) — decided up front because they change three
   // things below: no scrolling, an extra MAIN-world lib, and the human gate for Zillow's
@@ -554,7 +558,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
       humanGate = await zillowHumanGate(tab, gateContext);
     }
     if (activateCollectionTab) {
-      await installCollectorCaptureOverlayOnTab(tab, captureOverlayText);
+      await installCollectorCaptureOverlayOnTab(tab, captureOverlayText, captureOverlayScope);
     }
     await delay(randomDelayMs(settings, job.pacing || {}));
     // Inject the cleaning pipeline (filtering.js + helpers), then run the
@@ -963,6 +967,11 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
         capture_overlay: activateCollectionTab,
         capture_overlay_text: activateCollectionTab ? captureOverlayText : "",
+        // Recorded as well as shown. The overlay answers "whose run is this" while it is on
+        // screen; the data point answers it afterwards, which is when the question is usually
+        // asked — several clients harvest at once and a stray record is hard to place later.
+        overlay_client: captureOverlayScope.client,
+        overlay_campaign: captureOverlayScope.campaign,
         read_only: true,
         // --- Phase 1 hybrid GraphQL layer (additive; null/empty when absent) ---
         graphql_available: gqlAvailable,
@@ -1336,18 +1345,30 @@ async function activateTab(tab, plan = {}) {
   }
 }
 
-async function installCollectorCaptureOverlayOnTab(tab, text) {
+async function installCollectorCaptureOverlayOnTab(tab, text, meta) {
   if (!tab || typeof tab.id !== "number") return false;
   try {
     await withTimeout(chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: installCollectorCaptureOverlay,
-      args: [{ text }]
+      args: [{ text, client: (meta && meta.client) || "", campaign: (meta && meta.campaign) || "" }]
     }), 8000, "install_capture_overlay_timeout");
     return true;
   } catch (error) {
     return false;
   }
+}
+
+// The campaign a run belongs to, when the job says. Several producers name it differently and no
+// single field is guaranteed: live jobs from the harvest loop carry `harvest_campaign`
+// ("leads-from-friends-list"), while an ad-hoc run_now job carries none at all. Absent is normal,
+// and an empty "Campaign:" line is worse than no line — it looks like the value was lost.
+function collectorCaptureOverlayCampaign(job, source) {
+  const raw = String(
+    job?.campaign_name || job?.campaign || job?.campaign_slug || job?.harvest_campaign ||
+    source?.campaign_name || source?.campaign || source?.campaign_slug || ""
+  ).trim();
+  return raw.slice(0, 60);
 }
 
 function collectorCaptureOverlayText(job, binding) {
@@ -1437,6 +1458,14 @@ function installCollectorCaptureOverlay(options) {
 	  overflow: hidden !important;
 	  text-overflow: ellipsis !important;
 	  max-width: 320px !important;
+	}
+	#${overlayId} .solo-agency-collector-scope {
+	  margin-top: 3px !important;
+	  font-size: 11px !important;
+	  font-weight: 600 !important;
+	  color: #bfdbfe !important;
+	  letter-spacing: 0.2px !important;
+	  word-break: break-word !important;
 	}
 	#${overlayId} .solo-agency-collector-record-subtitle {
 	  color: #cbd5e1 !important;
@@ -1529,6 +1558,21 @@ function installCollectorCaptureOverlay(options) {
 	    privacy.textContent = "No username, password, cookie, token, or account secret is collected or sent out.";
 	    stack.appendChild(text);
 	    stack.appendChild(subtitle);
+	    // WHOSE run this is. The header already names the client; this says which campaign it is
+	    // working for, which is the question the operator actually has when a tab opens by itself
+	    // while several clients are being harvested at once. Rendered only when the job carries a
+	    // campaign — an ad-hoc run has none, and a blank "Campaign:" reads as a lost value.
+	    const client = String((options && options.client) || "").trim();
+	    const campaign = String((options && options.campaign) || "").trim();
+	    if (client || campaign) {
+	      const who = document.createElement("div");
+	      who.className = "solo-agency-collector-scope";
+	      const parts = [];
+	      if (client) parts.push("Client: " + client);
+	      if (campaign) parts.push("Campaign: " + campaign);
+	      who.textContent = parts.join("   ·   ");
+	      stack.appendChild(who);
+	    }
 	    stack.appendChild(privacy);
 	    head.appendChild(dot);
 	    head.appendChild(stack);
