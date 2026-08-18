@@ -827,7 +827,25 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
                 },
                 args: [String(source.capability), source.inputs && typeof source.inputs === "object" ? source.inputs : {}]
               }), CAPABILITY_TIMEOUT_MS, "gql_capability_timeout");
-              return cres && cres.result ? cres.result : null;
+              // executeScript can RESOLVE with nothing: the frame navigated or was destroyed while
+              // the capability was running, so there is no result and no exception either. That
+              // path used to return null, which the bridge writes as records:null — and the
+              // harvest ledger then counts it as no_record, the same bucket as "read the page and
+              // it was empty". Measured across 976 harvest runs: 101 failures, and every single
+              // observable field on the data point was IDENTICAL to a success — tab mode, login
+              // status, url_drifted, scroll_count, capture count, title. The record carried no
+              // evidence at all, so the failure could not be diagnosed by anyone downstream and
+              // was attributed to Facebook throttling for want of anything better.
+              if (cres && cres.result) return cres.result;
+              return {
+                available: true, capability: String(source.capability), count: 0, items: [{
+                  capability: String(source.capability), status: "error", verified: false,
+                  error: cres
+                    ? "capability returned no result (the page navigated or re-rendered while it ran)"
+                    : "capability produced no frame result (the tab or frame went away mid-run)"
+                }],
+                _debug: { href: source.url, had_frame: !!cres }
+              };
             };
             gqlRecords = await runCapabilityDispatch();
             // Zillow: the bot check can also land AFTER the pre-load gate (PerimeterX interposes
