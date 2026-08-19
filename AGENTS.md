@@ -19,7 +19,7 @@ Whenever the agent hits a blocker, unexpected behavior, repeated failure, unclea
 After setup/routine exists, offer or maintain the daily `Solo Agency - GitHub Update Watch` automation task described in `playbooks/11_UPDATE_AND_VERSION_WATCH.md`. It checks GitHub for new Solo Agency versions, classifies changes, writes an internal/local update notice, and applies/resyncs updates only when the human has approved auto-apply. Update-watch must not send Telegram, WideCast/email-fallback, provider notifications, social posts, or client notifications because version maintenance is internal user/agency work. If bridge Go/runtime or extension files changed, the update handoff must include the current setup's exact bridge rerun command and Chrome extension reload/Load unpacked steps for every client profile.
 
 
-## Brain swap — taking over a live install on the same machine
+## Brain swap and multi-brain operation — a live install on the same machine
 
 The filesystem is the system; the agent is only the brain. The data root
 (`daily-content-pipeline/`), the bridge, the Chrome extension, the playbooks and every credential
@@ -29,7 +29,9 @@ case by what is on disk: a `daily-content-pipeline/` with clients and a collecto
 with a bridge already answering on `127.0.0.1:17321` — means you are the SECOND brain on a LIVE
 system, even if this chat says "set up" or "get started".
 
-Take over in this order, and do not skip step 2:
+Two brains may also drive this install AT THE SAME TIME — the human keeps Codex and Claude open
+together and hands each of them different work. Taking over and working alongside are the same
+procedure; only step 4 differs. Take over in this order, and do not skip step 2:
 
 0. **Probe what THIS surface can do, before promising anything.** Run the installed bridge
    binary once (`<bridge> tool crm-store --help`). If the runtime cannot execute local binaries
@@ -57,12 +59,32 @@ Take over in this order, and do not skip step 2:
    (`daily-content-pipeline/automation/*_scheduled_run_prompt.md`) and the cadence/timezone
    recorded in `schedule.md` / the automation manifest, then resync the manifest per the
    Automation Resync contract with this runtime's native task ids.
-4. **One brain owns the schedule.** Confirm with the human that the OTHER agent's scheduled tasks
-   are disabled (only the human can do that inside the other runtime) before your first scheduled
-   run executes: two brains running the same schedule against one campaign double-sends. The other
-   agent stays installed as a cold standby; the swap back is this same procedure in reverse.
+4. **One brain owns each scheduled task.** Confirm with the human that the OTHER agent's
+   scheduled tasks are disabled (only the human can do that inside the other runtime) before your
+   first scheduled run executes: two brains firing the same task against one campaign double-sends.
+   Ownership is per TASK, not per install — one brain may own a client's Daily Run while another
+   owns Update Watch; record each owner in `automation_manifest.md`. This rule governs SCHEDULED
+   runs only. It does not stop the human from working with both agents interactively at the same
+   time; see step 6.
 5. Then operate normally — same playbooks, same tools, same gates. Nothing about the system knows
    or cares which brain is driving.
+6. **Both brains may operate at once.** A swap is not a precondition for using a second agent: the
+   human may keep Codex and Claude open together and give each of them different work against this
+   same install — run this campaign here, enrich that lead there. That is a supported operating
+   mode. Do not refuse it, and do not ask the human to close the other agent for ordinary
+   interactive work. Load `playbooks/MULTI_BRAIN_OPERATIONS.md` and honour its claim discipline
+   (per-client `run_lock` with `held_by_brain`, scoped work leases, the never-concurrent list —
+   update flow, Setup Flow, one client's Daily Run, one campaign's approve-then-send — and brain
+   attribution on every write) before touching client state. The other agent also stays installed
+   as a cold standby; the swap back is this same procedure in reverse.
+
+Every live install root must carry its own `AGENTS.md` and `CLAUDE.md` pointer files: absolute
+paths to the workspace root, the verified source checkout, the runtime state root and the bridge,
+plus an instruction to read the source `AGENTS.md` in full. Without them a fresh session opened at
+the install root cannot tell it is standing on a live system, and the human has to re-explain the
+whole setup by hand every time. Create or verify them during setup, on takeover, and on every
+update; the exact templates are in `playbooks/MULTI_BRAIN_OPERATIONS.md`. They are install-local
+operator state and are never committed to the product repo.
 
 Use the canonical terms `public data sources` and `private data sources` in human-facing text. Do not shorten them, omit `data`, or use slash labels.
 

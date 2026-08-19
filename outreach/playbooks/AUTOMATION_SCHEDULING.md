@@ -445,10 +445,20 @@ work, duplicate sends, and duplicate notifications:
 
 - Before starting a client's daily run, create or check
   `outputs/YYYY-MM/YYYY-MM-DD/{client}-run_lock.json` (`started_at`, task name, session hint,
-  `target_client_slug`). If a fresh lock exists (younger than about 3 hours), do **not** start
-  a duplicate run for that client — log it and stop. A stale lock (older than the window, or
-  from a run that clearly died) may be taken over, with a note in the run record. Remove or
-  close the lock on completion.
+  `target_client_slug`, `held_by_brain`, `held_by_session`). If a fresh lock exists (younger
+  than about 3 hours), do **not** start a duplicate run for that client — log it and stop. A
+  stale lock (older than the window, or from a run that clearly died) may be taken over, with a
+  note in the run record. Remove or close the lock on completion.
+- `held_by_brain` names the runtime holding it (`codex`, `claude-code`, `claude-cowork`, ...),
+  never the generic string `agent`. Several brains may operate one install at the same time, so
+  a lock that does not say who holds it is unreadable. A fresh lock held by ANOTHER brain is
+  reported to the human by name and elapsed time, then you stop — do not take it over, do not
+  silently wait.
+- The `run_lock` covers a FULL client run. Smaller operator-directed work — enrich one contact,
+  draft one email, render an existing report — takes a scoped work lease instead, so two brains
+  working on disjoint scopes do not block each other. The never-concurrent list (update flow,
+  Setup Flow, one client's Daily Run, one campaign's approve-then-send) and the lease contract
+  are in `playbooks/MULTI_BRAIN_OPERATIONS.md` of the Solo Agency root.
 - The `run_lock` is per client. It gates the whole client run, and it protects sends in
   particular — combined with the in-code atomic quota reservation (`reserve(sendbox, day)`),
   it prevents two concurrent runs from double-spending a box's daily quota.

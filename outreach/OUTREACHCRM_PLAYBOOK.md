@@ -249,6 +249,8 @@ The whole system runs in exactly three kinds of human-facing sessions:
 2. **ONE content automation session per client** — `{Client} - Solo Agency Daily Run` (owned by the content pipeline).
 3. **ONE automation session per campaign** — `{Client} - {Campaign} Daily Run`, created when the campaign is created. Each runs its campaign's daily loop. The per-client `run_lock` serializes same-client campaign sessions so they never overlap; client-level steps inside the loop (inbox sync, triage/apply-rules, follow-up advising) are idempotent (IMAP cursor + rule guard keys), so whichever campaign session runs first that day performs them and later sessions reuse the state.
 
+A session type says WHAT the session is for, not WHICH brain runs it. Several brains may hold different sessions on one install at the same time — Codex in one campaign session, Claude doing operator-directed work in another — provided each takes the `run_lock` or scoped work lease its work requires. The one setup session and each scheduled task remain single-owner. See `playbooks/MULTI_BRAIN_OPERATIONS.md` in the Solo Agency root.
+
 ## Latest Architecture: Setup Flow And Automation Flow
 
 OutreachCRM has two independent human-facing flows.

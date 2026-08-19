@@ -5,7 +5,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 482 | 49fc7f65042a405282c14170378d776ba6af46520de2ceabbc76973a6789d2a9 | If any required stage was not loaded, load it before proceeding. |
+| OUTREACHCRM_PLAYBOOK.md | 484 | 999bab0ec6b631312622411afb1bd821221b305feb88f284e575410fcc5ff76a | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 497 | deb12399b61ef2d8ae6056df9ac197ed8ed0555d569e0656448098af7543da82 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 736 | 13e60b41a100d0d4ea9026daab0cc402d5752717fb70fb50028396ccabde5851 | --- |
 | playbooks/02_SENDBOX_SETUP.md | 288 | a27aeb6aab632d7e7427ca4fc7d6bbef68264787f5132752cee36fd77fce225b | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
@@ -25,7 +25,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/17_ZILLOW_HARVEST.md | 90 | 595d2099f1b4a05e2463dc373c73db3396c811249459c7f6f2e125bdbcea499b | (`collector/inbox/YYYY-MM/{owner}/harvest/{run_id}/`) regardless of which extension read it. |
 | playbooks/18_COMMENT_CAMPAIGN.md | 171 | c76ff1d908225e07dcf07bb0c512a7b2157dcdb60049b897399da93a475ecbdb | file's examples, it will be copied into live output — that has happened four times. |
 | playbooks/19_GROUP_POST_CAMPAIGN.md | 145 | 1b3188d4e7b5276e386da8585d4690479b4510fbdf792a68196d3fb88ea75cb2 | examples, it will be copied into live output — that has happened four times. |
-| playbooks/AUTOMATION_SCHEDULING.md | 1011 | e681c6d640dd5b55a0d3c0cfb4cf8fc2bf4337fabafededca893f370089167ac | instruction to connect WideCast (API key + Telegram/email fallback) or Gmail/email. |
+| playbooks/AUTOMATION_SCHEDULING.md | 1021 | fadd1b992bbe0401b57e40951b42494a9f1295b0b45baf8aa1b49310db2c74d6 | instruction to connect WideCast (API key + Telegram/email fallback) or Gmail/email. |
 | playbooks/LOAD_LEDGER_PROTOCOL.md | 61 | eb6eb58c360495ffff347a8dbbee9d06538599a4e4999e3bd7c22ae5c38268d7 | `playbooks/LOAD_MANIFEST.md` lists `OUTREACHCRM_PLAYBOOK.md` plus every `playbooks/**/*.md` with `path \| lines \| sha256 \| last_line`. It is regenerated automatically by the root `deploy-soloagency.sh` `generate_outreach_artifacts` step (`--outreach-only`) on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection. |
 | playbooks/SCHEDULED_RUN_ENTRYPOINT.md | 138 | b7fa8f0450aea6a7f84d799d44f262541716ef1977f58be4fabde4c2d76bc44b | Notification is operator-facing status only, never outbound marketing to a contact. |
 | playbooks/SETUP_FLOW_ENTRYPOINT.md | 98 | b8b3704a6c03ea1bd3b2b61d1f28f63666cb6f290bc87e86baab20f8a56b6587 | Do not ask whether to send now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not enrich, draft-to-send, or notify in Setup Flow. |
