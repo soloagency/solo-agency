@@ -6,6 +6,8 @@ Human-facing required actions must use the `**[ACTION REQUIRED]**` block from `O
 
 OutreachCRM is a local-first, multi-client cold-email + CRM system. It must run in an AI agent runtime with local workspace file access, scheduled/automation tasks, local Python execution (`tool crm-store`, `tool gmail`, `tool import-leads`, `tool verify-email`), and parallel/sub-agent work streams, such as Codex or Claude Desktop/Cowork. Do not present a plain web chat as the primary runtime; it can review outputs but cannot host the automation, file state, and mail/tool work the playbook requires.
 
+Several brains may operate one install AT THE SAME TIME — the operator keeps Codex and Claude open together and gives each of them different work (run this campaign here, enrich that contact there). That is a supported mode, not a violation: never tell the human to close the other agent for ordinary interactive work. Scheduled tasks stay single-owner (one runtime owns each `{Client} - {Campaign} Daily Run`); operator-directed work is concurrent, bounded by the per-client `run_lock` (which now records `held_by_brain`), scoped work leases, and the never-concurrent list — update flow, Setup Flow, one client's Daily Run, and one campaign's approve-then-send sequence. The contract is `playbooks/MULTI_BRAIN_OPERATIONS.md` in the Solo Agency root.
+
 ## Two flows
 
 During Setup Flow, never send an email, run a campaign, enrich a lead for send, or draft-and-send in the setup chat, even if the human explicitly asks. Treat the request as a handoff: create/resync the client-specific automation task and tell the human the exact task name to run. Setup Flow only configures; its terminal state is `ready_for_automation_first_run`.
