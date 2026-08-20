@@ -818,10 +818,29 @@ func gmailCmdSend(clientDir, draftPath string, dryRun bool) (map[string]any, err
 	}); err != nil {
 		return nil, err
 	}
+	// Who wrote the words. Hardcoding "agent" made a human-authored reply
+	// indistinguishable from a generated one in the only ledger that is the spine.
+	author := strOr(mStr(draft, "authored_by"), "agent")
 	act, err := store.logActivity("email_sent", leadID, fmt.Sprintf("sent step %d via %s", step, slug),
-		"agent", nil, map[string]any{"message_id": rfcMessageID})
+		author, nil, map[string]any{"message_id": rfcMessageID})
 	if err != nil {
 		return nil, err
+	}
+	// Retain what actually went out. msg.Body carries the compliance footer the
+	// engine appended moments ago, which the draft never had — this is the only
+	// moment the sent text is a fact rather than a reconstruction, and the draft
+	// file it could otherwise be read from gets rotated (seven .backup outbox
+	// siblings exist on the live install already).
+	// Deliberately AFTER the activity and deliberately non-fatal: the activities
+	// ledger is the spine, and failing to store a body must never lose the send.
+	if _, mErr := store.a.appendLog("messages", map[string]any{
+		"direction": "out", "contact_id": leadID, "campaign": mStr(draft, "campaign_slug"),
+		"step": step, "rfc_message_id": rfcMessageID, "in_reply_to": threadRefs,
+		"sendbox": slug, "from": mStr(sb, "email"), "to": mStr(draft, "to"),
+		"subject": msg.rawSubject, "body_text": msg.Body,
+		"activity_seq": act["seq"], "authored_by": author, "provenance": "as_sent",
+	}); mErr != nil {
+		fmt.Fprintf(os.Stderr, "message body not retained for %s: %v\n", rfcMessageID, mErr)
 	}
 	if step == 1 {
 		ct := store.getContact(leadID)
@@ -1010,6 +1029,23 @@ func (p *parsedPart) plainBody() string {
 // replies into positive/question/objection with no text to sort. The operator's
 // only recourse was guessing which of eleven mailboxes held the thread.
 // Scope: campaign replies only. Personal mail stays counted-and-never-stored.
+// messageRetained reports whether this Message-ID already has a row in the
+// current month's ledger. Scoped to one month on purpose: the replay window is
+// the IMAP cursor, which never spans months, and reading every month to answer
+// one question would grow with the archive.
+func messageRetained(store *crmStore, mid, when string) bool {
+	p, err := store.a.logPath("messages", when)
+	if err != nil {
+		return false
+	}
+	for _, r := range readJSONLines(p) {
+		if mStr(r, "rfc_message_id") == mid {
+			return true
+		}
+	}
+	return false
+}
+
 func replySnippet(body string, limitRunes int) string {
 	var kept []string
 	for _, ln := range strings.Split(body, "\n") {
@@ -1313,12 +1349,6 @@ func gmailCmdSync(clientDir, slug string, maxMsgs int) (map[string]any, error) {
 				if snippet != "" {
 					summary += ": " + firstLine(snippet, 120)
 				}
-				act, err := store.logActivity("email_reply", lead, summary, "rule",
-					nil, map[string]any{"message_id": msg.Header.Get("Message-ID"), "snippet": snippet})
-				if err != nil {
-					m.logout()
-					return nil, err
-				}
 				fromAddr := ""
 				if a, err := mail.ParseAddress(msg.get("From")); err == nil {
 					fromAddr = a.Address
@@ -1326,6 +1356,36 @@ func gmailCmdSync(clientDir, slug string, maxMsgs int) (map[string]any, error) {
 				matchedBy := mStr(cls, "matched_by")
 				if matchedBy == "" {
 					matchedBy = "thread"
+				}
+				// The true parent, computed by the classifier and previously discarded.
+				// Our own In-Reply-To points at our last message; this is the message the
+				// person was actually answering.
+				mid := msg.Header.Get("Message-ID")
+				act, err := store.logActivity("email_reply", lead, summary, "rule", nil,
+					map[string]any{"message_id": mid, "snippet": snippet,
+						"in_reply_to": mStr(cls, "in_reply_to"), "subject": msg.get("Subject"),
+						"from": fromAddr, "matched_by": matchedBy})
+				if err != nil {
+					m.logout()
+					return nil, err
+				}
+				// Retain the inbound body, but only for a THREAD match. A from_address
+				// match is DESIGN.md's contact_message, not a campaign reply: it is any
+				// mail from any address we hold for this person, and storing it would
+				// quietly turn the ledger into a mailbox.
+				// Idempotent on Message-ID: the IMAP cursor is read before the lock and
+				// every in-loop error returns before the cursor is saved, so replay is
+				// normal (reply_poller.go documents it).
+				if matchedBy == "thread" && mid != "" && !messageRetained(store, mid, nowISO()) {
+					if _, mErr := store.a.appendLog("messages", map[string]any{
+						"direction": "in", "contact_id": lead, "campaign": cls["campaign"],
+						"rfc_message_id": mid, "in_reply_to": mStr(cls, "in_reply_to"),
+						"sendbox": slug, "from": fromAddr, "to": msg.get("To"), "cc": msg.get("Cc"),
+						"subject": msg.get("Subject"), "body_text": msg.plainBody(),
+						"activity_seq": act["seq"], "authored_by": "contact", "provenance": "as_received",
+					}); mErr != nil {
+						fmt.Fprintf(os.Stderr, "inbound body not retained for %s: %v\n", mid, mErr)
+					}
 				}
 				replies = append(replies, map[string]any{"lead_id": lead, "campaign": cls["campaign"],
 					"activity_seq": act["seq"], "subject": msg.get("Subject"),

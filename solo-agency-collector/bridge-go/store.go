@@ -12,6 +12,7 @@ package main
 import (
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -506,7 +507,16 @@ func mapsOf(l []any) []map[string]any {
 // --- JSON store (json_adapter.py port) ----------------------------------------
 
 var logPaths = map[string]string{"tasks": "tasks/tasks.jsonl"}
-var reservedCollections = map[string]bool{"activities": true, "tasks": true, "contact_identities": true, "suppression": true}
+var reservedCollections = map[string]bool{"activities": true, "tasks": true, "contact_identities": true, "suppression": true, "messages": true}
+
+// monthlyLogs are append-only ledgers partitioned by month. A conversation grows
+// without bound, so the message bodies cannot share one flat file the way tasks
+// do; partitioning bounds the file a reader has to open.
+var monthlyLogs = map[string]bool{"activities": true, "messages": true}
+
+// errLocked: the lock is held by someone else right now. Callers that must not
+// block (HTTP handlers) turn this into a 409 rather than waiting.
+var errLocked = errors.New("locked")
 
 type jsonStore struct {
 	clientRoot string
@@ -567,8 +577,8 @@ func (s *jsonStore) recordPath(collection, id string) (string, error) {
 }
 
 func (s *jsonStore) logPath(log, when string) (string, error) {
-	if log == "activities" {
-		return filepath.Join(s.crmRoot, "activities", monthStr(when), "activities.jsonl"), nil
+	if monthlyLogs[log] {
+		return filepath.Join(s.crmRoot, log, monthStr(when), log+".jsonl"), nil
 	}
 	if p, ok := logPaths[log]; ok {
 		return filepath.Join(s.crmRoot, p), nil
@@ -577,6 +587,23 @@ func (s *jsonStore) logPath(log, when string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(s.crmRoot, log+".jsonl"), nil
+}
+
+// tryLock is lock() without the wait: it returns errLocked when the lock is
+// already held, so a caller with a caller of its own (a browser) gets told.
+func (s *jsonStore) tryLock(name string) (func(), error) {
+	if err := os.MkdirAll(s.locksDir, 0o755); err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(filepath.Join(s.locksDir, name+".lock"), os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	if err := flockTry(f); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return func() { flockUnlock(f); f.Close() }, nil
 }
 
 // lock takes the named exclusive lock; the returned func releases it.

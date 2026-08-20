@@ -12,7 +12,10 @@ import (
 	"unsafe"
 )
 
-const lockfileExclusiveLock = 0x00000002
+const (
+	lockfileExclusiveLock   = 0x00000002
+	lockfileFailImmediately = 0x00000001
+)
 
 var (
 	kernel32         = syscall.NewLazyDLL("kernel32.dll")
@@ -25,6 +28,22 @@ func flockExclusive(f *os.File) error {
 	r, _, err := procLockFileEx.Call(f.Fd(), uintptr(lockfileExclusiveLock), 0, 1, 0,
 		uintptr(unsafe.Pointer(&ol)))
 	if r == 0 {
+		return err
+	}
+	return nil
+}
+
+// flockTry is flockExclusive with FAIL_IMMEDIATELY: a held lock is an answer,
+// not a wait. See the note in flock_unix.go.
+func flockTry(f *os.File) error {
+	var ol syscall.Overlapped
+	r, _, err := procLockFileEx.Call(f.Fd(),
+		uintptr(lockfileExclusiveLock|lockfileFailImmediately), 0, 1, 0,
+		uintptr(unsafe.Pointer(&ol)))
+	if r == 0 {
+		if errno, ok := err.(syscall.Errno); ok && errno == 33 { // ERROR_LOCK_VIOLATION
+			return errLocked
+		}
 		return err
 	}
 	return nil
