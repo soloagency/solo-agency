@@ -60,9 +60,27 @@ Each envelope: `{uid, profile_url, seed, name, subtitle, ok, error?, attempts, r
 `record` is the `fb.profile.enrich` item (`name`, `category`, `about_lines[]`, `work[]`,
 `emails[]`, `websites[]`, `posts[]` with caption/date/permalink, `checked[]`). `ok: false`
 means the collector could not read the profile (private, error, or gave up after retries on
-different accounts) — `error` says which. For EACH envelope, in a fresh-context judge
-sub-agent when the batch is large (same isolation rule as email writing — a long loop degrades
-judgement), decide against the GOAL only:
+different accounts) — `error` says which.
+
+**You are the SUPERVISOR of this pass, not the judge. Delegation is mandatory, not an
+optimisation.** Never read envelopes yourself: spawn low-level judge sub-agents (cheapest model
+that can follow the rule), hand each ONE batch, and let it both decide and record. Then keep
+driving until the queue is empty.
+
+Why it is mandatory, stated plainly because the reminder alone has already failed: one envelope
+carries a whole enrich record — `about_lines`, `work[]`, and every post caption. Twenty-five of
+them is a large read, and after two or three batches the supervising context is full, so the run
+"wraps up" while thousands still wait. That is not hypothetical: on 2026-08-18 a live campaign
+held **860 profiles awaiting decision** against 99 ever decided, while the daemon kept adding
+more every day. Delegating keeps those records out of your context entirely — you see one line
+back per batch, so batch 40 costs you exactly what batch 1 did.
+
+Each judge sub-agent gets: the campaign `goal_description` + `goal_keywords`, its own batch of
+envelopes, and the rules below. It decides, calls `contact add` / `harvest decide` **itself**,
+and returns ONE line: `n kept, n rejected, n failed, <uid of anything it could not decide>`.
+It returns no prose, no envelope contents, and no reasoning — that is the whole point.
+
+For EACH envelope, decide against the GOAL only:
 
 - **kept** — the friend matches the goal's trade AND location (and any other stated trait),
   evidenced by the record (`about_lines`, `work[]`, `posts[]` captions, subtitle). Then:
@@ -107,9 +125,31 @@ judgement), decide against the GOAL only:
 `decide` refuses a `--profile` that is not in the pending set — pass the envelope's
 `profile_url` verbatim, never a re-typed variant.
 
-Do not stop at one batch: loop `pending` → decide until `remaining` is 0 or the run's time is
-up. Every decision is one `decide` call; the daemon reads the registry, so an undecided record
-just waits — nothing is lost between runs.
+### The supervisor loop — run it until it is actually empty
+
+```
+remaining = (harvest pending --campaign X --limit 1).remaining
+while remaining > 0 and time/budget left:
+    dispatch judge sub-agents over the next batches   (parallel where the runtime allows)
+    re-read `remaining` from `harvest pending`        (never from your own count)
+    log one line: "batch N: k kept, r rejected — M remaining"
+```
+
+Three rules that make the difference between finishing and appearing to:
+
+- **`remaining` is read from the store, never inferred.** A sub-agent that dies silently leaves
+  its batch undecided; only the store knows. Trust the number, not your tally.
+- **Finishing one wave is not finishing the pass.** Do not report, do not summarise, do not move
+  to the next step of the run while `remaining > 0` and there is time left. "I processed a
+  batch" is not an outcome; "`remaining` is 0" is.
+- **Stopping early is allowed, but only out loud.** If the run's time or budget ends first, say
+  the exact number left — `stopped with 612 remaining` — in the run reply. A pass that quietly
+  ends with a backlog reads identically to a pass that finished, which is how 860 accumulated
+  without anyone noticing.
+
+Every decision is one `decide` call; the daemon reads the registry, so an undecided record just
+waits — nothing is lost between runs. But nothing moves either, and the daemon adds more
+tomorrow.
 
 ## Rules that are not optional
 
@@ -126,6 +166,12 @@ just waits — nothing is lost between runs.
   ("an account that is friends with this seed may be needed"), never re-run it yourself.
   Per-account daily caps and pacing are enforced operator-wide (`collector/harvest_ledger.json`)
   across every harvest campaign of every client.
+- **Never judge in your own context, and never stop mid-queue.** This applies to a scheduled
+  run and equally to the operator asking in chat ("duyệt list lead"): spawn low-level judge
+  sub-agents, keep supervising, and stop only when `remaining` is 0 or you say out loud how many
+  are left. An operator who asks for a list to be reviewed is asking for the LIST, not for a
+  batch of it — a pass that ends after 25 of 860 and reports success has answered a different
+  question than the one asked.
 - **The goal decides, not the agent's taste.** A friend who is clearly a great person but not
   the goal's trade/place is `rejected`. The operator widens the goal if they want more.
 - **Only kept friends get the website hop.** Rows 6-7 cost a live fetch per person; spending
