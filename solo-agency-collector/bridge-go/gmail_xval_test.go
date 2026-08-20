@@ -218,3 +218,15 @@ func TestEffectiveQuotaRamp(t *testing.T) {
 		t.Fatalf("bad start_date must fall back to start_quota: %d", got)
 	}
 }
+
+// A reply freezes the lead. Answering that reply must still be possible, or
+// Stage 10's "replies -> reply drafts" produces drafts nothing can ever send.
+func TestPresendFreezeAllowsReplyBlocksBump(t *testing.T) {
+	frozen := map[string]any{"sequence_state": "frozen"}
+	if mStr(frozen, "sequence_state") == "frozen" && !mBool(map[string]any{"is_reply": true}, "is_reply") {
+		t.Fatal("a draft marked is_reply must not be treated as frozen-blocked")
+	}
+	if !(mStr(frozen, "sequence_state") == "frozen" && !mBool(map[string]any{"is_reply": false}, "is_reply")) {
+		t.Fatal("a bump (not is_reply) to a frozen lead must still be blocked")
+	}
+}

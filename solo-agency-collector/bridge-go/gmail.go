@@ -486,7 +486,12 @@ func gmailPresendCheck(store *crmStore, clientDir string, sb, draft map[string]a
 	if prim != nil && mStr(prim, "status") == "guessed_only" && !mBool(draft, "guessed_approved") {
 		return false, "guessed_email_needs_approval", "", nil
 	}
-	if mStr(contact, "sequence_state") == "frozen" {
+	// A freeze stops the SEQUENCE marching on; it must not stop us answering the
+	// person who caused it. Stage 10 turns an inbound reply into a reply draft, and
+	// every one of those was unsendable: the reply froze the lead, and the freeze
+	// then blocked the answer. Automated bumps stay blocked (followupsDue skips
+	// frozen leads, and a bump is not is_reply), so the guard keeps its real job.
+	if mStr(contact, "sequence_state") == "frozen" && !mBool(draft, "is_reply") {
 		return false, "sequence_frozen", "", nil
 	}
 	step := mInt(draft, "step", 1)
