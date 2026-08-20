@@ -234,7 +234,9 @@ func containsAll(s string, subs ...string) bool {
 	return true
 }
 
-func contains(s, sub string) bool { return len(sub) == 0 || (len(s) >= len(sub) && indexOf(s, sub) >= 0) }
+func contains(s, sub string) bool {
+	return len(sub) == 0 || (len(s) >= len(sub) && indexOf(s, sub) >= 0)
+}
 
 func indexOf(s, sub string) int {
 	for i := 0; i+len(sub) <= len(s); i++ {
@@ -244,7 +246,6 @@ func indexOf(s, sub string) int {
 	}
 	return -1
 }
-
 
 func TestHarvestLegTriStateAndSeedError(t *testing.T) {
 	clientDir, store := harvestFixture(t)
@@ -400,8 +401,8 @@ func TestHarvestDrilldownRowsAndTemplate(t *testing.T) {
 	env := map[string]any{"uid": "facebook.com/alice.realtor", "profile_url": "https://www.facebook.com/alice.realtor",
 		"seed": seed, "name": "Alice", "ok": true, "attempts": 1, "collector": "ext-a",
 		"record": map[string]any{"category": "Real Estate Agent", "about_lines": []any{"Realtor · OC Homes"},
-			"work": []any{map[string]any{"title": "Realtor", "employer": "OC Homes"}},
-			"posts": []any{map[string]any{"caption": "Just listed in Garden Grove", "date": "2026-08-10", "url": "https://www.facebook.com/alice.realtor/posts/1"}},
+			"work":   []any{map[string]any{"title": "Realtor", "employer": "OC Homes"}},
+			"posts":  []any{map[string]any{"caption": "Just listed in Garden Grove", "date": "2026-08-10", "url": "https://www.facebook.com/alice.realtor/posts/1"}},
 			"emails": []any{"alice@example.com"}}}
 	writeJSONT(t, harvestEnrichedPath(clientDir, "friends-oc", "facebook.com/alice.realtor"), env)
 	_, _ = withProgress(clientDir, "friends-oc", func(p *harvestProgress) error {
@@ -521,5 +522,49 @@ func TestCollectorPolicyForJob(t *testing.T) {
 	// Nothing is derived from a capability the job does not actually carry.
 	if empty := collectorPolicyForJob(map[string]any{}); empty["do_not_comment"] != true {
 		t.Fatal("a job with no sources must be denied every write")
+	}
+}
+
+// A seed error was a one-way door: nothing cleared Error, and Error is what bars
+// a seed from selection, so one collector outage retired the seed permanently.
+// `harvest seed` is the operator's way back, and it must not throw away the walk.
+func TestHarvestSeedSyncClearsTheBreakerAndKeepsTheCursor(t *testing.T) {
+	_, store := harvestFixture(t)
+	cfg := store.getCampaign("friends-oc")
+	hc := harvestConfigFrom(cfg, loadSystemSettings(pipelineRootFromClientDir(store.clientDir)))
+	hc.Channel = harvestChannel
+	if _, err := syncSeeds(store.clientDir, "friends-oc", hc); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := withProgress(store.clientDir, "friends-oc", func(p *harvestProgress) error {
+		p.Seeds[0].Error = "4 consecutive leg failures: no result"
+		p.Seeds[0].LegFailures = 4
+		p.Seeds[0].TriedBoxes = []string{"box-a", "box-b"}
+		p.Seeds[0].EndCursor = "CURSOR"
+		p.CurrentSeed = p.Seeds[0].URL
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	p, err := syncSeeds(store.clientDir, "friends-oc", hc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := p.Seeds[0]
+	if s.Error != "" || s.LegFailures != 0 || len(s.TriedBoxes) != 0 {
+		t.Fatalf("harvest seed must clear the breaker, got error=%q failures=%d tried=%v", s.Error, s.LegFailures, s.TriedBoxes)
+	}
+	if s.EndCursor != "CURSOR" {
+		t.Fatalf("a partly walked seed must resume from its cursor, got %q", s.EndCursor)
+	}
+	// The pointer is not left empty: syncSeeds re-picks straight away, and it must
+	// land on a seed that is actually eligible.
+	if p.CurrentSeed == "" {
+		t.Fatal("current_seed must be re-picked, not left empty")
+	}
+	for _, s := range p.Seeds {
+		if s.URL == p.CurrentSeed && (s.Error != "" || s.Removed || s.Exhausted) {
+			t.Fatalf("current_seed points at an ineligible seed: %+v", s)
+		}
 	}
 }

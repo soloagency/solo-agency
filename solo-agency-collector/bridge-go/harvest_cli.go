@@ -163,9 +163,30 @@ func syncSeeds(clientDir, campaign string, hc harvestConfig) (*harvestProgress, 
 	}
 	return withProgress(clientDir, campaign, func(p *harvestProgress) error {
 		have := map[string]bool{}
-		for _, s := range p.Seeds {
-			have[s.UID] = true
+		want := map[string]bool{}
+		for _, raw := range hc.SeedProfiles {
+			if clean, ok := canonicalStoreURL(raw); ok {
+				if uid, _ := sourceUID(clean); uid != "" {
+					want[uid] = true
+				}
+			}
 		}
+		for i := range p.Seeds {
+			have[p.Seeds[i].UID] = true
+			// An operator running `harvest seed` is saying "try these again". It is the
+			// only documented way back from a seed error, which is otherwise a one-way
+			// door: nothing else clears Error, and Error is what bars the seed from
+			// selection. The cursor is kept, so a partly-walked seed resumes rather
+			// than restarting.
+			if want[p.Seeds[i].UID] && p.Seeds[i].Error != "" {
+				p.Seeds[i].Error = ""
+				p.Seeds[i].LegFailures = 0
+				p.Seeds[i].TriedBoxes = nil
+			}
+		}
+		// Let the daemon re-pick: the stored pointer may name a seed that is now
+		// removed, or the one that was stuck.
+		p.CurrentSeed = ""
 		for _, raw := range hc.SeedProfiles {
 			clean, ok := canonicalStoreURL(raw)
 			if !ok {
@@ -194,8 +215,12 @@ func syncSeeds(clientDir, campaign string, hc harvestConfig) (*harvestProgress, 
 			return nil
 		})
 		if p.CurrentSeed == "" {
+			// Same eligibility test the daemon uses (harvest_daemon.go reconcileSeeds).
+			// It used to accept any un-exhausted seed, so a re-sync could pin the pointer
+			// to a removed or errored seed, and the daemon only re-picks when the pointer
+			// is empty: the campaign would sit on a seed it is not allowed to walk.
 			for _, s := range p.Seeds {
-				if !s.Exhausted {
+				if !s.Exhausted && !s.Removed && s.Error == "" {
 					p.CurrentSeed = s.URL
 					break
 				}

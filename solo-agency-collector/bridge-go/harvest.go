@@ -435,8 +435,13 @@ func ingestLeg(clientDir, campaign, seedURL string, out legOutcome, keywords []s
 				p.Totals["leg_failures"]++
 				return nil
 			}
-			// A real leg.
+			// A real leg. Reset the breaker COMPLETELY, not just the counter: a seed
+			// whose Error stayed set was excluded from selection forever, so it could
+			// never earn the good leg that was supposed to clear it. LegFailures reset
+			// and Error did not, which made a transient collector outage permanent.
 			s.LegFailures = 0
+			s.Error = ""
+			s.TriedBoxes = nil
 			s.LegsDone++
 			s.FriendsSeen += len(out.Items)
 			if out.EndCursor != "" {
