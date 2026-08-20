@@ -616,3 +616,99 @@ func TestHarvestSeedTally(t *testing.T) {
 		t.Fatal("a campaign with no seeds has not finished a walk")
 	}
 }
+
+// TestBreakerByFailureKind: the breaker used to count every failure the same and
+// bench at three-in-a-row. Measured 2026-08-18 on the live install: the background
+// rate of empty reads was ~33%, so three in a row arrived by CHANCE about every 25
+// attempts — the campaign spent the day doing ~20 minutes of work then two hours
+// benched, ~7 profiles an hour against a budget of 500.
+func TestBreakerByFailureKind(t *testing.T) {
+	now := time.Now()
+
+	// SOFT failures are noise: they must not bench the box at three in a row.
+	soft := &ledgerBox{}
+	for i := 0; i < 3; i++ {
+		if soft.recordFailure(now, "no_record") {
+			t.Fatalf("empty read %d benched the box — that is the bug being fixed", i+1)
+		}
+	}
+	if soft.quarantined(now) {
+		t.Fatal("three empty reads must not quarantine")
+	}
+	// ...they slow it down instead, continuously — once there is enough history to
+	// call it a rate rather than a coincidence (ledgerPacingMinN).
+	if m := soft.pacingMultiplier(); m != 1 {
+		t.Fatalf("three outcomes is too thin a sample to penalise, multiplier=%v", m)
+	}
+	soft.recordSuccess()
+	soft.recordFailure(now, "no_record") // 5 outcomes, 4 of them failures
+	if m := soft.pacingMultiplier(); m <= 1 {
+		t.Fatalf("a box failing most reads must be paced slower, multiplier=%v", m)
+	}
+	gap := 30 * time.Second
+	soft.LastJobAt = now.Add(-40 * time.Second).UTC().Format(time.RFC3339)
+	if soft.eligible(now, 150, gap) {
+		t.Fatal("40s after the last job must be too soon for a box failing this often")
+	}
+	// A clean box at the same moment is fine — the stretch comes from ITS history.
+	clean := &ledgerBox{LastJobAt: soft.LastJobAt}
+	if !clean.eligible(now, 150, gap) {
+		t.Fatal("a healthy box must not be slowed by another box's failures")
+	}
+
+	// ACCOUNT-side is a verdict: one is enough, and it is benched for longer.
+	acct := &ledgerBox{}
+	if !acct.recordFailure(now, "landed_on_self") {
+		t.Fatal("an account-side signal must bench immediately, not after three")
+	}
+	until, _ := time.Parse(time.RFC3339, acct.QuarantinedUntil)
+	if until.Sub(now) < ledgerQuarantine {
+		t.Fatalf("an account signal must bench longer than a routine trip: %v", until.Sub(now))
+	}
+	// And wake amnesty must never forgive it — the laptop being asleep is not why
+	// Facebook served the operator's own profile.
+	if isMachineSideFailure("landed_on_self") || isMachineSideFailure("action_blocked") {
+		t.Fatal("account-side failures must not read as machine-side")
+	}
+
+	// A box getting nowhere at all still rests, briefly, so it stops burning jobs.
+	dead := &ledgerBox{}
+	tripped := false
+	for i := 0; i < ledgerWindow; i++ {
+		if dead.recordFailure(now, "no_record") {
+			tripped = true
+		}
+	}
+	if !tripped || !dead.quarantined(now) {
+		t.Fatal("a window of nothing but failures must earn a cool-off")
+	}
+	cool, _ := time.Parse(time.RFC3339, dead.QuarantinedUntil)
+	if d := cool.Sub(now); d > ledgerQuarantine {
+		t.Fatalf("a cool-off is a rest, not the old two-hour punishment: %v", d)
+	}
+
+	// Unclassified failures keep the old behaviour exactly.
+	other := &ledgerBox{}
+	if other.recordFailure(now, "something nobody classified") ||
+		other.recordFailure(now, "something nobody classified") {
+		t.Fatal("unknown failures must still take three")
+	}
+	if !other.recordFailure(now, "something nobody classified") {
+		t.Fatal("three unknown failures must still trip the breaker")
+	}
+
+	// Success clears the slate and the pacing penalty decays with the window.
+	rec := &ledgerBox{}
+	for i := 0; i < ledgerWindow; i++ {
+		rec.recordFailure(now, "no_record")
+	}
+	for i := 0; i < ledgerWindow; i++ {
+		rec.recordSuccess()
+	}
+	if m := rec.pacingMultiplier(); m != 1 {
+		t.Fatalf("a recovered box must return to normal pace, multiplier=%v", m)
+	}
+	if rec.quarantined(now) || rec.ConsecutiveFailures != 0 {
+		t.Fatal("success must clear the bench and the counter")
+	}
+}

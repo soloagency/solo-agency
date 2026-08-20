@@ -113,10 +113,13 @@ func (b *bridge) harvestWakeAmnesty(now, sleptAt time.Time) {
 // isMachineSideFailure: symptoms a sleeping/offline machine produces, as
 // opposed to a Facebook account being restricted.
 func isMachineSideFailure(reason string) bool {
-	r := strings.ToLower(reason)
-	if strings.Contains(r, "landed_on_self") || strings.Contains(r, "checkpoint") || strings.Contains(r, "restricted") {
+	// One list, one meaning: whatever counts as an account-side signal for the
+	// breaker (harvest_ledger.go) can never be forgiven as "the laptop was asleep".
+	// Keeping a second copy here is how the two would drift apart.
+	if isAccountSideFailure(reason) {
 		return false
 	}
+	r := strings.ToLower(reason)
 	for _, k := range []string{"stale", "never claimed", "no_record", "source error", "timeout", "capture", "navigation", "no result"} {
 		if strings.Contains(r, k) {
 			return true
@@ -493,7 +496,7 @@ func (b *bridge) harvestEnqueue(now time.Time, ownerSlug, campaign string, box h
 //   - finished leg     → ingestLeg (tri-state outcome), ledger success/failure
 //   - finished enrich  → enriched/{uid_hash}.json (+ok/error), await_decision
 //   - stale job        → cancel pending file if unclaimed, ledger failure,
-//                        re-queue the friend (or give up after max attempts)
+//     re-queue the friend (or give up after max attempts)
 func (b *bridge) harvestCollectResults(now time.Time, c uiClient, outreachDir, campaign string, hc harvestConfig) {
 	p, err := withProgress(outreachDir, campaign, func(*harvestProgress) error { return nil })
 	if err != nil || len(p.InFlight) == 0 {
