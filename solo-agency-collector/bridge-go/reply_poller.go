@@ -163,6 +163,12 @@ func (b *bridge) notifyReplies(c uiClient, clientDir string, replies []map[strin
 		if subj != "" {
 			line += ": " + subj
 		}
+		// What they actually wrote. A notification that says only "someone replied"
+		// sends the operator hunting through eleven mailboxes for the thread; one
+		// line of their own words usually decides whether it needs answering now.
+		if sn := firstLine(mStr(r, "snippet"), 160); sn != "" {
+			line += "\n    " + sn
+		}
 		lines = append(lines, line)
 	}
 	n := len(replies)

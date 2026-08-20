@@ -997,6 +997,51 @@ func (p *parsedPart) plainBody() string {
 	return string(p.Body)
 }
 
+// replySnippet keeps the part of a reply the human actually wrote and drops the
+// quoted thread below it. Until this existed the CRM stored only the fixed string
+// "campaign reply (untriaged)" plus a Message-ID, so nothing downstream had a
+// single word of what the person said: the dashboard could show THAT someone
+// replied but never WHAT, and the Stage-10 semantic triage was asked to sort
+// replies into positive/question/objection with no text to sort. The operator's
+// only recourse was guessing which of eleven mailboxes held the thread.
+// Scope: campaign replies only. Personal mail stays counted-and-never-stored.
+func replySnippet(body string, limitRunes int) string {
+	var kept []string
+	for _, ln := range strings.Split(body, "\n") {
+		t := strings.TrimSpace(ln)
+		if replyQuoteHeadRe.MatchString(t) {
+			break // "On ... wrote:" and friends: everything below is our own email
+		}
+		if strings.HasPrefix(t, ">") {
+			continue
+		}
+		kept = append(kept, strings.TrimRight(ln, " \t\r"))
+	}
+	s := strings.TrimSpace(replyBlankRunRe.ReplaceAllString(strings.Join(kept, "\n"), "\n\n"))
+	if r := []rune(s); len(r) > limitRunes {
+		s = strings.TrimSpace(string(r[:limitRunes])) + "\u2026"
+	}
+	return s
+}
+
+// firstLine is the one-line form used as the activity summary, so surfaces that
+// only render `summary` still say something true about the reply.
+func firstLine(s string, limitRunes int) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = s[:i]
+	}
+	s = strings.TrimSpace(s)
+	if r := []rune(s); len(r) > limitRunes {
+		s = strings.TrimSpace(string(r[:limitRunes])) + "\u2026"
+	}
+	return s
+}
+
+const replySnippetMaxRunes = 2000
+
+var replyQuoteHeadRe = regexp.MustCompile(`(?i)^\s*(on .+wrote:|vào .+(đã )?viết:|le .+a écrit\s*:|-{2,}\s*original message|-{2,}\s*forwarded message|_{5,}$)`)
+var replyBlankRunRe = regexp.MustCompile(`\n{3,}`)
+
 var midRe = regexp.MustCompile(`<[^>]+>`)
 var oooRe = regexp.MustCompile(`(?i)out of (the )?office|auto[- ]?reply|automatic reply`)
 var dsnStatusRe = regexp.MustCompile(`([245]\.\d+\.\d+)`)
@@ -1258,8 +1303,13 @@ func gmailCmdSync(clientDir, slug string, maxMsgs int) (map[string]any, error) {
 					m.logout()
 					return nil, err
 				}
-				act, err := store.logActivity("email_reply", lead, "campaign reply (untriaged)", "rule",
-					nil, map[string]any{"message_id": msg.Header.Get("Message-ID")})
+				snippet := replySnippet(msg.plainBody(), replySnippetMaxRunes)
+				summary := "campaign reply (untriaged)"
+				if snippet != "" {
+					summary += ": " + firstLine(snippet, 120)
+				}
+				act, err := store.logActivity("email_reply", lead, summary, "rule",
+					nil, map[string]any{"message_id": msg.Header.Get("Message-ID"), "snippet": snippet})
 				if err != nil {
 					m.logout()
 					return nil, err
@@ -1274,7 +1324,7 @@ func gmailCmdSync(clientDir, slug string, maxMsgs int) (map[string]any, error) {
 				}
 				replies = append(replies, map[string]any{"lead_id": lead, "campaign": cls["campaign"],
 					"activity_seq": act["seq"], "subject": msg.get("Subject"),
-					"from": fromAddr, "matched_by": matchedBy})
+					"from": fromAddr, "matched_by": matchedBy, "snippet": snippet})
 			}
 			results["campaign_reply"]++
 		default:

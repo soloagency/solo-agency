@@ -1370,6 +1370,15 @@ func (b *bridge) uiRenderCampaign(w http.ResponseWriter, slug, camp string) {
 
 // ---------- sent history (T1b: the centralized send registry) ----------
 
+// replyTextFor blanks the reply fields on rows that did not get a reply, so an
+// older send never inherits the text of a newer one for the same lead.
+func replyTextFor(hasReply bool, v string) string {
+	if !hasReply {
+		return ""
+	}
+	return v
+}
+
 // uiSentRows joins the append-only sent_log with reply activities (and, once
 // tracking lands, pulled open/click events) into one operator view: every email
 // ever sent, which campaign/step/sendbox, and whether it got opened/clicked/
@@ -1378,8 +1387,12 @@ func (b *bridge) uiSentRows(c uiClient, limit int) (rows []map[string]any, total
 	clientDir := filepath.Join(c.Path, "outreach")
 	store := newCrmStore(clientDir)
 
-	// lead -> newest reply ts (email_reply activities are the reply source of truth)
+	// lead -> newest reply ts (email_reply activities are the reply source of truth),
+	// and the text of that reply. Carrying the text is what turns "replied: yes" into
+	// something the operator can act on without hunting the thread down across
+	// eleven mailboxes; older activities have no snippet and simply render empty.
 	replyTS := map[string]string{}
+	replyText := map[string]string{}
 	if acts, err := store.a.readLog("activities", -1, nil); err == nil {
 		for _, a := range acts {
 			if mStr(a, "type") != "email_reply" {
@@ -1388,6 +1401,7 @@ func (b *bridge) uiSentRows(c uiClient, limit int) (rows []map[string]any, total
 			lead := store.resolve(mStr(a, "contact_id"))
 			if ts := mStr(a, "ts"); ts > replyTS[lead] {
 				replyTS[lead] = ts
+				replyText[lead] = mStr(mMap(a, "ref"), "snippet")
 			}
 		}
 	}
@@ -1444,6 +1458,8 @@ func (b *bridge) uiSentRows(c uiClient, limit int) (rows []map[string]any, total
 				"Campaign": mStr(r, "campaign"), "Step": mInt(r, "step", 0),
 				"Sendbox": strOr(mStr(r, "sendbox"), mStr(r, "collector")), "SentAt": mStr(r, "sent_at"),
 				"Opened": opened[rid], "Clicked": clicked[rid], "Replied": hasReply,
+				"ReplyText": replyTextFor(hasReply, replyText[lead]),
+				"ReplyAt":   replyTextFor(hasReply, replyTS[lead]),
 			})
 		}
 	}
@@ -3512,6 +3528,7 @@ document.getElementById('campform').addEventListener('submit',function(e){
 <td class="mut" style="font-variant-numeric:tabular-nums">{{if ge (len .SentAt) 16}}{{slice .SentAt 0 16}}{{else}}{{.SentAt}}{{end}}</td>
 <td>
 {{if .Replied}}<span class="pill band-high">replied</span>
+{{if .ReplyText}}<details onclick="event.stopPropagation()" style="margin-top:5px"><summary class="mut" style="font-size:.72rem;cursor:pointer;list-style:none">what they wrote</summary><div style="white-space:pre-wrap;font-size:.8rem;line-height:1.45;margin-top:6px;padding:8px 10px;border-left:3px solid var(--pico-primary,#0172ad);background:rgba(127,127,127,.07);border-radius:4px;max-width:46ch;text-align:left">{{.ReplyText}}</div></details>{{end}}
 {{else if .Clicked}}<span class="pill info">clicked</span>
 {{else if .Opened}}<span class="pill">opened</span>
 {{else}}<span class="pill" style="opacity:.55">sent</span>{{end}}
