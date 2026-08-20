@@ -363,6 +363,50 @@ func runCrmStoreCLI(args []string) int {
 				return crmFail(err)
 			}
 			return crmOut(res, 0)
+		case "skip":
+			// Batch: a scan of thirty yields two comments, and the other twenty-eight
+			// have to be remembered or they come back tomorrow for another judgement.
+			d, err := parseJSONArg(a.get("--json"))
+			if err != nil {
+				return crmUsageErr(err.Error())
+			}
+			var entries []channelSkip
+			if u := mStr(d, "post_url"); u != "" {
+				entries = append(entries, channelSkip{PostURL: u, GroupURL: mStr(d, "group_url"),
+					Author: mStr(d, "post_author"), Reason: mStr(d, "reason")})
+			}
+			for _, it := range mapsOf(mList(d, "posts")) {
+				entries = append(entries, channelSkip{PostURL: mStr(it, "post_url"),
+					GroupURL: strOr(mStr(it, "group_url"), mStr(d, "group_url")),
+					Author:   mStr(it, "post_author"), Reason: strOr(mStr(it, "reason"), mStr(d, "reason"))})
+			}
+			if len(entries) == 0 {
+				return crmUsageErr("skip needs post_url, or posts[] with post_url")
+			}
+			res, err := store.skipPosts(a.get("--campaign"), entries)
+			if err != nil {
+				return crmFail(err)
+			}
+			return crmOut(res, 0)
+		case "judged":
+			// Read BEFORE judging: filter the scan down to posts nobody has decided
+			// about yet, instead of spending a judgement to rediscover yesterday's.
+			seen, err := store.judgedPosts(a.get("--campaign"))
+			if err != nil {
+				return crmFail(err)
+			}
+			ids := make([]any, 0, len(seen))
+			byStatus := map[string]int{}
+			for id, v := range seen {
+				ids = append(ids, map[string]any{"post_id": id, "status": v.Status,
+					"post_url": v.PostURL, "reason": v.Reason, "at": v.FirstAt})
+				byStatus[v.Status]++
+			}
+			sort.Slice(ids, func(i, j int) bool {
+				return mStr(ids[i].(map[string]any), "at") > mStr(ids[j].(map[string]any), "at")
+			})
+			return crmOut(map[string]any{"ok": true, "campaign": a.get("--campaign"),
+				"count": len(ids), "by_status": byStatus, "posts": ids}, 0)
 		case "capacity":
 			cfg := store.getCampaign(a.get("--campaign"))
 			if cfg == nil {

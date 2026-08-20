@@ -100,8 +100,9 @@ type seenPost struct {
 	PostURL  string `json:"post_url"`
 	GroupURL string `json:"group_url"`
 	Author   string `json:"author,omitempty"`
-	DraftID  string `json:"draft_id"`
-	Status   string `json:"status"` // drafted | posted | dropped
+	DraftID  string `json:"draft_id,omitempty"`
+	Status   string `json:"status"` // drafted | posted | skipped
+	Reason   string `json:"reason,omitempty"`
 	FirstAt  string `json:"first_at"`
 }
 
@@ -142,6 +143,75 @@ func withSeenPosts(campaignDir string, fn func(*seenPostIndex) error) (*seenPost
 		return nil, err
 	}
 	return idx, nil
+}
+
+// ---- what this campaign has already judged ---------------------------------
+
+// judgedPosts: every post this campaign has already made a decision about, by
+// canonical id. A scan with `within_days: 2` returns the same posts run after
+// run, so without this the agent re-judges everything it skipped yesterday —
+// wasteful, and worse, unstable: the same post could be skipped today and
+// drafted tomorrow with no new information behind the change.
+func (c *crmStore) judgedPosts(campaignSlug string) (map[string]seenPost, error) {
+	cd, err := c.campaignDir(campaignSlug)
+	if err != nil {
+		return nil, err
+	}
+	idx, err := withSeenPosts(cd, func(*seenPostIndex) error { return nil })
+	if err != nil {
+		return nil, err
+	}
+	return idx.Posts, nil
+}
+
+// skipPosts records posts the agent read and decided NOT to answer. It takes a
+// batch because that is the shape of the work — a scan of thirty yields two
+// comments, and twenty-eight one-at-a-time calls is its own kind of waste.
+// Skipping is a decision that STICKS: a post already judged is never re-judged,
+// which is the whole point.
+func (c *crmStore) skipPosts(campaignSlug string, entries []channelSkip) (map[string]any, error) {
+	cfg := c.getCampaign(campaignSlug)
+	if cfg == nil {
+		return nil, storageErrf("campaign %q not found", campaignSlug)
+	}
+	cd, err := c.campaignDir(campaignSlug)
+	if err != nil {
+		return nil, err
+	}
+	recorded, already, bad := 0, 0, []string{}
+	now := nowISO()
+	if _, err := withSeenPosts(cd, func(idx *seenPostIndex) error {
+		for _, e := range entries {
+			id := canonicalPostID(e.PostURL)
+			if id == "" {
+				bad = append(bad, e.PostURL)
+				continue
+			}
+			if _, seen := idx.Posts[id]; seen {
+				already++
+				continue
+			}
+			idx.Posts[id] = seenPost{PostURL: e.PostURL, GroupURL: e.GroupURL, Author: e.Author,
+				Status: "skipped", Reason: strings.TrimSpace(e.Reason), FirstAt: now}
+			recorded++
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	out := map[string]any{"ok": true, "campaign": campaignSlug, "skipped": recorded,
+		"already_judged": already}
+	if len(bad) > 0 {
+		out["unpinnable"] = bad
+	}
+	return out, nil
+}
+
+type channelSkip struct {
+	PostURL  string
+	GroupURL string
+	Author   string
+	Reason   string
 }
 
 // ---- capacity --------------------------------------------------------------
@@ -297,6 +367,17 @@ func (c *crmStore) channelDraftWrite(campaignSlug string, a channelDraftArgs, s 
 		return nil, serr
 	}
 	if dup != nil {
+		// Say which decision it was. "already_drafted" on a post that was in fact
+		// SKIPPED sends the agent looking for a draft that does not exist.
+		if dup.Status == "skipped" {
+			return nil, storageErrf("already_judged: this campaign read that post on %s and skipped it%s — a judgement is not re-taken",
+				dup.FirstAt, func() string {
+					if dup.Reason != "" {
+						return " (" + dup.Reason + ")"
+					}
+					return ""
+				}())
+		}
 		what := "a comment for that post"
 		if ch == "post" {
 			what = "this same text"

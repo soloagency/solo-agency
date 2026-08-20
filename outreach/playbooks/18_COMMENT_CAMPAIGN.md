@@ -84,9 +84,27 @@ id as `"collector"` when you deposit the draft; the bridge publishes from that a
 other, and an item whose account is not checked in waits rather than going out under a different
 name.
 
-### 3. Judge each post, one at a time
+### 3. Filter first, THEN judge
 
-For every post the scan returned, answer in order and stop at the first "no":
+```
+tool crm-store --client-dir {outreach} draft judged --campaign X
+```
+
+returns every post this campaign has already decided about — drafted, posted or skipped — by
+canonical post id. **Drop those from the scan before you read a word of them.** A scan with
+`within_days: 2` returns the same posts run after run, so without this step yesterday's thirty
+skips are re-judged today, and the day after: the same post gets read three or four times before
+it falls out of the window.
+
+The waste is the smaller half. The real cost is that re-judging is **unstable** — the same post
+skipped today can be drafted tomorrow with nothing new behind the change, which quietly makes
+"the goal is the only criterion" untrue in practice. A judgement is taken once.
+
+**If the filtered list is empty, that group is done for now — move to the next group.** Do not
+re-read it, do not lower the bar to find something. A group with no new posts is a normal
+outcome, not a problem to solve.
+
+Then, for every post that survives the filter, answer in order and stop at the first "no":
 
 1. Does the goal actually cover this person's situation? A post outside the brief is skipped even
    when a good answer is obvious.
@@ -94,8 +112,8 @@ For every post the scan returned, answer in order and stop at the first "no":
    that the reader does not? A comment that only signals presence ("great post!", "DM me") is
    worse than no comment: it spends the account's one daily action and buys nothing.
 3. Is there a real question or a real problem stated? Answer that, not the topic.
-4. Has this campaign already answered this post? The code refuses a second one
-   (`already_drafted`), but check first so you do not waste a judgement.
+4. (Already handled by the filter above — the code still refuses a repeat, with
+   `already_drafted` or `already_judged` naming which decision it was.)
 
 Skipping is the normal outcome. A scan that yields two comments out of thirty posts is a good
 scan.
@@ -118,6 +136,20 @@ tool crm-store --client-dir {outreach} draft comment --campaign X --json '{
   "group_name": "<items[].group.name from the scan>",
   "collector": "<the extension instance id that read this group>" }'
 ```
+
+**Record the skips in the same pass.** Everything you read and decided not to answer goes back
+in one batch, or it returns tomorrow for another judgement:
+
+```
+tool crm-store --client-dir {outreach} draft skip --campaign X --json '{
+  "group_url": "<group url>",
+  "posts": [ {"post_url": "<permalink>", "reason": "<one short line>"},
+             {"post_url": "<permalink>", "reason": "<one short line>"} ] }'
+```
+
+A skip is permanent, on purpose: a decision that was worth taking is worth keeping. The reason is
+what makes it auditable later — "outside the goal", "no real question", "already answered by
+three people" are all fine; an empty reason is not.
 
 This is the ONLY way a comment draft may enter the system. Never write a file into
 `outbox/pending_approval/` yourself — the command mints a real id, checks the group, pins the
@@ -156,8 +188,8 @@ So the run's only remaining duty for this channel is the compose loop above, and
 
 ## The run reply — one line per comment campaign
 
-> `{campaign} — scanned {N} posts in {G} group(s), {K} worth answering, {D} drafted ({R} refused:
-> reason), {A} awaiting your approval, capacity {C}/day.`
+> `{campaign} — scanned {N} posts in {G} group(s), {S} already judged and skipped over, {K} worth
+> answering, {D} drafted ({R} refused: reason), {A} awaiting your approval, capacity {C}/day.`
 
 Say the refusal reasons out loud. A run that drafts nothing because the ceiling is full is a
 healthy run and must say so; a run that drafts nothing because every scan failed is not, and the

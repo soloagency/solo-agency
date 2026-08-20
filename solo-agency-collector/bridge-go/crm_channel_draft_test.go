@@ -244,3 +244,63 @@ func TestGroupPostDraft(t *testing.T) {
 		t.Fatalf("want already_drafted for repeated text, got %v", err)
 	}
 }
+
+// TestSkippedPostsAreNotRejudged: a scan with within_days:2 returns the same posts
+// run after run. Without a record of what was already decided, the agent re-judges
+// everything it skipped yesterday — wasteful, and worse, unstable: the same post
+// could be skipped today and drafted tomorrow with nothing new behind the change.
+func TestSkippedPostsAreNotRejudged(t *testing.T) {
+	store := commentFixture(t)
+	s := defaultSystemSettings()
+	G := "https://www.facebook.com/groups/764877593708803"
+	post := G + "/posts/3185530214976860/"
+
+	res, err := store.skipPosts("comments", []channelSkip{
+		{PostURL: post, GroupURL: G, Reason: "outside the goal — asking about health plans"},
+		{PostURL: G + "/posts/3185530214976861/", GroupURL: G, Reason: "no real question"},
+		{PostURL: G + "/not-a-post", GroupURL: G, Reason: "junk"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mInt(res, "skipped", 0) != 2 {
+		t.Fatalf("two pinnable posts should be recorded: %v", res)
+	}
+	if bad, _ := res["unpinnable"].([]string); len(bad) != 1 {
+		t.Fatalf("a url with no post id must be reported, not silently dropped: %v", res)
+	}
+
+	// The agent can now filter the scan BEFORE spending judgement.
+	judged, err := store.judgedPosts("comments")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(judged) != 2 || judged[canonicalPostID(post)].Status != "skipped" {
+		t.Fatalf("judged set wrong: %v", judged)
+	}
+
+	// A decision sticks: the same post cannot be drafted later, and the refusal says
+	// SKIPPED rather than sending the agent hunting for a draft that never existed.
+	args := commentArgs(post)
+	_, err = store.channelDraftWrite("comments", args, s)
+	if err == nil || !strings.Contains(err.Error(), "already_judged") ||
+		!strings.Contains(err.Error(), "health plans") {
+		t.Fatalf("want already_judged naming the reason, got %v", err)
+	}
+
+	// Skipping the same post twice is a no-op, not a duplicate row.
+	res, _ = store.skipPosts("comments", []channelSkip{{PostURL: post, Reason: "again"}})
+	if mInt(res, "skipped", 0) != 0 || mInt(res, "already_judged", 0) != 1 {
+		t.Fatalf("re-skipping must be idempotent: %v", res)
+	}
+
+	// And a drafted post shows up in the judged set too, so one filter covers both.
+	fresh := G + "/posts/3185530214976862/"
+	if _, err := store.channelDraftWrite("comments", commentArgs(fresh), s); err != nil {
+		t.Fatal(err)
+	}
+	judged, _ = store.judgedPosts("comments")
+	if judged[canonicalPostID(fresh)].Status != "drafted" {
+		t.Fatalf("a drafted post must be in the judged set: %v", judged[canonicalPostID(fresh)])
+	}
+}
