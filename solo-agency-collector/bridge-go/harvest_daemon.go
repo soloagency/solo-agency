@@ -371,8 +371,13 @@ func (b *bridge) harvestStep(rng *rand.Rand, now time.Time, c uiClient, outreach
 					action = "no_collector"
 					return nil
 				}
-				if box.InstanceID == zc.LastLegBox && zc.LastLegAt != "" {
-					if t, err := time.Parse(time.RFC3339, zc.LastLegAt); err == nil && now.Sub(t) < harvestLegBaseWait {
+				// Same rule as the friends walk: once legs start failing the rest goes
+				// query-wide and doubles, because Zillow is throttling the SEARCH, not the
+				// account. Rotating to the next box used to skip the wait, so four failures
+				// could land inside one block and retire the query (zillowLegGiveUp) while
+				// the block was still lifting.
+				if zc.LastLegAt != "" && (zc.LegFailures > 0 || box.InstanceID == zc.LastLegBox) {
+					if t, err := time.Parse(time.RFC3339, zc.LastLegAt); err == nil && now.Sub(t) < harvestLegRest(zc.LegFailures) {
 						action = "leg_rest"
 						return nil
 					}
