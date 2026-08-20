@@ -568,3 +568,51 @@ func TestHarvestSeedSyncClearsTheBreakerAndKeepsTheCursor(t *testing.T) {
 		}
 	}
 }
+
+// TestHarvestSeedTally: "no seed left to walk" has two causes and only one is good
+// news. A campaign whose seeds all ERRORED read nothing at all; reporting that as
+// "walk finished — every seed's friend list was read" is the lie that let a dead
+// campaign look healthy for two days on the live install (2026-08-19: four seeds,
+// every one carrying an error, 0 enriched that day).
+func TestHarvestSeedTally(t *testing.T) {
+	cases := []struct {
+		name              string
+		seeds             []harvestSeed
+		blocked           bool
+		errored, finished int
+		stuck             bool
+	}{
+		{"all read to the end", []harvestSeed{{Exhausted: true}, {Exhausted: true}},
+			true, 0, 2, false},
+		{"all failed", []harvestSeed{{Error: "4 consecutive leg failures"}, {Error: "friend list returned nothing"}},
+			true, 2, 0, true},
+		{"one finished, one failed", []harvestSeed{{Exhausted: true}, {Error: "boom"}},
+			true, 1, 1, true},
+		{"one still walkable", []harvestSeed{{Error: "boom"}, {}},
+			false, 1, 0, false},
+		{"removed seeds do not count either way", []harvestSeed{{Removed: true}, {Exhausted: true}},
+			true, 0, 1, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &harvestProgress{Seeds: tc.seeds}
+			blocked, errored, finished := harvestSeedTally(p)
+			if blocked != tc.blocked || errored != tc.errored || finished != tc.finished {
+				t.Fatalf("tally = (%v,%d,%d), want (%v,%d,%d)", blocked, errored, finished,
+					tc.blocked, tc.errored, tc.finished)
+			}
+			if got := harvestSeedsBlockedByError(p); got != tc.stuck {
+				t.Fatalf("stuck = %v, want %v", got, tc.stuck)
+			}
+			// A walk that is genuinely finished must never be reported as stuck, and
+			// vice versa — these two states send the operator to opposite actions.
+			if harvestSeedsBlockedByError(p) && harvestAllSeedsDone(p) && tc.errored == 0 {
+				t.Fatal("a clean finish must not also read as stuck")
+			}
+		})
+	}
+	// No seeds at all is neither finished nor stuck: the campaign was never set up.
+	if b, _, _ := harvestSeedTally(&harvestProgress{}); b {
+		t.Fatal("a campaign with no seeds has not finished a walk")
+	}
+}

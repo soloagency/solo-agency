@@ -3769,6 +3769,15 @@ func (b *bridge) harvestCommonStatus(p *harvestProgress, hc harvestConfig, outre
 		state = "walk finished — every location × keyword page was read; pause the campaign or add locations/keywords"
 	case len(p.Queue) == 0 && hc.Channel == zillowChannel:
 		state = "reading the next directory page"
+	case len(p.Queue) == 0 && hc.Channel != zillowChannel && harvestSeedsBlockedByError(p):
+		blocked, errored, exhausted := harvestSeedTally(p)
+		_ = blocked
+		state = fmt.Sprintf("stuck: %d seed(s) errored after repeated failed reads", errored)
+		if exhausted > 0 {
+			state += fmt.Sprintf(" and %d finished", exhausted)
+		}
+		state += " — nothing clears a seed error on its own; run `tool crm-store harvest seed --campaign " +
+			p.Campaign + "` to hand them back to the walk (the cursor is kept)"
 	case len(p.Queue) == 0 && hc.Channel != zillowChannel && harvestAllSeedsDone(p):
 		state = "walk finished — every seed's friend list was read; pause the campaign or add seed profiles"
 	case len(p.Queue) == 0:
@@ -3800,6 +3809,31 @@ func (b *bridge) harvestCommonStatus(p *harvestProgress, hc harvestConfig, outre
 }
 
 // harvestAllSeedsDone: no seed left to walk (each is exhausted, removed, or errored).
+// harvestSeedTally: how the walk actually ended. "Every seed is un-walkable" has
+// two completely different causes and only one of them is good news — a seed is
+// skipped when it is exhausted (read to the end), removed (dropped from the
+// config), OR errored (four failed legs). Reporting all three as "walk finished"
+// tells the operator the friend lists were read when in fact none of them were,
+// which is exactly how a dead campaign kept looking healthy for two days.
+func harvestSeedTally(p *harvestProgress) (blocked bool, errored, exhausted int) {
+	if len(p.Seeds) == 0 {
+		return false, 0, 0
+	}
+	blocked = true
+	for _, sd := range p.Seeds {
+		switch {
+		case sd.Removed:
+		case sd.Error != "":
+			errored++
+		case sd.Exhausted:
+			exhausted++
+		default:
+			blocked = false
+		}
+	}
+	return blocked, errored, exhausted
+}
+
 func harvestAllSeedsDone(p *harvestProgress) bool {
 	if len(p.Seeds) == 0 {
 		return false
@@ -3810,4 +3844,11 @@ func harvestAllSeedsDone(p *harvestProgress) bool {
 		}
 	}
 	return true
+}
+
+// harvestSeedsBlockedByError: nothing left to walk, and at least one seed is that
+// way because it FAILED rather than because it finished.
+func harvestSeedsBlockedByError(p *harvestProgress) bool {
+	blocked, errored, _ := harvestSeedTally(p)
+	return blocked && errored > 0
 }
