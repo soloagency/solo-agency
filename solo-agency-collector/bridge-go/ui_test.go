@@ -1781,3 +1781,70 @@ func TestApprovalsChannelBadge(t *testing.T) {
 		t.Fatal("the subject box must be present but disabled on non-email drafts")
 	}
 }
+
+// TestSentPagePagerAndFilter: the distribution list is paged at 20, numbered, and
+// the filter must reach every loaded record rather than the page on screen. The
+// previous filter selected `tr[onclick]`, which comment and group-post rows no
+// longer have — so those rows survived every filter untouched.
+func TestSentPagePagerAndFilter(t *testing.T) {
+	root := t.TempDir()
+	ws := filepath.Join(root, "clients", "leadup", "main")
+	write := func(rel, body string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("outreach/campaigns/mail/campaign_config.json", `{"campaign_slug":"mail","channel_strategy":"email_first"}`)
+	var log strings.Builder
+	for i := 0; i < 25; i++ {
+		log.WriteString(fmt.Sprintf(
+			`{"lead_id":"c_%d","campaign":"mail","step":1,"sent_at":"2026-08-1%dT09:00:00Z","sendbox":"sb-a","rfc_message_id":"<m%d@x>"}`+"\n",
+			i, i%10, i))
+	}
+	// A collector-published row carries a channel and no rfc_message_id.
+	log.WriteString(`{"channel":"comment","campaign":"mail","target_url":"https://www.facebook.com/groups/1/posts/2/","collector":"ext-a","sent_at":"2026-08-19T09:00:00Z"}` + "\n")
+	write("outreach/campaigns/mail/sent/2026-08/sent_log.jsonl", log.String())
+
+	b := &bridge{cfg: config{host: "127.0.0.1", port: 17321,
+		configFile: filepath.Join(root, "collector", "collector_config.json")}}
+	mux := http.NewServeMux()
+	b.registerUIRoutes(mux)
+	req := httptest.NewRequest("GET", "/ui/leadup/sent", nil)
+	req.AddCookie(&http.Cookie{Name: uiCookieName, Value: b.uiToken})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sent page: %d", rec.Code)
+	}
+	page := rec.Body.String()
+
+	// Every row is selectable by class, not by having an onclick — a comment row has
+	// no contact to open, and must still be filtered and paged like the rest.
+	if n := strings.Count(page, `class="srow"`); n != 26 {
+		t.Fatalf("all 26 rows must carry the row class, got %d", n)
+	}
+	if !strings.Contains(page, `data-replied=`) {
+		t.Fatal("each row must declare whether it got a reply, for the tile filter")
+	}
+	for _, want := range []string{
+		`var PAGE=20`,                       // twenty per page
+		`class="rownum`,                     // numbered
+		`tr.dataset.hay=tr.textContent`,     // haystack built once, from ALL rows
+		`id="stat-replied"`,                 // the tile is the reply filter
+		`replyOnly && tr.dataset.replied`,   // ...and it filters on the row's own flag
+		`from+i+1`,                          // numbering continues across pages
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("sent page missing %q", want)
+		}
+	}
+	// The filter must never be scoped to the visible page: no selector may reach for
+	// rows by their display state when deciding what matches.
+	if strings.Contains(page, `tr[onclick]`) {
+		t.Fatal("filtering by onclick skips comment and post rows entirely")
+	}
+}

@@ -1478,7 +1478,11 @@ func (b *bridge) uiRenderSent(w http.ResponseWriter, slug string) {
 		http.Error(w, "unknown client", http.StatusNotFound)
 		return
 	}
-	rows, total, replied := b.uiSentRows(c, 200)
+	// The filter and the pager both work over the rows that are IN the page, so the
+	// ceiling is how far "filter everything" actually reaches. 200 was a display
+	// limit; as a filter horizon it silently hid records the operator was searching
+	// for. Rows are small — the cost of 1000 is a bigger page, not a slower one.
+	rows, total, replied := b.uiSentRows(c, 1000)
 	rate := ""
 	if total > 0 {
 		rate = fmt.Sprintf("%.1f%%", float64(replied)/float64(total)*100)
@@ -3515,13 +3519,14 @@ document.getElementById('campform').addEventListener('submit',function(e){
 <p class="sub">Everything published for this client, newest first — emails sent, comments answered and posts put into groups. A reply freezes that lead's sequence automatically; only replies drive action, opens and clicks are directional.</p>
 <div class="statrow">
 <div class="stat"><b>{{.Total}}</b><span>published</span></div>
-<div class="stat hot"><b>{{.Replied}}</b><span>got a reply</span></div>
+<div class="stat hot" id="stat-replied" role="button" tabindex="0" title="show only the ones that got a reply"><b>{{.Replied}}</b><span>got a reply</span></div>
 {{if .Rate}}<div class="stat"><b>{{.Rate}}</b><span>reply rate</span></div>{{end}}
 </div>
 {{if .Rows}}
-<input id="sentfilter" type="search" placeholder="Filter by name, email, campaign, sendbox..." style="max-width:380px;margin-bottom:10px">
-<div class="wrap"><table id="senttable"><tr><th>channel</th><th>to</th><th>campaign</th><th>step</th><th>account</th><th>published</th><th>status</th></tr>
-{{$slug := .Client.Slug}}{{range .Rows}}<tr{{if .Lead}} style="cursor:pointer" onclick="location.href='/ui/{{$slug}}/contact/{{.Lead}}'"{{end}}>
+<input id="sentfilter" type="search" placeholder="Filter by name, email, campaign, account, group..." style="max-width:380px;margin-bottom:10px">
+<div class="wrap"><table id="senttable"><tr><th style="width:3rem">#</th><th>channel</th><th>to</th><th>campaign</th><th>step</th><th>account</th><th>published</th><th>status</th></tr>
+{{$slug := .Client.Slug}}{{range .Rows}}<tr class="srow" data-replied="{{if .Replied}}1{{else}}0{{end}}"{{if .Lead}} style="cursor:pointer" onclick="location.href='/ui/{{$slug}}/contact/{{.Lead}}'"{{end}}>
+<td class="rownum mut" style="font-variant-numeric:tabular-nums"></td>
 <td><span class="chanbadge chan-{{.Channel}}">{{if eq .Channel "comment"}}Comment{{else if eq .Channel "post"}}Post{{else if eq .Channel "messenger"}}DM{{else}}Email{{end}}</span></td>
 <td>{{if .Name}}<strong>{{.Name}}</strong> <span class="mut" style="font-size:.78rem">{{.To}}</span>{{else if .Lead}}{{.To}}{{else}}<a href="{{.To}}" target="_blank" rel="noopener" class="mut" style="font-size:.8rem">{{.To}}</a>{{end}}</td>
 <td class="mut">{{.Campaign}}</td>
@@ -3536,12 +3541,68 @@ document.getElementById('campform').addEventListener('submit',function(e){
 {{else}}<span class="pill" style="opacity:.55">sent</span>{{end}}
 </td>
 </tr>{{end}}</table></div>
-{{if .Truncated}}<p class="mut" style="font-size:.8rem">Showing the newest {{len .Rows}} of {{.Total}}.</p>{{end}}
+<div class="pager" id="pager"></div>
+{{if .Truncated}}<p class="mut" style="font-size:.8rem">The newest {{len .Rows}} of {{.Total}} are loaded; the filter and the pager cover all of them.</p>{{end}}
+<style>
+#stat-replied{cursor:pointer;user-select:none}
+#stat-replied.on{outline:2px solid var(--pico-primary,#2563eb);outline-offset:2px}
+.pager{display:flex;align-items:center;gap:.6rem;margin:.7rem 0 0;flex-wrap:wrap}
+.pager button{width:auto;margin:0;padding:.25rem .8rem;font-size:.9rem}
+.pager .count{font-size:.85rem;opacity:.75}
+</style>
 <script>
-document.getElementById('sentfilter').addEventListener('input',function(){
- var q=this.value.toLowerCase();
- document.querySelectorAll('#senttable tr[onclick]').forEach(function(tr){
-  tr.style.display=tr.textContent.toLowerCase().indexOf(q)>=0?'':'none'})});
+(function(){
+ var PAGE=20, page=1, replyOnly=false, q="";
+ var rows=Array.prototype.slice.call(document.querySelectorAll("#senttable tr.srow"));
+ // The haystack is built ONCE from the row's own text, so filtering never depends on
+ // which rows happen to be on screen — that is what makes "filter all pages" true
+ // rather than "filter the twenty you can see".
+ rows.forEach(function(tr){ tr.dataset.hay=tr.textContent.toLowerCase() });
+ var pager=document.getElementById("pager"), tile=document.getElementById("stat-replied");
+
+ function matching(){
+  return rows.filter(function(tr){
+   if(replyOnly && tr.dataset.replied!=="1") return false;
+   return !q || tr.dataset.hay.indexOf(q)>=0;
+  });
+ }
+ function render(){
+  var shown=matching();
+  var pages=Math.max(1,Math.ceil(shown.length/PAGE));
+  if(page>pages)page=pages;
+  if(page<1)page=1;
+  rows.forEach(function(tr){tr.style.display="none"});
+  var from=(page-1)*PAGE;
+  shown.slice(from,from+PAGE).forEach(function(tr,i){
+   tr.style.display="";
+   var n=tr.querySelector(".rownum");
+   // Numbered against the FILTERED set and continuous across pages: page 2 of a
+   // filter starts at 21 of that filter, not at 21 of everything.
+   if(n)n.textContent=String(from+i+1);
+  });
+  pager.innerHTML="";
+  if(shown.length===0){
+   pager.innerHTML='<span class="count">nothing matches this filter</span>';
+   return;
+  }
+  var prev=document.createElement("button"); prev.textContent="‹ Prev"; prev.disabled=(page<=1);
+  var next=document.createElement("button"); next.textContent="Next ›"; next.disabled=(page>=pages);
+  prev.onclick=function(){page--;render()}; next.onclick=function(){page++;render()};
+  var lbl=document.createElement("span"); lbl.className="count";
+  lbl.textContent="page "+page+" of "+pages+" · "+shown.length+" record"+(shown.length===1?"":"s")+
+    (replyOnly||q?" matching":"");
+  pager.appendChild(prev); pager.appendChild(lbl); pager.appendChild(next);
+ }
+ document.getElementById("sentfilter").addEventListener("input",function(){
+  q=this.value.toLowerCase().trim(); page=1; render();
+ });
+ function toggleReplies(){ replyOnly=!replyOnly; page=1; tile.classList.toggle("on",replyOnly); render() }
+ if(tile){
+  tile.addEventListener("click",toggleReplies);
+  tile.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){e.preventDefault();toggleReplies()} });
+ }
+ render();
+})();
 </script>
 {{else}}<div class="empty"><b>Nothing sent yet.</b><br>Approved drafts go out on the campaign's daily run and appear here.</div>{{end}}
 {{template "foot" .}}{{end}}
