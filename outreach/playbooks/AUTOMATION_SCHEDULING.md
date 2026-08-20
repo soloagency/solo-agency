@@ -708,8 +708,7 @@ For each active client:
     (kept → `contact add` first — matched or created — then, when the record has a website but no
     email, the Stage 4 website/off-platform email ladder for that person, then `enrich write`
     hooks + email findings, then `--lead-id`, source `friend_harvest`;
-    rejected / enrich_failed remembered client-wide). Loop until `remaining`
-    is 0 or time is up. Never enqueue friends/enrich jobs yourself for a harvest campaign. One
+    rejected / enrich_failed remembered client-wide). **Judge through low-level sub-agents, and supervise until the queue is empty** (Stage 16, "The supervisor loop"): never read envelopes in the run's own context — one enrich record is large, and after two or three batches the run wraps up with thousands still waiting (measured 2026-08-18: 860 awaiting against 99 ever decided). Re-read `remaining` from the store after every wave, never from your own tally, and if time runs out say the exact number left rather than ending quietly. Never enqueue friends/enrich jobs yourself for a harvest campaign. One
     progress line per campaign in the run reply.
 19c. **Leads From Zillow (daemon walks, daemon writes the CRM).** For every campaign with
     `channel_strategy: zillow_harvest` (Stage 17) the daemon walks the agent directory and adds
