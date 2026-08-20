@@ -33,12 +33,27 @@ gate below was missing on that route.
 
 ## Every scheduled run — what the agent does
 
-### 1. Read the goal, and treat it as the brief
+### 1. Load what you are allowed to say
 
-`tool crm-store --client-dir {outreach} campaign get --slug X` → `goal.description` is the
-operator's own words about who is worth answering and what to say. It is the ONLY criterion.
-Do not substitute a generic "be helpful" instinct for what he wrote, and do not widen it because
-a post is interesting.
+Four inputs. A comment written from fewer than all four is the one that reads like anyone could
+have left it:
+
+1. **The client profile** (`clients/{slug}/.../client_profile_*.md`) — who this client is, what
+   they do, what they have actually done. This is the material you may draw on. The rule below
+   ("no claim the client's own experience cannot support") tells you what you must NOT say; this
+   is the step that tells you what you MAY, and without it the agent improvises.
+2. **`goal.description`** (`campaign get --slug X`) — the operator's own words about who is worth
+   answering and what to say. It is the ONLY criterion for whether a post deserves a reply. Do not
+   substitute a generic "be helpful" instinct for what he wrote, and do not widen it because a
+   post is interesting.
+3. **The group's name**, from `items[].group.name` in the scan — the url tells you nothing, while
+   "Help for Insurance Agents" tells you the field, that the readers are AGENTS rather than
+   customers, and therefore the register: a peer talking to peers. Pass it as `group_name` on the
+   draft.
+4. **The post itself** — see steps 2 and 3.
+
+`goal.message_bank` and `goal.cta` are deliberately NOT read on this channel (operator ruling
+2026-08-17) — they belong to email, and the campaign page hides them here.
 
 ### 2. Scan the campaign's groups
 
@@ -100,6 +115,7 @@ tool crm-store --client-dir {outreach} draft comment --campaign X --json '{
   "post_url": "<permalink>", "group_url": "<group url from audience.groups>",
   "post_author": "<display name as shown>", "post_excerpt": "<first ~200 chars of the post>",
   "body_text": "<the comment>", "post_seen_at": "<ISO time the scan observed it>",
+  "group_name": "<items[].group.name from the scan>",
   "collector": "<the extension instance id that read this group>" }'
 ```
 
