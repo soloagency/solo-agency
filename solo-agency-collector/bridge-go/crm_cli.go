@@ -341,7 +341,7 @@ func runCrmStoreCLI(args []string) int {
 				PostURL: mStr(d, "post_url"), GroupURL: mStr(d, "group_url"),
 				PostAuthor: mStr(d, "post_author"), PostExcerpt: mStr(d, "post_excerpt"),
 				BodyText: mStr(d, "body_text"), PostSeenAt: mStr(d, "post_seen_at"),
-				Collector: mStr(d, "collector"),
+				Collector: mStr(d, "collector"), GroupName: mStr(d, "group_name"),
 			}, loadSystemSettings(pipelineRootFromClientDir(store.clientDir)))
 			if err != nil {
 				return crmFail(err)
@@ -357,7 +357,7 @@ func runCrmStoreCLI(args []string) int {
 			res, err := store.channelDraftWrite(a.get("--campaign"), channelDraftArgs{
 				GroupURL: mStr(d, "group_url"), PostExcerpt: mStr(d, "basis"),
 				BodyText: mStr(d, "body_text"), PostSeenAt: mStr(d, "post_seen_at"),
-				Collector: mStr(d, "collector"),
+				Collector: mStr(d, "collector"), GroupName: mStr(d, "group_name"),
 			}, loadSystemSettings(pipelineRootFromClientDir(store.clientDir)))
 			if err != nil {
 				return crmFail(err)

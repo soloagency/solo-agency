@@ -57,6 +57,12 @@ type channelDraftArgs struct {
 	// 2026-08-17: "comment composer not found" on a post the collector could read
 	// perfectly well). Any other account is a guess with an account-shaped cost.
 	Collector string
+	// GroupName: what the room is called. The url is a number and tells the writer
+	// nothing; "Help for Insurance Agents" tells them the field, that the readers
+	// are agents rather than customers, and therefore the register. It is also what
+	// the operator needs on the approvals card to judge a draft at all — approving
+	// a comment into /groups/764877593708803 is approving it into a number.
+	GroupName string
 }
 
 // ---- post identity ---------------------------------------------------------
@@ -311,7 +317,8 @@ func (c *crmStore) channelDraftWrite(campaignSlug string, a channelDraftArgs, s 
 		"collector": a.Collector,
 		"to":        strOr(a.PostURL, a.GroupURL), "post_url": a.PostURL, "group_url": a.GroupURL,
 		"post_author": a.PostAuthor, "post_excerpt": a.PostExcerpt, "post_seen_at": seenAt,
-		"subject": "", "body_text": body, "body_html": "",
+		"group_name": a.GroupName,
+		"subject":    "", "body_text": body, "body_html": "",
 		"confidence_band": "review_carefully", "hooks_used": channelHooks(ch, a),
 		"tracking": "plain_text", "warnings": channelWarnings(ch),
 		"guessed_approved": false, "is_reply": false, "bank_messages_used": []any{},

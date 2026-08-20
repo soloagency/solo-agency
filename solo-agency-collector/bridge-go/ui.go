@@ -1600,7 +1600,8 @@ func (b *bridge) uiRenderSendboxes(w http.ResponseWriter, slug string) {
 
 type uiDraft struct {
 	ID        string
-	Channel   string // email | comment | post — the badge on the approvals card
+	Channel   string // email | comment | post
+	GroupName string // the room a comment/post is going into, by name not by id — the badge on the approvals card
 	Campaign  string
 	Step      any
 	To        string
@@ -1653,6 +1654,7 @@ func (b *bridge) uiPendingDrafts(c uiClient) []uiDraft {
 			dr.Companion, _ = doc["companion_url"].(string)
 			// A publish that failed sends the draft back here for another decision; the
 			// reason has to travel with it or the operator re-approves into the same wall.
+			dr.GroupName, _ = doc["group_name"].(string)
 			if bl, _ := doc["blocker"].(string); bl != "" {
 				dr.Warnings = append(dr.Warnings, "last attempt failed: "+bl)
 			}
@@ -2913,7 +2915,7 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 <label style="margin:0;cursor:pointer"><input class="pick" type="checkbox" checked style="margin:0"></label>
 <span class="chanbadge chan-{{.Channel}}">{{if eq .Channel "comment"}}Comment{{else if eq .Channel "post"}}Post{{else if eq .Channel "messenger"}}DM{{else}}Email{{end}}</span>
 <strong>{{.To}}</strong> <span class="pill band-{{.Band}}">{{.Band}}</span>
-<span class="pill">{{.Campaign}}</span>{{if eq .Channel "email"}} <span class="pill">step {{.Step}}</span>{{end}}
+<span class="pill">{{.Campaign}}</span>{{if .GroupName}} <span class="pill" title="the group this goes into">{{.GroupName}}</span>{{end}}{{if eq .Channel "email"}} <span class="pill">step {{.Step}}</span>{{end}}
 {{if .Companion}}<a class="pill" href="{{.Companion}}" target="_blank" rel="noopener">companion ↗</a>{{end}}
 </div>
 {{if .Warnings}}<div style="margin-top:6px">{{range .Warnings}}<span class="pill band-review_carefully">⚠ {{.}}</span> {{end}}</div>{{end}}

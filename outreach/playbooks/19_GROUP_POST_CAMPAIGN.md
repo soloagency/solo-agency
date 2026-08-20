@@ -31,40 +31,51 @@ operator spent months joining. Everything below is shaped by that.
 
 ## Every scheduled run — what the agent does
 
-### 1. Read the goal
+### 1. Load what you are allowed to say
 
-`campaign get --slug X` → `goal.description`. It says what this client should be known FOR. A post
-that does not serve it is not written, however good the idea.
+Four inputs, and a post written from fewer than all four reads like anyone could have written it:
 
-### 2. Read the room, group by group
+1. **The client profile** (`clients/{slug}/.../client_profile_*.md`) — who this client is, what
+   they actually do, and what they have actually done. This is the material you may draw on;
+   nothing outside it may be asserted. Without this step the rule "no claim the client's own
+   experience cannot support" tells the agent what it must NOT say while never telling it what it
+   MAY — so it improvises, and improvisation reads as generic.
+2. **`goal.description`** (`campaign get --slug X`) — what this client should be known FOR. A post
+   that does not serve it is not written, however good the idea.
+3. **The group's name** — see step 2.
+4. **The client's own recent posts for this campaign**, so today's is not last week's rephrased.
 
-For each url in `audience.groups`:
+`goal.message_bank` and `goal.cta` are deliberately NOT read on this channel (operator ruling
+2026-08-17) — they belong to email, and the campaign page hides them here.
+
+### 2. Know the room — identity, not a week of reading
+
+A group post does not answer anybody's post, so mining a week of the feed for "what recurs" is
+work this channel does not need (operator ruling 2026-08-19). What it DOES need is two facts
+about the room, and both come from one cheap read the first time you meet a group:
 
 ```json
-{ "name": "read <group> before posting",
+{ "name": "identify <group>",
   "url": "<group_url>", "platform": "facebook", "capability": "fb.group.posts",
-  "inputs": { "group_url": "<group_url>", "within_days": 7, "max_pages": 3 } }
+  "inputs": { "group_url": "<group_url>", "max_pages": 1 },
+  "allowed_extension_instance_ids": ["<instance_id>"] }
 ```
 
-A wider window than Stage 18 on purpose: a comment needs a fresh post to answer, a post needs to
-know **what this group has been talking about for a week**. Read for two things:
+- **The group's NAME**, from `items[].group.name` — every post record carries it. It is the most
+  specific thing you will ever learn about a group and the url tells you none of it: a bare
+  `/groups/764877593708803` is a number, while "Help for Insurance Agents" tells you the field,
+  that the readers are AGENTS rather than customers, and therefore the register — a peer talking
+  to peers, not a vendor talking to buyers. Writing without it is writing blind. Pass it as
+  `group_name` when you deposit the draft.
+- **Which account can act there**, because only the account that read the group is proven to be a
+  member (a non-member is served the page with no composer at all). Pass that same instance id as
+  `collector`.
 
-- **What recurs.** The question asked three different ways in a week is the post worth writing.
-- **What earns engagement HERE.** Compare like/comment counts within this group only; a number
-  that is high in one group is invisible in another. Note the shape that works — a question, a
-  short lesson, a walkthrough — and write in it.
+Once a group's name and account are known, **do not read it again** to write another post. Re-read
+only when you do not have the name, or when a publish failed in a way that suggests the account
+lost access.
 
 Never post into a group that is not in `audience.groups`; `draft post` refuses it.
-
-
-**Pin the scan to ONE collector account, and remember which.** Enqueue the read with
-`allowed_extension_instance_ids: ["<instance_id>"]`, chosen from the extensions the bridge lists
-on `/status`. That account is the only one PROVEN to be a member of the group — Facebook serves a
-non-member the post with no composer at all, which is exactly the failure measured on 2026-08-17:
-the collector read the post perfectly and then reported `comment composer not found`. Pass the same
-id as `"collector"` when you deposit the draft; the bridge publishes from that account and from no
-other, and an item whose account is not checked in waits rather than going out under a different
-name.
 
 ### 3. Decide whether there is anything worth posting
 
@@ -73,8 +84,9 @@ Answer in order, stop at the first "no":
 1. Does the goal cover it?
 2. Is it useful **without** the client's service existing? If the post only makes sense as an
    advertisement, do not write it.
-3. Has this group already seen this from us? Check `commented_posts.json` and the recent sent
-   drafts. Repetition is what turns a known name into a blocked one.
+3. Has this group already seen this from us? Check the recent sent drafts for this campaign —
+   the code refuses the same TEXT twice, but a fourth post rephrasing the same idea is what turns
+   a known name into a blocked one, and no code catches that.
 4. Would a member who never hires anyone still be glad it was posted?
 
 **Writing nothing is a valid, frequent outcome.** With a ceiling of two posts a day, most runs of
@@ -94,7 +106,8 @@ most campaigns should draft zero or one.
 tool crm-store --client-dir {outreach} draft post --campaign X --json '{
   "group_url": "<group url from audience.groups>",
   "body_text": "<the post>",
-  "basis": "<one line: what in the group's last week made this the post to write>",
+  "group_name": "<the group's name, e.g. from items[].group.name>",
+  "basis": "<one line: why this is the post to write for THIS room>",
   "collector": "<the extension instance id that read this group>" }'
 ```
 
