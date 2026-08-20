@@ -712,3 +712,33 @@ func TestBreakerByFailureKind(t *testing.T) {
 		t.Fatal("success must clear the bench and the counter")
 	}
 }
+
+// The breaker retires a seed after four consecutive failed legs. With a flat
+// two-minute rest that only applied to the SAME box, rotating across three
+// collectors fired seven legs in five minutes, so a transient Facebook throttle
+// filled the counter before it could pass. The rest must grow instead.
+func TestHarvestLegRestBacksOffInsteadOfAccelerating(t *testing.T) {
+	if got := harvestLegRest(0); got != harvestLegBaseWait {
+		t.Fatalf("a healthy seed keeps the base rest, got %v", got)
+	}
+	prev := harvestLegRest(0)
+	for f := 1; f <= 4; f++ {
+		got := harvestLegRest(f)
+		if got <= prev {
+			t.Fatalf("rest must grow with failures: %d -> %v, previous %v", f, got, prev)
+		}
+		prev = got
+	}
+	if harvestLegRest(9) != harvestLegRest(4) {
+		t.Fatal("rest must be capped so a dead seed does not wait forever")
+	}
+	// The whole point: four failures must span far more than the few minutes a
+	// three-box rotation used to take.
+	var total time.Duration
+	for f := 1; f <= 3; f++ {
+		total += harvestLegRest(f)
+	}
+	if total < 20*time.Minute {
+		t.Fatalf("four consecutive failures still fit in %v, the throttle window wins again", total)
+	}
+}

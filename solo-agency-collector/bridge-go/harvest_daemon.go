@@ -238,6 +238,20 @@ func (b *bridge) harvestTick(rng *rand.Rand, now time.Time) {
 	}
 }
 
+// harvestLegRest doubles the wait for each consecutive failed leg, capped, so a
+// run of empty responses backs off instead of accelerating into the breaker.
+// 0 failures: 2m (per box). Then 4m, 8m, 16m, 32m across every box, which puts
+// four consecutive failures roughly an hour apart instead of four minutes.
+func harvestLegRest(failures int) time.Duration {
+	if failures <= 0 {
+		return harvestLegBaseWait
+	}
+	if failures > 4 {
+		failures = 4
+	}
+	return harvestLegBaseWait << uint(failures)
+}
+
 // reconcileSeeds makes progress.Seeds mirror the campaign config: new seeds
 // appended (cursor-less), seeds no longer configured flagged Removed (cursor
 // kept so re-adding resumes). Idempotent, runs every tick.
@@ -390,8 +404,14 @@ func (b *bridge) harvestStep(rng *rand.Rand, now time.Time, c uiClient, outreach
 					action = "no_collector"
 					return nil
 				}
-				if box.InstanceID == s.LastLegBox && s.LastLegAt != "" {
-					if t, err := time.Parse(time.RFC3339, s.LastLegAt); err == nil && now.Sub(t) < harvestLegBaseWait {
+				// Rest between legs. With a healthy seed this stays per-box, as before.
+				// Once a seed starts failing the rest goes SEED-wide and doubles, because
+				// what needs to cool off is the profile being paged, not the account doing
+				// the asking. Rotating to the next box skipped the wait entirely, so one
+				// throttled response became seven legs in five minutes and the four-failure
+				// breaker retired a seed that had returned 80 friends an hour earlier.
+				if s.LastLegAt != "" && (s.LegFailures > 0 || box.InstanceID == s.LastLegBox) {
+					if t, err := time.Parse(time.RFC3339, s.LastLegAt); err == nil && now.Sub(t) < harvestLegRest(s.LegFailures) {
 						action = "leg_rest"
 						return nil
 					}
