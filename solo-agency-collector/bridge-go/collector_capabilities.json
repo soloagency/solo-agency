@@ -1,7 +1,7 @@
 {
   "object": "collector_capabilities",
   "version": "0.1.0",
-  "updated_at": "2026-08-16",
+  "updated_at": "2026-08-21",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
@@ -28,7 +28,9 @@
       "created_time": "number — unix seconds when available",
       "attachments": "array of { type, url } — photos/videos/links",
       "engagement": "object { reactions, comments, shares } | null — counts when visible, null when not surfaced",
-      "group": "EntityRef | null — the containing group/page when applicable"
+      "feedback_id": "string — the post's feedback id. This is the handle fb.post.comments takes, so a post's comments can be fetched without re-opening it.",
+      "group": "EntityRef | null — the containing group/page when applicable",
+      "comment_intent": "string — the comment-ordering token THIS story published (Facebook's selectable_intents, the 'unfiltered' variant). Per-story and not guessable; pass it back alongside feedback_id so the server returns the whole thread rather than its ranked/filtered subset."
     },
     "ProfileSummary": {
       "id": "string",
@@ -241,6 +243,19 @@
       "timeline": "{landed_on:'profile', posts_available, posts_reason ('zillow_reviews_and_sales' | 'no_reviews_or_sales_published' | 'no_next_data'), posts_seen, posts_kept, videos_available:false}",
       "industry": "string — always 'Real Estate' (a fact of the source: the Zillow agent directory), not an inference",
       "zillow": "object — screen_name, encoded_zuid, profile_types[], is_top_agent, title, brokerage, business_address{address1,address2,city,state,postal_code,line}, phones{cell,business,brokerage}, email, website, socials{facebook,instagram,linkedin,x,tiktok,youtube}, years_in_industry, member_since, specialties[], languages[], service_areas[] (+service_area_count), licenses[{number,state,status,type,expiration}], rating{average,count}, sales{last_12_months,total,price_range,average_price,raw{},is_team_total}, listings{for_sale,for_rent}, recent_sales[{price,sold_date,represented,address,url,zpid}], recent_reviews[{id,date,rating,snippet,work_description,reviewee_name,reviewee_screen_name}] (reviewer identities are NOT kept), team{role:'lead'|'member'|null, team_name, lead{name,screen_name,profile_url,…}, members[{name,screen_name,profile_url,encoded_zuid,rating,reviews_count,is_top_agent}], member_count}, photo_url. On a TEAM profile `team.members[]` is the list of member agents — each member's profile_url is a ready zillow.profile.enrich target."
+    },
+    "CommentRecord": {
+      "id": "string — the comment's own graph id",
+      "post_feedback_id": "string — the feedback id of the post this comment sits under",
+      "actor": "EntityRef — who wrote the comment (named 'actor', NOT 'author': the bridge redacts any field whose name contains 'auth')",
+      "text": "string — the comment body",
+      "created_time": "number — unix seconds",
+      "depth": "number — 0 for a direct comment on the post, 1 for a reply, and so on",
+      "url": "string — permalink to the comment",
+      "reply_count": "number — how many replies EXIST, whether or not they were fetched",
+      "feedback_id": "string — the COMMENT's own feedback id, which is what the reply query is addressed to. Distinct from post_feedback_id and from id: all three are different handles.",
+      "replies": "CommentRecord[] — populated only when depth >= 2 was requested; empty otherwise",
+      "top_level": "bool — true for a direct comment. Replies also appear nested inside their parent's `replies`, so filter on this before counting or a threaded comment is counted twice."
     }
   },
   "capabilities": [
@@ -255,7 +270,8 @@
         "within_days": "int (optional) — keep only posts newer than N days. Omit for no time limit.",
         "since": "string|int (optional) — ISO date or unix seconds; keep posts at or after this.",
         "until": "string|int (optional) — ISO date or unix seconds; keep posts at or before this.",
-        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it."
+        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it.",
+        "with_comments": "int (optional) — also fetch the comments on the first N posts, IN THE SAME JOB, and attach them as items[].comments (CommentRecord[]). Costs N extra GraphQL requests, no extra page loads. depth / max_comments / max_comment_pages apply and are documented under fb.post.comments."
       },
       "output_schema": "PostRecord[]",
       "provider": "facebook-graphql",
@@ -295,7 +311,8 @@
         "within_days": "int (optional) — keep only posts newer than N days. Omit for no time limit.",
         "since": "string|int (optional) — ISO date or unix seconds; keep posts at or after this.",
         "until": "string|int (optional) — ISO date or unix seconds; keep posts at or before this.",
-        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it."
+        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it.",
+        "with_comments": "int (optional) — also fetch the comments on the first N posts, IN THE SAME JOB, and attach them as items[].comments (CommentRecord[]). Costs N extra GraphQL requests, no extra page loads. depth / max_comments / max_comment_pages apply and are documented under fb.post.comments."
       },
       "output_schema": "PostRecord[]",
       "provider": "facebook-graphql",
@@ -314,6 +331,54 @@
         "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
       },
       "scroll": "max_scroll"
+    },
+    {
+      "id": "fb.post.comments",
+      "title": "Comments on a Facebook post (by feedback id)",
+      "when_to_use": "Read the comments on a post — the commenters' profile ids and what they said — for lead mining: the people REPLYING to a 'looking for an agent' post are often better leads than the poster. Takes a feedback_id, which every PostRecord from fb.group.posts / fb.group.search_posts / fb.profile.posts already carries, so no page load is needed. Prefer the `with_comments` input on those capabilities when you want posts AND comments in one job.",
+      "inputs": {
+        "feedback_id": "string — the post's feedback id, read off PostRecord.feedback_id. Required unless feedback_ids is given.",
+        "feedback_ids": "string[] | object[] (optional) — several posts in one job, walked SERIALLY. Prefer the object form { feedback_id, comment_intent } and pass each PostRecord's own pair: the ordering token is PER STORY.",
+        "depth": "int (optional, default 1, max 4) — LEVELS OF COMMENT, not levels of reply. 1 = the direct comments on the post and nothing beneath them. 2 adds their replies, 3 adds replies of replies. Each level past 1 costs one request PER COMMENT, so a post with 40 comments becomes 40 extra requests at depth 2 — raise it deliberately.",
+        "max_comments": "int (optional, default 60, max 500) — total rows across ALL posts and all reply levels in this job.",
+        "max_comment_pages": "int (optional, default 5, max 20) — comment pages per post. Facebook serves comments in pages; this bounds the walk.",
+        "comment_intent": "string (optional) — overrides every story's own ordering token. Normally leave it out: each post uses the token IT published, and null when it published none (which is what Facebook's own client sends). Do NOT invent a token — an unrecognised one gets swapped for the server's ranked/FILTERED default, returning a subset of the thread that looks exactly like the whole of it. (Not named intent_token: the bridge redacts any field name containing 'token'.)",
+        "comment_doc_id": "string (optional) — override the persisted-query id when the module is not loaded on this screen (see registry_probe in the output).",
+        "reply_doc_id": "string (optional) — same, for the reply query.",
+        "post_url": "string (optional, ignored) — kept only because the superseded version of this capability took one. Comments are addressed by feedback_id; the post is never opened."
+      },
+      "output_schema": "CommentRecord[]",
+      "provider": "facebook-graphql",
+      "coverage": "comments visible to the logged-in user on that post",
+      "status": "stable",
+      "_impl": {
+        "screen": "none — pure GraphQL replay. The post is NEVER opened and the page is never scrolled; any Facebook tab supplies the auth.",
+        "graphql_query": "CommentsListComponentsPaginationQuery (top level) + Depth1CommentsListPaginationQuery (replies)",
+        "edge_path": "data.node.comment_rendering_instance_for_feed_location.comments.edges; replies at data.node.replies_connection.edges",
+        "node_fields": {
+          "actor": "node.author.{id,name,url} — emitted as `actor`",
+          "text": "node.body.text, falling back to node.preferred_body.text",
+          "created_time": "node.created_time",
+          "reply_count": "node.feedback.replies_fields.total_count",
+          "expansion_token": "node.feedback.expansion_info.expansion_token — the handle the reply query takes",
+          "post feedback_id": "comet_sections.content.story.feedback.id, then <story>.feedback.id — NOT feedback_target_with_context.id, which is a different node",
+          "post comment_intent": "...feedback_target_with_context.comment_list_renderer.feedback.comment_rendering_instance_for_feed_location.selectable_intents[] — first whose intent_token contains 'unfiltered'",
+          "reply query id": "node.feedback.id of the PARENT COMMENT — not the comment id, which resolves to a node with no replies_connection so the reply walk answers empty while reporting success"
+        },
+        "doc_id": "taken from Facebook's own module registry (window.require('<Query>.graphql').params.id), so it can never go stale. Provider variables are read off the SAME artifact rather than hardcoded.",
+        "registry_caveat": "Comet loads modules on demand. On a screen that has never rendered a comment thread the query module may be absent; the capability then refuses with a registry_probe listing the sibling query names it DID find, instead of returning an empty list.",
+        "failure_reporting": "A rejected query answers HTTP 200 with an `errors` array. That is reported as reason:'query_rejected' with the error text in `notes` — never as 'no comments'. An empty post reports reason:'no_comments'.",
+        "validated_on": "2026-08-21, live on aven-ngo against facebook.com/groups/1569314343856132/search/?q=agent with scroll_steps:0. 23 posts, 49 direct comments across the first 5, zero DOM reads and the posts never opened. The module WAS in the registry on a search screen, so no doc_id override was needed. Cross-check: the two posts reporting 0 comments were the two whose engagement.comments was 0 — empty and broken stayed distinguishable. Offline harness: tests/test_post_comments.js (110 checks).",
+        "superseded_finding": "The 2026-07-15 entry recorded this as status:not_graphql — \"the first page of comments is server-rendered; only load-more PAGINATION uses GraphQL (CometUFICommentsProviderQuery), which needs enough comments to trigger.\" The first half is true and the conclusion drawn from it was wrong, in the same way it was wrong for group feeds: page 1 is never INTERCEPTED because nothing is fetched for it, but the pagination query answers the head of the connection perfectly well when it is REPLAYED with a null cursor. Nothing has to be triggered and no scrolling is needed. The query name in that note was also wrong — it is CommentsListComponentsPaginationQuery.",
+        "url_match": [
+          "facebook.com/.../posts/<id>",
+          "facebook.com/permalink.php"
+        ],
+        "reported_stop_reasons": "by_post[].stopped_because is one of: end_of_connection (the thread ended); page_cap / comment_cap (a budget stopped it — has_next_page and end_cursor say where to resume); graphql_error (rejected, nothing usable came back); unreadable_response (the server answered with something that is not GraphQL JSON — a login page, checkpoint, rate limit or 5xx, and unlike the others it is worth retrying); fetch_failed.",
+        "partial_responses": "Facebook returns `errors` ALONGSIDE `data` when one @defer fragment fails. Those rows are KEPT and the failure is recorded in notes as '(partial)'.",
+        "depth_semantics_measured": "A comment's replies_connection returns its WHOLE reply subtree in one response, not just the next level — measured on a 27-comment thread at depth:2, which returned 23 replies at node.depth 1 and 27 at node.depth 2 from a single query per comment. So depth:2 is in practice the full thread, and depth:3+ buys little. Coverage on that thread: 26 of 27 comments returned exactly their declared reply_count; one returned 6 of 8. Facebook's own total_count (84) counts more than direct + replies (79) — treat total_count as an upper bound, not a target.",
+        "intent_measured": "Search story nodes did NOT carry selectable_intents, so comment_intent came back empty and null was sent — and the walk still reached end_of_connection on every post. This is why the code sends null rather than an invented literal: null is a value Facebook accepts, a wrong token is not."
+      }
     },
     {
       "id": "fb.profile.friends",
@@ -427,7 +492,8 @@
         "within_days": "int (optional) — keep only posts newer than N days. Omit for no time limit.",
         "since": "string|int (optional) — ISO date or unix seconds; keep posts at or after this.",
         "until": "string|int (optional) — ISO date or unix seconds; keep posts at or before this.",
-        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it."
+        "include_undated": "bool (optional, default false) — a post whose timestamp could not be read cannot be judged against the window. It is EXCLUDED by default and always COUNTED in time_window.undated; set true to keep it.",
+        "with_comments": "int (optional) — also fetch the comments on the first N posts, IN THE SAME JOB, and attach them as items[].comments (CommentRecord[]). Costs N extra GraphQL requests, no extra page loads. depth / max_comments / max_comment_pages apply and are documented under fb.post.comments."
       },
       "output_schema": "PostRecord[]",
       "provider": "facebook-graphql",
@@ -474,30 +540,6 @@
         "edge_path": "data.viewer.news_feed.edges[].node (skip ads/suggestions: require comet_sections + story message)",
         "validated_on": "2026-07-15 (live verified on aven-ngo)",
         "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
-      },
-      "scroll": "max_scroll"
-    },
-    {
-      "id": "fb.post.comments",
-      "title": "Facebook post comments",
-      "when_to_use": "Read the comments on a specific post — for mining leads or sentiment from a discussion thread.",
-      "inputs": {
-        "post_url": "string (required) — a permalink to the post",
-        "max_scroll": "int (optional)"
-      },
-      "output_schema": "{ post: PostRecord, comments: [{ author: EntityRef, text, created_time }] }",
-      "provider": "facebook-graphql",
-      "coverage": "comments visible to the logged-in user",
-      "status": "not_graphql",
-      "_impl": {
-        "screen": "post_comments",
-        "url_match": [
-          "facebook.com/.../posts/<id>",
-          "facebook.com/permalink.php"
-        ],
-        "graphql_query": null,
-        "fallback": "html",
-        "finding": "2026-07-15: no comment GraphQL query fires on a passive permalink scroll. The first page of comments is server-rendered (initial document/RSC payload); only load-more PAGINATION uses GraphQL (CometUFICommentsProviderQuery), which needs enough comments to trigger. Needs HTML/RSC parsing of first-page comments, or a comment-pagination trigger."
       },
       "scroll": "max_scroll"
     },
