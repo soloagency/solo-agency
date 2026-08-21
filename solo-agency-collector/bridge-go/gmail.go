@@ -1286,7 +1286,7 @@ func gmailCmdSync(clientDir, slug string, maxMsgs int) (map[string]any, error) {
 	replies := []any{}
 	newCursor := cursor
 	for _, uid := range batch {
-		raw, err := m.uidFetchRFC822(uid)
+		raw, err := m.uidFetchPeek(uid)
 		if err != nil || raw == nil {
 			break
 		}

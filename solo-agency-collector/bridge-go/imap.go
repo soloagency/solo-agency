@@ -2,7 +2,7 @@ package main
 
 // imap.go — minimal hand-rolled IMAP4rev1 client over implicit TLS, exactly
 // the surface gmail_client.py uses (docs/UI_DESIGN.md §8 G3): LOGIN,
-// SELECT INBOX, UID SEARCH, UID FETCH <uid> (RFC822), LOGOUT. No IDLE, no
+// SELECT INBOX, UID SEARCH, UID FETCH <uid> (BODY.PEEK[]), LOGOUT. No IDLE, no
 // APPEND, no STORE. Stdlib-only (crypto/tls + bufio).
 
 import (
@@ -116,10 +116,30 @@ func (c *imapClient) uidSearch(criteria string) ([]int, error) {
 	return uids, nil
 }
 
-// uidFetchRFC822 returns the raw RFC822 bytes for one UID (nil when the
-// server returned no literal — caller treats that as a transient miss).
-func (c *imapClient) uidFetchRFC822(uid int) ([]byte, error) {
-	untagged, _, err := c.command("UID FETCH %d (RFC822)", uid)
+// uidFetchPeek returns the raw message bytes for one UID WITHOUT marking it read
+// (nil when the server returned no literal — caller treats that as a transient
+// miss).
+//
+// It used to ask for `RFC822`, which RFC 3501 §6.4.5 defines as functionally
+// equivalent to `BODY[]` — and fetching BODY[] IMPLICITLY SETS \Seen. The poller
+// has to read a message before it can know who sent it, so every message in the
+// mailbox was marked read on the way past: campaign replies, and equally the
+// operator's personal mail from people who are not leads and never will be. He
+// missed real mail because of it.
+//
+// BODY.PEEK[] is the same fetch with that side effect removed — the standard's
+// own words: "an alternate form of BODY[<section>] that does not implicitly set
+// the \Seen flag". Nothing here needs the flag: dedup runs off the UID cursor,
+// and this client deliberately issues no STORE, so read state belongs entirely
+// to the human. Restoring the flag afterwards would have been the wrong repair —
+// it marks the mail read first, which is already visible on his phone, and then
+// races to undo it.
+// imapPeekFetch is the ONLY fetch form this client may use. RFC822 and BODY[]
+// both set \Seen; BODY.PEEK[] does not. Pinned by a test so it cannot drift back.
+const imapPeekFetch = "UID FETCH %d (BODY.PEEK[])"
+
+func (c *imapClient) uidFetchPeek(uid int) ([]byte, error) {
+	untagged, _, err := c.command(imapPeekFetch, uid)
 	if err != nil {
 		return nil, err
 	}

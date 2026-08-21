@@ -8,6 +8,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -228,5 +229,38 @@ func TestPresendFreezeAllowsReplyBlocksBump(t *testing.T) {
 	}
 	if !(mStr(frozen, "sequence_state") == "frozen" && !mBool(map[string]any{"is_reply": false}, "is_reply")) {
 		t.Fatal("a bump (not is_reply) to a frozen lead must still be blocked")
+	}
+}
+
+// TestIMAPFetchNeverMarksMailRead: the poller has to read a message before it can
+// know who sent it, so the fetch form decides what happens to EVERY message in the
+// mailbox — not just campaign replies. `RFC822` and `BODY[]` both implicitly set
+// \Seen (RFC 3501 §6.4.5), which silently marked the operator's personal mail read
+// and made him miss real messages. BODY.PEEK[] is the same fetch without that.
+func TestIMAPFetchNeverMarksMailRead(t *testing.T) {
+	cmd := fmt.Sprintf(imapPeekFetch, 42)
+	if !strings.Contains(cmd, "BODY.PEEK[]") {
+		t.Fatalf("the fetch must peek: %q", cmd)
+	}
+	if strings.Contains(cmd, "RFC822") {
+		t.Fatalf("RFC822 is functionally BODY[] and sets \\Seen: %q", cmd)
+	}
+	// A bare BODY[] would set it too — PEEK is the only accepted form.
+	if strings.Contains(strings.ReplaceAll(cmd, "BODY.PEEK[]", ""), "BODY[") {
+		t.Fatalf("a bare BODY[] sets \\Seen: %q", cmd)
+	}
+	if !strings.Contains(cmd, "UID FETCH 42") {
+		t.Fatalf("uid must still be addressed by UID: %q", cmd)
+	}
+	// This client must never write flags either: read state belongs to the human,
+	// and "mark read then put it back" is a race the operator sees on his phone.
+	src, err := os.ReadFile("imap.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"STORE", "+FLAGS", "\\\\Seen\"", "UID STORE"} {
+		if strings.Contains(string(src), forbidden) && !strings.Contains(string(src), "no STORE") {
+			t.Fatalf("imap.go must not write flags, found %q", forbidden)
+		}
 	}
 }

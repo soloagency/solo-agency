@@ -34,7 +34,10 @@ _Version: `modular-1.1` · module of the AI Video Editor Playbook (`SKILL.md`)._
 
 **Content & semantics:**
 - `text` — the scene's spoken line (original caption).
-- `talking_point` — a condensed version of the main ideas joined by ` -> `.
+- `talking_point` — the same ideas as `text` rewritten in written style, split
+  into short display units (2–5 words each) joined by ` | `. It is **not** a
+  summary: each unit becomes one typography line, so the split is the layout.
+  Videos made before 2026-08-20 use ` -> ` instead; readers accept both.
 - `quote` — the figure/punch phrase (always contains a number if the scene has a number).
 - `keyword` — 3 English keywords for finding B-roll, ordered by priority `primary, fallback1, fallback2`.
 - `visual` — **English image prompt** describing the overlay (empty if `pattern` is `typography_only`/`narration_only`; it is a **search query** if `pattern=real_entity`).
