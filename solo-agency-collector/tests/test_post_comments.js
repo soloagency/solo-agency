@@ -412,6 +412,52 @@ async function run() {
     check("all 5 comments still came back", res.count === 5, res.count);
   }
 
+  console.log("\n== a comment walk can be RESUMED where it stopped ==");
+  {
+    // Facebook pages comments about ten at a time, so page_cap is the normal case, not a corner.
+    // Without a way to feed the cursor back, every later job re-walks from the head and returns
+    // the same first rows — four legs that each look like a success and collectively collect one
+    // page. These tests assert on WHICH cursors went out, not just on the row count.
+    const leg1 = makeCtx({});
+    const r1 = await call(leg1, { feedback_id: "fb:P1", max_comment_pages: 1 });
+    check("leg 1 is cut by the budget and says so", (r1.by_post[0] || {}).stopped_because === "page_cap", r1.by_post);
+    check("leg 1 reports it is resumable", (r1.by_post[0] || {}).resumable === true, r1.by_post);
+    check("leg 1 started at the head", leg1.sent[0].vars.commentsAfterCursor === null, leg1.sent[0].vars);
+    const cur = (r1.by_post[0] || {}).end_cursor;
+    check("leg 1 hands back a cursor", cur === "cc:1", cur);
+
+    const leg2 = makeCtx({});
+    const r2 = await call(leg2, { feedback_id: "fb:P1", start_cursor: cur });
+    // The whole point: a resuming leg that still asks for the head returns the same first rows
+    // every time while reporting success, and the run silently collects nothing new.
+    const asked = leg2.sent.filter((x) => x.query === COMMENT_Q).map((x) => x.vars.commentsAfterCursor);
+    check("leg 2 never asks for the head", asked.indexOf(null) === -1, asked);
+    check("leg 2 starts at the given cursor", asked[0] === "cc:1", asked);
+    check("leg 2 echoes the start_cursor back", (r2.by_post[0] || {}).start_cursor === "cc:1", r2.by_post);
+
+    const ids1 = r1.items.map((c) => c.id), ids2 = r2.items.map((c) => c.id);
+    check("leg 2 returns only its own slice", ids2.join(",") === "c3,c4,c5", ids2);
+    check("no row is collected twice", ids1.filter((i) => ids2.indexOf(i) > -1).length === 0, { ids1, ids2 });
+    check("the two legs cover the whole thread", ids1.concat(ids2).join(",") === "c1,c2,c3,c4,c5", ids1.concat(ids2));
+    check("the last leg says the thread ended", (r2.by_post[0] || {}).stopped_because === "end_of_connection", r2.by_post);
+    check("and is not resumable", (r2.by_post[0] || {}).resumable === false, r2.by_post);
+  }
+  {
+    // A cursor is per POST, so a multi-post job resumes through a map keyed by feedback id —
+    // one shared cursor would send the second post into the first post's thread.
+    const h = makeCtx({});
+    await call(h, { feedback_ids: ["fb:P1", "fb:P2"], max_comment_pages: 1,
+                    start_cursors: { "fb:P2": "cc:2" } });
+    const byId = {};
+    h.sent.filter((x) => x.query === COMMENT_Q).forEach((x) => { (byId[x.vars.id] = byId[x.vars.id] || []).push(x.vars.commentsAfterCursor); });
+    check("the post with no cursor starts at the head",
+      byId["fb:P1"].length === 1 && byId["fb:P1"][0] === null, byId);
+    check("the post with a cursor resumes from it",
+      byId["fb:P2"].length === 1 && byId["fb:P2"][0] === "cc:2", byId);
+    check("one post's cursor never leaks into the other",
+      byId["fb:P1"].indexOf("cc:2") === -1, byId);
+  }
+
   console.log("\n== several posts in one call stay separated ==");
   {
     const h = makeCtx({});
