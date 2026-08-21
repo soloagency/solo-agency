@@ -59,7 +59,13 @@ type uiThreadState struct {
 	Campaign     string
 	NextStep     int
 	Sendbox      string
+	To           string
 	RemoveIntent bool
+	DraftID      string // an earlier attempt that never left; its text is offered back
+	DraftText    string
+	DraftSubject string
+	DraftCopyTo  string
+	DraftBlocker string
 }
 
 // uiReplyState decides whether this contact may be answered, and with what.
@@ -119,6 +125,17 @@ func (b *bridge) uiReplyState(c uiClient, leadID string) uiThreadState {
 	}
 
 	// Campaign and step come from the ledger, never from the browser.
+	// Who to answer. Their From when we recorded it AND it is one of this
+	// contact's identities; otherwise the primary. Replies that predate subject
+	// and sender capture have no From on the row at all, and a draft addressed to
+	// "" is refused by gmailPresendCheck as recipient_not_a_contact_identity — the
+	// gate doing its job, on a hole this lane created.
+	st.To = uiPickRecipient(ct, st.InboundFrom)
+	if st.To == "" {
+		st.Blocker = "no_usable_address"
+		st.Detail = "This contact has no email identity to answer on."
+		return st
+	}
 	st.Campaign = b.uiLastCampaignFor(clientDir, leadID)
 	if st.Campaign == "" {
 		st.Blocker = "no_campaign"
@@ -126,9 +143,62 @@ func (b *bridge) uiReplyState(c uiClient, leadID string) uiThreadState {
 		return st
 	}
 	st.NextStep = b.uiNextStepFor(clientDir, st.Campaign, leadID)
+	// Hand back the words from an attempt that did not leave. The operator wrote
+	// them; losing them to a blocker is how the same message gets typed twice and
+	// eventually sent twice.
+	b.uiLoadUnsentReply(clientDir, st.Campaign, leadID, &st)
 	st.Sendbox = mStr(ct, "assigned_sendbox")
 	st.CanReply = true
 	return st
+}
+
+// uiLoadUnsentReply finds the newest operator_reply draft for this contact that
+// never sent, and carries its text back to the composer.
+func (b *bridge) uiLoadUnsentReply(clientDir, campaign, leadID string, st *uiThreadState) {
+	lane := filepath.Join(clientDir, "campaigns", campaign, "outbox", "operator_reply")
+	best := ""
+	_ = filepath.WalkDir(lane, func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".json") {
+			return nil
+		}
+		dd, e := readJSONFile(p)
+		if e != nil || mStr(dd, "lead_id") != leadID || mStr(dd, "status") == "sent" {
+			return nil
+		}
+		if at := mStr(dd, "created_at"); at >= best {
+			best = at
+			st.DraftID, st.DraftText = mStr(dd, "id"), mStr(dd, "body_text")
+			st.DraftSubject, st.DraftCopyTo = mStr(dd, "subject"), mStr(dd, "copy_to")
+			st.DraftBlocker = mStr(dd, "blocker")
+		}
+		return nil
+	})
+}
+
+// uiPickRecipient answers the address they actually wrote from when that address
+// is one we hold for them, and the primary otherwise. Never a bare inbound From:
+// that is attacker-supplied, and gmailPresendCheck rightly refuses anything that
+// is not already a known identity of this contact.
+func uiPickRecipient(ct map[string]any, inboundFrom string) string {
+	emails := mapsOf(mList(mMap(ct, "identities"), "emails"))
+	want := normalizeEmail(strings.TrimSpace(inboundFrom))
+	primary, first := "", ""
+	for _, e := range emails {
+		addr := strings.TrimSpace(mStr(e, "address"))
+		if addr == "" {
+			continue
+		}
+		if want != "" && normalizeEmail(addr) == want {
+			return addr
+		}
+		if first == "" {
+			first = addr
+		}
+		if mBool(e, "is_primary") && primary == "" {
+			primary = addr
+		}
+	}
+	return strOr(primary, first)
 }
 
 // uiLastSentSubject digs the subject out of the draft we sent, for threads whose
@@ -202,7 +272,10 @@ func (b *bridge) uiNextStepFor(clientDir, campaign, leadID string) int {
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".json") {
 			return nil
 		}
-		if dd, e := readJSONFile(p); e == nil && mStr(dd, "lead_id") == leadID {
+		// Only a draft that ACTUALLY WENT OUT consumes a step. A blocked attempt
+		// left behind by a refused send must not push the next reply to step 3, or
+		// every failed click silently ages the thread.
+		if dd, e := readJSONFile(p); e == nil && mStr(dd, "lead_id") == leadID && mStr(dd, "status") == "sent" {
 			if s := mInt(dd, "step", 0); s > hi {
 				hi = s
 			}
@@ -302,7 +375,7 @@ func (b *bridge) uiReplySend(w http.ResponseWriter, c uiClient, body map[string]
 		"id": draftID, "lead_id": leadID, "campaign_slug": st.Campaign,
 		"step": st.NextStep, "is_reply": true, "authored_by": "operator",
 		"subject": subject, "body_text": text, "tracking": "plain_text",
-		"to": st.InboundFrom, "sendbox": "", "status": "approved",
+		"to": st.To, "sendbox": "", "status": "approved",
 		"in_reply_to": st.InboundMID, "hooks_used": []any{},
 		"created_at": now, "decided_at": now, "decided_by": "ui",
 		"copy_to": copyTo, "guessed_approved": false,
@@ -318,7 +391,7 @@ func (b *bridge) uiReplySend(w http.ResponseWriter, c uiClient, body map[string]
 	// Journal BEFORE the irreversible act, so an interrupted send still left a trace.
 	_ = appendUIInbox(filepath.Join(clientDir, "ui_inbox", "reply_sends.jsonl"), map[string]any{
 		"ts": now, "contact_id": leadID, "campaign": st.Campaign, "draft_id": draftID,
-		"step": st.NextStep, "to": st.InboundFrom, "copy_to": copyTo,
+		"step": st.NextStep, "to": st.To, "copy_to": copyTo,
 		"in_reply_to": st.InboundMID, "body_chars": len(text), "ui_session": session,
 	})
 	if err := store.approvalLog(draft, "approve", "ui", "operator reply from contact page"); err != nil {

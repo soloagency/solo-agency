@@ -130,3 +130,29 @@ func TestRemoveIntentPhrases(t *testing.T) {
 		}
 	}
 }
+
+// The address we answer must already be one this contact owns. An inbound From
+// is attacker-supplied, and replies recorded before sender capture have none at
+// all — which is how a draft went out addressed to "" and was refused.
+func TestPickRecipient(t *testing.T) {
+	ct := map[string]any{"identities": map[string]any{"emails": []any{
+		map[string]any{"address": "primary@x.com", "is_primary": true},
+		map[string]any{"address": "second@x.com"},
+	}}}
+	if got := uiPickRecipient(ct, "second@x.com"); got != "second@x.com" {
+		t.Errorf("they wrote from their second address; answer there, got %q", got)
+	}
+	if got := uiPickRecipient(ct, ""); got != "primary@x.com" {
+		t.Errorf("no recorded sender falls back to primary, got %q", got)
+	}
+	if got := uiPickRecipient(ct, "stranger@evil.com"); got != "primary@x.com" {
+		t.Errorf("an address we do not hold must never be answered, got %q", got)
+	}
+	if got := uiPickRecipient(ct, "SECOND@X.COM"); got != "second@x.com" {
+		t.Errorf("match is case-insensitive, got %q", got)
+	}
+	empty := map[string]any{"identities": map[string]any{"emails": []any{}}}
+	if got := uiPickRecipient(empty, "a@b.com"); got != "" {
+		t.Errorf("no identities means no recipient, got %q", got)
+	}
+}

@@ -2915,14 +2915,15 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 {{if .CanReply}}
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Reply</h3>
-  <p class="mut" style="font-size:.8rem;margin-top:0">Goes out on this thread, from the sendbox that already owns it{{if .Sendbox}} ({{.Sendbox}}){{end}}. Nothing else is asked of you.</p>
+  <p class="mut" style="font-size:.8rem;margin-top:0">Goes to {{.To}} on this thread, from the sendbox that already owns it{{if .Sendbox}} ({{.Sendbox}}){{end}}. Nothing else is asked of you.</p>
+  {{if .DraftText}}<p class="mut" style="font-size:.78rem;padding:6px 9px;border-left:3px solid var(--pico-primary,#0172ad);background:rgba(127,127,127,.07)">Restored from an attempt that did not send{{if .DraftBlocker}} ({{.DraftBlocker}}){{end}}. Your words are below, unchanged.</p>{{end}}
   <form id="replyform" onsubmit="return false">
     <input type="hidden" id="rp_contact" value="{{$.C.ID}}">
     <input type="hidden" id="rp_mid" value="{{.InboundMID}}">
-    <label style="font-size:.82rem">Subject<input id="rp_subject" value="{{.Subject}}"></label>
-    <label style="font-size:.82rem">Message<textarea id="rp_body" rows="9" placeholder="Write the reply..."></textarea></label>
+    <label style="font-size:.82rem">Subject<input id="rp_subject" value="{{if .DraftSubject}}{{.DraftSubject}}{{else}}{{.Subject}}{{end}}"></label>
+    <label style="font-size:.82rem">Message<textarea id="rp_body" rows="14" placeholder="Write the reply...">{{.DraftText}}</textarea></label>
     <label style="font-size:.82rem">Send a copy to <span class="mut">(optional, separate email, they are not told)</span>
-      <input id="rp_copy" type="email" placeholder="you@example.com"></label>
+      <input id="rp_copy" type="email" placeholder="you@example.com" value="{{.DraftCopyTo}}"></label>
     <button id="rp_send" onclick="uiSendReply()">Send reply</button>
     <span id="rp_status" class="mut" style="font-size:.82rem;margin-left:10px"></span>
   </form>
