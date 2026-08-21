@@ -540,8 +540,14 @@ func gmailMkToken() string {
 }
 
 type mimeMessage struct {
-	Headers    [][2]string
-	Body       string
+	Headers [][2]string
+	Body    string // the wire body: quoted-printable, MIME parts and all
+	// plain is the same text before transfer encoding. Body is what SMTP needs;
+	// plain is what a human can read back later. Storing Body by mistake put
+	// "=C4=90=E1=BA=A7u" in the conversation view for a message that arrived
+	// perfectly readable, because the header declares the encoding and every mail
+	// client undoes it.
+	plain      string
 	rawSubject string
 }
 
@@ -641,6 +647,7 @@ func gmailBuildMIME(sb, draft map[string]any, rfcMessageID, threadRefs, footer s
 		writePart("text/html", htmlBody)
 		sb2.WriteString("--" + boundary + "--\r\n")
 		msg.Body = sb2.String()
+		msg.plain = body
 	} else {
 		push("MIME-Version", "1.0")
 		push("Content-Type", `text/plain; charset="utf-8"`)
@@ -650,6 +657,7 @@ func gmailBuildMIME(sb, draft map[string]any, rfcMessageID, threadRefs, footer s
 		w.Write([]byte(body))
 		w.Close()
 		msg.Body = sb2.String()
+		msg.plain = body
 	}
 	draft["token"] = token
 	msg.subjectRaw(subject)
@@ -837,7 +845,7 @@ func gmailCmdSend(clientDir, draftPath string, dryRun bool) (map[string]any, err
 		"direction": "out", "contact_id": leadID, "campaign": mStr(draft, "campaign_slug"),
 		"step": step, "rfc_message_id": rfcMessageID, "in_reply_to": threadRefs,
 		"sendbox": slug, "from": mStr(sb, "email"), "to": mStr(draft, "to"),
-		"subject": msg.rawSubject, "body_text": msg.Body,
+		"subject": msg.rawSubject, "body_text": msg.plain,
 		"activity_seq": act["seq"], "authored_by": author, "provenance": "as_sent",
 	}); mErr != nil {
 		fmt.Fprintf(os.Stderr, "message body not retained for %s: %v\n", rfcMessageID, mErr)

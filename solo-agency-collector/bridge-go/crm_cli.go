@@ -170,7 +170,7 @@ func runCrmStoreCLI(args []string) int {
 		"--profile", "--seed", "--records", "--end-cursor", "--has-next", "--box", "--lead-id", "--status"} {
 		valueFlags[f] = true
 	}
-	boolFlags := map[string]bool{"--confirm": true, "--rebuild-index": true}
+	boolFlags := map[string]bool{"--confirm": true, "--rebuild-index": true, "--apply": true}
 	a, err := parseCLIArgs(args, valueFlags, boolFlags)
 	if err != nil {
 		return crmUsageErr(err.Error())
@@ -540,6 +540,15 @@ func runCrmStoreCLI(args []string) int {
 			}
 			return crmOut(res, 0)
 		}
+	case "messages":
+		if op == "repair-encoding" {
+			res, err := store.repairMessageEncoding(a.bools["--apply"])
+			if err != nil {
+				return crmFail(err)
+			}
+			return crmOut(res, 0)
+		}
+		return crmUsageErr("messages op must be repair-encoding")
 	case "activity":
 		ev, err := parseJSONArg(a.get("--json"))
 		if err != nil {

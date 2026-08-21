@@ -1,8 +1,11 @@
 package main
 
 import (
+	"io"
+	"mime/quotedprintable"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -84,5 +87,36 @@ func TestMessageRetainedIsIdempotencyGuard(t *testing.T) {
 	}
 	if messageRetained(store, "<other@mail.gmail.com>", when) {
 		t.Fatal("a different Message-ID must not match")
+	}
+}
+
+// The wire body is quoted-printable; the stored body must not be. A recipient's
+// mail client undoes the encoding and never sees it, so a message that arrived
+// perfectly readable was being read back as "=C4=90=E1=BA=A7u".
+func TestStoredBodyIsReadableNotWireEncoded(t *testing.T) {
+	draft := map[string]any{
+		"to": "a@b.com", "subject": "Chào em", "body_text": "Đầu tiên chúc mừng em có listing mới",
+		"tracking": "plain_text", "campaign_slug": "c", "step": 2,
+	}
+	sb := map[string]any{"slug": "sb-e", "email": "me@x.com"}
+	msg, err := gmailBuildMIME(sb, draft, "<mid@x>", "", "", trackCfg{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(msg.Body, "=C4=90") {
+		t.Fatalf("the wire body should be quoted-printable, got: %.80q", msg.Body)
+	}
+	if strings.Contains(msg.plain, "=C4=90") {
+		t.Fatalf("the stored body must NOT be encoded, got: %.80q", msg.plain)
+	}
+	if !strings.Contains(msg.plain, "Đầu tiên chúc mừng em có listing mới") {
+		t.Fatalf("stored body lost the original text: %.120q", msg.plain)
+	}
+	dec, err := io.ReadAll(quotedprintable.NewReader(strings.NewReader(msg.Body)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(dec) != msg.plain {
+		t.Fatalf("stored body is not what was sent:\n stored=%q\n onwire=%q", msg.plain, string(dec))
 	}
 }
