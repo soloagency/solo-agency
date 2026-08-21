@@ -368,11 +368,87 @@
   //   reactions total = <ufi>...reaction_count.count  (the {count} object form;
   //                     per-emoji counts under top_reactions.edges are bare nums)
   //   comments  total = <ufi>.comment_rendering_instance.comments.total_count
-  function postEngagement(node) {
+  // The UFI node — Facebook's "feedback target" — carries a story's reaction/comment counts
+  // AND its feedback id. That id is the ONLY input every comment query takes, so locating this
+  // node once serves both purposes. Two nestings are in the wild (with and without
+  // comet_feed_ufi_container) and the SERP nests it differently again, so try the measured
+  // paths first and fall back to a bounded search for the key by name.
+  var UFI_PATHS = [
+    "feedback.story.story_ufi_container.story.feedback_context.feedback_target_with_context",
+    "feedback.story.comet_feed_ufi_container.story.story_ufi_container.story.feedback_context.feedback_target_with_context"
+  ];
+  function storyFeedbackTarget(node) {
+    if (!isObj(node)) return null;
     var cs = node.comet_sections;
-    if (!isObj(cs)) return null;
-    var ufi = getPath(cs, "feedback.story.story_ufi_container.story.feedback_context.feedback_target_with_context");
-    if (!isObj(ufi)) ufi = deepFind(cs, { feedback_target_with_context: 1 }, isObj, 0, 16);
+    if (isObj(cs)) {
+      for (var i = 0; i < UFI_PATHS.length; i++) {
+        var hit = getPath(cs, UFI_PATHS[i]);
+        if (isObj(hit)) return hit;
+      }
+      var inCs = deepFind(cs, { feedback_target_with_context: 1 }, isObj, 0, 16);
+      if (isObj(inCs)) return inCs;
+    }
+    // Deliberately NOT a whole-node fallback. A reshared post nests the original story, whose
+    // own feedback_target_with_context would then be bound to the WRAPPER — reporting the inner
+    // post's reaction and comment counts as the outer post's. The old code searched only
+    // comet_sections and returned null here; keep that.
+    return null;
+  }
+
+  // A story's feedback id — the ONLY input the comment queries take.
+  //
+  // These two paths, in this order, are what a working third-party extension reads, measured
+  // out of its source. The obvious-looking candidate — feedback_target_with_context.id, the UFI
+  // node this file already locates for engagement counts — is a DIFFERENT node and its id is not
+  // interchangeable, so it is tried last and only as a rescue. Search results run through the
+  // same normalizer as feed posts there, so one lookup serves both screens.
+  var FEEDBACK_ID_PATHS = ["comet_sections.content.story.feedback.id", "feedback.id"];
+  function storyFeedbackId(node) {
+    if (!isObj(node)) return "";
+    for (var i = 0; i < FEEDBACK_ID_PATHS.length; i++) {
+      var v = getPath(node, FEEDBACK_ID_PATHS[i]);
+      if (typeof v === "string" && v) return v;
+    }
+    var fb = deepFind(node, { feedback: 1 }, function (x) {
+      return isObj(x) && typeof x.id === "string" && x.id;
+    }, 0, 14);
+    if (isObj(fb) && fb.id) return String(fb.id);
+    var ufi = storyFeedbackTarget(node);
+    return isObj(ufi) && ufi.id ? String(ufi.id) : "";
+  }
+
+  // The comment-ordering token is NOT a constant to be invented. Facebook publishes the tokens a
+  // given story ACCEPTS in selectable_intents, and the reference implementation picks the first
+  // whose token contains "unfiltered" — i.e. show every comment, not the ranked/filtered subset.
+  // Guessing a plausible-looking literal here would be replaced by the server's own idea of a
+  // default, silently returning a filtered subset that looks like the whole thread.
+  var INTENT_PATHS = [
+    "comet_sections.feedback.story.comet_feed_ufi_container.story.story_ufi_container.story.feedback_context.feedback_target_with_context.comment_list_renderer.feedback.comment_rendering_instance_for_feed_location.selectable_intents",
+    "comet_sections.feedback.story.story_ufi_container.story.feedback_context.feedback_target_with_context.comment_list_renderer.feedback.comment_rendering_instance_for_feed_location.selectable_intents"
+  ];
+  function storyCommentIntent(node) {
+    if (!isObj(node)) return "";
+    var list = null;
+    for (var i = 0; i < INTENT_PATHS.length && !list; i++) {
+      var v = getPath(node, INTENT_PATHS[i]);
+      if (Array.isArray(v) && v.length) list = v;
+    }
+    if (!list) {
+      var found = deepFind(node, { selectable_intents: 1 }, function (x) {
+        return Array.isArray(x) && x.length;
+      }, 0, 18);
+      if (Array.isArray(found)) list = found;
+    }
+    if (!list) return "";
+    for (var j = 0; j < list.length; j++) {
+      var t = list[j] && list[j].intent_token;
+      if (typeof t === "string" && t.toLowerCase().indexOf("unfiltered") > -1) return t;
+    }
+    return "";
+  }
+
+  function postEngagement(node) {
+    var ufi = storyFeedbackTarget(node);
     if (!isObj(ufi)) return null;
 
     // reactions: the {count:N} object form is the grand total (bare-number
@@ -442,6 +518,11 @@
       created_time: firstNumber(node, { creation_time: 1, created_time: 1, publish_time: 1 }) || 0,
       attachments: postAttachments(node),
       engagement: postEngagement(node),
+      // The handle fb.post.comments takes. Carried on every PostRecord so a caller that already
+      // has a search result never has to re-open the post to ask for its comments — together
+      // with the ordering token THIS story published, which is per-story and cannot be guessed.
+      feedback_id: storyFeedbackId(node),
+      comment_intent: storyCommentIntent(node),
       group: groupRef(node)
     };
   }
@@ -821,6 +902,12 @@
             created_time: firstNumber(node, { creation_time: 1, created_time: 1, publish_time: 1 }) || 0,
             attachments: postAttachments(node),
             engagement: postEngagement(node),
+            // Same two handles postRecordFromStoryNode emits. The catalog promises every
+            // PostRecord carries them; these two extractors build their records inline, so
+            // without this the promise is false exactly here and fb.post.comments would refuse
+            // for a timeline post while working for the identical post found via group search.
+            feedback_id: storyFeedbackId(node),
+            comment_intent: storyCommentIntent(node),
             group: null
           });
         }
@@ -894,6 +981,9 @@
             created_time: firstNumber(node, { creation_time: 1, created_time: 1, publish_time: 1 }) || 0,
             attachments: atts || [],
             engagement: eng,
+            // See the note on the same two fields in extractProfileTimeline.
+            feedback_id: storyFeedbackId(node),
+            comment_intent: storyCommentIntent(node),
             group: groupRef(node)
           });
         }
@@ -1280,6 +1370,33 @@
     } catch (e) { return ""; }
   }
 
+  // Relay declares its own `__relay_internal__pv__*` provider variables on the compiled
+  // artifact and resolves them itself at request time. A hand-built fetch does not get that
+  // for free: a persisted query whose providers are missing is REJECTED outright ("Variable
+  // ... of required type Boolean! was not provided"), which reads downstream as an empty
+  // result rather than a malformed request. Read them from the same artifact the doc_id comes
+  // from, so the set is always the one this build of Facebook actually declares — the
+  // hardcoded list in FEED_VARS goes stale the moment they add a flag.
+  function providedVariables(queryName) {
+    var out = {};
+    try {
+      if (typeof window.require !== "function" || !queryName) return out;
+      var mod = window.require(String(queryName) + ".graphql");
+      var pv = mod && mod.params && mod.params.providedVariables;
+      if (!isObj(pv)) return out;
+      for (var k in pv) {
+        try {
+          var val = (pv[k] && typeof pv[k].get === "function") ? pv[k].get() : undefined;
+          // undefined is not a value a persisted query accepts, and a provider entry with no
+          // .get() is not one we know how to resolve — in both cases leave the key out and let
+          // an explicit variable or the server's own default stand.
+          if (val !== undefined) out[k] = val;
+        } catch (e) { /* one unresolvable provider must not lose the rest */ }
+      }
+    } catch (e) { /* module not loaded on this screen */ }
+    return out;
+  }
+
   // The variable set a working third-party extension sends for this query, reproduced
   // verbatim. Inheriting Facebook's own captured variables was not enough: those describe the
   // slice its UI happened to want, and replaying them — even with the cursor removed — walked
@@ -1337,7 +1454,9 @@
   // the key returns the newest posts. A working third-party extension passes `undefined`
   // here, which JSON.stringify drops — same thing, arrived at by accident on their side.
   function replayPage(store, cap, cursor, capabilityId) {
-    var vars = {};
+    // Providers go in FIRST so anything explicit or captured still wins — this only fills the
+    // flags the query declares and nobody supplied.
+    var vars = providedVariables(cap.queryName);
     var build = FEED_VARS[capabilityId];
     if (build) {
       // Known-good set, built from scratch. Anything Facebook sent that we did not enumerate
@@ -3063,17 +3182,21 @@
   //
   // Auth (fb_dtsg, av) is borrowed from any capture the page already made, and the doc_id is
   // taken from Facebook's own module registry so it can never go stale.
-  function hovercardSeed(store) {
+  // Any capture the page already made will do for auth: fb_dtsg and av are per-SESSION, not
+  // per-query. Prefer one of the same family when there is one, because its `url` is then
+  // certainly the endpoint that query is served from.
+  function authSeed(store, preferName) {
     var caps = (store && store.captures) || [];
-    var withName = null, anyAuth = null;
+    var preferred = null, anyAuth = null;
     for (var i = caps.length - 1; i >= 0; i--) {
       var c = caps[i];
       if (!c || !c.fbDtsg) continue;
       if (!anyAuth) anyAuth = c;
-      if (String(c.queryName || "").indexOf("CometHovercard") > -1) { withName = c; break; }
+      if (preferName && String(c.queryName || "").indexOf(preferName) > -1) { preferred = c; break; }
     }
-    return withName || anyAuth;
+    return preferred || anyAuth;
   }
+  function hovercardSeed(store) { return authSeed(store, "CometHovercard"); }
   function profileHovercard(inputs) {
     inputs = inputs || {};
     var store = window.__soloGql;
@@ -3200,9 +3323,388 @@
     return found;
   }
 
+
+  // --- fb.post.comments -----------------------------------------------------
+  // Comments do NOT travel with a post. Not in a group feed, not in a search result: the
+  // story node carries a total_count and nothing else. Facebook fetches them with a SEPARATE
+  // persisted query per post, which is what this capability replays —
+  //   CommentsListComponentsPaginationQuery   top-level comments
+  //   Depth1CommentsListPaginationQuery       replies beneath one comment
+  // walking has_next_page/end_cursor until the connection ends or a budget stops it.
+  //
+  // No DOM, no scrolling, and the post is never opened. The only input is the story's
+  // feedback id, which every PostRecord now carries — so a search result composes straight
+  // into this without a second page load.
+  var COMMENT_QUERY = "CommentsListComponentsPaginationQuery";
+  var REPLY_QUERY = "Depth1CommentsListPaginationQuery";
+  // There is deliberately NO default token literal here. The value is per-story, published by
+  // Facebook in the story's own selectable_intents (see storyCommentIntent) — an invented
+  // constant would either be rejected or silently swapped for the server's ranked/filtered
+  // default, which returns a subset that looks exactly like a complete thread. When the story
+  // published none, null is sent, which is what the reference implementation does.
+  var COMMENT_INTENT = null;
+  // Relay merges this provider into every request it makes. Read from the artifact when the
+  // module is loaded; kept here as a floor so a hand-built request is never short one variable.
+  var UFI_PROVIDER = "__relay_internal__pv__CometUFIReactionEnableShortNamerelayprovider";
+  var COMMENT_EDGES_PATH = "data.node.comment_rendering_instance_for_feed_location.comments.edges";
+  var COMMENT_PAGEINFO_PATH = "data.node.comment_rendering_instance_for_feed_location.comments.page_info";
+  var REPLY_EDGES_PATH = "data.node.replies_connection.edges";
+  var REPLY_PAGEINFO_PATH = "data.node.replies_connection.page_info";
+  // Sibling names Facebook has served this connection under. Probed and REPORTED when the
+  // primary name is absent from the registry, so a rename shows up as a named alternative
+  // instead of an empty result nobody can explain.
+  var COMMENT_QUERY_CANDIDATES = [
+    "CommentsListComponentsPaginationQuery", "Depth1CommentsListPaginationQuery",
+    "CometUFICommentsProviderPaginationQuery", "CometUFICommentRefetchQuery",
+    "UFI2CommentsProviderPaginationQuery", "CommentListComponentsRootQuery"
+  ];
+  function registryProbe(names) {
+    var rows = [];
+    for (var i = 0; i < names.length; i++) {
+      rows.push({ query: names[i], doc_id: docIdFromRegistry(names[i]) || "" });
+    }
+    return rows;
+  }
+
+  // A persisted query that is REJECTED answers 200 with an `errors` array, so a caller that
+  // only looks at the data path sees "no comments" for what is really a malformed request.
+  //
+  // But `errors` and `data` also arrive TOGETHER: with @defer/@stream, one failed fragment
+  // populates errors while the rest of the payload is perfectly good. So callers must treat this
+  // as fatal only when nothing usable came back, and otherwise record it and keep the rows.
+  function gqlErrorOf(chunks) {
+    for (var i = 0; i < chunks.length; i++) {
+      var e = isObj(chunks[i]) && chunks[i].errors;
+      if (Array.isArray(e) && e.length) {
+        return String((e[0] && (e[0].message || e[0].summary)) || "graphql error").slice(0, 300);
+      }
+    }
+    return "";
+  }
+
+  // Take the CONNECTION at the measured path; if Facebook moved it, accept the first connection
+  // whose edges hold comment-shaped nodes (an author or a body). Same principle as the feed
+  // extractors: never pick an edge array by NAME, pick it by shape.
+  //
+  // It returns the connection's OWN page_info, never one searched for separately. A comment page
+  // carries a nested replies_connection under every threaded comment, each with its own
+  // page_info — so a payload-wide search for "the page_info" can hand back a REPLY thread's
+  // cursor and send the top-level walk down a different connection, silently.
+  function pickCommentConnection(resp, edgesPath) {
+    var m = mergeStreamed(resp);
+    var connPath = String(edgesPath).replace(/\.edges$/, "");
+    for (var i = 0; i < m.chunks.length; i++) {
+      var conn = isObj(m.chunks[i]) ? getPath(m.chunks[i], connPath) : null;
+      if (isObj(conn) && Array.isArray(conn.edges) && conn.edges.length) {
+        return { edges: conn.edges, page_info: isObj(conn.page_info) ? conn.page_info : null,
+                 via: "direct+merged" + m.merged, chunks: m.chunks };
+      }
+    }
+    var found = null, scanned = 0;
+    function walk(n, d) {
+      if (found || d > 10 || !isObj(n)) return;
+      // Check BEFORE descending, so the outer connection wins over the reply connections nested
+      // inside its own edges.
+      if (Array.isArray(n.edges) && n.edges.length) {
+        scanned += 1;
+        var n0 = n.edges[0] && n.edges[0].node;
+        if (isObj(n0) && (isObj(n0.author) || isObj(n0.body))) { found = n; return; }
+      }
+      for (var k in n) {
+        if (found) return;
+        var v = n[k];
+        if (isObj(v) && !Array.isArray(v)) walk(v, d + 1);
+        else if (Array.isArray(v)) { for (var j = 0; j < v.length && j < 30 && !found; j++) walk(v[j], d + 1); }
+      }
+    }
+    for (var c = 0; c < m.chunks.length && !found; c++) walk(m.chunks[c], 0);
+    if (found) {
+      return { edges: found.edges, page_info: isObj(found.page_info) ? found.page_info : null,
+               via: "scanned_of_" + scanned, chunks: m.chunks };
+    }
+    return { edges: [], page_info: null, via: scanned ? "no_comment_shaped_edges_of_" + scanned : "no_edges", chunks: m.chunks };
+  }
+
+  function commentRecord(node, feedbackId) {
+    if (!isObj(node)) return null;
+    var text = getPath(node, "body.text");
+    if (typeof text !== "string" || !text) text = getPath(node, "preferred_body.text");
+    if (typeof text !== "string" || !text) text = deepText(node.body, 0) || deepText(node.preferred_body, 0) || "";
+    return {
+      id: String(node.id || ""),
+      post_feedback_id: String(feedbackId || ""),
+      // The whole point of asking: who said it. actorRef keeps id/name/url together so a name
+      // can never end up paired with the wrong profile id.
+      //
+      // Facebook's field is `author`, but this one MUST be called `actor`: the bridge redacts
+      // any field whose name contains "auth", so shipping it as `author` would strip the
+      // commenter's identity somewhere downstream and leave a body of text with nobody
+      // attached — the exact information we opened this query to get.
+      actor: actorRef(isObj(node.author) ? node.author : null),
+      text: String(text).slice(0, 4000),
+      // Read DIRECTLY, not by deep search — a deep search for created_time inside a comment
+      // finds a nested reply's timestamp and stamps it on the parent.
+      created_time: typeof node.created_time === "number" ? node.created_time : 0,
+      depth: typeof node.depth === "number" ? node.depth : 0,
+      url: typeof node.url === "string" ? node.url : "",
+      reply_count: coerceCount(getPath(node, "feedback.replies_fields.total_count")) || 0,
+      // The comment's OWN feedback id — what the reply query is addressed to. Distinct from
+      // post_feedback_id above, and from the comment id: all three are different handles.
+      feedback_id: (function () { var v = getPath(node, "feedback.id"); return typeof v === "string" ? v : ""; })(),
+      replies: []
+    };
+  }
+
+  function postComments(inputs) {
+    inputs = inputs || {};
+    var store = window.__soloGql;
+    var out = { capability: "fb.post.comments", schema: "CommentRecord[]", available: true, found: false, count: 0, items: [] };
+
+    // The ordering token is per-STORY, so a target is a pair, not a bare id. Accept both forms:
+    // a plain id (no token known) and { feedback_id, comment_intent } as PostRecord carries them.
+    var ids = [];
+    function pushTarget(v) {
+      if (typeof v === "string" && v) ids.push({ id: v, intent: null });
+      else if (isObj(v) && v.feedback_id) {
+        ids.push({ id: String(v.feedback_id), intent: v.comment_intent ? String(v.comment_intent) : null });
+      }
+    }
+    if (Array.isArray(inputs.feedback_ids)) inputs.feedback_ids.forEach(pushTarget);
+    else if (inputs.feedback_id) pushTarget({ feedback_id: inputs.feedback_id, comment_intent: inputs.comment_intent });
+    if (!ids.length) {
+      out.error = "feedback_id (or feedback_ids[]) is required — every PostRecord from fb.group.search_posts / fb.group.posts carries one";
+      return Promise.resolve(out);
+    }
+    var seed = authSeed(store, "");
+    if (!seed || !store || typeof store.origFetch !== "function") {
+      out.error = "no captured request to borrow auth from — load a Facebook page first";
+      return Promise.resolve(out);
+    }
+    var docId = docIdFromRegistry(COMMENT_QUERY) || String(inputs.comment_doc_id || "");
+    if (!docId) {
+      // The comment modules are loaded on demand: a screen that never renders a UFI may not
+      // have them. Say so, and hand back what the registry DOES hold, so the next run knows
+      // which name to ask for instead of guessing again.
+      out.error = COMMENT_QUERY + " is not in this page's module registry (no screen here has rendered comments). Pass comment_doc_id, or run this on a page that shows a post.";
+      out.registry_probe = registryProbe(COMMENT_QUERY_CANDIDATES);
+      return Promise.resolve(out);
+    }
+
+    // NOT called intent_token. The bridge's sanitizer redacts any key containing "token" (as
+    // well as auth/secret/session/csrf), recursively, on BOTH job inputs and collected records —
+    // so a job passing intent_token would reach the extension holding the literal string
+    // "[redacted]" and every request would be rejected, with nothing anywhere saying why.
+    // A job-level token overrides every story's own; otherwise each post uses what IT published,
+    // and null when it published nothing. null is a MEANINGFUL value here — see COMMENT_INTENT.
+    var intentOverride = inputs.comment_intent ? String(inputs.comment_intent) : null;
+    var maxPages = Math.max(1, Math.min(20, inputs.max_comment_pages != null ? inputs.max_comment_pages : 5));
+    var maxComments = Math.max(1, Math.min(500, inputs.max_comments != null ? inputs.max_comments : 60));
+    // depth counts LEVELS OF COMMENT, not levels of reply. depth:1 — the default — is the
+    // direct comments on the post and nothing beneath them; depth:2 adds their replies; 3 adds
+    // replies of replies. The ceiling is 4 because Facebook's own client stops recursing there.
+    //
+    // The default is 1 because each extra level costs one request PER COMMENT: a post with 40
+    // comments becomes 40 extra requests the moment replies are asked for. Opt in per job.
+    var depth = inputs.depth != null ? inputs.depth
+      : (inputs.reply_depth != null ? Number(inputs.reply_depth) + 1 : 1);
+    depth = Math.max(1, Math.min(4, Number(depth) || 1));
+    var replyDepth = depth - 1;
+    var replyDocId = replyDepth > 0 ? (docIdFromRegistry(REPLY_QUERY) || String(inputs.reply_doc_id || "")) : "";
+
+    var all = [], perPost = [], notes = [];
+
+    function capFor(queryName, id, vars) {
+      return { queryName: queryName, docId: queryName === REPLY_QUERY ? replyDocId : docId,
+               fbDtsg: seed.fbDtsg, av: seed.av, url: seed.url, variables: vars };
+    }
+
+    function commentPage(feedbackId, cursor, intent) {
+      var vars = {
+        commentsAfterCount: -1,
+        commentsAfterCursor: cursor || null,
+        commentsBeforeCount: null,
+        commentsBeforeCursor: null,
+        commentsIntentToken: intent,
+        feedLocation: "DEDICATED_COMMENTING_SURFACE",
+        focusCommentID: null,
+        scale: webPixelRatio(),
+        useDefaultActor: false,
+        id: feedbackId
+      };
+      vars[UFI_PROVIDER] = true;
+      return replayPage(store, capFor(COMMENT_QUERY, feedbackId, vars), undefined, null);
+    }
+
+    // The reply query's variable set is NOT the top-level one with different names. It takes
+    // exactly these eleven keys — no intent token at all — and its `id` is the parent comment's
+    // FEEDBACK id (node.feedback.id), not the comment id. Passing the comment id addresses a
+    // node that has no replies_connection, so the reply walk answers empty for every comment
+    // while reporting success.
+    function replyPage(commentFeedbackId, expansionToken, cursor) {
+      var vars = {
+        clientKey: null,
+        expansionToken: expansionToken || null,
+        feedLocation: "DEDICATED_COMMENTING_SURFACE",
+        focusCommentID: null,
+        repliesAfterCount: null,
+        repliesAfterCursor: cursor || null,
+        repliesBeforeCount: null,
+        repliesBeforeCursor: null,
+        scale: webPixelRatio(),
+        useDefaultActor: false,
+        id: commentFeedbackId
+      };
+      vars[UFI_PROVIDER] = true;
+      return replayPage(store, capFor(REPLY_QUERY, commentFeedbackId, vars), undefined, null);
+    }
+
+    // Replies for ONE comment, then recursively for its own replies while the budget allows.
+    // Best-effort by design: a failed reply fetch is recorded and the top-level comment is
+    // still returned, because losing the parent to a missing child is the worse trade.
+    function loadReplies(rec, node, level, feedbackId) {
+      if (level > replyDepth || !replyDocId || !rec.reply_count) return Promise.resolve();
+      // Addressed by the comment's feedback id. Without one there is nothing to ask, and saying
+      // so beats returning a comment that claims N replies and carries none.
+      if (!rec.feedback_id) {
+        if (notes.length < 8) notes.push("replies " + rec.id + ": comment carries no feedback.id");
+        return Promise.resolve();
+      }
+      var token = getPath(node, "feedback.expansion_info.expansion_token")
+        || getPath(node, "expansion_info.expansion_token") || null;
+      var cursor = null, pages = 0;
+      function stepReply() {
+        if (pages >= maxPages || all.length >= maxComments) return Promise.resolve();
+        pages += 1;
+        return replyPage(rec.feedback_id, token, cursor).then(function (resp) {
+          // fetch does not reject on 4xx/5xx, and parseResponse answers null for anything that
+          // is not GraphQL JSON — a login redirect, a checkpoint interstitial, a rate-limit page.
+          // Left unchecked, all of those read downstream as "this comment has no replies".
+          if (resp === null || resp === undefined) {
+            if (notes.length < 8) notes.push("replies " + rec.id + ": the server did not answer with GraphQL JSON (login, checkpoint, rate limit or 5xx)");
+            return;
+          }
+          var chunks = chunksOf(resp);
+          var err = gqlErrorOf(chunks);
+          var got = pickCommentConnection(resp, REPLY_EDGES_PATH);
+          if (err && !got.edges.length) { if (notes.length < 8) notes.push("replies " + rec.id + ": " + err); return; }
+          if (err && notes.length < 8) notes.push("replies " + rec.id + " (partial): " + err);
+          if (!rec.replies_via) rec.replies_via = got.via;
+          var kids = [];
+          for (var i = 0; i < got.edges.length; i++) {
+            var kn = got.edges[i] && got.edges[i].node;
+            var kr = commentRecord(kn, feedbackId);
+            if (!kr || !kr.id) continue;
+            kr.top_level = false;
+            rec.replies.push(kr);
+            all.push(kr);
+            kids.push({ rec: kr, node: kn });
+            if (all.length >= maxComments) break;
+          }
+          // The page_info of the connection the rows actually came from — never one searched for
+          // separately, which on a threaded payload can be a nested reply thread's.
+          var pi = got.page_info || {};
+          cursor = pi.end_cursor || null;
+          var more = !!(pi.has_next_page && cursor && all.length < maxComments);
+          // Depth first for this page's children, then the next page of siblings.
+          var deeper = kids.map(function (k) { return function () { return loadReplies(k.rec, k.node, level + 1, feedbackId); }; });
+          return deeper.reduce(function (chain, fn) { return chain.then(fn); }, Promise.resolve())
+            .then(function () { return more ? wait(300).then(stepReply) : undefined; });
+        }).catch(function (e) {
+          if (notes.length < 8) notes.push("replies " + rec.id + ": " + String(e && e.message || e));
+        });
+      }
+      return stepReply();
+    }
+
+    function loadPost(target) {
+      var feedbackId = target.id;
+      var intent = intentOverride || target.intent || COMMENT_INTENT;
+      var cursor = null, pages = 0, mine = [], via = "", stopped = "end_of_connection", hasNext = false;
+      function step() {
+        if (pages >= maxPages || all.length >= maxComments) {
+          stopped = pages >= maxPages ? "page_cap" : "comment_cap";
+          return Promise.resolve();
+        }
+        pages += 1;
+        return commentPage(feedbackId, cursor, intent).then(function (resp) {
+          // A 200 carrying a login page, a checkpoint, or a rate-limit body parses to null. That
+          // is a transport failure and it must NOT be reported as "this post has no comments" —
+          // the two are indistinguishable downstream and only one of them is worth retrying.
+          if (resp === null || resp === undefined) {
+            stopped = "unreadable_response";
+            if (notes.length < 8) notes.push(feedbackId + ": the server did not answer with GraphQL JSON (login, checkpoint, rate limit or 5xx)");
+            return;
+          }
+          var chunks = chunksOf(resp);
+          var err = gqlErrorOf(chunks);
+          var got = pickCommentConnection(resp, COMMENT_EDGES_PATH);
+          // Fatal only when nothing usable arrived. A partial @defer failure carries real rows
+          // alongside its errors, and throwing those away loses comments for a fragment nobody
+          // asked about.
+          if (err && !got.edges.length) {
+            stopped = "graphql_error";
+            if (notes.length < 8) notes.push(feedbackId + ": " + err);
+            return;
+          }
+          if (err && notes.length < 8) notes.push(feedbackId + " (partial): " + err);
+          via = via || got.via;
+          var fresh = [];
+          for (var i = 0; i < got.edges.length; i++) {
+            var n = got.edges[i] && got.edges[i].node;
+            var rec = commentRecord(n, feedbackId);
+            if (!rec || !rec.id) continue;
+            rec.top_level = true;
+            mine.push(rec); all.push(rec);
+            fresh.push({ rec: rec, node: n });
+            if (all.length >= maxComments) break;
+          }
+          var pi = got.page_info || {};
+          cursor = pi.end_cursor || null;
+          hasNext = !!pi.has_next_page;
+          var kids = fresh.map(function (f) { return function () { return loadReplies(f.rec, f.node, 1, feedbackId); }; });
+          return kids.reduce(function (chain, fn) { return chain.then(fn); }, Promise.resolve()).then(function () {
+            if (hasNext && cursor && all.length < maxComments) return wait(350).then(step);
+            // Say which of the three it was. `stopped` initialises to end_of_connection, so a
+            // walk cut short by the budget while has_next_page was still true would otherwise
+            // report the thread as finished — the caller then has no reason to come back for the
+            // rest, and no way to know there is a rest.
+            if (!hasNext) stopped = "end_of_connection";
+            else if (all.length >= maxComments) stopped = "comment_cap";
+            else if (!cursor) stopped = "no_cursor_despite_has_next_page";
+          });
+        }).catch(function (e) {
+          stopped = "fetch_failed";
+          if (notes.length < 8) notes.push(feedbackId + ": " + String(e && e.message || e));
+        });
+      }
+      return step().then(function () {
+        perPost.push({ feedback_id: feedbackId, count: mine.length, pages_fetched: pages,
+                       via: via || "no_response", stopped_because: stopped,
+                       comment_intent: intent, has_next_page: hasNext, end_cursor: cursor || null });
+      });
+    }
+
+    // Serial, not parallel: these are authenticated writes to the same session and firing a
+    // dozen at once is exactly the shape that trips a rate fuse.
+    return ids.reduce(function (chain, t) {
+      return chain.then(function () { return loadPost(t); });
+    }, Promise.resolve()).then(function () {
+      out.items = all;
+      out.count = all.length;
+      out.found = all.length > 0;
+      out.by_post = perPost;
+      out.doc_id = docId;
+      out.reply_doc_id = replyDocId || "";
+      out.depth = depth;
+      if (!out.found) out.reason = notes.length ? "query_rejected" : "no_comments";
+      if (notes.length) out.notes = notes;
+      return out;
+    });
+  }
+
   var DOM_CAPABILITIES = {
     "_diag.hover_probe": diagHover, "_diag.about_sections": diagAboutSections,
-    "fb.profile.hovercard": profileHovercard,
+    "fb.profile.hovercard": profileHovercard, "fb.post.comments": postComments,
     "fb.reels.feed": reelsCollect, "web.search": webSearch, "fb.profile.header": profileHeader,
     "fb.profile.contacts": profileContacts, "fb.profile.dossier": profileDossier,
     "fb.profile.enrich": profileEnrich };
@@ -3406,6 +3908,41 @@
       // onto a result carrying five posts. Clear it once anything arrived, or every consumer
       // reading `reason` is told the opposite of what happened.
       if (base.available && base.reason === "no_match") delete base.reason;
+
+      // with_comments: N — attach comments to the first N posts within the SAME job. Comments
+      // are a separate query per post, so this costs N extra requests, not N page loads. The
+      // alternative is shipping the feedback ids back to the caller and starting a second job,
+      // which is a round trip per post for data we can already reach from here.
+      if (inputs.with_comments && Array.isArray(base.items) && base.items.length) {
+        var take = inputs.with_comments === true ? 5
+          : Math.max(0, Math.min(25, Number(inputs.with_comments) || 0));
+        var targets = base.items.slice(0, take).filter(function (it) { return it && it.feedback_id; });
+        if (!targets.length) { base.comments_skipped = "no_feedback_id_on_items"; return base; }
+        return postComments({
+          // Pairs, not bare ids: the ordering token is per-story and the record already has it.
+          feedback_ids: targets.map(function (it) {
+            return { feedback_id: it.feedback_id, comment_intent: it.comment_intent };
+          }),
+          max_comment_pages: inputs.max_comment_pages, max_comments: inputs.max_comments,
+          depth: inputs.depth, reply_depth: inputs.reply_depth, comment_intent: inputs.comment_intent,
+          comment_doc_id: inputs.comment_doc_id, reply_doc_id: inputs.reply_doc_id
+        }).then(function (cres) {
+          var byPost = {};
+          (cres.items || []).forEach(function (c) {
+            // A reply already sits inside its parent's `replies`; re-attaching it at the top
+            // would double every threaded comment.
+            if (!c.top_level) return;
+            (byPost[c.post_feedback_id] = byPost[c.post_feedback_id] || []).push(c);
+          });
+          targets.forEach(function (it) { it.comments = byPost[it.feedback_id] || []; });
+          base.comments_count = cres.count;
+          base.comments_by_post = cres.by_post;
+          if (cres.error) base.comments_error = cres.error;
+          if (cres.registry_probe) base.comments_registry_probe = cres.registry_probe;
+          if (cres.notes) base.comments_notes = cres.notes;
+          return base;
+        }).catch(function (e) { base.comments_error = String(e && e.message || e); return base; });
+      }
       return base;
     });
   };
