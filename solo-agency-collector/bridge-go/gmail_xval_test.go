@@ -7,8 +7,11 @@ package main
 // sendbox 2026-07-19 (see docs/UI_DESIGN.md delivery log).
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -262,5 +265,67 @@ func TestIMAPFetchNeverMarksMailRead(t *testing.T) {
 		if strings.Contains(string(src), forbidden) && !strings.Contains(string(src), "no STORE") {
 			t.Fatalf("imap.go must not write flags, found %q", forbidden)
 		}
+	}
+}
+
+// TestIMAPPeekReturnsFullBodyWithoutSeen: proof, not reasoning. A fake IMAP server
+// speaks the real protocol; the test asserts BOTH halves of the promise — the
+// command never asks for a form that sets \Seen, and the client still gets every
+// byte of the message back. Half a fix here is worse than none: a peek that
+// returned nothing would silently stop reply detection.
+func TestIMAPPeekReturnsFullBodyWithoutSeen(t *testing.T) {
+	srvConn, cliConn := net.Pipe()
+	defer cliConn.Close()
+
+	body := "From: a.friend@example.com\r\n" +
+		"To: operator@example.com\r\n" +
+		"Subject: not a lead, just a friend\r\n" +
+		"\r\n" +
+		"Body line one.\r\nBody line two, with a } brace and a {7} decoy.\r\n"
+
+	gotCmd := make(chan string, 1)
+	go func() {
+		defer srvConn.Close()
+		r := bufio.NewReader(srvConn)
+		line, err := r.ReadString('\n')
+		if err != nil {
+			gotCmd <- "READ ERROR: " + err.Error()
+			return
+		}
+		gotCmd <- line
+		// Exactly what a server answers to BODY.PEEK[]: it echoes BODY[] and the
+		// message as a counted literal.
+		fmt.Fprintf(srvConn, "* 12 FETCH (BODY[] {%d}\r\n", len(body))
+		io.WriteString(srvConn, body)
+		io.WriteString(srvConn, ")\r\n")
+		io.WriteString(srvConn, "a001 OK Fetch completed.\r\n")
+	}()
+
+	c := &imapClient{conn: cliConn, r: bufio.NewReader(cliConn)}
+	raw, err := c.uidFetchPeek(12)
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+
+	cmd := <-gotCmd
+	if !strings.Contains(cmd, "BODY.PEEK[]") {
+		t.Fatalf("the wire command must peek, got %q", strings.TrimSpace(cmd))
+	}
+	if strings.Contains(cmd, "RFC822") {
+		t.Fatalf("RFC822 sets \\Seen, got %q", strings.TrimSpace(cmd))
+	}
+	if !strings.Contains(cmd, "UID FETCH 12 ") {
+		t.Fatalf("wrong uid on the wire: %q", strings.TrimSpace(cmd))
+	}
+
+	// The whole point of the other half: every byte comes back, unchanged.
+	if string(raw) != body {
+		t.Fatalf("peek must return the FULL message.\n got %d bytes: %q\nwant %d bytes: %q",
+			len(raw), string(raw), len(body), body)
+	}
+	// And it is still parseable as a message — this is what reply detection reads.
+	if !strings.Contains(string(raw), "Subject: not a lead, just a friend") ||
+		!strings.Contains(string(raw), "Body line two") {
+		t.Fatal("headers and body must both survive the fetch")
 	}
 }
