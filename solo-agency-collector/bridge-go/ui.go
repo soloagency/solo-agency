@@ -794,7 +794,8 @@ func (b *bridge) uiRenderContact(w http.ResponseWriter, slug, id string) {
 	if name == "" {
 		name = shortID(id)
 	}
-	b.uiRender(w, "contact", map[string]any{"Title": name, "Client": c, "C": d})
+	b.uiRender(w, "contact", map[string]any{"Title": name, "Client": c, "C": d,
+		"Thread": b.uiContactThread(c, id), "Reply": b.uiReplyState(c, id)})
 }
 
 type uiDeal struct {
@@ -1877,6 +1878,9 @@ func (b *bridge) handleUIAPI(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(v)
 	}
 	switch parts[1] {
+	case "reply":
+		b.uiReplySend(w, c, body, session, now)
+		return
 	case "approval":
 		decision, _ := body["decision"].(string)
 		draftID, _ := body["draft_id"].(string)
@@ -2370,6 +2374,10 @@ var uiIcons = map[string]string{
 
 var uiTplFuncs = template.FuncMap{
 	"shortid": shortID,
+	// msgbody renders a stored email body: escaped first, then bare http(s) URLs
+	// linked. There is no CSP header in this binary, so escaping is the only thing
+	// between a lead's message and script execution. Order is not negotiable.
+	"msgbody": func(s string) template.HTML { return template.HTML(uiLinkify(s)) },
 	// rawhtml renders an INTERNAL constant (feature group names) unescaped so
 	// "+" survives; never call it with user/agent data.
 	"rawhtml": func(s string) template.HTML { return template.HTML(s) },
@@ -2882,6 +2890,70 @@ document.addEventListener('click',function(e){var b=e.target.closest('.copy-phra
 {{end}}
 
 {{if $c.DoNotMention}}<p class="mut" style="font-size:.8rem">Do not mention: {{range $c.DoNotMention}}{{.}}; {{end}}</p>{{end}}
+
+<h2>Conversation</h2>
+{{if .Thread}}
+{{range .Thread}}
+<div class="card" style="margin-bottom:10px;border-left:3px solid {{if eq .Dir "in"}}var(--pico-primary,#0172ad){{else}}rgba(127,127,127,.45){{end}}">
+  <div class="mut" style="font-size:.78rem;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline">
+    <strong style="font-size:.82rem">{{if eq .Dir "in"}}They wrote{{else}}We sent{{end}}</strong>
+    <span>{{.At}}</span>
+    <span class="pill" style="font-size:.7rem">{{.Chip}}</span>
+    {{if .From}}<span>from {{.From}}</span>{{end}}
+    {{if .To}}<span>to {{.To}}</span>{{end}}
+    {{if .Cc}}<span>cc {{.Cc}}</span>{{end}}
+  </div>
+  {{if .Subject}}<div style="font-weight:600;margin-top:6px">{{.Subject}}</div>
+  {{else if .Summary}}<div class="mut" style="margin-top:6px;font-size:.82rem">{{.Summary}}</div>{{end}}
+  {{if .Body}}<div style="white-space:pre-wrap;margin-top:8px;line-height:1.5">{{msgbody .Body}}</div>{{end}}
+  {{if .Note}}<p class="mut" style="font-size:.76rem;margin:8px 0 0">{{.Note}}</p>{{end}}
+</div>
+{{end}}
+{{else}}<p class="mut">No email on record for this contact yet.</p>{{end}}
+
+{{with .Reply}}
+{{if .CanReply}}
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">Reply</h3>
+  <p class="mut" style="font-size:.8rem;margin-top:0">Goes out on this thread, from the sendbox that already owns it{{if .Sendbox}} ({{.Sendbox}}){{end}}. Nothing else is asked of you.</p>
+  <form id="replyform" onsubmit="return false">
+    <input type="hidden" id="rp_contact" value="{{$.C.ID}}">
+    <input type="hidden" id="rp_mid" value="{{.InboundMID}}">
+    <label style="font-size:.82rem">Subject<input id="rp_subject" value="{{.Subject}}"></label>
+    <label style="font-size:.82rem">Message<textarea id="rp_body" rows="9" placeholder="Write the reply..."></textarea></label>
+    <label style="font-size:.82rem">Send a copy to <span class="mut">(optional, separate email, they are not told)</span>
+      <input id="rp_copy" type="email" placeholder="you@example.com"></label>
+    <button id="rp_send" onclick="uiSendReply()">Send reply</button>
+    <span id="rp_status" class="mut" style="font-size:.82rem;margin-left:10px"></span>
+  </form>
+</div>
+{{else}}
+<div class="card warnb" style="margin-bottom:14px">
+  <strong>Cannot reply from here{{if .Blocker}}: {{.Blocker}}{{end}}</strong>
+  {{if .Detail}}<p class="mut" style="font-size:.82rem;margin-bottom:0">{{.Detail}}</p>{{end}}
+</div>
+{{end}}
+{{end}}
+
+<script>
+function uiSendReply(){
+ var btn=document.getElementById('rp_send'), st=document.getElementById('rp_status');
+ var body=document.getElementById('rp_body').value.trim();
+ if(!body){ st.textContent='Write something first.'; return; }
+ btn.disabled=true; st.textContent='Sending...';
+ fetch('/api/ui/{{.Client.Slug}}/reply',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({contact_id:document.getElementById('rp_contact').value,
+   reply_to_message_id:document.getElementById('rp_mid').value,
+   subject:document.getElementById('rp_subject').value,
+   body_text:body, copy_to:document.getElementById('rp_copy').value.trim()})})
+ .then(function(r){return r.json().then(function(j){return {s:r.status,j:j}})})
+ .then(function(o){
+   if(o.j.ok){ st.textContent='Sent via '+o.j.sendbox+(o.j.copy_sent?' (copy sent)':'')+(o.j.copy_error?' (copy failed: '+o.j.copy_error+')':'');
+     setTimeout(function(){location.reload()},1200); }
+   else { btn.disabled=false; st.textContent='Not sent: '+(o.j.blocker||o.s)+(o.j.detail?' — '+o.j.detail:''); }})
+ .catch(function(e){ btn.disabled=false; st.textContent='Not sent: '+e; });
+}
+</script>
 
 <h2>Activity timeline</h2>
 {{if $c.Activities}}
