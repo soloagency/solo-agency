@@ -3463,14 +3463,33 @@
     // The ordering token is per-STORY, so a target is a pair, not a bare id. Accept both forms:
     // a plain id (no token known) and { feedback_id, comment_intent } as PostRecord carries them.
     var ids = [];
+    // RESUMING. A thread bigger than one job's budget cannot be drained in one pass, and the
+    // report already hands back has_next_page and an end_cursor saying where it stopped — but
+    // without a way to feed that back, every later job re-walks from the head and returns the
+    // same first rows again. That is the shape of "we collected it four times" rather than "we
+    // collected it", and page_cap is not a rare corner: Facebook pages comments about ten at a
+    // time, so a 40-comment thread already needs four legs at the default budget.
+    //
+    // A cursor is per-POST, so a multi-post job resumes through start_cursors keyed by feedback
+    // id. Unlike the feed capabilities there is no head-page problem to work around here: page 1
+    // is simply the query with a null cursor, so resuming is just starting from a non-null one.
+    var startCursors = isObj(inputs.start_cursors) ? inputs.start_cursors : {};
     function pushTarget(v) {
-      if (typeof v === "string" && v) ids.push({ id: v, intent: null });
-      else if (isObj(v) && v.feedback_id) {
-        ids.push({ id: String(v.feedback_id), intent: v.comment_intent ? String(v.comment_intent) : null });
-      }
+      if (typeof v === "string" && v) v = { feedback_id: v };
+      if (!isObj(v) || !v.feedback_id) return;
+      var id = String(v.feedback_id);
+      var cur = v.start_cursor || startCursors[id] || null;
+      ids.push({
+        id: id,
+        intent: v.comment_intent ? String(v.comment_intent) : null,
+        start: typeof cur === "string" && cur ? cur : null
+      });
     }
     if (Array.isArray(inputs.feedback_ids)) inputs.feedback_ids.forEach(pushTarget);
-    else if (inputs.feedback_id) pushTarget({ feedback_id: inputs.feedback_id, comment_intent: inputs.comment_intent });
+    else if (inputs.feedback_id) {
+      pushTarget({ feedback_id: inputs.feedback_id, comment_intent: inputs.comment_intent,
+                   start_cursor: inputs.start_cursor });
+    }
     if (!ids.length) {
       out.error = "feedback_id (or feedback_ids[]) is required — every PostRecord from fb.group.search_posts / fb.group.posts carries one";
       return Promise.resolve(out);
@@ -3619,7 +3638,10 @@
     function loadPost(target) {
       var feedbackId = target.id;
       var intent = intentOverride || target.intent || COMMENT_INTENT;
-      var cursor = null, pages = 0, mine = [], via = "", stopped = "end_of_connection", hasNext = false;
+      // A resuming leg starts from the caller's cursor and returns exactly its own slice. A leg
+      // boundary IS a page boundary — it is Facebook's own opaque cursor replayed into the same
+      // query — so there is no overlap to dedupe and no gap to discover later.
+      var cursor = target.start || null, pages = 0, mine = [], via = "", stopped = "end_of_connection", hasNext = false;
       function step() {
         if (pages >= maxPages || all.length >= maxComments) {
           stopped = pages >= maxPages ? "page_cap" : "comment_cap";
@@ -3680,7 +3702,11 @@
       return step().then(function () {
         perPost.push({ feedback_id: feedbackId, count: mine.length, pages_fetched: pages,
                        via: via || "no_response", stopped_because: stopped,
-                       comment_intent: intent, has_next_page: hasNext, end_cursor: cursor || null });
+                       comment_intent: intent, start_cursor: target.start || null,
+                       has_next_page: hasNext, end_cursor: cursor || null,
+                       // The handle for the next leg. has_next_page:false is the only honest
+                       // end-of-thread signal — a short page is not one, and neither is page_cap.
+                       resumable: !!(hasNext && cursor) });
       });
     }
 
@@ -3925,7 +3951,8 @@
           }),
           max_comment_pages: inputs.max_comment_pages, max_comments: inputs.max_comments,
           depth: inputs.depth, reply_depth: inputs.reply_depth, comment_intent: inputs.comment_intent,
-          comment_doc_id: inputs.comment_doc_id, reply_doc_id: inputs.reply_doc_id
+          comment_doc_id: inputs.comment_doc_id, reply_doc_id: inputs.reply_doc_id,
+          start_cursors: inputs.start_cursors
         }).then(function (cres) {
           var byPost = {};
           (cres.items || []).forEach(function (c) {
