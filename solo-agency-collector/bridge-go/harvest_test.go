@@ -742,3 +742,83 @@ func TestHarvestLegRestBacksOffInsteadOfAccelerating(t *testing.T) {
 		t.Fatalf("four consecutive failures still fit in %v, the throttle window wins again", total)
 	}
 }
+
+// TestSeedBreakerIgnoresWeather: the collector breaker learned to ride out soft
+// failures; the seed breaker did not, so the same throttling simply killed the
+// campaign one layer down instead. Measured live 2026-08-21: both seeds retired
+// on `no result` and `gql_capability_timeout`, one of them after 25 good legs,
+// and the campaign needed a human to run `harvest seed` again.
+func TestSeedBreakerIgnoresWeather(t *testing.T) {
+	clientDir, store := harvestFixture(t)
+	hc := harvestConfigFrom(store.getCampaign("friends-oc"), defaultSystemSettings())
+	p, err := syncSeeds(clientDir, "friends-oc", hc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seed := p.Seeds[0].URL
+
+	// One good leg first: this seed demonstrably works.
+	if _, err := ingestLeg(clientDir, "friends-oc", seed, legOutcome{
+		Items:     []map[string]any{{"url": "https://www.facebook.com/example.friend.001", "name": "A"}},
+		EndCursor: "C1", HasNext: true, HasNextKnown: true}, nil, "ext-a"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Then a throttled afternoon: six soft failures in a row.
+	for i := 0; i < 6; i++ {
+		if _, err := ingestLeg(clientDir, "friends-oc", seed,
+			legOutcome{Failed: true, Reason: "no result"}, nil, "ext-a"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p, _ = withProgress(clientDir, "friends-oc", func(*harvestProgress) error { return nil })
+	if p.Seeds[0].Error != "" {
+		t.Fatalf("a working seed must not be retired by weather, got %q", p.Seeds[0].Error)
+	}
+	if p.Seeds[0].LegFailures < 4 {
+		t.Fatal("the failures must still be counted — that is what makes it rest longer")
+	}
+	// The rest between attempts grows with those failures, which IS the slowdown.
+	if harvestLegRest(p.Seeds[0].LegFailures) <= harvestLegRest(0) {
+		t.Fatal("a failing seed must wait longer between legs")
+	}
+
+	// A HARD failure still retires it: that is not weather.
+	if _, err := ingestLeg(clientDir, "friends-oc", seed,
+		legOutcome{Failed: true, Reason: "landed_on_self"}, nil, "ext-a"); err != nil {
+		t.Fatal(err)
+	}
+	p, _ = withProgress(clientDir, "friends-oc", func(*harvestProgress) error { return nil })
+	if p.Seeds[0].Error == "" {
+		t.Fatal("an account-side failure must still stamp a seed error")
+	}
+
+	// And a new day clears an error that was only ever weather, so a throttled
+	// afternoon does not cost a manual `harvest seed` tomorrow.
+	_, _ = withProgress(clientDir, "friends-oc", func(pp *harvestProgress) error {
+		pp.Seeds[0].Error = "4 consecutive leg failures: no result"
+		pp.Seeds[0].LegFailures = 4
+		pp.DayKey = "1999-01-01"
+		return nil
+	})
+	p, _ = withProgress(clientDir, "friends-oc", func(pp *harvestProgress) error {
+		pp.resetDayIfNeeded(time.Now())
+		return nil
+	})
+	if p.Seeds[0].Error != "" || p.Seeds[0].LegFailures != 0 {
+		t.Fatalf("a soft seed error must not survive the day rollover: %q", p.Seeds[0].Error)
+	}
+	// A structural one must survive it.
+	_, _ = withProgress(clientDir, "friends-oc", func(pp *harvestProgress) error {
+		pp.Seeds[0].Error = "friend list returned nothing on 2 collector(s) — private to those accounts"
+		pp.DayKey = "1999-01-01"
+		return nil
+	})
+	p, _ = withProgress(clientDir, "friends-oc", func(pp *harvestProgress) error {
+		pp.resetDayIfNeeded(time.Now())
+		return nil
+	})
+	if p.Seeds[0].Error == "" {
+		t.Fatal("a structural seed error must survive the rollover — it needs a human")
+	}
+}

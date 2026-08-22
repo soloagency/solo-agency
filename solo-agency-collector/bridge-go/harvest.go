@@ -105,19 +105,19 @@ func withSeen(clientDir string, fn func(*seenRegistry) error) (*seenRegistry, er
 // --- per-campaign progress ------------------------------------------------------
 
 type harvestSeed struct {
-	URL         string `json:"url"`
-	UID         string `json:"uid"`
-	FriendsURL  string `json:"friends_url"`
-	EndCursor   string `json:"end_cursor,omitempty"`
-	LegsDone    int    `json:"legs_done"`
-	FriendsSeen int    `json:"friends_seen"`
-	Exhausted   bool   `json:"exhausted"`
-	LastLegAt   string `json:"last_leg_at,omitempty"`
-	LastLegBox  string `json:"last_leg_box,omitempty"`
-	LegFailures int    `json:"leg_failures"`           // consecutive failed/empty legs; reset on a real leg
+	URL         string   `json:"url"`
+	UID         string   `json:"uid"`
+	FriendsURL  string   `json:"friends_url"`
+	EndCursor   string   `json:"end_cursor,omitempty"`
+	LegsDone    int      `json:"legs_done"`
+	FriendsSeen int      `json:"friends_seen"`
+	Exhausted   bool     `json:"exhausted"`
+	LastLegAt   string   `json:"last_leg_at,omitempty"`
+	LastLegBox  string   `json:"last_leg_box,omitempty"`
+	LegFailures int      `json:"leg_failures"`          // consecutive failed/empty legs; reset on a real leg
 	TriedBoxes  []string `json:"tried_boxes,omitempty"` // boxes that returned NOTHING for this seed (visibility)
-	Removed     bool   `json:"removed,omitempty"`      // seed dropped from the campaign config; cursor kept for re-add
-	Error       string `json:"error,omitempty"`
+	Removed     bool     `json:"removed,omitempty"`     // seed dropped from the campaign config; cursor kept for re-add
+	Error       string   `json:"error,omitempty"`
 }
 
 type harvestQueued struct {
@@ -128,8 +128,8 @@ type harvestQueued struct {
 	Seed     string `json:"seed"`
 	Priority int    `json:"priority"` // 0 = subtitle matched goal keywords, 1 = otherwise
 	QueuedAt string `json:"queued_at"`
-	Attempts int    `json:"attempts,omitempty"`   // enrich attempts so far (requeued after stale/transient failure)
-	AvoidBox string `json:"avoid_box,omitempty"`  // do not hand the retry to the box that just failed it
+	Attempts int    `json:"attempts,omitempty"`  // enrich attempts so far (requeued after stale/transient failure)
+	AvoidBox string `json:"avoid_box,omitempty"` // do not hand the retry to the box that just failed it
 }
 
 type harvestProgress struct {
@@ -137,8 +137,8 @@ type harvestProgress struct {
 	Campaign      string                     `json:"campaign"`
 	Seeds         []harvestSeed              `json:"seeds"`
 	CurrentSeed   string                     `json:"current_seed"`
-	Queue         []harvestQueued            `json:"queue"`         // awaiting enrich
-	InFlight      map[string]harvestInFlight `json:"in_flight"`     // uid -> enrich job
+	Queue         []harvestQueued            `json:"queue"`          // awaiting enrich
+	InFlight      map[string]harvestInFlight `json:"in_flight"`      // uid -> enrich job
 	AwaitDecision []string                   `json:"await_decision"` // uids with enriched/{uid}.json
 	DayKey        string                     `json:"day_key"`
 	DayEnriched   int                        `json:"day_enriched"`
@@ -214,15 +214,15 @@ func withProgress(clientDir, campaign string, fn func(*harvestProgress) error) (
 // --- campaign config for the channel ---------------------------------------------
 
 type harvestConfig struct {
-	Channel        string       // friend_harvest | zillow_harvest
-	Zillow         zillowConfig // Leads From Zillow inputs (harvest_zillow.go)
-	SeedProfiles   []string
-	DailyBudget    int
-	PerBoxBudget   int
-	LegPages       int
-	QuietFrom      string
-	QuietTo        string
-	GoalKeywords   []string
+	Channel         string       // friend_harvest | zillow_harvest
+	Zillow          zillowConfig // Leads From Zillow inputs (harvest_zillow.go)
+	SeedProfiles    []string
+	DailyBudget     int
+	PerBoxBudget    int
+	LegPages        int
+	QuietFrom       string
+	QuietTo         string
+	GoalKeywords    []string
 	GoalDescription string
 }
 
@@ -323,6 +323,11 @@ func subtitleMatches(subtitle string, keywords []string) bool {
 	return false
 }
 
+// seedLegFailurePrefix marks a seed error stamped by the consecutive-failure rule,
+// as opposed to the structural "this list cannot be read at all" one. The day
+// rollover forgives the first kind and never the second.
+const seedLegFailurePrefix = "4 consecutive leg failures: "
+
 // resetDayIfNeeded rolls the daily counters when the local day changes.
 func (p *harvestProgress) resetDayIfNeeded(now time.Time) {
 	key := now.Format("2006-01-02")
@@ -330,6 +335,22 @@ func (p *harvestProgress) resetDayIfNeeded(now time.Time) {
 		p.DayKey = key
 		p.DayEnriched = 0
 		p.DayPerBox = map[string]int{}
+		// A new day clears seed errors that were only ever weather. Yesterday's
+		// throttling should not still be costing a manual `harvest seed` today;
+		// structural errors (a list nobody can read) are left alone, because those
+		// really do need a human and clearing them would hide the problem.
+		//
+		// Matched by PREFIX, not by scanning the sentence: the structural message
+		// contains the words "returned nothing", which the soft-failure classifier
+		// recognises, so reading the whole string would clear exactly the errors that
+		// must survive. The two are told apart by which rule stamped them.
+		for i := range p.Seeds {
+			s := &p.Seeds[i]
+			reason, ok := strings.CutPrefix(s.Error, seedLegFailurePrefix)
+			if ok && isSoftFailure(reason) {
+				s.Error, s.LegFailures, s.TriedBoxes = "", 0, nil
+			}
+		}
 	}
 }
 
@@ -356,8 +377,8 @@ type legOutcome struct {
 	EndCursor    string
 	HasNext      bool
 	HasNextKnown bool
-	Failed       bool   // no usable records / error item / landed_on_self
-	Reason       string // collector's own error string when it gave one
+	Failed       bool           // no usable records / error item / landed_on_self
+	Reason       string         // collector's own error string when it gave one
 	Zillow       zillowLegFacts // directory envelope facts for zillow.agents.list
 }
 
@@ -423,14 +444,28 @@ func ingestLeg(clientDir, campaign, seedURL string, out legOutcome, keywords []s
 				if box != "" && !hasStr(s.TriedBoxes, box) {
 					s.TriedBoxes = append(s.TriedBoxes, box)
 				}
-				if s.LegsDone == 0 && s.LegFailures >= 2 {
+				switch {
+				case s.LegsDone == 0 && s.LegFailures >= 2:
+					// Never produced a single friend on any collector: structural, not
+					// weather. A human has to look at it.
 					s.Error = "friend list returned nothing on " + fmt.Sprint(len(s.TriedBoxes)) +
 						" collector(s) — private to those accounts, or the profile could not be read; " +
 						"an account that is friends with the seed may be needed"
 					res.SeedError = s.Error
-				} else if s.LegFailures >= 4 {
-					s.Error = "4 consecutive leg failures: " + out.Reason
+				case s.LegFailures >= 4 && !isSoftFailure(out.Reason):
+					s.Error = seedLegFailurePrefix + out.Reason
 					res.SeedError = s.Error
+				case s.LegFailures >= 4:
+					// SOFT failures on a seed that has already worked. Measured
+					// 2026-08-21: both live seeds retired on `no result` and
+					// `gql_capability_timeout`, one of them after 25 good legs — the same
+					// throttling the COLLECTOR breaker had just been taught to ride out.
+					// Fixing one breaker and leaving its twin only moved where the campaign
+					// dies. A seed that has produced friends before is not broken because
+					// Facebook is slow this afternoon: it rests longer (harvestLegRest grows
+					// with LegFailures, to 32 min) and tries again. Retiring it would cost a
+					// human every throttled day, forever.
+					s.Error = ""
 				}
 				p.Totals["leg_failures"]++
 				return nil
