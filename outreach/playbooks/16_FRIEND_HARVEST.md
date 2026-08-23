@@ -114,6 +114,13 @@ Rules that make this cheap, and it stops being cheap the moment any of them is b
 - **Never re-classify.** `--unclassified` exists so the second run reads only what nobody has
   read yet.
 
+**The industry travels on its own.** A `kept` verdict with a `lead_id` now carries the classified
+industry onto the contact itself, through the same `enrich write` path the CRM gate guards. You do
+not pass it, and you cannot forget it: the system read that field in pass one, and a contact
+shipped without it was the system throwing away something it already knew. If the value is
+refused, the verdict still stands and `industry_notes` says which one and why — a decision already
+recorded is never undone by a field that did not land.
+
 **Pass 2 — judge.** `pending` now serves the classification and DROPS the paragraphs it came from,
 because the fact is already known. The verdict is then goal versus a structured record, which any
 model can do at a fraction of the cost. The prose is still on disk: `--full` re-reads it for the
