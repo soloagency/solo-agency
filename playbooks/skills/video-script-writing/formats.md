@@ -76,7 +76,7 @@ Spine:
 4. **The resolution** — the outcome (realistic, consistent with the figures).
 5. **The lesson, named** — pull the general principle out of the specific story so the viewer can apply it.
 
-The story is a vehicle; every number in it is peer-defensible (two-tier CORE RULE) and the internal math holds. The outcome is a representative case, not a fantasy outlier — or flag it ("best case I've seen"). CS is the ONLY format that carries a client-story scene, and its sequence must be logically airtight in-domain (who did what, for whom, in an order a peer would confirm possible).
+The story is a vehicle; every number in it is peer-defensible (two-tier CORE RULE) and the internal math holds. The outcome is a representative case, not a fantasy outlier — or flag it ("best case I've seen"). CS is the ONLY format that carries a client-story scene, and its sequence must be logically airtight in-domain (who did what, for whom, in an order a peer would confirm possible). The narrator's OWN story is not a client case — it is first-person testimony and belongs in any format; CS-only applies to stories about clients.
 
 ---
 

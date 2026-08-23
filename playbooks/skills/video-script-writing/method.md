@@ -8,7 +8,7 @@ Load this module when you reach "the method" in `SKILL.md`. It carries the full 
 
 ### 1 — Lock the narrator + the audience + the angle (once, shared by every script)
 
-**First the NARRATOR — who is speaking, by name and trade?** Pull their name, profession/business, services, and market from this conversation, brand context, or their WideCast profile, and write as that person throughout (full rules in *WHO IS SPEAKING*, `SKILL.md`). The narrator IS the professional — their stance, their composite cases, their CTA.
+**First the NARRATOR — who is speaking, by name and trade?** Pull their name, profession/business, services, and market from this conversation, brand context, or their WideCast profile, and write as that person throughout (full rules in *WHO IS SPEAKING*, `SKILL.md`). The narrator IS the professional — their stance, their composite cases, their CTA. If the source is the narrator talking about themselves (an intro, why-choose-me, their journey, a stance), it is a **PERSONAL PIECE**: the spine is their own story and stance, nothing invented, no definitions or numbers the source doesn't contain (rules in *EMOTION*, `SKILL.md`).
 
 Then write one sentence: *"This is for **[who, by situation not job title]** who **[pain/desire]**, and the angle is **[the one surprising thing]**."* Situation-based targeting ("anyone who's ever rewritten a cold email five times") beats labels ("marketers"). If you can't name the ONE idea, stop and narrow. This narrator + audience + angle is shared across every script.
 

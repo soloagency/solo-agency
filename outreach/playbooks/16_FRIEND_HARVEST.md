@@ -62,6 +62,35 @@ Each envelope: `{uid, profile_url, seed, name, subtitle, ok, error?, attempts, r
 means the collector could not read the profile (private, error, or gave up after retries on
 different accounts) — `error` says which.
 
+**The cost of this pass is the cost of LOADING, not of thinking.** Measured 2026-08-21: a full
+enrich envelope is ~5.7 KB (largest 17 KB), so a batch of 25 was ~35k tokens before the model
+reasoned about anything, and the 860-record backlog would have been ~1.2M tokens of input alone.
+Most of that weight is collector telemetry no verdict can use — `graphql_by_surface`,
+`discovered_tabs`, `checked`, `elapsed_ms` — plus `about` repeating `about_lines`.
+
+`pending` now returns a COMPACT record by default: identity, category, work, location, websites,
+contact fields, one deduplicated prose blob and at most three clamped post captions. On the live
+data that is **18% of the bytes** — 40.6k tokens down to 7.3k for the same 26 records. Three rules
+follow from it, and they are the difference between a cheap pass and an expensive one:
+
+- **Judge from the compact record.** `--full` exists for the record that is genuinely ambiguous
+  after you have read the compact one. Paying for the full envelope on all 25 to serve the one is
+  exactly what made this expensive.
+- **Reject first.** A verdict that needs no contact write costs nothing but the read. Do the
+  website/email ladder only for `kept`.
+- **Apply in ONE call.** `harvest decide-batch --file <jsonl>` (or `--json '{"decisions":[…]}'`)
+  takes every verdict in the batch at once. One bad verdict is reported and skipped; the other
+  twenty-four still land. A turn per profile costs more in overhead than the verdict itself now
+  costs in tokens.
+
+```
+tool crm-store --client-dir {outreach} harvest decide-batch --campaign X --file verdicts.jsonl
+```
+
+Each line: `{"profile_url": "…", "status": "kept|rejected|enrich_failed", "lead_id": "…", "reason": "…"}`.
+Writing the verdicts to a FILE also keeps them out of the chat transcript — the sub-agent's output
+never becomes the supervisor's input.
+
 **You are the SUPERVISOR of this pass, not the judge. Delegation is mandatory, not an
 optimisation.** Never read envelopes yourself: spawn low-level judge sub-agents (cheapest model
 that can follow the rule), hand each ONE batch, and let it both decide and record. Then keep
