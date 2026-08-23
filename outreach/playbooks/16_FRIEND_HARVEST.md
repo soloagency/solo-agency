@@ -73,7 +73,53 @@ contact fields, the intro/about prose, and at most three clamped post captions. 
 that is **30% of the bytes** — ~56k tokens down to ~16.5k for 37 records — with the telemetry gone
 and nothing a verdict needs removed.
 
-**Why the prose is NOT trimmed hard, when everything else is.** The verdict turns on the lead's
+### The pass is TWO passes, and only the first one reads paragraphs
+
+Facebook does not state an industry, and there is no regex for it: on the live set `category` is
+present on 22% of records and `work` on 40%, while the prose that states the trade is present on
+94%. A model has to read it. **Trimming that prose to save tokens is the wrong lever** — a first
+version clamped it to 600 characters, which truncated 33 of 36 live profiles and would have had
+the decider guessing at the one field the verdict turns on.
+
+The right lever is to read it **once, with the cheapest model that can read**, and never again.
+
+**Pass 1 — extract (lowest-tier model, no judgement).** This is not a decision; it is turning
+unstructured text into one value from a closed list. Give the sub-agent the full records and the
+dictionary, and take back JSONL:
+
+```
+tool crm-store --client-dir {outreach} harvest pending --campaign X --limit 25 --unclassified --full
+```
+
+Each line back: `{"profile_url": "…", "industry": "<verbatim from lead_industries.json>",
+"role": "…", "location": "…", "signals": ["the phrase it was read from"], "confidence": 0.0-1.0,
+"classified_by": "<model>"}`. If it genuinely cannot tell, `{"unclear": true}` — an honest blank
+beats an invented industry, and the code refuses a classification that is neither.
+
+```
+tool crm-store --client-dir {outreach} harvest classify --campaign X --file industries.jsonl
+```
+
+The industry is validated against **the same 43-entry dictionary the CRM gate enforces**
+(`lead_industries.json`), verbatim, case and punctuation included. "real estate" is not
+"Real Estate". A value that would be silently dropped at `contact add` is refused here instead,
+where you can still see why — and the command echoes the allowed list on failure.
+
+Rules that make this cheap, and it stops being cheap the moment any of them is broken:
+
+- **Lowest tier, and no silent upgrade.** Extraction is not reasoning. If the thread starts
+  growing, stop at a checkpoint file and open a fresh short one rather than dragging context.
+- **File in, file out.** The extractor's output must never travel through a chat transcript —
+  that is how a sub-agent's output becomes the supervisor's input and gets paid for twice.
+- **Never re-classify.** `--unclassified` exists so the second run reads only what nobody has
+  read yet.
+
+**Pass 2 — judge.** `pending` now serves the classification and DROPS the paragraphs it came from,
+because the fact is already known. The verdict is then goal versus a structured record, which any
+model can do at a fraction of the cost. The prose is still on disk: `--full` re-reads it for the
+record that is genuinely ambiguous, which is a choice rather than a tax on all 25.
+
+**Why the prose is NOT trimmed hard when a record is still unclassified.** The verdict turns on the lead's
 INDUSTRY, and the structured fields that would state it are mostly absent: on the live set
 `category` is present on 22% of records and `work` on 40%, while intro/about prose is present on
 94%. The industry lives in the prose. A first version clamped it to 600 characters, which looked
