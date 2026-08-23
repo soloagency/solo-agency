@@ -88,8 +88,13 @@ unstructured text into one value from a closed list. Give the sub-agent the full
 dictionary, and take back JSONL:
 
 ```
-tool crm-store --client-dir {outreach} harvest pending --campaign X --limit 25 --unclassified --full
+tool crm-store --client-dir {outreach} harvest pending --campaign X --limit 25 --unclassified
 ```
+
+An unclassified record is served **whole** — `--full` is not needed and adds nothing here. The
+pass that determines the industry reads unstructured text, and it is the one decision in this
+system that must never be made from a trimmed record, so the guarantee lives in the code rather
+than in remembering a flag.
 
 Each line back: `{"profile_url": "…", "industry": "<verbatim from lead_industries.json>",
 "role": "…", "location": "…", "signals": ["the phrase it was read from"], "confidence": 0.0-1.0,
@@ -122,7 +127,8 @@ refused, the verdict still stands and `industry_notes` says which one and why �
 recorded is never undone by a field that did not land.
 
 **Pass 2 — judge.** `pending` now serves the classification and DROPS the paragraphs it came from,
-because the fact is already known. The verdict is then goal versus a structured record, which any
+because the fact is already known. Compaction applies ONLY to records that have been classified —
+never to one still awaiting its first read. The verdict is then goal versus a structured record, which any
 model can do at a fraction of the cost. The prose is still on disk: `--full` re-reads it for the
 record that is genuinely ambiguous, which is a choice rather than a tax on all 25.
 
