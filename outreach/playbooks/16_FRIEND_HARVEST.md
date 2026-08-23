@@ -69,9 +69,22 @@ Most of that weight is collector telemetry no verdict can use — `graphql_by_su
 `discovered_tabs`, `checked`, `elapsed_ms` — plus `about` repeating `about_lines`.
 
 `pending` now returns a COMPACT record by default: identity, category, work, location, websites,
-contact fields, one deduplicated prose blob and at most three clamped post captions. On the live
-data that is **18% of the bytes** — 40.6k tokens down to 7.3k for the same 26 records. Three rules
-follow from it, and they are the difference between a cheap pass and an expensive one:
+contact fields, the intro/about prose, and at most three clamped post captions. On the live data
+that is **30% of the bytes** — ~56k tokens down to ~16.5k for 37 records — with the telemetry gone
+and nothing a verdict needs removed.
+
+**Why the prose is NOT trimmed hard, when everything else is.** The verdict turns on the lead's
+INDUSTRY, and the structured fields that would state it are mostly absent: on the live set
+`category` is present on 22% of records and `work` on 40%, while intro/about prose is present on
+94%. The industry lives in the prose. A first version clamped it to 600 characters, which looked
+like an 18% record — and truncated 33 of 36 live profiles, saving tokens by discarding the one
+field the decision is made from. The budget is now 4000 characters: twelve points more expensive,
+and it cuts nothing. **Never trade the deciding field for a cheaper batch.**
+
+If a record still leaves the industry genuinely unclear, `--full` on THAT record is the correct
+move; guessing is not.
+
+Three rules follow, and they are the difference between a cheap pass and an expensive one:
 
 - **Judge from the compact record.** `--full` exists for the record that is genuinely ambiguous
   after you have read the compact one. Paying for the full envelope on all 25 to serve the one is
