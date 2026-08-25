@@ -163,40 +163,98 @@ Each line: `{"profile_url": "…", "status": "kept|rejected|enrich_failed", "lea
 Writing the verdicts to a FILE also keeps them out of the chat transcript — the sub-agent's output
 never becomes the supervisor's input.
 
-**You are the SUPERVISOR of this pass, not the judge. Delegation is mandatory, not an
-optimisation.** Never read envelopes yourself: spawn low-level judge sub-agents (cheapest model
-that can follow the rule), hand each ONE batch, and let it both decide and record. Then keep
-driving until the queue is empty.
+### Who does what — one ownership model, no second reading
 
-Why it is mandatory, stated plainly because the reminder alone has already failed: one envelope
-carries a whole enrich record — `about_lines`, `work[]`, and every post caption. Twenty-five of
-them is a large read, and after two or three batches the supervising context is full, so the run
-"wraps up" while thousands still wait. That is not hypothetical: on 2026-08-18 a live campaign
-held **860 profiles awaiting decision** against 99 ever decided, while the daemon kept adding
-more every day. Delegating keeps those records out of your context entirely — you see one line
-back per batch, so batch 40 costs you exactly what batch 1 did.
+This is a CONTRACT, not a preference. An earlier version of this file described two ways of
+doing the same work — sub-agents mutating the CRM themselves, and sub-agents staging files for a
+supervisor to apply — and a brain arriving fresh could reasonably pick either. Two rails is no
+rail. The one below is the one:
 
-Each judge sub-agent gets: the campaign `goal_description` + `goal_keywords`, its own batch of
-envelopes, and the rules below. It decides, calls `contact add` / `harvest decide` **itself**,
-and returns ONE line: `n kept, n rejected, n failed, <uid of anything it could not decide>`.
-It returns no prose, no envelope contents, and no reasoning — that is the whole point.
+| | Sub-agents | Supervisor (this run) |
+|---|---|---|
+| Reads enrich records | **yes, only they do** | **never** |
+| Mutates CRM / harvest state | **never** | yes, and only through the commands below |
+| Output | staging files (JSONL) | one counts line per batch |
+
+**Sub-agents write files and mutate nothing.** They never call `contact add`, `enrich write` or
+`harvest decide`. They produce `industries.jsonl` (pass 1) and `verdicts.jsonl` (pass 2), and the
+verdict line for a `kept` friend CARRIES the contact payload and dossier it staged — so the
+supervisor can apply the whole batch with one command over a file it never opens. That is the
+only reason this split is cheap as well as safe; a supervisor that has to read payloads to create
+contacts has simply moved the expensive reading, not removed it.
+
+**The supervisor never reads an envelope.** One enrich record carries `about_lines`, `work[]` and
+every post caption; twenty-five of them fills a context, and after two or three batches the run
+"wraps up" while thousands still wait. Measured 2026-08-18: 860 profiles awaiting decision against
+99 ever decided, while the daemon added more every day. Delegation keeps those records out of the
+supervisor's context entirely, so batch 40 costs it exactly what batch 1 did.
+
+**Roles are defined by COST TIER, never by a model name.** This system is brain-agnostic — Codex,
+Claude and any other runtime drive the same install — so a rail that names one vendor's model is
+broken for everyone else. The three roles:
+
+| Role | What it does | Which model |
+|---|---|---|
+| `harvest_low_tier_extractor` | pass 1: unstructured prose → one industry from the closed list | the **cheapest** text+tool model the runtime exposes |
+| `harvest_low_tier_judge` | pass 2: structured record vs the goal → verdict | the same cheapest tier |
+| `harvest_ambiguous_reviewer` | ONLY records the extractor marked `unclear` | one tier up, and only if configured or the operator approves |
+
+**No silent cost escalation.** That rule means *do not raise the cost tier on your own* — it is
+not about any particular model. If the runtime will not let a sub-agent run at the lowest tier,
+**stop before the first record and say so.** Reading hundreds of profiles on a mid or top tier
+because the cheap one was unavailable is exactly the failure this whole design exists to prevent,
+and doing it silently is worse than not running at all.
+
+Record what actually ran, so the cost is auditable afterwards rather than assumed:
+`"classified_by": {"runtime": "<codex|claude|…>", "model": "<actual slug>", "tier": "lowest_cost"}`.
+
+**Canary before bulk, every time.** Run 5 records first and check: 5/5 lines parse, every industry
+is in the closed vocabulary verbatim, `unclear: true` appears where the record genuinely does not
+say, no record text reached the chat, and the model that ran is the tier you intended. Only then
+release the rest. Five records is a cheap way to discover that a batch of 300 was about to be
+wrong.
+
+**One sub-agent at a time.** Not because parallelism is wrong in principle, but because each one
+holds full records and the whole point is bounded, predictable spend; several at once removes the
+ceiling the operator is trying to keep. When a thread's context grows, checkpoint to JSONL and
+open a fresh short one rather than dragging the old one along.
+
+**Applying is mechanical and belongs to the supervisor**: back up first, validate the staged files
+(schema, counts, the industry vocabulary), sample a few of the riskiest rows, then run the batch:
+
+```
+tool crm-store --client-dir {outreach} harvest decide-batch --campaign X --file verdicts.jsonl
+```
+
+One command creates or matches the contact for every `kept` line that carries a `contact` block,
+writes its dossier and the industry, records every verdict, and leaves `rejected` /
+`enrich_failed` costing nothing but the line. A bad row is reported and skipped; the other
+twenty-four still land.
+
+### What each verdict line must contain
+
+`{"profile_url": "…", "status": "kept|rejected|enrich_failed", "reason": "<one line>"}` — plus,
+for `kept` only, the `contact` payload and the `enrichment` dossier described below. `lead_id` is
+optional: pass it when the contact already exists, omit it and the `contact` block creates or
+matches one.
 
 For EACH envelope, decide against the GOAL only:
 
 - **kept** — the friend matches the goal's trade AND location (and any other stated trait),
-  evidenced by the record (`about_lines`, `work[]`, `posts[]` captions, subtitle). Then:
-  (a) create-or-match the contact in ONE call — `tool crm-store --client-dir {outreach}
-  contact add --json '{"name":{"full":"…","given":"…","entity_type":"person|company|page"},
+  evidenced by the record (`about_lines`, `work[]`, `posts[]` captions, subtitle). Then STAGE —
+  do not call — these two blocks on the verdict line; the supervisor's one `decide-batch` turns
+  them into a contact, a dossier and a recorded verdict:
+  (a) `"contact"`, exactly the payload `contact add` takes: `{"name":{"full":"…","given":"…","entity_type":"person|company|page"},
   "identities":{"socials":{"facebook":"<profile_url>"},
   "emails":[{"address":"<email>","source":"friend_harvest","status":"unverified","is_primary":true}],
   "phones":[{"number":"<phone>","type":"cell","source":"friend_harvest"}]},
   "tags":["friend_harvest"],"custom_fields":{"source":"friend_harvest","harvest_seed":"<seed
-  url>","harvest_campaign":"X"}}'` (emails/phones are LISTS OF OBJECTS — `{address}` /
+  url>","harvest_campaign":"X"}}` (emails/phones are LISTS OF OBJECTS — `{address}` /
   `{number}` — never plain strings: the store's identity index silently drops a bare string,
   which would create an un-mailable contact and defeat dedup; omit the key when the record has
-  none) — it returns `lead_id` + `outcome` (`matched` when the
-  identity already exists in the CRM: that contact is REUSED, never duplicated, per Stage 13;
-  `created` otherwise); name/`given`/`entity_type` follow the enrich skill's addressing rules;
+  none). `decide-batch` matches an existing identity rather than duplicating it, per Stage 13, so
+  a friend already in the CRM is reused; name/`given`/`entity_type` follow the enrich skill's
+  addressing rules;
   (b) **finish the email ladder for a kept friend** — the enrich record already covered
   Facebook (bio + About sub-tabs, `checked[]`); if `emails[]` is empty but `websites[]` is not,
   run rows 6-7 of the Stage 4 ladder NOW, for this person only: fetch the website's
@@ -208,23 +266,23 @@ For EACH envelope, decide against the GOAL only:
   (with its `evidence_url`), and `email_discovery` carries the enrich record's
   `{profile_url, emails, websites, found_on, checked}` plus the website surfaces you read,
   so `mark_email_not_found` is honest when nothing was published anywhere; then
-  (c) `enrich write --contact <lead_id>` with the record's hooks (each with `evidence_url`)
-  and the email findings, so the dossier is write-ready for any later campaign; (d) `tool
-  crm-store --client-dir {outreach} harvest decide --campaign X --profile <profile_url
-  exactly as the envelope's profile_url> --status kept --lead-id <lead_id> --reason "<one
-  line: which goal trait matched, from which evidence>"`.
+  (c) `"enrichment"`, the dossier `enrich write` takes — the record's hooks (each with an
+  `evidence_url`) and the email findings — so the contact lands write-ready for any later
+  campaign. The industry is NOT staged here: it was read in pass 1 and `decide-batch` carries it
+  on its own. `"reason"` is one line naming which goal trait matched and from which evidence.
 - **rejected** — does not match the goal (wrong trade, wrong place, no professional signal at
-  all). `harvest decide --campaign X --profile <profile_url> --status rejected --reason "<one
-  line>"`. Never create a contact "just in case": the client-wide seen registry guarantees this
+  all). One staged line, nothing else: `{"profile_url": "…", "status": "rejected", "reason":
+  "<one line>"}`. Never create a contact "just in case": the client-wide seen registry guarantees this
   person is never enriched again, so a wrong reject is a lost lead — reject on evidence, not
   on absence of a subtitle.
 - **enrich_failed** — the envelope is `ok: false` (private profile / unreadable after retries
-  on different accounts). `harvest decide --campaign X --profile <profile_url> --status
-  enrich_failed --reason "<the envelope's error>"`; it is remembered and skipped. (Transient
+  on different accounts). `{"profile_url": "…", "status": "enrich_failed", "reason": "<the
+  envelope's error>"}`; it is remembered and skipped. (Transient
   failures never reach you: the daemon already retried them on other collectors.)
 
-`decide` refuses a `--profile` that is not in the pending set — pass the envelope's
-`profile_url` verbatim, never a re-typed variant.
+A verdict is refused for a `profile_url` nobody is waiting on — copy the envelope's
+`profile_url` verbatim, never a re-typed variant. `harvest decide` (single) still exists for the
+one-off case; the pass uses `decide-batch`.
 
 ### The supervisor loop — run it until it is actually empty
 

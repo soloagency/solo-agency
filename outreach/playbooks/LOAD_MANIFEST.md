@@ -21,7 +21,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/11_UPDATE_AND_VERSION_WATCH.md | 413 | 6f3d51855cc38d5d8caa256dee7e141986ca79d1adccd74b7aef24d64c5a821b | - If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And GitHub Issue Escalation Rule. |
 | playbooks/13_CRM_CORE.md | 77 | 849f2703c8f56beed2346cf132088adf9c9066be29343d7b390bdf6b8b33395a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/14_TASKS_TODAY_VIEW.md | 77 | 6a50e4defa145664db81d4cb6ae57210db3fa461df7bbe5b06c23de3a622bd90 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| playbooks/16_FRIEND_HARVEST.md | 312 | 890425cb8a870f12158252b79329e7c6afae098b982117a4d88df8daf78220cc |   did the reading — a reader never keeps another client's lead material. |
+| playbooks/16_FRIEND_HARVEST.md | 370 | eba1d73a0e202f4df131766154215c3f94de0d9a2900682fa4f7225bcf3f5591 |   did the reading — a reader never keeps another client's lead material. |
 | playbooks/17_ZILLOW_HARVEST.md | 90 | 595d2099f1b4a05e2463dc373c73db3396c811249459c7f6f2e125bdbcea499b | (`collector/inbox/YYYY-MM/{owner}/harvest/{run_id}/`) regardless of which extension read it. |
 | playbooks/18_COMMENT_CAMPAIGN.md | 219 | 3c4cf222a1d270c52e8fccc499b4fb6f597f18db91b665fdac985e993834454a | file's examples, it will be copied into live output — that has happened four times. |
 | playbooks/19_GROUP_POST_CAMPAIGN.md | 158 | c17444990c16de27243d9307153d667efb313bf36610f01598e276b32060ab24 | examples, it will be copied into live output — that has happened four times. |
