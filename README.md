@@ -23,7 +23,7 @@ Set it up once. From then on you talk to a single Team Leader in your chat, the 
 | **CRM caretaker** | keeps every lead, deal, task and follow-up moving, deduped and on time |
 | **Daily agents** | run the whole loop on a schedule every morning and hand you a report, a brief and the things that need your decision |
 
-Big-brain work (strategy, analysis, talking to you) stays with the Team Leader; extraction, classification and drafting run on small, cheap models. Your token bill stays sane.
+The Team Leader is the one who talks to you and the one responsible for strategy; the rest of the team works behind it.
 
 ## What the team does every day
 
