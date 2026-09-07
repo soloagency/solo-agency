@@ -33,7 +33,8 @@
         "enrich": "profile enrichment / dossiers / contact ladders — Starter and up",
         "write_actions": "react, comment, group post, Messenger DM — Starter and up",
         "zillow": "Zillow agent directory + profile enrich — Pro and up"
-      }
+      },
+      "support_group_exemption": "fb.group.post into the official Solo Agency support group (url fixed inside the bridge and the extension) is allowed on every plan, capped at 3 posts per install per day — it is how a Free install asks for help. Every other target follows the plan."
     }
   },
   "record_schemas": {

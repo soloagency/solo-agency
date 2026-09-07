@@ -36,6 +36,7 @@ Read the install's plan from `GET /status` → `entitlement.tier` before surfaci
 | Notifications (Telegram + email) | Get the report and hot-lead alerts pushed to you the moment they happen | WideCast key connected | "turn on notifications" | PDNA notification |
 | Auto update-watch | A daily task that checks GitHub and keeps your Solo Agency install current; tells you when a new version changes behavior (or auto-applies if you opt in) | schedule/automation exists | "set up the update watch task" | Stage 11 + `Solo Agency - GitHub Update Watch` |
 | Collector healthcheck | Know the same day when Facebook or Zillow changed and a collector capability stopped reading, with the exact thing to fix — instead of a silently empty scan a week later | Local Collector running + a few targets you own (test group, your own post, a Zillow profile) | "run the collector healthcheck" | `playbooks/HEALTHCHECK.md` + `<bridge> tool healthcheck` |
+| Ask the founder and community for help | When something is stuck or you want a feature, your Team Leader drafts a redacted post, shows it to you, and with your OK posts it to the Solo Agency Facebook support group with your account, then watches the thread for answers — every plan | member of the support group in the collector's Chrome profile | "post this to the support group" | `playbooks/TEAM_MODEL.md` (Support requests) + `fb.group.post` |
 
 ## Outreach + CRM (OutreachCRM module)
 

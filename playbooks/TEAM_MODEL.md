@@ -57,6 +57,45 @@ Solo Agency works like a marketing agency team for one person: **the Boss** (the
 
 4. **Standup.** Every scheduled run appends one line to `daily-content-pipeline/automation/standup.jsonl` when it finishes (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, step 16A). The leader reads the tail of that file at the start of every interactive session to fill the frame. The morning brief the Boss receives is the operator-facing notification the run already sends, with the standup line and the open ledger rows at its top (≤ 8 lines) — no extra message, no new channel.
 
+## Support requests — asking the Solo Agency Facebook group for help
+
+When the Team Leader hits a question, a bug, a repeated failure or a feature the Boss wants — after the escalation rule in `AGENTS.md` has re-read the latest GitHub `main` and the problem is still there — it OFFERS to post to the official Solo Agency support group on the Boss's behalf. The group is where the founder and other members answer, and it is the default intake channel for a Boss who has no GitHub account (a GitHub issue is still filed when the runtime has an authorized identity; both may be used). The post is a write action with the Boss's own Facebook account, so the rules are strict:
+
+1. **Show, then ask.** The full post is drafted first and shown verbatim inside one `**[ACTION REQUIRED]**` block; nothing is posted until the Boss approves that exact text. No standing permission, one approval per post.
+2. **Redact** before drafting: no secrets, API keys, cookies, tokens, client names or client data, private-source content, personal contact data, or logged-in screenshots. Paths become placeholders. Logs are trimmed to the lines that matter (≤ 15).
+3. **One post per issue.** Check `daily-content-pipeline/automation/support_requests.md` first; a matching open row means reply in that thread (or wait), not a new post. The bridge also caps support posts at 3 per install per day.
+4. **Membership.** The Boss must be a member of the group in the Chrome profile that runs the collector. If unsure, run `fb.group.post` with `dry_run: true` first; a `not_a_group_url` / `group_mismatch` / membership error means: give the Boss the group link to join, then retry.
+5. **Post it** as a run-now job — capability `fb.group.post`, `group_url` = the official support group, `purpose: support`, `text` = the approved post. Record the outcome (`done` or `pending_admin_approval`) in the ledger below. The group post is allowed on EVERY plan for this one url; anywhere else `fb.group.post` follows the plan.
+6. **Read the replies.** Every Daily Run (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, 16A) finds the post again by its `[SA-…]` id (`fb.group.posts` on the group, then `fb.post.comments` on the matching `feedback_id`) and brings new replies to the Boss in the standup line and the reply frame. A row becomes `answered` only when the Boss says the answer worked.
+7. **Never** marketing content, never a client's problem written as the client's, never a second post to "bump".
+
+Post template — the first line is the title, in the Boss's language, always starting with `[Agent]`; the hashtags are fixed so the founder and members can find agent posts:
+
+```text
+[Agent] [SA-a1b2c3] Bug | Question | Feature request: <one-line title>
+#SoloAgency #SoloAgencySupport #Bug|#Question|#FeatureRequest #AgentPost
+
+Runtime: <Claude Code | Codex | …> · Bridge <version> · Extension <version> · Catalog <version> · Plan: <tier>
+What happened: <two or three lines>
+Expected: <one line>
+Blocker codes: <solo_…, provider_…, wrong_workspace_bridge, …>
+Already tried: <latest GitHub main re-read at <commit>, …>
+Log (redacted, ≤ 15 lines):
+<lines>
+
+Posted by the Boss's Team Leader agent with the Boss's approval — it reads the replies in this thread every day.
+```
+
+Ledger — `daily-content-pipeline/automation/support_requests.md`, created on first use:
+
+```md
+# Support requests — posts the Team Leader made to the Solo Agency support group
+| id | date | type | title | status | group_url | feedback_id | replies | notes |
+|---|---|---|---|---|---|---|---|---|
+```
+
+Statuses: `drafted`, `approved`, `posted`, `pending_admin_approval`, `answered`, `failed`, `withdrawn`.
+
 ## Roster
 
 `daily-content-pipeline/automation/automation_manifest.md` lists every scheduled task with its `Role` and `Brain` (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, "Team Roster"). Task NAMES never change — `run_lock`, Automation Resync and the manifest match on them:

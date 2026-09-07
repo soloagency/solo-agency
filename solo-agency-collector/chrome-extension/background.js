@@ -413,7 +413,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
     const tabActivationMode = tabActivationPlan.mode;
     const capabilityId = String(source.capability || "");
     const requiredFeature = SoloEntitlement.featureFor(capabilityId);
-    const featureGranted = SoloEntitlement.granted(entitlement, capabilityId);
+    const featureGranted = SoloEntitlement.granted(entitlement, capabilityId, source);
     await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
       run_id: runId,
       client_slug: job.client_slug || binding.client_slug || "",

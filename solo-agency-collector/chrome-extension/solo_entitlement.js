@@ -22,6 +22,10 @@
   // The ladder (2026-09-07): free · starter $49 · pro $99 · business $199 · enterprise. Names are
   // informational — grants come from the token's `features`, limits from its `limits`.
   const SOLO_KNOWN_TIERS = new Set(["free", "starter", "pro", "business", "enterprise"]);
+  // Support requests: fb.group.post into the official Solo Agency support group (this url and no
+  // other) is how a Free install asks for help, so it is granted on every plan. Fixed here and in
+  // the bridge; empty disables the exemption.
+  const SOLO_SUPPORT_GROUP_URL = "";
 
   // The extension's OWN map of paid capabilities → the feature the plan must carry. It is never
   // taken from the bridge or the catalog it serves — a homebrew bridge would simply call
@@ -107,11 +111,28 @@
     return SOLO_CAPABILITY_FEATURES[String(capabilityId || "")] || "";
   }
 
+  function normalizeGroupUrl(u) {
+    let s = String(u || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^(www|m|web|mbasic)\./, "");
+    const cut = s.search(/[?#]/);
+    if (cut >= 0) s = s.slice(0, cut);
+    return s.replace(/\/+$/, "");
+  }
+
+  // isSupportGroupTarget: the source posts into the official support group (url or inputs.group_url).
+  function isSupportGroupTarget(source, supportUrlOverride) {
+    const want = normalizeGroupUrl(supportUrlOverride || SOLO_SUPPORT_GROUP_URL);
+    if (!want) return false;
+    const inputs = source && source.inputs && typeof source.inputs === "object" ? source.inputs : {};
+    return [source && source.url, inputs.group_url].some((c) => c && normalizeGroupUrl(c) === want);
+  }
+
   // granted: a free capability is always granted; a paid one needs a VERIFIED token whose
-  // `features` carries the capability's feature (the tier name is never consulted).
-  function granted(ent, capabilityId) {
+  // `features` carries the capability's feature (the tier name is never consulted). The one
+  // exception is a support request: fb.group.post into the official support group, any plan.
+  function granted(ent, capabilityId, source, supportUrlOverride) {
     const feature = featureFor(capabilityId);
     if (!feature) return true;
+    if (String(capabilityId || "") === "fb.group.post" && isSupportGroupTarget(source, supportUrlOverride)) return true;
     return !!(ent && ent.ok && Array.isArray(ent.features) && ent.features.includes(feature));
   }
 
@@ -122,10 +143,11 @@
   }
 
   root.SoloEntitlement = {
-    verify, featureFor, granted, view,
+    verify, featureFor, granted, isSupportGroupTarget, view,
     ENFORCE: SOLO_ENTITLEMENT_ENFORCE,
     UPGRADE_URL: SOLO_UPGRADE_URL,
     PUBLIC_KEY_HEX: SOLO_ENTITLEMENT_PUBLIC_KEY_HEX,
+    SUPPORT_GROUP_URL: SOLO_SUPPORT_GROUP_URL,
     CAPABILITY_FEATURES: SOLO_CAPABILITY_FEATURES
   };
 })(typeof self !== "undefined" ? self : globalThis);
