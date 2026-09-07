@@ -7,3 +7,19 @@
 /bridge-go_*
 *.backup
 *.go.bak
+
+# The Go source of the bridge is NOT open source and does not live in this repo.
+# It moved to the private repository soloagency/solo-agency-bridge on 2026-09-06,
+# and this repo's history was rewritten to remove it from all 379 commits.
+#
+# What stays here is only what a machine needs to RUN the bridge and what an agent
+# needs to USE it: the capability catalog, the industry dictionary, and the setup
+# script that downloads a checksum-verified binary from the dist branch.
+#
+# This rule is the lock on that door, and it is load-bearing. Every working copy
+# still holds the full source on disk — that is how the bridge gets built — so
+# without this line the next `git add -A` republishes all of it and undoes the
+# rewrite. Nothing warns you: the files simply reappear in the commit.
+*.go
+go.mod
+go.sum

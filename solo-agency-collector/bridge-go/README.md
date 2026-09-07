@@ -2,9 +2,21 @@
 
 This is the localhost bridge for the Solo Agency Local Collector.
 
-It is written in Go so maintainers can build small single-file binaries for macOS, Windows, and Linux.
+**The bridge ships as a binary. Its Go source is not in this repository.**
 
-End users do not need Go when prebuilt binaries are shipped.
+As of 2026-09-06 the source lives in the private repository `soloagency/solo-agency-bridge`,
+and this repository's history was rewritten so it is not in any commit here. What remains in
+this directory is what a machine needs to RUN the bridge and what an agent needs to USE it:
+
+- `collector_capabilities.json` — the capability catalog every agent reads before planning work
+- `lead_industries.json` — the closed industry vocabulary an enrich must choose from
+
+Install a bridge with `../setup_collector.sh`, which downloads the binary for your platform
+from the `dist` branch and verifies its SHA256 before running it. Nothing here is built from
+source, and no Go toolchain is required.
+
+This document describes the bridge's INTERFACE — its routes, its job contract, its outputs — so
+that agents and the Chrome extension can be written against it. It is not a build guide.
 
 ## Responsibilities
 
@@ -39,17 +51,18 @@ collector-bridge \
 
 ## On-Demand Run
 
+Ask a RUNNING bridge for work with `POST /jobs/run_now` rather than starting one with flags:
+
 ```sh
-go run . \
-  --host 127.0.0.1 \
-  --port 17321 \
-  --run-id 2026-06-20_demo-client \
-  --job-file ../examples/job.sample.json \
-  --output-dir ../../daily-content-pipeline/collector/inbox/2026-06/2026-06-20_demo-client \
-  --ttl-minutes 30
+curl -s -X POST http://127.0.0.1:17321/jobs/run_now \
+  -H 'Content-Type: application/json' \
+  -d @../examples/job.sample.json
 ```
 
-On-demand runs auto-shutdown on completion or TTL.
+Stop a run that is already collecting with `POST /jobs/cancel` (`{"run_id":"..."}`,
+`{"client_slug":"..."}` or `{"all":true}`); queued jobs are withdrawn at once and a run in
+flight stops at its next source boundary.
+
 
 ## Health
 
@@ -97,10 +110,20 @@ The bridge also writes:
 daily-content-pipeline/collector/inbox/bridge_health.json
 ```
 
+## Healthcheck probes
+
+`/status` is liveness. `POST /healthcheck/run` (and `tool healthcheck run --client <slug>`) runs
+every catalog capability against the operator's fixtures and scores the records; results are
+under `<collector dir>/healthcheck/` and on `/ui/status`. Every catalog entry must carry a
+`healthcheck` block (`TestCatalogHealthcheckContract`). Details: `../HEALTHCHECK.md`.
+
+Also in this build: `--capability-validation=warn|reject|off` (unknown capability ids on job
+intake; default warn) and 24h retention for `logs/extension_health.jsonl` and
+`logs/job_routing.jsonl` (`COLLECTOR_EVENT_LOG_RETENTION_HOURS`).
+
 ## Build
 
-```sh
-go build -o ../../solo-agency-local-collector/bin/collector-bridge ./...
-```
+Not from here. The source is in `soloagency/solo-agency-bridge` (private); binaries are
+published to the `dist` branch of this repository as `collector-bridge-binaries-<version>.zip`
+alongside `SHA256SUMS`, and `../setup_collector.sh` is what consumes them.
 
-For releases, cross-compile and publish OS-specific binaries. The AI agent should run those binaries directly instead of asking the user to install Go.
