@@ -390,7 +390,7 @@ The bridge validates the client's WideCast API key against `GET /v1/solo/entitle
 <bridge> tool entitlement refresh --pipeline daily-content-pipeline   # after the human pastes or upgrades a key
 ```
 
-Blockers the bridge returns: `solo_feature_not_in_tier`, `solo_tier_limit_reached`, `solo_send_quota_exhausted` (each JSON body carries `message`, `feature`, `limit`, `count`, `upgrade_url`, `enforced`); `POST /jobs/run_now` answers `402` with that body when every source of the job needs a higher plan. The extension adds `solo_entitlement_required` on a source it skipped. In `--entitlement-mode log` (this release) nothing is refused and the same decisions land in `collector/logs/entitlement.jsonl` with `would_refuse: true`.
+Blockers the bridge returns: `solo_feature_not_in_tier`, `solo_tier_limit_reached`, `solo_send_quota_exhausted` (each JSON body carries `message`, `feature`, `limit`, `count`, `upgrade_url`, `enforced`); `POST /jobs/run_now` answers `402` with that body when every source of the job needs a higher plan. The extension adds `solo_entitlement_required` on a source it skipped. Enforcement is the default; with `--entitlement-mode log` (escape hatch) nothing is refused and the same decisions land in `collector/logs/entitlement.jsonl` with `would_refuse: true`.
 
 ## Manual Run / Run Now
 

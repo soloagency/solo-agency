@@ -7,8 +7,9 @@
 // Everything here is ordinary WebCrypto (Chrome 137+ ships Ed25519 natively); no library, no
 // network, nothing hidden. Loaded by background.js via importScripts and by the Node test.
 //
-// Rollout: SOLO_ENTITLEMENT_ENFORCE=false this release — verify and report, never skip. It flips
-// to true once the owner's own install carries a Pro token and the log shows no false negatives.
+// SOLO_ENTITLEMENT_ENFORCE=true since 2026-09-07 (launch): a paid capability without a verified
+// token carrying its feature is skipped and reported as solo_entitlement_required. Set it to false
+// to fall back to verify-and-report only.
 (function (root) {
   "use strict";
 
@@ -17,7 +18,7 @@
   const SOLO_ENTITLEMENT_AUDIENCE = "solo-agency";
   const SOLO_ENTITLEMENT_GRACE_MS = 14 * 24 * 60 * 60 * 1000; // same offline window as the bridge
   const SOLO_UPGRADE_URL = "https://widecast.ai/#setup";
-  const SOLO_ENTITLEMENT_ENFORCE = false;
+  const SOLO_ENTITLEMENT_ENFORCE = true;
   // The ladder (2026-09-07): free · starter $49 · pro $99 · business $199 · enterprise. Names are
   // informational — grants come from the token's `features`, limits from its `limits`.
   const SOLO_KNOWN_TIERS = new Set(["free", "starter", "pro", "business", "enterprise"]);
