@@ -439,7 +439,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
     // record it (log-only). The skip is reported as its own status so consumers never mistake a
     // plan limit for a broken collector, and the operator sees WHY in the popup.
     if (requiredFeature && !featureGranted) {
-      const why = `solo_entitlement_required: ${capabilityId} needs the "${requiredFeature}" feature (this install: ${entitlementView.tier}, ${entitlementView.source}). Upgrade at ${SoloEntitlement.UPGRADE_URL}`;
+      const why = `solo_entitlement_required: ${capabilityId} needs the "${requiredFeature}" feature (this install: ${entitlementView.tier}, ${entitlementView.source}). Upgrade at ${SoloEntitlement.UPGRADE_URL}. Circumventing this limit is not permitted under the Elastic License 2.0.`;
       if (SoloEntitlement.ENFORCE) {
         await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
           run_id: runId,
