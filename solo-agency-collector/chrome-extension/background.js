@@ -518,6 +518,29 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
+      // A cancel CLOSES the tab, and everything the source was waiting on then rejects — the
+      // capture comes back as "No tab with id: 1280133336". That is the cancel working, not the
+      // collector breaking, and it lands here in the ordinary error path.
+      //
+      // Measured live 2026-09-07: a run stopped from the overlay filed its in-flight source as
+      // status:"error". The guard that exists for a source cancelled BEFORE its page opened does
+      // not cover this one, which is the common case — an operator stops a run because something
+      // is ON SCREEN, so there is always a source mid-flight. Consumers scan source_status.jsonl
+      // for failures (the harvest loop does exactly that), so a deliberate stop was being counted
+      // as a broken collector, and enough of them blow a fuse over a profile nobody has a problem
+      // with.
+      if (cancelAppliesTo(runId, runStartedAt)) {
+        cancelledDuring.add(index);
+        // This path can run BEFORE the worker loop's own check, so cancelledBy may still be
+        // unset — and then the row lands saying the stop was requested by "unknown", which is
+        // the one field an operator reads to answer "who stopped my run?". Measured live: the
+        // cancel came from the overlay and the record said unknown.
+        if (!cancelledBy && cancelRequest) {
+          cancelledBy = { reason: cancelRequest.reason, requestedBy: cancelRequest.requestedBy };
+        }
+        await reportCancelledSource(index, "cancelled mid-collection: " + String(error && error.message ? error.message : error));
+        return;
+      }
       await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
         run_id: runId,
         client_slug: job.client_slug || binding.client_slug || "",
@@ -544,6 +567,9 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
   let nextIndex = 0;
   let sourcesDone = 0;
   let cancelledBy = null;
+  // Sources the cancel interrupted. They are neither done nor failed, and counting them as
+  // either makes "stopped after 2 of 6" read wrong in the completion report.
+  const cancelledDuring = new Set();
   const workerCount = Math.max(1, sourceConcurrency);
 
   // One place decides whether this run should stop, so a local click and a bridge-side cancel are
@@ -594,7 +620,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
       nextIndex += 1;
       const source = selectedSources[index];
       await processSource(source, index);
-      sourcesDone += 1;
+      if (!cancelledDuring.has(index)) sourcesDone += 1;
     }
   });
   await Promise.all(workers);
@@ -611,6 +637,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
     cancel_reason: wasCancelled ? cancelledBy.reason : "",
     cancel_requested_by: wasCancelled ? cancelledBy.requestedBy : "",
     sources_done: sourcesDone,
+    sources_interrupted: cancelledDuring.size,
     sources_total: selectedSources.length,
     completed_at: new Date().toISOString(),
     collector_identity: "chrome-extension-local-collector"
