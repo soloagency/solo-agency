@@ -37,6 +37,8 @@ The Team Leader is the one who talks to you and the one responsible for strategy
 
 **Measure and improve.** Views, clicks, replies and follower growth feed back into which hooks, pillars and sources get priority tomorrow. Build → measure → learn → improve, without you keeping a spreadsheet.
 
+![Solo Agency full marketing agency loop](assets/agency-loop.svg)
+
 ## What you get every morning
 
 - A client-ready HTML report: insights, proof, recommendations, next actions.
