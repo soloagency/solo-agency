@@ -4,137 +4,80 @@
 
 # Solo Agency
 
-Solo Agency is for solo founders who want an AI agent that goes to work every morning — winning clients, finding prospects (leads), writing max-personalized outreach, producing videos and blogs, and generating source-backed content ideas.
+**Agency-grade marketing for a solo business, run by a team of AI agents — and you only talk to the Team Leader.**
 
-I built it for myself and use it every day.
+Solo Agency is for solo-business owners — realtors, insurance and mortgage agents, coaches, consultants, local services, one-person brands — who need the marketing a whole agency would do and have nobody to do it: finding leads, nurturing them, keeping a CRM that never drops a follow-up, running outreach, building a personal brand with content people actually care about, every single day.
 
-It works like a marketing agency team of AI agents for one person — you, the Boss. You talk to one Team Leader (the chat that set it up). Behind it, scouts scan the web and Facebook for topics, ideas and leads; creators turn them into content and video; distributors deliver through email, Facebook comments and messages and the social accounts you connect; a CRM caretaker keeps every lead moving; and scheduled agents run the whole loop every morning and report back. Today Facebook is fully monitored and X, LinkedIn and the rest are on the roadmap; SMS is human-assisted; publishing goes only to the accounts you connect.
+It gives you that agency as a team of AI agents working inside the AI you already use (Claude, Codex, Hermes, OpenClaw), reading the web and the social platforms where your customers actually gather. I built it for myself and run my own business on it every day.
 
-Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" and it runs the full loop for you: research, lead and competitor opportunities, videos, blogs, distribution, analytics, and daily improvement.
+## How it works: you are the Boss, you talk to one Team Leader
 
-## The Point
+Set it up once. From then on you talk to a single Team Leader in your chat, the way you would brief a marketing lead. Behind it, a team does the work and reports back:
 
-When you are solo, the hardest problem is attention — and attention has to be earned with content people actually care about. That means daily research, production, distribution, measurement, and improvement, not another blank prompt.
+| Agent | What it does for you |
+|---|---|
+| **Team Leader** | takes every order in the chat, plans, decides, reports, and makes sure nothing you asked for gets dropped |
+| **Scouts** | scan the web and the social platforms where your customers gather — groups, pages, profiles, posts, directories — for topics, ideas, competitor moves and leads |
+| **Creators** | turn what the scouts found into content ideas, scripts, blog posts, social posts and videos in your voice |
+| **Distributors** | deliver: personalized email sequences, comments, group posts and messages, publishing to the accounts you connect — nothing sends without your approval |
+| **CRM caretaker** | keeps every lead, deal, task and follow-up moving, deduped and on time |
+| **Daily agents** | run the whole loop on a schedule every morning and hand you a report, a brief and the things that need your decision |
 
-- Content without research is guessing.
-- Research without production is wasted.
-- Production without distribution is invisible.
-- Distribution without measurement is gambling.
-- Measurement without learning is busywork.
-- Learning without improvement is entertainment.
+Big-brain work (strategy, analysis, talking to you) stays with the Team Leader; extraction, classification and drafting run on small, cheap models. Your token bill stays sane.
 
-This playbook connects the full agency loop: research, ideas, lead and competitor opportunities, scripts, production, distribution, measurement, learning, and improvement.
+## What the team does every day
 
-![Solo Agency full marketing agency loop](assets/agency-loop.svg)
+**Find leads.** Research plus monitoring of the private sources you already belong to surfaces hot / warm / watch leads with the post link, why it matters, and a copy-ready value-first reply. On paid plans the team harvests leads at scale from friends lists, people search and directories, and builds evidenced dossiers on each one.
 
-## What This Is
+**Nurture and CRM.** A CRM you never click: contacts, deals, stages, tasks, replies and bounces land in it automatically; a morning brief tells you who is new, who is cooling, and who has a reason to hear from you today — with the draft already written.
 
-- An AI-agent operating playbook for daily content intelligence across one client or an entire client roster.
-- A marketing workflow: research -> insight -> content pillar -> idea -> script/blog/social -> approval -> production -> distribution -> analytics -> learning.
-- A public data source + private data source intelligence system across Google, industry sites, FB, IG, YT, TT, X, LinkedIn, Reddit, groups, pages, creators, and communities.
-- Helps scan and evaluate private data sources you already have, such as joined Facebook groups, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, and community feeds.
-- A pain-point-to-content-pillar engine that turns real audience problems into daily content angles.
-- A lead and competitor opportunity engine built directly into the research process: it finds relevant posts, preserves source links, explains why each signal matters, and drafts value-first comments for human review.
-- A production layer for idea-to-video, blog/social creation, auto-posting, notifications, analytics, and build-measure-learn-improve loops.
-- A multi-client workflow for freelancers and agencies that need repeatable output without rebuilding strategy from scratch every morning.
+**Outreach.** Import a list or let the scouts build one, verify and enrich each person, then run goal-driven, personalized email campaigns with automatic value-add follow-ups — never "just checking in". You approve every send.
 
-## Features At A Glance
+**Personal branding and content.** Source-backed content ideas daily, the best idea of the day, an idea matrix (hot / evergreen / lead-gen), five ready-to-shoot angles, and — when you connect production — real videos, blogs and social posts, published where you say.
 
-- **Content engine** — daily source-backed content ideas, the best idea of the day, a Hot/Trend/Evergreen idea matrix, and 5 ready-to-shoot draft angles. Approved ideas become real videos, blogs, and social posts.
-- **Market intelligence** — finds leads and competitor moves during research, monitors the private groups/communities your audience actually gathers in (Local Collector), and runs an analytics + learning loop once content is published.
-- **Cold-email outreach & CRM** — import a prospect list, verify and enrich each lead with evidenced hooks, run goal-driven personalized cold-email campaigns with automatic value-add follow-ups, and track replies through a CRM pipeline. Nothing sends without your chat approval.
-- **Notifications** — the daily report and hot-lead alerts are pushed to you by email + Telegram in one step (WideCast), so you do not have to sit in front of the agent.
-- **Runs for you** — one client or your whole roster, on a daily schedule, with human-approval gates on everything that sends, spends, or publishes.
+**Measure and improve.** Views, clicks, replies and follower growth feed back into which hooks, pillars and sources get priority tomorrow. Build → measure → learn → improve, without you keeping a spreadsheet.
 
-*Full capability list with the exact phrase to trigger each one: [`playbooks/FEATURE_CATALOG.md`](playbooks/FEATURE_CATALOG.md).*
+## What you get every morning
 
-## What You Get Every Day
+- A client-ready HTML report: insights, proof, recommendations, next actions.
+- A brief from your Team Leader: what the team did, what needs you, what is due.
+- Lead & Competitor Opportunities with source links and copy-ready replies.
+- Content ideas with URLs, the best idea of the day, five production-ready angles.
+- Drafted outreach and follow-ups waiting for your approval.
 
-- A client-ready HTML report with insights, proof, recommendations, and next actions.
-- Source-backed content ideas with URLs, not generic AI brainstorming.
-- The best idea of the day, selected by freshness, audience pain, lead potential, business impact, and offer relevance.
-- A global/local idea matrix across Hot / Trend / News, Evergreen / Foundation, and Lead-Gen / Conversion.
-- Related-industry angles clearly labeled and connected back to the client's offer.
-- 5 production-ready draft angles: Value Explainer, Client Q&A, POV, Case Study, and Myth-Buster.
-- When approved and connected, the agent can turn those drafts into actual video, blog, and social assets through production tools.
-- Lead & Competitor Opportunities with source links, post URLs when visible, context, why it matters, and a copy-ready value-first comment for each opportunity.
-- Hot/warm/watch lead signals, including direct needs, indirect pain signals, objections, complaints, buying triggers, and adjacent needs.
-- Competitor intelligence across direct, indirect, adjacent, attention, and authority/KOL competitors, including hooks, offers, positioning, audience overlap, and useful places to show up.
-- New source opportunities, such as groups, pages, creators, communities, or competitor profiles worth monitoring.
-- A clear production path: approve, revise, choose another idea, create a video, publish, schedule, reconnect, or measure.
+## Your private sources stay yours
 
-## Built For Solo Operators, Useful For Agencies
+The team reads the logged-in world you already belong to — groups, pages, profiles, posts, communities and directories — through a small local extension in your own Chrome that talks only to a local bridge on your computer. Nothing you collect leaves your machine; the only outside calls go to your own WideCast account for notifications and plan checks. No passwords, cookies or OTPs are ever asked for, and no agent-driven browser touches your logged-in sessions.
 
-- Serve more clients without opening a blank doc every morning.
-- Build content from real market demand, not vibes.
-- Convert audience pain points into content pillars, scripts, blogs, and social angles.
-- Turn private community chatter into lead-gen angles, objections to answer, and timely comments.
-- Use competitor activity to understand positioning, offers, audience overlap, and useful places to show up.
-- Spot hot/warm/watch leads during normal content research, with source links and copy-ready value-first comments.
-- Keep each client separated by profile, sources, reports, history, analytics, and learning.
-- Add clients one by one as the agency grows.
-- Run one client, ten clients, or every active client on a schedule.
-- Keep humans in control of approvals, publishing, rendering, outreach, and spending.
+Platform support rolls out one adapter at a time: Facebook (groups, pages, profiles, posts, comments, replies, group posts, messages) and Zillow directories are fully supported today; X, LinkedIn, Instagram, YouTube and Reddit already get basic page capture and are next in line for full adapters. Delivery today runs through email, Facebook engagement and messages, and publishing to every social account you connect through WideCast; SMS is human-assisted.
 
-## Private Data Source Intelligence
+## Production and distribution
 
-Important: the Local Collector is not the setup entrypoint. It is a private data source module used only after the main playbook reaches the private data source stage and the human approves collector activation.
+WideCast is the maintained all-in-one path for video, blog and social production, publishing to 10+ platforms you connect, Telegram and email notifications, and analytics — behind the same API key that is your Solo Agency license. It is optional for research, ideas, leads, CRM and drafting. Specialist tools (Google Veo, Seedance, Kling, HeyGen, stock libraries and similar) can be connected for production assets.
 
-- Monitors logged-in private data sources such as FB groups/pages, IG profiles, YT channels/comments, TT accounts, X accounts, LinkedIn pages, Reddit communities, competitor pages, fanpages, and niche forums.
-- If the user has no list yet, recommends private data source discovery instead of silently skipping this layer. The agent can review candidate Facebook groups, subreddits, communities, followed KOLs/pages, creator profiles, subscribed channels, and recommendation feeds the user approves.
-- Lets the user provide private data sources manually, approve AI-discovered candidates, or do both.
-- Filters candidate sources by relevance, activity, pain-point match, target-audience fit, lead potential, competitor intelligence value, noise, and account-safety risk before asking the user to approve them.
-- Uses the user's existing logged-in Chrome session through the Solo Agency Local Collector extension and Local Collector app. Private data stays local on the user's computer by default.
-- Does not use Claude in Chrome, Codex/browser tools, Playwright, or agent-controlled browsers to read logged-in private data sources.
-- Never asks for passwords, cookies, OTPs, tokens, or raw credentials.
-- Updates the report, idea matrix, best idea, Lead & Competitor Opportunities, and drafts after private scans, instead of stopping at "collector succeeded."
+Solo Agency is free forever for your own use (1 client) with one watched source and unlimited CRM contacts; one WideCast API key unlocks more sources, campaigns and the lead-harvest features — see https://widecast.ai/#setup.
 
-## Production, Distribution, And Learning
+## Get started
 
-- Turns approved ideas or scripts into videos through connected production tools.
-- Creates approved video, blog, and social assets when the production provider is configured and the human has approved the action.
-- Supports faceless, face-clone, and teleprompter-style production when configured.
-- Repurposes one approved idea into video, blog, and social formats.
-- Publishes approved content to connected channels when authorized by the human.
-- Sends report, blocker, approval, publishing, and session-refresh notifications through available notification providers.
-- Encourages a free WideCast + Telegram setup so daily report links and blockers can reach the human remotely, without sitting in front of the computer.
-- Measures content through connected analytics tools and visible platform metrics when available.
-- Tracks views, likes, comments, shares, saves, clicks, follower growth, and unavailable metrics honestly.
-- Updates hook learnings, CTA learnings, content-pillar scores, source priority, experiment backlog, and future idea selection.
-- Completes the loop: build -> measure -> learn -> improve.
-
-## Media Tool Integrations
-
-Connect specialist tools such as Google Veo, Seedance, Kling, Nano Banana, Shutterstock, Pexels, Pixabay, HeyGen, and similar media services for production assets.
-
-WideCast can be used as one maintained all-in-one OpenAPI provider path for writing, video production, publishing, notifications, analytics, and learning loops. It is not required for research, idea generation, lead detection, report generation, or account-free draft writing. In multi-client setups, each client should use its own WideCast API key/provider config so billing, social accounts, notifications, and analytics stay isolated.
-
-## Best First Prompt
+Tell your AI agent:
 
 ```text
 Setup https://github.com/soloagency/solo-agency now.
 ```
 
-The main playbook tells the agent which detailed stage playbook to load next. If the `playbooks/` folder is not local, the agent can fetch the needed stage file from this GitHub repo.
-
-## Best New Client Prompt
+The first thing you will hear is your Team Leader introducing the team. Setup asks you one question at a time; you do not need to remember any of it. Add a client later with:
 
 ```text
-Add a new client: [client name].
-They provide [product/service/profession/expertise].
-Their target market is [location if known].
-Here are optional private data sources to monitor: [URLs].
-You may also ask me whether to discover private data sources from my joined groups, subreddits, followed profiles/KOLs, subscriptions, and feeds.
-Set up the client-specific automation task for the first report using public data sources. Do not run the report inside the setup chat.
+Add a new client: [client name]. They provide [product/service]. Their target market is [location].
+Here are optional private data sources to monitor: [URLs]. You may also ask me whether to discover private data sources from my joined groups, followed profiles and feeds.
+Set up the client-specific automation task for the first report. Do not run the report inside the setup chat.
 ```
 
-## Agent Compatibility
+Tested with Claude Desktop, Codex, Hermes and OpenClaw. No vision model needed. Community testing on other agents is welcome.
 
-Tested with Claude Desktop, Codex, Hermes, and OpenClaw.
+## Support
 
-Community testing on other AI agents is welcome, especially around playbook loading, local collector setup, scheduled runs, progress display, and HTML report delivery.
-
-No vision model is required. Solo Agency is designed to run with an LLM-only agent.
+Questions, bugs, feature requests: the [Solo Agency support group on Facebook](https://www.facebook.com/groups/1570411591501058). Your Team Leader can draft the post, show it to you, and post it with your account once you approve — on every plan — then watch the thread for the founder's answer.
 
 ## Agent Entry Point
 
