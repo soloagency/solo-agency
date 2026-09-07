@@ -6,7 +6,7 @@
 
 **Agency-grade marketing for a solo business, run by a team of AI agents — and you only talk to the Team Leader.**
 
-Solo Agency is for solo-business owners — realtors, insurance and mortgage agents, coaches, consultants, local services, one-person brands — who need the marketing a whole agency would do and have nobody to do it: finding leads, nurturing them, keeping a CRM that never drops a follow-up, running outreach, building a personal brand with content people actually care about, every single day.
+Solo Agency is for solo-business owners — realtors, SaaS founders, insurance and mortgage agents, coaches, consultants, local services, one-person brands — who need the marketing a whole agency would do and have nobody to do it: finding leads, nurturing them, keeping a CRM that never drops a follow-up, running outreach, building a personal brand with content people actually care about, every single day.
 
 It gives you that agency as a team of AI agents working inside the AI you already use (Claude, Codex, Hermes, OpenClaw), reading the web and the social platforms where your customers actually gather. I built it for myself and run my own business on it every day.
 
