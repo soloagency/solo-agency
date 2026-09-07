@@ -1,16 +1,31 @@
 {
   "object": "collector_capabilities",
-  "version": "0.1.0",
-  "updated_at": "2026-08-21",
+  "version": "0.2.0",
+  "updated_at": "2026-09-02",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
     "how_to_invoke": "POST /jobs/run_now with sources[] where each source is { \"url\": \"<screen url>\", \"capability\": \"<capability id>\", \"inputs\": { ... } }. Read results from the run's private_data_points.jsonl; typed output is in the record's 'records' field, keyed by the capability's output_schema.",
     "orchestration_note": "Multi-step work (visiting many profiles, friend-of-friend traversal, filtering by industry, writing reports) is the playbook agent's job. Each capability only reads ONE screen into typed data.",
-    "status_meaning": "stable=live-verified; beta=unit-verified, live pending; planned=not built; not_graphql=this screen is not served by GraphQL interception (server-rendered / interaction-gated) and needs a DOM/HTML approach or an alternative capability.",
+    "status_meaning": "stable=live-verified; beta=unit-verified, live pending; planned=not built; not_graphql=this screen is not served by GraphQL interception (server-rendered / interaction-gated) and needs a DOM/HTML approach or an alternative capability. Healthcheck probes only run for stable and beta; every other status is EXCLUDED (usage.healthcheck_contract).",
     "pagination": "Deep collection via cursor replay: set inputs.max_pages (default 8, max 40) on any paginated capability (group.posts, group.search_posts, groups.search, people.search, profile.posts, profile.friends, newsfeed). Instead of relying on scroll, the collector replays the captured query with each end_cursor. Example: fb.group.search_posts with max_pages:10 returned 66 posts vs 6 without.\n\nLEGS, for a connection bigger than one job. Every paginated result now carries `end_cursor`, `has_next_page` and `resumable`; pass that end_cursor back as inputs.start_cursor to continue where the last job stopped. A resuming leg skips the head page and drops the page's own capture, so each leg returns EXACTLY its own slice — no overlap to dedupe, no gap. Stop only on has_next_page:false: a short page is not the end, and neither is page_cap_hit, which means the budget ran out with more waiting. Measured on fb.profile.friends: 8 rows per page, ~34s for 40 pages against a 45s capability ceiling — so ~336 rows per leg, and a 5,000-friend list is ~623 pages, i.e. ~16 legs.",
     "background_tab": "DATA FIRST, focus second. A capability that reads a FEED needs an active tab — Facebook defers feed work on document.visibilityState, and measured in a hidden tab fb.profile.enrich returned posts_available:false with posts_seen:0, while a run of all read capabilities hidden produced empty records for all seven feed readers (group.posts, group.search_posts, groups.search, newsfeed, people.search, profile.friends, profile.videos). So those capabilities activate their tab whatever the job asks, and report tab_activation_mode:'active_tab_required_by_capability'.\n\nThe collector does NOT restore the operator's previous tab afterwards. That was tried and removed: re-selecting a tab pulls Chrome forward, so an operator working in a different application had the browser raised over their screen once per source — worse than the single tab switch it was meant to soften. A capability that must activate simply activates; quiet comes from the hideable list below, not from handing focus back.\n\npacing.background_tab:true still applies to the capabilities that lose nothing hidden (fb.profile.dossier, fb.profile.header, fb.profile.contacts, fb.profile.hovercard, zillow.agents.list, zillow.profile.enrich, web.search): those never take the tab at all, and as a side effect collect ~2% noise in about_lines instead of the 20-35% an active tab picks up, because the review carousel and reel view-count strip are lazy-loaded on visibility too. Hidden tabs are throttled 2-3x by Chrome, which is why the capability ceiling is 60s and the walk budget 45s.",
-    "network_unavailable": "A source whose navigation never reached the site returns status 'network_unavailable' with a reason ('chrome_error_page' or 'browser_offline') and the capability is NOT run. This is a NETWORK fact, not an account fact, and a harvest ledger must not count it as a failure of the Facebook account. WHY it needed saying: Chrome renders its own error document for a dropped connection and that document loads perfectly — tab status 'complete', no exception, a real page — so the capability read it, found no profile, and the account took the blame. Measured over 976 harvest runs: 75 of 102 failures fell in clusters where two or three DIFFERENT clients failed within the same ten minutes. Three independent accounts are not throttled in lockstep four times a day; one machine's connection is. The data point also carries tab_load ('complete' | 'timeout'), which used to be unknowable."
+    "network_unavailable": "A source whose navigation never reached the site returns status 'network_unavailable' with a reason ('chrome_error_page' or 'browser_offline') and the capability is NOT run. This is a NETWORK fact, not an account fact, and a harvest ledger must not count it as a failure of the Facebook account. WHY it needed saying: Chrome renders its own error document for a dropped connection and that document loads perfectly — tab status 'complete', no exception, a real page — so the capability read it, found no profile, and the account took the blame. Measured over 976 harvest runs: 75 of 102 failures fell in clusters where two or three DIFFERENT clients failed within the same ten minutes. Three independent accounts are not throttled in lockstep four times a day; one machine's connection is. The data point also carries tab_load ('complete' | 'timeout'), which used to be unknowable.",
+    "healthcheck_contract": {
+      "what": "Every capability entry MUST carry a `healthcheck` block; bridge-go's TestCatalogHealthcheckContract fails the build when one is missing or malformed. The bridge's healthcheck runner (`bridge-go healthcheck plan|run|report`, POST /healthcheck/run) reads these blocks, so adding a capability adds its probe with no runner change.",
+      "mode": "read = submit the probe as-is; dry_run = submit with dry_run inputs by default and switch to write_inputs/write_assert only under --allow-writes; write = the real action is safe to run on every cadence (idempotent); negative = the capability must keep answering 'not built'; excluded = never probed, `reason` required.",
+      "templates": "`url` and `inputs` values may contain {fixture_key} (from <collector dir>/healthcheck/fixtures.json), {text} (the probe text the caller supplies or the runner generates), and {var} names produced by `chain.take`. Missing fixture keys make the probe SKIPPED and are listed by `healthcheck plan` so the operator can be asked for exactly them.",
+      "chain": "`chain.after` names a probe whose result feeds this one: `pick` is a path to an array on the earlier data point, `prefer_max` sorts it, `require_min` skips the probe (SKIPPED, not FAIL) when no element qualifies, `take` maps {var: field path}, `transform` post-processes a var (first_words:N).",
+      "expect_query": "L1 drift sensor: the substring must appear in graphql_manifest[].queryName of the probe's data point. Facebook renaming the persisted query trips this before the extractor returns zero.",
+      "assert": "Each entry is {path, op, value?, severity?, note?}. path roots: `records` (the typed capability payload) or `dp` (the data point envelope); segments are dot-separated with [N] indexes. ops: exists, absent, eq, neq, gte, gt, lte, lt, nonempty, empty, in, not_in, starts_with, contains, matches, not_matches, is_true, is_false, len_gte, len_eq, eq_fixture, contains_fixture (value = fixture key), each_has_any / any_has (path is an array; value = field names, each element / any element must have one non-empty), each_eq (value = {field, equals}). severity defaults to fail; warn turns the probe WARN instead of FAIL.",
+      "verdicts": "PASS, WARN, FAIL, BLOCKED (records.status blocked, human gate pending, not_a_member, waiting_for_human_captcha), SKIPPED (fixture missing, executor stale, chain requirement unmet, gate below failed), EXCLUDED. BLOCKED and SKIPPED never count as FAIL.",
+      "baseline_fields": "Field paths inside records.items[] whose fill-rate is compared with the last PASS baseline (L3): a drop from filled to empty while count holds is an early field-path drift warning.",
+      "cause_group": "Shared breakage families; several FAILs in one family are reported as one incident naming every affected capability.",
+      "runnable_status": [
+        "stable",
+        "beta"
+      ]
+    }
   },
   "record_schemas": {
     "EntityRef": {
@@ -298,7 +313,81 @@
         "fallback": "html",
         "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
       },
-      "scroll": "max_scroll"
+      "scroll": "max_scroll",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_test_group_url"
+        ],
+        "url": "{fb_test_group_url}",
+        "inputs": {
+          "group_url": "{fb_test_group_url}",
+          "max_scroll": 1,
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "GroupsCometFeed",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.source_query",
+            "op": "nonempty",
+            "note": "empty = no capture matched the extractor's scope at all (query never fired or renamed)"
+          },
+          {
+            "path": "records.pagination_skipped",
+            "op": "absent",
+            "severity": "warn",
+            "note": "present = the active cursor-replay path could not run; value names why"
+          },
+          {
+            "path": "records.head_page_via",
+            "op": "starts_with",
+            "value": "native_shape",
+            "severity": "warn",
+            "note": "reshaped_* means the shape-scan fallback rescued the result: early drift signal"
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id",
+              "post_id"
+            ]
+          },
+          {
+            "path": "records.items",
+            "op": "any_has",
+            "value": [
+              "feedback_id"
+            ],
+            "note": "feedback_id is the handle fb.post.comments needs"
+          }
+        ],
+        "baseline_fields": [
+          "feedback_id",
+          "actor.id",
+          "url",
+          "engagement.reaction_count",
+          "engagement.comment_count"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "feed_stream_merge",
+          "group_feed"
+        ],
+        "offline_tests": [
+          "tests/test_gql_extract.js"
+        ]
+      }
     },
     {
       "id": "fb.group.search_posts",
@@ -330,7 +419,70 @@
         "fallback": "html",
         "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
       },
-      "scroll": "max_scroll"
+      "scroll": "max_scroll",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_test_group_url"
+        ],
+        "chain": {
+          "after": "fb.group.posts",
+          "pick": "records.items",
+          "prefer_max": "engagement.comment_count",
+          "take": {
+            "keyword": "text"
+          },
+          "transform": {
+            "keyword": "first_words:3"
+          }
+        },
+        "url": "{fb_test_group_url}/search/?q={keyword}",
+        "inputs": {
+          "group_search_url": "{fb_test_group_url}/search/?q={keyword}",
+          "max_scroll": 1,
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "SearchComet",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.source_query",
+            "op": "contains",
+            "value": "SearchComet"
+          },
+          {
+            "path": "records.items[0].url",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id",
+              "post_id"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "feedback_id",
+          "actor.id",
+          "url"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "search_comet"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "fb.post.comments",
@@ -381,6 +533,95 @@
         "depth_semantics_measured": "A comment's replies_connection returns its WHOLE reply subtree in one response, not just the next level — measured on a 27-comment thread at depth:2, which returned 23 replies at node.depth 1 and 27 at node.depth 2 from a single query per comment. So depth:2 is in practice the full thread, and depth:3+ buys little. Coverage on that thread: 26 of 27 comments returned exactly their declared reply_count; one returned 6 of 8. Facebook's own total_count (84) counts more than direct + replies (79) — treat total_count as an upper bound, not a target.",
         "intent_measured": "Search story nodes did NOT carry selectable_intents, so comment_intent came back empty and null was sent — and the walk still reached end_of_connection on every post. This is why the code sends null rather than an invented literal: null is a value Facebook accepts, a wrong token is not.",
         "resume_contract": "Facebook pages comments about ten at a time, so page_cap is the ordinary case, not a corner: a 40-comment thread needs four legs at the default budget. by_post[] reports start_cursor, end_cursor, has_next_page and resumable; feed those back through start_cursor / start_cursors. has_next_page:false is the ONLY honest end-of-thread signal — a short page is not one, and neither is page_cap."
+      },
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_test_group_url"
+        ],
+        "chain": {
+          "after": "fb.group.posts",
+          "pick": "records.items",
+          "prefer_max": "engagement.comment_count",
+          "require_min": {
+            "engagement.comment_count": 1
+          },
+          "take": {
+            "feedback_id": "feedback_id",
+            "post_url": "url"
+          }
+        },
+        "url": "{post_url}",
+        "inputs": {
+          "feedback_id": "{feedback_id}",
+          "post_url": "{post_url}",
+          "max_comments": 10,
+          "max_comment_pages": 1,
+          "depth": 1
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.registry_probe",
+            "op": "absent",
+            "note": "present = CommentsListComponentsPaginationQuery is not registered on this screen"
+          },
+          {
+            "path": "records.doc_id",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.by_post[0].stopped_because",
+            "op": "in",
+            "value": [
+              "end_of_connection",
+              "page_cap",
+              "comment_cap"
+            ]
+          },
+          {
+            "path": "records.by_post[0].via",
+            "op": "starts_with",
+            "value": "direct+merged",
+            "severity": "warn",
+            "note": "scanned_of_N = the exact edge path came back empty and the shape scanner rescued it"
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "actor.id",
+              "actor.name",
+              "actor.url"
+            ]
+          },
+          {
+            "path": "records.items",
+            "op": "any_has",
+            "value": [
+              "text"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "actor.id",
+          "text",
+          "reply_count"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "comments_replay"
+        ],
+        "offline_tests": [
+          "tests/test_post_comments.js"
+        ]
       }
     },
     {
@@ -416,7 +657,62 @@
         "fallback": "html",
         "large_lists": "A 5,000-friend list is ~623 pages and cannot be drained in one job: the 40-page cap and the 45s timeout both stop first. Chain legs on start_cursor/end_cursor. Before doing that, consider whether the whole list is needed — this capability returns only name/url/subtitle and industry_hint is always null here, so identifying trades still costs one fb.profile.enrich PER PERSON. Filtering on `subtitle` at this stage and enriching only the matches is cheaper by orders of magnitude."
       },
-      "scroll": "max_scroll"
+      "scroll": "max_scroll",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_canary_profile_friends_url"
+        ],
+        "url": "{fb_canary_profile_friends_url}",
+        "inputs": {
+          "profile_url": "{fb_canary_profile_friends_url}",
+          "max_scroll": 1,
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "Friends",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.source_query",
+            "op": "nonempty",
+            "note": "empty = no capture matched the extractor's scope at all (query never fired or renamed)"
+          },
+          {
+            "path": "records.pagination_skipped",
+            "op": "absent",
+            "severity": "warn"
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "name",
+              "url"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "url",
+          "subtitle"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "profile_collection"
+        ],
+        "offline_tests": [
+          "tests/test_pagination_resume.js"
+        ]
+      }
     },
     {
       "id": "fb.profile.about",
@@ -431,6 +727,39 @@
         "history": "Twice attempted, twice withdrawn. A DOM implementation walking About + its four directory_* sub-tabs could not finish inside the orchestrator's 45s capability timeout even after the settle time was cut and a wall-clock budget added; both runs returned records:null. Removed on operator instruction — the other profile capabilities already carry enough to classify a person, and this one cost more than it was worth.",
         "what_it_exposed": "Its failures were INVISIBLE, and fixing that was the durable win: a DOM capability that threw used to answer available:false, which the bridge turns into records:null — making \"the capability crashed\" and \"this page has nothing\" the same output. That path now reports available:true with the error, catches promise rejections as well as synchronous throws, and background.js writes an explicit error record instead of leaving null.",
         "if_revived": "Do not walk five surfaces in one job. Fetch is useless here (the SPA shell has no rendered block), so each surface costs a real click plus a settle; either split the ladder across jobs or raise the capability timeout deliberately."
+      },
+      "healthcheck": {
+        "mode": "negative",
+        "cadence": "weekly",
+        "needs_active_tab": false,
+        "fixtures": [
+          "fb_canary_profile_url"
+        ],
+        "url": "{fb_canary_profile_url}",
+        "inputs": {},
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "path": "records.reason",
+            "op": "in",
+            "value": [
+              "no_capture",
+              "no_extractor"
+            ],
+            "note": "anything else means an extractor was registered under this id without updating the catalog status"
+          }
+        ],
+        "baseline_fields": [],
+        "cause_group": [
+          "dispatch"
+        ],
+        "offline_tests": [],
+        "reason": "status not_built: superseded by fb.profile.dossier; probed only to prove it stays unbuilt"
       }
     },
     {
@@ -456,7 +785,64 @@
         "edge_path": "data.serpResponse.results.edges → rendering_strategy.view_model.profile (filter __typename Group / /groups/ url)",
         "validated_on": "2026-07-15 (live verified on aven-ngo)"
       },
-      "scroll": "max_scroll"
+      "scroll": "max_scroll",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_search_keyword"
+        ],
+        "url": "https://www.facebook.com/search/groups/?q={fb_search_keyword}",
+        "inputs": {
+          "query": "{fb_search_keyword}",
+          "max_scroll": 1,
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "SearchComet",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.source_query",
+            "op": "contains",
+            "value": "SearchCometResultsPaginatedResults"
+          },
+          {
+            "path": "records.items",
+            "op": "each_eq",
+            "value": {
+              "field": "type",
+              "equals": "group"
+            }
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id",
+              "url",
+              "name"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "url",
+          "name"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "search_comet"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "fb.people.search",
@@ -482,7 +868,57 @@
         "edge_path": "data.serpResponse.results.edges → rendering_strategy.view_model.profile (filter __typename User); subtitle=primary_snippet_text_with_entities.text",
         "validated_on": "2026-07-15 (live verified on aven-ngo)"
       },
-      "scroll": "max_scroll"
+      "scroll": "max_scroll",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_search_keyword"
+        ],
+        "url": "https://www.facebook.com/search/people/?q={fb_search_keyword}",
+        "inputs": {
+          "query": "{fb_search_keyword}",
+          "max_scroll": 1,
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "SearchComet",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.source_query",
+            "op": "contains",
+            "value": "SearchComet"
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id",
+              "name",
+              "url"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "url",
+          "subtitle",
+          "industry_hint"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "search_comet"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "fb.profile.posts",
@@ -514,7 +950,71 @@
         "validated_on": "2026-07-15 (live verified on aven-ngo)",
         "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
       },
-      "scroll": "max_scroll"
+      "scroll": "max_scroll",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_canary_profile_url"
+        ],
+        "url": "{fb_canary_profile_url}",
+        "inputs": {
+          "profile_url": "{fb_canary_profile_url}",
+          "max_scroll": 1,
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "ProfileCometTimeline",
+          "severity": "warn"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.source_query",
+            "op": "nonempty",
+            "note": "empty = no capture matched the extractor's scope at all (query never fired or renamed)"
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id"
+            ]
+          },
+          {
+            "path": "records.items",
+            "op": "each_eq",
+            "value": {
+              "field": "group",
+              "equals": null
+            },
+            "note": "timeline posts carry group:null by design; non-null means a group-feed capture was picked up instead"
+          },
+          {
+            "path": "records.added_by_head_page",
+            "op": "gte",
+            "value": 1,
+            "severity": "warn"
+          }
+        ],
+        "baseline_fields": [
+          "feedback_id",
+          "actor.id",
+          "url",
+          "text"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "feed_stream_merge",
+          "profile_timeline"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "fb.newsfeed",
@@ -544,7 +1044,59 @@
         "validated_on": "2026-07-15 (live verified on aven-ngo)",
         "time_window": "Filtering happens AFTER extraction and never stops pagination early. Group SEARCH results are ranked by relevance, and a group FEED sorted by RECENT_ACTIVITY floats an old post the moment someone comments on it — so \"I saw something older than the window, therefore the rest is older\" is false on both surfaces. The bound on work is max_pages. The result carries time_window {since, until, within_days, excluded_older, excluded_newer, undated, undated_kept} and page_cap_hit: with a window, page_cap_hit is the difference between \"nothing else in range\" and \"the walk ran out of budget\", which a short list alone cannot tell you."
       },
-      "scroll": "max_scroll"
+      "scroll": "max_scroll",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [],
+        "url": "https://www.facebook.com/",
+        "inputs": {
+          "max_scroll": 1,
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "CometNewsFeed",
+          "severity": "warn"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.source_query",
+            "op": "nonempty",
+            "note": "empty = no capture matched the extractor's scope at all (query never fired or renamed)"
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id"
+            ]
+          },
+          {
+            "path": "records.items",
+            "op": "any_has",
+            "value": [
+              "text"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "actor.id",
+          "text",
+          "url"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "feed_stream_merge",
+          "newsfeed"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "fb.reels.feed",
@@ -571,7 +1123,52 @@
         "grid_mode": "profile reels TAB (/…/reels/) → scrape a[href*=\"/reel/<id>\"] cards: reel_id + view count overlay (parseCount) + url; infinite-scroll, stop after 2 dry scrolls. Player mode (/reel/<id>) still advances + scrapes caption/creator.",
         "graphql_for_captions": "ProfileCometAppCollectionReelsRendererPaginationQuery (captured; future extractor for captions like fb.profile.videos)"
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_reel_url"
+        ],
+        "url": "{fb_reel_url}",
+        "inputs": {
+          "reel_url": "{fb_reel_url}",
+          "max_reels": 2,
+          "debug": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "creator",
+              "caption"
+            ]
+          },
+          {
+            "path": "dp.owner_resolution",
+            "op": "neq",
+            "value": "retryable_not_rendered",
+            "severity": "warn"
+          }
+        ],
+        "baseline_fields": [
+          "creator",
+          "caption",
+          "views"
+        ],
+        "cause_group": [
+          "fb_dom_reels"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "web.search",
@@ -596,7 +1193,50 @@
         "fallback": "html",
         "engines_note": "DuckDuckGo default = clean markup + low bot-detection (best for bulk). Google = best coverage but can trigger 'unusual traffic' CAPTCHA when hit at volume; prefer for low-volume, high-value lookups. Runs in the user's real logged-in Chrome, which lowers (but does not remove) that risk."
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "web_query"
+        ],
+        "url": "https://html.duckduckgo.com/html/?q={web_query}",
+        "inputs": {
+          "url": "https://html.duckduckgo.com/html/?q={web_query}",
+          "include_ads": false
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.provider",
+            "op": "eq",
+            "value": "duckduckgo"
+          },
+          {
+            "path": "records.items[0].url",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].title",
+            "op": "nonempty"
+          }
+        ],
+        "baseline_fields": [
+          "url",
+          "title",
+          "snippet"
+        ],
+        "cause_group": [
+          "web_serp"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "fb.profile.header",
@@ -619,7 +1259,54 @@
         "validated_on": "2026-07-16 discovery on absellsaz (followers 10K, verified, Realtor, hasReels confirmed in DOM)",
         "fallback": "html"
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "fb_canary_profile_url",
+          "fb_canary_profile_name"
+        ],
+        "url": "{fb_canary_profile_url}",
+        "inputs": {
+          "profile_url": "{fb_canary_profile_url}",
+          "debug": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.reason",
+            "op": "neq",
+            "value": "self_profile",
+            "note": "self_profile = the fixture resolves to the operator's own bare profile; pick another canary"
+          },
+          {
+            "path": "records.available",
+            "op": "is_true"
+          },
+          {
+            "path": "records.count",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].name",
+            "op": "eq_fixture",
+            "value": "fb_canary_profile_name"
+          }
+        ],
+        "baseline_fields": [
+          "follower_count",
+          "website",
+          "category",
+          "intro_lines"
+        ],
+        "cause_group": [
+          "fb_dom_profile"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "fb.profile.hovercard",
@@ -642,7 +1329,54 @@
         "limits": "Only what the card shows. A person who declares no workplace yields an empty context, and an employer name alone often does not reveal a trade (\"Works at Caliduadon llc\"). For trade classification prefer fb.profile.header's intro_lines + website.",
         "validated_on": "2026-08-16 live on a friends list: called by entity_id with no hover, returned name, gender, verified, avatar and \"Works at …\"."
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "fb_canary_profile_url",
+          "fb_canary_profile_entity_id"
+        ],
+        "url": "{fb_canary_profile_url}",
+        "inputs": {
+          "entity_id": "{fb_canary_profile_entity_id}",
+          "debug": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.error",
+            "op": "empty",
+            "note": "'no captured request to borrow auth from' = the source page fired no GraphQL before the probe; 'no user node' = schema drift"
+          },
+          {
+            "path": "records.found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.count",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].name",
+            "op": "nonempty"
+          }
+        ],
+        "baseline_fields": [
+          "profile_picture",
+          "category",
+          "context",
+          "url"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "hovercard_replay"
+        ],
+        "offline_tests": [],
+        "note": "the source url must be a Facebook page that fires GraphQL during load (the canary profile) because the probe borrows fb_dtsg from a capture in the same tab"
+      }
     },
     {
       "id": "fb.profile.videos",
@@ -673,7 +1407,65 @@
         "validated_on": "2026-07-16 discovery on absellsaz/videos (raw text shows 2.3K–12.7K views per video)",
         "fallback": "html"
       },
-      "scroll": "none (paginates via max_pages cursor replay, not scrolling)"
+      "scroll": "none (paginates via max_pages cursor replay, not scrolling)",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_video_page_url"
+        ],
+        "url": "{fb_video_page_url}",
+        "inputs": {
+          "videos_url": "{fb_video_page_url}",
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "AllVideos",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.source_query",
+            "op": "contains",
+            "value": "AllVideos"
+          },
+          {
+            "path": "records.head_page_via",
+            "op": "not_matches",
+            "value": "^(no_edges_path|replay_failed|no_candidate)",
+            "severity": "warn"
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id"
+            ]
+          },
+          {
+            "path": "records.items[0].url",
+            "op": "matches",
+            "value": "/(watch|videos|reel)"
+          }
+        ],
+        "baseline_fields": [
+          "views",
+          "title",
+          "reactions",
+          "actor.id"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "videos_replay"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "fb.post.react",
@@ -700,7 +1492,65 @@
         "fallback": "none (write action)",
         "validated_on": "2026-07-17 real like on reel/4524074751166406 → done/verified; drift-guard + scrollSteps=0 for writes"
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "write",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_own_post_url"
+        ],
+        "url": "{fb_own_post_url}",
+        "inputs": {
+          "post_url": "{fb_own_post_url}",
+          "reaction": "like",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run"
+          },
+          {
+            "path": "records.items[0].target_preview.url",
+            "op": "nonempty"
+          }
+        ],
+        "write_inputs": {
+          "post_url": "{fb_own_post_url}",
+          "reaction": "like",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "in",
+            "value": [
+              "done",
+              "already"
+            ],
+            "note": "react is idempotent: the first run lands 'done', every later run 'already'; both prove the button chain works"
+          },
+          {
+            "path": "records.items[0].verified",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].error",
+            "op": "empty"
+          }
+        ],
+        "baseline_fields": [],
+        "cause_group": [
+          "fb_reaction_dom"
+        ],
+        "offline_tests": [
+          "tests/test_gql_actions.js"
+        ],
+        "note": "safe to run for real daily against a self-owned post because the action is idempotent; no unreact capability exists"
+      }
     },
     {
       "id": "fb.post.comment",
@@ -731,7 +1581,74 @@
         "validated_on": "2026-08-15 match_text live on group 000000000000000: resolved \"Post 5 post 5 post 5\" to /posts/000000000000001/ and commented there (done/verified); match_text \"Post\" returned ambiguous_match over 3 candidates and wrote nothing. Earlier, 2026-07-29 on all three permalink surfaces: profile post, group post, and reel (needed the panel-open click)",
         "composer_match": "Found by STRUCTURE, not by label. Facebook's composer label has moved three times — 'Comment as <name>' originally, two guesses that both missed, and then, measured on ONE post with TWO accounts at the same moment, 'Answer as Binh' for one viewer and 'Write an answer...' for the other: a question-style group renames Comment to Answer and the wording also differs per viewer. So inside the post's own scope a visible contenteditable textbox IS the composer; the label is only a hint (comment / answer / reply / bình luận / trả lời, read from aria-label OR data-placeholder). What is enumerated instead is the impostors, because those are stable on every layout: the search field, a Messenger thread, and the create-a-post composer. An unlabelled box is accepted only when it is the ONLY candidate in scope — zero or several is still a refusal, since a wrong box comments on the wrong post."
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_canary_post_url"
+        ],
+        "url": "{fb_canary_post_url}",
+        "inputs": {
+          "post_url": "{fb_canary_post_url}",
+          "text": "{text}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run"
+          },
+          {
+            "path": "records.items[0].box_found",
+            "op": "is_true",
+            "note": "false = the comment composer selector/label chain broke; seen_textboxes[] lists what editable boxes were on the page"
+          },
+          {
+            "path": "records.items[0].box_label",
+            "op": "nonempty",
+            "severity": "warn"
+          }
+        ],
+        "write_inputs": {
+          "post_url": "{fb_canary_post_url}",
+          "text": "{text}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "done"
+          },
+          {
+            "path": "records.items[0].verified",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].cleared",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].appeared",
+            "op": "is_true"
+          }
+        ],
+        "baseline_fields": [
+          "box_label",
+          "seen_textboxes"
+        ],
+        "cause_group": [
+          "fb_composer"
+        ],
+        "offline_tests": [
+          "tests/test_gql_actions.js"
+        ],
+        "note": "a real write leaves a permanent comment; no delete capability exists. Only run with --allow-writes against a post the operator owns"
+      }
     },
     {
       "id": "fb.profile.enrich",
@@ -754,7 +1671,66 @@
         "validated_on": "2026-08-16, three profiles entered at the ROOT url. posts_available true on all three (3, 3 and 6 seen; max_posts honoured), whole pass 9.0-16.8s including the About walk. Posts came back as reels with real captions and their own permalinks — the dated proof-of-life Stage 4 requires. work[] carried a job title, employer, city and dated history for the first time ('Owner/President at Reach Home Loans', 'Company NMLS: 2266637 Personal NMLS:342274').",
         "videos_in_practice": "videos_available was false on all three, as designed — the Videos tab does not fire its query on the root and this capability will not navigate for it. In practice reels arrive inside `posts` anyway, so `videos` is close to redundant; keep reading `posts`."
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_canary_profile_url"
+        ],
+        "url": "{fb_canary_profile_url}",
+        "inputs": {
+          "profile_url": "{fb_canary_profile_url}",
+          "max_posts": 5
+        },
+        "expect_query": {
+          "contains": "ProfileCometTimeline",
+          "severity": "warn"
+        },
+        "assert": [
+          {
+            "path": "records.reason",
+            "op": "neq",
+            "value": "self_profile"
+          },
+          {
+            "path": "records.found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.error",
+            "op": "empty"
+          },
+          {
+            "path": "records.items[0].timeline.posts_available",
+            "op": "is_true",
+            "note": "false with posts_reason = the timeline capture never rendered (hidden tab or /about url), not a parser break"
+          },
+          {
+            "path": "records.items[0].posts",
+            "op": "len_gte",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].about_panel_found",
+            "op": "is_true"
+          }
+        ],
+        "baseline_fields": [
+          "emails",
+          "about_lines",
+          "posts",
+          "timeline.posts_seen"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "profile_timeline",
+          "fb_dom_profile"
+        ],
+        "offline_tests": [],
+        "note": "the heaviest read probe (up to 60s); submit the profile ROOT url, never /about"
+      }
     },
     {
       "id": "fb.profile.dossier",
@@ -788,7 +1764,70 @@
         "why_not_dom": "Three attempts to scope the DOM to the About card failed, each on a different boundary: suppressing 'See more' inside posts (the text was in innerText anyway), filtering role=article/feed (a Reviews card is neither), and climbing to a container (it landed on the nav and returned four lines of menu, losing every email). Facebook renders About, Reviews, Posts and Photos into one tree; a selector boundary is a guess that holds until the next layout. A GraphQL response for an About section cannot contain a review — the separation is structural.",
         "noise": "about_lines is MIXED text — the About panel and whatever else the page renders below it (Reviews, Reels). The TYPED fields are clean: emails, websites, category, intro_bio, work, education, location are extracted, not swept. The reading agent filters about_lines; review lines are recognisable ('<name> recommends <page>', 'N% recommend (N Reviews)') and reel counts are bare tokens like '12K'. Scoping this in the DOM was attempted three times and failed three different ways — Facebook renders About, Reviews and Posts into one tree."
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "fb_canary_profile_url"
+        ],
+        "url": "{fb_canary_profile_url}",
+        "inputs": {
+          "profile_url": "{fb_canary_profile_url}"
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.reason",
+            "op": "neq",
+            "value": "self_profile"
+          },
+          {
+            "path": "records.found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].source",
+            "op": "eq",
+            "value": "dom"
+          },
+          {
+            "path": "records.items[0].about_panel_found",
+            "op": "is_true",
+            "note": "false = the About card was not located; about_lines are then untrusted"
+          },
+          {
+            "path": "records.items[0].discovered_tabs",
+            "op": "len_gte",
+            "value": 1,
+            "note": "empty = the sub-nav discovery regex/selector broke, not an empty profile"
+          },
+          {
+            "path": "records.items[0].checked",
+            "op": "len_gte",
+            "value": 2
+          },
+          {
+            "path": "records.items[0].budget_exhausted",
+            "op": "is_false",
+            "severity": "warn"
+          }
+        ],
+        "baseline_fields": [
+          "about_lines",
+          "emails",
+          "phones",
+          "discovered_tabs"
+        ],
+        "cause_group": [
+          "fb_dom_profile"
+        ],
+        "offline_tests": [
+          "tests/test_profile_dossier.js"
+        ],
+        "note": "leave use_graphql unset: the GraphQL About path is documented as unfinished"
+      }
     },
     {
       "id": "fb.profile.contacts",
@@ -812,7 +1851,48 @@
         "known_limit": "\"See more\" expansion runs ONCE, on the entry page, before this capability is injected — it is not re-run on the sub-tabs. An address truncated inside a sub-tab can therefore be missed; a sub-tab miss is weaker evidence than a main-page miss.",
         "audit_field": "`checked`, not `opened_contact_tab`. `opened_contact_tab` is a generic pipeline flag that only fires when the JOB URL was already an about/directory URL, so it stays false on a normal profile-URL job even when the ladder ran correctly. Do not gate on it."
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "fb_canary_profile_url",
+          "fb_canary_profile_email"
+        ],
+        "url": "{fb_canary_profile_url}",
+        "inputs": {
+          "profile_url": "{fb_canary_profile_url}",
+          "stop_at_first": false
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].checked",
+            "op": "len_gte",
+            "value": 2,
+            "note": "only 'current_page' = every sub-tab click missed its target"
+          },
+          {
+            "path": "records.found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].emails",
+            "op": "contains_fixture",
+            "value": "fb_canary_profile_email"
+          }
+        ],
+        "baseline_fields": [
+          "emails",
+          "phones",
+          "checked"
+        ],
+        "cause_group": [
+          "fb_dom_profile"
+        ],
+        "offline_tests": []
+      }
     },
     {
       "id": "fb.message.send",
@@ -839,6 +1919,69 @@
         "validated_on": "2026-08-15 live on messenger.com: vanity example.recipient.000000 sent (done/verified, id_verified, title agreed); profile id 100026030446486 accepted with NO recipient_name (id_verified=true); a photo id refused with composers_found=0; a wrong name on an unverifiable id refused with nothing typed",
         "audit": "result appended to outbox/actions_log.jsonl by the bridge",
         "fallback": "none (write action)"
+      },
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_dm_thread_url",
+          "fb_dm_recipient_name"
+        ],
+        "url": "{fb_dm_thread_url}",
+        "inputs": {
+          "thread_url": "{fb_dm_thread_url}",
+          "recipient_name": "{fb_dm_recipient_name}",
+          "text": "{text}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run",
+            "note": "error with composers_found:0 = the WRITE_TO aria-label regex or the E2EE gate button label no longer matches"
+          },
+          {
+            "path": "records.items[0].recipient",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].name_matched",
+            "op": "is_true",
+            "severity": "warn"
+          }
+        ],
+        "write_inputs": {
+          "thread_url": "{fb_dm_thread_url}",
+          "recipient_name": "{fb_dm_recipient_name}",
+          "text": "{text}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "done"
+          },
+          {
+            "path": "records.items[0].verified",
+            "op": "is_true"
+          }
+        ],
+        "baseline_fields": [
+          "passed_e2ee_gate",
+          "id_verified",
+          "title_check"
+        ],
+        "cause_group": [
+          "fb_messenger"
+        ],
+        "offline_tests": [
+          "tests/test_gql_actions.js"
+        ],
+        "note": "a real send is permanent and lands in a person's inbox; only with --allow-writes and a consenting recipient"
       }
     },
     {
@@ -862,7 +2005,60 @@
         "guards": "not_a_group_url · group_mismatch (landed on a different group) · no composer trigger (the account may not be a member, or posting is admin-only) · ambiguous_composer (more than one composer dialog) · text typed but no Post button found (reported explicitly — the text was NOT submitted)",
         "fallback": "none (write action)"
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_test_group_url"
+        ],
+        "url": "{fb_test_group_url}",
+        "inputs": {
+          "group_url": "{fb_test_group_url}",
+          "text": "{text}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run",
+            "note": "error 'the composer dialog did not open' = COMPOSER_TRIGGER wording changed"
+          },
+          {
+            "path": "records.items[0].post_button_found",
+            "op": "is_true"
+          }
+        ],
+        "write_inputs": {
+          "group_url": "{fb_test_group_url}",
+          "text": "{text}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "in",
+            "value": [
+              "done",
+              "pending_admin_approval"
+            ],
+            "note": "pending_admin_approval proves the mechanism worked; verified is false there by design"
+          }
+        ],
+        "baseline_fields": [
+          "opened_dialog"
+        ],
+        "cause_group": [
+          "fb_composer"
+        ],
+        "offline_tests": [
+          "tests/test_gql_actions.js"
+        ],
+        "note": "a real post is permanent in the group; only with --allow-writes and only into the operator-owned test group"
+      }
     },
     {
       "id": "zillow.agents.list",
@@ -891,7 +2087,70 @@
         "harvest_strategy": "The directory caps at 25 pages (~375 agents) per query and Los Angeles alone reports 44,534 agents, so covering a metro takes at least 119 non-overlapping queries — the ?name= keyword exists to get each query UNDER the ceiling, not to search for anyone in particular. Measured: ?name= matches the SURNAME (all 15 agents returned for ?name=kim carry Kim as their last name), so the keyword list is common US surnames, and it must be per-region: surname frequency differs enormously between metros. Two facts make this cheap. (1) The probe IS the harvest — page 1 returns both results_found and 15 agents, so nothing is spent merely measuring; a keyword is worth keeping when results_found >= 15, i.e. it fills at least one page. (2) Querying a region with NO ?name= returns results_found for the whole region — the denominator, so coverage is measurable — and its first pages sample the region's actual agent surnames, which beats a national frequency list.",
         "keyword_list": "solo-agency-collector/zillow_surnames.json — 277 surnames grouped by name pool (anglo, hispanic, east_asian, south_asian, mideast_armenian, euro_other, african_caribbean). Reorder the groups per metro rather than running all of them everywhere. Truncation on common surnames is expected and accepted: no better partition of the directory exists, so the goal is maximum reach per request, not completeness."
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "zillow_directory_url"
+        ],
+        "url": "{zillow_directory_url}",
+        "inputs": {
+          "url": "{zillow_directory_url}"
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.status",
+            "op": "eq",
+            "value": "ok",
+            "note": "empty = __NEXT_DATA__ parsed but zero cards; no_next_data = the JSON tag is gone (layout change); blocked = bot check pending"
+          },
+          {
+            "path": "records.source",
+            "op": "eq",
+            "value": "next_data",
+            "note": "dom = the nested JSON path moved and the anchor-scan fallback rescued it"
+          },
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].profile_url",
+            "op": "matches",
+            "value": "zillow\\.com/profile/"
+          },
+          {
+            "path": "records.items[0].name",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.page_count_source",
+            "op": "in",
+            "value": [
+              "pager",
+              "estimated"
+            ],
+            "severity": "warn"
+          }
+        ],
+        "baseline_fields": [
+          "profile_url",
+          "name",
+          "rating",
+          "review_count"
+        ],
+        "cause_group": [
+          "zillow_next_data"
+        ],
+        "offline_tests": [
+          "tests/test_zillow_extract.js"
+        ],
+        "note": "keep Zillow probes >=30s apart on one Chrome profile; the PerimeterX gate is BLOCKED, never FAIL"
+      }
     },
     {
       "id": "zillow.profile.enrich",
@@ -919,7 +2178,154 @@
         "fallback": "html",
         "human_gate": "background.js zillowHumanGate + offscreen.html/js (permission 'offscreen'); live-verified 2026-08-16 on aven-ngo against a simulated block page: chime + waiting_for_human_captcha at t+0, operator passed at t+20s → human_captcha_solved, normal record with human_gate.solved:true."
       },
-      "scroll": "none"
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "zillow_profile_url",
+          "zillow_profile_screen_name"
+        ],
+        "url": "{zillow_profile_url}",
+        "inputs": {
+          "profile_url": "{zillow_profile_url}",
+          "max_posts": 3,
+          "max_team_members": 20
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.status",
+            "op": "eq",
+            "value": "ok"
+          },
+          {
+            "path": "records.count",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].source",
+            "op": "eq",
+            "value": "next_data"
+          },
+          {
+            "path": "records.items[0].name",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].zillow.screen_name",
+            "op": "eq_fixture",
+            "value": "zillow_profile_screen_name"
+          },
+          {
+            "path": "records.items[0].emails",
+            "op": "len_gte",
+            "value": 1,
+            "note": "fixture is a profile that publishes an email; found_on flips to null when the phoneNumbers/email keys move"
+          },
+          {
+            "path": "records.items[0].found_on",
+            "op": "eq",
+            "value": "next_data"
+          }
+        ],
+        "baseline_fields": [
+          "emails",
+          "phones",
+          "team.members",
+          "sales.total_sales",
+          "licenses"
+        ],
+        "cause_group": [
+          "zillow_next_data"
+        ],
+        "offline_tests": [
+          "tests/test_zillow_extract.js"
+        ]
+      }
+    }
+  ],
+  "healthcheck_extra_probes": [
+    {
+      "id": "generic.feed",
+      "title": "Generic HTML capture on a Facebook feed page (no capability)",
+      "mode": "read",
+      "cadence": "daily",
+      "needs_active_tab": false,
+      "fixtures": [
+        "fb_test_group_url"
+      ],
+      "url": "{fb_test_group_url}",
+      "capability": null,
+      "pacing": {
+        "scroll_steps": 1
+      },
+      "assert": [
+        {
+          "path": "dp.extraction_engine",
+          "op": "eq",
+          "value": "filtering",
+          "note": "infinity_loops or readability on a feed page = SocialHtmlFilter fell over silently"
+        },
+        {
+          "path": "dp.raw_visible_text_excerpt",
+          "op": "len_gte",
+          "value": 200
+        },
+        {
+          "path": "dp.graphql_available",
+          "op": "is_true",
+          "note": "false on a Facebook page = gql_intercept.js is not capturing at all, upstream of every fb.* capability"
+        },
+        {
+          "path": "dp.graphql_capture_count",
+          "op": "gte",
+          "value": 1
+        }
+      ],
+      "baseline_fields": [
+        "scroll_count",
+        "engagement_hint"
+      ],
+      "cause_group": [
+        "generic_html",
+        "gql_intercept"
+      ],
+      "offline_tests": []
+    },
+    {
+      "id": "generic.article",
+      "title": "Generic HTML capture on a plain article page (no capability)",
+      "mode": "read",
+      "cadence": "daily",
+      "needs_active_tab": false,
+      "fixtures": [
+        "article_url"
+      ],
+      "url": "{article_url}",
+      "capability": null,
+      "pacing": {
+        "scroll_steps": 0
+      },
+      "assert": [
+        {
+          "path": "dp.extraction_engine",
+          "op": "eq",
+          "value": "readability"
+        },
+        {
+          "path": "dp.raw_visible_text_excerpt",
+          "op": "len_gte",
+          "value": 200
+        }
+      ],
+      "baseline_fields": [],
+      "cause_group": [
+        "generic_html"
+      ],
+      "offline_tests": []
     }
   ],
   "scroll_contract": "SCROLL CONTRACT: a capability scrolls ONLY when it declares max_scroll in its inputs. Everything else must not be scrolled by the runner; some of those still paginate, but via max_pages cursor replay, which is not scrolling. Scrolling a single-surface job (for example reading a published contact address) fires GraphQL queries whose results are discarded, costs time, and widens the request footprint for nothing."

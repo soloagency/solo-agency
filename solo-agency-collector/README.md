@@ -193,3 +193,9 @@ AI agents read these files and continue with filtering, lead detection, competit
 AI agents can also call `GET http://127.0.0.1:17321/status` to check bridge and extension health. The status includes `extension_health.last_extension_check_at`, `extension_health.seconds_since_last_check`, and `extension_health.status`.
 
 Agents must also verify that `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. A reachable bridge may belong to an older setup. If those paths point elsewhere, treat it as `wrong_workspace_bridge`, ask the human to run the current setup's Local Collector setup/start command, and do not collect private data until the bridge writes to the current workspace.
+
+## Healthcheck
+
+Active per-capability probes (not the passive `/status` liveness check): the bridge re-runs every
+catalog capability against operator-owned fixtures and reports which one broke and why. See
+`HEALTHCHECK.md`; `<bridge> tool healthcheck run --client <slug>`.

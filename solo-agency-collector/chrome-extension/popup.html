@@ -112,7 +112,9 @@
   <div class="row">
     <button id="save">Save</button>
     <button id="checkNow" class="secondary">Check now</button>
+    <button id="stopRun" style="background:#b91c1c;border-color:#b91c1c">Stop run</button>
   </div>
+  <p class="hint">Unchecking <b>Enabled</b> only stops the NEXT run from starting. <b>Stop run</b> is what interrupts one already in flight: it closes the tabs the run opened, so the source being collected ends in about a second instead of waiting out a page capture. Sources already collected are kept and the run is recorded as cancelled, not failed.</p>
 
   <hr style="border:0;border-top:1px solid #d8dee4;margin:16px 0 4px">
   <h1 style="font-size:14px;margin:8px 0 0">Audit: manual capture</h1>

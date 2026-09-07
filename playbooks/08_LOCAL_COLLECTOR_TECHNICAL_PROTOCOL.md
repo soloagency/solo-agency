@@ -990,6 +990,15 @@ Impact: I cannot use this bridge for today's private data source scan because it
 Action: Please run the Local Collector setup/start command for the current setup outside the AI sandbox. If you previously loaded old Solo Agency Local Collector extensions, open chrome://extensions and remove or disable stale entries from old setup folders. Keep the current client-specific extension loaded from /Users/alex/oneman_agency/extensions/{client_slug}/ in the matching client's Chrome profile.
 ```
 
+### Beyond Liveness: Active Capability Probes
+
+The protocol above proves the bridge and the extension talk to each other. It does not prove
+that any capability still reads Facebook or Zillow correctly — a renamed GraphQL query or a
+relabelled composer leaves `/status` saying `recent` while every scan comes back empty. For
+that, load `playbooks/HEALTHCHECK.md`: `<bridge> tool healthcheck run --client {slug}` re-runs
+every catalog capability against operator-owned fixtures and reports which one broke and what
+to open. The liveness check here is its precondition, never its replacement.
+
 ### OS Startup For Persistent Bridge
 
 The canonical setup scripts (`setup_collector.sh` / `setup_collector.ps1`, 2026-07-20+) register OS autostart BY DEFAULT when the human runs them: macOS per-user LaunchAgent `com.solo-agency.collector.{insthash}` (RunAtLoad; restarts on crash, stays stopped after a clean stop), Linux systemd user unit `solo-agency-collector-{insthash}.service` (`Restart=on-failure`, best-effort `loginctl enable-linger` for start-before-login), Windows logon Scheduled Task `SoloAgencyCollector-{insthash}` (crash restarts, output wrapped into `collector.log`). `{insthash}` = first 8 hex chars of SHA-256 of the agency root path, so two installs on one machine never collide. The human opts out with `SOLO_AGENCY_NO_AUTOSTART=1` (plain background start). Re-running the script refreshes the registration and remains the ONLY start/upgrade command the human ever needs. After a reboot the bridge should be up without anyone running anything.

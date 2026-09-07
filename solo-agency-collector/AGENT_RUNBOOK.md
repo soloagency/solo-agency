@@ -490,6 +490,33 @@ After starting or restarting the bridge, wait and re-check `/status` for up to 7
 
 If the bridge is offline, give the human the exact absolute-path start command to run outside the AI sandbox; the agent must not start it itself, even when it can run commands. If the extension is stale or missing, continue with public data sources, skip private data sources for this run, and notify the human through WideCast MCP / Telegram when available.
 
+## Healthcheck Probes (active, per capability)
+
+`GET /status` above only proves the bridge and extension talk to each other. To prove each
+capability still reads Facebook/Zillow correctly, run the active healthcheck (see
+`HEALTHCHECK.md`). It re-runs every catalog capability against operator-owned fixtures and
+scores the records.
+
+```text
+<bridge> tool healthcheck executors                 # list connected extensions
+<bridge> tool healthcheck fixtures                  # which fixture keys are still missing
+<bridge> tool healthcheck run --client <slug>       # daily suite; asks for the client when omitted
+<bridge> tool healthcheck report                    # last report
+```
+
+Rules for agents:
+
+- Never pick the executor yourself: list the extensions and let the human choose (`--client`).
+- Read-only suites are fine on any client; `--allow-writes` only on the operator's own test
+  client and only into the operator's own assets (text comes from `--text`, you compose it).
+- Relay the `**[ACTION REQUIRED]**` block of the report verbatim. `BLOCKED` (Zillow Press &
+  Hold, checkpoint, not a member) and `SKIPPED` (missing fixture, executor stale) are not
+  failures; `FAIL` carries a `repair_hint` naming the maintenance procedure to open.
+- Missing fixture keys are the only thing to ask the human for; put them in
+  `daily-content-pipeline/collector/healthcheck/fixtures.json`.
+- Scheduling is manual until the human asks for a scheduled run; then register it in
+  `automation_manifest.md` like any other task.
+
 ## Expected Extension Behavior
 
 The extension will:

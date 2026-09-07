@@ -113,6 +113,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: true, audit: await getAudit() });
       return;
     }
+    // Reachable from the popup AND from the on-page overlay button: the overlay is injected with
+    // chrome.scripting.executeScript and no `world`, so it runs in the ISOLATED world and can call
+    // chrome.runtime.sendMessage directly. No web page can reach this listener — the manifest
+    // declares no externally_connectable and there is no onMessageExternal handler.
+    if (message && message.type === "cancel_run") {
+      const state = await getState();
+      const runId = message.run_id ? String(message.run_id) : (state && state.runId ? String(state.runId) : "");
+      const result = await requestCancel({
+        runId: message.all ? "*" : runId,
+        reason: message.reason || "cancelled by operator",
+        requestedBy: message.requested_by || "extension_ui"
+      });
+      sendResponse({ ok: true, ...result, run_id: runId });
+      return;
+    }
     if (message && message.type === "reset_audit") {
       await chrome.storage.local.remove(AUDIT_KEY);
       sendResponse({ ok: true });
@@ -122,6 +137,99 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   })().catch((error) => sendResponse({ ok: false, error: String(error && error.message ? error.message : error) }));
   return true;
 });
+
+// --- cancelling a run in flight -------------------------------------------
+// Until now nothing could stop a collection once it started: unchecking "Enabled" only gates the
+// NEXT poll, and the run loop never asked the bridge anything — every call inside it is a one-way
+// POST whose response is discarded. So an operator who wanted their machine back had no lever at
+// all, and an agent had none either.
+//
+// Cancelling is cooperative and has two halves, because one alone is not enough:
+//
+//   1. A flag the source loop checks between sources. That stops the run from starting new work.
+//   2. Closing the tabs the run opened. That is what makes it FAST. The long waits inside a source
+//      are not interruptible — the page capture alone runs 3 to 25 minutes and withTimeout does not
+//      abort it, it only stops waiting — but they all hang off a tab. Removing the tab makes the
+//      pending executeScript reject immediately, so the current source ends in about a second
+//      instead of up to 25 minutes (or up to six hours behind Zillow's human gate).
+//
+// The cancelled source reports status "cancelled", not "error": it did not fail, it was stopped,
+// and a consumer scanning source_status.jsonl for failures must not count it as one.
+const CANCEL_KEY = "collector_cancel_request";
+let cancelRequest = null;              // { runId | "*", reason, requestedBy, at }
+const activeRunTabs = new Map();       // tabId -> runId, so a cancel closes only this run's tabs
+
+// A cancel naming a run applies to that run, whenever it was raised. A blanket "*" cancel applies
+// only to a run that was ALREADY IN FLIGHT when it was raised — otherwise a request left in storage
+// by a service worker that died mid-run would silently kill the next run, and the next, with the
+// operator seeing runs that end instantly for no stated reason.
+function cancelAppliesTo(runId, runStartedAt) {
+  if (!cancelRequest) return false;
+  if (cancelRequest.runId !== "*") return !!runId && cancelRequest.runId === runId;
+  if (!runStartedAt) return true;
+  return String(cancelRequest.at || "") >= String(runStartedAt);
+}
+
+async function loadCancelRequest() {
+  // The service worker can be torn down between the popup's click and the next source boundary,
+  // so the request is mirrored in storage rather than living only in memory.
+  try {
+    const stored = await chrome.storage.local.get(CANCEL_KEY);
+    if (stored && stored[CANCEL_KEY]) cancelRequest = stored[CANCEL_KEY];
+  } catch (error) { /* storage unavailable: the in-memory flag still works */ }
+  return cancelRequest;
+}
+
+async function requestCancel({ runId, reason, requestedBy }) {
+  cancelRequest = {
+    runId: runId ? String(runId) : "*",
+    reason: String(reason || "cancelled by operator"),
+    requestedBy: String(requestedBy || "unknown"),
+    at: new Date().toISOString()
+  };
+  try { await chrome.storage.local.set({ [CANCEL_KEY]: cancelRequest }); } catch (error) { /* ignore */ }
+
+  // Closing the tabs is the part that actually interrupts work in progress. Everything the run is
+  // waiting on is anchored to one of these tabs.
+  const closed = [];
+  for (const [tabId, tabRunId] of Array.from(activeRunTabs.entries())) {
+    if (cancelRequest.runId !== "*" && tabRunId !== cancelRequest.runId) continue;
+    activeRunTabs.delete(tabId);
+    try { await chrome.tabs.remove(tabId); closed.push(tabId); }
+    catch (error) { /* already gone */ }
+  }
+  await setState({
+    status: "cancelling",
+    message: `Cancelling ${cancelRequest.runId === "*" ? "the active run" : "run " + cancelRequest.runId}: ${cancelRequest.reason}`,
+    cancelRequest,
+    tabsClosed: closed.length,
+    updatedAt: new Date().toISOString()
+  });
+  return { ok: true, cancel: cancelRequest, tabs_closed: closed.length };
+}
+
+async function clearCancelRequest() {
+  cancelRequest = null;
+  try { await chrome.storage.local.remove(CANCEL_KEY); } catch (error) { /* ignore */ }
+}
+
+// A cancel raised anywhere else — an agent hitting the bridge, the CLI, another operator surface —
+// reaches the run through this. It is a DEDICATED read-only route, deliberately not /status:
+// GET /status has the side effect of CLAIMING the next pending job (handleStatus reaches
+// activateQueuedJobForExtension), so polling it from inside a run would start a second run.
+async function remoteCancelRequested(bridgeBaseUrl, runId) {
+  if (!bridgeBaseUrl || !runId) return null;
+  try {
+    const res = await fetchJSON(`${bridgeBaseUrl}/jobs/control?run_id=${encodeURIComponent(runId)}`, {}, 4000);
+    if (res && res.cancelled) {
+      return { reason: String(res.reason || "cancelled on the bridge"), requestedBy: String(res.requested_by || "bridge") };
+    }
+  } catch (error) {
+    // An older bridge has no such route, and a bridge that is down cannot be asked. Neither is a
+    // reason to stop collecting — a cancel that never arrives must not look like one that did.
+  }
+  return null;
+}
 
 let shortPollTimer = null;
 
@@ -250,6 +358,9 @@ async function pollBridge(reason) {
 
 async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) {
   const runId = String(job.run_id || job.collector_bridge?.run_id || "");
+  const runStartedAt = new Date().toISOString();
+  // A click that arrived while this worker was asleep lives in storage, not memory.
+  await loadCancelRequest();
   const sources = normalizeSources(job.sources || []);
   const pacing = job.pacing || {};
   const maxSources = Math.min(
@@ -324,6 +435,14 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
     });
 
     await delay(randomDelayMs(settings, pacing));
+
+    // Last check before the expensive part. The pacing delay above is several seconds long, which
+    // is exactly when an operator watching the overlay decides to stop — checking only at the top
+    // of the loop would let one more page load anyway.
+    if (await cancelledNow()) {
+      await reportCancelledSource(index, "cancelled before the page was opened");
+      return;
+    }
 
     try {
       const collected = await collectSource(source, job, settings, binding, index + 1);
@@ -423,30 +542,92 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
   }
 
   let nextIndex = 0;
+  let sourcesDone = 0;
+  let cancelledBy = null;
   const workerCount = Math.max(1, sourceConcurrency);
+
+  // One place decides whether this run should stop, so a local click and a bridge-side cancel are
+  // honoured identically. The remote check costs one small GET per source, which is nothing beside
+  // a page capture, and it is skipped entirely once a cancel is already known.
+  async function cancelledNow() {
+    if (cancelAppliesTo(runId, runStartedAt)) {
+      cancelledBy = cancelledBy || { reason: cancelRequest.reason, requestedBy: cancelRequest.requestedBy };
+      return true;
+    }
+    const remote = await remoteCancelRequested(bridgeBaseUrl, runId);
+    if (remote) {
+      // Adopt it locally so the tabs get closed too — a bridge-side cancel must interrupt the
+      // source in flight, not merely stop the next one from starting.
+      await requestCancel({ runId, reason: remote.reason, requestedBy: remote.requestedBy });
+      cancelledBy = remote;
+      return true;
+    }
+    return false;
+  }
+
+  // A stopped source is NOT a failed one. Reporting it as "error" would make every consumer that
+  // scans source_status.jsonl for failures — the harvest loop does exactly that — read a
+  // deliberate stop as a broken collector, and eventually blow a fuse over it.
+  async function reportCancelledSource(index, note) {
+    const source = selectedSources[index] || {};
+    await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
+      run_id: runId,
+      client_slug: job.client_slug || binding.client_slug || "",
+      source_name: source.name || "",
+      source_url: source.url || "",
+      platform: source.platform || "",
+      status: "cancelled",
+      issue: note,
+      cancel_reason: (cancelledBy && cancelledBy.reason) || "cancelled",
+      cancel_requested_by: (cancelledBy && cancelledBy.requestedBy) || "unknown",
+      index: index + 1,
+      total: selectedSources.length,
+      captured_at: new Date().toISOString(),
+      collector_identity: "chrome-extension-local-collector"
+    }, binding);
+  }
+
   const workers = Array.from({ length: workerCount }, async () => {
     while (nextIndex < selectedSources.length) {
+      if (await cancelledNow()) return;
       const index = nextIndex;
       nextIndex += 1;
       const source = selectedSources[index];
       await processSource(source, index);
+      sourcesDone += 1;
     }
   });
   await Promise.all(workers);
 
+  const wasCancelled = !!cancelledBy;
+  // The bridge used to be told "completed" no matter what, so a run that stopped after 3 of 20
+  // sources was indistinguishable at the file level from one that finished all 20. A cancel makes
+  // that gap impossible to ignore, so the completion now carries what actually happened.
   await postToBridge(bridgeBaseUrl, token, "/complete", {
     run_id: runId,
     client_slug: job.client_slug || binding.client_slug || "",
-    status: "completed",
+    status: wasCancelled ? "cancelled" : "completed",
+    cancelled: wasCancelled,
+    cancel_reason: wasCancelled ? cancelledBy.reason : "",
+    cancel_requested_by: wasCancelled ? cancelledBy.requestedBy : "",
+    sources_done: sourcesDone,
+    sources_total: selectedSources.length,
     completed_at: new Date().toISOString(),
     collector_identity: "chrome-extension-local-collector"
   }, binding);
 
+  if (wasCancelled) await clearCancelRequest();
+
   await setState({
-    status: "completed",
-    message: `Completed run ${runId}.`,
+    status: wasCancelled ? "cancelled" : "completed",
+    message: wasCancelled
+      ? `Cancelled run ${runId} after ${sourcesDone}/${selectedSources.length} sources: ${cancelledBy.reason}`
+      : `Completed run ${runId}.`,
     runId,
     totalSources: selectedSources.length,
+    sourcesDone,
+    cancelled: wasCancelled,
+    cancelReason: wasCancelled ? cancelledBy.reason : "",
     dataPointsCollected: counts.dataPoints,
     competitorsDetected: counts.competitors,
     newPrivateSourcesDetected: counts.newPrivateSources,
@@ -541,7 +722,8 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
   const captureOverlayText = collectorCaptureOverlayText(job, binding);
   const captureOverlayScope = {
     client: String(job?.client_name || binding?.client_name || job?.client_slug || binding?.client_slug || "").trim(),
-    campaign: collectorCaptureOverlayCampaign(job, source)
+    campaign: collectorCaptureOverlayCampaign(job, source),
+    runId: String(job?.run_id || "")
   };
   const tabActivationPlan = collectionTabActivationPlan(job, source);
   // Zillow capabilities (zillow_extract.js) — decided up front because they change three
@@ -551,6 +733,9 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
   const gateContext = { job, source, settings, binding, sourceIndex };
   let humanGate = null;
   const tab = await createTab({ url: source.url, active: tabActivationPlan.createActive });
+  // Registered BEFORE any await on it: this is the handle a cancel uses to interrupt whatever
+  // this source is waiting on, and a cancel arriving one line later must still find it.
+  if (tab && typeof tab.id === "number") activeRunTabs.set(tab.id, String(job?.run_id || ""));
   try {
     if (activateCollectionTab) {
       await activateTab(tab, tabActivationPlan);
@@ -1089,6 +1274,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     if (isZillowCapability) {
       try { await operatorAlertRelease(gateContext); } catch (error) { /* ignore */ }
     }
+    if (tab && typeof tab.id === "number") activeRunTabs.delete(tab.id);
     if (settings.closeTabsAfterCollect) {
       try {
         await chrome.tabs.remove(tab.id);
@@ -1399,7 +1585,8 @@ async function installCollectorCaptureOverlayOnTab(tab, text, meta) {
     await withTimeout(chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: installCollectorCaptureOverlay,
-      args: [{ text, client: (meta && meta.client) || "", campaign: (meta && meta.campaign) || "" }]
+      args: [{ text, client: (meta && meta.client) || "", campaign: (meta && meta.campaign) || "",
+               runId: (meta && meta.runId) || "" }]
     }), 8000, "install_capture_overlay_timeout");
     return true;
   } catch (error) {
@@ -1489,6 +1676,34 @@ function installCollectorCaptureOverlay(options) {
 	  border-radius: 999px !important;
 	  background: radial-gradient(circle at 35% 35%, #fecaca 0, #ef4444 38%, #991b1b 100%) !important;
 	  animation: soloAgencyCollectorRecordBlink 0.9s infinite !important;
+	}
+	#${overlayId} .solo-agency-collector-stop {
+	  margin-left: auto !important;
+	  flex: 0 0 auto !important;
+	  /* The overlay as a whole is click-through so it never steals a click from the page being
+	     collected. This one control opts back IN — it is the only thing here meant to be pressed. */
+	  pointer-events: auto !important;
+	  cursor: pointer !important;
+	  appearance: none !important;
+	  border: 1px solid rgba(248, 113, 113, 0.55) !important;
+	  border-radius: 7px !important;
+	  background: rgba(127, 29, 29, 0.55) !important;
+	  color: #fee2e2 !important;
+	  font-family: inherit !important;
+	  font-size: 11px !important;
+	  font-weight: 700 !important;
+	  letter-spacing: 0.3px !important;
+	  padding: 4px 9px !important;
+	  line-height: 1.1 !important;
+	  white-space: nowrap !important;
+	}
+	#${overlayId} .solo-agency-collector-stop:hover {
+	  background: rgba(185, 28, 28, 0.75) !important;
+	  color: #ffffff !important;
+	}
+	#${overlayId} .solo-agency-collector-stop[disabled] {
+	  opacity: 0.6 !important;
+	  cursor: default !important;
 	}
 	#${overlayId} .solo-agency-collector-title-stack {
 	  display: flex !important;
@@ -1624,6 +1839,29 @@ function installCollectorCaptureOverlay(options) {
 	    stack.appendChild(privacy);
 	    head.appendChild(dot);
 	    head.appendChild(stack);
+	    // Stopping where you can SEE it is running. The alternative is hunting for the extension popup
+	    // while the page you wanted back is still being driven.
+	    const stop = document.createElement("button");
+	    stop.className = "solo-agency-collector-stop";
+	    stop.type = "button";
+	    stop.textContent = "Stop";
+	    stop.title = "Cancel this collection run";
+	    stop.addEventListener("click", function () {
+	      stop.disabled = true;
+	      stop.textContent = "Stopping\u2026";
+	      try {
+	        chrome.runtime.sendMessage({
+	          type: "cancel_run",
+	          run_id: String((options && options.runId) || ""),
+	          reason: "stopped from the page overlay",
+	          requested_by: "overlay"
+	        });
+	      } catch (error) {
+	        // The service worker may already be gone, which means the run is too.
+	        stop.textContent = "Stopped";
+	      }
+	    });
+	    head.appendChild(stop);
 	    const streamTitle = document.createElement("div");
 	    streamTitle.className = "solo-agency-collector-stream-title";
 	    const streamTitleText = document.createElement("span");

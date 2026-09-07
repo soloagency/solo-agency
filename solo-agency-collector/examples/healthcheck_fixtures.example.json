@@ -1,0 +1,21 @@
+{
+  "_comment": "Copy to <install>/daily-content-pipeline/collector/healthcheck/fixtures.json and fill in the operator's OWN targets. Keys starting with _ are ignored. `tool healthcheck fixtures` prints which keys are still missing. Never point a fixture at a production client's account or a third party's group.",
+  "fb_test_group_url": "https://www.facebook.com/groups/<operator-owned test group id>",
+  "fb_canary_post_url": "https://www.facebook.com/groups/<id>/posts/<post id>/",
+  "fb_own_post_url": "https://www.facebook.com/reel/<reel id the test account published>",
+  "fb_canary_profile_url": "https://www.facebook.com/<test account vanity>",
+  "fb_canary_profile_friends_url": "https://www.facebook.com/<test account vanity>/friends",
+  "fb_canary_profile_entity_id": "<numeric facebook id of the test account>",
+  "fb_canary_profile_name": "<display name exactly as Facebook renders it>",
+  "fb_canary_profile_email": "<email published in the test account's About / contact info>",
+  "fb_video_page_url": "https://www.facebook.com/<page with at least one video>/videos",
+  "fb_reel_url": "https://www.facebook.com/reel/<reel id>",
+  "fb_search_keyword": "real estate",
+  "fb_dm_thread_url": "https://www.messenger.com/e2ee/t/<thread of a consenting recipient>",
+  "fb_dm_recipient_name": "<recipient display name>",
+  "zillow_directory_url": "https://www.zillow.com/professionals/real-estate-agent-reviews/los-angeles-ca/?name=kim&page=1",
+  "zillow_profile_url": "https://www.zillow.com/profile/samplerealty",
+  "zillow_profile_screen_name": "samplerealty",
+  "web_query": "solo agency",
+  "article_url": "https://en.wikipedia.org/wiki/Real_estate_agent"
+}

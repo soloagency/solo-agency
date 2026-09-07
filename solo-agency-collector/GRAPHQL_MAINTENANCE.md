@@ -265,6 +265,17 @@ Caller contract example: `ZILLOW_CAPABILITIES.md`.
 
 ---
 
+### 8.x The capability is not done until its `healthcheck` block exists
+
+Every entry in `collector_capabilities.json` MUST carry a `healthcheck` block (mode, cadence,
+url template, fixtures, `expect_query` = the persisted query name it reads, assertions that only
+a working extractor satisfies, `baseline_fields`, `cause_group`). `go test ./...` in `bridge-go/`
+fails (`TestCatalogHealthcheckContract`) until it does. Then `tool healthcheck run --client
+<test client> --only <id>` proves it live and records the baseline. Contract and examples:
+`HEALTHCHECK.md`, `usage.healthcheck_contract` in the catalog. When a probe FAILs later, its
+report carries the query names seen, `pagination_*`, `registry_probe` and `head_page_via` —
+the inputs of §7 — so start there, not from a fresh discovery job.
+
 ## 9. Hard-won rules (do not relearn these)
 
 ### 9.0 The Facebook feed-response traps — read this BEFORE debugging "missing posts"

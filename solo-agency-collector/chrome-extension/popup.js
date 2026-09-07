@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await refresh();
   document.getElementById("save").addEventListener("click", save);
   document.getElementById("checkNow").addEventListener("click", checkNow);
+document.getElementById("stopRun").addEventListener("click", stopRun);
   document.getElementById("capture").addEventListener("click", capture);
   document.getElementById("showResult").addEventListener("click", showResult);
   document.getElementById("testScroll").addEventListener("click", testScroll);
@@ -103,6 +104,21 @@ async function checkNow() {
     setStatus(`Check failed: ${response.error || "unknown error"}`);
     return;
   }
+  await refresh();
+}
+
+async function stopRun() {
+  setStatus("Stopping the active run...");
+  const response = await sendMessage({ type: "cancel_run", reason: "stopped from the popup", requested_by: "popup" });
+  if (!response.ok) {
+    setStatus(`Stop failed: ${response.error || "unknown error"}`);
+    return;
+  }
+  const closed = Number(response.tabs_closed || 0);
+  setStatus(
+    (response.run_id ? `Cancelling run ${response.run_id}. ` : "Cancelling the active run. ") +
+    (closed ? `Closed ${closed} collector tab${closed === 1 ? "" : "s"}.` : "No collector tab was open.")
+  );
   await refresh();
 }
 

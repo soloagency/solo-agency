@@ -46,6 +46,34 @@ for f in "$SRC"/*; do
   fi
 done
 
+# popup.html is the same story as the manifest: it is kept out of the copy list because its
+# <title> and <h1> carry the client's name, but everything else in it is CODE. That was harmless
+# while the popup was only settings inputs; the moment it grew a control — the Stop run button —
+# a file "kept for branding" started silently withholding a feature from every client. So sync the
+# markup and put the client's two branded strings back, exactly as the manifest merge does.
+python3 - "$SRC/popup.html" "$DEST/popup.html" <<'PY_POPUP' || true
+import re, sys, io
+src, dest = sys.argv[1], sys.argv[2]
+repo = io.open(src, encoding="utf-8").read()
+try:
+    dev = io.open(dest, encoding="utf-8").read()
+except FileNotFoundError:
+    sys.exit(0)
+def grab(html, pattern):
+    m = re.search(pattern, html, re.S)
+    return m.group(1) if m else None
+title = grab(dev, r"<title>(.*?)</title>")
+heading = grab(dev, r"<h1>(.*?)</h1>")
+merged = repo
+if title:
+    merged = re.sub(r"<title>.*?</title>", lambda _: "<title>%s</title>" % title, merged, count=1, flags=re.S)
+if heading:
+    merged = re.sub(r"<h1>.*?</h1>", lambda _: "<h1>%s</h1>" % heading, merged, count=1, flags=re.S)
+if merged != dev:
+    io.open(dest, "w", encoding="utf-8").write(merged)
+    print("  merged : popup.html (markup from the repo, client branding kept)")
+PY_POPUP
+
 # manifest.json is never copied (it carries the client's branding), but its CAPABILITY parts —
 # permissions / host_permissions / content_scripts — are code, and a drift there fails silently
 # (2026-08-16: the "offscreen" permission for the operator chime; without it the chime never
