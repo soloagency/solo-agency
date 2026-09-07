@@ -185,6 +185,17 @@ restaurant site + reservation/review platforms; a consultant → their site + Li
 directory listings). If the person is clearly inactive/left the field, set `still_active: inactive`
 and STOP — do not run Tier 2 (don't spend the proof-of-life pass on a dead lead).
 
+**Who runs Tier 1.** Tier 1 is lookup and extraction, not judgement, so it belongs to an
+extractor-tier sub-agent (`playbooks/TEAM_MODEL.md`, brain tiers) whenever the runtime can spawn
+one: one lead — or a small batch — per sub-agent, fresh context, brief = the seed plus the
+springboard paragraph above, output = a file `enrich/tier1/{lead_id}.json` holding
+`{profile_urls[], channels[], still_active, evidence[]}` and nothing else — never back through the
+chat. The main flow (Team Leader or the campaign Daily Run) reads that file, decides
+`still_active`, and runs Tier 2 itself, because Tier 2 is judgement and it ends in `enrich write`,
+which only the main flow performs. If the runtime cannot spawn sub-agents or cannot pick a model,
+run Tier 1 inline exactly as before: the contract changes who does the lookup, never what is
+looked up, recorded or written.
+
 **Tier 2 — Profile & proof-of-life (hooks).** Visit the URLs Tier 1 found (see `channel_reality.md`
 for what each actually yields) and **gather as MANY evidenced Layer-B proof-of-life points as you
 can find — do NOT cap at one or three.** Each point is a conclusion-basis the writer will weave, so

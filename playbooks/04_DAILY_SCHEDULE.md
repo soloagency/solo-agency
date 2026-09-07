@@ -32,6 +32,7 @@ Setup Flow must create/update schedule and automation tasks, but must not run th
 Rules:
 
 - Create one client-specific automation task per active client by default.
+- That task is a team member: the client's Scout + Creator + Analyst agent (`playbooks/TEAM_MODEL.md`). Record `Role` and `Brain` for it in the Team Roster of `automation_manifest.md`; the task name itself stays `{Client} - Solo Agency Daily Run`.
 - Every client-specific task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
 - The task prompt must pin `target_client_slug` and must not process other clients.
 - The task may use the shared Local Collector app/bridge, but private data source jobs must be routed by `client_slug` and bound to the claiming `extension_instance_id` when present.

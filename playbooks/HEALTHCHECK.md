@@ -219,6 +219,8 @@ Canonical task name:
 Solo Agency - Collector Healthcheck
 ```
 
+This task is the team's Ops agent (`playbooks/TEAM_MODEL.md`); it is never client-facing and reports to the Team Leader through the standup line and its own report.
+
 Recommended cadence:
 
 ```text

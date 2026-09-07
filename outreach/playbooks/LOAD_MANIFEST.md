@@ -5,7 +5,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 484 | 999bab0ec6b631312622411afb1bd821221b305feb88f284e575410fcc5ff76a | If any required stage was not loaded, load it before proceeding. |
+| OUTREACHCRM_PLAYBOOK.md | 486 | 941556d40eaed269e0905dbc500f1f7e43ebeeb28ac3cd0efed3bf44d2d0fe7e | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 497 | c917752a4fa321a8f5fd881724edfaacce2e41b88487f21ec548d63397151035 | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/01_CLIENT_SETUP_PROFILE.md | 736 | 13e60b41a100d0d4ea9026daab0cc402d5752717fb70fb50028396ccabde5851 | --- |
 | playbooks/02_SENDBOX_SETUP.md | 288 | a27aeb6aab632d7e7427ca4fc7d6bbef68264787f5132752cee36fd77fce225b | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
@@ -31,8 +31,9 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/SCHEDULED_RUN_ENTRYPOINT.md | 138 | b7fa8f0450aea6a7f84d799d44f262541716ef1977f58be4fabde4c2d76bc44b | Notification is operator-facing status only, never outbound marketing to a contact. |
 | playbooks/SETUP_FLOW_ENTRYPOINT.md | 98 | b8b3704a6c03ea1bd3b2b61d1f28f63666cb6f290bc87e86baab20f8a56b6587 | Do not ask whether to send now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not enrich, draft-to-send, or notify in Setup Flow. |
 | playbooks/TODO.md | 40 | c2f61f82d24c13448ecb0b68250a9e1d463a8f9c613e6294fabd550e96da3826 | - Second sending domain support for scale (domain-level warmup already in the sendbox schema). |
-| playbooks/skills/email-verify-enrich/LOAD_MANIFEST.md | 11 | 0d954e44cfb3130b2f9267cca6591b94c42a09a687921948f4bab1bd3f956349 | \| etiquette.md \| 33 \| 42c6956562404e718da0ec689119b23dd48a7a4182333b87ef54650f7dcf58c9 \| When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. \| |
-| playbooks/skills/email-verify-enrich/SKILL.md | 279 | bb933f736e479e1f668453f3e41ab09492eeb2f48b70c1d6c9d423b37277f44a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/skills/email-verify-enrich/LOAD_MANIFEST.md | 12 | a300e461c2c600a135d1de6ceeb84bdeae91e67cfb8042d25d27ed829c3011ca | \| etiquette.md \| 33 \| 42c6956562404e718da0ec689119b23dd48a7a4182333b87ef54650f7dcf58c9 \| When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. \| |
+| playbooks/skills/email-verify-enrich/SKILL.md | 290 | a9623400802b96811e315aa58780bbaeac0572117359764e046a734b2a0e348c | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/skills/email-verify-enrich/SKILL_2026-09-07_08-01-41.md | 279 | bb933f736e479e1f668453f3e41ab09492eeb2f48b70c1d6c9d423b37277f44a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/skills/email-verify-enrich/channel_reality.md | 39 | b8f818c9b80f82b551b080a9aad7ee5f27c262a186a24dd1107328a7f0763b93 |   this pass (it may become a hook on a later refresh), not a fabricated hook. |
 | playbooks/skills/email-verify-enrich/channel_reality_2026-08-16_12-40-53.md | 38 | 16ee9c1c7acf98dbfd4deb6b94f10ecc936e35f3a56572f35a7eb98d8ebb55a7 |   this pass (it may become a hook on a later refresh), not a fabricated hook. |
 | playbooks/skills/email-verify-enrich/etiquette.md | 33 | 42c6956562404e718da0ec689119b23dd48a7a4182333b87ef54650f7dcf58c9 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |

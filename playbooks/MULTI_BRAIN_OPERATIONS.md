@@ -154,6 +154,10 @@ windows can tell the reports apart.
 
 ---
 
+## The Boss-orders ledger under two brains
+
+`daily-content-pipeline/automation/boss_orders.md` (`playbooks/TEAM_MODEL.md`) is the Team Leader's ledger, and there may be two interactive Team Leaders at once. It is not a lock and takes no lease: each interactive brain appends its own rows with its name in the `brain` column, and changes a row another brain owns only to `done` or `blocked`, always with a reason. Scheduled runs read it and never write it. A row is closed by whichever brain holds the evidence; a disagreement is resolved by the human, never by overwriting the other brain's row.
+
 ## Install root entry files
 
 **A live install root MUST carry its own `AGENTS.md` and `CLAUDE.md`.** Without them, a fresh

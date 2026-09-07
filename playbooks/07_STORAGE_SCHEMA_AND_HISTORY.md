@@ -542,6 +542,18 @@ Minimum format:
 | Client | Client Slug | Profile Path | Status | Private Data Source Status | PDNA Status | Notes |
 |---|---|---|---|---|---|---|
 
+## Team Roster and Team Files
+
+The manifest also lists every scheduled task as a team member (`playbooks/TEAM_MODEL.md`). Task names stay exactly as created — `run_lock`, Automation Resync and the manifest match on them; the role is a label, not part of the name.
+
+| Task | Client | Role(s) | Brain | Owner brain (runtime) | Status |
+|---|---|---|---|---|---|
+
+Two team files live next to the manifest under `daily-content-pipeline/automation/`:
+
+- `boss_orders.md` — the Team Leader's ledger of the Boss's requests and goals (header and statuses in `playbooks/TEAM_MODEL.md`). Written by the interactive session only; scheduled runs read it. Never deleted, never closed without a reason.
+- `standup.jsonl` — one JSON line per finished scheduled run (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, step 16A): `ts`, `task`, `client_slug`, `role`, `outcome`, `reports[]`, `needs_boss[]`, `blockers[]`. Append-only; the Team Leader reads the tail at the start of every session. Keep 90 days; older lines may be pruned by the update-watch task.
+
 ## Current Run Contract
 
 - Scheduled runs must load the latest local playbooks at run time.

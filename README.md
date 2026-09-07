@@ -8,6 +8,8 @@ Solo Agency is for solo founders who want an AI agent that goes to work every mo
 
 I built it for myself and use it every day.
 
+It works like a marketing agency team of AI agents for one person — you, the Boss. You talk to one Team Leader (the chat that set it up). Behind it, scouts scan the web and Facebook for topics, ideas and leads; creators turn them into content and video; distributors deliver through email, Facebook comments and messages and the social accounts you connect; a CRM caretaker keeps every lead moving; and scheduled agents run the whole loop every morning and report back. Today Facebook is fully monitored and X, LinkedIn and the rest are on the roadmap; SMS is human-assisted; publishing goes only to the accounts you connect.
+
 Tell your AI agent: "Setup https://github.com/soloagency/solo-agency now" and it runs the full loop for you: research, lead and competitor opportunities, videos, blogs, distribution, analytics, and daily improvement.
 
 ## The Point
