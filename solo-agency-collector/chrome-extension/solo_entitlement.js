@@ -25,7 +25,7 @@
   // Support requests: fb.group.post into the official Solo Agency support group (this url and no
   // other) is how a Free install asks for help, so it is granted on every plan. Fixed here and in
   // the bridge; empty disables the exemption.
-  const SOLO_SUPPORT_GROUP_URL = "";
+  const SOLO_SUPPORT_GROUP_URL = "https://www.facebook.com/groups/1570411591501058";
 
   // The extension's OWN map of paid capabilities → the feature the plan must carry. It is never
   // taken from the bridge or the catalog it serves — a homebrew bridge would simply call

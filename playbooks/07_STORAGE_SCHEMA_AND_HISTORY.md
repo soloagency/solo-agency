@@ -553,7 +553,7 @@ Two team files live next to the manifest under `daily-content-pipeline/automatio
 
 - `boss_orders.md` — the Team Leader's ledger of the Boss's requests and goals (header and statuses in `playbooks/TEAM_MODEL.md`). Written by the interactive session only; scheduled runs read it. Never deleted, never closed without a reason.
 - `standup.jsonl` — one JSON line per finished scheduled run (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, step 16A): `ts`, `task`, `client_slug`, `role`, `outcome`, `reports[]`, `needs_boss[]`, `blockers[]`. Append-only; the Team Leader reads the tail at the start of every session. Keep 90 days; older lines may be pruned by the update-watch task.
-- `support_requests.md` — posts the Team Leader made to the Solo Agency Facebook support group on the Boss's behalf (`playbooks/TEAM_MODEL.md`, "Support requests"): id, date, type, title, status, group_url, feedback_id, replies, notes. Written by the interactive session; scheduled runs update `replies` and surface them.
+- `support_requests.md` — posts the Team Leader made to the Solo Agency Facebook support group on the Boss's behalf (`playbooks/TEAM_MODEL.md`, "Support requests"): id, date, type, title, status, group_url, post_id, post_url, feedback_id, last_checked, last_comment_id, replies, notes. Written by the interactive session; scheduled runs fill the post ids after posting, update `last_checked` / `last_comment_id` / `replies`, and surface new replies.
 
 ## Current Run Contract
 
