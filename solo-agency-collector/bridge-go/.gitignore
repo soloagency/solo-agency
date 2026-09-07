@@ -7,6 +7,7 @@
 /bridge-go_*
 *.backup
 *.go.bak
+_backup/
 
 # The Go source of the bridge is NOT open source and does not live in this repo.
 # It moved to the private repository soloagency/solo-agency-bridge on 2026-09-06,

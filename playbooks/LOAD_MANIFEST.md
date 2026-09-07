@@ -5,7 +5,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| SOLO_AGENCY_PLAYBOOK.md | 888 | 07ead485ec5efa30febecab1ce769727d813321d189039f599f324c3f5284e55 | If any required stage was not loaded, load it before proceeding. |
+| SOLO_AGENCY_PLAYBOOK.md | 888 | 501083eb98332118f112c601507eb4cd19fecd9fa4c53211937610386e8f8fe0 | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1828 | 3c89518a0b575202f2606b373ef71845031296df47262fe828abd417547595e3 | --- |
 | playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md | 799 | 116be2cd062198b84c606f86047b0dd0cad35278d2bc2bed0117f76d5351bef5 | --- |
 | playbooks/02_PRIVATE_SOURCE_SETUP.md | 714 | 3b52a09868eef287ae61a8b0ba0edcef83255e3af338f9bfe4c941cad2de8a0c | --- |
@@ -26,7 +26,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/FEATURE_CATALOG.md | 58 | efe833961d970bba8052bcd918e51a6c8dd2790d2575acad1806d12a1ea79e2f | Keep the data boundary intact (each product reads/writes its own subtree; the only cross-read is the one-way Stage-1 profile bootstrap). Introducing a feature is not a data read — it is always allowed. |
 | playbooks/FEATURE_CATALOG_2026-09-02_09-40-53.md | 46 | 754d0775976f2216d2e51cffbc73c434097d275a79629c0add43f0a9122f68bc | Keep the data boundary intact (each product reads/writes its own subtree; the only cross-read is the one-way Stage-1 profile bootstrap). Introducing a feature is not a data read — it is always allowed. |
 | playbooks/FEATURE_CATALOG_2026-09-06_23-49-39.md | 47 | 8d258054afa85424b4479e84b96ab756cd4df8f86f6d76bbad8607f8f86a4c3c | Keep the data boundary intact (each product reads/writes its own subtree; the only cross-read is the one-way Stage-1 profile bootstrap). Introducing a feature is not a data read — it is always allowed. |
-| playbooks/HEALTHCHECK.md | 255 | 791edfc349e8d4a96fedc44fbf77f4f4bd3d85067e113d26493c3d92aa2fce1c |   carries the healthcheck. |
+| playbooks/HEALTHCHECK.md | 255 | c84d4da2050d060b68f641c31a53ebdbf82419b1eee48ed322d57d4301d1666c |   carries the healthcheck. |
 | playbooks/HEALTHCHECK_2026-09-06_23-49-39.md | 253 | 1aad31327d825f56f216d6ffbca47c5560e2ab2c6c06c9372d6eeea22254deb1 |   carries the healthcheck. |
 | playbooks/LOAD_LEDGER_PROTOCOL.md | 61 | af1fd8b7d00598490324118b69fe6c9d5470b22674bcad93975e6b967e6878d8 | `playbooks/LOAD_MANIFEST.md` lists every `playbooks/**/*.md` with `path \| lines \| last_line \| sha256`. It is regenerated automatically by `deploy-soloagency.sh` on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection. |
 | playbooks/MULTI_BRAIN_OPERATIONS.md | 233 | 00690c1694754b7b3a325a117b5bf5370a2521f353aa72a02f14a0f0da11db83 | holder's name and intent plus the free alternatives — never a refusal to participate. |

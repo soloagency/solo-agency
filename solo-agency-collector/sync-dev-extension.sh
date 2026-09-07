@@ -21,7 +21,7 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/chrome-extension"
-DEST="${SOLO_DEV_EXTENSION:-/path/to/dev-install/extensions/aven-ngo}"
+DEST="${SOLO_DEV_EXTENSION:-$(cat "$HOME/.config/solo-agency/dev_extension_path" 2>/dev/null || echo /path/to/dev-install/extensions/aven-ngo)}"
 
 [ -d "$SRC" ]  || { echo "no source extension at $SRC" >&2; exit 1; }
 [ -d "$DEST" ] || { echo "no dev extension at $DEST (set SOLO_DEV_EXTENSION)" >&2; exit 1; }

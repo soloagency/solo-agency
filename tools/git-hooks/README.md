@@ -20,3 +20,8 @@ git config core.hooksPath tools/git-hooks
 `deploy-soloagency.sh` appends the same trailers to its auto-generated commit
 messages, so deploy commits carry them even in a clone where the hook path is
 not set.
+
+`pre-commit` refuses a commit that stages closed bridge source (`*.go`, `go.mod`, `go.sum`),
+backups (`*.go.bak`, `*.backup`, `_backup/`), `HANDOFF_LOCAL*.md`, or a credential-looking
+string. The same rules run in `.github/workflows/guard-closed-source.yml` on every push, so
+the guard holds even for a clone that never set `core.hooksPath`.

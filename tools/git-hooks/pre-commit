@@ -1,0 +1,17 @@
+#!/bin/sh
+# Solo Agency — refuse to commit closed bridge source, backups, local handoffs or credentials.
+# Same rules as .github/workflows/guard-closed-source.yml and deploy-soloagency.sh, so a plain
+# `git commit` in this clone is guarded too. Activate: git config core.hooksPath tools/git-hooks
+staged="$(git diff --cached --name-only | grep -E '\.go$|\.go\.bak$|\.backup$|(^|/)go\.(mod|sum)$|(^|/)_backup/|^HANDOFF_LOCAL' || true)"
+if [ -n "$staged" ]; then
+  echo "pre-commit: refusing — closed source / backup / local handoff files are staged:" >&2
+  echo "$staged" | sed 's/^/  /' >&2
+  exit 1
+fi
+hits="$(git diff --cached --text --unified=0 | grep -E 'wc_live_[A-Za-z0-9_-]{20,}|wc_whsec_[0-9a-f]{16,}|sk-ant-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{32,}|gh[opsurt]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN[[:space:]][A-Z ]*PRIVATE KEY-----' || true)"
+if [ -n "$hits" ]; then
+  echo "pre-commit: refusing — the staged diff looks like it contains a credential:" >&2
+  echo "$hits" | head -5 | sed 's/^/  /' >&2
+  exit 1
+fi
+exit 0

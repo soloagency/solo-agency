@@ -1,7 +1,7 @@
 {
-  "client_slug": "avenngo",
-  "client_name": "AvenNgo",
-  "extension_instance_id": "ext_avenngo_default",
-  "extension_display_name": "AvenNgo - Solo Agency Collector",
+  "client_slug": "acme-realty",
+  "client_name": "Acme Realty",
+  "extension_instance_id": "ext_acme-realty_default",
+  "extension_display_name": "Acme Realty - Solo Agency Collector",
   "bridge_base_url": "http://127.0.0.1:17321"
 }

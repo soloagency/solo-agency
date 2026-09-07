@@ -269,7 +269,7 @@ The agent must follow these at all times.
 
 ### 2.1 The model
 
-One agency operates OutreachCRM on behalf of many clients. Each **client** is a fully isolated CRM workspace with its own pipelines, sendboxes, suppression, lists, and data. Each client runs **N campaigns**; each campaign declares its own **goal**, and the goal is the blueprint that drives what the agent writes (§3D). The agency positions as open source (MIT), English playbooks, @gmail.com sendboxes as the priority sending path, operating on behalf of clients, and delivering only a scrubbed **weekly** report to the client.
+One agency operates OutreachCRM on behalf of many clients. Each **client** is a fully isolated CRM workspace with its own pipelines, sendboxes, suppression, lists, and data. Each client runs **N campaigns**; each campaign declares its own **goal**, and the goal is the blueprint that drives what the agent writes (§3D). The agency positions as source-available (Elastic License 2.0 for revisions from 2026-09-06; MIT before), English playbooks, @gmail.com sendboxes as the priority sending path, operating on behalf of clients, and delivering only a scrubbed **weekly** report to the client.
 
 ### 2.2 Isolation is structural, not disciplinary
 

@@ -1,0 +1,29 @@
+name: guard closed source
+# The bridge's Go source is closed (private repo). Every push and PR is checked so a missing
+# .gitignore rule or a raw `git add -A` can never republish it, and no key can land in the tree.
+on:
+  push:
+    branches: [main, dist]
+  pull_request:
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: tracked tree must hold no Go source, backups or local handoffs
+        run: |
+          set -e
+          bad="$(git ls-files | grep -E '\.go$|\.go\.bak$|\.backup$|(^|/)go\.(mod|sum)$|(^|/)_backup/|^HANDOFF_LOCAL' || true)"
+          if [ -n "$bad" ]; then echo "::error::closed-source or backup files are tracked:"; echo "$bad"; exit 1; fi
+      - name: pushed history must hold no Go source
+        if: github.event_name == 'push'
+        run: |
+          set -e
+          bad="$(git rev-list "${{ github.event.before }}..${{ github.sha }}" --objects 2>/dev/null | awk '{print $2}' | grep -E '\.go$|\.go\.bak$|(^|/)go\.(mod|sum)$' || true)"
+          if [ -n "$bad" ]; then echo "::error::Go source appears in the pushed commits:"; echo "$bad"; exit 1; fi
+      - name: no credentials in the tree
+        run: |
+          set -e
+          hits="$(git grep -n -I -E 'wc_live_[A-Za-z0-9_-]{20,}|wc_whsec_[0-9a-f]{16,}|sk-ant-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{32,}|gh[opsurt]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN[[:space:]][A-Z ]*PRIVATE KEY-----' -- . ':!*.zip' || true)"
+          if [ -n "$hits" ]; then echo "::error::credential-looking text is tracked:"; echo "$hits"; exit 1; fi

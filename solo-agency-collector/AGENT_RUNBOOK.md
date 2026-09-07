@@ -381,7 +381,7 @@ In this mode:
 - When the extension posts `/complete`, the bridge marks that scheduled run done and stays online for the next window.
 - Every job carries the install's plan: `collector_bridge.entitlement_token` (signed, verified by the extension), `entitlement_tier`, `entitlement_mode`, `bridge_version`, and `job.entitlement` with any `cut_sources` (each plan runs its first N watched sources per client; capabilities whose `feature` the plan lacks are dropped in `enforce` mode).
 
-## Plan (Free / Pro) and `tool entitlement`
+## Plan tiers and `tool entitlement`
 
 The bridge validates the client's WideCast API key against `GET /v1/solo/entitlement` and caches the signed result at `daily-content-pipeline/collector/inbox/entitlement.json`; `GET /status` → `entitlement` is the read-only view (see `README.md`, "Solo Agency plan"). Agents never edit that file and never work around a limit — they read `tier`, `features` and `limits`, do the part the plan allows, and apply the upsell rule in the root `AGENTS.md` ("Plans": Free · Starter $49 · Pro $99 · Business $199 · Enterprise).
 

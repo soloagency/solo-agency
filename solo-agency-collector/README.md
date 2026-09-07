@@ -158,7 +158,7 @@ solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
   --persistent
 ```
 
-## Solo Agency plan (Free / Pro entitlement)
+## Solo Agency plan (entitlement: Free · Starter · Pro · Business · Enterprise)
 
 The client's WideCast API key doubles as the Solo Agency license. The bridge exchanges it for an Ed25519-signed entitlement token (`GET /v1/solo/entitlement` on `widecast.ai`, at start and about every 24 hours; only the key, a random install id and the bridge version are sent), caches the RAW token at `daily-content-pipeline/collector/inbox/entitlement.json` (0600) and re-verifies its signature on every read — editing the file, faking the server or patching the wire cannot grant a plan. The tier follows the account's WideCast plan — Free · Starter $49 · Pro $99 · Business $199 · Enterprise — as `features` + `limits` in the token (clients 1/5/10/20/∞, watched sources per client 1/5/15/30/∞, campaigns per client 1/3/10/20/∞, sends/day 20/150/400/1000/∞; enrich + write actions from Starter, harvest + Zillow from Pro). No key, or a server unreachable for more than 14 days past the token's expiry, means Free.
 

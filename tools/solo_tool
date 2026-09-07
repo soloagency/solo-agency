@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# tools/solo_tool — the command the playbooks call. It is a thin wrapper:
+#     tools/solo_tool <subcommand> [args...]   ==   <bridge> tool <subcommand> [args...]
+# The bridge is the closed Solo Agency binary that setup_collector.sh installs at
+#     <setup-root>/solo-agency-local-collector/bin/collector-bridge-<os>-<arch>
+# Resolution order: $SOLO_AGENCY_BRIDGE (explicit path) → that install path, searched from the
+# current directory upwards → `collector-bridge` on PATH. Fails with one clear line otherwise.
+set -eu
+bridge="${SOLO_AGENCY_BRIDGE:-}"
+if [ -z "$bridge" ]; then
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"; arch="$(uname -m)"
+  case "$arch" in x86_64|amd64) arch=amd64 ;; arm64|aarch64) arch=arm64 ;; esac
+  dir="$PWD"
+  while [ -n "$dir" ]; do
+    for cand in "$dir/solo-agency-local-collector/bin/collector-bridge-$os-$arch" "$dir/solo-agency-local-collector/bin/collector-bridge-$os-amd64"; do
+      if [ -x "$cand" ]; then bridge="$cand"; break 2; fi
+    done
+    [ "$dir" = "/" ] && break
+    dir="$(dirname "$dir")"
+  done
+fi
+if [ -z "$bridge" ] && command -v collector-bridge >/dev/null 2>&1; then bridge="$(command -v collector-bridge)"; fi
+if [ -z "$bridge" ] || [ ! -x "$bridge" ]; then
+  echo "solo_tool: no bridge binary found. Run solo-agency-collector/setup_collector.sh first, or set SOLO_AGENCY_BRIDGE=/path/to/collector-bridge-<os>-<arch>." >&2
+  exit 2
+fi
+exec "$bridge" tool "$@"
