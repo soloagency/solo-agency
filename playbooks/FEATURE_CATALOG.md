@@ -11,12 +11,15 @@ Load this file when composing a feature-discovery suggestion (setup completion, 
 - If a feature has an unmet prerequisite, say what setup it needs first (do not present it as one-step when it is not).
 - When a run detects leads or competitor moves, the Outreach features move to the top of the suggestion list (that is the highest-intent moment to cross-sell).
 
-## Free vs Pro (which rows need a plan)
+## Plans (which rows need which tier)
 
-Read the install's plan from `GET /status` → `entitlement.tier` before surfacing a feature; the rule itself lives in `AGENTS.md` ("Free and Pro plans"). Never hide a Pro feature from the menu — surface it with "(Pro)" and the one-line upgrade path, value first.
+Read the install's plan from `GET /status` → `entitlement.tier` before surfacing a feature; the ladder and the upsell rule live in `AGENTS.md` ("Plans"). Never hide a paid feature from the menu — surface it with the tier that unlocks it and the one-line upgrade path, value first.
 
-- **Free, always:** Daily content ideas, Blog + social posts, Private source monitoring for ONE watched source, Lead & Competitor detection on that source, Daily/weekly reports, Analytics loop, Notifications, Auto update-watch (notify-first), Collector healthcheck, Import a contact list, CRM pipeline, Approval report, Cold-email outreach for ONE campaign at up to 20 sends/day, Follow-up engine inside that campaign.
-- **Pro:** every additional watched source, a second client, additional campaigns and unlimited sends (per-sendbox Gmail quotas still apply), Lead enrichment (dossiers, contact ladders), lead harvest, write actions (react / comment / group post / DM), Zillow directory + enrich, priority adapter fixes.
+- **Every plan, Free included:** Daily content ideas, Blog + social posts, Private source monitoring for the watched sources the plan allows (Free: one), Lead & Competitor detection on them, Daily/weekly reports, Analytics loop, Notifications, Auto update-watch (notify-first), Collector healthcheck, Import a contact list, CRM pipeline, Approval report, Cold-email outreach inside the plan's campaign and send caps (Free: 1 campaign, 20 sends/day), Follow-up engine inside those campaigns.
+- **Starter ($49) and up:** up to 5 clients, 5 watched sources and 3 campaigns per client, 150 sends/day; Lead enrichment (dossiers, contact ladders); write actions (react / comment / group post / DM).
+- **Pro ($99) and up:** 10 clients, 15 sources and 10 campaigns per client, 400 sends/day; lead harvest (friends lists, people search); Zillow directory + enrich; update-watch auto-apply.
+- **Business ($199):** 20 clients, 30 sources and 20 campaigns per client, 1000 sends/day; priority adapter fixes.
+- **Enterprise (contact us):** no limits.
 - **Add-on:** Video creation and publishing spend WideCast credits on the same account.
 
 ## Content pipeline (Solo Agency)

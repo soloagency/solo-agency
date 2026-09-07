@@ -240,7 +240,7 @@ When extension changes are applied:
 
 ## Daily GitHub Update Watch Task
 
-After setup/routine exists, the agent must set up a lightweight update-watch automation because Solo Agency changes frequently - create the native task, or write its pending prompt AND hand it to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (never silently skip). Default posture is notify-first: `auto_apply_approved` stays `false` unless the human opts into auto-apply. Auto-apply is a Pro convenience: honour `auto_apply_approved: true` only while `GET /status` → `entitlement.tier` is `pro` and not `stale`; a Free install stays notify-first, so every install still learns that a fix exists (see `AGENTS.md`, "Free and Pro plans").
+After setup/routine exists, the agent must set up a lightweight update-watch automation because Solo Agency changes frequently - create the native task, or write its pending prompt AND hand it to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (never silently skip). Default posture is notify-first: `auto_apply_approved` stays `false` unless the human opts into auto-apply. Auto-apply is a paid convenience: honour `auto_apply_approved: true` only while `GET /status` → `entitlement.features` contains `auto_update` (Pro, Business, Enterprise) and the entitlement is not `stale`; Free and Starter installs stay notify-first, so every install still learns that a fix exists (see `AGENTS.md`, "Plans").
 
 Canonical task name:
 

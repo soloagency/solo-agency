@@ -412,8 +412,8 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
     const tabActivationPlan = collectionTabActivationPlan(job, source);
     const tabActivationMode = tabActivationPlan.mode;
     const capabilityId = String(source.capability || "");
-    const needsPro = SoloEntitlement.needsPro(capabilityId);
-    const proGranted = !!(entitlement && entitlement.ok && entitlement.tier === "pro");
+    const requiredFeature = SoloEntitlement.featureFor(capabilityId);
+    const featureGranted = SoloEntitlement.granted(entitlement, capabilityId);
     await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
       run_id: runId,
       client_slug: job.client_slug || binding.client_slug || "",
@@ -432,14 +432,14 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
       source_concurrency: sourceConcurrency,
       captured_at: new Date().toISOString(),
       collector_identity: "chrome-extension-local-collector",
-      solo_entitlement: Object.assign({ needs_pro: needsPro, granted: !needsPro || proGranted }, entitlementView)
+      solo_entitlement: Object.assign({ needs_feature: requiredFeature, granted: featureGranted }, entitlementView)
     }, binding);
 
-    // Pro capability without a verified Pro token: skip (enforce) or just record it (log-only).
-    // The skip is reported as its own status so consumers never mistake a plan limit for a
-    // broken collector, and the operator sees WHY in the popup.
-    if (needsPro && !proGranted) {
-      const why = `solo_entitlement_required: ${capabilityId} needs Solo Agency Pro (this install: ${entitlementView.tier}, ${entitlementView.source}). Upgrade at ${SoloEntitlement.UPGRADE_URL}`;
+    // Paid capability without a verified token carrying its feature: skip (enforce) or just
+    // record it (log-only). The skip is reported as its own status so consumers never mistake a
+    // plan limit for a broken collector, and the operator sees WHY in the popup.
+    if (requiredFeature && !featureGranted) {
+      const why = `solo_entitlement_required: ${capabilityId} needs the "${requiredFeature}" feature (this install: ${entitlementView.tier}, ${entitlementView.source}). Upgrade at ${SoloEntitlement.UPGRADE_URL}`;
       if (SoloEntitlement.ENFORCE) {
         await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
           run_id: runId,
@@ -451,7 +451,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
           blocker: "solo_entitlement_required",
           issue: why,
           upgrade_url: SoloEntitlement.UPGRADE_URL,
-          solo_entitlement: Object.assign({ needs_pro: true, granted: false }, entitlementView),
+          solo_entitlement: Object.assign({ needs_feature: requiredFeature, granted: false }, entitlementView),
           index: index + 1,
           total: selectedSources.length,
           captured_at: new Date().toISOString(),
@@ -459,7 +459,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
         }, binding);
         await setState({
           status: "running",
-          message: `Skipped ${index + 1}/${selectedSources.length} (${capabilityId} needs Pro): ${sourceLabel}`,
+          message: `Skipped ${index + 1}/${selectedSources.length} (${capabilityId} needs "${requiredFeature}"): ${sourceLabel}`,
           runId,
           currentSource: sourceLabel,
           entitlement: entitlementView,

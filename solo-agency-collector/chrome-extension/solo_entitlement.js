@@ -18,17 +18,22 @@
   const SOLO_ENTITLEMENT_GRACE_MS = 14 * 24 * 60 * 60 * 1000; // same offline window as the bridge
   const SOLO_UPGRADE_URL = "https://widecast.ai/#setup";
   const SOLO_ENTITLEMENT_ENFORCE = false;
+  // The ladder (2026-09-07): free · starter $49 · pro $99 · business $199 · enterprise. Names are
+  // informational — grants come from the token's `features`, limits from its `limits`.
+  const SOLO_KNOWN_TIERS = new Set(["free", "starter", "pro", "business", "enterprise"]);
 
-  // The extension's OWN list of Pro capabilities. It is never taken from the bridge or the
-  // catalog it serves — a homebrew bridge would simply call everything free. Keep in step with
-  // `tier: pro` in collector_capabilities.json.
-  const SOLO_PRO_CAPABILITIES = new Set([
-    "fb.profile.friends", "fb.people.search",                       // harvest
-    "fb.profile.header", "fb.profile.hovercard", "fb.profile.videos",
-    "fb.profile.enrich", "fb.profile.dossier", "fb.profile.contacts", // enrich
-    "fb.post.react", "fb.post.comment", "fb.message.send", "fb.group.post", // write actions
-    "zillow.agents.list", "zillow.profile.enrich"                   // zillow
-  ]);
+  // The extension's OWN map of paid capabilities → the feature the plan must carry. It is never
+  // taken from the bridge or the catalog it serves — a homebrew bridge would simply call
+  // everything free. Keep in step with `tier: pro` / `feature` in collector_capabilities.json.
+  // Plans (2026-09-07): free none · starter enrich+write_actions · pro/business/enterprise all.
+  const SOLO_CAPABILITY_FEATURES = {
+    "fb.profile.friends": "harvest", "fb.people.search": "harvest",
+    "fb.profile.header": "enrich", "fb.profile.hovercard": "enrich", "fb.profile.videos": "enrich",
+    "fb.profile.enrich": "enrich", "fb.profile.dossier": "enrich", "fb.profile.contacts": "enrich",
+    "fb.post.react": "write_actions", "fb.post.comment": "write_actions",
+    "fb.message.send": "write_actions", "fb.group.post": "write_actions",
+    "zillow.agents.list": "zillow", "zillow.profile.enrich": "zillow"
+  };
 
   function free(source, reason, extra) {
     return Object.assign({ ok: false, tier: "free", features: [], limits: {}, source, reason, expiresAt: null, companyId: "" }, extra || {});
@@ -84,7 +89,8 @@
     if (claims.aud !== SOLO_ENTITLEMENT_AUDIENCE || claims.iss !== SOLO_ENTITLEMENT_ISSUER) return free("invalid", "wrong_audience_or_issuer");
     const expMs = Number(claims.exp || 0) * 1000;
     if (!expMs) return free("invalid", "no_expiry");
-    const tier = String(claims.tier || "free").toLowerCase() === "pro" ? "pro" : "free";
+    const tierName = String(claims.tier || "free").toLowerCase();
+    const tier = SOLO_KNOWN_TIERS.has(tierName) ? tierName : "free"; // an unknown tier is never more than free
     const base = {
       ok: true, tier, features: Array.isArray(claims.features) ? claims.features.slice() : [],
       limits: claims.limits && typeof claims.limits === "object" ? claims.limits : {},
@@ -95,8 +101,17 @@
     return free("expired", "expired_past_grace", { expiresAt: base.expiresAt, companyId: base.companyId });
   }
 
-  function needsPro(capabilityId) {
-    return SOLO_PRO_CAPABILITIES.has(String(capabilityId || ""));
+  // featureFor: "" for capabilities every plan may run, else the feature name the token must list.
+  function featureFor(capabilityId) {
+    return SOLO_CAPABILITY_FEATURES[String(capabilityId || "")] || "";
+  }
+
+  // granted: a free capability is always granted; a paid one needs a VERIFIED token whose
+  // `features` carries the capability's feature (the tier name is never consulted).
+  function granted(ent, capabilityId) {
+    const feature = featureFor(capabilityId);
+    if (!feature) return true;
+    return !!(ent && ent.ok && Array.isArray(ent.features) && ent.features.includes(feature));
   }
 
   // A small view for state/popup/source_status rows — never the token itself.
@@ -106,10 +121,10 @@
   }
 
   root.SoloEntitlement = {
-    verify, needsPro, view,
+    verify, featureFor, granted, view,
     ENFORCE: SOLO_ENTITLEMENT_ENFORCE,
     UPGRADE_URL: SOLO_UPGRADE_URL,
     PUBLIC_KEY_HEX: SOLO_ENTITLEMENT_PUBLIC_KEY_HEX,
-    PRO_CAPABILITIES: SOLO_PRO_CAPABILITIES
+    CAPABILITY_FEATURES: SOLO_CAPABILITY_FEATURES
   };
 })(typeof self !== "undefined" ? self : globalThis);

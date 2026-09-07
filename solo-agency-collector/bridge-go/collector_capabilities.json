@@ -1,7 +1,7 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.1",
-  "updated_at": "2026-09-06",
+  "version": "0.2.2",
+  "updated_at": "2026-09-07",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
@@ -27,12 +27,12 @@
       ]
     },
     "tiers": {
-      "note": "Solo Agency plan gating. `tier: free` capabilities run on every install (the watched-group scan, discovery, web search). `tier: pro` capabilities need a Solo Agency Pro entitlement carrying `feature`; the bridge refuses them at dispatch and the extension re-verifies the signed token before executing them. Free also caps watched private sources (1), CRM clients (1), campaigns (1) and sends/day (20). Read GET /status.entitlement for the install's current plan; upgrade at https://widecast.ai/#setup.",
+      "note": "Solo Agency plan gating. `tier: free` capabilities run on every install (the watched-source scan, discovery, web search). `tier: pro` capabilities carry a `feature`; they run only when the install's signed entitlement lists that feature: enrich + write_actions from Starter ($49), harvest + zillow from Pro ($99); Business ($199) and Enterprise add volume. The bridge refuses them at dispatch and the extension re-verifies the signed token before executing them. Every plan also caps clients (1/5/10/20/unlimited), watched sources per client (1/5/15/30/unlimited), campaigns per client (1/3/10/20/unlimited) and sends/day (20/150/400/1000/unlimited). Read GET /status.entitlement for the install's current plan; upgrade at https://widecast.ai/#setup.",
       "features": {
-        "harvest": "lead harvest (friends lists, people search)",
-        "enrich": "profile enrichment / dossiers / contact ladders",
-        "write_actions": "react, comment, group post, Messenger DM",
-        "zillow": "Zillow agent directory + profile enrich"
+        "harvest": "lead harvest (friends lists, people search) — Pro and up",
+        "enrich": "profile enrichment / dossiers / contact ladders — Starter and up",
+        "write_actions": "react, comment, group post, Messenger DM — Starter and up",
+        "zillow": "Zillow agent directory + profile enrich — Pro and up"
       }
     }
   },
