@@ -81,7 +81,7 @@ client that has not completed Stage 1 §Step-3 cannot send at all.
 
 **5. Step-1 subject lint.** If `step == 1` and the subject matches `^\s*(re|fwd)\s*:` (case-insensitive) → `blocker: step1_subject_looks_like_reply`. A cold first email must have a truthful subject — a fake `Re:`/`Fwd:` is a CAN-SPAM deception (DESIGN §16). Bumps (step > 1) are genuine in-thread replies and are *supposed* to carry `Re:` (§4).
 
-**6. Atomic quota reservation (last).** Reads the sendbox `quota_today` as the cap. If already-sent-today ≥ cap → `blocker: quota_exhausted`. Otherwise `store.reserve(sendbox, day, cap)` atomically reserves a slot; if the reservation is refused (cap reached under the lock) → `blocker: quota_exhausted`. This is the count-then-send race defense — the reservation is committed under the lock **before** the SMTP call, so two concurrent sends cannot both slip past the cap. Reservation is **last** so a draft blocked by any earlier gate never reserves.
+**6. Atomic quota reservation (last).** Reads the sendbox `quota_today` as the cap. If already-sent-today ≥ cap → `blocker: quota_exhausted`. Otherwise `store.reserve(sendbox, day, cap)` atomically reserves a slot; if the reservation is refused (cap reached under the lock) → `blocker: quota_exhausted`. This is the count-then-send race defense — the reservation is committed under the lock **before** the SMTP call, so two concurrent sends cannot both slip past the cap. Reservation is **last** so a draft blocked by any earlier gate never reserves. Immediately before the per-sendbox reservation the bridge reserves one of the PLAN's daily sends (Free: 20/day across every sendbox of the install; Pro: unlimited) through the same atomic reservation store under the slug `_solo_plan`; if that reservation is refused → `blocker: solo_send_quota_exhausted` with `upgrade_url`. In `--entitlement-mode log` the plan reservation is still counted but never refuses.
 
 The equivalent manual reservation command (the same `reserve` the send path calls internally) is:
 
@@ -143,7 +143,7 @@ On a successful SMTP send, in order:
 - **SMTP send failure** → returns `{ok: false, blocker: "smtp_send_failed", error: "…"}`. The draft file is **not** modified, so it stays `status: "approved"` on disk with the reservation already spent (§3) — re-running `send` retries it. Surface the blocker; do not fabricate a sent-log row for a send that failed.
 - **Sendbox not configured** (`draft.sendbox` has no entry) → `blocker: sendbox_not_configured`.
 - **Sendbox not healthy** → `blocker: sendbox_{status}` (e.g. `sendbox_needs_reauth`, `sendbox_paused`). A box goes `needs_reauth` when SMTP/IMAP login fails (`health` detects and records it). Its pending follow-ups wait — never reassign them to another box.
-- **Any pre-send gate** → the specific blocker from §3 (`suppressed`, `email_channel_not_usable`, `guessed_email_needs_approval`, `sequence_frozen`, `step1_subject_looks_like_reply`, `quota_exhausted`, `contact_not_found`, `draft_not_approved`).
+- **Any pre-send gate** → the specific blocker from §3 (`suppressed`, `email_channel_not_usable`, `guessed_email_needs_approval`, `sequence_frozen`, `step1_subject_looks_like_reply`, `quota_exhausted`, `solo_send_quota_exhausted`, `contact_not_found`, `draft_not_approved`).
 
 When a box needs re-auth, hand it off — never try to send around it:
 

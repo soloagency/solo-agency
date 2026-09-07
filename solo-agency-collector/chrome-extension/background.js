@@ -1,3 +1,6 @@
+// Solo Agency plan verification (Ed25519, WebCrypto) — see solo_entitlement.js.
+importScripts("solo_entitlement.js");
+
 // How long one capability may run inside the page before it is killed. Raised from 45s: a tab that
 // is never activated is throttled by Chrome and the same About walk took 2-3x longer than in an
 // active tab (measured: 6.2->18.3s, 12.3->27.4s, 13.0->29.8s), which left no room under 45s once
@@ -303,6 +306,12 @@ async function pollBridge(reason) {
     return { status: "job_for_other_client" };
   }
   const session = job.collector_bridge || {};
+  // Solo Agency plan: verify the bridge's signed entitlement HERE, with the server's public key.
+  // A bridge that cannot present a valid token counts as Free for Pro capabilities (once
+  // SOLO_ENTITLEMENT_ENFORCE is on); until then the outcome is only recorded.
+  const entitlement = await SoloEntitlement.verify(session.entitlement_token || "", Date.now());
+  entitlement.bridgeTier = String(session.entitlement_tier || "");
+  entitlement.bridgeMode = String(session.entitlement_mode || "");
   const runId = String(job.run_id || session.run_id || status.run_id || "");
   if (!runId) {
     await setState({ status: "invalid_job", message: "Collector job has no run_id.", reason });
@@ -347,7 +356,7 @@ async function pollBridge(reason) {
   }
 
   try {
-    await runJob({ job, token, bridgeBaseUrl, settings, binding, reason });
+    await runJob({ job, token, bridgeBaseUrl, settings, binding, reason, entitlement });
     completedRuns[runId] = new Date().toISOString();
     await chrome.storage.local.set({ [COMPLETED_RUNS_KEY]: trimCompletedRuns(completedRuns) });
     return { status: "completed", runId };
@@ -356,7 +365,8 @@ async function pollBridge(reason) {
   }
 }
 
-async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) {
+async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, entitlement }) {
+  const entitlementView = SoloEntitlement.view(entitlement);
   const runId = String(job.run_id || job.collector_bridge?.run_id || "");
   const runStartedAt = new Date().toISOString();
   // A click that arrived while this worker was asleep lives in storage, not memory.
@@ -387,6 +397,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
     status: "running",
     message: `Collecting ${selectedSources.length} private sources with ${sourceConcurrency} tab${sourceConcurrency === 1 ? "" : "s"}.`,
     runId,
+    entitlement: entitlementView,
     totalSources: selectedSources.length,
     sourceConcurrency,
     dataPointsCollected: counts.dataPoints,
@@ -400,6 +411,9 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
     const sourceLabel = source.name || source.url || `source ${index + 1}`;
     const tabActivationPlan = collectionTabActivationPlan(job, source);
     const tabActivationMode = tabActivationPlan.mode;
+    const capabilityId = String(source.capability || "");
+    const needsPro = SoloEntitlement.needsPro(capabilityId);
+    const proGranted = !!(entitlement && entitlement.ok && entitlement.tier === "pro");
     await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
       run_id: runId,
       client_slug: job.client_slug || binding.client_slug || "",
@@ -417,8 +431,46 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason }) 
       total: selectedSources.length,
       source_concurrency: sourceConcurrency,
       captured_at: new Date().toISOString(),
-      collector_identity: "chrome-extension-local-collector"
+      collector_identity: "chrome-extension-local-collector",
+      solo_entitlement: Object.assign({ needs_pro: needsPro, granted: !needsPro || proGranted }, entitlementView)
     }, binding);
+
+    // Pro capability without a verified Pro token: skip (enforce) or just record it (log-only).
+    // The skip is reported as its own status so consumers never mistake a plan limit for a
+    // broken collector, and the operator sees WHY in the popup.
+    if (needsPro && !proGranted) {
+      const why = `solo_entitlement_required: ${capabilityId} needs Solo Agency Pro (this install: ${entitlementView.tier}, ${entitlementView.source}). Upgrade at ${SoloEntitlement.UPGRADE_URL}`;
+      if (SoloEntitlement.ENFORCE) {
+        await postToBridge(bridgeBaseUrl, token, "/collect/source_status", {
+          run_id: runId,
+          client_slug: job.client_slug || binding.client_slug || "",
+          source_name: source.name || "",
+          source_url: source.url || "",
+          platform: source.platform || "",
+          status: "skipped",
+          blocker: "solo_entitlement_required",
+          issue: why,
+          upgrade_url: SoloEntitlement.UPGRADE_URL,
+          solo_entitlement: Object.assign({ needs_pro: true, granted: false }, entitlementView),
+          index: index + 1,
+          total: selectedSources.length,
+          captured_at: new Date().toISOString(),
+          collector_identity: "chrome-extension-local-collector"
+        }, binding);
+        await setState({
+          status: "running",
+          message: `Skipped ${index + 1}/${selectedSources.length} (${capabilityId} needs Pro): ${sourceLabel}`,
+          runId,
+          currentSource: sourceLabel,
+          entitlement: entitlementView,
+          entitlementNote: why,
+          updatedAt: new Date().toISOString()
+        });
+        return;
+      }
+      console.warn("[solo-entitlement] log-only:", why);
+      await setState({ entitlementNote: why, entitlement: entitlementView });
+    }
 
     await setState({
       status: "running",

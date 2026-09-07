@@ -11,6 +11,14 @@ Load this file when composing a feature-discovery suggestion (setup completion, 
 - If a feature has an unmet prerequisite, say what setup it needs first (do not present it as one-step when it is not).
 - When a run detects leads or competitor moves, the Outreach features move to the top of the suggestion list (that is the highest-intent moment to cross-sell).
 
+## Free vs Pro (which rows need a plan)
+
+Read the install's plan from `GET /status` → `entitlement.tier` before surfacing a feature; the rule itself lives in `AGENTS.md` ("Free and Pro plans"). Never hide a Pro feature from the menu — surface it with "(Pro)" and the one-line upgrade path, value first.
+
+- **Free, always:** Daily content ideas, Blog + social posts, Private source monitoring for ONE watched source, Lead & Competitor detection on that source, Daily/weekly reports, Analytics loop, Notifications, Auto update-watch (notify-first), Collector healthcheck, Import a contact list, CRM pipeline, Approval report, Cold-email outreach for ONE campaign at up to 20 sends/day, Follow-up engine inside that campaign.
+- **Pro:** every additional watched source, a second client, additional campaigns and unlimited sends (per-sendbox Gmail quotas still apply), Lead enrichment (dossiers, contact ladders), lead harvest, write actions (react / comment / group post / DM), Zillow directory + enrich, priority adapter fixes.
+- **Add-on:** Video creation and publishing spend WideCast credits on the same account.
+
 ## Content pipeline (Solo Agency)
 
 | Feature | Value (say this first) | Prerequisite | Trigger phrase | Delivered by |

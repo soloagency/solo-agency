@@ -13,6 +13,8 @@ workspace). That protocol is the precondition; this one is the layer above it. M
 HTTP routes, fixture keys, verdict rules, assertion DSL, alerts) live in
 `solo-agency-collector/HEALTHCHECK.md`; this file is the operating procedure.
 
+Plan gating never touches the healthcheck: probes the bridge enqueues itself (`source: healthcheck`) bypass every Free/Pro gate, and the dev executor workspace (aven-ngo) is not a CRM client, so a Free install can always run its diagnostics. If a probe record carries `solo_entitlement_required`, that is the extension's own plan check (log-only for now) — record it in the report, do not count the probe as a collector failure.
+
 ## Load Rule
 
 Load when the human says any of: healthcheck, "kiểm tra collector", "capability còn sống

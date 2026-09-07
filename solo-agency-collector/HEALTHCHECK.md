@@ -10,6 +10,8 @@ It is **not** the passive `GET /status` check in `AGENT_RUNBOOK.md` ("Health
 Check" there means "is the bridge/extension alive"). This document is about
 active probes.
 
+Plan gating never touches the healthcheck: probes the bridge enqueues itself (`source: healthcheck`) bypass every Free/Pro gate, and the dev executor workspace (aven-ngo) is not a CRM client, so a Free install can always run its diagnostics. If a probe record carries `solo_entitlement_required`, that is the extension's own plan check (log-only for now) — record it in the report, do not count the probe as a collector failure.
+
 ## 1. What runs where
 
 | Piece | Where | Notes |

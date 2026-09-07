@@ -1,7 +1,7 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.0",
-  "updated_at": "2026-09-02",
+  "version": "0.2.1",
+  "updated_at": "2026-09-06",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
@@ -25,6 +25,15 @@
         "stable",
         "beta"
       ]
+    },
+    "tiers": {
+      "note": "Solo Agency plan gating. `tier: free` capabilities run on every install (the watched-group scan, discovery, web search). `tier: pro` capabilities need a Solo Agency Pro entitlement carrying `feature`; the bridge refuses them at dispatch and the extension re-verifies the signed token before executing them. Free also caps watched private sources (1), CRM clients (1), campaigns (1) and sends/day (20). Read GET /status.entitlement for the install's current plan; upgrade at https://widecast.ai/#setup.",
+      "features": {
+        "harvest": "lead harvest (friends lists, people search)",
+        "enrich": "profile enrichment / dossiers / contact ladders",
+        "write_actions": "react, comment, group post, Messenger DM",
+        "zillow": "Zillow agent directory + profile enrich"
+      }
     }
   },
   "record_schemas": {
@@ -292,6 +301,7 @@
       "provider": "facebook-graphql",
       "coverage": "logged-in user's accessible view of the group",
       "status": "stable",
+      "tier": "free",
       "_impl": {
         "screen": "group_feed",
         "url_match": [
@@ -407,6 +417,7 @@
       "provider": "facebook-graphql",
       "coverage": "posts in the group matching the keyword, visible to the logged-in user",
       "status": "stable",
+      "tier": "free",
       "_impl": {
         "screen": "group_search_posts",
         "url_match": [
@@ -505,6 +516,7 @@
       "provider": "facebook-graphql",
       "coverage": "comments visible to the logged-in user on that post",
       "status": "stable",
+      "tier": "free",
       "_impl": {
         "screen": "none — pure GraphQL replay. The post is NEVER opened and the page is never scrolled; any Facebook tab supplies the auth.",
         "graphql_query": "CommentsListComponentsPaginationQuery (top level) + Depth1CommentsListPaginationQuery (replies)",
@@ -638,6 +650,8 @@
       "provider": "facebook-graphql",
       "coverage": "only visible when the target profile shares its friend list",
       "status": "stable",
+      "tier": "pro",
+      "feature": "harvest",
       "_impl": {
         "screen": "profile_friends",
         "url_match": [
@@ -723,6 +737,7 @@
       "provider": "none",
       "coverage": "only fields the profile makes visible to the logged-in user",
       "status": "not_built",
+      "tier": "free",
       "_impl": {
         "history": "Twice attempted, twice withdrawn. A DOM implementation walking About + its four directory_* sub-tabs could not finish inside the orchestrator's 45s capability timeout even after the settle time was cut and a wall-clock budget added; both runs returned records:null. Removed on operator instruction — the other profile capabilities already carry enough to classify a person, and this one cost more than it was worth.",
         "what_it_exposed": "Its failures were INVISIBLE, and fixing that was the durable win: a DOM capability that threw used to answer available:false, which the bridge turns into records:null — making \"the capability crashed\" and \"this page has nothing\" the same output. That path now reports available:true with the error, catches promise rejections as well as synchronous throws, and background.js writes an explicit error record instead of leaving null.",
@@ -775,6 +790,7 @@
       "provider": "facebook-graphql",
       "coverage": "public search results",
       "status": "stable",
+      "tier": "free",
       "_impl": {
         "screen": "groups_search",
         "url_match": [
@@ -857,6 +873,8 @@
       "provider": "facebook-graphql",
       "coverage": "public search results",
       "status": "stable",
+      "tier": "pro",
+      "feature": "harvest",
       "_impl": {
         "screen": "people_search",
         "url_match": [
@@ -938,6 +956,7 @@
       "provider": "facebook-graphql",
       "coverage": "logged-in user's accessible view of the timeline",
       "status": "stable",
+      "tier": "free",
       "_impl": {
         "screen": "profile_timeline",
         "url_match": [
@@ -1032,6 +1051,7 @@
       "provider": "facebook-graphql",
       "coverage": "logged-in user's personalized feed",
       "status": "stable",
+      "tier": "free",
       "_impl": {
         "screen": "home_feed",
         "url_match": [
@@ -1111,6 +1131,7 @@
       "provider": "html-dom",
       "coverage": "reels shown in the logged-in user's personalized reels feed while advancing",
       "status": "beta",
+      "tier": "free",
       "_impl": {
         "screen": "reels_player",
         "url_match": [
@@ -1182,6 +1203,7 @@
       "provider": "web-dom",
       "coverage": "public web search results (DuckDuckGo HTML endpoint)",
       "status": "stable",
+      "tier": "free",
       "_impl": {
         "screen": "ddg_html_serp",
         "url_match": [
@@ -1249,6 +1271,8 @@
       "provider": "facebook-dom",
       "coverage": "the logged-in user's view of the public profile/page header",
       "status": "beta",
+      "tier": "pro",
+      "feature": "enrich",
       "_impl": {
         "screen": "profile_header",
         "url_match": [
@@ -1320,6 +1344,8 @@
       "provider": "facebook-graphql",
       "coverage": "what the hover card shows the logged-in operator",
       "status": "beta",
+      "tier": "pro",
+      "feature": "enrich",
       "_impl": {
         "screen": "any Facebook page (the call is made from whatever page is open)",
         "graphql_query": "CometHovercardQueryRendererQuery — issued directly, no hover needed. Found by hovering three profiles and diffing the capture buffer: the ONLY varying input is entityID.",
@@ -1390,6 +1416,8 @@
       "provider": "facebook-graphql",
       "coverage": "the logged-in user's view of the page's videos",
       "status": "beta",
+      "tier": "pro",
+      "feature": "enrich",
       "_impl": {
         "screen": "profile_videos",
         "url_match": [
@@ -1482,6 +1510,8 @@
       "provider": "facebook-dom",
       "coverage": "the logged-in operator reacts as themselves via the real UI",
       "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
       "write": true,
       "_impl": {
         "screen": "post_permalink",
@@ -1570,6 +1600,8 @@
       "provider": "facebook-dom",
       "coverage": "the logged-in operator comments as themselves via the real UI",
       "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
       "write": true,
       "_impl": {
         "screen": "post_permalink | reel | group_or_timeline(match_text) | timeline(match_caption)",
@@ -1664,6 +1696,8 @@
       "provider": "facebook-graphql+dom",
       "coverage": "what the logged-in operator can already see on the profile",
       "status": "beta",
+      "tier": "pro",
+      "feature": "enrich",
       "_impl": {
         "method": "Lands on the profile root, waits for the timeline GraphQL to be captured by gql_intercept, reads it with the same capture-only extractor fb.profile.posts uses (no scroll, no second request), then runs the fb.profile.dossier About walk in the SAME tab and merges both into one record.",
         "why": "Stage 4 requires posts AND About (04_VERIFY_ENRICH.md: 3-5 recent posts analysed for dated signals before a lead can reach `high`), and they were separate capabilities — so enriching one person cost two or three page loads of the same profile.",
@@ -1747,6 +1781,8 @@
       "provider": "facebook-dom",
       "coverage": "what the logged-in operator can already see on the profile and its About section",
       "status": "beta",
+      "tier": "pro",
+      "feature": "enrich",
       "_impl": {
         "screen": "profile + About sub-tabs",
         "method": "Reads the rendered About page. Submit the ABOUT url (facebook.com/<profile>/about) so one page load lands where the data is. Clicks nothing: every 'See more' on the page belongs to a post or a review card, and expanding them pulled recommendation text and reel view counts into the record.",
@@ -1841,6 +1877,8 @@
       "provider": "facebook-dom",
       "coverage": "what the logged-in operator can already see on the profile",
       "status": "beta",
+      "tier": "pro",
+      "feature": "enrich",
       "_impl": {
         "screen": "profile + About sub-tabs",
         "method": "reads the rendered page text (background.js has already expanded \"See more\"), then enters About and CLICKS each sub-tab /<profile>/directory_{contact_info,intro,basic_info,links} (numeric: &sk=<tab>), waiting for the text to stop changing before reading. A same-origin fetch of those tabs returns the SPA shell without the contact block — across 68 profiles it yielded zero addresses — so they are never fetched. Then strips script/style, regex + junk-domain filter.",
@@ -1909,6 +1947,8 @@
       "provider": "facebook-dom",
       "coverage": "the logged-in operator messages as themselves",
       "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
       "write": true,
       "_impl": {
         "screen": "messenger thread (messenger.com/e2ee/t/<vanity_or_id> preferred; facebook.com/messages/t/<id> still accepted)",
@@ -1997,6 +2037,8 @@
       "provider": "facebook-dom",
       "coverage": "the logged-in operator posts as themselves via the real UI",
       "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
       "write": true,
       "_impl": {
         "screen": "group feed (composer modal)",
@@ -2071,6 +2113,8 @@
       "provider": "zillow-nextdata+dom",
       "coverage": "the public Zillow agent directory, read from the operator's logged-in Chrome",
       "status": "beta",
+      "tier": "pro",
+      "feature": "zillow",
       "_impl": {
         "file": "chrome-extension/zillow_extract.js (MAIN world; injected by background.js only for zillow.* capabilities and dispatched via window.__soloZillowRun — gql_extract.js is untouched)",
         "screen": "agent directory page (Next.js)",
@@ -2165,6 +2209,8 @@
       "provider": "zillow-nextdata+dom",
       "coverage": "what Zillow publishes on the public profile, read from the operator's logged-in Chrome",
       "status": "beta",
+      "tier": "pro",
+      "feature": "zillow",
       "_impl": {
         "file": "chrome-extension/zillow_extract.js (MAIN world; see zillow.agents.list)",
         "screen": "agent / team profile page (Next.js)",

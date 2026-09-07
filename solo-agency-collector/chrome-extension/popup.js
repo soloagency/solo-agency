@@ -156,6 +156,8 @@ function renderState(state) {
   const lines = [
     `Status: ${state.status || "unknown"}`,
     `Message: ${state.message || ""}`,
+    planLine(state),
+    state.entitlementNote ? `Plan note: ${state.entitlementNote}` : "",
     state.lastBridgeContactAt ? `Last bridge contact: ${state.lastBridgeContactAt}` : "",
     extensionHealth ? `Bridge sees extension: ${extensionHealth.status || "unknown"}` : "",
     extensionHealth && extensionHealth.last_extension_check_at ? `Last extension check: ${extensionHealth.last_extension_check_at}` : "",
@@ -169,6 +171,17 @@ function renderState(state) {
     state.updatedAt ? `Updated: ${state.updatedAt}` : ""
   ].filter(Boolean);
   setStatus(lines.join("\n"));
+}
+
+// Solo Agency plan as the extension verified it on the last job, else as the bridge reports it.
+function planLine(state) {
+  const verified = state.entitlement && typeof state.entitlement === "object" ? state.entitlement : null;
+  if (verified && verified.tier) {
+    return `Plan: ${verified.tier}${verified.verified ? " (verified)" : " (" + (verified.source || "unverified") + ")"}`;
+  }
+  const bridgeEnt = state.bridgeStatus && state.bridgeStatus.entitlement ? state.bridgeStatus.entitlement : null;
+  if (bridgeEnt && bridgeEnt.tier) return `Plan: ${bridgeEnt.tier} (bridge)`;
+  return "";
 }
 
 function setStatus(text) {
