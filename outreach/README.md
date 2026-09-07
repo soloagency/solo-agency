@@ -2,7 +2,7 @@
 
 Tell your AI agent: **"Setup https://github.com/soloagency/solo-agency now"** to turn it into a local-first, multi-client cold-email + CRM operator that works every day: it enriches your leads, drafts personalized emails, shows you every draft for approval, sends only what you approve, tracks replies, and moves opportunities through your pipeline.
 
-Open source (MIT). Runs on your machine through Codex or Claude Desktop/Cowork — your contact data and email accounts stay local.
+Source-available under the Elastic License 2.0 (free to use for your own business and clients; not for re-hosting or resale). Runs on your machine through Codex or Claude Desktop/Cowork — your contact data and email accounts stay local.
 
 ## The idea
 

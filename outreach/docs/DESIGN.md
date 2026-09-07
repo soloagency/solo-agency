@@ -27,7 +27,7 @@ CRM pipeline (accounts/contacts/deals/activities/tasks) → weekly client report
 own pipelines, sendboxes, suppression, and data; each client → N campaigns, each
 campaign declaring its own **goal** that drives what the agent writes.
 
-**Positioning:** open source (MIT), English playbooks, @gmail.com sendboxes are the
+**Positioning:** source-available (Elastic License 2.0; MIT for revisions before 2026-09-06), English playbooks, @gmail.com sendboxes are the
 priority path, agency operates on behalf of clients, clients receive only a weekly
 scrubbed report.
 
