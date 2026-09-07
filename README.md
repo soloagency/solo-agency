@@ -58,6 +58,7 @@ Platform support rolls out one adapter at a time: Facebook (groups, pages, profi
 WideCast is the maintained all-in-one path for video, blog and social production, publishing to 10+ platforms you connect, Telegram and email notifications, and analytics — behind the same API key that is your Solo Agency license. It is optional for research, ideas, leads, CRM and drafting. Specialist tools (Google Veo, Seedance, Kling, HeyGen, stock libraries and similar) can be connected for production assets.
 
 Solo Agency is free forever for your own use (1 client) with one watched source and unlimited CRM contacts; one WideCast API key unlocks more sources, campaigns and the lead-harvest features — see https://widecast.ai/#setup.
+One key runs one install: moving to a new computer is a single command on that computer (`tool entitlement release`, once per 7 days), and a key shared with someone else only ever runs on one of the two machines.
 
 ## Get started
 

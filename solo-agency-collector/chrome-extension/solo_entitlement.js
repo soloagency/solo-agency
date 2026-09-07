@@ -75,6 +75,7 @@
 
   // verify(token, nowMs, opts) → { ok, tier, features, limits, source, reason, expiresAt, companyId }
   //   source: none | unverifiable | invalid | token | grace | expired
+//   reason: why less than the plan — expired_within_grace | expired_past_grace | seat_limit | install_id_required (from the token's `rsn`)
   //   ok is true only when the signature verified; tier is what the caller may act on.
   async function verify(token, nowMs, opts) {
     const now = typeof nowMs === "number" ? nowMs : Date.now();
@@ -109,11 +110,12 @@
     const base = {
       ok: true, tier, features: Array.isArray(claims.features) ? claims.features.slice() : [],
       limits: claims.limits && typeof claims.limits === "object" ? claims.limits : {},
-      expiresAt: new Date(expMs).toISOString(), companyId: String(claims.sub || ""), reason: ""
+      expiresAt: new Date(expMs).toISOString(), companyId: String(claims.sub || ""), reason: String(claims.rsn || "")
     };
     if (now <= expMs) return Object.assign(base, { source: "token" });
-    if (now < expMs + SOLO_ENTITLEMENT_GRACE_MS) return Object.assign(base, { source: "grace", reason: "expired_within_grace" });
-    return free("expired", "expired_past_grace", { expiresAt: base.expiresAt, companyId: base.companyId });
+    // A seat refusal (rsn) outranks the offline reasons: the operator must see WHY this is Free.
+    if (now < expMs + SOLO_ENTITLEMENT_GRACE_MS) return Object.assign(base, { source: "grace", reason: base.reason || "expired_within_grace" });
+    return free("expired", base.reason || "expired_past_grace", { expiresAt: base.expiresAt, companyId: base.companyId });
   }
 
   // featureFor: "" for capabilities every plan may run, else the feature name the token must list.

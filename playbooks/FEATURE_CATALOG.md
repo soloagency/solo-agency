@@ -20,6 +20,7 @@ Read the install's plan from `GET /status` → `entitlement.tier` before surfaci
 - **Pro ($99) and up:** 10 clients, 15 sources and 10 campaigns per client, 400 sends/day; lead harvest (friends lists, people search); Zillow directory + enrich; update-watch auto-apply.
 - **Business ($199):** 20 clients, 30 sources and 20 campaigns per client, 1000 sends/day; priority adapter fixes.
 - **Enterprise (contact us):** no limits.
+- **Every paid plan runs on one machine per key** (`AGENTS.md`, "One key, one install"): a second install of the same key is Free with `entitlement.reason: seat_limit`; moving to a new computer is `tool entitlement release` on the new one (once per 7 days).
 - **Add-on:** Video creation and publishing spend WideCast credits on the same account.
 
 ## Content pipeline (Solo Agency)
