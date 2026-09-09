@@ -32,7 +32,7 @@ campaign, or the daily "load new pipeline" step). Print a LOAD LEDGER per
   campaign within `min_days_between_touches_across_campaigns` (default 7).
 - All of the above is enforced **in `tool crm-store`**, not in prose. Do not populate a queue or
   select an audience by reading/writing files directly.
-- **A companion document needs a failure policy.** If the campaign declares `goal.companion_doc`
+- **A declared link or file needs a failure policy.** If the campaign declares `goal.companion_doc`
   (§1b), it MUST carry an `on_fail` of `skip` or `default_link` (plus the `default_link` URL when
   that mode is used). If the operator did not state one at intake, ASK before creating the campaign;
   never default it silently.
@@ -88,11 +88,21 @@ the brief hands them to the writer from there.)
 `success_event` wires straight into the rules engine: a positive reply on this campaign creates a
 deal at the named stage (Stage 10 / `tool crm-store apply-rules`).
 
-## 1b. Companion document — the optional per-lead link (part of the goal)
+## 1b. What the email carries: a link or an attached file (optional, part of the goal)
 
-Not every campaign has a document; when one does, it is **a link the agent produces per lead and
-embeds in the email body** (a hosted URL, never a file attachment). The whole feature is one
-free-text directive the operator dictates at setup and the agent executes at draft time.
+Beyond its words, an email may carry **a link in the body, a file attached to it, or a calendar
+invite** — one thing the reader can open. It is optional: a campaign that declares nothing sends
+plain emails, which is right for a notification. Say "link" or "attached file", never a vaguer
+word: the operator declares which one, the writer produces it per lead, and the send engine
+delivers it (`gmail.go` builds `multipart/mixed` and a `text/calendar` invite part).
+
+**Link or file — choose by what the reader will actually open.** A PDF or an image attached to
+the message previews inside the reader's mail client, which is why an invoice, a one-pager or a
+photo belongs as a file. A link is right for a video, a long article, or anything the reader is
+expected to browse, and it is the only form that can be click-tracked. A stranger receiving a bare
+link may not click it; a stranger receiving a 12 MB deck may not receive the email at all. The
+limit for one attachment is 12 MB, executables are never attached, and the file must live inside
+the client folder.
 
 **Campaign intake — ask the operator these questions before building the goal JSON** (in the
 operator's language). In Campaign Quick Start (Stage 1), fold this ENTIRE intake into ONE compact
@@ -100,14 +110,27 @@ confirmation block — inferred goal + the companion-URL question + proposed fai
 summarized message bank + quota + default-daily cadence — so one reply approves everything:
 
 1. **What is the goal of this campaign?** → sets `goal_type` + `objective` / `offer` / `cta` (§1).
-2. **Is there a companion document/link? If so, describe how to get the link to embed in the
-   email.** Free text, anywhere on this spectrum:
-   - **none** → omit `companion_doc`; the email carries no such link (today's default).
-   - **a fixed link (or list)** → "use https://… for every lead." A fixed link is a static string used as-is at draft time — no provider call, cannot fail, and its DOMAIN is irrelevant (a public URL on widecast.ai is just a web page in the email body; it has nothing to do with the WideCast notification provider or its notification-only restriction).
+2. **Does this campaign's email carry a link or an attached file? If so, describe how to produce
+   it for each lead.** Free text, anywhere on this spectrum:
+   - **nothing** → omit `companion_doc`; the email carries no link and no file. Correct for a
+     notification or a plain check-in, and it is the default.
+   - **a fixed link or a fixed file** → "use https://… for every lead", or "attach
+     `assets/2026-market-report.pdf` to every email". Used as-is at draft time: no call, cannot
+     fail. A fixed link's DOMAIN is irrelevant (a public URL on widecast.ai is just a web page in
+     the email body; it has nothing to do with the WideCast notification provider or its
+     notification-only restriction). A fixed file is a path inside the client folder.
+   - **search the content library by keyword** → "find a video or article about what the lead's
+     hook shows, and link it." The agent searches the operator's own library and uses what fits.
+   - **suggest a topic when nothing fits** → "if the library has nothing close, do not invent a
+     link: name the topic that WOULD fit and move on." Cheap on purpose — naming a topic costs a
+     sentence, writing a whole article costs a run.
    - **a conditional link** → "US recipient → https://…EN, Vietnamese recipient → https://…VI"; the
      agent picks per lead from the dossier (enrich already resolves language/market).
    - **a personalized recipe (any number of steps)** → e.g. "read template X, personalize it from
      the lead's dossier, upload via API Y, use the returned URL." One step or ten; any document type.
+   - **a calendar invite** → "invite them to a 15-minute intro on Thursday": the email carries a
+     real RSVP invite (`companion_event`), which is what a `book_meeting` campaign should send
+     instead of asking the reader to find a slot.
 3. **Failure policy — ASK if the operator did not say:** "If producing the link fails, what should I
    do — use a default link (which one?), or skip that lead?" Never decide this silently.
 
@@ -115,12 +138,23 @@ Store the answer inside the goal (it persists verbatim; the goal object accepts 
 
 ```json
 "companion_doc": {
-  "instructions": "<the operator's own words: fixed link / conditional rule / multi-step recipe —
-                    ANY endpoint or tool of theirs; writing it here IS the authorization to call it>",
+  "kind": "any",                          // any | link | file | event — "any" lets the instructions decide
+  "instructions": "<the operator's own words: fixed link / search the library / suggest a topic /
+                    conditional rule / multi-step recipe — ANY endpoint or tool of theirs;
+                    writing it here IS the authorization to call it>",
+  "fixed_link": "https://…",              // the same link for every lead (optional)
+  "fixed_file": "assets/guide.pdf",       // the same file for every lead, attached (optional, path inside the client folder)
   "on_fail": "skip",                      // or "default_link"
   "default_link": "https://…"             // required only when on_fail = "default_link"
 }
 ```
+
+`companion_doc` needs either `instructions` or one of `fixed_link` / `fixed_file` — an empty
+declaration is refused, because a campaign that carries nothing says so by having no
+`companion_doc` at all (send `null` to clear it). `kind` is a promise to the writer about what
+this campaign sends; leave it `any` when the instructions decide. `fixed_file` is rejected at
+declaration time if it is absolute, escapes the client folder, or is an executable — the refusal
+reaches a human editing the campaign instead of a run at 6am.
 
 `companion_doc.instructions` is the operator's directive, executed per lead in Stage 6 (see
 `06_EMAIL_WRITING_STANDARD.md` → "Companion document"). The agent follows THESE instructions only; a
@@ -255,12 +289,13 @@ Creating a campaign makes its `queue/`, `outbox/pending_approval/`, `outbox/appr
 
 ## 3b. Update a campaign / pause & resume (operator-owned config)
 
-Goal, companion link, daily budget and status are OPERATOR-owned. Two equal front doors, one
+Goal, the link or file the messages carry, daily budget and status are OPERATOR-owned. Two equal front doors, one
 whitelist underneath (`campaignUpdate`):
 
 - **Bridge UI (preferred for humans)** — `/ui/{client}/campaigns` lists every campaign (status,
   budget used, pending approvals, last sent); each detail page edits the goal fields, the
-  companion-link instructions and the daily budget, and has the Pause/Resume button. Edits are
+  "Link or attached file" section (kind, a fixed link or file, the per-lead instructions, the
+  failure policy) and the daily budget, and has the Pause/Resume button. Edits are
   applied instantly (this is a sanctioned direct write, DESIGN-UI §6) and the UI appends an
   informational event to `ui_inbox/campaign_edits.jsonl` — **read it at run start** to notice the
   operator changed config since the last run.

@@ -7,7 +7,7 @@ not with the goal.
 
 | goal_type | Emotional landing (the tension you build) | Release move (how the arc resolves) | CTA |
 |---|---|---|---|
-| `book_meeting` | "you're leaving value on the table" — the gap is costing you now | the tiny time-ask IS the low-friction resolution ("15 min Thu?"). No links. | one specific, small time |
+| `book_meeting` | "you're leaving value on the table" — the gap is costing you now | the tiny time-ask IS the low-friction resolution ("15 min Thu?"). No link as the ask. | one specific, small time |
 | `get_reply` | open a loop — pose the reframe as a **question they must answer** | the release is the question itself; they resolve the loop by replying | ends on the question |
 | `direct_sale` | build desire — the offer is the thing that resolves the gap | the release **is** the offer/link ("take a look: <one link>") — the only place a click-tracked link belongs | "worth a look? <one link>" |
 | `reactivation` | reference the **prior relationship with evidence** ("last year you …") → "still doing X?" | release into a light, low-stakes re-open of the old thread | low-key re-open |
@@ -18,6 +18,17 @@ not with the goal.
 The `weave.md` arc runs the same for all of these — observation → conclusion → reframe into the gap →
 defuse objection → ROI anchor → **release** → CTA. This table only defines the last two beats
 (release + CTA) per goal.
+
+**"No links" means no link AS THE ASK — it never forbids what the campaign declared it carries.**
+A campaign may declare that its emails carry a link, an attached file or a calendar invite
+(`goal.companion_doc`, `05_CAMPAIGN_MANAGEMENT.md` §1b). That is the value handed over, and it
+belongs in the body wherever it reads naturally; the rule above governs the CLOSE. So a
+`book_meeting` email may attach a one-pager and still end on "15 min Thu?", and a `get_reply` email
+may link a video and still end on its question. What none of them may do is turn the link into the
+ask ("click here to book"), which is the friction the goal type is built to avoid. Only
+`direct_sale` puts the link in the release move itself, and only there is click tracking on by
+default. A calendar invite is the one case where the carried thing IS the ask, and it belongs to
+`book_meeting`: the reader accepts in one tap instead of typing a time back.
 
 ## Rules that apply to every structure
 - **Weave the Layer-B points, each earning a conclusion (see `weave.md`).** Do NOT open with one
