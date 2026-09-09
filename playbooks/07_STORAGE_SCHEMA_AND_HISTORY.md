@@ -513,6 +513,7 @@ Minimum format:
 - created_at:
 - last_resynced_at:
 - resync_status: current | automation_prompt_update_pending | partial | blocked
+- slot_check_pending: true | false   # true only while a task was created before the bridge existed and still needs `schedule-slots register` (Stage 4, first-task exception); clearing it is the first action after the bridge is installed
 - scheduler_type: native_ai_automation | native_ai_scheduled_task | cron | launchd | task_scheduler | n8n | make | zapier | github_actions | server_job | manual
 - scheduler_name:
 - scheduler_location_or_url:

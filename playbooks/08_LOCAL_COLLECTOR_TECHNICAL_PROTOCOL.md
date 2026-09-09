@@ -922,6 +922,17 @@ Panel visibility rule:
 
 The panel is for visibility and configuration, not for required daily operation.
 
+### First action once the bridge exists: settle any deferred slot check
+
+The bridge carries `tool schedule-slots`, and Setup Flow creates the first automation task before it
+is installed (Stage 4's first-task exception). So the moment the human has run the setup script and
+`/status` answers, check `daily-content-pipeline/automation/automation_manifest.md` for
+`slot_check_pending: true`: register that task (`tools/solo_tool schedule-slots register --task ...
+--client ... --time ... --cadence-hours ...`), then set the flag to `false` with the resync
+timestamp. Do this BEFORE any other `suggest`, or the next task is timed against a registry that is
+missing the one task already running. A manifest still carrying the flag after the bridge is up is
+an audit finding (`playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`).
+
 ### Private Collector Health Check Protocol
 
 Before every scheduled run, after every scheduled run, and whenever private data is missing, the AI agent must check the private collector health.
