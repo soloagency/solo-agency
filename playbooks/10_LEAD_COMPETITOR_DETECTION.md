@@ -34,6 +34,22 @@ This file is detailed source material. Do not summarize away definitions, scan-d
 
 ---
 
+## Two passes over a watched source
+
+A scan of a private source answers two different questions and needs two different moves, both
+bounded by `playbooks/skills/lead-engine/safety.md`:
+
+- **Search** the source for the phrasings that mean somebody needs help right now (`tool
+  source-keywords plan|urls` → `fb.group.search_posts`). This is where leads come from, because it
+  asks for people with a need instead of reading whatever was posted most recently.
+- **Scroll** the feed shallowly for everything else: the shift in what the community discusses, the
+  competitor activity, and the phrasings worth adding to the bank.
+
+The daily procedure is in `playbooks/04_DAILY_SCHEDULE.md` step 14. This stage still qualifies
+whatever either pass returns — the passes acquire, this stage judges. When a hunt runs instead
+(`playbooks/skills/lead-engine`, an interactive "find me leads" ask), it writes the terms that
+worked back into the same bank, so tomorrow's monitoring inherits what the hunt discovered.
+
 ## Definitions
 
 ### Lead

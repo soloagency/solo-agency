@@ -29,6 +29,15 @@ the audience's own language (Vietnamese / English / etc.).
         real estate → "cần mua nhà", "cho thuê", "looking to buy", "first time buyer"
 4. Stage 10 qualifies each post → keep direct_need / buying_trigger / pain_signal; dedupe by post URL.
 5. Deepen the productive groups/keywords via higher max_pages until KPI or a safety stop.
+6. WRITE BACK what this hunt learned. A hunt discovers, in an hour, which phrasings this particular
+   group answers to — and without this step that knowledge dies when the run ends and the daily
+   monitoring keeps searching the same guesses. For every group that is (or becomes) a watched
+   private source, put the terms that produced qualified leads into its bank:
+     `<bridge> tool source-keywords --pipeline daily-content-pipeline --client {slug} --url {group url} add --term "{term}" --kind intent --origin mined --note "{what this hunt saw: N qualified leads on {date}}"`
+   then record the outcome so the term carries its evidence rather than an opinion:
+     `... record --json '{"{term}":{"hits":N,"leads":M}}'`
+   Terms that produced nothing are worth recording too — a zero is how the bank learns to stop
+   spending a slot on them.
 ```
 
 ## Recipe B — Persona by name/occupation ("find realtors / loan officers")

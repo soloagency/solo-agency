@@ -922,6 +922,23 @@ Panel visibility rule:
 
 The panel is for visibility and configuration, not for required daily operation.
 
+### A private source names the capability that reads it
+
+Each entry under `clients[].private_sources[]` in `collector_config.json` carries a `capability`
+alongside `name`, `url` and `platform`. The bridge has always read it — the plan gate and the
+healthcheck both key off it — and it decides HOW the source is read:
+
+| capability | what it does | when it is the right one |
+|---|---|---|
+| `fb.group.posts` | scrolls a group's feed | the default for a watched group: what is new, what the community is discussing |
+| `fb.group.search_posts` | searches inside one group for a term | the daily search pass (`tool source-keywords urls` emits these, named `kw:<term>`) |
+| `fb.profile.posts` | scrolls one profile or page timeline | watching a competitor or a specific person |
+| `fb.post.comments` | reads a post's comments by `feedback_id` | the people replying to "looking for an agent" are often the better leads |
+
+An entry with no `capability` is read as a feed. A source registered for the search pass carries the
+whole search url in `inputs.group_search_url`; the `url` field stays the plain group url so the same
+source is recognisable across passes.
+
 ### First action once the bridge exists: settle any deferred slot check
 
 The bridge carries `tool schedule-slots`, and Setup Flow creates the first automation task before it

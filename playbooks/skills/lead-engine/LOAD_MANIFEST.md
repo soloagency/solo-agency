@@ -5,6 +5,6 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 
 | module | lines | sha256 | last_line |
 |---|---|---|---|
-| SKILL.md | 119 | 0e00bde10eef9e5cb5f76f30b3aebda4d251a4c43a8003f4cdcbf35a579bf5c1 |   (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) — authoritative, do not duplicate. |
-| recipes.md | 84 | e9b62cdaf9d52c04fe956cb22a2bf377be622fe851d514f875267c7661ec542e | creator name/url as the reliable signal. |
-| safety.md | 82 | 055aba4e55999fbd4677ed446df4359f233c94e3a8558139acba4872534e2d56 | ``` |
+| SKILL.md | 120 | 98f293d24de06c813b5131acff4e7938ac06eef7a24b533f773ea366f57f5069 |   (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) — authoritative, do not duplicate. |
+| recipes.md | 93 | cc8f4b5cc33391f37cedb04a2497c56849d3cc9f474f12d7dbcfba9dd4668147 | creator name/url as the reliable signal. |
+| safety.md | 97 | efc8992da18d6953d1e5eb96cd86b29bd4b71668b3d83ebe0b4cbe0e57dea2eb | ``` |

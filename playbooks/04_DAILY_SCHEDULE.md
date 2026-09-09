@@ -354,7 +354,27 @@ For each daily run:
       - prioritize sources most relevant to the client, target audience, target location, pain points, and content pillars;
       - classify extra sources as `weekly` or `optional` and rotate them across future runs;
       - do not run aggressive or parallel private data source scans for the same logged-in account.
-   14. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5.
+   14. Check private data sources if available, using the Solo Agency Local Collector extension plus the Local Collector app when available, with `collector_config.scroll_delay_seconds` defaulting to 5 seconds and `collector_config.max_scrolls_per_source` defaulting to 5. **Each source gets two passes, and they answer different questions.**
+
+    **14a. The search pass — who is asking.** Reading a group's newest posts finds whatever is newest, which in a community of any size is mostly not about this client. Searching the same group for the phrases members use when they need someone finds the reason to make contact. Ask the bank what to search today and submit exactly what it returns:
+
+    ```sh
+    <bridge> tool source-keywords --pipeline daily-content-pipeline --client {slug} --url {source url} urls
+    ```
+
+    It answers with ready run-now sources (capability `fb.group.search_posts`), each named `kw:<term>`, plus the depth to use. On a source's FIRST scan it plans up to 8 terms and digs; every day after, 3 terms with one scroll and a recency window, pinning the terms that have earned their place and rotating the rest (`playbooks/skills/lead-engine/safety.md`, monitoring search pass). A source whose bank is empty is seeded first: `... source-keywords ... seed --industry {industry} --market {market} --lang {lang}` — the seed set is chosen by industry AND market, because a trade's words are not the same in two countries.
+
+    When the pass finishes, count the NEW posts each `kw:` source returned and give those counts straight back, so the bank learns instead of guessing:
+
+    ```sh
+    <bridge> tool source-keywords ... record --json '{"kw:<term>":{"hits":N,"leads":M}}'
+    ```
+
+    `hits` is new posts (post_id not seen for this source before); `leads` is how many Stage 10 then qualified. A term that comes back empty enough times goes on probation and then retires itself, so the bank stays the words this group actually uses. If you notice a phrasing in the feed that members use and the bank lacks, add it WITH the reason you saw it: `... add --term "..." --kind intent --origin mined --note "three posts this week used this"`. A term nobody can justify is not a term.
+
+    **14b. The feed pass — what the community is talking about.** Then scroll the feed as before, but shallow: its job is no longer to find leads, it is to catch what the terms missed, to see the shift in what the group discusses (which Stage 3 turns into content), and to supply the phrasings that grow the bank. Two or three scrolls is enough for that; the depth budget moved to the search pass.
+
+    Both passes skip a post whose `post_id` was already collected for this source, so a term that returns the same twenty posts every day costs one comparison, not twenty judgements.
       - After private collection reaches a terminal state, reconcile status and counts before report handoff: private scan status, completed timestamp, sources attempted/completed/blocked, data points kept, leads, competitors, recommended private data sources, noisy/skipped discovery candidates, notifications, and blockers must match across the private report, daily index, internal source record, report state JSON, and `outputs/latest/` copies.
       - Do not leave stale `scan in progress`, `partial`, `pending`, or old recommended-source totals in one artifact after another artifact says the private scan is complete.
    14b. After private collection reaches a terminal state, record the scan outcomes in the source registry: `tools/solo_tool source-registry --pipeline {setup-root}/daily-content-pipeline record --client {client_slug} --run {run_id} --kind private` with the URLs actually scanned (`--status failed` for sources the collector could not read — a failure never overwrites the last good scan and the next subscriber's run retries with its own login; recording also releases this client's scan claim).

@@ -32,6 +32,15 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
 - **Recurring daily monitoring:** shallow — follow Stage 10 (5 scrolls / source /
   day) and `collector_config` (`max_scrolls_allowed`, `scroll_delay_seconds` ≈ 5s).
   The first pass for a new source may go to 10 scrolls per Stage 10.
+- **The monitoring SEARCH pass** (Stage 10's daily two-pass scan, `tool source-keywords plan`):
+  ≤ 3 terms per source per day, `max_scroll: 1`, `max_pages: 2`, with a recency window. Each term
+  is one page load, so this is the line that decides the day's traffic shape, not its volume:
+  spread the sources across a window of hours rather than firing them in one burst, vary the order
+  and the delays instead of running a fixed sequence at a fixed minute, keep it strictly serial
+  (never parallel tabs), and treat the FIRST platform warning as a stop for the whole account, not
+  for one source. A first pass on a NEW source may take up to 8 terms at `max_scroll: 6` once —
+  `max_pages` still stays at the default 8, because a source nobody has scanned has not yet earned
+  the "clearly productive" exemption above.
 - **Pacing:** rely on the collector's built-in pacing + the paginator's
   inter-page delay. Do not remove delays or hammer replay. If the human asks for
   "faster", explain the ban tradeoff rather than disabling safety.

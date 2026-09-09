@@ -106,6 +106,7 @@ The run's deliverable is Stage 10's report + ledger, plus a short run summary:
 ```text
 Gathered {K} qualified leads for "{intent}".
 Sources: {groups/searches used}. Keywords: {intent keywords}.
+Bank updated: {terms written back to the per-source keyword bank, with hits/leads} — the daily monitoring searches these from tomorrow (`recipes.md` step 6).
 Depth: {pages/scrolls}. Stopped because: {KPI reached | safety limit: <which> | dry: no new leads}.
 Next: {suggested widen/deepen options for the human}.
 ```
