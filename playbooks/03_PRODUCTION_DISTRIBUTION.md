@@ -783,6 +783,11 @@ Provider video creation is the handoff from script to reviewable scenes. It is n
 After `production.create_video` returns a provider topic/video ID, `review_url`, `embed_url`, or equivalent scene-review result:
 
 1. Save the returned video/topic ID, review URL, chosen script version, production mode, provider operation ID, and approval reference in the content log/internal report.
+1a. **Record it in the client's content library** (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, `content/`). Anything produced THROUGH the provider is captured by the bridge automatically — every `tool provider call` response is read on the way past, so a video, a blog or an image made through WideCast files itself. What the bridge cannot know is the text the agent WROTE: the script versions, the blog body, the captions. Import those explicitly, or they exist nowhere after this run:
+   ```sh
+   <bridge> tool content --client-dir <client>/outreach import --json '{"kind":"blog","title":"…","body":"…","language":"vi","status":"draft"}'
+   ```
+   Use the same command when the human hands over a link or a file of their own ("save this one"): `--url https://… --title "…" --kind article`. Verify with `tool content stats` at the end of a production run — a run that produced something and added nothing to the library has lost it.
 2. Load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md` if it is not already loaded.
 3. Resolve the scene-editing capability group through Client tools first:
    - editing skill: `getEditingSkill`;

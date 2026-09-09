@@ -120,7 +120,12 @@ summarized message bank + quota + default-daily cadence — so one reply approve
      the email body; it has nothing to do with the WideCast notification provider or its
      notification-only restriction). A fixed file is a path inside the client folder.
    - **search the content library by keyword** → "find a video or article about what the lead's
-     hook shows, and link it." The agent searches the operator's own library and uses what fits.
+     hook shows, and link it." The agent searches THIS CLIENT's library, locally and for free:
+     `<bridge> tool content --client-dir <client>/outreach search --q "<the lead's topic>" --published`
+     (or `GET /content/search?client=<slug>&q=…&published=1`). Accents are optional — "bao cao"
+     finds "báo cáo". Use the item's `urls.public` or `urls.player` as the link; if the best fit
+     belongs to another client, clone it first (`tool content clone`), because a client's content
+     is their own.
    - **suggest a topic when nothing fits** → "if the library has nothing close, do not invent a
      link: name the topic that WOULD fit and move on." Cheap on purpose — naming a topic costs a
      sentence, writing a whole article costs a run.

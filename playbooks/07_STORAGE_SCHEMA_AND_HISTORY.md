@@ -498,6 +498,39 @@ Rules:
 - A new provider can be added beside `widecast` if it exposes an equivalent OpenAPI spec and supports the needed PDNA capability groups.
 - Do not commit real API keys or account-specific provider state into this file.
 
+### `content/` — the client's content library
+
+Everything this client has produced or been given, kept locally so it can be found again: the
+videos, blogs, social posts, articles and files the outgoing messages draw on. Per client, because
+a client's content is that client's asset; sharing between clients is an explicit clone that
+records where the copy came from.
+
+```
+clients/{slug}/{business}_{location}/content/
+  items/ct_<id>.json      one item per file — the record
+  index.json              derived search index (safe to delete; `tool content reindex` rebuilds it)
+```
+
+One item: `id`, `kind` (video | blog | social_post | article | image | report | note), `source`
+(widecast | local | user | imported), `title`, `summary`, `body` (the written text), `script` (a
+video's narration), `keywords[]`, `language`, `status` (draft | ready | published | archived),
+`urls` (`public`, `player`, `review`, and per-platform published links), `external`
+(`topic_id`, `request_id`, `provider`), `origin`, `cloned_from`, `fingerprint`, and the timestamps.
+
+**The one write path is `tool content`** (`import | search | get | list | clone | reindex | stats |
+forget`), mirroring the `tool crm-store` rule — never hand-edit these files. The bridge also serves
+`GET /content/search`, `GET /content/item`, `GET /content/libraries` and `POST /content/import`
+locally, and the operator has a page at `/ui/{client}/content`.
+
+**Nothing is recorded twice.** An item's identity is its WideCast `topic_id`, else its url, else a
+hash of its kind + title + opening text, so re-importing the same piece updates one record instead
+of growing the library. An update never blanks a field it did not mention: the WideCast capture
+knows the ids and urls, the agent knows the text, and they arrive at different times.
+
+**Why it is not optional.** WideCast's content search was withdrawn from the SDK and only ever
+covered video topics; `create_content` hands back a viewer url and never the written text again. A
+blog whose local record is missing is gone. For written content this library is the only copy.
+
 ### `automation/automation_manifest.md`
 
 Records the current automation package that scheduled runs must obey. This file exists because native AI automations and schedulers may store their own prompt snapshot at creation time. If the human changes anything after schedule setup, the agent must update this manifest during Automation Resync.
