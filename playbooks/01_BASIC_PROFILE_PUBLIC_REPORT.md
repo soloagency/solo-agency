@@ -18,7 +18,7 @@ Load during first setup, add-client flow, setup repair, and Automation Flow firs
 - The first report must be produced by the client-specific automation task, not by the Setup Flow chat.
 - Load Stage 10 before reporting leads, competitors, comment opportunities, or lead/competitor logs.
 - PDNA setup - Production, Distribution, Notification, and Analytics - is a setup/config provider gate; do not start production or ask "make a video now?" inside Setup Flow.
-- If the human asks to run, create, generate, show, refresh, or update a report while this stage is being used for Setup Flow, do not run the report. Finish or resync the client-specific automation task and tell the human the exact task name to run.
+- If the human asks to run, create, generate, show, refresh, or update a report while this stage is being used for Setup Flow, do not run the report in the setup chat. Finish or resync the client-specific automation task and dispatch that task (the run happens in the task's own session, never in the setup chat) and say so, falling back to naming the task for the human only when the runtime cannot start it.
 
 ## Latest Override: Setup Flow Does Not Run Reports
 
@@ -27,7 +27,7 @@ This stage contains older first-run/report instructions for the previous workflo
 - In Setup Flow, do not run the first agency run, first report, public scan, private data source scan, draft generation, video creation, publishing, or PDNA actions.
 - Setup Flow must finish by creating or updating the client-specific automation task and all persistent config needed for that task to run correctly.
 - The first report must run in Automation Flow, using a client-specific task whose name begins with the client name, for example `AvenNgo - Solo Agency First Run` or `AvenNgo - Solo Agency Daily Run`.
-- If the human asks to run, create, generate, show, refresh, or update a report while still in Setup Flow, verify/resync the automation task instead and tell the human the exact task name to run. Do not ask whether to run the report now, do not load the scheduled-run entrypoint in the setup chat, and do not perform public research, private data source collection, report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or report notifications.
+- If the human asks to run, create, generate, show, refresh, or update a report while still in Setup Flow, verify/resync the automation task instead and verify/resync the client-specific automation task and then START IT — the agent dispatches the task through the scheduler's own run-now, tells the human it has been dispatched and where the result will appear, and reports back when it lands; only a runtime that genuinely cannot start its own tasks falls back to naming the task for the human to run. Do not ask whether to run the report now, do not load the scheduled-run entrypoint in the setup chat, and do not perform public research, private data source collection, report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or report notifications.
 - Any later setup/config change in this session must update the Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled prompt, native task prompt when editable, and resync log.
 
 Updated setup completion means `ready_for_automation_first_run`, not `first_report_completed`.

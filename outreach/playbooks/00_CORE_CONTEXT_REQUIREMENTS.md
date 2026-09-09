@@ -50,8 +50,8 @@ Send/report request hard stop in Setup Flow:
 
 - If the human asks to send, run a campaign, enrich, generate/refresh/show a report, or "just do the first run" while the current session is Setup Flow, do not comply by operating.
 - Such a request does not switch the setup chat into Automation Flow.
-- Finish or resync the client-specific automation task and tell the human the exact task name to run.
-- Do not ask "Do you want me to run it now?" in Setup Flow.
+- Finish or resync the client-specific automation task and verify/resync the client-specific automation task and then START IT — the agent dispatches the task through the scheduler's own run-now, tells the human it has been dispatched and where the result will appear, and reports back when it lands; only a runtime that genuinely cannot start its own tasks falls back to naming the task for the human to run.
+- Do not ask "Do you want me to run it now?" in Setup Flow. Once the task exists the answer is always yes, so dispatch it and say so.
 - Do not load the scheduled-run entrypoint as a workaround inside the same setup chat.
 - Do not start inbox sync, tracking pulls, enrichment for send, drafting for send, sending, or client notification inside Setup Flow.
 - If the native automation task cannot be updated by the agent, mark `automation_prompt_update_pending`, write the exact prompt/update instructions to `daily-content-pipeline/automation/scheduled_run_prompt.md`, and ask the human to update/run the native task.

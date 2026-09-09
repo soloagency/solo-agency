@@ -172,7 +172,7 @@ Claim `ready_for_automation_first_run` only when:
 7. The client-specific automation task exists or is proposed, its name begins with the client name, and its prompt pins `target_client_slug` and cannot touch another client.
 8. The agency-wide `OutreachCRM - GitHub Update Watch` task exists or is proposed and is barred from client-facing channels.
 9. Any post-schedule config change triggered Automation Resync (see the Automation Resync Safety Check).
-10. The setup handoff tells the human the exact automation task name to run for the first run, directly in chat, inside a `**[ACTION REQUIRED]**` block. Markdown-only handoffs are a failure.
+10. The setup handoff dispatched the first run and said so directly in chat, naming the task; when it could not be started, it gave the exact task name and the reason inside a `**[ACTION REQUIRED]**` block. Markdown-only handoffs are a failure either way.
 11. The completion wording is `ready_for_automation_first_run` (or `ready_for_next_automation_run`), never a send/report claim.
 12. If this client's setup touched the local collector bridge (UI sendbox connect, collector enrichment, Campaigns/Approvals pages): bridge autostart was verified at the deepest rung the sandbox allows — OS-level check when commands are available, else `solo-agency-local-collector/autostart.json` shows `mode != "none"`, else the human ran the per-OS one-liner and pasted the output — and a `mode: "none"`/missing-file outcome was surfaced to the human with the fix (re-run the setup script; agents never hand-craft services). A bridge that dies at reboot silently kills the next scheduled run.
 
@@ -395,7 +395,7 @@ For reference during the Daily Run completion gate. The scheduled-run entrypoint
 6. The client-specific automation task exists or is proposed; its name begins with the client name; its prompt pins `target_client_slug` and the Setup Flow / Automation Flow contract.
 7. The agency-wide `OutreachCRM - GitHub Update Watch` task exists or is proposed and is barred from client-facing channels.
 8. Any post-schedule config change triggered Automation Resync.
-9. The exact automation task name to run for the first run was shown directly in chat inside a `**[ACTION REQUIRED]**` block. Markdown-only handoffs are a failure.
+9. The first run was dispatched and said so directly in chat, naming the task; if it could not be started, the exact task name and the reason were shown inside a `**[ACTION REQUIRED]**` block. Markdown-only handoffs are a failure either way.
 10. Completion wording is `ready_for_automation_first_run` or `ready_for_next_automation_run` — no send/report claim.
 
 ### Recurring schedule setup is complete when
@@ -480,7 +480,7 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] Did I configure the schedule and create/propose the automation task with the client name at the start and `target_client_slug` pinned?
 - [ ] Did I confirm the agency-wide `OutreachCRM - GitHub Update Watch` task exists/is proposed and is barred from client-facing channels?
 - [ ] Did I perform Automation Resync for any post-schedule config change?
-- [ ] Did I end with `ready_for_automation_first_run` and the exact task name to run, in chat, in a `**[ACTION REQUIRED]**` block?
+- [ ] Did I end with `ready_for_automation_first_run`, having dispatched the first run and said so in chat (or, if it could not be started, given the exact task name and the reason in a `**[ACTION REQUIRED]**` block)?
 
 ### Sendbox & Send Self-Audit Checklist
 

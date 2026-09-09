@@ -343,21 +343,44 @@ In Setup Flow the agent must not:
 - scan public data sources or private data sources as an operational run;
 - create video/blog/social production assets;
 - render, publish, spend credits, or start outreach;
-- branch into report review or production even if the human asks casually. Instead, ensure the correct automation task is configured and tell the human the task name to run.
+- branch into report review or production even if the human asks casually. Instead, ensure the correct automation task is configured, start it, and tell the human it is running.
 
-If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, treat it as a setup handoff request, not as permission to enter Automation Flow. The latest human request does not convert the setup chat into an automation run. Say plainly that Setup Flow only configures the system, then verify or create the client-specific automation task and instruct the human to run that task.
+If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, treat it as a setup handoff request, not as permission to enter Automation Flow. The latest human request does not convert the setup chat into an automation run. Say plainly that Setup Flow only configures the system, then verify or create the client-specific automation task — **and start it for them.**
+
+**Dispatch it, do not hand over a button.** The reason a report never runs in the setup chat is CONTEXT: a run reads dozens of files and would swamp the configuration conversation. Starting the task satisfies that reason completely, because the task executes in its own fresh session. Asking the Boss to go and press run adds a chore and buys nothing. So after the task exists and its schedule is approved, the agent triggers a run now, using whatever the recorded `scheduler_type` provides (`automation_manifest.md`):
+
+| scheduler_type | how to start a run now |
+|---|---|
+| `native_ai_automation`, `native_ai_scheduled_task` | the runtime's own run-now on that task (Claude scheduled tasks, Codex automations) |
+| `launchd` | `launchctl kickstart -k gui/$(id -u)/<label>` |
+| `cron`, `server_job` | run the task's own command in a SEPARATE process — never inline in this chat |
+| `task_scheduler` | `schtasks /Run /TN "<task name>"` |
+| `n8n`, `make`, `zapier`, `github_actions` | that service's manual-run/dispatch control |
+| `manual` | there is nothing to start; name the task for the human |
+
+Then tell the Boss, in one short block, that the run was dispatched, which task is running, whether it covers public sources only or public plus activated private sources, where the report will appear, and that the result will be reported back. Do NOT wait in the setup chat for it to finish and do NOT poll it in a loop: finish setup, and pick the result up at the end of the session or on the next turn (the notification channel, if configured, tells the Boss first).
+
+**What has NOT changed.** The agent still never generates the report inside the setup chat, still never loads `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` here as a way to satisfy "run it now", and still does no public research, private collection or production in Setup Flow. Starting a task is configuration's last step, not operational work.
+
+**When the start fails or is impossible** (the runtime has no run-now, the scheduler refuses, the task is `manual`): say so in one sentence with the real reason, then fall back to the old handoff — one `**[ACTION REQUIRED]**` block with the exact task name for the human to run.
 
 Required response pattern:
 
 ```text
-I will not run a report in this setup chat because Setup Flow is only for configuration. I will finish or resync the client-specific automation task instead. After setup is ready, run `{Client Name} - Solo Agency Daily Run` / `{Client Name} - Solo Agency First Run` for the report.
+I will not run the report in this setup chat, because a run would swamp the configuration we are doing. I have dispatched `{Client Name} - Solo Agency First Run` instead — the agent on that task is running it now, on public sources only. The report will land in {path}, and I will tell you as soon as it is there.
 ```
 
-The agent must not continue with report generation in the same setup turn after saying this. The only allowed work after this response is setup/configuration work, Automation Resync, or a handoff that gives the exact automation task name.
+Fallback pattern, only when the run could not be started:
+
+```text
+I could not start the task from here ({the real reason}). Setup is otherwise ready. Run `{Client Name} - Solo Agency Daily Run` / `{Client Name} - Solo Agency First Run` for the first report.
+```
+
+The agent must not continue with report generation in the same setup turn after saying this. The only allowed work after this response is setup/configuration work, Automation Resync, dispatching the task, or a handoff that gives the exact automation task name.
 
 Forbidden Setup Flow follow-through:
 
-- Do not ask "Do you want me to run it now?" in Setup Flow.
+- Do not ask "Do you want me to run it now?" in Setup Flow. The answer is always yes once the task exists, so dispatch it and say so rather than asking.
 - Do not start public data source research, private data source collection, report writing, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery in Setup Flow.
 - Do not load the scheduled-run entrypoint as a workaround inside the same setup chat.
 - If the native automation task cannot be created or updated directly, write the exact scheduled prompt/update instructions to `daily-content-pipeline/automation/scheduled_run_prompt.md`, mark `automation_prompt_update_pending`, and tell the human the one exact native automation task action needed. Do not simulate the task by running the report in setup.
@@ -556,7 +579,7 @@ The setup flow is fixed and must stay aligned with the 9-item `Solo Agency one-t
 6. Ask and resolve the private data source checkpoint in one place. Load `playbooks/PRIVATE_SOURCE_GATE.md` and Stage 2 BEFORE asking the checkpoint question — the required checkpoint script, its plain-language explanation, and the two-part delivery rule live in Stage 2 §6; an agent that has not loaded Stage 2 must not ask this question. Load Stage 8 and Stage 9 as well before any actual discovery scan or Local Collector activation. Deliver the checkpoint per the Stage-2 two-part rule: the short plain-language explanation first (private vs public data sources, what the Local Collector is, data stays local, never asks for passwords/cookies/OTPs, already-a-member requirement, and the hands-free discovery option that finds candidate sources from places the human already joined/follows so no hand-compiled list is needed), then one compact `**[ACTION REQUIRED]**` question with the three reply options (provide sources / allow discovery / postpone). Ask for actual private data source URLs/lists or offer one optional discovery pass from approved joined/followed/member spaces or Facebook keyword group search, get human approval before adding sources, and guide Local Collector setup if the human wants the automation task to include those sources. If private data sources are approved, activated, declined, postponed, or blocked, update source state and perform Automation Resync so the already-created automation task has the newest source contract. When the human approves discovery and the Local Collector plus matching extension are verified healthy in this session, run the discovery pass at the checkpoint itself — scan approved categories, show the shortlist, save approved sources (configuration gathering; no data analysis, no report) — so step 6 closes in one sitting; otherwise record `approved_pending_first_scan` for the first Automation Flow run.
 7. Configure PDNA - Production, Distribution, Notification, and Analytics - as client-scoped provider configuration. The Notification part is asked PROACTIVELY at this step in every setup, not deferred: frame it by value in the human's language (for example: to get an instant alert when a hot lead needs fast contact, when the daily report is ready, or when drafts are waiting for review - via email and Telegram), present it as the standard step, without pressure language and without implying any affiliation between Solo Agency and the provider. The default provider is WideCast; ask only for the WideCast API key using the standard setup instructions, then let the agent do the rest. If the human declines, state the honest consequence (no notification channel - they must open the AI agent themselves to see results and hot leads), record `notification_channel_missing`, and re-offer it via the run-time re-offer rule; never nag twice in one session. The Production/Distribution/Analytics expansion stays value-first: offered after the first automation report. Do not ask the human to choose provider/scope/spend/publish/account identity for the default path. Do not treat a global MCP/native provider account as this client's PDNA connection. Do not create video/blog/social assets, render, publish, or spend credits inside Setup Flow. The key is optional for the Free plan — a keyless install runs Free (1 client, 1 watched private source, unlimited CRM contacts, 1 campaign, 20 sends/day) — and it is also the Solo Agency license: the WideCast plan on that account (Starter $49 / Pro $99 / Business $199 / Enterprise) sets the Solo Agency tier — more clients, more watched sources, enrich and write actions from Starter, harvest and Zillow from Pro — per the "Plans" rule in `AGENTS.md`; the bridge verifies the plan itself, the agent only reads `GET /status` → `entitlement`. One key runs one install ("One key, one install" in `AGENTS.md`): if this machine is replacing another one, the agent runs `tool entitlement release` here after the key is in place.
 8. If published URL history exists, record that future Automation Flow should load Stage 5 and scan analytics/signals; if no published URL history exists, mark analytics as not available yet. Do not scan analytics inside Setup Flow.
-9. End Setup Flow only after setup/configuration state is current and the human has the exact client-specific automation task name to run for the first report. Do not update reports, idea matrices, best ideas, leads, competitors, drafts, or the learning loop inside Setup Flow; those belong to Automation Flow.
+9. End Setup Flow only after setup/configuration state is current and the first run has been dispatched (or, when it could not be started, the human has the exact client-specific automation task name to run for the first report). Do not update reports, idea matrices, best ideas, leads, competitors, drafts, or the learning loop inside Setup Flow; those belong to Automation Flow.
 
 ## Automation Resync Invariant
 
@@ -818,7 +841,7 @@ Setup is not complete until:
 - Schedule/routine and the client-specific automation task were configured before the private data source checkpoint, with a public data sources baseline if no private data sources were active yet.
 - The step 6 private data source intake/discovery/approval plus the Local Collector checkpoint were resolved, declined, postponed, or honestly marked pending, and the automation task was resynced or confirmed current afterward.
 - The automation task contract requires the first automation run to load Stage 10, generate the three-file client-facing HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), generate `{client-name}-INTERNAL_REPORT.html`, pass the Client-Blind Scrub Gate, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, reject direct-promo ideas as `promotional_not_value_first`, and create at least one useful audience-value-first draft script/blog/caption.
-- The setup handoff showed the exact task name the human should run for the first report, AND ended with a feature-discovery block introducing 2-3 unused headline capabilities (Feature Discovery Rule) - setup never ends flat.
+- The setup handoff either dispatched the first run and said so, or showed the exact task name the human should run for the first report, AND ended with a feature-discovery block introducing 2-3 unused headline capabilities (Feature Discovery Rule) - setup never ends flat.
 - PDNA - Production, Distribution, Notification, and Analytics - was treated as provider/configuration setup only, not report/video/publish execution inside Setup Flow.
 - After schedule/automation exists, the `Solo Agency - GitHub Update Watch` maintenance task was CREATED, or its exact pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (never silently skipped or left as a pending record the human was not told about).
 

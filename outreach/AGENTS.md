@@ -10,7 +10,7 @@ Several brains may operate one install AT THE SAME TIME — the operator keeps C
 
 ## Two flows
 
-During Setup Flow, never send an email, run a campaign, enrich a lead for send, or draft-and-send in the setup chat, even if the human explicitly asks. Treat the request as a handoff: create/resync the client-specific automation task and tell the human the exact task name to run. Setup Flow only configures; its terminal state is `ready_for_automation_first_run`.
+During Setup Flow, never send an email, run a campaign, enrich a lead for send, or draft-and-send in the setup chat, even if the human explicitly asks. Treat the request as a handoff: create/resync the client-specific automation task and verify/resync the client-specific automation task and then START IT — the agent dispatches the task through the scheduler's own run-now, tells the human it has been dispatched and where the result will appear, and reports back when it lands; only a runtime that genuinely cannot start its own tasks falls back to naming the task for the human to run. Setup Flow only configures; its terminal state is `ready_for_automation_first_run`.
 
 Automation Flow (the scheduled daily run) is the only place operational work happens: inbox sync, reply/bounce/unsubscribe classification, CRM rule application, follow-up advising, enrichment, drafting, the Approval Report, sending approved drafts within quota, tracking pull, reporting, and operator notification.
 

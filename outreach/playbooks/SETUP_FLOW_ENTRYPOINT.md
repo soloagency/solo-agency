@@ -16,7 +16,7 @@ Before setup proceeds, verify or explain that OutreachCRM needs Codex, Claude De
 4. Load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` when the human asks for update/upgrade/sync-latest, when setup repair suspects stale playbooks/code, or when configuring the `OutreachCRM - GitHub Update Watch` maintenance task.
 5. Create or update client setup, the Client Intelligence Profile, pipelines and custom fields, sending identity, sendbox connections, imported lists, campaigns, schedule files, automation manifests, scheduled prompts, update-watch state, and resync logs — all CRM state through `tool crm-store`. Write CRM records (pipelines, segments, custom-field definitions, contacts) through `tool crm-store` — it exists (Phase 1). The Client Intelligence Profile is a `.md` file written directly. A workspace updated from an older Phase-0 install must run `<bridge> tool crm-store --client-dir <DIR> validate --rebuild-index` once per client before use (DESIGN §22 R3).
 6. Do not send any email, run any campaign, enrich a lead for send, generate a live-send Approval Report, or start outreach in Setup Flow.
-7. If the human asks to send, run a campaign, or draft-and-send inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and tell the human the exact task name to run instead.
+7. If the human asks to send, run a campaign, or draft-and-send inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and dispatch that task (the run happens in the task's own session, never in the setup chat) and say so, falling back to naming the task for the human only when the runtime cannot start it.
 8. If the human says only `update`, `upgrade`, `cập nhật`, `sync latest`, or `pull latest`, treat that as the Stage 11 OutreachCRM update command, not as `send now`.
 9. Every client-specific automation task name must begin with the client name, e.g. `Max Output - SaaS Founders Intro Daily Run`.
 10. Notification setup (optional) is client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming notification is available. Default is WideCast: ask only for the client's WideCast API key. Do not treat a global MCP/native provider account as this client's connection. Notification is optional; mark it `–` if declined.
@@ -91,7 +91,7 @@ When the human asks to send / run a campaign / draft-and-send while this entrypo
 
 1. State that Setup Flow does not send.
 2. Finish or resync the client-specific automation task.
-3. Provide the exact task name to run for the first daily run.
+3. Dispatch the first daily run and say so, naming the task; if it could not be started, give the exact task name for the human to run and the reason it could not start.
 4. If the native automation UI requires human action, provide that one exact action in a `**[ACTION REQUIRED]**` block.
 5. End with a `**[ACTION REQUIRED]**` block naming the exact automation task to run, AND a feature-discovery block of 2-3 unused headline capabilities (Feature Discovery Rule; also introduce the content/video side of the funnel) - setup never ends flat. When no action is needed, still end with next-action guidance plus the feature-discovery block.
 

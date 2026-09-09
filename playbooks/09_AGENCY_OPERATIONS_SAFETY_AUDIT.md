@@ -262,7 +262,7 @@ Then the agent must follow the same 9-item setup model. Do not introduce Add Cli
 8. Record analytics as an Automation Flow concern only.
 9. Do not run the first agency run, first report, public scan, private data source scan, report updates, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, video creation, publishing, or PDNA production actions inside Setup Flow.
 
-If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, treat it as a failed-safety condition unless the agent stops operational work. The agent must verify/resync the client-specific automation task, provide the exact task name to run, and avoid loading the scheduled-run entrypoint or running any report work inside the setup chat.
+If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, treat it as a failed-safety condition unless the agent stops operational work. The agent must verify/resync the client-specific automation task, dispatch that task (the run happens in the task's own session, never in the setup chat) and say so, falling back to naming the task for the human only when the runtime cannot start it, and avoid loading the scheduled-run entrypoint or running any report work inside the setup chat.
 
 Example:
 
@@ -1399,7 +1399,7 @@ Initial setup is complete when:
 15. If no private data sources are active, the automation contract includes `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed`, with a plain note that public-only reports can miss community, lead, and competitor signals.
 16. If the client's WideCast/OpenAPI provider config is not connected and verified, the automation report contract requires the PDNA/WideCast setup note in `INTERNAL_REPORT` and the operator handoff, not in client-facing reports.
 17. If the human agrees to activate private data sources, `daily-content-pipeline/collector/collector_setup_status.md` exists and shows either `installed_and_running` or a precise blocked status with the required human action.
-18. The setup handoff tells the human the exact client-specific automation task name to run for the first report, AND ends with a feature-discovery block introducing 2-3 unused headline capabilities (Feature Discovery Rule) - setup never ends flat.
+18. The setup handoff dispatched the first report's client-specific automation task and said so (or, when it could not be started, gave the exact task name and the reason), AND ends with a feature-discovery block introducing 2-3 unused headline capabilities (Feature Discovery Rule) - setup never ends flat.
 19. Any required human action is also shown directly in the current chat message with one clear command, one double-clickable launcher path, or one absolute extension folder path. Markdown-only setup instructions are a failure.
 20. Only after the first agency report and draft are shown does the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
 21. After the schedule/automation exists, the agency-wide `Solo Agency - GitHub Update Watch` task was CREATED, or its pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it - not silently skipped. Default posture is notify-first (`auto_apply_approved: false`).

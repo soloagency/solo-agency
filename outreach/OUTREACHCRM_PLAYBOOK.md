@@ -415,7 +415,7 @@ Setup is not complete until:
 - Notification (WideCast) was configured or explicitly marked `–` (optional).
 - One `{Client} - {Campaign} Daily Run` automation task per campaign was created (each pinning `target_client_slug` + `campaign_slug`) and, after schedule exists, the `OutreachCRM - GitHub Update Watch` task was created, or its pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (not silently skipped).
 - Setup Flow sent nothing. Terminal state is `ready_for_automation_first_run`.
-- The setup handoff showed the exact task name to run.
+- The setup handoff dispatched the first run and said so, or showed the exact task name to run and why it could not be started.
 
 Drafting is not complete until (Stages 4 + 6 loaded):
 

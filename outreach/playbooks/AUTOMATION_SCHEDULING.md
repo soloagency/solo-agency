@@ -92,8 +92,9 @@ Rules:
   client-named task that touches a second client's data is a critical violation.
 - The task prompt runs the full Daily Run order (DESIGN §15) for that one client, loading the
   needed stage files fresh at run time.
-- A setup/config session may instruct the human to run `AvenNgo - Buyer Leads Intro Daily Run`, but
-  it must not send, enrich, or run the campaign inside the setup chat.
+- A setup/config session starts `AvenNgo - Buyer Leads Intro Daily Run` itself and tells the human it is
+  running; it must not send, enrich, or run the campaign inside the setup chat. Only a runtime that
+  cannot start its own tasks names the task for the human instead.
 - A setup/config session must **not** load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` as a
   workaround for a human "run it now" request. The scheduled entrypoint belongs in the native
   automation task or a separate Automation Flow run, never inside Setup Flow.
