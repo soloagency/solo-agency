@@ -234,5 +234,5 @@ and its AudioContext stays suspended.
   entries live before that, copy `bridge-go/collector_capabilities.json` next to the running
   `collector_config.json` (read fresh, no restart) — operator's call, it is shared infrastructure.
 - If Zillow renames JSON keys: records come back `status: "no_next_data"` / `source: "dom"` with
-  fewer fields. Re-verify the paths listed in the catalog `_impl.method` (a `__NEXT_DATA__` dump
+  fewer fields. Re-verify the paths listed in `bridge-go/collector_capabilities_impl.json` under this capability's `method` (the notes live with the closed bridge source, not in the public catalog) (a `__NEXT_DATA__` dump
   from the operator's Chrome is enough) and update `zillow_extract.js` + the fixtures.

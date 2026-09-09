@@ -24,3 +24,8 @@ _backup/
 *.go
 go.mod
 go.sum
+
+# Adapter internals (GraphQL queries, doc_ids, node paths, pacing). Maintenance notes for
+# the closed bridge, never read at run time, and the one thing in this tree a competitor
+# could not reconstruct. Ships with the private bridge source only.
+collector_capabilities_impl.json

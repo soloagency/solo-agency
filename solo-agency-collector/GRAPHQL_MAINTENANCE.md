@@ -87,7 +87,7 @@ output (unchanged) is what you get.
 ## 4. The capability catalog
 
 - **Served at** `GET /capabilities` (no token, GET only). Agents read `id`,
-  `title`, `when_to_use`, `inputs`, `output_schema`, `status`. `_impl` is
+  `title`, `when_to_use`, `inputs`, `output_schema`, `status`. The implementation notes moved out of the public catalog on 2026-09-08 into `bridge-go/collector_capabilities_impl.json`, keyed by capability id; that file ships with the closed bridge source only, so a public checkout will not have it. `_impl` is
   internal detail (query name, edge path, node field paths).
 - **Where it lives / how to update:** edit `bridge-go/collector_capabilities.json`
   (canonical). The bridge serves `--capabilities-file` if set, else
