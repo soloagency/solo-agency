@@ -5,7 +5,7 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 
 | module | lines | sha256 | last_line |
 |---|---|---|---|
-| SKILL.md | 251 | c5c4d085a3da5b3b8f1a6f48497fcb6e4cb25afac3249f11c625e89da6521219 | **Right now → load `method` (the full 8-step workflow) AND `formats` (per-format playbooks).** Then start Stage 1 step 1: lock the audience + the angle, research the facts, write every fitting format. Reach hook drafting → load `hooks`. Reach CTA → load `ctas`. Reach Stage 2 step 5 → load `research_visuals`. Reach hand-off → load `handoff`. |
+| SKILL.md | 261 | a1e1f4a22d2e07a8b08757a712eb3d407ba860385932a863af454e651186ad00 | **Right now → load `method` (the full 8-step workflow) AND `formats` (per-format playbooks).** Then start Stage 1 step 1: lock the audience + the angle, research the facts, write every fitting format. Reach hook drafting → load `hooks`. Reach CTA → load `ctas`. Reach Stage 2 step 5 → load `research_visuals`. Reach hand-off → load `handoff`. |
 | ctas.md | 70 | 8d01cf39f569fb9ce2c5467560a8530661af37d5277e936b7d9a59720d3f6cf4 |   otherwise prefer a Bank 2 invite that makes the viewer say something real. |
 | formats.md | 97 | f726fcf23a3df26067d7e06d2b72cd4de5981e0fabbdc4ec6d8003acb121917c | Never strawman a belief nobody holds. The myth must be one your audience genuinely believes, and your correction must be honestly defensible (≥0.7). |
 | handoff.md | 65 | 3dda032be581f7d144d81dd11df3fa8411525c5105a4ef8f500adc9b2a9ab09f | - `research_visuals.md` — R-ladder for image sourcing + inline media format rules |
