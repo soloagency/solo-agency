@@ -124,9 +124,14 @@ node --check chrome-extension/gql_actions.js
 
 # 3. copy canonical -> oneman template, then rebuild the aven-ngo client
 cd /path/to/solo-agency/solo-agency-collector/chrome-extension
-for f in *.js *.json *.html *.md; do
-  case "$f" in *_2026-*|*.bak|*.go.bak) continue;; esac
-  cp "$f" /path/to/dev-install/solo-agency-collector/chrome-extension/$f
+# Recursive: platform modules live in platforms/<name>/ and shared code in core/, so a flat
+# `for f in *.js` would silently leave a whole module behind. icons/ is client branding and
+# .claude/ is local tooling; neither is code.
+find . -type f \( -name '*.js' -o -name '*.json' -o -name '*.html' -o -name '*.md' \) \
+  -not -path './icons/*' -not -path './.claude/*' -not -name '*_2026-*' -not -name '*.bak' -print0 |
+while IFS= read -r -d '' f; do
+  mkdir -p "/path/to/dev-install/solo-agency-collector/chrome-extension/$(dirname "$f")"
+  cp "$f" "/path/to/dev-install/solo-agency-collector/chrome-extension/$f"
 done
 cd /path/to/dev-install/solo-agency-collector
 bash scripts/prepare_client_extension.sh "Aven Ngo" aven-ngo ext_aven-ngo_default

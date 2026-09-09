@@ -18,6 +18,7 @@
 #
 # Usage:  ./sync-dev-extension.sh            # bump patch, copy, verify
 #         ./sync-dev-extension.sh --check    # verify only, change nothing
+#         ./sync-dev-extension.sh --prune    # also remove dev files the repo no longer has
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/chrome-extension"
@@ -30,21 +31,51 @@ DEST="${SOLO_DEV_EXTENSION:-$(cat "$HOME/.config/solo-agency/dev_extension_path"
 KEEP=(manifest.json popup.html client_binding.json client_binding.example.json)
 
 check_only=0
-[ "${1:-}" = "--check" ] && check_only=1
+for arg in "$@"; do [ "$arg" = "--check" ] && check_only=1; done
+
+# Subdirectories are copied too (platforms/<name>/, core/). The old loop globbed only the top
+# level and silently skipped every directory — icons/ proved it — which would have dropped a
+# whole platform module on the floor and produced the same `records: null` silence described
+# above. Two directories are deliberately NOT code and stay out: icons/ (client branding) and
+# .claude/ (local tooling); backup/ in the dev folder is the operator's own. Dated backups and
+# *.bak are never source.
+SKIP_DIRS=(icons .claude backup)
+prune=0
+for arg in "$@"; do [ "$arg" = "--prune" ] && prune=1; done
 
 drift=0
-for f in "$SRC"/*; do
+while IFS= read -r -d '' f; do
+  rel="${f#"$SRC"/}"
   b="$(basename "$f")"
-  [ -f "$f" ] || continue
-  case " ${KEEP[*]} " in *" $b "*) continue ;; esac
-  case "$b" in *_20[0-9][0-9]-*) continue ;; esac   # dated backups, not source
-  if [ ! -f "$DEST/$b" ] || ! cmp -s "$f" "$DEST/$b"; then
+  top="${rel%%/*}"
+  case " ${KEEP[*]} " in *" $rel "*) continue ;; esac
+  if [ "$top" != "$rel" ]; then case " ${SKIP_DIRS[*]} " in *" $top "*) continue ;; esac; fi
+  case "$b" in *_20[0-9][0-9]-*|*.bak) continue ;; esac   # dated backups, not source
+  if [ ! -f "$DEST/$rel" ] || ! cmp -s "$f" "$DEST/$rel"; then
     drift=1
-    if [ "$check_only" = 1 ]; then echo "  differs: $b"; else
-      cp "$f" "$DEST/$b"; echo "  copied : $b"
+    if [ "$check_only" = 1 ]; then echo "  differs: $rel"; else
+      mkdir -p "$DEST/$(dirname "$rel")"
+      cp "$f" "$DEST/$rel"; echo "  copied : $rel"
     fi
   fi
-done
+done < <(find "$SRC" -type f -print0 | sort -z)
+
+# A file that left the repo (moved into platforms/<name>/, or deleted) but still sits in the
+# dev folder is stale code Chrome would happily keep loading. Report it always; remove it only
+# when asked (--prune), because deleting from the operator's extension folder is not a sync.
+while IFS= read -r -d '' f; do
+  rel="${f#"$DEST"/}"
+  b="$(basename "$f")"
+  top="${rel%%/*}"
+  case " ${KEEP[*]} " in *" $rel "*) continue ;; esac
+  if [ "$top" != "$rel" ]; then case " ${SKIP_DIRS[*]} " in *" $top "*) continue ;; esac; fi
+  case "$b" in *_20[0-9][0-9]-*|*.bak|client_binding.json) continue ;; esac
+  if [ ! -f "$SRC/$rel" ]; then
+    if [ "$prune" = 1 ] && [ "$check_only" = 0 ]; then rm -f "$f"; echo "  pruned : $rel"; else
+      echo "  stale  : $rel (not in repo; re-run with --prune to remove)"
+    fi
+  fi
+done < <(find "$DEST" -type f -print0 | sort -z)
 
 # popup.html is the same story as the manifest: it is kept out of the copy list because its
 # <title> and <h1> carry the client's name, but everything else in it is CODE. That was harmless
@@ -132,8 +163,11 @@ open(p, "w").write(json.dumps(d, ensure_ascii=False, indent=2) + "\n")
 PY
 done
 
-node --check "$DEST/gql_extract.js"
-node --check "$DEST/gql_actions.js" 2>/dev/null || true
+# Syntax-check every JS file that is source (not backups), wherever it now lives.
+while IFS= read -r -d '' js; do
+  case "$(basename "$js")" in *_20[0-9][0-9]-*|*.bak) continue ;; esac
+  node --check "$js"
+done < <(find "$DEST" -name '*.js' -not -path "$DEST/.claude/*" -print0 | sort -z)
 echo
 echo "synced -> $DEST"
 echo "version  v$repo_ver -> v$new_ver   (reload the extension; Chrome must show v$new_ver)"
