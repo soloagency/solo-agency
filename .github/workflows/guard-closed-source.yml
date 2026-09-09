@@ -28,7 +28,7 @@ jobs:
           # collector_capabilities_impl.json holds the GraphQL query names, doc_ids, node paths and
           # pacing — the one part of this tree nobody could reconstruct. It ships with the private
           # bridge source only, and the `_impl` blocks must not creep back into the public catalog.
-          bad="$(git ls-files | grep -E 'collector_capabilities_impl\.json$' || true)"
+          bad="$(git ls-files | grep -E 'collector_capabilities_impl\.json$|search_seeds\.json$' || true)"
           if [ -n "$bad" ]; then echo "::error::adapter internals are tracked:"; echo "$bad"; exit 1; fi
           if git ls-files -- '*collector_capabilities.json' | xargs -r grep -l '"_impl"' ; then
             echo "::error::_impl blocks are back in the public capability catalog"; exit 1

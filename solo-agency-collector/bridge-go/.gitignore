@@ -29,3 +29,8 @@ go.sum
 # the closed bridge, never read at run time, and the one thing in this tree a competitor
 # could not reconstruct. Ships with the private bridge source only.
 collector_capabilities_impl.json
+
+# The seed search vocabularies. A curated Vietnamese intent vocabulary for a trade is exactly
+# the kind of thing a competitor cannot reconstruct, and it is embedded into the closed binary
+# anyway. Same treatment as collector_capabilities_impl.json.
+search_seeds.json
