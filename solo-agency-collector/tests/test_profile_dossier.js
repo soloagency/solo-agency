@@ -31,7 +31,7 @@ function page(lines) { return CHROME.concat(lines).join("\n"); }
 // A profile whose trade is stated ONLY as a job title, on the Work and education tab —
 // exactly the case fb.profile.header cannot reach and fb.profile.contacts threw away.
 const PAGES = {
-  main: page(["Claire Hanh Lam", "1.2K followers", "Works at ZenWealth Solutions", "Lives in Houston, Texas"]),
+  main: page(["Dana Hanh Lam", "1.2K followers", "Works at ZenWealth Solutions", "Lives in Houston, Texas"]),
   about: page(["About"]),
   contact_info: page(["Email", "advisor@northstar-wealth.invalid", "Website", "northstar-wealth.invalid"]),
   work: page(["Work", "Loan Officer at Wells Fargo", "Mortgage Advisor at ZenWealth Solutions"]),
@@ -100,7 +100,7 @@ function makeCtx(opts) {
   }
 
   const document = {
-    title: "Claire Hanh Lam | Facebook",
+    title: "Dana Hanh Lam | Facebook",
     get body() { return { innerText: pages[state.current] || "", innerHTML: "<div>" + (pages[state.current] || "") + "</div>" }; },
     querySelector: (sel) => {
       // The main column, with a post feed rendered underneath the About panel — which is what
@@ -172,7 +172,7 @@ function makeCtx(opts) {
       }
       // the name heading
       if (/h1/.test(sel)) {
-        const first = (pages[state.current] || "").split("\n").find((l) => /Claire/.test(l));
+        const first = (pages[state.current] || "").split("\n").find((l) => /Dana/.test(l));
         return first ? [{ innerText: first }] : [];
       }
       // the "See more" control that truncates a bio
@@ -375,7 +375,7 @@ async function run() {
     // implying the profile has nothing else.
     const SLUGS = { hobbies: "directory_hobbies", travel: "directory_travel",
                     contact_info: "directory_contact_info", work: "directory_work" };
-    const pages = { main: page(["Claire Hanh Lam"]), about: page(["About"]),
+    const pages = { main: page(["Dana Hanh Lam"]), about: page(["About"]),
                     hobbies: page(["Cycling"]), travel: page(["Da Nang"]),
                     contact_info: page(["advisor@northstar-wealth.invalid"]),
                     work: page(["Loan Officer at Wells Fargo"]) };
@@ -426,7 +426,7 @@ async function run() {
     const lines = it.about_lines || [];
     check("no post text reached the record", !lines.some((l) => /Post|Cảm ơn/.test(l)), lines.filter((l) => /Post|Cảm ơn/.test(l)));
     check("no reel view counts either", !lines.some((l) => /^(12K|4\.7K)$/.test(l)), lines);
-    check("the profile's own lines survived", lines.some((l) => /Claire Hanh Lam/.test(l)), lines.slice(0, 6));
+    check("the profile's own lines survived", lines.some((l) => /Dana Hanh Lam/.test(l)), lines.slice(0, 6));
   }
 
   console.log("\n== a post's See more is never clicked ==");

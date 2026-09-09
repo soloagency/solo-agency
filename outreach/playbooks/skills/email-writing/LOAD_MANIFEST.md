@@ -11,4 +11,4 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 | followup.md | 169 | eec6b2cbcfe1c5722d756c5504a88fd3efa8966a34516ce6ab2bd5e58be8d541 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | structures.md | 65 | d1fedc4f27db0d4a0aed2c17271b9f1d2f04d6fe85da71b682a2f52b92f5b4f1 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | structures_2026-09-08_17-13-40.md | 54 | 5d69fe392e13187faf8ccef4112e240f5c81333b696595cbef23c0893c69fb8e | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| weave.md | 283 | c83934d77426d9332a4a9e211e7ac0c40bc492c7a8e856a2b52ad3ddf5289c0a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| weave.md | 283 | 42c1880f3cc9ea578bdccf3f9ab9ef05b3c9009e8c5136cf7bceb51d73601060 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |

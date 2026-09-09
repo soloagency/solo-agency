@@ -1,7 +1,7 @@
 # Finding a lead's email on Facebook — collector capability + how a playbook must use it
 
 Status: capability shipped in extension build `0.1.58`; the ladder itself
-was measured on real profiles (evidence below). Read this before writing any enrichment
+was measured on live profiles (the evidence below is anonymised). Read this before writing any enrichment
 prose about "we couldn't find an email".
 
 ## The one rule

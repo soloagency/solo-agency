@@ -377,6 +377,51 @@ The optional `emails` and `phones` arrays are additive: they are populated when 
 
 Do not store unnecessary personal data. Keep safe summaries and source URLs. The human can inspect the original post in their logged-in session when needed.
 
+### Every lead also becomes a CRM contact, the day it is detected
+
+The ledger above is the audit trail. It is not where a lead lives. A person who publicly asked for
+what this client sells is a lead at the coldest end of a ladder — stranger, cold, warm, engaged — and
+the CRM is the thing built to walk them up it. Leaving them in a file nothing reads means no dossier,
+no timeline, no follow-up, and the same person rediscovered as "new" next week.
+
+After writing the ledger, capture the run's leads in one call:
+
+```sh
+<bridge> tool crm-store --pipeline daily-content-pipeline --client {slug} \
+  lead capture --file history/YYYY-MM/lead_competitor_opportunities.jsonl
+```
+
+It reads the same JSONL this stage just wrote, so there is nothing to reformat. Per lead it creates a
+contact keyed on the profile URL (or, when there is no profile, on the post URL as a content seed),
+files the post as a dated evidence hook, tags it `lead`, `lead:{hot|warm|watch}`, `source:lead_scan`
+and `kw:{term}` when a search term found them, and writes one `lead_detected` activity. Competitor
+rows are refused by name — a competitor is a business to study, not a person to nurture. Add
+`--dry-run` to see the mapping without writing.
+
+**First run for a client that has never had a CRM.** A client set up for content only has no CRM
+workspace yet, and the command will say so: `no outreach workspace under .../clients/{slug}; run
+init-client first`. That is not a failure of the scan — create the workspace once and re-run:
+
+```sh
+<bridge> tool crm-store --pipeline daily-content-pipeline --client {slug} \
+  --business {business_slug} --location {location_slug} init-client
+```
+
+Do this silently as part of the run; it creates empty directories and sends nothing. If it is refused
+because the install is at its plan's client limit, say so in the report and carry on — the leads are
+still in the ledger and nothing is lost, but tell the Boss plainly that they are not being kept.
+
+**Running it twice is safe and is the normal case.** The same person seen on three days is ONE
+contact with three activity rows and one hook per distinct post; the temperature tag is replaced, not
+accumulated, so someone who cools off stops matching a "hot leads" filter; a contact who already
+became a customer is never walked back to `lead`.
+
+**Storing is not contacting, and this changes no send gate.** A captured lead has no email, so
+`channels.email.status` stays `needs_data` and drafting refuses them outright. Commenting, DMs and
+mail all still require the human approval they required yesterday. What changes is only that the
+person is still there tomorrow — which is the precondition for warming them at all, and the reason
+the evidence hook is recorded now rather than reconstructed from memory months later.
+
 ## Shared-Source Lead Collisions
 
 When lead/competitor data comes from a SHARED source scan (records carry `source_uid`/`point_uid` and the source has multiple subscribers in `collector/source_registry.json`), the same person can surface as a lead for several clients at once — and nothing else stops two clients from both reaching out to them.

@@ -77,12 +77,12 @@ INPUT:
 
 ```text
 Dana Whitfield /groups/000000000000000/user/000000000000001/
-Shared with Private group I bought a house last month and now the downstairs ceiling is leaking. There is mold too, but the inspection report never mentioned it. What should I do? Does anyone know a real estate attorney? /
+Shared with Private group We closed on a place in the spring and the ceiling under the upstairs bath has started staining. Looks like there is mould behind it and the survey said nothing. Not sure where to start. Can anyone recommend a property solicitor? /
 19 17 View more answers /groups/000000000000000/user/000000000000002/
 Marcus Reed /groups/000000000000000/user/000000000000003/
-Top contributor You need a real estate litigation attorney. If the seller failed to disclose the leak/mold, you may have a claim. See more 3h /groups/homeowners/posts/000000000000010/?comment_id=000000000000011
+Top contributor Talk to a property litigation solicitor. If the seller knew about the damp and did not disclose it, you may have a claim. See more 3h /groups/000000000000000/posts/000000000000010/?comment_id=000000000000011
 Riverbend Restoration /groups/000000000000000/user/000000000000004/
-Verified account Rising contributor If you are in Dallas, call 555-0142 or see Riverbend Restoration at Facebook.com/riverbend.restoration /groups/000000000000000/user/000000000000005/
+Verified account Rising contributor If you are near Dallas, call 555-0142 or find Riverbend Restoration at Facebook.com/riverbend.restoration /groups/000000000000000/user/000000000000005/
 ```
 
 OUTPUT:
@@ -94,13 +94,13 @@ OUTPUT:
     "author": "Dana Whitfield",
     "profile_url": "/groups/000000000000000/user/000000000000001/",
     "post_url": "",
-    "text": "Bought a house last month and now the downstairs ceiling is leaking with mold. The inspection report did not mention it. Asks what to do and whether anyone knows a real estate attorney.",
-    "topic": "mold/leak attorney",
+    "text": "Closed on a house in the spring; staining and suspected mould under the upstairs bath that the survey never mentioned. Asks where to start and whether anyone can recommend a property solicitor.",
+    "topic": "damp/leak solicitor",
     "intent": "seeking_help",
     "role": "seeker",
     "is_lead": true,
     "is_provider": false,
-    "need_or_offer": "Needs a real estate attorney and guidance for leak/mold after buying a house",
+    "need_or_offer": "Needs a property solicitor and guidance for a leak and suspected mould after buying a house",
     "location": "",
     "language": "en",
     "engagement": {"reactions": 19, "comments": 17},
@@ -110,8 +110,8 @@ OUTPUT:
     "type": "comment",
     "author": "Marcus Reed",
     "profile_url": "/groups/000000000000000/user/000000000000003/",
-    "post_url": "/groups/homeowners/posts/000000000000010/",
-    "text": "Recommends hiring a real estate litigation attorney because the seller may have failed to disclose the leak or mold.",
+    "post_url": "/groups/000000000000000/posts/000000000000010/",
+    "text": "Recommends hiring a property litigation solicitor because the seller may have failed to disclose the damp.",
     "topic": "legal dispute",
     "intent": "sharing_advice",
     "role": "neutral",
@@ -128,13 +128,13 @@ OUTPUT:
     "author": "Riverbend Restoration",
     "profile_url": "/groups/000000000000000/user/000000000000004/",
     "post_url": "",
-    "text": "Promotes Riverbend Restoration in Dallas and provides phone number 555-0142 plus Facebook.com/riverbend.restoration.",
+    "text": "Promotes Riverbend Restoration near Dallas and provides phone number 555-0142 plus Facebook.com/riverbend.restoration.",
     "topic": "construction service",
     "intent": "advertising_service",
     "role": "provider",
     "is_lead": false,
     "is_provider": true,
-    "need_or_offer": "Riverbend Restoration in Dallas, phone 555-0142, Facebook page riverbend.restoration",
+    "need_or_offer": "Riverbend Restoration near Dallas, phone 555-0142, Facebook page riverbend.restoration",
     "location": "Dallas",
     "language": "en",
     "engagement": null,

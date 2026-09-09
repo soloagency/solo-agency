@@ -196,7 +196,7 @@ wins.
    **Resolving the OWNER is only half the job: the reel page has no contact info.** The collector
    reads the page you POINT IT AT; it never wanders to another tab on its own. A reel/post page
    carries the content and the owner link and nothing else, so a pass that stops there returns
-   `contacts.emails: []` for a person whose address is sitting one click away. Two real profiles
+   `contacts.emails: []` for a person whose address is sitting one click away. Two worked examples
    from the LeadUp list show where it actually lives: `facebook.com/sample.lead` reveals
    `sample.lead@example.com` only after "See more" in About, and `facebook.com/sample.business` carries
    `info@example.com` in the contact-info block of its bio. Both came back "no email" because nobody

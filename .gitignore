@@ -60,3 +60,13 @@ solo-agency-collector/dist/
 # deploy topology. They were removed from all 379 commits on 2026-09-06 — but they are still on
 # disk, so `git add -A` re-adds them as new files and undoes that in one deploy.
 HANDOFF_LOCAL*.md
+
+# Animation/media working files live outside the repo (../soloagency-workfiles/).
+# The published illustrations are the small ones in assets/ — nothing else belongs here.
+/*.mp4
+/*.wav
+/*.py
+/agency-loop-square-*.png
+/agency-loop-animation-*
+# Timestamped backup copies are never published.
+**/backup/*.bak.*

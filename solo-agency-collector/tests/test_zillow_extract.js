@@ -121,7 +121,7 @@ function card(o) {
   };
 }
 const LIST_CARDS = [
-  card({ link: "https://www.zillow.com/profile/agentsample", name: "Jordan Lee", zuid: "X1-ZUx1ng2k9w3cax_1acra", rating: 4.9, reviews: "(28)", brokerage: "The Agency",
+  card({ link: "https://www.zillow.com/profile/agentjordanlee", name: "Jordan Lee", zuid: "X1-ZUx1ng2k9w3cax_1acra", rating: 4.9, reviews: "(28)", brokerage: "The Agency",
     stats: [
       { __typename: "AgentDirectoryFinderProfileCardData", formattedData: null, label: "No recent price range" },
       { __typename: "AgentDirectoryFinderProfileCardData", formattedData: null, label: "No sales last 12 months" },
@@ -174,15 +174,15 @@ function profileNextData(kind) {
   const lead = kind === "lead";
   const du = lead ? {
     businessAddress: { address1: "1524 Abbot Kinney Blvd.", address2: null, city: "Venice", postalCode: "90291", state: "CA" },
-    businessName: "Sample Realty", email: "listings@example.com", encodedZuid: "X1-ZUz0nmomozy2o9_9bpwk", flag: 588249, inCanada: false,
+    businessName: "Sample Realty", email: "zillow@example.com", encodedZuid: "X1-ZUz0nmomozy2o9_9bpwk", flag: 588249, inCanada: false,
     isTopAgent: true, name: "Alex Rivera", phoneNumbers: { brokerage: "(555) 555-0142", cell: "(555) 555-0142" }, profileImageId: null,
     profilePhotoSrc: "https://photos.zillowstatic.com/fp/d949d0899cb2304bdd9d4ffed699e310-h_l.jpg",
     profileTypeIds: [1, 2, 5, 8, 12, 15], profileTypes: ["consumer", "agent", "advertiser", "broker", "showcaseBuyer", "peeps"],
     ratings: { __typename: "ReviewRatings", average: 5, count: 1664 }, screenName: "Sample Realty",
   } : {
     businessAddress: { address1: "1524 Abbot Kinney Blvd", address2: null, city: "Venice", postalCode: "90291", state: "CA" },
-    businessName: "Sample Realty", email: "agent@example.com", encodedZuid: "X1-ZU11dmckyyeehah_7q4l7", flag: 71739056, inCanada: false,
-    isTopAgent: true, name: "Tyler Delgado", phoneNumbers: { business: "(555) 555-0143", cell: "(555) 555-0143" }, profileImageId: null,
+    businessName: "Sample Realty", email: "sam@example.com", encodedZuid: "X1-ZU11dmckyyeehah_7q4l7", flag: 71739056, inCanada: false,
+    isTopAgent: true, name: "Sam Delgado", phoneNumbers: { business: "(555) 555-0143", cell: "(555) 555-0143" }, profileImageId: null,
     profilePhotoSrc: "https://photos.zillowstatic.com/fp/6c767055fa794a92b1e4ad1cb8037e0c-h_l.jpg",
     profileTypeIds: [1, 2], profileTypes: ["consumer", "agent"],
     ratings: { __typename: "ReviewRatings", average: 5, count: 144 }, screenName: "sampleagent",
@@ -195,7 +195,7 @@ function profileNextData(kind) {
     linkedInUrl: "http://www.linkedin.com/in/samplealex", xUrl: "https://twitter.com/sample_realty", instagramUrl: "https://www.instagram.com/samplerealty",
     tiktokUrl: "https://www.tiktok.com/@samplerealty", youtubeUrl: "https://www.youtube.com/c/samplerealty",
   } : {
-    title: null, description: "<p>Tyler was born in Manhattan Beach before moving to North Carolina.</p>", yearsInIndustry: 13, videoUrl: null,
+    title: null, description: "<p>Sam was born in Manhattan Beach before moving to North Carolina.</p>", yearsInIndustry: 13, videoUrl: null,
     specialties: ["Buyer's Agent", "Listing Agent", "Relocation", "First Time Homebuyers"], languages: [],
     websiteUrl: "https://example.com/team/sample-agent/", instagramUrl: "https://www.instagram.com/sampleagent/",
   };
@@ -251,12 +251,12 @@ function profileNextData(kind) {
           reviewer: { encodedZuid: "X1-ZU124zl15hugfm1_1pt0h", firstName: "Amanda", lastName: "Belotto", screenName: "abelott0", showName: true, suffix: null },
           subRatings: [{ description: "Local knowledge", score: 5 }], workDescription: "Bought a Mobile / Manufactured home in 2026 in Hillside, Torrance, CA." },
         { createDate: "2026-07-01T10:00:00", rating: 4, rebuttal: null, reviewComment: "Great experience selling our condo.", reviewId: 9200000,
-          reviewee: { firstName: "Tami", lastName: "Sample Realty", screenName: "Sample Realty" }, reviewer: { firstName: "J", lastName: "D", screenName: "jd" }, subRatings: [], workDescription: "Sold a Condo home in 2026 in Venice, CA." },
+          reviewee: { firstName: "Alex", lastName: "Sample Realty", screenName: "Sample Realty" }, reviewer: { firstName: "J", lastName: "D", screenName: "jd" }, subRatings: [], workDescription: "Sold a Condo home in 2026 in Venice, CA." },
       ], filters: {} },
       seoFooters: [], serviceAreas: [{ regionId: 10389, text: "Beverly Hills, CA", url: "/beverly-hills-ca/" }, { regionId: 12447, text: "Los Angeles, CA", url: "/los-angeles-ca/" }, { regionId: 12520, text: "Malibu, CA", url: "/malibu-ca/" }],
       teamDisplayInformation: lead
         ? { teamLeadInfo: { children: [
-              { encodedZuid: "X1-ZU11dmckyyeehah_7q4l7", isTopAgent: true, name: "Tyler Delgado", profilePhotoUrl: "https://photos.zillowstatic.com/fp/6c76-h_l.jpg", ratings: { average: 5, count: 144 }, screenName: "sampleagent" },
+              { encodedZuid: "X1-ZU11dmckyyeehah_7q4l7", isTopAgent: true, name: "Sam Delgado", profilePhotoUrl: "https://photos.zillowstatic.com/fp/6c76-h_l.jpg", ratings: { average: 5, count: 144 }, screenName: "sampleagent" },
               { encodedZuid: "X1-ZUwkltbxgz2qdl_22g4q", isTopAgent: true, name: "Kerry Ann Sullivan", profilePhotoUrl: "https://photos.zillowstatic.com/fp/d852-h_l.jpg", ratings: { average: 5, count: 65 }, screenName: "Kerry Ann Sullivan" },
             ], teamName: "Sample Realty" }, teamMemberInfo: null }
         : { teamLeadInfo: null, teamMemberInfo: { hasContactRedirectOptInFunction: false, teamLead: { encodedZuid: "X1-ZUz0nmomozy2o9_9bpwk", name: "Alex Rivera", ratings: { average: 5, count: 1664 }, screenName: "Sample Realty" }, teamName: "Sample Realty" } },
@@ -298,7 +298,7 @@ function sensitiveKeys(o, pathStr, out) {
     check("next_page_url appends page=2 to the SAME url (keyword kept)", res.next_page_url === "https://www.zillow.com/professionals/real-estate-agent-reviews/los-angeles-ca/?name=kim&page=2", res.next_page_url);
     check("results_found 348, query.name kim, region", res.results_found === 348 && res.query.name === "kim" && res.query.region_id === "12447" && res.query.region_name === "Los Angeles, CA" && res.query.location_text === "los angeles ca", res.query);
     const a = res.items[0], t = res.items[1], e = res.items[2];
-    check("card 1: url/screen_name/name/brokerage/zuid", a.profile_url === "https://www.zillow.com/profile/agentsample" && a.screen_name === "agentsample" && a.name === "Jordan Lee" && a.brokerage === "The Agency" && a.encoded_zuid === "X1-ZUx1ng2k9w3cax_1acra", a);
+    check("card 1: url/screen_name/name/brokerage/zuid", a.profile_url === "https://www.zillow.com/profile/agentjordanlee" && a.screen_name === "agentjordanlee" && a.name === "Jordan Lee" && a.brokerage === "The Agency" && a.encoded_zuid === "X1-ZUx1ng2k9w3cax_1acra", a);
     check("card 1: null stats stay null, sales_in_region 65, rating 4.9, reviews 28", a.price_range === null && a.sales_last_12_months === null && a.sales_in_region === 65 && a.rating === 4.9 && a.reviews_count === 28 && a.is_team === false && a.is_top_agent === false, a);
     check("card 2 (TEAM): is_team, top agent, %20 screen name decoded, reviews 1,664 -> 1664", t.is_team === true && t.is_top_agent === true && t.screen_name === "Sample Realty" && t.reviews_count === 1664 && t.price_range === "$10K - $18M" && t.sales_last_12_months === 266 && t.sales_in_region === 2287, t);
     check("card 3: trailing tab in brokerage trimmed", e.brokerage === "eXp Realty of California Inc" && e.screen_name === "Ed Kim", e);
@@ -352,7 +352,7 @@ function sensitiveKeys(o, pathStr, out) {
     const cardBox = (href, name, txt) => el("div", { class: "StyledCard" }, "", [el("a", { href }, name), el("div", {}, txt)]);
     const ctx = makeCtx({
       href: "https://www.zillow.com/professionals/real-estate-agent-reviews/los-angeles-ca/?name=kim",
-      nodes: [cardBox("https://www.zillow.com/profile/agentsample", "Jordan Lee", "The Agency 4.9 (28)"), cardBox("/profile/Ed%20Kim", "Edward Kim", "TEAM 5.0 (12)"), el("a", { href: "https://www.zillow.com/profile/agentsample" }, "Jordan Lee")],
+      nodes: [cardBox("https://www.zillow.com/profile/agentjordanlee", "Jordan Lee", "The Agency 4.9 (28)"), cardBox("/profile/Ed%20Kim", "Edward Kim", "TEAM 5.0 (12)"), el("a", { href: "https://www.zillow.com/profile/agentjordanlee" }, "Jordan Lee")],
     });
     const res = await ctx.window.__soloZillowRun("zillow.agents.list", {});
     check("source dom, 2 unique cards, relative href made absolute", res.available === true && res.source === "dom" && res.count === 2 && res.items[1].profile_url === "https://www.zillow.com/profile/Ed%20Kim", res);
@@ -395,7 +395,7 @@ function sensitiveKeys(o, pathStr, out) {
     check("category = Zillow's own title (Broker)", r.category === "Broker", r.category);
     check("work[]: 'Broker at Sample Realty' + team lead line", r.work[0] === "Broker at Sample Realty" && /^Lead of team Sample Realty \(2 members\)$/.test(r.work[1]), r.work);
     check("location[] from business address", r.location.length === 1 && r.location[0] === "Venice, CA 90291", r.location);
-    check("emails[] from displayUser.email", r.emails.length === 1 && r.emails[0] === "listings@example.com" && r.found_on === "next_data", [r.emails, r.found_on]);
+    check("emails[] from displayUser.email", r.emails.length === 1 && r.emails[0] === "zillow@example.com" && r.found_on === "next_data", [r.emails, r.found_on]);
     check("phones[] deduped by digits (cell == brokerage == tel: link) -> 1", r.phones.length === 1 && r.phones[0] === "(555) 555-0142", r.phones);
     check("website = getToKnowMe.websiteUrl with utm_* stripped; websites[] includes socials, deduped", r.website === "https://example.com/" && r.websites.length === 7 && r.websites.indexOf("https://www.facebook.com/samplerealty") !== -1 && r.websites.indexOf("https://example.com/") !== -1, [r.website, r.websites]);
     check("about_lines Website line carries the cleaned url", r.about_lines.indexOf("Website: https://example.com/") !== -1, r.about_lines.filter((l) => /^Website/.test(l)));
@@ -424,10 +424,10 @@ function sensitiveKeys(o, pathStr, out) {
 
   console.log("zillow.profile.enrich — team-member profile (sampleagent): title null, member-of-team, no team disclaimer");
   {
-    const ctx = makeCtx({ href: "https://www.zillow.com/profile/sampleagent", title: "Tyler Delgado - Real Estate Agent in Venice, CA - Reviews | Zillow", nextData: profileNextData("member") });
+    const ctx = makeCtx({ href: "https://www.zillow.com/profile/sampleagent", title: "Sam Delgado - Real Estate Agent in Venice, CA - Reviews | Zillow", nextData: profileNextData("member") });
     const res = await ctx.window.__soloZillowRun("zillow.profile.enrich", {});
     const r = res.items[0];
-    check("name/url/email/phone", r.name === "Tyler Delgado" && r.profile_url === "https://www.zillow.com/profile/sampleagent" && r.emails[0] === "agent@example.com" && r.phones.length === 1 && r.phones[0] === "(555) 555-0143", [r.name, r.emails, r.phones]);
+    check("name/url/email/phone", r.name === "Sam Delgado" && r.profile_url === "https://www.zillow.com/profile/sampleagent" && r.emails[0] === "sam@example.com" && r.phones.length === 1 && r.phones[0] === "(555) 555-0143", [r.name, r.emails, r.phones]);
     check("category falls back to 'Real estate agent' when title is null", r.category === "Real estate agent", r.category);
     check("work[]: 'Real estate agent at Sample Realty' + member-of-team line with lead", r.work[0] === "Real estate agent at Sample Realty" && r.work[1] === "Member of team Sample Realty (lead: Alex Rivera)", r.work);
     check("zillow.team role member with lead ref", r.zillow.team.role === "member" && r.zillow.team.lead.profile_url === "https://www.zillow.com/profile/Sample%20Realty" && r.zillow.team.lead.reviews_count === 1664, r.zillow.team);

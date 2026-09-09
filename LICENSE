@@ -9,10 +9,56 @@ earlier grant is not revoked for those earlier revisions.
 
 In plain terms: you may use Solo Agency, including commercially, to run your
 own business and serve your own clients. You may not offer Solo Agency (or any
-substantial part of it) to third parties as a hosted or managed service, and
-you may not move, change, disable, or circumvent its license-key
-(Free/Pro entitlement) functionality. The "Solo Agency" name and marks belong
-to the licensor and are not licensed by this file.
+substantial part of it) to third parties as a hosted or managed service, you
+may not move, change, disable, or circumvent its license-key (Free/Pro
+entitlement) functionality, you may not use it to compete with Solo Agency, and
+you may not republish the playbooks (both below). The "Solo Agency" name and
+marks belong to the licensor and are not licensed by this file.
+
+Competing use — additional terms
+
+You may not use Solo Agency, or any substantial part of it, to build, offer, or
+sell a product or service that substitutes for Solo Agency or that provides the
+same or substantially similar functionality to third parties. This applies
+however that product or service reaches them — hosted, managed, installed on
+the recipient's own machine, bundled with something else, or sold as a template
+or course whose substance is this software or its playbooks.
+
+This term is about competing with the licensor. It is not about how you run
+your own business, and it does NOT restrict any of the following:
+
+  - using Solo Agency to run your own business, however commercially;
+  - using Solo Agency to do marketing, content, CRM or outreach work for your
+    own clients and delivering the results of that work to them — that is the
+    intended use of this software;
+  - modifying the software and the playbooks for your own use;
+  - writing or using your own compatible bridge for your own installation, so
+    long as it does not move, change, disable, or circumvent the license-key
+    functionality.
+
+This term applies to revisions committed on or after 2026-09-09. It does not
+revoke any grant already made for earlier revisions.
+
+Playbooks and prompt corpus — additional terms
+
+The prompt corpus — every file under `playbooks/` and `outreach/playbooks/`,
+including every `SKILL.md` and its directory (together, the "Playbooks") — is
+licensed to you for use with your own Solo Agency installation. You may read,
+run, and modify the Playbooks for your own use and to serve your own clients.
+You may NOT copy, distribute, publish, or otherwise make the Playbooks
+available to third parties, in whole or in substantial part, with or without
+modification, and whether or not for a fee. To that extent the Copyright
+License granted below does not extend to the Playbooks; every other term of the
+Elastic License 2.0 applies to them unchanged.
+
+Everything else in this repository — the bridge, the extension, the scripts and
+the documentation — remains under the Elastic License 2.0 in full, including
+its grant to copy and distribute.
+
+This carve-out applies to revisions committed on or after 2026-09-09. It does
+not revoke the broader Elastic License 2.0 grant already made for revisions
+published between 2026-09-06 and that date, nor the MIT grant for revisions
+before 2026-09-06.
 
 Licensor: Solo Agency — https://github.com/soloagency/solo-agency
 

@@ -1148,6 +1148,10 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
      tell "nobody asked today" from "nothing was scanned".
    - This is a rollup. The lane-specific `Public` / `Private Lead & Competitor Opportunities`
      sections stay exactly as `playbooks/10_LEAD_COMPETITOR_DETECTION.md` requires.
+   - Every person listed here is already IN the client's CRM (Stage 10, "Every lead also becomes a
+     CRM contact"), so the report is where they are read, not where they are stored. Say so once, in
+     one line, and say which are new versus already known — a returning name is a person who has now
+     asked twice, which is a stronger signal than either sighting alone.
 
 2. `Executive Snapshot`
    - Client name.

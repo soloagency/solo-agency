@@ -1696,6 +1696,13 @@ Purpose:
 
 Use this ledger in addition to `lead_log.md` and `competitor_log.md` when the environment can write JSONL.
 
+**This ledger is an audit trail, not the lead's home.** After it is written, the run passes it to
+`tool crm-store ... lead capture --file <this file>`, which turns each lead row into a CRM contact
+with a dated evidence hook and an activity row (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`). The
+`status` field here records what the SCAN concluded; the contact records what happens to the person
+afterwards. Do not treat `needs_review` as a queue — nothing consumes it, and the review it implies
+was already performed by the agent that classified the post.
+
 Format:
 
 ```json

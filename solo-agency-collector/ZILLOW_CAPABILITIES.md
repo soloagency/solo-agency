@@ -44,7 +44,7 @@ curl -s -X POST http://127.0.0.1:17321/jobs/run_now -H "Content-Type: applicatio
 ```bash
 # profile — the url IS the input; max_posts / max_team_members are optional
 "sources": [{"name": "zillow profile Sample Realty",
-             "url": "https://www.zillow.com/profile/Sample%20Realty",
+             "url": "https://www.zillow.com/profile/Rivera%20Properties",
              "source_type": "public", "platform": "zillow",
              "capability": "zillow.profile.enrich", "inputs": {"max_posts": 5}}]
 ```

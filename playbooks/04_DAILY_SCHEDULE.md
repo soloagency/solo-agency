@@ -414,6 +414,7 @@ For each daily run:
    39. Update `history/YYYY-MM/lead_log.md`.
    40. Update `history/YYYY-MM/competitor_log.md`.
    41. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
+   42. Capture the run's leads into the client's CRM — `<bridge> tool crm-store --pipeline daily-content-pipeline --client {slug} lead capture --file history/YYYY-MM/lead_competitor_opportunities.jsonl` (Stage 10, "Every lead also becomes a CRM contact"). This reads the file written in step 41, so it runs after it and never before. It sends nothing; it only means the person is still findable tomorrow. Report what came back — created versus matched — in the run summary, because "matched" is the system recognising somebody it already knows. If it answers `no outreach workspace ... run init-client first`, this client has never had a CRM: run `init-client` once (Stage 10, "First run for a client that has never had a CRM") and repeat this step.
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
