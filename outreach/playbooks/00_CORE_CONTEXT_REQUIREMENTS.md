@@ -180,9 +180,10 @@ Carve-out (DESIGN §22 R1): Stages marked `status: planned` are not missing file
 
 Because the repo changes frequently, treat any blocker, repeated failure, contradiction, tool/config mismatch, stale asset, or dead end as a possible old-playbook/code problem first: do a Fresh GitHub Source Check, record local vs `main` commits, reload the relevant latest stage, and follow it if it fixes the issue (resync afterward). If still blocked, open or draft a GitHub issue for `soloagency/solo-agency` (prefix the title `outreach:` for triage):
 
-- The human does not need a GitHub account; do not make registration the required next step.
+- The human needs neither git nor a GitHub account; do not make registration the required next step. The two rungs that serve a normal human are WideCast `reportError` (with a key) and the Solo Agency Facebook support group (without one).
 - Direct creation requires an authorized identity: `gh issue create` only when `gh auth status` passes and `GITHUB_TOKEN`, `GH_TOKEN`, or `OUTREACHCRM_GITHUB_ISSUE_TOKEN` is configured, or a maintainer bot/App is available. Never store this token in client config, reports, or committed files.
-- If no authorized identity but an intake channel is configured, send/queue the redacted draft there.
+- With no WideCast key and no authorized GitHub identity, the Solo Agency Facebook support group IS the intake channel (`playbooks/TEAM_MODEL.md`, "Support requests"), and the human approves the exact post first.
+- With a WideCast key, the first rung is `reportError` through `tool provider` (`module`: `solo-agency/outreach`) — private, free on every plan, no human step.
 - Otherwise write a ready-to-post draft under `daily-content-pipeline/automation/issues/YYYY-MM-DD_{blocker_slug}.md` and track it in `daily-content-pipeline/automation/github_issues.md`.
 - Include a redacted blocker fingerprint, safe repro steps, expected/actual, local commit, `main` commit checked, runtime, and redacted logs. Never include API keys, tokens, OAuth secrets, the tracker key, credentials, raw prospect PII, or client-confidential data. Reuse an existing issue when the fingerprint matches; do not duplicate.
 

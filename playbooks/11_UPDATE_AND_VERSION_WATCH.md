@@ -387,4 +387,4 @@ Do not claim an update is complete until all true items are satisfied:
 - Treat update work as operator/internal work. Do not put update details into client-facing reports.
 - Do not expose provider names, API-key status, Local Collector status, extension paths, GitHub commits, or update internals to the client's client/customer.
 - If an update is triggered during a scheduled daily run, finish the update/resync only when safe. If it would delay a time-sensitive report, record the pending update in `update_state.json`, `update_log.md`, and `update_notice.md`; do not send Telegram/provider notification and do not mix partially updated playbooks with an in-progress report.
-- If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And GitHub Issue Escalation Rule.
+- If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And Defect Reporting Rule (`AGENTS.md`): WideCast `reportError` when the install has a key, the Solo Agency support group when it does not.

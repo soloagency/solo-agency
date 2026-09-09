@@ -595,9 +595,9 @@ Format:
 
 ### `automation/github_issues.md`
 
-Tracks GitHub issues, support/intake submissions, or issue drafts created when latest GitHub playbooks/code still do not resolve a blocker.
+Tracks every defect report made when the latest GitHub playbooks/code still do not resolve a blocker, whichever rung of the reporting ladder it went out on (`AGENTS.md`): a WideCast `reportError` call (record its `request_id`), a Solo Agency support-group post (also in `support_requests.md`), a GitHub issue, or a local draft. The name is historical — this is the defect-report tracker, not a GitHub-only file.
 
-Create or update this file when Last-Resort Recovery opens, sends, queues, or drafts an issue. The human does not need a GitHub account; direct GitHub creation uses an authorized agent/runtime identity when available, and otherwise falls back to a configured intake channel or local draft.
+Create or update this file when Last-Resort Recovery reports anything. The human needs neither git nor a GitHub account. It is also the dedupe record: one report per blocker fingerprint, never the same fingerprint twice within 24h, so a failing daily run cannot mail the founder the same thing every morning.
 
 Format:
 

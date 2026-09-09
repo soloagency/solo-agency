@@ -476,7 +476,7 @@ https://raw.githubusercontent.com/soloagency/solo-agency/main/playbooks/
 
 Load only the stage needed for the current action, plus any dependency named by that stage. **After any GitHub-raw download, verify it against `playbooks/LOAD_MANIFEST.md`** (line count; last line / sha256 only for a deeper check) via a LOAD LEDGER; a short/partial download must be re-fetched before use — never act on a partial download.
 
-## Last-Resort Recovery And GitHub Issue Escalation Rule
+## Last-Resort Recovery And Defect Reporting Rule
 
 Solo Agency changes frequently. When the agent encounters any blocker, repeated failure, confusing contradiction, tool/config mismatch, stale asset, missing capability, or operational dead end, it must first assume the local playbook/code may be old.
 
@@ -487,14 +487,15 @@ Before saying "blocked" or asking the human to debug manually, the agent must ru
 3. Record the local commit, GitHub `main` commit, and whether they match.
 4. Reload the relevant latest playbooks from GitHub/main and check whether a newer rule fixes the issue.
 5. If the latest playbook/code contains a fix or clearer protocol, follow it, update/resync the current client setup or automation state, and note the recovery in the human-facing progress/blocker message.
-6. If the latest GitHub version still leaves the agent stuck, create or draft a GitHub issue for `soloagency/solo-agency`.
+6. If the latest GitHub version still leaves the agent stuck, report it through the channel this install actually has, in this order: **WideCast** when the client's `provider_config.local.json` carries a WideCast key (`<bridge> tool provider --config <that file> --defaults daily-content-pipeline/provider_defaults.json call --operation reportError --body '{"module":"solo-agency/<area>","error_message":"<verbatim>","context":{…}}'` — free on every plan, private, no human step); the **Solo Agency Facebook support group** when the install is keyless or that call is unavailable (`playbooks/TEAM_MODEL.md`, Support requests — the Boss approves the exact text first); a **GitHub issue** only when the runtime ALREADY has an authorized identity (`gh auth status` passes, `GITHUB_TOKEN` / `GH_TOKEN` / `SOLO_AGENCY_GITHUB_ISSUE_TOKEN`, or a maintainer bot) — never ask a human to create a GitHub account; and a ready-to-post draft under `daily-content-pipeline/automation/issues/` when none of those exist. Record whichever channel was used in `daily-content-pipeline/automation/github_issues.md` and check it in later runs.
 
-GitHub issue escalation rules:
+Reporting rules (the ladder above is canonical in `AGENTS.md`):
 
-- The human does not need a GitHub account for blocker escalation. Do not make "please register for GitHub" the only recovery path.
+- The human needs neither git nor a GitHub account, ever. WideCast (when the install has a key) and the Facebook support group (when it does not) are the two rungs that serve a normal Boss; GitHub is the developer path.
+- One report per blocker fingerprint, and never the same fingerprint twice in 24h.
 - Direct issue creation still requires an authorized GitHub identity. Prefer `gh issue create` only when `gh auth status` passes, `GITHUB_TOKEN`, `GH_TOKEN`, or `SOLO_AGENCY_GITHUB_ISSUE_TOKEN` is configured, a GitHub App/maintainer bot is available, and the environment permits issue creation.
 - Preferred operator setup is a dedicated maintainer bot token or GitHub App with the narrowest possible issue-writing access for `soloagency/solo-agency`, exposed only in trusted agent runtimes. Never store this token in client config, reports, issue drafts, or committed files.
-- If no authorized GitHub identity is available but a project support/intake channel is configured, send or queue the redacted issue draft through that channel.
+- With no WideCast key and no authorized GitHub identity, the Solo Agency Facebook support group IS the intake channel (`playbooks/TEAM_MODEL.md`, "Support requests"): offer it, show the exact post, and post only after the Boss approves.
 - If the agent cannot create or send the issue directly, write a ready-to-post issue draft under `daily-content-pipeline/automation/issues/`.
 - Track every opened/sent/drafted issue in `daily-content-pipeline/automation/github_issues.md` with issue URL/number, intake channel, or draft path, blocker fingerprint, affected client if safe to name, local commit, GitHub commit checked, current status, next check date, and latest response summary.
 - Check tracked open issues during later setup repair, scheduled runs, and blocker recovery; if a founder/community response gives a fix, apply it, resync automation, update the tracker, and tell the human.
@@ -781,7 +782,7 @@ Even when the entire requested workflow is complete and no human decision is req
 - If no private data sources are provided, offer optional private data source discovery from approved joined groups, subreddits, communities, followed profiles/pages/KOLs, subscribed channels, and feeds before treating the private data source step as resolved.
 - Canonical client-facing reports are HTML and client-blind. **Markdown is internal only and is NEVER the report the human sees — the deliverable is ALWAYS the rendered HTML plus the mandatory PDF companion, never a `.md`. Producing only a `.md` report, or handing/showing/linking a `.md` to the human as the report, is a workflow violation; if HTML rendering fails, surface the exact blocker rather than hand over the `.md`.** A PDF companion is mandatory after the HTML report set is created or updated; it must be derived from the three scrubbed HTML files, offered alongside the HTML handoff, and recorded as generated or blocked with the exact blocker. The operator-only `INTERNAL_REPORT` path/status must be handed off alongside the client-ready files.
 - Ideas, best ideas, comments, scripts, blogs, captions, and recommendations must be audience-value-first. Reject or rewrite client/product praise as `promotional_not_value_first`.
-- Before declaring any blocker/dead end, check GitHub `main` for newer Solo Agency playbooks/code; if latest GitHub still does not resolve it, create, send, or draft a redacted issue without requiring the human to have a GitHub account, then track it in `automation/github_issues.md`.
+- Before declaring any blocker/dead end, check GitHub `main` for newer Solo Agency playbooks/code; if latest GitHub still does not resolve it, report it on the first rung this install can reach (WideCast `reportError` with a key, the Solo Agency support group without one, a GitHub issue only where an identity already exists, else a draft) and never ask the human for a GitHub account, then track it in `automation/github_issues.md`.
 - When the human says `update` or asks to sync latest, load Stage 11, fetch/verify GitHub `main`, update playbooks/code/templates/collector/extension/provider contracts safely, resync every client and automation task, and give bridge rerun plus extension reload instructions when those components changed.
 - Private data stays local unless the human explicitly approves export.
 - Never ask for passwords, OTPs, cookies, tokens, or raw credentials.

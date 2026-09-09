@@ -1181,7 +1181,7 @@ Tracks every post-schedule change and whether the automation package was fully s
 
 #### `automation/github_issues.md`
 
-Tracks GitHub issues / intake submissions / drafts opened when the latest GitHub playbooks/code still do not resolve a blocker. The human does not need a GitHub account; direct creation uses an authorized agent/runtime identity when available, else a configured intake channel or local draft.
+Tracks every defect report made when the latest GitHub playbooks/code still do not resolve a blocker, whichever rung it went out on (`AGENTS.md`, the reporting ladder): a WideCast `reportError` call (record its `request_id`), a Solo Agency support-group post, a GitHub issue, or a local draft. The name is historical — this is the defect-report tracker, not a GitHub-only file, and the human needs neither git nor a GitHub account. It is also the dedupe record: one report per blocker fingerprint, never twice within 24h.
 
 ```md
 # GitHub Issue Tracker
