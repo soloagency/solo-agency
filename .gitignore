@@ -70,3 +70,6 @@ HANDOFF_LOCAL*.md
 /agency-loop-animation-*
 # Timestamped backup copies are never published.
 **/backup/*.bak.*
+
+# Backup copies of files without an extension (LICENSE, etc.) are never published.
+LICENSE_[0-9]*
