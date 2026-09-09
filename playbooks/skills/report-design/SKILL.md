@@ -34,7 +34,7 @@ Report dials:
 ## Non-Negotiables
 
 - The report must feel like a premium agency deliverable, not exported Markdown.
-- The first viewport must work like a landing-page hero: report title, client/date context, decisive recommendation, lane status, and 3-5 scan-friendly highlights.
+- The first viewport must work like a landing-page hero: report title, client/date context, decisive recommendation, lane status, and 3-5 scan-friendly highlights. When the run found people to contact, the hero leads with THEM — the count and the most urgent one, with the link — before the recommendation: a lead is perishable and an idea is not (`playbooks/06_AGENCY_REPORT_STANDARD.md`, "Why the leads come first").
 - Client-facing reports and the PDF companion remain client-blind. Do not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extensions, automation/scheduled tasks, API keys, Telegram, agent/debug details, or `INTERNAL_REPORT`.
 - No remote CSS, JavaScript, fonts, icons, images, tracking pixels, or CDNs.
 - No fake static action buttons. Use links only when they go somewhere real.

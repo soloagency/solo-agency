@@ -1137,20 +1137,31 @@ The HTML report is not a data dump. It is a professional agency decision report.
 
 The report must feel like it came from a capable media strategist, not from a crawler. It should combine research, judgment, prioritization, production readiness, and clear client communication.
 
-Required report hierarchy (this list defines what each section CONTAINS for the combined `{client-name}-client-report.html` and its PDF companion; the display ORDER of sections follows the Reading Order rule and the Recommended HTML section order — Top 3 ideas first, then the five script versions, then the idea matrix, then leads, then the rest):
+Required report hierarchy (this list defines what each section CONTAINS for the combined `{client-name}-client-report.html` and its PDF companion; the display ORDER of sections follows the Reading Order rule and the Recommended HTML section order — the people to contact today first, then the top 3 ideas, then the five script versions, then the idea matrix, then the rest):
 
-1. `Executive Snapshot`
+1. `People To Contact Today`
+   - Every lead this run found, once each, hottest first.
+   - Per lead: who, the one line of evidence in their own words, the link to the post, where it came
+     from (which source, and which search term when the search pass found it), and the suggested
+     next move.
+   - When the run found none: one line saying so, and which sources were searched, so the reader can
+     tell "nobody asked today" from "nothing was scanned".
+   - This is a rollup. The lane-specific `Public` / `Private Lead & Competitor Opportunities`
+     sections stay exactly as `playbooks/10_LEAD_COMPETITOR_DETECTION.md` requires.
+
+2. `Executive Snapshot`
    - Client name.
    - Run date.
    - Source coverage status: public data sources only, public data sources + private data sources, private data sources pending, private data sources failed, or mixed.
+   - Lead count: hot, warm, and not scanned/pending if applicable — FIRST, because it is the perishable number on the page.
+   - The single most urgent person to contact today, in one line, with the link.
    - Best idea of the day in one sentence.
    - Why it matters today.
    - Content asset status: draft ready, approval required, ready for production, published, needs human detail, needs visual assets, or blocked.
-   - Lead count: hot, warm, and not scanned/pending if applicable.
    - Competitor signal count.
    - One recommended next action.
 
-2. `Public Data Source Intelligence`
+3. `Public Data Source Intelligence`
    - Public source coverage and data quality.
    - Public evidence ledger.
    - Public Lead & Competitor Opportunities.
@@ -1159,7 +1170,7 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - Public draft/recommendation.
    - Public blockers or limitations.
 
-3. `Private Data Source Intelligence`
+4. `Private Data Source Intelligence`
    - Private source coverage and status, stated without internal collector/extension/login details.
    - Private source coverage and data quality.
    - Private evidence ledger.
@@ -1169,7 +1180,7 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - Private draft/recommendation.
    - Private blockers, skipped sources, or pending coverage notes stated in client-safe language.
 
-4. `Today's Recommendation`
+5. `Today's Recommendation`
    - The single best idea.
    - Target audience segment.
    - Pain point or desire it hits.
@@ -1352,22 +1363,38 @@ Professional presentation rules:
 Recommended HTML section order (this order applies to the combined `{client-name}-client-report.html`):
 
 ```text
-1. Top 3 Ideas Of The Day
-2. Production-Ready Drafts (the five script versions, directly under the Top 3)
-3. Idea Portfolio
-4. Public Lead & Competitor Opportunities / Private Lead & Competitor Opportunities
-5. Executive Snapshot
-6. Public Data Source Intelligence
-7. Private Data Source Intelligence
-8. Today's Recommendation
-9. Evidence Ledger
-10. Source Coverage And Data Quality
-11. Private Data Source Discovery
-12. Decision Scorecard
-13. Compliance And Brand Safety
-14. Next Action
-15. Appendix / Raw References, optional
+1. People To Contact Today (the leads, hottest first — see the rule below)
+2. Top 3 Ideas Of The Day
+3. Production-Ready Drafts (the five script versions, directly under the Top 3)
+4. Idea Portfolio
+5. Public Lead & Competitor Opportunities / Private Lead & Competitor Opportunities
+6. Executive Snapshot
+7. Public Data Source Intelligence
+8. Private Data Source Intelligence
+9. Today's Recommendation
+10. Evidence Ledger
+11. Source Coverage And Data Quality
+12. Private Data Source Discovery
+13. Decision Scorecard
+14. Compliance And Brand Safety
+15. Next Action
+16. Appendix / Raw References, optional
 ```
+
+**Why the leads come first.** The private scan no longer notices leads while looking for something
+else: it OPENS by searching each watched source for the phrasings that mean somebody needs someone
+today (`playbooks/04_DAILY_SCHEDULE.md` step 14a). A person who asked for a lender this morning is
+worth acting on before lunch, and their post will be buried under other posts by tomorrow. An idea
+is worth something after it is written, produced and published, which is days away. So the reader
+meets the perishable thing first. This does not demote content: the ideas keep their place directly
+underneath, and content is what makes the next contact welcome.
+
+`People To Contact Today` is a rollup, not a replacement: it lists each lead once, hottest first,
+with the one line of evidence and the link, and it points into the lane-specific `Public` and
+`Private Lead & Competitor Opportunities` sections that `playbooks/10_LEAD_COMPETITOR_DETECTION.md`
+still requires in full. When a run found no leads, the section says so in one line and says which
+sources were searched — an empty section that explains itself is information; a missing section
+reads like a broken report.
 
 Static HTML reports are not application UIs. The agent must not create buttons that imply an action will happen when the human taps them unless the button is backed by a real working URL or local browser action. For approval, revision, choosing another idea, production, publishing, or outreach, the client-facing report should say what decision to make or what wording to approve without naming Solo Agency, WideCast, providers, or tools. Operator-only instructions about where to open WideCast or another provider belong in `INTERNAL_REPORT`. For lead/competitor comments, a local `Copy comment` button is allowed only if it copies the suggested comment text and does not imply auto-posting.
 
