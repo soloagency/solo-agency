@@ -691,6 +691,95 @@
   return false;
   }
 
+  // parseGroupSnippet(text, joinState) -> {privacy, privacy_source, member_count, member_count_text}.
+  //
+  // privacy comes FIRST from a signal that does not depend on the account's UI language:
+  // profile.viewer_join_state, which Facebook sets on the search node — CAN_JOIN means anyone
+  // may join (public), CAN_REQUEST means membership is approved (private). MEMBER / REQUESTED
+  // say nothing about privacy, and then the descriptor line is the fallback, matched against a
+  // small multi-language word list ("Public · 12K members", "Riêng tư · 1,2K thành viên",
+  // "Privado · 12 mil miembros", "Öffentlich · 12.000 Mitglieder"). privacy_source says which.
+  // member_count needs no word at all: the count is the number carrying a magnitude suffix, or
+  // the largest grouped number, in the segment after the privacy word — so "10 posts a day"
+  // never wins over "12K members". The raw segment ships as member_count_text so a human or
+  // an agent can read what Facebook actually rendered when the parse is unsure.
+  // Latin-script words need a boundary (so "Publicity" is not "public"); scripts without word
+  // spacing (CJK, Thai) and Cyrillic stems are matched as plain substrings. Any list like this
+  // is incomplete by nature — which is exactly why the raw `snippet` ships next to the parse.
+  var GROUP_PUBLIC_WORDS = /(^|[^\p{L}])(public|công khai|público|publico|pública|publique|öffentlich|pubblico|publik|umum|terbuka)([^\p{L}]|$)/iu;
+  var GROUP_PRIVATE_WORDS = /(^|[^\p{L}])(private|closed|secret|riêng tư|kín|bí mật|privado|privada|privé|privée|privat|geschlossen|privato|pribadi|tertutup)([^\p{L}]|$)/iu;
+  // Word STEMS (Cyrillic inflects): anchored at a word start only — "частн" inside
+  // "участников" (members) must not read as "частная" (private).
+  var GROUP_PUBLIC_STEMS = /(^|[^\p{L}])(общедоступн|открыт|публичн)/iu;
+  var GROUP_PRIVATE_STEMS = /(^|[^\p{L}])(закрыт|частн|приватн)/iu;
+  var GROUP_PUBLIC_PLAIN = /สาธารณะ|公开|公開|공개/iu;
+  var GROUP_PRIVATE_PLAIN = /ส่วนตัว|私密|非公开|비공개/iu;
+  // "members" in the languages Facebook renders the line in; a stem match at any position.
+  var GROUP_MEMBER_WORDS = /member|thành viên|miembro|membre|mitglied|membri|anggota|участник|成员|成員|位成员|สมาชิก|회원|üye|üyeler|thành viên/iu;
+  function isPublicWord(t) { return GROUP_PUBLIC_WORDS.test(t) || GROUP_PUBLIC_STEMS.test(t) || GROUP_PUBLIC_PLAIN.test(t); }
+  function isPrivateWord(t) { return GROUP_PRIVATE_WORDS.test(t) || GROUP_PRIVATE_STEMS.test(t) || GROUP_PRIVATE_PLAIN.test(t); }
+  var GROUP_MAGNITUDES = { "K": 1e3, "N": 1e3, "TSD": 1e3, "MIL": 1e3, "ТЫС": 1e3, "千": 1e3, "M": 1e6, "MIO": 1e6, "MN": 1e6, "МЛН": 1e6, "万": 1e4, "B": 1e9, "BI": 1e9, "TỶ": 1e9, "МЛРД": 1e9, "亿": 1e8 };
+  function parseGroupNumber(seg) {
+    // "12K", "12,3K", "1,234", "12.000", "12 mil", "3.4M", "856"
+    var m = String(seg).match(/(\d[\d.,\s]*\d|\d)\s*([A-Za-zÀ-ỹа-яА-Я千万亿]{1,4})?/u);
+    if (!m) return null;
+    var num = m[1].replace(/\s+/g, "");
+    var suffix = (m[2] || "").toUpperCase();
+    var mult = GROUP_MAGNITUDES[suffix] || 1;
+    // With a magnitude suffix the separator is a decimal point ("12,3K" = 12.3K). Without one,
+    // a separator followed by exactly three digits is a thousands group ("1,234", "12.000").
+    if (mult !== 1) num = num.replace(",", ".");
+    else if (/^\d{1,3}([.,]\d{3})+$/.test(num)) num = num.replace(/[.,]/g, "");
+    else num = num.replace(",", ".");
+    var n = parseFloat(num);
+    return isFinite(n) ? Math.round(n * mult) : null;
+  }
+  function parseGroupSnippet(text, joinState) {
+    var out = { privacy: "", privacy_source: "", member_count: null, member_count_text: "" };
+    var js = String(joinState || "").toUpperCase();
+    if (js === "CAN_JOIN") { out.privacy = "public"; out.privacy_source = "join_state"; }
+    else if (js === "CAN_REQUEST" || js === "REQUEST_TO_JOIN") { out.privacy = "private"; out.privacy_source = "join_state"; }
+    var t = String(text || "").replace(/\s+/g, " ").trim();
+    if (!t) return out;
+    if (!out.privacy) {
+      if (isPublicWord(t)) { out.privacy = "public"; out.privacy_source = "snippet"; }
+      else if (isPrivateWord(t)) { out.privacy = "private"; out.privacy_source = "snippet"; }
+    }
+    // Segments are separated by "·" (or "|", "•"). A segment is a member count when it names
+    // members (multi-language list), or carries a magnitude suffix ("12K"), or is a grouped
+    // number ("1,234") — in that order of trust. A bare small number is NOT one: "10 posts a
+    // day" reads as ten members otherwise. Precision over recall: when nothing qualifies the
+    // count stays null and the raw `snippet` is there for an agent to read.
+    var segs = t.split(/\s*[·•|]\s*/);
+    var best = null, bestVal = -1, bestRank = 0;
+    for (var i = 0; i < segs.length; i++) {
+      var seg = segs[i];
+      if (!/\d/.test(seg)) continue;
+      if (isPublicWord(seg) || isPrivateWord(seg)) continue;
+      var val = parseGroupNumber(seg);
+      if (val === null) continue;
+      var rank = 0;
+      if (GROUP_MEMBER_WORDS.test(seg)) rank = 3;
+      else if (/\d\s*[A-Za-zÀ-ỹа-яА-Я千万亿]/u.test(seg) && val !== parseFloat(seg.replace(/[^\d.]/g, ""))) rank = 2;
+      else if (/^\D*\d{1,3}([.,]\d{3})+\D*$/.test(seg)) rank = 1;
+      if (!rank) continue;
+      if (rank > bestRank || (rank === bestRank && val > bestVal)) { best = seg; bestVal = val; bestRank = rank; }
+    }
+    if (best !== null) { out.member_count = bestVal; out.member_count_text = best; }
+    return out;
+  }
+
+  // fb.search.posts — Facebook's GLOBAL search (/search/posts/?q=… or /search/top/?q=…).
+  // Same SearchComet query, same edge path, same story filter as the in-group search; the
+  // in-group extractor never had a group assumption (measured 2026-09-09: 11 posts from
+  // /search/posts/, 10 from /search/top/, non-post edges skipped by the story filter). A
+  // capability id of its own so callers stop passing a global url as a "group_search_url".
+  function extractSearchPosts(caps, opts) {
+    var result = extractGroupSearchPosts(caps, opts);
+    if (result && typeof result === "object") result.capability = "fb.search.posts";
+    return result;
+  }
+
   function extractGroupsSearch(caps, opts) {
   opts = opts || {};
   var items = [], seen = {}, sourceQuery = "", firstNode = null;
@@ -740,16 +829,33 @@
         if (!key || seen[key]) continue;
         seen[key] = 1;
         if (!firstNode) firstNode = edge;
+        // The card's descriptor line — "Public · 12K members · 10 posts a day" — is the same
+        // view_model snippet fb.people.search reads for an occupation. Measured 2026-09-09
+        // (_discover.deep on /search/groups/): the group node carries NO numeric member field
+        // and NO privacy enum, only this text plus profile.viewer_join_state, so privacy and
+        // member_count are parsed from the snippet and the raw line is kept beside them.
+        var snippet = getPath(vm, "primary_snippet_text_with_entities.text");
+        if (typeof snippet !== "string" || !snippet.trim()) snippet = getPath(vm, "snippet_with_facepile.simple_text_with_entities.text");
+        snippet = typeof snippet === "string" ? snippet.replace(/\s+/g, " ").trim() : "";
+        var joinState = getPath(src, "viewer_join_state");
+        if (typeof joinState !== "string") joinState = getPath(vm, "profile.viewer_join_state");
+        var groupMeta = parseGroupSnippet(snippet, joinState);
         items.push({
           type: "group",
           id: id ? String(id) : "",
           name: name ? String(name) : "",
-          url: url ? String(url) : ""
+          url: url ? String(url) : "",
+          privacy: groupMeta.privacy,
+          privacy_source: groupMeta.privacy_source,
+          member_count: groupMeta.member_count,
+          member_count_text: groupMeta.member_count_text,
+          snippet: snippet,
+          viewer_join_state: typeof joinState === "string" ? joinState : ""
         });
       }
     }
   }
-  var result = { capability: "fb.groups.search", schema: "EntityRef[]", source_query: sourceQuery, count: items.length, items: items };
+  var result = { capability: "fb.groups.search", schema: "GroupSummary[]", source_query: sourceQuery, count: items.length, items: items };
   if (opts.debug && firstNode) {
     try { result._debug_node_skeleton = skeletonize(firstNode, 0, { n: 1200 }, 16); } catch (e) { /* ignore */ }
   }
@@ -1089,6 +1195,7 @@
   var CAPABILITY_EXTRACTORS = {
     "fb.group.posts": extractGroupPosts,
     "fb.group.search_posts": extractGroupSearchPosts,
+    "fb.search.posts": extractSearchPosts,
     "fb.profile.friends": extractProfileFriends,
     "fb.groups.search": extractGroupsSearch,
     "fb.people.search": extractPeopleSearch,
@@ -1218,6 +1325,7 @@
   var CAPABILITY_PAGINATION = {
     "fb.group.posts":        { scope: "GroupsCometFeed",    pageInfoPath: "data.node.group_feed.page_info" },
     "fb.group.search_posts": { scope: "SearchComet",        pageInfoPath: "data.serpResponse.results.page_info" },
+    "fb.search.posts":       { scope: "SearchComet",        pageInfoPath: "data.serpResponse.results.page_info" },
     "fb.groups.search":      { scope: "SearchComet",        pageInfoPath: "data.serpResponse.results.page_info" },
     "fb.people.search":      { scope: "SearchComet",        pageInfoPath: "data.serpResponse.results.page_info" },
     "fb.profile.posts":      { scope: "ProfileCometTimeline", pageInfoPath: "data.node.timeline_list_feed_units.page_info" },

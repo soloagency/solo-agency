@@ -145,9 +145,13 @@ compare against a fresh capture (§7).** Extractor functions are in
 - Edges: `data.serpResponse.results.edges[]` → entity at `rendering_strategy.view_model.profile`, filter `__typename === "User"`
 - subtitle `view_model.primary_snippet_text_with_entities.text` · mutual from `view_model.snippet_with_facepile.simple_text_with_entities.text` · `industry_hint` = keyword classifier over subtitle
 
-### fb.groups.search → `extractGroupsSearch` → EntityRef[]
+### fb.groups.search → `extractGroupsSearch` → GroupSummary[]
 - Query: `SearchCometResultsPaginatedResultsQuery` (same SERP). Scoped to `SearchCometResultsPaginatedResults`.
 - Edges: `data.serpResponse.results.edges[]` → `rendering_strategy.view_model.profile`, keep only Group (typename `Group`, or `loggedProfile.type === "group"`, or `node.role` ~ /group/, or a `facebook.com/groups/<id>` url)
+- `privacy` / `member_count` (2026-09-09): the node carries NO numeric member field and NO privacy enum (`_discover.deep` on `/search/groups/`); both are parsed by `parseGroupSnippet` from the card's descriptor line `view_model.primary_snippet_text_with_entities.text` ("Public · 12K members · 10 posts a day", "Riêng tư · 1,2K thành viên"; facepile snippet as fallback). The raw line ships as `snippet`, `profile.viewer_join_state` as `viewer_join_state`.
+
+### fb.search.posts → `extractSearchPosts` → PostRecord[]
+- Facebook's GLOBAL search: `/search/posts/?q=<kw>` (Posts tab) or `/search/top/?q=<kw>` (mixed Top tab). Same query, edge path and story filter as `fb.group.search_posts` — an alias that reports its own id. Measured 2026-09-09: 11 posts from `/search/posts/`, 10 from `/search/top/` (non-post edges are skipped by the `click_model.story` gate).
 
 ### fb.profile.posts → `extractProfileTimeline` → PostRecord[]
 - Query: `ProfileCometTimelineFeedRefetchQuery` (+ initial variant). Scoped by the **edge path**, not the name.

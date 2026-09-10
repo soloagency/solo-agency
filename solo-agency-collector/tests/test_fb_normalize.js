@@ -339,25 +339,87 @@ function searchResponse(stories) {
 
 (function testGroupsSearch() {
   console.log("\n-- fb.groups.search (real extractor) --");
-  // extractGroupsSearch() (gql_extract.js:694-757) reads the SAME SearchComet envelope as
+  // extractGroupsSearch() (gql_extract.js:774-854) reads the SAME SearchComet envelope as
   // fb.group.search_posts, filtered to edges whose rendering_strategy.view_model.profile (or
   // .loggedProfile) looks like a Group (edgeIsGroup(), :683-692) — here __typename:"Group" is
-  // the qualifying signal.
-  function groupEdge(id, name, url) {
-    return { node: {}, rendering_strategy: { view_model: { profile: { __typename: "Group", id: id, url: url, name: name } } } };
+  // the qualifying signal. As of 2026-09-09 it also parses privacy/member_count out of the
+  // card's descriptor line via parseGroupSnippet(text, viewer_join_state) (:735-761) — verified
+  // against the real source (it takes TWO args and checks join_state before the snippet text,
+  // and also returns privacy_source/member_count_text alongside privacy/member_count).
+  // profile.viewer_join_state is left unset here so privacy resolves purely from the snippet
+  // text, matching what is asserted below.
+  function groupEdge(id, name, url, snippet) {
+    return {
+      node: {},
+      rendering_strategy: { view_model: {
+        profile: { __typename: "Group", id: id, url: url, name: name },
+        primary_snippet_text_with_entities: { text: snippet },
+      } },
+    };
   }
   const resp = { data: { serpResponse: { results: {
-    edges: [groupEdge("1234567890", "LA Realtors Network", "https://www.facebook.com/groups/1234567890/")],
+    edges: [groupEdge("1234567890", "LA Realtors Network", "https://www.facebook.com/groups/1234567890/", "Public · 12,500 members")],
     page_info: { end_cursor: null, has_next_page: false },
   } } } };
   const h = makePostCommentsCtx({ seedQuery: SEARCH_Q, seedResponse: resp });
   const res = h.ctx.window.__soloGqlExtractCapability("fb.groups.search", {});
   check("extractor found the group", res.count === 1, res);
+  check("extractor parsed privacy/member_count off the snippet (gql_extract.js side, not yet normalized)", res.items[0].privacy === "public" && res.items[0].member_count === 12500, res.items[0]);
 
   const out = collect(h.normalize("fb.groups.search", res, { captured_at: CAPTURED_AT }));
   check("schema_version 1, kind group", out.schema_version === 1 && out.kind === "group", out);
   const g = out.items[0];
   check("group platform_id/name/url/type", g.platform_id === "1234567890" && g.name === "LA Realtors Network" && g.url === "https://www.facebook.com/groups/1234567890/" && g.type === "group", g);
+  // 2026-09-09: normalizeGroupSearchItem now carries privacy/member_count onto the canonical
+  // group item itself, and the snippet + viewer's join state into ext (fb_normalize.js:334-342).
+  check("privacy/member_count land on the canonical item (not just in ext)", g.privacy === "public" && g.member_count === 12500, g);
+  check("the raw descriptor line lands in ext.snippet", g.ext.snippet === "Public · 12,500 members", g.ext);
+
+  // A private group with an explicit viewer_join_state, to prove that field's passthrough too.
+  const respPrivate = { data: { serpResponse: { results: {
+    edges: [{
+      node: {},
+      rendering_strategy: { view_model: {
+        profile: { __typename: "Group", id: "999", url: "https://www.facebook.com/groups/999/", name: "Private Nail Techs", viewer_join_state: "CAN_REQUEST" },
+        primary_snippet_text_with_entities: { text: "Private · 300 members" },
+      } },
+    }],
+    page_info: { end_cursor: null, has_next_page: false },
+  } } } };
+  const hPriv = makePostCommentsCtx({ seedQuery: SEARCH_Q, seedResponse: respPrivate });
+  const resPriv = hPriv.ctx.window.__soloGqlExtractCapability("fb.groups.search", {});
+  const outPriv = collect(hPriv.normalize("fb.groups.search", resPriv, { captured_at: CAPTURED_AT }));
+  const gp = outPriv.items[0];
+  check("private group: privacy 'private' on the canonical item", gp.privacy === "private", gp);
+  check("viewer_join_state lands in ext, not on the canonical item", gp.ext.viewer_join_state === "CAN_REQUEST" && !("viewer_join_state" in gp), gp);
+
+  // No descriptor line and no join_state at all -> parseGroupSnippet finds nothing to report;
+  // normalizeGroupSearchItem must never invent a privacy/member_count field in that case.
+  const respUnknown = { data: { serpResponse: { results: {
+    edges: [{ node: {}, rendering_strategy: { view_model: { profile: { __typename: "Group", id: "1", url: "https://www.facebook.com/groups/1/", name: "Mystery Group" } } } }],
+    page_info: { end_cursor: null, has_next_page: false },
+  } } } };
+  const hUnk = makePostCommentsCtx({ seedQuery: SEARCH_Q, seedResponse: respUnknown });
+  const resUnk = hUnk.ctx.window.__soloGqlExtractCapability("fb.groups.search", {});
+  const outUnk = collect(hUnk.normalize("fb.groups.search", resUnk, { captured_at: CAPTURED_AT }));
+  check("no snippet/join_state -> no privacy/member_count field on the canonical item", !("privacy" in outUnk.items[0]) && !("member_count" in outUnk.items[0]), outUnk.items[0]);
+})();
+
+(function testSearchPosts() {
+  console.log("\n-- fb.search.posts (real extractor, new capability id, gql_extract.js:763-772) --");
+  // extractSearchPosts() is a thin alias: it runs the REAL extractGroupSearchPosts() over the
+  // same SearchComet captures and only rewrites result.capability afterward — so it reuses the
+  // exact storyNode()/searchResponse() fixtures already proven for fb.group.search_posts above.
+  const h = makePostCommentsCtx({ seedQuery: SEARCH_Q, seedResponse: searchResponse([storyNode("P9", "fb:P9")]) });
+  const res = h.ctx.window.__soloGqlExtractCapability("fb.search.posts", {});
+  check("extractor reports its own capability id", res.capability === "fb.search.posts", res.capability);
+  check("extractor found the post via the same story path fb.group.search_posts uses", res.count === 1 && res.items[0].feedback_id === "fb:P9", res);
+
+  const out = collect(h.normalize("fb.search.posts", res, { captured_at: CAPTURED_AT }));
+  check("fb.search.posts normalizes to kind 'post', same as fb.group.search_posts", out.schema_version === 1 && out.kind === "post", out);
+  const it = out.items[0];
+  check("source_capability on the canonical item is fb.search.posts", it.source_capability === "fb.search.posts", it.source_capability);
+  check("refs.feedback_id and engagement carried through identically to the fb.group.search_posts path", it.refs.feedback_id === "fb:P9" && it.engagement.likes === 9 && it.engagement.comments === 5, it);
 })();
 
 function testPostCommentsRecursiveAndPagination() {

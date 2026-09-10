@@ -133,6 +133,8 @@
       capabilities: {
         "fb.group.posts": fbCapMeta("fb.group.posts", "post"),
         "fb.group.search_posts": fbCapMeta("fb.group.search_posts", "post"),
+        // Global search (/search/posts/, /search/top/): same library, same entry points.
+        "fb.search.posts": fbCapMeta("fb.search.posts", "post"),
         "fb.post.comments": fbCapMeta("fb.post.comments", "comment"),
         "fb.profile.friends": fbCapMeta("fb.profile.friends", "profile"),
         // status "not_built" in the catalog (superseded by fb.profile.dossier) — kept here

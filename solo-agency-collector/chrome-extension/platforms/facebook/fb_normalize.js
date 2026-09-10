@@ -324,13 +324,23 @@
     var name = typeof raw.name === "string" ? raw.name : "";
     var url = typeof raw.url === "string" ? raw.url : "";
     if (!name && !url) return null;
-    return {
+    var item = {
       kind: "group", platform: "facebook",
       platform_id: raw.id !== undefined && raw.id !== null ? str(raw.id) : "",
       name: name, url: url, type: "group",
       captured_at: capturedAt, source_capability: capId,
       refs: {}, ext: {}
     };
+    // privacy / member_count are parsed from the search card's descriptor line by
+    // gql_extract.js parseGroupSnippet (2026-09-09); the raw line and the viewer's join state
+    // stay in ext, since only Facebook renders them.
+    if (raw.privacy === "public" || raw.privacy === "private") item.privacy = raw.privacy;
+    if (typeof raw.member_count === "number" && isFinite(raw.member_count)) item.member_count = raw.member_count;
+    if (typeof raw.snippet === "string" && raw.snippet) item.ext.snippet = raw.snippet;
+    if (typeof raw.privacy_source === "string" && raw.privacy_source) item.ext.privacy_source = raw.privacy_source;
+    if (typeof raw.member_count_text === "string" && raw.member_count_text) item.ext.member_count_text = raw.member_count_text;
+    if (typeof raw.viewer_join_state === "string" && raw.viewer_join_state) item.ext.viewer_join_state = raw.viewer_join_state;
+    return item;
   }
 
   // ---------------------------------------------------------------- profile
@@ -563,6 +573,7 @@
     switch (capabilityId) {
       case "fb.group.posts":
       case "fb.group.search_posts":
+      case "fb.search.posts":
       case "fb.profile.posts":
       case "fb.newsfeed":
         return {

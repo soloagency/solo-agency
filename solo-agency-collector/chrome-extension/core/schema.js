@@ -116,7 +116,7 @@
     },
     group: {
       required: ["kind", "platform", "platform_id", "name", "url", "captured_at"],
-      optional: ["type", "member_count", "source_capability", "refs", "ext"],
+      optional: ["type", "privacy", "member_count", "source_capability", "refs", "ext"],
       identity: ["platform", "platform_id"]
     },
     message: {
@@ -188,6 +188,7 @@
     pagination: "object",
 
     type: "enum:group,page,channel,community",
+    privacy: "enum:public,private",
     member_count: "number",
 
     direction: "enum:in,out",

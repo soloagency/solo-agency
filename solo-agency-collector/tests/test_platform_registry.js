@@ -146,7 +146,7 @@ console.log("\n== every capability id in bridge-go/collector_capabilities.json r
   check("every catalog capability id resolves to a platform module", unresolved.length === 0, unresolved);
 
   // The task spec's own count: 20 fb.* ids + web.search + 2 zillow.* ids = 23.
-  check("catalog capability count matches the expected 23", ids.length === 23, ids.length);
+  check("catalog capability count matches the expected 24", ids.length === 24, ids.length);
 
   ids.forEach(function (id) {
     const mod = P.moduleForCapability(id);

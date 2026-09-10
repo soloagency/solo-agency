@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "updated_at": "2026-09-09",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -283,6 +283,18 @@
       "feedback_id": "string — the COMMENT's own feedback id, which is what the reply query is addressed to. Distinct from post_feedback_id and from id: all three are different handles.",
       "replies": "CommentRecord[] — populated only when depth >= 2 was requested; empty otherwise",
       "top_level": "bool — true for a direct comment. Replies also appear nested inside their parent's `replies`, so filter on this before counting or a threaded comment is counted twice."
+    },
+    "GroupSummary": {
+      "type": "string — always \"group\"",
+      "id": "string — group id when available (else derived from the url)",
+      "name": "string — display name",
+      "url": "string — canonical group url",
+      "privacy": "string — \"public\" | \"private\" | \"\" (unknown). Source order: Facebook's own viewer_join_state on the node (CAN_JOIN = public, CAN_REQUEST = private — language-independent), then the descriptor line matched against a multi-language word list. Read `snippet` yourself when this is \"\".",
+      "member_count": "number | null — the suffixed or largest number in the descriptor line, no language needed (\"12K members\", \"1,2K thành viên\", \"12.000 Mitglieder\" -> 12000). Read `member_count_text`/`snippet` yourself when null.",
+      "snippet": "string — the whole descriptor line as Facebook rendered it, e.g. \"Public · 12K members · 10 posts a day\". Always shipped: the parsed fields are hints, this is the record of truth for an agent to re-derive from.",
+      "viewer_join_state": "string — Facebook's own viewer_join_state on the node when present",
+      "privacy_source": "string — \"join_state\" | \"snippet\" | \"\" — where privacy came from",
+      "member_count_text": "string — the descriptor segment the count was read from, as Facebook rendered it"
     }
   },
   "capabilities": [
@@ -454,6 +466,77 @@
         ],
         "offline_tests": [],
         "note": "Searches a PUBLIC, read-only group (fb_search_group_url) with an evergreen keyword, never the write-allowed test group: a private test group with a handful of posts does not reliably render SearchComet results, and the search fixture must never be a place a real write could land."
+      }
+    },
+    {
+      "id": "fb.search.posts",
+      "title": "Facebook global search: posts",
+      "when_to_use": "Find public posts across Facebook matching a keyword (the Posts tab of Facebook search, or the mixed Top tab — non-post results are skipped). Use fb.group.search_posts when the search must stay inside one group.",
+      "inputs": {
+        "search_url": "string (required) — https://www.facebook.com/search/posts/?q=<keyword> (or /search/top/?q=<keyword>; URL-encode the keyword). Put the same url in the source's `url`.",
+        "max_scroll": "int (optional)",
+        "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay",
+        "within_days": "int (optional) — keep only posts newer than N days. Omit for no time limit.",
+        "since": "string|int (optional) — ISO date or unix seconds; keep posts at or after this.",
+        "until": "string|int (optional) — ISO date or unix seconds; keep posts at or before this."
+      },
+      "output_schema": "PostRecord[]",
+      "provider": "facebook-graphql",
+      "coverage": "public search results (Posts tab; Top tab yields the post-shaped results only)",
+      "status": "beta",
+      "tier": "free",
+      "scroll": "max_scroll",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_search_keyword"
+        ],
+        "url": "https://www.facebook.com/search/posts/?q={fb_search_keyword}",
+        "inputs": {
+          "search_url": "https://www.facebook.com/search/posts/?q={fb_search_keyword}",
+          "max_scroll": 1,
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "SearchComet",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.source_query",
+            "op": "contains",
+            "value": "SearchComet"
+          },
+          {
+            "path": "records.items[0].url",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id",
+              "post_id"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "feedback_id",
+          "actor.id",
+          "url"
+        ],
+        "cause_group": [
+          "gql_intercept",
+          "search_comet"
+        ],
+        "offline_tests": []
       }
     },
     {
@@ -689,13 +772,13 @@
     {
       "id": "fb.groups.search",
       "title": "Facebook group search results",
-      "when_to_use": "Find Facebook groups matching a keyword — for discovering communities to join and scan.",
+      "when_to_use": "Find Facebook groups matching a keyword — for discovering communities to join and scan. Each result says whether the group is public or private and how many members it has (parsed from the search card).",
       "inputs": {
         "query": "string (required) — search keywords",
         "max_scroll": "int (optional)",
         "max_pages": "int (optional, default 8, max 40) — deep pagination via cursor replay"
       },
-      "output_schema": "EntityRef[]",
+      "output_schema": "GroupSummary[]",
       "provider": "facebook-graphql",
       "coverage": "public search results",
       "status": "stable",
@@ -745,12 +828,24 @@
               "url",
               "name"
             ]
+          },
+          {
+            "path": "records.items",
+            "op": "any_has",
+            "value": [
+              "privacy",
+              "member_count"
+            ],
+            "severity": "warn",
+            "note": "the descriptor line (\"Public · 12K members\") stopped being captured or parsed"
           }
         ],
         "baseline_fields": [
           "id",
           "url",
-          "name"
+          "name",
+          "privacy",
+          "member_count"
         ],
         "cause_group": [
           "gql_intercept",
