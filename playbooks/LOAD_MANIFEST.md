@@ -5,7 +5,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| SOLO_AGENCY_PLAYBOOK.md | 998 | 78dd2932d24602813ae6d14522a4d3bfa1f75a4a8575f6d17c8df186f78e65ae | If any required stage was not loaded, load it before proceeding. |
+| SOLO_AGENCY_PLAYBOOK.md | 998 | 359c41d49ba4803289d2fe91a3e9816ad549845b7351a510d230a6a183aa9167 | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 1859 | 66485a20ddaacf36d636e1f247116d5726b4df2cf9b6566f629bfe3181159b7f | --- |
 | playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md | 786 | 110f7179ef48caa67e7e169354035979692de190c2292d8c81ba1a01c2cd2c92 | --- |
 | playbooks/02_PRIVATE_SOURCE_SETUP.md | 723 | f77eb5384513a769e0ace62ba080e7309cf04339c204a66f08b0f0ed1efbff3c | --- |
@@ -28,7 +28,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/SCHEDULED_RUN_ENTRYPOINT.md | 192 | fec235c93498920f081bbc95c7941f9832a13c7b6250f170c934f7471b49b3c8 | Do not claim WideCast itself lacks upload or notification capability merely because a legacy MCP/tool surface is unavailable. Check Client tools first: the configured OpenAPI provider path, account identity, and provider_capabilities.json. Only then check global MCP/native tools as optional compatibility. Conversely, do not claim this client's WideCast PDNA is connected merely because a legacy MCP/tool surface is available. |
 | playbooks/SETUP_FLOW_ENTRYPOINT.md | 176 | 8bcea4bfeb5319cb6c6dd94023c3e05d860110f58a140d7129752e0253be633a | Do not ask whether to run the report now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not perform public research, private data source collection (one exception: the step-7 discovery pass per item 7 of the Setup Flow Contract), report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery (one exception: the single step-8 WideCast confirmation ping that verifies the notification channel right after the human provides the API key) in Setup Flow. |
 | playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md | 191 | 0d1db7576ce4ae7ea7083f017ea1d682a8e2f2ae4792881c44ebb1e8e5c4765f | - local logs updated under `integrations/providers/`. |
-| playbooks/TEAM_MODEL.md | 129 | 024efb1a79211ec478a04b9f5df8a76c5283a6133a64101a7cf2a9a33174d4be | - **collector** — the bridge + the Chrome extension, the Scout's hands; **bridge** — the closed local binary; **agent** — any of the above LLM roles, and in `AGENTS.md` the runtime as a whole. |
+| playbooks/TEAM_MODEL.md | 129 | 4608b8f39a3d2440ff74bc9b631e0d3a5a31d78f5fa418b8812ef55dd0552e38 | - **collector** — the bridge + the Chrome extension, the Scout's hands; **bridge** — the closed local binary; **agent** — any of the above LLM roles, and in `AGENTS.md` the runtime as a whole. |
 | playbooks/TODO.md | 207 | f62dd6ed214a9822d53bbbe10aa34e077927b6cee55bc2580e17198d40dfc278 | - Does it pass Stage 9 self-audit before claiming completion? |
 | playbooks/skills/blog-writing/LOAD_MANIFEST.md | 8 | 9902142e7534ab911c5d282686291d92b956bb02257bf3f21d42e6c5a67ea27f | \| SKILL.md \| 179 \| 847358ce5df06fbefd142c0dd05034448e2494d9c04d8185ffa0e8791f161449 \| user is technical and asks. \| |
 | playbooks/skills/blog-writing/SKILL.md | 179 | 847358ce5df06fbefd142c0dd05034448e2494d9c04d8185ffa0e8791f161449 | user is technical and asks. |

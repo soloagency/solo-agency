@@ -4,15 +4,15 @@
 
 # Solo Agency
 
-**Agency-grade marketing for a solo business, run by a team of AI agents. You only talk to the Team Leader.**
+**Agency-grade sales & marketing for a solo business, run by a team of AI agents. You only talk to Sam, the Team Leader.**
 
-Solo Agency is for solo-business owners (realtors, SaaS founders, insurance and mortgage agents, coaches, consultants, local services, one-person brands) who need the marketing a whole agency would do and have nobody to do it: finding leads, nurturing them, keeping a CRM that never drops a follow-up, running outreach, building a personal brand with content people actually care about, every single day.
+Solo Agency is for solo-business owners (realtors, SaaS founders, insurance and mortgage agents, coaches, consultants, local services, one-person brands) who need the sales & marketing a whole agency would do and have nobody to do it: finding leads, nurturing them, keeping a CRM that never drops a follow-up, running outreach, building a personal brand with content people actually care about, every single day.
 
 It gives you that agency as a team of AI agents working inside the AI you already use (Claude, Codex, Hermes, OpenClaw), reading the web and the social platforms where your customers actually gather. I built it for myself and run my own business on it every day.
 
 ## How it works: you are the Boss, you talk to one Team Leader
 
-Set it up once. From then on you talk to a single Team Leader in your chat, the way you would brief a marketing lead. Behind it, a team does the work and reports back:
+Set it up once. From then on you talk to a single Team Leader, Sam, in your chat, the way you would brief a sales & marketing lead. Behind it, a team does the work and reports back:
 
 | Agent | What it does for you |
 |---|---|
@@ -43,7 +43,7 @@ One Boss, one install on your own computer, as many clients as you need. A clien
 
 https://github.com/user-attachments/assets/884edd91-7b11-4709-8b93-1b3d6144e3dd
 
-![The Solo Agency loop: one person, one Team Leader, a full marketing agency behind it](assets/the_loop_landscape_light.png)
+![The Solo Agency loop: one person, one Team Leader, a full sales & marketing team behind it](assets/the_loop_landscape_light.png)
 
 ## What you get every morning
 
@@ -74,7 +74,7 @@ Tell your AI agent:
 Setup https://github.com/soloagency/solo-agency now.
 ```
 
-The first thing you will hear is your Team Leader introducing the team. Setup asks you one question at a time; you do not need to remember any of it. Add a client later with:
+The first thing you will hear is Sam, your Team Leader, introducing the team; name that chat **SAM** and pin it, because every order and report from then on goes through it. Setup asks you one question at a time; you do not need to remember any of it. Add a client later with:
 
 ```text
 Add a new client: [client name]. They provide [product/service]. Their target market is [location].
