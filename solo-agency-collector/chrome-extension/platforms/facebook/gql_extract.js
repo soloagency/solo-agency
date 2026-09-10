@@ -2252,6 +2252,16 @@
     // feed query lands after first paint and this capability is worthless without it.
     return settleThenScan(Number(inputs.settle_ms) > 0 ? Number(inputs.settle_ms) : 2500).then(function () {
       var posts = takeCaptured("fb.profile.posts", maxPosts);
+      // The timeline query lands after first paint — usually. Measured 2026-09-09 on one profile,
+      // two runs an hour apart, nothing else different: it fired once (3 posts) and not the next
+      // time (0, reason no_match). A passive read cannot tell "no posts" from "not fired yet".
+      // So when posts were asked for and none were captured, nudge the feed exactly the way
+      // fb.profile.posts does (ensureCapture: scroll, wait, re-check), bounded to three tries so
+      // the About walk keeps its budget. This is the capability's own scroll, asked for by
+      // max_posts, not the runner's.
+      var nudge = (!posts.items.length && maxPosts > 0) ? ensureCapture("ProfileCometTimeline", 3, 1000) : Promise.resolve(false);
+      return nudge.then(function (nudged) {
+      if (nudged) posts = takeCaptured("fb.profile.posts", maxPosts);
       // Videos live behind their own tab and normally have not fired here. Take them when the
       // capture happens to exist and never navigate for them — a second page load is the cost
       // this capability exists to remove.
@@ -2268,6 +2278,7 @@
           landed_on: landedOn,
           posts_available: posts.available, posts_reason: posts.reason,
           posts_seen: posts.total_seen || 0, posts_kept: posts.items.length,
+          posts_nudged: !!nudged,
           videos_available: videos.available, videos_seen: videos.total_seen || 0
         };
         item.elapsed_ms = Date.now() - startedAt;
@@ -2281,6 +2292,7 @@
           checked: item.checked || [],
           error: ok ? null : "profile opened but yielded no name, address, About text or posts"
         };
+      });
       });
     });
   }
