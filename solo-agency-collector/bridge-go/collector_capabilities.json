@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "updated_at": "2026-09-10",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -2310,19 +2310,32 @@
           {
             "path": "records.count",
             "op": "gte",
-            "value": 1
+            "value": 1,
+            "severity": "warn",
+            "note": "0 with reason comments_hidden = the owner limits who sees comments (Instagram shows none either); a real breakage answers an error or no media_id"
           },
           {
             "path": "records.items[0].text",
-            "op": "exists"
+            "op": "exists",
+            "severity": "warn"
           },
           {
             "path": "records.items[0].actor.username",
-            "op": "nonempty"
+            "op": "nonempty",
+            "severity": "warn"
           },
           {
             "path": "records.media_id",
             "op": "nonempty"
+          },
+          {
+            "path": "records.reason",
+            "op": "in",
+            "value": [
+              null,
+              "comments_hidden"
+            ],
+            "note": "any other reason is a breakage"
           }
         ],
         "baseline_fields": [

@@ -225,6 +225,15 @@ Same rule as every other platform: fixtures must be the operator's OWN targets (
 are comfortable being read repeatedly), never a private third party's account — `count: 0` is
 only a trustworthy failure signal when the fixture is guaranteed to have content.
 
+### Comments hidden by the owner (measured 2026-09-10)
+
+Two posts with `comment_count` 7 and 8 answered `comments: []` to the executor account, and
+Instagram's own post page showed no comments either — the owner limits who sees them. The
+endpoint itself works (another public post answered 15). `ig.post.comments` reports this as
+`count: 0, found: false, reason: "comments_hidden"` with `comment_count` kept, and the
+healthcheck probe turns it into WARN, not FAIL. A real breakage answers an `error` or no
+`media_id`.
+
 ## 8. Maintenance
 
 - `tool healthcheck run --client <test client> --only ig.profile.enrich` (and the other four ids)

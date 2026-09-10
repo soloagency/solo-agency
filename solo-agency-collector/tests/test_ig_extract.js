@@ -444,6 +444,11 @@ function sensitiveKeys(o, pathStr, out) {
     check("comments: one comment returned", res.count === 1 && res.items[0].actor.username === "gissell.g.f", res.items);
     check("comments: post header carried from the embedded media", !!res.post && res.post.code === "Dchr8pejp8b" && res.post.url === "https://www.instagram.com/reel/Dchr8pejp8b/" && res.comment_count === 8, res.post);
     check("prefetched() is cached per page (same script count -> same array)", ctx.window.__soloIgInternals.prefetched() === pre);
+    // Hidden comments: comment_count says 7, the endpoint answers none — the record must say why.
+    const hiddenFetch = (url) => Promise.resolve({ status: 200, text: () => Promise.resolve(JSON.stringify({ comments: [], next_min_id: "", has_more_comments: false, comment_count: 7 })) });
+    const ctx2 = makeCtx({ pathname: "/reel/Dchr8pejp8b/", captures: [], origFetch: hiddenFetch, dataSjs: [scriptText] });
+    const res2 = await ctx2.window.__soloIgRun("ig.post.comments", { ensure_tries: 1 });
+    check("comments hidden by the owner: count 0, reason comments_hidden, comment_count kept", res2.count === 0 && res2.reason === "comments_hidden" && res2.comment_count === 8 && res2.found === false, res2);
   }
 
   console.log("");

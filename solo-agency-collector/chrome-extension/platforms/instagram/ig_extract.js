@@ -546,7 +546,14 @@
           });
         }
         return step().then(function () {
-          return envelope(CAP_COMMENTS, items.slice(0, maxComments), { found: items.length > 0, media_id: mediaId, shortcode: shortcode, post: header, comment_count: header && header.engagement ? header.engagement.comments : null,
+          var declared = header && header.engagement ? header.engagement.comments : (num(r.json.comment_count));
+          // Measured 2026-09-10: two posts with comment_count 7 and 8 answered comments:[] to
+          // this account while Instagram's own page showed none either — the owner limits who
+          // sees them. That is a platform restriction, not a broken extractor, and the record
+          // says so instead of looking like "no comments".
+          var hidden = items.length === 0 && !hasMore && typeof declared === "number" && declared > 0;
+          return envelope(CAP_COMMENTS, items.slice(0, maxComments), { found: items.length > 0, media_id: mediaId, shortcode: shortcode, post: header, comment_count: declared,
+            reason: hidden ? "comments_hidden" : null,
             pages_fetched: pages, page_info: { next_min_id: nextMin, has_more: hasMore, resumable: !!(hasMore && nextMin) }, stopped_because: stopped });
         });
       });
