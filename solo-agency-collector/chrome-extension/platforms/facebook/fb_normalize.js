@@ -340,6 +340,7 @@
     if (typeof raw.privacy_source === "string" && raw.privacy_source) item.ext.privacy_source = raw.privacy_source;
     if (typeof raw.member_count_text === "string" && raw.member_count_text) item.ext.member_count_text = raw.member_count_text;
     if (typeof raw.viewer_join_state === "string" && raw.viewer_join_state) item.ext.viewer_join_state = raw.viewer_join_state;
+    if (typeof raw.snippet_lang === "string" && raw.snippet_lang) item.ext.snippet_lang = raw.snippet_lang;
     return item;
   }
 

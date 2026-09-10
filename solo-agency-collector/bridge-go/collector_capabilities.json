@@ -294,7 +294,8 @@
       "snippet": "string — the whole descriptor line as Facebook rendered it, e.g. \"Public · 12K members · 10 posts a day\". Always shipped: the parsed fields are hints, this is the record of truth for an agent to re-derive from.",
       "viewer_join_state": "string — Facebook's own viewer_join_state on the node when present",
       "privacy_source": "string — \"join_state\" | \"snippet\" | \"\" — where privacy came from",
-      "member_count_text": "string — the descriptor segment the count was read from, as Facebook rendered it"
+      "member_count_text": "string — the descriptor segment the count was read from, as Facebook rendered it",
+      "snippet_lang": "string — the executor's Facebook UI locale (document lang, e.g. \"en\", \"vi\", \"de\") the descriptor line was rendered in; tells an agent which language to read `snippet` in"
     }
   },
   "capabilities": [

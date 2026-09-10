@@ -718,21 +718,43 @@
   var GROUP_MEMBER_WORDS = /member|thành viên|miembro|membre|mitglied|membri|anggota|участник|成员|成員|位成员|สมาชิก|회원|üye|üyeler|thành viên/iu;
   function isPublicWord(t) { return GROUP_PUBLIC_WORDS.test(t) || GROUP_PUBLIC_STEMS.test(t) || GROUP_PUBLIC_PLAIN.test(t); }
   function isPrivateWord(t) { return GROUP_PRIVATE_WORDS.test(t) || GROUP_PRIVATE_STEMS.test(t) || GROUP_PRIVATE_PLAIN.test(t); }
-  var GROUP_MAGNITUDES = { "K": 1e3, "N": 1e3, "TSD": 1e3, "MIL": 1e3, "ТЫС": 1e3, "千": 1e3, "M": 1e6, "MIO": 1e6, "MN": 1e6, "МЛН": 1e6, "万": 1e4, "B": 1e9, "BI": 1e9, "TỶ": 1e9, "МЛРД": 1e9, "亿": 1e8 };
+  // Magnitude words Facebook renders after a count, by locale. "B" is deliberately absent:
+  // it is a billion in English and a thousand (bin) in Turkish, and no group has a billion
+  // members — an unknown suffix leaves the count null with the raw text beside it.
+  var GROUP_MAGNITUDES = {
+    "K": 1e3, "N": 1e3, "TSD": 1e3, "MIL": 1e3, "ТЫС": 1e3, "千": 1e3, "천": 1e3, "พัน": 1e3, "ألف": 1e3, "हज़ार": 1e3, "हजार": 1e3,
+    "万": 1e4, "만": 1e4, "หมื่น": 1e4, "แสน": 1e5, "लाख": 1e5,
+    "M": 1e6, "MIO": 1e6, "MN": 1e6, "МЛН": 1e6, "ล้าน": 1e6, "مليون": 1e6, "百万": 1e6
+  };
   function parseGroupNumber(seg) {
-    // "12K", "12,3K", "1,234", "12.000", "12 mil", "3.4M", "856"
-    var m = String(seg).match(/(\d[\d.,\s]*\d|\d)\s*([A-Za-zÀ-ỹа-яА-Я千万亿]{1,4})?/u);
+    // "12K", "12,3K", "1,234", "12.000 Mitglieder", "12 mil miembros", "3.4M", "680 members",
+    // "1.2万位成员", "สมาชิก 1.2 พัน คน". Letters AND combining marks (Thai vowels, Vietnamese
+    // tones in decomposed form) make up the word after the number.
+    var m = String(seg).match(/(\d[\d.,\s]*\d|\d)\s*([\p{L}\p{M}]+)?/u);
     if (!m) return null;
     var num = m[1].replace(/\s+/g, "");
-    var suffix = (m[2] || "").toUpperCase();
-    var mult = GROUP_MAGNITUDES[suffix] || 1;
-    // With a magnitude suffix the separator is a decimal point ("12,3K" = 12.3K). Without one,
-    // a separator followed by exactly three digits is a thousands group ("1,234", "12.000").
-    if (mult !== 1) num = num.replace(",", ".");
-    else if (/^\d{1,3}([.,]\d{3})+$/.test(num)) num = num.replace(/[.,]/g, "");
+    var word = m[2] || "";
+    var mult = GROUP_MAGNITUDES[word.toUpperCase()] || null;
+    // Glued CJK / Hangul forms ("1.2万位成员", "1.2만명") carry the magnitude as the word's
+    // first character — only for those scripts: "M" of "Mitglieder" is not a million.
+    if (!mult && word && /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(word.charAt(0)) && GROUP_MAGNITUDES[word.charAt(0)]) mult = GROUP_MAGNITUDES[word.charAt(0)];
+    var known = !!mult;
+    // Not a magnitude this table knows. A long word is the noun ("members", "Mitglieder",
+    // "thành viên"); a short token glued to the number ("B", "bin", "üye") is a magnitude the
+    // table does not know — say nothing rather than something wrong.
+    if (!known && word && word.length <= 3 && !GROUP_MEMBER_WORDS.test(word)) return null;
+    mult = mult || 1;
+    if (known) num = num.replace(",", ".");                              // "12,3K" is 12.3K
+    else if (/^\d{1,3}([.,]\d{3})+$/.test(num)) num = num.replace(/[.,]/g, "");  // "12.000"
     else num = num.replace(",", ".");
     var n = parseFloat(num);
-    return isFinite(n) ? Math.round(n * mult) : null;
+    if (!isFinite(n)) return null;
+    // A decimal count with no known magnitude ("1.2 <unknown>") is an unknown magnitude, not
+    // one-point-two members.
+    if (!known && n !== Math.floor(n)) return null;
+    var count = Math.round(n * mult);
+    // No Facebook group has a hundred million members; a value that large is a misread.
+    return count > 1e8 ? null : count;
   }
   function parseGroupSnippet(text, joinState) {
     var out = { privacy: "", privacy_source: "", member_count: null, member_count_text: "" };
@@ -760,7 +782,7 @@
       if (val === null) continue;
       var rank = 0;
       if (GROUP_MEMBER_WORDS.test(seg)) rank = 3;
-      else if (/\d\s*[A-Za-zÀ-ỹа-яА-Я千万亿]/u.test(seg) && val !== parseFloat(seg.replace(/[^\d.]/g, ""))) rank = 2;
+      else if (/\d\s*[\p{L}\p{M}]/u.test(seg) && val !== parseFloat(seg.replace(/[^\d.]/g, ""))) rank = 2;
       else if (/^\D*\d{1,3}([.,]\d{3})+\D*$/.test(seg)) rank = 1;
       if (!rank) continue;
       if (rank > bestRank || (rank === bestRank && val > bestVal)) { best = seg; bestVal = val; bestRank = rank; }
@@ -861,6 +883,9 @@
           member_count: groupMeta.member_count,
           member_count_text: groupMeta.member_count_text,
           snippet: snippet,
+          // The UI locale the descriptor line was rendered in — what an agent needs when it
+          // re-derives privacy/count from `snippet` for a language the parser does not know.
+          snippet_lang: (typeof document !== "undefined" && document.documentElement && document.documentElement.lang) ? String(document.documentElement.lang) : "",
           viewer_join_state: typeof joinState === "string" ? joinState : ""
         });
       }
