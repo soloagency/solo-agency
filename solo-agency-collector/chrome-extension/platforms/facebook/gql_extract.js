@@ -2976,7 +2976,7 @@
           // real separators or a leading +, 8..15 digits — an id like "61564723150545" is 14
           // bare digits with no separator and is not a phone, and neither is a date.
           function phoneShapedLines(lines) {
-            var out = [];
+            var out = [], seenKeys = {};
             var re = /^\+?[\d(][\d\s().-]{6,}\d$/;
             for (var i = 0; i < lines.length; i++) {
               var v = String(lines[i]).replace(/\s+/g, " ").trim();
@@ -2985,7 +2985,12 @@
               if (digits.length < 8 || digits.length > 15) continue;
               if (!/[\s().+-]/.test(v)) continue;          // bare digit runs are ids, not phones
               if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(v)) continue; // a date
-              if (out.indexOf(v) === -1) out.push(v);
+              // "(469) 594-9820" and "+1 469-594-9820" are one number: key on the last nine
+              // digits so a national and an international rendering do not both ship.
+              var key = digits.slice(-9);
+              if (seenKeys[key]) continue;
+              seenKeys[key] = 1;
+              out.push(v);
             }
             return out;
           }
@@ -3016,7 +3021,10 @@
             // the same number sat under "WhatsApp number" and, formatted differently, in the
             // intro card ("(469) 594-9820"). afterLabel alone returned [] for a profile that
             // publishes its phone twice.
-            phones: union(afterLabel(/^(phone|mobile|whatsapp( number)?|điện thoại|số điện thoại|zalo)$/i), phoneShapedLines(aboutLines)),
+            // Only phone-shaped values survive: a label at a section boundary ("Mobile" as the
+            // last line of Contact info, "Real Estate" as the first of Category) made afterLabel
+            // file the category as a phone. One number rendered two ways is kept once.
+            phones: phoneShapedLines(union(afterLabel(/^(phone|mobile|whatsapp( number)?|điện thoại|số điện thoại|zalo)$/i), aboutLines)),
             intro_lines: union(header.intro_lines, later.intro_lines).slice(0, 20),
             // The job TITLE lives here and nowhere else — see the note above DOSSIER_TABS.
             about: about,
