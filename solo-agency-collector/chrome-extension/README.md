@@ -30,6 +30,18 @@ The user installs it once in the Chrome profile that is already logged in to Fac
 - It does not guarantee a permanently awake background worker in all browser/OS power states.
 - Hidden/background tabs may be throttled by Chrome; build `0.1.10-filtering-capture` and newer reduces this risk, gives 5-10 scroll social captures enough time to finish, clears stale active-run locks after updates, and keeps the full `filtering.js` capture pipeline. If tabs open/close but no data reaches disk, audit bridge/extension identity, write token, POST responses, and output folder routing before changing the capture pipeline.
 
+## Source Layout
+
+Platform-specific capture code lives under `platforms/<name>/` — today `facebook/`
+(`gql_intercept.js`, `gql_extract.js`, `gql_actions.js`, `fb_normalize.js`) and `zillow/`
+(`zillow_extract.js`, `zillow_normalize.js`). Each platform is registered as data in
+`core/platform_registry.js` (which files `background.js` injects, which entry point it calls,
+per-capability metadata); `core/schema.js` defines the one canonical record shape every
+platform's normalizer maps into. Shared, platform-neutral files stay at this top level:
+`collector_helpers.js`, `contact_extract.js`, `filtering.js`, `infinity_loops.js`,
+`readability.js`, `offscreen.js`, `solo_entitlement.js`, `popup.*`, `audit.*`. See
+`../GRAPHQL_MAINTENANCE.md` §2 for the full file map.
+
 ## Runtime Install
 
 This folder is the source/developer copy of the Chrome extension.

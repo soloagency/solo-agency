@@ -19,6 +19,7 @@
   <li>Routing is based on <code>platform</code>, inferred from the URL by <code>inferPlatform</code> / <code>inferPlatformInPage</code>.</li>
   <li><b>Feed-like sources</b> such as Facebook, LinkedIn, Instagram, TikTok, X, Reddit, and YouTube use feed extraction. The collector keeps engagement hints and links, then deduplicates across scroll passes.</li>
   <li><b>Website/article sources</b> use Readability first to remove menus, top bars, recommendations, and page chrome before serialization.</li>
+  <li>This routing is for the generic feed/article capture path only. A <code>capability</code> job (typed reads/writes on Facebook, Zillow, etc.) is dispatched separately, via <code>core/platform_registry.js</code> (<code>SoloPlatforms.dispatchFilesFor</code> / <code>dispatchEntryFor</code>) — see <code>GRAPHQL_MAINTENANCE.md</code>.</li>
 </ul>
 
 <h2>2. Link Format</h2>

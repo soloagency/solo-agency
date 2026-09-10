@@ -103,7 +103,12 @@ fixtures "the page was genuinely empty" cannot happen, which is what turns
 
 Values chained from an earlier probe are not fixtures: `fb.post.comments` takes
 `feedback_id`/`post_url` from the most commented post `fb.group.posts` just
-read; `fb.group.search_posts` searches the first words of the newest post.
+read (selected by `engagement.comments` — the field was `engagement.comment_count` until
+2026-09-09, which no record actually carried, so the probe was SKIPPED on every run);
+`fb.group.search_posts` searches the first words of the newest post.
+
+`fb_search_group_url` / `fb_search_group_keyword` (added for `fb.group.search_posts`) must be a
+public read-only group — never the write-allowed test group used by the comment/react/DM probes.
 
 ## 4. How a probe is judged
 
@@ -115,9 +120,11 @@ Four tiers, lower tiers gating the higher ones:
   orphaned job in `jobs/pending/`; `extension_health.jsonl` is not oversized.
   A failed executor gate makes every probe SKIPPED, not FAIL.
 - **L1 platform** — `expect_query`: the persisted query the capability reads
-  must appear in `graphql_manifest[].queryName` of the fixture page. Facebook
-  renaming a query trips this before the extractor returns zero. Guards:
-  `landed_on_self` (FAIL), `url_drifted` and `maybe_logged_out` (WARN).
+  must appear in `graphql_manifest[].queryName` of the fixture page, or in the
+  record's own `records.source_query` (`background.js` re-reads the generic GraphQL
+  manifest after capability dispatch too, so a query the capability itself triggered
+  counts). Facebook renaming a query trips this before the extractor returns zero.
+  Guards: `landed_on_self` (FAIL), `url_drifted` and `maybe_logged_out` (WARN).
 - **L2 capability** — the `assert` list: `{path, op, value?, severity?, note?}`
   over `records.…` and `dp.…`. Ops: exists, absent, eq, neq, gte, gt, lte, lt,
   nonempty, empty, in, not_in, starts_with, contains, matches, not_matches,
@@ -155,7 +162,9 @@ calls `tool healthcheck run --client <slug>` and records ownership in
 
 ## 6. Adding a capability
 
-1. Implement it in the extension as before.
+1. Implement it in the extension as before (for a brand-new platform: a `platforms/<name>/`
+   extractor + normalizer plus one entry in `core/platform_registry.js` — see
+   `GRAPHQL_MAINTENANCE.md` §8).
 2. Add its catalog entry **with a `healthcheck` block**: mode, cadence, url
    template, inputs, fixtures it needs (add new keys to `hcFixtureDocs` in
    `healthcheck.go` and to `examples/healthcheck_fixtures.example.json`),

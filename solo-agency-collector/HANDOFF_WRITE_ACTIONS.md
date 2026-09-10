@@ -94,8 +94,8 @@ Everything described as DONE is live on `origin/main` and in the published `dist
 | What | Path |
 |---|---|
 | **Canonical source** (edit HERE) | `/path/to/solo-agency/solo-agency-collector` |
-| Write-action code | `chrome-extension/gql_actions.js` (MAIN world, injected only for write jobs) |
-| Read capabilities | `chrome-extension/gql_extract.js` |
+| Write-action code | `chrome-extension/platforms/facebook/gql_actions.js` (MAIN world, injected only for write jobs) |
+| Read capabilities | `chrome-extension/platforms/facebook/gql_extract.js` |
 | Job orchestration, capture, guards | `chrome-extension/background.js` |
 | Capability catalog (MCP-style) | `bridge-go/collector_capabilities.json` |
 | Bridge (Go) | `bridge-go/` |
@@ -116,7 +116,7 @@ Read `GRAPHQL_MAINTENANCE.md` (same folder) for how the GraphQL read layer works
 
 ```bash
 # 1. edit canonical source, then syntax-check
-node --check chrome-extension/gql_actions.js
+node --check chrome-extension/platforms/facebook/gql_actions.js
 
 # 2. bump the build tag + version (they are how you know a reload landed)
 #    background.js:  const EXTENSION_BUILD = "0.1.NN-short-name";

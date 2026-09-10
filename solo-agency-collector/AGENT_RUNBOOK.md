@@ -167,12 +167,15 @@ If the binary is missing:
 ### Rule: client builds MUST come from the FULL template — never strip capabilities
 
 Every per-client extension is built by copying the COMPLETE `solo-agency-collector/chrome-extension/`
-template as-is (all files: `gql_intercept.js`, `gql_extract.js`, `gql_actions.js`, `background.js`,
-`contact_extract.js`, and every capture file). The ONLY per-client changes are cosmetic/identity:
-the manifest name/description/default_title and `client_binding.json` — nothing else.
+template as-is (all files, including the `platforms/<name>/` and `core/` subdirectories:
+`platforms/facebook/gql_intercept.js`, `platforms/facebook/gql_extract.js`,
+`platforms/facebook/gql_actions.js`, `core/schema.js`, `core/platform_registry.js`,
+`background.js`, `contact_extract.js`, and every capture file). The ONLY per-client changes are
+cosmetic/identity: the manifest name/description/default_title and `client_binding.json` —
+nothing else.
 
 Do NOT strip, disable, or remove any capability from a client build (do not delete/rename the GraphQL
-layer `gql_intercept.js`/`gql_extract.js`, do not disable `gql_actions.js` → `.disabled`, do not add a
+layer `platforms/facebook/gql_intercept.js`/`gql_extract.js`, do not disable `gql_actions.js` → `.disabled`, do not add a
 `read_only: true` / "read-only, local-output-only" fork of `background.js`). Stripping capabilities at
 build time means a later flow (e.g. outreach enrichment that needs `fb.profile.header`/`videos`/`posts`,
 or an approved react/comment/DM job) silently fails and forces the user to re-install/reload the

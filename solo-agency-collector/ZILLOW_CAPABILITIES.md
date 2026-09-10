@@ -12,10 +12,12 @@ explains how to use them and does not repeat every field.
 | `zillow.agents.list` | ONE agent-directory page `zillow.com/professionals/real-estate-agent-reviews/<location>/?name=<kw>&page=<n>` | `items[]` = agent cards + page facts on the envelope | beta — live-verified 2026-08-16 (aven-ngo) |
 | `zillow.profile.enrich` | ONE agent or team profile `zillow.com/profile/<screenName>` | one `ProfileEnrich`-shaped lead record + typed `zillow{}` block, `industry: "Real Estate"` | beta — live-verified 2026-08-16 (aven-ngo) |
 
-Code: `chrome-extension/zillow_extract.js` (MAIN world, own file; injected by `background.js`
-only for `zillow.*` jobs and dispatched through `window.__soloZillowRun` — the Facebook library
-`gql_extract.js` is untouched), plus the **human gate** in `background.js` (`zillowHumanGate`)
-and the operator chime in `chrome-extension/offscreen.html/js` (manifest permission `offscreen`).
+Code: `chrome-extension/platforms/zillow/zillow_extract.js` (MAIN world, own file; registered as
+a `zillow.` module in `chrome-extension/core/platform_registry.js`, which is what tells
+`background.js` to inject it only for `zillow.*` jobs and dispatch through
+`window.__soloZillowRun` — the Facebook library `platforms/facebook/gql_extract.js` is
+untouched), plus the **human gate** in `background.js` (`zillowHumanGate`) and the operator
+chime in `chrome-extension/offscreen.html/js` (manifest permission `offscreen`).
 Offline tests: `node solo-agency-collector/tests/test_zillow_extract.js` and
 `node solo-agency-collector/tests/test_offscreen_alert.js`.
 Both pages are Next.js: the extractor parses `<script id="__NEXT_DATA__">` (no CSS selectors) and
@@ -227,6 +229,9 @@ and its AudioContext stays suspended.
   `manifest.json`** — the `offscreen` permission was patched into the aven-ngo manifest by hand
   on 2026-08-16; a client built before that needs a full rebuild (`prepare_client_extension.sh`)
   or the same one-line permission patch, or the chime silently does not play (`human_gate.alert.ok:false`).
+  Since the 2026-09-09 platform-module refactor the manifest's `content_scripts` path
+  (`platforms/facebook/gql_intercept.js`) is also unsynced and needs the same by-hand patch —
+  the script warns on the drift but does not fix it.
 - To try the gate without a real block: serve a local page whose title is "Access to this page
   has been denied" with a visible `#px-captcha` and a button that navigates to a real profile,
   and submit `zillow.profile.enrich` at that url — that is how it was verified.
@@ -235,4 +240,4 @@ and its AudioContext stays suspended.
   `collector_config.json` (read fresh, no restart) — operator's call, it is shared infrastructure.
 - If Zillow renames JSON keys: records come back `status: "no_next_data"` / `source: "dom"` with
   fewer fields. Re-verify the paths listed in `bridge-go/collector_capabilities_impl.json` under this capability's `method` (the notes live with the closed bridge source, not in the public catalog) (a `__NEXT_DATA__` dump
-  from the operator's Chrome is enough) and update `zillow_extract.js` + the fixtures.
+  from the operator's Chrome is enough) and update `platforms/zillow/zillow_extract.js` + the fixtures.

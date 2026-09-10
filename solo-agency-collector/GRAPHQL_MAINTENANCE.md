@@ -39,11 +39,13 @@ clients run from a separate `oneman_agency` tree — see [§6 Deploy](#6-deploy)
 
 | File | Role |
 |---|---|
-| `chrome-extension/gql_intercept.js` | **Interceptor.** MAIN world, `document_start`, on `*.facebook.com`. Hooks `fetch` + `XHR`, buffers the last 50 GraphQL request/response pairs into `window.__soloGql.captures`. Passive only — never replays, never sends anything. |
-| `chrome-extension/gql_extract.js` | **Extractors + dispatcher.** Runs in MAIN world during a job. `window.__soloGqlExtract()` = generic best-effort + manifest. `window.__soloGqlExtractCapability(id, inputs)` = per-screen precise extractor via `CAPABILITY_EXTRACTORS`. **This is the file you edit to add/fix a screen.** |
-| `chrome-extension/background.js` | Service worker. Injects the capture files, drives scrolling (`collectCleanPage`), then reads GraphQL: generic (`__soloGqlExtract`) + capability (`__soloGqlExtractCapability`) and writes new `data_point` fields. Key constant `EXTENSION_BUILD` (bump on each deploy so `/status` shows which build a client runs). |
-| `chrome-extension/manifest.json` | Declares the MAIN-world `content_scripts` entry for `gql_intercept.js` (`run_at: document_start`, `world: MAIN`) and the `offscreen` permission (operator chime). **`sync-dev-extension.sh` never copies this file** — a permission change must be patched into each client manifest by hand or by a full rebuild. |
-| `chrome-extension/zillow_extract.js` | **Non-Facebook capabilities (Zillow).** Own MAIN-world lib, injected by `background.js` only for `zillow.*` jobs and dispatched via `window.__soloZillowRun`; reads Next.js `__NEXT_DATA__`, no GraphQL. The template for any further non-Facebook site: new file + prefix branch in `background.js`, `gql_extract.js` untouched. Contract: `ZILLOW_CAPABILITIES.md`. |
+| `chrome-extension/core/schema.js` | **Canonical record schema (additive, 2026-09-09).** The one shape every platform normalizes into: `kind` (`profile\|post\|comment\|group\|message`), `identity` (`platform` + `platform_id`), `ext{}` for platform-only facts, `refs{}` for opaque handles — plus the bridge's sensitive-key substring rule (no key at any depth may contain `cookie/token/secret/password/passwd/pwd/otp/authorization/auth/session/bearer/csrf/xsrf`). Pure data/validation, no `chrome.*`. |
+| `chrome-extension/core/platform_registry.js` | **Platform registry (`SoloPlatforms`, 2026-09-09).** `PLATFORM_MODULES` describes each platform as data (capability prefix, hosts, files to inject, entry points, per-capability metadata incl. `human_gate`). `background.js` dispatch is registry-driven — `dispatchFilesFor`/`dispatchEntryFor` pick files/entry points, `writeActions()`/`isInfoOnly()`/etc. read the same data — but the literal `fb.`/`zillow.` capability-id prefixes still live in `background.js` code, pinned by `tests/test_platform_registry.js`. |
+| `chrome-extension/platforms/facebook/gql_intercept.js` | **Interceptor.** MAIN world, `document_start`, on `*.facebook.com`. Hooks `fetch` + `XHR`, buffers the last 50 GraphQL request/response pairs into `window.__soloGql.captures`. Passive only — never replays, never sends anything. |
+| `chrome-extension/platforms/facebook/gql_extract.js` | **Extractors + dispatcher.** Runs in MAIN world during a job. `window.__soloGqlExtract()` = generic best-effort + manifest. `window.__soloGqlExtractCapability(id, inputs)` = per-screen precise extractor via `CAPABILITY_EXTRACTORS`. **This is the file you edit to add/fix a screen.** Unqualified `gql_extract.js` / `gql_intercept.js` elsewhere in this doc mean this path (there's also `platforms/facebook/gql_actions.js` for writes and `fb_normalize.js` for the canonical mapping — see §2.1). |
+| `chrome-extension/background.js` | Service worker. Injects the files the registry names for the job's capability, drives scrolling (`collectCleanPage`), then reads GraphQL: generic (`__soloGqlExtract`) + capability (`__soloGqlExtractCapability`), attaches the canonical block (§2.1) and writes new `data_point` fields. Key constant `EXTENSION_BUILD` (bump on each deploy so `/status` shows which build a client runs). |
+| `chrome-extension/manifest.json` | Declares the MAIN-world `content_scripts` entry for `platforms/facebook/gql_intercept.js` (`run_at: document_start`, `world: MAIN`) and the `offscreen` permission (operator chime). **`sync-dev-extension.sh` never copies this file** — a path or permission change must be patched into each client manifest by hand (the script warns on the drift) or by a full rebuild. |
+| `chrome-extension/platforms/zillow/zillow_extract.js` | **Non-Facebook capabilities (Zillow).** Own MAIN-world lib, injected by `background.js` only for `zillow.*` jobs and dispatched via `window.__soloZillowRun`; reads Next.js `__NEXT_DATA__`, no GraphQL. The template for any further non-Facebook site: new `platforms/<name>/` directory + one entry in `core/platform_registry.js` — `gql_extract.js` untouched. Contract: `ZILLOW_CAPABILITIES.md`. |
 | `chrome-extension/offscreen.html` / `offscreen.js` | Offscreen document that plays the operator alert (gentle chime) while a job waits for a human — today the Zillow bot check (`background.js` `zillowHumanGate`). Service workers cannot play audio and a collector-opened tab has no user gesture, hence this page. |
 | `bridge-go/collector_capabilities.json` | **The capability catalog** (English). `//go:embed`-ed into the bridge as the default; also copied next to the running config so it can be edited live. |
 | `bridge-go/main.go` | The Go bridge. Serves the catalog at `GET /capabilities` (`handleCapabilities`, `resolveCapabilitiesPath`, `capabilitiesJSON`). |
@@ -53,8 +55,20 @@ clients run from a separate `oneman_agency` tree — see [§6 Deploy](#6-deploy)
 - `graphql_records` `{ posts, entities }` — generic best-effort
 - `graphql_manifest` `[{ queryName, docId, variableKeys, count, skeleton }]` — the
   **shape map** of every GraphQL query seen on the screen (values stripped). This
-  is the primary audit artifact.
+  is the primary audit artifact. `background.js` re-reads it after capability dispatch
+  too, so it also lists queries the capability itself triggered (friends, timeline, search).
 - `capability` (string), `records` `{ capability, schema, source_query, count, items }` — typed per-screen output
+
+#### §2.1 The canonical block (additive, 2026-09-09)
+
+After a capability returns, `attachCanonical()` in `background.js` calls the platform
+module's normalizer (`normalize(capabilityId, capabilityResult, {captured_at})`, e.g.
+`fb_normalize.js` / `zillow_normalize.js`) and attaches `records.canonical = {schema_version:
+1, kind, items[]}` using `core/schema.js`'s record shape. Nothing in `records` is renamed or
+removed — this is purely additive. `web.search` has no canonical kind (`null`). Validation
+only logs and, on a problem, also sets `records.canonical_validation`; the bridge validates
+`records.canonical` in `appendRecord` under `--canonical-validation off|warn|reject` (default
+`warn`; facebook and zillow stay warn-only even under `reject`).
 
 ---
 
@@ -144,7 +158,7 @@ compare against a fresh capture (§7).** Extractor functions are in
 - Edges: `data.viewer.news_feed.edges[].node` — skips ads/suggestions (requires `comet_sections` + a story `message`); handles reshares via inner `comet_sections.content.story`.
 
 ### not_graphql (do NOT try to fix these as GraphQL)
-- **fb.profile.about** — structured fields (work/education/city) are **server-rendered**, absent from all interceptable responses (confirmed via `_discover.deep`; `ProfileCometAppSectionFeedPaginationQuery` carries only nav + pageItems urls). Needs a dedicated About-tab **DOM parser**. *Workaround for inferring industry:* call `fb.people.search` with the person's name → occupation subtitle + `industry_hint`.
+- **fb.profile.about** — structured fields (work/education/city) are **server-rendered**, absent from all interceptable responses (confirmed via `_discover.deep`; `ProfileCometAppSectionFeedPaginationQuery` carries only nav + pageItems urls). Needs a dedicated About-tab **DOM parser**. *Workaround for inferring industry:* call `fb.people.search` with the person's name → occupation subtitle + `industry_hint`. 2026-09-09 DOM-parser fixes: header name on `profile.php?id=` professional-mode profiles (no `h1` in `[role=main]`; taken from the level-2 heading a self-link repeats), a dossier phones fallback (WhatsApp number label + phone-shaped lines), and `about_panel_found` now true on the DOM path once the About card is located.
 - **fb.post.comments** — first page of comments is server-rendered (RSC); only "load more" pagination uses GraphQL (`CometUFICommentsProviderQuery`), which needs enough comments to trigger. Needs HTML/RSC parsing or a pagination trigger.
 
 ---
@@ -158,7 +172,15 @@ Each live client is `oneman_agency/extensions/<client>/`, built from the templat
 
 ### Extension change (extractors, interceptor, manifest)
 1. Edit in `soloagency/chrome-extension/`. Bump `EXTENSION_BUILD` in `background.js` + `version` in `manifest.json`.
-2. Sync changed files → `oneman_agency/solo-agency-collector/chrome-extension/` (the template). **Never leave backups inside that folder** — the build script copies everything and Chrome rejects `_`-prefixed names.
+2. Sync changed files → `oneman_agency/solo-agency-collector/chrome-extension/` (the template),
+   recursively — platform modules live under `platforms/<name>/` and shared code under `core/`,
+   so a flat top-level copy silently drops a whole module (`sync-dev-extension.sh` does this
+   correctly: it walks subdirectories, skips `icons/`/`.claude/`/the dev folder's `backup/`,
+   reports files the target no longer has as `stale` and only removes them with `--prune`, and
+   runs `node --check` on every synced `.js`). **`manifest.json` stays out of the sync** — its
+   `content_scripts` path (now `platforms/facebook/gql_intercept.js`) must be patched into each
+   client manifest by hand; the script warns on the drift. **Never leave backups inside that
+   folder** — the build script copies everything and Chrome rejects `_`-prefixed names.
 3. Rebuild the client, **preserving its identity** (pass the existing `extension_instance_id`):
    ```
    cd oneman_agency/solo-agency-collector
@@ -253,15 +275,24 @@ Same loop, proven on 6 screens:
 > built.
 
 **A NON-Facebook site (no GraphQL intercept)** follows the Zillow pattern instead
-(`zillow_extract.js`, added 2026-08-16): a separate MAIN-world file that registers a
-`window.__solo<Site>Run(capId, inputs)` entry, a `/^<site>\./` prefix branch in
-`background.js` (inject the file, route the dispatch, `infoOnly` = no scrolling), catalog
-entries with a `provider` that names the source (`zillow-nextdata+dom`), and an offline
-harness with fixtures taken from the live page structure — `gql_extract.js` stays untouched.
-Discover the page's own state first (`__NEXT_DATA__`, `__PRELOADED_STATE__`, JSON-LD) from
-the operator's Chrome before writing a single CSS selector. If the site has a bot check, wire
-it into the human gate (`zillowHumanGate` — the probe is the only Zillow-specific part).
-Caller contract example: `ZILLOW_CAPABILITIES.md`.
+(`platforms/zillow/zillow_extract.js`, added 2026-08-16, moved under `platforms/` 2026-09-09):
+create `chrome-extension/platforms/<name>/` with an extractor exposing
+`window.__solo<Name>Run(capabilityId, inputs)` (standard envelope: `{capability, available,
+count, status, items[], …}`), optionally an actions file, and a `<name>_normalize.js` exposing
+`root.__solo<Name>Normalize(capabilityId, result, opts) -> {schema_version, kind, items}` per
+`core/schema.js`'s contract. Add **one entry** to `PLATFORM_MODULES` in
+`core/platform_registry.js` (capability prefix, hosts, files, entry points, per-capability
+metadata) and the normalizer to `background.js`'s `importScripts` line — `background.js`'s
+dispatch code itself, `gql_extract.js`, and other modules stay untouched. If the site needs a
+`document_start` MAIN-world interceptor like `gql_intercept.js`, add a static `content_scripts`
+entry to `manifest.json` (`chrome.scripting.registerContentScripts` is unproven here). Catalog
+entries need a `provider` that names the source (`zillow-nextdata+dom`) and a `healthcheck`
+block (§8.x below), plus tests in `tests/` using the existing `fs.readFileSync` + `vm` harness
+that validate every normalized item with `SoloSchema.validateRecord`. Discover the page's own
+state first (`__NEXT_DATA__`, `__PRELOADED_STATE__`, JSON-LD) from the operator's Chrome before
+writing a single CSS selector. If the site has a bot check, wire it into the human gate
+(declare `human_gate` in the module's registry entry — the probe is the only site-specific
+part). Caller contract example: `ZILLOW_CAPABILITIES.md`.
 
 ---
 
@@ -352,7 +383,8 @@ ended it was dumping the **shape of every chunk** (keys, `label`, `path`, edge c
    bridge's `sanitizeMap` redacts any key containing `auth`, `token`, `session`,
    `secret`, `password`, `otp`, `csrf`, `bearer`. The person who posts is called
    **`actor`**, never `author` (`author` contains `auth` → the value becomes
-   `"[redacted]"`). This cost a debugging cycle.
+   `"[redacted]"`). This cost a debugging cycle. Same reason `graphql_about.tokens_found`
+   was renamed `replay_markers_found` on 2026-09-09 — `token` matches too.
 2. **Deep data needs `maxDepth`.** Engagement/UFI counts sit ~12–16 levels deep,
    past the default `WALK_DEPTH` (8). Pass `maxDepth` (~16) to `deepFind` for
    those. `coerceCount` handles `number | "1,234" | {count: N}`.
