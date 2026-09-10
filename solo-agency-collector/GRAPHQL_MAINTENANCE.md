@@ -40,7 +40,7 @@ clients run from a separate `oneman_agency` tree — see [§6 Deploy](#6-deploy)
 | File | Role |
 |---|---|
 | `chrome-extension/core/schema.js` | **Canonical record schema (additive, 2026-09-09).** The one shape every platform normalizes into: `kind` (`profile\|post\|comment\|group\|message`), `identity` (`platform` + `platform_id`), `ext{}` for platform-only facts, `refs{}` for opaque handles — plus the bridge's sensitive-key substring rule (no key at any depth may contain `cookie/token/secret/password/passwd/pwd/otp/authorization/auth/session/bearer/csrf/xsrf`). Pure data/validation, no `chrome.*`. |
-| `chrome-extension/core/platform_registry.js` | **Platform registry (`SoloPlatforms`, 2026-09-09).** `PLATFORM_MODULES` describes each platform as data (capability prefix, hosts, files to inject, entry points, per-capability metadata incl. `human_gate`). `background.js` dispatch is registry-driven — `dispatchFilesFor`/`dispatchEntryFor` pick files/entry points, `writeActions()`/`isInfoOnly()`/etc. read the same data — but the literal `fb.`/`zillow.` capability-id prefixes still live in `background.js` code, pinned by `tests/test_platform_registry.js`. |
+| `chrome-extension/core/platform_registry.js` | **Platform registry (`SoloPlatforms`, 2026-09-09).** `PLATFORM_MODULES` describes each platform as data (capability prefix, hosts, files to inject, entry points, per-capability metadata incl. `human_gate`). `background.js` dispatch is registry-driven — `dispatchFilesFor`/`dispatchEntryFor` pick files/entry points, `writeActions()`/`isInfoOnly()`/etc. read the same data — and no literal `fb.`/`zillow.` capability id or prefix regex is left in `background.js` code — `tests/test_platform_registry.js` pins that absence. |
 | `chrome-extension/platforms/facebook/gql_intercept.js` | **Interceptor.** MAIN world, `document_start`, on `*.facebook.com`. Hooks `fetch` + `XHR`, buffers the last 50 GraphQL request/response pairs into `window.__soloGql.captures`. Passive only — never replays, never sends anything. |
 | `chrome-extension/platforms/facebook/gql_extract.js` | **Extractors + dispatcher.** Runs in MAIN world during a job. `window.__soloGqlExtract()` = generic best-effort + manifest. `window.__soloGqlExtractCapability(id, inputs)` = per-screen precise extractor via `CAPABILITY_EXTRACTORS`. **This is the file you edit to add/fix a screen.** Unqualified `gql_extract.js` / `gql_intercept.js` elsewhere in this doc mean this path (there's also `platforms/facebook/gql_actions.js` for writes and `fb_normalize.js` for the canonical mapping — see §2.1). |
 | `chrome-extension/background.js` | Service worker. Injects the files the registry names for the job's capability, drives scrolling (`collectCleanPage`), then reads GraphQL: generic (`__soloGqlExtract`) + capability (`__soloGqlExtractCapability`), attaches the canonical block (§2.1) and writes new `data_point` fields. Key constant `EXTENSION_BUILD` (bump on each deploy so `/status` shows which build a client runs). |
@@ -121,7 +121,7 @@ output (unchanged) is what you get.
 These are the exact GraphQL paths each stable extractor depends on. **When a
 capability breaks, this table tells you what the response *used to* look like —
 compare against a fresh capture (§7).** Extractor functions are in
-`chrome-extension/gql_extract.js`.
+`chrome-extension/platforms/facebook/gql_extract.js`.
 
 ### fb.group.posts → `extractGroupPosts` → PostRecord[]
 - Query: `GroupsCometFeedRegularStoriesPaginationQuery`
