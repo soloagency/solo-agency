@@ -13,7 +13,7 @@
 # current, the number said 0.2.2 for three different builds, and there was no way to tell.
 # So: every sync bumps. No sync without a new number.
 #
-# Copies CODE only. manifest name/description/title, popup.html and client_binding.json carry
+# Copies CODE only (and merges the CAPABILITY parts of manifest.json). manifest name/description/title, popup.html and client_binding.json carry
 # the client's own branding ("Aven Ngo - Solo Agency Collector") and are never overwritten.
 #
 # Usage:  ./sync-dev-extension.sh            # bump patch, copy, verify
@@ -60,6 +60,63 @@ while IFS= read -r -d '' f; do
   fi
 done < <(find "$SRC" -type f -print0 | sort -z)
 
+# manifest.json is never copied (it carries the client's branding), but its CAPABILITY parts —
+# permissions / host_permissions / content_scripts — are code, and a drift there fails silently
+# (2026-08-16: the "offscreen" permission for the operator chime; without it the chime never
+# plays and the only trace is human_gate.alert.ok:false). Until 2026-09-09 this only warned and
+# left the patch to the operator; the platform-module move (content_scripts now names
+# platforms/facebook/gql_intercept.js) turned that into a trap — an unpatched client keeps
+# loading the old path, and --prune would then delete exactly that file. So the capability parts
+# are MERGED into the dev manifest: branding (name, description, icons) and version untouched,
+# the previous dev manifest kept as a dated copy next to it. --check only reports the drift.
+python3 - "$SRC/manifest.json" "$DEST/manifest.json" "$check_only" <<'PY' || true
+import json, sys, io, datetime, shutil
+src, dest, check_only = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+a, b = (json.load(open(p)) for p in (src, dest))
+drift = [k for k in ("permissions", "host_permissions", "content_scripts") if a.get(k) != b.get(k)]
+for key in drift:
+    print(("  manifest.%s differs (repo vs dev) — merged on sync:" if check_only else "  merged : manifest.%s") % key)
+    print("      repo:", json.dumps(a.get(key), ensure_ascii=False))
+    print("      dev :", json.dumps(b.get(key), ensure_ascii=False))
+if drift and not check_only:
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    shutil.copy(dest, dest[:-5] + "_" + stamp + ".json")
+    for key in drift:
+        b[key] = a.get(key)
+    io.open(dest, "w", encoding="utf-8").write(json.dumps(b, ensure_ascii=False, indent=2) + "\n")
+
+# The dev manifest MUST NOT be the repo's. Its name is the client's, and that is how the operator
+# tells two loaded extensions apart in chrome://extensions — where they are otherwise identical
+# rows. It was silently lost once already: a full rebuild from the repo overwrote the aven-ngo
+# manifest and both extensions then read "Solo Agency Local Collector", visible only by noticing
+# the branding was gone. This check makes that loud, since the merge above never touches the name.
+brand = [k for k in ("name", "description") if a.get(k) == b.get(k)]
+if a.get("name") == b.get("name"):
+    print("  WARNING the dev manifest carries the REPO name %r — the client branding was overwritten," % b.get("name"))
+    print("      probably by a full rebuild. Restore it from a manifest_<date>.json backup in the dev folder;")
+    print("      chrome://extensions shows two identical rows until you do.")
+elif "description" in brand:
+    print("  note: dev manifest description matches the repo's — client branding may be partly overwritten")
+PY
+
+# Files the dev manifest declares (content scripts, the service worker) must never be pruned:
+# Chrome would keep looking for them and the Facebook interceptor would simply stop.
+manifest_references() {
+  python3 - "$DEST/manifest.json" "$1" <<'PY'
+import json, sys
+try:
+    m = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+refs = set()
+for cs in m.get("content_scripts", []) or []:
+    for js in (cs.get("js", []) or []) + (cs.get("css", []) or []): refs.add(js)
+sw = (m.get("background") or {}).get("service_worker")
+if sw: refs.add(sw)
+sys.exit(0 if sys.argv[2] in refs else 1)
+PY
+}
+
 # A file that left the repo (moved into platforms/<name>/, or deleted) but still sits in the
 # dev folder is stale code Chrome would happily keep loading. Report it always; remove it only
 # when asked (--prune), because deleting from the operator's extension folder is not a sync.
@@ -71,7 +128,9 @@ while IFS= read -r -d '' f; do
   if [ "$top" != "$rel" ]; then case " ${SKIP_DIRS[*]} " in *" $top "*) continue ;; esac; fi
   case "$b" in *_20[0-9][0-9]-*|*.bak|client_binding.json) continue ;; esac
   if [ ! -f "$SRC/$rel" ]; then
-    if [ "$prune" = 1 ] && [ "$check_only" = 0 ]; then rm -f "$f"; echo "  pruned : $rel"; else
+    if manifest_references "$rel"; then
+      echo "  kept   : $rel (not in repo, but $DEST/manifest.json still declares it)"
+    elif [ "$prune" = 1 ] && [ "$check_only" = 0 ]; then rm -f "$f"; echo "  pruned : $rel"; else
       echo "  stale  : $rel (not in repo; re-run with --prune to remove)"
     fi
   fi
@@ -105,33 +164,6 @@ if merged != dev:
     print("  merged : popup.html (markup from the repo, client branding kept)")
 PY_POPUP
 
-# manifest.json is never copied (it carries the client's branding), but its CAPABILITY parts —
-# permissions / host_permissions / content_scripts — are code, and a drift there fails silently
-# (2026-08-16: the "offscreen" permission for the operator chime; without it the chime never
-# plays and the only trace is human_gate.alert.ok:false). Warn; patch by hand or full rebuild.
-python3 - "$SRC/manifest.json" "$DEST/manifest.json" <<'PY' || true
-import json, sys
-a, b = (json.load(open(p)) for p in sys.argv[1:3])
-for key in ("permissions", "host_permissions", "content_scripts"):
-    if a.get(key) != b.get(key):
-        print("  WARNING manifest.%s differs (repo vs dev) — not synced by design; patch the dev manifest by hand:" % key)
-        print("      repo:", json.dumps(a.get(key), ensure_ascii=False))
-        print("      dev :", json.dumps(b.get(key), ensure_ascii=False))
-
-# The dev manifest MUST NOT be the repo's. Its name is the client's, and that is how the operator
-# tells two loaded extensions apart in chrome://extensions — where they are otherwise identical
-# rows. It was silently lost once already: a full rebuild from the repo overwrote the aven-ngo
-# manifest and both extensions then read "Solo Agency Local Collector", visible only by noticing
-# the branding was gone. This check makes that loud, since the drift warning above never looked
-# at the name.
-brand = [k for k in ("name", "description") if a.get(k) == b.get(k)]
-if a.get("name") == b.get("name"):
-    print("  WARNING the dev manifest carries the REPO name %r — the client branding was overwritten," % b.get("name"))
-    print("      probably by a full rebuild. Restore it from a manifest_<date>.json backup in the dev folder;")
-    print("      chrome://extensions shows two identical rows until you do.")
-elif "description" in brand:
-    print("  note: dev manifest description matches the repo's — client branding may be partly overwritten")
-PY
 
 repo_ver="$(python3 -c "import json;print(json.load(open('$SRC/manifest.json'))['version'])")"
 dev_ver="$(python3 -c "import json;print(json.load(open('$DEST/manifest.json'))['version'])")"
@@ -165,9 +197,11 @@ done
 
 # Syntax-check every JS file that is source (not backups), wherever it now lives.
 while IFS= read -r -d '' js; do
+  rel="${js#"$DEST"/}"; top="${rel%%/*}"
+  if [ "$top" != "$rel" ]; then case " ${SKIP_DIRS[*]} " in *" $top "*) continue ;; esac; fi
   case "$(basename "$js")" in *_20[0-9][0-9]-*|*.bak) continue ;; esac
   node --check "$js"
-done < <(find "$DEST" -name '*.js' -not -path "$DEST/.claude/*" -print0 | sort -z)
+done < <(find "$DEST" -name '*.js' -print0 | sort -z)
 echo
 echo "synced -> $DEST"
 echo "version  v$repo_ver -> v$new_ver   (reload the extension; Chrome must show v$new_ver)"

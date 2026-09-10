@@ -16,6 +16,28 @@
   function isObj(v) { return !!v && typeof v === "object" && !Array.isArray(v); }
   function str(v) { return typeof v === "string" ? v : (v === null || v === undefined ? "" : String(v)); }
   function arr(v) { return Array.isArray(v) ? v.slice() : []; }
+
+  // The bridge redacts any key containing one of these substrings at any depth. Zillow's
+  // `phoneNumbers` map (about.phones / zillow.phones) is keyed by whatever labels Zillow ships,
+  // so raw passthrough blocks are scrubbed the same way fb_normalize.js scrubs its own: an
+  // offending key is renamed, never dropped, so the value still reaches the operator.
+  var BANNED_NEEDLES = ["cookie", "token", "secret", "password", "passwd", "pwd", "otp", "authorization", "auth", "session", "bearer", "csrf", "xsrf"];
+  function isBannedKey(k) {
+    var lk = String(k).toLowerCase();
+    return BANNED_NEEDLES.some(function (n) { return lk.indexOf(n) !== -1; });
+  }
+  function safeKeyName(k) {
+    var out = String(k);
+    BANNED_NEEDLES.forEach(function (n) { out = out.replace(new RegExp(n, "ig"), "ref"); });
+    return out;
+  }
+  function sanitizeDeep(v) {
+    if (Array.isArray(v)) return v.map(sanitizeDeep);
+    if (!isObj(v)) return v;
+    var out = {};
+    Object.keys(v).forEach(function (k) { out[isBannedKey(k) ? safeKeyName(k) : k] = sanitizeDeep(v[k]); });
+    return out;
+  }
   function nowIso() { return new Date().toISOString(); }
 
   function itemsOf(capabilityResult) {
@@ -100,7 +122,7 @@
       photo_url: typeof z.photo_url === "string" ? z.photo_url : "",
       verified: typeof raw.verified === "boolean" ? raw.verified : null,
       follower_count: typeof raw.follower_count === "number" ? raw.follower_count : null,
-      about: isObj(raw.about) ? raw.about : {},
+      about: isObj(raw.about) ? sanitizeDeep(raw.about) : {},
       extraction_audit: {
         found_on: raw.found_on === undefined ? null : raw.found_on,
         checked: arr(raw.checked), missing: arr(raw.missing),
@@ -122,7 +144,7 @@
         // through as a raw platform-only fact rather than recursively re-normalized, same as
         // FB's fb.profile.enrich treatment of its own posts[]/videos[]/timeline{}.
         posts: arr(raw.posts), videos: arr(raw.videos), timeline: isObj(raw.timeline) ? raw.timeline : {},
-        zillow: z
+        zillow: sanitizeDeep(z)
       }
     };
   }
