@@ -2248,26 +2248,28 @@
       return { available: res.available !== false, reason: res.reason || null, items: res.items.slice(0, n), total_seen: res.items.length };
     }
 
+    // Back to the timeline tab from an About sub-tab: the tab strip's own link ("Posts", or
+    // "All" on a professional-mode profile) — a same-document navigation, exactly what
+    // enterAbout() clicks in the other direction. false when no such tab is visible.
+    function returnToPostsTab() {
+      var re = /^(posts|all|bài viết|tất cả)$/i;
+      var links = [];
+      try { links = document.querySelectorAll('[role="tab"], a[role="link"], a[href]'); } catch (e) { return Promise.resolve(false); }
+      for (var i = 0; i < links.length; i++) {
+        var t = (links[i].innerText || "").replace(/\s+/g, " ").trim();
+        if (!re.test(t)) continue;
+        var b = links[i].getBoundingClientRect ? links[i].getBoundingClientRect() : { width: 1, height: 1 };
+        if (b.width <= 0 || b.height <= 0) continue;
+        try { links[i].click(); } catch (e) { return Promise.resolve(false); }
+        return wait(700).then(function () { return true; });
+      }
+      return Promise.resolve(false);
+    }
+
     // Give the timeline a moment to arrive. background.js has already waited for load, but the
     // feed query lands after first paint and this capability is worthless without it.
     return settleThenScan(Number(inputs.settle_ms) > 0 ? Number(inputs.settle_ms) : 2500).then(function () {
       var posts = takeCaptured("fb.profile.posts", maxPosts);
-      // The timeline query lands after first paint — usually. Measured 2026-09-09 on one profile,
-      // two runs an hour apart, nothing else different: it fired once (3 posts) and not the next
-      // time (0, reason no_match). A passive read cannot tell "no posts" from "not fired yet".
-      // So when posts were asked for and none were captured, nudge the feed exactly the way
-      // fb.profile.posts does (ensureCapture: scroll, wait, re-check), bounded to three tries so
-      // the About walk keeps its budget. This is the capability's own scroll, asked for by
-      // max_posts, not the runner's.
-      var nudge = (!posts.items.length && maxPosts > 0) ? ensureCapture("ProfileCometTimeline", 3, 1000) : Promise.resolve(false);
-      return nudge.then(function (nudged) {
-      if (nudged) posts = takeCaptured("fb.profile.posts", maxPosts);
-      // The nudge scrolled the timeline, and Facebook then collapses the tab strip into a
-      // compact sticky header WITHOUT the About tab — the dossier's enterAbout() found nothing
-      // to click (measured 2026-09-09: checked ["main"], every About tab missing, 3 posts).
-      // Scroll back to the top and let the header re-expand before the About walk starts.
-      var restore = nudged ? scrollBackToTop().then(function () { return wait(600); }) : Promise.resolve();
-      return restore.then(function () {
       // Videos live behind their own tab and normally have not fired here. Take them when the
       // capture happens to exist and never navigate for them — a second page load is the cost
       // this capability exists to remove.
@@ -2275,31 +2277,49 @@
       var landedOn = (location.href || "").split("?")[0];
       return profileDossier(inputs).then(function (dos) {
         if (dos && dos.reason === "self_profile") return dos;
-        var about = (dos && dos.items && dos.items[0]) || {};
-        var item = {};
-        for (var k in about) item[k] = about[k];
-        item.posts = posts.items;
-        item.videos = videos.items;
-        item.timeline = {
-          landed_on: landedOn,
-          posts_available: posts.available, posts_reason: posts.reason,
-          posts_seen: posts.total_seen || 0, posts_kept: posts.items.length,
-          posts_nudged: !!nudged,
-          videos_available: videos.available, videos_seen: videos.total_seen || 0
-        };
-        item.elapsed_ms = Date.now() - startedAt;
-        var ok = !!(item.name || (item.emails || []).length || (item.about_lines || []).length || posts.items.length);
-        return {
-          capability: "fb.profile.enrich", schema: "ProfileEnrich",
-          // available:true whenever the pass RAN. A profile with no public posts and a private
-          // About is a real answer; hiding the record makes it indistinguishable from a crash,
-          // which this file has been bitten by three times.
-          available: true, found: ok, count: ok ? 1 : 0, items: [item],
-          checked: item.checked || [],
-          error: ok ? null : "profile opened but yielded no name, address, About text or posts"
-        };
-      });
-      });
+        // The timeline query lands after first paint — usually. Measured 2026-09-09 on one
+        // profile, two runs an hour apart, nothing else different: it fired once (3 posts) and
+        // not the next time (0, reason no_match). A passive read cannot tell "no posts" from
+        // "not fired yet". Nudging the feed BEFORE the About walk was tried twice and broke the
+        // walk both times (a scroll collapses the tab strip and hides the About tab; scrolling
+        // back re-rendered the page under the walk). So the fallback runs AFTER the walk, when
+        // nothing else depends on the page: return to the timeline tab, let it settle, and
+        // only then nudge it the way fb.profile.posts does (ensureCapture, three tries).
+        var needPosts = !posts.items.length && maxPosts > 0;
+        var postsStage = !needPosts ? Promise.resolve(false)
+          : returnToPostsTab().then(function () { return settleThenScan(2500); }).then(function () {
+              posts = takeCaptured("fb.profile.posts", maxPosts);
+              if (posts.items.length) return true;
+              return ensureCapture("ProfileCometTimeline", 3, 1000).then(function (nudged) {
+                if (nudged) posts = takeCaptured("fb.profile.posts", maxPosts);
+                return nudged;
+              });
+            });
+        return postsStage.then(function (nudged) {
+          var about = (dos && dos.items && dos.items[0]) || {};
+          var item = {};
+          for (var k in about) item[k] = about[k];
+          item.posts = posts.items;
+          item.videos = videos.items;
+          item.timeline = {
+            landed_on: landedOn,
+            posts_available: posts.available, posts_reason: posts.reason,
+            posts_seen: posts.total_seen || 0, posts_kept: posts.items.length,
+            posts_nudged: !!nudged,
+            videos_available: videos.available, videos_seen: videos.total_seen || 0
+          };
+          item.elapsed_ms = Date.now() - startedAt;
+          var ok = !!(item.name || (item.emails || []).length || (item.about_lines || []).length || posts.items.length);
+          return {
+            capability: "fb.profile.enrich", schema: "ProfileEnrich",
+            // available:true whenever the pass RAN. A profile with no public posts and a private
+            // About is a real answer; hiding the record makes it indistinguishable from a crash,
+            // which this file has been bitten by three times.
+            available: true, found: ok, count: ok ? 1 : 0, items: [item],
+            checked: item.checked || [],
+            error: ok ? null : "profile opened but yielded no name, address, About text or posts"
+          };
+        });
       });
     });
   }
@@ -3848,14 +3868,6 @@
       if (c && c.response && (!scope || String(c.queryName || "").indexOf(scope) !== -1)) return true;
     }
     return false;
-  }
-  // Undo a results-feed nudge: the window, the document and the feed container all back to
-  // the top, so a header that collapsed on scroll can expand again.
-  function scrollBackToTop() {
-    try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
-    try { if (document.scrollingElement) document.scrollingElement.scrollTop = 0; } catch (e) { /* ignore */ }
-    try { var feed = document.querySelector('[role="feed"]'); if (feed) feed.scrollTop = 0; } catch (e) { /* ignore */ }
-    return Promise.resolve(true);
   }
   function scrollResultsFeed() {
     var el = document.querySelector('[role="feed"]');
