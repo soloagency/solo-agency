@@ -150,6 +150,25 @@ function readSettings() {
 }
 
 function renderState(state) {
+  const statusBox = document.getElementById("status");
+  if (state.status === "no_client_binding") {
+    // The extension has no readable client_binding.json -- the source template folder or a
+    // broken client copy was loaded. background.js already refused to poll the bridge; this is
+    // just making that unmissable in the popup instead of burying it among the usual status
+    // lines. See background.js's NO_CLIENT_BINDING_MESSAGE for the full bilingual sentence.
+    if (statusBox) {
+      statusBox.style.background = "#fff1f0";
+      statusBox.style.borderColor = "#d1242f";
+      statusBox.style.color = "#82071e";
+    }
+    setStatus(state.message || "");
+    return;
+  }
+  if (statusBox) {
+    statusBox.style.background = "";
+    statusBox.style.borderColor = "";
+    statusBox.style.color = "";
+  }
   const extensionHealth = state.bridgeStatus && state.bridgeStatus.extension_health
     ? state.bridgeStatus.extension_health
     : null;

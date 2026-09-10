@@ -90,11 +90,13 @@ Browser limits:
 - After starting the bridge, wait up to 75 seconds before concluding the extension has not checked in.
 - Collection uses inactive tabs and closes collector-created tabs after scanning when configured, but a real tab/page context is still needed to read logged-in private web pages.
 
-For Claude or other agents that cannot run local binaries from their sandbox, run the bridge in persistent scheduler mode outside the AI sandbox. Use:
+On a LOCAL runtime — the agent's own shell IS the human's machine, e.g. Claude Code desktop/CLI or Codex CLI — the agent runs `setup_collector.sh`/`setup_collector.ps1` itself and the script registers persistent scheduler mode against an OS-level autostart supervisor on its own (see "Autostart at boot" in `AGENT_RUNBOOK.md`):
 
 - macOS LaunchAgent
 - Windows Task Scheduler
 - Linux `systemd --user`
+
+Only on a REMOTE runtime — Claude or another agent running in a hosted sandbox that cannot run local binaries or see the install root — does the human instead run the bridge in persistent scheduler mode outside that sandbox.
 
 The shared config file is:
 
@@ -110,17 +112,17 @@ Default collection behavior:
 - 5 seconds between scrolls
 - maximum user-configurable scrolls: 10
 
-The Chrome extension is installed once. **Easiest (no path typing):** open the bridge UI at `http://127.0.0.1:17321/ui/{client_slug}/extension`, click **Open the extension folder**, then drag that folder onto `chrome://extensions` (Developer mode on) — Chrome accepts a dropped folder as Load unpacked, so there is no path to find. The page shows a green connected state when the extension checks in.
+The Chrome extension is installed once per client, with a two-gesture flow. **One button (local runtime triggers it itself):** the agent calls `POST http://127.0.0.1:17321/api/ui/{client_slug}/install-extension`, which reveals the extension folder in Finder/Explorer AND opens Chrome at `chrome://extensions` in the same action — the bridge runs on the human's own machine, so it can shell out directly (`open -a "Google Chrome" "chrome://extensions/"` on macOS, `cmd /c start "" chrome "chrome://extensions/"` on Windows, `google-chrome`/`xdg-open` fallback on Linux). The human does the two clicks only Chrome can require of a person — turn on Developer mode, drag the folder onto the page — and the agent polls `extension_health.status` until it is recent. On a remote runtime, hand the human the same one button instead: open the bridge UI at `http://127.0.0.1:17321/ui/{client_slug}/extension` and click it. The page shows a green connected state when the extension checks in.
 
 **Manual fallback:**
 
-1. Open Chrome.
+1. Open Chrome — the profile the human already has open and logged in for the first client; a separate profile is only needed once a second client needs a different Facebook account.
 2. Go to `chrome://extensions`.
 3. Turn on Developer Mode.
 4. Click `Load unpacked`.
-5. Select the extracted absolute folder path, for example `/Users/alex/oneman_agency/solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
+5. Select the extracted absolute per-client folder path, for example `/Users/alex/oneman_agency/extensions/avenngo/`.
 
-Do not load the source folder from a cloned toolkit, such as `solo-agency/solo-agency-collector/chrome-extension/`, for a normal agency setup. The toolkit folder is for development. The running agency should load only the `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime copy.
+Do not load the source folder from a cloned toolkit, such as `solo-agency/solo-agency-collector/chrome-extension/`, for a normal agency setup. The toolkit folder is for development. The running agency should load only the current setup's `extensions/{client_slug}/` runtime copy for each client.
 
 Use one active Solo Agency Local Collector bridge runtime per machine for the current setup. Use one client-specific Solo Agency Local Collector extension per client Chrome profile/account, loaded from the current setup's generated `extensions/{client_slug}/` folder. If you previously loaded another Solo Agency Local Collector extension from an older setup folder, remove or disable that old entry in `chrome://extensions`.
 
@@ -207,7 +209,7 @@ AI agents read these files and continue with filtering, lead detection, competit
 
 AI agents can also call `GET http://127.0.0.1:17321/status` to check bridge and extension health. The status includes `extension_health.last_extension_check_at`, `extension_health.seconds_since_last_check`, and `extension_health.status`.
 
-Agents must also verify that `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. A reachable bridge may belong to an older setup. If those paths point elsewhere, treat it as `wrong_workspace_bridge`, ask the human to run the current setup's Local Collector setup/start command, and do not collect private data until the bridge writes to the current workspace.
+Agents must also verify that `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. A reachable bridge may belong to an older setup. If those paths point elsewhere, treat it as `wrong_workspace_bridge` — on a local runtime, re-run the current setup's script yourself; on a remote runtime, ask the human to run it — and do not collect private data until the bridge writes to the current workspace.
 
 ## Healthcheck
 

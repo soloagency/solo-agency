@@ -53,7 +53,7 @@ count, never a guess from memory:
 | 7 | Boss-orders ledger | `daily-content-pipeline/automation/boss_orders.md` rows with `status` in `waiting_boss`, `blocked` |
 | 8 | Sendbox health | `sendboxes/sendboxes.json` — any entry `status: needs_reauth`, or none `status: healthy` |
 | 9 | Campaign roster and status | each client's `campaigns/{slug}/campaign_config.json` — `channel_strategy`, `status` (`active`/`paused`) |
-| 10 | Facebook lead source | Client Intelligence Profile `facebook_lead_source: enabled\|skipped\|pending` |
+| 10 | Facebook lead source | Client Intelligence Profile `facebook_lead_source: enabled\|web_only\|pending` |
 | 11 | Private data source state | `private_data_source_discovery.status` (`not_asked\|recommended\|declined\|postponed\|partially_approved\|approved\|pending_human_approval\|pending_private_activation\|active\|blocked\|completed\|discovery_declined_or_postponed`); per item in `private_data_sources.items[]` — `approval_status` (`pending_human_approval\|approved\|rejected`), `activation_status` (`pending_private_activation\|active\|declined_for_now\|unavailable`) |
 | 12 | Extension / collector health | `extension_health.status` (`recent\|stale\|no_extension_check_yet`, or `unavailable` when the bridge itself cannot be reached) past the 75-second grace window |
 | 13 | Last run recency | most recent `standup.jsonl` line's `ts` for this client, and the corresponding `fleet/{client_slug}.json.report.last_report_at` |
@@ -146,7 +146,8 @@ Starter; everything else is a data feature and runs on every plan, Free included
 | `promote_discovered_groups` | 1 | shortlist rows `status: recommended` (poll #5) | promote or reject the recommended groups | "Em tìm được {N} nhóm Facebook hợp, anh duyệt nhóm nào để em theo dõi mỗi ngày?" | "I found {N} Facebook groups that fit — which ones should I start monitoring daily?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, Facebook Discovery Pass | `facebook_lead_source: enabled` | Free+ |
 | `resolve_blocker` | 1 | `standup.jsonl` tail `blockers[]` non-empty (poll #6) | walk through the blocker and fix it now | "Lần chạy gần nhất bị vướng {blocker}, anh muốn em xử lý ngay không?" | "The last run hit a blocker ({blocker}) — want me to work through it now?" | whichever stage owns the blocker code | nothing, ready now | Free+ |
 | `answer_boss_orders` | 1 | ledger row `waiting_boss`/`blocked` (poll #7) | surface the row, ask the missing question | "Đơn hàng \"{order}\" đang chờ anh trả lời {question}." | "Your order \"{order}\" is waiting on your answer to {question}." | `playbooks/TEAM_MODEL.md`, Boss-orders ledger | nothing, ready now | Free+ |
-| `fb_login_reconnect` | 1 | `extension_health.status` `stale`/`no_extension_check_yet` past grace (poll #12) | reconnect the Facebook login | Facebook Login Reminder block, verbatim | Facebook Login Reminder block, verbatim | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D; `playbooks/SETUP_FLOW_ENTRYPOINT.md` | Chrome extension reload/login | Free+ |
+| `fb_login_reconnect` | 1 | `extension_health.status` `stale`/`no_extension_check_yet` past grace (poll #12) | reconnect the Facebook login | Facebook Login Reminder block, verbatim | Facebook Login Reminder block, verbatim | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D; `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)" | Chrome extension reload/login | Free+ |
+| `fb_web_only_upsell` | 2 | `facebook_lead_source: web_only` (poll #10) | offer to turn Facebook back on for more leads | "Bật lại Facebook để tăng lead nhé? Vòng quét đầu tiên sau khi bật dùng ngân sách khám phá lần đầu (First Run: tối đa 21 lượt gọi, trải trong ≥ 4 giờ)." | "Want to turn Facebook back on for more leads? The first scan after that uses the First Run discovery budget (up to 21 collector calls, spread over 4+ hours)." | `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)"; `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, Facebook Discovery Pass | `facebook_lead_source: web_only`; on acceptance, follow the 90-second extension help loop and the same acknowledgment/recording contract as setup step 4 | Free+ |
 | `collector_healthcheck` | 1 | last healthcheck > 24h old, or file-queue path looks stale | run a healthcheck pass now | "Em chạy kiểm tra sức khoẻ hệ thống thu thập ngay không?" | "Want me to run a collector healthcheck right now?" | `playbooks/HEALTHCHECK.md` | nothing, ready now | Free+ |
 | `update_watch_setup` | 1 | GitHub `main` ahead of local commit/bridge version, or update-watch task missing from `automation_manifest.md` | apply the update, or set up the watch task | "Có bản cập nhật mới — em áp dụng luôn không?" | "There's a newer version available — want me to apply it now?" | `playbooks/11_UPDATE_AND_VERSION_WATCH.md` | Boss approval unless `auto_apply_approved: true` | Free+ |
 | `post_support_group` | 1 | confirmed bug/question with no matching open row in `support_requests.md` | draft the support post, ask approval | draft shown per `TEAM_MODEL.md` post template | draft shown per `TEAM_MODEL.md` post template | `playbooks/TEAM_MODEL.md`, "Support requests" | Boss approval of exact text | Free+ |
@@ -178,6 +179,7 @@ Starter; everything else is a data feature and runs on every plan, Free included
 
 ### Notes on specific rows
 
+- **Any URL this catalogue hands to the human** — the local dashboard/CRM link (`http://127.0.0.1:17321/ui/...`) as well as an external one like `review_locked_leads_upgrade`'s/`write_actions_upgrade`'s upgrade URL — follows the SHOW RULE (`docs/UI_DESIGN.md` §1 principle 2, OWNER DECISION 2026-09-10): print it as text every time; on Claude Code desktop also open it in the side Browser pane; on any other local runtime also run `open`/`start`/`xdg-open` so it lands in a real browser; never HTTP-GET it to "verify." The local dashboard opens directly now (`--ui-auth host` default) — no entry-link/token step, no "Locked" page.
 - **`comment_campaign`** is the one row with a plan-dependent offer shape, not a plan-dependent
   signal: the signal (commentable posts detected) fires the same on every plan. On Free, the
   catalogue's job is to show the preview — the list of posts worth commenting on — never the
@@ -188,9 +190,19 @@ Starter; everything else is a data feature and runs on every plan, Free included
   chime, then the operator does the Press & Hold) — the offer in chat is to start the pull, never
   a claim that it completes unattended.
 - **`fb_login_reconnect`** never freelances new wording: it reuses the Facebook Login Reminder
-  block quoted verbatim in `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D and
-  `playbooks/SETUP_FLOW_ENTRYPOINT.md` (funnel moment B carries a second sentence after that
-  verbatim block — this catalogue does not duplicate or paraphrase the block itself).
+  block quoted verbatim in `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D and in the setup
+  roadmap's step 4 ("Kết nối Facebook", `playbooks/SETUP_FLOW_ENTRYPOINT.md`) — the same block, just
+  fired again later when a session goes stale (funnel moment B carries a second sentence after that
+  verbatim block — this catalogue does not duplicate or paraphrase the block itself). This is
+  distinct from `fb_web_only_upsell`: `fb_login_reconnect` fires when a client that was `enabled`
+  goes stale/logged-out; `fb_web_only_upsell` fires when a client is still `web_only` — a deliberate,
+  acknowledged choice, never a stale session — and its acceptance runs the same 90-second extension
+  help loop and acknowledgment/recording contract as setup step 4, not a bare reconnect.
+- **`fb_web_only_upsell`** never assumes the human forgot; it offers, does not pressure, and always
+  names the FIRST RUN discovery budget that will apply to the client's first Facebook Discovery Pass
+  once they enable it — because a `web_only` client who later enables Facebook still gets that
+  budget on whichever run turns out to be their first-ever pass, per
+  `facebook_discovery_first_pass_done`.
 - **`mine_network_ff`** is distinct from `harvest_friend_list`: the first offer starts a harvest
   from a Boss-named seed's own friend list; this one only becomes relevant after that harvest has
   already run once and widening to a friend-of-friend seed is the next lever — it is never offered

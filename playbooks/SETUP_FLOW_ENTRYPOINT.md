@@ -13,18 +13,88 @@ Before setup proceeds, verify or explain that Solo Agency needs Codex, Claude De
 0. **First words come first.** Before step 1 — before any load, ledger or question — send the Team Leader introduction from `SOLO_AGENCY_PLAYBOOK.md` ("First Words"), which ends by asking the Boss to name this chat "Team Leader" and pin it (so tomorrow's orders come back to the same conversation, never to a fresh agent with no ledger). Then load `playbooks/TEAM_MODEL.md` and `playbooks/NEXT_JOB_CATALOGUE.md` with the other entry files. Create `daily-content-pipeline/automation/boss_orders.md` (the ledger header from `playbooks/TEAM_MODEL.md`) if it does not exist, and record every request or goal the human states during setup as a row before acting on it.
 1. Load `SOLO_AGENCY_PLAYBOOK.md` and `playbooks/LOAD_LEDGER_PROTOCOL.md`. **Full-load discipline applies to every file below: each load needs a LOAD LEDGER (read to the last line; compare `playbooks/LOAD_MANIFEST.md` when present; ledger each named dependency). A truncated / "output too large" / partial read = NOT loaded — re-read in chunks before acting. No side-effect step without a PASS ledger for the stage(s) it needs.**
 2. Load `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`, `playbooks/04_DAILY_SCHEDULE.md`, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`.
-3. Load `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, and `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` when private data sources, client Chrome profiles, client extensions, or Local Collector setup are involved.
-4. Load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` when the human asks for update/upgrade/sync latest, when setup repair suspects stale playbooks/code, or when configuring the `Solo Agency - GitHub Update Watch` maintenance task.
-5. Create or update client setup, public data sources, private data sources approval state, extension folders, collector config, schedule files, automation manifests, scheduled prompts, update-watch state, and resync logs.
-6. Do not run public scans, private data source scans, reports, first agency runs, production, rendering, publishing, analytics scans, or outreach in Setup Flow. One narrow exception: the step-6 private data source DISCOVERY pass may run inside Setup Flow when the human approved it in this session and the Local Collector plus the matching client extension are verified healthy — Local Collector only, approved categories only, output limited to the approval shortlist and saved source configuration. Even then, Setup Flow must not analyze the collected data or produce any report/idea/draft from it.
-7. If the human asks to run, create, generate, show, refresh, or update a report inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow; the request does not become Automation Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and verify/resync the client-specific automation task and then START IT — the agent dispatches the task through the scheduler's own run-now, tells the human it has been dispatched and where the result will appear, and reports back when it lands; only a runtime that genuinely cannot start its own tasks falls back to naming the task for the human to run.
-8. If the human says only `update`, `upgrade`, `cập nhật`, `sync latest`, or `pull latest`, treat that as the Stage 11 Solo Agency update command, not as `update a report`.
-9. Every client-specific automation task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
-10. Every per-client Chrome extension display name must begin with the client name, for example `AvenNgo - Solo Agency Collector`.
-11. PDNA provider setup must be client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming production, distribution, notification, analytics, credits, or connected platforms are available. Default setup is WideCast API-key setup: ask only for the client's WideCast API key, then let the agent configure/verify/discover/resync the rest. Do not ask provider/scope/spend/publish/account-identity questions unless the human explicitly requests a non-default provider or specialist stack. Do not use a global MCP/native provider account as proof of this client's PDNA status.
-12. After any approved config change or applied Solo Agency update, perform Automation Resync if a schedule/automation already exists.
-13. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`. The completion message restates, in one line, that every future request goes to this chat with the Team Leader, and lists the scheduled tasks just created as team members with their roles (`playbooks/TEAM_MODEL.md`, Roster).
-14. Every human question, approval request, one-line Terminal/PowerShell command, Chrome `Load unpacked` instruction, provider/API-key setup request, and native automation task edit must use the `**[ACTION REQUIRED]**` block from `SOLO_AGENCY_PLAYBOOK.md`. If setup continues without needing the human, end the reply with next-action guidance per the root Next-Action Guidance Rule instead of `No action required right now.`
+3. Load `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` before step 4 below — every setup now installs the bridge and this client's extension, not only when private data sources are already known. Load `playbooks/PRIVATE_SOURCE_GATE.md` and `playbooks/02_PRIVATE_SOURCE_SETUP.md` separately, later, before the private data source checkpoint (step 7).
+4. **Kết nối Facebook**, right after profile inference (the human-facing roadmap's items 1-3: business context, industry/audience inference, pain points/pillars). Install the Local Collector bridge and this client's Chrome extension, then deliver the Facebook Login Reminder and record `facebook_lead_source` — the full step contract, including the local/remote install rule and the two-gesture extension install, lives below under "Kết nối Facebook (step 4)".
+5. Load `playbooks/11_UPDATE_AND_VERSION_WATCH.md` when the human asks for update/upgrade/sync latest, when setup repair suspects stale playbooks/code, or when configuring the `Solo Agency - GitHub Update Watch` maintenance task.
+6. Create or update client setup, public data sources, private data sources approval state, extension folders, collector config, schedule files, automation manifests, scheduled prompts, update-watch state, and resync logs.
+7. Do not run public scans, private data source scans, reports, first agency runs, production, rendering, publishing, analytics scans, or outreach in Setup Flow. One narrow exception: the step-7 private data source DISCOVERY pass may run inside Setup Flow when the human approved it in this session and the Local Collector plus the matching client extension are verified healthy — Local Collector only, approved categories only, output limited to the approval shortlist and saved source configuration. Even then, Setup Flow must not analyze the collected data or produce any report/idea/draft from it.
+8. If the human asks to run, create, generate, show, refresh, or update a report inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow; the request does not become Automation Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and verify/resync the client-specific automation task and then START IT — the agent dispatches the task through the scheduler's own run-now, tells the human it has been dispatched and where the result will appear, and reports back when it lands; only a runtime that genuinely cannot start its own tasks falls back to naming the task for the human to run.
+9. If the human says only `update`, `upgrade`, `cập nhật`, `sync latest`, or `pull latest`, treat that as the Stage 11 Solo Agency update command, not as `update a report`.
+10. Every client-specific automation task name must begin with the client name, for example `AvenNgo - Solo Agency Daily Run`.
+11. Every per-client Chrome extension display name must begin with the client name, for example `AvenNgo - Solo Agency Collector`.
+12. PDNA provider setup must be client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming production, distribution, notification, analytics, credits, or connected platforms are available. Default setup is WideCast API-key setup: ask only for the client's WideCast API key, then let the agent configure/verify/discover/resync the rest. Do not ask provider/scope/spend/publish/account-identity questions unless the human explicitly requests a non-default provider or specialist stack. Do not use a global MCP/native provider account as proof of this client's PDNA status.
+13. After any approved config change or applied Solo Agency update, perform Automation Resync if a schedule/automation already exists.
+14. Setup Flow completion means `ready_for_automation_first_run` or `ready_for_next_automation_run`. The completion message restates, in one line, that every future request goes to this chat with the Team Leader, and lists the scheduled tasks just created as team members with their roles (`playbooks/TEAM_MODEL.md`, Roster).
+15. Every human question, approval request, one-line Terminal/PowerShell command, Chrome `Load unpacked` instruction, provider/API-key setup request, and native automation task edit must use the `**[ACTION REQUIRED]**` block from `SOLO_AGENCY_PLAYBOOK.md`. If setup continues without needing the human, end the reply with next-action guidance per the root Next-Action Guidance Rule instead of `No action required right now.`
+
+## Kết nối Facebook (step 4)
+
+This step runs immediately after profile inference (roadmap items 1-3) and before public data sources/keyword bank (roadmap item 5). It replaces the old positioning where the bridge/extension install and the Facebook Login Reminder sat inside "Required Setup Output" right before dispatch — they now happen here, early, so `facebook_lead_source` is known well before the automation task and the private data source checkpoint.
+
+Open with one plain-language value sentence in the human's language, for example:
+
+```text
+Bước này để em quét được Facebook: feed, người và nhóm public — đó là nơi phần lớn lead đầu tiên sẽ đến từ.
+```
+
+**Bridge install — agent-run on a local runtime, handed off on a remote runtime.** Run the Stage 8 Source Safety Pre-Check first. Then:
+
+- **Local runtime** (Codex CLI, Claude Code desktop/CLI, Hermes, OpenClaw, or a comparable runtime that can see the install root on its own filesystem): the agent installs and starts the bridge itself. It writes `setup_collector.sh` (`setup_collector.ps1` on Windows) with the absolute install path, says ONE plain-language line confirming the code was read and it only runs locally — for example `Em đã đọc mã của collector: nó chỉ chạy trên máy này, không gửi dữ liệu đi đâu. Em cài và bật nó ngay bây giờ, khoảng một phút.` — asks for consent once, runs the script itself, and waits for `GET http://127.0.0.1:17321/status` to answer (up to 60 seconds). The script hands the process to an OS-level autostart service (macOS LaunchAgent, Linux systemd user unit, or a Windows logon Scheduled Task, per `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`) — the agent's own shell never owns that process, so this is not the in-sandbox launch the old ban addressed. On Windows, SmartScreen may ask for one click; mention it only if it actually happens.
+- **Remote runtime** (a hosted sandbox where `127.0.0.1` is not the human's machine): detected when the agent cannot see the install root on its own filesystem, or `/status` still fails 60 seconds after a bootstrap attempt. Only then does the agent hand the human the one exact one-line command (`bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"` or the Windows equivalent) instead of running it itself.
+- Do not show the install command/path (local or remote) before the pre-check passes; if it fails, stop and raise it to the operator instead.
+
+**Extension install — two gestures.** Point the human at that client's `/ui/{client}/extension` dashboard page: its one primary button both reveals the `extensions/{client_slug}_extension/` folder (Finder/Explorer) and opens Chrome on `chrome://extensions/` (the bridge runs this on the human's own machine — `open -a "Google Chrome" "chrome://extensions/"` on macOS, `cmd /c start "" chrome "chrome://extensions/"` on Windows, `google-chrome`/`xdg-open` on Linux). The page then shows two steps: turn on Developer mode once, and drag the folder onto the page. First client uses the Chrome profile the human already uses — no profile juggling; a separate Chrome profile is introduced only when a second client needs a different Facebook account. The agent (local runtime) can trigger both actions itself via the bridge API, then polls `/status` until `extension_health` is recent (75-second grace) and celebrates the connection in chat. Alongside the reveal, the agent says this one fixed sentence, in the human's language, so the drag lands on the right folder: "Chọn đúng thư mục tên `{client}_extension` mà em vừa mở — không chọn thư mục `chrome-extension` nằm trong mã nguồn." (OWNER DECISIONS 2026-09-10 item A). This step always shows both help-video links — Chrome install, Edge install — even when the agent ran the bridge itself, so the human has more than one way to finish; until the owner records them, reference the future page `http://127.0.0.1:17321/ui/help/facebook` marked "(sắp có)" rather than inventing a video URL (OWNER DECISIONS 2026-09-10 item B).
+
+**If check-in stalls — 90-second help loop.** If `extension_health` has not gone recent within 90 seconds of triggering the install action, do not just repeat the reminder. Diagnose in this order and say ONE short line naming the likely cause: (1) Developer mode is still off — the toggle top-right on `chrome://extensions/`; (2) the folder was dropped into a different Chrome profile/window than the one logged into Facebook; (3) Chrome was closed or the page was navigated away. Re-trigger the install action (`POST /api/ui/{client}/install-extension`) so Finder and the extensions page are back in front, then wait again. Run this diagnose-and-retrigger cycle at most 3 rounds. If the human says they cannot find the Developer mode toggle, that is a managed (work) Chrome — say so plainly, ask for a personal computer or a personal Chrome profile, and only then move to the web-only escape below. Never offer the escape before this help has been given, and never in the first message.
+
+**Facebook Login Reminder.** Immediately after the bridge answers `/status` (extension check-in may still be catching up), deliver this reminder inside its own `**[ACTION REQUIRED]**` block, in the human's language:
+
+```text
+Để tìm lead trên Facebook, hãy đăng nhập Facebook trên Chrome của máy này (tài khoản cá nhân của bạn là đủ). Nếu không kết nối Facebook, Solo Agency chỉ tìm lead trên web mở — thường ít hơn nhiều, vì Facebook là nguồn mạnh nhất của hệ thống (feed, người, nhóm public, nhóm riêng). Anh/chị xác nhận muốn chạy chế độ không Facebook chứ?
+```
+
+Immediately after that block (not part of the verbatim text audited above, and not itself
+`**[ACTION REQUIRED]**`), add one priming sentence in the human's own words and language: a plain
+fact that every lead this pass finds lands straight in the client's CRM, and Free keeps a first
+batch of contacts fully open.
+
+Record the answer as `facebook_lead_source: enabled|web_only|pending` in the Client Intelligence
+Profile (see `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, Client Intelligence Profile fields).
+`enabled` means the extension checked in and Facebook login is confirmed. `pending` is the
+in-between state — the human is still working on this step and has not decided either way; it is
+never itself a decision. `web_only` is a human's explicit, acknowledged choice to run without
+Facebook: it is never a default, and never the result of "để sau" or silence — only a clear
+confirming phrase (for example "không dùng Facebook") in reply to the block above resolves it.
+On that confirmation, record `facebook_lead_source: web_only`, `facebook_lead_source_updated_at`
+(ISO-8601), and `facebook_web_only_reason` (the human's own words, verbatim or lightly paraphrased)
+in the Client Intelligence Profile. This reminder fires exactly once per client setup, here, at step
+4, right after profile inference and before public data sources, the automation task, and the
+private data source checkpoint. It fires again later only inside a scheduled/automation run whose
+extension health shows logged-out/stale (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D).
+
+**While the human is still deciding, keep moving.** Setup may continue into items 5-6 (public data
+sources/keyword bank, the automation task, and beyond) with `facebook_lead_source: pending` — do not
+stall the rest of setup on this one answer. What `pending` blocks is narrower and specific: the
+client's first-ever dispatched run. Per the Report Request Hard Stop below and the Setup-Complete
+Closing Template's offer 1, that first dispatch is gated on `facebook_lead_source` being `enabled` or
+`web_only` — NEVER while it is still `pending`. If setup is otherwise complete and item 4 is still
+unresolved, hold the dispatch and say plainly which of the two resolutions (log in, or confirm
+web-only) unblocks it. Once a client's first run has dispatched, a later run finding this field back
+at `pending` (a stale/logged-out extension) does not block that run either — see
+`playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D/12E.
+
+The client's first dispatched run is also the first run of the Facebook Discovery Pass
+(`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass (step 11C of the daily run)")
+whenever `facebook_lead_source` is `enabled` at dispatch time — that pass uses
+the FIRST RUN budget (≤ 21 collector calls, `max_pages` ≤ 4, spread over ≥ 4 hours) whenever it turns
+out to be this client's first-ever Facebook Discovery Pass (tracked as
+`facebook_discovery_first_pass_done` in the Client Intelligence Profile, set `true` immediately after
+that pass completes), never the smaller DAILY budget — this is about which pass is the client's
+first, not which automation run number it is; a client that starts `web_only` and enables Facebook
+three runs later still gets the FIRST RUN budget on that later run. If the answer was `web_only`,
+the dispatched run skips the pass entirely, and every report/reply this run produces carries the
+persistent web-only awareness line (`playbooks/06_AGENCY_REPORT_STANDARD.md`) instead of a bare
+lower-lead-count note.
 
 ## Fresh Source Acquisition Hard Gate
 
@@ -59,8 +129,8 @@ For each configured client, Setup Flow must leave these current:
 - Client Intelligence Profile.
 - public data sources and keyword bank.
 - private data sources approval state.
-- `extensions/{client_slug}/manifest.json`.
-- `extensions/{client_slug}/client_binding.json`.
+- `extensions/{client_slug}_extension/manifest.json`.
+- `extensions/{client_slug}_extension/client_binding.json`.
 - `daily-content-pipeline/collector/extension_registry.json`.
 - `daily-content-pipeline/collector/collector_config.json`.
 - `daily-content-pipeline/schedule.md`.
@@ -71,34 +141,7 @@ For each configured client, Setup Flow must leave these current:
 
 If the native automation task prompt cannot be updated directly, mark `automation_prompt_update_pending` in the manifest and schedule, then give the human one concrete instruction to update the task prompt.
 
-For every new client, the setup handoff must include the dedicated extension install instructions, not just a status line. Show the absolute `extensions/{client_slug}/` folder path and the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account inside a `**[ACTION REQUIRED]**` block. Before showing that path or the bridge start command, run the Stage 8 Source Safety Pre-Check and precede the install block with one short plain-language line confirming the collector's code was read and only runs locally (safe to install). If the pre-check does not pass, do not show the install steps; raise it to the operator instead.
-
-**Facebook Login Reminder.** Immediately after that install block — once the bridge and this client's extension are confirmed installed and Local Collector health looks reachable — deliver this reminder inside its own `**[ACTION REQUIRED]**` block, in the human's language:
-
-```text
-Để tìm lead trên Facebook, hãy đăng nhập Facebook trên Chrome của máy này (tài khoản cá nhân của bạn là đủ). Nếu bạn không cần nguồn lead từ Facebook, trả lời "bỏ qua Facebook" — vòng quét vẫn chạy trên web nhưng số lead tìm được sẽ ít hơn đáng kể.
-```
-
-Immediately after that block (not part of the verbatim text audited above, and not itself
-`**[ACTION REQUIRED]**`), add one priming sentence in the human's own words and language: a plain
-fact that every lead this pass finds lands straight in the client's CRM, and Free keeps a first
-batch of contacts fully open.
-
-Record the answer as `facebook_lead_source: enabled|skipped|pending` in the Client Intelligence
-Profile (see `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, Client Intelligence Profile fields). This
-reminder fires exactly once per
-client setup, here, right after the bridge + extension install step and before the first run is
-dispatched. It fires again later only inside a scheduled/automation run whose extension health shows
-logged-out/stale (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D).
-
-The client's first dispatched run (Report Request Hard Stop below, and the Setup-Complete Closing
-Template's offer 1) is also the first run of the Facebook Discovery Pass
-(`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass (step 11C of the daily run)")
-whenever `facebook_lead_source` came back `enabled`, or is still `pending` at dispatch time on this
-client's very first run (Setup already showed the reminder above) — that first pass uses the FIRST
-RUN budget (≤ 21 collector calls, `max_pages` ≤ 4, spread over ≥ 4 hours), never the smaller DAILY
-budget. If the answer was `skipped`, the dispatched run skips the pass entirely and its report says
-plainly that the lead count is lower because Facebook was skipped.
+The bridge install, the two-gesture extension install, and the Facebook Login Reminder happened earlier, at step 4 ("Kết nối Facebook" above) — right after profile inference, well before this output list is finalized. Nothing about that install is repeated or re-triggered here; this section only lists the files Setup Flow must leave current.
 
 After schedule/automation exists, set up the separate maintenance task `Solo Agency - GitHub Update Watch` - do not silently skip it. Create the native task if the runtime allows; otherwise write the exact prompt to `daily-content-pipeline/automation/update_watch_prompt.md`, record `update_watch_task_prompt_pending`, AND end with an `**[ACTION REQUIRED]**` block naming the task and the exact way to create it. Default posture is notify-first (`auto_apply_approved: false`).
 
@@ -130,4 +173,4 @@ Bạn muốn bắt đầu với cái nào? (Trả lời 1, 2, 3 — hoặc hỏi
 
 Hard gates on this template: offer 1 is ALWAYS the immediate first run of the just-created automation task (a scheduled future run is never a substitute); one offer is ALWAYS from the OTHER product side (content setup offers Outreach, Outreach setup offers content/video — the cross-introduce rule); the closing line is a QUESTION. A setup-complete message whose last line is not a question is a Stage-9 audit failure. The priming clause folded into offer 1 (leads land in the CRM; Free keeps a first batch of contacts open) is spoken in the human's own words and language like the rest of the block, never this fixed sentence verbatim, and never with an estimated contact count — the shape stays three offers and one closing question; it does not become a fourth offer or a second question.
 
-Do not ask whether to run the report now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not perform public research, private data source collection (one exception: the step-6 discovery pass per item 6 of the Setup Flow Contract), report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery (one exception: the single step-7 WideCast confirmation ping that verifies the notification channel right after the human provides the API key) in Setup Flow.
+Do not ask whether to run the report now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not perform public research, private data source collection (one exception: the step-7 discovery pass per item 7 of the Setup Flow Contract), report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery (one exception: the single step-8 WideCast confirmation ping that verifies the notification channel right after the human provides the API key) in Setup Flow.

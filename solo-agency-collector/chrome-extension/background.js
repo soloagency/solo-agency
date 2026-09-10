@@ -52,6 +52,22 @@ const DISCOVERY_SCROLL_CAP = 10;
 const inMemoryActiveRuns = new Set();
 let clientBindingCache = null;
 
+// Owner decision 2026-09-10: extensions/{client_slug}/ (soon {client_slug}_extension/) is the
+// only folder prepare_client_extension.sh ever produces, and it ALWAYS writes a
+// client_binding.json into it. So a missing/unreadable client_binding.json at runtime means one
+// of two things: this is the SOURCE template folder (solo-agency-collector/chrome-extension/,
+// which ships no binding on purpose) loaded by mistake, or a client copy that never finished
+// generating / got corrupted. Either way there is no client identity to poll the shared local
+// bridge with or to report a job against, so the guard below stops pollBridge before it makes
+// any network call and surfaces one bilingual sentence the popup (and any agent walking the
+// human through it) can read verbatim.
+const NO_CLIENT_BINDING_STATUS = "no_client_binding";
+const NO_CLIENT_BINDING_MESSAGE =
+  "Đây là thư mục MÃ NGUỒN, không phải bản của client. Mở dashboard → Extension → bấm " +
+  "\"Cài extension\" để cài đúng thư mục {client_slug}_extension." +
+  " / This is the SOURCE folder, not a client copy. Open the dashboard → Extension tab and " +
+  "click \"Install extension\" to install the correct {client_slug}_extension folder.";
+
 chrome.runtime.onInstalled.addListener(async () => {
   await resetRunLockAfterBuildChange("installed");
   const settings = await getSettings();
@@ -259,6 +275,17 @@ async function pollBridge(reason) {
   await resetRunLockAfterBuildChange(reason || "poll");
   const settings = await getSettings();
   const binding = await getClientBinding();
+  if (!binding.client_slug) {
+    // No readable client_binding.json -- see the guard comment above. Never touch the bridge
+    // from here: there is no client identity to poll for or to report a job against.
+    await setState({
+      status: NO_CLIENT_BINDING_STATUS,
+      message: NO_CLIENT_BINDING_MESSAGE,
+      reason,
+      updatedAt: new Date().toISOString()
+    });
+    return { status: NO_CLIENT_BINDING_STATUS };
+  }
   if (!settings.enabled) {
     await setState({ status: "disabled", message: "Collector disabled.", reason });
     return { status: "disabled" };
@@ -2829,7 +2856,10 @@ async function getClientBinding() {
       return clientBindingCache;
     }
   } catch (error) {
-    // Legacy single-client installs may not have a binding file yet.
+    // Falls through to the empty binding below -- this is also where a 404 (no file at all,
+    // request never throws) lands, since it fails the `response.ok` check above. Either way,
+    // pollBridge()'s NO_CLIENT_BINDING_STATUS guard is what actually acts on an empty
+    // client_slug; this function just reports what it found.
   }
   clientBindingCache = normalizeClientBinding({});
   return clientBindingCache;

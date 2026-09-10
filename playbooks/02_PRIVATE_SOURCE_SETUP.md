@@ -6,7 +6,7 @@ Stage: `02`
 
 Load when private data sources, manual private URLs, joined groups, Facebook keyword group search, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, private data source discovery, or Local Collector activation are requested, approved, pending, or blocked.
 
-Also load this stage BEFORE asking the step-6 private data source checkpoint question of the one-time setup: the required checkpoint content and its two-part delivery rule live in §6 of this file, so the question cannot be asked correctly without this stage loaded.
+Also load this stage BEFORE asking the step-7 private data source checkpoint question of the one-time setup: the required checkpoint content and its two-part delivery rule live in §6 of this file, so the question cannot be asked correctly without this stage loaded.
 
 If this stage was triggered by a human request to scan, monitor, collect, review, or open a private data source after any amount of conversation drift, first reload `playbooks/PRIVATE_SOURCE_GATE.md`, then reload Stage 8 and Stage 9 before taking action.
 
@@ -17,7 +17,7 @@ If this stage was triggered by a human request to scan, monitor, collect, review
 - Ask explicitly whether the human wants to discover candidate private data sources from joined/member communities and followed/subscribed sources, such as Facebook groups, subreddits, Discord/Slack communities, LinkedIn groups/pages, YouTube channels, X lists/communities, and followed KOLs/pages.
 - Explain private data sources in plain language before asking for them.
 - Explain Local Collector in plain language before asking the human to install or activate it.
-- The step-6 checkpoint question uses the two-part delivery in §6: the plain-language explanation FIRST (as normal prose/bullets), then one compact `**[ACTION REQUIRED]**` question with the three reply options. Translated versions must pass the §6 content-completeness checklist; shortening away any checklist item is a Source Preservation violation even if the shorter question reads better.
+- The step-7 checkpoint question uses the two-part delivery in §6: the plain-language explanation FIRST (as normal prose/bullets), then one compact `**[ACTION REQUIRED]**` question with the three reply options. Translated versions must pass the §6 content-completeness checklist; shortening away any checklist item is a Source Preservation violation even if the shorter question reads better.
 - Use the Facebook joined-groups URL only with explicit consent.
 - Do not use automated approval-gated browser extension flows for unattended collection.
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for private data source collection.
@@ -210,10 +210,10 @@ Do you want me to run private data source discovery from places you already join
 
 If the human says yes:
 
-Timing: this sequence is the step-6 checkpoint's own interactive flow, and its output (the approved source list) is configuration. When the Local Collector and the matching client extension are verified healthy in the CURRENT session — including a setup session — run it NOW, while the human is present to approve the shortlist; the Setup Flow prohibition on scans does not cover this one configuration-gathering pass. Only when the collector is not yet healthy, the human is not present to approve, or the human postpones, record `approved_pending_first_scan` and hand execution to the first Automation Flow run (which then MUST run it or report the exact collector blocker). In a setup session, stop after saving approved sources and resyncing: do not analyze the collected data, generate reports/ideas/drafts from it, or start daily monitoring there.
+Timing: this sequence is the step-7 checkpoint's own interactive flow, and its output (the approved source list) is configuration. When the Local Collector and the matching client extension are verified healthy in the CURRENT session — including a setup session — run it NOW, while the human is present to approve the shortlist; the Setup Flow prohibition on scans does not cover this one configuration-gathering pass. Only when the collector is not yet healthy, the human is not present to approve, or the human postpones, record `approved_pending_first_scan` and hand execution to the first Automation Flow run (which then MUST run it or report the exact collector blocker). In a setup session, stop after saving approved sources and resyncing: do not analyze the collected data, generate reports/ideas/drafts from it, or start daily monitoring there.
 
 1. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 8, and Stage 9 before any scan.
-2. Activate/setup the Local Collector if it is not installed and healthy. The agent must prepare files and give the human the one-line Terminal/PowerShell command and Chrome extension `Load unpacked` folder path; it must not run setup/start scripts itself. Before giving that command or folder path, run the Stage 8 Source Safety Pre-Check and precede the handoff with one short plain-language safety confirmation line (for example: `I read through the collector's code and confirmed it only runs on your computer and does not send your data anywhere. It is safe to install.`). If the pre-check does not pass, do not give the install command; stop and raise it to the operator.
+2. The Local Collector bridge and this client's extension were already installed at setup step 4 (Kết nối Facebook — `SOLO_AGENCY_PLAYBOOK.md`, Mandatory Setup Flow; `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)"). This checkpoint does not install anything; check current health with `GET http://127.0.0.1:17321/status` and `extension_health` instead. If the bridge or extension is unhealthy here (install never completed, or it went stale since step 4), repeat step 4's own install flow — the local/remote rule stays the same one used there — rather than re-deriving a new install path here; run the Stage 8 Source Safety Pre-Check first if giving/re-running any install command.
 3. Ask which broad discovery surfaces are approved if not already clear. Keep the question short and default to the most likely safe set for the client, for example Facebook joined groups and Reddit joined/subscribed communities for community-heavy businesses.
 4. Run only approved discovery URLs/surfaces.
 5. Use Source Discovery Mode: scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
@@ -303,7 +303,7 @@ If the human agrees:
 https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
 ```
 
-2. If the Solo Agency Local Collector extension and Local Collector app are not installed and healthy, activate/setup them before attempting this scan. One-time activation requires a human-run setup handoff: the agent prepares files, then the human runs the Local Collector app setup/start command in Terminal/PowerShell outside the AI sandbox and loads the Chrome extension from the absolute runtime folder.
+2. The Solo Agency Local Collector extension and Local Collector app were already installed at setup step 4 (Kết nối Facebook). If either is not healthy before attempting this scan, repeat step 4's own install flow (agent-run on a local runtime after one consent line, handed off as a one-line command on a remote runtime) rather than deriving a separate activation path here.
 3. Do not use Claude Chrome Extension for this discovery scan.
 4. Do not ask the human to paste Facebook cookies, passwords, tokens, or credentials.
 5. Use the human's already logged-in Chrome session. If Facebook is logged out, mark `facebook_session_expired` and ask the human to log in manually.

@@ -73,3 +73,21 @@ HANDOFF_LOCAL*.md
 
 # Backup copies of files without an extension (LICENSE, etc.) are never published.
 LICENSE_[0-9]*
+
+# Media in assets/ is NOT published by default (deploy-soloagency.sh stages with `git add -A`).
+# Working renders, raw exports and alternate sizes stay on the operator's machine. To publish a
+# new image the README or docs actually reference, add an explicit `!assets/<name>` line below.
+assets/*.png
+assets/*.jpg
+assets/*.jpeg
+assets/*.gif
+assets/*.webp
+assets/*.mp4
+assets/*.mov
+!assets/logo.svg
+!assets/agency-loop.svg
+!assets/agency-structure.svg
+!assets/the_loop_landscape_light.png
+!assets/agency-structure_light.png
+# Backup copies of dot-files without an extension (.gitignore_2026-..) are never published.
+.gitignore_20[0-9][0-9]-*

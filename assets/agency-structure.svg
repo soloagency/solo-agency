@@ -1,0 +1,132 @@
+<svg width="1200" height="690" viewBox="0 0 1200 690" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Cơ cấu Solo Agency</title>
+  <desc id="desc">Sơ đồ khối: Boss ở trên, dưới là một bản cài Solo Agency dùng chung một máy, một key, một dashboard; từ đó rẽ xuống nhiều client. Mỗi client có bốn khối riêng: Dashboard, CRM, Campaign, Nguồn lead. Client thứ ba là ô trống có dấu cộng, nghĩa là thêm client khi cần.</desc>
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="7.5" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M1.5 1.5 L7.5 5 L1.5 8.5" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .bg{fill:#f8fafc}
+      .ink{fill:#111827}
+      .faint{fill:#64748b}
+      .panel{fill:#ffffff;stroke:#d6dee8;stroke-width:2}
+      .ghost{fill:#ffffff;stroke:#cbd5e1;stroke-width:2;stroke-dasharray:9 8}
+      .cell{fill:#f8fafc;stroke:#e2e8f0;stroke-width:1.6}
+      .wire{stroke:#111827;stroke-width:2.4;fill:none;stroke-linecap:round}
+      .wireEnd{stroke:#111827;stroke-width:2.4;fill:none;stroke-linecap:round;marker-end:url(#a)}
+      .h1{font:800 26px ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+      .pill{font:700 16px ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+      .node{font:700 18px ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+      .nodeSub{font:500 12px ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+      .client{font:700 16px ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+      .label{font:700 14px ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+      .legend{font:500 13.5px ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    </style>
+  </defs>
+
+  <rect class="bg" width="1200" height="690"/>
+  <text class="h1 ink" x="80" y="52">Cơ cấu Solo Agency</text>
+
+  <!-- Boss -->
+  <rect class="ink" x="510" y="76" width="180" height="50" rx="25"/>
+  <text class="pill" fill="#ffffff" x="600" y="107" text-anchor="middle">BẠN · Boss</text>
+  <path class="wireEnd" d="M600 126 V158"/>
+
+  <!-- Install -->
+  <rect class="panel" x="466" y="162" width="268" height="66" rx="16"/>
+  <text class="node ink" x="600" y="190" text-anchor="middle">Solo Agency</text>
+  <text class="nodeSub faint" x="600" y="210" text-anchor="middle">1 máy · 1 key · 1 dashboard chung</text>
+
+  <!-- Fan-out -->
+  <path class="wire" d="M600 228 V254"/>
+  <path class="wire" d="M240 254 H960"/>
+  <path class="wireEnd" d="M240 254 V278"/>
+  <path class="wireEnd" d="M600 254 V278"/>
+  <path class="wireEnd" d="M960 254 V278"/>
+
+  <!-- ============ CLIENT A ============ -->
+  <rect class="panel" x="80" y="282" width="320" height="284" rx="16"/>
+  <path d="M80 298 a16 16 0 0 1 16 -16 h288 a16 16 0 0 1 16 16 v30 h-320 z" fill="#b7ff3c"/>
+  <text class="client ink" x="240" y="311" text-anchor="middle">Client A</text>
+
+  <rect class="cell" x="92" y="338" width="140" height="100" rx="12"/>
+  <g transform="translate(146,362)" stroke="#0284c7" stroke-width="2.2" fill="none" stroke-linejoin="round">
+    <rect x="0" y="0" width="32" height="24" rx="3"/><line x1="0" y1="7" x2="32" y2="7"/>
+    <rect x="4.5" y="11.5" width="10" height="8.5" rx="1.5"/><rect x="17.5" y="11.5" width="10" height="8.5" rx="1.5"/>
+  </g>
+  <text class="label ink" x="162" y="416" text-anchor="middle">Dashboard</text>
+
+  <rect class="cell" x="248" y="338" width="140" height="100" rx="12"/>
+  <g transform="translate(302,360)" stroke="#ff6b57" stroke-width="2.2" fill="none" stroke-linecap="round">
+    <circle cx="11" cy="8" r="5.5"/><path d="M2 26 a9 9 0 0 1 18 0"/>
+    <circle cx="25.5" cy="11" r="4"/><path d="M20.5 26 a7 7 0 0 1 12.5 -3.6"/>
+  </g>
+  <text class="label ink" x="318" y="416" text-anchor="middle">CRM</text>
+
+  <rect class="cell" x="92" y="452" width="140" height="100" rx="12"/>
+  <g transform="translate(146,477)" stroke="#111827" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="0" y="2" width="23" height="17" rx="2.5"/><path d="M0 4.5 L11.5 12.5 L23 4.5"/>
+    <path d="M27 6 h5"/><path d="M27 11 h6"/><path d="M27 16 h5"/>
+  </g>
+  <text class="label ink" x="162" y="530" text-anchor="middle">Campaign</text>
+
+  <rect class="cell" x="248" y="452" width="140" height="100" rx="12"/>
+  <g transform="translate(305,477)" stroke="#64748b" stroke-width="2.2" fill="none" stroke-linecap="round">
+    <circle cx="3" cy="19" r="2.6" fill="#64748b" stroke="none"/>
+    <path d="M3 12.5 a6.5 6.5 0 0 1 6.5 6.5"/>
+    <path d="M3 6.5 a12.5 12.5 0 0 1 12.5 12.5"/>
+    <path d="M3 0.5 a18.5 18.5 0 0 1 18.5 18.5"/>
+  </g>
+  <text class="label ink" x="318" y="530" text-anchor="middle">Nguồn lead</text>
+
+  <!-- ============ CLIENT B ============ -->
+  <rect class="panel" x="440" y="282" width="320" height="284" rx="16"/>
+  <path d="M440 298 a16 16 0 0 1 16 -16 h288 a16 16 0 0 1 16 16 v30 h-320 z" fill="#b7ff3c"/>
+  <text class="client ink" x="600" y="311" text-anchor="middle">Client B</text>
+
+  <rect class="cell" x="452" y="338" width="140" height="100" rx="12"/>
+  <g transform="translate(506,362)" stroke="#0284c7" stroke-width="2.2" fill="none" stroke-linejoin="round">
+    <rect x="0" y="0" width="32" height="24" rx="3"/><line x1="0" y1="7" x2="32" y2="7"/>
+    <rect x="4.5" y="11.5" width="10" height="8.5" rx="1.5"/><rect x="17.5" y="11.5" width="10" height="8.5" rx="1.5"/>
+  </g>
+  <text class="label ink" x="522" y="416" text-anchor="middle">Dashboard</text>
+
+  <rect class="cell" x="608" y="338" width="140" height="100" rx="12"/>
+  <g transform="translate(662,360)" stroke="#ff6b57" stroke-width="2.2" fill="none" stroke-linecap="round">
+    <circle cx="11" cy="8" r="5.5"/><path d="M2 26 a9 9 0 0 1 18 0"/>
+    <circle cx="25.5" cy="11" r="4"/><path d="M20.5 26 a7 7 0 0 1 12.5 -3.6"/>
+  </g>
+  <text class="label ink" x="678" y="416" text-anchor="middle">CRM</text>
+
+  <rect class="cell" x="452" y="452" width="140" height="100" rx="12"/>
+  <g transform="translate(506,477)" stroke="#111827" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="0" y="2" width="23" height="17" rx="2.5"/><path d="M0 4.5 L11.5 12.5 L23 4.5"/>
+    <path d="M27 6 h5"/><path d="M27 11 h6"/><path d="M27 16 h5"/>
+  </g>
+  <text class="label ink" x="522" y="530" text-anchor="middle">Campaign</text>
+
+  <rect class="cell" x="608" y="452" width="140" height="100" rx="12"/>
+  <g transform="translate(665,477)" stroke="#64748b" stroke-width="2.2" fill="none" stroke-linecap="round">
+    <circle cx="3" cy="19" r="2.6" fill="#64748b" stroke="none"/>
+    <path d="M3 12.5 a6.5 6.5 0 0 1 6.5 6.5"/>
+    <path d="M3 6.5 a12.5 12.5 0 0 1 12.5 12.5"/>
+    <path d="M3 0.5 a18.5 18.5 0 0 1 18.5 18.5"/>
+  </g>
+  <text class="label ink" x="678" y="530" text-anchor="middle">Nguồn lead</text>
+
+  <!-- ============ CLIENT C (empty slot) ============ -->
+  <g opacity="0.6">
+    <rect class="ghost" x="800" y="282" width="320" height="284" rx="16"/>
+    <path d="M800 298 a16 16 0 0 1 16 -16 h288 a16 16 0 0 1 16 16 v30 h-320 z" fill="#e2e8f0"/>
+    <text class="client faint" x="960" y="311" text-anchor="middle">Client C</text>
+    <g stroke="#94a3b8" stroke-width="4" stroke-linecap="round">
+      <path d="M960 400 V452"/><path d="M934 426 H986"/>
+    </g>
+    <text class="legend faint" x="960" y="500" text-anchor="middle">thêm khi cần</text>
+  </g>
+
+  <!-- Legend -->
+  <path d="M80 610 H1120" fill="none" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+  <text class="legend faint" x="80" y="642">Tạo client trước, rồi lead · campaign · báo cáo mới có chỗ để nằm.</text>
+  <text class="legend faint" x="80" y="666">Mỗi client là một hộp riêng: dữ liệu không lẫn sang client khác.</text>
+</svg>

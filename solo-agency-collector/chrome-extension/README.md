@@ -44,29 +44,73 @@ platform's normalizer maps into. Shared, platform-neutral files stay at this top
 
 ## Runtime Install
 
-This folder is the source/developer copy of the Chrome extension.
+This folder is the source/developer copy of the Chrome extension. As of 2026-09-10 its own
+`manifest.json` says so: the extension `name` and toolbar `default_title` are literally
+**"Solo Agency Collector (source, do not load)"** — that way even someone who loads this folder
+by mistake sees a name that says not to, right in `chrome://extensions` and on hover, instead of
+a name indistinguishable from a real client's.
 
-For a normal Solo Agency runtime setup, do not load this folder in Chrome. Load the generated runtime copy instead:
+For a normal Solo Agency runtime setup, do not load this folder in Chrome. Every client gets its
+own generated, unpacked copy instead, prepared by `solo-agency-collector/scripts/prepare_client_extension.sh`:
 
 ```text
-solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/
+extensions/{client_slug}_extension/
 ```
 
-The setup agent must show the absolute path to that runtime folder.
+The folder name changed from `extensions/{client_slug}/` (2026-09-10) specifically because the
+old name had no word "extension" in it and sat next to this source folder looking equally
+legitimate — a low-tech operator had no reliable way to tell them apart. `prepare_client_extension.sh`
+also drops a one-line `THIS_IS_THE_CLIENT_COPY.txt` inside every client folder it generates (which
+client, when generated), so Finder shows at a glance that a given folder is a real client copy.
+Backward compatibility: an older install whose folder is still named `extensions/{client_slug}/`
+keeps working from that same folder — the script reuses it in place and never creates a second,
+differently-named copy for the same client.
 
-1. Open Chrome.
+There is no Chrome Web Store submission today — one unpacked folder per client is the model, so install is a two-gesture flow off the client's dashboard page rather than a store install.
+
+**One button (recommended):** open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click the button. It reveals the `extensions/{client_slug}_extension/` folder in Finder/Explorer AND opens Chrome at `chrome://extensions` in the same click (the bridge runs on the human's own machine, so it can do this directly). Turn on **Developer mode**, then drag that folder onto the page — Chrome accepts a dropped folder as `Load unpacked`. The page turns green connected on its own when the extension checks in. A local-runtime agent (its own shell running on the human's machine) may trigger the same button itself via `POST /api/ui/{client_slug}/install-extension`, then poll `GET /status` until `extension_health.status` is recent (75-second grace window).
+
+**Manual fallback:**
+
+1. Open Chrome — the profile the human already has open and logged in for the first client; a second Chrome profile is only needed once a second client needs a different Facebook account.
 2. Go to `chrome://extensions`.
 3. Enable Developer Mode.
 4. Click `Load unpacked`.
-5. Select the absolute `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/` runtime folder.
+5. Select the absolute `extensions/{client_slug}_extension/` folder for that client — never this `solo-agency-collector/chrome-extension/` source folder.
 
-Maintainers who are actively developing the extension may load this source folder in a separate development Chrome profile, but a normal agency setup must not use this folder.
+Maintainers who are actively developing the extension may load this source folder (`solo-agency-collector/chrome-extension/`) in a separate development Chrome profile, but a normal agency setup must not use this folder — only the generated per-client copy. Loading the source folder still works for inspecting code and reloading after edits; the guard below just keeps it from quietly acting like a real client install while you do.
 
-For public release, publish the extension through Chrome Web Store or provide a signed/internal extension package.
+## Guard: Loaded The Wrong Folder?
+
+`background.js` reads `client_binding.json` on every poll. `prepare_client_extension.sh` writes
+that file into every client folder it generates, without exception — so if the file is missing
+or unreadable, the loaded folder is either this source template (which ships no binding on
+purpose) or a client copy that never finished generating. In that state:
+
+- `background.js` **never polls the local bridge** — no `/status` call, no job fetch, nothing
+  sent anywhere. It refuses before making any network call, not after.
+- The popup's status box turns red and shows one bilingual sentence instead of the usual status
+  lines.
+- Once a real client copy (with its own `client_binding.json`) is loaded instead, everything
+  behaves exactly as before — the guard only ever affects the no-binding case.
+
+This is intentionally minimal: no new permissions, no change to any code path that already has a
+working binding.
+
+**The exact sentence an agent should relay to the human** when this guard state is hit (identical
+to what the popup shows, `NO_CLIENT_BINDING_MESSAGE` in `background.js`):
+
+> Đây là thư mục MÃ NGUỒN, không phải bản của client. Mở dashboard → Extension → bấm "Cài extension" để cài đúng thư mục {client_slug}_extension. / This is the SOURCE folder, not a client copy. Open the dashboard → Extension tab and click "Install extension" to install the correct {client_slug}_extension folder.
+
+(`{client_slug}` is a placeholder — say the actual client's slug, e.g. `leadup_extension`.)
+
+Covered by `solo-agency-collector/tests/test_client_binding_guard.js` (binding present → normal
+poll reaches the bridge; binding missing or unreadable → guard status, zero bridge calls, message
+present in both `background.js` state and the popup's rendered status box).
 
 ## Expected Flow
 
-1. AI agent or OS startup starts the local bridge.
+1. On a local runtime, the agent installs and starts the bridge itself (one plain-language safety line, one consent ask); on a remote/hosted runtime it hands the human the one-line command instead. Either way, once running, the bridge stays up via an OS-level autostart supervisor (LaunchAgent/systemd/Scheduled Task).
 2. Extension detects the bridge while Chrome is open.
 3. If the bridge reports an active collection window, the extension collects the job automatically.
 4. Extension posts results to the bridge.

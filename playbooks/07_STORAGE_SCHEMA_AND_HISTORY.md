@@ -1394,12 +1394,30 @@ status: not_provided | pending_private_activation | activation_declined_for_now 
 first_trial_policy: public_first_small_win
 last_prompted_date:
 human_decision:
-facebook_lead_source: enabled | skipped | pending
+facebook_lead_source: enabled | web_only | pending
   # Set by the Facebook Login Reminder (Setup Flow, or SCHEDULED_RUN_ENTRYPOINT.md step 12D / 04
-  # step 7 when an existing client's extension health goes stale/logged-out). `pending` only until
-  # the client's very first run resolves it.
+  # step 7 when an existing client's extension health goes stale/logged-out). `enabled` means the
+  # extension checked in and Facebook login is confirmed. `pending` is the in-between state, never
+  # itself a decision -- it stays valid across runs until the human resolves it to `enabled` or
+  # `web_only` (see SCHEDULED_RUN_ENTRYPOINT.md step 12D, 04_DAILY_SCHEDULE.md step 7/11C). Never
+  # assume `pending` only applies on the client's literal first automation run; also, `pending`
+  # never blocks a scheduled run -- only the client's very first dispatch is gated on `enabled` or
+  # `web_only`, never `pending` (SETUP_FLOW_ENTRYPOINT.md, "Kết nối Facebook (step 4)"). `web_only`
+  # is a human's explicit, acknowledged choice to run without Facebook -- never a default, never
+  # the outcome of "để sau" or silence alone; it is set only after the human answers a clear
+  # confirming phrase (for example "không dùng Facebook") to the acknowledgment-based escape.
 facebook_lead_source_updated_at:
   # Timestamp of the last facebook_lead_source change.
+facebook_web_only_reason:
+  # The human's own words when they confirmed `web_only` (verbatim or lightly paraphrased). Empty
+  # unless facebook_lead_source is (or was) `web_only`.
+facebook_discovery_first_pass_done: true | false
+  # Set true immediately after this client's first-ever Facebook Discovery Pass completes
+  # (playbooks/10_LEAD_COMPETITOR_DETECTION.md, "Facebook Discovery Pass"). Gates the FIRST RUN
+  # (<=21 calls) vs DAILY (<=7 calls) budget tier in playbooks/04_DAILY_SCHEDULE.md step 11C /
+  # playbooks/SCHEDULED_RUN_ENTRYPOINT.md step 12E. Keyed to whether the pass has EVER run for
+  # this client, not to the automation run number -- a client who starts `web_only` and later
+  # connects Facebook several runs later still gets FIRST RUN on that later run.
 collector_setup_status_file:
 notes:
 

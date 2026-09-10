@@ -25,6 +25,10 @@ Set it up once. From then on you talk to a single Team Leader in your chat, the 
 
 The Team Leader is the one who talks to you and the one responsible for strategy; the rest of the team works behind it.
 
+One Boss, one install on your own computer, as many clients as you need. A client is a customer of yours or one line of your own business; each one gets its own dashboard, CRM, campaigns and lead sources, and nothing leaks between clients. That is why setup starts by creating a client: until one exists, leads have nowhere to land and campaigns have no one to reach.
+
+![Solo Agency structure: one Boss, one install, many clients, each with its own dashboard, CRM, campaigns and lead sources](assets/agency-structure_light.png)
+
 ## What the team does every day
 
 **Find leads.** Research plus monitoring of the private sources you already belong to surfaces hot / warm / watch leads with the post link, why it matters, and a copy-ready value-first reply. On every plan, including Free, the team harvests leads at scale from friends lists, people search and directories, and builds evidenced dossiers on each one.
@@ -37,7 +41,9 @@ The Team Leader is the one who talks to you and the one responsible for strategy
 
 **Measure and improve.** Views, clicks, replies and follower growth feed back into which hooks, pillars and sources get priority tomorrow. Build → measure → learn → improve, without you keeping a spreadsheet.
 
-![The Solo Agency loop: one person, one Team Leader, a full marketing agency behind it](assets/theloop.png)
+https://github.com/user-attachments/assets/884edd91-7b11-4709-8b93-1b3d6144e3dd
+
+![The Solo Agency loop: one person, one Team Leader, a full marketing agency behind it](assets/the_loop_landscape_light.png)
 
 ## What you get every morning
 
@@ -94,7 +100,7 @@ If you are an AI agent setting up this repo, start here:
 6. During Setup Flow, if the human asks to run, create, generate, show, refresh, or update a report, do not run it in the setup chat. Verify/resync the client-specific automation task and start that task instead, then say it is running and report the result when it lands.
 7. If the human asks to scan or monitor private data sources (logged-in groups, feeds, profiles, communities, or social sources) after the conversation has drifted, reload `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before taking action.
 8. Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read private data sources. Use only the Solo Agency Local Collector extension plus the Local Collector app.
-9. During Local Collector activation, do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent. Prepare the files, then give the human the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension `Load unpacked` folder path.
+9. During Local Collector activation, branch on runtime. **Local runtime** (the agent can see the install root on its own filesystem): write `setup_collector.sh`/`.ps1`, say one plain-language safety line, ask for consent once, then run it yourself and wait up to 60 seconds for `GET http://127.0.0.1:17321/status` to answer before reporting. **Remote runtime** (a hosted sandbox with no local install root, or `/status` still dead after a bootstrap attempt): prepare the files and give the human the one-line Terminal/PowerShell command to run outside the AI sandbox instead. Either way, also give the human the Chrome extension `Load unpacked` folder path.
 10. When checking an already-running Local Collector app, do not trust `ready` alone. Verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point to another setup, treat it as `wrong_workspace_bridge`, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
 11. After a schedule/automation exists, every later approved change must trigger Automation Resync across the whole automation package, not only one config file. Update profile/source state, provider config/capability cache when relevant, `schedule.md`, collector config when relevant, automation manifest, scheduled-run prompt/task body, and the resync log before saying the next scheduled run is updated.
 12. Every human-facing progress block after schedule/automation exists must include an Automation freshness check: whether the latest changes were synced into the automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's scheduled run will load the newest state.

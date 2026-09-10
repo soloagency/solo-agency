@@ -207,10 +207,9 @@ Classify changes that touch these paths as bridge/runtime changes:
 When bridge/runtime changes are applied:
 
 - Prepare the updated files.
-- Do not run `setup_collector.sh`, PowerShell setup scripts, `.cmd` launchers, or collector binaries from inside the AI agent during setup/update/repair.
-- Tell the human the one-line command to run outside the AI sandbox.
-- The command must use the current setup root, not the source checkout.
-- After the human runs it, verify bridge status and workspace identity.
+- Branch on runtime. **Local runtime** (the agent can see the install root on its own filesystem): the agent applies the update itself by running `setup_collector.sh`/`.ps1` (the setup script is idempotent, so re-running it for an update is safe) against the current setup root — consent is `auto_apply_approved: true` in `update_state.json` when set, otherwise ask once before running. **Remote runtime** (a hosted sandbox with no local install root, or `/status` still dead after a bootstrap attempt): do not run the script from inside the AI agent; tell the human the one-line command to run outside the AI sandbox instead.
+- The command (agent-run or human-run) must use the current setup root, not the source checkout.
+- After the script runs, verify bridge status and workspace identity.
 
 Example macOS/Linux command shape:
 

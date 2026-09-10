@@ -15,14 +15,14 @@ Load when installing, starting, stopping, checking, scheduling, updating, or tro
 - Setup scripts must preserve data/config and stop only old collector processes occupying port 17321.
 - When this stage is loaded for a private data source request, first reload `playbooks/PRIVATE_SOURCE_GATE.md` if it is not already loaded in the current private data source turn.
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for private data source collection.
-- The AI agent must never launch the bridge binary or its setup/start scripts from inside the AI sandbox, in any flow (setup, update, repair, or normal runs). This includes `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, and the collector binary itself, even if the agent has shell permissions. The human, or an installed OS startup service, must run the setup/start command outside the agent sandbox. The agent's role is to prepare files and hand the human the exact one-line command.
+- **Local vs remote runtime rule for install/start (hard gate).** On a LOCAL runtime — the agent's own shell IS the human's machine, e.g. Claude Code desktop/CLI, Codex CLI, or any other local agent runtime — the agent installs and starts the bridge itself in any flow (setup, update, repair, or normal runs): write `setup_collector.sh` (`setup_local_collector.ps1` / `Start Local Collector.cmd` on Windows) with the absolute path filled in as always, give the human the one-line plain-language safety confirmation (see Source Safety Pre-Check), ask for consent once, run the script, then poll `GET http://127.0.0.1:17321/status` for up to 60 seconds waiting for an answer, and report success or the specific failure. This is safe because the script hands the process to an OS-level supervisor — macOS LaunchAgent, a Linux systemd user unit, or a Windows logon Scheduled Task (see OS Startup For Persistent Bridge) — so the running bridge is not a child of the agent's own shell/turn and outlives it; do not fall back to "hand the human the command" just because the agent could run it. On a REMOTE runtime — a hosted/cloud sandbox where `127.0.0.1:17321` is NOT the human's machine — installing/starting stays banned: detect this by (a) the agent cannot see the install root on its own filesystem, or (b) `/status` still fails 60 seconds after a successful-looking bootstrap. Only then prepare the files and hand the human the exact one-line command to run outside the agent's sandbox.
 - **Sandbox localhost rule (hard gate).** A scheduled/automation run executes INSIDE the AI sandbox, where `127.0.0.1:17321` is normally NOT the human machine's Local Collector localhost. In sandbox/automation runs the agent must NOT depend on localhost as the control path: submit work through the file-based job queue (`daily-content-pipeline/collector/jobs/pending/`, one unique per-client file) and verify liveness from local health/status files (`bridge_health.json`, `collector_status.json`, recent run-now consumed status). The agent must NEVER tell the human the Local Collector is down, stopped, unresponsive, or needs a restart because a localhost request failed — a failed localhost call in a sandbox is expected network isolation and proves nothing about the collector, which may be running perfectly on the human's machine. A Local Collector error/blocker is valid ONLY when the FILE-QUEUE path itself fails: the local health/status files are missing, stale, or point to another workspace, OR a submitted job file is not claimed/consumed within its TTL. Only then report the exact blocker (`collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, or `job_not_consumed`) and continue with public data sources and previously collected private data.
 - Before handing the human any command to run the bridge or any Chrome `Load unpacked` path, the agent must run the Source Safety Pre-Check (see the section below) and only then give the install steps. A verified-fresh checkout is not enough on its own.
-- One-time setup must include both human actions: run the Local Collector app setup/start command, then install/load the Chrome extension from the absolute runtime extension folder.
+- One-time setup must complete both actions — bridge install/start, then Chrome extension install — before collection is claimed healthy. On a local runtime the agent performs both itself (bridge per the rule above; extension via the two-gesture dashboard flow below) and only asks the human to do the two physical clicks Chrome requires (Developer mode, drag the folder). On a remote runtime both stay human-run.
 - No credentials, hidden APIs, DMs, inboxes, account pages, or contact scraping.
 - Private data source discovery jobs are allowed only after explicit human consent and must produce candidate sources for review, not automatically activated monitoring sources.
-- A reachable bridge is not automatically healthy. The agent must verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point elsewhere, mark `wrong_workspace_bridge` and require the human-run setup/start command for the current setup.
-- A normal machine should have one active shared Solo Agency Local Collector runtime/bridge for the current setup, and one client-specific Solo Agency Local Collector Chrome extension per client Chrome profile/account. When old installs are suspected, ask the human to remove/disable stale entries in `chrome://extensions` and keep only the current per-client extension entries under `extensions/{client_slug}/`.
+- A reachable bridge is not automatically healthy. The agent must verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point elsewhere, mark `wrong_workspace_bridge` and apply the current setup's install/start rule (local runtime: run it again itself; remote runtime: hand the human the command).
+- A normal machine should have one active shared Solo Agency Local Collector runtime/bridge for the current setup, and one client-specific Solo Agency Local Collector Chrome extension per client Chrome profile/account. When old installs are suspected, ask the human to remove/disable stale entries in `chrome://extensions` and keep only the current per-client extension entries under `extensions/{client_slug}_extension/`.
 
 ## Source Safety Pre-Check
 
@@ -30,7 +30,7 @@ Before giving the human any bridge start command or any Chrome `Load unpacked` p
 
 Scan these three, in the exact copies that will be installed/run (the prepared per-client folder, not only the template):
 
-1. The per-client extension folder `extensions/{client_slug}/` — every `*.js` file.
+1. The per-client extension folder `extensions/{client_slug}_extension/` — every `*.js` file.
 2. The bridge — NOT its source. The Go source is closed and absent from this repo (only checksum-verified binaries ship from the `dist` branch), so do not look for `main.go`; confirm instead that the installed binary is the one `setup_collector.sh` verified against `SHA256SUMS`, and hold its network behaviour to the disclosed outbound list below.
 3. `solo-agency-collector/scripts/prepare_client_extension.sh`.
 
@@ -59,30 +59,43 @@ Outcome:
 The current multi-client model supersedes older one-extension wording:
 
 - A normal machine should have one active shared Local Collector app/bridge for the current agency root.
-- Each client may have its own Chrome profile/account and must have its own unpacked extension folder under `extensions/{client_slug}/`.
+- Each client may have its own Chrome profile/account and must have its own unpacked extension folder under `extensions/{client_slug}_extension/`.
 - Recommend one separate Chrome profile per client. That profile should have the matching client extension installed and should be logged in to the social accounts/private data sources that the human is already authorized to view for that client.
 - The Chrome extension display name must begin with the client name: `{Client Name} - Solo Agency Collector`.
-- The human-facing `Load unpacked` folder for a client is the absolute path to `extensions/{client_slug}/`, not `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
+- The human-facing `Load unpacked` folder for a client is the absolute path to `extensions/{client_slug}_extension/`, not `solo-agency-local-collector/LOAD_THIS_EXTENSION_IN_CHROME/`.
 - The shared bridge routes jobs by `client_slug`, binds each active job to the claiming `extension_instance_id` when present, can run different client identities in parallel, serializes only jobs for the same client/profile, and writes output only under `daily-content-pipeline/collector/inbox/YYYY-MM/{client_slug}/{run_id}/`.
 - Agents running in sandboxes should prefer file-based job requests under `daily-content-pipeline/collector/jobs/pending/` and local health/status files over localhost calls.
 - Extension popup/settings must not write global `collector_config.json`; global agency/collector config is managed by the agent/playbook and Automation Resync.
+- Folder resolution order (bridge `uiExtensionInfo`, OWNER DECISIONS 2026-09-10 item A): an `extension_registry.json` pin for that `client_slug` wins unconditionally; otherwise `extensions/{client_slug}_extension/` when it exists; otherwise, only for installs made before the 2026-09-10 rename, the legacy `extensions/{client_slug}/`. Every new client gets the `_extension` name — the legacy path is a read for backward compatibility, never a name the agent creates.
 
-Per-client extension setup handoff:
+Per-client extension setup handoff — two gestures, one button:
 
 ```text
-Open the Chrome profile/account for {Client Name}.
-Go to chrome://extensions.
-Enable Developer mode.
-Click Load unpacked.
-Select:
-{ABSOLUTE_AGENCY_ROOT}/extensions/{client_slug}/
+Open http://127.0.0.1:17321/ui/{client_slug}/extension and click the one button.
+It reveals the extension folder in Finder/Explorer AND opens Chrome at chrome://extensions
+in the same click.
+Turn on Developer mode (once).
+Drag the revealed folder onto the chrome://extensions page.
 ```
 
-Every Add Client or First Client Setup handoff must include this block with the real absolute path. The agent must not merely say that the extension was created. The human needs the path and steps because a new unpacked extension must be loaded into the matching client Chrome profile/account before private data source collection can work for that client.
+**Every `/ui/...` link named anywhere in this file — this one and every one below it — follows the
+SHOW RULE** (`docs/UI_DESIGN.md` §1 principle 2, OWNER DECISION 2026-09-10): print it as text every
+time; on Claude Code desktop also open it in the side Browser pane; on any other local runtime also
+run `open`/`start`/`xdg-open` so it lands in a real browser; never HTTP-GET it to "verify" — a
+sandboxed agent's own GET proves nothing about the human's browser. The dashboard now opens
+directly (`--ui-auth host` default) — no entry-link/token step, no "Locked" page.
 
-The agent must run the Source Safety Pre-Check first and precede this handoff with the one short plain-language safety confirmation line (see the Source Safety Pre-Check section). Do not give the `Load unpacked` path or the bridge command until the pre-check has passed.
+The dashboard's single primary button fires both gestures at once because the bridge runs on the human's own machine and can shell out directly: `open -a "Google Chrome" "chrome://extensions/"` on macOS (works even while Chrome is already running), `cmd /c start "" chrome "chrome://extensions/"` on Windows, `google-chrome`/`xdg-open` fallback on Linux. A local-runtime agent may trigger the identical two actions itself by calling `POST /api/ui/{client_slug}/install-extension` on the bridge (documented with the UI worker's endpoints) instead of waiting on the human to click, then poll `GET /status` until `extension_health.status` is recent (75-second grace window) before telling the human it's connected. The absolute path `{ABSOLUTE_AGENCY_ROOT}/extensions/{client_slug}_extension/` is the manual fallback for the file picker only.
 
-The agent must prepare `extensions/{client_slug}/manifest.json` with at least:
+Alongside the button, the agent says one fixed sentence, in the human's language, naming the exact folder to pick (OWNER DECISIONS 2026-09-10 item A): "Chọn đúng thư mục tên `{client}_extension` mà em vừa mở — không chọn thư mục `chrome-extension` nằm trong mã nguồn." This step also always shows both help-video links — Chrome install, Edge install — even when the agent ran the bridge itself, so the human has more than one way to finish; until the owner records them, reference the future page `http://127.0.0.1:17321/ui/help/facebook` and mark it "(sắp có)" rather than inventing a video URL (OWNER DECISIONS 2026-09-10 item B).
+
+First client uses the Chrome profile the human already has open and logged in — no profile juggling. Introduce a second Chrome profile only when a SECOND client needs a different Facebook account.
+
+Every Add Client or First Client Setup handoff must include this block with the real absolute path for the fallback. The agent must not merely say that the extension was created. The human needs the button (or the path, on the manual fallback) because a new unpacked extension must be loaded into the matching client Chrome profile/account before private data source collection can work for that client.
+
+The agent must run the Source Safety Pre-Check first and precede this handoff with the one short plain-language safety confirmation line (see the Source Safety Pre-Check section). Do not give the `Load unpacked` button/path or the bridge install/start step until the pre-check has passed.
+
+The agent must prepare `extensions/{client_slug}_extension/manifest.json` with at least:
 
 ```json
 {
@@ -92,7 +105,7 @@ The agent must prepare `extensions/{client_slug}/manifest.json` with at least:
 
 It may also set `"short_name": "{Client Name} Collector"` and a client-specific `"description"` / `"action.default_title"`. The helper `scripts/prepare_client_extension.sh` patches only `name`, `description`, and `action.default_title` (not `short_name`); its output is compliant. `short_name` is optional.
 
-The agent must also create `extensions/{client_slug}/client_binding.json` with `client_slug`, `client_name`, `extension_instance_id`, `extension_display_name`, and `bridge_base_url`.
+The agent must also create `extensions/{client_slug}_extension/client_binding.json` with `client_slug`, `client_name`, `extension_instance_id`, `extension_display_name`, and `bridge_base_url`.
 
 Bridge/extension health for automation must be checked per client. A global `extension_health.status: recent` is not enough when multiple client extensions exist; the scheduled task must find the matching extension entry for the target `client_slug` and `extension_instance_id`.
 
@@ -262,7 +275,7 @@ Fresh Source Verification:
 - If `rm -rf`, `git fetch`, `git pull`, `git clone`, `curl`, or archive download fails because of permissions, sandboxing, or network access, stop and request permission or give the human one exact GitHub command. Do not continue with the old local folder.
 - Do not let shell chaining hide a failed cleanup. The agent must confirm the clone/download actually happened and must report the verified commit hash in setup status or chat before using the artifacts.
 
-The AI agent should prepare the collector locally as much as its environment allows, but it must not start the one-time setup script or collector app itself. The setup/start command must be run by the human outside the AI agent sandbox so the Local Collector app survives after the agent command/session ends.
+The AI agent should prepare the collector locally as much as its environment allows. On a LOCAL runtime it also runs the one-time setup script itself (one safety line, one consent ask) — the script hands the process to an OS-level autostart supervisor, so the Local Collector app survives after the agent's command/session ends regardless of who started it. Only on a REMOTE runtime must the setup/start command instead be run by the human outside the agent's sandbox.
 
 Canonical local layout:
 
@@ -276,7 +289,7 @@ Canonical local layout:
     collector.pid
     collector.log
   extensions/                          # one Chrome Load unpacked folder per client
-    {client_slug}/
+    {client_slug}_extension/           # legacy installs may still have {client_slug}/ — see below
       manifest.json
       background.js
       popup.html
@@ -302,10 +315,10 @@ Chrome extension folder disambiguation:
 
 - There may be another `chrome-extension/` folder inside the downloaded toolkit/repo, such as `solo-agency/solo-agency-collector/chrome-extension/`.
 - That toolkit folder is source/developer material. It is not the human-facing Chrome `Load unpacked` folder during agency setup.
-- The only folder the agent may tell a normal human to load in Chrome for a client is the per-client runtime folder under `extensions/{client_slug}/`.
-- If both folders exist, the agent must explicitly warn: `Do not load the extension folder inside solo-agency/solo-agency-collector. Load only the extensions/{client_slug} folder shown below for this client.`
+- The only folder the agent may tell a normal human to load in Chrome for a client is the per-client runtime folder under `extensions/{client_slug}_extension/`.
+- If both folders exist, the agent must explicitly warn: `Do not load the extension folder inside solo-agency/solo-agency-collector. Load only the extensions/{client_slug}_extension folder shown below for this client.`
 - A normal machine should have only one active shared Solo Agency Local Collector runtime/bridge, but may have multiple client-specific Solo Agency Local Collector extensions, one per client Chrome profile/account.
-- The generated setup instructions, setup status file, and chat message must show the absolute per-client extension path: `extensions/{client_slug}/`.
+- The generated setup instructions, setup status file, and chat message must show the absolute per-client extension path: `extensions/{client_slug}_extension/`.
 - Do not put app binaries, downloaded zips, the unpacked extension, PID files, or collector logs inside `daily-content-pipeline/`. That folder should remain data/config/output only.
 
 Install flow:
@@ -315,17 +328,17 @@ Install flow:
 3. Copy `SHA256SUMS`, `collector-bridge-binaries-0.1.0.zip`, extension templates, and helper scripts only from the verified checkout, or download the exact raw GitHub URLs above when cloning is unavailable.
 4. Verify checksums when the environment has checksum tools available.
 5. Extract bridge binaries into the absolute runtime path for `solo-agency-local-collector/bin/`.
-6. Prepare the Chrome extension template into the absolute per-client path `extensions/{client_slug}/`, patch the manifest name to `{Client Name} - Solo Agency Collector`, and create `client_binding.json`. Prefer the repo helper when available from the verified checkout:
+6. Prepare the Chrome extension template into the absolute per-client path `extensions/{client_slug}_extension/`, patch the manifest name to `{Client Name} - Solo Agency Collector`, and create `client_binding.json`. Prefer the repo helper when available from the verified checkout:
    ```bash
    solo-agency-collector/scripts/prepare_client_extension.sh "{Client Name}" "{client_slug}" "{extension_instance_id}" "{ABSOLUTE_AGENCY_ROOT}"
    ```
 7. Select the correct bridge binary for the current machine.
 8. On macOS/Linux, ensure the selected binary is executable.
-9. Create the setup/start script or launcher, but do not execute it from the AI agent.
-10. Give the human exactly one Terminal/PowerShell command or one double-clickable launcher path to run outside the AI sandbox.
-11. In the same human-facing message, give the Chrome extension `Load unpacked` steps and the one absolute per-client extension folder path.
+9. Create the setup/start script or launcher.
+10. On a LOCAL runtime, run it: give the human the one-line plain-language safety confirmation, ask consent once, execute the script, then poll `GET http://127.0.0.1:17321/status` for up to 60 seconds. On a REMOTE runtime (agent cannot see the install root, or `/status` still fails 60 seconds after a bootstrap attempt), instead give the human exactly one Terminal/PowerShell command or one double-clickable launcher path to run outside the agent's sandbox.
+11. Trigger the Chrome extension install through the dashboard's two-gesture flow (`/ui/{client_slug}/extension`, or `POST /api/ui/{client_slug}/install-extension` on a local runtime) and poll `extension_health.status` until recent; give the absolute per-client extension folder path only as the manual fallback.
 12. Record the verified source path and commit hash in `daily-content-pipeline/collector/collector_setup_status.md` when the file exists or is being created.
-13. After the human confirms both actions, health-check `GET http://127.0.0.1:17321/status` and run the workspace identity check before claiming the collector is healthy.
+13. After both actions are confirmed (by the agent's own polling on a local runtime, or by the human's "done" on a remote one), health-check `GET http://127.0.0.1:17321/status` and run the workspace identity check before claiming the collector is healthy.
 14. Prefer persistent scheduler mode for unattended collection. After one-time setup succeeds, scheduled runs should use the already-running Local Collector app and should not ask the human to repeat setup.
 
 Absolute path rule:
@@ -352,26 +365,31 @@ Binary selection:
 
 If the current OS/CPU is not listed, the agent must log `collector_unavailable`, continue with public data sources, and notify the human that a compatible collector binary is not available yet.
 
-### Required One-Time Human Setup Handoff
+### Required One-Time Setup Handoff (Local-Run, With Remote Fallback)
 
-During first Local Collector activation, setup repair, or collector update, the AI agent must not run the setup/start command itself. This is mandatory for Claude, Codex, Hermes, OpenClaw, ChatGPT, and other AI agents, even when the shell appears to allow local execution, because the command may run inside an agent sandbox/session whose processes can be killed when the agent turn ends.
+During first Local Collector activation, setup repair, or collector update, a LOCAL runtime (Claude Code desktop/CLI, Codex CLI, or any other agent runtime whose shell IS the human's own machine) runs the setup itself instead of handing it to the human. This applies to Claude, Codex, Hermes, OpenClaw, ChatGPT, and other AI agents alike — the distinction that matters is local vs remote, not which agent it is. A REMOTE runtime (a hosted/cloud sandbox where `127.0.0.1:17321` is not the human's machine) still hands the human the command; detect "remote" by either signal: the agent cannot see the install root on its own filesystem, or `/status` still fails 60 seconds after a bootstrap attempt.
 
-The agent must create or update the local setup files, then hand the human exactly these two actions in chat:
+**Local runtime — the agent does both actions:**
 
-1. Run the Local Collector app setup/start command outside the agent sandbox:
+1. Bridge install/start: write the setup file (below), say the one-line plain-language safety confirmation (see Source Safety Pre-Check), ask for consent once, run it:
+   - macOS/Linux: `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
+   - Windows: `setup_local_collector.ps1`, or the `Start Local Collector.cmd` launcher. SmartScreen may ask for one click on the unsigned script/binary — mention that only if it actually happens.
+   Then poll `GET http://127.0.0.1:17321/status` for up to 60 seconds and report success or the specific failure.
+2. Extension install, via the two-gesture dashboard flow: call `POST /api/ui/{client_slug}/install-extension` (or open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click its one button) — it reveals the extension folder AND opens `chrome://extensions` in the same action. Tell the human the two physical clicks only Chrome can require of a person: turn on Developer mode, drag the folder onto the page. Poll `extension_health.status` until it is `recent` (75-second grace window), then celebrate in chat. First client uses the Chrome profile the human already has open and logged in to the approved private data sources; a second Chrome profile is introduced only when a SECOND client needs a different Facebook account.
+
+**Remote runtime — hand the human exactly these two actions in chat:**
+
+1. Run the Local Collector app setup/start command outside the agent's sandbox:
    - macOS/Linux: `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
    - Windows: one prepared PowerShell command or one double-clickable `Start Local Collector.cmd` path.
 2. Install the client-specific Solo Agency Local Collector Chrome extension in the matching Chrome profile/account:
-   - use a separate Chrome profile for this client when possible;
+   - use the Chrome profile the human already has open and logged in for the first client; a separate profile is only needed once a second client needs a different Facebook account;
    - make sure this profile is already logged in to the approved private data sources and the human has member/follower/subscriber/access rights for them;
-   - open `chrome://extensions`;
-   - enable Developer mode;
-   - click `Load unpacked`;
-   - **prefer the browser-UI drag-drop path** — hand the human `http://127.0.0.1:17321/ui/{client_slug}/extension` (click "Open the extension folder", then drag it onto `chrome://extensions`); the absolute per-client folder `/ABSOLUTE/PATH/TO/extensions/{client_slug}/` is the manual fallback for the file picker.
+   - **prefer the two-gesture dashboard path** — hand the human `http://127.0.0.1:17321/ui/{client_slug}/extension` and its one button (reveals the folder, opens `chrome://extensions`), then Developer mode + drag; the absolute per-client folder `/ABSOLUTE/PATH/TO/extensions/{client_slug}_extension/` is the manual fallback for the file picker.
 
-The human-facing setup message must show both actions together. Do not say only "I started it", "I ran setup", or "instructions are in collector_setup_status.md".
+The human-facing setup message must show both actions together on a remote runtime. Do not say only "I started it", "I ran setup", or "instructions are in collector_setup_status.md".
 
-After the human confirms both actions are done, the agent may check `GET http://127.0.0.1:17321/status` and inspect collector logs/status files. Health checks are allowed; starting the one-time setup script from the AI agent is not.
+After both actions are confirmed — by the agent's own `/status`/`extension_health` polling on a local runtime, or by the human's "done" on a remote one — check `GET http://127.0.0.1:17321/status` and inspect collector logs/status files before claiming the collector is healthy.
 
 For later scheduled runs, do not ask the human to repeat these steps. Use the already-running persistent Local Collector app, create scheduled/run-now jobs when available, and notify the human only if the app or extension becomes unavailable.
 
@@ -383,19 +401,22 @@ Chrome extension installation flow:
 /Users/alex/oneman_agency/extensions/avenngo/
 ```
 
-2. The agent tells the human directly in chat, Telegram, or another human-facing channel:
+2. On a local runtime, the agent triggers the two-gesture dashboard flow itself (`POST /api/ui/{client_slug}/install-extension`) and polls `extension_health.status`; it tells the human only the two clicks Chrome requires of a person (Developer mode, drag). On a remote runtime, the agent tells the human directly in chat, Telegram, or another human-facing channel:
 
 ```md
 Please install the Solo Agency Local Collector extension for {Client Name}:
 
-1. Open the Chrome profile/account for {Client Name}. A separate Chrome profile per client is recommended.
+**Easiest — one button:** open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click the button. It reveals the extension folder AND opens `chrome://extensions` for you. Turn on `Developer mode`, then drag the folder onto the page. The page turns green when it connects.
+
+**Manual fallback:**
+1. Open the Chrome profile/account for {Client Name}. Use the profile you already have open for your first client; a separate profile is only needed once a second client needs a different Facebook account.
 2. Go to `chrome://extensions`.
 3. Turn on `Developer mode`.
 4. Click `Load unpacked`.
 5. Select this folder:
-   `/ABSOLUTE/PATH/TO/extensions/{client_slug}/`
+   `/ABSOLUTE/PATH/TO/extensions/{client_slug}_extension/`
 
-Important: if you also see a folder named `solo-agency/solo-agency-collector/chrome-extension`, do not select that one. That is the toolkit/source copy. Select only the client folder under `extensions/{client_slug}/`.
+Important: if you also see a folder named `solo-agency/solo-agency-collector/chrome-extension`, do not select that one. That is the toolkit/source copy. Select only the client folder under `extensions/{client_slug}_extension/`.
 
 After this one-time setup, you may close this instruction tab whenever you want. For private data source collection to work at scheduled times, that Chrome profile should be open, logged in to the social accounts/private data sources approved for this client, and already have member/follower/subscriber/access rights for those sources. The shared Local Collector app should be running or configured to auto-start.
 ```
@@ -403,13 +424,13 @@ After this one-time setup, you may close this instruction tab whenever you want.
 3. The agent must not ask for passwords, cookies, OTPs, or credentials.
 4. If the extension is not installed or cannot contact the Local Collector app, the agent logs `extension_unavailable`, continues with public data sources, and notifies the human.
 
-The AI agent must create a ready-to-run setup/start script file and give the human exactly one short command to paste into Terminal or PowerShell. The agent must do this even if it can run local commands itself; one-time collector setup must happen outside the AI agent sandbox.
+The AI agent must always create a ready-to-run setup/start script file first. On a LOCAL runtime, it runs that script itself (one-line safety confirmation, one consent ask, then execute) instead of handing it to the human — users are very low-tech and must never be told to open a Terminal in the normal path. Only on a REMOTE runtime does the agent instead give the human exactly one short command to paste into Terminal or PowerShell.
 
-Do not show the human a long multi-line script as the primary instruction. Non-technical humans should not have to copy a large code block.
+Do not show the human a long multi-line script as the primary instruction. Non-technical humans should not have to copy a large code block — on a local runtime they should not have to open Terminal at all.
 
-Do not tell the human that setup instructions are only in a Markdown file. The Markdown file may store the same information for agent memory, but the current chat must contain the exact action the human should take.
+Do not tell the human that setup instructions are only in a Markdown file. The Markdown file may store the same information for agent memory, but the current chat must contain the exact action being taken (local runtime) or the exact action the human should take (remote runtime).
 
-The generated collector setup script must be named `setup_collector.sh`. Do not invent alternative names such as `start_local_collector.sh`. The AI agent must not execute this script itself during one-time setup/update/repair; it must provide the command for the human to run in Terminal. Every run must check who owns the collector port before starting a new Local Collector app.
+The generated collector setup script must be named `setup_collector.sh`. Do not invent alternative names such as `start_local_collector.sh`. A LOCAL runtime executes this script itself during one-time setup/update/repair; a REMOTE runtime provides the command for the human to run in Terminal instead. Every run must check who owns the collector port before starting a new Local Collector app.
 
 Idempotent setup/update rule:
 
@@ -471,7 +492,7 @@ else
   rm -f "$BRIDGE_ZIP_TMP"
 fi
 
-echo "Per-client Chrome extension folders are managed separately under $AGENCY_ROOT/extensions/{client_slug}."
+echo "Per-client Chrome extension folders are managed separately under $AGENCY_ROOT/extensions/{client_slug}_extension."
 
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "Creating default collector_config.json..."
@@ -563,7 +584,7 @@ stop_existing_bridge() {
 stop_existing_bridge
 
 echo "Local Collector app setup is ready."
-echo "Client-specific Chrome extension folders are prepared separately under: $AGENCY_ROOT/extensions/{client_slug}/"
+echo "Client-specific Chrome extension folders are prepared separately under: $AGENCY_ROOT/extensions/{client_slug}_extension/"
 echo "Do NOT load any chrome-extension folder under solo-agency/solo-agency-collector; that is the toolkit/source copy."
 echo "One machine should have one active shared Solo Agency Local Collector runtime for the current setup."
 echo "Starting the Local Collector app in the background with the newest executable."
@@ -575,13 +596,21 @@ echo "Log file: $LOG_FILE"
 echo "You can close this Terminal window now."
 ```
 
-For the Local Collector app setup action, tell the human only this one-line command, with the real absolute path:
+**Local runtime:** run this script yourself. Say the one-line safety confirmation, ask consent once, run it, then poll `/status` for up to 60 seconds:
+
+```md
+Em đã đọc mã của collector: nó chỉ chạy trên máy này, không gửi dữ liệu đi đâu. Em cài và bật nó ngay bây giờ, khoảng một phút.
+```
+
+Then trigger the extension's two-gesture install (`POST /api/ui/{client_slug}/install-extension`, or hand the human the one button at `/ui/{client_slug}/extension` if you prefer they click it), poll `extension_health.status` until recent, and report both as done — no Terminal, no `bash` command, ever shown to this human.
+
+**Remote runtime only:** tell the human only this one-line command, with the real absolute path:
 
 ```bash
 bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"
 ```
 
-Human-facing wording for the required two-step setup:
+Human-facing wording for the required two-step setup (remote runtime — a local runtime performs both steps itself instead, per above):
 
 ```md
 I created the Local Collector setup file. Please do these two one-time steps:
@@ -591,15 +620,15 @@ Open Terminal, paste this one line, and press Enter:
 
 `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
 
-**Easiest path (recommended) — the browser UI does the folder-finding.** Give the human this one link and three no-typing steps:
-`http://127.0.0.1:17321/ui/{client_slug}/extension` → click **Open the extension folder** (Finder/Explorer opens the exact folder) → in the client's Chrome, open `chrome://extensions`, turn on **Developer mode**, and **drag that folder onto the page**. The UI page flips to a green ✓ connected on its own when the extension checks in — no path to remember, no file picker. The absolute-path instructions below are the manual fallback only.
+**Easiest path (recommended) — one button does both gestures.** Give the human this one link:
+`http://127.0.0.1:17321/ui/{client_slug}/extension` → click the button. It reveals the extension folder in Finder AND opens `chrome://extensions` for you, in the same click. Turn on **Developer mode**, then **drag that folder onto the page**. The UI page flips to a green ✓ connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
 
 Step 2 (manual fallback) - load the client-specific Chrome extension in the Chrome profile/account for this client.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:
 
-`/ABSOLUTE/PATH/TO/extensions/{client_slug}/`
+`/ABSOLUTE/PATH/TO/extensions/{client_slug}_extension/`
 
-Important: do not select any `solo-agency/solo-agency-collector/chrome-extension` folder. Use only the client folder under `extensions/{client_slug}/`.
+Important: do not select any `solo-agency/solo-agency-collector/chrome-extension` folder. Use only the client folder under `extensions/{client_slug}_extension/`.
 
 After both steps are done, tell me "done". Then I will check the Local Collector status and continue.
 ```
@@ -612,8 +641,8 @@ Important Windows note:
 
 - The human can run an `.exe`, but double-clicking `collector-bridge-windows-amd64.exe` by itself is not enough for the recommended persistent setup because the app needs configuration arguments.
 - The AI agent should create a friendly launcher such as `Start Local Collector.cmd` and, if needed, a setup script such as `setup_local_collector.ps1`.
-- The human-facing instruction must include two setup actions: first run the prepared PowerShell command or double-click `Start Local Collector.cmd` outside the AI sandbox, then load the Chrome extension from the absolute runtime extension folder.
-- If the human wants it to run after restart, use Windows Task Scheduler with "At log on".
+- Same local-vs-remote rule as macOS/Linux: on a LOCAL runtime the agent runs `setup_local_collector.ps1` itself (one safety line, one consent ask, then execute — Microsoft SmartScreen may ask for one click on the unsigned script/binary; mention that only if it happens), then triggers the extension's two-gesture install and polls `extension_health.status`. On a REMOTE runtime, the human-facing instruction must include both setup actions: first run the prepared PowerShell command or double-click `Start Local Collector.cmd` outside the agent's sandbox, then load the Chrome extension from the absolute runtime extension folder (or the one-button dashboard flow).
+- If the human wants it to run after restart, use Windows Task Scheduler with "At log on" — though the canonical setup scripts already register this by default (see OS Startup For Persistent Bridge).
 
 PowerShell setup script file path:
 
@@ -664,7 +693,7 @@ if ($BridgeNeedsInstall) {
   Remove-Item $BridgeZipTmp -Force -ErrorAction SilentlyContinue
 }
 
-Write-Host "Per-client Chrome extension folders are managed separately under $AgencyRoot\extensions\{client_slug}."
+Write-Host "Per-client Chrome extension folders are managed separately under $AgencyRoot\extensions\{client_slug}_extension."
 
 if (-not (Test-Path $ConfigPath)) {
   Write-Host "Creating default collector_config.json..."
@@ -741,7 +770,7 @@ try {
 }
 
 Write-Host "Local Collector app setup is ready."
-Write-Host "Client-specific Chrome extension folders are prepared separately under: $AgencyRoot\extensions\{client_slug}\"
+Write-Host "Client-specific Chrome extension folders are prepared separately under: $AgencyRoot\extensions\{client_slug}_extension\"
 Write-Host "Do NOT load any chrome-extension folder under solo-agency\solo-agency-collector; that is the toolkit/source copy."
 Write-Host "One machine should have one active shared Solo Agency Local Collector runtime for the current setup."
 Write-Host "Starting the Local Collector app in the background with the newest executable."
@@ -788,7 +817,9 @@ if errorlevel 1 exit /b 1
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath '%COLLECTOR_RUNTIME_ROOT%\bin\collector-bridge-windows-amd64.exe' -ArgumentList @('--host','127.0.0.1','--port','17321','--config-file','%COLLECTOR_DATA_ROOT%\collector_config.json','--output-dir','%COLLECTOR_DATA_ROOT%\inbox','--persistent') -RedirectStandardOutput '%LOG_FILE%' -RedirectStandardError '%ERR_LOG_FILE%' -WindowStyle Hidden -PassThru; Set-Content -Encoding ASCII -Path '%PID_FILE%' -Value $p.Id; Write-Host ('Local Collector app started. PID: ' + $p.Id); Write-Host 'You can close this window now.'"
 ```
 
-Human-facing Windows wording for the required two-step setup:
+**Local runtime:** run `setup_local_collector.ps1` yourself (safety line, one consent ask, execute — note a SmartScreen click only if it actually appears), then trigger the extension's two-gesture install and poll `extension_health.status`. Report both as done.
+
+Human-facing Windows wording for the required two-step setup (remote runtime only — a local runtime performs both steps itself instead, per above):
 
 ```md
 I created the Local Collector setup file. Please do these two one-time steps:
@@ -798,15 +829,15 @@ Open PowerShell, paste this one line, and press Enter:
 
 `powershell -ExecutionPolicy Bypass -File "C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\setup_local_collector.ps1"`
 
-**Easiest path (recommended) — the browser UI does the folder-finding.** Give the human this one link and three no-typing steps:
-`http://127.0.0.1:17321/ui/{client_slug}/extension` -> click **Open the extension folder** (Explorer opens the exact folder) -> in the client's Chrome, open `chrome://extensions`, turn on **Developer mode**, and **drag that folder onto the page**. The UI page flips to a green connected on its own when the extension checks in — no path to remember, no file picker. The absolute-path instructions below are the manual fallback only.
+**Easiest path (recommended) — one button does both gestures.** Give the human this one link:
+`http://127.0.0.1:17321/ui/{client_slug}/extension` -> click the button. It reveals the extension folder in Explorer AND opens `chrome://extensions` for you, in the same click. Turn on **Developer mode**, then **drag that folder onto the page**. The page turns green connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
 
 Step 2 (manual fallback) - load the client-specific Chrome extension in the Chrome profile/account for this client.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:
 
-`C:\ABSOLUTE\PATH\TO\extensions\{client_slug}\`
+`C:\ABSOLUTE\PATH\TO\extensions\{client_slug}_extension\`
 
-Important: do not select any `solo-agency\solo-agency-collector\chrome-extension` folder. Use only the client folder under `extensions\{client_slug}\`.
+Important: do not select any `solo-agency\solo-agency-collector\chrome-extension` folder. Use only the client folder under `extensions\{client_slug}_extension\`.
 
 After both steps are done, tell me "done". Then I will check the Local Collector status and continue.
 
@@ -817,8 +848,8 @@ Later, if you need to start the Local Collector app manually again, double-click
 Future update rule:
 
 - When the project moves from raw GitHub files to GitHub Releases, replace the raw artifact URLs with GitHub release URLs.
-- When the extension is published to Chrome Web Store, replace the developer-mode `Load unpacked` flow with the Chrome Web Store install flow.
-- Until then, the AI agent should handle download/extraction/script preparation automatically when possible, but the human must perform both one-time local actions outside the AI sandbox: run the Local Collector app setup/start command and install/load the Chrome extension.
+- The extension stays an unpacked, per-client folder for now (no Chrome Web Store submission) — see "One Shared Bridge, Many Client Extensions" for the two-gesture install this implies.
+- The AI agent should handle download/extraction/script preparation automatically when possible. On a LOCAL runtime it also performs both one-time local actions itself (bridge setup/start, extension install) with the one consent ask; only on a REMOTE runtime does the human perform them outside the agent's sandbox.
 
 ### Collector Schedule Configuration
 
@@ -1036,8 +1067,8 @@ Health check sequence:
 6. For `wrong_workspace_bridge`, tell the human plainly:
    - a Local Collector app is already running, but it belongs to a previous Solo Agency setup or another folder;
    - one machine should have only one active Solo Agency Local Collector runtime for the current setup;
-   - the human should run the current setup's one-line Local Collector command outside the AI sandbox so the script can stop the old `collector-bridge` process and start the bridge with the current workspace paths;
-   - if the human has loaded old Solo Agency Local Collector extensions in Chrome, they should open `chrome://extensions`, remove or disable stale entries from previous setup folders, and keep only the current client-specific extensions loaded from this setup's absolute `extensions/{client_slug}/` folders. Multiple current extensions are expected when multiple clients use different Chrome profiles/accounts.
+   - on a LOCAL runtime, the agent re-runs the current setup's script itself (one consent ask) so it can stop the old `collector-bridge` process and start the bridge with the current workspace paths; on a REMOTE runtime, the human runs the current setup's one-line Local Collector command outside the agent's sandbox to do the same;
+   - if the human has loaded old Solo Agency Local Collector extensions in Chrome, they should open `chrome://extensions`, remove or disable stale entries from previous setup folders, and keep only the current client-specific extensions loaded from this setup's absolute `extensions/{client_slug}_extension/` folders. Multiple current extensions are expected when multiple clients use different Chrome profiles/accounts.
 7. If the workspace identity check passes and `extension_health.status` is `recent`, private collection infrastructure is currently healthy.
 8. If the workspace identity check passes and `extension_health.status` is `no_extension_check_yet` immediately after extension install, bridge restart, or settings save, wait and re-check for up to 75 seconds before declaring private collection unavailable.
 9. If the workspace identity check passes and `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second grace window, treat private collection as unavailable for now and identify likely causes:
@@ -1076,7 +1107,7 @@ Collector status: wrong_workspace_bridge
 Running bridge config: /Users/alex/old_setup/daily-content-pipeline/collector/collector_config.json
 Current setup config: /Users/alex/oneman_agency/daily-content-pipeline/collector/collector_config.json
 Impact: I cannot use this bridge for today's private data source scan because it may write data into the old setup folder.
-Action: Please run the Local Collector setup/start command for the current setup outside the AI sandbox. If you previously loaded old Solo Agency Local Collector extensions, open chrome://extensions and remove or disable stale entries from old setup folders. Keep the current client-specific extension loaded from /Users/alex/oneman_agency/extensions/{client_slug}/ in the matching client's Chrome profile.
+Action: Please run the Local Collector setup/start command for the current setup outside the AI sandbox. If you previously loaded old Solo Agency Local Collector extensions, open chrome://extensions and remove or disable stale entries from old setup folders. Keep the current client-specific extension loaded from /Users/alex/oneman_agency/extensions/{client_slug}_extension/ in the matching client's Chrome profile.
 ```
 
 ### Beyond Liveness: Active Capability Probes
@@ -1100,7 +1131,7 @@ Every setup run records the outcome in `solo-agency-local-collector/autostart.js
 2. Sandboxed agent: read `solo-agency-local-collector/autostart.json`. `mode` other than `"none"` = registered (report which). `mode: "none"` = autostart is OFF — tell the human why (`reason`: `opt_out_env`, `*_registration_failed`, `no_supervisor_available`) and that the fix is re-running the setup script. File missing = the install predates the autostart scripts — ask the human to re-run the current setup script once.
 3. Agent can neither run commands nor read the file: give the human the ONE copy-paste command for their OS from rung 1 and ask them to paste the output back.
 
-Guardrails (unchanged in spirit): do not hand-craft a custom LaunchAgent/systemd unit/Scheduled Task beyond what the script registers, and do not install/start services from inside the AI sandbox — for a missing or broken registration the fix is always that the HUMAN re-runs the setup script (one command, safe to re-run). Claude-specific: Claude often cannot run downloaded binaries from inside its sandbox; Claude must not use Claude Chrome Extension as a workaround for automated private collection; after the bridge runs as a startup service, Claude reads collector output files and continues without controlling Chrome directly.
+Guardrails: never hand-craft a custom LaunchAgent/systemd unit/Scheduled Task beyond what the script registers — the fix for a missing or broken registration is always re-running the setup script (one command, safe to re-run), never a bespoke unit. On a LOCAL runtime the agent re-runs it itself (one consent ask); the old blanket "do not install/start services from inside the AI sandbox, the HUMAN re-runs it" applies only on a REMOTE runtime now, where the fix is still handing the human that one command. Claude-specific: on a remote/hosted sandbox Claude often cannot run downloaded binaries at all; Claude must not use Claude Chrome Extension as a workaround for automated private collection; after the bridge runs as a startup service, Claude reads collector output files and continues without controlling Chrome directly.
 
 ### Localhost Bridge Choice
 
@@ -1146,7 +1177,7 @@ Typical run:
 1. Agent detects the operating system and CPU architecture.
 2. Agent confirms the matching bridge binary exists at `solo-agency-local-collector/bin/`.
 3. Agent creates a collection job file under `daily-content-pipeline/collector/jobs/pending/`.
-4. The human-run local process or installed startup service already has the bridge running on `127.0.0.1`. The agent must not start the bridge itself; if it is not reachable, the agent gives the human the one-line start command to run outside the AI sandbox and waits.
+4. The human-run local process or installed startup service already has the bridge running on `127.0.0.1`. If it is not reachable: on a LOCAL runtime the agent runs the setup/start script itself (one consent ask) and waits for `/status`; on a REMOTE runtime the agent gives the human the one-line start command to run outside its sandbox and waits.
 5. Solo Agency Local Collector extension detects the bridge by polling localhost.
 6. Extension fetches the job, collects visible authorized data from configured private data sources, and posts results back to the bridge.
 7. Bridge writes JSONL/status/snapshot files.
@@ -1168,16 +1199,16 @@ solo-agency-local-collector/bin/collector-bridge-darwin-arm64 \
 
 The exact command may differ by implementation, but the behavior must remain the same.
 
-If the local bridge is not already running, the agent should not assume it can safely start an on-demand localhost bridge from inside the AI sandbox. In that case:
+If the local bridge is not already running, a REMOTE-runtime agent should not assume it can safely start an on-demand localhost bridge from inside its sandbox (a LOCAL runtime just runs the setup/start script itself instead — see the Local vs remote runtime rule). On a remote runtime:
 
 - The extension may queue a limited amount of data in extension storage until a bridge is available.
 - The agent must log `collector_unavailable`.
-- The agent must notify the human that the Local Collector app is not running and provide the one-line setup/start command for the human to run outside the AI sandbox.
+- The agent must notify the human that the Local Collector app is not running and provide the one-line setup/start command for the human to run outside its sandbox.
 - The agent should continue with public data sources and previously collected private data if available.
 
 Important constraint:
 
-- A Chrome extension cannot magically start a localhost server if no local process is already running. If Native Messaging is not used, then the human-run setup command, an OS startup service, or another local scheduler must start the Local Collector app outside the AI sandbox.
+- A Chrome extension cannot magically start a localhost server if no local process is already running. On a local runtime the agent itself is that local process's starter; on a remote runtime, only the human-run setup command, an OS startup service, or another local scheduler can start the Local Collector app.
 
 ### Solo Agency Local Collector Extension Behavior
 
@@ -1215,7 +1246,7 @@ The extension should:
 - Post structured results back to the local bridge.
 - Avoid posting, commenting, reacting, messaging, following, or changing account state (read-only; the send/act side needs separate human approval). Collect and structure whatever the job directs, including prospect contact details; the only data never read or transmitted is the operator's own credentials/secrets (usernames, passwords, cookies, tokens, session data, API keys) — see the `do_not_exfiltrate_secrets` note above.
 
-The extension should not require the human to click Allow on every scheduled run. The human's one-time actions are running the Local Collector app setup/start command outside the AI sandbox, installing/loading the extension, and granting the extension permissions requested by Chrome.
+The extension should not require the human to click Allow on every scheduled run. The one-time setup — running the Local Collector app setup/start command and installing/loading the extension — is agent-run on a LOCAL runtime and human-run outside the sandbox on a REMOTE runtime (see the Local vs remote runtime rule); either way, the human's own remaining one-time actions are limited to the two physical clicks Chrome requires of a person (Developer mode, drag the folder) and granting the extension permissions Chrome itself prompts for.
 
 Expected extension check timing:
 
@@ -1285,7 +1316,7 @@ Health API:
 - The AI agent should call `/status` without special headers.
 - The Solo Agency Local Collector extension may call `/status` from its extension context and may include `X-Collector-Extension: media-agency-local-collector`; that is how the Local Collector app records `extension_health.last_extension_check_at`.
 - The AI agent must not use the extension header during normal health checks, because it would make the bridge think the browser extension checked in when only the AI agent did.
-- If `/status` fails to connect, the Local Collector app is not running or is blocked. The AI agent must not start it from inside the AI sandbox during setup/repair; give the human the one-line setup/start command generated during setup.
+- If `/status` fails to connect, the Local Collector app is not running or is blocked. On a LOCAL runtime, run the setup/start script generated during setup (one consent ask) and re-check; on a REMOTE runtime, give the human the one-line setup/start command generated during setup instead.
 - If `/status` succeeds but `extension_health.status` is `stale` or `no_extension_check_yet` after the 75-second extension check grace window, the Local Collector app is running but the Solo Agency Local Collector extension is not currently checking in. The AI agent should treat private data source collection as unavailable until fixed, continue public data source work, and notify the human through the configured provider notification channel if available.
 
 `POST /jobs/run_now` is required for manual runs and first-trial runs when localhost is reachable. It lets the AI agent tell the Local Collector app:
@@ -1312,7 +1343,7 @@ Run-now stuck-status guard:
 - The Local Collector app must treat `run_now_expires_at` as a hard stop. After that time, `/status` must return `job_available: false` for that run-now job even if the Solo Agency Local Collector extension crashed, Chrome was closed, the machine slept, or `/complete` was never called.
 - The agent must not set `force: true` for routine manual runs. `force: true` is reserved only for explicit troubleshooting when the human understands that it can intentionally re-run a previously completed `run_id`.
 - The agent must not reuse yesterday's or a previous manual `run_id` to “run again”. It must create a new unique `run_id`.
-- If the agent sees `current_job_type: run_now` for longer than the configured TTL, it should report a Local Collector app bug or stale process, notify the human through the configured provider notification channel if available, and provide the human-run setup/start command or documented troubleshooting path instead of restarting the Local Collector app from inside the AI sandbox.
+- If the agent sees `current_job_type: run_now` for longer than the configured TTL, it should report a Local Collector app bug or stale process and notify the human through the configured provider notification channel if available. Recovery follows the local/remote rule from the Hard Gate above: on a LOCAL runtime the agent first confirms no other client's job is genuinely in flight (`GET /status` → `active_jobs`, and no fresh `run_lock`/lease held by another brain), tells the human in one line what it is about to do, then re-runs `setup_collector.sh` (idempotent; it stops the stale bridge and starts the newest one) and waits for `/status`; on a REMOTE runtime it provides the human-run setup/start command or the documented troubleshooting path instead. Never restart a bridge that is mid-run for another client.
 - If the Solo Agency Local Collector extension reports `already_completed`, the agent should not force the same job. It should create a new run-now job with a new `run_id`.
 
 The `/status` response should include:
@@ -1473,23 +1504,26 @@ If a URL is unavailable, write `unavailable` and include a note explaining why.
 
 ### Agent Compatibility Rule
 
+All agents follow the same Local vs remote runtime rule (see the Hard Gates section) for one-time Local Collector setup/update/repair — Codex CLI running on the human's machine and Claude Code desktop/CLI are LOCAL runtimes; a hosted/cloud sandbox for any of them is REMOTE:
+
 Codex:
 
-- During one-time Local Collector setup/update/repair, Codex must not run `setup_collector.sh`, `setup_local_collector.ps1`, `Start Local Collector.cmd`, or the collector binary itself, even if Codex has shell permission. Codex must prepare the files and give the human the Terminal/PowerShell command to run outside the Codex sandbox.
-- After the human-run setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`, read collector output, and continue the daily pipeline. `run_now_request.json` is only a legacy/batch shim.
+- On a LOCAL runtime (Codex CLI on the human's machine), Codex runs `setup_collector.sh` / `setup_local_collector.ps1` / `Start Local Collector.cmd` itself: one plain-language safety line, one consent ask, then execute, then poll `/status` for up to 60 seconds.
+- On a REMOTE runtime (Codex's own sandbox cannot see the install root, or `/status` still fails 60 seconds after a bootstrap attempt), Codex prepares the files and gives the human the Terminal/PowerShell command to run outside its sandbox instead.
+- After setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`, read collector output, and continue the daily pipeline. `run_now_request.json` is only a legacy/batch shim.
 - If Codex cannot access Chrome's logged-in session directly, it should still use the extension/bridge output files.
 
 Claude:
 
 - Claude must use the Solo Agency Local Collector extension plus the Local Collector app for automated private data source collection.
 - Claude must not use Claude Chrome Extension for automated private data source collection because it can require repeated human Allow clicks and can block unattended schedules.
-- Claude must provide a user-run command, persistent bridge startup instructions, or OS startup service setup instructions. It must not run the one-time setup/start command from inside Claude.
+- On a LOCAL runtime (Claude Code desktop/CLI running on the human's machine), Claude runs the one-time setup/start command itself, per the Local vs remote runtime rule. On a REMOTE runtime (a hosted Claude sandbox), Claude instead provides a user-run command, persistent bridge startup instructions, or OS startup service setup instructions.
 - After the bridge is running, Claude reads collector output files and performs reasoning, idea generation, script writing, reporting, and WideCast actions.
 
 Hermes, OpenClaw, and other agents:
 
-- During one-time Local Collector setup/update/repair, use the same human-run setup rule: prepare files, then give the human the Terminal/PowerShell command and Chrome extension steps. Do not run the setup/start command from inside the AI agent.
-- After human-run setup is complete and the Local Collector app is reachable, use the same run-now/scheduled collector flow.
+- Same Local vs remote runtime rule: on a LOCAL runtime, run the setup/start command itself (one consent ask); on a REMOTE runtime, prepare files and give the human the Terminal/PowerShell command and Chrome extension steps instead.
+- After setup is complete and the Local Collector app is reachable, use the same run-now/scheduled collector flow.
 - If the agent cannot run local commands, read the latest collector files or use an MCP wrapper that exposes the collector folder.
 
 ### Native Messaging Decision
@@ -1537,13 +1571,13 @@ If the Local Collector is unavailable, the agent must continue work with public 
 Codex:
 
 - Codex must not use native browser, in-app browser, Playwright, remote debugging, or agent-controlled browser tools for private data source review.
-- After the human-run Local Collector setup is complete and the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`, read collector output, and continue the daily pipeline. `run_now_request.json` is only a legacy/batch shim.
+- Local Collector setup follows the Local vs remote runtime rule: on a LOCAL runtime Codex runs setup itself; on a REMOTE runtime it hands the human the command. Once the Local Collector app is reachable, Codex may create run-now jobs through `/jobs/run_now` or one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`, read collector output, and continue the daily pipeline. `run_now_request.json` is only a legacy/batch shim.
 
 Claude:
 
 - Claude must not use Claude in Chrome or Claude Chrome Extension for private data source collection.
 - Claude must use the Solo Agency Local Collector extension plus the Local Collector app described above.
-- Claude must give the human a one-time command or startup-service instructions to run the Local Collector app outside the sandbox. It must not run the one-time setup/start command from inside Claude.
+- On a LOCAL runtime (Claude Code desktop/CLI on the human's machine), Claude runs the one-time setup/start command itself: one plain-language safety line, one consent ask, then execute, then poll `/status` for up to 60 seconds. On a REMOTE runtime (a hosted Claude sandbox that cannot see the install root, or where `/status` still fails 60 seconds after a bootstrap attempt), Claude instead gives the human a one-time command or startup-service instructions to run the Local Collector app outside the sandbox.
 - The recommended Claude-safe mode is `persistent_bridge_scheduler`, because once the Local Collector app is running at OS startup, Claude only needs to read local collector files.
 - If the Local Collector app is unavailable, Claude should continue with public data sources and previously collected private data, then notify the human.
 
@@ -1572,7 +1606,7 @@ Manual run / run-now rule:
 - To run again, the agent should create a new unique `run_id` instead of forcing the same run id repeatedly.
 - The run-now job must expire automatically if it is not completed, so the extension cannot keep seeing the same manual job all day.
 - The matching Solo Agency Local Collector extension should see `job_available: true` on a `/status` poll when its queued job becomes active. With one shared bridge, jobs for different clients can be active at the same time; only jobs for the same client/profile are queued sequentially.
-- If the Local Collector app is not reachable, the agent must not try to start it from inside the AI sandbox during one-time setup/repair. Provide the one-line Local Collector app setup/start command for the human to run outside the sandbox, then retry the run-now job only after the app is reachable.
+- If the Local Collector app is not reachable, apply the Local vs remote runtime rule: on a LOCAL runtime, run the setup/start script itself (one consent ask); on a REMOTE runtime, provide the one-line Local Collector app setup/start command for the human to run outside its sandbox. Either way, retry the run-now job only after the app is reachable.
 - Recurring schedule windows are only for unattended scheduled runs. They must not block manual runs.
 - Do not simulate a manual run by editing `scheduled_windows` or creating a temporary schedule window. Manual runs must use `/jobs/run_now` or file-based queued jobs.
 - If the agent cannot call `http://127.0.0.1:17321` from its own sandbox but can write local files, it must write one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/`. The Local Collector app claims matching pending jobs on `/status`, moves claimed files into `jobs/claimed/`, writes output for that client, then moves completed files into `jobs/completed/`. This avoids asking the human to run another command and avoids `run_now_request.json` overwrite races.
@@ -1702,7 +1736,7 @@ Schedule rule:
 - Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence.
 - Then write or update `schedule.md`, the automation manifest, the scheduled-run prompt/task body, and the relevant collector/config files.
 - During Setup Flow, do not ask to run the first agency run immediately and do not run a report. Finish by preparing or resyncing the client-specific automation task whose task name begins with the client name.
-- After schedule/routine setup and automation task creation, if private data sources exist and Local Collector is pending, handle step 6: guide Local Collector setup or clearly mark private data sources as `pending_private_activation` in the automation contract so the first automation run can continue with public data sources only if needed, then resync the task.
+- After schedule/routine setup and automation task creation, if private data sources exist, check the Local Collector installed unconditionally at step 4 (Kết nối Facebook). If it is healthy, proceed. If it is unhealthy, repeat step 4's own install/repair flow (per `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)") — do not treat this as a new "guide Local Collector setup" gate — and, until it is healthy, clearly mark private data sources as `pending_private_activation` in the automation contract so the first automation run can continue with public data sources only if needed, then resync the task.
 - If schedule/routine setup already happened and the human later approves private data sources, repairs Local Collector, changes scan depth, changes source cadence, connects notification/PDNA, or changes any future-run behavior, load Stage 4 and perform Automation Resync. Updating only `collector_config.json` is not enough when the native AI automation prompt/task may still contain an older setup snapshot.
 - During Automation Resync, update the Client Intelligence Profile, `schedule.md`, `collector_config.json` or `POST /config` when relevant, `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md`, the actual native scheduled task prompt if accessible, and `daily-content-pipeline/automation/resync_log.md`.
 - Before claiming the schedule will use the new collector/source state, dry-read the scheduled entrypoint, manifest, schedule, profile, and collector config to confirm the next scheduled run will see the current approved sources/status.

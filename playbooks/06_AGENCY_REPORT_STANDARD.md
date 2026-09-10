@@ -232,7 +232,7 @@ File responsibilities:
 2. `{client-name}-private-data-sources-report.html`
    - Full private data sources report only.
    - Must contain private source coverage, safe summarized private evidence, private Lead & Competitor Opportunities, private idea matrix, best private idea, copy-ready comments when available, and private draft/recommendation.
-   - Must include a client-safe "Community discovery" subsection whenever the Facebook Discovery Pass ran this run, showing counts only (e.g. leads found, groups scanned) — no capability/tool names, no CRM link, and no "locked by plan" wording (client-blind rule). If the human answered `facebook_lead_source: skipped`, use the existing client-safe sentence instead: "community/logged-in coverage was not included today, so lead counts may be lower than reality."
+   - Must include a client-safe "Community discovery" subsection whenever the Facebook Discovery Pass ran this run, showing counts only (e.g. leads found, groups scanned) — no capability/tool names, no CRM link, and no "locked by plan" wording (client-blind rule). If `facebook_lead_source: web_only`, use the existing client-safe sentence instead (unchanged wording — the client never sees "Facebook" or "web_only"): "community/logged-in coverage was not included today, so lead counts may be lower than reality."
    - Must not contain Local Collector, Chrome extension, login/session, API, raw private post/member, or private source inventory details.
    - Must not rewrite or summarize the public data sources report.
 
@@ -608,7 +608,15 @@ The sections below are mandatory for the internal source record. Public data sou
 - Locked leads:
 - Budget used (calls spent / calls available for this run's tier):
 - Trip status: `clean` | the exact safety trip that stopped the account.
-- When `facebook_lead_source: skipped` this run, say so plainly here with the lead-count consequence and the one-line way to turn it back on.
+- When `facebook_lead_source: web_only` this run, say so plainly here with the lead-count consequence and the persistent web-only awareness line below, instead of running this pass. When still `pending`, note only that item 4 is unresolved — no awareness line, since nothing has been decided yet.
+
+**Persistent web-only awareness line.** While a client's `facebook_lead_source` is `web_only`, every Boss-facing reply frame (`SOLO_AGENCY_PLAYBOOK.md`), this INTERNAL_REPORT, and the morning brief carry one line, in the human's language, for example:
+
+```text
+Chưa dùng nguồn Facebook (anh/chị chọn chế độ web-only ngày {date}) — số lead thấp hơn vì vậy; bật lại bất cứ lúc nào bằng "Kết nối Facebook".
+```
+
+`{date}` is `facebook_lead_source_updated_at`. This line never appears in the client-facing report or notification — the client-safe sentence above is the only thing the client ever sees. It stops appearing once `facebook_lead_source` resolves to `enabled`.
 
 ### Report Delivery And Notification Log
 
@@ -650,7 +658,7 @@ Use this section inside the internal source record and `INTERNAL_REPORT` when pr
 - Why private data sources were not scanned today:
 - What is needed to activate them:
 - Suggested next question:
-  - `Private data sources (logged-in/social/community places such as groups, profiles, pages, channels, forums, or communities) are not activated yet because they require the Local Collector app and Chrome extension on your computer. Do you want me to prepare the setup files and then give you the two required local steps: run one Terminal/PowerShell command yourself and load the Chrome extension from the folder I show you?`
+  - `Private data sources (logged-in/social/community places such as groups, profiles, pages, channels, forums, or communities) are not activated yet because the Local Collector app and Chrome extension are not connected on your computer. This should be rare since the install already happened at step 4 (Kết nối Facebook). On a local runtime, say: "Bộ thu thập chưa kết nối được — để em cài/khởi động lại ngay bây giờ." and install/repair it yourself after one consent line. Only on a remote runtime, ask instead: Do you want me to prepare the setup files and then give you the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension folder to load?`
 - Sources waiting for activation:
   - Source:
     - URL:

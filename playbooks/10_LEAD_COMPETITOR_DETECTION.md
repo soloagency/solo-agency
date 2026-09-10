@@ -59,13 +59,21 @@ lives here; the scheduled-run call-out lives in `playbooks/SCHEDULED_RUN_ENTRYPO
 
 "Vòng khám phá Facebook" — the impressive first Facebook lead scan for a client, and afterwards a
 light daily companion. It runs INSIDE the client's existing daily run task; there is no separate
-automation task for it. It is also what Setup Flow triggers as the very first run once the bridge
-and the client's extension are installed (`playbooks/SETUP_FLOW_ENTRYPOINT.md`).
+automation task for it. Setup Flow's step 4 ("Kết nối Facebook") installs the bridge and the
+client's extension well before this pass ever runs (`playbooks/SETUP_FLOW_ENTRYPOINT.md`), and this
+pass is normally the client's first-ever discovery pass — but "first-ever" is tracked by
+`facebook_discovery_first_pass_done` on the Client Intelligence Profile, not by which automation run
+number it is: a client who postpones Facebook at setup and connects it three runs later still gets
+the FIRST RUN budget below on that later run, because that is still the first time this pass has
+ever executed for them.
 
-Before this pass may run at all, the Facebook Login Reminder must be resolved
-(`facebook_lead_source: enabled`; see `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D and
-`playbooks/SETUP_FLOW_ENTRYPOINT.md`). If the human answered "bỏ qua Facebook" (`skipped`), skip this
-whole section and say so plainly, with the lead-count consequence, in every report this run produces.
+Before this pass may run at all, `facebook_lead_source` must be `enabled` (see
+`playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D/12E and `playbooks/SETUP_FLOW_ENTRYPOINT.md`).
+`pending` (the human has not yet resolved item 4 either way) skips this whole section quietly — no
+awareness line, because nothing has been decided. If the human confirmed `web_only` (the
+acknowledgment-based escape, never a bare "bỏ qua"/"để sau"), skip this whole section and carry the
+persistent web-only awareness line (`playbooks/06_AGENCY_REPORT_STANDARD.md`) instead, plus the
+one-line way to turn it back on.
 
 ### Fixed order: feed, then people, then groups, then in-group
 
@@ -138,6 +146,12 @@ into the next day's pass rather than losing them.
 DAILY companion pass: no fixed floor — it is a light top-up, bounded by its own smaller budget below.
 
 ### Budget (owner-approved, inside the safety envelope; all calls serial, spread over hours)
+
+Which tier applies is decided by `facebook_discovery_first_pass_done` on the Client Intelligence
+Profile, not by the automation run's own number: **FIRST RUN** applies whenever this field is not
+yet `true` — i.e. this is the first time this pass has ever executed for this client, whether that
+happens to be run 1, run 2, or run 20 because Facebook was connected late — and the agent sets the
+field `true` immediately after this pass completes. **DAILY** applies to every pass after that.
 
 | | discovery terms | feed searches | people searches | group searches | new public groups | intent terms/group | total collector calls | `max_pages` | spread |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -599,7 +613,10 @@ CRM: http://127.0.0.1:17321/ui/{client_slug}/crm — {N} new contacts today, {L}
 
 A zero-lead run prints the bare CRM line (`http://127.0.0.1:17321/ui/{client_slug}/crm`, no counts).
 The agent PRODUCES this link as a static string from `docs/UI_DESIGN.md`'s URL map; it never
-HTTP-GETs it.
+HTTP-GETs it. Hand it per the SHOW RULE (`docs/UI_DESIGN.md` §1 principle 2, OWNER DECISION
+2026-09-10): print it as text every time; on Claude Code desktop also open it in the side Browser
+pane; on any other local runtime also run `open`/`start`/`xdg-open` so it lands in a real browser.
+It opens directly now (`--ui-auth host` default) — no entry-link/token step, no "Locked" page.
 
 **First run for a client that has never had a CRM.** A client set up for content only has no CRM
 workspace yet, and the command will say so: `no outreach workspace under .../clients/{slug}; run
