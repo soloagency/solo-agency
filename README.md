@@ -27,7 +27,7 @@ The Team Leader is the one who talks to you and the one responsible for strategy
 
 ## What the team does every day
 
-**Find leads.** Research plus monitoring of the private sources you already belong to surfaces hot / warm / watch leads with the post link, why it matters, and a copy-ready value-first reply. On paid plans the team harvests leads at scale from friends lists, people search and directories, and builds evidenced dossiers on each one.
+**Find leads.** Research plus monitoring of the private sources you already belong to surfaces hot / warm / watch leads with the post link, why it matters, and a copy-ready value-first reply. On every plan, including Free, the team harvests leads at scale from friends lists, people search and directories, and builds evidenced dossiers on each one.
 
 **Nurture and CRM.** A CRM you never click: contacts, deals, stages, tasks, replies and bounces land in it automatically; a morning brief tells you who is new, who is cooling, and who has a reason to hear from you today, with the draft already written.
 
@@ -57,7 +57,7 @@ Platform support rolls out one adapter at a time: Facebook (groups, pages, profi
 
 WideCast is the maintained all-in-one path for video, blog and social production, publishing to 10+ platforms you connect, Telegram and email notifications, and analytics, all behind the same API key that is your Solo Agency license. It is optional for research, ideas, leads, CRM and drafting. Specialist tools (Google Veo, Seedance, Kling, HeyGen, stock libraries and similar) can be connected for production assets.
 
-Solo Agency is free forever for your own use (1 client) with one watched source and unlimited CRM contacts; a provider API key unlocks more sources, campaigns and the lead-harvest features.
+Solo Agency is free forever for your own use, with every data feature included — enrich, dossiers, the contact ladder, harvest, Zillow, search, auto-update — plus DM to unlocked contacts, and up to 30 CRM contacts unlocked; every lead is still captured no matter the plan. A plan raises the CRM contact cap and unlocks group posting, commenting and reacting.
 One key runs one install: moving to a new computer is a single command on that computer (`tool entitlement release`, once per 7 days), and a key shared with someone else only ever runs on one of the two machines.
 
 ## Get started

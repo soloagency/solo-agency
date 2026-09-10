@@ -12,33 +12,83 @@ the audience's own language (Vietnamese / English / etc.).
 
 ---
 
-## Recipe A — Intent-in-community ("find people who need X")
+## Recipe A — Facebook Discovery Pass (canonical; feed → people → groups → in-group)
 
-> e.g. "find people who need insurance", "who is looking to buy a house in OC".
+> The canonical implementation of `playbooks/10_LEAD_COMPETITOR_DETECTION.md`'s Facebook Discovery
+> Pass (step 11C of the daily run, and Setup Flow's first-run trigger). It is also the right shape
+> for an open-ended "find people who need X" ask — e.g. "find people who need insurance", "who is
+> looking to buy a house in OC" — the fixed order below IS the general answer to that request, not
+> just the automated daily version of it.
+
+Fixed order — feed first, then people, then groups, then in-group. Do not reorder or parallelize;
+narrow the funnel at each step instead of skipping one.
 
 ```text
-1. fb.groups.search   { query: "<community/industry>", max_pages: 3 }
-      → list candidate groups. Rank by relevance + size + locality.
-2. HUMAN GATE (join): present the groups the human is NOT yet a member of, with a
-   one-line reason each. The human joins the ones they want. Do NOT auto-join.
-   (Only member-visible + public groups are scannable — see safety.md.)
-3. For each accessible group:
-     fb.group.search_posts { group_search_url: ".../groups/<id>/search/?q=<intent kw>", max_pages: 4..8 }
-        intent keywords = in-market language, NOT just the industry noun:
+1. FEED FIRST
+     fb.search.posts { search_url: "https://www.facebook.com/search/posts/?q=<discovery term>" }
+        Facebook's own global Posts-tab search. No group membership needed; fastest first read on
+        who is using in-market language right now.
+2. THEN PEOPLE
+     fb.people.search { query: "<discovery term>" }
+        (the url Facebook itself renders: https://www.facebook.com/search/people/?q=<discovery term>)
+        Returns ProfileSummary[] rows (name, url, subtitle/work line, mutual_friends, industry_hint).
+        No post text exists, so classification uses subtitle + industry_hint + name/url only.
+        Temperature defaults to `watch`; only becomes `warm` when the subtitle states the target role
+        explicitly. Qualified rows → `tool crm-store ... lead capture` tagged source:people_search
+        plus kw:{term}, exactly like every other lead.
+3. THEN GROUPS
+     fb.groups.search { query: "<discovery term>", max_pages: <=4 }
+        Keep only privacy == "public". Empty/unknown privacy is NOT treated as private by default:
+        spend one fb.group.posts { max_pages: 1 } header check, or skip the group when budget is
+        tight. Rank survivors by member_count desc; prefer names/snippets matching the client's
+        target location. Skip a group already in private_data_sources, and skip one this pass
+        already scanned in the last 7 days (check history/YYYY-MM/facebook_discovery_shortlist.jsonl
+        first — playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md has the exact fields).
+4. THEN IN-GROUP
+     For the top public groups from step 3:
+     fb.group.search_posts { group_search_url: ".../groups/<id>/search/?q=<intent kw>", max_pages: <=4 }
+        Intent keywords come from `tool source-keywords ... plan` (seed the group's bank first with
+        `seed --industry --market --lang` when it is empty, plus the client's setup seed file when
+        one exists) — NOT the discovery term from step 1/2/3. In-market language, not the industry
+        noun:
         insurance → "cần mua bảo hiểm", "tư vấn bảo hiểm", "health insurance", "life insurance quote"
         real estate → "cần mua nhà", "cho thuê", "looking to buy", "first time buyer"
-4. Stage 10 qualifies each post → keep direct_need / buying_trigger / pain_signal; dedupe by post URL.
-5. Deepen the productive groups/keywords via higher max_pages until KPI or a safety stop.
-6. WRITE BACK what this hunt learned. A hunt discovers, in an hour, which phrasings this particular
-   group answers to — and without this step that knowledge dies when the run ends and the daily
-   monitoring keeps searching the same guesses. For every group that is (or becomes) a watched
-   private source, put the terms that produced qualified leads into its bank:
-     `<bridge> tool source-keywords --pipeline daily-content-pipeline --client {slug} --url {group url} add --term "{term}" --kind intent --origin mined --note "{what this hunt saw: N qualified leads on {date}}"`
+5. Stage 10 qualifies EVERY post and person row from all four steps immediately → keep direct_need /
+   buying_trigger / pain_signal (posts) or a qualifying subtitle (people); dedupe by post/profile URL.
+   Then `tool crm-store ... lead capture` — even for a group not yet in private_data_sources.
+6. Deepen only within the budget below; do not raise max_pages past it without human approval.
+7. WRITE BACK what this pass learned, same mechanic as every hunt. A pass discovers, in an hour,
+   which phrasings a particular group answers to — and without this step that knowledge dies when
+   the run ends and tomorrow's monitoring keeps searching the same guesses. For every group that is
+   (or becomes) a watched private source, put the terms that produced qualified leads into its bank:
+     `<bridge> tool source-keywords --pipeline daily-content-pipeline --client {slug} --url {group url} add --term "{term}" --kind intent --origin mined --note "{what this pass saw: N qualified leads on {date}}"`
    then record the outcome so the term carries its evidence rather than an opinion:
      `... record --json '{"{term}":{"hits":N,"leads":M}}'`
    Terms that produced nothing are worth recording too — a zero is how the bank learns to stop
-   spending a slot on them.
+   spending a slot on them. Discovery terms themselves (steps 1, 2 and 3) write back through a
+   different bank/kind instead:
+     `<bridge> tool public-keywords --pipeline daily-content-pipeline --client {slug} plan --kind discovery` to draw them (default 3 terms; add one by hand with `add --group community_discovery --term "..."`),
+     `... record --json '{"{term}":{"verdict":"useful|used|weak|retry_later","urls":N,"ideas":M}}'` to record outcomes — the `record` verb has no `--kind` flag and requires a verdict: `useful` on ≥1 lead, `used` on results but no lead, `weak` on nothing, `retry_later` after a safety trip.
 ```
+
+Budget (owner-approved; `playbooks/10_LEAD_COMPETITOR_DETECTION.md` and `safety.md` are authoritative
+— restated here only so the recipe is self-contained):
+
+| | discovery terms | feed searches | people searches | group searches | new public groups | intent terms/group | total calls | spread |
+|---|---|---|---|---|---|---|---|---|
+| FIRST RUN | 3 | 3 | 3 | 3 | up to 4 | 3 | ≤ 21 | ≥ 4 hours |
+| DAILY | 1 | 1 | 1 | 1 | up to 2 | 2 | ≤ 7 | across the run window |
+
+Lead target: FIRST RUN is a floor of 10, not a stop — keep working the shortlist until the budget is
+spent. Safety trip is unchanged and unforgiving: the first checkpoint/rate-limit/logged-out signal
+stops the whole account for the day; read every job's result for that signal before submitting the
+next one (`safety.md`).
+
+Note: this fixed order targets PUBLIC groups — scanning one needs no join/approval (see `safety.md`'s
+join boundary and `playbooks/PRIVATE_SOURCE_GATE.md`'s reconciliation paragraph). To hunt inside a
+private group the human is already a member of, skip step 3's public-only filter and go straight to
+step 4's `fb.group.search_posts` against that group, or use Recipe D for its recurring shallow
+monitoring shape.
 
 ## Recipe B — Persona by name/occupation ("find realtors / loan officers")
 

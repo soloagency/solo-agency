@@ -113,7 +113,12 @@ Next: {suggested widen/deepen options for the human}.
 
 ## Files in this skill
 
-- `recipes.md` — ready-made capability sequences for the common intents.
+- `recipes.md` — ready-made capability sequences for the common intents. Recipe A is the canonical
+  Facebook Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md` step 11C): fixed order feed →
+  people → groups → in-group. Its discovery terms come from `tool public-keywords ... plan --kind discovery`
+  (a dedicated `community_discovery` kind, separate from the intent bank `recipes.md` steps 3/6 use),
+  and its ranked candidate groups persist to `history/YYYY-MM/facebook_discovery_shortlist.jsonl`
+  (fields and job shapes in `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`).
 - `safety.md` — the KPI + ban-risk stop conditions, the join-is-human rule, and
   the ToS/privacy boundaries this loop must never cross.
 - Scoring, lead schema, comment rules, report + storage: **Stage 10**

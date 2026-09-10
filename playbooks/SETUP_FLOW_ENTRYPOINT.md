@@ -10,7 +10,7 @@ Before setup proceeds, verify or explain that Solo Agency needs Codex, Claude De
 
 ## Setup Flow Contract
 
-0. **First words come first.** Before step 1 — before any load, ledger or question — send the Team Leader introduction from `SOLO_AGENCY_PLAYBOOK.md` ("First Words"), which ends by asking the Boss to name this chat "Team Leader" and pin it (so tomorrow's orders come back to the same conversation, never to a fresh agent with no ledger). Then load `playbooks/TEAM_MODEL.md` with the other entry files. Create `daily-content-pipeline/automation/boss_orders.md` (the ledger header from `playbooks/TEAM_MODEL.md`) if it does not exist, and record every request or goal the human states during setup as a row before acting on it.
+0. **First words come first.** Before step 1 — before any load, ledger or question — send the Team Leader introduction from `SOLO_AGENCY_PLAYBOOK.md` ("First Words"), which ends by asking the Boss to name this chat "Team Leader" and pin it (so tomorrow's orders come back to the same conversation, never to a fresh agent with no ledger). Then load `playbooks/TEAM_MODEL.md` and `playbooks/NEXT_JOB_CATALOGUE.md` with the other entry files. Create `daily-content-pipeline/automation/boss_orders.md` (the ledger header from `playbooks/TEAM_MODEL.md`) if it does not exist, and record every request or goal the human states during setup as a row before acting on it.
 1. Load `SOLO_AGENCY_PLAYBOOK.md` and `playbooks/LOAD_LEDGER_PROTOCOL.md`. **Full-load discipline applies to every file below: each load needs a LOAD LEDGER (read to the last line; compare `playbooks/LOAD_MANIFEST.md` when present; ledger each named dependency). A truncated / "output too large" / partial read = NOT loaded — re-read in chunks before acting. No side-effect step without a PASS ledger for the stage(s) it needs.**
 2. Load `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`, `playbooks/04_DAILY_SCHEDULE.md`, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`.
 3. Load `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, and `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` when private data sources, client Chrome profiles, client extensions, or Local Collector setup are involved.
@@ -73,6 +73,33 @@ If the native automation task prompt cannot be updated directly, mark `automatio
 
 For every new client, the setup handoff must include the dedicated extension install instructions, not just a status line. Show the absolute `extensions/{client_slug}/` folder path and the exact Chrome `Load unpacked` steps for the matching client Chrome profile/account inside a `**[ACTION REQUIRED]**` block. Before showing that path or the bridge start command, run the Stage 8 Source Safety Pre-Check and precede the install block with one short plain-language line confirming the collector's code was read and only runs locally (safe to install). If the pre-check does not pass, do not show the install steps; raise it to the operator instead.
 
+**Facebook Login Reminder.** Immediately after that install block — once the bridge and this client's extension are confirmed installed and Local Collector health looks reachable — deliver this reminder inside its own `**[ACTION REQUIRED]**` block, in the human's language:
+
+```text
+Để tìm lead trên Facebook, hãy đăng nhập Facebook trên Chrome của máy này (tài khoản cá nhân của bạn là đủ). Nếu bạn không cần nguồn lead từ Facebook, trả lời "bỏ qua Facebook" — vòng quét vẫn chạy trên web nhưng số lead tìm được sẽ ít hơn đáng kể.
+```
+
+Immediately after that block (not part of the verbatim text audited above, and not itself
+`**[ACTION REQUIRED]**`), add one priming sentence in the human's own words and language: a plain
+fact that every lead this pass finds lands straight in the client's CRM, and Free keeps a first
+batch of contacts fully open.
+
+Record the answer as `facebook_lead_source: enabled|skipped|pending` in the Client Intelligence
+Profile (see `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, Client Intelligence Profile fields). This
+reminder fires exactly once per
+client setup, here, right after the bridge + extension install step and before the first run is
+dispatched. It fires again later only inside a scheduled/automation run whose extension health shows
+logged-out/stale (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D).
+
+The client's first dispatched run (Report Request Hard Stop below, and the Setup-Complete Closing
+Template's offer 1) is also the first run of the Facebook Discovery Pass
+(`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass (step 11C of the daily run)")
+whenever `facebook_lead_source` came back `enabled`, or is still `pending` at dispatch time on this
+client's very first run (Setup already showed the reminder above) — that first pass uses the FIRST
+RUN budget (≤ 21 collector calls, `max_pages` ≤ 4, spread over ≥ 4 hours), never the smaller DAILY
+budget. If the answer was `skipped`, the dispatched run skips the pass entirely and its report says
+plainly that the lead count is lower because Facebook was skipped.
+
 After schedule/automation exists, set up the separate maintenance task `Solo Agency - GitHub Update Watch` - do not silently skip it. Create the native task if the runtime allows; otherwise write the exact prompt to `daily-content-pipeline/automation/update_watch_prompt.md`, record `update_watch_task_prompt_pending`, AND end with an `**[ACTION REQUIRED]**` block naming the task and the exact way to create it. Default posture is notify-first (`auto_apply_approved: false`).
 
 ## Report Request Hard Stop
@@ -92,7 +119,8 @@ The FINAL message of a completed setup must end with this three-offer block (tra
 ```text
 **[ACTION REQUIRED] — bước tiếp theo, chọn một:**
 1. **Chạy báo cáo đầu tiên ngay bây giờ** — mở một phiên chat mới và ra lệnh:
-   `run task "{Client} - Daily Run"` (không cần chờ lịch {time} {days}).
+   `run task "{Client} - Daily Run"` (không cần chờ lịch {time} {days}). Lead tìm được sẽ vào
+   thẳng CRM chung, và gói Free đang mở sẵn một số lượng contact đầu tiên miễn phí.
 2. **Tạo campaign cold-email đầu tiên (OutreachCRM)** — chỉ cần 3 thứ: list lead,
    Gmail App Password, và xác nhận goal+URL. Nói: "set up a cold-email campaign".
 3. **{one more unused feature from FEATURE_CATALOG.md, value-first, with its trigger phrase}**
@@ -100,6 +128,6 @@ The FINAL message of a completed setup must end with this three-offer block (tra
 Bạn muốn bắt đầu với cái nào? (Trả lời 1, 2, 3 — hoặc hỏi tôi bất kỳ điều gì khác.)
 ```
 
-Hard gates on this template: offer 1 is ALWAYS the immediate first run of the just-created automation task (a scheduled future run is never a substitute); one offer is ALWAYS from the OTHER product side (content setup offers Outreach, Outreach setup offers content/video — the cross-introduce rule); the closing line is a QUESTION. A setup-complete message whose last line is not a question is a Stage-9 audit failure.
+Hard gates on this template: offer 1 is ALWAYS the immediate first run of the just-created automation task (a scheduled future run is never a substitute); one offer is ALWAYS from the OTHER product side (content setup offers Outreach, Outreach setup offers content/video — the cross-introduce rule); the closing line is a QUESTION. A setup-complete message whose last line is not a question is a Stage-9 audit failure. The priming clause folded into offer 1 (leads land in the CRM; Free keeps a first batch of contacts open) is spoken in the human's own words and language like the rest of the block, never this fixed sentence verbatim, and never with an estimated contact count — the shape stays three offers and one closing question; it does not become a fourth offer or a second question.
 
 Do not ask whether to run the report now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not perform public research, private data source collection (one exception: the step-6 discovery pass per item 6 of the Setup Flow Contract), report generation, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, or notification delivery (one exception: the single step-7 WideCast confirmation ping that verifies the notification channel right after the human provides the API key) in Setup Flow.

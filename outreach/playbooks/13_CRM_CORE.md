@@ -63,6 +63,41 @@ reverse-index under a lock, so a re-import never splits a lead. `merge` writes a
 dropped id and unions identities into the survivor; `resolve()` follows the chain. `validate
 --rebuild-index` repairs the identity cache after a bulk change or migration.
 
+## Plan cap and locked contacts
+
+CRM contacts are a sold limit (`AGENTS.md`, "Plans"): Free 30, Starter 500, Pro 2000, Business 10000,
+Enterprise unlimited. Every detected lead is still written to the CRM regardless of plan — the cap
+never blocks capture, only what the agent can DO with a contact once the plan's count is exceeded.
+
+- **Old stays open, new gets locked.** Contacts are ordered by `created_at`; the oldest contacts up
+  to `max_contacts` stay unlocked, and contacts past that count are locked. A contact that has moved
+  past the `lead` lifecycle stage (`engaged`, `opportunity`, `customer`, `evangelist`) is never locked,
+  regardless of its position in that order.
+- **What "locked" means.** No detail view, no email/campaign for that contact, no DM, and it is
+  redacted in both `contact list` output and the CLI. `fb.message.send` to a locked contact is refused
+  by the bridge with `contact_locked`; the agent must not draft a DM to a locked contact either, same as
+  it must not draft an email. A locked contact is still counted, still receives new activities/leads on
+  re-detection, and unlocks automatically the moment the plan is upgraded or older contacts age out.
+- **Write actions are a separate, unrelated gate.** `write_actions` (`fb.group.post`, `fb.post.comment`,
+  `fb.post.react`) is gated by plan (Starter and up), not by the contact lock — it has nothing to do
+  with whether any particular contact is locked or unlocked, and applies the same way regardless of the
+  CRM contact cap.
+- **What the agent may show about a locked contact.** Name, lifecycle stage, first-seen date, and the
+  source host (e.g. the group/page domain it was detected on) — never an identity: no email, no phone,
+  no social handle, no message content, no dossier field.
+- **`contact get` on a locked id** returns a redacted record with `"locked": true` and the fields
+  above only; treat the absence of identity fields as the lock, not as missing data to re-fetch.
+- **Campaigns/queue/send skip locked contacts.** A locked contact is excluded before enrollment with
+  blocker `contact_locked`; if already queued, it is skipped with reason `locked`. Do not draft, queue,
+  or send to a locked contact under any circumstance — that is the entire point of the cap.
+- **Read `contact lock-status` before telling a human how many leads are locked.**
+  `<bridge> tool crm-store --client-dir <CLIENT_DIR> contact lock-status` returns JSON:
+  `max_contacts`, `lockable`, `unlocked`, `locked`, `upgrade_url`. Use its numbers, never a hand count.
+- **The chat line when leads are locked** (fill in `{locked}`, `{tier}`, `{upgrade_url}` from
+  `contact lock-status` / `GET /status` → `entitlement`):
+  - VI: "{locked} lead(s) đang bị khoá theo gói {tier} — nâng cấp tại {upgrade_url} để mở."
+  - EN: "{locked} lead(s) are locked under the {tier} plan — upgrade at {upgrade_url} to unlock them."
+
 ## Completion Gates
 
 - No `crm/` file was hand-written; every mutation went through `tool crm-store`.

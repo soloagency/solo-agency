@@ -46,12 +46,31 @@
     "fb.profile.header": "enrich", "fb.profile.hovercard": "enrich", "fb.profile.videos": "enrich",
     "fb.profile.enrich": "enrich", "fb.profile.dossier": "enrich", "fb.profile.contacts": "enrich",
     "fb.post.react": "write_actions", "fb.post.comment": "write_actions",
-    "fb.message.send": "write_actions", "fb.group.post": "write_actions",
+    "fb.group.post": "write_actions",
     "zillow.agents.list": "zillow", "zillow.profile.enrich": "zillow"
   };
 
+  // Every feature the server vocabulary knows, including ones no capability in
+  // SOLO_CAPABILITY_FEATURES above currently gates (multi_client, outreach, auto_update,
+  // priority_adapter_fixes) — kept here so the fallback below and any future capability agree
+  // with the server's own list. See free() for why this exists.
+  const SOLO_ALL_FEATURES = ["multi_client", "outreach", "enrich", "write_actions", "harvest", "zillow", "auto_update", "priority_adapter_fixes"];
+
+  // Owner decision, refined 2026-09-09 evening: what makes the CRM richer is open on every
+  // plan, Free/keyless included — the only sold limit is exploitation of contacts above the CRM
+  // contact cap (no detail, no email, no DM), and that cap is enforced by the bridge's contact
+  // lock, not by this file. Broadcast write actions on the account — fb.group.post,
+  // fb.post.comment, fb.post.react — stay gated behind `write_actions` (Starter and up); the
+  // keyless fallback must NOT carry it. fb.message.send (DM) is no longer part of
+  // write_actions: it runs on every plan here and is gated per-contact by the bridge instead.
+  // So the keyless/unverified fallback below grants every feature except write_actions. The
+  // gate MECHANISM itself — SOLO_CAPABILITY_FEATURES, featureFor(), granted() — stays exactly in
+  // place so a feature can be re-gated later simply by the server no longer issuing it in a
+  // verified token's `features`; only the fallback default changed, not the check.
+  const SOLO_FREE_FEATURES = SOLO_ALL_FEATURES.filter((f) => f !== "write_actions");
+
   function free(source, reason, extra) {
-    return Object.assign({ ok: false, tier: "free", features: [], limits: {}, source, reason, expiresAt: null, companyId: "" }, extra || {});
+    return Object.assign({ ok: false, tier: "free", features: SOLO_FREE_FEATURES.slice(), limits: {}, source, reason, expiresAt: null, companyId: "" }, extra || {});
   }
 
   function b64urlToBytes(s) {
@@ -138,14 +157,23 @@
     return [source && source.url, inputs.group_url].some((c) => c && normalizeGroupUrl(c) === want);
   }
 
-  // granted: a free capability is always granted; a paid one needs a VERIFIED token whose
-  // `features` carries the capability's feature (the tier name is never consulted). The one
-  // exception is a support request: fb.group.post into the official support group, any plan.
+  // granted: a free capability is always granted; a gated one needs `ent.features` to carry the
+  // capability's feature. The one exception is a support request: fb.group.post into the
+  // official support group, any plan.
+  //
+  // Only the features list is consulted — never ent.ok or ent.tier. Before 2026-09-09 this also
+  // required ent.ok (a positively-verified paid token), which meant the keyless/free fallback
+  // (ent.ok is always false, see free()) could never be granted a gated capability even after it
+  // started carrying SOLO_ALL_FEATURES — the exact "refuses regardless of features" bug the final
+  // 2026-09-09 evening plan model requires fixing (data features on every plan; write_actions
+  // paid; DM gated per-contact by the bridge's contact lock, not by a feature here). A verified
+  // token is still limited to whatever features the server actually put in it, so re-gating a
+  // feature later by not issuing it still works.
   function granted(ent, capabilityId, source, supportUrlOverride) {
     const feature = featureFor(capabilityId);
     if (!feature) return true;
     if (String(capabilityId || "") === "fb.group.post" && isSupportGroupTarget(source, supportUrlOverride)) return true;
-    return !!(ent && ent.ok && Array.isArray(ent.features) && ent.features.includes(feature));
+    return !!(ent && Array.isArray(ent.features) && ent.features.includes(feature));
   }
 
   // A small view for state/popup/source_status rows — never the token itself.
@@ -160,6 +188,8 @@
     UPGRADE_URL: SOLO_UPGRADE_URL,
     PUBLIC_KEY_HEX: SOLO_ENTITLEMENT_PUBLIC_KEY_HEX,
     SUPPORT_GROUP_URL: SOLO_SUPPORT_GROUP_URL,
-    CAPABILITY_FEATURES: SOLO_CAPABILITY_FEATURES
+    CAPABILITY_FEATURES: SOLO_CAPABILITY_FEATURES,
+    ALL_FEATURES: SOLO_ALL_FEATURES,
+    FREE_FEATURES: SOLO_FREE_FEATURES
   };
 })(typeof self !== "undefined" ? self : globalThis);

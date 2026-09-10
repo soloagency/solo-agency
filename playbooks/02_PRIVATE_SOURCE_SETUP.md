@@ -153,6 +153,7 @@ The checkpoint is delivered in TWO parts, in this order, in the human's language
 - Collection uses the Solo Agency Local Collector: a local app plus Chrome extension on the human's computer. It uses the already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. It never asks for credentials, cookies, passwords, OTPs, or tokens.
 - The human must already be a member, follower, subscriber, logged in, or otherwise authorized to view any source they provide, in the Chrome profile where this client's Solo Agency Local Collector extension is installed; one separate Chrome profile per client is recommended, with that client's extension loaded and the relevant social accounts logged in there.
 - Collection activates only with the human's permission. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if the human provides more, the agent prioritizes and rotates them.
+- Priming fact (a plain fact stated once, in the human's own words and language, never a link or an offer — see the PRIMING vs SELLING rule): whatever these sources turn up lands automatically in the client's shared CRM, and the Free tier keeps a first batch of contacts fully open (name the actual cap from real state if known, otherwise speak in general terms rather than guessing a number).
 
 **Part 2 — the question, immediately after the explanation, as ONE compact `**[ACTION REQUIRED]**` block** (root playbook format), asking which of the three options the human wants:
 
@@ -168,6 +169,7 @@ Content-completeness checklist for this checkpoint (audited in Stage 9 — a che
 4. The already-a-member/logged-in requirement and the per-client Chrome profile recommendation.
 5. The hands-free discovery capability: the agent can find candidate sources from places the human already joined/follows, so no hand-compiled list is needed; approval comes before anything is monitored.
 6. The three reply options: provide sources / allow discovery / postpone.
+7. The priming fact that discovered leads land in the CRM automatically and Free keeps a first batch of contacts open — stated as a plain fact, no link, not an offer.
 
 ### Private Data Source Discovery When The Human Has No List
 
@@ -379,7 +381,7 @@ Do you want me to find new Facebook groups with keyword search for this client? 
 
 Keyword selection:
 
-- Infer search keywords from the client's industry, sub-industry, target audience, target location, pain points, content pillars, business offer, buying-intent phrases, and public keyword bank.
+- The primary source of group-search keywords is now `tool public-keywords --pipeline {setup-root}/daily-content-pipeline --client {client_slug} plan --kind discovery` — the `community_discovery` terms (niche + location, 2-6 words, dateless) staged for the Facebook discovery plan. Fall back to inferring from the client's industry, sub-industry, target audience, target location, pain points, content pillars, business offer, buying-intent phrases, and the public keyword bank's SHORT rungs (`tool public-keywords list`, terms of 1-3 words) only when the discovery kind is empty — because a Facebook search box matches close to literally and a nine-word question returns nothing there.
 - Use short, specific phrases. Good examples: `ai tools`, `small business automation`, `real estate investors Austin`, `DUI help Los Angeles`, `California homeowners insurance`.
 - Use 1-5 search keywords per discovery pass unless the human explicitly approves a broader pass.
 - URL-encode each keyword and use this URL pattern:
@@ -532,6 +534,13 @@ If a URL does not work, the agent must mark `platform_url_changed` or `login_req
 | TikTok | For You/home | `https://www.tiktok.com/` | Use only with explicit feed discovery consent. |
 | Reddit | Joined subreddits | `https://www.reddit.com/subreddits/mine/` | Use for communities the human joined when visible. |
 | Reddit | Home feed | `https://www.reddit.com/` | Use only with explicit feed discovery consent. |
+
+Groups found by the Facebook Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook
+Discovery Pass (step 11C of the daily run)") arrive in the shortlist differently from the keyword
+group search row above: they already carry `leads_found`, `member_count`, and `privacy` from that
+pass, and they were already scanned read-only as public groups — no per-group approval was needed for
+that read. They still need the same human approval as any other row in this table before being
+promoted into standing daily monitoring as a `private_data_sources` entry.
 
 #### Discovery Behavior Rules
 

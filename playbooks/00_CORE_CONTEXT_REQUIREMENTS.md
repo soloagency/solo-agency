@@ -839,7 +839,7 @@ Data sources have two main layers.
 
 #### C1. Public Data Sources
 
-Public data sources are accessible without an account.
+Public data sources are accessible without an account. One exception to the "no account needed" framing: the Facebook Discovery Pass (feed search, people search, group search) reads groups and content that are themselves public, but the pass is still collector-run — through the Solo Agency Local Collector, inside the human's own logged-in Facebook session — because Facebook's own search surfaces require that session to render at all.
 
 Examples:
 
@@ -980,48 +980,77 @@ Initial setup requirement:
 - Aim for 200+ saved keyword candidates over time per active client.
 - On initial setup, generate as many useful keyword candidates as the context allows. If the agent can reasonably generate 100-200 high-quality candidates, do so and save them. If context is still thin, seed the bank with the best available candidates and mark `needs_expansion: true`.
 - The bank must contain many pain-point/problem/need keywords. A bank made mostly of generic industry terms is incomplete.
-- Store the full bank in the Client Intelligence Profile or source notes; do not show the full bank in chat.
+- **Keep a head-and-tail mix, and count it.** At least a quarter of the bank must be SHORT: one to three words, the phrase somebody types when they do not yet know what they want (`insurance non renewal`, `FAIR Plan California`, `escrow holdback`). Long specific phrases are welcome and often rank better, but a bank made only of them can only ever return what the agent already thought to ask for; it never shows the shift the market is talking about, which is where tomorrow's ideas and leads come from. A bank whose shortest term is four words is not a keyword bank, it is a list of questions.
+- **One rare constraint per phrase.** A long keyword earns its length by being specific about ONE thing: a place, a regulation, a product, a moment. Stacking three or four rare constraints into one phrase (place plus statute plus deadline plus year) narrows it past the point where anything matches.
+- **Keep dates and events OUT of the saved term.** Store `home insurance non renewal California rights`, not `home insurance non renewal California 2026 rights 75 days`. The run appends the current month, year or event when it searches (`playbooks/04_DAILY_SCHEDULE.md`); a date written into the saved term makes a keyword that is dead next month and silently rots the bank.
+- **The bank is owned by the bridge**, at `daily-content-pipeline/collector/public_keywords.json`, and is read and written only through `<bridge> tool public-keywords --pipeline {setup-root}/daily-content-pipeline --client {client_slug}` — never as a list inside the Client Intelligence Profile. It used to live there, with a `status` field the run was told to maintain; on the live install every one of 98 items still read `unused` after real runs, because editing one line among a hundred look-alikes in a 1,200-line file mid-run is the chore that gets skipped. Recording an outcome is now one command.
+- **Setup runs before the bridge exists**, so Setup step 4 does not call the tool: it writes the bank as a plain staging file, `public_keywords_seed.jsonl` in the client workspace (one `{"term","group","lang","note"}` per line, dateless terms, the length ladder respected). The first run loads it with `add --file` and deletes it. The profile keeps only a one-line pointer to the bank plus the compact sample shown in chat; do not show the full bank in chat.
 - In chat, show only a compact sample, usually 5-12 keywords from the pain-point/problem/need groups, then say how many more are saved for rotation, for example: `+200 more saved in the keyword bank for daily rotation`.
 
-Examples:
+Examples. Each vertical is shown as a LADDER, short to long, because a bank needs every rung:
 
 - Homeowners insurance in Orange County:
-  - Generic industry keyword: `Orange County homeowners insurance California renewal`
-  - Pain-point keyword: `home insurance non renewal what can I do California`
-  - Problem keyword: `insurance company dropped my home policy wildfire risk`
-  - Need keyword: `how to avoid FAIR Plan California homeowners`
-  - Coverage-gap keyword: `home insurance coverage gaps California wildfire`
-  - Buying-intent keyword: `best homeowners insurance for fire risk Orange County`
+  - Short (1-3 words): `insurance non renewal` · `FAIR Plan California` · `wildfire deductible`
+  - Mid (4-5 words): `insurance dropped wildfire risk California` · `Orange County homeowners renewal`
+  - Long tail (6+ words): `home insurance non renewal what can I do California`
 - Real estate in Austin:
-  - Generic industry keyword: `Austin housing inventory buyers 2026`
-  - Pain-point keyword: `worried about overpaying for a house Austin`
-  - Problem keyword: `property tax shock after buying home Austin`
-  - Need keyword: `how much cash do I need before making an offer Austin`
+  - Short: `Austin housing inventory` · `property tax protest` · `overpaying for houses`
+  - Mid: `Austin buyers market cash needed` · `property tax shock after buying`
+  - Long tail: `how much cash do I need before making an offer Austin`
 - DUI lawyer in Los Angeles:
-  - Generic industry keyword: `Los Angeles DUI checkpoint weekend`
-  - Pain-point keyword: `will I lose my license after DUI California`
-  - Problem keyword: `what happens after DUI arrest California first offense`
-  - Need keyword: `how fast do I need a DUI lawyer after arrest`
+  - Short: `DUI license suspension` · `DMV hearing deadline` · `first offense DUI`
+  - Mid: `lose license after DUI California` · `DUI checkpoint Los Angeles weekend`
+  - Long tail: `what happens after DUI arrest California first offense`
+
+Note what the short rungs do that the long ones cannot: `wildfire deductible` and `property tax protest`
+return whatever the market is saying about those things this week, including the framing nobody in this
+office would have guessed to type.
 
 Daily rule:
 
 - Try a different keyword or keyword cluster each day or each failed attempt. Prioritize pain-point/problem/need clusters before generic industry clusters.
-- Each public data source run must use at least 10 distinct public search keywords unless search tooling is unavailable or the saved keyword bank has fewer than 10 usable entries after expansion. At least 7 of the 10 should come from pain-point, problem, need/goal, buying-intent, objection, comparison, question, local-context, or trend/news groups. Generic industry keywords are context only, not the main search strategy.
+- Each public data source run must use at least 10 distinct public search keywords unless search tooling is unavailable or the bank has fewer than 10 usable entries. Most of them should come from the demand groups — pain-point, problem, need/goal, buying-intent, objection, comparison, question, local-context, trend/news. `plan` ranks those groups first but does not enforce a quota; the mix comes from the bank's composition, which `stats` shows as `by_group`. If a run comes back mostly industry_general, the fix is to add demand-group terms to the bank, not to hand-pick the run.
 - Continue rotating keyword clusters until the agent finds at least 3 source-backed candidate ideas that are new or newly angled against recent history. If fewer than 3 qualifying ideas are found after 10+ distinct keywords and due public data sources have been checked, the agent must report the coverage limitation, list the keywords tried, and avoid fabricating weak ideas.
-- Keep a `public_search_keywords` queue in the Client Intelligence Profile or source notes.
-- Mark keywords as `used`, `useful`, `weak`, or `retry_later`.
-- If a keyword returns weak or irrelevant results, revise it by adding local terms, audience pain terms, or buying-intent terms.
-- When the agent discovers new phrases in search results, public comments, FAQs, forum posts, private data source scans, competitor hooks, report comments, analytics comments, or human feedback, extract new keyword candidates and add them to the bank if they are not already present.
-- Deduplicate and normalize near-duplicates. Keep the human's wording when it reveals a real pain point.
-- Record why each new keyword was added, which pain point/content pillar it maps to, and which source or run discovered it.
-- Promote keywords that produce useful leads, strong ideas, relevant competitors, or measurable content performance.
-- Demote keywords that repeatedly produce weak/noisy results.
+- `plan` is the queue. `<bridge> tool public-keywords --pipeline {setup-root}/daily-content-pipeline --client {client_slug}` `plan --recency "{Month YYYY}"` hands the run today's terms: earning terms pinned (never more than two), the rest rotated, at least two of them short (1-3 words), each with a `query` that carries the month and year only for time-bound groups (trend_news, local_context). Search the `query`; record against the `term`.
+- **Record every searched term with one command before the run ends:** `<bridge> tool public-keywords --pipeline {setup-root}/daily-content-pipeline --client {client_slug}` `record --json '{"{term}":{"verdict":"useful|used|weak|retry_later","urls":N,"ideas":N}}'`. Count `urls` (useful URLs you kept from this term) and `ideas` (ideas it produced): a count outranks the adjective, it is what the bank ranks by, and it is the only part of the verdict two different runtimes will agree on. This is the whole feedback loop.
+- **Do not retire or pin by hand.** The bank judges each term on a window of its last five runs: four weak verdicts with nothing useful put it on probation, one more retires it, and any useful verdict brings it straight back. Pins are derived from the same window — a term is pinned while it is still earning, never more than two at once — so a stale pin drops out on its own instead of holding a slot for a season. A lifetime counter was simulated over 180 days and retired 63% of genuinely good terms even with a perfect judge; the window is why this bank does not. When a season returns, revive a retired term with `status --term "..." --set active`. `stats` reports the numbers the report needs.
+- If a keyword returns weak or irrelevant results, diagnose which way it failed before revising. **Too few or no results means the phrase is too narrow: shorten it, or drop one of its constraints.** Too many irrelevant results means it is too broad: then, and only then, add a local, pain or buying-intent term. Reaching for "add more words" on every weak result is how a bank ends up with no short keywords at all.
+- When the agent discovers new phrases in search results, public comments, FAQs, forum posts, private data source scans, competitor hooks, report comments, analytics comments, or human feedback, extract new keyword candidates and add them with `add --term "..." --group {group} --origin mined --note "{what you saw}"` (or `add --file` for a batch). The tool refuses a dated term, warns past eight words, and ignores a duplicate.
+- Exact duplicates are refused by the tool (case-insensitive). Near-duplicates are still yours to judge: keep the human's wording when it reveals a real pain point, and prefer the shorter of two phrasings.
+- Say why each new keyword was added in its `--note`: the pain point or pillar it maps to and the source or run that surfaced it.
+- Promotion and demotion are derived from recorded outcomes, not written: record `urls` and `ideas` honestly and the plan does the rest.
 - Continue until the agent finds credible results or reasonably concludes that no useful public signal exists for that keyword group today.
 - Do not fabricate trends or news if search results are weak.
 - The daily report must include a visible section called `Public Search Keywords Used Today`. Do not hide search queries only in internal logs.
 - The daily report must also show whether the public research produced at least 3 new or newly angled candidate ideas, and must name the blocker if it did not.
 - The setup summary should include a compact section called `Pain-Point Keyword Sample`, not the full keyword bank. Show 5-12 pain-point/problem/need keywords and a line such as `+{N} more saved for rotation`.
 - If the agent realizes after generating a report that search keywords were not shown, it must update or append the current report before claiming the run is complete. Do not merely promise to show keywords "from next time."
+
+#### The Facebook discovery kind
+
+`community_discovery` is a separate kind inside the same public-keywords bank, not a rung on the
+web-search ladder above. Each term is a niche + location phrase for finding a community — 2-6 words,
+dateless (never carries a month/year/event suffix) — for example `nail salon owners Houston`,
+`realtor Texas`. It is planned only by `<bridge> tool public-keywords --pipeline {setup-root}/daily-content-pipeline
+--client {client_slug} plan --kind discovery` (default 3 terms) and is explicitly EXCLUDED from
+`plan --kind web` — the two plans never mix. Record outcomes with the same `record` verb the bank
+always uses, with `urls` = feed posts + people rows + groups found for that term and `ideas` = leads
+captured. It is seeded at setup in the same `public_keywords_seed.jsonl` staging file as the web bank,
+just with `"group":"community_discovery"` on those lines. The consumer of this kind is the Facebook
+Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass (step 11C of
+the daily run)"), not the open-web search step.
+
+#### In-group intent terms
+
+Once inside a group (the Facebook Discovery Pass's step 4, or any approved `private_data_sources`
+group being monitored daily), the terms searched are NOT `community_discovery` terms — they come from
+`tool source-keywords`, the per-source intent bank described in "Two passes over a watched source"
+above. Each source's bank is seeded from `--industry`/`--market`/`--lang`, then auto-merged with the
+client's own per-client seed file at `daily-content-pipeline/collector/source_keywords_seed/{client_slug}.jsonl`
+the first time that group's bank is created — one `{"term","kind","lang","note"}` per line, `kind` in
+`intent|role|product|stage|place`, each term capped at 3 words. `tool source-keywords plan` hands the
+run today's in-group search terms; `tool source-keywords record` folds the outcome back in, exactly
+like the public bank.
 
 #### Public Data Source Learning And Promotion
 
@@ -1077,7 +1106,7 @@ Human-facing display rule:
 
 #### C2. Private Data Sources
 
-Private data sources require a login, account, membership, or already logged-in browser session.
+Private data sources require a login, account, membership, or already logged-in browser session. The Facebook Discovery Pass (feed, people, group search) is collector-run for the same reason a private-source scan is: it needs the human's logged-in session, even though the groups it reads are themselves public and it needs no per-group approval to scan them (only to promote one into standing daily monitoring).
 
 Examples:
 

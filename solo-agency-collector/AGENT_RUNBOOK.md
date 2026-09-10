@@ -382,18 +382,18 @@ In this mode:
 - If Chrome suspends the extension service worker, Chrome alarms are the fallback and the practical check interval may be about 1 minute.
 - The bridge only returns a job inside a configured `scheduled_windows` time range.
 - When the extension posts `/complete`, the bridge marks that scheduled run done and stays online for the next window.
-- Every job carries the install's plan: `collector_bridge.entitlement_token` (signed, verified by the extension), `entitlement_tier`, `entitlement_mode`, `bridge_version`, and `job.entitlement` with any `cut_sources` (each plan runs its first N watched sources per client; capabilities whose `feature` the plan lacks are dropped in `enforce` mode).
+- Every job carries the install's plan: `collector_bridge.entitlement_token` (signed, verified by the extension), `entitlement_tier`, `entitlement_mode`, `bridge_version`, and `job.entitlement` with an optional `cut_sources` (a technical ceiling the bridge keeps far above real use — the number of watched groups/private sources is not a sold plan limit; see the root `AGENTS.md` "Plans" for what each tier actually sells); capabilities whose `feature` the plan lacks are dropped in `enforce` mode.
 
 ## Plan tiers and `tool entitlement`
 
-The bridge validates the client's WideCast API key against `GET /v1/solo/entitlement` and caches the signed result at `daily-content-pipeline/collector/inbox/entitlement.json`; `GET /status` → `entitlement` is the read-only view (see `README.md`, "Solo Agency plan"). Agents never edit that file and never work around a limit — they read `tier`, `features` and `limits`, do the part the plan allows, and apply the upsell rule in the root `AGENTS.md` ("Plans": Free · Starter $49 · Pro $99 · Business $199 · Enterprise).
+The bridge validates the client's WideCast API key against `GET /v1/solo/entitlement` and caches the signed result at `daily-content-pipeline/collector/inbox/entitlement.json`; `GET /status` → `entitlement` is the read-only view (see `README.md`, "Solo Agency plan"). Agents never edit that file and never work around a limit — they read `tier`, `features` and `limits`, do the part the plan allows, and apply the upsell rule in the root `AGENTS.md` ("Plans": Free · Starter $49 · Pro $99 · Business $199 · Enterprise) — every data feature is on every plan, so there are exactly two things to upsell: a higher CRM contact cap, and `write_actions` (group post, comment, react) on a Free install.
 
 ```sh
 <bridge> tool entitlement status  --pipeline daily-content-pipeline
 <bridge> tool entitlement refresh --pipeline daily-content-pipeline   # after the human pastes or upgrades a key
 ```
 
-Blockers the bridge returns: `solo_feature_not_in_tier`, `solo_tier_limit_reached`, `solo_send_quota_exhausted` (each JSON body carries `message`, `feature`, `limit`, `count`, `upgrade_url`, `enforced`); `POST /jobs/run_now` answers `402` with that body when every source of the job needs a higher plan. The extension adds `solo_entitlement_required` on a source it skipped. Enforcement is the default; with `--entitlement-mode log` (escape hatch) nothing is refused and the same decisions land in `collector/logs/entitlement.jsonl` with `would_refuse: true`.
+Blockers the bridge returns: `solo_feature_not_in_tier`, `solo_tier_limit_reached`, `solo_send_quota_exhausted` (each JSON body carries `message`, `feature`, `limit`, `count`, `upgrade_url`, `enforced`); `POST /jobs/run_now` answers `402` with that body when a source hits the CRM contacts cap or the Gmail send quota. `solo_feature_not_in_tier` on `write_actions` for a Free install is a real refusal (posting into groups, commenting and reacting start at Starter); for any other capability on a current install it should not occur — every plan's token carries every data feature — so treat it as a stale token (run `tool entitlement refresh`) rather than a plan gap. The extension adds `solo_entitlement_required` on a source it skipped. Enforcement is the default; with `--entitlement-mode log` (escape hatch) nothing is refused and the same decisions land in `collector/logs/entitlement.jsonl` with `would_refuse: true`.
 
 ## Manual Run / Run Now
 

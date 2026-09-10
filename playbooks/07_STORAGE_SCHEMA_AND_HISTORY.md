@@ -1113,6 +1113,20 @@ Minimum format:
   "public_new_sources_recommended_count": 0,
   "private_new_sources_recommended_count": 0,
   "private_noisy_or_skipped_discovery_candidates_count": 0,
+  "facebook_discovery": {
+    "terms_used": 0,
+    "feed_posts_found": 0,
+    "people_found": 0,
+    "people_captured": 0,
+    "groups_found": 0,
+    "groups_public": 0,
+    "groups_scanned": 0,
+    "leads_found": 0,
+    "leads_locked": 0,
+    "budget_used": 0,
+    "budget_available": 0,
+    "trip_status": "clean"
+  },
   "counts_reconciled_at": "",
   "public_notification_status": "not_sent",
   "private_notification_status": "not_sent",
@@ -1123,6 +1137,11 @@ Minimum format:
   "last_update_note": ""
 }
 ```
+
+`facebook_discovery.trip_status`: `clean`, or the exact safety trip that stopped the account
+(`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass"). `budget_used`/
+`budget_available` are calls, not leads — FIRST RUN ceiling 21, DAILY ceiling 7. `leads_locked`
+comes from `tool crm-store ... contact lock-status`, never a hand count.
 
 Allowed section status:
 
@@ -1352,28 +1371,22 @@ summary:
     - analytics_learning
     - human_feedback
 
-items:
-- keyword:
-  language:
-  status: unused | used | useful | weak | retry_later
-  keyword_group: industry_general | pain_point | need_or_goal | buying_intent | local_context | related_industry | trend_news | objection | comparison | question | problem_issue
-  scope: global | local
-  industry_scope: primary_industry | related_industry
-  related_industry:
-  related_content_pillar:
-  related_pain_point:
-  related_customer_need:
-  source_or_reason_added:
-  discovered_from:
-  first_added_date:
-  last_used_date:
-  use_count:
-  useful_count:
-  weak_count:
-  result_quality:
-  promoted: true | false
-  demoted: true | false
-  notes:
+bank: daily-content-pipeline/collector/public_keywords.json
+  # Owned by the bridge. Read and written ONLY through `tool public-keywords`; never edit by hand.
+  # Per-term fields as stored: term (dateless), lang, group, origin (setup|mined|operator|migrated),
+  # status (active|probation|retired — derived from `recent` by the bridge), words, runs, useful, weak,
+  # urls, ideas, recent[] (the last 5 verdicts), last_run_at, last_useful_at, added_at, note.
+seed_file: public_keywords_seed.jsonl
+  # Written at Setup step 4, before the bridge exists: one {"term","group","lang","note"} per line.
+  # Loaded by `tool public-keywords add --file` at the first run and then deleted.
+  # Lines may carry "group":"community_discovery" (2-6 words, dateless) — these feed the Facebook
+  # Discovery Pass's `plan --kind discovery` and are loaded into the same bank as the web terms.
+migrated_at:
+  # Set once `tool public-keywords migrate --profile` has imported an older profile's items list.
+source_keywords_seed_file: collector/source_keywords_seed/{client_slug}.jsonl
+  # Written at Setup step 4, one {"term","kind","lang","note"} per line, kind intent|role|product|
+  # stage|place, terms <= 3 words. Merged automatically by `tool source-keywords ... seed` the first
+  # time each group's intent-term bank is created. NOT deleted after load (unlike the file above).
 
 ## private_monitoring_activation
 
@@ -1381,6 +1394,12 @@ status: not_provided | pending_private_activation | activation_declined_for_now 
 first_trial_policy: public_first_small_win
 last_prompted_date:
 human_decision:
+facebook_lead_source: enabled | skipped | pending
+  # Set by the Facebook Login Reminder (Setup Flow, or SCHEDULED_RUN_ENTRYPOINT.md step 12D / 04
+  # step 7 when an existing client's extension health goes stale/logged-out). `pending` only until
+  # the client's very first run resolves it.
+facebook_lead_source_updated_at:
+  # Timestamp of the last facebook_lead_source change.
 collector_setup_status_file:
 notes:
 
@@ -1703,6 +1722,13 @@ with a dated evidence hook and an activity row (`playbooks/10_LEAD_COMPETITOR_DE
 afterwards. Do not treat `needs_review` as a queue — nothing consumes it, and the review it implies
 was already performed by the agent that classified the post.
 
+**`locked` is computed, never stored.** A CRM contact file carries no `locked` field. Whether a
+contact is locked is computed by the bridge at read time from the plan's `max_contacts` and the
+contacts' `created_at` order (oldest stay unlocked; a contact past `lead` into any `engaged+` stage
+is never locked) — see `outreach/playbooks/13_CRM_CORE.md`, "Plan cap and locked contacts". Always
+read `tool crm-store ... contact lock-status` for the current locked count; never derive it from
+this ledger or from hand-counting contact files.
+
 Format:
 
 ```json
@@ -1775,6 +1801,39 @@ Privacy rule:
 - Do not store unnecessary personal data.
 - Prefer safe summaries, source URLs, and short evidence snippets.
 - **Never store or transmit the operator's own credentials or secrets** (usernames, passwords, cookies, tokens, session/auth data, API keys) — the single absolute prohibition. All other data the operator's setup + command directs — business data, prospect contact details (email/phone), evidence snippets, source URLs — may be stored and combined for lead-finding and personalization.
+
+### `history/YYYY-MM/facebook_discovery_shortlist.jsonl`
+
+Purpose:
+
+- Persist the Facebook Discovery Pass's ranked candidate public groups across runs
+  (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass").
+- Let the DAILY companion pass skip a group already scanned in the last 7 days instead of
+  rediscovering the same handful of groups every day.
+- Carry the human's promote/reject decision after the pass recommends its top groups.
+
+One JSON object per line:
+
+```json
+{
+  "group_url": "https://www.facebook.com/groups/...",
+  "name": "Group name",
+  "privacy": "public",
+  "member_count": 18400,
+  "first_seen": "2026-09-09",
+  "last_scanned": "2026-09-09",
+  "status": "pending",
+  "leads_found": 0,
+  "discovery_term": "term that surfaced this group"
+}
+```
+
+`status` allowed values: `pending | scanned | recommended | rejected` — moves `pending -> scanned ->
+recommended|rejected` as the pass works down the list across runs. Scanning a public group needs no
+approval; `recommended`/`rejected` records the human's later promote decision for
+`private_data_sources` (`playbooks/02_PRIVATE_SOURCE_SETUP.md`).
+
+Authoritative field list and job shapes: `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`.
 
 ### `history/YYYY-MM/new_private_sources_log.md`
 

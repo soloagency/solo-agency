@@ -35,7 +35,7 @@ Report dials:
 
 - The report must feel like a premium agency deliverable, not exported Markdown.
 - The first viewport must work like a landing-page hero: report title, client/date context, decisive recommendation, lane status, and 3-5 scan-friendly highlights. When the run found people to contact, the hero leads with THEM — the count and the most urgent one, with the link — before the recommendation: a lead is perishable and an idea is not (`playbooks/06_AGENCY_REPORT_STANDARD.md`, "Why the leads come first").
-- Client-facing reports and the PDF companion remain client-blind. Do not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extensions, automation/scheduled tasks, API keys, Telegram, agent/debug details, or `INTERNAL_REPORT`.
+- Client-facing reports and the PDF companion remain client-blind. Do not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extensions, automation/scheduled tasks, API keys, Telegram, agent/debug details, `INTERNAL_REPORT`, any `127.0.0.1` URL, "locked by plan" / "đang khoá theo gói", or the CLI names `crm-store`, `public-keywords`, `source-keywords`, `lock-status` — see `SOLO_AGENCY_PLAYBOOK.md` "Client-Blind Deliverable And Internal Report Rule" and the full scrub-gate term list in `playbooks/06_AGENCY_REPORT_STANDARD.md`.
 - No remote CSS, JavaScript, fonts, icons, images, tracking pixels, or CDNs.
 - No fake static action buttons. Use links only when they go somewhere real.
 - No raw Markdown dumps, plain default browser tables, or endless equal cards.
@@ -83,19 +83,19 @@ Use the shared renderer instead of writing ad hoc Python, shell, browser, or PDF
 scripts during each run:
 
 ```sh
-python3 tools/solo_report_renderer.py render --input REPORT.md --output-html REPORT.html --title "Daily Intelligence Report" --client-name "Client Name" --report-kind "Daily Report"
+tools/solo_tool render-report render --input REPORT.md --output-html REPORT.html --title "Daily Intelligence Report" --client-name "Client Name" --report-kind "Daily Report"
 ```
 
 To create the single client-facing HTML report and mandatory PDF companion from
 the three scrubbed staging HTML files:
 
 ```sh
-python3 tools/solo_report_renderer.py package --inputs CLIENT-daily-report.html CLIENT-public-data-sources-report.html CLIENT-private-data-sources-report.html --output-html CLIENT-client-report.html --output-pdf CLIENT-client-report.pdf --title "Client Report" --client-name "Client Name"
+tools/solo_tool render-report package --inputs CLIENT-daily-report.html CLIENT-public-data-sources-report.html CLIENT-private-data-sources-report.html --output-html CLIENT-client-report.html --output-pdf CLIENT-client-report.pdf --title "Client Report" --client-name "Client Name"
 ```
 
 Allowed deviations:
 
-- If the renderer is missing or fails, fix `tools/solo_report_renderer.py` or log the exact blocker. Do not replace it with a one-off report script.
+- If the renderer is missing or fails, fix the bridge's `render-report` command (invoked via `tools/solo_tool render-report`) or log the exact blocker. Do not replace it with a one-off report script — the Python renderer (`tools/solo_report_renderer.py`) no longer exists.
 - If a client has a custom approved report template, it may be layered into the renderer or a named reusable template file. Do not improvise a new unnamed renderer during the run.
 
 ## Preflight
@@ -103,7 +103,7 @@ Allowed deviations:
 Before handing off any report:
 
 - [ ] Loaded this module and Stage 6 in the current turn/run.
-- [ ] Used `tools/solo_report_renderer.py` or logged why the reusable renderer was unavailable.
+- [ ] Used `tools/solo_tool render-report` or logged why the reusable renderer was unavailable.
 - [ ] HTML is standalone, mobile-friendly, and visually polished.
 - [ ] The first viewport has a useful hero, not a file title plus wall of text.
 - [ ] Public data sources and private data sources remain separate sections inside the combined client report.

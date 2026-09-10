@@ -17,7 +17,9 @@ it composes with them.
    too fast" warning, a checkpoint/CAPTCHA, a session-expired / logged-out state,
    an empty or error response where data was expected several times in a row, or
    any platform warning. On a trip: stop the run, do NOT retry harder, report the
-   trip reason to the human, and suggest resuming later.
+   trip reason to the human, and suggest resuming later. Check for these signals
+   after EVERY job, before submitting the next one — never batch several jobs and
+   check once at the end of a pass.
 4. **Budget exhausted.** The per-run volume budget below is hit.
 
 ## Volume budget (per run, conservative defaults)
@@ -46,6 +48,16 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
   "faster", explain the ban tradeoff rather than disabling safety.
 - Prefer **one deeper pass on a productive source** over many shallow passes
   across many sources in a short window.
+- **The Facebook Discovery Pass** (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, step 11C; canonical
+  recipe: `recipes.md` Recipe A): four call types, fixed order — FEED (`fb.search.posts`), PEOPLE
+  (`fb.people.search`), GROUPS (`fb.groups.search`), IN-GROUP (`fb.group.search_posts`). FIRST RUN
+  ≤ 21 collector calls total (3 discovery terms, 3 feed searches, 3 people searches, 3 group
+  searches, up to 4 new public groups × 3 intent terms each), `max_pages` ≤ 4, spread over ≥ 4 hours.
+  DAILY companion ≤ 7 calls total (1 discovery term, 1 feed search, 1 people search, 1 group search,
+  up to 2 new public groups × 2 intent terms each), same `max_pages` ceiling, spread across the run
+  window. These are ceilings, not targets, exactly like every other row here — and per Stop
+  condition 3 above, the agent reads every job's result for a trip signal before submitting the next
+  job in this pass, not just at the end of it.
 
 ## The join boundary (human-in-loop, never automatic)
 

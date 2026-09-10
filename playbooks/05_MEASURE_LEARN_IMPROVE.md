@@ -104,7 +104,7 @@ The agent must:
 10. Write useful questions, objections, and lead/comment signals to `analytics/comment_signal_log.md`.
 11. Write strategic learnings to `analytics/learning_log.md`.
 12. Feed the learning back into future source priority, content pillars, hooks, CTAs, idea scoring, lead-gen angles, scripts/blogs, the foundation bank (audience questions that are canonical evergreen topics), and the saved public search keyword bank.
-13. Extract new keyword candidates from audience questions, objections, comments, lead signals, high-performing hooks, captions, and hashtags. Add non-duplicate useful candidates to `public_search_keywords` with keyword group, related pain point, related content pillar, source/reason, and first-added date.
+13. Extract new keyword candidates from audience questions, objections, comments, lead signals, high-performing hooks, captions, and hashtags. Add non-duplicate useful candidates with `tool public-keywords add` (`--group`, `--origin mined`, `--note` naming the pain point, pillar and source; dateless).
 
 If the agent cannot access provider analytics or published URLs, it must log the blocker and continue the rest of the scheduled run. It must not claim the measurement loop is complete.
 
@@ -177,7 +177,7 @@ For each published content item from the run_window or the last 7 days, the agen
 7. Store audience questions, objections, and useful comment signals in `analytics/comment_signal_log.md`.
 8. Store strategic learnings in `analytics/learning_log.md`.
 9. Use the results to update reports, content pillar scoring, hook learnings, CTA learnings, source priority, lead-gen angles, future idea selection, the foundation bank, and the public search keyword bank.
-10. Extract new keyword candidates from high-signal comments, audience questions, objections, captions, hashtags, and winning hooks. Add non-duplicate candidates to `public_search_keywords` so future public research searches the way the audience actually talks.
+10. Extract new keyword candidates from high-signal comments, audience questions, objections, captions, hashtags, and winning hooks. Add non-duplicate candidates with `tool public-keywords add` so future public research searches the way the audience actually talks — and prefer the short phrasing: those are the terms that surface what nobody thought to ask.
 
 ### Published URL Measurement Via Local Collector
 

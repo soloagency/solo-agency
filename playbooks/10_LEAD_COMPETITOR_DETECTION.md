@@ -50,6 +50,146 @@ whatever either pass returns — the passes acquire, this stage judges. When a h
 (`playbooks/skills/lead-engine`, an interactive "find me leads" ask), it writes the terms that
 worked back into the same bank, so tomorrow's monitoring inherits what the hunt discovered.
 
+## Facebook Discovery Pass (step 11C of the daily run)
+
+This pass is step 11C of `playbooks/04_DAILY_SCHEDULE.md` Daily Run Algorithm, inserted between 11B
+and step 12/13 (the former step 11C, `notification_channel_missing`, is now 11D). The full spec
+lives here; the scheduled-run call-out lives in `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` steps
+12D/12E.
+
+"Vòng khám phá Facebook" — the impressive first Facebook lead scan for a client, and afterwards a
+light daily companion. It runs INSIDE the client's existing daily run task; there is no separate
+automation task for it. It is also what Setup Flow triggers as the very first run once the bridge
+and the client's extension are installed (`playbooks/SETUP_FLOW_ENTRYPOINT.md`).
+
+Before this pass may run at all, the Facebook Login Reminder must be resolved
+(`facebook_lead_source: enabled`; see `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D and
+`playbooks/SETUP_FLOW_ENTRYPOINT.md`). If the human answered "bỏ qua Facebook" (`skipped`), skip this
+whole section and say so plainly, with the lead-count consequence, in every report this run produces.
+
+### Fixed order: feed, then people, then groups, then in-group
+
+The order is fixed because each step narrows and ranks what the next step touches. Do not reorder,
+parallelize, or skip a step to save budget — skip whole groups instead once step 4's budget runs out.
+
+1. **FEED FIRST.** `fb.search.posts` with `search_url =
+   https://www.facebook.com/search/posts/?q=<discovery term>`. This is Facebook's own global Posts
+   search — no group membership needed, and it is the fastest first signal of who is using
+   in-market language right now.
+2. **THEN PEOPLE.** `fb.people.search` with `query = <discovery term>` (the URL Facebook itself
+   renders: `https://www.facebook.com/search/people/?q=<discovery term>`). Returns `ProfileSummary`
+   rows (`id`, `name`, `url`, `subtitle`, `mutual_friends`, `industry_hint`) — people, not posts, so
+   there is no post text to read. Every row goes through Stage 10 as a PERSON lead candidate: the
+   `subtitle`/work line is the qualifying signal (e.g. "Realtor at ..." when the client sells to
+   realtors), and classification uses `subtitle` + `industry_hint` + `name`/`url` only. Temperature
+   defaults to `watch`; it becomes `warm` only when the subtitle states the target role explicitly.
+   Qualified rows go to `tool crm-store ... lead capture` like every other lead, tagged
+   `source:people_search` plus `kw:{term}`.
+3. **THEN GROUPS.** `fb.groups.search` with `query = <discovery term>`. Keep only results whose
+   `privacy == "public"`. If `privacy` is empty/unknown, treat it as unknown, not as private: either
+   spend one `fb.group.posts` call with `max_pages: 1` on the group to read its header and decide,
+   or skip the group when the call budget is tight — never guess it public. Rank the survivors by
+   `member_count` desc, preferring names/snippets that match the client's target location. Skip a
+   group already in `private_data_sources`, and skip a group this pass already scanned in the last 7
+   days. Persist the ranked shortlist at `history/YYYY-MM/facebook_discovery_shortlist.jsonl` — see
+   `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` for the exact fields and job shapes.
+4. **THEN IN-GROUP.** For the top public groups from step 3, `fb.group.search_posts` with
+   `group_search_url = <group_url>/search/?q=<intent term>`. Intent terms — not the discovery term —
+   come from `tool source-keywords ... plan`; seed the group's bank first if it is empty
+   (`seed --industry --market --lang`, plus the client's setup seed file when one exists).
+
+Discovery terms themselves (steps 1, 2 and 3's `<discovery term>`) come from a new keyword-bank
+kind, not from the source-keywords intent bank used in step 4:
+
+```sh
+<bridge> tool public-keywords --pipeline daily-content-pipeline --client {slug} plan --kind discovery
+```
+
+`--kind discovery` is the new `community_discovery` kind (default 3 terms). Add one by hand with
+`<bridge> tool public-keywords --pipeline daily-content-pipeline --client {slug} add --group community_discovery --term "..."`.
+
+The `record` verb has no `--kind` flag and requires a verdict. Record outcomes the same way the
+public-keywords bank always does, with `urls` = feed posts + people rows + groups found for that
+term and `ideas` = leads captured:
+
+```sh
+<bridge> tool public-keywords --pipeline daily-content-pipeline --client {slug} record --json '{"{term}":{"verdict":"useful|used|weak|retry_later","urls":N,"ideas":M}}'
+```
+
+Verdict is `useful` when the term produced ≥ 1 lead, `used` when it produced results but no lead,
+`weak` when it produced nothing, and `retry_later` when a safety trip cut the term short.
+
+### Every post and person row goes through Stage 10 immediately
+
+Every post record this pass returns — from the feed search, from the group list, or from in-group
+search — and every `ProfileSummary` row the people search returns, goes through this stage's
+Detection Workflow and then straight to `<bridge> tool crm-store ... lead capture` (see "Every lead
+also becomes a CRM contact" below), EVEN THOUGH the group it came from is not (yet) an approved
+`private_data_sources` entry. The pass acquires and captures; it does not wait for a group to be
+promoted first.
+
+### Lead target: a floor, not a stop
+
+FIRST RUN: **minimum 10 leads.** Reaching 10 does not end the run — keep working down the shortlist
+until the day's budget (below) is spent; more is always better than exactly 10. If the budget runs
+out below 10, say so plainly in the report and carry the remaining shortlist rows (`status: pending`)
+into the next day's pass rather than losing them.
+
+DAILY companion pass: no fixed floor — it is a light top-up, bounded by its own smaller budget below.
+
+### Budget (owner-approved, inside the safety envelope; all calls serial, spread over hours)
+
+| | discovery terms | feed searches | people searches | group searches | new public groups | intent terms/group | total collector calls | `max_pages` | spread |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **FIRST RUN** | 3 | 3 | 3 | 3 | up to 4 | 3 | ≤ 21 | ≤ 4 | ≥ 4 hours |
+| **DAILY** | 1 | 1 | 1 | 1 | up to 2 | 2 | ≤ 7 | ≤ 4 | across the run window |
+
+These numbers are ceilings from `playbooks/skills/lead-engine/safety.md`, which carries the full
+envelope (pacing, serial-only, the trip rule). Never raise them without the human's explicit
+approval.
+
+### Safety trip is unchanged, and unforgiving
+
+The first checkpoint, rate-limit warning, or logged-out signal stops the WHOLE account for the day —
+not just this pass, not just the current group. After every single job in this pass, the agent must
+read that job's result for those signals BEFORE submitting the next one. This holds inside the ≤ 21
+or ≤ 7-call budget exactly as it holds everywhere else in this playbook.
+
+### Scanning needs no per-group approval; promoting does
+
+Scanning a PUBLIC group in this pass needs no per-group human approval — see the join boundary in
+`playbooks/skills/lead-engine/safety.md` and the reconciliation paragraph in
+`playbooks/PRIVATE_SOURCE_GATE.md`. PROMOTING a group out of the shortlist into `private_data_sources`
+for standing daily monitoring still needs the normal per-group human approval
+(`playbooks/02_PRIVATE_SOURCE_SETUP.md`). After the pass, recommend the top groups by `leads_found`
+and `member_count`; the human decides which (if any) get promoted.
+
+Groups this pass finds should also be registered in the shared source registry as public groups
+(`tool source-registry register`, existing shape) so other clients' passes reuse the notes instead of
+rediscovering the same group cold.
+
+### Report section: "Facebook Discovery Pass"
+
+Every run of this pass gets its own named report section (translate the title naturally in a
+non-English report; English default below):
+
+- discovery terms used;
+- feed posts found;
+- people found / people captured;
+- groups found / groups kept as public / groups scanned in-group;
+- leads found (and how many of those are hot/warm/watch);
+- locked leads (see "Every lead also becomes a CRM contact" below);
+- budget used (calls spent / calls available, for this run's tier);
+- trip status (`clean`, or the exact safety trip that stopped the account).
+
+```text
+Facebook Discovery Pass
+Discovery terms: 3 · Feed posts: 3 · People found: 9, captured: 5
+Groups found: 12, public: 7, scanned: 4
+Leads found: 19 (9 hot, 6 warm, 4 watch) · Locked: 0
+Budget used: 20/21 calls · Trip status: clean
+```
+
 ## Definitions
 
 ### Lead
@@ -398,6 +538,69 @@ and `kw:{term}` when a search term found them, and writes one `lead_detected` ac
 rows are refused by name — a competitor is a business to study, not a person to nurture. Add
 `--dry-run` to see the mapping without writing.
 
+**Capture never stops at the plan's contact cap.** Free 30, Starter 500, Pro 2000, Business 10000,
+Enterprise unlimited — those are the contact caps `tool crm-store` enforces per plan tier. Hitting the
+cap does not stop capture: the newest leads above the cap are stored LOCKED (no detail, no email, no DM,
+no campaign) rather than dropped, and a contact that has already progressed past `lead` into any `engaged+` stage
+is never locked, no matter how the count moves afterward.
+
+Locked count and the unlocked/max ratio both come from `tool crm-store ... contact lock-status` — read
+it after every capture that touched the CRM, and every time a Boss-facing reply is about to be sent for
+a run that touched the CRM. Never estimate either number.
+
+**The meter (funnel moments G and H; see `AGENTS.md`, "Upsell rule").** Whenever `contact lock-status`
+shows `locked > 0`, every Boss-facing reply, `INTERNAL_REPORT`, and morning brief for this client
+carries this persistent one-line meter, translated naturally into the human's language, with no
+cooldown — it is a plain fact, not an ask, and it repeats on every reply for as long as the count stays
+above zero:
+
+```text
+{L} leads locked under {tier} — {unlocked}/{max} open
+```
+
+When `locked == 0` but `unlocked / max_contacts ≥ 0.8`, carry the approaching-cap line instead of the
+locked meter (moment G):
+
+```text
+{unlocked}/{max} open contacts used; new leads may start locking
+```
+
+**First lock of the session (moment H).** The FIRST time in this session that `contact lock-status`
+shows `locked` move from 0 to > 0, deliver the SELLING moment: a full `**[ACTION REQUIRED]**` upgrade
+block, spoken the way a real person would offer the upgrade, in the human's own words and language —
+never this template verbatim — naming the actual counts from `contact lock-status`. Tone example
+(Vietnamese, tone only, not a script to paste):
+
+```text
+Em vừa đưa 214 lead mới vào CRM, 31 lead có tín hiệu tốt. Gói Free đang mở 30 contact, 184 lead còn lại
+đang khoá chi tiết, chưa gửi mail hay nhắn tin được. Mở gói Starter thì 500 contact mở ngay, không cần
+quét lại.
+```
+
+The upgrade path is the WideCast key/plan (https://widecast.ai/#setup); the human runs
+`tool entitlement refresh` afterward. This is the session's one Upsell-budget use for the locked-contact
+reason — every reply after that first 0→>0 transition, for the rest of the session, drops back to the
+plain meter line above; it never repeats the full block for the same transition. A Free install refused
+`write_actions` (group post, comment, react) is the other SELLING trigger and spends the same
+once-per-session budget on its own reason. `seat_limit` and a stale-token `solo_feature_not_in_tier` on
+a non-`write_actions` capability are never a selling moment (Upsell rule carve-outs).
+
+**Show the CRM link after any scan that produced ≥ 1 lead.** In the chat reply, this stage's
+lead-capture step ends with the CRM line below (Team Leader frame — this line is mirrored in
+`SOLO_AGENCY_PLAYBOOK.md` "Team Leader Reply Frame"; keep both copies in sync). In
+`INTERNAL_REPORT` only — NEVER in the three client-facing HTML files, the combined client
+report/PDF, or the client notification (Client-Blind Deliverable rule) — the same line appears after
+any scan that produced at least one lead:
+
+```text
+CRM: http://127.0.0.1:17321/ui/{client_slug}/crm — {N} liên hệ mới hôm nay, {L} đang khoá theo gói; nóng nhất: http://127.0.0.1:17321/ui/{client_slug}/contact/{lead_id}
+CRM: http://127.0.0.1:17321/ui/{client_slug}/crm — {N} new contacts today, {L} locked by plan; hottest: .../contact/{lead_id}
+```
+
+A zero-lead run prints the bare CRM line (`http://127.0.0.1:17321/ui/{client_slug}/crm`, no counts).
+The agent PRODUCES this link as a static string from `docs/UI_DESIGN.md`'s URL map; it never
+HTTP-GETs it.
+
 **First run for a client that has never had a CRM.** A client set up for content only has no CRM
 workspace yet, and the command will say so: `no outreach workspace under .../clients/{slug}; run
 init-client first`. That is not a failure of the scan — create the workspace once and re-run:
@@ -407,9 +610,10 @@ init-client first`. That is not a failure of the scan — create the workspace o
   --business {business_slug} --location {location_slug} init-client
 ```
 
-Do this silently as part of the run; it creates empty directories and sends nothing. If it is refused
-because the install is at its plan's client limit, say so in the report and carry on — the leads are
-still in the ledger and nothing is lost, but tell the Boss plainly that they are not being kept.
+Do this silently as part of the run; it creates empty directories and sends nothing. If `init-client`
+is refused, that is a bridge/technical blocker (there is no per-plan client limit any more; the
+bridge keeps only a technical ceiling far above real use) — report the exact error in
+`INTERNAL_REPORT` and carry on; the leads are still in the ledger.
 
 **Running it twice is safe and is the normal case.** The same person seen on three days is ONE
 contact with three activity rows and one hook per distinct post; the temperature tag is replaced, not

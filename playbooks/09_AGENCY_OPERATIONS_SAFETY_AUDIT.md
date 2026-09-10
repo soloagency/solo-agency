@@ -612,21 +612,7 @@ For each daily run:
       - Visit sources where `visit_in_scheduled_runs: true` and cadence is due today.
       - Prioritize `active_public_source` daily sources, then due `weekly_public_source` sources, then relevant `occasional_public_source` sources when the topic/event matches.
       - Record source status, useful URLs, useful signals, weak/noisy results, and whether the source should stay active, be promoted, or be demoted.
-   6. Use Google Search or an available equivalent search tool with rotating keywords from `public_search_keywords`.
-      - Do not use only generic industry keywords.
-      - Prioritize pain-point/problem/need/buying-intent keyword clusters because these are closer to real audience demand.
-      - Use keywords in the target audience's likely search/comment language. Do not translate the keyword bank into the human's chat/report language unless the audience uses that language.
-      - Use at least 10 distinct public search keywords per public data source run unless search tooling is unavailable or the saved keyword bank has fewer than 10 usable entries after expansion.
-      - At least 7 of the 10 keywords should come from pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news groups.
-      - Include at least one broad primary-industry keyword for context, at least one pain-point/problem keyword, at least one need/goal or buying-intent keyword, and local/location keywords when location matters.
-      - Use a smaller rotation of related-industry keywords only when the bridge back to the client's offer is clear.
-      - If results are weak, try a different pain-point/problem/need cluster before giving up.
-      - Continue keyword rotation until at least 3 source-backed candidate ideas are new or newly angled against `history/YYYY-MM/content_log.md`. If fewer than 3 qualify after 10+ distinct keywords and due public data sources have been checked, record the coverage limitation instead of fabricating weak ideas.
-      - Record every keyword used, keyword group, result quality, useful URLs, and final keyword status.
-      - Extract new keyword candidates from useful search results, public discussions, questions, competitor hooks, comments, and emerging phrases. Add useful new candidates to the keyword bank with source/reason, related pain point, and content pillar.
-      - Detect useful recurring public data sources from search results and public pages. Promote strong recurring sources into `public_data_sources` with status/cadence so future scheduled runs can visit them automatically.
-      - Include this record in the daily report section `Public Search Keywords Used Today`.
-      - If no search was possible, explicitly explain the blocker in that same section.
+   6. Search the open web with today's plan from the public keyword bank. This step is defined once, in `playbooks/04_DAILY_SCHEDULE.md` (Daily Run Algorithm, step 6), and is deliberately not repeated here: three verbatim copies of it drifted apart once and the stale ones were the copies actually loaded. Load and follow that step. In one line: `tool public-keywords plan` → search each `query` → `tool public-keywords record` before the run ends, with `urls` and `ideas` counted.
    7. Before deciding whether to skip private data sources, perform Collector Runtime Verification whenever private data sources exist in any state or collector status files exist. Do not treat saved labels such as `pending_private_activation`, `public_data_sources_only`, or `private sources postponed` as final; those labels can be stale after the human later installs, repairs, or reconnects the Local Collector.
    8. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before any Collector Runtime Verification involving private data sources.
    9. Try `GET http://127.0.0.1:17321/status`, but if it fails, check local collector health/status files for AI sandbox localhost isolation before claiming the Local Collector is inactive.
@@ -1427,7 +1413,7 @@ A daily run is complete when:
 10. One production-ready draft is written for each processed client, defaulting to video script and adding blog/article or social caption when configured.
 11. One per-client canonical three-file client-facing HTML report set is created for each processed client: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
 12. The operator-only `{client-name}-INTERNAL_REPORT.html` is created for each processed client and clearly labeled `INTERNAL_REPORT - Not for client sharing`.
-13. The client-facing HTML report set passes the Client-Blind Scrub Gate and does not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`.
+13. The client-facing HTML report set passes the Client-Blind Scrub Gate and does not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, `INTERNAL_REPORT`, any `127.0.0.1` collector URL, plan/lock-status language (`locked by plan`, `đang khoá theo gói`), internal tool names (`crm-store`, `public-keywords`, `source-keywords`, `lock-status`), or next-jobs/upgrade language (`NEXT_JOB_CATALOGUE`, "next jobs", `nâng cấp tại`).
 14. The mandatory PDF companion `{client-name}-client-report.pdf` is created from the combined `{client-name}-client-report.html`, which itself is assembled from the scrubbed three staging HTML files, or the exact PDF blocker/status is recorded.
 15. The report state file `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` is created/updated for each processed client.
 16. `outputs/latest/{client-name}-client-report.html`, `outputs/latest/{client-name}-INTERNAL_REPORT.html`, and `outputs/latest/{client-name}-client-report.pdf` are updated for each processed client when available and point to the combined report/internal report/PDF companion, not a lane-specific report.
@@ -1478,6 +1464,16 @@ Before replying to the human, verify:
 - [ ] If human action is needed, did I show the exact action directly in chat or notification?
 - [ ] If human action is needed, did I use the root playbook `**[ACTION REQUIRED]**` block instead of burying the question/action in paragraphs, reports, file links, or progress text?
 - [ ] If no human action was required, did I end with next-action guidance per the Next-Action Guidance Rule - 1-3 real, currently-available next steps (the first resuming the current or interrupted flow) plus exactly one closing question - instead of `No action required right now.` or a passive ending?
+
+### Team Leader / Reply Checklist (`playbooks/TEAM_MODEL.md` duty 5, `playbooks/NEXT_JOB_CATALOGUE.md`)
+
+- [ ] Did I run the STATE POLL (`playbooks/NEXT_JOB_CATALOGUE.md`) before composing this reply, reading each signal from its named file/tool/field rather than from memory or a previous reply?
+- [ ] Does this reply end with either an `**[ACTION REQUIRED]**` block or the catalogue's 2-3-offer "next jobs" block plus exactly one closing question - never both stacked as filler, never neither, never a passive sign-off?
+- [ ] When `contact lock-status` shows `locked > 0`, does this reply (and INTERNAL_REPORT / morning brief, where applicable) carry the persistent one-line meter ("{L} leads locked under {tier} - {unlocked}/{max} open")? When `locked == 0` and `unlocked/max_contacts >= 0.8`, does it carry the approaching-cap line instead?
+- [ ] Did I limit priming lines (a one-sentence plain fact, no link, no ask) to funnel moments A-F only? **G** is the METER's approaching-cap fact (`{unlocked}/{max} open contacts used; new leads may start locking` — no link, no ask, exempt from the priming budget the same as A-F), and **H** is the SELLING `**[ACTION REQUIRED]**` upgrade block with a link — never priming. Did I keep every priming/selling line worded fresh in the human's language rather than a fixed template pasted verbatim?
+- [ ] If this session already showed the `review_locked_leads_upgrade` `**[ACTION REQUIRED]**` block once, did I avoid showing it again this session (carrying only the meter instead), and is `write_actions_upgrade` shown only after a real write-action refusal, never speculatively?
+- [ ] Did I confirm no plan tier, contact cap, locked count, or upgrade language leaked into any client-facing file - the three client-facing HTML reports, the combined client report/PDF, or the client notification (client-blind rule)?
+- [ ] When the poll found nothing pending in tiers 1-3 and no new leads landed this run, did the IDLE RULE apply - two concrete tier-2/tier-4 jobs offered and a question asked, instead of waiting silently for orders?
 - [ ] At setup-complete, a no-pending-action handoff, a lead-detected run, or the weekly cadence, did I include a feature-discovery block (Feature Discovery Rule) drawn from `playbooks/FEATURE_CATALOG.md` - unused features only, value-first with the exact trigger phrase, at most 2-3, not repeating one surfaced last message, and Outreach on top when leads were found?
 - [ ] If this message completed a setup: does it follow the Setup-Complete Closing Template - offer 1 = run the first report NOW (never "wait for the schedule" or "use these later"), one offer from the other product side, and is the LAST line exactly one question?
 - [ ] Did I keep the most important required action at the end of the reply, with no more than three `**[ACTION REQUIRED]**` blocks?
@@ -1541,7 +1537,7 @@ Before saving a Client Intelligence Profile as stable, verify:
 - [ ] Did I build a public keyword bank from pain points, problems, needs, objections, buying triggers, and local context, not only generic industry terms?
 - [ ] Did I choose keyword language based on the target audience's likely search/comment language, not automatically the human's chat language?
 - [ ] If the audience is multilingual, did I label keyword languages and include useful variants?
-- [ ] Did I show only a compact pain-point keyword sample to the human and save the full keyword bank in the client profile/source notes?
+- [ ] Did I show only a compact pain-point keyword sample to the human, and stage the full bank as `public_keywords_seed.jsonl` (dateless terms, at least a quarter of them 1-3 words) rather than as a list in the profile?
 - [ ] Did I save useful recurring public data sources to `public_data_sources` with status, cadence, language, related pain point, and `visit_in_scheduled_runs`?
 - [ ] Did I avoid asking a separate private data source discovery checklist question and instead keep optional private data source discovery inside the private data source step?
 - [ ] Did I reassure the human that this is a professional agency-scale setup that normally takes patience only once?
@@ -1563,7 +1559,7 @@ Before saving a Client Intelligence Profile as stable, verify:
 
 Before completing public research, verify:
 
-- [ ] Did I load `public_search_keywords` from the client profile?
+- [ ] Did today's terms come from `tool public-keywords plan` (not from a list in the profile), and did the plan hold at least two short terms without a WARNING?
 - [ ] Did I load saved `public_data_sources` and visit/check active due sources?
 - [ ] Did I use Google Search or an available equivalent search tool?
 - [ ] Did I use keywords in the target audience's likely search/comment language?
@@ -1573,12 +1569,13 @@ Before completing public research, verify:
 - [ ] Did I use at least one need/goal or buying-intent keyword?
 - [ ] Did I optionally use one related-industry keyword if useful?
 - [ ] Did I use at least 10 distinct public search keywords, or document why search/tooling/keyword-bank limits made that impossible?
-- [ ] Did at least 7 of those keywords come from pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news groups?
+- [ ] Did most of those keywords come from demand groups (pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news), and if not, did I add demand-group terms to the bank rather than hand-picking the run?
 - [ ] Did I keep rotating keyword clusters until I found at least 3 source-backed candidate ideas that are new or newly angled, or document why that minimum could not be met?
 - [ ] Did I rotate keywords instead of reusing only old queries?
-- [ ] Did I record each keyword as `used`, `useful`, `weak`, or `retry_later`?
+- [ ] Did I `tool public-keywords record` every term I searched before the run ended — keyed by the saved `term`, with `urls` and `ideas` counted, not only an adjective?
 - [ ] Did I extract new keyword candidates from useful search results, public discussions, private scans, competitor hooks, comments, analytics, or human feedback?
-- [ ] Did I add non-duplicate useful new keywords to the saved keyword bank with source/reason, related pain point, and content pillar?
+- [ ] Did I add non-duplicate useful new keywords with `tool public-keywords add` — dateless, `mined` ones with a `--note` — rather than editing any file by hand?
+- [ ] Did I put `tool public-keywords stats` (the Bank movement line) in the report, and act on any `problems` it listed?
 - [ ] Did I detect useful recurring public data sources and promote/demote them in `public_data_sources` for future scheduled visits?
 - [ ] Did I save useful URLs as references?
 - [ ] Did I show search keywords used in the report?
@@ -1718,6 +1715,15 @@ Before final report, verify:
 - [ ] If I used one or two tiny natural imperfections or typos, did they make the comment sound human without making the user look careless or unclear?
 - [ ] Did I avoid suggesting spammy outreach or unsafe actions?
 - [ ] Did I update `lead_log.md`, `competitor_log.md`, and `lead_competitor_opportunities.jsonl` when possible?
+- [ ] Did I show the Facebook Login Reminder and record `facebook_lead_source` before running (or skipping) the Facebook Discovery Pass?
+- [ ] Did the Facebook Discovery Pass run feed → people → groups → in-group, in that fixed order, never reordered/parallelized/skipped to save budget?
+- [ ] Did I respect the budget ceiling (≤ 21 collector calls first run / ≤ 7 daily, `max_pages` ≤ 4, calls serial, spread over hours)?
+- [ ] Did I check every job's result for a checkpoint/rate-limit/logged-out signal before submitting the next one?
+- [ ] Did I keep only groups with `privacy == "public"`, and did I leave every group promotion to `private_data_sources` to a human decision rather than auto-promoting?
+- [ ] Did every post and person row from the Facebook Discovery Pass go through Stage 10 and straight to `lead capture`, even from a group not yet in `private_data_sources`?
+- [ ] Did I include the CRM link line in the operator-facing reply and `INTERNAL_REPORT` after any scan that produced ≥ 1 lead (bare line on a zero-lead run)?
+- [ ] Did I read the locked-lead count from `tool crm-store ... contact lock-status` rather than hand-counting it?
+- [ ] Did I avoid drafting or sending any email, DM, or campaign to a locked contact?
 
 ### WideCast Writing Draft Checklist
 
@@ -1810,7 +1816,7 @@ Before saying the run is complete, verify:
 - [ ] Did I generate a polished mobile-friendly client-facing HTML report set as the canonical client-ready report?
 - [ ] Did I generate `{client-name}-INTERNAL_REPORT.html` and label it `INTERNAL_REPORT - Not for client sharing`?
 - [ ] Did the client-facing HTML report follow the Agency-Grade HTML Report Standard, not merely list raw ideas?
-- [ ] Did the client-facing HTML/PDF pass the Client-Blind Scrub Gate: no Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, or `INTERNAL_REPORT`?
+- [ ] Did the client-facing HTML/PDF pass the Client-Blind Scrub Gate: no Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, `INTERNAL_REPORT`, any `127.0.0.1` collector URL, plan/lock-status language (`locked by plan`, `đang khoá theo gói`), internal tool names (`crm-store`, `public-keywords`, `source-keywords`, `lock-status`), or next-jobs/upgrade language (`NEXT_JOB_CATALOGUE`, "next jobs", `nâng cấp tại`)?
 - [ ] Did I put all WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/private source inventory/automation/blocker/debug details in `INTERNAL_REPORT`, not client-facing files?
 - [ ] Did the top of the report include an Executive Snapshot with source coverage status, best idea, lead/competitor counts, content readiness, blockers, and one recommended next action?
 - [ ] If optional private data source discovery was asked, approved, pending, blocked, or completed, did the HTML report include a clear `Private Data Source Discovery` section?
@@ -1876,7 +1882,7 @@ Scope the self-audit to the reply being sent:
 
 For these five mechanical gates, the audit must paste real command output, not a self-declaration:
 
-- Client-blind scrub: run `grep -iE 'Solo Agency|WideCast|Telegram|INTERNAL_REPORT|api_key|OpenAPI|MCP|Local Collector'` over the extracted text of every client-facing HTML/PDF; the printed hit count must be `0`.
+- Client-blind scrub: run `grep -iE 'Solo Agency|WideCast|Telegram|INTERNAL_REPORT|api_key|OpenAPI|MCP|Local Collector|127\.0\.0\.1:17321|locked by plan|đang khoá theo gói|crm-store|public-keywords|source-keywords|lock-status|NEXT_JOB_CATALOGUE|next jobs|nâng cấp tại'` over the extracted text of every client-facing HTML/PDF; the printed hit count must be `0`.
 - Report-set existence: `ls` the report-set files for the client/day and paste the listing.
 - report_state consistency: quote the status/count fields from `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json`.
 - LOAD LEDGER line counts: paste the printed ledgers for the stages loaded this run.

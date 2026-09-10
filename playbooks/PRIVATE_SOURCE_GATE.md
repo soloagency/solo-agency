@@ -63,6 +63,36 @@ Human's logged-in Chrome
 
 If the Local Collector app or extension is unavailable after Collector Runtime Verification, do not fall back to Claude in Chrome, Codex browser, Playwright, or another agent-controlled browser. Continue work with public data sources only and mark private data sources as `pending_private_activation`, `collector_status_unverified`, or `collector_offline_or_unreachable` with the exact blocker.
 
+## Facebook Discovery Pass Reconciliation
+
+`playbooks/10_LEAD_COMPETITOR_DETECTION.md`'s Facebook Discovery Pass (the step 11C daily-run
+companion, also Setup Flow's first-run trigger) touches public Facebook groups and Facebook's own
+search. Here is how that reconciles with this gate — nothing below changes this gate's substance.
+
+Public Facebook groups remain collector-only, exactly as the Collector-Only Rule above requires;
+nothing about the discovery pass opens a new browsing path. `fb.groups.search` and
+`fb.group.search_posts` run through the same Solo Agency Local Collector + human's logged-in Chrome
+chain as every other private-source capability. SCANNING a public group inside this pass needs no
+per-group human approval — that decision is the join boundary in
+`playbooks/skills/lead-engine/safety.md` ("The join boundary"), not this gate: reading a
+publicly-viewable group's posts is not a membership/write action. PROMOTING a group the pass found
+out of its shortlist and into standing `private_data_sources` monitoring still needs the normal
+per-group human approval this gate and `playbooks/02_PRIVATE_SOURCE_SETUP.md` already require —
+discovery finds candidates, it does not self-approve them.
+
+`fb.search.posts` (Facebook's global Posts-tab search) also runs through the human's own logged-in
+Chrome session via the same collector chain — it is Facebook search AS that logged-in human, not the
+non-social open web — so it is collector-only for the same reason every other logged-in Facebook
+surface is: this gate's "public" carve-out (Classification tie-breaker above) is for the non-social
+web, not for a search box rendered inside someone's authenticated session.
+
+`fb.people.search` runs the same way — Facebook's own People-tab search box inside that same
+logged-in session — so it is collector-only for the identical reason, and the `ProfileSummary` rows
+it returns are collector-only data exactly like a post. Nothing about surfacing a person row instead
+of a post changes this gate, and no per-person approval applies: reading a public search result row
+is not a membership/write action, so the join boundary in `playbooks/skills/lead-engine/safety.md`
+never engages for it.
+
 ## Human-Facing Preflight Roadmap
 
 Before starting any private data source scan, show or internally verify this gate. If handing control back to the human, include it in the reply as a progress roadmap, not as a form for the human to answer line by line.

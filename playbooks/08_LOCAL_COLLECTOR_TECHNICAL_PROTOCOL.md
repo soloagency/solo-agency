@@ -939,6 +939,67 @@ An entry with no `capability` is read as a feed. A source registered for the sea
 whole search url in `inputs.group_search_url`; the `url` field stays the plain group url so the same
 source is recognisable across passes.
 
+### Facebook Discovery Pass job shapes (fb.search.posts, fb.people.search, fb.groups.search, fb.group.search_posts)
+
+`playbooks/10_LEAD_COMPETITOR_DETECTION.md`'s Facebook Discovery Pass (step 11C) runs four
+capabilities from `collector_capabilities.json`, in fixed order. All four are read-only, run
+through the same collector chain as every capability in this file, and are bounded by the budget
+table in Stage 10 — nothing here raises `max_pages` or scroll depth beyond that table.
+
+1. **`fb.search.posts`** (status `beta`) — Facebook's own global Posts-tab search.
+   `inputs.search_url = https://www.facebook.com/search/posts/?q=<url-encoded discovery term>`
+   (or `/search/top/?q=...` for the mixed Top tab). Output: `PostRecord[]`, the same shape as
+   `fb.group.posts`/`fb.group.search_posts`. No group membership required — this is the human's own
+   logged-in Facebook session searching the open Posts tab.
+2. **`fb.people.search`** (status `stable`) — Facebook's own People-tab search.
+   `inputs.query = <discovery term>` (the url Facebook itself renders:
+   `https://www.facebook.com/search/people/?q=<url-encoded discovery term>`); `max_scroll` and
+   `max_pages` are both optional, same ceiling as every other capability in this pass. Output:
+   `ProfileSummary[]` — `id`, `name`, `url`, `subtitle`, `mutual_friends`, `industry_hint`: row-level
+   summaries, not full profiles, and there is no post text to read. Stage 10 classifies each row from
+   `subtitle` + `industry_hint` + `name`/`url` alone.
+3. **`fb.groups.search`** — `inputs.query = <discovery term>`. Output: `GroupSummary[]`, one row per
+   candidate group:
+   - `privacy`: `"public"` | `"private"` | `""` (empty = unknown — never treat empty as private OR
+     public; see Stage 10's ranking rule);
+   - `member_count`: number | `null` (an unrecognized locale magnitude token leaves this `null`);
+   - `viewer_join_state`, `snippet`, `privacy_source` (which signal decided `privacy`:
+     `viewer_join_state` or the parsed descriptor line), `member_count_text` (the raw matched
+     segment), `snippet_lang` (the descriptor line's UI locale).
+   `privacy`/`member_count` can legitimately come back unknown/null on any given result — that is a
+   parsing limitation of Facebook's search card, not a job failure. Stage 10's rule: unknown privacy
+   is resolved with one `fb.group.posts` (`max_pages: 1`) header check, or the group is skipped when
+   the call budget is tight — it is never assumed public.
+4. **`fb.group.search_posts`** — `inputs.group_search_url = <group_url>/search/?q=<url-encoded
+   intent term>`. Output: `PostRecord[]`. This is the same capability the daily search pass (§"A
+   private source names the capability that reads it" above) already uses for approved sources; the
+   discovery pass points it at groups that are not (yet) in `private_data_sources`.
+
+All four respect `max_pages` (default 8, hard cap 40) and `max_scroll`; the discovery pass caps
+`max_pages` at 4 regardless of the capability default (Stage 10 budget table).
+
+**Shortlist file.** The discovery pass persists its ranked candidate groups at
+`history/YYYY-MM/facebook_discovery_shortlist.jsonl`, one JSON object per line:
+
+```json
+{
+  "group_url": "https://www.facebook.com/groups/...",
+  "name": "Group name",
+  "privacy": "public",
+  "member_count": 18400,
+  "first_seen": "YYYY-MM-DD",
+  "last_scanned": "YYYY-MM-DD",
+  "status": "pending",
+  "leads_found": 0,
+  "discovery_term": "nail salon owners Houston"
+}
+```
+
+`status` moves `pending -> scanned -> recommended|rejected` as the pass works down the list across
+runs. Check this file before spending an `fb.groups.search`/`fb.group.search_posts` call on a group
+already scanned in the last 7 days (Stage 10's dedupe rule) — the file is the memory that keeps the
+DAILY companion pass from rediscovering the same handful of groups every day.
+
 ### First action once the bridge exists: settle any deferred slot check
 
 The bridge carries `tool schedule-slots`, and Setup Flow creates the first automation task before it
