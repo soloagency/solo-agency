@@ -1,5 +1,11 @@
 // Solo Agency plan verification (Ed25519, WebCrypto) — see solo_entitlement.js.
 importScripts("solo_entitlement.js");
+// Platform-module layer (additive, 2026-09-09). core/schema.js is the one canonical record shape;
+// core/platform_registry.js describes each platform module as data; platforms/<name>/*_normalize.js
+// is that module's own mapping from its typed capability output into the canonical shape. All
+// three are pure JSON functions with no chrome.* or DOM dependency, so a load failure here would
+// be a syntax error caught by `node --check` before sync, never a runtime surprise.
+importScripts("core/schema.js", "core/platform_registry.js", "platforms/facebook/fb_normalize.js", "platforms/zillow/zillow_normalize.js");
 
 // How long one capability may run inside the page before it is killed. Raised from 45s: a tab that
 // is never activated is throttled by Chrome and the same About walk took 2-3x longer than in an
@@ -1156,6 +1162,21 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
               }), 8000, "inject_zillow_extract_timeout");
               gqlRecords = await runCapabilityDispatch();
             }
+            // Re-snapshot the generic GraphQL layer AFTER the capability ran. A capability that
+            // has to trigger its own query (a friends list, a timeline, a search) fires it during
+            // dispatch, so the manifest taken above never listed it — and the healthcheck's L1
+            // sensor then read "no query containing Friends fired" over a record holding 24
+            // friends read from exactly that query. Additive: same fields, a fuller list.
+            if (isFbPage) {
+              try {
+                const [gres2] = await withTimeout(chrome.scripting.executeScript({
+                  target: { tabId: tab.id },
+                  world: "MAIN",
+                  func: () => (typeof window.__soloGqlExtract === "function" ? window.__soloGqlExtract({}) : null)
+                }), 8000, "gql_extract_timeout");
+                if (gres2 && gres2.result) gql = gres2.result;
+              } catch (e) { /* keep the pre-dispatch snapshot */ }
+            }
           }
         }
       } catch (error) {
@@ -1173,6 +1194,11 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
           };
         }
       }
+      // --- Canonical layer (additive) --- the platform module's normalizer maps its typed
+      // output into core/schema.js's shape and the result rides along as records.canonical.
+      // Nothing already in `records` is renamed, removed or reshaped; a normalizer that is
+      // missing, returns null (web.search) or throws leaves the record exactly as before.
+      if (gqlRecords && wantCapability) attachCanonical(gqlRecords, String(source.capability));
     }
     const gqlAvailable = !!(gql && gql.available);
 
@@ -3310,6 +3336,32 @@ const HIDEABLE_CAPABILITIES = new Set([
   "zillow.profile.enrich", // same
   "web.search"             // static results HTML
 ]);
+
+// attachCanonical: ask the capability's platform module (core/platform_registry.js) for its
+// normalizer, run it over the capability result, validate the canonical block against
+// core/schema.js and attach it as records.canonical. Validation only LOGS — a field the schema
+// dislikes is a bug to fix in the module's normalizer, not a reason to drop data the operator
+// paid a page load for. Problems are also recorded on the record (records.canonical_validation)
+// so the bridge and the healthcheck can see them without a console.
+function attachCanonical(records, capId) {
+  try {
+    const P = self.SoloPlatforms, S = self.SoloSchema;
+    if (!P || !S || !records || typeof records !== "object") return;
+    const entry = P.entryFor(capId, "normalize");
+    const normalize = entry && typeof self[entry] === "function" ? self[entry] : null;
+    if (!normalize) return;
+    const canonical = normalize(capId, records, { captured_at: S.nowIso() });
+    if (!canonical) return;
+    const verdict = S.validateCanonical(canonical);
+    records.canonical = canonical;
+    if (!verdict.ok || verdict.warnings.length) {
+      records.canonical_validation = { ok: verdict.ok, errors: verdict.errors.slice(0, 20), warnings: verdict.warnings.slice(0, 20) };
+      if (!verdict.ok) console.warn("[canonical] " + capId + ": " + verdict.errors.length + " problem(s)", verdict.errors.slice(0, 5));
+    }
+  } catch (e) {
+    console.warn("[canonical] normalize failed for " + capId + ": " + String(e && e.message || e));
+  }
+}
 
 function capabilityNeedsActiveTab(source) {
   const cap = source && source.capability ? String(source.capability) : "";
