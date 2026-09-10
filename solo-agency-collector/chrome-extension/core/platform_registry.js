@@ -108,12 +108,11 @@
       // background.js ~778 (FB_PERMALINK_HOSTS) — the allowlist a match_text write's
       // resolved permalink is checked against before the tab is navigated there.
       hosts: ["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com"],
-      // CURRENT paths, at the repo root — a later refactor step moves these under a
-      // platform-module directory; this registry is written against where the files live
-      // TODAY (background.js ~1000-1160).
+      // Paths are relative to the extension root, exactly as chrome.scripting.executeScript
+      // wants them (background.js ~1000-1160).
       files: {
-        read: ["gql_extract.js"],
-        write: ["gql_actions.js"]
+        read: ["platforms/facebook/gql_extract.js"],
+        write: ["platforms/facebook/gql_actions.js"]
       },
       // Page-context (MAIN world) entry points background.js calls into (~1000-1160).
       entries: {
@@ -166,7 +165,7 @@
       capPrefix: "zillow.",
       hosts: ["zillow.com", "www.zillow.com"],
       files: {
-        read: ["zillow_extract.js"]
+        read: ["platforms/zillow/zillow_extract.js"]
         // no write file: Zillow has no write capabilities today.
       },
       entries: {

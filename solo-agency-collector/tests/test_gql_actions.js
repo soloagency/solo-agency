@@ -5,7 +5,7 @@ const fs = require("fs");
 const vm = require("vm");
 
 const path = require("path");
-const SRC = fs.readFileSync(path.join(__dirname, "..", "chrome-extension", "gql_actions.js"), "utf8");
+const SRC = fs.readFileSync(path.join(__dirname, "..", "chrome-extension", "platforms", "facebook", "gql_actions.js"), "utf8");
 
 function fakeEl(attrs, opts) {
   opts = opts || {};

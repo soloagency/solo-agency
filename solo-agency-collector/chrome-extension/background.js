@@ -998,10 +998,10 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
               // POST's permalink. gql_extract's own ensureCapture already waits and nudges the
               // page when a capture has not arrived yet, so nothing here needs to poll for it.
               await withTimeout(chrome.scripting.executeScript({
-                target: { tabId: tab.id }, world: "MAIN", files: ["gql_extract.js"]
+                target: { tabId: tab.id }, world: "MAIN", files: ["platforms/facebook/gql_extract.js"]
               }), 8000, "inject_gql_extract_timeout");
               await withTimeout(chrome.scripting.executeScript({
-                target: { tabId: tab.id }, world: "MAIN", files: ["gql_actions.js"]
+                target: { tabId: tab.id }, world: "MAIN", files: ["platforms/facebook/gql_actions.js"]
               }), 8000, "inject_gql_actions_timeout");
               const [rres] = await withTimeout(chrome.scripting.executeScript({
                 target: { tabId: tab.id },
@@ -1047,7 +1047,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
               await withTimeout(chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 world: "MAIN",
-                files: ["gql_actions.js"]
+                files: ["platforms/facebook/gql_actions.js"]
               }), 8000, "inject_gql_actions_timeout");
               const [ares] = await withTimeout(chrome.scripting.executeScript({
                 target: { tabId: tab.id },
@@ -1079,7 +1079,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
           await withTimeout(chrome.scripting.executeScript({
             target: { tabId: tab.id },
             world: "MAIN",
-            files: ["gql_extract.js"]
+            files: ["platforms/facebook/gql_extract.js"]
           }), 8000, "inject_gql_extract_timeout");
           // Zillow capabilities live in their own MAIN-world lib (zillow_extract.js) and are
           // dispatched through window.__soloZillowRun below — injected ONLY for zillow.* jobs,
@@ -1088,7 +1088,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
             await withTimeout(chrome.scripting.executeScript({
               target: { tabId: tab.id },
               world: "MAIN",
-              files: ["zillow_extract.js"]
+              files: ["platforms/zillow/zillow_extract.js"]
             }), 8000, "inject_zillow_extract_timeout");
           }
           // Facebook-only generic layer (graphql_records + graphql_manifest).
@@ -1152,7 +1152,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
               humanGate = mergeHumanGate(humanGate, gate);
               if (!gate.solved) break;
               await withTimeout(chrome.scripting.executeScript({
-                target: { tabId: tab.id }, world: "MAIN", files: ["zillow_extract.js"]
+                target: { tabId: tab.id }, world: "MAIN", files: ["platforms/zillow/zillow_extract.js"]
               }), 8000, "inject_zillow_extract_timeout");
               gqlRecords = await runCapabilityDispatch();
             }

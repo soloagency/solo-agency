@@ -15,7 +15,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-const SRC = fs.readFileSync(path.join(__dirname, "..", "chrome-extension", "zillow_extract.js"), "utf8");
+const SRC = fs.readFileSync(path.join(__dirname, "..", "chrome-extension", "platforms", "zillow", "zillow_extract.js"), "utf8");
 
 let pass = 0, fail = 0;
 function check(name, cond, detail) {

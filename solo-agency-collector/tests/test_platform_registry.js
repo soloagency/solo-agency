@@ -227,9 +227,9 @@ console.log("\n== lookup helpers ==");
   check("isInfoOnly('fb.profile.contacts') === true", P.isInfoOnly("fb.profile.contacts") === true);
   check("isInfoOnly('fb.group.posts') === false", P.isInfoOnly("fb.group.posts") === false);
 
-  check("filesFor('fb.group.posts', {}) reads gql_extract.js", JSON.stringify(P.filesFor("fb.group.posts", {})) === JSON.stringify(["gql_extract.js"]));
-  check("filesFor('fb.post.react', {write:true}) reads gql_actions.js", JSON.stringify(P.filesFor("fb.post.react", { write: true })) === JSON.stringify(["gql_actions.js"]));
-  check("filesFor('zillow.agents.list', {}) reads zillow_extract.js", JSON.stringify(P.filesFor("zillow.agents.list", {})) === JSON.stringify(["zillow_extract.js"]));
+  check("filesFor('fb.group.posts', {}) reads gql_extract.js", JSON.stringify(P.filesFor("fb.group.posts", {})) === JSON.stringify(["platforms/facebook/gql_extract.js"]));
+  check("filesFor('fb.post.react', {write:true}) reads gql_actions.js", JSON.stringify(P.filesFor("fb.post.react", { write: true })) === JSON.stringify(["platforms/facebook/gql_actions.js"]));
+  check("filesFor('zillow.agents.list', {}) reads zillow_extract.js", JSON.stringify(P.filesFor("zillow.agents.list", {})) === JSON.stringify(["platforms/zillow/zillow_extract.js"]));
   check("filesFor('zillow.agents.list', {write:true}) is empty (no zillow write file)", JSON.stringify(P.filesFor("zillow.agents.list", { write: true })) === JSON.stringify([]));
   check("filesFor('nonexistent.thing', {}) is empty", JSON.stringify(P.filesFor("nonexistent.thing", {})) === JSON.stringify([]));
 
