@@ -43,8 +43,8 @@ const ACTIVE_RUN_LOCK_MINUTES = 120;
 // builds — and during a live debug there was no way to tell whether a reload had
 // even happened. The label is kept as a suffix so existing log greps still match.
 const EXTENSION_BUILD = (() => {
-  try { return chrome.runtime.getManifest().version + "-name-and-catalog"; }
-  catch (e) { return "0.2.1-name-and-catalog"; }
+  try { return chrome.runtime.getManifest().version + "-platform-modules"; }
+  catch (e) { return "0.2.1-platform-modules"; }
 })();
 const NORMAL_SCROLL_CAP = 10;
 const DISCOVERY_SCROLL_CAP = 10;
@@ -781,7 +781,9 @@ function isSelfOrAmbiguousFbUrl(rawUrl) {
 // host is checked against an allowlist rather than a /facebook\.com$/ pattern — which
 // would also admit l.facebook.com, the link shim that forwards anywhere off-platform.
 // gql_actions.js applies the same allowlist in-page; this is the second, independent gate.
-const FB_PERMALINK_HOSTS = new Set(["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com"]);
+// The hosts are the Facebook module's own declaration (core/platform_registry.js), the same
+// list gql_actions.js applies in-page.
+const FB_PERMALINK_HOSTS = new Set(SoloPlatforms.moduleForHost("www.facebook.com").hosts);
 function safeFacebookPermalink(rawUrl) {
   const s = String(rawUrl || "").trim();
   if (!/^https?:\/\//i.test(s)) return "";
@@ -811,10 +813,14 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     runId: String(job?.run_id || "")
   };
   const tabActivationPlan = collectionTabActivationPlan(job, source);
-  // Zillow capabilities (zillow_extract.js) — decided up front because they change three
-  // things below: no scrolling, an extra MAIN-world lib, and the human gate for Zillow's
-  // bot check. Guarded by prefix so no Facebook capability changes behaviour.
-  const isZillowCapability = !!source.capability && /^zillow\./.test(String(source.capability));
+  // The capability's platform module (core/platform_registry.js) decides three things below:
+  // whether the page scrolls (info_only), which MAIN-world libraries are injected, and
+  // whether a human gate guards the load. "zillow" names the PerimeterX Press & Hold gate,
+  // the only gate implemented today; a module opts in by declaring human_gate: "zillow".
+  const capabilityId = source.capability ? String(source.capability) : "";
+  const capModule = capabilityId ? SoloPlatforms.moduleForCapability(capabilityId) : null;
+  const dispatchModule = capabilityId ? SoloPlatforms.dispatchModuleFor(capabilityId) : null;
+  const isZillowCapability = !!(capModule && capModule.human_gate === "zillow");
   const gateContext = { job, source, settings, binding, sourceIndex };
   let humanGate = null;
   const tab = await createTab({ url: source.url, active: tabActivationPlan.createActive });
@@ -872,13 +878,13 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // Write actions must NOT pre-scroll: on a reels/immersive player, scrolling
     // ADVANCES to the next (recommended) reel, drifting the write off-target; on
     // a permalink it just wastes time. Force 0 scroll steps for write actions.
-    const WRITE_ACTIONS = new Set(["fb.post.react", "fb.post.comment", "fb.message.send", "fb.group.post"]);
+    const WRITE_ACTIONS = SoloPlatforms.writeActions();
     const wantAction = !!source.capability && WRITE_ACTIONS.has(String(source.capability));
     // Content-addressed targeting: the job names the post by TEXT and points `url` at a
     // listing (group feed / profile timeline) instead of a permalink. The match is made in
     // code by gql_actions.js, then THIS layer navigates to the winner — the resolver must
     // never act where it searched, because a feed carries one composer per post.
-    const MATCH_RESOLVABLE = new Set(["fb.post.react", "fb.post.comment"]);
+    const MATCH_RESOLVABLE = SoloPlatforms.matchResolvable();
     const sourceInputs = source.inputs && typeof source.inputs === "object" ? source.inputs : {};
     const wantMatchResolve = wantAction
       && MATCH_RESOLVABLE.has(String(source.capability))
@@ -893,10 +899,10 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     // costs ~5 extra scroll cycles and a burst of GraphQL feed requests per profile —
     // pure waste and needless rate-limit exposure on a big email dig. Separate the job
     // kinds explicitly: info tasks never scroll for content.
-    const INFO_ONLY_CAPABILITIES = new Set(["fb.profile.contacts", "fb.profile.header"]);
     // Zillow capabilities read the page's Next.js state, which is complete at load; scrolling
-    // adds nothing but time and bot-check exposure (isZillowCapability is set at the top).
-    const infoOnly = !!source.capability && (INFO_ONLY_CAPABILITIES.has(String(source.capability)) || isZillowCapability);
+    // adds nothing but time and bot-check exposure — the registry marks that whole module
+    // info_only, so one lookup covers both lists.
+    const infoOnly = !!capabilityId && SoloPlatforms.isInfoOnly(capabilityId);
     // A match_text write STARTS on a listing page, and that listing is exactly what has to
     // scroll: Facebook only fires the feed GraphQL query the resolver reads once the feed
     // moves. The reason writes never scroll is the reel player, where a scroll is a
@@ -962,7 +968,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
             // verified:true. The requested url IS the pin on this path, so say so and
             // let resolvedDrift() — which understands pfbid — do its job. Scoped to the
             // page-surface writes; fb.message.send has its own thread-identity guard.
-            const PIN_TARGET = new Set(["fb.post.comment", "fb.post.react", "fb.group.post"]);
+            const PIN_TARGET = SoloPlatforms.pinTarget();
             if (wantAction && !wantMatchResolve && PIN_TARGET.has(String(source.capability))) {
               actionInputs._resolved_url = String(source.url || "");
             }
@@ -973,8 +979,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
             // job's own sources, so a legitimate write arrives with its flag cleared and
             // a discovery job's blanket deny finally means something. Checked BEFORE the
             // resolve phase, so a forbidden write never even navigates.
-            const POLICY_FLAG = { "fb.post.comment": "do_not_comment", "fb.post.react": "do_not_react",
-                                  "fb.message.send": "do_not_message", "fb.group.post": "do_not_post" };
+            const POLICY_FLAG = SoloPlatforms.policyFlags();
             const denyFlag = POLICY_FLAG[String(source.capability)];
             if (denyFlag && job.collector_policy && job.collector_policy[denyFlag] === true) {
               refusal = { available: true, capability: String(source.capability), status: "policy_refused",
@@ -1004,16 +1009,16 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
               // POST's permalink. gql_extract's own ensureCapture already waits and nudges the
               // page when a capture has not arrived yet, so nothing here needs to poll for it.
               await withTimeout(chrome.scripting.executeScript({
-                target: { tabId: tab.id }, world: "MAIN", files: ["platforms/facebook/gql_extract.js"]
+                target: { tabId: tab.id }, world: "MAIN", files: SoloPlatforms.dispatchFilesFor(capabilityId, { write: false })
               }), 8000, "inject_gql_extract_timeout");
               await withTimeout(chrome.scripting.executeScript({
-                target: { tabId: tab.id }, world: "MAIN", files: ["platforms/facebook/gql_actions.js"]
+                target: { tabId: tab.id }, world: "MAIN", files: SoloPlatforms.dispatchFilesFor(capabilityId, { write: true })
               }), 8000, "inject_gql_actions_timeout");
               const [rres] = await withTimeout(chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 world: "MAIN",
-                func: async (capId, capInputs) => (typeof window.__soloActResolve === "function" ? await window.__soloActResolve(capId, capInputs) : { __nolib: true }),
-                args: [String(source.capability), actionInputs]
+                func: async (capId, capInputs, entry) => (entry && typeof window[entry] === "function" ? await window[entry](capId, capInputs) : { __nolib: true }),
+                args: [capabilityId, actionInputs, SoloPlatforms.dispatchEntryFor(capabilityId, "resolve")]
               }), 60000, "gql_action_resolve_timeout");
               const rr = rres && rres.result;
               const rItem = rr && Array.isArray(rr.items) ? rr.items[0] : null;
@@ -1053,13 +1058,13 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
               await withTimeout(chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 world: "MAIN",
-                files: ["platforms/facebook/gql_actions.js"]
+                files: SoloPlatforms.dispatchFilesFor(capabilityId, { write: true })
               }), 8000, "inject_gql_actions_timeout");
               const [ares] = await withTimeout(chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 world: "MAIN",
-                func: async (capId, capInputs) => (typeof window.__soloActRun === "function" ? await window.__soloActRun(capId, capInputs) : { __nolib: true }),
-                args: [String(source.capability), actionInputs]
+                func: async (capId, capInputs, entry) => (entry && typeof window[entry] === "function" ? await window[entry](capId, capInputs) : { __nolib: true }),
+                args: [capabilityId, actionInputs, SoloPlatforms.dispatchEntryFor(capabilityId, "act")]
               }), 60000, "gql_action_timeout");
               const ar = ares && ares.result;
               if (ar && ar.__nolib) gqlRecords = { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: "action lib not present (frame navigated before inject?)" }], _debug: { href: source.url } };
@@ -1082,20 +1087,27 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
             gqlRecords = { available: false, capability: String(source.capability), count: 0, items: [{ status: "error", error: String(actErr && actErr.message || actErr) }], _debug: { href: source.url } };
           }
         } else {
+          // The Facebook read library is injected on every read: besides its capabilities it
+          // carries the generic GraphQL layer (graphql_records / graphql_manifest) every
+          // Facebook page needs, and it reads window.__soloGql only lazily, so it is inert on
+          // any other site. A known wart: that generic layer belongs in core, not in a module.
+          const genericReadFiles = SoloPlatforms.dispatchFilesFor("", { write: false });
           await withTimeout(chrome.scripting.executeScript({
             target: { tabId: tab.id },
             world: "MAIN",
-            files: ["platforms/facebook/gql_extract.js"]
+            files: genericReadFiles
           }), 8000, "inject_gql_extract_timeout");
-          // Zillow capabilities live in their own MAIN-world lib (zillow_extract.js) and are
-          // dispatched through window.__soloZillowRun below — injected ONLY for zillow.* jobs,
-          // so the Facebook path is byte-for-byte unchanged.
-          if (isZillowCapability) {
+          // The capability's own module library (zillow_extract.js today) when it is not the
+          // one just injected — only that module's jobs load it, so no other path changes.
+          const moduleReadFiles = capabilityId
+            ? SoloPlatforms.dispatchFilesFor(capabilityId, { write: false }).filter((f) => genericReadFiles.indexOf(f) === -1)
+            : [];
+          if (moduleReadFiles.length) {
             await withTimeout(chrome.scripting.executeScript({
               target: { tabId: tab.id },
               world: "MAIN",
-              files: ["platforms/zillow/zillow_extract.js"]
-            }), 8000, "inject_zillow_extract_timeout");
+              files: moduleReadFiles
+            }), 8000, "inject_module_lib_timeout");
           }
           // Facebook-only generic layer (graphql_records + graphql_manifest).
           if (isFbPage) {
@@ -1113,19 +1125,22 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
               const [cres] = await withTimeout(chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 world: "MAIN",
-                func: async (capId, capInputs) => {
-                  // zillow.* -> zillow_extract.js. A missing lib is reported as a visible error
-                  // record (available:true) rather than falling through to the Facebook dispatcher,
-                  // whose "no_extractor" answer would null the record and hide the failure.
-                  if (/^zillow\./.test(String(capId))) {
-                    if (typeof window.__soloZillowRun === "function") return await window.__soloZillowRun(capId, capInputs);
-                    return { available: true, capability: String(capId), count: 0, status: "error", items: [{ capability: String(capId), status: "error", error: "zillow lib not present (zillow_extract.js failed to inject?)" }] };
+                // The entry points come from the capability's module (core/platform_registry.js):
+                // `run`, then `runFallback` when the module declares one. A module with a single
+                // entry (zillow) whose library is missing reports a visible error record
+                // (available:true) rather than falling through to another module's dispatcher,
+                // whose "no_extractor" answer would null the record and hide the failure.
+                func: async (capId, capInputs, runEntry, fallbackEntry, moduleName) => {
+                  if (runEntry && typeof window[runEntry] === "function") return await window[runEntry](capId, capInputs);
+                  if (fallbackEntry && typeof window[fallbackEntry] === "function") return window[fallbackEntry](capId, capInputs);
+                  if (runEntry && !fallbackEntry) {
+                    return { available: true, capability: String(capId), count: 0, status: "error", items: [{ capability: String(capId), status: "error", error: moduleName + " lib not present (" + runEntry + " missing; did its file fail to inject?)" }] };
                   }
-                  if (typeof window.__soloGqlPaginate === "function") return await window.__soloGqlPaginate(capId, capInputs);
-                  if (typeof window.__soloGqlExtractCapability === "function") return window.__soloGqlExtractCapability(capId, capInputs);
                   return null;
                 },
-                args: [String(source.capability), source.inputs && typeof source.inputs === "object" ? source.inputs : {}]
+                args: [capabilityId, source.inputs && typeof source.inputs === "object" ? source.inputs : {},
+                  SoloPlatforms.dispatchEntryFor(capabilityId, "run"), SoloPlatforms.dispatchEntryFor(capabilityId, "runFallback"),
+                  dispatchModule ? dispatchModule.name : ""]
               }), CAPABILITY_TIMEOUT_MS, "gql_capability_timeout");
               // executeScript can RESOLVE with nothing: the frame navigated or was destroyed while
               // the capability was running, so there is no result and no exception either. That
@@ -1158,8 +1173,8 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
               humanGate = mergeHumanGate(humanGate, gate);
               if (!gate.solved) break;
               await withTimeout(chrome.scripting.executeScript({
-                target: { tabId: tab.id }, world: "MAIN", files: ["platforms/zillow/zillow_extract.js"]
-              }), 8000, "inject_zillow_extract_timeout");
+                target: { tabId: tab.id }, world: "MAIN", files: SoloPlatforms.dispatchFilesFor(capabilityId, { write: false })
+              }), 8000, "inject_module_lib_timeout");
               gqlRecords = await runCapabilityDispatch();
             }
             // Re-snapshot the generic GraphQL layer AFTER the capability ran. A capability that
@@ -3327,15 +3342,9 @@ function maxScrollStepsForCollection(job, source) {
 // half was perfect. Anything reading a feed — timeline, newsfeed, group posts, reels, videos — has
 // the same dependency. The About section, a profile header, a hovercard fetched by entity_id and
 // Zillow's __NEXT_DATA__ are all present without being looked at.
-const HIDEABLE_CAPABILITIES = new Set([
-  "fb.profile.dossier",    // About sections; measured intact hidden, and 2% noise instead of ~30%
-  "fb.profile.header",     // header + intro card, rendered at load
-  "fb.profile.contacts",   // About sub-tabs, same walk as dossier
-  "fb.profile.hovercard",  // calls the hovercard query by entity_id; nothing on screen matters
-  "zillow.agents.list",    // __NEXT_DATA__ is in the served HTML
-  "zillow.profile.enrich", // same
-  "web.search"             // static results HTML
-]);
+// Declared per capability (hideable: true) in core/platform_registry.js, where the measurement
+// behind each entry is recorded next to it.
+const HIDEABLE_CAPABILITIES = SoloPlatforms.hideable();
 
 // attachCanonical: ask the capability's platform module (core/platform_registry.js) for its
 // normalizer, run it over the capability result, validate the canonical block against

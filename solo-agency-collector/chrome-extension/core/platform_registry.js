@@ -41,13 +41,13 @@
   // that is never shown/activated. capabilityNeedsActiveTab (~3314) is exactly the negation
   // of this set.
   const HIDEABLE_TABLE = [
-    "fb.profile.dossier",
-    "fb.profile.header",
-    "fb.profile.contacts",
-    "fb.profile.hovercard",
-    "zillow.agents.list",
-    "zillow.profile.enrich",
-    "web.search"
+    "fb.profile.dossier",    // About sections; measured intact hidden, and 2% noise instead of ~30%
+    "fb.profile.header",     // header + intro card, rendered at load
+    "fb.profile.contacts",   // About sub-tabs, same walk as dossier
+    "fb.profile.hovercard",  // calls the hovercard query by entity_id; nothing on screen matters
+    "zillow.agents.list",    // __NEXT_DATA__ is in the served HTML
+    "zillow.profile.enrich", // same
+    "web.search"             // static results HTML
   ];
 
   function inTable(table, id) { return table.indexOf(id) !== -1; }
@@ -209,6 +209,25 @@
     return null;
   }
 
+  // dispatchModuleFor: the module whose page libraries serve this capability id. An id no
+  // module claims — the internal _discover.* / _diag.* ids, or a typo — is served by the
+  // FIRST module (facebook): its read library also carries the generic GraphQL layer every
+  // Facebook page needs, exactly as background.js has always injected it. That is a known
+  // wart (the generic layer belongs in core), recorded here rather than hidden.
+  function dispatchModuleFor(capId) {
+    return moduleForCapability(capId) || PLATFORM_MODULES[0];
+  }
+  function dispatchFilesFor(capId, opts) {
+    const mod = dispatchModuleFor(capId);
+    const wantWrite = !!(opts && opts.write);
+    const list = mod && mod.files ? (wantWrite ? mod.files.write : mod.files.read) : null;
+    return Array.isArray(list) ? list.slice() : [];
+  }
+  function dispatchEntryFor(capId, name) {
+    const mod = dispatchModuleFor(capId);
+    return mod && mod.entries ? (mod.entries[name] || null) : null;
+  }
+
   function moduleForHost(hostname) {
     const h = String(hostname || "").toLowerCase();
     if (!h) return null;
@@ -297,6 +316,9 @@
     needsActiveTab: needsActiveTab,
     filesFor: filesFor,
     entryFor: entryFor,
+    dispatchModuleFor: dispatchModuleFor,
+    dispatchFilesFor: dispatchFilesFor,
+    dispatchEntryFor: dispatchEntryFor,
     writeActions: writeActions,
     matchResolvable: matchResolvable,
     infoOnly: infoOnly,

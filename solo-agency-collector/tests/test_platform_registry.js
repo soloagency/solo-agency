@@ -3,7 +3,7 @@
 //
 // Two things make this test different from a normal unit test:
 //   1. It is a DRIFT GUARD. background.js is NOT changed by this step (that is later), so
-//      this file regex-extracts the six literal tables straight out of background.js's own
+//      this file pins that background.js takes its tables from the registry (it used to regex-extract six literal tables out of background.js's own
 //      source text (the same trick tests/test_gql_actions.js uses to pin
 //      background.js's PIN_TARGET/POLICY_FLAG guards) and asserts platform_registry.js
 //      reproduces them exactly. If a future edit to background.js changes one of the six
@@ -88,48 +88,35 @@ function extractObjectLiteral(varName) {
   return out;
 }
 
-console.log("\n== drift guard: background.js's six literal tables vs the registry ==");
-
-const bgWriteActions = extractSetLiteral("WRITE_ACTIONS");
-const bgMatchResolvable = extractSetLiteral("MATCH_RESOLVABLE");
-const bgInfoOnly = extractSetLiteral("INFO_ONLY_CAPABILITIES");
-const bgPinTarget = extractSetLiteral("PIN_TARGET");
-const bgPolicyFlag = extractObjectLiteral("POLICY_FLAG");
-const bgHideable = extractSetLiteral("HIDEABLE_CAPABILITIES");
-
-check("background.js WRITE_ACTIONS has the 4 ids this test expects (sanity)", bgWriteActions.length === 4, bgWriteActions);
-check("background.js HIDEABLE_CAPABILITIES has the 7 ids this test expects (sanity)", bgHideable.length === 7, bgHideable);
-
-check(
-  "SoloPlatforms.writeActions() === background.js WRITE_ACTIONS",
-  sortedEqual(setToSortedArray(P.writeActions()), bgWriteActions),
-  { registry: setToSortedArray(P.writeActions()), background: bgWriteActions.slice().sort() }
-);
-check(
-  "SoloPlatforms.matchResolvable() === background.js MATCH_RESOLVABLE",
-  sortedEqual(setToSortedArray(P.matchResolvable()), bgMatchResolvable),
-  { registry: setToSortedArray(P.matchResolvable()), background: bgMatchResolvable.slice().sort() }
-);
-check(
-  "SoloPlatforms.infoOnly() === background.js INFO_ONLY_CAPABILITIES",
-  sortedEqual(setToSortedArray(P.infoOnly()), bgInfoOnly),
-  { registry: setToSortedArray(P.infoOnly()), background: bgInfoOnly.slice().sort() }
-);
-check(
-  "SoloPlatforms.pinTarget() === background.js PIN_TARGET",
-  sortedEqual(setToSortedArray(P.pinTarget()), bgPinTarget),
-  { registry: setToSortedArray(P.pinTarget()), background: bgPinTarget.slice().sort() }
-);
-check(
-  "SoloPlatforms.policyFlags() === background.js POLICY_FLAG",
-  JSON.stringify(P.policyFlags()) === JSON.stringify(bgPolicyFlag),
-  { registry: P.policyFlags(), background: bgPolicyFlag }
-);
-check(
-  "SoloPlatforms.hideable() === background.js HIDEABLE_CAPABILITIES",
-  sortedEqual(setToSortedArray(P.hideable()), bgHideable),
-  { registry: setToSortedArray(P.hideable()), background: bgHideable.slice().sort() }
-);
+console.log("\n== drift guard: background.js takes its capability tables from the registry ==");
+// Until 2026-09-09 background.js carried six literal tables and this test compared them with
+// the registry. The tables ARE the registry's now: pin that each name is assigned from
+// SoloPlatforms, that dispatch resolves files and entry points through it, and that no
+// literal fb./zillow. capability id or capability-prefix regex is left in the service
+// worker's code (comments excluded). Any of these coming back is the old scatter returning.
+const CODE = stripLineComments(BACKGROUND_SRC);
+[["WRITE_ACTIONS", "writeActions"], ["MATCH_RESOLVABLE", "matchResolvable"], ["PIN_TARGET", "pinTarget"],
+ ["POLICY_FLAG", "policyFlags"], ["HIDEABLE_CAPABILITIES", "hideable"]].forEach(function (pair) {
+  const re = new RegExp("const\\s+" + pair[0] + "\\s*=\\s*SoloPlatforms\\." + pair[1] + "\\(\\)");
+  check("background.js " + pair[0] + " = SoloPlatforms." + pair[1] + "()", re.test(CODE), pair[0]);
+});
+check("background.js infoOnly uses SoloPlatforms.isInfoOnly", /SoloPlatforms\.isInfoOnly\(/.test(CODE));
+check("background.js dispatch resolves run/runFallback entries through the registry",
+  /dispatchEntryFor\(capabilityId, "run"\)/.test(CODE) && /dispatchEntryFor\(capabilityId, "runFallback"\)/.test(CODE));
+check("background.js resolves act/resolve entries through the registry",
+  /dispatchEntryFor\(capabilityId, "act"\)/.test(CODE) && /dispatchEntryFor\(capabilityId, "resolve"\)/.test(CODE));
+check("background.js injects module files via dispatchFilesFor", /dispatchFilesFor\(capabilityId/.test(CODE));
+check("background.js FB_PERMALINK_HOSTS comes from the registry's host table", /const FB_PERMALINK_HOSTS = new Set\(SoloPlatforms\.moduleForHost\(/.test(CODE));
+check("background.js loads core/platform_registry.js via importScripts", /importScripts\([^)]*"core\/platform_registry\.js"/.test(BACKGROUND_SRC));
+{
+  const leftovers = CODE.match(/"(fb|zillow)\.[a-z_.]+"/g) || [];
+  check("no literal fb./zillow. capability id left in background.js code", leftovers.length === 0, leftovers.slice(0, 5));
+  check("no capability-prefix regex left in background.js code", !/\/\^(zillow|fb)\\\./.test(CODE));
+}
+// The registry's own tables, pinned to what shipped (a later change must be deliberate).
+check("registry writeActions() has the 4 write ids", P.writeActions().size === 4, setToSortedArray(P.writeActions()));
+check("registry hideable() has the 7 hideable ids", P.hideable().size === 7, setToSortedArray(P.hideable()));
+check("registry policyFlags() maps the 4 write ids", Object.keys(P.policyFlags()).length === 4, P.policyFlags());
 
 // needs_active_tab is the negation of HIDEABLE_CAPABILITIES (background.js
 // capabilityNeedsActiveTab, ~3314) — check it holds for every capability the registry knows.
@@ -250,16 +237,13 @@ console.log("\n== lookup helpers ==");
   );
 }
 
-// ------------------------------------------------------------------ facebook module hosts === FB_PERMALINK_HOSTS
-console.log("\n== facebook module hosts vs background.js FB_PERMALINK_HOSTS ==");
+// ------------------------------------------------------------------ facebook module hosts
+console.log("\n== facebook module hosts ==");
 {
-  const bgHosts = extractSetLiteral("FB_PERMALINK_HOSTS");
   const fbMod = P.PLATFORM_MODULES.filter(function (m) { return m.name === "facebook"; })[0];
-  check(
-    "facebook module hosts === background.js FB_PERMALINK_HOSTS",
-    sortedEqual(fbMod.hosts.slice(), bgHosts),
-    { registry: fbMod.hosts.slice().sort(), background: bgHosts.slice().sort() }
-  );
+  check("facebook module declares the four permalink hosts",
+    sortedEqual(fbMod.hosts.slice(), ["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com"]), fbMod.hosts);
+  check("moduleForHost('www.facebook.com') is the facebook module", P.moduleForHost("www.facebook.com") === fbMod);
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
