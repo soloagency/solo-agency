@@ -68,6 +68,8 @@ function makeCtx(opts) {
   const headerNode = opts.headerText !== undefined ? { innerText: opts.headerText } : null;
   const document = {
     querySelector: (sel) => (sel === "header" ? headerNode : null),
+    // data-sjs scripts: the Relay entries Instagram embeds in the page (opts.dataSjs = [text...])
+    querySelectorAll: (sel) => (sel.indexOf("data-sjs") !== -1 ? (opts.dataSjs || []).map((t) => ({ textContent: t })) : []),
   };
   const location = { pathname, href };
   const store = {
@@ -423,6 +425,25 @@ function sensitiveKeys(o, pathStr, out) {
     check("emailsIn/phonesIn extract from free text", JSON.stringify(internals.emailsIn("reach me at a@b.com")) === JSON.stringify(["a@b.com"]) && internals.phonesIn("call (555) 000-1111").length === 1, [internals.emailsIn("reach me at a@b.com"), internals.phonesIn("call (555) 000-1111")]);
     check("parseCount handles K/M suffixes", internals.parseCount("18.2K") === 18200 && internals.parseCount("1.5M") === 1500000, [internals.parseCount("18.2K"), internals.parseCount("1.5M")]);
     check("userRef: non-object -> null", internals.userRef(null) === null && internals.userRef("x") === null);
+  }
+
+  console.log("prefetched page data: a post page embeds the media (measured 2026-09-10), no post query on the wire");
+  {
+    const media = { pk: "3972649630022147867", id: "3972649630022147867_41436369314", code: "Dchr8pejp8b", caption: { text: "Một căn nhà đẹp" }, taken_at: 1787796796, like_count: 25, comment_count: 8, media_type: 2, product_type: "clips", image_versions2: { candidates: [{ url: "https://cdn/x.jpg" }] }, user: { pk: "41436369314", username: "nhuwhite", full_name: "Nhu White Realty", is_private: false, is_verified: true } };
+    const entry = ["adp_PolarisPostRootQueryRelayPreloader_abcdef1234567890", { __bbox: { complete: true, result: { data: { xdt_api__v1__media__shortcode__web_info: { items: [media] } } } } }];
+    const empty = ["adp_PolarisPostCommentsContainerQueryRelayPreloader_0123456789abcdef", { __bbox: { complete: true, result: { data: { xdt_api__v1__media__media_id__comments__connection: { edges: [], page_info: { end_cursor: null, has_next_page: false } } } } } }];
+    const scriptText = JSON.stringify({ require: [["ScheduledServerJS", "handle", null, [{ __bbox: { require: [["RelayPrefetchedStreamCache", "next", [], entry], ["RelayPrefetchedStreamCache", "next", [], empty]] } }]]] });
+    const fetched = [];
+    const origFetch = (url) => { fetched.push(String(url)); return Promise.resolve({ status: 200, text: () => Promise.resolve(JSON.stringify({ comments: [{ pk: "17975593221040065", text: "Is this still available?", created_at: 1779221058, created_at_utc: 1779221058, user: { pk: 431367558, username: "gissell.g.f", full_name: "Gissell Flores", is_private: false, is_verified: false }, child_comment_count: 1, comment_like_count: 1 }], next_min_id: "", has_more_comments: false, comment_count: 8 })) }); };
+    const ctx = makeCtx({ pathname: "/reel/Dchr8pejp8b/", captures: [], origFetch, dataSjs: [scriptText, "{\"require\":[]}"] });
+    const pre = ctx.window.__soloIgInternals.prefetched();
+    check("prefetched() yields the two embedded Relay entries with their query names", pre.length === 2 && pre[0].queryName === "PolarisPostRootQuery" && pre[1].queryName === "PolarisPostCommentsContainerQuery" && pre.every((e) => e.kind === "prefetch"), pre.map((e) => e.queryName));
+    const res = await ctx.window.__soloIgRun("ig.post.comments", { max_comments: 50, ensure_tries: 1 });
+    check("comments: media id resolved from the embedded post root", res.media_id === "3972649630022147867", res.media_id);
+    check("comments: REST called directly with that pk", fetched.some((u) => u.indexOf("/api/v1/media/3972649630022147867/comments/") !== -1), fetched);
+    check("comments: one comment returned", res.count === 1 && res.items[0].actor.username === "gissell.g.f", res.items);
+    check("comments: post header carried from the embedded media", !!res.post && res.post.code === "Dchr8pejp8b" && res.post.url === "https://www.instagram.com/reel/Dchr8pejp8b/" && res.comment_count === 8, res.post);
+    check("prefetched() is cached per page (same script count -> same array)", ctx.window.__soloIgInternals.prefetched() === pre);
   }
 
   console.log("");

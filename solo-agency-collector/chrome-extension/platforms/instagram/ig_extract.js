@@ -16,10 +16,19 @@
  *                     {edges[].node: XDTMediaDict, page_info{end_cursor, has_next_page}}, 12 per page.
  *   keyword search    PolarisKeywordSearchExplorePageRelayQuery (/explore/search/keyword/?q=) ->
  *                     data.xdt_fbsearch__top_serp_graphql.edges[].node (XDTTopSerpMediaGridUnit.items[]).
- *   people search     GET /api/v1/web/search/topsearch/?context=blended&query= -> users[].user
- *                     (the search box's own call; callable directly with the csrf + app-id headers).
+ *   people search     GET /api/v1/users/search/?q=&count= first (more rows when it answers), else
+ *                     GET /api/v1/web/search/topsearch/?context=blended&query= -> users[].user (the
+ *                     search box's own call, ~5 top matches; live 2026-09-10 only this one answered).
+ *                     Both are called directly with the csrf + app-id headers.
+ *   posts (tab)       the grid also fires PolarisProfilePostsTabContentQuery_connection — same
+ *                     connection path, matched by path not by name; cursor replay gave page 2 live.
+ *   post page         NO post query over the network: the media arrives EMBEDDED in the HTML
+ *                     (data-sjs Relay entry PolarisPostRootQuery -> data.xdt_api__v1__media__
+ *                     shortcode__web_info.items[0]: pk, code, caption, user, like_count,
+ *                     comment_count, taken_at) with an empty PolarisPostCommentsContainerQuery.
  *   post comments     GET /api/v1/media/<pk>/comments/?can_support_threading=true -> comments[],
- *                     next_min_id, has_more_comments (fires when a post opens).
+ *                     next_min_id, has_more_comments — fired by the page when the panel opens,
+ *                     called directly here with the pk read from the embedded media.
  * Every capability answers the same envelope the Facebook and Zillow modules use:
  *   { capability, available, count, status?, items[], source_query?, page_info?, error?, version }
  */
@@ -51,9 +60,47 @@
   function str(v) { return typeof v === "string" ? v : (v === null || v === undefined ? "" : String(v)); }
   function num(v) { return typeof v === "number" && isFinite(v) ? v : null; }
   function store() { return window.__soloIg || { captures: [] }; }
-  function captures() { var s = store(); return Array.isArray(s.captures) ? s.captures : []; }
+  // Data Instagram embeds in the page itself: every data-sjs script carries Relay entries
+  // ["adp_<QueryName>RelayPreloader_<hash>", {__bbox: {result: {data}}}]. Measured 2026-09-10:
+  // a post page ships PolarisPostRootQuery (the media) and PolarisPostCommentsContainerQuery
+  // (an EMPTY comments connection — comments load lazily) this way and fires NO post query
+  // over the network, while a profile page fires PolarisProfilePageContentQuery by XHR. So
+  // both sources are read: live captures first, then these prefetched ones, as pseudo-captures
+  // with kind "prefetch". Parsed once per page (48 scripts, ~1 MB) and cached on window.
+  function prefetched() {
+    try {
+      var scripts = document.querySelectorAll('script[type="application/json"][data-sjs]');
+      var cache = window.__soloIgPrefetch;
+      if (cache && cache.count === scripts.length) return cache.entries;
+      var entries = [];
+      var walk = function (o, depth) {
+        if (depth > 24 || !o || typeof o !== "object") return;
+        if (Array.isArray(o)) {
+          if (typeof o[0] === "string" && /^adp_/.test(o[0]) && isObj(o[1]) && isObj(o[1].__bbox) && isObj(o[1].__bbox.result) && isObj(o[1].__bbox.result.data)) {
+            entries.push({ kind: "prefetch", queryName: o[0].replace(/^adp_/, "").replace(/RelayPreloader.*$/, ""), docId: "", variables: {}, url: currentHref(), requestBody: "", capturedAt: Date.now(), response: { data: o[1].__bbox.result.data } });
+          }
+          for (var i = 0; i < o.length; i++) walk(o[i], depth + 1);
+          return;
+        }
+        for (var k in o) walk(o[k], depth + 1);
+      };
+      for (var i = 0; i < scripts.length; i++) {
+        var t = scripts[i].textContent || "";
+        if (t.indexOf("adp_") === -1) continue;
+        var j = null; try { j = JSON.parse(t); } catch (e) { continue; }
+        walk(j, 0);
+      }
+      window.__soloIgPrefetch = { count: scripts.length, entries: entries };
+      return entries;
+    } catch (e) { return []; }
+  }
+  function captures() {
+    var s = store();
+    var live = Array.isArray(s.captures) ? s.captures : [];
+    return prefetched().concat(live);   // live captures come last, so newest-first walks see them first
+  }
   // Newest capture first — a profile page navigated within the SPA has several, and the latest
-  // is the one for the profile on screen.
+  // is the one for the profile on screen; prefetched page data sits behind the live captures.
   function findCapture(pred) {
     var caps = captures();
     for (var i = caps.length - 1; i >= 0; i--) {
@@ -230,7 +277,7 @@
 
   // ------------------------------------------------------------- ig.profile.enrich
   function isProfileCapture(c) {
-    return c.kind === "graphql" && /PolarisProfilePageContentQuery/.test(c.queryName || "") && isObj(getPath(responseData(c), "user"));
+    return (c.kind === "graphql" || c.kind === "prefetch") && /PolarisProfilePageContentQuery/.test(c.queryName || "") && isObj(getPath(responseData(c), "user"));
   }
   function profileFromDom() {
     // Fallback when the profile query was not captured: the header's own text. Kept minimal —
@@ -314,7 +361,7 @@
 
   // ------------------------------------------------------------- ig.profile.posts
   var POSTS_CONN = "xdt_api__v1__feed__user_timeline_graphql_connection";
-  function isPostsCapture(c) { return c.kind === "graphql" && isObj(getPath(responseData(c), POSTS_CONN)); }
+  function isPostsCapture(c) { return (c.kind === "graphql" || c.kind === "prefetch") && isObj(getPath(responseData(c), POSTS_CONN)); }
   function connectionItems(conn) {
     var edges = isObj(conn) && Array.isArray(conn.edges) ? conn.edges : [];
     var out = [];
@@ -365,7 +412,7 @@
 
   // ------------------------------------------------------------- ig.search.posts
   var SERP = "xdt_fbsearch__top_serp_graphql";
-  function isSerpCapture(c) { return c.kind === "graphql" && isObj(getPath(responseData(c), SERP)); }
+  function isSerpCapture(c) { return (c.kind === "graphql" || c.kind === "prefetch") && isObj(getPath(responseData(c), SERP)); }
   function serpItems(conn) {
     var edges = isObj(conn) && Array.isArray(conn.edges) ? conn.edges : [];
     var out = [], seen = {};
@@ -542,5 +589,5 @@
   window.__soloIgCapabilities = Object.keys(CAPS);
   window.__soloIgVersion = VERSION;
   // Exposed for the offline harness (tests/test_ig_extract.js); not used by background.js.
-  window.__soloIgInternals = { postRecord: postRecord, commentRecord: commentRecord, userRef: userRef, emailsIn: emailsIn, phonesIn: phonesIn, serpItems: serpItems, connectionItems: connectionItems, parseCount: parseCount, postUrl: postUrl };
+  window.__soloIgInternals = { prefetched: prefetched, postRecord: postRecord, commentRecord: commentRecord, userRef: userRef, emailsIn: emailsIn, phonesIn: phonesIn, serpItems: serpItems, connectionItems: connectionItems, parseCount: parseCount, postUrl: postUrl };
 })();

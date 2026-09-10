@@ -92,7 +92,7 @@
       required: ["kind", "platform", "name", "captured_at"],
       optional: [
         "url", "platform_id", "handle", "bio", "category", "industry", "location",
-        "work", "education", "emails", "phones", "websites", "socials", "photo_url",
+        "work", "education", "emails", "phones", "website", "websites", "socials", "photo_url",
         "verified", "follower_count", "about", "extraction_audit", "source_capability",
         "refs", "ext"
       ],
