@@ -1,7 +1,7 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.3",
-  "updated_at": "2026-09-08",
+  "version": "0.2.4",
+  "updated_at": "2026-09-09",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
     "how_agents_choose": "Match the user's intent against each capability's 'when_to_use' and 'output_schema'. Prefer a Facebook GraphQL capability whose status is 'stable' or 'beta'; if none fits, submit the source without a capability id and the collector applies generic HTML extraction.",
@@ -178,7 +178,7 @@
       "see_more_expansions": "number — how many truncated 'See more' blocks were expanded across the whole walk. The collector's own expansion runs once, on the entry page, before this capability is injected; this one runs per surface, so a bio cut off inside a sub-tab is no longer lost.",
       "about_panel_found": "boolean — true when every line came from the About card itself. false means the panel was not located and the text is whatever the main column held, posts and reviews included. A dossier assembled from a timeline reads exactly like one assembled from an About section; this flag is the only thing that tells them apart, so distrust about_lines when it is false.",
       "source": "'graphql' | 'dom' — how the sections were obtained. graphql means the About query was replayed by doc_id and nothing on the page was touched, the only mode in which a review or a post cannot leak in. dom means the query never fired and the walk fell back to reading the main column.",
-      "graphql_about": "object | null — {ok, reason, tokens_found, doc_id, sections, failed}. `reason` says why replay was not used, so a dom-sourced record explains itself instead of just being worse.",
+      "graphql_about": "object | null — {ok, reason, replay_markers_found, doc_id, sections, failed}. `reason` says why replay was not used, so a dom-sourced record explains itself instead of just being worse.",
       "phones": "string[] — the value under a Phone/Mobile label."
     },
     "ContactRecord": {
@@ -406,22 +406,12 @@
         "cadence": "daily",
         "needs_active_tab": true,
         "fixtures": [
-          "fb_test_group_url"
+          "fb_search_group_url",
+          "fb_search_group_keyword"
         ],
-        "chain": {
-          "after": "fb.group.posts",
-          "pick": "records.items",
-          "prefer_max": "engagement.comment_count",
-          "take": {
-            "keyword": "text"
-          },
-          "transform": {
-            "keyword": "first_words:3"
-          }
-        },
-        "url": "{fb_test_group_url}/search/?q={keyword}",
+        "url": "{fb_search_group_url}/search/?q={fb_search_group_keyword}",
         "inputs": {
-          "group_search_url": "{fb_test_group_url}/search/?q={keyword}",
+          "group_search_url": "{fb_search_group_url}/search/?q={fb_search_group_keyword}",
           "max_scroll": 1,
           "max_pages": 1
         },
@@ -462,7 +452,8 @@
           "gql_intercept",
           "search_comet"
         ],
-        "offline_tests": []
+        "offline_tests": [],
+        "note": "Searches a PUBLIC, read-only group (fb_search_group_url) with an evergreen keyword, never the write-allowed test group: a private test group with a handful of posts does not reliably render SearchComet results, and the search fixture must never be a place a real write could land."
       }
     },
     {
@@ -497,9 +488,9 @@
         "chain": {
           "after": "fb.group.posts",
           "pick": "records.items",
-          "prefer_max": "engagement.comment_count",
+          "prefer_max": "engagement.comments",
           "require_min": {
-            "engagement.comment_count": 1
+            "engagement.comments": 1
           },
           "take": {
             "feedback_id": "feedback_id",
@@ -574,7 +565,8 @@
         ],
         "offline_tests": [
           "tests/test_post_comments.js"
-        ]
+        ],
+        "note": "chain reads engagement.comments — the field fb.group.posts actually emits (postEngagement: reactions/comments/shares). It was engagement.comment_count, which no record carries, so this probe was SKIPPED on every run since it shipped."
       }
     },
     {

@@ -17,5 +17,7 @@
   "zillow_profile_url": "https://www.zillow.com/profile/sample.realty",
   "zillow_profile_screen_name": "sample.realty",
   "web_query": "solo agency",
-  "article_url": "https://en.wikipedia.org/wiki/Real_estate_agent"
+  "article_url": "https://en.wikipedia.org/wiki/Real_estate_agent",
+  "fb_search_group_url": "https://www.facebook.com/groups/<public group with many posts, read only>",
+  "fb_search_group_keyword": "<evergreen keyword found in that group>"
 }

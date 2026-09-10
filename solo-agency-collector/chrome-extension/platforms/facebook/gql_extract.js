@@ -1785,13 +1785,52 @@
     }
     if (!name) { var og = document.querySelector('meta[property="og:title"]'); if (og) { var ogt = String(og.getAttribute("content") || "").trim(); if (ogt && !GENERIC.test(ogt)) name = ogt; } }
     // the display name is often only in the self-link (an <a> back to the profile slug).
-    if (!name) {
+    // Measured 2026-09-09 on a professional-mode profile (profile.php?id=61564723150545,
+    // "Build Wealth with Tabitha"): [role=main] holds NO level-1 heading at all — the only h1
+    // on the page is the chat rail's "Notifications" — and the name is rendered as level-2
+    // headings and as the text of the links back to the profile itself. So the self-link
+    // fallback must also know the profile.php?id=<id> form, and a level-2 heading counts when
+    // a self-link repeats the same text (the name is the one string that is both).
+    function plausibleName(t) {
+      return t.length >= 2 && t.length <= 70 && !GENERIC.test(t) && !/^\d/.test(t) && !/^https?:/i.test(t)
+        && !/\b(followers?|following|likes?|friends?|mutual)\b/i.test(t);
+    }
+    function selfLinkTexts() {
+      var sel = [];
       var slug = (location.pathname.split("/").filter(Boolean)[0] || "");
-      if (slug && slug !== "profile.php") {
-        var pls = document.querySelectorAll('a[href^="/' + slug + '"], a[href*="facebook.com/' + slug + '"]');
-        for (var pi = 0; pi < pls.length; pi++) {
-          var pt = (pls[pi].innerText || "").replace(/\s+/g, " ").trim();
-          if (pt.length >= 2 && pt.length <= 70 && !GENERIC.test(pt) && !/^\d/.test(pt) && !/^https?:/i.test(pt)) { name = pt; break; }
+      var pid = "";
+      try { pid = new URLSearchParams(location.search).get("id") || ""; } catch (e) { pid = ""; }
+      if (slug && slug !== "profile.php") sel.push('a[href^="/' + slug + '"]', 'a[href*="facebook.com/' + slug + '"]');
+      if (/^\d{5,}$/.test(pid)) sel.push('a[href*="profile.php?id=' + pid + '"]', 'a[href*="/' + pid + '/"]', 'a[href$="/' + pid + '"]');
+      var out = [];
+      if (!sel.length) return out;
+      var links = [];
+      try { links = document.querySelectorAll(sel.join(", ")); } catch (e) { return out; }
+      for (var li = 0; li < links.length; li++) {
+        var lt = (links[li].innerText || "").replace(/\s+/g, " ").trim();
+        if (plausibleName(lt)) out.push(lt);
+      }
+      return out;
+    }
+    if (!name) {
+      var selfTexts = selfLinkTexts();
+      if (selfTexts.length) {
+        // A level-2 heading that a self-link repeats wins: that is the name card itself.
+        var h2s = main.querySelectorAll('h2, [role="heading"][aria-level="2"]');
+        for (var h2i = 0; h2i < h2s.length && !name; h2i++) {
+          var h2t = (h2s[h2i].innerText || "").replace(/\s+/g, " ").trim();
+          if (plausibleName(h2t) && selfTexts.indexOf(h2t) !== -1) name = h2t;
+        }
+        // Otherwise the self-link text that appears most often (the name is linked from the
+        // header, the intro card and every post byline; "About" or "Photos" only once each).
+        if (!name) {
+          var counts = {}, best = "", bestN = 0;
+          for (var si = 0; si < selfTexts.length; si++) {
+            counts[selfTexts[si]] = (counts[selfTexts[si]] || 0) + 1;
+            if (counts[selfTexts[si]] > bestN) { bestN = counts[selfTexts[si]]; best = selfTexts[si]; }
+          }
+          if (best && bestN >= 2) name = best;
+          else if (selfTexts.length === 1) name = selfTexts[0];
         }
       }
     }
@@ -2386,7 +2425,7 @@
       return { ok: order.length > 0, sections: sections, order: order, failed: failed,
                skipped: skippedSections, sizes: sizes,
                doc_id: String(seed.docId || ""), query: String(seed.queryName || ""),
-               tokens_found: tokens.length, reason: order.length ? null : "every_replay_failed" };
+               replay_markers_found: tokens.length, reason: order.length ? null : "every_replay_failed" };
     });
   }
 
@@ -2888,7 +2927,13 @@
           tries += 1;
           return wait(500).then(look);
         }
-        return look();
+        return look().then(function () {
+          // The About card (sub-nav + content pane) was located by the same locator that scopes
+          // the "See more" clicks. Until 2026-09-09 this flag was only ever set on the GraphQL
+          // path, which is disabled by default — so every DOM-sourced record said the card was
+          // not found, including ones whose walk had just read six sections from it.
+          try { if (!panelFound && aboutPanel()) panelFound = true; } catch (e) { /* ignore */ }
+        });
       }).then(step);
     }
 
@@ -2927,6 +2972,23 @@
           }
           // A labelled value sits on the NEXT line: "Address" then the address, "Phone" then the
           // number. Searching the flat list keeps this working whichever section rendered it.
+          // phoneShapedLines: lines that look like a phone number and nothing else. Digits with
+          // real separators or a leading +, 8..15 digits — an id like "61564723150545" is 14
+          // bare digits with no separator and is not a phone, and neither is a date.
+          function phoneShapedLines(lines) {
+            var out = [];
+            var re = /^\+?[\d(][\d\s().-]{6,}\d$/;
+            for (var i = 0; i < lines.length; i++) {
+              var v = String(lines[i]).replace(/\s+/g, " ").trim();
+              if (v.length > 24 || !re.test(v)) continue;
+              var digits = v.replace(/\D/g, "");
+              if (digits.length < 8 || digits.length > 15) continue;
+              if (!/[\s().+-]/.test(v)) continue;          // bare digit runs are ids, not phones
+              if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(v)) continue; // a date
+              if (out.indexOf(v) === -1) out.push(v);
+            }
+            return out;
+          }
           function afterLabel(re) {
             var out = [];
             for (var i = 0; i < aboutLines.length - 1; i++) {
@@ -2948,7 +3010,13 @@
             education: union(union(header.education, later.education), sectionValues("education")),
             // "Lives in <X>" is a personal-profile phrasing; a Page states an Address instead.
             location: union(union(header.location, later.location), afterLabel(/^(address|địa chỉ)$/i)),
-            phones: afterLabel(/^(phone|mobile|điện thoại|số điện thoại)$/i),
+            // Labelled first; then any phone-shaped line anywhere in the walk. Measured
+            // 2026-09-09 on a professional-mode profile: the "Phone" label was followed by the
+            // next label ("Mobile") — the number itself is not rendered to a non-friend — while
+            // the same number sat under "WhatsApp number" and, formatted differently, in the
+            // intro card ("(469) 594-9820"). afterLabel alone returned [] for a profile that
+            // publishes its phone twice.
+            phones: union(afterLabel(/^(phone|mobile|whatsapp( number)?|điện thoại|số điện thoại|zalo)$/i), phoneShapedLines(aboutLines)),
             intro_lines: union(header.intro_lines, later.intro_lines).slice(0, 20),
             // The job TITLE lives here and nowhere else — see the note above DOSSIER_TABS.
             about: about,
@@ -2977,9 +3045,10 @@
             // probe_graphql:true to get the variables as well.
             graphql_by_surface: gqlBySurface,
             see_more_expansions: seeMoreClicks,
-            // true when every line in this record came from the About card itself. false means
-            // the panel was not located and the text is whatever the main column held — posts,
-            // reviews and all. Treat a false here as a reason to distrust about_lines.
+            // true when the About card was located: on the GraphQL path every line came from
+            // the About query itself; on the DOM path the sub-nav + pane card was found and
+            // scoped the walk. false means the card was not located and the text is whatever
+            // the main column held — posts, reviews and all — so distrust about_lines.
             about_panel_found: panelFound,
             // How the sections were obtained. "graphql" means the About query was replayed by
             // doc_id and nothing on the page was clicked or scraped — the only mode in which a
@@ -2987,7 +3056,9 @@
             // fell back to clicking, so about_lines is worth a second look.
             source: gqlAbout && gqlAbout.ok ? "graphql" : "dom",
             graphql_about: gqlAbout ? { ok: !!gqlAbout.ok, reason: gqlAbout.reason || null,
-              tokens_found: gqlAbout.tokens_found || 0, doc_id: gqlAbout.doc_id || null,
+              // Named replay_markers_found, not tokens_found: the bridge redacts any key containing
+              // "token" at any depth, so the old name arrived as "[redacted]" on every record.
+              replay_markers_found: gqlAbout.replay_markers_found || 0, doc_id: gqlAbout.doc_id || null,
               sections: (gqlAbout.order || []).length, failed: (gqlAbout.failed || []).length,
               sizes: gqlAbout.sizes || [], skipped: gqlAbout.skipped || [] } : null,
             _panel_ladder: inputs.debug_panel ? panelLadder() : undefined,
