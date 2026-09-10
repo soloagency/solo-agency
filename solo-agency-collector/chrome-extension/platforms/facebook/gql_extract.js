@@ -837,8 +837,19 @@
         var snippet = getPath(vm, "primary_snippet_text_with_entities.text");
         if (typeof snippet !== "string" || !snippet.trim()) snippet = getPath(vm, "snippet_with_facepile.simple_text_with_entities.text");
         snippet = typeof snippet === "string" ? snippet.replace(/\s+/g, " ").trim() : "";
+        // viewer_join_state lives on the CTA's profile — view_model.ctas.primary[i].profile —
+        // not on view_model.profile (measured 2026-09-09 on 25 live results: the latter was
+        // absent on every one). Look at every CTA before giving up.
         var joinState = getPath(src, "viewer_join_state");
         if (typeof joinState !== "string") joinState = getPath(vm, "profile.viewer_join_state");
+        if (typeof joinState !== "string") {
+          var ctas = getPath(vm, "ctas.primary");
+          if (!Array.isArray(ctas)) ctas = isObj(getPath(vm, "ctas")) ? [].concat(getPath(vm, "ctas.primary") || [], getPath(vm, "ctas.secondary") || []) : [];
+          for (var ci = 0; ci < ctas.length && typeof joinState !== "string"; ci++) {
+            var cjs = getPath(ctas[ci], "profile.viewer_join_state");
+            if (typeof cjs === "string" && cjs) joinState = cjs;
+          }
+        }
         var groupMeta = parseGroupSnippet(snippet, joinState);
         items.push({
           type: "group",
