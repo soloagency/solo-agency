@@ -45,6 +45,9 @@ clients run from a separate `oneman_agency` tree — see [§6 Deploy](#6-deploy)
 | `chrome-extension/platforms/facebook/gql_extract.js` | **Extractors + dispatcher.** Runs in MAIN world during a job. `window.__soloGqlExtract()` = generic best-effort + manifest. `window.__soloGqlExtractCapability(id, inputs)` = per-screen precise extractor via `CAPABILITY_EXTRACTORS`. **This is the file you edit to add/fix a screen.** Unqualified `gql_extract.js` / `gql_intercept.js` elsewhere in this doc mean this path (there's also `platforms/facebook/gql_actions.js` for writes and `fb_normalize.js` for the canonical mapping — see §2.1). |
 | `chrome-extension/background.js` | Service worker. Injects the files the registry names for the job's capability, drives scrolling (`collectCleanPage`), then reads GraphQL: generic (`__soloGqlExtract`) + capability (`__soloGqlExtractCapability`), attaches the canonical block (§2.1) and writes new `data_point` fields. Key constant `EXTENSION_BUILD` (bump on each deploy so `/status` shows which build a client runs). |
 | `chrome-extension/manifest.json` | Declares the MAIN-world `content_scripts` entry for `platforms/facebook/gql_intercept.js` (`run_at: document_start`, `world: MAIN`) and the `offscreen` permission (operator chime). **`sync-dev-extension.sh` never copies this file** — a path or permission change must be patched into each client manifest by hand (the script warns on the drift) or by a full rebuild. |
+| `chrome-extension/platforms/instagram/ig_intercept.js` | **Interceptor (Instagram, second platform module).** MAIN world, `document_start`, on `*.instagram.com` (declared in `manifest.json`, same pattern as `gql_intercept.js`). Hooks `fetch` + `XHR`, buffers the last 60 Polaris GraphQL calls and `/api/v1/` REST calls into `window.__soloIg.captures`. Passive only — never replays, never sends anything; exposes `csrfToken()`/`appId()`/`docIdFor()` helpers `ig_extract.js` uses only to REPLAY a captured query. Must run at `document_start`: the viewed profile arrives by XHR, not in the page's own embedded JSON. |
+| `chrome-extension/platforms/instagram/ig_extract.js` | **Extractors + dispatcher (Instagram).** Runs in MAIN world, injected by `background.js` only for `ig.*` jobs. `window.__soloIgRun(capabilityId, inputs)` dispatches to one of five capability functions (`ig.profile.enrich`, `ig.profile.posts`, `ig.search.posts`, `ig.people.search`, `ig.post.comments`) plus the `_discover.ig` maintenance aid — same envelope shape as the Facebook/Zillow modules. **This is the file you edit to add/fix an Instagram screen.** Contract: `INSTAGRAM_CAPABILITIES.md`. |
+| `chrome-extension/platforms/instagram/ig_normalize.js` | **Canonical-record step for Instagram.** `__soloInstagramNormalize`, `importScripts`-loaded by `background.js` alongside `fb_normalize.js` / `zillow_normalize.js` (§2.1) — maps today's `ig.*` capability output into `records.canonical = {schema_version, kind, items[]}` per `core/schema.js`'s contract. Offline: `tests/test_ig_normalize.js`. |
 | `chrome-extension/platforms/zillow/zillow_extract.js` | **Non-Facebook capabilities (Zillow).** Own MAIN-world lib, injected by `background.js` only for `zillow.*` jobs and dispatched via `window.__soloZillowRun`; reads Next.js `__NEXT_DATA__`, no GraphQL. The template for any further non-Facebook site: new `platforms/<name>/` directory + one entry in `core/platform_registry.js` — `gql_extract.js` untouched. Contract: `ZILLOW_CAPABILITIES.md`. |
 | `chrome-extension/offscreen.html` / `offscreen.js` | Offscreen document that plays the operator alert (gentle chime) while a job waits for a human — today the Zillow bot check (`background.js` `zillowHumanGate`). Service workers cannot play audio and a collector-opened tab has no user gesture, hence this page. |
 | `bridge-go/collector_capabilities.json` | **The capability catalog** (English). `//go:embed`-ed into the bridge as the default; also copied next to the running config so it can be edited live. |
@@ -164,6 +167,38 @@ compare against a fresh capture (§7).** Extractor functions are in
 ### not_graphql (do NOT try to fix these as GraphQL)
 - **fb.profile.about** — structured fields (work/education/city) are **server-rendered**, absent from all interceptable responses (confirmed via `_discover.deep`; `ProfileCometAppSectionFeedPaginationQuery` carries only nav + pageItems urls). Needs a dedicated About-tab **DOM parser**. *Workaround for inferring industry:* call `fb.people.search` with the person's name → occupation subtitle + `industry_hint`. 2026-09-09 DOM-parser fixes: header name on `profile.php?id=` professional-mode profiles (no `h1` in `[role=main]`; taken from the level-2 heading a self-link repeats), a dossier phones fallback (WhatsApp number label + phone-shaped lines), and `about_panel_found` now true on the DOM path once the About card is located.
 - **fb.post.comments** — first page of comments is server-rendered (RSC); only "load more" pagination uses GraphQL (`CometUFICommentsProviderQuery`), which needs enough comments to trigger. Needs HTML/RSC parsing or a pagination trigger.
+
+### Instagram (ig.*) — second platform module, own private GraphQL
+
+Instagram is read the same way Facebook is — passive interception of the page's own internal
+traffic — but it is a SEPARATE module (`platforms/instagram/`, §2), not an extension of
+`gql_extract.js`. Full contract, limits and pacing guidance: `INSTAGRAM_CAPABILITIES.md`. The
+validated shape map, mirroring the table above:
+
+- `ig.profile.enrich` — `PolarisProfilePageContentQuery` (doc_id `28036671149327607`) →
+  `data.user{username, full_name, pk, biography, category, external_url, bio_links[],
+  follower_count, following_count, media_count, is_business, account_type, is_private,
+  is_verified, address_street, city_name, zip}`. No public email/phone field on this query at
+  all — parsed out of the bio text instead.
+- `ig.profile.posts` — `PolarisProfilePostsQuery` (doc_id `38154989454116081`) →
+  `data.xdt_api__v1__feed__user_timeline_graphql_connection{edges[].node: XDTMediaDict,
+  page_info{end_cursor, has_next_page}}`, 12 items per page.
+- `ig.search.posts` — `PolarisKeywordSearchExplorePageRelayQuery`
+  (`/explore/search/keyword/?q=`) → `data.xdt_fbsearch__top_serp_graphql.edges[].node`
+  (`XDTTopSerpMediaGridUnit.items[]`). doc_id not pinned in source — read live (below).
+- `ig.people.search` — REST, not GraphQL: `GET /api/v1/users/search/?q=`, falling back to
+  `GET /api/v1/web/search/topsearch/?context=blended&query=` (the search box's own call).
+- `ig.post.comments` — the post opens via `PolarisPostRootQuery` (doc_id
+  `29326377470285825`), but the comments themselves are REST:
+  `GET /api/v1/media/<pk>/comments/?can_support_threading=true` → `comments[], next_min_id,
+  has_more_comments`.
+
+A query's `doc_id` is read at RUNTIME from Instagram's own live module registry, not hardcoded —
+`ig_intercept.js`'s `store.docIdFor(queryName)` calls
+`window.___xf("__debug").modulesMap["<QueryName>.graphql"].exports.params.id`, the same lookup
+Instagram's own client performs. `ig_extract.js` only needs this to REPLAY a query that has not
+been captured on the current screen yet; the normal path always reuses the request body
+Instagram's own client just sent.
 
 ---
 

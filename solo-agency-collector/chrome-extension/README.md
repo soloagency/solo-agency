@@ -33,8 +33,10 @@ The user installs it once in the Chrome profile that is already logged in to Fac
 ## Source Layout
 
 Platform-specific capture code lives under `platforms/<name>/` — today `facebook/`
-(`gql_intercept.js`, `gql_extract.js`, `gql_actions.js`, `fb_normalize.js`) and `zillow/`
-(`zillow_extract.js`, `zillow_normalize.js`). Each platform is registered as data in
+(`gql_intercept.js`, `gql_extract.js`, `gql_actions.js`, `fb_normalize.js`), `instagram/`
+(`ig_intercept.js`, `ig_extract.js`, `ig_normalize.js`; the second platform module, see
+`INSTAGRAM_CAPABILITIES.md`)
+and `zillow/` (`zillow_extract.js`, `zillow_normalize.js`). Each platform is registered as data in
 `core/platform_registry.js` (which files `background.js` injects, which entry point it calls,
 per-capability metadata); `core/schema.js` defines the one canonical record shape every
 platform's normalizer maps into. Shared, platform-neutral files stay at this top level:

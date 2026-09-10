@@ -16,11 +16,11 @@ It has two parts:
    - Uses the user's existing logged-in Chrome session.
    - Polls the local bridge on `127.0.0.1`.
    - Sends visible, authorized page data to local files through the bridge.
-   - Platform-specific capture code lives under `platforms/<name>/` (`facebook/`, `zillow/`
-     today), described as data in `core/platform_registry.js`; `core/schema.js` holds the one
-     canonical record shape every platform normalizes into. Shared, platform-neutral code
-     (contact/email extraction, filtering, the offscreen chime, popup/audit UI) stays at the
-     top level.
+   - Platform-specific capture code lives under `platforms/<name>/` (`facebook/`, `instagram/` —
+     the second platform module, see `INSTAGRAM_CAPABILITIES.md` — `zillow/` today), described
+     as data in `core/platform_registry.js`; `core/schema.js` holds the one canonical record
+     shape every platform normalizes into. Shared, platform-neutral code (contact/email
+     extraction, filtering, the offscreen chime, popup/audit UI) stays at the top level.
 
 Writing skills are intentionally outside this collector package. AI agents should load account-free writing skills from `../playbooks/skills/` before requiring any external writing-skill API or account setup.
 

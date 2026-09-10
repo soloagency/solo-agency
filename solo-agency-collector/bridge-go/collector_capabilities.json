@@ -2000,6 +2000,348 @@
       }
     },
     {
+      "id": "ig.profile.enrich",
+      "title": "Instagram profile — bio, follower counts and contact details",
+      "when_to_use": "Read one Instagram profile into a typed record: bio, category, follower/following/media counts, business address when published, and emails/phones PARSED OUT OF THE BIO (Instagram's own profile query publishes no public email/phone field). Submit the profile's ROOT url, https://www.instagram.com/<username>/ — the profile is NOT embedded in the page's initial HTML, it arrives by its own XHR (PolarisProfilePageContentQuery) shortly after load, so this capability polls (`ensure_tries`, 1s apart) for that capture before reading it; a tab that never fires it (private/removed profile, or the query renamed) falls back to a thin DOM read off the visible header instead of returning nothing. Resolves to `available:false, reason:\"self_profile\"` when the profile is the logged-in operator's own.",
+      "inputs": {
+        "profile_url": "string (required) — https://www.instagram.com/<username>/. This is the job's url: the capture is matched to whichever profile query fired for the tab, so submit the profile's own root url, never /p/ or /reel/.",
+        "ensure_tries": "int (optional, default 6) — how many 1s polls to wait for the profile query capture before falling back to a DOM-only record (see InstagramProfile.source = \"dom\")."
+      },
+      "output_schema": "InstagramProfile",
+      "provider": "instagram-graphql",
+      "coverage": "logged-in web session",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "enrich",
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "ig_canary_profile_url",
+          "ig_canary_profile_username"
+        ],
+        "url": "{ig_canary_profile_url}",
+        "inputs": {
+          "profile_url": "{ig_canary_profile_url}"
+        },
+        "expect_query": {
+          "contains": "PolarisProfilePageContentQuery",
+          "severity": "warn"
+        },
+        "assert": [
+          {
+            "path": "records.reason",
+            "op": "neq",
+            "value": "self_profile"
+          },
+          {
+            "path": "records.found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.count",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].username",
+            "op": "eq_fixture",
+            "value": "ig_canary_profile_username"
+          },
+          {
+            "path": "records.items[0].name",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].follower_count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].source",
+            "op": "eq",
+            "value": "graphql"
+          }
+        ],
+        "baseline_fields": [
+          "name",
+          "bio",
+          "category",
+          "website",
+          "follower_count",
+          "emails"
+        ],
+        "cause_group": [
+          "ig_intercept",
+          "polaris_profile"
+        ],
+        "offline_tests": [
+          "tests/test_ig_extract.js"
+        ]
+      }
+    },
+    {
+      "id": "ig.profile.posts",
+      "title": "Instagram profile posts (grid)",
+      "when_to_use": "Read a profile's recent posts/reels into typed PostRecords — proof-of-life and content review for a lead. Submit the profile's ROOT url; the grid's own query (PolarisProfilePostsQuery) only fires while the profile tab renders, so — unlike ig.profile.enrich — this needs an ACTIVE (foreground) tab. Paginates deeper via cursor replay: raise `max_pages` (default 1, max 40) rather than scrolling — the runner never scrolls a capability that does not declare `max_scroll`.",
+      "inputs": {
+        "profile_url": "string (required) — https://www.instagram.com/<username>/. Same root url as ig.profile.enrich.",
+        "max_pages": "int (optional, default 1, max 40) — deep pagination via cursor replay, 12 posts per page.",
+        "max_posts": "int (optional) — cap on total items kept across every page fetched."
+      },
+      "output_schema": "InstagramPostRecord[]",
+      "provider": "instagram-graphql",
+      "coverage": "logged-in web session",
+      "status": "beta",
+      "tier": "free",
+      "scroll": "none (paginates via max_pages cursor replay, not scrolling)",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "ig_canary_profile_url"
+        ],
+        "url": "{ig_canary_profile_url}",
+        "inputs": {
+          "profile_url": "{ig_canary_profile_url}",
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "PolarisProfilePostsQuery",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id",
+              "code"
+            ]
+          },
+          {
+            "path": "records.items[0].url",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].actor.username",
+            "op": "nonempty"
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "code",
+          "url",
+          "text",
+          "created_time",
+          "engagement.likes"
+        ],
+        "cause_group": [
+          "ig_intercept",
+          "polaris_posts"
+        ],
+        "offline_tests": [
+          "tests/test_ig_extract.js"
+        ]
+      }
+    },
+    {
+      "id": "ig.search.posts",
+      "title": "Instagram keyword search — posts",
+      "when_to_use": "Global keyword search across Instagram posts (the Explore search page's own Top-results grid) — for discovering content and creators around a keyword. Submit `query`, or open https://www.instagram.com/explore/search/keyword/?q=<keyword> directly as the job's url. Needs an active tab (the search results have to render for the query to fire). Paginates deeper via cursor replay (`max_pages`), same mechanism as ig.profile.posts.",
+      "inputs": {
+        "query": "string (required) — search keywords. Also open https://www.instagram.com/explore/search/keyword/?q=<keyword> as the job's url.",
+        "max_pages": "int (optional, default 1, max 20) — deep pagination via cursor replay."
+      },
+      "output_schema": "InstagramPostRecord[]",
+      "provider": "instagram-graphql",
+      "coverage": "logged-in web session",
+      "status": "beta",
+      "tier": "free",
+      "scroll": "none (paginates via max_pages cursor replay, not scrolling)",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "ig_search_keyword"
+        ],
+        "url": "https://www.instagram.com/explore/search/keyword/?q={ig_search_keyword}",
+        "inputs": {
+          "query": "{ig_search_keyword}"
+        },
+        "expect_query": {
+          "contains": "PolarisKeywordSearchExplorePageRelayQuery",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id",
+              "code"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "url",
+          "text",
+          "actor.username"
+        ],
+        "cause_group": [
+          "ig_intercept",
+          "polaris_search"
+        ],
+        "offline_tests": [
+          "tests/test_ig_extract.js"
+        ]
+      }
+    },
+    {
+      "id": "ig.people.search",
+      "title": "Instagram people search",
+      "when_to_use": "Find Instagram accounts by name/keyword — for discovering leads to enrich with ig.profile.enrich. Calls Instagram's own search-box REST endpoints directly (`/api/v1/users/search/`, falling back to `/api/v1/web/search/topsearch/`) with the session's csrf token and app-id headers; no page navigation or capture-waiting is needed, so this capability runs with the tab hidden. Returns the search box's own top matches, not an exhaustive directory.",
+      "inputs": {
+        "query": "string (required) — name or keyword to search for",
+        "count": "int (optional, default 30, max 50) — rows to keep"
+      },
+      "output_schema": "InstagramProfileSummary[]",
+      "provider": "instagram-rest",
+      "coverage": "logged-in web session",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "harvest",
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "ig_search_keyword"
+        ],
+        "url": "https://www.instagram.com/explore/",
+        "inputs": {
+          "query": "{ig_search_keyword}"
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].username",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].id",
+            "op": "nonempty"
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "username",
+          "name"
+        ],
+        "cause_group": [
+          "instagram_rest"
+        ],
+        "offline_tests": [
+          "tests/test_ig_extract.js"
+        ],
+        "note": "REST-backed (users/search + web/search/topsearch), not GraphQL — expect_query is null by design. url is any instagram.com page: the tab only needs to be a live session, the search itself never navigates."
+      }
+    },
+    {
+      "id": "ig.post.comments",
+      "title": "Comments on an Instagram post",
+      "when_to_use": "Read the comments on a post — the commenters' usernames and what they said — for lead mining, mirroring fb.post.comments. Submit the post's url (https://www.instagram.com/p/<code>/ or /reel/<code>/); the comments REST call (GET /api/v1/media/<pk>/comments/) fires when the post opens, so this needs an active tab. Paginates via `min_id` cursor replay (`max_comment_pages`) up to `max_comments` total rows.",
+      "inputs": {
+        "post_url": "string (required) — https://www.instagram.com/p/<code>/ or /reel/<code>/. This is the job's url; the capability resolves the media id from whichever post-root capture matches the shortcode in the current url (or from inputs.shortcode / inputs.media_id when passed directly).",
+        "max_comments": "int (optional, default 50) — total rows across all comment pages fetched.",
+        "max_comment_pages": "int (optional, default 1, max 20) — comment pages walked via min_id cursor replay against the REST endpoint."
+      },
+      "output_schema": "InstagramCommentRecord[]",
+      "provider": "instagram-graphql",
+      "coverage": "logged-in web session",
+      "status": "beta",
+      "tier": "free",
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "ig_canary_profile_url"
+        ],
+        "chain": {
+          "after": "ig.profile.posts",
+          "pick": "records.items",
+          "prefer_max": "engagement.comments",
+          "require_min": {
+            "engagement.comments": 1
+          },
+          "take": {
+            "post_url": "url"
+          }
+        },
+        "url": "{post_url}",
+        "inputs": {
+          "post_url": "{post_url}"
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].text",
+            "op": "exists"
+          },
+          {
+            "path": "records.items[0].actor.username",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.media_id",
+            "op": "nonempty"
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "text",
+          "actor.username",
+          "created_time"
+        ],
+        "cause_group": [
+          "instagram_rest",
+          "comments"
+        ],
+        "offline_tests": [
+          "tests/test_ig_extract.js"
+        ],
+        "note": "REST-backed (GET /api/v1/media/<pk>/comments/), not GraphQL — expect_query is null by design. Chains off ig.profile.posts's most-commented item so the probe never has to guess a post with comments."
+      }
+    },
+    {
       "id": "zillow.agents.list",
       "title": "Zillow agent directory — ONE page of agent cards",
       "when_to_use": "Read one page of Zillow's real-estate-agent directory into typed cards (name, profile url, brokerage, rating, reviews, sales, TEAM flag). Submit the directory url exactly as you want it read: https://www.zillow.com/professionals/real-estate-agent-reviews/<location-slug>/?name=<keyword>&page=<n>. The keyword (?name=) and the page (?page=) are the CALLER's to choose and to advance — this capability never paginates, never clicks; read `has_more`/`next_page_url`/`page_count` from the envelope and submit the next page as a NEW job. Zillow serves at most 25 directory pages per query (~15 cards each), whatever `results_found` says, so a large area is walked by varying the keyword/location, not by paging deeper. Then run zillow.profile.enrich on each card's profile_url.",

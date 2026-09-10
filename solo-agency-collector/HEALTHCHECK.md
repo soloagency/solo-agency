@@ -110,6 +110,13 @@ read (selected by `engagement.comments` — the field was `engagement.comment_co
 `fb_search_group_url` / `fb_search_group_keyword` (added for `fb.group.search_posts`) must be a
 public read-only group — never the write-allowed test group used by the comment/react/DM probes.
 
+Instagram (second platform module, `INSTAGRAM_CAPABILITIES.md`) adds three fixture keys:
+`ig_canary_profile_url` (ROOT url of an Instagram business/creator profile the operator may
+read — read only), `ig_canary_profile_username` (the `<username>` part of that url), and
+`ig_search_keyword` (evergreen keyword for `ig.search.posts` and `ig.people.search`, e.g.
+"realtor"). `ig.post.comments` needs no fixture of its own — it chains off `ig.profile.posts`'s
+most-commented item, same pattern as `fb.post.comments` above.
+
 ## 4. How a probe is judged
 
 Four tiers, lower tiers gating the higher ones:
