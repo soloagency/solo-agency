@@ -2262,6 +2262,12 @@
       var nudge = (!posts.items.length && maxPosts > 0) ? ensureCapture("ProfileCometTimeline", 3, 1000) : Promise.resolve(false);
       return nudge.then(function (nudged) {
       if (nudged) posts = takeCaptured("fb.profile.posts", maxPosts);
+      // The nudge scrolled the timeline, and Facebook then collapses the tab strip into a
+      // compact sticky header WITHOUT the About tab — the dossier's enterAbout() found nothing
+      // to click (measured 2026-09-09: checked ["main"], every About tab missing, 3 posts).
+      // Scroll back to the top and let the header re-expand before the About walk starts.
+      var restore = nudged ? scrollBackToTop().then(function () { return wait(600); }) : Promise.resolve();
+      return restore.then(function () {
       // Videos live behind their own tab and normally have not fired here. Take them when the
       // capture happens to exist and never navigate for them — a second page load is the cost
       // this capability exists to remove.
@@ -2292,6 +2298,7 @@
           checked: item.checked || [],
           error: ok ? null : "profile opened but yielded no name, address, About text or posts"
         };
+      });
       });
       });
     });
@@ -3841,6 +3848,14 @@
       if (c && c.response && (!scope || String(c.queryName || "").indexOf(scope) !== -1)) return true;
     }
     return false;
+  }
+  // Undo a results-feed nudge: the window, the document and the feed container all back to
+  // the top, so a header that collapsed on scroll can expand again.
+  function scrollBackToTop() {
+    try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
+    try { if (document.scrollingElement) document.scrollingElement.scrollTop = 0; } catch (e) { /* ignore */ }
+    try { var feed = document.querySelector('[role="feed"]'); if (feed) feed.scrollTop = 0; } catch (e) { /* ignore */ }
+    return Promise.resolve(true);
   }
   function scrollResultsFeed() {
     var el = document.querySelector('[role="feed"]');
