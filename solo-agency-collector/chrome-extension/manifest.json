@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Solo Agency Collector (source, do not load)",
-  "version": "0.2.72",
+  "version": "0.2.73",
   "minimum_chrome_version": "137",
   "description": "Template extension copied per client by scripts/prepare_client_extension.sh. Do not load this folder directly -- load the generated extensions/{client}_extension/ copy instead.",
   "permissions": [
