@@ -74,7 +74,7 @@ Tell your AI agent:
 Setup https://github.com/soloagency/solo-agency now.
 ```
 
-The first thing you will hear is Sam, your Team Leader, introducing the team; name that chat **SAM** and pin it, because every order and report from then on goes through it. Setup asks you one question at a time; you do not need to remember any of it. Add a client later with:
+The first thing you will hear is Sam, your Team Leader, introducing the team; name that chat **SAM** and pin it, because every order and report from then on goes through it. Setup asks you one question at a time; you do not need to remember any of it, and you can ask Sam anything at any point. Add a client later with:
 
 ```text
 Add a new client: [client name]. They provide [product/service]. Their target market is [location].

@@ -5,7 +5,7 @@ importScripts("solo_entitlement.js");
 // is that module's own mapping from its typed capability output into the canonical shape. All
 // three are pure JSON functions with no chrome.* or DOM dependency, so a load failure here would
 // be a syntax error caught by `node --check` before sync, never a runtime surprise.
-importScripts("core/schema.js", "core/platform_registry.js", "platforms/facebook/fb_normalize.js", "platforms/zillow/zillow_normalize.js");
+importScripts("core/schema.js", "core/platform_registry.js", "platforms/facebook/fb_normalize.js", "platforms/zillow/zillow_normalize.js", "platforms/instagram/ig_normalize.js");
 
 // How long one capability may run inside the page before it is killed. Raised from 45s: a tab that
 // is never activated is throttled by Chrome and the same About walk took 2-3x longer than in an
@@ -59,14 +59,12 @@ let clientBindingCache = null;
 // which ships no binding on purpose) loaded by mistake, or a client copy that never finished
 // generating / got corrupted. Either way there is no client identity to poll the shared local
 // bridge with or to report a job against, so the guard below stops pollBridge before it makes
-// any network call and surfaces one bilingual sentence the popup (and any agent walking the
+// any network call and surfaces one English sentence the popup (and any agent walking the
 // human through it) can read verbatim.
 const NO_CLIENT_BINDING_STATUS = "no_client_binding";
 const NO_CLIENT_BINDING_MESSAGE =
-  "Đây là thư mục MÃ NGUỒN, không phải bản của client. Mở dashboard → Extension → bấm " +
-  "\"Cài extension\" để cài đúng thư mục {client_slug}_extension." +
-  " / This is the SOURCE folder, not a client copy. Open the dashboard → Extension tab and " +
-  "click \"Install extension\" to install the correct {client_slug}_extension folder.";
+  "This is the SOURCE folder, not a client copy. Open the dashboard → Extension → click " +
+  "\"Install extension\" to install the correct {client_slug}_extension folder.";
 
 chrome.runtime.onInstalled.addListener(async () => {
   await resetRunLockAfterBuildChange("installed");

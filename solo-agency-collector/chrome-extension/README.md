@@ -89,8 +89,8 @@ purpose) or a client copy that never finished generating. In that state:
 
 - `background.js` **never polls the local bridge** — no `/status` call, no job fetch, nothing
   sent anywhere. It refuses before making any network call, not after.
-- The popup's status box turns red and shows one bilingual sentence instead of the usual status
-  lines.
+- The popup's status box turns red and shows one plain-English sentence instead of the usual
+  status lines.
 - Once a real client copy (with its own `client_binding.json`) is loaded instead, everything
   behaves exactly as before — the guard only ever affects the no-binding case.
 
@@ -100,7 +100,7 @@ working binding.
 **The exact sentence an agent should relay to the human** when this guard state is hit (identical
 to what the popup shows, `NO_CLIENT_BINDING_MESSAGE` in `background.js`):
 
-> Đây là thư mục MÃ NGUỒN, không phải bản của client. Mở dashboard → Extension → bấm "Cài extension" để cài đúng thư mục {client_slug}_extension. / This is the SOURCE folder, not a client copy. Open the dashboard → Extension tab and click "Install extension" to install the correct {client_slug}_extension folder.
+> This is the SOURCE folder, not a client copy. Open the dashboard → Extension → click "Install extension" to install the correct {client_slug}_extension folder.
 
 (`{client_slug}` is a placeholder — say the actual client's slug, e.g. `leadup_extension`.)
 

@@ -47,7 +47,10 @@
     "fb.profile.enrich": "enrich", "fb.profile.dossier": "enrich", "fb.profile.contacts": "enrich",
     "fb.post.react": "write_actions", "fb.post.comment": "write_actions",
     "fb.group.post": "write_actions",
-    "zillow.agents.list": "zillow", "zillow.profile.enrich": "zillow"
+    "zillow.agents.list": "zillow", "zillow.profile.enrich": "zillow",
+    // Instagram (2026-09-10): same ladder as Facebook — enrich for the profile, harvest for
+    // people search; posts, search and comments are free.
+    "ig.profile.enrich": "enrich", "ig.people.search": "harvest"
   };
 
   // Every feature the server vocabulary knows, including ones no capability in

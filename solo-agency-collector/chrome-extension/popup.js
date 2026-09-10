@@ -155,7 +155,7 @@ function renderState(state) {
     // The extension has no readable client_binding.json -- the source template folder or a
     // broken client copy was loaded. background.js already refused to poll the bridge; this is
     // just making that unmissable in the popup instead of burying it among the usual status
-    // lines. See background.js's NO_CLIENT_BINDING_MESSAGE for the full bilingual sentence.
+    // lines. See background.js's NO_CLIENT_BINDING_MESSAGE for the full sentence.
     if (statusBox) {
       statusBox.style.background = "#fff1f0";
       statusBox.style.borderColor = "#d1242f";

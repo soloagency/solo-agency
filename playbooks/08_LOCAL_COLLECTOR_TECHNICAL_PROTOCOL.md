@@ -72,10 +72,11 @@ Per-client extension setup handoff — two gestures, one button:
 
 ```text
 Open http://127.0.0.1:17321/ui/{client_slug}/extension and click the one button.
-It reveals the extension folder in Finder/Explorer AND opens Chrome at chrome://extensions
-in the same click.
+It reveals the client folder highlighted inside extensions/ (macOS open -R, Windows
+explorer /select) AND opens the extensions page in a new window of the chosen
+profile, brought to the front, in the same click.
 Turn on Developer mode (once).
-Drag the revealed folder onto the chrome://extensions page.
+Drag the highlighted folder onto the extensions page.
 ```
 
 **Every `/ui/...` link named anywhere in this file — this one and every one below it — follows the
@@ -83,13 +84,18 @@ SHOW RULE** (`docs/UI_DESIGN.md` §1 principle 2, OWNER DECISION 2026-09-10): pr
 time; on Claude Code desktop also open it in the side Browser pane; on any other local runtime also
 run `open`/`start`/`xdg-open` so it lands in a real browser; never HTTP-GET it to "verify" — a
 sandboxed agent's own GET proves nothing about the human's browser. The dashboard now opens
-directly (`--ui-auth host` default) — no entry-link/token step, no "Locked" page.
+directly (`--ui-auth host` default) — no entry-link/token step, no "Locked" page. Which exact
+`/ui/...` path to open for a given question is never memorized — it is looked up in the routes
+table (`tool ui routes` / `GET /api/ui/routes`), per the Answer-and-Show Rule
+(`SOLO_AGENCY_PLAYBOOK.md`, "Team Leader Reply Frame").
 
-The dashboard's single primary button fires both gestures at once because the bridge runs on the human's own machine and can shell out directly: `open -a "Google Chrome" "chrome://extensions/"` on macOS (works even while Chrome is already running), `cmd /c start "" chrome "chrome://extensions/"` on Windows, `google-chrome`/`xdg-open` fallback on Linux. A local-runtime agent may trigger the identical two actions itself by calling `POST /api/ui/{client_slug}/install-extension` on the bridge (documented with the UI worker's endpoints) instead of waiting on the human to click, then poll `GET /status` until `extension_health.status` is recent (75-second grace window) before telling the human it's connected. The absolute path `{ABSOLUTE_AGENCY_ROOT}/extensions/{client_slug}_extension/` is the manual fallback for the file picker only.
+The dashboard's single primary button fires both gestures at once because the bridge runs on the human's own machine and can shell out directly. The folder-reveal half highlights the folder inside its PARENT window instead of opening the folder's own contents — `open -R "<folder>"` on macOS, `explorer /select,"<folder>"` on Windows, an `xdg-open` of the parent directory on Linux (no cross-desktop "select in parent" API there, so the page's own text names the folder). The extensions-page half (no explicit browser chosen) is `open -a "Google Chrome" "chrome://extensions/"` on macOS (works even while Chrome is already running), `cmd /c start "" chrome "chrome://extensions/"` on Windows, `google-chrome`/`xdg-open` fallback on Linux. A local-runtime agent may trigger the identical two actions itself by calling `POST /api/ui/{client_slug}/install-extension` on the bridge (documented with the UI worker's endpoints) instead of waiting on the human to click, then poll `GET /status` until `extension_health.status` is recent (75-second grace window) before telling the human it's connected. The absolute path `{ABSOLUTE_AGENCY_ROOT}/extensions/{client_slug}_extension/` is the manual fallback for the file picker only.
+
+**Browser + profile detection (OWNER DECISIONS 2026-09-10 afternoon).** Before calling `install-extension`, a local-runtime agent may first call `GET /api/ui/{client_slug}/browsers` to list every installed Chromium-based browser and its profiles (display name, signed-in email — read from that browser's own `Local State` file: macOS `~/Library/Application Support/{Google/Chrome, Microsoft Edge, BraveSoftware/Brave-Browser, Vivaldi, Chromium}/Local State`; Windows `%LOCALAPPDATA%/{Google/Chrome, Microsoft/Edge, BraveSoftware/Brave-Browser, Vivaldi, Chromium}/User Data/Local State`; Linux `~/.config/{google-chrome, microsoft-edge, BraveSoftware/Brave-Browser, vivaldi, chromium}/Local State`), then pass the resolved choice as optional `{browser, profile_directory}` fields on `POST /api/ui/{client_slug}/install-extension` so the bridge shells out to that exact browser/profile, always in a NEW window brought to the front rather than a background tab (OWNER finding 2026-09-10 item 2). On macOS this is TWO ordered commands, not one (real-machine finding 2026-09-10: a single `open -na "<App name>" --args --new-window --profile-directory="<dir>" "<scheme>://extensions/"` reliably drops the url when the browser is already running — the new window lands on `chrome://newtab/` instead) — (1) `open -na "<App name>" --args --new-window --profile-directory="<dir>"` with NO url opens a blank new window, then, after a ~1.5s pause for that window to actually exist (0.6s still dropped the url in 1 of 3 live trials), (2) `open -a "<App name>" "<scheme>://extensions/"` loads the extensions page into it; then, still macOS only, a best-effort `osascript -e 'tell application "<App name>" to activate'` brings that window forward (errors ignored; Windows's `start` already focuses, Linux is skipped — no `xdotool` assumed). Windows and Linux keep the original single command, url included: `start "" "<exe path>" --new-window --profile-directory="<dir>" <scheme>://extensions/` on Windows, `<binary> --new-window --profile-directory="<dir>" <scheme>://extensions/ &` on Linux (Opera has no profile directories, so it opens without one; neither was verified live — no such machine was available — if a running instance ever drops the url there too, the extensions page's own always-visible fallback line covers it). Chrome and Edge are supported; Brave, Vivaldi, Opera, and Chromium are best-effort (work, untested); Safari and Firefox are not supported (the human is told to install Chrome instead). The agent asks at most ONE browser question and ONE profile question per client, ever — the full situational table lives in `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)".
 
 Alongside the button, the agent says one fixed sentence, in the human's language, naming the exact folder to pick (OWNER DECISIONS 2026-09-10 item A): "Chọn đúng thư mục tên `{client}_extension` mà em vừa mở — không chọn thư mục `chrome-extension` nằm trong mã nguồn." This step also always shows both help-video links — Chrome install, Edge install — even when the agent ran the bridge itself, so the human has more than one way to finish; until the owner records them, reference the future page `http://127.0.0.1:17321/ui/help/facebook` and mark it "(sắp có)" rather than inventing a video URL (OWNER DECISIONS 2026-09-10 item B).
 
-First client uses the Chrome profile the human already has open and logged in — no profile juggling. Introduce a second Chrome profile only when a SECOND client needs a different Facebook account.
+Which browser and profile the button opens is resolved by the detection call above, not a fixed "first client's existing profile" rule. The chosen browser + profile are saved per client (`extension_registry.json` fields `browser`, `profile_directory` — `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`), so the question is never asked twice for the same client; a second profile is introduced only when a SECOND client needs a different Facebook account.
 
 Every Add Client or First Client Setup handoff must include this block with the real absolute path for the fallback. The agent must not merely say that the extension was created. The human needs the button (or the path, on the manual fallback) because a new unpacked extension must be loaded into the matching client Chrome profile/account before private data source collection can work for that client.
 
@@ -375,7 +381,7 @@ During first Local Collector activation, setup repair, or collector update, a LO
    - macOS/Linux: `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
    - Windows: `setup_local_collector.ps1`, or the `Start Local Collector.cmd` launcher. SmartScreen may ask for one click on the unsigned script/binary — mention that only if it actually happens.
    Then poll `GET http://127.0.0.1:17321/status` for up to 60 seconds and report success or the specific failure.
-2. Extension install, via the two-gesture dashboard flow: call `POST /api/ui/{client_slug}/install-extension` (or open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click its one button) — it reveals the extension folder AND opens `chrome://extensions` in the same action. Tell the human the two physical clicks only Chrome can require of a person: turn on Developer mode, drag the folder onto the page. Poll `extension_health.status` until it is `recent` (75-second grace window), then celebrate in chat. First client uses the Chrome profile the human already has open and logged in to the approved private data sources; a second Chrome profile is introduced only when a SECOND client needs a different Facebook account.
+2. Extension install, via the two-gesture dashboard flow: call `POST /api/ui/{client_slug}/install-extension` (or open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click its one button) — it reveals the client folder highlighted inside extensions/ (macOS open -R, Windows explorer /select), opens the extensions page in a new window of the chosen profile and brings it to the front, in the same action. Tell the human the two physical clicks only Chrome can require of a person: turn on Developer mode, drag the highlighted folder onto the extensions page. Poll `extension_health.status` until it is `recent` (75-second grace window), then celebrate in chat. First client uses the Chrome profile the human already has open and logged in to the approved private data sources; a second Chrome profile is introduced only when a SECOND client needs a different Facebook account.
 
 **Remote runtime — hand the human exactly these two actions in chat:**
 
@@ -401,12 +407,12 @@ Chrome extension installation flow:
 /Users/alex/oneman_agency/extensions/avenngo/
 ```
 
-2. On a local runtime, the agent triggers the two-gesture dashboard flow itself (`POST /api/ui/{client_slug}/install-extension`) and polls `extension_health.status`; it tells the human only the two clicks Chrome requires of a person (Developer mode, drag). On a remote runtime, the agent tells the human directly in chat, Telegram, or another human-facing channel:
+2. On a local runtime, the agent triggers the two-gesture dashboard flow itself (`POST /api/ui/{client_slug}/install-extension`) and polls `extension_health.status`; it tells the human only the two clicks Chrome requires of a person (Developer mode, drag). Either way, mention the recorded video on the page too ("the page has a 30-second video showing exactly this" — in the human's own language). On a remote runtime, the agent tells the human directly in chat, Telegram, or another human-facing channel:
 
 ```md
 Please install the Solo Agency Local Collector extension for {Client Name}:
 
-**Easiest — one button:** open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click the button. It reveals the extension folder AND opens `chrome://extensions` for you. Turn on `Developer mode`, then drag the folder onto the page. The page turns green when it connects.
+**Easiest — one button:** open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click the button. It reveals the client folder highlighted inside extensions/ (macOS open -R, Windows explorer /select), opens the extensions page in a new window of the chosen profile and brings it to the front. Turn on `Developer mode`, then drag the highlighted folder onto the extensions page. The page turns green when it connects. Right under those two steps, the page also plays a short recorded video for your browser (Chrome or Edge) showing exactly this.
 
 **Manual fallback:**
 1. Open the Chrome profile/account for {Client Name}. Use the profile you already have open for your first client; a separate profile is only needed once a second client needs a different Facebook account.
@@ -621,7 +627,7 @@ Open Terminal, paste this one line, and press Enter:
 `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
 
 **Easiest path (recommended) — one button does both gestures.** Give the human this one link:
-`http://127.0.0.1:17321/ui/{client_slug}/extension` → click the button. It reveals the extension folder in Finder AND opens `chrome://extensions` for you, in the same click. Turn on **Developer mode**, then **drag that folder onto the page**. The UI page flips to a green ✓ connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
+`http://127.0.0.1:17321/ui/{client_slug}/extension` → click the button. It reveals the client folder highlighted inside extensions/ (macOS `open -R`), opens the extensions page in a new window of the chosen profile and brings it to the front, in the same click. Turn on **Developer mode**, then **drag the highlighted folder onto the extensions page**. The UI page flips to a green ✓ connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
 
 Step 2 (manual fallback) - load the client-specific Chrome extension in the Chrome profile/account for this client.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:
@@ -830,7 +836,7 @@ Open PowerShell, paste this one line, and press Enter:
 `powershell -ExecutionPolicy Bypass -File "C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\setup_local_collector.ps1"`
 
 **Easiest path (recommended) — one button does both gestures.** Give the human this one link:
-`http://127.0.0.1:17321/ui/{client_slug}/extension` -> click the button. It reveals the extension folder in Explorer AND opens `chrome://extensions` for you, in the same click. Turn on **Developer mode**, then **drag that folder onto the page**. The page turns green connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
+`http://127.0.0.1:17321/ui/{client_slug}/extension` -> click the button. It reveals the client folder highlighted inside extensions/ (Windows `explorer /select`), opens the extensions page in a new window of the chosen profile and brings it to the front, in the same click. Turn on **Developer mode**, then **drag the highlighted folder onto the extensions page**. The page turns green connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
 
 Step 2 (manual fallback) - load the client-specific Chrome extension in the Chrome profile/account for this client.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:

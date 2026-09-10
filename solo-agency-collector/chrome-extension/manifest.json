@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Solo Agency Collector (source, do not load)",
-  "version": "0.2.70",
+  "version": "0.2.71",
   "minimum_chrome_version": "137",
   "description": "Template extension copied per client by scripts/prepare_client_extension.sh. Do not load this folder directly -- load the generated extensions/{client}_extension/ copy instead.",
   "permissions": [
@@ -27,6 +27,17 @@
       ],
       "js": [
         "platforms/facebook/gql_intercept.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "*://*.instagram.com/*"
+      ],
+      "js": [
+        "platforms/instagram/ig_intercept.js"
       ],
       "run_at": "document_start",
       "world": "MAIN",

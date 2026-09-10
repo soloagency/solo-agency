@@ -5,7 +5,7 @@
 // background.js can't read one, either the SOURCE template folder
 // (solo-agency-collector/chrome-extension/, which ships no binding on purpose) was loaded by
 // mistake, or a client copy never finished generating. pollBridge() must refuse to touch the
-// shared local bridge in that state and the popup must show a clear bilingual message instead
+// shared local bridge in that state and the popup must show a clear English message instead
 // of silently doing nothing.
 //
 // This loads the REAL background.js with vm.runInContext (same trick as
@@ -210,8 +210,8 @@ async function main() {
     const state = await ctx.getState();
     check("stored state carries the guard status", state.status === "no_client_binding", state.status);
     check("stored state message is present and non-empty", typeof state.message === "string" && state.message.length > 0, state.message);
-    check("message is bilingual: contains the Vietnamese sentence", state.message.includes("thư mục MÃ NGUỒN"), state.message);
-    check("message is bilingual: contains the English gloss", state.message.includes("This is the SOURCE folder"), state.message);
+    check("message is English-only: contains the SOURCE folder sentence", state.message.includes("This is the SOURCE folder"), state.message);
+    check("message contains no Vietnamese text", !/[À-ỹ]/.test(state.message), state.message);
     check("message names the fix using the new {client_slug}_extension convention", state.message.includes("{client_slug}_extension"), state.message);
   }
 
@@ -239,9 +239,9 @@ async function main() {
   }
 
   // ---------------------------------------------------------------------------- popup.js: message present
-  console.log("\npopup: guard state renders the bilingual message into the status box");
+  console.log("\npopup: guard state renders the English message into the status box");
   {
-    const guardState = { status: "no_client_binding", message: "Đây là thư mục MÃ NGUỒN... / This is the SOURCE folder..." };
+    const guardState = { status: "no_client_binding", message: "This is the SOURCE folder, not a client copy..." };
     // renderState is a top-level function declaration in popup.js, so it lands directly on the
     // vm context as a callable global.
     const { ctx: popupCtx } = loadPopup();

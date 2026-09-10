@@ -97,6 +97,10 @@ never blocks capture, only what the agent can DO with a contact once the plan's 
   `contact lock-status` / `GET /status` → `entitlement`):
   - VI: "{locked} lead(s) đang bị khoá theo gói {tier} — nâng cấp tại {upgrade_url} để mở."
   - EN: "{locked} lead(s) are locked under the {tier} plan — upgrade at {upgrade_url} to unlock them."
+- **CRM answers follow the Answer-and-Show Rule** (`SOLO_AGENCY_PLAYBOOK.md`, "Team Leader Reply
+  Frame"): who-is-new/lead-count/locked-contact questions navigate the side dashboard to
+  `/ui/{client}/crm` with the matching filter (`sort=-created`, `locked=1`, `stage=`, `q=`), and a
+  question about one named person navigates to `/ui/{client}/contact/{id}`.
 
 ## Completion Gates
 

@@ -115,7 +115,8 @@ check("background.js loads core/platform_registry.js via importScripts", /import
 }
 // The registry's own tables, pinned to what shipped (a later change must be deliberate).
 check("registry writeActions() has the 4 write ids", P.writeActions().size === 4, setToSortedArray(P.writeActions()));
-check("registry hideable() has the 7 hideable ids", P.hideable().size === 7, setToSortedArray(P.hideable()));
+check("registry hideable() carries the 7 Facebook/Zillow/web hideable ids", ["fb.profile.dossier","fb.profile.header","fb.profile.contacts","fb.profile.hovercard","zillow.agents.list","zillow.profile.enrich","web.search"].every(function (id) { return P.hideable().has(id); }), setToSortedArray(P.hideable()));
+check("registry hideable() includes the instagram profile/people capabilities", P.hideable().has("ig.profile.enrich") && P.hideable().has("ig.people.search"), setToSortedArray(P.hideable()));
 check("registry policyFlags() maps the 4 write ids", Object.keys(P.policyFlags()).length === 4, P.policyFlags());
 
 // needs_active_tab is the negation of HIDEABLE_CAPABILITIES (background.js
@@ -210,7 +211,7 @@ console.log("\n== lookup helpers ==");
   // zillow.* is info_only (isZillowCapability catch-all) even though it is NOT part of the
   // literal INFO_ONLY_CAPABILITIES table — see the comment in platform_registry.js.
   check("isInfoOnly('zillow.agents.list') === true (isZillowCapability catch-all)", P.isInfoOnly("zillow.agents.list") === true);
-  check("but infoOnly() the derived Set does NOT include a zillow id (matches background.js's literal table)", !P.infoOnly().has("zillow.agents.list"));
+  check("infoOnly() is derived from every module: zillow and instagram info-only ids are in it", P.infoOnly().has("zillow.agents.list") && P.infoOnly().has("ig.profile.enrich") && P.infoOnly().has("fb.profile.header"), setToSortedArray(P.infoOnly()));
   check("isInfoOnly('fb.profile.contacts') === true", P.isInfoOnly("fb.profile.contacts") === true);
   check("isInfoOnly('fb.group.posts') === false", P.isInfoOnly("fb.group.posts") === false);
 

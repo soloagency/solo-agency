@@ -179,7 +179,7 @@ Starter; everything else is a data feature and runs on every plan, Free included
 
 ### Notes on specific rows
 
-- **Any URL this catalogue hands to the human** — the local dashboard/CRM link (`http://127.0.0.1:17321/ui/...`) as well as an external one like `review_locked_leads_upgrade`'s/`write_actions_upgrade`'s upgrade URL — follows the SHOW RULE (`docs/UI_DESIGN.md` §1 principle 2, OWNER DECISION 2026-09-10): print it as text every time; on Claude Code desktop also open it in the side Browser pane; on any other local runtime also run `open`/`start`/`xdg-open` so it lands in a real browser; never HTTP-GET it to "verify." The local dashboard opens directly now (`--ui-auth host` default) — no entry-link/token step, no "Locked" page.
+- **Any URL this catalogue hands to the human** — the local dashboard/CRM link (`http://127.0.0.1:17321/ui/...`) as well as an external one like `review_locked_leads_upgrade`'s/`write_actions_upgrade`'s upgrade URL — follows the SHOW RULE (`docs/UI_DESIGN.md` §1 principle 2, OWNER DECISION 2026-09-10): print it as text every time; on Claude Code desktop also open it in the side Browser pane; on any other local runtime also run `open`/`start`/`xdg-open` so it lands in a real browser; never HTTP-GET it to "verify." The local dashboard opens directly now (`--ui-auth host` default) — no entry-link/token step, no "Locked" page. A job offer that shows data — a lead count, a report, a campaign's state, the locked-contacts meter — also follows the Answer-and-Show Rule (`SOLO_AGENCY_PLAYBOOK.md`, "Team Leader Reply Frame"): the chat line stands alone, and the dashboard navigation is the matching routes-table view for depth.
 - **`comment_campaign`** is the one row with a plan-dependent offer shape, not a plan-dependent
   signal: the signal (commentable posts detected) fires the same on every plan. On Free, the
   catalogue's job is to show the preview — the list of posts worth commenting on — never the
@@ -197,7 +197,11 @@ Starter; everything else is a data feature and runs on every plan, Free included
   distinct from `fb_web_only_upsell`: `fb_login_reconnect` fires when a client that was `enabled`
   goes stale/logged-out; `fb_web_only_upsell` fires when a client is still `web_only` — a deliberate,
   acknowledged choice, never a stale session — and its acceptance runs the same 90-second extension
-  help loop and acknowledgment/recording contract as setup step 4, not a bare reconnect.
+  help loop and acknowledgment/recording contract as setup step 4, not a bare reconnect. Future, not
+  yet built (pending): once the extension reports `facebook_logged_in: true|false` at check-in, this
+  same signal will be able to tell a genuinely stale/logged-out extension apart from one that is
+  simply connected to the wrong browser profile — reference that only as "when the extension reports
+  `facebook_logged_in`," never as a state that exists today.
 - **`fb_web_only_upsell`** never assumes the human forgot; it offers, does not pressure, and always
   names the FIRST RUN discovery budget that will apply to the client's first Facebook Discovery Pass
   once they enable it — because a `web_only` client who later enables Facebook still gets that

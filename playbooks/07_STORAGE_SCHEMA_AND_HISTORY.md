@@ -1020,7 +1020,7 @@ The agent must update this file before:
 
 Maps each client to its per-client Chrome extension instance so scheduled runs can route collector jobs to the correct extension. Scheduled runs must read the client→`extension_instance_id` mapping from this file.
 
-Create or update this file when a per-client extension folder is prepared under `extensions/{client_slug}/`, when an extension is loaded or reloaded in Chrome, or when a client's collector status changes.
+Create or update this file when a per-client extension folder is prepared under `extensions/{client_slug}_extension/`, when an extension is loaded or reloaded in Chrome, or when a client's collector status changes.
 
 Minimum fields:
 
@@ -1033,8 +1033,10 @@ Minimum fields:
       "client_name": "AvenNgo",
       "extension_instance_id": "ext_avenngo_default",
       "extension_display_name": "AvenNgo - Solo Agency Collector",
-      "extension_path": "/ABSOLUTE/PATH/extensions/avenngo/",
+      "extension_folder": "/ABSOLUTE/PATH/extensions/avenngo_extension/",
       "chrome_profile_hint": "Default",
+      "browser": "chrome",
+      "profile_directory": "Default",
       "registered_at": "2026-06-20T09:00:00Z",
       "last_health_at": "2026-06-20T09:05:00Z",
       "status": "active"
@@ -1049,8 +1051,10 @@ Field notes:
 - `client_name`: human-readable client name.
 - `extension_instance_id`: stable id for this client's extension instance; scheduled runs read the client→`extension_instance_id` mapping from this file.
 - `extension_display_name`: Chrome display name, client name first.
-- `extension_path`: absolute path to the client's `extensions/{client_slug}/` folder.
-- `chrome_profile_hint`: which Chrome profile the extension is loaded in.
+- `extension_folder`: per-client pin for the client's unpacked extension folder, read (not written) by the bridge — `uiResolveExtensionFolder` in `solo-agency-collector/bridge-go/ui.go` checks this pin first, before falling back to the current `extensions/{client_slug}_extension/` convention and then the legacy `extensions/{client_slug}/` path. Set this only when the folder lives somewhere other than the current convention; leave it unset otherwise.
+- `chrome_profile_hint`: free-text hint of which Chrome profile the extension is loaded in (legacy; kept for backward compatibility).
+- `browser`: the detected Chromium-based browser this client's extension actually runs in — one of `chrome | edge | brave | vivaldi | opera | chromium` (OWNER DECISIONS 2026-09-10 afternoon). Safari and Firefox are never valid values here; a machine with only those installed is told to install Chrome instead (`playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)"). Set once, from the agent's browser question or a silent pick when there was no real choice, and read back on every later reopen so the question is never asked twice for the same client.
+- `profile_directory`: the exact profile folder name from that browser's own `Local State` (`profile.info_cache` key, e.g. `Default`, `Profile 1`) — passed as the optional `{browser, profile_directory}` fields on `POST /api/ui/{client_slug}/install-extension` so the bridge opens the extensions page in exactly that browser window every time, including the 90-second diagnostics re-trigger.
 - `registered_at`: when the extension was registered.
 - `last_health_at`: last successful health check timestamp.
 - `status`: one of `active | pending_install | disabled`.
@@ -1418,6 +1422,10 @@ facebook_discovery_first_pass_done: true | false
   # playbooks/SCHEDULED_RUN_ENTRYPOINT.md step 12E. Keyed to whether the pass has EVER run for
   # this client, not to the automation run number -- a client who starts `web_only` and later
   # connects Facebook several runs later still gets FIRST RUN on that later run.
+  # Browser/profile note: the actual browser and profile chosen for this client's extension is NOT
+  # duplicated here -- it lives in collector/extension_registry.json (`browser`, `profile_directory`,
+  # above), keyed by client_slug, so the agent never re-asks the browser/profile question once
+  # resolved (OWNER DECISIONS 2026-09-10 afternoon).
 collector_setup_status_file:
 notes:
 

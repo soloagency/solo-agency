@@ -68,12 +68,9 @@
   }
 
   // Per-capability metadata for a zillow.* capability. Both are in HIDEABLE_TABLE already,
-  // so hideable/needs_active_tab fall out of the shared helper. info_only is NOT driven by
-  // INFO_ONLY_TABLE (background.js's literal INFO_ONLY_CAPABILITIES set never lists a
-  // zillow.* id) — it comes from the SEPARATE isZillowCapability catch-all at background.js
-  // ~811 and ~893: `const infoOnly = INFO_ONLY_CAPABILITIES.has(cap) || isZillowCapability`.
-  // Baking that OR into the data here is what lets isInfoOnly(capId) below match runtime
-  // behaviour exactly while infoOnly() (the derived Set) still matches the literal table.
+  // so hideable/needs_active_tab fall out of the shared helper. info_only is true for the
+  // whole module: background.js used to express that as a separate isZillowCapability OR
+  // next to the Facebook INFO_ONLY table; here it is simply data on the capability.
   function zillowCapMeta(id) {
     return {
       entity: "profile",
@@ -160,6 +157,31 @@
         "fb.message.send": fbCapMeta("fb.message.send", "message"),
         "fb.group.post": fbCapMeta("fb.group.post", "message"),
         "web.search": fbCapMeta("web.search", "search")
+      }
+    },
+    {
+      name: "instagram",
+      capPrefix: "ig.",
+      hosts: ["instagram.com", "www.instagram.com"],
+      // The interceptor (platforms/instagram/ig_intercept.js) is a static content script on
+      // instagram.com (manifest.json); the extractor is injected per job.
+      files: {
+        read: ["platforms/instagram/ig_extract.js"]
+      },
+      entries: {
+        run: "__soloIgRun",
+        normalize: "__soloInstagramNormalize"
+      },
+      capabilities: {
+        // Profile data arrives by XHR at load and is complete without scrolling, so the tab may
+        // stay hidden; the posts grid, the search grid and comments render on demand.
+        "ig.profile.enrich": { entity: "profile", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: true, needs_active_tab: false },
+        "ig.profile.posts": { entity: "post", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        "ig.search.posts": { entity: "post", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        "ig.people.search": { entity: "profile", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: true, needs_active_tab: false },
+        "ig.post.comments": { entity: "comment", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        // maintenance aid, same idea as Facebook's _discover.deep
+        "_discover.ig": { entity: "generic", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: true, needs_active_tab: false }
       }
     },
     {
@@ -285,24 +307,31 @@
   }
 
   // ------------------------------------------------------------------
-  // Derived legacy-shaped sets/objects — EXACTLY the six background.js tables above, in the
-  // same Set/plain-object shapes background.js builds today, so a later step can swap
-  //   const WRITE_ACTIONS = new Set([...]);
-  // for
-  //   const WRITE_ACTIONS = SoloPlatforms.writeActions();
-  // with no behaviour change. A fresh copy is returned every call — callers may mutate
-  // their own copy freely.
+  // Derived legacy-shaped sets/objects — the same Set / plain-object shapes background.js
+  // used to build by hand, now computed from EVERY module's capability metadata (so a module
+  // added later, such as instagram, is covered without touching background.js). For the
+  // Facebook ids the result is exactly the six literal tables above, since fbCapMeta derives
+  // from them. A fresh copy is returned every call — callers may mutate their own copy freely.
   // ------------------------------------------------------------------
-  function writeActions() { return new Set(WRITE_ACTIONS_TABLE); }
-  function matchResolvable() { return new Set(MATCH_RESOLVABLE_TABLE); }
-  function infoOnly() { return new Set(INFO_ONLY_TABLE); }
-  function pinTarget() { return new Set(PIN_TARGET_TABLE); }
-  function policyFlags() {
-    const out = {};
-    Object.keys(POLICY_FLAG_TABLE).forEach(function (k) { out[k] = POLICY_FLAG_TABLE[k]; });
+  function collect(pred) {
+    const out = new Set();
+    PLATFORM_MODULES.forEach(function (mod) {
+      Object.keys(mod.capabilities || {}).forEach(function (id) { if (pred(capabilityMeta(id), id)) out.add(id); });
+    });
     return out;
   }
-  function hideable() { return new Set(HIDEABLE_TABLE); }
+  function writeActions() { return collect(function (m) { return !!m.write; }); }
+  function matchResolvable() { return collect(function (m) { return !!m.match_resolvable; }); }
+  function infoOnly() { return collect(function (m) { return !!m.info_only; }); }
+  function pinTarget() { return collect(function (m) { return !!m.pin_target; }); }
+  function policyFlags() {
+    const out = {};
+    PLATFORM_MODULES.forEach(function (mod) {
+      Object.keys(mod.capabilities || {}).forEach(function (id) { const f = capabilityMeta(id).policy_flag; if (f) out[id] = f; });
+    });
+    return out;
+  }
+  function hideable() { return collect(function (m) { return !!m.hideable; }); }
 
   root.SoloPlatforms = {
     PLATFORM_MODULES: PLATFORM_MODULES,
