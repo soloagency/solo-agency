@@ -248,12 +248,14 @@ instead (catalog 0.2.8, `chain.fixture_override`); leave it unset and the chain 
 
 | id | url | flow | proof | guards |
 |---|---|---|---|---|
-| `ig.post.react` | post/reel permalink | `POST /api/v1/web/likes/<media_id>/like/` (or `/unlike/`) with the session's csrf + app id; the media id from the page's embedded post root | `{"status":"ok"}` AND the post's Like control reads Unlike | `not_a_post_url`, `post_mismatch`, `media_id_unknown`, `already` |
+| `ig.post.react` | post/reel permalink | clicks the post's OWN Like control (svg aria-label Like / Unlike) — measured 2026-09-10: the old `web/likes/<id>/like/` endpoint answers 404; the media id (embedded post root) identifies the post | the control reads Unlike afterwards (+ the page's like mutation when captured) | `not_a_post_url`, `post_mismatch`, `media_id_unknown`, `already` |
 | `ig.post.comment` | post/reel permalink | `POST /api/v1/web/comments/<media_id>/add/` with `comment_text` (+ `replied_to_comment_id`) | the reply's comment id → `comment_url`; text looked for on the page | same, plus "no comment box" when comments are off |
 | `ig.message.send` | recipient profile ROOT | the profile's Message button opens the thread; the composer gets the text; Send / Enter | composer cleared + text appears in the thread | `not_a_profile_url`, `recipient_mismatch` (landed profile and thread header), `ambiguous_composer`, no Message button |
 | `ig.post.publish` | — | **not built**: Instagram has no text-only post; the desktop Create flow needs an image or video upload | | |
 
-Policy flags: react → `do_not_react`, comment → `do_not_comment`, DM → `do_not_message`.
+Live 2026-09-10 on the operator-controlled post and account: comment `done` (comment id back),
+DM `done` (thread composer, sent with the Send button), like `done` after the switch to the UI
+click. Policy flags: react → `do_not_react`, comment → `do_not_comment`, DM → `do_not_message`.
 `write_actions` gates react/comment; the DM is gated per contact by the bridge. Healthcheck:
 `dry_run` daily on `ig_own_post_url` (react, comment) and `ig_dm_recipient_url` (DM); the real
 write only with `--allow-writes` and only on those operator-controlled targets. A DM to somebody

@@ -53,7 +53,7 @@ function makeCtx(opts) {
   };
   Object.values(nodes).forEach((list) => list.forEach((el) => { el._doc = document; }));
   const store = { captures: opts.captures || [], origFetch: opts.origFetch || fetchStub([]), csrfToken: () => "tok", appId: () => "936619743392459", parseResponse: (t) => { try { return JSON.parse(t); } catch (e) { return null; } }, docIdFor: () => "" };
-  const ctx = { document, location: { pathname, href: "https://www.instagram.com" + pathname, origin: "https://www.instagram.com" }, console, setTimeout, clearTimeout, URL, URLSearchParams, Promise, Date, JSON, MouseEvent: function () {}, KeyboardEvent: function () {}, InputEvent: function () {}, Event: function () {}, HTMLTextAreaElement: { prototype: {} }, HTMLInputElement: { prototype: {} } };
+  const ctx = { document, location: { pathname, href: "https://www.instagram.com" + pathname, origin: "https://www.instagram.com" }, console, setTimeout, clearTimeout, URL, URLSearchParams, Promise, Date, JSON, MouseEvent: function (t) { this.type = t; }, KeyboardEvent: function (t) { this.type = t; }, InputEvent: function (t) { this.type = t; }, Event: function (t) { this.type = t; }, HTMLTextAreaElement: { prototype: {} }, HTMLInputElement: { prototype: {} } };
   ctx.window = ctx; ctx.window.__soloIg = store;
   vm.createContext(ctx);
   vm.runInContext(EXTRACT, ctx, { filename: "ig_extract.js" });
@@ -76,12 +76,12 @@ const likeSvg = (label, btn) => { const svg = fakeEl({ tag: "SVG", attrs: { "ari
     const ctx = makeCtx({ pathname: "/p/ABC/", captures: [postRootCapture("ABC", "123")], nodes });
     const d = await ctx.window.__soloIgAct("ig.post.react", { _target_url: "https://www.instagram.com/p/ABC/", dry_run: true });
     check("dry_run resolves the media id and reads the state without calling the endpoint", d.status === "dry_run" && d.items[0].media_id === "123" && d.items[0].like_control_found === true && d.items[0].current_state === "not_liked" && ctx.window.__soloIg.origFetch.calls.length === 0, d.items[0]);
-    const stub = fetchStub([{ match: (u) => u.indexOf("/api/v1/web/likes/123/like/") !== -1, json: { status: "ok" } }]);
-    const nodes2 = { "svg[aria-label]": [likeSvg("Like", btn)] };
-    stub.calls.onCall = null;
-    const ctx2 = makeCtx({ pathname: "/p/ABC/", captures: [postRootCapture("ABC", "123")], nodes: nodes2, origFetch: (u, i) => { const p = stub(u, i); nodes2["svg[aria-label]"] = [likeSvg("Unlike", btn)]; return p; } });
+    const nodes2 = { "svg[aria-label]": [] };
+    const btn2 = fakeEl({ attrs: { role: "button" }, onEvent: (e) => { if (e.type === "click") { nodes2["svg[aria-label]"] = [likeSvg("Unlike", btn2)]; ctx2.window.__soloIg.captures.push({ kind: "graphql", queryName: "usePolarisLikeMediaLikeMutation", capturedAt: Date.now(), response: { data: {} } }); } } });
+    nodes2["svg[aria-label]"] = [likeSvg("Like", btn2)];
+    const ctx2 = makeCtx({ pathname: "/p/ABC/", captures: [postRootCapture("ABC", "123")], nodes: nodes2 });
     const r = await ctx2.window.__soloIgAct("ig.post.react", { _target_url: "https://www.instagram.com/p/ABC/" });
-    check("like: POST to the web endpoint with csrf + app id, control flips -> done verified", r.status === "done" && r.items[0].verified === true && stub.calls[0].init.headers["x-csrftoken"] === "tok" && stub.calls[0].init.headers["x-ig-app-id"] === "936619743392459" && r.items[0].state_after === "liked", r.items[0]);
+    check("like: the post's own control is clicked, flips to Unlike, mutation seen -> done verified, no endpoint called", r.status === "done" && r.items[0].verified === true && r.items[0].state_after === "liked" && /Like/.test(r.items[0].mutation_seen) && ctx2.window.__soloIg.origFetch.calls.length === 0, r.items[0]);
     const ctx3 = makeCtx({ pathname: "/p/ABC/", captures: [postRootCapture("ABC", "123")], nodes: { "svg[aria-label]": [likeSvg("Unlike", btn)] } });
     const a = await ctx3.window.__soloIgAct("ig.post.react", { _target_url: "https://www.instagram.com/p/ABC/" });
     check("already liked -> status already, nothing sent", a.status === "already" && ctx3.window.__soloIg.origFetch.calls.length === 0, a.items[0]);

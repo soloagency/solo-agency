@@ -7,11 +7,13 @@
  * the write two ways, never throw into the page, and always return a record — a refusal is a
  * result (status + error), never a missing item.
  *
- *   ig.post.react     like / unlike the post the page shows. Instagram's own web client calls
- *                     POST /api/v1/web/likes/<media_id>/like/ (or /unlike/) with the csrf +
- *                     app-id headers; the media id comes from the page's embedded post root
- *                     (mediaIdFromCaptures, shared with ig.post.comments). Proof: {"status":"ok"}
- *                     AND the post's own Like control reads "Unlike" afterwards.
+ *   ig.post.react     like / unlike the post the page shows by clicking the post's OWN Like
+ *                     control (svg aria-label Like / Unlike inside the article) — measured
+ *                     2026-09-10: the old web endpoint /api/v1/web/likes/<id>/like/ answers 404,
+ *                     so the page does the write and signs it itself. The media id (from the
+ *                     embedded post root, shared with ig.post.comments) identifies the post in
+ *                     the record. Proof: the control reads Unlike afterwards (+ the mutation the
+ *                     page fired, when the interceptor saw it).
  *   ig.post.comment   POST /api/v1/web/comments/<media_id>/add/ with comment_text (and
  *                     replied_to_comment_id for a reply). Proof: the reply carries the new
  *                     comment's id; the text is then looked for on the page.
@@ -156,15 +158,18 @@
     if ((want === "like" && state === "liked") || (want === "unlike" && state === "not_liked")) {
       return wrapCap("ig.post.react", "already", { action: want, shortcode: hereCode, media_id: mediaId, verified: true, current_state: state, like_control_found: !!ctl });
     }
+    if (!ctl) return wrapCap("ig.post.react", "error", { action: want, shortcode: hereCode, media_id: mediaId, current_state: state, like_control_found: false, error: "no Like control on the post (the page did not render the article)" });
+    var t0 = Date.now();
     await jitter();
-    var res = await restPost("/api/v1/web/likes/" + mediaId + "/" + want + "/");
-    var ok = !!(res.json && res.json.status === "ok");
-    var after = await waitFor(function () { var c = likeControl(); return c && ((want === "like") === c.liked) ? c : null; }, 5000, 300);
-    var status = ok ? "done" : "error";
+    click(ctl.el);
+    var after = await waitFor(function () { var c = likeControl(); return c && ((want === "like") === c.liked) ? c : null; }, 6000, 300);
+    var mut = null;
+    try { var caps = store().captures || []; for (var i = caps.length - 1; i >= 0; i--) { var c = caps[i]; if (c && (c.capturedAt || 0) >= t0 - 1500 && /like/i.test(String(c.queryName || ""))) { mut = String(c.queryName); break; } } } catch (e) { /* proof is optional */ }
+    var status = after ? "done" : "error";
     return wrapCap("ig.post.react", status, {
-      action: want, shortcode: hereCode, media_id: mediaId, verified: ok && !!after, http_status: res.status,
-      current_state: state, like_control_found: !!ctl, state_before: state, state_after: after ? (after.liked ? "liked" : "not_liked") : state,
-      error: ok ? null : ("instagram answered HTTP " + res.status + (res.json && res.json.message ? ": " + res.json.message : ""))
+      action: want, shortcode: hereCode, media_id: mediaId, verified: !!after, mutation_seen: mut,
+      current_state: state, like_control_found: true, state_before: state, state_after: after ? (after.liked ? "liked" : "not_liked") : state,
+      error: after ? null : "the Like control did not flip after the click"
     });
   }
 

@@ -87,8 +87,13 @@ then sees the mutation (`FavoriteTweet`, `CreateTweet`, the DM call) as proof. A
 | `x.post.like` | post permalink | the focal article's `[data-testid=like]` | control flips to `unlike`, `FavoriteTweet` captured | `not_a_post_url`, `post_mismatch`, `already` |
 | `x.post.reply` | post permalink | `[data-testid=tweetTextarea_0]` + `[data-testid=tweetButtonInline]` | `CreateTweet` reply → reply id/url | `not_a_post_url`, `post_mismatch`, focal post must render, button must enable |
 | `x.post.publish` | `/home` or `/compose/post` | same composer | `CreateTweet` → post url under the operator's handle | `not_a_composer_url` (a post page's composer is a reply); every post is PUBLIC |
-| `x.dm.send` | recipient profile | `[data-testid=sendDMFromProfile]` → `dmComposerTextInput` → `dmComposerSendButton` | composer cleared + text appears as a sent entry; DM call captured when seen | `not_a_profile_url`, `recipient_mismatch` (landed profile and conversation header), `dm_not_allowed` |
+| `x.dm.send` | recipient profile | `[data-testid=sendDMFromProfile]` → the conversation's message box → its Send control | composer cleared + text appears as a sent entry; DM call captured when seen | `not_a_profile_url`, `recipient_mismatch` (landed profile and conversation header), `dm_not_allowed`, `chat_pin_setup_required` |
 
+Live 2026-09-10: like `done` (control flipped), reply `done` (CreateTweet → reply url), publish
+`done` (CreateTweet → post url under the operator's handle). The DM hit X's encrypted-chat
+onboarding: the Message control sends the tab to `/i/chat/pin/new`, where X asks the operator to
+create a 4-digit PIN once — a security setting the collector never types (`chat_pin_setup_required`);
+after the operator sets it by hand in that Chrome, the conversation opens normally.
 Policy flags: like → `do_not_react`, reply → `do_not_comment`, publish → `do_not_post`, DM →
 `do_not_message`. `write_actions` gates like/reply/publish; the DM is gated per contact by the
 bridge (same as `fb.message.send`). Healthcheck: `dry_run` daily on `x_own_post_url` (like,

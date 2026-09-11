@@ -222,6 +222,8 @@
     if (!text) return wrapCap("x.dm.send", "error", { error: "no message text provided" });
     var jobUrl = str(inputs._target_url || inputs.profile_url || location.href);
     var wantHandle = str(inputs.username || inputs.handle).replace(/^@/, "") || handleFrom(jobUrl);
+    var pinPage = function () { return /^\/i\/chat\/pin/.test(location.pathname); };
+    if (pinPage()) return wrapCap("x.dm.send", "error", { text: text, recipient: wantHandle || null, landed_path: location.pathname, error: "chat_pin_setup_required: X asks the operator to create the XChat PIN once (open x.com/messages in this Chrome, set the PIN), then retry — the collector never sets security PINs; nothing was typed" });
     var onMessages = /^\/messages\//.test(location.pathname);
     var opened = false;
     if (!onMessages) {
@@ -232,6 +234,12 @@
       if (!btn) return wrapCap("x.dm.send", "error", { text: text, recipient: hereHandle, error: "dm_not_allowed: this profile shows no Message control — the account does not accept DMs from this session" });
       click(btn); opened = true;
       await waitFor(function () { return /^\/messages\//.test(location.pathname) && dmComposer(); }, 10000, 300);
+    }
+    // Measured 2026-09-10: the Message control sent the tab to /i/chat/pin/new — X's encrypted
+    // chat asks the operator to create a 4-digit PIN once before any conversation opens. A PIN
+    // is a security setting: the collector never types one. The operator does it by hand.
+    if (pinPage()) {
+      return wrapCap("x.dm.send", "error", { text: text, recipient: wantHandle || null, opened_conversation: opened, landed_path: location.pathname, error: "chat_pin_setup_required: X asks the operator to create the XChat PIN once (open x.com/messages in this Chrome, set the PIN), then retry — the collector never sets security PINs; nothing was typed" });
     }
     var box = dmComposer();
     if (!box) return wrapCap("x.dm.send", "error", { text: text, recipient: wantHandle || null, opened_conversation: opened, landed_path: location.pathname, seen_textboxes: seenTextboxes(), error: "the conversation composer did not open" });

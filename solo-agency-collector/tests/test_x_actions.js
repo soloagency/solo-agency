@@ -102,6 +102,8 @@ const P = "2098031513552187670";
     check("landing on another profile refuses (recipient_mismatch)", r1.status === "error" && /recipient_mismatch/.test(r1.items[0].error), r1.items[0].error);
     const r2 = await makeCtx({ pathname: "/MrPromptify", nodes: {} }).window.__soloXAct("x.dm.send", { _target_url: "https://x.com/MrPromptify", text: "hi" });
     check("no Message control -> dm_not_allowed", r2.status === "error" && /dm_not_allowed/.test(r2.items[0].error), r2.items[0].error);
+    const pin = await makeCtx({ pathname: "/i/chat/pin/new", nodes: {} }).window.__soloXAct("x.dm.send", { _target_url: "https://x.com/MrPromptify", username: "MrPromptify", text: "hi" });
+    check("X's chat PIN setup page -> chat_pin_setup_required, nothing typed", pin.status === "error" && /chat_pin_setup_required/.test(pin.items[0].error), pin.items[0].error);
     const composer = fakeEl({ attrs: { "data-testid": "dmComposerTextInput" } });
     const send = fakeEl({ attrs: { "data-testid": "dmComposerSendButton" } });
     const header = fakeEl({ tag: "A", attrs: { href: "/MrPromptify" } });
