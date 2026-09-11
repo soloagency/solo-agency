@@ -1,0 +1,212 @@
+/*
+ * Offline tests for chrome-extension/platforms/x/x_extract.js. The extractor is loaded into a
+ * vm with a fake window (location, document, a window.__soloX store holding captures shaped like
+ * X's GraphQL replies, an origFetch stub for cursor replays) and driven through
+ * window.__soloXRun exactly as background.js does. The fixture shapes follow X's web client as
+ * documented in x_extract.js's header; live shapes are re-confirmed with _discover.x.
+ * Run: node solo-agency-collector/tests/test_x_extract.js
+ */
+"use strict";
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+const SRC = fs.readFileSync(path.join(__dirname, "..", "chrome-extension", "platforms", "x", "x_extract.js"), "utf8");
+
+let pass = 0, fail = 0;
+function check(name, cond, detail) {
+  if (cond) { pass += 1; console.log("  ok   " + name); }
+  else { fail += 1; console.log("  FAIL " + name + (detail !== undefined ? "  -> " + JSON.stringify(detail).slice(0, 400) : "")); }
+}
+function fetchStub(rules) {
+  const calls = [];
+  const fn = function (url, init) {
+    calls.push({ url: String(url), init: init || {} });
+    for (const r of rules) {
+      if (r.match(String(url), init || {})) {
+        const text = r.json !== undefined ? JSON.stringify(r.json) : "";
+        return Promise.resolve({ status: r.status !== undefined ? r.status : 200, text: () => Promise.resolve(text) });
+      }
+    }
+    return Promise.resolve({ status: 404, text: () => Promise.resolve("") });
+  };
+  fn.calls = calls;
+  return fn;
+}
+function makeCtx(opts) {
+  opts = opts || {};
+  const pathname = opts.pathname || "/";
+  const store = {
+    captures: opts.captures || [],
+    origFetch: opts.origFetch || fetchStub([]),
+    headersFor: () => ({ authorization: opts.noBearer ? "" : "Bearer AAAA-public-web-token", "x-csrf-token": "ct0value" }),
+    parseResponse: (t) => { try { return JSON.parse(t); } catch (e) { return null; } },
+    __auth: { bearer: opts.noBearer ? "" : "Bearer AAAA-public-web-token", extra: {} },
+    queryIdFor: () => "",
+  };
+  const ctx = { document: { cookie: "ct0=ct0value" }, location: { pathname, href: "https://x.com" + pathname, origin: "https://x.com" }, console, setTimeout, clearTimeout, URL, URLSearchParams, Promise, Date, JSON };
+  ctx.window = ctx;
+  ctx.window.__soloX = store;
+  vm.createContext(ctx);
+  vm.runInContext(SRC, ctx, { filename: "x_extract.js" });
+  return ctx;
+}
+
+// ------------------------------------------------------------------ fixtures
+function userResult(o) {
+  o = o || {};
+  return {
+    __typename: "User", rest_id: o.id || "44196397",
+    is_blue_verified: o.blue !== undefined ? o.blue : true,
+    core: { screen_name: o.handle || "loanfactoryhq", name: o.name || "Loan Factory", created_at: "Wed Jan 15 10:00:00 +0000 2020" },
+    avatar: { image_url: "https://pbs.twimg.com/profile_images/1/lf_normal.jpg" },
+    location: { location: o.location !== undefined ? o.location : "San Jose, CA" },
+    privacy: { protected: false },
+    verification: { verified: false },
+    professional: { professional_type: "Business", category: [{ id: 1, name: "Mortgage Broker" }] },
+    legacy: {
+      description: o.bio !== undefined ? o.bio : "FinTech mortgage platform. hello@loanfactory.com | (408) 555-0199 https://t.co/abc",
+      entities: { url: { urls: [{ url: "https://t.co/xyz", expanded_url: "https://loanfactory.com" }] }, description: { urls: [{ url: "https://t.co/abc", expanded_url: "https://loanfactory.com/apply" }] } },
+      followers_count: 18234, friends_count: 512, statuses_count: 3410, media_count: 120, listed_count: 9,
+      url: "https://t.co/xyz", verified: false, verified_type: "", pinned_tweet_ids_str: ["1700000000000000001"]
+    }
+  };
+}
+function tweetResult(o) {
+  o = o || {};
+  const id = o.id || "1700000000000000001";
+  const t = {
+    __typename: "Tweet", rest_id: id,
+    core: { user_results: { result: userResult({ id: o.userId || "44196397", handle: o.handle || "loanfactoryhq", name: o.userName || "Loan Factory" }) } },
+    views: { count: o.views !== undefined ? String(o.views) : "1234" },
+    legacy: {
+      id_str: id, full_text: o.text !== undefined ? o.text : "Rates dipped to 6.375% this week. https://t.co/r1 #mortgage", created_at: o.created_at || "Tue Sep 09 12:00:00 +0000 2026",
+      favorite_count: o.likes !== undefined ? o.likes : 51, reply_count: o.replies !== undefined ? o.replies : 6, retweet_count: 3, quote_count: 1, bookmark_count: 2, lang: "en",
+      conversation_id_str: o.conversation || id, in_reply_to_status_id_str: o.replyTo || null, in_reply_to_screen_name: o.replyToHandle || null, is_quote_status: false,
+      entities: { urls: [{ url: "https://t.co/r1", expanded_url: "https://loanfactory.com/rates" }], hashtags: [{ text: "mortgage" }], user_mentions: [], media: [] },
+      extended_entities: o.media ? { media: o.media } : undefined
+    }
+  };
+  if (o.note) t.note_tweet = { note_tweet_results: { result: { text: o.note } } };
+  return t;
+}
+function tweetEntry(id, o) { return { entryId: "tweet-" + id, content: { entryType: "TimelineTimelineItem", itemContent: { itemType: "TimelineTweet", tweet_results: { result: tweetResult(Object.assign({ id }, o || {})) } } } }; }
+function userEntry(o) { return { entryId: "user-" + (o.id || "1"), content: { entryType: "TimelineTimelineItem", itemContent: { itemType: "TimelineUser", user_results: { result: userResult(o) } } } }; }
+function cursorEntry(value, type) { return { entryId: "cursor-" + (type || "bottom") + "-1", content: { entryType: "TimelineTimelineCursor", cursorType: type || "Bottom", value } }; }
+function instructions(entries) { return [{ type: "TimelineClearCache" }, { type: "TimelineAddEntries", entries }]; }
+function gqlCapture(name, variables, data, method) {
+  return { kind: "graphql", queryId: "q" + name, queryName: name, method: method || "GET", variables, features: {}, url: "https://x.com/i/api/graphql/q" + name + "/" + name + "?variables=" + encodeURIComponent(JSON.stringify(variables)), requestBody: "", capturedAt: Date.now(), response: { data } };
+}
+const SENSITIVE = ["cookie", "token", "secret", "password", "passwd", "pwd", "otp", "authorization", "auth", "session", "bearer", "csrf", "xsrf"];
+function sensitiveKeys(o, p, out) {
+  out = out || [];
+  if (Array.isArray(o)) { o.forEach((v, i) => sensitiveKeys(v, p + "[" + i + "]", out)); return out; }
+  if (!o || typeof o !== "object") return out;
+  Object.keys(o).forEach((k) => { const lk = k.toLowerCase(); if (SENSITIVE.some((n) => lk.indexOf(n) !== -1)) out.push(p + "." + k); sensitiveKeys(o[k], p + "." + k, out); });
+  return out;
+}
+
+(async () => {
+  console.log("x.profile.enrich — UserByScreenName capture");
+  {
+    const cap = gqlCapture("UserByScreenName", { screen_name: "loanfactoryhq" }, { user: { result: userResult() } });
+    const ctx = makeCtx({ pathname: "/loanfactoryhq", captures: [cap] });
+    const res = await ctx.window.__soloXRun("x.profile.enrich", {});
+    const r = res.items[0] || {};
+    check("envelope: available, found, count 1, source graphql", res.available === true && res.found === true && res.count === 1 && res.source_query === "UserByScreenName", res);
+    check("id/handle/name/url from core + rest_id", r.id === "44196397" && r.username === "loanfactoryhq" && r.name === "Loan Factory" && r.profile_url === "https://x.com/loanfactoryhq", r);
+    check("bio, location, website (expanded), websites incl. bio links", /FinTech/.test(r.bio) && r.location === "San Jose, CA" && r.website === "https://loanfactory.com" && r.websites.length === 2, [r.website, r.websites]);
+    check("emails/phones parsed from the bio", r.emails[0] === "hello@loanfactory.com" && r.phones[0] === "(408) 555-0199", [r.emails, r.phones]);
+    check("counters, verified (blue), professional category, joined", r.follower_count === 18234 && r.following_count === 512 && r.post_count === 3410 && r.is_verified === true && r.category === "Mortgage Broker" && r.professional_type === "Business" && typeof r.joined_time === "number", r);
+    check("avatar url upgraded from _normal to _400x400", /_400x400\.jpg$/.test(r.profile_pic_url), r.profile_pic_url);
+    check("no sensitive key anywhere in the envelope", sensitiveKeys(res, "res").length === 0, sensitiveKeys(res, "res"));
+    const other = await makeCtx({ pathname: "/someoneelse", captures: [cap] }).window.__soloXRun("x.profile.enrich", { ensure_tries: 1 });
+    check("a capture for a different handle is not used for this page", other.found === false && other.reason === "profile_query_not_captured", other);
+  }
+
+  console.log("x.profile.posts — UserTweets page 1 captured, page 2 via cursor replay, retweet + long post unwrapped");
+  {
+    const page1 = instructions([
+      tweetEntry("1700000000000000001", { likes: 10 }),
+      { entryId: "tweet-1700000000000000002", content: { entryType: "TimelineTimelineItem", itemContent: { itemType: "TimelineTweet", tweet_results: { result: { __typename: "TweetWithVisibilityResults", tweet: tweetResult({ id: "1700000000000000002", note: "This is the long-form text of a note tweet that exceeds the classic limit." }) } } } } },
+      cursorEntry("CURSOR-PAGE-2", "Bottom"), cursorEntry("CURSOR-TOP", "Top"),
+    ]);
+    const cap = gqlCapture("UserTweets", { userId: "44196397", count: 20 }, { user: { result: { timeline: { timeline: { instructions: page1 } } } } });
+    const page2 = instructions([tweetEntry("1700000000000000003", { text: "RT @x: something" })]);
+    const stub = fetchStub([{ match: (u) => u.indexOf("/UserTweets") !== -1 && u.indexOf("CURSOR-PAGE-2") !== -1, json: { data: { user: { result: { timeline: { timeline: { instructions: page2 } } } } } } }]);
+    const ctx = makeCtx({ pathname: "/loanfactoryhq", captures: [cap], origFetch: stub });
+    const res = await ctx.window.__soloXRun("x.profile.posts", { max_pages: 2 });
+    check("3 posts across 2 pages, pages_fetched 2, no more cursor", res.items.length === 3 && res.pages_fetched === 2 && res.page_info.has_next_page === false, [res.items.length, res.pages_fetched, res.page_info]);
+    check("replay sent the bearer + csrf headers X itself uses, GET with the cursor in variables", stub.calls.length === 1 && stub.calls[0].init.headers.authorization.indexOf("Bearer") === 0 && stub.calls[0].init.headers["x-csrf-token"] === "ct0value" && decodeURIComponent(stub.calls[0].url).indexOf('"cursor":"CURSOR-PAGE-2"') !== -1, stub.calls[0]);
+    const p1 = res.items[0], p2 = res.items[1];
+    check("post: id/url/actor/text/engagement/links/hashtags/post_id", p1.id === "1700000000000000001" && p1.url === "https://x.com/loanfactoryhq/status/1700000000000000001" && p1.actor.username === "loanfactoryhq" && /6\.375/.test(p1.text) && p1.engagement.likes === 10 && p1.engagement.views === 1234 && p1.links[0] === "https://loanfactory.com/rates" && p1.hashtags[0] === "mortgage" && p1.post_id === p1.id, p1);
+    check("TweetWithVisibilityResults unwrapped; note tweet text preferred", p2.id === "1700000000000000002" && /long-form/.test(p2.text), p2);
+    check("created_time parsed from X's date format", p1.created_time > 1700000000, p1.created_time);
+    const none = await makeCtx({ pathname: "/loanfactoryhq", captures: [] }).window.__soloXRun("x.profile.posts", { ensure_tries: 1 });
+    check("not captured -> reason posts_query_not_captured", none.found === false && none.reason === "posts_query_not_captured", none);
+    const noBearer = await makeCtx({ pathname: "/loanfactoryhq", captures: [cap], noBearer: true }).window.__soloXRun("x.profile.posts", { max_pages: 3 });
+    check("without a captured bearer the replay is skipped, page 1 kept, stopped_because says why", noBearer.items.length === 2 && /replay_failed/.test(noBearer.stopped_because), noBearer.stopped_because);
+  }
+
+  console.log("x.search.posts / x.people.search — SearchTimeline by product");
+  {
+    const top = gqlCapture("SearchTimeline", { rawQuery: "realtor", product: "Top" }, { search_by_raw_query: { search_timeline: { timeline: { instructions: instructions([tweetEntry("1800000000000000001"), tweetEntry("1800000000000000002")]) } } } });
+    const latest = gqlCapture("SearchTimeline", { rawQuery: "realtor", product: "Latest" }, { search_by_raw_query: { search_timeline: { timeline: { instructions: instructions([tweetEntry("1800000000000000009")]) } } } });
+    const people = gqlCapture("SearchTimeline", { rawQuery: "realtor", product: "People" }, { search_by_raw_query: { search_timeline: { timeline: { instructions: instructions([userEntry({ id: "1", handle: "jane_realtor", name: "Jane" }), userEntry({ id: "2", handle: "bob_homes", name: "Bob" })]) } } } });
+    const ctx = makeCtx({ pathname: "/search", captures: [top, latest, people] });
+    const t = await ctx.window.__soloXRun("x.search.posts", { mode: "top" });
+    check("mode top: 2 posts, query echoed, mode reported", t.items.length === 2 && t.query === "realtor" && t.mode === "top", t);
+    const l = await ctx.window.__soloXRun("x.search.posts", { mode: "latest" });
+    check("mode latest: the Latest capture only", l.items.length === 1 && l.items[0].id === "1800000000000000009" && l.mode === "latest", l);
+    const p = await ctx.window.__soloXRun("x.people.search", {});
+    check("people: 2 profiles with handle/name/counters", p.items.length === 2 && p.items[0].username === "jane_realtor" && p.items[1].name === "Bob" && p.items[0].follower_count === 18234, p.items);
+    const none = await makeCtx({ pathname: "/search", captures: [top] }).window.__soloXRun("x.people.search", { ensure_tries: 1 });
+    check("people not captured -> search_query_not_captured", none.found === false && none.reason === "search_query_not_captured", none);
+  }
+
+  console.log("x.post.replies — TweetDetail: focal post + replies with depth");
+  {
+    const focal = "1900000000000000001";
+    const ins = [{ type: "TimelineAddEntries", entries: [
+      tweetEntry(focal, { replies: 2 }),
+      { entryId: "conversationthread-1", content: { entryType: "TimelineTimelineModule", items: [
+        { entryId: "conversationthread-1-tweet-1900000000000000002", item: { itemContent: { itemType: "TimelineTweet", tweet_results: { result: tweetResult({ id: "1900000000000000002", handle: "commenter1", userId: "7", text: "Great post", replyTo: focal, replyToHandle: "loanfactoryhq" }) } } } },
+        { entryId: "conversationthread-1-tweet-1900000000000000003", item: { itemContent: { itemType: "TimelineTweet", tweet_results: { result: tweetResult({ id: "1900000000000000003", handle: "loanfactoryhq", text: "Thanks!", replyTo: "1900000000000000002", replyToHandle: "commenter1" }) } } } },
+      ] } },
+      cursorEntry("MORE-REPLIES", "Bottom"),
+    ] }];
+    const cap = gqlCapture("TweetDetail", { focalTweetId: focal }, { threaded_conversation_with_injections_v2: { instructions: ins } });
+    const ctx = makeCtx({ pathname: "/loanfactoryhq/status/" + focal, captures: [cap] });
+    const res = await ctx.window.__soloXRun("x.post.replies", {});
+    check("post_id from the url, focal post carried, 2 replies", res.post_id === focal && res.post && res.post.id === focal && res.items.length === 2, res);
+    check("depth 0 for a direct reply, 1 for a reply in the thread", res.items[0].depth === 0 && res.items[0].actor.username === "commenter1" && res.items[1].depth === 1, res.items.map((i) => [i.id, i.depth]));
+    check("resumable with the bottom cursor when max_pages is 1", res.page_info.resumable === true && res.stopped_because === "page_cap_hit", res.page_info);
+    const hidden = gqlCapture("TweetDetail", { focalTweetId: focal }, { threaded_conversation_with_injections_v2: { instructions: instructions([tweetEntry(focal, { replies: 5 })]) } });
+    const h = await makeCtx({ pathname: "/loanfactoryhq/status/" + focal, captures: [hidden] }).window.__soloXRun("x.post.replies", {});
+    check("reply_count > 0 but none served -> reason replies_hidden", h.count === 0 && h.reason === "replies_hidden" && h.reply_count === 5, h);
+  }
+
+  console.log("x.timeline.home — HomeLatestTimeline");
+  {
+    const cap = gqlCapture("HomeLatestTimeline", { count: 20 }, { home: { home_timeline_urt: { instructions: instructions([tweetEntry("1950000000000000001"), tweetEntry("1950000000000000002")]) } } });
+    const res = await makeCtx({ pathname: "/home", captures: [cap] }).window.__soloXRun("x.timeline.home", {});
+    check("2 posts, feed following", res.items.length === 2 && res.feed === "following" && res.source_query === "HomeLatestTimeline", res);
+  }
+
+  console.log("_discover.x — capture skeleton with redaction; dispatch guards");
+  {
+    const cap = gqlCapture("UserByScreenName", { screen_name: "x" }, { user: { result: userResult() }, session_token: "leak", nested: { csrf_value: "zzz", fine: "ok" } });
+    const ctx = makeCtx({ pathname: "/x", captures: [cap] });
+    const d = await ctx.window.__soloXRun("_discover.x", { query: "UserBy" });
+    const sk = d.items[0].deep_skeleton;
+    check("discover lists the capture with queryName/queryId and a skeleton on match", d.items[0].queryName === "UserByScreenName" && d.items[0].queryId === "qUserByScreenName" && !!sk, d.items[0]);
+    check("skeleton redacts sensitive key names", sk.data.session_token === "<redacted>" && sk.data.nested.csrf_value === "<redacted>" && sk.data.nested.fine === "str:ok", sk.data);
+    check("session headers presence reported, never their value", d.session_headers_seen === true && JSON.stringify(d).indexOf("public-web-token") === -1, d.session_headers_seen);
+    const bad = await ctx.window.__soloXRun("x.nope", {});
+    check("unknown capability -> visible error", bad.status === "error" && /no x extractor/.test(bad.error), bad);
+    check("__soloXCapabilities lists 7 ids", ctx.window.__soloXCapabilities.length === 7, ctx.window.__soloXCapabilities);
+  }
+
+  console.log("");
+  console.log(fail === 0 ? "ALL " + pass + " CHECKS PASSED" : pass + " passed, " + fail + " FAILED");
+  process.exit(fail ? 1 : 0);
+})().catch((e) => { console.error(e); process.exit(2); });

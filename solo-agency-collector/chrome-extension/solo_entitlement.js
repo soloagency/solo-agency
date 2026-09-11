@@ -50,7 +50,8 @@
     "zillow.agents.list": "zillow", "zillow.profile.enrich": "zillow",
     // Instagram (2026-09-10): same ladder as Facebook — enrich for the profile, harvest for
     // people search; posts, search and comments are free.
-    "ig.profile.enrich": "enrich", "ig.people.search": "harvest"
+    "ig.profile.enrich": "enrich", "ig.people.search": "harvest",
+    "x.profile.enrich": "enrich", "x.people.search": "harvest"
   };
 
   // Every feature the server vocabulary knows, including ones no capability in

@@ -192,6 +192,32 @@
       }
     },
     {
+      name: "x",
+      capPrefix: "x.",
+      hosts: ["x.com", "www.x.com", "mobile.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"],
+      // The interceptor (platforms/x/x_intercept.js) is a static content script on x.com /
+      // twitter.com (manifest.json); the extractor is injected per job.
+      files: {
+        read: ["platforms/x/x_extract.js"]
+      },
+      entries: {
+        run: "__soloXRun",
+        normalize: "__soloXNormalize"
+      },
+      capabilities: {
+        // The profile query fires at load; timelines and search results render as the tab
+        // scrolls, so those need the foreground.
+        "x.profile.enrich": { entity: "profile", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: true, needs_active_tab: false },
+        "x.profile.posts": { entity: "post", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        "x.search.posts": { entity: "post", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        "x.people.search": { entity: "profile", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        "x.post.replies": { entity: "comment", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        "x.timeline.home": { entity: "post", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        // maintenance aid, same idea as _discover.ig
+        "_discover.x": { entity: "generic", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: true, needs_active_tab: false }
+      }
+    },
+    {
       name: "zillow",
       capPrefix: "zillow.",
       hosts: ["zillow.com", "www.zillow.com"],

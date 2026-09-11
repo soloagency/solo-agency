@@ -5,7 +5,7 @@ importScripts("solo_entitlement.js");
 // is that module's own mapping from its typed capability output into the canonical shape. All
 // three are pure JSON functions with no chrome.* or DOM dependency, so a load failure here would
 // be a syntax error caught by `node --check` before sync, never a runtime surprise.
-importScripts("core/schema.js", "core/platform_registry.js", "platforms/facebook/fb_normalize.js", "platforms/zillow/zillow_normalize.js", "platforms/instagram/ig_normalize.js");
+importScripts("core/schema.js", "core/platform_registry.js", "platforms/facebook/fb_normalize.js", "platforms/zillow/zillow_normalize.js", "platforms/instagram/ig_normalize.js", "platforms/x/x_normalize.js");
 
 // How long one capability may run inside the page before it is killed. Raised from 45s: a tab that
 // is never activated is throttled by Chrome and the same About walk took 2-3x longer than in an
