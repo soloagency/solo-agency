@@ -446,8 +446,16 @@
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 20) : 1;
     var maxReplies = Number(inputs.max_replies) > 0 ? Number(inputs.max_replies) : 100;
     var pred = function (c) { return isDetailCapture(c) && (!focalId || str(isObj(c.variables) ? c.variables.focalTweetId : "") === focalId); };
-    return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
-      if (!cap) return envelope(CAP_REPLIES, [], { found: false, reason: "detail_query_not_captured", error: "no TweetDetail query captured for " + (focalId || currentHref()) });
+    var tries = Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8;
+    // Measured 2026-09-10: one healthcheck run in four saw no TweetDetail within the first
+    // seconds after landing (the page rendered, the query came late). A small scroll nudge
+    // makes X load the conversation; then wait once more before giving up.
+    return ensureCapture(pred, tries, 1000).then(function (cap) {
+      if (cap) return cap;
+      try { if (typeof window.scrollTo === "function") { window.scrollTo(0, 600); } } catch (e) { /* ignore */ }
+      return wait(800).then(function () { try { if (typeof window.scrollTo === "function") window.scrollTo(0, 0); } catch (e) { /* ignore */ } return ensureCapture(pred, Math.max(4, Math.ceil(tries / 2)), 1000); });
+    }).then(function (cap) {
+      if (!cap) return envelope(CAP_REPLIES, [], { found: false, reason: "detail_query_not_captured", error: "no TweetDetail query captured for " + (focalId || currentHref()) + " — the page rendered without its conversation query (slow load or a login wall)" });
       var id = focalId || str(isObj(cap.variables) ? cap.variables.focalTweetId : "");
       return paginate(pred, maxPages, tweetsFrom).then(function (r) {
         var post = null, replies = [];
@@ -513,6 +521,29 @@
     catch (e) { return Promise.resolve(fail(capId, e)); }
   };
   window.__soloXCapabilities = Object.keys(CAPS);
+  // The data point's graphql_manifest for an x.com page — what background.js reads from
+  // window.__soloGql on Facebook — so the healthcheck's query sensor and repair hints see
+  // X's own operations.
+  window.__soloXManifest = function () {
+    var caps = captures(), byName = {}, order = [];
+    for (var i = 0; i < caps.length; i++) {
+      var c = caps[i]; if (!c) continue;
+      var qn = str(c.queryName) || ("op_" + str(c.queryId));
+      if (!byName[qn]) { byName[qn] = { queryName: str(c.queryName), docId: str(c.queryId), variableKeys: isObj(c.variables) ? Object.keys(c.variables).slice(0, 40) : [], count: 0 }; order.push(qn); }
+      byName[qn].count += 1;
+    }
+    return { available: caps.length > 0, captureCount: caps.length, manifest: order.map(function (k) { return byName[k]; }) };
+  };
+  // Logged-in state read from X's own chrome, not from page text (a tweet saying "sign in"
+  // must not read as a login wall): true / false / null (undecided).
+  window.__soloXLoggedIn = function () {
+    try {
+      if (document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"], [data-testid="AppTabBar_Profile_Link"], a[href="/compose/post"], [data-testid="SideNav_NewTweet_Button"]')) return true;
+      if (document.querySelector('a[href="/login"], a[href="/i/flow/login"]') && !document.querySelector('[data-testid="primaryColumn"] article')) return false;
+      if (store().__auth && store().__auth.bearer && captures().length) return true;
+    } catch (e) { /* undecided */ }
+    return null;
+  };
   window.__soloXVersion = VERSION;
   // Exposed for the offline harness (tests/test_x_extract.js); not used by background.js.
   window.__soloXInternals = { tweetRecord: tweetRecord, userRecord: userRecord, userRef: userRef, tweetsFrom: tweetsFrom, usersFrom: usersFrom, bottomCursor: bottomCursor, findInstructions: findInstructions, emailsIn: emailsIn, phonesIn: phonesIn, postUrl: postUrl };

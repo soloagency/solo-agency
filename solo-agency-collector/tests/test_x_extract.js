@@ -227,6 +227,12 @@ function sensitiveKeys(o, p, out) {
     const bad = await ctx.window.__soloXRun("x.nope", {});
     check("unknown capability -> visible error", bad.status === "error" && /no x extractor/.test(bad.error), bad);
     check("__soloXCapabilities lists 7 ids", ctx.window.__soloXCapabilities.length === 7, ctx.window.__soloXCapabilities);
+    const man = ctx.window.__soloXManifest();
+    check("__soloXManifest lists the operations with counts and variable keys, never a value", man.available === true && man.captureCount === 1 && man.manifest[0].queryName === "UserByScreenName" && man.manifest[0].variableKeys[0] === "screen_name" && JSON.stringify(man).indexOf("public-web-token") === -1, man);
+    ctx.document.querySelector = (sel) => (String(sel).indexOf("SideNav_AccountSwitcher_Button") !== -1 ? {} : null);
+    check("__soloXLoggedIn reads X's own chrome: account switcher present -> true", ctx.window.__soloXLoggedIn() === true);
+    ctx.document.querySelector = (sel) => (String(sel).indexOf('a[href="/login"]') !== -1 ? {} : null);
+    check("__soloXLoggedIn: login link and no article -> false", ctx.window.__soloXLoggedIn() === false);
   }
 
   console.log("");

@@ -475,6 +475,8 @@ function sensitiveKeys(o, pathStr, out) {
     const ctx = makeCtx({});
     const res = await ctx.window.__soloIgRun("ig.nope", {});
     check("available true + status error + no_extractor message", res.available === true && res.status === "error" && /no instagram extractor/.test(res.error) && res.items[0].status === "error", res);
+    const man = makeCtx({ captures: [profileCapture(PROFILE_USER, "999999")] }).window.__soloIgManifest();
+    check("__soloIgManifest lists the captures (live + prefetched) with counts", man.available === true && man.captureCount >= 1 && man.manifest.some((m) => m.queryName === "PolarisProfilePageContentQuery"), man);
     check("__soloIgCapabilities lists all six ids", JSON.stringify(ctx.window.__soloIgCapabilities.slice().sort()) === JSON.stringify(["_discover.ig", "ig.people.search", "ig.post.comments", "ig.profile.enrich", "ig.profile.posts", "ig.search.posts"].sort()), ctx.window.__soloIgCapabilities);
     check("re-injection is a no-op (function identity kept)", (() => { const f = ctx.window.__soloIgRun; vm.runInContext(SRC, ctx); return ctx.window.__soloIgRun === f; })());
   }

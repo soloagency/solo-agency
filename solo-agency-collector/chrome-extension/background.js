@@ -1243,6 +1243,34 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
       // missing, returns null (web.search) or throws leaves the record exactly as before.
       if (gqlRecords && wantCapability) attachCanonical(gqlRecords, String(source.capability));
     }
+    // A platform module other than Facebook keeps its own capture ring (window.__soloIg,
+    // window.__soloX). When the module declares a `manifest` entry, read it so the data
+    // point's graphql_manifest — the healthcheck's query sensor and its repair hints — is
+    // filled for that page too; when it declares a `login` entry, its own reading of the
+    // logged-in state beats the page-text heuristic (a tweet saying "sign in" is not a wall).
+    let moduleLogin = null;
+    try {
+      if (tab && wantCapability && dispatchModule && dispatchModule.entries) {
+        const manifestEntry = dispatchModule.entries.manifest || null;
+        const loginEntry = dispatchModule.entries.login || null;
+        if (manifestEntry || loginEntry) {
+          const [mres] = await withTimeout(chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            world: "MAIN",
+            func: (mEntry, lEntry) => {
+              const out = { manifest: null, login: null };
+              try { if (mEntry && typeof window[mEntry] === "function") out.manifest = window[mEntry](); } catch (e) { out.manifest = null; }
+              try { if (lEntry && typeof window[lEntry] === "function") out.login = window[lEntry](); } catch (e) { out.login = null; }
+              return out;
+            },
+            args: [manifestEntry, loginEntry]
+          }), 8000, "module_manifest_timeout");
+          const mr = mres && mres.result ? mres.result : null;
+          if (mr && mr.manifest && mr.manifest.available && !(gql && gql.available)) gql = mr.manifest;
+          if (mr && typeof mr.login === "boolean") moduleLogin = mr.login;
+        }
+      }
+    } catch (e) { /* additive evidence only */ }
     const gqlAvailable = !!(gql && gql.available);
 
     const now = new Date().toISOString();
@@ -1333,7 +1361,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         raw_visible_text_excerpt: excerpt,
         engagement_hint: extractEngagementHint(text),
         captured_at: now,
-        source_login_status: detectLoginHint(text),
+        source_login_status: moduleLogin === true ? "available" : (moduleLogin === false ? "logged_out" : detectLoginHint(text)),
         collector_identity: "chrome-extension-local-collector",
         confidence: text ? "medium" : "low",
         scroll_count: cap.scrollStepsUsed || 0,

@@ -177,7 +177,9 @@
       },
       entries: {
         run: "__soloIgRun",
-        normalize: "__soloInstagramNormalize"
+        normalize: "__soloInstagramNormalize",
+        // background.js ~1246: the data point's graphql_manifest for this module's pages
+        manifest: "__soloIgManifest"
       },
       capabilities: {
         // Profile data arrives by XHR at load and is complete without scrolling, so the tab may
@@ -202,7 +204,11 @@
       },
       entries: {
         run: "__soloXRun",
-        normalize: "__soloXNormalize"
+        normalize: "__soloXNormalize",
+        // background.js ~1246: graphql_manifest from window.__soloX, and the logged-in state
+        // from X's own chrome instead of the page-text heuristic
+        manifest: "__soloXManifest",
+        login: "__soloXLoggedIn"
       },
       capabilities: {
         // The profile query fires at load; timelines and search results render as the tab

@@ -602,6 +602,17 @@
     catch (e) { return Promise.resolve(fail(capId, e)); }
   };
   window.__soloIgCapabilities = Object.keys(CAPS);
+  // The data point's graphql_manifest for an instagram.com page (live + prefetched captures).
+  window.__soloIgManifest = function () {
+    var caps = captures(), byName = {}, order = [];
+    for (var i = 0; i < caps.length; i++) {
+      var c = caps[i]; if (!c) continue;
+      var qn = str(c.queryName) || ("doc_" + str(c.docId));
+      if (!byName[qn]) { byName[qn] = { queryName: str(c.queryName), docId: str(c.docId), kind: str(c.kind), variableKeys: isObj(c.variables) ? Object.keys(c.variables).slice(0, 40) : [], count: 0 }; order.push(qn); }
+      byName[qn].count += 1;
+    }
+    return { available: caps.length > 0, captureCount: caps.length, manifest: order.map(function (k) { return byName[k]; }) };
+  };
   window.__soloIgVersion = VERSION;
   // Exposed for the offline harness (tests/test_ig_extract.js); not used by background.js.
   window.__soloIgInternals = { prefetched: prefetched, postRecord: postRecord, commentRecord: commentRecord, userRef: userRef, emailsIn: emailsIn, phonesIn: phonesIn, serpItems: serpItems, connectionItems: connectionItems, parseCount: parseCount, postUrl: postUrl };

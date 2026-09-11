@@ -203,6 +203,7 @@ console.log("\n== lookup helpers ==");
   check("isPinTarget('fb.group.post') === true", P.isPinTarget("fb.group.post") === true);
   check("isPinTarget('fb.profile.post') === true and it is a do_not_post write", P.isPinTarget("fb.profile.post") === true && P.policyFlagFor("fb.profile.post") === "do_not_post" && P.writeActions().has("fb.profile.post"));
   check("isPinTarget('fb.message.send') === false (write but not pin-target)", P.isPinTarget("fb.message.send") === false);
+  check("instagram and x modules declare a manifest entry; x declares a login probe", P.dispatchEntryFor("ig.profile.enrich", "manifest") === "__soloIgManifest" && P.dispatchEntryFor("x.profile.enrich", "manifest") === "__soloXManifest" && P.dispatchEntryFor("x.profile.enrich", "login") === "__soloXLoggedIn" && P.dispatchEntryFor("fb.profile.enrich", "manifest") === null);
   check("selfTarget() is exactly {fb.profile.post}: the one write whose target is the operator", P.selfTarget().size === 1 && P.isSelfTarget("fb.profile.post") === true && P.isSelfTarget("fb.group.post") === false && P.isSelfTarget("fb.profile.posts") === false, setToSortedArray(P.selfTarget()));
   check("policyFlagFor('fb.post.react') === 'do_not_react'", P.policyFlagFor("fb.post.react") === "do_not_react");
   check("policyFlagFor('fb.group.posts') === null", P.policyFlagFor("fb.group.posts") === null);
