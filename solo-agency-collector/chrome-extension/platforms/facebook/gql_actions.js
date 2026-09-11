@@ -774,7 +774,8 @@
     only_me: ["only me", "chỉ mình tôi"]
   };
   var AUDIENCE_CONTROL = /(edit privacy|sharing with|select audience|chỉnh sửa quyền riêng tư|chia sẻ với|đối tượng)/i;
-  var DONE_BUTTON = /^(done|save|xong|lưu)$/i;
+  // "Done with privacy audience selection and …" is the real label (measured 2026-09-10).
+  var DONE_BUTTON = /^(done|save|xong|lưu)\b/i;
   // Measured 2026-09-10 on the operator's own profile: the composer is a TWO-step flow — the
   // first screen's submit is "Next" (disabled until text is typed), the "Post" button only
   // exists on the second screen. The home feed and groups submit with "Post" directly.
@@ -813,10 +814,25 @@
     return out;
   }
 
+  var PROFILE_SUBTAB = /^\/[^/?#]+\/(about|about_[a-z_]+|photos|photos_by|photos_albums|videos|friends|friends_[a-z_]+|reels|map|likes|music|sports|events|groups|mentions|reviews|check-ins|tv|followers|following|saved|notes|posts)(\/|$)/i;
   function isTimelineUrl(u) {
     u = String(u || "");
-    if (!/^https?:\/\/([\w-]+\.)?facebook\.com(\/|$)/i.test(u)) return false;
-    return !NOT_A_TIMELINE.test(u);
+    if (!/^https?:\/\/(www\.|m\.|web\.)?facebook\.com(\/|$)/i.test(u)) return false; // business.facebook.com is a Page surface
+    if (NOT_A_TIMELINE.test(u)) return false;
+    try { if (PROFILE_SUBTAB.test(new URL(u).pathname)) return false; } catch (e) { return false; }
+    return true;
+  }
+  // A stable account key when the url names one: "id:<numeric>" for profile.php?id=, "vanity:<name>"
+  // for facebook.com/<name>; "" for /me and the home feed, which resolve to whoever is logged in.
+  function accountKeyFrom(u) {
+    try {
+      var url = new URL(String(u || ""));
+      var path = url.pathname.replace(/\/+$/, "");
+      if (/^\/profile\.php$/i.test(path)) { var id = url.searchParams.get("id"); return id ? "id:" + id : ""; }
+      var m = path.match(/^\/([A-Za-z0-9.\-_]+)$/);
+      if (!m || /^(me|home\.php|profile\.php)$/i.test(m[1])) return "";
+      return "vanity:" + m[1].toLowerCase();
+    } catch (e) { return ""; }
   }
   // { el, label } for the own-timeline trigger; { other: label } when the page's composer
   // belongs to somebody else's timeline; {} when there is no composer at all.
@@ -832,12 +848,19 @@
     }
     return other ? { other: other } : {};
   }
+  // Exact match on the label (trailing punctuation dropped), or the "<…> with <name>" tail an
+  // aria-label such as "Edit privacy. Sharing with Public." carries. A qualified row —
+  // "Friends except…", "Only show to…", "Custom" — is a different sharing rule, never the base.
+  var AUDIENCE_QUALIFIER = /(except|only show|specific|custom|trừ|cụ thể|tùy chỉnh)/i;
   function audienceKey(lbl) {
-    lbl = lower(lbl);
-    for (var k in AUDIENCE) {
-      for (var i = 0; i < AUDIENCE[k].length; i++) {
-        var name = AUDIENCE[k][i];
-        if (lbl === name || lbl.indexOf(name + " ") === 0 || lbl.indexOf(" " + name) > -1 && lbl.indexOf(name) === lbl.length - name.length) return k;
+    lbl = lower(lbl).replace(/[.:;,!…\s]+$/g, "");
+    if (!lbl || AUDIENCE_QUALIFIER.test(lbl)) return "";
+    var tail = lbl.match(/(?:^|\s)(?:with|với)\s+(.+)$/);
+    var cands = [lbl];
+    if (tail) cands.push(tail[1].replace(/[.:;,!…\s]+$/g, ""));
+    for (var c = 0; c < cands.length; c++) {
+      for (var k in AUDIENCE) {
+        for (var i = 0; i < AUDIENCE[k].length; i++) { if (cands[c] === AUDIENCE[k][i]) return k; }
       }
     }
     return "";
@@ -859,7 +882,7 @@
     if (!btn) return { key: "", raw: "" };
     var aria = norm(btn.getAttribute("aria-label") || ""), txt = norm(btn.innerText || "");
     var raw = txt || aria;
-    return { key: audienceKey(txt) || audienceKey(aria) || audienceKey(aria.replace(/^.*(with|với)\s+/i, "")), raw: raw.slice(0, 80) };
+    return { key: audienceKey(txt) || audienceKey(aria), raw: raw.slice(0, 80) };
   }
   // The audience picker: whichever visible dialog holds radio rows — a second dialog, or the
   // composer itself when Facebook swaps its content for the "Post audience" panel in place.
@@ -873,14 +896,37 @@
     }
     return null;
   }
+  // The picker's main rows (Public / Friends / Only me) are not role=radio on the measured
+  // page — only the sub-options ("Don't show to…", "Only show to…", "Custom") are — so a row
+  // is matched by its FIRST LINE of text across every clickable shape Facebook uses.
+  var OPTION_SELECTOR = '[role="radio"], [role="menuitemradio"], [role="option"], [role="menuitem"], [aria-checked], input[type="radio"], label, [role="button"], [tabindex]';
+  function optionLabel(el) {
+    var lbl = norm(el.getAttribute("aria-label") || "");
+    if (!lbl) lbl = norm((el.innerText || "").split("\n")[0]);
+    if (!lbl && el.labels && el.labels[0]) lbl = norm((el.labels[0].innerText || "").split("\n")[0]);
+    if (!lbl && el.closest && el.closest("label")) lbl = norm((el.closest("label").innerText || "").split("\n")[0]);
+    return lbl;
+  }
   function findAudienceOption(picker, want) {
-    var rows = picker.querySelectorAll('[role="radio"], [role="menuitemradio"], [role="button"]');
+    var rows = picker.querySelectorAll(OPTION_SELECTOR);
     for (var i = 0; i < rows.length; i++) {
-      var lbl = norm(rows[i].getAttribute("aria-label") || rows[i].innerText || "");
       var r = rows[i].getBoundingClientRect();
-      if (r.width > 0 && r.height > 0 && audienceKey(lbl.split("\n")[0]) === want) return rows[i];
+      if (r.width <= 0 || r.height <= 0) continue;
+      if (audienceKey(optionLabel(rows[i])) !== want) continue;
+      // click the labelled wrapper of a native radio, the element itself otherwise
+      return (rows[i].tagName === "INPUT" && rows[i].closest && rows[i].closest("label")) || rows[i];
     }
     return null;
+  }
+  function optionRows(picker, max) {
+    var out = [], rows = picker.querySelectorAll(OPTION_SELECTOR);
+    for (var i = 0; i < rows.length && out.length < (max || 16); i++) {
+      var r = rows[i].getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      var lbl = optionLabel(rows[i]);
+      if (lbl) out.push((rows[i].getAttribute("role") || rows[i].tagName.toLowerCase()) + ":" + lbl.slice(0, 40));
+    }
+    return out;
   }
   function findDoneButton(picker) {
     var btns = picker.querySelectorAll('[role="button"], button');
@@ -906,16 +952,16 @@
         var rr = ds[i].getBoundingClientRect(); if (rr.width <= 0 || rr.height <= 0) continue;
         var rows = ds[i].querySelectorAll('[role="radio"], [role="menuitemradio"]'), rl = [];
         for (var j = 0; j < rows.length && rl.length < 10; j++) rl.push(norm(rows[j].getAttribute("aria-label") || rows[j].innerText || "").slice(0, 40));
-        seen.dialogs.push({ label: norm(ds[i].getAttribute("aria-label") || "").slice(0, 40), radios: rl, buttons: buttonLabels(ds[i], 14) });
+        seen.dialogs.push({ label: norm(ds[i].getAttribute("aria-label") || "").slice(0, 40), radios: rl, rows: optionRows(ds[i], 16), buttons: buttonLabels(ds[i], 14) });
       }
     } catch (e) { /* diagnostics only */ }
     if (!picker) return { applied: false, reason: "audience_picker_did_not_open", before: before.raw, after: before.raw, seen: seen };
     var option = findAudienceOption(picker, want);
     if (!option) return { applied: false, reason: "audience_option_not_found", before: before.raw, after: before.raw, seen: seen };
     click(option);
-    await sleep(300);
+    await waitFor(function () { var d = findDoneButton(picker); return d && !isDisabled(d); }, 4000, 250);
     var done = findDoneButton(picker);
-    if (done) click(done);
+    if (done && !isDisabled(done)) click(done);
     await waitFor(function () { return !findAudiencePicker(); }, 6000, 300);
     // the composer may have been re-rendered: read the audience from the CURRENT dialog
     var cur = findComposerDialogs();
@@ -956,6 +1002,16 @@
       return wrapCap("fb.profile.post", "error", {
         text: text, job_url: jobUrl, landed_url: location.href,
         error: "not_a_timeline_url: open the operator's own profile root (https://www.facebook.com/me) or the home feed — a group url is fb.group.post, a permalink or media url opens a different composer"
+      });
+    }
+
+    // Guard 0b: when both urls name an account, they must name the SAME one (a friend's vanity
+    // is as timeline-shaped as /me). /me and the home feed carry no name and skip this.
+    var wantKey = accountKeyFrom(jobUrl), hereKey = accountKeyFrom(location.href);
+    if (wantKey && hereKey && wantKey !== hereKey) {
+      return wrapCap("fb.profile.post", "error", {
+        text: text, job_url: jobUrl, landed_url: location.href,
+        error: "profile_mismatch: asked for " + wantKey + " but landed on " + hereKey + " — nothing was typed"
       });
     }
 
@@ -1000,15 +1056,17 @@
     var current = audienceBtn ? currentAudience(audienceBtn) : { key: "", raw: "" };
     var submit = findPostButton(dialog) ? "Post" : (findNextButton(dialog) ? "Next" : null);
     if (inputs.dry_run) {
-      // A dry run with an audience exercises the picker too (nothing is published, the draft
-      // is discarded with the dialog), so the report says whether the switch would take.
-      var probe = want ? await setAudience(dialog, want) : null;
+      // Measured 2026-09-10: pressing Done in the audience picker PERSISTS the choice as the
+      // account's default audience even when nothing is posted. So a dry run leaves the picker
+      // alone unless probe_audience is set explicitly — and then says what it did.
+      var probe = (want && inputs.probe_audience === true) ? await setAudience(dialog, want) : null;
       return wrapCap("fb.profile.post", "dry_run", {
         text: text, profile_url: location.href, opened_dialog: openedDialog, trigger: triggerLabel || null,
         post_button_found: !!submit, submit_button: submit, seen_buttons: buttonLabels(dialog, 30),
         audience_control_found: !!audienceBtn, audience_current: current.raw || null, audience_requested: want || null,
         audience_applied: probe ? !!probe.applied : null, audience_after: probe ? probe.after || null : null,
-        audience_reason: probe ? probe.reason || null : null, audience_seen: probe ? probe.seen || null : null
+        audience_reason: probe ? probe.reason || null : null, audience_seen: probe ? probe.seen || null : null,
+        audience_probe_changed_default: probe ? !!probe.changed : false
       });
     }
 
@@ -1069,6 +1127,44 @@
     }, 8000, 500);
     var created = storyCreatedSince(t0);
     var status = (closed && (appeared || created)) ? "done" : "error";
+    // The composer's own queries after the submit — repair evidence when the story proof is
+    // missing (which mutation fired, under which name).
+    var afterSubmit = [];
+    try {
+      var caps = (window.__soloGql && window.__soloGql.captures) || [];
+      for (var ci = caps.length - 1; ci >= 0 && afterSubmit.length < 10; ci--) { if (caps[ci] && (caps[ci].capturedAt || 0) >= t0 - 2000) afterSubmit.push(String(caps[ci].queryName || caps[ci].docId || "")); }
+    } catch (e) { /* diagnostics only */ }
+    // Our audience switch is now the account's DEFAULT for the operator's own next post.
+    // Put it back unless told not to: reopen the composer, pick the original, close it.
+    // Done persisted our switch the moment it was confirmed, whatever became of the post — so the
+    // restore runs on every outcome, and says whether the composer it reopened closed again.
+    var restore = { attempted: false, restored: null, to: null, reason: null, closed: null };
+    if (aud && aud.changed && inputs.restore_audience !== false) {
+      var originalKey = audienceKey(aud.before || "");
+      restore.attempted = true; restore.to = aud.before || null;
+      if (!originalKey) {
+        restore.restored = false; restore.reason = "original audience \"" + (aud.before || "") + "\" is not one of public/friends/only_me";
+      } else {
+        try {
+          var t2 = findOwnComposerTrigger();
+          if (t2.el) {
+            click(t2.el);
+            await waitFor(function () { return findComposerDialogs().length > 0; }, 8000, 300);
+            var d2 = findComposerDialogs();
+            if (d2.length === 1) {
+              await waitFor(function () { return !!findAudienceButton(d2[0]); }, 4000, 250);
+              var back = await setAudience(d2[0], originalKey);
+              restore.restored = !!back.applied; restore.reason = back.reason || null;
+              var closeBtn = null, cbs = d2[0].querySelectorAll('[role="button"], button');
+              for (var bi = 0; bi < cbs.length; bi++) { if (/^(close composer|close|đóng)/i.test(norm(cbs[bi].getAttribute("aria-label") || ""))) { closeBtn = cbs[bi]; break; } }
+              if (closeBtn) click(closeBtn);
+              restore.closed = !!(await waitFor(function () { return composerLikeDialogs().length === 0; }, 6000, 300));
+              if (!closeBtn) restore.reason = (restore.reason ? restore.reason + "; " : "") + "no close button on the reopened composer";
+            } else { restore.restored = false; restore.reason = "composer did not reopen as a single dialog"; }
+          } else { restore.restored = false; restore.reason = "own-timeline trigger not found after posting"; }
+        } catch (e) { restore.restored = false; restore.reason = String(e && e.message || e); }
+      }
+    }
     return wrapCap("fb.profile.post", status, {
       text: text, profile_url: location.href,
       verified: status === "done", closed: !!closed, appeared: !!appeared, opened_dialog: openedDialog, steps: steps,
@@ -1076,6 +1172,8 @@
       audience_before: aud ? aud.before : (current.raw || null),
       audience_after: aud ? aud.after : (current.raw || null),
       post_url: created ? created.url || null : null, post_id: created ? created.id || null : null,
+      queries_after_submit: afterSubmit,
+      audience_restored: restore.attempted ? restore.restored : null, audience_restore_to: restore.to, audience_restore_reason: restore.reason, audience_restore_closed: restore.closed,
       error: status === "error"
         ? (closed ? "the composer closed but the post did not appear" : "the composer did not close — the post may not have been submitted")
         : null
@@ -1256,6 +1354,8 @@
   // times, and driving it through a full fake post DOM tests the plumbing rather than the rule —
   // this makes the rule itself assertable against the exact labels a live page produced.
   window.__soloActFindCommentBox = findCommentBox;
+  // Exposed for tests/test_gql_actions.js only.
+  window.__soloActInternals = { audienceKey: audienceKey, isTimelineUrl: isTimelineUrl, accountKeyFrom: accountKeyFrom };
 
   window.__soloActResolve = async function (capId, inputs) {
     inputs = inputs && typeof inputs === "object" ? inputs : {};

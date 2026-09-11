@@ -306,6 +306,22 @@ async function resolveWith(items, inputs, opts) {
     check("dry_run names the group it would post into", r.items[0].group === "000000000000000", r.items[0].group);
   }
 
+  console.log("\n== fb.profile.post: helpers (audience labels, url shapes, account keys) ==");
+  {
+    const I = makeCtx({}).window.__soloActInternals;
+    check("audienceKey: exact labels in EN and VI", I.audienceKey("Public") === "public" && I.audienceKey("Only me") === "only_me" && I.audienceKey("Bạn bè") === "friends" && I.audienceKey("Chỉ mình tôi") === "only_me");
+    check("audienceKey: the toggle's aria-label 'Edit privacy. Sharing with Public.' reads public", I.audienceKey("Edit privacy. Sharing with Public.") === "public");
+    check("audienceKey: qualified rows are NOT the base audience", I.audienceKey("Friends except...") === "" && I.audienceKey("Only show to... Select friends") === "" && I.audienceKey("Custom Include and exclude friends") === "" && I.audienceKey("Friends except acquaintances") === "");
+    check("isTimelineUrl: own profile root, /me and the home feed pass", I.isTimelineUrl("https://www.facebook.com/me") && I.isTimelineUrl("https://www.facebook.com/") && I.isTimelineUrl("https://www.facebook.com/nguyenhuubinh/") && I.isTimelineUrl("https://www.facebook.com/profile.php?id=123"));
+    check("isTimelineUrl: groups, permalinks, sub-tabs and the business host fail", !I.isTimelineUrl("https://www.facebook.com/groups/1") && !I.isTimelineUrl("https://www.facebook.com/nguyenhuubinh/posts/pfbid0x") && !I.isTimelineUrl("https://www.facebook.com/nguyenhuubinh/about") && !I.isTimelineUrl("https://www.facebook.com/nguyenhuubinh/photos") && !I.isTimelineUrl("https://business.facebook.com/latest/home"));
+    check("accountKeyFrom: vanity, numeric id, and none for /me", I.accountKeyFrom("https://www.facebook.com/Nguyen.Huu.Binh/") === "vanity:nguyen.huu.binh" && I.accountKeyFrom("https://www.facebook.com/profile.php?id=42") === "id:42" && I.accountKeyFrom("https://www.facebook.com/me") === "" && I.accountKeyFrom("https://www.facebook.com/") === "");
+  }
+  {
+    const ctx = makeCtx({ href: "https://www.facebook.com/nguyenhuubinh/" });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hi", _target_url: "https://www.facebook.com/nhu.white.75" });
+    check("a named profile that resolves to a different account is refused (profile_mismatch)", r.status === "error" && /profile_mismatch/.test(r.items[0].error), r.items[0].error);
+  }
+
   console.log("\n== fb.profile.post: guards before anything is typed ==");
   const triggerEl = (label) => { const t = fakeEl({ role: "button", "aria-label": label }); t.innerText = label; return t; };
   {
@@ -352,6 +368,9 @@ async function resolveWith(items, inputs, opts) {
     const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hello timeline", dry_run: true, audience: "only_me", _target_url: "https://www.facebook.com/" });
     check("dry_run on the home feed reports readiness without publishing", r.status === "dry_run" && r.items[0].post_button_found === true, r.items[0]);
     check("dry_run reports the audience control state and the requested audience", r.items[0].audience_control_found === false && r.items[0].audience_requested === "only_me", r.items[0]);
+    check("dry_run never touches the audience picker unless probe_audience (Done persists the default)", r.items[0].audience_applied === null && r.items[0].audience_probe_changed_default === false, r.items[0]);
+    const r2 = await ctx.window.__soloIgRun ? null : await ctx.window.__soloActRun("fb.profile.post", { text: "hello timeline", dry_run: true, audience: "only_me", probe_audience: true, _target_url: "https://www.facebook.com/" });
+    check("probe_audience with no audience control reports applied=false and the reason", r2 && r2.status === "dry_run" && r2.items[0].audience_applied === false && r2.items[0].audience_reason === "audience_control_not_found", r2 && r2.items[0]);
   }
   {
     const d = dialogEl();

@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "updated_at": "2026-09-10",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -232,7 +232,12 @@
       "post_url": "string | null — the new post's permalink when the StoryCreate mutation was captured",
       "post_id": "string | null",
       "error": "string | null — not_a_timeline_url, other_timeline, ambiguous_composer, audience_not_applied, …",
-      "ts": "ISO8601"
+      "ts": "ISO8601",
+      "queries_after_submit": "string[] — GraphQL query names captured after the Post click (repair evidence when post_url is null)",
+      "audience_restored": "boolean | null — after a done post with a switched audience: true when the original audience was put back; null when no restore was needed or restore_audience was false",
+      "audience_restore_to": "string | null — the audience label the restore aimed at",
+      "audience_restore_reason": "string | null — why the restore did not take",
+      "audience_probe_changed_default": "boolean — dry_run with probe_audience: the picker was confirmed, so the account's default audience changed"
     },
     "HovercardRecord": {
       "id": "string — the profile id asked for",
@@ -2018,12 +2023,14 @@
     {
       "id": "fb.profile.post",
       "title": "Publish a new post on the operator's own timeline",
-      "when_to_use": "WRITE ACTION. Publish a standalone post on the acting account's OWN profile/timeline (the home-feed composer posts to the same place). Submit the operator's own profile root — https://www.facebook.com/me is safest, Facebook resolves it to the logged-in account. Never a group url (that is fb.group.post), never a permalink or media page (a different composer), never somebody else's profile: there the box says \"Write something to <Name>…\" and would publish on THEIR timeline, so the collector refuses it (other_timeline). Optional audience public | friends | only_me is set in the composer BEFORE any text is typed; when it cannot be applied nothing is published (audience_not_applied). This is the operator speaking in their own name to everyone who follows them: keep it rare and never repeat the same text.",
+      "when_to_use": "WRITE ACTION. Publish a standalone post on the acting account's OWN profile/timeline (the home-feed composer posts to the same place). Submit the operator's own profile root — https://www.facebook.com/me is safest, Facebook resolves it to the logged-in account. Never a group url (that is fb.group.post), never a permalink or media page (a different composer), never somebody else's profile: there the box says \"Write something to <Name>…\" and would publish on THEIR timeline, so the collector refuses it (other_timeline). Optional audience public | friends | only_me is set in the composer BEFORE any text is typed; when it cannot be applied nothing is published (audience_not_applied). Measured 2026-09-10: confirming the audience picker PERSISTS that choice as the account's default audience for the operator's own future posts, so after a done post the action switches the composer back to the original audience (restore_audience, default true) and a dry_run never touches the picker unless probe_audience is true. This is the operator speaking in their own name to everyone who follows them: keep it rare and never repeat the same text. The url must name the operator's PERSONAL profile: a Page the operator manages has a look-alike composer and is not supported (the post would go out as the Page); when the url names a vanity or numeric id and the landed profile differs, the action refuses (profile_mismatch).",
       "inputs": {
-        "profile_url": "string (required) — https://www.facebook.com/me or the operator's own profile root (or https://www.facebook.com/ for the home-feed composer). A group, permalink, media or foreign-profile url is refused (not_a_timeline_url / other_timeline).",
+        "profile_url": "string (required) — https://www.facebook.com/me or the operator's own profile root (or https://www.facebook.com/ for the home-feed composer). A group, permalink, media or foreign-profile url is refused (not_a_timeline_url / other_timeline); a vanity or numeric id that does not match the landed profile is refused (profile_mismatch); a Page url is not supported.",
         "text": "string (required) — the post body",
         "audience": "string (optional) — public | friends | only_me, applied in the composer before publishing; refused with audience_not_applied when the control is missing or does not take",
-        "dry_run": "bool (optional) — open the composer and report readiness (post button, audience control, current audience) WITHOUT publishing"
+        "restore_audience": "bool (optional, default true) — after a done post with a non-default audience, reopen the composer, put the original audience back and close it; the picker's Done persists the choice as the account default, so leaving it would change how the operator's own next post is shared",
+        "dry_run": "bool (optional) — open the composer and report readiness (post button, audience control, current audience) WITHOUT publishing",
+        "probe_audience": "bool (optional) — with dry_run and audience: also exercise the audience picker and report audience_applied / audience_after / audience_seen. CHANGES the account's default audience (Done persists it); use only for repair, never on a schedule"
       },
       "output_schema": "ProfilePostResult",
       "provider": "facebook-dom",
@@ -2037,6 +2044,7 @@
         "mode": "dry_run",
         "cadence": "daily",
         "needs_active_tab": true,
+        "self_target": true,
         "fixtures": [
           "fb_own_profile_url"
         ],
@@ -2081,6 +2089,12 @@
             "path": "records.items[0].audience_after",
             "op": "nonempty",
             "note": "the composer's audience label after the switch — only_me was applied before typing, so a done post is visible to the operator alone"
+          },
+          {
+            "path": "records.items[0].audience_restored",
+            "op": "is_true",
+            "severity": "warn",
+            "note": "the original audience was put back after the only_me test post; false means the operator's default audience is now Only me — restore it by hand in the composer"
           }
         ],
         "baseline_fields": [
@@ -2093,7 +2107,7 @@
         "offline_tests": [
           "tests/test_gql_actions.js"
         ],
-        "note": "a real post goes out under the operator's own name; the write probe publishes with audience only_me so nobody else sees it, and only with --allow-writes"
+        "note": "a real post goes out under the operator's own name; the write probe publishes with audience only_me so nobody else sees it, then restores the previous default audience; --allow-writes only. The daily dry_run never touches the audience picker."
       }
     },
     {

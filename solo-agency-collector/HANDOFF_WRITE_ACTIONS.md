@@ -246,6 +246,26 @@ also yields `post_url`/`post_id`). Policy flag `do_not_post`; feature `write_act
 exemption. Healthcheck: `dry_run` daily on `fb_own_profile_url`; the real write (`--allow-writes`)
 publishes with `audience: only_me`, so nobody but the operator sees the probe post.
 
+Two measured facts that shaped the flow (2026-09-10, operator's own profile): the composer is
+TWO-step — the first screen's submit is "Next" (disabled until text is typed) and "Post" only
+exists on the second screen (groups and the home feed submit with "Post" directly) — and
+pressing Done in the audience picker PERSISTS the choice as the account's default audience even
+when nothing is posted. Hence: a dry run never touches the picker unless `probe_audience: true`
+(a repair input, never scheduled); after a `done` post with a switched audience the action
+reopens the composer, puts the original audience back and closes it (`restore_audience`, default
+true; result `audience_restored`, run on every outcome because Done already persisted the
+switch). The first live run's dry run had switched the operator's default to Only me; it was
+restored to Public the same way. `queries_after_submit` lists the GraphQL names captured after
+the Post click — repair evidence when `post_url` stays null.
+
+Known limits (review 2026-09-10): the url must name the operator's PERSONAL profile — a Page the
+operator manages has a look-alike composer and is not supported; when the job url names a vanity
+or numeric id the landed profile must be the same account (`profile_mismatch` otherwise; `/me`
+and the home feed carry no name and skip this); the healthcheck probe carries `self_target: true`
+so the runner's generic landed_on_self failure does not fire on the one probe that lands on the
+operator on purpose; scheduled jobs now derive `collector_policy` from their sources exactly like
+run-now jobs (`do_not_post` used to be missing there).
+
 ### Cross-cutting guard fields on every data point
 | Field | Meaning |
 |---|---|
