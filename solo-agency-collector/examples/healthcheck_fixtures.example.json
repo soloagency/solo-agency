@@ -2,6 +2,7 @@
   "_comment": "Copy to <install>/daily-content-pipeline/collector/healthcheck/fixtures.json and fill in the operator's OWN targets. Keys starting with _ are ignored. `tool healthcheck fixtures` prints which keys are still missing. Never point a fixture at a production client's account or a third party's group.",
   "fb_test_group_url": "https://www.facebook.com/groups/<operator-owned test group id>",
   "fb_canary_post_url": "https://www.facebook.com/groups/<id>/posts/<post id>/",
+  "fb_own_profile_url": "https://www.facebook.com/me",
   "fb_own_post_url": "https://www.facebook.com/reel/<reel id the test account published>",
   "fb_canary_profile_url": "https://www.facebook.com/<test account vanity>",
   "fb_canary_profile_friends_url": "https://www.facebook.com/<test account vanity>/friends",

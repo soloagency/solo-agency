@@ -217,6 +217,35 @@ How it works (do not "simplify" these — each line is a fixed bug):
   `"Write to <name>"` must equal `recipient_name` (`recipient_mismatch` otherwise).
   **Nothing is typed when a guard fires.**
 
+### `fb.group.post` (shipped 2026-08; documented here 2026-09-10)
+
+Publish a NEW post into a group. `doGroupPost` in `platforms/facebook/gql_actions.js`: the group
+page shows a TRIGGER ("Write something…" / "Viết gì đó…"), clicking it opens the modal composer
+(`[role=dialog]` holding the contenteditable, exactly ONE such dialog or `ambiguous_composer`),
+text goes in via `insertText`, submission is the "Post"/"Đăng" BUTTON (Enter inserts a newline
+here). Guards: `not_a_group_url`, `group_mismatch`, no trigger (not a member / admin-only),
+text typed but no Post button (reported, NOT submitted). Result states: `done` (dialog closed AND
+the text is on the page), `pending_admin_approval` (Facebook's own notice found — never collapsed
+into done), `error`, `dry_run`. Policy flag `do_not_post`; feature `write_actions`, with the one
+exemption for the Solo Agency support group (`solo_entitlement.js` / `entitlement.go`).
+
+### `fb.profile.post` (2026-09-10)
+
+Publish a NEW post on the operator's OWN timeline. `doProfilePost`, same composer shape as the
+group post with the guards inverted: the url must be the operator's own profile root
+(`https://www.facebook.com/me` is safest) or the home feed (`not_a_timeline_url` otherwise), and
+the composer trigger must be the own-timeline one — "What's on your mind" / "Bạn đang nghĩ gì".
+Somebody else's profile offers "Write something to <Name>…" / "Viết gì đó cho …", which would
+publish on THEIR timeline, so it is refused as `other_timeline`. Optional `audience`
+(`public | friends | only_me`) is applied BEFORE any text is typed: the composer's audience button
+opens a second dialog of `role=radio` rows, the wanted row is clicked, "Done"/"Xong" closes it,
+and the button label is re-read; when it does not take, the result is `audience_not_applied` and
+nothing was typed. Proof of a `done` post: the dialog closed AND (the text appeared on the page OR
+the `ComposerStoryCreateMutation` capture in `window.__soloGql` answered with the new story, which
+also yields `post_url`/`post_id`). Policy flag `do_not_post`; feature `write_actions`; no support
+exemption. Healthcheck: `dry_run` daily on `fb_own_profile_url`; the real write (`--allow-writes`)
+publishes with `audience: only_me`, so nobody but the operator sees the probe post.
+
 ### Cross-cutting guard fields on every data point
 | Field | Meaning |
 |---|---|

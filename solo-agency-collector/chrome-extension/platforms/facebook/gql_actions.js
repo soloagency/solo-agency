@@ -757,6 +757,253 @@
     });
   }
 
+  // ---- P5: fb.profile.post --------------------------------------------------
+  // Publish a NEW post on the operator's OWN timeline. Same composer shape as a group post
+  // (trigger → modal dialog → "Post" button), with the guards inverted: the page must be the
+  // operator's own profile root (facebook.com/me resolves there) or the home feed — never a
+  // group, a permalink, a media page, or somebody ELSE's profile. On a friend's profile the
+  // box says "Write something to <Name>…" and would publish on THEIR timeline; the own-timeline
+  // trigger is the only one that says "What's on your mind" / "Bạn đang nghĩ gì", so that
+  // wording is the identity check, on top of the url shape.
+  var OWN_TRIGGER = /(what'?s on your mind|bạn đang nghĩ gì)/i;
+  var OTHER_TIMELINE_TRIGGER = /(write something to|write (something )?on [^?]*timeline|viết gì đó cho)/i;
+  var NOT_A_TIMELINE = /facebook\.com\/(groups|events|marketplace|watch|reel|reels|videos|photo|photos|posts|permalink|story|stories|messages|search|pages|gaming|share|hashtag)([/?#]|$)|\/posts\/|permalink\.php|story\.php|photo\.php|\/videos\//i;
+  var AUDIENCE = {
+    public: ["public", "công khai"],
+    friends: ["friends", "bạn bè"],
+    only_me: ["only me", "chỉ mình tôi"]
+  };
+  var AUDIENCE_CONTROL = /(edit privacy|sharing with|select audience|chỉnh sửa quyền riêng tư|chia sẻ với|đối tượng)/i;
+  var DONE_BUTTON = /^(done|save|xong|lưu)$/i;
+
+  function isTimelineUrl(u) {
+    u = String(u || "");
+    if (!/^https?:\/\/([\w-]+\.)?facebook\.com(\/|$)/i.test(u)) return false;
+    return !NOT_A_TIMELINE.test(u);
+  }
+  // { el, label } for the own-timeline trigger; { other: label } when the page's composer
+  // belongs to somebody else's timeline; {} when there is no composer at all.
+  function findOwnComposerTrigger() {
+    var els = document.querySelectorAll('[role="button"], [role="textbox"], div[tabindex]');
+    var other = "";
+    for (var i = 0; i < els.length; i++) {
+      var lbl = norm(els[i].getAttribute("aria-label") || els[i].innerText || "");
+      var r = els[i].getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0 || !lbl) continue;
+      if (OWN_TRIGGER.test(lbl)) return { el: els[i], label: lbl.slice(0, 80) };
+      if (!other && OTHER_TIMELINE_TRIGGER.test(lbl)) other = lbl.slice(0, 80);
+    }
+    return other ? { other: other } : {};
+  }
+  function audienceKey(lbl) {
+    lbl = lower(lbl);
+    for (var k in AUDIENCE) {
+      for (var i = 0; i < AUDIENCE[k].length; i++) {
+        var name = AUDIENCE[k][i];
+        if (lbl === name || lbl.indexOf(name + " ") === 0 || lbl.indexOf(" " + name) > -1 && lbl.indexOf(name) === lbl.length - name.length) return k;
+      }
+    }
+    return "";
+  }
+  // The composer's audience selector: a button whose aria-label describes the sharing
+  // setting, or whose own text is exactly an audience name.
+  function findAudienceButton(dialog) {
+    var btns = dialog.querySelectorAll('[role="button"], button');
+    for (var i = 0; i < btns.length; i++) {
+      var aria = norm(btns[i].getAttribute("aria-label") || "");
+      var txt = norm(btns[i].innerText || "");
+      var r = btns[i].getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      if (AUDIENCE_CONTROL.test(aria) || audienceKey(txt) || audienceKey(aria)) return btns[i];
+    }
+    return null;
+  }
+  function currentAudience(btn) {
+    if (!btn) return { key: "", raw: "" };
+    var aria = norm(btn.getAttribute("aria-label") || ""), txt = norm(btn.innerText || "");
+    var raw = txt || aria;
+    return { key: audienceKey(txt) || audienceKey(aria) || audienceKey(aria.replace(/^.*(with|với)\s+/i, "")), raw: raw.slice(0, 80) };
+  }
+  // The audience picker is a second dialog (no text box) holding radio rows.
+  function findAudiencePicker() {
+    var dialogs = document.querySelectorAll('[role="dialog"]');
+    for (var i = 0; i < dialogs.length; i++) {
+      var r = dialogs[i].getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      if (dialogs[i].querySelector('div[contenteditable="true"][role="textbox"]')) continue;
+      if (dialogs[i].querySelector('[role="radio"], [role="menuitemradio"]')) return dialogs[i];
+    }
+    return null;
+  }
+  function findAudienceOption(picker, want) {
+    var rows = picker.querySelectorAll('[role="radio"], [role="menuitemradio"], [role="button"]');
+    for (var i = 0; i < rows.length; i++) {
+      var lbl = norm(rows[i].getAttribute("aria-label") || rows[i].innerText || "");
+      var r = rows[i].getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && audienceKey(lbl.split("\n")[0]) === want) return rows[i];
+    }
+    return null;
+  }
+  function findDoneButton(picker) {
+    var btns = picker.querySelectorAll('[role="button"], button');
+    for (var i = 0; i < btns.length; i++) {
+      var lbl = norm(btns[i].getAttribute("aria-label") || btns[i].innerText || "");
+      var r = btns[i].getBoundingClientRect();
+      if (DONE_BUTTON.test(lbl) && r.width > 0 && r.height > 0) return btns[i];
+    }
+    return null;
+  }
+  async function setAudience(dialog, want) {
+    var btn = findAudienceButton(dialog);
+    if (!btn) return { applied: false, reason: "audience_control_not_found", before: null, after: null };
+    var before = currentAudience(btn);
+    if (before.key === want) return { applied: true, changed: false, before: before.raw, after: before.raw };
+    click(btn);
+    await waitFor(function () { return !!findAudiencePicker(); }, 6000, 300);
+    var picker = findAudiencePicker();
+    if (!picker) return { applied: false, reason: "audience_picker_did_not_open", before: before.raw, after: before.raw };
+    var option = findAudienceOption(picker, want);
+    if (!option) return { applied: false, reason: "audience_option_not_found", before: before.raw, after: before.raw };
+    click(option);
+    await sleep(300);
+    var done = findDoneButton(picker);
+    if (done) click(done);
+    await waitFor(function () { return !findAudiencePicker(); }, 6000, 300);
+    var after = currentAudience(findAudienceButton(dialog));
+    return { applied: after.key === want, changed: true, before: before.raw, after: after.raw, reason: after.key === want ? "" : "composer still says \"" + after.raw + "\"" };
+  }
+  // The composer's own mutation answers with the new story: its permalink is the proof a
+  // text search of the page cannot give (the feed may render the post below the fold).
+  function storyCreatedSince(t0) {
+    try {
+      var caps = (window.__soloGql && window.__soloGql.captures) || [];
+      for (var i = caps.length - 1; i >= 0; i--) {
+        var c = caps[i];
+        if (!c || (c.capturedAt || 0) < t0 - 2000 || !/StoryCreate/i.test(String(c.queryName || ""))) continue;
+        var parts = Array.isArray(c.response) ? c.response : [c.response];
+        for (var j = 0; j < parts.length; j++) {
+          var s = parts[j] && parts[j].data && parts[j].data.story_create && parts[j].data.story_create.story;
+          if (s && typeof s === "object") {
+            var id = String(s.post_id || s.legacy_story_hideable_id || s.id || "");
+            return { id: id, url: String(s.url || (id ? "https://www.facebook.com/" + id : "")) };
+          }
+        }
+      }
+    } catch (e) { /* proof is optional */ }
+    return null;
+  }
+
+  async function doProfilePost(inputs) {
+    var text = String(inputs.text || inputs.message || "").trim();
+    if (!text) return wrapCap("fb.profile.post", "error", { error: "no post text provided" });
+    var want = lower(inputs.audience || "").replace(/[\s-]+/g, "_");
+    if (want && !AUDIENCE[want]) return wrapCap("fb.profile.post", "error", { text: text, error: "unknown audience \"" + inputs.audience + "\" — use public, friends or only_me" });
+
+    // Guard 0: the url shape. A group url is fb.group.post's job; a permalink or media page
+    // opens a comment box, not the timeline composer.
+    var jobUrl = String(inputs._target_url || location.href);
+    if (!isTimelineUrl(jobUrl) || !isTimelineUrl(location.href)) {
+      return wrapCap("fb.profile.post", "error", {
+        text: text, job_url: jobUrl, landed_url: location.href,
+        error: "not_a_timeline_url: open the operator's own profile root (https://www.facebook.com/me) or the home feed — a group url is fb.group.post, a permalink or media url opens a different composer"
+      });
+    }
+
+    var dialogs = findComposerDialogs();
+    var openedDialog = false, triggerLabel = "";
+    if (!dialogs.length) {
+      var t = findOwnComposerTrigger();
+      // Guard 1: the composer must be the OWN-timeline one. Somebody else's profile offers a
+      // "Write something to <Name>…" box that would publish on their timeline.
+      if (t.other) {
+        return wrapCap("fb.profile.post", "error", {
+          text: text, landed_url: location.href, composer_label: t.other,
+          error: "other_timeline: this page's composer says \"" + t.other + "\" — that is somebody else's timeline; nothing was typed"
+        });
+      }
+      if (!t.el) {
+        return wrapCap("fb.profile.post", "error", {
+          text: text, landed_url: location.href,
+          error: "no own-timeline composer trigger on this page (\"What's on your mind\") — open https://www.facebook.com/me or the home feed"
+        });
+      }
+      triggerLabel = t.label;
+      click(t.el);
+      openedDialog = true;
+      await waitFor(function () { return findComposerDialogs().length > 0; }, 8000, 300);
+      dialogs = findComposerDialogs();
+    }
+    // Guard 2: exactly ONE composer dialog, same rule as the group and DM paths.
+    if (dialogs.length !== 1) {
+      return wrapCap("fb.profile.post", "error", {
+        text: text, dialogs_found: dialogs.length, opened_dialog: openedDialog,
+        error: dialogs.length === 0 ? "the composer dialog did not open" : "ambiguous_composer: " + dialogs.length + " composer dialogs are open — nothing was typed"
+      });
+    }
+    var dialog = dialogs[0];
+    var box = dialog.querySelector('div[contenteditable="true"][role="textbox"]');
+    if (!box) return wrapCap("fb.profile.post", "error", { text: text, error: "composer dialog has no text box" });
+
+    var audienceBtn = findAudienceButton(dialog);
+    var current = audienceBtn ? currentAudience(audienceBtn) : { key: "", raw: "" };
+    if (inputs.dry_run) {
+      return wrapCap("fb.profile.post", "dry_run", {
+        text: text, profile_url: location.href, opened_dialog: openedDialog, trigger: triggerLabel || null,
+        post_button_found: !!findPostButton(dialog),
+        audience_control_found: !!audienceBtn, audience_current: current.raw || null, audience_requested: want || null
+      });
+    }
+
+    // The audience is set BEFORE any text goes in: when it cannot be applied nothing is
+    // typed and nothing is published — an "only me" test post must never go out to friends.
+    var aud = null;
+    if (want) {
+      aud = await setAudience(dialog, want);
+      if (!aud.applied) {
+        return wrapCap("fb.profile.post", "error", {
+          text: text, profile_url: location.href, audience_requested: want, audience_before: aud.before, audience_after: aud.after,
+          error: "audience_not_applied: " + aud.reason + " — nothing was typed"
+        });
+      }
+    }
+
+    await jitter();
+    await typeInto(box, text);
+    if (!composerText(box)) return wrapCap("fb.profile.post", "error", { text: text, profile_url: location.href, error: "failed to enter text into the composer" });
+
+    var btn = findPostButton(dialog);
+    if (!btn) {
+      return wrapCap("fb.profile.post", "error", {
+        text: text, profile_url: location.href, typed: true,
+        error: "no enabled Post button in the composer — text was typed but NOT submitted"
+      });
+    }
+    var t0 = Date.now();
+    await jitter();
+    click(btn);
+
+    // Proof: the dialog closed (the submit was consumed) AND either the text is on the page
+    // or the composer's own mutation answered with the new story.
+    var closed = await waitFor(function () { return findComposerDialogs().length === 0; }, 12000, 500);
+    var probe = text.slice(0, 40);
+    var appeared = await waitFor(function () {
+      try { return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; }
+    }, 8000, 500);
+    var created = storyCreatedSince(t0);
+    var status = (closed && (appeared || created)) ? "done" : "error";
+    return wrapCap("fb.profile.post", status, {
+      text: text, profile_url: location.href,
+      verified: status === "done", closed: !!closed, appeared: !!appeared, opened_dialog: openedDialog,
+      audience_requested: want || null,
+      audience_before: aud ? aud.before : (current.raw || null),
+      audience_after: aud ? aud.after : (current.raw || null),
+      post_url: created ? created.url || null : null, post_id: created ? created.id || null : null,
+      error: status === "error"
+        ? (closed ? "the composer closed but the post did not appear" : "the composer did not close — the post may not have been submitted")
+        : null
+    });
+  }
+
   // ---- P3: fb.message.send -------------------------------------------------
   // Send a Messenger DM. The job's url must be the THREAD (facebook.com/messages/t/<id>),
   // never the profile: clicking "Message" on a profile leaves the page holding several
@@ -945,6 +1192,7 @@
       if (capId === "fb.post.comment") return await doComment(inputs);
       if (capId === "fb.message.send") return await doMessage(inputs);
       if (capId === "fb.group.post") return await doGroupPost(inputs);
+      if (capId === "fb.profile.post") return await doProfilePost(inputs);
       return { available: false, capability: capId, count: 0, items: [{ status: "error", error: "unknown or unimplemented action: " + capId }], _debug: { href: location.href } };
     } catch (e) {
       return { available: false, capability: capId, count: 0, items: [{ status: "error", error: String(e && e.message || e) }], _debug: { href: location.href, error: String(e) } };

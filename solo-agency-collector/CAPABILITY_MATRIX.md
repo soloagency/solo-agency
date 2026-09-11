@@ -42,11 +42,11 @@ or needs heavy UI driving (file upload) · **partial** = only part of the Facebo
 | post.comment | write a comment (`fb.post.comment`, write) | built | feasible — `POST /web/comments/<media_id>/add/` | feasible — CreateTweet with in_reply_to | risky — same |
 | message.send | direct message to a person (`fb.message.send`, write) | built | risky — `direct_v2/threads/broadcast/text/`; to a non-follower it lands in "Requests" and may never be seen | risky — many accounts accept DMs only from people they follow | risky — 1st-degree only; InMail is paid and capped |
 | group.post | publish into a group (`fb.group.post`, write) | built | **impossible** — no groups | **sunset-risky** | risky — group share box |
-| post.publish | publish on the operator's own timeline | **not built** (next) | risky — the desktop Create flow REQUIRES an image or video; Instagram has no text-only post | feasible — CreateTweet | risky — "Start a post" box |
+| post.publish | publish on the operator's own timeline | **built** `fb.profile.post` — own profile root or home composer, optional audience public/friends/only_me set before typing | risky — the desktop Create flow REQUIRES an image or video; Instagram has no text-only post | feasible — CreateTweet | risky — "Start a post" box |
 | hashtag.posts | posts under a hashtag | not built (`/hashtag/<tag>` exists) | **covered** — `/explore/tags/<tag>/` now redirects to keyword search; use `ig.search.posts` with `#tag` | feasible — `search?q=%23tag` (a canned SearchTimeline) | feasible — `/feed/hashtag/<tag>/` |
 | location.posts | posts tagged at a place | not built (place pages exist) | feasible — `/explore/locations/<id>/` | **impossible** — only the unreliable `near:` search operator remains | **impossible** — no place tagging |
 
-Counts (of 23 pillar rows): Facebook 20 built + 3 not built; Instagram 5 built + 3 covered by a
+Counts (of 23 pillar rows): Facebook 21 built + 2 not built; Instagram 5 built + 3 covered by a
 built one + 8 feasible/risky/partial + 7 impossible; X 0 built, 14 feasible, 5 risky/partial,
 4 impossible (three of them hinge on Communities, which is being retired); LinkedIn 0 built,
 17 feasible/risky, 3 impossible.

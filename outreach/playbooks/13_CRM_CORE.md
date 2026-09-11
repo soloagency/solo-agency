@@ -78,7 +78,7 @@ never blocks capture, only what the agent can DO with a contact once the plan's 
   by the bridge with `contact_locked`; the agent must not draft a DM to a locked contact either, same as
   it must not draft an email. A locked contact is still counted, still receives new activities/leads on
   re-detection, and unlocks automatically the moment the plan is upgraded or older contacts age out.
-- **Write actions are a separate, unrelated gate.** `write_actions` (`fb.group.post`, `fb.post.comment`,
+- **Write actions are a separate, unrelated gate.** `write_actions` (`fb.group.post`, `fb.profile.post`, `fb.post.comment`,
   `fb.post.react`) is gated by plan (Starter and up), not by the contact lock — it has nothing to do
   with whether any particular contact is locked or unlocked, and applies the same way regardless of the
   CRM contact cap.

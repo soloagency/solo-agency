@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "updated_at": "2026-09-10",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -216,6 +216,22 @@
       "appeared": "boolean — the text was found on the page afterwards",
       "approval_notice": "string | null — the group's own wording when the post is held for admin approval",
       "error": "string | null",
+      "ts": "ISO8601"
+    },
+    "ProfilePostResult": {
+      "capability": "string (fb.profile.post)",
+      "status": "done | dry_run | error",
+      "text": "string — the post body that was submitted",
+      "profile_url": "string — the url at submit time (the operator's own profile or the home feed)",
+      "verified": "boolean — true only for status done: the composer closed AND (the text appeared on the page OR the composer's own StoryCreate mutation answered with the new story)",
+      "closed": "boolean — the composer dialog closed (the submit was consumed)",
+      "appeared": "boolean — the text was found on the page afterwards",
+      "audience_requested": "string | null — public | friends | only_me as asked",
+      "audience_before": "string | null — the composer's audience label before the switch",
+      "audience_after": "string | null — the label after the switch; equals the requested audience on a done post",
+      "post_url": "string | null — the new post's permalink when the StoryCreate mutation was captured",
+      "post_id": "string | null",
+      "error": "string | null — not_a_timeline_url, other_timeline, ambiguous_composer, audience_not_applied, …",
       "ts": "ISO8601"
     },
     "HovercardRecord": {
@@ -1997,6 +2013,87 @@
           "tests/test_gql_actions.js"
         ],
         "note": "a real post is permanent in the group; only with --allow-writes and only into the operator-owned test group"
+      }
+    },
+    {
+      "id": "fb.profile.post",
+      "title": "Publish a new post on the operator's own timeline",
+      "when_to_use": "WRITE ACTION. Publish a standalone post on the acting account's OWN profile/timeline (the home-feed composer posts to the same place). Submit the operator's own profile root — https://www.facebook.com/me is safest, Facebook resolves it to the logged-in account. Never a group url (that is fb.group.post), never a permalink or media page (a different composer), never somebody else's profile: there the box says \"Write something to <Name>…\" and would publish on THEIR timeline, so the collector refuses it (other_timeline). Optional audience public | friends | only_me is set in the composer BEFORE any text is typed; when it cannot be applied nothing is published (audience_not_applied). This is the operator speaking in their own name to everyone who follows them: keep it rare and never repeat the same text.",
+      "inputs": {
+        "profile_url": "string (required) — https://www.facebook.com/me or the operator's own profile root (or https://www.facebook.com/ for the home-feed composer). A group, permalink, media or foreign-profile url is refused (not_a_timeline_url / other_timeline).",
+        "text": "string (required) — the post body",
+        "audience": "string (optional) — public | friends | only_me, applied in the composer before publishing; refused with audience_not_applied when the control is missing or does not take",
+        "dry_run": "bool (optional) — open the composer and report readiness (post button, audience control, current audience) WITHOUT publishing"
+      },
+      "output_schema": "ProfilePostResult",
+      "provider": "facebook-dom",
+      "coverage": "the logged-in operator posts as themselves via the real UI",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
+      "write": true,
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "fb_own_profile_url"
+        ],
+        "url": "{fb_own_profile_url}",
+        "inputs": {
+          "profile_url": "{fb_own_profile_url}",
+          "text": "{text}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run",
+            "note": "error 'no own-timeline composer trigger' = OWN_TRIGGER wording changed, or the fixture is not the operator's own profile; 'other_timeline' = the fixture points at somebody else"
+          },
+          {
+            "path": "records.items[0].post_button_found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].audience_control_found",
+            "op": "is_true",
+            "severity": "warn",
+            "note": "the real write sets audience only_me; without the control it refuses to publish"
+          }
+        ],
+        "write_inputs": {
+          "profile_url": "{fb_own_profile_url}",
+          "text": "{text}",
+          "audience": "only_me",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "done"
+          },
+          {
+            "path": "records.items[0].audience_after",
+            "op": "nonempty",
+            "note": "the composer's audience label after the switch — only_me was applied before typing, so a done post is visible to the operator alone"
+          }
+        ],
+        "baseline_fields": [
+          "opened_dialog",
+          "audience_control_found"
+        ],
+        "cause_group": [
+          "fb_composer"
+        ],
+        "offline_tests": [
+          "tests/test_gql_actions.js"
+        ],
+        "note": "a real post goes out under the operator's own name; the write probe publishes with audience only_me so nobody else sees it, and only with --allow-writes"
       }
     },
     {

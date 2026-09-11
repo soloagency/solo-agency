@@ -306,6 +306,72 @@ async function resolveWith(items, inputs, opts) {
     check("dry_run names the group it would post into", r.items[0].group === "000000000000000", r.items[0].group);
   }
 
+  console.log("\n== fb.profile.post: guards before anything is typed ==");
+  const triggerEl = (label) => { const t = fakeEl({ role: "button", "aria-label": label }); t.innerText = label; return t; };
+  {
+    const ctx = makeCtx({ href: "https://www.facebook.com/groups/000000000000000" });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hi", _target_url: "https://www.facebook.com/groups/000000000000000" });
+    check("a group url is refused (that is fb.group.post)", r.status === "error" && /not_a_timeline_url/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const ctx = makeCtx({ href: "https://www.facebook.com/example.operator/posts/pfbid0xyz" });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hi", _target_url: "https://www.facebook.com/example.operator/posts/pfbid0xyz" });
+    check("a permalink is refused", r.status === "error" && /not_a_timeline_url/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const other = triggerEl("Write something to Nhu White...");
+    const ctx = makeCtx({ href: "https://www.facebook.com/nhu.white.75", querySelectorAll: groupDom([], other) });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hi", _target_url: "https://www.facebook.com/nhu.white.75" });
+    check("somebody else's timeline composer is refused, nothing typed", r.status === "error" && /other_timeline/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const other = triggerEl("Viết gì đó cho Nhu...");
+    const ctx = makeCtx({ href: "https://www.facebook.com/nhu.white.75", querySelectorAll: groupDom([], other) });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hi", _target_url: "https://www.facebook.com/nhu.white.75" });
+    check("Vietnamese 'Viết gì đó cho' is somebody else's timeline too", r.status === "error" && /other_timeline/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const ctx = makeCtx({ href: "https://www.facebook.com/example.operator", querySelectorAll: groupDom([], null) });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hi", _target_url: "https://www.facebook.com/example.operator" });
+    check("no own-timeline trigger -> says so", r.status === "error" && /composer trigger/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const ctx = makeCtx({ href: "https://www.facebook.com/example.operator" });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hi", audience: "everyone", _target_url: "https://www.facebook.com/example.operator" });
+    check("an unknown audience is refused before anything else", r.status === "error" && /unknown audience/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const two = [dialogEl(), dialogEl()];
+    const ctx = makeCtx({ href: "https://www.facebook.com/me", querySelectorAll: groupDom(two, null) });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hi", _target_url: "https://www.facebook.com/me" });
+    check("two composer dialogs -> ambiguous, nothing typed", r.status === "error" && /ambiguous_composer/.test(r.items[0].error), r.items[0].error);
+  }
+  {
+    const d = dialogEl();
+    const ctx = makeCtx({ href: "https://www.facebook.com/", querySelectorAll: groupDom([d], null) });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hello timeline", dry_run: true, audience: "only_me", _target_url: "https://www.facebook.com/" });
+    check("dry_run on the home feed reports readiness without publishing", r.status === "dry_run" && r.items[0].post_button_found === true, r.items[0]);
+    check("dry_run reports the audience control state and the requested audience", r.items[0].audience_control_found === false && r.items[0].audience_requested === "only_me", r.items[0]);
+  }
+  {
+    const d = dialogEl();
+    let typed = false;
+    d._box.focus = () => { typed = true; };
+    const ctx = makeCtx({ href: "https://www.facebook.com/example.operator", querySelectorAll: groupDom([d], null) });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hello timeline", audience: "only_me", _target_url: "https://www.facebook.com/example.operator" });
+    check("real write with an audience the composer cannot set refuses and types nothing", r.status === "error" && /audience_not_applied/.test(r.items[0].error) && typed === false, r.items[0]);
+  }
+  {
+    const d = dialogEl();
+    const own = triggerEl("What's on your mind, Binh?");
+    let opened = false;
+    const dom = (sel) => { const s = String(sel); if (s.indexOf('[role="dialog"]') > -1) return opened ? [d] : []; if (s.indexOf('role="button"') > -1 || s.indexOf("tabindex") > -1) return [own]; return []; };
+    own.dispatchEvent = () => { opened = true; return true; };
+    const ctx = makeCtx({ href: "https://www.facebook.com/example.operator", querySelectorAll: dom });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hello timeline", dry_run: true, _target_url: "https://www.facebook.com/example.operator" });
+    check("the own-timeline trigger opens the composer; dry_run records it", r.status === "dry_run" && r.items[0].opened_dialog === true && /what's on your mind/i.test(r.items[0].trigger), r.items[0]);
+  }
+
   console.log("\n== Task F: a pfbid permalink pins the POST, not its group ==");
   {
     // The post was deleted, so Facebook served the group feed instead. targetIdFrom()

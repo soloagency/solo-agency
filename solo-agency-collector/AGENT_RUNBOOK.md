@@ -409,7 +409,7 @@ In this mode:
 
 ## Plan tiers and `tool entitlement`
 
-The bridge validates the client's WideCast API key against `GET /v1/solo/entitlement` and caches the signed result at `daily-content-pipeline/collector/inbox/entitlement.json`; `GET /status` → `entitlement` is the read-only view (see `README.md`, "Solo Agency plan"). Agents never edit that file and never work around a limit — they read `tier`, `features` and `limits`, do the part the plan allows, and apply the upsell rule in the root `AGENTS.md` ("Plans": Free · Starter $49 · Pro $99 · Business $199 · Enterprise) — every data feature is on every plan, so there are exactly two things to upsell: a higher CRM contact cap, and `write_actions` (group post, comment, react) on a Free install.
+The bridge validates the client's WideCast API key against `GET /v1/solo/entitlement` and caches the signed result at `daily-content-pipeline/collector/inbox/entitlement.json`; `GET /status` → `entitlement` is the read-only view (see `README.md`, "Solo Agency plan"). Agents never edit that file and never work around a limit — they read `tier`, `features` and `limits`, do the part the plan allows, and apply the upsell rule in the root `AGENTS.md` ("Plans": Free · Starter $49 · Pro $99 · Business $199 · Enterprise) — every data feature is on every plan, so there are exactly two things to upsell: a higher CRM contact cap, and `write_actions` (posting to a group or the operator's own timeline, commenting, reacting) on a Free install.
 
 ```sh
 <bridge> tool entitlement status  --pipeline daily-content-pipeline

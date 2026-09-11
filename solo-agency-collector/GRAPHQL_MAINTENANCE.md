@@ -346,6 +346,23 @@ fails (`TestCatalogHealthcheckContract`) until it does. Then `tool healthcheck r
 report carries the query names seen, `pagination_*`, `registry_probe` and `head_page_via` —
 the inputs of §7 — so start there, not from a fresh discovery job.
 
+### 8.y Add a new WRITE action (the `fb.profile.post` checklist, 2026-09-10)
+
+A write lives in `platforms/facebook/gql_actions.js`, not in the extractor, and touches more
+tables than a read. In order: (1) `doXxx(inputs)` + one dispatch line in `__soloActRun` — guard
+the url shape and the composer identity BEFORE typing, report `dry_run` readiness, prove the
+write two ways (dialog closed + text on page / mutation capture); (2) `core/platform_registry.js`:
+`WRITE_ACTIONS_TABLE`, `PIN_TARGET_TABLE` when the url must not drift, `POLICY_FLAG_TABLE`
+(`do_not_post` / `do_not_comment` / …), and the module's `capabilities` map; (3)
+`solo_entitlement.js` `SOLO_CAPABILITY_FEATURES` → `write_actions`; (4) the catalog block with
+`write: true`, `tier: pro`, `feature: write_actions`, a `dry_run` healthcheck with `write_inputs`
++ `write_assert`, and its result schema; (5) `bridge-go/main.go` `writeCapabilityPolicyFlag` —
+without it the bridge never clears the deny flag and every job is `policy_refused`; a new fixture
+key goes into `healthcheck.go` `hcFixtureDocs`; (6) tests that pin the write set:
+`tests/test_platform_registry.js`, `tests/test_solo_entitlement.js`, `tests/test_gql_actions.js`,
+`bridge-go/healthcheck_test.go`, `bridge-go/entitlement_test.go`; (7) `HANDOFF_WRITE_ACTIONS.md`,
+`HEALTHCHECK.md`, `CAPABILITY_MATRIX.md`, and the playbook id lists that name the write actions.
+
 ## 9. Hard-won rules (do not relearn these)
 
 ### 9.0 The Facebook feed-response traps — read this BEFORE debugging "missing posts"

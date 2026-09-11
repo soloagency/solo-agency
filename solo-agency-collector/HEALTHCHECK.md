@@ -79,7 +79,7 @@ on the operator's own test client (`aven-ngo` today).
 | Mode in catalog | Default run | With `--allow-writes` | With `--dry-run-only` |
 |---|---|---|---|
 | `read` | the read | same | same |
-| `dry_run` (comment, DM, group post) | `inputs` with `dry_run:true`, asserts the composer/button chain | `write_inputs` + `write_assert`: a real write into the operator's asset | dry run |
+| `dry_run` (comment, DM, group post, profile post) | `inputs` with `dry_run:true`, asserts the composer/button chain | `write_inputs` + `write_assert`: a real write into the operator's asset | dry run |
 | `write` (react) | the real action — idempotent: `done` first, `already` after | same | dry run |
 | `negative` (`fb.profile.about`) | asserts the id still answers "not built" | same | same |
 | `excluded` | never runs; `reason` is shown | | |

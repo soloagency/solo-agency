@@ -23,19 +23,20 @@
   // ------------------------------------------------------------------
 
   // background.js ~869
-  const WRITE_ACTIONS_TABLE = ["fb.post.react", "fb.post.comment", "fb.message.send", "fb.group.post"];
+  const WRITE_ACTIONS_TABLE = ["fb.post.react", "fb.post.comment", "fb.message.send", "fb.group.post", "fb.profile.post"];
   // background.js ~875
   const MATCH_RESOLVABLE_TABLE = ["fb.post.react", "fb.post.comment"];
   // background.js ~890
   const INFO_ONLY_TABLE = ["fb.profile.contacts", "fb.profile.header"];
   // background.js ~959
-  const PIN_TARGET_TABLE = ["fb.post.comment", "fb.post.react", "fb.group.post"];
+  const PIN_TARGET_TABLE = ["fb.post.comment", "fb.post.react", "fb.group.post", "fb.profile.post"];
   // background.js ~970
   const POLICY_FLAG_TABLE = {
     "fb.post.comment": "do_not_comment",
     "fb.post.react": "do_not_react",
     "fb.message.send": "do_not_message",
-    "fb.group.post": "do_not_post"
+    "fb.group.post": "do_not_post",
+    "fb.profile.post": "do_not_post"
   };
   // background.js ~3304 (HIDEABLE_CAPABILITIES) — capabilities whose data survives a tab
   // that is never shown/activated. capabilityNeedsActiveTab (~3314) is exactly the negation
@@ -156,6 +157,7 @@
         "fb.profile.contacts": fbCapMeta("fb.profile.contacts", "profile"),
         "fb.message.send": fbCapMeta("fb.message.send", "message"),
         "fb.group.post": fbCapMeta("fb.group.post", "message"),
+        "fb.profile.post": fbCapMeta("fb.profile.post", "message"),
         "web.search": fbCapMeta("web.search", "search")
       }
     },
