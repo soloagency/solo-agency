@@ -35,6 +35,25 @@ Every load needs a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md`.
 | **Task** `crm/tasks/tasks.jsonl` | `{title, due_at, status, created_by, guard_key}` (Stage 14). |
 | **Pipeline** `crm/pipelines.json` | stages carry `probability` + `sla_days`; deterministic rules r1–r6. |
 
+## Lead qualification tags
+
+Lead capture (`tool crm-store ... lead capture`, driven by `playbooks/skills/lead-engine` /
+Stage 10) writes two tags next to `lead:{hot|warm|watch}`: `fit:{high|medium|low}` and
+`intent:{explicit|implied|none}`. Both come verbatim from that row's own
+`playbooks/LEAD_QUALIFICATION_RULE.md` output — the CRM records them, it does not re-derive them;
+a lifecycle-rule effect (r1-r6) or a human override changes `lifecycle_stage`/deal state, never
+`fit`/`intent` — only a re-run of the rule against the same item updates those tags.
+
+- **`fit:high, intent:none` (warm) is a real customer, just not today.** Never draft or send as if
+  they asked for something — no "following up on your post about X" when the post named no need.
+  Nurture instead: value-first content (Stage 10's Audience Value-First Opportunity Rule,
+  `06_EMAIL_WRITING_STANDARD.md`), same cadence as any other warm-segment nurture, until a later
+  detection raises `intent`.
+- **Hot contacts (`fit:high`, `intent:explicit|implied`) get the copy-ready reply first.** Stage
+  10's drafted value-first comment/reply for a hot contact is queued ahead of warm/watch contacts
+  in any review queue or digest — the rule already named the friction, so the draft can reference
+  it directly instead of opening cold.
+
 ## Lifecycle & stage rules (deterministic — DESIGN §7.6)
 
 Default `default_sales` stages: `new_reply` (p .10, SLA 1d) → `engaged` (.25, 7d) →

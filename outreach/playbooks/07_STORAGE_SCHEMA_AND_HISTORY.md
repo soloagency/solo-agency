@@ -455,7 +455,8 @@ The atomic quota reservation (`reserve(sendbox_slug, day)`) and the ordered pre-
 {"campaign_slug":"","goal":{"goal_type":"book_meeting|get_reply|direct_sale|reactivation|nurture_upsell|event_invite",
    "objective":"","offer":"","value_proposition":"","proof_points":[{"claim":"","evidence_url":""}],
    "cta":{"type":"reply_yes|link|calendar","text":""},
-   "success_event":{"on":"reply_positive","create_deal_stage":"new_reply"}},
+   "success_event":{"on":"reply_positive","create_deal_stage":"new_reply"},
+   "qualify_with":"LEAD_QUALIFICATION_RULE","qualify_input":"client buyer_profile"},
  "audience":{"segment":"","personalization":{"required_hook_types":[],"min_confidence":0.7,"no_hook_fallback":"skip|generic_honest_opener"}},
  "sequence":[{"step":1,"intent":"hook + offer, one CTA","tracking":"plain_text"},
    {"step":2,"gap_days":4,"intent":"deliver new value"},
@@ -463,7 +464,7 @@ The atomic quota reservation (`reserve(sendbox_slug, day)`) and the ordered pre-
    {"step":4,"gap_days":7,"intent":"breakup"}],
  "sendboxes":[],"daily_quota":40,"approval_mode":"manual_all",
  "guardrails":{"banned_claims":["guarantees"],"no_fake_re":true},
- "channel_strategy":"email_first|any_channel"}
+ "channel_strategy":"email_first|any_channel|comment|post|friend_harvest|zillow_harvest"}
 ```
 
 Field notes:
@@ -471,6 +472,7 @@ Field notes:
 - **`goal.goal_type`** enum: `book_meeting | get_reply | direct_sale | reactivation | nurture_upsell | event_invite`. This drives the email structure (Stage 6): `book_meeting`→short, one time-bound CTA; `get_reply`→ends with a question, no link; `direct_sale`→value + one offer link (the only place click tracking is on by default); `reactivation`→evidence of prior relationship + "still doing X?"; every final step→breakup.
 - **`goal.proof_points[]`** = `{claim, evidence_url}` — evidence-backed; a draft may only cite proof that has an `evidence_url`.
 - **`goal.cta.type`** ∈ `reply_yes | link | calendar`.
+- **`goal.qualify_with`** (default `LEAD_QUALIFICATION_RULE` for `channel_strategy: comment` and `friend_harvest`; email campaigns may leave it unset) — names the rule of record (`playbooks/LEAD_QUALIFICATION_RULE.md`) that gates a candidate person/post before anything else runs. **`goal.qualify_input`** = `"client buyer_profile"`, a pointer: the input to that rule is the client's Client Intelligence Profile `buyer_profile` block, not this file. **`goal.description`** (the operator's free-text objective/voice statement, read by the comment/post/harvest stage playbooks) stays the topical/voice statement — what the post should be about and what the outreach says — and is applied only after the rule has qualified the person; it never substitutes for the rule.
 - **`goal.companion_doc`** (optional, Stage 5 §1b) = `{instructions, on_fail: skip|default_link, default_link}` — the operator's free-text directive for producing a per-lead LINK embedded in the body; `on_fail` is REQUIRED when declared (the agent asks if omitted). Persists verbatim.
 - **`goal.message_bank`** (optional, Stage 5 §1c) = `[{msg, source: operator|agent, approved}]` — the key messages each touch draws 1–2 of, rotated across the sequence; agent-expanded entries need operator approval. Persists verbatim.
 - **`goal.success_event`** wires straight into the rules engine (§4.6): `{on: reply_positive, create_deal_stage: new_reply}`.

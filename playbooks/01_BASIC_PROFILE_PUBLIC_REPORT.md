@@ -14,7 +14,7 @@ Load during first setup, add-client flow, setup repair, and Automation Flow firs
 - Explain any marketing/tech term in plain language when asking the human for input.
 - Configure schedule/routine and the client-specific automation task once the basic source plan is known.
 - Do not ask the private data source question before schedule/automation setup. Ask and resolve private data sources once after the task exists, then resync the task if source state changes.
-- The Local Collector bridge and this client's extension are installed at step 4 (Kết nối Facebook), before the automation task exists. If private data sources exist and the bridge/extension is not healthy at the step 7 checkpoint, clearly mark private data sources as pending and resync the automation run contract.
+- The Local Collector bridge and this client's extension are installed at step 4 (Kết nối Facebook, Instagram and X), before the automation task exists. If custom sources exist and the bridge/extension is not healthy at step 7 (Review found sources), clearly mark custom sources as pending and resync the automation run contract.
 - The first report must be produced by the client-specific automation task, not by the Setup Flow chat.
 - Load Stage 10 before reporting leads, competitors, comment opportunities, or lead/competitor logs.
 - PDNA setup - Production, Distribution, Notification, and Analytics - is a setup/config provider gate; do not start production or ask "make a video now?" inside Setup Flow.
@@ -84,7 +84,7 @@ Bad setup questions:
 - "Please list your target audience."
 - "Please list all pain points."
 - "Please define your content pillars."
-- "Please provide all public data sources."
+- "Please list your custom sources."
 
 Exception:
 
@@ -104,30 +104,30 @@ The agent must follow this loop:
 
 The agent must not collect all setup answers first and only show reasoning at the end. The human should see the agent's reasoning evolve after every answer.
 
-When showing initial public search keywords, do not show only broad industry terms and do not dump the full keyword bank into chat. The agent must generate a broad `public_search_keywords` bank on the length ladder (Stage 0: at least a quarter of terms 1-3 words, no dates in a term) and save it as `public_keywords_seed.jsonl` in the client workspace — the bridge does not exist yet at this step; the first run loads the file with `tool public-keywords add --file` and deletes it, then show only a compact `Pain-Point Keyword Sample` with 5-12 keywords from pain-point/problem/need groups plus a line such as `+200 more saved in the keyword bank for daily rotation` — extended, in the same breath and in the human's language, with a forward-looking priming clause that every match this bank finds will land in the CRM and Free keeps the first batch of contacts open, so the human sees now what today's setup buys later. The same seed file also carries 3-8 lines with `"group":"community_discovery"` (a niche + location phrase, 2-6 words, dateless, e.g. `nail salon owners Houston`, `realtor Texas`) for the Facebook discovery plan. Setup also writes a second staging file, `daily-content-pipeline/collector/source_keywords_seed/{client_slug}.jsonl`, carrying the client's in-group intent/place terms — one `{"term","kind","lang","note"}` per line, `kind` in `intent|role|product|stage|place`, each term ≤ 3 words — which `tool source-keywords seed` merges in automatically the first time each group's own bank is created.
+When showing initial public search keywords, do not show only broad industry terms and do not dump the full keyword bank into chat. The agent must generate a broad `public_search_keywords` bank on the length ladder (Stage 0: at least a quarter of terms 1-3 words, no dates in a term) and write it through the bridge (`tool public-keywords add --file`); the bridge already exists since step 4, so `public_keywords_seed.jsonl` in the client workspace is only the fallback staging file when the bridge is unreachable in-session, in which case the first run loads the file with `tool public-keywords add --file` and deletes it. Then show only a compact `Pain-Point Keyword Sample` with 5-12 keywords from pain-point/problem/need groups plus a line such as `+200 more saved in the keyword bank for daily rotation` — extended, in the same breath and in the human's language, with a forward-looking priming clause that every match this bank finds will land in the CRM and Free keeps the first batch of contacts open, so the human sees now what today's setup buys later. The same seed file also carries 3-8 lines with `"group":"community_discovery"` (a niche + location phrase, 2-6 words, dateless, e.g. `nail salon owners Houston`, `realtor Texas`) for the Facebook discovery plan. Setup also writes a second staging file, `daily-content-pipeline/collector/source_keywords_seed/{client_slug}.jsonl`, carrying the client's in-group intent/place terms — one `{"term","kind","lang","note"}` per line, `kind` in `intent|role|product|stage|place`, each term ≤ 3 words — which `tool source-keywords seed` merges in automatically the first time each group's own bank is created.
 
 Keyword language must follow the target audience's likely search/comment language, not automatically the human's chat language. The human-facing explanation may be in the human's language while the actual keyword strings remain in the audience language. If the audience is multilingual, create and label multilingual keyword variants.
 
 Required setup sequence, aligned to the visible 10-item roadmap. Do not introduce setup steps 11+.
 
 1. Ask for the client's product/service, profession, expertise, business description, or public website/profile URL.
-2. Infer and show `industry`, `sub_industry`, `related_industries`, `business_offer`, likely `target_audience`, language assumptions, and whether the business is location-dependent. If the target location is required and cannot be inferred, ask only for `target_location`.
+2. Infer and show `industry`, `sub_industry`, `related_industries`, `business_offer`, likely `target_audience`, language assumptions, and whether the business is location-dependent. If the target location is required and cannot be inferred, ask only for `target_location`. In the same step, infer and show `buyer_profile` (`sells`, `sells_to`, `types` — category first, examples after `e.g.` — `why_they_need`, `location`, `competitors`, `not_buyers`; full field contract in `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, "`buyer_profile` (required, inferred at setup step 2)") and ask the Boss to confirm it in one sentence, the same correction chance every other step-2 inference gets.
 3. Infer and show `pain_points`, `content_pillars`, how each pillar maps to pain points and the business offer, which pillars are `primary_industry` vs `related_industry`, and the planned content mix rule. Then generate and save the `foundation_bank`: 20-30 canonical evergreen topics every professional in this industry must cover, each derived from a pain point × audience segment and phrased as a concrete content title — a specific number + action + situation, in the client's audience language. NEVER copy or translate an example title from any playbook into a client's bank: every title must trace to THIS client's own `pain_points` × segments. (Shape illustration from a deliberately fictional industry so it cannot leak unnoticed: "7 mistakes first-time alpaca owners make in their first week" — if a title like that ever appears in a real client's bank, the generator copied an example, which is a defect.) Ask the human nothing for this; show only a 3-5 topic sample in chat with a line such as `+20 more saved as the foundation topic bank`. The full bank is saved in the profile; the Top 3's foundation slot draws from it and entries are ticked off as they are produced, so topics never repeat by construction.
-4. **Kết nối Facebook**, right after the inference above. Open with one plain-language value sentence (for example: "Bước này để em quét được Facebook: feed, người và nhóm public — đó là nơi phần lớn lead đầu tiên sẽ đến từ."), then install the Local Collector bridge and this client's Chrome extension per the local/remote rule (`playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, `playbooks/SETUP_FLOW_ENTRYPOINT.md` "Kết nối Facebook (step 4)"): on a local runtime the agent writes `setup_collector.sh`/`.ps1`, gives the one plain-language safety line, asks for consent once, runs it itself, and waits for `GET http://127.0.0.1:17321/status` (up to 60 seconds); on a remote runtime that cannot see the install root or verify `/status` in time, it hands the human the one-line command instead. Then the two-gesture extension install via `/ui/{client}/extension` (reveal the folder, open `chrome://extensions/`; the human turns on Developer mode once and drags the folder in), polling `/status` until `extension_health` is recent. Immediately after the bridge answers `/status`, deliver the Facebook Login Reminder verbatim and record `facebook_lead_source: enabled|web_only|pending` — `web_only` only on a clear confirming phrase (e.g. "không dùng Facebook"), never "để sau"/silence, which leave it `pending`. If the human is still deciding, do not stall — continue to step 5 with `pending`; the client's first dispatched run is gated only on `enabled` or `web_only`, never `pending` (full contract, the 90-second extension help loop, and the acknowledgment script: `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)"). The FIRST RUN discovery budget then applies to whichever run turns out to be this client's first-ever Facebook Discovery Pass (`facebook_discovery_first_pass_done`), not necessarily this client's very first automation run.
-5. Select public data sources and build the keyword bank. Show only a compact `Pain-Point Keyword Sample`, not a generic industry keyword dump. Then show the complete setup summary, ask the human to correct only what is wrong, and save the Client Intelligence Profile after that correction chance.
-6. Configure the schedule/routine before the first agency run, using the best scheduling mechanism available in the environment, and create or verify the client-specific automation task. Ask the preferred start time with the cadence question, then resolve the actual time through Stage 4's Time-slot collision rule (`tool schedule-slots suggest` → create at the suggested time → `register`) — never create a task at an unchecked time. The bridge normally already exists by this point (step 4 installed it); the fresh-install exception is now the edge case, not the default: if the tool still does not exist (step 4's install did not complete yet — e.g. a remote runtime awaiting the human to run the handed-off command, or a bootstrap failure), Stage 4 names this exact case — create this one task at the requested time, record `slot_check_pending: true` in the automation manifest, and `register` it as the first action once the bridge exists. Do not stall setup here. Configure the initial task as public data sources only unless active private data sources are already verified healthy.
-   - The setup handoff must include the client-specific automation task name; task status; whether the task currently runs public data sources only or public plus activated private data sources; a visible `Solo Agency one-time setup process` progress roadmap; and the exact next action.
-7. Ask and resolve private data sources once, after the automation task exists. Explain plainly that private data sources mean logged-in/social/community places the human may want monitored later, such as competitor profiles, fanpages, communities, LinkedIn pages, Reddit communities/subreddits, niche forums, and Facebook groups. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 when private data sources are requested, already provided, or discovery is relevant (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded). The Local Collector bridge and this client's extension were already installed at step 4; this step installs nothing — it only asks which sources/discovery to approve for monitoring.
-   - If the human already provided private data sources in an earlier message, record them as `pending_private_review` and process them in this step only.
-   - Ask for actual private data source URLs/lists or offer one optional private data source discovery pass from approved joined/followed/member spaces or Facebook keyword group search.
+4. **Kết nối Facebook, Instagram and X**, right after the inference above. Open with one plain-language value sentence (for example: "Bước này để em quét được Facebook, Instagram và X: feed, người, bài viết và bình luận public — đó là nơi phần lớn lead đầu tiên sẽ đến từ."), then install the Local Collector bridge and this client's Chrome extension — the same extension covers all three platforms — per the local/remote rule (`playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, `playbooks/SETUP_FLOW_ENTRYPOINT.md` "Kết nối Facebook, Instagram and X (step 4)"): on a local runtime the agent writes `setup_collector.sh`/`.ps1`, gives the one plain-language safety line, asks for consent once, runs it itself, and waits for `GET http://127.0.0.1:17321/status` (up to 60 seconds); on a remote runtime that cannot see the install root or verify `/status` in time, it hands the human the one-line command instead. Then the two-gesture extension install via `/ui/{client}/extension` (reveal the folder, open `chrome://extensions/`; the human turns on Developer mode once and drags the folder in), polling `/status` until `extension_health` is recent. Immediately after the bridge answers `/status`, deliver the Login Reminder verbatim (it names Facebook, Instagram, and X) and record `facebook_lead_source: enabled|web_only|pending`, with `instagram_lead_source` and `x_lead_source` set alongside it automatically — the three platforms are default sources, enabled automatically as the extension checks in, no extra question per platform — `web_only` only on a clear confirming phrase (e.g. "không dùng Facebook"), never "để sau"/silence, which leave it `pending`. If the human is still deciding, do not stall — continue to step 5 with `pending`; the client's first dispatched run is gated only on `facebook_lead_source` being `enabled` or `web_only`, never `pending` — Instagram and X follow automatically (full contract, the 90-second extension help loop, and the acknowledgment script: `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)"). The FIRST RUN discovery budget then applies to whichever run turns out to be this client's first-ever Social Discovery Pass (`facebook_discovery_first_pass_done`), not necessarily this client's very first automation run.
+5. **Sources.** Show the default sources this client gets without doing anything — Google search driven by the keyword bank, Facebook, Instagram and X read through the connected extension (each only while its capability exists in the collector catalog and the human is logged in there), and the industry sites for this client's industry — then ask ONCE for custom sources: any URL the human wants watched, as long as they can read it. Build the keyword bank per channel FROM `buyer_profile.types` — the channel table, generation procedure, and quality gate in `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, "Buyer Profile Channel Keyword Table" — not from intent phrases alone; the bridge already exists since step 4, so write each channel's bank through its own tool (`public-keywords` for the open web, `source-keywords` for in-group), and the plain staging file is only the fallback when the bridge is unreachable. Never ask the human whether a source is public or private: the run decides how to read each URL. Show only a compact `Pain-Point Keyword Sample`, not a generic industry keyword dump. Then show the complete setup summary, ask the human to correct only what is wrong, and save the Client Intelligence Profile after that correction chance.
+6. Configure the schedule/routine before the first agency run, using the best scheduling mechanism available in the environment, and create or verify the client-specific automation task. Ask the preferred start time with the cadence question, then resolve the actual time through Stage 4's Time-slot collision rule (`tool schedule-slots suggest` → create at the suggested time → `register`) — never create a task at an unchecked time. The bridge normally already exists by this point (step 4 installed it); the fresh-install exception is now the edge case, not the default: if the tool still does not exist (step 4's install did not complete yet — e.g. a remote runtime awaiting the human to run the handed-off command, or a bootstrap failure), Stage 4 names this exact case — create this one task at the requested time, record `slot_check_pending: true` in the automation manifest, and `register` it as the first action once the bridge exists. Do not stall setup here. Configure the initial task with the default sources only; custom sources are added once step 7 (Review found sources) approves them. On a local Claude Code runtime, right after this task is created, ask the one unattended-permissions consent and, on yes, write the user-level allow rules (`playbooks/04_DAILY_SCHEDULE.md`), then dispatch the first run at the point this playbook already defines.
+   - The setup handoff must include the client-specific automation task name; task status; whether the task currently runs the default sources only or default plus activated custom sources; a visible `Solo Agency one-time setup process` progress roadmap; and the exact next action.
+7. **Review found sources.** After the automation task exists, show the groups, pages and profiles the discovery pass found on the default sources and ask once which to add to standing monitoring, and use the same step to invite any custom sources: URLs the human wants watched, as long as they can read them. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before this step or before any discovery scan (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded) — they are internal access-mode mechanics; their words are never spoken to the human. The Local Collector bridge and this client's extension were already installed at step 4; this step installs nothing — it only asks which sources/discovery to approve for monitoring.
+   - If the human already provided custom sources in an earlier message, record them as `pending_private_review` and process them in this step only.
+   - Ask for actual custom source URLs/lists, and show what one optional source discovery pass found from approved joined/followed/member spaces or Facebook keyword group search.
    - Get human approval before adding any discovered source; then record the exact pending blocker if the bridge/extension is not healthy.
-   - After the human approves, declines, postpones, or blocks private data sources, update source state and perform Automation Resync so the already-created task has the newest contract.
-   - Do not ask a separate private data source discovery checklist question. Discovery stays inside step 7.
+   - After the human approves, declines, postpones, or blocks custom sources, update source state and perform Automation Resync so the already-created task has the newest contract.
+   - Do not ask a separate source discovery checklist question. Discovery stays inside step 7.
    - Do not label the collector by platform. Even if the provided sources are all Facebook, call it the Solo Agency Local Collector extension and Local Collector app.
    - If the human approves Facebook member-groups discovery, scan the joined-groups discovery page through the Solo Agency Local Collector: `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added`.
-   - If the human approves Facebook keyword group search discovery, its keywords now come from the `community_discovery` terms just staged in `public_keywords_seed.jsonl` above, not hand-inferred ones; the actual scan is the Facebook Discovery Pass run in the first automation run (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass (step 11C of the daily run)"), unless the human explicitly asks for a scan during setup itself. When it does run during setup, the setup-time rule stays: scan `https://www.facebook.com/search/groups/?q={url_encoded_keyword}` through the Solo Agency Local Collector, scroll 10 times per keyword, filter out UI noise/non-group results, and ask for approval before adding any recommended group.
-   - If the human approves other platform discovery categories, use the private data source discovery platform starting URL registry and mark each approved category as `pending_private_activation` until the Local Collector is active and healthy.
-   - After source intake or discovery, infer and show which private data sources are likely useful, which should be skipped or treated as optional, how they map to content pillars, and whether each source should be `daily`, `weekly`, or `optional` based on relevance and safe monitoring volume.
+   - If the human approves Facebook keyword group search discovery, its keywords now come from the `community_discovery` terms just staged in `public_keywords_seed.jsonl` above, not hand-inferred ones; the actual scan is the Social Discovery Pass run in the first automation run (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass (step 11C of the daily run)"), unless the human explicitly asks for a scan during setup itself. When it does run during setup, the setup-time rule stays: scan `https://www.facebook.com/search/groups/?q={url_encoded_keyword}` through the Solo Agency Local Collector, scroll 10 times per keyword, filter out UI noise/non-group results, and ask for approval before adding any recommended group.
+   - If the human approves other platform discovery categories, use the source discovery platform starting URL registry and mark each approved category as `pending_private_activation` until the Local Collector is active and healthy.
+   - After source intake or discovery, infer and show which sources are likely useful, which should be skipped or treated as optional, how they map to content pillars, and whether each source should be `daily`, `weekly`, or `optional` based on relevance and safe monitoring volume.
 8. If the human asks for production/video/blog/social, publishing, notifications, analytics, or "full automatic", load Stage 3 (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded) and complete the PDNA provider/capability setup gate only. Do not end the setup handoff with `Do you want me to make a video now?`, start scene editing/rendering, or create/publish assets from Setup Flow.
 9. Record analytics as an Automation Flow concern. In Setup Flow, only save whether published URL history exists and whether future scheduled runs should load Stage 5.
 10. Record that reports, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, and PDNA production actions belong to Automation Flow. After any private scan or approved source-discovery scan in Automation Flow, analyze the collected private data and update the report there.
@@ -155,7 +155,7 @@ Next question:
 Did I read the pain points right? Please correct anything that is wrong in the list above, and confirm the target location: should I focus on Los Angeles only, or also cover nearby counties where your clients get stopped or go to court? The answer changes which local sources and keywords I select next.
 ```
 
-Note: private data sources are asked only at setup step 7, after the schedule/routine and the client-specific automation task exist; do not ask about them in this follow-up.
+Note: custom sources are asked only at step 7 (Review found sources), after the schedule/routine and the client-specific automation task exist; do not ask about them in this follow-up.
 
 ---
 
@@ -238,11 +238,11 @@ Example human input:
 ```md
 I manage 10 clients. Set up one daily content pipeline for each:
 
-1. Smith Law - DUI lawyer - Los Angeles - private data sources: competitor FB pages A, B
-2. Austin Home Group - real estate agent - Austin, TX - private data sources: none yet
-3. Bright Mortgage - home loans - Texas - private data sources: competitor TikTok X
-4. Miami Shield Insurance - home and auto insurance - Miami - private data sources: local FB group Y
-5. Vienna AI Ops - AI automation agency - Vienna - private data sources: LinkedIn competitors
+1. Smith Law - DUI lawyer - Los Angeles - custom sources: competitor FB pages A, B
+2. Austin Home Group - real estate agent - Austin, TX - custom sources: none yet
+3. Bright Mortgage - home loans - Texas - custom sources: competitor TikTok X
+4. Miami Shield Insurance - home and auto insurance - Miami - custom sources: local FB group Y
+5. Vienna AI Ops - AI automation agency - Vienna - custom sources: LinkedIn competitors
 ```
 
 The agent must:
@@ -285,7 +285,7 @@ In First Client Setup Mode, ask only for the minimum information required to cre
 - Client name, if not already known.
 - Product/service, profession, expertise, business description, or public website/profile URL.
 - Target location only if location matters and cannot be inferred.
-- If the human volunteers private data sources early, record them as `pending_private_review` and resolve them only at setup step 7 (do not ask for them here).
+- If the human volunteers custom sources early, record them as `pending_private_review` and resolve them only at step 7 (Review found sources) (do not ask for them here).
 
 Do not create fake client pipelines. If the client name or enough business context is missing, ask for the missing information and keep the root pipeline ready. A public website/profile URL counts as business context if it is publicly accessible and gives enough information to infer the setup.
 
@@ -304,7 +304,7 @@ In Add Client Mode, ask only for missing critical information:
 - Client name.
 - Product/service, profession, expertise, business description, or public website/profile URL.
 - Target location only if location matters and cannot be inferred.
-- If the human volunteers private data sources early, record them as `pending_private_review` and resolve them only at setup step 7 (do not ask for them here).
+- If the human volunteers custom sources early, record them as `pending_private_review` and resolve them only at step 7 (Review found sources) (do not ask for them here).
 
 The agent must infer:
 
@@ -327,10 +327,10 @@ Then the agent must follow the same 10-item setup model. Do not introduce Add Cl
 1. Show the inferred setup summary to the human and ask them to correct only what is wrong.
 2. Create or update the client pipeline folder, Client Intelligence Profile, history folder, outputs folder, and `clients_index.md` row.
 3. Save the inferred pain points, content pillars, foundation bank, business offer, language assumptions, and compliance notes.
-4. **Kết nối Facebook.** Install the Local Collector bridge (agent-run on a local runtime after one consent line, handed off as a one-line command on a remote runtime) and this client's Chrome extension via the two-gesture `/ui/{client}/extension` flow, then deliver the Facebook Login Reminder and record `facebook_lead_source: enabled|web_only|pending` — full contract, the 90-second extension help loop, and the web-only acknowledgment script in `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)". A still-`pending` item 4 does not block onboarding; continue to step 5 — but the client's first dispatched run is gated on `enabled` or `web_only`, never `pending`.
-5. Save the public data source plan and keyword bank.
-6. Configure the recurring schedule/routine once the basic source plan is known, prepare or verify the client-specific extension folder under `extensions/{client_slug}/`, and create/resync the client-specific automation task with the task name beginning with the client name, for example `Nguyen Law - Solo Agency First Run` or `Nguyen Law - Solo Agency Daily Run`. Resolve the start time through Stage 4's Time-slot collision rule (`tool schedule-slots suggest` → create → `register`); the bridge normally already exists from step 4, so this is usually a plain check — apply Stage 4's first-task exception (create at the requested time, record `slot_check_pending: true`, register once the bridge exists) only if step 4's install has not completed yet. Configure the initial task as public data sources only unless active private data sources are already verified.
-7. Ask and resolve private data sources once after automation exists: record provided sources as `pending_private_review`, declined/no sources, private data source discovery approved/pending, or `discovery_declined_or_postponed`. The Local Collector bridge and this client's extension were already installed at step 4; if private data sources exist or discovery is approved/pending, record private data sources as `pending_private_activation` only if the bridge/extension is not healthy, so the first automation run can continue with public data sources only if needed. Update the Client Intelligence Profile, `schedule.md`, collector config, extension registry, automation manifest, scheduled-run prompt/task body, and resync log so the already-created task has the newest source state. Finish the setup handoff by telling the human the exact automation task name to run for the first report, and whether private data sources are active, pending, stale, declined, or not requested.
+4. **Kết nối Facebook, Instagram and X.** Install the Local Collector bridge (agent-run on a local runtime after one consent line, handed off as a one-line command on a remote runtime) and this client's Chrome extension — one extension, all three platforms — via the two-gesture `/ui/{client}/extension` flow, then deliver the Login Reminder (naming Facebook, Instagram, and X) and record `facebook_lead_source: enabled|web_only|pending`, with `instagram_lead_source` and `x_lead_source` following automatically — full contract, the 90-second extension help loop, and the web-only acknowledgment script in `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)". A still-`pending` item 4 does not block onboarding; continue to step 5 — but the client's first dispatched run is gated on `facebook_lead_source` being `enabled` or `web_only`, never `pending` — Instagram and X follow automatically.
+5. **Sources.** Set up the default sources (Google search with the keyword bank, Facebook, Instagram and X read through the connected extension, and this client's industry sites) and ask once for custom sources: any URL the human wants watched, as long as they can read it. Save the source plan and keyword bank.
+6. Configure the recurring schedule/routine once the basic source plan is known, prepare or verify the client-specific extension folder under `extensions/{client_slug}/`, and create/resync the client-specific automation task with the task name beginning with the client name, for example `Nguyen Law - Solo Agency First Run` or `Nguyen Law - Solo Agency Daily Run`. Resolve the start time through Stage 4's Time-slot collision rule (`tool schedule-slots suggest` → create → `register`); the bridge normally already exists from step 4, so this is usually a plain check — apply Stage 4's first-task exception (create at the requested time, record `slot_check_pending: true`, register once the bridge exists) only if step 4's install has not completed yet. Configure the initial task with the default sources only unless active custom sources are already verified.
+7. **Review found sources.** Ask and resolve custom sources once after automation exists: record provided sources as `pending_private_review`, declined/no sources, source discovery approved/pending, or `discovery_declined_or_postponed`. The Local Collector bridge and this client's extension were already installed at step 4; if custom sources exist or discovery is approved/pending, record them as `pending_private_activation` only if the bridge/extension is not healthy, so the first automation run can continue with the default sources only if needed. Update the Client Intelligence Profile, `schedule.md`, collector config, extension registry, automation manifest, scheduled-run prompt/task body, and resync log so the already-created task has the newest source state. Finish the setup handoff by telling the human the exact automation task name to run for the first report, and whether custom sources are active, pending, stale, declined, or not requested.
 8. If the human asks for production/video/blog/social, publishing, notifications, analytics, or "full automatic" during Setup Flow, load `playbooks/03_PRODUCTION_DISTRIBUTION.md` only as a provider/configuration gate. Do not create or publish assets from Setup Flow.
 9. Record analytics as an Automation Flow concern only.
 10. Do not run the first agency run, first report, public scan, private data source scan, report updates, idea matrix updates, Lead & Competitor Opportunities, draft generation, analytics scans, video creation, publishing, or PDNA production actions inside Setup Flow.
@@ -340,7 +340,7 @@ Example:
 Human:
 
 ```md
-Add this client to the daily content pipeline: Nguyen Law, immigration lawyer in San Jose. Private data sources to monitor: [links].
+Add this client to the daily content pipeline: Nguyen Law, immigration lawyer in San Jose. Custom sources to monitor: [links].
 ```
 
 Agent must create:
@@ -357,7 +357,7 @@ daily-content-pipeline/
         outputs/
 ```
 
-The agent must configure the routine, prepare the `Nguyen Law - ...` automation task, then resolve/resync step 7 if private data sources are pending, and tell the human to run that client-specific task for the first report. Setup Flow must not run Nguyen Law's report directly.
+The agent must configure the routine, prepare the `Nguyen Law - ...` automation task, then resolve/resync step 7 (Review found sources) if custom sources are pending, and tell the human to run that client-specific task for the first report. Setup Flow must not run Nguyen Law's report directly.
 
 ---
 
@@ -367,20 +367,20 @@ This protocol applies after the first client setup, after adding a new client, a
 
 The setup flow is not a menu of optional next steps. The agent must not ask the human to choose between:
 
-- providing private data sources,
+- providing custom sources,
 - configuring the schedule,
 - running the first agency run/report,
 - creating a video.
 
-The one allowed private data source choice is operational, not a new menu: after the automation task exists, if private data sources exist but the Local Collector (installed back at step 4, Kết nối Facebook) is unhealthy, mark private data sources pending so the automation task can run public data sources only until the blocker is resolved.
+The one allowed custom-source choice is operational, not a new menu: after the automation task exists, if custom sources exist but the Local Collector (installed back at step 4, Kết nối Facebook, Instagram and X) is unhealthy, mark them pending so the automation task can run the default sources only until the blocker is resolved.
 
 The correct order is fixed:
 
 1. Finish setup context and save the Client Intelligence Profile.
-2. Install the Local Collector bridge and prepare/verify the client-specific extension folder under `extensions/{client_slug}/` (the Kết nối Facebook step), then deliver the Facebook Login Reminder and record `facebook_lead_source`.
+2. Install the Local Collector bridge and prepare/verify the client-specific extension folder under `extensions/{client_slug}/` (the Kết nối Facebook, Instagram and X step), then deliver the Login Reminder (naming all three platforms) and record `facebook_lead_source`, with `instagram_lead_source` and `x_lead_source` following automatically.
 3. Configure the schedule/routine once the basic source plan is known.
 4. Create or resync the client-specific automation task. The task name must begin with the client name.
-5. Ask and resolve the step 7 private data source intake/discovery/approval when applicable. The Local Collector was already installed at step 4 above; this step only decides which sources/discovery to approve for monitoring.
+5. Ask and resolve step 7 (Review found sources) — custom source intake/discovery/approval when applicable. The Local Collector was already installed at step 4 above; this step only decides which sources/discovery to approve for monitoring.
 6. Update every persistent state file that the next automation run reads: Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled prompt/task body, and resync log.
 7. If the human wants PDNA setup - Production, Distribution, Notification, and Analytics - complete only the provider/configuration gate in Setup Flow.
 8. Record analytics as an Automation Flow concern only.
@@ -388,11 +388,11 @@ The correct order is fixed:
 
 First automation report rule:
 
-- The first report happens in the client-specific automation task, after routine setup, task creation, the step 7 private data source checkpoint, and human action to run or schedule that task.
+- The first report happens in the client-specific automation task, after routine setup, task creation, step 7 (Review found sources), and human action to run or schedule that task.
 - Setup Flow must not create `/jobs/run_now`, must not scan public data sources, and must not scan private data sources merely to produce a report.
 - The first automation task should use public data sources, public search, client context, inferred pain points, inferred content pillars, related industries, and any previously collected local data.
-- If private data sources were provided but are not active, the automation report must include a section called `Private Data Sources Pending Activation`.
-- If private data source discovery was approved but not yet run, the automation report must include `Private Data Source Discovery Pending Activation`.
+- If custom sources were provided but are not active, the automation report must include a section called `Sources Pending Activation`.
+- If source discovery was approved but not yet run, the automation report must include `Source Discovery Pending Activation`.
 - That section must list the private data source URLs or discovery categories, explain that they were not scanned yet, and say that activation requires the Solo Agency Local Collector extension plus Local Collector app.
 - The automation report must include at least one draft script/blog/caption or a clear report section containing the draft.
 - The automation report must ask a clear next-step question after delivering the useful output. Unless PDNA setup - Production, Distribution, Notification, and Analytics - was already completed or explicitly declined, the next-step question should be:
@@ -408,7 +408,7 @@ The same chat message must show the updated `Solo Agency automation process` pro
 If PDNA setup - Production, Distribution, Notification, and Analytics - is already completed, declined, or blocked and private data source activation is pending, the final line must be:
 
 ```md
-Private data sources (logged-in/social/community places such as groups, profiles, pages, channels, or forums) are not activated yet because the Local Collector app and Chrome extension are not connected on your computer. This should be rare since the install already happened at step 4 (Kết nối Facebook). On a local runtime, say: "Bộ thu thập chưa kết nối được — để em cài/khởi động lại ngay bây giờ." and install/repair it yourself after one consent line, then report the result. Only on a remote runtime, ask instead: Do you want me to prepare the setup files and then give you the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension folder to load?
+Facebook, Instagram, X, and any custom sources that need a login are not active yet because the Local Collector app and Chrome extension are not connected on your computer. This should be rare since the connection already happened at step 4 (Kết nối Facebook, Instagram and X). On a local runtime, say: "Bộ thu thập chưa kết nối được — để em cài/khởi động lại ngay bây giờ." and install/repair it yourself after one consent line, then report the result. Only on a remote runtime, ask instead: Do you want me to prepare the setup files and then give you the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension folder to load?
 ```
 
 If there are no private data sources and discovery was declined or not requested, the final line must ask the next required decision, usually:
@@ -425,7 +425,7 @@ Do you want me to keep the saved routine as-is for tomorrow's automatic run?
 
 Do not end the report handoff with only a report link, a summary, or "let me know."
 
-Good first automation report chat pattern:
+Good first automation report chat pattern: this is what Sam says in the SAME chat when the background wait (`SOLO_AGENCY_PLAYBOOK.md`, "Wait and report") wakes it — or, on a runtime without background execution, on the Boss's next turn.
 
 ```md
 The first automation report is ready.
@@ -433,6 +433,7 @@ The first automation report is ready.
 Best idea today: {best idea}
 Report for mobile: {absolute HTML path or URL}
 First draft: {script/blog/caption title}
+Leads found: {N} — described by who they are and why now (`{person_type}, {intent_reason}`), never by the raw keyword or phrase that matched them
 {first-run priming, funnel moment F, only when THIS run moved the CRM from 0 to > 0 contacts for the first time: one plain-fact sentence, in the human's language, naming the real unlocked-contact count from `contact lock-status` against the Free ceiling — never an estimate, and omitted on every later run}
 
 Solo Agency automation process
@@ -441,18 +442,19 @@ This is the planned automation process for this client. You only need to reply w
 ✓ 1. You provided the product/service, profession, expertise, business description, or public website/profile URL
 ✓ 2. I inferred the industry, sub-industry, related industries, audience, and offer
 ✓ 3. I inferred pain points, content pillars, and the foundation topic bank
-✓ 4. I selected public data sources and search keywords
-✓ 5. I configured the automatic schedule/routine and client-specific automation task
-– 6. Private data sources/Local Collector are pending or postponed; this automation run uses public data sources only
-→ 7. I help set up PDNA: Production, Distribution, Notification, and Analytics
-– 8. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
-✓ 9. I created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft in Automation Flow
+✓ 4. I connected Facebook, Instagram and X through the extension (or recorded them as not connected yet)
+✓ 5. I set up your sources: the default ones (Google search with your keywords, Facebook, Instagram, X, and the sites for your industry) plus any URL you give me to watch
+✓ 6. I configured the automatic schedule/routine and client-specific automation task
+– 7. Custom sources/Local Collector are pending or postponed; this automation run uses the default sources only
+→ 8. I help set up PDNA: Production, Distribution, Notification, and Analytics
+– 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
+✓ 10. I created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft in Automation Flow
 
 Automation freshness check: ✓ Have the latest approved changes been synced into the automation/scheduled task prompt, contract, playbooks, source approvals, and state? If tomorrow's scheduled run starts, will it load the newest state: current.
 
 The operator-only `INTERNAL_REPORT` includes the PDNA/WideCast status and setup note. The client-facing report stays clean and does not mention Solo Agency, WideCast, provider tooling, Local Collector, automation, API keys, Telegram, or internal system details.
 
-This run used public data sources only. I have {N} private data sources waiting, including:
+This run used your default sources only. I have {N} custom sources waiting for your approval, including:
 - {source name or URL}
 - {source name or URL}
 
@@ -462,7 +464,7 @@ Do you want me to set up PDNA - Production (create real video/blog/social assets
 Bad first automation report chat pattern:
 
 ```md
-Private data sources were not scanned. Instructions are in collector/collector_setup_status.md.
+Custom sources were not scanned. Instructions are in collector/collector_setup_status.md.
 Now choose a schedule.
 ```
 
@@ -478,7 +480,7 @@ This is bad because it does not show progress and does not end with a concrete n
 
 Private data source activation rule:
 
-- Collector setup is no longer gated on the human agreeing to private data sources — it already happened at setup step 4 (Kết nối Facebook), before the automation task and before the private data source checkpoint (step 7). This section covers what step 7 (or a later run) does when it needs to check or repair that install, not a fresh first install.
+- Collector setup is no longer gated on the human agreeing to custom sources — it already happened at setup step 4 (Kết nối Facebook, Instagram and X), before the automation task and before step 7 (Review found sources). This section covers what step 7 (or a later run) does when it needs to check or repair that install, not a fresh first install.
 - **Local runtime** (the agent can see the install root on its own filesystem): the agent writes the script/launcher file, gives the ONE short plain-language safety confirmation line, asks for consent once, then runs `setup_collector.sh`/`setup_local_collector.ps1` itself and waits for `GET http://127.0.0.1:17321/status` to answer (up to 60 seconds). The setup script hands the process to an OS-level autostart service — the agent's own shell/session never owns that process, so a killed agent turn does not stop the bridge.
 - **Remote runtime** (the agent cannot see the install root, or `/status` still fails 60 seconds after a bootstrap attempt): the agent falls back to preparing the script/launcher file and handing the human exactly one short Terminal/PowerShell command or one double-clickable file path to run outside the sandbox, not a long multi-line script.
 - The same install step must include the two-gesture Chrome extension install for every new client, even when private data sources are not active yet: the client's `/ui/{client}/extension` dashboard page reveals the absolute `extensions/{client_slug}/` folder and opens `chrome://extensions/` in one button; the human turns on Developer mode once and drags the folder in. On a local runtime the agent can trigger both of those actions itself via the bridge API.
@@ -623,7 +625,7 @@ Schedule rule:
 - Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence.
 - Then write or update `schedule.md`, the automation manifest, the scheduled-run prompt/task body, and the relevant automation/config files.
 - During Setup Flow, do not ask to run the first agency run immediately and do not run a report. Finish by preparing or resyncing the client-specific automation task whose task name begins with the client name.
-- After schedule/routine setup and automation task creation, ask/resolve private data sources once at step 7. The Local Collector was already installed at step 4; if the bridge/extension is not healthy, clearly mark private data sources as `pending_private_activation` in the automation contract so the first automation run can continue with public data sources only if needed, then resync the task.
+- After schedule/routine setup and automation task creation, ask/resolve custom sources once at step 7 (Review found sources). The Local Collector was already installed at step 4; if the bridge/extension is not healthy, clearly mark custom sources as `pending_private_activation` in the automation contract so the first automation run can continue with the default sources only if needed, then resync the task.
 
 Exact schedule contract:
 

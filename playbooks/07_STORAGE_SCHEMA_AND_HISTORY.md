@@ -570,6 +570,13 @@ Minimum format:
 - automation_prompt_update_pending_reason:
 - automation_freshness_status: current | resync_in_progress | action_needed | not_applicable
 - automation_freshness_summary: whether latest changes are synced into automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state
+- first_run_task_id: the one-time scheduled task id used to dispatch this client's first run (e.g. `{client_slug}-solo-agency-first-run`), when the runtime created one
+- first_run_dispatched_at: ISO 8601 timestamp of when the first-run task was dispatched
+- first_run_wait: armed | not_available | timed_out | reported — state of the background wait for that first run (`playbooks/04_DAILY_SCHEDULE.md`, "Wait and report")
+- first_run_reported_at: ISO 8601 timestamp of when the First-Run Report was spoken back to the Boss in chat
+- unattended_permissions: granted | declined | not_applicable — outcome of the Stage 4 unattended-permissions consent (Claude Code desktop local runtime only)
+- unattended_permissions_scope: user_settings — where the allow rules were written (`~/.claude/settings.json`)
+- unattended_permissions_written_at: ISO 8601 timestamp of when the allow rules were written, when `unattended_permissions: granted`
 
 ## Active Clients
 
@@ -1053,7 +1060,7 @@ Field notes:
 - `extension_display_name`: Chrome display name, client name first.
 - `extension_folder`: per-client pin for the client's unpacked extension folder, read (not written) by the bridge — `uiResolveExtensionFolder` in `solo-agency-collector/bridge-go/ui.go` checks this pin first, before falling back to the current `extensions/{client_slug}_extension/` convention and then the legacy `extensions/{client_slug}/` path. Set this only when the folder lives somewhere other than the current convention; leave it unset otherwise.
 - `chrome_profile_hint`: free-text hint of which Chrome profile the extension is loaded in (legacy; kept for backward compatibility).
-- `browser`: the detected Chromium-based browser this client's extension actually runs in — one of `chrome | edge | brave | vivaldi | opera | chromium` (OWNER DECISIONS 2026-09-10 afternoon). Safari and Firefox are never valid values here; a machine with only those installed is told to install Chrome instead (`playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)"). Set once, from the agent's browser question or a silent pick when there was no real choice, and read back on every later reopen so the question is never asked twice for the same client.
+- `browser`: the detected Chromium-based browser this client's extension actually runs in — one of `chrome | edge | brave | vivaldi | opera | chromium` (OWNER DECISIONS 2026-09-10 afternoon). Safari and Firefox are never valid values here; a machine with only those installed is told to install Chrome instead (`playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)"). Set once, from the agent's browser question or a silent pick when there was no real choice, and read back on every later reopen so the question is never asked twice for the same client.
 - `profile_directory`: the exact profile folder name from that browser's own `Local State` (`profile.info_cache` key, e.g. `Default`, `Profile 1`) — passed as the optional `{browser, profile_directory}` fields on `POST /api/ui/{client_slug}/install-extension` so the bridge opens the extensions page in exactly that browser window every time, including the 90-second diagnostics re-trigger.
 - `registered_at`: when the extension was registered.
 - `last_health_at`: last successful health check timestamp.
@@ -1131,6 +1138,30 @@ Minimum format:
     "budget_available": 0,
     "trip_status": "clean"
   },
+  "instagram_discovery": {
+    "terms_used": 0,
+    "posts_found": 0,
+    "people_found": 0,
+    "people_captured": 0,
+    "depth_calls": 0,
+    "leads_found": 0,
+    "leads_locked": 0,
+    "budget_used": 0,
+    "budget_available": 0,
+    "trip_status": "clean"
+  },
+  "x_discovery": {
+    "terms_used": 0,
+    "posts_found": 0,
+    "people_found": 0,
+    "people_captured": 0,
+    "depth_calls": 0,
+    "leads_found": 0,
+    "leads_locked": 0,
+    "budget_used": 0,
+    "budget_available": 0,
+    "trip_status": "clean"
+  },
   "counts_reconciled_at": "",
   "public_notification_status": "not_sent",
   "private_notification_status": "not_sent",
@@ -1142,10 +1173,16 @@ Minimum format:
 }
 ```
 
-`facebook_discovery.trip_status`: `clean`, or the exact safety trip that stopped the account
-(`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass"). `budget_used`/
-`budget_available` are calls, not leads — FIRST RUN ceiling 21, DAILY ceiling 7. `leads_locked`
-comes from `tool crm-store ... contact lock-status`, never a hand count.
+`facebook_discovery`/`instagram_discovery`/`x_discovery` are the three per-platform legs of the
+Social Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass"), one
+object per platform, each reconciled independently. `{platform}_discovery.trip_status`: `clean`, or
+the exact safety trip that stopped that platform's account for the day — the trip is per platform
+(round-robin rule), so one platform tripping never zeroes another's object. `budget_used`/
+`budget_available` are calls, not leads — FIRST RUN ceiling 21 for Facebook / 12 for Instagram and X,
+DAILY ceiling 7 for Facebook / 4 for Instagram and X. Instagram and X have no groups, so their
+objects carry `depth_calls` (profile-depth + comments/replies calls) instead of Facebook's
+`groups_found`/`groups_public`/`groups_scanned`, and `posts_found` instead of `feed_posts_found`.
+`leads_locked` comes from `tool crm-store ... contact lock-status`, never a hand count.
 
 Allowed section status:
 
@@ -1275,6 +1312,45 @@ value:
 status:
 rationale:
 
+## buyer_profile
+
+Written at Setup step 2 (profile inference) and confirmed by the Boss in one sentence. Feeds the Lead
+Qualification Rule (`playbooks/LEAD_QUALIFICATION_RULE.md`) as this client's own buyer profile — every
+classification tests fit against `types` here, never another client's.
+
+Format rule: never describe buyers by an activity the product enables ("people who make videos",
+"people who buy insurance") — a small model then demands proof of that activity before it will count
+someone as a match. Describe who they are instead (trade, role, business, life situation). Each
+`types` line names the CATEGORY first, then gives examples after "e.g." — the category is the test;
+the examples are illustrative, never a closed list.
+
+status:
+rationale:
+sells:
+sells_to:
+types:
+-
+why_they_need:
+location:
+competitors:
+not_buyers:
+
+Example (one of five reference profiles in `/Users/binhnguyen/Downloads/soloagency_leadtest_2026-09-11/clients_v3.json` — an EXAMPLE, never a list to copy):
+
+```yaml
+sells: an app that turns raw phone footage into edited short videos automatically (cuts, captions, music), sold as a monthly subscription
+sells_to: people who sell something and could grow by posting more video, whether or not they make any video today. Membership is by who they are, never by whether they already film.
+types:
+  - independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)
+  - owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)
+  - founder of a small startup or SaaS
+  - creator, course seller, freelancer or one-person agency of ANY kind (a marketing or lead-gen agency, a coach, a graphic designer are customers here; they need video too)
+why_they_need: editing is the step that stops them from posting consistently — it takes hours or costs money per video; they lack time, skill or an editor
+location: worldwide, any language
+competitors: other video-editing apps or AI editing tools, freelance video editors, video production agencies that sell editing to the same people
+not_buyers: large media teams with in-house editors, job-seeking editors, students, people who sell nothing
+```
+
 ## target_location
 
 value:
@@ -1381,14 +1457,14 @@ bank: daily-content-pipeline/collector/public_keywords.json
   # status (active|probation|retired — derived from `recent` by the bridge), words, runs, useful, weak,
   # urls, ideas, recent[] (the last 5 verdicts), last_run_at, last_useful_at, added_at, note.
 seed_file: public_keywords_seed.jsonl
-  # Written at Setup step 4, before the bridge exists: one {"term","group","lang","note"} per line.
+  # Written at Setup step 5, through the bridge (`tool public-keywords add --file`); this staging file is only the fallback when the bridge is unreachable in-session: one {"term","group","lang","note"} per line.
   # Loaded by `tool public-keywords add --file` at the first run and then deleted.
   # Lines may carry "group":"community_discovery" (2-6 words, dateless) — these feed the Facebook
   # Discovery Pass's `plan --kind discovery` and are loaded into the same bank as the web terms.
 migrated_at:
   # Set once `tool public-keywords migrate --profile` has imported an older profile's items list.
 source_keywords_seed_file: collector/source_keywords_seed/{client_slug}.jsonl
-  # Written at Setup step 4, one {"term","kind","lang","note"} per line, kind intent|role|product|
+  # Written at Setup step 5, one {"term","kind","lang","note"} per line, kind intent|role|product|
   # stage|place, terms <= 3 words. Merged automatically by `tool source-keywords ... seed` the first
   # time each group's intent-term bank is created. NOT deleted after load (unlike the file above).
 
@@ -1406,18 +1482,20 @@ facebook_lead_source: enabled | web_only | pending
   # `web_only` (see SCHEDULED_RUN_ENTRYPOINT.md step 12D, 04_DAILY_SCHEDULE.md step 7/11C). Never
   # assume `pending` only applies on the client's literal first automation run; also, `pending`
   # never blocks a scheduled run -- only the client's very first dispatch is gated on `enabled` or
-  # `web_only`, never `pending` (SETUP_FLOW_ENTRYPOINT.md, "Kết nối Facebook (step 4)"). `web_only`
-  # is a human's explicit, acknowledged choice to run without Facebook -- never a default, never
-  # the outcome of "để sau" or silence alone; it is set only after the human answers a clear
-  # confirming phrase (for example "không dùng Facebook") to the acknowledgment-based escape.
+  # `web_only`, never `pending` (SETUP_FLOW_ENTRYPOINT.md, "Kết nối Facebook, Instagram and X (step
+  # 4)"). `web_only` is a human's explicit, acknowledged choice to run without Facebook -- never a
+  # default, never the outcome of "để sau" or silence alone; it is set only after the human answers
+  # a clear confirming phrase (for example "không dùng Facebook") to the acknowledgment-based
+  # escape, OR is set automatically by the logged-out rule below.
 facebook_lead_source_updated_at:
   # Timestamp of the last facebook_lead_source change.
 facebook_web_only_reason:
-  # The human's own words when they confirmed `web_only` (verbatim or lightly paraphrased). Empty
-  # unless facebook_lead_source is (or was) `web_only`.
+  # The human's own words when they confirmed `web_only` (verbatim or lightly paraphrased), or the
+  # automatic "not logged in on {date}" reason set by the logged-out rule below. Empty unless
+  # facebook_lead_source is (or was) `web_only`.
 facebook_discovery_first_pass_done: true | false
-  # Set true immediately after this client's first-ever Facebook Discovery Pass completes
-  # (playbooks/10_LEAD_COMPETITOR_DETECTION.md, "Facebook Discovery Pass"). Gates the FIRST RUN
+  # Set true immediately after this client's first-ever Social Discovery Pass completes Facebook's
+  # leg (playbooks/10_LEAD_COMPETITOR_DETECTION.md, "Social Discovery Pass"). Gates the FIRST RUN
   # (<=21 calls) vs DAILY (<=7 calls) budget tier in playbooks/04_DAILY_SCHEDULE.md step 11C /
   # playbooks/SCHEDULED_RUN_ENTRYPOINT.md step 12E. Keyed to whether the pass has EVER run for
   # this client, not to the automation run number -- a client who starts `web_only` and later
@@ -1426,6 +1504,43 @@ facebook_discovery_first_pass_done: true | false
   # duplicated here -- it lives in collector/extension_registry.json (`browser`, `profile_directory`,
   # above), keyed by client_slug, so the agent never re-asks the browser/profile question once
   # resolved (OWNER DECISIONS 2026-09-10 afternoon).
+facebook_last_login_probe_at:
+  # Timestamp of the most recent step-1 re-probe issued for this platform while it sat in
+  # `web_only` with a `{platform}_web_only_reason` starting "not logged in"
+  # (playbooks/10_LEAD_COMPETITOR_DETECTION.md, "Re-probe on every run"). Written on every probe,
+  # whether it succeeds (flips the field back to `enabled`) or comes back logged-out again.
+instagram_lead_source: enabled | web_only | pending
+instagram_lead_source_updated_at:
+instagram_web_only_reason:
+instagram_discovery_first_pass_done: true | false
+instagram_last_login_probe_at:
+x_lead_source: enabled | web_only | pending
+x_lead_source_updated_at:
+x_web_only_reason:
+x_discovery_first_pass_done: true | false
+x_last_login_probe_at:
+  # `instagram_*`/`x_*` mirror the five `facebook_*` fields directly above -- same enums, same
+  # semantics, same gate wording, only the platform name changes. Both platforms share the one
+  # extension the Facebook fields already describe (Setup step 4, "Kết nối Facebook, Instagram and
+  # X"), so there is no separate install/connect step for them: `instagram_lead_source` and
+  # `x_lead_source` resolve from the same extension check-in that resolves `facebook_lead_source`,
+  # and `{platform}_discovery_first_pass_done` gates that platform's FIRST RUN vs DAILY budget tier
+  # in the Social Discovery Pass exactly the way `facebook_discovery_first_pass_done` does.
+  # `{platform}_last_login_probe_at` is written by the run-time re-probe (see below), on every
+  # platform, the same way.
+  # Auto web_only on logged-out (all three platforms, OWNER DECISIONS 2026-09-10 night): when a
+  # platform's first call in a run comes back logged-out (extension login probe, or a job's
+  # `stopped_because: logged_out`), the run sets that platform's `{platform}_lead_source` to
+  # `web_only` with `{platform}_web_only_reason` = "not logged in on {date}" (today's date), stamps
+  # `{platform}_lead_source_updated_at`, and the awareness line
+  # (`playbooks/06_AGENCY_REPORT_STANDARD.md`, "Persistent web-only awareness line") names that
+  # platform. This is separate from the human's own explicit `web_only` choice at setup, but reuses
+  # the same field/enum -- either path lands the client in `web_only` and either path clears the
+  # same way: the Boss logs back in for that platform in the shared extension's Chrome profile: no
+  # setup step repeats, and the field resolves back to `enabled` on the next run whose run-time
+  # re-probe succeeds (playbooks/10_LEAD_COMPETITOR_DETECTION.md, "Re-probe on every run" -- NOT the
+  # extension check-in, which carries no per-platform login state today; see playbooks/TODO.md,
+  # "facebook_logged_in" handoff, for that future signal).
 collector_setup_status_file:
 notes:
 
@@ -1748,6 +1863,13 @@ with a dated evidence hook and an activity row (`playbooks/10_LEAD_COMPETITOR_DE
 afterwards. Do not treat `needs_review` as a queue — nothing consumes it, and the review it implies
 was already performed by the agent that classified the post.
 
+**`name` is the author's name as the page showed it**, carried verbatim from the collected record.
+A post scan always has it; omit the field only for a lead added from a bare post/reel/video url
+before enrichment. Never put Facebook interface text there (`Top contributor`, `Verified account`,
+`Anonymous participant`, a group name, a url) — the capture refuses those and leaves the contact
+nameless, which is the honest result. `emails`/`phones` follow the same rule: carry what the
+collector found, and expect them to be absent until an enrichment pass runs.
+
 **`locked` is computed, never stored.** A CRM contact file carries no `locked` field. Whether a
 contact is locked is computed by the bridge at read time from the plan's `max_contacts` and the
 contacts' `created_at` order (oldest stay unlocked; a contact past `lead` into any `engaged+` stage
@@ -1766,11 +1888,18 @@ Format:
   "source": "Facebook Group",
   "source_type": "private",
   "platform": "facebook",
+  "name": "Rick Silva",
   "profile_url": "https://www.facebook.com/profile.php?id=...",
   "post_url": "https://www.facebook.com/groups/.../posts/...",
   "captured_at": "2026-06-20T09:00:00-07:00",
   "safe_context_summary": "Person asked what to do after receiving an insurance non-renewal notice.",
   "evidence_snippet": "Short visible snippet when safe",
+  "person_type": "homeowner in California with a lapsing policy",
+  "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+  "fit": "high",
+  "fit_reason": "Homeowner in the licensed area with a named policy event.",
+  "intent": "explicit",
+  "intent_reason": "Asks directly what to do about the non-renewal notice.",
   "why_it_matters": "This is a direct need signal tied to the client's offer.",
   "related_offer": "Home insurance review",
   "related_pain_point": "Confusion after non-renewal notice",
@@ -1803,6 +1932,12 @@ Allowed lead classifications:
 - `complaint`
 - `adjacent_need`
 
+The `hot_lead`/`warm_lead`/`watch_lead` values here are derived from `fit` × `intent`
+(`playbooks/LEAD_QUALIFICATION_RULE.md` Step 4), not chosen independently; the `direct_need`/
+`indirect_need`/... values stay the separate evidence label carried over from `lead type`. The CRM
+contact this row becomes carries `fit:{high|medium|low}` and `intent:{explicit|implied|none}` tags
+next to the existing `lead:{temp}` tag, sourced from this row's `fit` and `intent` fields.
+
 Allowed competitor classifications:
 
 - `direct_competitor`
@@ -1832,8 +1967,9 @@ Privacy rule:
 
 Purpose:
 
-- Persist the Facebook Discovery Pass's ranked candidate public groups across runs
-  (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass").
+- Persist the Social Discovery Pass's ranked candidate public Facebook groups across runs
+  (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass"). Facebook-only: Instagram
+  and X have no group concept in this pass, so nothing from either platform is added here.
 - Let the DAILY companion pass skip a group already scanned in the last 7 days instead of
   rediscovering the same handful of groups every day.
 - Carry the human's promote/reject decision after the pass recommends its top groups.

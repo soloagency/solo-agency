@@ -1,0 +1,1202 @@
+[
+  {
+    "id": "A01",
+    "person_type": "real-estate agent (independent professional)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Real-estate agent marketing themselves, exact match in types with agent listed as example",
+    "intent": "none",
+    "intent_reason": "Routine property listing and open house promotion, standard daily work with no mention of video editing or posting challenges",
+    "decision": "warm"
+  },
+  {
+    "id": "A02",
+    "person_type": "mortgage loan officer (independent professional)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Loan officer marketing to potential referrers, exact match in types with loan officer listed as example",
+    "intent": "none",
+    "intent_reason": "Routine rate update and customer outreach, standard daily work with no mention of video editing challenges",
+    "decision": "warm"
+  },
+  {
+    "id": "A03",
+    "person_type": "insurance agent (independent professional)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Insurance agent sharing expertise and client wins, exact match in types with insurance agent listed as example",
+    "intent": "none",
+    "intent_reason": "Routine rate and service update, standard business communication with no mention of video or posting friction",
+    "decision": "warm"
+  },
+  {
+    "id": "A04",
+    "person_type": "salon owner (small service business owner)",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Salon owner, exact match in types with salon listed as example of small service business",
+    "intent": "none",
+    "intent_reason": "Routine post showing customer work and gratitude, standard business activity with no mention of video or editing friction",
+    "decision": "warm"
+  },
+  {
+    "id": "A05",
+    "person_type": "SaaS founder",
+    "sells_to_match": "founder of a small startup or SaaS",
+    "fit": "high",
+    "fit_reason": "SaaS founder celebrating business milestone, exact match in types",
+    "intent": "none",
+    "intent_reason": "Celebrating MRR milestone of running business, growth of existing product with no new friction or challenge named about video or posting",
+    "decision": "warm"
+  },
+  {
+    "id": "A06",
+    "person_type": "startup founder / content creator",
+    "sells_to_match": "founder of a small startup or SaaS",
+    "fit": "high",
+    "fit_reason": "Startup founder with content production needs, exact match in types",
+    "intent": "none",
+    "intent_reason": "Already solved editing friction by hiring full-time video editor; the need for AI video editing has been resolved and is no longer active",
+    "decision": "warm"
+  },
+  {
+    "id": "A07",
+    "person_type": "marketing agency / content agency",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind",
+    "fit": "high",
+    "fit_reason": "Marketing agency, explicitly listed as customer type that needs video for growing their clients' reach",
+    "intent": "none",
+    "intent_reason": "Routine business reporting of Q3 client results, standard agency work with no mention of their own video editing or posting challenges",
+    "decision": "warm"
+  },
+  {
+    "id": "A08",
+    "person_type": "freelance video editor (service provider)",
+    "sells_to_match": "none",
+    "fit": "high",
+    "fit_reason": "Freelance video editor is a competitor, not a customer",
+    "intent": "none",
+    "intent_reason": "N/A",
+    "decision": "competitor"
+  },
+  {
+    "id": "A09",
+    "person_type": "marketing coach / course seller / trainer",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind",
+    "fit": "high",
+    "fit_reason": "Course seller and coach, exact match in types as someone who sells services and could grow by posting video",
+    "intent": "none",
+    "intent_reason": "Routine program promotion and client success reporting, standard business activity with no mention of their own video editing or posting friction",
+    "decision": "warm"
+  },
+  {
+    "id": "A10",
+    "person_type": "mindset coach (independent professional)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Coach helping clients achieve goals, exact match in types with coach listed as example of independent professional",
+    "intent": "none",
+    "intent_reason": "Routine client success update and celebration of client achievement, standard business reporting with no mention of video or content posting friction",
+    "decision": "warm"
+  },
+  {
+    "id": "A11",
+    "person_type": "dental clinic or medical office owner",
+    "sells_to_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "fit": "high",
+    "fit_reason": "Small service business (clinic) that could benefit from video marketing to attract patients",
+    "intent": "none",
+    "intent_reason": "routine business announcement of extended hours; no friction about editing or needing to post more video",
+    "decision": "warm"
+  },
+  {
+    "id": "A12",
+    "person_type": "immigration attorney or immigration consultant",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "medium",
+    "fit_reason": "Professional background suggested (bar network, immigration updates) but employment structure (self-employed vs. in-house) unclear from text",
+    "intent": "none",
+    "intent_reason": "routine professional update; sharing regulatory changes is ordinary work for this profession, not indicating a need for video editing or posting friction",
+    "decision": "none"
+  },
+  {
+    "id": "A13",
+    "person_type": "auto shop owner",
+    "sells_to_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "fit": "high",
+    "fit_reason": "Auto repair shop owner; small service business that could use video content to showcase work",
+    "intent": "none",
+    "intent_reason": "routine business post showcasing completed work; mentions high volume but no indication of friction with video editing or need to post more",
+    "decision": "warm"
+  },
+  {
+    "id": "A14",
+    "person_type": "freelance wedding photographer",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "high",
+    "fit_reason": "Wedding photographer marketing their work; independent professional in creative field",
+    "intent": "none",
+    "intent_reason": "active marketing with link and call to action, but no friction shown about editing or inability to post more; routine portfolio showcase",
+    "decision": "warm"
+  },
+  {
+    "id": "A15",
+    "person_type": "restaurant owner",
+    "sells_to_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "fit": "high",
+    "fit_reason": "Restaurant owner announcing new menu item; small local business",
+    "intent": "none",
+    "intent_reason": "new menu launch could theoretically justify video content, but post shows no friction about editing or desire to post video; routine menu announcement",
+    "decision": "warm"
+  },
+  {
+    "id": "A16",
+    "person_type": "HVAC technician or AC installation company owner",
+    "sells_to_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "fit": "high",
+    "fit_reason": "Small service business owner showcasing installation work",
+    "intent": "none",
+    "intent_reason": "routine work portfolio post; mentions time intensive work but no indication of wanting to post more video or editing friction",
+    "decision": "warm"
+  },
+  {
+    "id": "A17",
+    "person_type": "tutoring center or test-prep business owner",
+    "sells_to_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "fit": "high",
+    "fit_reason": "Educational service business owner; could benefit from video testimonials or program promotions",
+    "intent": "none",
+    "intent_reason": "new program launch announced, but no friction shown about editing or need to post video content; routine program announcement",
+    "decision": "warm"
+  },
+  {
+    "id": "A18",
+    "person_type": "fitness coach or personal trainer",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "high",
+    "fit_reason": "Coach marketing themselves; independent professional in service field",
+    "intent": "none",
+    "intent_reason": "established business with growing demand (coaching spots filling); routine portfolio showcase; no friction shown about editing or need to post more video",
+    "decision": "warm"
+  },
+  {
+    "id": "A19",
+    "person_type": "real estate agent",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "high",
+    "fit_reason": "Real estate agent marketing listings; independent professional who markets themselves",
+    "intent": "none",
+    "intent_reason": "routine listing post; ordinary work for this profession, no friction about editing or inability to post more content",
+    "decision": "warm"
+  },
+  {
+    "id": "A20",
+    "person_type": "real estate agent",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "high",
+    "fit_reason": "Real estate agent marketing closing and seeking referrals; independent professional",
+    "intent": "none",
+    "intent_reason": "routine closing announcement and business development; ordinary work activity with no friction about editing or video posting needs",
+    "decision": "warm"
+  },
+  {
+    "id": "A21",
+    "person_type": "Mortgage loan officer / lender",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Professional selling mortgages and pre-approvals, marketing themselves to customers; could grow by posting more video content.",
+    "intent": "none",
+    "intent_reason": "Post is routine rate update and customer solicitation; shows no friction with editing or posting constraints.",
+    "decision": "warm"
+  },
+  {
+    "id": "A22",
+    "person_type": "Insurance agent / professional",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Independent professional marketing insurance services to customers; could benefit from video content.",
+    "intent": "none",
+    "intent_reason": "Comment describes routine client work (policy updates); no friction about editing or posting shown.",
+    "decision": "warm"
+  },
+  {
+    "id": "A23",
+    "person_type": "Nail salon owner / small service business",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Small salon business owner posting about daily services and accepting customers.",
+    "intent": "none",
+    "intent_reason": "Posting routine daily work (nail service); no mention of editing, video posting, or time constraints.",
+    "decision": "warm"
+  },
+  {
+    "id": "A24",
+    "person_type": "Auto service business owner / ceramic coating specialist",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Small service business booking customers and promoting their work.",
+    "intent": "none",
+    "intent_reason": "Announcing completed job and future slots; no friction shown about editing or posting workflow.",
+    "decision": "warm"
+  },
+  {
+    "id": "A25",
+    "person_type": "Wedding & event videographer",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Professional videographer marketing themselves; could grow by posting more video content to promote their services (rule: people who sell something could grow with video, whether or not they film already).",
+    "intent": "none",
+    "intent_reason": "Bio only, stating profession and location; no friction or need for editing tool shown.",
+    "decision": "warm"
+  },
+  {
+    "id": "A26",
+    "person_type": "Real estate agent / realtor",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Professional agent marketing real estate services; could expand reach with video content.",
+    "intent": "none",
+    "intent_reason": "Bio only; no indication of need for editing tool or posting constraints.",
+    "decision": "warm"
+  },
+  {
+    "id": "A27",
+    "person_type": "Licensed insurance agent / professional",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Insurance professional marketing services; could benefit from video content to reach customers.",
+    "intent": "none",
+    "intent_reason": "Bio only; no friction about editing or posting shown.",
+    "decision": "warm"
+  },
+  {
+    "id": "A28",
+    "person_type": "Creator / content creator, founder",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind",
+    "fit": "high",
+    "fit_reason": "Creator selling brand partnerships and launching own product (hoodie); could grow with more consistent video content.",
+    "intent": "none",
+    "intent_reason": "Announcing brand deal and product launch; routine creator milestones without friction about editing or video posting constraints.",
+    "decision": "warm"
+  },
+  {
+    "id": "A29",
+    "person_type": "Restaurant owner / small business owner",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Small restaurant business in Garden Grove; could grow by posting consistent video content about food, ambiance, hours.",
+    "intent": "none",
+    "intent_reason": "Announcing extended hours; routine business information with no friction shown about editing or posting workflow.",
+    "decision": "warm"
+  },
+  {
+    "id": "A30",
+    "person_type": "Veterinary clinic owner / small service business",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Small clinic business marketing services and availability to customers.",
+    "intent": "none",
+    "intent_reason": "Announcing services and availability; routine business communication with no editing or posting friction shown.",
+    "decision": "warm"
+  },
+  {
+    "id": "B01",
+    "person_type": "first-time homebuyer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer buying a home for themselves, not someone who sells something to others",
+    "intent": "none",
+    "intent_reason": "asking for realtor and lender for personal home purchase",
+    "decision": "none"
+  },
+  {
+    "id": "B02",
+    "person_type": "homeowner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer who purchased a home, not someone who sells something to others",
+    "intent": "none",
+    "intent_reason": "seeking home insurance agent for personal property",
+    "decision": "none"
+  },
+  {
+    "id": "B03",
+    "person_type": "homeowner refinancing",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer managing personal finances and mortgage, not someone who sells something",
+    "intent": "none",
+    "intent_reason": "seeking loan officer for personal refinance",
+    "decision": "none"
+  },
+  {
+    "id": "B04",
+    "person_type": "first-time homebuyer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer in home purchase process, not someone who sells something to others",
+    "intent": "none",
+    "intent_reason": "seeking realtor for personal home purchase and closing process",
+    "decision": "none"
+  },
+  {
+    "id": "B05",
+    "person_type": "homeowner refinancing",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer managing personal mortgage and rates, not someone who sells something",
+    "intent": "none",
+    "intent_reason": "comparing lenders and seeking loan officer for personal refinance",
+    "decision": "none"
+  },
+  {
+    "id": "B06",
+    "person_type": "homeowner with maintenance need",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer seeking home service for personal property, not someone who sells something",
+    "intent": "none",
+    "intent_reason": "seeking plumber for personal home emergency repair",
+    "decision": "none"
+  },
+  {
+    "id": "B07",
+    "person_type": "parent seeking tutoring service",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer seeking educational service for child, not someone who sells something",
+    "intent": "none",
+    "intent_reason": "seeking math tutor for personal child education",
+    "decision": "none"
+  },
+  {
+    "id": "B08",
+    "person_type": "parent with life insurance need",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer managing personal life insurance after life change, not someone who sells something",
+    "intent": "none",
+    "intent_reason": "seeking insurance agent to update personal policy due to new baby",
+    "decision": "none"
+  },
+  {
+    "id": "B09",
+    "person_type": "homeowner selling property",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer selling own home (personal transaction), not someone who builds business by selling video",
+    "intent": "none",
+    "intent_reason": "seeking real estate agent to sell personal home due to job relocation",
+    "decision": "none"
+  },
+  {
+    "id": "B10",
+    "person_type": "marketing professional",
+    "sells_to_match": "freelancer or one-person agency of ANY kind",
+    "fit": "high",
+    "fit_reason": "works in marketing which fits 'freelancer or one-person agency' category; could be independent professional who markets themselves; uncertainty about employment structure within ANY category does not lower fit",
+    "intent": "none",
+    "intent_reason": "bio stating profession is routine work for this person, no mention of friction with video editing or customer acquisition",
+    "decision": "warm"
+  },
+  {
+    "id": "B11",
+    "person_type": "Homeowner relocating",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of selling something or marketing themselves; relocating homeowner with no business",
+    "intent": "none",
+    "intent_reason": "Home relocation is personal, not a business change; no video editing friction named",
+    "decision": "none"
+  },
+  {
+    "id": "B12",
+    "person_type": "Homeowner refinancing",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Seeking lender for loan refinancing, not a seller or marketer",
+    "intent": "none",
+    "intent_reason": "No business or video editing need; seeking financial service only",
+    "decision": "none"
+  },
+  {
+    "id": "B13",
+    "person_type": "Homeowner seeking insurance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Concerned about home insurance coverage; does not sell or market",
+    "intent": "none",
+    "intent_reason": "No video editing need or business marketing friction",
+    "decision": "none"
+  },
+  {
+    "id": "B14",
+    "person_type": "First-time homebuyer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Looking for realtor to help purchase home; not someone who sells to others",
+    "intent": "none",
+    "intent_reason": "No business or marketing activity; seeking residential purchase help",
+    "decision": "none"
+  },
+  {
+    "id": "B15",
+    "person_type": "Insurance claims adjuster",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Works as employee for insurance company; does not own business or sell to others",
+    "intent": "none",
+    "intent_reason": "Adjuster role does not create video editing or content posting need",
+    "decision": "none"
+  },
+  {
+    "id": "C01",
+    "person_type": "Real estate agent",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Realtor in Austin creating marketing content (walkthroughs) to sell homes",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asks for app to edit listing walkthroughs; names friction: 3 hours per video editing blocks time for showing houses",
+    "decision": "hot"
+  },
+  {
+    "id": "C02",
+    "person_type": "Nail salon owner",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Newly opened nail salon fits small business service owner type",
+    "intent": "none",
+    "intent_reason": "Friction named is finding customers and general marketing strategy, not video editing; no mention of posting or content volume struggle",
+    "decision": "warm"
+  },
+  {
+    "id": "C03",
+    "person_type": "Personal trainer/gym owner",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "One-person gym owner fits small business service owner type",
+    "intent": "none",
+    "intent_reason": "Asks for CRM follow-up system for client retention, not video editing; friction is follow-up, not posting content",
+    "decision": "warm"
+  },
+  {
+    "id": "C04",
+    "person_type": "Wedding photographer",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Wedding photographer markets themselves to book events",
+    "intent": "none",
+    "intent_reason": "Friction named is lead follow-up system after posting, not video editing or editing time; follow-up CRM is different need",
+    "decision": "warm"
+  },
+  {
+    "id": "C05",
+    "person_type": "Loan officer",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Loan officer marketing themselves on social media for lead generation",
+    "intent": "implied",
+    "intent_reason": "Grinding for leads and asking for social media content generation; new friction of needing consistent content posting for lead flow implies video need, though editing bottleneck not explicitly named",
+    "decision": "hot"
+  },
+  {
+    "id": "C06",
+    "person_type": "Insurance agent who markets themselves",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Established professional in selling/marketing profession, perfect membership match",
+    "intent": "none",
+    "intent_reason": "Being too busy to post consistently is routine for any professional; no specific video editing friction named",
+    "decision": "warm"
+  },
+  {
+    "id": "C07",
+    "person_type": "Small business owner (plumbing and heating)",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Clear match to small service business owner",
+    "intent": "none",
+    "intent_reason": "Asking about AI tool for follow-ups and reviews; not seeking video editing solution",
+    "decision": "warm"
+  },
+  {
+    "id": "C08",
+    "person_type": "Studio owner who teaches and creates content",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Perfect match to small business owner marketing themselves",
+    "intent": "explicit",
+    "intent_reason": "Explicitly names editing reels at midnight as the barrier and asks for something to handle Instagram/reels",
+    "decision": "hot"
+  },
+  {
+    "id": "C09",
+    "person_type": "Freelancer (new solo venture)",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind",
+    "fit": "high",
+    "fit_reason": "Clear match to freelancer selling services",
+    "intent": "none",
+    "intent_reason": "Asking about finding clients and sales system; not seeking video editing help",
+    "decision": "warm"
+  },
+  {
+    "id": "C10",
+    "person_type": "Real-estate agent (Realtor)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Professional who markets themselves and sells to clients",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asks for app to edit video listings quickly, naming slow editing as the barrier",
+    "decision": "hot"
+  },
+  {
+    "id": "C11",
+    "person_type": "Solo clinic owner (chiropractor/wellness)",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Clear match to small business owner marketing themselves",
+    "intent": "none",
+    "intent_reason": "Routine time pressure from running solo business; no specific video editing friction named",
+    "decision": "warm"
+  },
+  {
+    "id": "C12",
+    "person_type": "Nail salon owner",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "medium",
+    "fit_reason": "Good membership match but bio-only with no expressed need or change",
+    "intent": "none",
+    "intent_reason": "Bio-only profile with no stated change or need",
+    "decision": "none"
+  },
+  {
+    "id": "C13",
+    "person_type": "Loan officer / credit specialist",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "medium",
+    "fit_reason": "Good professional match but bio-only with no expressed need or change",
+    "intent": "none",
+    "intent_reason": "Bio-only profile with no stated change or need",
+    "decision": "none"
+  },
+  {
+    "id": "C14",
+    "person_type": "Solo spa owner",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Perfect match to small business owner marketing themselves",
+    "intent": "none",
+    "intent_reason": "Asking about customer reminders and lead finding; friction is not video editing but customer retention and acquisition",
+    "decision": "warm"
+  },
+  {
+    "id": "C15",
+    "person_type": "Real-estate agent (Realtor)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Professional who markets themselves and sells to clients",
+    "intent": "none",
+    "intent_reason": "Asking for CRM to track leads and improve follow-up; not seeking video editing solution",
+    "decision": "warm"
+  },
+  {
+    "id": "D01",
+    "person_type": "real-estate agent",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "real-estate agent directly matches the type; they market themselves",
+    "intent": "none",
+    "intent_reason": "struggling with marketing a listing but doesn't mention video posting or editing as the barrier; routine work for their role",
+    "decision": "warm"
+  },
+  {
+    "id": "D02",
+    "person_type": "nail salon owner (running 2 locations)",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "salon owner exactly matches the type",
+    "intent": "none",
+    "intent_reason": "recently opened second salon and managing growth but doesn't mention video posting or editing friction; general operational overwhelm, not the specific friction this product solves",
+    "decision": "warm"
+  },
+  {
+    "id": "D03",
+    "person_type": "new parent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "new parent is not a business owner, professional, founder or creator; doesn't sell anything",
+    "intent": "none",
+    "intent_reason": "not applicable; person is outside target market",
+    "decision": "none"
+  },
+  {
+    "id": "D04",
+    "person_type": "SaaS founder (solo, bootstrapped)",
+    "sells_to_match": "founder of a small startup or SaaS",
+    "fit": "high",
+    "fit_reason": "founder of SaaS exactly matches the type",
+    "intent": "explicit",
+    "intent_reason": "explicitly states need to keep posting demo videos weekly by themselves; identifies video posting as the challenge at scale",
+    "decision": "hot"
+  },
+  {
+    "id": "D05",
+    "person_type": "individual buying auto insurance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer purchasing insurance for personal use; does not sell anything or market a business",
+    "intent": "none",
+    "intent_reason": "not applicable; person is outside target market",
+    "decision": "none"
+  },
+  {
+    "id": "D06",
+    "person_type": "freelance graphic designer",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind",
+    "fit": "high",
+    "fit_reason": "freelance graphic designer exactly matches the type and is explicitly listed as an example",
+    "intent": "implied",
+    "intent_reason": "just started full-time freelancing (new business) and struggling with marketing; will need to find customers and build visibility; video content is part of modern creator marketing",
+    "decision": "hot"
+  },
+  {
+    "id": "D07",
+    "person_type": "real-estate agent",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "real-estate agent from community context directly matches the type; they market themselves",
+    "intent": "none",
+    "intent_reason": "discussing personal mortgage refinancing situation; not about business marketing, video posting or content creation",
+    "decision": "warm"
+  },
+  {
+    "id": "D08",
+    "person_type": "nail salon owner",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "nail salon owner exactly matches the type",
+    "intent": "none",
+    "intent_reason": "bio-only profile with no stated change or need; just identifies their role",
+    "decision": "warm"
+  },
+  {
+    "id": "D09",
+    "person_type": "pregnant person expecting twins",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "personal life event; not a business owner, professional, founder or creator; does not sell anything",
+    "intent": "none",
+    "intent_reason": "not applicable; person is outside target market",
+    "decision": "none"
+  },
+  {
+    "id": "D10",
+    "person_type": "employee relocating for job",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "job seeker/employee at company; does not own business, run professional practice, or sell anything",
+    "intent": "none",
+    "intent_reason": "not applicable; person is outside target market",
+    "decision": "none"
+  },
+  {
+    "id": "D11",
+    "person_type": "Food business owner launching new venture",
+    "sells_to_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "fit": "high",
+    "fit_reason": "Food truck owner is explicitly listed in types as a small shop/service business that sells",
+    "intent": "implied",
+    "intent_reason": "New food truck business created needs content but owner lacks time for editing, triggering the core friction in why_they_need",
+    "decision": "hot"
+  },
+  {
+    "id": "D12",
+    "person_type": "Homeowner planning home improvement",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Homeowner not in any member type; no evidence of selling something or marketing",
+    "intent": "none",
+    "intent_reason": "Home improvement project has no connection to video editing or content marketing",
+    "decision": "none"
+  },
+  {
+    "id": "D13",
+    "person_type": "Small business owner",
+    "sells_to_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "fit": "high",
+    "fit_reason": "Small business owner who sells; membership matches types exactly",
+    "intent": "none",
+    "intent_reason": "Hiring employee shows growth but mentions payroll/general overwhelm, not the specific friction of editing/content creation time",
+    "decision": "warm"
+  },
+  {
+    "id": "D14",
+    "person_type": "Consumer facing personal insurance costs",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of selling or marketing; discussing personal expense, not business operation",
+    "intent": "none",
+    "intent_reason": "Personal insurance is unrelated to selling something or needing video content",
+    "decision": "none"
+  },
+  {
+    "id": "D15",
+    "person_type": "Software engineer (employment status unclear)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Bio states trade but no evidence of marketing services or running a business; unclear if self-employed or employee",
+    "intent": "none",
+    "intent_reason": "Relocation is personal life change unconnected to video editing or content posting",
+    "decision": "none"
+  },
+  {
+    "id": "E01",
+    "person_type": "One-person marketing/lead-gen agency owner",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind (a marketing or lead-gen agency, a coach, a graphic designer are customers here; they need video too)",
+    "fit": "high",
+    "fit_reason": "Lead-gen agency explicitly listed as customer type who needs video; founder runs own business and markets",
+    "intent": "explicit",
+    "intent_reason": "Explicitly names friction: 'agency owner drowning in raw footage' — exactly the editing bottleneck described in why_they_need",
+    "decision": "hot"
+  },
+  {
+    "id": "E02",
+    "person_type": "One-person lead-generation service provider",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind (a marketing or lead-gen agency, a coach, a graphic designer are customers here; they need video too)",
+    "fit": "high",
+    "fit_reason": "Lead-gen agency fits customer type; sells to realtors",
+    "intent": "none",
+    "intent_reason": "Post is routine work (selling lead services); no mention of video content friction or editing needs",
+    "decision": "warm"
+  },
+  {
+    "id": "E03",
+    "person_type": "AI video app founder/competitor",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind",
+    "fit": "high",
+    "fit_reason": "Founder of startup selling to same market",
+    "intent": "explicit",
+    "intent_reason": "App is built for creators, coaches, small business owners",
+    "decision": "competitor"
+  },
+  {
+    "id": "E04",
+    "person_type": "AI video app founder/competitor",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind",
+    "fit": "high",
+    "fit_reason": "Founder selling AI video editing app to creators and small business owners",
+    "intent": "explicit",
+    "intent_reason": "Directly selling video editing solution",
+    "decision": "competitor"
+  },
+  {
+    "id": "E05",
+    "person_type": "Real estate agent",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "high",
+    "fit_reason": "Realtor is explicitly listed as independent professional who markets and sells",
+    "intent": "none",
+    "intent_reason": "Post discusses market inventory and pipeline — routine work for realtor; no mention of video editing or content creation friction",
+    "decision": "warm"
+  },
+  {
+    "id": "E06",
+    "person_type": "Real estate agent (Century 21)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent...)",
+    "fit": "high",
+    "fit_reason": "Real estate agent who markets themselves and their listings to buyers",
+    "intent": "none",
+    "intent_reason": "Discussing real estate market conditions and pricing challenges; no friction with video posting or editing mentioned",
+    "decision": "warm"
+  },
+  {
+    "id": "E07",
+    "person_type": "Insurance agent (independent, self-employed)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. ...insurance agent...)",
+    "fit": "high",
+    "fit_reason": "Insurance agent who markets themselves and manages their own client pipeline",
+    "intent": "none",
+    "intent_reason": "Routine sales outreach offering free insurance quotes; no editing or posting friction named",
+    "decision": "warm"
+  },
+  {
+    "id": "E08",
+    "person_type": "Insurance agent (serving Vietnamese community)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. ...insurance agent...)",
+    "fit": "high",
+    "fit_reason": "Self-employed insurance agent marketing their services to business owners and families",
+    "intent": "none",
+    "intent_reason": "Routine sales promotion offering free quotes; no mention of video editing or posting needs",
+    "decision": "warm"
+  },
+  {
+    "id": "E09",
+    "person_type": "Mortgage loan officer (independent or broker-affiliated with own pipeline)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. ...loan officer...)",
+    "fit": "high",
+    "fit_reason": "Loan officer who markets themselves to real estate agents and borrowers",
+    "intent": "none",
+    "intent_reason": "Market update and routine partner outreach to agents; no video posting or editing friction named",
+    "decision": "warm"
+  },
+  {
+    "id": "E10",
+    "person_type": "Mortgage loan officer (independent, serving Vietnamese community)",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. ...loan officer...)",
+    "fit": "high",
+    "fit_reason": "Loan officer marketing mortgage and refinance services to homeowners",
+    "intent": "none",
+    "intent_reason": "Routine sales pitch offering free consultations; no mention of editing or posting challenges",
+    "decision": "warm"
+  },
+  {
+    "id": "E11",
+    "person_type": "Marketing coach / course seller (one-person agency)",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind (a marketing or lead-gen agency, a coach...)",
+    "fit": "high",
+    "fit_reason": "Marketing coach who sells to solo entrepreneurs (coaches explicitly listed as video app customers)",
+    "intent": "none",
+    "intent_reason": "Promoting own marketing coaching program; names general marketing overwhelm but no specific video editing or posting friction",
+    "decision": "warm"
+  },
+  {
+    "id": "E12",
+    "person_type": "Marketing coach / course seller",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind (a...coach...)",
+    "fit": "high",
+    "fit_reason": "Marketing coach selling course to small business owners",
+    "intent": "none",
+    "intent_reason": "Bio statement only; describes what they teach but states no new change, need, or posting friction",
+    "decision": "warm"
+  },
+  {
+    "id": "F01",
+    "person_type": "Unknown consumer (meme poster)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal financial commentary, no indication of running a business or marketing anything",
+    "intent": "none",
+    "intent_reason": "Meme post about personal finances; no business or video need",
+    "decision": "none"
+  },
+  {
+    "id": "F02",
+    "person_type": "Unknown political or social commentator",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Political/social commentary unrelated to business, sales, or marketing",
+    "intent": "none",
+    "intent_reason": "Political post about property taxes; no connection to selling or video content",
+    "decision": "none"
+  },
+  {
+    "id": "F03",
+    "person_type": "Job seeker (aspiring loan officer)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Job seeker explicitly seeking employment; job-seeking editors named in not_buyers",
+    "intent": "none",
+    "intent_reason": "Seeking a job, not selling a service or running a business",
+    "decision": "none"
+  },
+  {
+    "id": "F04",
+    "person_type": "Salon owner",
+    "sells_to_match": "owner of ANY small shop or service business",
+    "fit": "high",
+    "fit_reason": "Nail salon owner running a small service business",
+    "intent": "none",
+    "intent_reason": "Hiring post shows routine business activity, not friction around video posting or editing",
+    "decision": "warm"
+  },
+  {
+    "id": "F05",
+    "person_type": "Student",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Student; explicitly in not_buyers",
+    "intent": "none",
+    "intent_reason": "Personal student stress about finals, not business-related",
+    "decision": "none"
+  },
+  {
+    "id": "F06",
+    "person_type": "Spam account",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Spam link post with no evidence of legitimate business",
+    "intent": "none",
+    "intent_reason": "Spam content",
+    "decision": "none"
+  },
+  {
+    "id": "F07",
+    "person_type": "MLM crypto recruiter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Multi-level marketing recruitment pitch",
+    "intent": "none",
+    "intent_reason": "MLM pitch, not a real business owner",
+    "decision": "none"
+  },
+  {
+    "id": "F08",
+    "person_type": "Consumer (stay-at-home mom)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Motivational post with no evidence of business ownership or selling",
+    "intent": "none",
+    "intent_reason": "Personal motivational content, no business or video posting activity",
+    "decision": "none"
+  },
+  {
+    "id": "F09",
+    "person_type": "MLM recruiter or opportunity seeker",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "MLM-style recruitment post, not evidence of a business owner marketing themselves",
+    "intent": "none",
+    "intent_reason": "MLM pitch, not a person running a business",
+    "decision": "none"
+  },
+  {
+    "id": "F10",
+    "person_type": "HR professional at large corporation",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Employee of large company with 500+ employees; explicitly in not_buyers",
+    "intent": "none",
+    "intent_reason": "Corporate hiring post, not a self-employed person or small business owner",
+    "decision": "none"
+  },
+  {
+    "id": "F11",
+    "person_type": "Random commenter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Political commentary with no business activity evident",
+    "intent": "none",
+    "intent_reason": "Political news commentary, not business-related",
+    "decision": "none"
+  },
+  {
+    "id": "F12",
+    "person_type": "Job seeker",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Job seeker; explicitly in not_buyers",
+    "intent": "none",
+    "intent_reason": "Unemployed person seeking employment, not running a business",
+    "decision": "none"
+  },
+  {
+    "id": "G01",
+    "person_type": "Homeowner or consumer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of business ownership or self-marketing; appears to be a consumer",
+    "intent": "none",
+    "intent_reason": "Explicit rejection of service offers; personal consumer seeking peace from pitches",
+    "decision": "none"
+  },
+  {
+    "id": "G02",
+    "person_type": "Consumer who purchased personal car insurance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Purchased insurance for personal use, not a person who sells services or markets a business",
+    "intent": "none",
+    "intent_reason": "Personal insurance transaction; explicitly rejects further suggestions",
+    "decision": "none"
+  },
+  {
+    "id": "G03",
+    "person_type": "Homeowner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal homeowner, not someone who markets themselves or sells services to others",
+    "intent": "none",
+    "intent_reason": "Explicitly rejects pitches and denies selling; personal post unrelated to business",
+    "decision": "none"
+  },
+  {
+    "id": "G04",
+    "person_type": "First-time homebuyer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal home purchase; not someone who sells services or markets a business",
+    "intent": "none",
+    "intent_reason": "Personal financial transaction stale from 2 years ago",
+    "decision": "none"
+  },
+  {
+    "id": "G05",
+    "person_type": "Loan officer",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "medium",
+    "fit_reason": "Markets lending services to clients, but shows no friction specific to video content or editing barriers",
+    "intent": "none",
+    "intent_reason": "Struggling with rate competition and pipeline drying up, not with content creation or editing friction",
+    "decision": "warm"
+  },
+  {
+    "id": "G06",
+    "person_type": "One-person SaaS founder",
+    "sells_to_match": "founder of a small startup or SaaS",
+    "fit": "high",
+    "fit_reason": "Founder of startup is an exact match for customer types",
+    "intent": "none",
+    "intent_reason": "Explicitly rejects offers and pitches; stated preference to handle everything alone",
+    "decision": "none"
+  },
+  {
+    "id": "G07",
+    "person_type": "Homeowner with mortgage",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal mortgage refinance; not someone who sells services or markets a business",
+    "intent": "none",
+    "intent_reason": "Personal financial transaction; situation settled with relief and no friction",
+    "decision": "none"
+  },
+  {
+    "id": "G08",
+    "person_type": "Retired real estate agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Retired and no longer actively marketing services; no active business or professional pipeline",
+    "intent": "none",
+    "intent_reason": "Retired from professional work; bio shows leisure focus, no business need or friction",
+    "decision": "none"
+  },
+  {
+    "id": "H01",
+    "person_type": "Real estate agent",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Active realtor who markets services to clients in their location",
+    "intent": "none",
+    "intent_reason": "Bio-only with no change or friction shown; routine professional work",
+    "decision": "warm"
+  },
+  {
+    "id": "H02",
+    "person_type": "Mortgage loan officer",
+    "sells_to_match": "independent professional of ANY trade who markets themselves",
+    "fit": "high",
+    "fit_reason": "Active MLO who markets lending services to clients",
+    "intent": "none",
+    "intent_reason": "Bio-only with no change or friction shown; routine professional work",
+    "decision": "warm"
+  },
+  {
+    "id": "H03",
+    "person_type": "SaaS founder",
+    "sells_to_match": "founder of a small startup or SaaS",
+    "fit": "high",
+    "fit_reason": "Founder of startup is an exact match for customer types",
+    "intent": "none",
+    "intent_reason": "Routine startup work (building and marketing); no specific friction about video editing shown",
+    "decision": "warm"
+  },
+  {
+    "id": "H04",
+    "person_type": "Nail salon owner",
+    "sells_to_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "fit": "high",
+    "fit_reason": "Exact match: small service business owner, salon explicitly listed",
+    "intent": "none",
+    "intent_reason": "Bio only, no stated need for editing or posting video",
+    "decision": "warm"
+  },
+  {
+    "id": "H05",
+    "person_type": "Insurance agent",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "high",
+    "fit_reason": "Insurance agent explicitly listed as independent professional who markets themselves",
+    "intent": "none",
+    "intent_reason": "Bio only, no stated need for editing or posting",
+    "decision": "warm"
+  },
+  {
+    "id": "H06",
+    "person_type": "Dentist",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "high",
+    "fit_reason": "Dentist explicitly listed as independent professional who markets themselves",
+    "intent": "none",
+    "intent_reason": "Bio only, no stated need for editing or posting",
+    "decision": "warm"
+  },
+  {
+    "id": "H07",
+    "person_type": "Student",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Student explicitly excluded from types; listed in not_buyers",
+    "intent": "none",
+    "intent_reason": "No business or pipeline to grow",
+    "decision": "none"
+  },
+  {
+    "id": "H08",
+    "person_type": "Homebuyer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Consumer, does not sell anything; excluded from types",
+    "intent": "none",
+    "intent_reason": "Personal transaction, not business growth",
+    "decision": "none"
+  },
+  {
+    "id": "I01",
+    "person_type": "Listing photographer",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "high",
+    "fit_reason": "Photographer explicitly listed as independent professional who markets themselves",
+    "intent": "none",
+    "intent_reason": "Routine work: busy with normal photography jobs is ordinary; no stated need for video editing or posting",
+    "decision": "warm"
+  },
+  {
+    "id": "I02",
+    "person_type": "Property manager",
+    "sells_to_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "fit": "high",
+    "fit_reason": "Property management explicitly listed as small service business owner",
+    "intent": "none",
+    "intent_reason": "New asset (complex takeover) names a friction, but the friction is insurance costs, not editing for posting",
+    "decision": "warm"
+  },
+  {
+    "id": "I03",
+    "person_type": "Escrow officer",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "high",
+    "fit_reason": "Escrow officer explicitly listed as independent professional who markets themselves",
+    "intent": "none",
+    "intent_reason": "Routine work: being slammed with escrow orders is ordinary; CTA is to own customers, not personal need",
+    "decision": "warm"
+  },
+  {
+    "id": "I04",
+    "person_type": "Independent insurance claims adjuster",
+    "sells_to_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "fit": "medium",
+    "fit_reason": "Independent professional but not a typical marketer type; role and market positioning unclear",
+    "intent": "none",
+    "intent_reason": "Friction named is file management, not editing as a barrier to posting video",
+    "decision": "none"
+  },
+  {
+    "id": "I05",
+    "person_type": "Freelance video editor",
+    "sells_to_match": "creator, course seller, freelancer or one-person agency of ANY kind (a marketing or lead-gen agency, a coach, a graphic designer are customers here; they need video too)",
+    "fit": "high",
+    "fit_reason": "Perfect match: freelance video editor selling services",
+    "intent": "explicit",
+    "intent_reason": "Actively selling video editing (cut/caption/color) to others seeking the service",
+    "decision": "competitor"
+  }
+]

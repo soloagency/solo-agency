@@ -169,7 +169,7 @@ These live at the INSTALL root (the folder holding `daily-content-pipeline/`), n
 source checkout. They are thin pointers: absolute paths plus "go read the real contract". They
 carry no rules of their own, so they never drift from the playbooks.
 
-Create or verify them during setup step 5, during any Brain swap takeover, and during any
+Create or verify them during setup step 6, during any Brain swap takeover, and during any
 update flow. Both files are install-local operator state — never commit them to the product
 repo.
 

@@ -1,0 +1,1202 @@
+[
+  {
+    "id": "A01",
+    "person_type": "Real-estate agent (self-employed)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed professional operating in Irvine, CA; matches insurance client's type 2.",
+    "intent": "none",
+    "intent_reason": "Post shows routine real estate activity (listing, open house); no personal life change named that creates insurance need.",
+    "decision": "warm"
+  },
+  {
+    "id": "A02",
+    "person_type": "Mortgage loan officer",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed lender in California; matches type 2; independent operation implied by 'DM me for quote'.",
+    "intent": "none",
+    "intent_reason": "Post is routine business activity (rate update, advertising lending); no personal life change or business change named.",
+    "decision": "warm"
+  },
+  {
+    "id": "A03",
+    "person_type": "Insurance agent (self-employed)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed insurance professional in California; matches type 2.",
+    "intent": "none",
+    "intent_reason": "COMPETITOR — Step 2 override. Sells insurance policies to their own clients (saved 3 clients $40-60/mo on auto insurance rates). Same product, same market, solving customers' insurance problems.",
+    "decision": "competitor"
+  },
+  {
+    "id": "A04",
+    "person_type": "Salon owner (small business)",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "high",
+    "fit_reason": "Small salon business in Garden Grove, CA, operating 3 years; matches type 3.",
+    "intent": "none",
+    "intent_reason": "Post shows routine salon work (ombre nails) and thanks for 3-year support; no new asset, employee, policy change, or business change named.",
+    "decision": "warm"
+  },
+  {
+    "id": "A05",
+    "person_type": "SaaS founder (side project)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "medium",
+    "fit_reason": "Matches professional/founder category but location is unknown (no CA mentioned); cannot confirm in service area.",
+    "intent": "none",
+    "intent_reason": "Post shows revenue milestone on 2-year-old side project; this is growth of existing business, not a new asset, employee, or specific risk. No insurance friction named.",
+    "decision": "none"
+  },
+  {
+    "id": "A06",
+    "person_type": "Startup founder",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "Matches small business owner category; location unknown (no CA mentioned, posted in Vietnamese entrepreneurship group).",
+    "intent": "implied",
+    "intent_reason": "New employee hired full-time for video work. New employee creates change in business liability and workers' comp exposure — friction: 'changing what they run changes what they must insure.'",
+    "decision": "watch"
+  },
+  {
+    "id": "A07",
+    "person_type": "Marketing agency owner",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "high",
+    "fit_reason": "Small marketing agency operating in LA, California; has team; matches type 3.",
+    "intent": "none",
+    "intent_reason": "Post celebrates Q3 client wins (ROAS results); routine business activity for agency. No personal or business life change named.",
+    "decision": "warm"
+  },
+  {
+    "id": "A08",
+    "person_type": "Freelance video editor",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "medium",
+    "fit_reason": "Matches professional/freelancer category; location unknown (no CA mentioned; comment in Vietnamese community).",
+    "intent": "none",
+    "intent_reason": "Post shows routine freelance work (fast turnaround video edit for real estate client); no personal or business life change.",
+    "decision": "none"
+  },
+  {
+    "id": "A09",
+    "person_type": "Marketing coach / consultant",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "medium",
+    "fit_reason": "Matches professional consultant category; location unknown (no CA mentioned).",
+    "intent": "none",
+    "intent_reason": "Post announces client success story and program opening; routine coaching business activity. No personal or business life change for coach.",
+    "decision": "none"
+  },
+  {
+    "id": "A10",
+    "person_type": "Mindset coach",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "medium",
+    "fit_reason": "Matches professional coach category; location unknown (no CA mentioned).",
+    "intent": "none",
+    "intent_reason": "Post celebrates coaching client's achievement (price increase); routine coaching work. No personal or business life change for coach.",
+    "decision": "none"
+  },
+  {
+    "id": "A11",
+    "person_type": "clinic or dental practice owner",
+    "sells_to_match": "owner of ANY small business in California (e.g. clinic)",
+    "fit": "high",
+    "fit_reason": "Small business clinic owner in California",
+    "intent": "none",
+    "intent_reason": "Extended Saturday hours is routine operational scheduling, not a coverage change trigger",
+    "decision": "warm"
+  },
+  {
+    "id": "A12",
+    "person_type": "professional or business owner managing employee visa matters",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "medium",
+    "fit_reason": "Professional with business context likely, but California location unconfirmed",
+    "intent": "none",
+    "intent_reason": "Information sharing about regulatory change; no personal business launch or change described",
+    "decision": "none"
+  },
+  {
+    "id": "A13",
+    "person_type": "auto shop owner/operator",
+    "sells_to_match": "owner of ANY small business in California (e.g. auto shop)",
+    "fit": "high",
+    "fit_reason": "Auto shop owner in California",
+    "intent": "none",
+    "intent_reason": "High volume is routine business operation, not a coverage change; no new asset, employee, or risk awareness",
+    "decision": "warm"
+  },
+  {
+    "id": "A14",
+    "person_type": "wedding photographer",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. photographer)",
+    "fit": "high",
+    "fit_reason": "Self-employed photographer in California",
+    "intent": "none",
+    "intent_reason": "Booking more work is growth of existing business; no new business launch or coverage trigger",
+    "decision": "warm"
+  },
+  {
+    "id": "A15",
+    "person_type": "restaurant owner/operator",
+    "sells_to_match": "owner of ANY small business in California (e.g. restaurant)",
+    "fit": "high",
+    "fit_reason": "Restaurant owner in California",
+    "intent": "none",
+    "intent_reason": "New menu item is routine product expansion of existing business, not a coverage trigger",
+    "decision": "warm"
+  },
+  {
+    "id": "A16",
+    "person_type": "HVAC contractor or installer",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. contractor)",
+    "fit": "high",
+    "fit_reason": "Self-employed contractor in California",
+    "intent": "none",
+    "intent_reason": "Job completion is routine work, no new business launch or risk awareness",
+    "decision": "warm"
+  },
+  {
+    "id": "A17",
+    "person_type": "tutoring center owner",
+    "sells_to_match": "owner of ANY small business in California (e.g. tutoring center)",
+    "fit": "high",
+    "fit_reason": "Tutoring center owner in California (Orange County)",
+    "intent": "none",
+    "intent_reason": "New SAT program is product-line expansion of existing center, not a new business launch or coverage trigger",
+    "decision": "warm"
+  },
+  {
+    "id": "A18",
+    "person_type": "fitness coach",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. coach)",
+    "fit": "high",
+    "fit_reason": "Self-employed coach in California",
+    "intent": "none",
+    "intent_reason": "Filling coaching spots is routine business growth, not a coverage trigger",
+    "decision": "warm"
+  },
+  {
+    "id": "A19",
+    "person_type": "real estate agent",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. real-estate agent)",
+    "fit": "high",
+    "fit_reason": "Real estate agent in California",
+    "intent": "none",
+    "intent_reason": "New listing is routine agent work, not a personal coverage trigger",
+    "decision": "warm"
+  },
+  {
+    "id": "A20",
+    "person_type": "real estate agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Realtor in Texas, outside California service area; no move into service area indicated",
+    "intent": "none",
+    "intent_reason": "Routine agent business outside service area",
+    "decision": "none"
+  },
+  {
+    "id": "A21",
+    "person_type": "Mortgage loan officer (MLO), self-employed, California",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "fit": "high",
+    "fit_reason": "Self-employed loan officer explicitly in California offering pre-approvals to customers",
+    "intent": "none",
+    "intent_reason": "Discussing mortgage rates and customer pre-approvals is routine professional activity, not a change in personal or business insurance risk",
+    "decision": "warm"
+  },
+  {
+    "id": "A22",
+    "person_type": "Insurance agent, self-employed",
+    "sells_to_match": "competitor",
+    "fit": "high",
+    "fit_reason": "Insurance professional actively selling policies to customers",
+    "intent": "explicit",
+    "intent_reason": "Actively updating insurance policies for customers weekly",
+    "decision": "competitor"
+  },
+  {
+    "id": "A23",
+    "person_type": "Nail salon owner, Westminster (Orange County, California)",
+    "sells_to_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
+    "fit": "high",
+    "fit_reason": "Salon owner in California Orange County area, explicit match to small business type",
+    "intent": "none",
+    "intent_reason": "Describing daily nail salon services and walk-in hours is routine business operation with no change in business risk",
+    "decision": "warm"
+  },
+  {
+    "id": "A24",
+    "person_type": "Auto detailing/ceramic coating service owner, Orange County, California",
+    "sells_to_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
+    "fit": "high",
+    "fit_reason": "Auto detailing business owner in Orange County, explicit match to small business type",
+    "intent": "none",
+    "intent_reason": "Completing jobs and managing weekly bookings is routine business operation with no change in risk profile",
+    "decision": "warm"
+  },
+  {
+    "id": "A25",
+    "person_type": "Wedding and event videographer, self-employed, Orange County, California",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "fit": "high",
+    "fit_reason": "Self-employed videographer in California, explicit match to professional type",
+    "intent": "none",
+    "intent_reason": "Professional bio stating service type and booking year shows no current life or business change",
+    "decision": "warm"
+  },
+  {
+    "id": "A26",
+    "person_type": "Real estate agent, self-employed, Orange County, California",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "fit": "high",
+    "fit_reason": "Real estate agent explicitly in California service area, direct match to professional type",
+    "intent": "none",
+    "intent_reason": "Professional bio statement with no indication of personal life change or business risk change",
+    "decision": "warm"
+  },
+  {
+    "id": "A27",
+    "person_type": "Licensed insurance agent, California",
+    "sells_to_match": "competitor",
+    "fit": "high",
+    "fit_reason": "Insurance professional explicitly holding life and health agent license in California",
+    "intent": "explicit",
+    "intent_reason": "Licensed insurance agent actively selling insurance coverage",
+    "decision": "competitor"
+  },
+  {
+    "id": "A28",
+    "person_type": "Creator/designer launching hoodie product line, location unknown",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Location not specified in post; person outside confirmed California area is low fit unless moving in; unclear if California resident",
+    "intent": "implied",
+    "intent_reason": "Launching new product venture creates new business asset and inventory requiring business protection and coverage",
+    "decision": "none"
+  },
+  {
+    "id": "A29",
+    "person_type": "Restaurant owner, Garden Grove (Orange County, California), expanding operations",
+    "sells_to_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
+    "fit": "high",
+    "fit_reason": "Restaurant owner in Orange County, explicit match to small business type",
+    "intent": "implied",
+    "intent_reason": "Newly expanded weekend operating hours (8am-9pm) change business operations and risk profile triggering coverage review",
+    "decision": "hot"
+  },
+  {
+    "id": "A30",
+    "person_type": "Veterinary clinic owner, San Jose, California",
+    "sells_to_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
+    "fit": "high",
+    "fit_reason": "Veterinary clinic owner in California, explicit match to small business type",
+    "intent": "none",
+    "intent_reason": "Describing available appointments for routine vaccines is normal clinic operations with no change in business scope or risk",
+    "decision": "warm"
+  },
+  {
+    "id": "B01",
+    "person_type": "first-time homebuyer in California",
+    "sells_to_match": "person in California with a new asset",
+    "fit": "high",
+    "fit_reason": "new asset (home purchase) in California triggers insurance need",
+    "intent": "implied",
+    "intent_reason": "asking realtor/lender blocks explicit, but new asset creates coverage trigger",
+    "decision": "hot"
+  },
+  {
+    "id": "B02",
+    "person_type": "new homeowner in California",
+    "sells_to_match": "person in California with a new asset",
+    "fit": "high",
+    "fit_reason": "new asset (recently purchased home) in California",
+    "intent": "explicit",
+    "intent_reason": "directly asking for home insurance agent recommendation",
+    "decision": "hot"
+  },
+  {
+    "id": "B03",
+    "person_type": "homeowner seeking mortgage refinance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "refinancing is financing matter, not a coverage change trigger",
+    "intent": "none",
+    "intent_reason": "asking for loan officer, not insurance; refinance does not trigger coverage need",
+    "decision": "none"
+  },
+  {
+    "id": "B04",
+    "person_type": "first-time homebuyer in California with offer pending",
+    "sells_to_match": "person in California with a new asset",
+    "fit": "high",
+    "fit_reason": "new asset imminent (offer made, purchase closing); in California",
+    "intent": "implied",
+    "intent_reason": "asking realtor blocks explicit intent, but new asset creates coverage trigger",
+    "decision": "hot"
+  },
+  {
+    "id": "B05",
+    "person_type": "homeowner seeking refinance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "refinancing is financing, not coverage change",
+    "intent": "none",
+    "intent_reason": "asking for loan officer, no insurance trigger",
+    "decision": "none"
+  },
+  {
+    "id": "B06",
+    "person_type": "homeowner needing home repair",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "water heater repair is maintenance, not new asset/dependent/address/job change",
+    "intent": "none",
+    "intent_reason": "asking for plumber service, no coverage need stated or implied",
+    "decision": "none"
+  },
+  {
+    "id": "B07",
+    "person_type": "parent seeking tutoring service",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "no match to insurance buyer types",
+    "intent": "none",
+    "intent_reason": "asking for tutor, unrelated to insurance",
+    "decision": "none"
+  },
+  {
+    "id": "B08",
+    "person_type": "parent with new dependent in California",
+    "sells_to_match": "person in California with a new dependent",
+    "fit": "high",
+    "fit_reason": "new dependent (newborn baby) in California; explicitly mentioned outdated policy",
+    "intent": "explicit",
+    "intent_reason": "directly asking for insurance agent; stating policy is outdated and needs update",
+    "decision": "hot"
+  },
+  {
+    "id": "B09",
+    "person_type": "homeowner relocating for work in California",
+    "sells_to_match": "person in California with a new address",
+    "fit": "high",
+    "fit_reason": "new address (moving for job) in California triggers coverage review",
+    "intent": "implied",
+    "intent_reason": "asking realtor blocks explicit intent, but relocation creates new insurance situation",
+    "decision": "hot"
+  },
+  {
+    "id": "B10",
+    "person_type": "person recently relocated to California",
+    "sells_to_match": "person in California with a new address",
+    "fit": "high",
+    "fit_reason": "recent relocation to Newport Beach, California; new address is stated change",
+    "intent": "implied",
+    "intent_reason": "bio states relocation (change); new address affects coverage needs",
+    "decision": "hot"
+  },
+  {
+    "id": "B11",
+    "person_type": "Person relocating from Austin to possibly Southern California",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "medium",
+    "fit_reason": "Possibly moving to California but uncertainty ('maybe not') hedges the location commitment",
+    "intent": "implied",
+    "intent_reason": "New address/housing change creates insurance need; sold condo and relocating",
+    "decision": "watch"
+  },
+  {
+    "id": "B12",
+    "person_type": "Homeowner in Westminster seeking refinancing information",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Explicitly asking for lender, not insurance; refinancing is a loan need not a coverage review",
+    "intent": "none",
+    "intent_reason": "Asking for loan officer contacts, no insurance need expressed",
+    "decision": "none"
+  },
+  {
+    "id": "B13",
+    "person_type": "Homeowner in Anaheim Hills concerned about wildfire coverage",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "high",
+    "fit_reason": "California homeowner with newly identified risk (wildfires affecting their area)",
+    "intent": "explicit",
+    "intent_reason": "Directly asking for insurance agent to review policy due to coverage concerns from wildfire risk",
+    "decision": "hot"
+  },
+  {
+    "id": "B14",
+    "person_type": "First-time homebuyer in Orange County",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "medium",
+    "fit_reason": "First-time buyer in CA (Tustin/Irvine) but purchase not yet completed; asking for realtor not insurance",
+    "intent": "none",
+    "intent_reason": "Asking for realtor recommendations, no expressed insurance need",
+    "decision": "none"
+  },
+  {
+    "id": "B15",
+    "person_type": "Claims adjuster employed by insurance company",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance industry employee acting for insurer, explicitly listed in not_buyers",
+    "intent": "none",
+    "intent_reason": "No personal insurance or business need indicated",
+    "decision": "none"
+  },
+  {
+    "id": "C01",
+    "person_type": "Real estate agent in Austin, Texas",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Outside California jurisdiction; asking about video editing not insurance",
+    "intent": "none",
+    "intent_reason": "No insurance need; different service request (video editing)",
+    "decision": "none"
+  },
+  {
+    "id": "C02",
+    "person_type": "Nail salon owner in California, recently opened",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "high",
+    "fit_reason": "Small business owner in California matches type exactly",
+    "intent": "none",
+    "intent_reason": "Asking about finding customers and marketing, not expressing insurance need",
+    "decision": "warm"
+  },
+  {
+    "id": "C03",
+    "person_type": "Personal trainer operating one-person gym",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "Small business owner type matches but location (California) not confirmed",
+    "intent": "none",
+    "intent_reason": "Asking about CRM for client follow-up, no insurance need expressed",
+    "decision": "none"
+  },
+  {
+    "id": "C04",
+    "person_type": "Wedding photographer",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "medium",
+    "fit_reason": "Self-employed professional type matches but location unclear",
+    "intent": "none",
+    "intent_reason": "Asking about wedding bookings and follow-up system, no insurance need",
+    "decision": "none"
+  },
+  {
+    "id": "C05",
+    "person_type": "Loan officer in Orange County",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed professional in California (Orange County) matches type",
+    "intent": "none",
+    "intent_reason": "Asking for content generation help for own customer outreach, not expressing personal insurance need",
+    "decision": "warm"
+  },
+  {
+    "id": "C06",
+    "person_type": "insurance agent (self-employed professional)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed insurance professional in California insurance community; perfect membership match",
+    "intent": "none",
+    "intent_reason": "Seeking help with posting, not with coverage; no insurance friction named",
+    "decision": "competitor"
+  },
+  {
+    "id": "C07",
+    "person_type": "contractor/plumbing business owner",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "low",
+    "fit_reason": "Right type of person but no location stated when California is required",
+    "intent": "none",
+    "intent_reason": "Asking about AI follow-up tool for customers, not insurance coverage need",
+    "decision": "none"
+  },
+  {
+    "id": "C08",
+    "person_type": "fitness studio owner/instructor (self-employed)",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "Right type of small business owner but location unclear when California is required",
+    "intent": "none",
+    "intent_reason": "Seeking Instagram/content posting help; no insurance trigger or coverage friction named",
+    "decision": "none"
+  },
+  {
+    "id": "C09",
+    "person_type": "freelancer/consultant (newly self-employed, 3 months)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "medium",
+    "fit_reason": "Right type of person but location not stated and on worldwide X platform; location is required for California insurance service",
+    "intent": "none",
+    "intent_reason": "Seeking client-finding system for their business; no insurance or coverage friction named",
+    "decision": "none"
+  },
+  {
+    "id": "C10",
+    "person_type": "real estate agent in Orange County, CA",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Explicitly self-employed professional in California (Orange County stated)",
+    "intent": "none",
+    "intent_reason": "Seeking video editing app for listing content; no insurance friction or coverage change named",
+    "decision": "warm"
+  },
+  {
+    "id": "C11",
+    "person_type": "chiropractor/clinic owner (self-employed small business)",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "Right type of small business owner but location not explicitly stated on Instagram profile",
+    "intent": "none",
+    "intent_reason": "Seeking content/follow-up management system; no insurance coverage or protection change named",
+    "decision": "none"
+  },
+  {
+    "id": "C12",
+    "person_type": "salon owner in Westminster, CA",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "high",
+    "fit_reason": "Small business owner explicitly located in Westminster, California",
+    "intent": "none",
+    "intent_reason": "Bio-only profile row; no stated change in assets, dependents, address, or business coverage need",
+    "decision": "warm"
+  },
+  {
+    "id": "C13",
+    "person_type": "loan officer/credit specialist in Orange County, CA",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Explicitly self-employed professional in California (Orange County stated); self-employed professionals in any trade are customers",
+    "intent": "none",
+    "intent_reason": "Bio-only profile row; no stated life change or coverage friction",
+    "decision": "warm"
+  },
+  {
+    "id": "C14",
+    "person_type": "spa owner (small business owner)",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "high",
+    "fit_reason": "Small business owner clearly located in California (community name 'Cong Dong Nail & Spa Viet Tai California')",
+    "intent": "none",
+    "intent_reason": "Seeking customer retention and customer-finding help; no insurance coverage, new asset, or protection friction named",
+    "decision": "warm"
+  },
+  {
+    "id": "C15",
+    "person_type": "real estate agent in Sacramento, CA",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Explicitly self-employed professional in California (Sacramento stated)",
+    "intent": "none",
+    "intent_reason": "Seeking CRM for real estate lead tracking; no insurance friction or coverage change named",
+    "decision": "warm"
+  },
+  {
+    "id": "D01",
+    "person_type": "Real estate agent (self-employed professional)",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "fit": "high",
+    "fit_reason": "Self-employed professional in California (Irvine) selling to others",
+    "intent": "none",
+    "intent_reason": "Struggling with a listing is routine work, not an insurance trigger",
+    "decision": "warm"
+  },
+  {
+    "id": "D02",
+    "person_type": "Small business owner (nail salon operator expanding)",
+    "sells_to_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
+    "fit": "high",
+    "fit_reason": "Small business owner in California (Garden Grove) opening second location",
+    "intent": "implied",
+    "intent_reason": "New business location creates new asset requiring coverage review",
+    "decision": "hot"
+  },
+  {
+    "id": "D03",
+    "person_type": "New mother",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "medium",
+    "fit_reason": "New dependent is exactly what types lists, but location is unclear (community name has no geographic marker)",
+    "intent": "implied",
+    "intent_reason": "New dependent (twin pregnancy) is exactly what types lists as trigger; naming it names the friction",
+    "decision": "watch"
+  },
+  {
+    "id": "D04",
+    "person_type": "SaaS founder (bootstrapped startup)",
+    "sells_to_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
+    "fit": "medium",
+    "fit_reason": "Small business owner type matches, but location is not stated; no evidence of California",
+    "intent": "none",
+    "intent_reason": "Friction is about video editing, not insurance coverage or life changes affecting what to protect",
+    "decision": "none"
+  },
+  {
+    "id": "D05",
+    "person_type": "Person dealing with DUI consequences",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "high",
+    "fit_reason": "Person in California (Orange County) with rising auto insurance policy and newly aware risk (DUI)",
+    "intent": "explicit",
+    "intent_reason": "Explicitly complains about insurance rates doubled after DUI; complaining about exactly this provider/offer",
+    "decision": "hot"
+  },
+  {
+    "id": "D06",
+    "person_type": "Freelance graphic designer (just quit corporate job)",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "fit": "medium",
+    "fit_reason": "Self-employed freelancer matches type, but location is not stated; no evidence of California",
+    "intent": "none",
+    "intent_reason": "Friction is about marketing and finding customers, not insurance coverage changes",
+    "decision": "none"
+  },
+  {
+    "id": "D07",
+    "person_type": "Real estate agent",
+    "sells_to_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "fit": "medium",
+    "fit_reason": "Real estate agent type matches, but location is unclear (community is USA-wide, not California-specific)",
+    "intent": "none",
+    "intent_reason": "Friction is about being stuck with a 7% loan rate; refinancing is not an insurance trigger",
+    "decision": "none"
+  },
+  {
+    "id": "D08",
+    "person_type": "Small business owner (nail salon)",
+    "sells_to_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
+    "fit": "high",
+    "fit_reason": "Small business owner in California (Fountain Valley) running an established salon",
+    "intent": "none",
+    "intent_reason": "Profile-only row with no text; bio states who they are and location but no change or need",
+    "decision": "warm"
+  },
+  {
+    "id": "D09",
+    "person_type": "Pregnant person expecting twins",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "high",
+    "fit_reason": "Person in California (Orange County) with new dependents (twins) coming, exactly matching types",
+    "intent": "implied",
+    "intent_reason": "New dependents (twins) are exactly what types lists as trigger; naming this change names the friction",
+    "decision": "hot"
+  },
+  {
+    "id": "D10",
+    "person_type": "Person relocating for a new job",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "high",
+    "fit_reason": "Person with new job and new address (moving into California/Irvine), exactly matching types",
+    "intent": "implied",
+    "intent_reason": "New job and new address in California are exactly what types lists as triggers; naming these changes names the friction",
+    "decision": "hot"
+  },
+  {
+    "id": "D11",
+    "person_type": "small business owner (food truck)",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "matches small business owner type, but location unclear (Vietnamese food truck local community could be anywhere)",
+    "intent": "implied",
+    "intent_reason": "new food truck asset creates new business insurance needs (liability, vehicle coverage); text shows new ownership and overwhelm about new business risks",
+    "decision": "watch"
+  },
+  {
+    "id": "D12",
+    "person_type": "homeowner in California planning home addition",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "high",
+    "fit_reason": "located in Costa Mesa, Orange County CA; ADU construction is a clear new asset triggering insurance review",
+    "intent": "implied",
+    "intent_reason": "ADU is a new structure on property creating new liability and property coverage needs; friction named by new asset",
+    "decision": "hot"
+  },
+  {
+    "id": "D13",
+    "person_type": "small business owner who just hired first employee",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "clear small business owner match, but location not stated (group name does not indicate state)",
+    "intent": "implied",
+    "intent_reason": "first employee is a new business condition requiring workers' compensation and updated liability coverage; text acknowledges major business change",
+    "decision": "watch"
+  },
+  {
+    "id": "D14",
+    "person_type": "homeowner with rising insurance costs",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "medium",
+    "fit_reason": "matches rising policy situation if in California, but location unclear (Vietnamese business community in America, not confirmed as CA)",
+    "intent": "none",
+    "intent_reason": "text shows routine annual rate complaint and confusion about premium increase, not seeking insurance help or review; matches why_they_need description of prices moving every year (routine observation, not trigger)",
+    "decision": "none"
+  },
+  {
+    "id": "D15",
+    "person_type": "software engineer relocating to California",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "software engineer employee does not match any insurance types (requires self-employed professional or business owner); employee status is the blocking factor",
+    "intent": "none",
+    "intent_reason": "bio-only profile with relocation stated, but moving alone does not trigger insurance need for non-self-employed person; employee has no business insurance friction",
+    "decision": "none"
+  },
+  {
+    "id": "E01",
+    "person_type": "marketing and lead generation agency founder",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "small business owner (LeadFlowPro), but location not stated; Instagram business audience provides no geographic indicator",
+    "intent": "none",
+    "intent_reason": "posting about client win and testimonial video is routine business activity; no change in their business, no new asset or risk described; matches rule that client wins stay none",
+    "decision": "none"
+  },
+  {
+    "id": "E02",
+    "person_type": "lead generation service provider for realtors",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "small business owner running lead generation service, but location unclear (Vietnamese business community in America, not confirmed as California)",
+    "intent": "none",
+    "intent_reason": "text is service promotion and advertising to realtor segment; routine business activity with no change in their own business structure or new risk described",
+    "decision": "none"
+  },
+  {
+    "id": "E03",
+    "person_type": "AI startup founder (video editing app)",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "small business/startup owner, but location unclear (X content creator audience provides no geographic indicator)",
+    "intent": "none",
+    "intent_reason": "text announces product launch and free trial offer; routine startup business activity with no change in their own business requiring insurance review",
+    "decision": "none"
+  },
+  {
+    "id": "E04",
+    "person_type": "AI startup founder (video editing app)",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "small business/startup owner, but location unclear (Vietnamese content creator community, no geographic indicator)",
+    "intent": "none",
+    "intent_reason": "text is product launch announcement; routine startup business activity with no change in their own business structure or new risk described",
+    "decision": "none"
+  },
+  {
+    "id": "E05",
+    "person_type": "real estate agent in Southern California",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "self-employed realtor clearly serving Orange County and Los Angeles, California with broker license; exact location and profession match",
+    "intent": "none",
+    "intent_reason": "text discusses tight market inventory and buyer pipeline as routine business observation; market conditions and client activity are routine work for realtor, no change in personal business risk",
+    "decision": "warm"
+  },
+  {
+    "id": "E06",
+    "person_type": "Real-estate agent (self-employed, Orange County)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed realtor in California (OC & LA area)",
+    "intent": "none",
+    "intent_reason": "Routine market commentary, no personal change that creates new coverage need",
+    "decision": "warm"
+  },
+  {
+    "id": "E07",
+    "person_type": "Licensed insurance agent (auto, home, business)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Matches self-employed professional in California, but is seller of same service",
+    "intent": "none",
+    "intent_reason": "Not applicable; competitor status overrides matrix",
+    "decision": "competitor"
+  },
+  {
+    "id": "E08",
+    "person_type": "Licensed insurance agent (auto, home, business)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Matches self-employed professional in California, serves Vietnamese community in CA",
+    "intent": "none",
+    "intent_reason": "Not applicable; competitor status overrides matrix",
+    "decision": "competitor"
+  },
+  {
+    "id": "E09",
+    "person_type": "Mortgage loan officer (self-employed, California)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed professional in California match",
+    "intent": "none",
+    "intent_reason": "Routine lending work and rate updates, no personal change triggering insurance review",
+    "decision": "warm"
+  },
+  {
+    "id": "E10",
+    "person_type": "Mortgage loan officer (self-employed, California)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed professional in California (Nam California)",
+    "intent": "none",
+    "intent_reason": "Routine lending work offering refinance consultations, no personal change",
+    "decision": "warm"
+  },
+  {
+    "id": "E11",
+    "person_type": "Marketing coach / business service provider",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "medium",
+    "fit_reason": "Self-employed professional type but location in California is unclear",
+    "intent": "none",
+    "intent_reason": "Selling service to solo entrepreneurs, no personal change or new coverage need named",
+    "decision": "none"
+  },
+  {
+    "id": "E12",
+    "person_type": "Marketing coach (Vietnamese community)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "medium",
+    "fit_reason": "Self-employed professional type but location in California is unclear",
+    "intent": "none",
+    "intent_reason": "Bio-only profile describing service, no change or need stated",
+    "decision": "none"
+  },
+  {
+    "id": "F01",
+    "person_type": "Unknown / meme poster",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Meme post, no evidence of business ownership or professional status",
+    "intent": "none",
+    "intent_reason": "Meme post is noise per rule",
+    "decision": "none"
+  },
+  {
+    "id": "F02",
+    "person_type": "Unknown / political commenter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Political discussion about property taxes, no business signal",
+    "intent": "none",
+    "intent_reason": "Political post is noise per rule",
+    "decision": "none"
+  },
+  {
+    "id": "F03",
+    "person_type": "Job seeker / aspiring loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Job seeker with no current business ownership or self-employment",
+    "intent": "none",
+    "intent_reason": "Job seeker is noise per rule, not a current buyer",
+    "decision": "none"
+  },
+  {
+    "id": "F04",
+    "person_type": "Salon owner in Orange County",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "high",
+    "fit_reason": "Salon owner in Garden Grove (Orange County) matches small-business owner type; location confirmed",
+    "intent": "implied",
+    "intent_reason": "New employee hire changes business insurance coverage needs (liability, workers comp)",
+    "decision": "hot"
+  },
+  {
+    "id": "F05",
+    "person_type": "Student",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Student is explicitly in not_buyers list; no business or professional context",
+    "intent": "none",
+    "intent_reason": "Personal complaint about finals; no insurance need",
+    "decision": "none"
+  },
+  {
+    "id": "F06",
+    "person_type": "Spam post",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Scam content (free iPhone giveaway) with no legitimate business context",
+    "intent": "none",
+    "intent_reason": "Spam/scam, not a real person or business",
+    "decision": "none"
+  },
+  {
+    "id": "F07",
+    "person_type": "MLM recruiter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "MLM/crypto recruitment pitch, not a legitimate professional or business owner",
+    "intent": "none",
+    "intent_reason": "Multi-level marketing recruitment, not insurance need",
+    "decision": "none"
+  },
+  {
+    "id": "F08",
+    "person_type": "Person in Orange County, parent of 2",
+    "sells_to_match": "person in California with a new dependent",
+    "fit": "medium",
+    "fit_reason": "Person in California with dependents, but no evidence of NEW child or business ownership",
+    "intent": "none",
+    "intent_reason": "Generic motivational post; no new asset, dependent, job change, or self-employment trigger",
+    "decision": "none"
+  },
+  {
+    "id": "F09",
+    "person_type": "MLM recruiter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Work-from-home recruitment pitch; not a legitimate business owner or professional",
+    "intent": "none",
+    "intent_reason": "MLM recruitment post, not insurance need",
+    "decision": "none"
+  },
+  {
+    "id": "F10",
+    "person_type": "HR manager at large corporation",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "HR employee (500+ company) is explicitly in not_buyers; not self-employed or small business",
+    "intent": "none",
+    "intent_reason": "Corporate hiring post; employee status does not trigger insurance need",
+    "decision": "none"
+  },
+  {
+    "id": "F11",
+    "person_type": "Person commenting on politics",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Political commentary post; no indication of profession, business, or business context",
+    "intent": "none",
+    "intent_reason": "Political post unrelated to insurance needs",
+    "decision": "none"
+  },
+  {
+    "id": "F12",
+    "person_type": "Job seeker",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Job seeker is explicitly in not_buyers; currently unemployed, not self-employed or small business owner",
+    "intent": "none",
+    "intent_reason": "Job seeker post; no business ownership or professional context",
+    "decision": "none"
+  },
+  {
+    "id": "G01",
+    "person_type": "Homeowner in Orange County",
+    "sells_to_match": "person in California with a new asset",
+    "fit": "medium",
+    "fit_reason": "Person in California (Orange County) likely with property, but no evidence of NEW purchase or business",
+    "intent": "none",
+    "intent_reason": "Explicitly rejecting outreach; no evidence of new transaction or life change triggering insurance need",
+    "decision": "none"
+  },
+  {
+    "id": "G02",
+    "person_type": "Consumer who just purchased auto insurance",
+    "sells_to_match": "person in California with a new asset",
+    "fit": "medium",
+    "fit_reason": "New asset (vehicle) in CA community, but explicit rejection of further contact",
+    "intent": "none",
+    "intent_reason": "Explicit rejection: already purchased and refuses further introductions ('không cần giới thiệu thêm nữa')",
+    "decision": "none"
+  },
+  {
+    "id": "G03",
+    "person_type": "Homeowner, not in transaction mode",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No life change creating insurance need; explicitly not selling and blocking contact",
+    "intent": "none",
+    "intent_reason": "Explicit rejection of solicitation: not selling, requests no contact",
+    "decision": "none"
+  },
+  {
+    "id": "G04",
+    "person_type": "First-time homebuyer",
+    "sells_to_match": "person in California with a new asset, new dependent, new address, new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "fit": "high",
+    "fit_reason": "New home purchase is a new asset and new address; posted in California Vietnamese community, recent transaction (2024)",
+    "intent": "implied",
+    "intent_reason": "New home ownership is the new asset creating need for homeowners insurance; types list new address as trigger",
+    "decision": "hot"
+  },
+  {
+    "id": "G05",
+    "person_type": "Loan officer (self-employed professional)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed professional managing own pipeline in Southern California group; profession fits 'ANY trade'",
+    "intent": "none",
+    "intent_reason": "Routine work: quoting rates and managing client pipeline is standard business activity, not a change creating insurance need",
+    "decision": "warm"
+  },
+  {
+    "id": "G06",
+    "person_type": "Founder of one-person startup",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "medium",
+    "fit_reason": "Founder of small business, but location not stated and explicit rejection of pitches",
+    "intent": "none",
+    "intent_reason": "Explicit rejection: declines all pitches ('mọi người đừng pitch nữa nha')",
+    "decision": "none"
+  },
+  {
+    "id": "G07",
+    "person_type": "Homeowner who refinanced",
+    "sells_to_match": "none",
+    "fit": "medium",
+    "fit_reason": "Homeowner in CA, but refinancing is not a listed trigger for insurance need; situation settled",
+    "intent": "none",
+    "intent_reason": "Refinancing is a settled financial transaction, not a new change creating insurance need; person expresses relief that situation is resolved",
+    "decision": "none"
+  },
+  {
+    "id": "G08",
+    "person_type": "Retired realtor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No match to types: not self-employed, not running a business (retired), no life change creating insurance need",
+    "intent": "none",
+    "intent_reason": "Bio only; describes past profession, not current business or life change",
+    "decision": "none"
+  },
+  {
+    "id": "H01",
+    "person_type": "Real estate agent (employed at brokerage)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Employed by Compass brokerage, not self-employed; does not match 'self-employed professional' or 'business owner' types",
+    "intent": "none",
+    "intent_reason": "Bio only; no indication of self-employment or business ownership",
+    "decision": "none"
+  },
+  {
+    "id": "H02",
+    "person_type": "Mortgage Loan Officer (self-employed professional)",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed MLO in California (Irvine/OC); fits 'self-employed professional' type",
+    "intent": "none",
+    "intent_reason": "Bio only; 'helping families get home' describes routine professional work, not a change creating insurance need",
+    "decision": "warm"
+  },
+  {
+    "id": "H03",
+    "person_type": "SaaS founder",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "high",
+    "fit_reason": "Founder of small startup in California (Los Angeles); matches 'owner of ANY small business' type",
+    "intent": "none",
+    "intent_reason": "Bio only; 'building in public' describes routine business activity, not a change creating insurance need",
+    "decision": "warm"
+  },
+  {
+    "id": "H04",
+    "person_type": "salon owner in California",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "high",
+    "fit_reason": "Salon owner in California matches 'owner of ANY small business in California'",
+    "intent": "none",
+    "intent_reason": "Bio shows profession only, no life change or coverage need mentioned",
+    "decision": "warm"
+  },
+  {
+    "id": "H05",
+    "person_type": "insurance agent",
+    "sells_to_match": "none",
+    "fit": "high",
+    "fit_reason": "Insurance agent but seller, not buyer",
+    "intent": "none",
+    "intent_reason": "Sells insurance, same as client",
+    "decision": "competitor"
+  },
+  {
+    "id": "H06",
+    "person_type": "self-employed dentist in California",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed dentist in California matches 'self-employed professional of ANY trade in California'",
+    "intent": "none",
+    "intent_reason": "Bio shows profession only, no life change or coverage need mentioned",
+    "decision": "warm"
+  },
+  {
+    "id": "H07",
+    "person_type": "college student",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Student; not a business owner or self-employed professional",
+    "intent": "none",
+    "intent_reason": "Student with no independent business or life change",
+    "decision": "none"
+  },
+  {
+    "id": "H08",
+    "person_type": "newlywed starting home hunt in California",
+    "sells_to_match": "person in California with a new asset, a new dependent, a new address",
+    "fit": "high",
+    "fit_reason": "Newlywed looking to buy home in OC/LA; marriage creates new dependent and home purchase creates new asset/address",
+    "intent": "implied",
+    "intent_reason": "Marriage creates new dependent status; home purchase will trigger need for homeowners insurance",
+    "decision": "hot"
+  },
+  {
+    "id": "I01",
+    "person_type": "self-employed photographer in California",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Self-employed photographer in California matches 'self-employed professional of ANY trade in California'",
+    "intent": "none",
+    "intent_reason": "Busy with routine photography work; no coverage gap or life change mentioned",
+    "decision": "warm"
+  },
+  {
+    "id": "I02",
+    "person_type": "property manager in California",
+    "sells_to_match": "owner of ANY small business in California",
+    "fit": "high",
+    "fit_reason": "Property manager of commercial complex in California matches 'owner of ANY small business in California'",
+    "intent": "explicit",
+    "intent_reason": "Just took on new 24-unit property; insurance renewal due with increased quotes; actively seeking coverage solutions",
+    "decision": "hot"
+  },
+  {
+    "id": "I03",
+    "person_type": "escrow officer in California",
+    "sells_to_match": "self-employed professional of ANY trade in California",
+    "fit": "high",
+    "fit_reason": "Escrow officer in Orange County matches 'self-employed professional of ANY trade in California'",
+    "intent": "none",
+    "intent_reason": "Routine escrow work being slammed; no coverage gap or business change mentioned",
+    "decision": "warm"
+  },
+  {
+    "id": "I04",
+    "person_type": "insurance claims adjuster",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance industry claims staff explicitly in not_buyers",
+    "intent": "none",
+    "intent_reason": "Claims adjuster, not business owner or self-employed professional needing coverage",
+    "decision": "none"
+  },
+  {
+    "id": "I05",
+    "person_type": "video editor/freelancer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Freelancer with no evidence of California location",
+    "intent": "none",
+    "intent_reason": "Profile shows freelance service offering, no coverage gap or business change mentioned",
+    "decision": "none"
+  }
+]

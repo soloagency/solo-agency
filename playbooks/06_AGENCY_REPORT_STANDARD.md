@@ -21,7 +21,8 @@ contract, and the report-design skill controls visual quality.
 - Include reference URLs beside claims, ideas, leads, competitors, and drafts.
 - Every idea, best idea, comment, and draft must be audience-value-first: useful to the viewer before useful to the client's brand. Reject or rewrite direct product/service praise as `promotional_not_value_first`.
 - Do not create fake action buttons in static HTML.
-- Keep exactly one canonical client-facing report file per client/day/run. Daily/public/private HTML files must be generated as scrubbed staging inputs for lane isolation — exactly three staging files per client/day/run — but the file handed to the human/client or uploaded through a provider must be the combined `{client-name}-client-report.html`.
+- Keep exactly one canonical client-facing report file per client/day/run. Daily/public/private HTML files must be generated as scrubbed staging inputs (internal access mode, never spoken to the human) — exactly three staging files per client/day/run, never linked or shown to the human — but the file handed to the human/client or uploaded through a provider must be the combined `{client-name}-client-report.html`.
+- One report for all sources. The combined `{client-name}-client-report.html` reads as a single report organized by source (Google/Web, Facebook, Instagram, X, industry sites, custom URLs — only the ones that ran), with one `Lead & Competitor Opportunities` section. The words "public"/"private"/"lane" never appear in it.
 - Client-facing report files and the PDF companion must be client-blind: no Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled-task, API-key/config, Telegram, agent/tool/debug, or `INTERNAL_REPORT` details.
 - Every run must also create an operator-only `{client-name}-INTERNAL_REPORT.html` clearly labeled `INTERNAL_REPORT - Not for client sharing`.
 - Never let a later public/private pass overwrite or summarize away the other lane. Keep lane staging files separate for generation/state safety, then combine them into the one client-facing HTML report.
@@ -60,7 +61,7 @@ The HTML report must be created from the same facts, references, ideas, analysis
 
 ### Human-Facing Report Rule: HTML Plus PDF Companion
 
-The agent must show report results to the human as one combined HTML report and provide the PDF companion status/path in the same handoff. The PDF is a derivative of that same combined HTML; the daily/public/private HTML files are staging artifacts for automation updates, not separate files for the human to open.
+The agent must show report results to the human as one combined HTML report and provide the PDF companion status/path in the same handoff. The PDF is a derivative of that same combined HTML; the daily/public/private HTML files are internal working files for automation updates only — never linked, shown, or opened by the human.
 
 Do not show, send, link, or ask the human to open the Markdown report as the user-facing report.
 
@@ -106,7 +107,7 @@ Correct behavior:
 5. `{client-name}` must be a filesystem-safe client name/slug, lower-kebab preferred, for example `angela-do` or `aven-ngo`.
 6. The public and private staging HTML files are full lane reports, not summaries.
 7. The daily staging HTML file is the concise cover/index for the combined report, showing lane status, client-relevant blockers/limits, best next action, and delivery status without internal tooling details.
-8. The combined client-facing HTML must include the daily cover, full public lane, and full private lane/status in one standalone file. It must not require the reader to open or click into sibling HTML files.
+8. The combined client-facing HTML must include the daily cover plus the full Source Intelligence content/status, organized by source, in one standalone file — never presented as a public/private pair. It must not require the reader to open or click into sibling HTML files.
 9. The HTML may be custom structured and styled for readability, mobile scanning, editable draft review, and copy workflow.
 10. The client-facing HTML must not omit required client-relevant report sections that exist in the corresponding Markdown/source record, but it must scrub internal system/provider/collector details into `INTERNAL_REPORT`.
 11. If a Markdown/source record changes, update/regenerate only the affected lane staging HTML plus the daily index, then rebuild `{client-name}-client-report.html` and its PDF companion so the delivered HTML/PDF stay identical in content.
@@ -204,7 +205,7 @@ outputs/latest/{client-name}-client-report.html
 outputs/latest/{client-name}-client-report.pdf
 ```
 
-The latest client report file is the default client-ready convenience link. Daily/public/private latest files are staging/debug convenience copies and must not be the primary handoff unless the human explicitly asks for a lane-only diagnostic. The internal latest file is for the user/operator only. The PDF latest file is the mandatory client-ready companion deliverable when PDF generation is available and safe.
+The latest client report file is the default client-ready convenience link. Daily/public/private latest files are internal working/debug convenience copies and must never be linked, shown, or handed to the human — they exist for automation and troubleshooting only. The internal latest file is for the user/operator only. The PDF latest file is the mandatory client-ready companion deliverable when PDF generation is available and safe.
 
 ### Latest Override: Single Client Report Contract With Lane Staging
 
@@ -222,7 +223,7 @@ outputs/YYYY-MM/YYYY-MM-DD/{client-name}-private-data-sources-report.html
 outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.html
 ```
 
-File responsibilities:
+File responsibilities (these staging files are internal working files, never linked or shown to the human — the split below is an internal access mode, never spoken to the human):
 
 1. `{client-name}-public-data-sources-report.html`
    - Full public data sources report only.
@@ -232,7 +233,7 @@ File responsibilities:
 2. `{client-name}-private-data-sources-report.html`
    - Full private data sources report only.
    - Must contain private source coverage, safe summarized private evidence, private Lead & Competitor Opportunities, private idea matrix, best private idea, copy-ready comments when available, and private draft/recommendation.
-   - Must include a client-safe "Community discovery" subsection whenever the Facebook Discovery Pass ran this run, showing counts only (e.g. leads found, groups scanned) — no capability/tool names, no CRM link, and no "locked by plan" wording (client-blind rule). If `facebook_lead_source: web_only`, use the existing client-safe sentence instead (unchanged wording — the client never sees "Facebook" or "web_only"): "community/logged-in coverage was not included today, so lead counts may be lower than reality."
+   - Must include a client-safe "Community discovery" subsection whenever the Social Discovery Pass ran this run, one line per platform that actually ran (Facebook, Instagram, X), showing counts only per platform (e.g. leads found, groups scanned for Facebook; leads found, posts/people scanned for Instagram and X) — no capability/tool names, no CRM link, and no "locked by plan" wording (client-blind rule). For any platform at `{platform}_lead_source: web_only`, use the existing client-safe sentence for that platform's line instead (unchanged wording — the client never sees the platform name or "web_only"): "community/logged-in coverage was not included today, so lead counts may be lower than reality." A platform that did not run this run (not yet connected, or `pending`) is simply omitted from the subsection rather than shown with a sentence.
    - Must not contain Local Collector, Chrome extension, login/session, API, raw private post/member, or private source inventory details.
    - Must not rewrite or summarize the public data sources report.
 
@@ -245,43 +246,43 @@ File responsibilities:
 
 4. `{client-name}-client-report.html`
    - The only default client-facing HTML handoff/upload file.
-   - Must include the daily cover plus the full public and private lane content/status in one standalone HTML file.
-   - Must not require the reader to open `daily-report.html`, `public-data-sources-report.html`, or `private-data-sources-report.html`.
+   - Must include the daily cover plus the full Source Intelligence content/status in one standalone HTML file, organized by source — never presented as a public/private pair.
+   - Must not require the reader to open `daily-report.html`, `public-data-sources-report.html`, or `private-data-sources-report.html` — these stay internal working files, never linked or shown to the human.
    - Must not contain sibling-file links to those staging files; rewrite them to internal anchors or section labels during packaging.
 
 This lane structure governs the two lane staging files (`{client-name}-public-data-sources-report.html` and `{client-name}-private-data-sources-report.html`).
 
 Before generating any Lead & Competitor Opportunities section in either lane, load `playbooks/10_LEAD_COMPETITOR_DETECTION.md` (Stage 10, print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md`).
 
-Both full lane reports must use the same structure:
+The unified Source Intelligence section must use the same structure regardless of which sources contributed to it:
 
-- Source coverage and data quality.
-- Data points and evidence ledger.
-- Lead & Competitor Opportunities for that lane.
+- Source coverage and data quality, per source.
+- Data points and evidence ledger, per source.
+- One combined Lead & Competitor Opportunities section, grouped by source.
 - Idea Matrix.
-- Best idea for that lane.
-- Draft/recommendation for that lane.
-- Client-relevant blockers/limits, skipped public sources or safely summarized private coverage limits, and confidence notes.
+- Best idea.
+- Draft/recommendation.
+- Client-relevant blockers/limits (a source not yet connected, or safely summarized coverage limits), and confidence notes.
 
-Every Idea Matrix entry and the best idea in each lane must pass the Audience Value-First Gate (teach something, prevent a mistake, improve a decision, or reduce a risk/cost/confusion for the audience). Direct client/product promotion without a standalone audience lesson is rejected or rewritten as `promotional_not_value_first`.
+Every Idea Matrix entry and the best idea must pass the Audience Value-First Gate (teach something, prevent a mistake, improve a decision, or reduce a risk/cost/confusion for the audience). Direct client/product promotion without a standalone audience lesson is rejected or rewritten as `promotional_not_value_first`.
 
-The private lane usually has richer post/current URLs and copy-ready comments. Public data source opportunities should also include copy-ready comments when there is a concrete public post/context where a comment is safe and useful. If the public source does not support a safe comment action, keep the field and state `not available from this public data source` or the same meaning in the report language.
+A source read through the human's own logged-in session usually has richer post/current URLs and copy-ready comments. Directly-read sources should also include copy-ready comments when there is a concrete post/context where a comment is safe and useful. If a source does not support a safe comment action, keep the field and state `not available from this source` or the same meaning in the report language.
 
-The Markdown/source record may keep explicit section markers for internal continuity:
+The Markdown/source record may keep explicit section markers for internal continuity (internal access mode, never spoken to the human — the two marker regions track which internal generation pass wrote what, not two things the human sees):
 
 ```md
 <!-- SOLO_AGENCY_SECTION:PUBLIC_START -->
-## Public Data Source Intelligence
+## Source Intelligence
 ...
 <!-- SOLO_AGENCY_SECTION:PUBLIC_END -->
 
 <!-- SOLO_AGENCY_SECTION:PRIVATE_START -->
-## Private Data Source Intelligence
+### Found Sources Awaiting Your Approval
 ...
 <!-- SOLO_AGENCY_SECTION:PRIVATE_END -->
 ```
 
-The staging files must keep public and private evidence split while generating and updating. The delivered `{client-name}-client-report.html` must combine them into one readable report with clearly separated public data sources and private data sources sections.
+The staging files must keep their internal split while generating and updating. The delivered `{client-name}-client-report.html` must combine them into one readable report, organized by source, never as a public/private pair.
 
 Update rules:
 
@@ -541,46 +542,44 @@ Template:
 
 ## Internal Source Lane Order
 
-The sections below are mandatory for the internal source record. Public data source intelligence must appear first. Private data source intelligence must appear second. Internal operational details must appear only inside the `INTERNAL_REPORT` section. The detailed field templates later in this document are schemas to apply inside each lane. The three scrubbed STAGING files must stay split per lane (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`) — never one mixed staging body. The combined `{client-name}-client-report.html` built by `package` is the only place the lanes are deliberately combined into one client-facing file.
+The sections below are mandatory for the internal source record, which one report now unifies by
+source rather than by lane. `Source Intelligence` (every source that ran, default and custom
+together) must appear first. Internal operational details must appear only inside the
+`INTERNAL_REPORT` section. The detailed field templates later in this document are schemas to
+apply inside each source's subsection. The three scrubbed STAGING files keep their existing names
+and split exactly as before (`{client-name}-public-data-sources-report.html`,
+`{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`) — but they are
+internal working files, generation inputs only, never linked or shown to the human. The combined
+`{client-name}-client-report.html` built by `package` is the only file a human ever opens, and it
+reads as one report for all sources, never a public/private pair. The `PUBLIC`/`PRIVATE`
+`SOLO_AGENCY_SECTION` markers below are kept as internal continuity anchors only (internal access
+mode, never spoken to the human) so tooling can still tell the two generation passes apart; the
+heading text beneath them no longer uses those words.
 
 <!-- SOLO_AGENCY_SECTION:PUBLIC_START -->
-## Public Data Source Intelligence
+## Source Intelligence
 
-### Public Source Coverage And Data Quality
+### Source Coverage And Data Quality
 
-### Public Data Points And Evidence Ledger
+### Data Points And Evidence Ledger
 
-### Public Lead & Competitor Opportunities
+### Lead & Competitor Opportunities
 
-### Public Idea Matrix
+### Idea Matrix
 
-### Best Public Idea
+### Best Idea
 
-### Public Draft / Recommendation
+### Draft / Recommendation
 
-### Public Blockers And Limits
+### Blockers And Limits
 <!-- SOLO_AGENCY_SECTION:PUBLIC_END -->
 
 <!-- SOLO_AGENCY_SECTION:PRIVATE_START -->
-## Private Data Source Intelligence
+### Collector Health
 
-### Private Collector Health
+Internal access mode mechanics only (never spoken to the human) — stays inside `INTERNAL_REPORT`.
 
-### Private Data Source Discovery
-
-### Private Source Coverage And Data Quality
-
-### Private Data Points And Evidence Ledger
-
-### Private Lead & Competitor Opportunities
-
-### Private Idea Matrix
-
-### Best Private Idea
-
-### Private Draft / Recommendation
-
-### Private Blockers And Limits
+### Found Sources Awaiting Your Approval
 <!-- SOLO_AGENCY_SECTION:PRIVATE_END -->
 
 <!-- SOLO_AGENCY_SECTION:INTERNAL_REPORT_START -->
@@ -594,29 +593,30 @@ The sections below are mandatory for the internal source record. Public data sou
 
 ### Telegram And Social Platform Connections
 
-### Private Data Sources Inventory
+### Source Inventory
 
 ### Local Collector And Extension Health
 
-### Facebook Discovery Pass
+### Social Discovery Pass
 
-- Discovery terms used:
-- Feed posts found:
-- People found / captured:
-- Groups found / public / scanned:
-- Leads found (hot / warm / watch):
-- Locked leads:
-- Budget used (calls spent / calls available for this run's tier):
-- Trip status: `clean` | the exact safety trip that stopped the account.
-- When `facebook_lead_source: web_only` this run, say so plainly here with the lead-count consequence and the persistent web-only awareness line below, instead of running this pass. When still `pending`, note only that item 4 is unresolved — no awareness line, since nothing has been decided yet.
+One row per platform that ran this run (Facebook, Instagram, X — round-robin order,
+`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass"):
 
-**Persistent web-only awareness line.** While a client's `facebook_lead_source` is `web_only`, every Boss-facing reply frame (`SOLO_AGENCY_PLAYBOOK.md`), this INTERNAL_REPORT, and the morning brief carry one line, in the human's language, for example:
+| Platform | Terms used | Posts found | People found / captured | Depth (Facebook: groups found/public/scanned; Instagram/X: profile+comment/reply depth calls) | Leads found (hot / warm / watch) | Locked leads | Budget used / available | Trip status |
+|---|---|---|---|---|---|---|---|---|
+| Facebook | | | | | | | | `clean` \| the exact safety trip that stopped the account |
+| Instagram | | | | | | | | `clean` \| the exact safety trip that stopped the account |
+| X | | | | | | | | `clean` \| the exact safety trip that stopped the account |
+
+- For any platform at `{platform}_lead_source: web_only` this run, say so plainly in that platform's row (or a note under the table) with the lead-count consequence and the persistent web-only awareness line below, instead of running that platform's leg — the other platforms still run their own legs on schedule (round-robin rule: a stopped platform loses its turn, it does not stop the others). When still `pending`, note only that item 4 is unresolved for that platform — no awareness line, since nothing has been decided yet. Omit a platform's row entirely only when it has never connected (no `{platform}_lead_source` ever set).
+
+**Persistent web-only awareness line.** While any of a client's `facebook_lead_source` / `instagram_lead_source` / `x_lead_source` is `web_only`, every Boss-facing reply frame (`SOLO_AGENCY_PLAYBOOK.md`), this INTERNAL_REPORT, and the morning brief carry one line, in the human's language, naming whichever platform(s) are off, for example:
 
 ```text
-Chưa dùng nguồn Facebook (anh/chị chọn chế độ web-only ngày {date}) — số lead thấp hơn vì vậy; bật lại bất cứ lúc nào bằng "Kết nối Facebook".
+Chưa dùng nguồn Facebook, Instagram (anh/chị chọn chế độ web-only ngày {date}) — số lead thấp hơn vì vậy; bật lại bất cứ lúc nào bằng "Kết nối Facebook, Instagram and X".
 ```
 
-`{date}` is `facebook_lead_source_updated_at`. This line never appears in the client-facing report or notification — the client-safe sentence above is the only thing the client ever sees. It stops appearing once `facebook_lead_source` resolves to `enabled`.
+`{date}` is the most recent `{platform}_lead_source_updated_at` among the off platforms named. When all three platforms are `enabled`, no line appears. This line never appears in the client-facing report or notification — the client-safe sentence above is the only thing the client ever sees.
 
 ### Report Delivery And Notification Log
 
@@ -629,7 +629,7 @@ Chưa dùng nguồn Facebook (anh/chị chọn chế độ web-only ngày {date}
 CRM: http://127.0.0.1:17321/ui/{client_slug}/crm — {N} liên hệ mới hôm nay, {L} đang khoá theo gói; nóng nhất: http://127.0.0.1:17321/ui/{client_slug}/contact/{lead_id}
 CRM: http://127.0.0.1:17321/ui/{client_slug}/crm — {N} new contacts today, {L} locked by plan; hottest: .../contact/{lead_id}
 
-A zero-lead run prints the bare CRM line instead (`http://127.0.0.1:17321/ui/{client_slug}/crm`, no counts). Shown after any scan (daily monitoring, search pass, or Facebook Discovery Pass) that produced ≥ 1 lead (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Show the CRM link after any scan that produced ≥ 1 lead").
+A zero-lead run prints the bare CRM line instead (`http://127.0.0.1:17321/ui/{client_slug}/crm`, no counts). Shown after any scan (daily monitoring, search pass, or Social Discovery Pass) that produced ≥ 1 lead (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Show the CRM link after any scan that produced ≥ 1 lead").
 
 This section also carries, read fresh from `contact lock-status` for this run (never estimated):
 
@@ -641,6 +641,8 @@ Both are operator-only: they stay inside this `INTERNAL_REPORT` section and neve
 
 ## Private Collector Health
 
+Internal access mode mechanics only (never spoken to the human) — stays inside `INTERNAL_REPORT`.
+
 - Bridge status:
 - Bridge persistent mode:
 - Extension status: recent | stale | no_extension_check_yet | unavailable
@@ -650,29 +652,29 @@ Both are operator-only: they stay inside this `INTERNAL_REPORT` section and neve
 - Private collection impact:
 - Required human action:
 
-## Private Data Sources Pending Activation
+## Sources Pending Activation
 
-Use this section inside the internal source record and `INTERNAL_REPORT` when private data sources were provided but the Solo Agency Local Collector extension and Local Collector app are not activated yet. In client-facing reports, translate this into a client-safe coverage note such as `private community sources pending` without naming Solo Agency, Local Collector, Chrome extensions, or internal setup mechanics.
+Use this section inside the internal source record and `INTERNAL_REPORT` when custom sources were provided but the Solo Agency Local Collector extension and Local Collector app are not activated yet. In client-facing reports, translate this into a client-safe coverage note such as `some community sources pending` without naming Solo Agency, Local Collector, Chrome extensions, or internal setup mechanics.
 
 - Status: pending_private_activation | activated | not_provided | unavailable
-- Why private data sources were not scanned today:
+- Why these sources were not scanned today:
 - What is needed to activate them:
 - Suggested next question:
-  - `Private data sources (logged-in/social/community places such as groups, profiles, pages, channels, forums, or communities) are not activated yet because the Local Collector app and Chrome extension are not connected on your computer. This should be rare since the install already happened at step 4 (Kết nối Facebook). On a local runtime, say: "Bộ thu thập chưa kết nối được — để em cài/khởi động lại ngay bây giờ." and install/repair it yourself after one consent line. Only on a remote runtime, ask instead: Do you want me to prepare the setup files and then give you the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension folder to load?`
+  - `Facebook, Instagram, X, and any custom sources that need a login are not activated yet because the Local Collector app and Chrome extension are not connected on your computer. This should be rare since the install already happened at step 4 (Kết nối Facebook, Instagram and X). On a local runtime, say: "Bộ thu thập chưa kết nối được — để em cài/khởi động lại ngay bây giờ." and install/repair it yourself after one consent line. Only on a remote runtime, ask instead: Do you want me to prepare the setup files and then give you the one-line Terminal/PowerShell command to run outside the AI sandbox and the Chrome extension folder to load?`
 - Sources waiting for activation:
   - Source:
     - URL:
     - Platform:
     - Why it matters:
 
-## Private Data Source Discovery
+## Found Sources Awaiting Your Approval
 
-Use this section when the human approved, declined, postponed, or has not yet been asked about optional private data source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds.
+Use this section when the human approved, declined, postponed, or has not yet been asked about optional additional-source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds (internal mechanics — the human only ever hears "sources found and awaiting your approval").
 
 - Status: not_asked | recommended | declined | postponed | approved_pending_activation | pending_human_approval | active | blocked | completed | discovery_declined_or_postponed
-- Display title, when useful: `Private Data Source Discovery Recommended`, `Private Data Source Discovery Pending Approval`, `Private Data Source Discovery Declined/Postponed`, or the same meaning translated into the report language.
+- Display title, when useful: `Found Sources Awaiting Your Approval`, `More Sources Found — Approval Pending`, `Source Discovery Declined/Postponed`, or the same meaning translated into the report language.
 - Why this matters:
-  - If no private data sources are active, the report may miss many community discussions, lead signals, competitor posts, objections, and niche content ideas from logged-in/member spaces.
+  - If discovery has not run, the report may miss many community discussions, lead signals, competitor posts, objections, and niche content ideas from sources that need the human's own logged-in session.
 - Recommended next action:
   - If status is `not_asked` or `recommended`, ask whether the human wants a one-time discovery pass through approved joined groups, subreddits, communities, followed pages/KOLs, subscribed channels, and feeds.
   - If status is `pending_human_approval`, ask the human to approve, remove, or add candidate sources before monitoring begins.
@@ -712,10 +714,11 @@ Use this section when the human approved, declined, postponed, or has not yet be
 
 ## Sources Checked
 
-### Public Data Sources
+### Sources
 
 - Source:
   - URL:
+  - Login/session status (if the source needed one):
   - Notes:
 
 ### Public Search Keywords Used Today
@@ -738,20 +741,13 @@ is still learning. Open it with one line of bank movement — how many terms ran
   - Follow-up keyword, if any:
   - Notes:
 
-### Private Data Sources
-
-- Source:
-  - URL captured:
-  - Login/session status:
-  - Notes:
-
 ## Sources Skipped
 
 | Source | URL | Reason | Next Action |
 |---|---|---|---|
 |  |  |  |  |
 
-## New Private Data Sources Detected
+## Found Sources Detected
 
 - Source:
   - Platform:
@@ -792,7 +788,9 @@ Use this section title exactly for English reports, or translate it naturally in
   - Post/current URL:
   - Captured at:
   - Safe context summary:
-  - Why this matters:
+  - Who they are (fit): person_type — sells_to_match — fit (high | medium | low) — fit_reason (one line, `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1)
+  - Why now (intent): intent (explicit | implied | none) — intent_reason (one line, Step 3)
+  - Why this matters: the one-line synthesis for the human — what fit + intent add up to, not a repeat of fit_reason/intent_reason
   - Related offer:
   - Related pain point:
   - Confidence: high | medium | low
@@ -802,9 +800,13 @@ Use this section title exactly for English reports, or translate it naturally in
   - Comment style note:
   - Outreach/compliance note:
 
+Lead level (part of `Classification` above) is not written by hand — it is read off the Fit × Intent
+matrix (`playbooks/LEAD_QUALIFICATION_RULE.md` Step 4) from the fit and intent already recorded on
+this opportunity.
+
 ## Leads Detected
 
-This may be kept as a detailed subsection, but the human-facing HTML should prioritize the lane-specific `Public Lead & Competitor Opportunities` and `Private Lead & Competitor Opportunities` sections.
+This may be kept as a detailed subsection, but the human-facing HTML should prioritize the single `Lead & Competitor Opportunities` section (grouped by source).
 
 ### Hot Leads
 
@@ -840,7 +842,7 @@ This may be kept as a detailed subsection, but the human-facing HTML should prio
 
 ## Competitors Detected
 
-This may be kept as a detailed subsection, but the human-facing HTML should prioritize the lane-specific `Public Lead & Competitor Opportunities` and `Private Lead & Competitor Opportunities` sections.
+This may be kept as a detailed subsection, but the human-facing HTML should prioritize the single `Lead & Competitor Opportunities` section (grouped by source).
 
 - Competitor:
   - Competitor type: direct | indirect | adjacent | attention | authority_or_kol
@@ -1052,7 +1054,7 @@ Use the appropriate version label for the actual draft. `VE — Value Explainer`
 
 ### Source-Backed Rationale
 
-Include the reference URLs that support the script's key claims. For private data sources, include the captured private URL and note that the human may need to be logged in to verify it.
+Include the reference URLs that support the script's key claims. For a source read through the human's own login, include the captured URL and note that the human may need to be logged in to verify it.
 
 ## Version 1: Blog — Educational Article
 
@@ -1118,7 +1120,7 @@ Required internal, client-facing, and operator-facing outputs:
   - Internal latest pointer: `daily-content-pipeline/outputs/latest_master_digest.md`
   - Operator-facing latest report: `daily-content-pipeline/outputs/latest_master_digest.html`
 
-The human/operator should normally be shown only the client-ready combined report path, PDF companion path/status, and operator-only `INTERNAL_REPORT` path. Public/private lane staging paths should not be shown unless requested for diagnostics. Internal `.md` paths are for the agent only.
+The human/operator should be shown only the client-ready combined report path, PDF companion path/status, and operator-only `INTERNAL_REPORT` path. Public/private staging paths are internal working files and are never shown to the human. Internal `.md` paths are for the agent only.
 
 Do not present this older ambiguous shape to the human:
 
@@ -1153,18 +1155,17 @@ The daily staging HTML cover/index must include:
 - Run date.
 - Clients processed.
 - Client status.
-- References to the public data sources and private data sources sections. When packaged into `{client-name}-client-report.html`, these must be internal anchors or plain labels, not links to sibling HTML files.
-- Public report status and private report status.
-- Top public recommendation summary and top private recommendation summary when available.
+- A reference to the one Source Intelligence section. When packaged into `{client-name}-client-report.html`, this must be an internal anchor or plain label, not a link to a sibling HTML file.
+- Report status and a top recommendation summary when available.
 - Client-relevant blockers/limits, delivery status, and next action.
 
-Each full lane HTML report must include:
+The staging HTML report must include:
 
-- Its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
-- Safe private data source coverage status when relevant, without Local Collector, extension, login/session, or internal source inventory details.
-- Private Data Source Discovery status when asked, approved, pending, blocked, or completed, stated as client-safe coverage information.
-- Private Data Source Discovery Recommended when no private data sources are configured and discovery has not been offered yet, stated without internal setup mechanics.
-- Private Data Source Discovery Declined/Postponed when the human declined or postponed discovery, including a clear client-safe note that public-only reports can still be useful but may miss community, lead, and competitor signals.
+- Its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation, organized by source.
+- Safe source coverage status when a source needing the human's own login is relevant, without Local Collector, extension, login/session, or internal source inventory details.
+- Found Sources Awaiting Your Approval status when asked, approved, pending, blocked, or completed, stated as client-safe coverage information.
+- Found Sources Awaiting Your Approval shown when discovery has not been offered yet, stated without internal setup mechanics.
+- A client-safe note when the human declined or postponed reviewing found sources, noting that the sources already connected can still be useful but may miss community, lead, and competitor signals.
 - Top ideas.
 - Best idea.
 - Mapped content pillar.
@@ -1174,7 +1175,7 @@ Each full lane HTML report must include:
 - Competitor profile URLs and post/current URLs when available.
 - Suggested value-first comments with real local copy buttons for every displayed lead/competitor opportunity.
 - Data source issues.
-- Private source access limitations stated without naming login/session mechanics.
+- Access limitations stated without naming login/session mechanics.
 - Production-ready draft: video script, blog/article, social caption, or configured combination.
 - Production readiness status in client-safe language: draft ready, approval required, ready for production, published, or blocked by missing client detail.
 - Approval options.
@@ -1195,8 +1196,8 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
      next move.
    - When the run found none: one line saying so, and which sources were searched, so the reader can
      tell "nobody asked today" from "nothing was scanned".
-   - This is a rollup. The lane-specific `Public` / `Private Lead & Competitor Opportunities`
-     sections stay exactly as `playbooks/10_LEAD_COMPETITOR_DETECTION.md` requires.
+   - This is a rollup. The single `Lead & Competitor Opportunities` section (grouped by source)
+     stays exactly as `playbooks/10_LEAD_COMPETITOR_DETECTION.md` requires.
    - Every person listed here is already IN the client's CRM (Stage 10, "Every lead also becomes a
      CRM contact"), so the report is where they are read, not where they are stored. Say so once, in
      one line, and say which are new versus already known — a returning name is a person who has now
@@ -1207,7 +1208,7 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
 2. `Executive Snapshot`
    - Client name.
    - Run date.
-   - Source coverage status: public data sources only, public data sources + private data sources, private data sources pending, private data sources failed, or mixed.
+   - Source coverage status: which sources ran (default sources, custom sources, or both), any source pending or failed, or mixed.
    - Lead count: hot, warm, and not scanned/pending if applicable — FIRST, because it is the perishable number on the page.
    - The single most urgent person to contact today, in one line, with the link.
    - Best idea of the day in one sentence.
@@ -1216,26 +1217,20 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - Competitor signal count.
    - One recommended next action.
 
-3. `Public Data Source Intelligence`
-   - Public source coverage and data quality.
-   - Public evidence ledger.
-   - Public Lead & Competitor Opportunities.
-   - Public Idea Matrix.
-   - Best public idea.
-   - Public draft/recommendation.
-   - Public blockers or limitations.
+3. `Source Intelligence`
+   - One unified section, not a pair of lanes. Group findings by source, showing only the
+     sources that actually ran this run: Google/Web, Facebook, Instagram, X, the industry sites
+     for this client's industry, and any custom URLs the human asked to be watched.
+   - Per source: coverage and data quality, evidence ledger, contribution to the combined
+     `Lead & Competitor Opportunities` and Idea Matrix, and any blocker or limitation
+     (stated in client-safe language, without internal collector/extension/login details).
+   - Best idea and draft/recommendation are reported once at the report level (see
+     `Today's Recommendation`), not duplicated per source.
+   - A source that needed the human's own logged-in session to read (for example Facebook or
+     Instagram) is presented the same as any other source — never singled out or labeled
+     differently to the human.
 
-4. `Private Data Source Intelligence`
-   - Private source coverage and status, stated without internal collector/extension/login details.
-   - Private source coverage and data quality.
-   - Private evidence ledger.
-   - Private Lead & Competitor Opportunities.
-   - Private Idea Matrix.
-   - Best private idea.
-   - Private draft/recommendation.
-   - Private blockers, skipped sources, or pending coverage notes stated in client-safe language.
-
-5. `Today's Recommendation`
+4. `Today's Recommendation`
    - The single best idea.
    - Target audience segment.
    - Pain point or desire it hits.
@@ -1252,24 +1247,24 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - If a claim is inferred rather than directly stated by a source, label it `inference` and explain the logic.
    - Do not use unsupported numeric claims in the final recommendation or script.
    - If a useful claim cannot be verified, either remove it or mark it as low confidence and keep it out of the main hook.
-   - Keep source type visible as `public` or `private`; do not merge source evidence so the reader cannot tell where a claim came from.
+   - Keep the source visible next to each claim (Google/Web, Facebook, Instagram, X, an industry site, or a custom URL); do not merge source evidence so the reader cannot tell where a claim came from.
 
 6. `Source Coverage And Data Quality`
-   - Public search keywords used today.
-   - Public keyword count and diversity: show whether at least 10 distinct public search keywords were used, or name the blocker if not.
-   - Public candidate idea sufficiency: show whether at least 3 source-backed ideas were new or newly angled after history review, or name the blocker if not.
+   - Search keywords used today.
+   - Keyword count and diversity: show whether at least 10 distinct search keywords were used, or name the blocker if not.
+   - Candidate idea sufficiency: show whether at least 3 source-backed ideas were new or newly angled after history review, or name the blocker if not.
    - Pain-point/problem/need keyword sample used or added today, with the rest saved in the keyword bank for rotation. Do not dump the full keyword bank into the client-facing report.
-   - Public data sources scanned.
-   - New public data sources discovered/promoted/demoted today, with a compact summary. Do not dump the full public data source list.
-   - Private data source coverage summarized safely: scanned, pending, skipped, failed, or unavailable. Do not mention login/session mechanics, Local Collector, Chrome extension, or private source inventory.
-   - New private data source signal categories detected, summarized safely.
+   - Default and custom sources scanned today, by source.
+   - New sources discovered/promoted/demoted today, with a compact summary. Do not dump the full source list.
+   - Any source not yet connected (for example Facebook, Instagram, or X before the human connects it), stated as a plain coverage note, without login/session mechanics, Local Collector, Chrome extension, or source inventory detail.
+   - New source signal categories detected, summarized safely.
    - Known blind spots for this run.
    - Data confidence summary.
-   - If private data sources were provided but not activated yet, state that clearly and do not imply lead coverage is complete.
+   - If a source was offered but not connected yet, state that clearly and do not imply lead coverage is complete.
 
-7. `Private Data Source Discovery`
-   - In client-facing reports, include only a safe summary such as `additional community/source discovery is pending`, `new community signal categories were found`, or `private source coverage was unavailable today`.
-   - Do not include discovery URLs, exact private source inventory, Facebook search URLs, scroll counts, Local Collector state, extension state, login/session state, or source-approval mechanics.
+7. `Found Sources Awaiting Your Approval`
+   - In client-facing reports, include only a safe summary such as `additional sources found and awaiting your approval`, `new community signal categories were found`, or `source discovery was unavailable today`.
+   - Do not include discovery URLs, exact source inventory, Facebook search URLs, scroll counts, Local Collector state, extension state, login/session state, or source-approval mechanics.
    - Put discovery categories, URLs, keywords, candidate groups/profiles/pages/KOLs/channels/communities, skipped/noisy examples, feed signals, source approval needs, and Local Collector status in `INTERNAL_REPORT`.
 
 8. `Idea Portfolio`
@@ -1311,10 +1306,9 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - Include the Idea Novelty Check result for the winner and the strongest rejected candidate: whether the idea is new, newly angled, or rejected as too close to prior history.
    - Briefly explain why each Top 3 card won its slot and why the other strong candidates did not win today.
 
-10. `Public Lead & Competitor Opportunities` and `Private Lead & Competitor Opportunities`
-   - Use these lane-specific titles for English reports, or natural same-language titles for the human/report language.
+10. `Lead & Competitor Opportunities`
+   - One section, grouped by source (Google/Web, Facebook, Instagram, X, industry sites, custom URLs — only the ones that ran), not a pair of lane-specific sections. Use this title for English reports, or the natural same-language title for the human/report language.
    - Load Stage 10 before generating this section.
-   - A report-level `Lead & Competitor Opportunities` rollup is allowed, but it must not replace the lane-specific sections and must keep source type visible.
    - Separate hot leads, warm leads, watch leads, direct competitors, indirect competitors, adjacent solutions, attention competitors, and authority/KOL competitors when relevant.
    - Every displayed opportunity must include post/current URL when available. Include profile URL only when visible and safe.
    - Include source, captured_at, context, need or audience-overlap signal, why it matters, confidence, suggested human action, and safety note.
@@ -1322,7 +1316,7 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - The suggested comment must use the same language as the post, provide value, avoid direct advertising, avoid `DM me`, `message me`, `inbox me`, `book a call`, `reach out to start`, or similar sales CTAs, avoid attacking competitors, and sound natural rather than AI-polished.
    - The suggested comment may include one or two tiny natural imperfections or typos when appropriate, but must remain clear and trustworthy.
    - Each suggested comment must have a real local `Copy comment` button that copies the comment text only. It must not imply the comment will be posted automatically.
-   - If no leads/competitors were found, say whether that means `none found after scanning`, `coverage from public data sources only`, `additional private/community coverage pending`, or `source unavailable`. Keep Local Collector/login/session mechanics in `INTERNAL_REPORT`.
+   - If no leads/competitors were found, say whether that means `none found after scanning`, `coverage from connected sources only, more pending connection`, or `source unavailable`. Keep Local Collector/login/session mechanics in `INTERNAL_REPORT`.
    - If competitor data is inferred without a captured URL, label it as market hypothesis, not detected competitor evidence.
 
 11. `Production-Ready Drafts`
@@ -1353,7 +1347,7 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
    - After schedule/routine is configured but the first agency run has not happened, the primary next action should be handoff to the exact client-specific automation task. In Setup Flow, do not ask whether to run the first agency run now.
    - After the first Automation Flow report/draft exists and PDNA setup - Production, Distribution, Notification, and Analytics - has not been completed/declined/blocked, the primary next action should usually be that setup gate.
-   - For client-facing reports where private data source coverage is pending, the primary next action should usually be reviewing/approving additional source coverage or continuing with public-data-source-only insights. Put Local Collector activation mechanics in `INTERNAL_REPORT`.
+   - For client-facing reports where a source is not yet connected or found sources are awaiting approval, the primary next action should usually be reviewing/approving additional source coverage or continuing with the sources already connected. Put Local Collector activation mechanics in `INTERNAL_REPORT`.
    - Do not ask "make a video now?" as the primary next action immediately after the first Automation Flow report/draft; production/provider setup comes first.
 
 ### Report Handoff Chat Rule
@@ -1390,7 +1384,7 @@ Do not end a report handoff with:
 Examples of correct final questions:
 
 ```text
-You provided private data sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so this client-specific automation task can include private data sources later, or keep private data sources pending so the task runs public data sources only until activation is complete?
+Facebook and Instagram aren't connected yet, so I can't read those sources. Do you want me to connect them now so this client-specific automation task can include them, or keep going with the sources already connected until you're ready?
 ```
 
 ```text
@@ -1413,7 +1407,7 @@ Professional presentation rules:
 - When using tables, make the mobile behavior explicit in the HTML/CSS: wrap wide tables in a scroll container or switch to cards. Never let a table widen the whole page on mobile.
 - Put reference links beside the claim, idea, lead, competitor, or draft they support. Do not hide all references in one generic source list.
 - Label missing data honestly: `not scanned`, `pending activation`, `session expired`, `not detected`, or `low confidence`.
-- Do not pretend research from public data sources only has private lead coverage.
+- Do not pretend research from a source that has not run yet has coverage it does not have.
 
 Recommended HTML section order (this order applies to the combined `{client-name}-client-report.html`):
 
@@ -1422,18 +1416,17 @@ Recommended HTML section order (this order applies to the combined `{client-name
 2. Top 3 Ideas Of The Day
 3. Production-Ready Drafts (the five script versions, directly under the Top 3)
 4. Idea Portfolio
-5. Public Lead & Competitor Opportunities / Private Lead & Competitor Opportunities
+5. Lead & Competitor Opportunities
 6. Executive Snapshot
-7. Public Data Source Intelligence
-8. Private Data Source Intelligence
-9. Today's Recommendation
-10. Evidence Ledger
-11. Source Coverage And Data Quality
-12. Private Data Source Discovery
-13. Decision Scorecard
-14. Compliance And Brand Safety
-15. Next Action
-16. Appendix / Raw References, optional
+7. Source Intelligence
+8. Today's Recommendation
+9. Evidence Ledger
+10. Source Coverage And Data Quality
+11. Found Sources Awaiting Your Approval
+12. Decision Scorecard
+13. Compliance And Brand Safety
+14. Next Action
+15. Appendix / Raw References, optional
 ```
 
 **Why the leads come first.** The private scan no longer notices leads while looking for something
@@ -1445,8 +1438,8 @@ meets the perishable thing first. This does not demote content: the ideas keep t
 underneath, and content is what makes the next contact welcome.
 
 `People To Contact Today` is a rollup, not a replacement: it lists each lead once, hottest first,
-with the one line of evidence and the link, and it points into the lane-specific `Public` and
-`Private Lead & Competitor Opportunities` sections that `playbooks/10_LEAD_COMPETITOR_DETECTION.md`
+with the one line of evidence and the link, and it points into the single `Lead & Competitor
+Opportunities` section (grouped by source) that `playbooks/10_LEAD_COMPETITOR_DETECTION.md`
 still requires in full. When a run found no leads, the section says so in one line and says which
 sources were searched — an empty section that explains itself is information; a missing section
 reads like a broken report.

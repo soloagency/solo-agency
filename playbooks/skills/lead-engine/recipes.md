@@ -6,19 +6,30 @@ persona/keywords/location, and always run under `safety.md` limits and Stage 10
 qualification. Capability ids and inputs come from `GET /capabilities`; if a
 capability's `status` is not `stable`/`beta`, skip or substitute it.
 
-Keyword banks below are examples — build the real bank from the client's
-audience pain points, buying triggers, and language (Stage 10 §Definitions), in
-the audience's own language (Vietnamese / English / etc.).
+Keyword banks below are examples — build the real bank from the client's `buyer_profile.types`
+(who the audience is) and `why_they_need` (the frictions the offer removes), in the audience's own
+language (Vietnamese / English / etc.), per channel — the channel table lives once in
+`playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`'s keyword-bank section: role/product/stage terms are
+PRIMARY for in-group search, intent terms only when anchored to a role or the offer; occupation+place
+for people search; profession jargon+hashtags for IG/X search. A term with no role or offer anchor —
+a bare "advice", "looking for", "need help", "any recommendations", "content help" — is rejected by
+the quality gate, not banked.
 
 ---
 
-## Recipe A — Facebook Discovery Pass (canonical; feed → people → groups → in-group)
+## Recipe A — Facebook leg of the Social Discovery Pass (canonical; feed → people → groups → in-group)
 
-> The canonical implementation of `playbooks/10_LEAD_COMPETITOR_DETECTION.md`'s Facebook Discovery
-> Pass (step 11C of the daily run, and Setup Flow's first-run trigger). It is also the right shape
-> for an open-ended "find people who need X" ask — e.g. "find people who need insurance", "who is
-> looking to buy a house in OC" — the fixed order below IS the general answer to that request, not
-> just the automated daily version of it.
+> The canonical implementation of the Facebook leg of `playbooks/10_LEAD_COMPETITOR_DETECTION.md`'s
+> Social Discovery Pass (step 11C of the daily run, and Setup Flow's first-run trigger). The same
+> pass also runs Instagram (search → people → profile depth → comments) and X (search Latest →
+> people → profile depth → replies) in the same shallow-to-deep shape, interleaved round-robin with
+> Facebook — one Facebook job, then one Instagram job, then one X job, repeat, each platform
+> advancing one step per round; a platform not connected/logged-in/at-budget/tripped just loses its
+> turn. See Stage 10's "Social Discovery Pass" for the full platform table, round-robin rule, and
+> Instagram/X call details. This Facebook shape is also the right one for an open-ended "find people
+> who need X" ask — e.g. "find people who need insurance", "who is looking to buy a house in OC" —
+> the fixed order below IS the general answer to that request, not just the automated daily version
+> of it.
 
 Fixed order — feed first, then people, then groups, then in-group. Do not reorder or parallelize;
 narrow the funnel at each step instead of skipping one.
@@ -32,10 +43,12 @@ narrow the funnel at each step instead of skipping one.
      fb.people.search { query: "<discovery term>" }
         (the url Facebook itself renders: https://www.facebook.com/search/people/?q=<discovery term>)
         Returns ProfileSummary[] rows (name, url, subtitle/work line, mutual_friends, industry_hint).
-        No post text exists, so classification uses subtitle + industry_hint + name/url only.
-        Temperature defaults to `watch`; only becomes `warm` when the subtitle states the target role
-        explicitly. Qualified rows → `tool crm-store ... lead capture` tagged source:people_search
-        plus kw:{term}, exactly like every other lead.
+        No post text exists, so classification runs `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1
+        against subtitle + industry_hint + name/url only: a subtitle/bio that matches a line of the
+        client's `buyer_profile.types` is `fit = high`, and with no stated need that is
+        `intent = none` → `warm` per the matrix — never dropped for lacking a stated need. No match
+        stays lower per the same rule. Qualified rows → `tool crm-store ... lead capture` tagged
+        source:people_search plus kw:{term}, exactly like every other lead.
 3. THEN GROUPS
      fb.groups.search { query: "<discovery term>", max_pages: <=4 }
         Keep only privacy == "public". Empty/unknown privacy is NOT treated as private by default:
@@ -46,16 +59,26 @@ narrow the funnel at each step instead of skipping one.
         first — playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md has the exact fields).
 4. THEN IN-GROUP
      For the top public groups from step 3:
-     fb.group.search_posts { group_search_url: ".../groups/<id>/search/?q=<intent kw>", max_pages: <=4 }
-        Intent keywords come from `tool source-keywords ... plan` (seed the group's bank first with
-        `seed --industry --market --lang` when it is empty, plus the client's setup seed file when
-        one exists) — NOT the discovery term from step 1/2/3. In-market language, not the industry
-        noun:
-        insurance → "cần mua bảo hiểm", "tư vấn bảo hiểm", "health insurance", "life insurance quote"
-        real estate → "cần mua nhà", "cho thuê", "looking to buy", "first time buyer"
-5. Stage 10 qualifies EVERY post and person row from all four steps immediately → keep direct_need /
-   buying_trigger / pain_signal (posts) or a qualifying subtitle (people); dedupe by post/profile URL.
-   Then `tool crm-store ... lead capture` — even for a group not yet in private_data_sources.
+     fb.group.search_posts { group_search_url: ".../groups/<id>/search/?q=<term>", max_pages: <=4 }
+        Terms come from `tool source-keywords ... plan --kind <kind>` (seed the group's bank first
+        with `seed --industry --market --lang` when it is empty, plus the client's setup seed file
+        when one exists) — NOT the discovery term from step 1/2/3. Draw per the in-group row of the
+        keyword-bank channel table (`playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, kinds
+        intent|role|product|stage|place): role and product/stage terms are PRIMARY — what the
+        client's `buyer_profile.types` calls themselves, what they say about their work; intent
+        terms only when anchored to the role or the offer, never a bare need phrase. Per-kind
+        quota, drawn with `--kind` and rotated within a kind least-recently-run first:
+        DAILY — 1 role + 1 product/stage + 1 intent (3 terms total, same as before this change).
+        FIRST RUN — 3 role + 2 product/stage + 3 intent (8 terms total, same as before this change).
+        Example for a client selling to real-estate agents:
+        good — "listing agent" (role), "just listed" (product/stage), "realtor video" / "cần video
+        bất động sản" (intent, anchored to the offer).
+        rejected by the quality gate (generic, no role/offer anchor) — "advice", "looking for",
+        "need help", "any recommendations", "content help" alone.
+5. Every post and person row from all four steps is classified immediately against
+   `playbooks/LEAD_QUALIFICATION_RULE.md` (Step 1 first — who they are, before intent) → keep
+   decision hot|warm|watch; dedupe by post/profile URL. Then `tool crm-store ... lead capture` —
+   even for a group not yet in private_data_sources.
 6. Deepen only within the budget below; do not raise max_pages past it without human approval.
 7. WRITE BACK what this pass learned, same mechanic as every hunt. A pass discovers, in an hour,
    which phrasings a particular group answers to — and without this step that knowledge dies when
@@ -72,17 +95,22 @@ narrow the funnel at each step instead of skipping one.
 ```
 
 Budget (owner-approved; `playbooks/10_LEAD_COMPETITOR_DETECTION.md` and `safety.md` are authoritative
-— restated here only so the recipe is self-contained):
+— restated here only so the recipe is self-contained). This is Facebook's own budget; Instagram runs
+≤ 12 calls FIRST RUN / ≤ 4 calls DAILY (3/3/3/3 and 1/1/1/1 across search/people/profile-depth/
+comments) and X the same ≤ 12 / ≤ 4 shape (search-Latest/people/profile-depth/replies) — see Stage
+10's platform table for the exact per-platform breakdown:
 
 | | discovery terms | feed searches | people searches | group searches | new public groups | intent terms/group | total calls | spread |
 |---|---|---|---|---|---|---|---|---|
 | FIRST RUN | 3 | 3 | 3 | 3 | up to 4 | 3 | ≤ 21 | ≥ 4 hours |
 | DAILY | 1 | 1 | 1 | 1 | up to 2 | 2 | ≤ 7 | across the run window |
 
-Lead target: FIRST RUN is a floor of 10, not a stop — keep working the shortlist until the budget is
-spent. Safety trip is unchanged and unforgiving: the first checkpoint/rate-limit/logged-out signal
-stops the whole account for the day; read every job's result for that signal before submitting the
-next one (`safety.md`).
+Lead target: FIRST RUN is a floor of 10 across all three platforms combined, not a stop — keep
+working the shortlists until each platform's own budget is spent. Safety trip is per platform and
+unforgiving: the first checkpoint/rate-limit/logged-out signal on a platform stops THAT platform for
+the day; read every job's result for that signal before submitting the next job on the same platform
+(`safety.md`). The three platforms interleave round-robin — one Facebook job, then one Instagram
+job, then one X job, repeat — so a trip on one never stops the other two.
 
 Note: this fixed order targets PUBLIC groups — scanning one needs no join/approval (see `safety.md`'s
 join boundary and `playbooks/PRIVATE_SOURCE_GATE.md`'s reconciliation paragraph). To hunt inside a
@@ -90,17 +118,30 @@ private group the human is already a member of, skip step 3's public-only filter
 step 4's `fb.group.search_posts` against that group, or use Recipe D for its recurring shallow
 monitoring shape.
 
-## Recipe B — Persona by name/occupation ("find realtors / loan officers")
+## Recipe B — Persona by occupation ("find realtors / loan officers"), Facebook + Instagram + X
 
-> When the target IS the profession (e.g. you sell TO realtors), not the buyer.
+> When the target IS the profession (e.g. you sell TO realtors), not the buyer. Same shape on all
+> three platforms — occupation + place terms, per the "People search FB/IG/X" row of the keyword-
+> bank channel table.
 
 ```text
-1. fb.people.search { query: "<occupation> <location>", max_pages: 4..8 }
+1. Facebook: fb.people.search { query: "<occupation> <location>", max_pages: 4..8 }
       e.g. "realtor Westminster", "loan officer Orange County", "bao hiem"
-2. Read ProfileSummary[] → industry_hint + subtitle often confirm the trade.
-      Keep rows whose industry_hint / subtitle matches the target industry.
-3. (optional) fb.groups.search for that profession's communities → fb.group.posts to see who is active.
-4. Stage 10 records each as a lead/prospect with the profile URL; no contact scraping.
+   Instagram: ig.people.search { query: "<occupation> <location>" }
+      e.g. "realtor Orange County"
+   X:         x.people.search { query: "<occupation> <location>" }
+      e.g. "loan officer Westminster", "môi giới nhà đất Cali"
+      Occupation + place only here — profession jargon/hashtags belong to IG/X SEARCH (the search-
+      posts capability), not people search.
+2. Read the returned ProfileSummary[] rows (name/handle, url, subtitle/bio line, industry_hint
+   where the platform provides one).
+3. Run every row through `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1 (WHO is this person) against
+   the client's `buyer_profile.types`. A bio-only row has no post text for Steps 2/3, so
+   `intent = none` by the rule's own bio-only clause; a `fit = high` row is still `warm` — never
+   dropped for lacking a stated need (SKILL.md's "Classification (extractor tier)").
+4. (optional) fb.groups.search for that profession's communities → fb.group.posts to see who is active.
+5. `tool crm-store ... lead capture` records each row (person_type, sells_to_match, fit, fit_reason,
+   intent, intent_reason, decision) with the profile URL; no contact scraping.
 ```
 
 ## Recipe C — Friend-of-friend by industry ("mine my network")
@@ -124,7 +165,10 @@ monitoring shape.
 
 ```text
 1. fb.group.posts { group_url: "<group>", max_pages: 2..3 }  (recurring = shallow; Stage 10: 5 scrolls/day)
-2. Stage 10 qualifies the fresh feed for direct/indirect need + competitor signals.
+2. Classify every post by the AUTHOR'S TYPE FIRST — `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1
+   (WHO is this person) against the client's `buyer_profile.types` — before reading the post for
+   need/intent language. Then run Steps 2-3 (competitor / why-now) on the same post. A `fit = high`
+   author with `intent = none` is still `warm`, never dropped for a routine post.
 3. Store to the Stage 10 ledger; only NEW opportunities vs prior days (dedupe against history).
 ```
 

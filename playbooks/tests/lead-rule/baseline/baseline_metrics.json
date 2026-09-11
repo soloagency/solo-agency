@@ -1,0 +1,555 @@
+{
+  "total": 600,
+  "lead_acc": 0.9616666666666667,
+  "tier_acc": 0.9383333333333334,
+  "fit_acc": 0.91,
+  "intent_acc": 0.9233333333333333,
+  "byClient": {
+    "solo_agency": {
+      "total": 120,
+      "lead_ok": 119,
+      "tier_ok": 112
+    },
+    "ai_video": {
+      "total": 120,
+      "lead_ok": 115,
+      "tier_ok": 111
+    },
+    "realtor": {
+      "total": 120,
+      "lead_ok": 118,
+      "tier_ok": 118
+    },
+    "insurance": {
+      "total": 120,
+      "lead_ok": 108,
+      "tier_ok": 106
+    },
+    "mlo": {
+      "total": 120,
+      "lead_ok": 117,
+      "tier_ok": 116
+    }
+  },
+  "byGroup": {
+    "A": {
+      "total": 150,
+      "lead_ok": 149,
+      "tier_ok": 147
+    },
+    "B": {
+      "total": 75,
+      "lead_ok": 69,
+      "tier_ok": 69
+    },
+    "C": {
+      "total": 75,
+      "lead_ok": 71,
+      "tier_ok": 66
+    },
+    "D": {
+      "total": 75,
+      "lead_ok": 69,
+      "tier_ok": 64
+    },
+    "E": {
+      "total": 60,
+      "lead_ok": 58,
+      "tier_ok": 56
+    },
+    "F": {
+      "total": 60,
+      "lead_ok": 59,
+      "tier_ok": 59
+    },
+    "G": {
+      "total": 40,
+      "lead_ok": 38,
+      "tier_ok": 38
+    },
+    "H": {
+      "total": 40,
+      "lead_ok": 39,
+      "tier_ok": 39
+    },
+    "I": {
+      "total": 25,
+      "lead_ok": 25,
+      "tier_ok": 25
+    }
+  },
+  "confusions": {
+    "warm->hot": 6,
+    "warm->none": 4,
+    "none->hot": 2,
+    "none->warm": 5,
+    "none->watch": 2,
+    "watch->none": 6,
+    "hot->none": 3,
+    "hot->warm": 8,
+    "warm->competitor": 1
+  },
+  "confusion_matrix": {
+    "hot": {
+      "hot": 49,
+      "warm": 8,
+      "watch": 0,
+      "none": 3,
+      "competitor": 0,
+      "(missing)": 0
+    },
+    "warm": {
+      "hot": 6,
+      "warm": 155,
+      "watch": 0,
+      "none": 4,
+      "competitor": 1,
+      "(missing)": 0
+    },
+    "watch": {
+      "hot": 0,
+      "warm": 0,
+      "watch": 6,
+      "none": 6,
+      "competitor": 0,
+      "(missing)": 0
+    },
+    "none": {
+      "hot": 2,
+      "warm": 5,
+      "watch": 2,
+      "none": 320,
+      "competitor": 0,
+      "(missing)": 0
+    },
+    "competitor": {
+      "hot": 0,
+      "warm": 0,
+      "watch": 0,
+      "none": 0,
+      "competitor": 33,
+      "(missing)": 0
+    }
+  },
+  "failures": [
+    {
+      "id": "A06",
+      "client": "solo_agency",
+      "group": "A",
+      "expected_decision": "warm",
+      "got_decision": "hot",
+      "expected_why": "startup founder; hiring a video editor doesn't touch her sales/marketing-staff gap, routine",
+      "got_fit_reason": "Direct match as startup founder",
+      "got_intent_reason": "New hire (video editor employee) solves editing friction, enabling more frequent content output and customer visibility",
+      "trap": "just hired an in-house editor — looks like an ai_video fit but the need is already solved"
+    },
+    {
+      "id": "A12",
+      "client": "ai_video",
+      "group": "A",
+      "expected_decision": "warm",
+      "got_decision": "none",
+      "expected_why": "lawyer markets herself; routine post",
+      "got_fit_reason": "Professional background suggested (bar network, immigration updates) but employment structure (self-employed vs. in-house) unclear from text",
+      "got_intent_reason": "routine professional update; sharing regulatory changes is ordinary work for this profession, not indicating a need for video editing or posting friction",
+      "trap": "no state/location mentioned — don't assume CA for insurance"
+    },
+    {
+      "id": "A29",
+      "client": "insurance",
+      "group": "A",
+      "expected_decision": "warm",
+      "got_decision": "hot",
+      "expected_why": "small-business owner in CA (Garden Grove); routine hours change, no new-coverage trigger",
+      "got_fit_reason": "Restaurant owner in Orange County, explicit match to small business type",
+      "got_intent_reason": "Newly expanded weekend operating hours (8am-9pm) change business operations and risk profile triggering coverage review",
+      "trap": "restaurant owner reply, self-promo tucked into a thank-you comment"
+    },
+    {
+      "id": "B09",
+      "client": "insurance",
+      "group": "B",
+      "expected_decision": "none",
+      "got_decision": "hot",
+      "expected_why": "losing an asset with no new address stated is not a coverage trigger",
+      "got_fit_reason": "new address (moving for job) in California triggers coverage review",
+      "got_intent_reason": "asking realtor blocks explicit intent, but relocation creates new insurance situation",
+      "trap": "no diacritics plus real-estate jargon ('rao ban') — must still be read as an explicit seller lead; destination of the move is not stated"
+    },
+    {
+      "id": "B10",
+      "client": "ai_video",
+      "group": "B",
+      "expected_decision": "none",
+      "got_decision": "warm",
+      "expected_why": "employee, not an independent seller of their own",
+      "got_fit_reason": "works in marketing which fits 'freelancer or one-person agency' category; could be independent professional who markets themselves; uncertainty about employment structure within ANY category does not lower fit",
+      "got_intent_reason": "bio stating profession is routine work for this person, no mention of friction with video editing or customer acquisition",
+      "trap": "no post text at all — must infer purely from the bio; 'recently relocated' reads as a completed move (past), not an active ask"
+    },
+    {
+      "id": "B10",
+      "client": "mlo",
+      "group": "B",
+      "expected_decision": "none",
+      "got_decision": "watch",
+      "expected_why": "unclear whether relocation was a purchase (mortgage holder) or a rental (not_buyer); no loan signal given",
+      "got_fit_reason": "Recently relocated to Newport Beach, California, but no indication of home purchase or mortgage status",
+      "got_intent_reason": "Recent relocation could indicate need for home purchase or refinance as person settles into new location",
+      "trap": "no post text at all — must infer purely from the bio; 'recently relocated' reads as a completed move (past), not an active ask"
+    },
+    {
+      "id": "B11",
+      "client": "realtor",
+      "group": "B",
+      "expected_decision": "watch",
+      "got_decision": "none",
+      "expected_why": "already sold and relocating, but destination genuinely unsettled ('SoCal or maybe not')",
+      "got_fit_reason": "Plan to move to SoCal is hedged with 'maybe not', lowering fit; no committed destination in Orange County.",
+      "got_intent_reason": "Housing sale already settled (past); future move is speculative and explicitly uncertain.",
+      "trap": "location genuinely unclear ('maybe SoCal or maybe not') — must not be over-credited as an OC lead"
+    },
+    {
+      "id": "B11",
+      "client": "insurance",
+      "group": "B",
+      "expected_decision": "none",
+      "got_decision": "watch",
+      "expected_why": "possible future CA move but no confirmed new address/asset yet",
+      "got_fit_reason": "Possibly moving to California but uncertainty ('maybe not') hedges the location commitment",
+      "got_intent_reason": "New address/housing change creates insurance need; sold condo and relocating",
+      "trap": "location genuinely unclear ('maybe SoCal or maybe not') — must not be over-credited as an OC lead"
+    },
+    {
+      "id": "B14",
+      "client": "insurance",
+      "group": "B",
+      "expected_decision": "hot",
+      "got_decision": "none",
+      "expected_why": "Active home search naming budget and OC cities (Tustin/Irvine) is the same imminent-new-asset pattern as B01/B04 - fit high, intent implied, hot.",
+      "got_fit_reason": "First-time buyer in CA (Tustin/Irvine) but purchase not yet completed; asking for realtor not insurance",
+      "got_intent_reason": "Asking for realtor recommendations, no expressed insurance need",
+      "trap": "implies a prior agent relationship soured — still an active, explicit ask for a new one, not a negation of need"
+    },
+    {
+      "id": "C01",
+      "client": "solo_agency",
+      "group": "C",
+      "expected_decision": "hot",
+      "got_decision": "warm",
+      "expected_why": "independent agent (location doesn't matter) whose editing time is eating into time she'd spend prospecting/posting",
+      "got_fit_reason": "Realtor with own customer pipeline and listing business perfectly matches the first types line",
+      "got_intent_reason": "Asking for video editing app to speed up listing content creation, not for lead generation or sales outreach that Solo Agency provides",
+      "trap": "realtor language but out-of-state/out-of-area agent, explicit not_buyer for the OC realtor client"
+    },
+    {
+      "id": "C02",
+      "client": "insurance",
+      "group": "C",
+      "expected_decision": "hot",
+      "got_decision": "warm",
+      "expected_why": "a newly opened CA small business is a new thing to insure",
+      "got_fit_reason": "Small business owner in California matches type exactly",
+      "got_intent_reason": "Asking about finding customers and marketing, not expressing insurance need",
+      "trap": "new-shop opening reads as an insurance trigger too, not just a marketing ask; no-diacritics Vietnamese"
+    },
+    {
+      "id": "C06",
+      "client": "ai_video",
+      "group": "C",
+      "expected_decision": "hot",
+      "got_decision": "warm",
+      "expected_why": "explicitly asks how to post content regularly — exactly the editing-consistency friction",
+      "got_fit_reason": "Established professional in selling/marketing profession, perfect membership match",
+      "got_intent_reason": "Being too busy to post consistently is routine for any professional; no specific video editing friction named",
+      "trap": "content-marketing ask looks like a generic solo_agency lead, but this person IS the insurance client's own competitor"
+    },
+    {
+      "id": "C09",
+      "client": "insurance",
+      "group": "C",
+      "expected_decision": "watch",
+      "got_decision": "none",
+      "expected_why": "self-employed consultant type match, location unclear, but a business only 3 months old with no real client base reads as a new venture needing coverage",
+      "got_fit_reason": "Right type of person but location not stated and on worldwide X platform; location is required for California insurance service",
+      "got_intent_reason": "Seeking client-finding system for their business; no insurance or coverage friction named",
+      "trap": "textbook 'first customers' ask with zero industry or location clues — tests whether vague fit still resolves correctly for each client"
+    },
+    {
+      "id": "C10",
+      "client": "solo_agency",
+      "group": "C",
+      "expected_decision": "hot",
+      "got_decision": "warm",
+      "expected_why": "OC realtor explicitly stuck editing listing videos fast enough for waiting customers — matches the posting-consistency/content friction",
+      "got_fit_reason": "Realtor exactly matches independent professional who lives on own pipeline",
+      "got_intent_reason": "Asking for video editing app is routine work of creating listings; would be true any ordinary working day; no new circumstance creating change",
+      "trap": "OC-based realtor is a competitor for the realtor client but a warm lead for insurance and mlo, and a hot lead for solo_agency/ai_video, all from one post"
+    },
+    {
+      "id": "C11",
+      "client": "ai_video",
+      "group": "C",
+      "expected_decision": "hot",
+      "got_decision": "warm",
+      "expected_why": "explicitly says zero time to post consistently and asks for a system that handles content",
+      "got_fit_reason": "Clear match to small business owner marketing themselves",
+      "got_intent_reason": "Routine time pressure from running solo business; no specific video editing friction named",
+      "trap": "'content + follow ups' ask spans two different offers — tests splitting a bundled request across solo_agency (follow-ups) and ai_video (content)"
+    },
+    {
+      "id": "C12",
+      "client": "ai_video",
+      "group": "C",
+      "expected_decision": "warm",
+      "got_decision": "none",
+      "expected_why": "salon owner, right type, but no text to show intent",
+      "got_fit_reason": "Good membership match but bio-only with no expressed need or change",
+      "got_intent_reason": "Bio-only profile with no stated change or need",
+      "trap": "profile row with a clear profession in the bio but zero situational text — must not invent explicit/implied intent from nothing"
+    },
+    {
+      "id": "C13",
+      "client": "ai_video",
+      "group": "C",
+      "expected_decision": "warm",
+      "got_decision": "none",
+      "expected_why": "loan officer, right type, but no text to show intent",
+      "got_fit_reason": "Good professional match but bio-only with no expressed need or change",
+      "got_intent_reason": "Bio-only profile with no stated change or need",
+      "trap": "bio-only profile row for a fellow loan officer — instant competitor for mlo despite zero text, and a plain not_buyer for the realtor client"
+    },
+    {
+      "id": "C14",
+      "client": "insurance",
+      "group": "C",
+      "expected_decision": "none",
+      "got_decision": "warm",
+      "expected_why": "small-business type match but no confirmed California location for the individual, and no new-asset/employee trigger",
+      "got_fit_reason": "Small business owner clearly located in California (community name 'Cong Dong Nail & Spa Viet Tai California')",
+      "got_intent_reason": "Seeking customer retention and customer-finding help; no insurance coverage, new asset, or protection friction named",
+      "trap": "explicit ask for an automated reminder/lead-finder app is solo_agency's exact product, but has zero content/video angle for ai_video"
+    },
+    {
+      "id": "D01",
+      "client": "solo_agency",
+      "group": "D",
+      "expected_decision": "hot",
+      "got_decision": "warm",
+      "expected_why": "Agent whose listing sat 90 days matches the rule's own implied example directly.",
+      "got_fit_reason": "Real-estate agent marketing listings is a direct match for independent professional on own pipeline",
+      "got_intent_reason": "Listing marketing is routine work for an agent; no new friction beyond normal sales cycle",
+      "trap": "no explicit mention of any specific service or video — easy to over-assign a matching intent across every vertical"
+    },
+    {
+      "id": "D02",
+      "client": "solo_agency",
+      "group": "D",
+      "expected_decision": "warm",
+      "got_decision": "hot",
+      "expected_why": "Salon owner fits; a new location is growth-with-pride, not a marketing gap.",
+      "got_fit_reason": "Salon owner is a direct match for small local shop or service business type",
+      "got_intent_reason": "New second location is a new thing creating need to manage, market, and fill both locations",
+      "trap": "a second location sounds like it could pull in real-estate or mortgage relevance, but the text never says buy vs. lease"
+    },
+    {
+      "id": "D06",
+      "client": "ai_video",
+      "group": "D",
+      "expected_decision": "warm",
+      "got_decision": "hot",
+      "expected_why": "Freelancer/creator fits, but the complaint is general marketing, not video-specific.",
+      "got_fit_reason": "freelance graphic designer exactly matches the type and is explicitly listed as an example",
+      "got_intent_reason": "just started full-time freelancing (new business) and struggling with marketing; will need to find customers and build visibility; video content is part of modern creator marketing",
+      "trap": "one event (quitting corporate) implies two different needs for two different clients — lost benefits (insurance) and solo marketing overload (solo_agency) — for different reasons"
+    },
+    {
+      "id": "D06",
+      "client": "insurance",
+      "group": "D",
+      "expected_decision": "watch",
+      "got_decision": "none",
+      "expected_why": "Quitting corporate for self-employment matches 'new job'; location is unstated.",
+      "got_fit_reason": "Self-employed freelancer matches type, but location is not stated; no evidence of California",
+      "got_intent_reason": "Friction is about marketing and finding customers, not insurance coverage changes",
+      "trap": "one event (quitting corporate) implies two different needs for two different clients — lost benefits (insurance) and solo marketing overload (solo_agency) — for different reasons"
+    },
+    {
+      "id": "D07",
+      "client": "solo_agency",
+      "group": "D",
+      "expected_decision": "none",
+      "got_decision": "warm",
+      "expected_why": "Consumer homeowner, not a business owner.",
+      "got_fit_reason": "Real-estate agent is direct match for independent professional on own pipeline",
+      "got_intent_reason": "Complaining about personal mortgage rate; no friction named related to finding customers or marketing",
+      "trap": "the word 'loan' and a realtor-adjacent community make this feel real-estate relevant, but it's a refinance signal for mlo only"
+    },
+    {
+      "id": "D07",
+      "client": "ai_video",
+      "group": "D",
+      "expected_decision": "none",
+      "got_decision": "warm",
+      "expected_why": "No selling activity.",
+      "got_fit_reason": "real-estate agent from community context directly matches the type; they market themselves",
+      "got_intent_reason": "discussing personal mortgage refinancing situation; not about business marketing, video posting or content creation",
+      "trap": "the word 'loan' and a realtor-adjacent community make this feel real-estate relevant, but it's a refinance signal for mlo only"
+    },
+    {
+      "id": "D07",
+      "client": "mlo",
+      "group": "D",
+      "expected_decision": "warm",
+      "got_decision": "hot",
+      "expected_why": "Homeowner explicitly complains/compares her stuck rate; CA location unstated so fit is medium.",
+      "got_fit_reason": "Homeowner in California holding existing mortgage, ideal refinance candidate",
+      "got_intent_reason": "Rates dropped, creating explicit refinancing opportunity for existing 7% loan held since 2023",
+      "trap": "the word 'loan' and a realtor-adjacent community make this feel real-estate relevant, but it's a refinance signal for mlo only"
+    },
+    {
+      "id": "D11",
+      "client": "ai_video",
+      "group": "D",
+      "expected_decision": "warm",
+      "got_decision": "hot",
+      "expected_why": "Small-business owner fits; no video-specific complaint.",
+      "got_fit_reason": "Food truck owner is explicitly listed in types as a small shop/service business that sells",
+      "got_intent_reason": "New food truck business created needs content but owner lacks time for editing, triggering the core friction in why_they_need",
+      "trap": "a new food truck is a new insurable commercial asset even though the caption is about excitement, not coverage"
+    },
+    {
+      "id": "D12",
+      "client": "mlo",
+      "group": "D",
+      "expected_decision": "hot",
+      "got_decision": "none",
+      "expected_why": "CA homeowner financing an ADU build is a real financing-need change.",
+      "got_fit_reason": "homeowner in CA, but ADU construction is not a home purchase or refinance trigger; purchase/refinance not indicated",
+      "got_intent_reason": "no need for mortgage shown; discussing ADU construction savings, not seeking financing",
+      "trap": "ADU construction implies a financing need (mlo) even without the word 'loan'; it does not by itself imply a realtor lead"
+    },
+    {
+      "id": "D14",
+      "client": "insurance",
+      "group": "D",
+      "expected_decision": "watch",
+      "got_decision": "none",
+      "expected_why": "Home premium nearly doubled matches directly, but CA location is unstated so fit is medium.",
+      "got_fit_reason": "matches rising policy situation if in California, but location unclear (Vietnamese business community in America, not confirmed as CA)",
+      "got_intent_reason": "text shows routine annual rate complaint and confusion about premium increase, not seeking insurance help or review; matches why_they_need description of prices moving every year (routine observation, not trigger)",
+      "trap": "a cost-shock complaint could be misread as explicit shopping intent — no comparison or request for a new agent is actually made, so it's logged as implied"
+    },
+    {
+      "id": "D15",
+      "client": "insurance",
+      "group": "D",
+      "expected_decision": "hot",
+      "got_decision": "none",
+      "expected_why": "New CA address coming next month is a direct match.",
+      "got_fit_reason": "software engineer employee does not match any insurance types (requires self-employed professional or business owner); employee status is the blocking factor",
+      "got_intent_reason": "bio-only profile with relocation stated, but moving alone does not trigger insurance need for non-self-employed person; employee has no business insurance friction",
+      "trap": "the situation lives in the profile's bio line (author_line) rather than the empty text field — easy to miss on a row with no post body"
+    },
+    {
+      "id": "E03",
+      "client": "solo_agency",
+      "group": "E",
+      "expected_decision": "hot",
+      "got_decision": "warm",
+      "expected_why": "SaaS founder; 'just launched' is a new business with no customers yet, and video editing isn't solo_agency's own offering.",
+      "got_fit_reason": "SaaS founder launching product to market; matches founder-of-startup type",
+      "got_intent_reason": "Post announces product launch and promotional activity—routine work for founder; no evidence of customer-finding struggle or operational friction",
+      "trap": "the poster is a solo founder pitching a video app — a straight competitor for the video-editing client but a strong lead for the sales/marketing client, since 'just launched' signals a new business needing customers"
+    },
+    {
+      "id": "E03",
+      "client": "insurance",
+      "group": "E",
+      "expected_decision": "watch",
+      "got_decision": "none",
+      "expected_why": "New business launch is a new thing to insure, but CA location is unstated.",
+      "got_fit_reason": "small business/startup owner, but location unclear (X content creator audience provides no geographic indicator)",
+      "got_intent_reason": "text announces product launch and free trial offer; routine startup business activity with no change in their own business requiring insurance review",
+      "trap": "the poster is a solo founder pitching a video app — a straight competitor for the video-editing client but a strong lead for the sales/marketing client, since 'just launched' signals a new business needing customers"
+    },
+    {
+      "id": "E04",
+      "client": "solo_agency",
+      "group": "E",
+      "expected_decision": "hot",
+      "got_decision": "warm",
+      "expected_why": "Same as E03 — a just-launched video app signals a new business needing customers, mirrored across languages.",
+      "got_fit_reason": "SaaS founder launching product; fits founder-led startup type",
+      "got_intent_reason": "Post shows routine product launch and promotional activity; no evidence of customer-acquisition friction or marketing overwhelm",
+      "trap": "mixed-language founder ad — same 'vừa launch' new-business signal as E03, so labels should mirror it despite the different language/platform flavor"
+    },
+    {
+      "id": "E04",
+      "client": "insurance",
+      "group": "E",
+      "expected_decision": "watch",
+      "got_decision": "none",
+      "expected_why": "New business launch, CA location unstated.",
+      "got_fit_reason": "small business/startup owner, but location unclear (Vietnamese content creator community, no geographic indicator)",
+      "got_intent_reason": "text is product launch announcement; routine startup business activity with no change in their own business structure or new risk described",
+      "trap": "mixed-language founder ad — same 'vừa launch' new-business signal as E03, so labels should mirror it despite the different language/platform flavor"
+    },
+    {
+      "id": "F08",
+      "client": "realtor",
+      "group": "F",
+      "expected_decision": "none",
+      "got_decision": "warm",
+      "expected_why": "OC location alone, no housing transaction.",
+      "got_fit_reason": "Located in Orange County but bio-only; no stated housing change",
+      "got_intent_reason": "Bio shows only location and general motivation; no housing transaction",
+      "trap": "the #girlboss hashtag and 'grind' language could look like an entrepreneur post, but nothing concrete about a business is stated"
+    },
+    {
+      "id": "G04",
+      "client": "insurance",
+      "group": "G",
+      "expected_decision": "none",
+      "got_decision": "hot",
+      "expected_why": "settled asset, stale (2 yrs), location not confirmed CA",
+      "got_fit_reason": "New home purchase is a new asset and new address; posted in California Vietnamese community, recent transaction (2024)",
+      "got_intent_reason": "New home ownership is the new asset creating need for homeowners insurance; types list new address as trigger",
+      "trap": "stale milestone post, transaction long since complete"
+    },
+    {
+      "id": "G05",
+      "client": "mlo",
+      "group": "G",
+      "expected_decision": "warm",
+      "got_decision": "competitor",
+      "expected_why": "agent = partner segment lead, but venting about rates isn't a lender ask",
+      "got_fit_reason": "loan officer or mortgage professional competing in same market",
+      "got_intent_reason": "discussing own lending pipeline, not seeking loan officer services",
+      "trap": "sarcastic joke about rates still confirms an active real-estate professional"
+    },
+    {
+      "id": "H01",
+      "client": "insurance",
+      "group": "H",
+      "expected_decision": "warm",
+      "got_decision": "none",
+      "expected_why": "self-employed CA professional, bio only, no change signal",
+      "got_fit_reason": "Employed by Compass brokerage, not self-employed; does not match 'self-employed professional' or 'business owner' types",
+      "got_intent_reason": "Bio only; no indication of self-employment or business ownership",
+      "trap": "job title alone with no need signal - is a competitor for the realtor client but a warm B2B lead for everyone else who sells to independent professionals"
+    }
+  ],
+  "failure_count": 37,
+  "missing": [],
+  "missing_count": 0,
+  "groupA_warm": 0.9620253164556962,
+  "groupA_warm_num": 76,
+  "groupA_warm_den": 79,
+  "groupE_competitor": 1.0,
+  "groupE_competitor_num": 12,
+  "groupE_competitor_den": 12,
+  "groupFG_none": 0.978021978021978,
+  "groupFG_none_num": 89,
+  "groupFG_none_den": 91
+}

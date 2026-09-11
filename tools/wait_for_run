@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# tools/wait_for_run — background wait for a dispatched automation run to land in the
+# standup log. Called as:
+#     bash tools/wait_for_run <client_slug> <since_iso8601> [--timeout <seconds>] \
+#         [--pipeline <path>] [--interval <seconds>]
+# Polls <pipeline>/automation/standup.jsonl; exits 0 and prints the first line whose JSON
+# has client_slug (or "client") == <client_slug> and "ts" later than <since_iso8601>.
+# Exits 3 on timeout (default 2700s), 2 on bad arguments. --pipeline default: walk up
+# from $PWD looking for a "daily-content-pipeline" dir (same root-discovery style as
+# tools/solo_tool), then use <root>/daily-content-pipeline. No deps beyond bash/grep/date.
+set -u
+usage() {
+  echo "usage: wait_for_run <client_slug> <since_iso8601> [--timeout <seconds>] [--pipeline <path>] [--interval <seconds>]" >&2
+}
+is_uint() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
+# to_epoch <iso8601> — print epoch seconds on stdout, or nothing (and fail) if unparseable.
+to_epoch() {
+  local s="$1" base
+  date -u -d "$s" +%s 2>/dev/null && return 0
+  base="${s%%.*}"
+  case "$base" in
+    *Z) date -u -j -f "%Y-%m-%dT%H:%M:%S" "${base%Z}" +%s 2>/dev/null && return 0 ;;
+  esac
+  date -u -j -f "%Y-%m-%dT%H:%M:%S%z" "$(printf '%s' "$base" | sed -E 's/([+-][0-9]{2}):([0-9]{2})$/\1\2/')" +%s 2>/dev/null && return 0
+  return 1
+}
+# is_after <ts> <since> — true if ts is later than since; falls back to lexical
+# comparison of the raw strings when either cannot be parsed to epoch seconds.
+is_after() {
+  local te se
+  te="$(to_epoch "$1" 2>/dev/null)"
+  se="$(to_epoch "$2" 2>/dev/null)"
+  if [ -n "$te" ] && [ -n "$se" ]; then
+    [ "$te" -gt "$se" ]
+  else
+    [[ "$1" > "$2" ]]
+  fi
+}
+extract_field() {
+  printf '%s' "$1" | grep -o "\"$2\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/'
+}
+
+[ $# -lt 2 ] && { usage; exit 2; }
+client_slug="$1"; since="$2"; shift 2
+[ -z "$client_slug" ] && { usage; exit 2; }
+[ -z "$since" ] && { usage; exit 2; }
+timeout=2700; interval=10; pipeline=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --timeout) [ $# -ge 2 ] || { usage; exit 2; }; timeout="$2"; shift 2 ;;
+    --pipeline) [ $# -ge 2 ] || { usage; exit 2; }; pipeline="$2"; shift 2 ;;
+    --interval) [ $# -ge 2 ] || { usage; exit 2; }; interval="$2"; shift 2 ;;
+    *) usage; exit 2 ;;
+  esac
+done
+is_uint "$timeout" || { usage; exit 2; }
+is_uint "$interval" || { usage; exit 2; }
+
+if [ -z "$pipeline" ]; then
+  dir="$PWD"
+  while [ -n "$dir" ]; do
+    if [ -d "$dir/daily-content-pipeline" ]; then pipeline="$dir/daily-content-pipeline"; break; fi
+    [ "$dir" = "/" ] && break
+    dir="$(dirname "$dir")"
+  done
+  [ -z "$pipeline" ] && pipeline="$PWD/daily-content-pipeline"
+fi
+
+standup="$pipeline/automation/standup.jsonl"
+start_ts="$(date +%s)"
+while true; do
+  if [ -f "$standup" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      [ -z "$line" ] && continue
+      slug="$(extract_field "$line" client_slug)"
+      [ -z "$slug" ] && slug="$(extract_field "$line" client)"
+      [ "$slug" = "$client_slug" ] || continue
+      ts="$(extract_field "$line" ts)"
+      [ -z "$ts" ] && continue
+      if is_after "$ts" "$since"; then
+        echo "$line"
+        exit 0
+      fi
+    done < "$standup"
+  fi
+  now="$(date +%s)"
+  if [ $((now - start_ts)) -ge "$timeout" ]; then
+    echo "timeout after ${timeout} s"
+    exit 3
+  fi
+  sleep "$interval"
+done

@@ -31,7 +31,7 @@ One Boss, one install on your own computer, as many clients as you need. A clien
 
 ## What the team does every day
 
-**Find leads.** Research plus monitoring of the private sources you already belong to surfaces hot / warm / watch leads with the post link, why it matters, and a copy-ready value-first reply. On every plan, including Free, the team harvests leads at scale from friends lists, people search and directories, and builds evidenced dossiers on each one.
+**Find leads.** Research plus monitoring of the sources you're already part of surfaces hot / warm / watch leads with the post link, why it matters, and a copy-ready value-first reply. On every plan, including Free, the team harvests leads at scale from friends lists, people search and directories, and builds evidenced dossiers on each one.
 
 **Nurture and CRM.** A CRM you never click: contacts, deals, stages, tasks, replies and bounces land in it automatically; a morning brief tells you who is new, who is cooling, and who has a reason to hear from you today, with the draft already written.
 
@@ -53,11 +53,11 @@ https://github.com/user-attachments/assets/884edd91-7b11-4709-8b93-1b3d6144e3dd
 - Content ideas with URLs, the best idea of the day, five production-ready angles.
 - Drafted outreach and follow-ups waiting for your approval.
 
-## Your private sources stay yours
+## Your sources stay yours
 
 The team reads the logged-in world you already belong to (groups, pages, profiles, posts, communities and directories) through a small local extension in your own Chrome that talks only to a local bridge on your computer. Nothing you collect leaves your machine; the only outside calls go to your own WideCast account for notifications and plan checks. No passwords, cookies or OTPs are ever asked for, and no agent-driven browser touches your logged-in sessions.
 
-Platform support rolls out one adapter at a time: Facebook (groups, pages, profiles, posts, comments, replies, group posts, messages) and Zillow directories are fully supported today; X, LinkedIn, Instagram, YouTube and Reddit already get basic page capture and are next in line for full adapters. Delivery today runs through email, Facebook engagement and messages, and publishing to every social account you connect through WideCast; SMS is human-assisted.
+Platform support rolls out one adapter at a time: web search plus Facebook (groups, pages, profiles, posts, comments), Instagram (posts, people, profiles, comments), X (posts, people, profiles, replies), and Zillow directories are read today; LinkedIn, YouTube and Reddit get basic page capture only. Delivery today runs through email, Facebook engagement and messages, and publishing to every social account you connect through WideCast; SMS is human-assisted.
 
 ## Production and distribution
 
@@ -78,7 +78,7 @@ The first thing you will hear is Sam, your Team Leader, introducing the team; na
 
 ```text
 Add a new client: [client name]. They provide [product/service]. Their target market is [location].
-Here are optional private data sources to monitor: [URLs]. You may also ask me whether to discover private data sources from my joined groups, followed profiles and feeds.
+Here are optional custom sources to monitor: [URLs]. You may also ask me whether to look for more groups, pages and profiles from my joined groups, followed profiles and feeds.
 Set up the client-specific automation task for the first report. Do not run the report inside the setup chat.
 ```
 
@@ -97,11 +97,11 @@ If you are an AI agent setting up this repo, start here:
 1. Read `SOLO_AGENCY_PLAYBOOK.md` first.
 2. Follow the checklist in that file in order.
 3. Do not install, start, or configure `solo-agency-collector/` first.
-4. The Local Collector is activated only later if the playbook reaches the private data source stage and the human approves it.
-5. Use the canonical terms `public data sources` and `private data sources`. Do not shorten them, omit `data`, or use slash labels.
-6. During Setup Flow, if the human asks to run, create, generate, show, refresh, or update a report, do not run it in the setup chat. Verify/resync the client-specific automation task and start that task instead, then say it is running and report the result when it lands.
-7. If the human asks to scan or monitor private data sources (logged-in groups, feeds, profiles, communities, or social sources) after the conversation has drifted, reload `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before taking action.
-8. Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read private data sources. Use only the Solo Agency Local Collector extension plus the Local Collector app.
+4. The Local Collector is activated only later if the playbook reaches the sources stage (step 5/7) and the human approves it.
+5. Human-facing text uses exactly two source words: **default sources** (Vietnamese: *Nguồn mặc định*) and **custom sources** (Vietnamese: *Nguồn custom*). The words public/private, lane, "public data sources", "private data sources", and "logged-in sources" never appear in anything the human reads or Sam says. Internally the run still tells apart HOW a URL is read — directly by the agent, or through the human's own Chrome via the Local Collector extension when the page needs a login — and every collector-only rule, budget, gate and approval stays exactly as written; those internal words may remain in agent-only mechanics but must be introduced as "internal access modes, never spoken."
+6. During Setup Flow, if the human asks to run, create, generate, show, refresh, or update a report, do not run it in the setup chat. Verify/resync the client-specific automation task and start that task instead, then say it is running and report the result in the same chat when it lands.
+7. If the human asks to scan or monitor custom sources (groups, feeds, profiles, communities, or social sources that need a login to read) after the conversation has drifted, reload `playbooks/PRIVATE_SOURCE_GATE.md`, `playbooks/02_PRIVATE_SOURCE_SETUP.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` before taking action.
+8. Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser to read sources that need a login: those are read only through the Solo Agency Local Collector extension in the human's own Chrome, plus the Local Collector app.
 9. During Local Collector activation, branch on runtime. **Local runtime** (the agent can see the install root on its own filesystem): write `setup_collector.sh`/`.ps1`, say one plain-language safety line, ask for consent once, then run it yourself and wait up to 60 seconds for `GET http://127.0.0.1:17321/status` to answer before reporting. **Remote runtime** (a hosted sandbox with no local install root, or `/status` still dead after a bootstrap attempt): prepare the files and give the human the one-line Terminal/PowerShell command to run outside the AI sandbox instead. Either way, also give the human the Chrome extension `Load unpacked` folder path.
 10. When checking an already-running Local Collector app, do not trust `ready` alone. Verify `/status.config_file`, `/status.output_dir`, and `/status.run_now_request_file` point to the current setup's `daily-content-pipeline/collector/` tree. If they point to another setup, treat it as `wrong_workspace_bridge`, ask the human to run the current setup's Local Collector command, and remind them to remove/disable old Solo Agency Local Collector extensions in `chrome://extensions`.
 11. After a schedule/automation exists, every later approved change must trigger Automation Resync across the whole automation package, not only one config file. Update profile/source state, provider config/capability cache when relevant, `schedule.md`, collector config when relevant, automation manifest, scheduled-run prompt/task body, and the resync log before saying the next scheduled run is updated.

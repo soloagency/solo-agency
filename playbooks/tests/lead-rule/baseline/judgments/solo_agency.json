@@ -1,0 +1,1202 @@
+[
+  {
+    "id": "A01",
+    "person_type": "real-estate agent",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "fit": "high",
+    "fit_reason": "Exact match as self-employed real estate professional with own pipeline",
+    "intent": "none",
+    "intent_reason": "Routine work posting open house listing; customer-facing CTA is not personal need for lead generation",
+    "decision": "warm"
+  },
+  {
+    "id": "A02",
+    "person_type": "mortgage loan officer",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "fit": "high",
+    "fit_reason": "Exact match as self-employed loan officer with own pipeline",
+    "intent": "none",
+    "intent_reason": "Rate posting and quote offer to customers is routine work, not personal lead-finding need",
+    "decision": "warm"
+  },
+  {
+    "id": "A03",
+    "person_type": "insurance agent",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "fit": "high",
+    "fit_reason": "Exact match as self-employed insurance professional with own pipeline",
+    "intent": "none",
+    "intent_reason": "Post shows existing client work being handled; no friction in finding customers shown",
+    "decision": "warm"
+  },
+  {
+    "id": "A04",
+    "person_type": "nail salon owner",
+    "sells_to_match": "owner of ANY small local shop or service business (e.g. salon, restaurant, auto shop, clinic, tutoring center, photo studio, gym, property management)",
+    "fit": "high",
+    "fit_reason": "Direct match as owner of small service business (salon)",
+    "intent": "none",
+    "intent_reason": "Routine post and milestone celebration; mentions walk-in availability but shows no friction in customer acquisition",
+    "decision": "warm"
+  },
+  {
+    "id": "A05",
+    "person_type": "founder of small SaaS startup",
+    "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
+    "fit": "high",
+    "fit_reason": "Direct match as startup founder",
+    "intent": "none",
+    "intent_reason": "Growth milestone of already-running business; existing customer base supports $12k MRR with no friction named",
+    "decision": "warm"
+  },
+  {
+    "id": "A06",
+    "person_type": "founder of small startup",
+    "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
+    "fit": "high",
+    "fit_reason": "Direct match as startup founder",
+    "intent": "implied",
+    "intent_reason": "New hire (video editor employee) solves editing friction, enabling more frequent content output and customer visibility",
+    "decision": "hot"
+  },
+  {
+    "id": "A07",
+    "person_type": "marketing/lead generation agency owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Sells marketing services (ROAS results) to businesses; explicitly competes with Solo Agency's core offering",
+    "intent": "none",
+    "intent_reason": "Not applicable; identified as competitor",
+    "decision": "competitor"
+  },
+  {
+    "id": "A08",
+    "person_type": "freelance video editor",
+    "sells_to_match": "creator, course seller or freelancer of ANY kind who sells something to clients",
+    "fit": "high",
+    "fit_reason": "Direct match as freelancer selling editing services; not a marketer/lead-gen specialist",
+    "intent": "none",
+    "intent_reason": "Customer-facing solicitation CTA 'Anyone need a fast editor' is routine business development, not personal lead-generation need",
+    "decision": "warm"
+  },
+  {
+    "id": "A09",
+    "person_type": "lead generation coach / course creator",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Sells lead generation coaching (Client Getting Machine) directly to solo businesses; core competitor to Solo Agency",
+    "intent": "none",
+    "intent_reason": "Not applicable; identified as competitor",
+    "decision": "competitor"
+  },
+  {
+    "id": "A10",
+    "person_type": "mindset/business coach",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "fit": "high",
+    "fit_reason": "Direct match as independent professional coach with own pipeline",
+    "intent": "none",
+    "intent_reason": "Post is about coach's client success, not coach's own need for leads; routine work",
+    "decision": "warm"
+  },
+  {
+    "id": "A11",
+    "person_type": "dental or medical cleaning service owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Small local service business with own customers; fits the core type exactly",
+    "intent": "none",
+    "intent_reason": "Routine business announcement of hours; no need for marketing or lead-finding service",
+    "decision": "warm"
+  },
+  {
+    "id": "A12",
+    "person_type": "employment lawyer or HR consultant advising on visa compliance",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent professional serving businesses; owns their own client pipeline",
+    "intent": "none",
+    "intent_reason": "Routine professional work—updating clients on compliance changes; no marketing friction named",
+    "decision": "warm"
+  },
+  {
+    "id": "A13",
+    "person_type": "auto shop owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Small local service business; owns the customer relationship",
+    "intent": "none",
+    "intent_reason": "Routine business posting—showing work and thanking for referrals; no gap in lead-finding",
+    "decision": "warm"
+  },
+  {
+    "id": "A14",
+    "person_type": "wedding photographer, freelancer",
+    "sells_to_match": "creator, course seller or freelancer of ANY kind who sells something to clients",
+    "fit": "high",
+    "fit_reason": "Freelancer selling services directly to clients; operates own pipeline",
+    "intent": "none",
+    "intent_reason": "Routine business activity—booking from portfolio posts is normal for this profession",
+    "decision": "warm"
+  },
+  {
+    "id": "A15",
+    "person_type": "restaurant owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Small local service business with own customer base",
+    "intent": "none",
+    "intent_reason": "Routine business posting—menu updates are ordinary operations, no customer-finding gap",
+    "decision": "warm"
+  },
+  {
+    "id": "A16",
+    "person_type": "HVAC contractor, home repair service provider",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Small local service business operating their own customer base",
+    "intent": "none",
+    "intent_reason": "Routine work posting—showing completed jobs is ordinary business, no need for lead service",
+    "decision": "warm"
+  },
+  {
+    "id": "A17",
+    "person_type": "tutoring center owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Small local service business; education/tutoring service fits the type",
+    "intent": "none",
+    "intent_reason": "Growth of existing business (new program launch), not new friction—already-running center adds SAT prep",
+    "decision": "warm"
+  },
+  {
+    "id": "A18",
+    "person_type": "fitness coach, personal trainer",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent professional; coaches live on their own client pipeline",
+    "intent": "none",
+    "intent_reason": "Routine business activity—booking coaching slots is ordinary operations, not a new need",
+    "decision": "warm"
+  },
+  {
+    "id": "A19",
+    "person_type": "real estate agent",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent professional with own pipeline and customer relationships",
+    "intent": "none",
+    "intent_reason": "Routine business activity—posting listings and CTAs are ordinary operations; no gap in lead-finding",
+    "decision": "warm"
+  },
+  {
+    "id": "A20",
+    "person_type": "real estate agent",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent professional; operates own customer pipeline",
+    "intent": "none",
+    "intent_reason": "Routine business activity—celebrating closings and seeking referrals are standard operations",
+    "decision": "warm"
+  },
+  {
+    "id": "A21",
+    "person_type": "Mortgage loan officer with independent pipeline",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Loan officer lives on customer flow, matches example in types exactly",
+    "intent": "none",
+    "intent_reason": "Routine rate update and customer offers; ordinary daily work",
+    "decision": "warm"
+  },
+  {
+    "id": "A22",
+    "person_type": "Insurance professional managing own client base",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent insurance professional with own customer pipeline",
+    "intent": "none",
+    "intent_reason": "Routine policy updates and customer management; no new friction named",
+    "decision": "warm"
+  },
+  {
+    "id": "A23",
+    "person_type": "Nail salon owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Salon owner with walk-in customer base, exact match to types",
+    "intent": "none",
+    "intent_reason": "Routine salon service delivery; no new friction or customer-finding need",
+    "decision": "warm"
+  },
+  {
+    "id": "A24",
+    "person_type": "Auto detailing specialist, ceramic coating service",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent professional in trade with own appointment pipeline",
+    "intent": "none",
+    "intent_reason": "Full schedule is ordinary state, not new friction; routine work",
+    "decision": "warm"
+  },
+  {
+    "id": "A25",
+    "person_type": "Professional videographer, content creator",
+    "sells_to_match": "creator, course seller or freelancer of ANY kind who sells something to clients",
+    "fit": "high",
+    "fit_reason": "Professional creator selling video services to clients, matches types",
+    "intent": "none",
+    "intent_reason": "Bio-only profile stating routine booking status; no new need or friction",
+    "decision": "warm"
+  },
+  {
+    "id": "A26",
+    "person_type": "Real estate agent, Realtor",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Realtor with own pipeline, example in types",
+    "intent": "none",
+    "intent_reason": "Bio-only profile with routine job title and service area; no new need",
+    "decision": "warm"
+  },
+  {
+    "id": "A27",
+    "person_type": "Licensed insurance agent, independent professional",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Insurance agent matches type exactly, independent practice",
+    "intent": "none",
+    "intent_reason": "Bio-only profile with credentials and language; no new need named",
+    "decision": "warm"
+  },
+  {
+    "id": "A28",
+    "person_type": "Creator with brand deals and product business",
+    "sells_to_match": "creator, course seller or freelancer of ANY kind who sells something to clients",
+    "fit": "high",
+    "fit_reason": "Creator selling brand services and own products, matches type",
+    "intent": "none",
+    "intent_reason": "Growth of running business with new product line; no new friction about customer-finding or content posting",
+    "decision": "warm"
+  },
+  {
+    "id": "A29",
+    "person_type": "Restaurant owner, food service business",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Restaurant owner with direct customer base, exact match to types",
+    "intent": "none",
+    "intent_reason": "Extended hours = more work volume, no new friction; routine scheduling change",
+    "decision": "warm"
+  },
+  {
+    "id": "A30",
+    "person_type": "Veterinary clinic owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Clinic owner with service business, matches type example",
+    "intent": "none",
+    "intent_reason": "Routine service offering and walk-in availability; ordinary daily work",
+    "decision": "warm"
+  },
+  {
+    "id": "B01",
+    "person_type": "first-time homebuyer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer buying for personal use, not a business owner or independent professional with pipeline",
+    "intent": "none",
+    "intent_reason": "personal home purchase, not a business-related need",
+    "decision": "none"
+  },
+  {
+    "id": "B02",
+    "person_type": "homeowner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer with personal insurance need, not a business owner",
+    "intent": "none",
+    "intent_reason": "personal insurance for home, not business-related",
+    "decision": "none"
+  },
+  {
+    "id": "B03",
+    "person_type": "homeowner seeking refinance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer with personal mortgage need, not a business owner",
+    "intent": "none",
+    "intent_reason": "personal mortgage refinance, not business-related",
+    "decision": "none"
+  },
+  {
+    "id": "B04",
+    "person_type": "first-time homebuyer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer buying for personal use, not a business owner or independent professional",
+    "intent": "none",
+    "intent_reason": "personal home purchase, not a business-related need",
+    "decision": "none"
+  },
+  {
+    "id": "B05",
+    "person_type": "homeowner evaluating refinance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer with personal mortgage need, not a business owner",
+    "intent": "none",
+    "intent_reason": "personal mortgage refinance, not business-related",
+    "decision": "none"
+  },
+  {
+    "id": "B06",
+    "person_type": "homeowner needing repair service",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer buying personal repair service, not a business owner",
+    "intent": "none",
+    "intent_reason": "personal home repair need, not business-related",
+    "decision": "none"
+  },
+  {
+    "id": "B07",
+    "person_type": "parent seeking tutoring service",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer buying tutoring for personal use, not a business owner",
+    "intent": "none",
+    "intent_reason": "personal tutoring need for child, not business-related",
+    "decision": "none"
+  },
+  {
+    "id": "B08",
+    "person_type": "new parent with insurance need",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer with personal life insurance need, not a business owner",
+    "intent": "none",
+    "intent_reason": "personal insurance update after life change, not business-related",
+    "decision": "none"
+  },
+  {
+    "id": "B09",
+    "person_type": "homeowner selling property",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "consumer selling personal property, not a business owner or independent professional with pipeline",
+    "intent": "none",
+    "intent_reason": "personal property sale, not business revenue generation",
+    "decision": "none"
+  },
+  {
+    "id": "B10",
+    "person_type": "employee (marketing coordinator)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "employee of company, not an independent professional or business owner with own pipeline",
+    "intent": "none",
+    "intent_reason": "bio only, no evidence of business ownership or personal pipeline",
+    "decision": "none"
+  },
+  {
+    "id": "B11",
+    "person_type": "Homeowner relocating from Austin, uncertain destination",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of running a business with own customer pipeline; consumer going through personal transition",
+    "intent": "none",
+    "intent_reason": "No friction pointing to need for lead finding or sales team; consumer homeowner lifecycle event",
+    "decision": "none"
+  },
+  {
+    "id": "B12",
+    "person_type": "Homeowner considering home refinance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Consumer homeowner; no business pipeline; not in any Solo Agency types",
+    "intent": "none",
+    "intent_reason": "Seeking lender contact for personal refinance; not asking for lead generation or sales help",
+    "decision": "none"
+  },
+  {
+    "id": "B13",
+    "person_type": "Homeowner in Anaheim Hills concerned about property insurance coverage",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Consumer homeowner; no business operation; matches not_buyers segment",
+    "intent": "none",
+    "intent_reason": "Seeking insurance review for personal home; not a business need",
+    "decision": "none"
+  },
+  {
+    "id": "B14",
+    "person_type": "First-time homebuyer in Orange County",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Consumer going through home purchase; no business pipeline; not in types",
+    "intent": "none",
+    "intent_reason": "Seeking realtor for personal home purchase; consumer transaction",
+    "decision": "none"
+  },
+  {
+    "id": "B15",
+    "person_type": "Insurance claims adjuster employed at State Farm",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Employee of large company with no own customer pipeline; matches not_buyers (employees of large companies)",
+    "intent": "none",
+    "intent_reason": "Bio-only profile; no indication of independent business or customer acquisition need",
+    "decision": "none"
+  },
+  {
+    "id": "C01",
+    "person_type": "Real estate agent in Austin, Texas",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "fit": "high",
+    "fit_reason": "Realtor with own customer pipeline and listing business perfectly matches the first types line",
+    "intent": "none",
+    "intent_reason": "Asking for video editing app to speed up listing content creation, not for lead generation or sales outreach that Solo Agency provides",
+    "decision": "warm"
+  },
+  {
+    "id": "C02",
+    "person_type": "Salon owner, newly opened business in California",
+    "sells_to_match": "owner of ANY small local shop or service business (e.g. salon, restaurant, auto shop, clinic, tutoring center, photo studio, gym, property management)",
+    "fit": "high",
+    "fit_reason": "Newly opened salon owner perfectly matches the second types line; has own customer acquisition need",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asks 'how to find new customers', states 'I don't know how to do marketing'; new business with zero customer base seeking customer acquisition help exactly matches Solo Agency's why_they_need",
+    "decision": "hot"
+  },
+  {
+    "id": "C03",
+    "person_type": "Personal trainer operating a one-man gym",
+    "sells_to_match": "owner of ANY small local shop or service business (e.g. salon, restaurant, auto shop, clinic, tutoring center, photo studio, gym, property management)",
+    "fit": "high",
+    "fit_reason": "Gym owner with own business pipeline perfectly matches the second types line",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asks for 'a simple CRM'; losing clients due to lack of follow-up system; this is the outreach/CRM friction that Solo Agency addresses in their why_they_need",
+    "decision": "hot"
+  },
+  {
+    "id": "C04",
+    "person_type": "Wedding photographer",
+    "sells_to_match": "creator, course seller or freelancer of ANY kind who sells something to clients (a freelancer selling services to others is a customer here, not a competitor, unless they sell marketing or lead generation itself)",
+    "fit": "high",
+    "fit_reason": "Freelance photographer selling services to clients perfectly matches the fourth types line",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asks for 'a better system for follow up'; states 'leads dry up after I post'; missing consistent outreach/follow-up system that Solo Agency provides through CRM and lead nurturing",
+    "decision": "hot"
+  },
+  {
+    "id": "C05",
+    "person_type": "Mortgage loan officer, Orange County, California",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "fit": "high",
+    "fit_reason": "Loan officer with own customer pipeline perfectly matches the first types line",
+    "intent": "explicit",
+    "intent_reason": "Explicitly states 'Grinding to find leads this year'; asks for help generating Facebook content; both lead generation and content creation are core frictions Solo Agency solves per why_they_need",
+    "decision": "hot"
+  },
+  {
+    "id": "C06",
+    "person_type": "Insurance professional with own pipeline",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Insurance agent exactly matches the independent professional type living on own pipeline",
+    "intent": "implied",
+    "intent_reason": "Shows friction: no time to post regularly, customers contact less = implied need for consistent lead generation/outreach system",
+    "decision": "hot"
+  },
+  {
+    "id": "C07",
+    "person_type": "Small service business owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Plumbing & heating owner exactly matches small local service business type",
+    "intent": "implied",
+    "intent_reason": "New installs slowed while repairs booked (change in pipeline) + asking for AI tool to handle follow-ups = implied need for customer reactivation/finding system",
+    "decision": "hot"
+  },
+  {
+    "id": "C08",
+    "person_type": "Small studio/teaching business owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Teaching studio owner fits small local service business type",
+    "intent": "implied",
+    "intent_reason": "Teaching 6 classes all day + editing reels at midnight creates gap in posting capability; friction matches why_they_need (no time to post consistently)",
+    "decision": "hot"
+  },
+  {
+    "id": "C09",
+    "person_type": "Freelancer/solo professional",
+    "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
+    "fit": "high",
+    "fit_reason": "3-month solo freelancer exactly matches tiny startup/solo business type with no sales staff",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asks for 'a real system for finding clients'; identifies cold DMing as exhausting = direct request for customer-finding solution",
+    "decision": "hot"
+  },
+  {
+    "id": "C10",
+    "person_type": "Real estate professional/realtor",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Realtor exactly matches independent professional who lives on own pipeline",
+    "intent": "none",
+    "intent_reason": "Asking for video editing app is routine work of creating listings; would be true any ordinary working day; no new circumstance creating change",
+    "decision": "warm"
+  },
+  {
+    "id": "C11",
+    "person_type": "Small clinic owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Chiropractor clinic owner fits small local service business type",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asks for 'system that handles content + follow ups' for solo practice; states 'zero time to post consistently' matching core why_they_need friction",
+    "decision": "hot"
+  },
+  {
+    "id": "C12",
+    "person_type": "Small business owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Nail salon owner fits small local service business type",
+    "intent": "none",
+    "intent_reason": "Bio-only profile row with no stated change, transaction, or need",
+    "decision": "warm"
+  },
+  {
+    "id": "C13",
+    "person_type": "Loan officer/independent professional",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Loan officer fits independent professional type who lives on own pipeline",
+    "intent": "none",
+    "intent_reason": "Bio-only profile row with no stated change or need",
+    "decision": "warm"
+  },
+  {
+    "id": "C14",
+    "person_type": "Small business owner (spa)",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Spa owner running business alone fits small local service business type",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asks for app to auto-remind customers and find new customers; shows friction: no marketing staff, customers forget to return, losing business",
+    "decision": "hot"
+  },
+  {
+    "id": "C15",
+    "person_type": "Real estate professional/realtor",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Realtor fits independent professional who lives on own pipeline",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asks for CRM to track leads; shows friction: forgetting follow-ups, losing deals = core lead management pain matching why_they_need",
+    "decision": "hot"
+  },
+  {
+    "id": "D01",
+    "person_type": "Real-estate agent",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Real-estate agent marketing listings is a direct match for independent professional on own pipeline",
+    "intent": "none",
+    "intent_reason": "Listing marketing is routine work for an agent; no new friction beyond normal sales cycle",
+    "decision": "warm"
+  },
+  {
+    "id": "D02",
+    "person_type": "Small business owner (salon)",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Salon owner is a direct match for small local shop or service business type",
+    "intent": "implied",
+    "intent_reason": "New second location is a new thing creating need to manage, market, and fill both locations",
+    "decision": "hot"
+  },
+  {
+    "id": "D03",
+    "person_type": "Consumer (new parent)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal post about new baby; no evidence of business ownership or pipeline",
+    "intent": "none",
+    "intent_reason": "Personal life event with no business context",
+    "decision": "none"
+  },
+  {
+    "id": "D04",
+    "person_type": "SaaS founder (bootstrapped, solo)",
+    "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
+    "fit": "high",
+    "fit_reason": "Solo bootstrapped SaaS founder is direct match for tiny startup with no sales/marketing staff",
+    "intent": "explicit",
+    "intent_reason": "Explicitly struggling to post demo videos weekly solo; demo video posting is how they acquire customers",
+    "decision": "hot"
+  },
+  {
+    "id": "D05",
+    "person_type": "Consumer (driver)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal consumer dealing with insurance after traffic incident; no business ownership shown",
+    "intent": "none",
+    "intent_reason": "Personal insurance problem after DUI; not a business marketing or lead generation issue",
+    "decision": "none"
+  },
+  {
+    "id": "D06",
+    "person_type": "Freelance graphic designer",
+    "sells_to_match": "creator, course seller or freelancer of ANY kind who sells something to clients",
+    "fit": "high",
+    "fit_reason": "Freelance graphic designer is direct match for freelancer who sells services to clients",
+    "intent": "explicit",
+    "intent_reason": "Explicitly naming marketing as the struggle after going full-time; new business requiring customer acquisition",
+    "decision": "hot"
+  },
+  {
+    "id": "D07",
+    "person_type": "Real-estate agent",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Real-estate agent is direct match for independent professional on own pipeline",
+    "intent": "none",
+    "intent_reason": "Complaining about personal mortgage rate; no friction named related to finding customers or marketing",
+    "decision": "warm"
+  },
+  {
+    "id": "D08",
+    "person_type": "Small business owner (nail salon)",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Nail salon owner is direct match for small local shop or service business",
+    "intent": "none",
+    "intent_reason": "Bio only states what they do; no change, new situation, or stated need",
+    "decision": "warm"
+  },
+  {
+    "id": "D09",
+    "person_type": "Consumer (expectant parent)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal post about pregnancy ultrasound; no evidence of business ownership or pipeline",
+    "intent": "none",
+    "intent_reason": "Personal life event with no business context",
+    "decision": "none"
+  },
+  {
+    "id": "D10",
+    "person_type": "Corporate employee",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Employee accepting job at a company; not a business owner with own pipeline",
+    "intent": "none",
+    "intent_reason": "Employee relocation for corporate job; not a self-employed or business-owning professional",
+    "decision": "none"
+  },
+  {
+    "id": "D11",
+    "person_type": "food truck owner, first day of business",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Solo small business owner in hospitality; operates independent pipeline",
+    "intent": "implied",
+    "intent_reason": "First business launch with zero customer base; expressed overwhelm signals need for customer/lead acquisition",
+    "decision": "hot"
+  },
+  {
+    "id": "D12",
+    "person_type": "homeowner undertaking personal property project",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Consumer doing personal (non-commercial) real estate work, not a solo business owner",
+    "intent": "none",
+    "intent_reason": "Personal home improvement transaction, no business activity or customer-finding need",
+    "decision": "none"
+  },
+  {
+    "id": "D13",
+    "person_type": "small business owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Running a solo business that just hired first employee; fits owner-operated type",
+    "intent": "none",
+    "intent_reason": "Post shows business operations friction (payroll paperwork), not customer-finding or lead generation friction",
+    "decision": "warm"
+  },
+  {
+    "id": "D14",
+    "person_type": "homeowner discussing personal insurance costs",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Consumer with personal insurance concern; not a business owner or solo professional",
+    "intent": "none",
+    "intent_reason": "Personal insurance cost issue, not business operation or customer-finding need",
+    "decision": "none"
+  },
+  {
+    "id": "D15",
+    "person_type": "software engineer relocating",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of business ownership or solo professional pipeline; profile suggests employee relocating for work",
+    "intent": "none",
+    "intent_reason": "Bio-only profile with no indication of business ownership, independent pipeline, or lead-generation need",
+    "decision": "none"
+  },
+  {
+    "id": "E01",
+    "person_type": "lead generation agency founder/operator",
+    "sells_to_match": "N/A",
+    "fit": "N/A",
+    "fit_reason": "Operates LeadFlowPro, providing lead generation and marketing services to realtors",
+    "intent": "N/A",
+    "intent_reason": "N/A",
+    "decision": "competitor"
+  },
+  {
+    "id": "E02",
+    "person_type": "lead generation service provider",
+    "sells_to_match": "N/A",
+    "fit": "N/A",
+    "fit_reason": "Actively selling lead generation services to Vietnamese realtors; same service and market as Solo Agency",
+    "intent": "N/A",
+    "intent_reason": "N/A",
+    "decision": "competitor"
+  },
+  {
+    "id": "E03",
+    "person_type": "AI video editing SaaS founder",
+    "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
+    "fit": "high",
+    "fit_reason": "SaaS founder launching product to market; matches founder-of-startup type",
+    "intent": "none",
+    "intent_reason": "Post announces product launch and promotional activity—routine work for founder; no evidence of customer-finding struggle or operational friction",
+    "decision": "warm"
+  },
+  {
+    "id": "E04",
+    "person_type": "AI video editing app creator/founder",
+    "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
+    "fit": "high",
+    "fit_reason": "SaaS founder launching product; fits founder-led startup type",
+    "intent": "none",
+    "intent_reason": "Post shows routine product launch and promotional activity; no evidence of customer-acquisition friction or marketing overwhelm",
+    "decision": "warm"
+  },
+  {
+    "id": "E05",
+    "person_type": "real estate agent",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent professional with own buyer pipeline in target area; core Solo Agency buyer type",
+    "intent": "none",
+    "intent_reason": "Friction is supply-side (lack of inventory to show pre-approved buyers), not customer-finding or lead generation need",
+    "decision": "warm"
+  },
+  {
+    "id": "E06",
+    "person_type": "Real-estate agent (independent professional)",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Realtor is a classic example in types list with own pipeline",
+    "intent": "none",
+    "intent_reason": "Complaining about market difficulty is routine work for an agent, not friction requiring marketing/lead generation help",
+    "decision": "warm"
+  },
+  {
+    "id": "E07",
+    "person_type": "Insurance agent (independent professional)",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Insurance agent is an independent professional with own pipeline in types list",
+    "intent": "none",
+    "intent_reason": "Direct call-to-action to their own customers is never intent per rule",
+    "decision": "warm"
+  },
+  {
+    "id": "E08",
+    "person_type": "Insurance agent (independent professional)",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Insurance agent with own pipeline matches types",
+    "intent": "none",
+    "intent_reason": "Direct solicitation to their own customers for quotes is never intent",
+    "decision": "warm"
+  },
+  {
+    "id": "E09",
+    "person_type": "Mortgage loan officer (independent professional)",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Loan officer is independent professional with own pipeline",
+    "intent": "none",
+    "intent_reason": "Seeking referrals from agents is routine business development, not friction Solo Agency solves",
+    "decision": "warm"
+  },
+  {
+    "id": "E10",
+    "person_type": "Mortgage loan officer (independent professional)",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Loan officer is independent professional in types list",
+    "intent": "none",
+    "intent_reason": "Direct CTA to customers for mortgage services is never intent",
+    "decision": "warm"
+  },
+  {
+    "id": "E11",
+    "person_type": "Marketing coach/instructor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Does not match types; explicitly excluded by 'unless they sell marketing or lead generation itself'",
+    "intent": "none",
+    "intent_reason": "Not applicable; competitor overrides matrix",
+    "decision": "competitor"
+  },
+  {
+    "id": "E12",
+    "person_type": "Marketing coach/instructor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Does not match types; excluded for selling marketing programs",
+    "intent": "none",
+    "intent_reason": "Not applicable; competitor overrides matrix",
+    "decision": "competitor"
+  },
+  {
+    "id": "F01",
+    "person_type": "Unknown employee/personal poster",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of business ownership or professional pipeline",
+    "intent": "none",
+    "intent_reason": "Personal meme about money/payday, no business context or friction",
+    "decision": "none"
+  },
+  {
+    "id": "F02",
+    "person_type": "Unknown citizen/voter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Political post about taxes; no business ownership or professional context shown",
+    "intent": "none",
+    "intent_reason": "Political commentary on property taxes, not business need for marketing/lead generation",
+    "decision": "none"
+  },
+  {
+    "id": "F03",
+    "person_type": "Job seeker with new NMLS license",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Job seeker explicitly in not_buyers category; not yet independent professional",
+    "intent": "none",
+    "intent_reason": "Seeking employment, not operating independent business or pipeline",
+    "decision": "none"
+  },
+  {
+    "id": "F04",
+    "person_type": "salon owner",
+    "sells_to_match": "owner of ANY small local shop or service business (e.g. salon, restaurant, auto shop, clinic, tutoring center, photo studio, gym, property management)",
+    "fit": "high",
+    "fit_reason": "Salon owner in Garden Grove is a direct match to small service business type",
+    "intent": "none",
+    "intent_reason": "Hiring staff is routine business operation; she states clientele is already built, no friction about finding customers",
+    "decision": "warm"
+  },
+  {
+    "id": "F05",
+    "person_type": "student",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Student is in not_buyers category; no evidence of running a business",
+    "intent": "none",
+    "intent_reason": "Personal post about finals; student, not a business owner",
+    "decision": "none"
+  },
+  {
+    "id": "F06",
+    "person_type": "spam",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Spam/noise with fake giveaway link; not a real person or business",
+    "intent": "none",
+    "intent_reason": "Spam content",
+    "decision": "none"
+  },
+  {
+    "id": "F07",
+    "person_type": "crypto/MLM recruiter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "MLM opportunity recruiter, not a business owner needing customer leads",
+    "intent": "none",
+    "intent_reason": "MLM/cryptocurrency recruitment post",
+    "decision": "none"
+  },
+  {
+    "id": "F08",
+    "person_type": "lifestyle content creator (personal brand)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of selling a service or running a business; mom and motivational poster, not a business owner with pipeline",
+    "intent": "none",
+    "intent_reason": "Routine personal motivational post; no lead-generation or marketing friction shown",
+    "decision": "none"
+  },
+  {
+    "id": "F09",
+    "person_type": "work-from-home opportunity recruiter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Opportunity/MLM recruiter pitching passive income, not a business owner running an existing operation",
+    "intent": "none",
+    "intent_reason": "MLM/opportunity recruitment post, not a customer need",
+    "decision": "none"
+  },
+  {
+    "id": "F10",
+    "person_type": "HR employee at large corporation",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Employee of 500+ person company; in not_buyers category (employees of large companies without own pipeline)",
+    "intent": "none",
+    "intent_reason": "Corporate HR hiring post, not a self-employed business owner",
+    "decision": "none"
+  },
+  {
+    "id": "F11",
+    "person_type": "consumer commenting on politics",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal social post about US politics; no business or professional context",
+    "intent": "none",
+    "intent_reason": "Personal complaint about politics, not a business owner",
+    "decision": "none"
+  },
+  {
+    "id": "F12",
+    "person_type": "job seeker",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Recently laid off employee; job seeker is in not_buyers category",
+    "intent": "none",
+    "intent_reason": "Job seeker seeking employment, not running own business",
+    "decision": "none"
+  },
+  {
+    "id": "G01",
+    "person_type": "homeowner/prospective buyer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Consumer in home buyer/seller group; not a business owner running own pipeline",
+    "intent": "none",
+    "intent_reason": "Homeowner rejecting realtor outreach; no business operation shown",
+    "decision": "none"
+  },
+  {
+    "id": "G02",
+    "person_type": "Consumer (car insurance buyer)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of running a business; personal consumer action",
+    "intent": "none",
+    "intent_reason": "Personal purchase, explicitly rejects insurance offers",
+    "decision": "none"
+  },
+  {
+    "id": "G03",
+    "person_type": "Homeowner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of business ownership",
+    "intent": "none",
+    "intent_reason": "Explicitly rejects real estate solicitation",
+    "decision": "none"
+  },
+  {
+    "id": "G04",
+    "person_type": "Homeowner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of business ownership",
+    "intent": "none",
+    "intent_reason": "Personal milestone from 2024, settled transaction",
+    "decision": "none"
+  },
+  {
+    "id": "G05",
+    "person_type": "Loan officer or mortgage professional",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Professional with own client pipeline, quoted rates and manages customers",
+    "intent": "implied",
+    "intent_reason": "Pipeline drying up creates implied need for lead-finding and customer acquisition",
+    "decision": "hot"
+  },
+  {
+    "id": "G06",
+    "person_type": "SaaS founder",
+    "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
+    "fit": "high",
+    "fit_reason": "Solo founder building one-person startup",
+    "intent": "none",
+    "intent_reason": "Explicitly rejects agency services and says they handle everything alone",
+    "decision": "none"
+  },
+  {
+    "id": "G07",
+    "person_type": "Homeowner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No evidence of business ownership",
+    "intent": "none",
+    "intent_reason": "Completed financial transaction now settled, not a business activity",
+    "decision": "none"
+  },
+  {
+    "id": "G08",
+    "person_type": "Retired realtor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Retired, no longer actively running a business",
+    "intent": "none",
+    "intent_reason": "No ongoing business activity or need",
+    "decision": "none"
+  },
+  {
+    "id": "H01",
+    "person_type": "Real estate agent",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Agent works on commission, lives on own pipeline of listings and sales",
+    "intent": "none",
+    "intent_reason": "Bio only with no statement of need or change",
+    "decision": "warm"
+  },
+  {
+    "id": "H02",
+    "person_type": "Mortgage loan officer",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "MLO depends on own pipeline of loan approvals and customers",
+    "intent": "none",
+    "intent_reason": "Bio only with no statement of need or change",
+    "decision": "warm"
+  },
+  {
+    "id": "H03",
+    "person_type": "SaaS founder",
+    "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
+    "fit": "high",
+    "fit_reason": "Solo founder building a startup with public-facing work",
+    "intent": "none",
+    "intent_reason": "Bio only describing current activity, no stated need or change",
+    "decision": "warm"
+  },
+  {
+    "id": "H04",
+    "person_type": "Salon owner",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Exact match: salon owner runs business alone with own customer pipeline",
+    "intent": "none",
+    "intent_reason": "Bio-only profile; states profession and location, no change or need expressed",
+    "decision": "warm"
+  },
+  {
+    "id": "H05",
+    "person_type": "Insurance agent",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent professional with customer pipeline, exact match for types",
+    "intent": "none",
+    "intent_reason": "Bio-only profile; states profession and location, no change or need expressed",
+    "decision": "warm"
+  },
+  {
+    "id": "H06",
+    "person_type": "Dentist",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent professional with own customer pipeline, exact match for types",
+    "intent": "none",
+    "intent_reason": "Bio-only profile; states profession and location only, no change expressed",
+    "decision": "warm"
+  },
+  {
+    "id": "H07",
+    "person_type": "College student",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Student, explicitly listed in not_buyers; no business ownership",
+    "intent": "none",
+    "intent_reason": "Not a business owner or customer of lead-generation services",
+    "decision": "none"
+  },
+  {
+    "id": "H08",
+    "person_type": "Homebuyer (newly married)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal housing transaction; not a solo business owner",
+    "intent": "none",
+    "intent_reason": "Life change (marriage/home purchase) unrelated to business customer acquisition",
+    "decision": "none"
+  },
+  {
+    "id": "I01",
+    "person_type": "Freelance listing photographer",
+    "sells_to_match": "creator, course seller or freelancer of ANY kind who sells something to clients",
+    "fit": "high",
+    "fit_reason": "Freelancer selling photography services to clients; exact match for types",
+    "intent": "none",
+    "intent_reason": "Fully booked, turning away clients; not struggling to find customers (routine work)",
+    "decision": "warm"
+  },
+  {
+    "id": "I02",
+    "person_type": "Property manager",
+    "sells_to_match": "owner of ANY small local shop or service business",
+    "fit": "high",
+    "fit_reason": "Small business owner in property management, exact match for types",
+    "intent": "none",
+    "intent_reason": "New client engagement but concern is insurance costs, not customer acquisition",
+    "decision": "warm"
+  },
+  {
+    "id": "I03",
+    "person_type": "Escrow officer",
+    "sells_to_match": "independent professional of ANY trade who lives on their own pipeline",
+    "fit": "high",
+    "fit_reason": "Independent professional with own customer pipeline, exact match for types",
+    "intent": "none",
+    "intent_reason": "Routine work: professional soliciting customers for escrow services",
+    "decision": "warm"
+  },
+  {
+    "id": "I04",
+    "person_type": "Independent insurance claims adjuster",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Claims adjuster work typically assigned by insurers, not self-generated customer pipeline",
+    "intent": "none",
+    "intent_reason": "Expressed need is file organization, not customer acquisition",
+    "decision": "none"
+  },
+  {
+    "id": "I05",
+    "person_type": "Freelance video editor",
+    "sells_to_match": "creator, course seller or freelancer of ANY kind who sells something to clients",
+    "fit": "high",
+    "fit_reason": "Freelancer selling video editing services; exact match for types",
+    "intent": "none",
+    "intent_reason": "Routine work: actively soliciting clients for editing services",
+    "decision": "warm"
+  }
+]

@@ -35,22 +35,34 @@ gate below was missing on that route.
 
 ### 1. Load what you are allowed to say
 
-Four inputs. A comment written from fewer than all four is the one that reads like anyone could
+Five inputs. A comment written from fewer than all five is the one that reads like anyone could
 have left it:
 
 1. **The client profile** (`clients/{slug}/.../client_profile_*.md`) — who this client is, what
    they do, what they have actually done. This is the material you may draw on. The rule below
    ("no claim the client's own experience cannot support") tells you what you must NOT say; this
    is the step that tells you what you MAY, and without it the agent improvises.
-2. **`goal.description`** (`campaign get --slug X`) — the operator's own words about who is worth
-   answering and what to say. It is the ONLY criterion for whether a post deserves a reply. Do not
-   substitute a generic "be helpful" instinct for what he wrote, and do not widen it because a
-   post is interesting.
-3. **The group's name**, from `items[].group.name` in the scan — the url tells you nothing, while
+2. **The Lead Qualification Rule** (`playbooks/LEAD_QUALIFICATION_RULE.md`) — the FIRST gate on
+   every candidate post. Read this client's `buyer_profile` (`sells`, `sells_to`, `types`,
+   `why_they_need`, `location`, `competitors`, `not_buyers`) from the Client Intelligence Profile,
+   and run the rule against the post's author and text, producing the rule's JSON output
+   (`person_type`, `sells_to_match`, `fit`, `intent`, `decision`). Comment only when `decision` is
+   `hot`, `warm` or `watch`. When candidates exceed the day's capacity (`draft comment`'s
+   `capacity × 2 days` ceiling), draft in that order: every `hot` candidate first, then `warm`,
+   then `watch`; within one decision, the newest post first.
+  `decision: competitor` → no comment, unless
+   `goal.description` explicitly allows presence in competitor threads. `decision: none` → skip.
+3. **`goal.description`** (`campaign get --slug X`) — the SECOND gate, and the voice: the
+   operator's own words about whether the post's topic fits what this client wants to be known
+   for, and what the comment should say. Do not substitute a generic "be helpful" instinct for
+   what he wrote, and do not widen it because a post is interesting. (This replaces the earlier
+   rule under which `goal.description` alone decided whether a post deserved a reply — it is now
+   the second of two gates, not the only one.)
+4. **The group's name**, from `items[].group.name` in the scan — the url tells you nothing, while
    "Help for Insurance Agents" tells you the field, that the readers are AGENTS rather than
    customers, and therefore the register: a peer talking to peers. Pass it as `group_name` on the
    draft.
-4. **The post itself** — see steps 2 and 3.
+5. **The post itself** — see steps 2 and 3.
 
 `goal.message_bank` and `goal.cta` are deliberately NOT read on this channel (operator ruling
 2026-08-17) — they belong to email, and the campaign page hides them here.
@@ -106,13 +118,19 @@ outcome, not a problem to solve.
 
 Then, for every post that survives the filter, answer in order and stop at the first "no":
 
-1. Does the goal actually cover this person's situation? A post outside the brief is skipped even
-   when a good answer is obvious.
-2. Can you say something that is **useful on its own** — a thing you know from doing this work
+1. Run the Lead Qualification Rule against the author and the post, using this client's
+   `buyer_profile`: WHO is this person (Step 1), competitor or noise (Step 2), why now (Step 3) →
+   `decision` (Step 4). `decision` must be `hot`, `warm` or `watch` — `none` is skipped, and
+   `competitor` is skipped unless `goal.description` explicitly allows presence in competitor
+   threads.
+2. Does `goal.description` actually cover this post's topic, and does it fit what the client wants
+   to be known for? A post outside the brief is skipped even when a good answer is obvious and the
+   rule's decision is hot.
+3. Can you say something that is **useful on its own** — a thing you know from doing this work
    that the reader does not? A comment that only signals presence ("great post!", "DM me") is
    worse than no comment: it spends the account's one daily action and buys nothing.
-3. Is there a real question or a real problem stated? Answer that, not the topic.
-4. (Already handled by the filter above — the code still refuses a repeat, with
+4. Is there a real question or a real problem stated? Answer that, not the topic.
+5. (Already handled by the filter above — the code still refuses a repeat, with
    `already_drafted` or `already_judged` naming which decision it was.)
 
 Skipping is the normal outcome. A scan that yields two comments out of thirty posts is a good
@@ -134,8 +152,14 @@ tool crm-store --client-dir {outreach} draft comment --campaign X --json '{
   "post_author": "<display name as shown>", "post_excerpt": "<first ~200 chars of the post>",
   "body_text": "<the comment>", "post_seen_at": "<ISO time the scan observed it>",
   "group_name": "<items[].group.name from the scan>",
-  "collector": "<the extension instance id that read this group>" }'
+  "collector": "<the extension instance id that read this group>",
+  "person_type": "<from the rule>", "sells_to_match": "<from the rule>",
+  "fit": "<high|medium|low>", "intent": "<explicit|implied|none>",
+  "decision": "<hot|warm|watch>" }'
 ```
+
+The five rule fields on the draft are what lets the audit (Stage 09) check that no comment went out
+against a `none` or `competitor` decision.
 
 **Record the skips in the same pass.** Everything you read and decided not to answer goes back
 in one batch, or it returns tomorrow for another judgement:

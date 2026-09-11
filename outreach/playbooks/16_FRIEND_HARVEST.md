@@ -33,7 +33,10 @@ so the WALK is done by the bridge daemon, in code, and the agent does only the j
    operator's words that names WHO to keep (industry / trade, location, any other trait —
    "realtors and loan officers in Orange County, Vietnamese-speaking a plus"), and
    `seed_profiles` (one profile url per line in the UI; each is normalized and de-duplicated,
-   groups are refused — this walks a PERSON's friend list).
+   groups are refused — this walks a PERSON's friend list). `goal.description` still names the
+   target segment in words, but the membership test the judge pass runs (Lead Qualification Rule,
+   Step 1) is against this client's `buyer_profile.types` — when the campaign targets a narrower
+   segment than the profile, the goal NARROWS the types it keeps, and never widens them.
 2. Optional `harvest` block: `goal_keywords` (lower-case words a friend-list subtitle may carry
    — "realtor", "loan", "insurance"; matches are enriched FIRST, non-matches are still enriched
    later, never dropped, because subtitles are often empty), `daily_budget` /
@@ -238,11 +241,15 @@ for `kept` only, the `contact` payload and the `enrichment` dossier described be
 optional: pass it when the contact already exists, omit it and the `contact` block creates or
 matches one.
 
-For EACH envelope, decide against the GOAL only:
+For EACH envelope, run the Lead Qualification Rule's Step 1 (WHO is this person — fit) and Step 2
+(competitor or noise) against this client's `buyer_profile`, using the classified industry from
+Pass 1 as the person's trade:
 
-- **kept** — the friend matches the goal's trade AND location (and any other stated trait),
-  evidenced by the record (`about_lines`, `work[]`, `posts[]` captions, subtitle). Then STAGE —
-  do not call — these two blocks on the verdict line; the supervisor's one `decide-batch` turns
+- **kept** — `fit` is `high` AND the person is not a `competitor` (Step 2). Intent (Step 3) is NOT
+  required — a right-type person with no stated need right now is exactly who harvest exists to
+  keep; they become `warm`, not skipped. Evidence for `fit` comes from the record (`about_lines`,
+  `work[]`, `posts[]` captions, subtitle). Then STAGE — do not call — these two blocks on the
+  verdict line; the supervisor's one `decide-batch` turns
   them into a contact, a dossier and a recorded verdict:
   (a) `"contact"`, exactly the payload `contact add` takes: `{"name":{"full":"…","given":"…","entity_type":"person|company|page"},
   "identities":{"socials":{"facebook":"<profile_url>"},
@@ -270,11 +277,12 @@ For EACH envelope, decide against the GOAL only:
   `evidence_url`) and the email findings — so the contact lands write-ready for any later
   campaign. The industry is NOT staged here: it was read in pass 1 and `decide-batch` carries it
   on its own. `"reason"` is one line naming which goal trait matched and from which evidence.
-- **rejected** — does not match the goal (wrong trade, wrong place, no professional signal at
-  all). One staged line, nothing else: `{"profile_url": "…", "status": "rejected", "reason":
-  "<one line>"}`. Never create a contact "just in case": the client-wide seen registry guarantees this
-  person is never enriched again, so a wrong reject is a lost lead — reject on evidence, not
-  on absence of a subtitle.
+- **rejected** — `fit` is `medium` or `low` (no match in `buyer_profile.types`, wrong place when
+  location matters, no professional signal at all), OR the person is a `competitor` (Step 2). One
+  staged line, nothing else: `{"profile_url": "…", "status": "rejected", "reason": "<one
+  line>"}`, the reason being the rule's `fit_reason` or the competitor finding. Never create a
+  contact "just in case": the client-wide seen registry guarantees this person is never enriched
+  again, so a wrong reject is a lost lead — reject on evidence, not on absence of a subtitle.
 - **enrich_failed** — the envelope is `ok: false` (private profile / unreadable after retries
   on different accounts). `{"profile_url": "…", "status": "enrich_failed", "reason": "<the
   envelope's error>"}`; it is remembered and skipped. (Transient
@@ -331,8 +339,9 @@ tomorrow.
   are left. An operator who asks for a list to be reviewed is asking for the LIST, not for a
   batch of it — a pass that ends after 25 of 860 and reports success has answered a different
   question than the one asked.
-- **The goal decides, not the agent's taste.** A friend who is clearly a great person but not
-  the goal's trade/place is `rejected`. The operator widens the goal if they want more.
+- **The rule decides, not the agent's taste.** A friend who is clearly a great person but whose
+  `fit` against `buyer_profile.types` (as narrowed by `goal.description`) is not `high`, or who is
+  a `competitor`, is `rejected`. The operator widens the goal if they want more.
 - **Only kept friends get the website hop.** Rows 6-7 cost a live fetch per person; spending
   them on friends the goal will reject is waste. Judge first, then hunt the address for the
   ones you keep — never the other way round.

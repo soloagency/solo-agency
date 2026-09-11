@@ -9,8 +9,8 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 ## Hard Gates For This Stage
 
 - During one-time setup, configure schedule/routine and the client-specific automation task after the basic source plan is known.
-- After configuring the routine, do not run the first report in Setup Flow; verify/resync the client-specific automation task and then START IT — the agent dispatches the task through the scheduler's own run-now, tells the human it has been dispatched and where the result will appear, and reports back when it lands; only a runtime that genuinely cannot start its own tasks falls back to naming the task for the human to run.
-- If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, do not run it in the setup chat and do not ask whether to run it now. Treat the request as a handoff request: verify/resync the client-specific automation task and then START IT — the agent dispatches the task through the scheduler's own run-now, tells the human it has been dispatched and where the result will appear, and reports back when it lands; only a runtime that genuinely cannot start its own tasks falls back to naming the task for the human to run.
+- After configuring the routine, do not run the first report in Setup Flow; verify/resync the client-specific automation task and then START IT — the agent dispatches the task through the scheduler's own run-now, tells the human it has been dispatched — the first run reads all of this client's sources, default and custom (and, only when Facebook, Instagram, or X are not yet connected, that lead counts will be lower until they are) — and where the result will appear, arms one background wait where the runtime supports it, and reports back in the same chat when it lands; only a runtime that genuinely cannot start its own tasks falls back to naming the task for the human to run.
+- If the human asks to run, create, generate, show, refresh, or update a report during Setup Flow, do not run it in the setup chat and do not ask whether to run it now. Treat the request as a handoff request: verify/resync the client-specific automation task and then START IT — the agent dispatches the task through the scheduler's own run-now, tells the human it has been dispatched — the first run reads all of this client's sources, default and custom (and, only when Facebook, Instagram, or X are not yet connected, that lead counts will be lower until they are) — and where the result will appear, arms one background wait where the runtime supports it, and reports back in the same chat when it lands; only a runtime that genuinely cannot start its own tasks falls back to naming the task for the human to run.
 - Support manual-only, daily, multiple-times-daily, weekly, and environment-specific schedules.
 - Scheduled runs must run research, private scans if active, analysis, production-ready draft options, final WideCast video-script skill pass before any video provider request, approved video/blog/social asset creation when provider setup and explicit approvals allow it, HTML report, and notification. Before report HTML/PDF work, scheduled runs must load `playbooks/skills/report-design/SKILL.md` and use `tools/solo_tool render-report` by default instead of writing ad hoc report/PDF scripts. Before any video provider request, scheduled runs must load and apply the existing WideCast video script-writing skill, treat report scripts as reference only, and if a report version/code is already selected or recommended, produce only that one final production script/brief with research and inline-media/direct-image/video-URL workflow. Generate a new five-version set only when no report version has been selected or recommended yet. Use only the skill-produced final artifact as the provider payload. If video provider setup is missing or blocked, scheduled runs must still save the final WideCast-grade script/storyboard/production-brief output and ask for PDNA setup; they must not create local video media with `ffmpeg`, Pillow, `moviepy`, Remotion, browser/canvas screenshots, slideshow export, or similar tools.
 - Scheduled runs must load Stage 10 and produce Lead & Competitor Opportunities, or explicitly mark them as not found, not scanned, pending activation, or unavailable.
@@ -28,6 +28,8 @@ Load during one-time setup after the Client Intelligence Profile, public data so
 The current Solo Agency model uses separate Setup Flow and Automation Flow.
 
 Setup Flow must create/update schedule and automation tasks, but must not run the first report directly. The first real report must be executed by a client-specific automation task.
+
+Each client-specific automation task runs once for all of this client's sources — default and custom together — and produces one report; there is no separate run or report per source.
 
 Rules:
 
@@ -52,6 +54,77 @@ Rules:
 - Automation Flow may accept config changes during a real run, but must immediately perform Automation Resync before claiming future runs are current.
 
 For multi-client daily operations, prefer separate client tasks plus an optional master digest task. The master digest task must not scan private data sources; it only reads existing client reports/outputs and summarizes them.
+
+### Unattended runs on Claude Code desktop (permissions)
+
+Verified 2026-09-10: a scheduled run on Claude Code desktop starts in permission mode `default` and stops at its first Bash/Edit call until a human clicks Approve. `allowed-tools` in the task's SKILL.md and `permissions.defaultMode` in the project's `.claude/settings.local.json` do nothing for a headless run; project-level `.claude/settings.json` allow rules are not applied either (workspace-trust gate). Only a USER-level allow rule in `~/.claude/settings.json` that fully matches the command lets the run pass with no click (verified, ~3s).
+
+So, at setup step 6 — right after the client-specific automation task is created, on a LOCAL Claude Code runtime only — Sam asks ONE consent, in the Boss's language, for example:
+
+```text
+Để các lượt chạy tự động không dừng lại hỏi quyền từng lệnh, tôi sẽ ghi vào cài đặt Claude của bạn quyền chạy bridge Solo Agency, gọi bridge trên máy bạn và ghi file trong thư mục cài đặt này (chỉ trong thư mục này). Đồng ý?
+```
+
+On yes, edit `~/.claude/settings.json` (create it if missing; back it up first as `settings_YYYY-MM-DD_HH-MM-SS.json`; merge into `permissions.allow` without removing any existing entry) with EXACTLY this rule set, substituting the install root `R`, bridge port `P`, the resolved bridge binary file name `B` (the actual os-arch binary present under `R/solo-agency-local-collector/bin/` on this machine), and the source checkout `S = R/solo-agency`:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(R/solo-agency-local-collector/bin/B *)",
+      "Bash(S/tools/solo_tool *)",
+      "Bash(tools/solo_tool *)",
+      "Bash(bash S/tools/wait_for_run *)",
+      "Bash(curl -s --max-time * http://127.0.0.1:P/*)",
+      "Read(R/**)",
+      "Edit(R/daily-content-pipeline/**)",
+      "Edit(R/extensions/**)"
+    ]
+  }
+}
+```
+
+Both `solo_tool` rules are needed: every call site in `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, this file's own Daily Run Algorithm, and `playbooks/02_PRIVATE_SOURCE_SETUP.md` types the bare relative form `tools/solo_tool ...` (the scheduled run's working directory is the source checkout `S`), not the `S/`-prefixed absolute form — Claude Code's Bash allow-glob matches the literal command text typed, not a resolved path, so only the bare-form rule actually matches those calls. Keep the `S/`-prefixed rule too, for any call site that does type the absolute form.
+
+For the GitHub Update Watch task only, also add these to the same `permissions.allow` array:
+
+```json
+"Bash(mktemp -d)",
+"Bash(git clone https://github.com/soloagency/solo-agency *)",
+"Bash(git -C * remote get-url origin)",
+"Bash(git -C * rev-parse HEAD)",
+"Bash(git -C * ls-remote origin refs/heads/main)",
+"Bash(git -C * status --porcelain)"
+```
+
+Write rules are not consulted by Claude Code — `Edit` alone covers both create and modify. Record the outcome on `automation_manifest.md` (schema in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`): `unattended_permissions: granted | declined | not_applicable`, `unattended_permissions_scope: user_settings`, `unattended_permissions_written_at`.
+
+If the Boss declines, Sam says in one sentence that the first run will pause once in its own session for an "Always allow" click, and continues — do not ask again this session.
+
+On Codex or any remote runtime, record `unattended_permissions: not_applicable` — Codex approvals follow Codex's own model; its automations have run unattended on the live install since 2026-07.
+
+### Run-now per runtime
+
+**Claude Code desktop.** The agent has no run-now tool for a scheduled task. Verified 2026-09-10: a ONE-TIME scheduled task (`fireAt` = now + 2 minutes) fires about 40 seconds after `fireAt`, runs in its own fresh session, and auto-disables. So the first run on Claude Code desktop is: create a one-time task named `{Client} - Solo Agency First Run` (`taskId`: `{client_slug}-solo-agency-first-run`) through the runtime's scheduled-task tool (`create_scheduled_task` with that `fireAt`, `notifyOnCompletion: false` — completion notifications never reached the chat in 4 tests), using the SAME prompt body as the daily task (read `daily-content-pipeline/automation/scheduled_run_prompt.md` in full; `target_client_slug` pinned). Record `first_run_task_id` (the `taskId`) and `first_run_dispatched_at` (the dispatch timestamp, ISO 8601) on `automation_manifest.md` at the moment of dispatch. Delete the one-time task after the result is reported.
+
+**Codex desktop.** The agent triggers the automation's own run-now itself (owner-confirmed 2026-09-10: the Codex agent can start an automation immediately), then arms the wait exactly as on Claude. The `**[ACTION REQUIRED]**` block naming the task is only the fallback for a genuine failure to start.
+
+**Other scheduler types** keep the existing run-now table below.
+
+### Wait and report
+
+Right after dispatch, arm ONE background wait — never a foreground sleep, never a poll loop in the chat:
+
+- On Claude Code (desktop or CLI), run `bash R/solo-agency/tools/wait_for_run <client_slug> <dispatched_at_iso> --timeout 2700` with the runtime's run-in-background option; the session is re-invoked when it exits (verified 5/5). The helper exits 0 when a new `standup.jsonl` line for that client with `ts > dispatched_at` appears (it prints that line), exit 3 on timeout. The moment the wait is armed, record `first_run_wait: armed` on `automation_manifest.md`.
+- On wake, Sam speaks the First-Run Report (below) in the SAME chat, then records `first_run_wait: reported` and `first_run_reported_at` (ISO 8601, now) on `automation_manifest.md`.
+- On a runtime with no background execution: `first_run_wait` stays `not_available` (no helper was armed); Sam states the expected duration (10-15 minutes for a first run) and the exact phrase to send ("xong chưa?" / "is it done?"), plus the Telegram/email channel if configured, and the Reply Frame delivers the report on the next turn — recording `first_run_wait: reported` and `first_run_reported_at` once that report is actually spoken.
+- On timeout (exit 3): record `first_run_wait: timed_out`. Sam says the run has not finished, names the two usual causes (a permission prompt waiting in the run's own session in the Scheduled panel → "Always allow" once; the extension not connected), and offers to check again — a later successful report still records `first_run_wait: reported` and `first_run_reported_at`.
+
+**First-Run Report** (spoken by Sam, in the Boss's language, ≤ 8 lines): when it finished; leads found (hot/warm/watch counts from the standup line / report_state) and the locked-contacts meter line; what needs the Boss (`needs_boss` items, ≤ 3); the report opened beside the chat per the Answer-and-Show Rule (`/ui/{client}/reports?open=latest`) with the link printed; then the normal next-job offers and one question. If Facebook/Instagram/X were not connected, the awareness line ("... are off, so lead counts are lower") stays.
+
+### Command shapes (so unattended runs never pause)
+
+For the allow rules above to match, every shell command in a scheduled run must be one of: `<bridge binary> tool <family> ...`, `tools/solo_tool <family> ...` (run from `S`, the form the playbooks actually type) or `S/tools/solo_tool <family> ...`, `bash S/tools/wait_for_run ...`, or `curl -s --max-time <n> http://127.0.0.1:P/<path> [-X POST -H ... -d ...]` with the URL immediately after the fixed flags. Never `python3`, `node`, `bash -c`, `sh -c`, pipes, `&&` chains, `xargs`, `find -exec`, or `sed -i`. File writes only under `R/daily-content-pipeline` and `R/extensions`. Anything else means the run pauses on a permission prompt.
 
 ## Source Preservation Rule
 
@@ -318,10 +391,10 @@ For each daily run:
       - Ask the bank what to search: `<bridge> tool public-keywords --pipeline {setup-root}/daily-content-pipeline --client {client_slug} plan --recency "{Month YYYY}"`. It returns at least 10 terms — earning terms pinned (at most two), the rest rotated, at least two of them SHORT (1-3 words) — each with a `query` that carries the month and year only for time-bound groups. Search the `query`; everything you record later is keyed by the `term`.
       - If the bridge answers `tool public-keywords` with a usage dump or "unknown tool", the bridge binary predates this playbook: report it as a blocker in the keywords section, tell the human to update the bridge (Stage 11), and do not search this run without a plan.
       - If `plan` answers that the client has no bank: a new client has `public_keywords_seed.jsonl` in its workspace from Setup step 4 — load it with `add --file {that file}` and delete the file; an older install kept the bank inside the profile — run `migrate --profile {client_profile path}` once (terms are imported dateless, old run verdicts folded in). Then plan again. If `plan` WARNS that the bank has no short terms, add a few 1-3 word keywords before searching; a run of ten long questions only confirms yesterday's thinking.
-      - `plan --kind web` (the default, no `--kind` flag needed) never returns `community_discovery` terms — those belong to step 11C's Facebook Discovery Pass via `plan --kind discovery` only. On the first run, `public_keywords_seed.jsonl` may carry `"group":"community_discovery"` lines, which the same `add --file` load above files into the same bank alongside the web terms. `collector/source_keywords_seed/{client_slug}.jsonl`, when Setup wrote it, is merged automatically by `tool source-keywords ... seed` the first time each group's intent-term bank is created — nothing extra to do here.
+      - `plan --kind web` (the default, no `--kind` flag needed) never returns `community_discovery` terms — those belong to step 11C's Social Discovery Pass via `plan --kind discovery` only. On the first run, `public_keywords_seed.jsonl` may carry `"group":"community_discovery"` lines, which the same `add --file` load above files into the same bank alongside the web terms. `collector/source_keywords_seed/{client_slug}.jsonl`, when Setup wrote it, is merged automatically by `tool source-keywords ... seed` the first time each group's intent-term bank is created — nothing extra to do here.
       - Before each search, run `tools/solo_tool search-pool --pipeline {setup-root}/daily-content-pipeline check --industry {industry} --keyword {query}`. A fresh hit means a same-industry client already ran this search inside the TTL — reuse its results (then apply THIS client's relevance filtering) and count the term as used. On a miss, search normally and `record` the client-neutral results (`{url, title, note}` array) back to the pool.
       - Use keywords in the target audience's likely search/comment language. Do not translate the bank into the human's chat/report language unless the audience uses that language.
-      - At least 7 of the run's terms should come from demand groups (pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news). The plan ranks those groups first and `stats` shows `by_group`; if the bank itself is mostly industry_general, fix the bank, not the run.
+      - At least 7 of the run's terms should come from demand groups (pain-point/problem/need/buying-intent/objection/comparison/question/local-context/trend-news). The plan ranks those groups first and `stats` shows `by_group`; if the bank itself is mostly industry_general, fix the bank, not the run. This is the Google / open-web channel of `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, "Buyer Profile Channel Keyword Table" — the 12 groups stay, but every `buying_intent`/`need_or_goal` term must be anchored to a role or the offer (`marketing help realtor`, not `marketing help`); an unanchored term is a bank defect, not a weak-result problem to fix by adding words.
       - When a query returns nothing or near-nothing, retry it shortened once — drop its rarest constraint — before calling it weak. If the short form works, `add` it as its own term. Most weak verdicts on a long phrase are a narrowness problem, not a topic problem.
       - Continue until at least 3 source-backed candidate ideas are new or newly angled against `history/YYYY-MM/content_log.md`, or until the plan is exhausted; then report the coverage limitation and the terms tried rather than fabricating weak ideas.
       - **Before the run ends, record every term searched, in one command:** `<bridge> tool public-keywords --pipeline {setup-root}/daily-content-pipeline --client {client_slug} record --json '{"{term}":{"verdict":"useful|used|weak|retry_later","urls":N,"ideas":N}}'` — keyed by the saved `term`, not the dated `query`; `urls` is how many useful URLs you kept from it, `ideas` how many ideas it produced. Status, probation, retirement and pins all move from this record; nothing else moves them, and nothing is written into the profile.
@@ -332,7 +405,7 @@ For each daily run:
       - private data sources are active, pending, requested, approved, present in the Client Intelligence Profile, or listed in any source approval/history file;
       - schedule/config says `public_data_sources_only`, `private sources postponed`, or `pending_private_activation`, but the workspace contains Local Collector files;
       - `daily-content-pipeline/collector/inbox/bridge_health.json`, `daily-content-pipeline/collector/inbox/collector_status.json`, `daily-content-pipeline/collector/collector_setup_status.md`, or recent `daily-content-pipeline/collector/inbox/YYYY-MM/*/*/collector_status.json` exists.
-      - When this client's `extension_health.status` comes back `stale` or `no_extension_check_yet` past the 75-second grace window, deliver the Facebook Login Reminder block inside its own `**[ACTION REQUIRED]**` block (quoted verbatim in `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D and `playbooks/SETUP_FLOW_ENTRYPOINT.md`), and record the answer as `facebook_lead_source: enabled|web_only|pending` (`web_only` only on a clear confirming phrase such as "không dùng Facebook" — never "để sau" or silence, which leave it `pending`). If `web_only`, step 11C's Facebook Discovery Pass is skipped this run, and every report this run produces must carry the persistent web-only awareness line (`playbooks/06_AGENCY_REPORT_STANDARD.md`) instead of a bare lead-count note. If still `pending`, step 11C is also skipped this run (it now requires `enabled`), but nothing else about this run is blocked.
+      - When this client's `extension_health.status` comes back `stale` or `no_extension_check_yet` past the 75-second grace window, deliver the Login Reminder block (Facebook, Instagram and X) inside its own `**[ACTION REQUIRED]**` block (quoted verbatim in `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D and `playbooks/SETUP_FLOW_ENTRYPOINT.md`), and record the answer per platform as `facebook_lead_source` / `instagram_lead_source` / `x_lead_source`: `enabled|web_only|pending` (`web_only` only on a clear confirming phrase such as "không dùng Facebook" — never "để sau" or silence, which leave it `pending`). A platform left `web_only` is skipped by step 11C's Social Discovery Pass this run for that platform, and every report this run produces must carry that platform in the persistent web-only awareness line (`playbooks/06_AGENCY_REPORT_STANDARD.md`) instead of a bare lead-count note. A platform still `pending` is also skipped this run for that platform (it now requires `enabled`), but nothing else about this run is blocked — and step 11C still runs for any other platform that is `enabled`.
       Do not treat saved labels such as `pending_private_activation` or `public_data_sources_only` as final without this runtime check; those labels may be stale after a human later installed, repaired, or reconnected the Local Collector.
    8. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 before any Collector Runtime Verification involving private data sources. Do not use Claude in Chrome, Codex/browser tools, Playwright/Puppeteer/Selenium, or another agent-controlled browser as a fallback.
    9. Try to check private collector health through `GET http://127.0.0.1:17321/status`.
@@ -348,19 +421,65 @@ For each daily run:
       - Inspect recent consumed run-now status files such as `run_now_request_status.json`, `run_now_request.consumed.json`, or timestamped `run_now_request*.consumed.json` files when present.
       - If those local status files show a recent current-workspace bridge and recent extension check, use the Stage 8 file-based run-now queue by writing one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/` and waiting for collector output. Do not ask the human to restart the Local Collector just because the API was unreachable from the AI sandbox.
       - A collector error is valid ONLY when this file-queue path fails: if the files are missing, stale, point to another workspace, do not prove a recent extension check, or a submitted job is not claimed/consumed within its TTL, mark the precise blocker: `collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, `job_not_consumed`, or `extension_status_unknown`.
-   11. If no private data sources are configured, and discovery was never offered or was postponed, do not block the scheduled run. Continue with public data sources, but include `Private Data Source Discovery Recommended` or `Private Data Source Discovery Declined/Postponed` in the report/notification. Explain that public-only runs can still produce useful ideas but may miss community, lead, and competitor signals from logged-in/member spaces.
-   11A. If discovery (or a provided source list) was human-approved but no discovery scan has run yet (`approved_pending_first_scan`), this run must resolve it: when Collector Runtime Verification shows a healthy current-workspace bridge and a recent matching extension, create the first discovery run-now job (`job_type: "private_data_source_discovery"`, approved categories only, Source Discovery Mode pacing) via `POST /jobs/run_now` or a per-client job file under `daily-content-pipeline/collector/jobs/pending/`, wait for collector output, filter/classify candidates per Stage 2, and present the approval shortlist in the report/notification inside an `**[ACTION REQUIRED]**` block. Only the exact collector blocker from Collector Runtime Verification justifies reporting `Private Data Source Discovery Pending Activation` instead; a healthy collector with approved discovery must not defer it to a later run.
+   11. If no custom sources are configured, and discovery was never offered or was postponed, do not block the scheduled run. Continue with default sources, but include `Source Discovery Recommended` or `Source Discovery Declined/Postponed` in the report/notification. Explain that default-sources-only runs can still produce useful ideas but may miss community, lead, and competitor signals from sources that need a login.
+   11A. If discovery (or a provided source list) was human-approved but no discovery scan has run yet (`approved_pending_first_scan`), this run must resolve it: when Collector Runtime Verification shows a healthy current-workspace bridge and a recent matching extension, create the first discovery run-now job (`job_type: "private_data_source_discovery"`, approved categories only, Source Discovery Mode pacing) via `POST /jobs/run_now` or a per-client job file under `daily-content-pipeline/collector/jobs/pending/`, wait for collector output, filter/classify candidates per Stage 2, and present the approval shortlist in the report/notification inside an `**[ACTION REQUIRED]**` block. Only the exact collector blocker from Collector Runtime Verification justifies reporting `Source Discovery Pending Activation` instead; a healthy collector with approved discovery must not defer it to a later run.
    11B. If a discovery shortlist is pending human approval (`discovery_completed_pending_approval`), do not re-run discovery. Continue public data sources plus any already-approved sources, and re-surface the pending shortlist in the report/notification inside an `**[ACTION REQUIRED]**` approval block until the human resolves it; offer a refresh scan only when the human asks or the shortlist is older than 14 days. After approval, save the active sources and perform Automation Resync so the next run monitors them.
-   11C. **Facebook Discovery Pass.** Precondition: `facebook_lead_source: enabled` (Client Intelligence Profile) — this is the only state that runs the pass. `pending` (Setup Flow's step 4 not yet resolved either way) skips this step quietly, with no awareness line, and does not block the rest of the run. `web_only` (the human's explicit, acknowledged choice — never a bare "để sau"/"bỏ qua") also skips this step, but carries the persistent web-only awareness line (`playbooks/06_AGENCY_REPORT_STANDARD.md`) in every report this run produces, with the lead-count consequence and the one-line way to turn it back on.
-      - Fixed order, never reordered, parallelized, or skipped to save budget: (1) `fb.search.posts` feed search, (2) `fb.people.search`, (3) `fb.groups.search` (keep only `privacy == "public"`, rank survivors by `member_count`), (4) `fb.group.search_posts` in-group on the top public groups from step 3.
-      - Discovery terms (steps 1-3) come from `tool public-keywords ... plan --kind discovery` (the `community_discovery` kind); in-group intent terms (step 4) come from `tool source-keywords ... plan` as usual.
-      - Budget: use the FIRST RUN tier when `facebook_discovery_first_pass_done` is not yet `true` in the Client Intelligence Profile — i.e. this is this client's first-ever Facebook Discovery Pass, regardless of which automation run number it is — and set that field `true` immediately after this pass completes; use the DAILY tier on every pass after that. FIRST RUN: ≤ 21 collector calls (3 discovery terms, 3 feed, 3 people, 3 group searches, up to 4 public groups × 3 intent terms), spread ≥ 4 hours, `max_pages` ≤ 4. DAILY: ≤ 7 calls (1/1/1/1, up to 2 groups × 2 terms).
-      - FIRST RUN: minimum 10 leads is a FLOOR, not a stop — reaching it does not end the run; keep working the shortlist until the budget is spent.
-      - Read every job's result for a checkpoint/rate-limit/logged-out signal before submitting the next one; the first trip stops the whole account for the day.
-      - Persist the ranked group shortlist at `history/YYYY-MM/facebook_discovery_shortlist.jsonl`.
-      - Every post/person row goes through Stage 10 and straight to `lead capture` immediately, even from a group not yet in `private_data_sources`.
-      - Scanning a public group needs no per-group approval; recommend the top groups by `leads_found`/`member_count` afterward and let the human decide which (if any) get promoted into `private_data_sources`.
-      - Full algorithm and report section: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass".
+   11C. **Social Discovery Pass.** One pass covering Facebook, Instagram and X. Precondition: at
+      least one of `facebook_lead_source` / `instagram_lead_source` / `x_lead_source` is `enabled`
+      (Client Intelligence Profile) — that is what makes the step run at all; each platform then
+      participates independently. `pending` on a platform (Setup Flow's step 4 not yet resolved for
+      it) skips that platform's steps quietly, with no awareness line, and does not block the rest
+      of the run. `web_only` on a platform (the human's explicit, acknowledged choice — never a bare
+      "để sau"/"bỏ qua") also skips that platform's steps, but carries it in the persistent web-only
+      awareness line (`playbooks/06_AGENCY_REPORT_STANDARD.md`) in every report this run produces,
+      with the lead-count consequence and the one-line way to turn it back on. Exception: a
+      `web_only` platform whose reason starts with "not logged in" is re-probed with its step-1 call
+      in its normal round-robin slot every run, not skipped outright (see
+      `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Re-probe on every run").
+      - Platform table (ordered steps and budgets): `playbooks/10_LEAD_COMPETITOR_DETECTION.md`,
+        "Social Discovery Pass" → "Platform table". Facebook: feed (`fb.search.posts`) → people
+        (`fb.people.search`) → groups (`fb.groups.search`, `privacy == "public"` only, ranked by
+        `member_count`) → in-group (`fb.group.search_posts`). Instagram: search (`ig.search.posts`)
+        → people (`ig.people.search`) → profile depth (`ig.profile.posts`) → comments
+        (`ig.post.comments`). X: search Latest (`x.search.posts`) → people (`x.people.search`) →
+        profile depth (`x.profile.posts`) → replies (`x.post.replies`). Within a platform this order
+        is fixed — never reordered, parallelized, or skipped to save budget.
+      - Rotation: interleave platforms round-robin — one Facebook job, then one Instagram job, then
+        one X job, repeat — per platform advancing one step per round; a platform that is not
+        connected, not logged in, at its budget, or tripped simply loses its turn (its slot is
+        skipped, never handed to another platform). Full rule text:
+        `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass" → "Round-robin rule".
+      - Discovery terms (Facebook steps 1-3, Instagram steps 1-2, X steps 1-2) come from
+        `tool public-keywords ... plan --kind discovery` (the `community_discovery` kind), shared
+        across all three platforms; Facebook's in-group intent terms (step 4) come from
+        `tool source-keywords ... plan` as usual.
+      - Budget is decided per platform: use that platform's FIRST RUN tier when its own
+        `{platform}_discovery_first_pass_done` is not yet `true` in the Client Intelligence Profile
+        — i.e. this is this client's first-ever pass on that platform, regardless of which
+        automation run number it is — and set that field `true` immediately after this pass
+        completes for it; use the DAILY tier on every pass after that. Facebook FIRST RUN: ≤ 21
+        collector calls (3 discovery terms, 3 feed, 3 people, 3 group searches, up to 4 public
+        groups × 3 intent terms), spread ≥ 4 hours, `max_pages` ≤ 4; DAILY: ≤ 7 calls (1/1/1/1, up
+        to 2 groups × 2 terms). Instagram and X FIRST RUN: ≤ 12 calls each (3/3/3/3); DAILY: ≤ 4
+        calls each (1/1/1/1).
+      - FIRST RUN: minimum 10 leads across all platforms combined is a FLOOR, not a stop — reaching
+        it does not end the run; keep working every enabled platform's shortlist until its own
+        budget is spent.
+      - Read every job's result for a checkpoint/rate-limit/logged-out signal before submitting the
+        next job on that same platform; the first trip on a platform stops THAT platform for the day
+        — the round-robin rule keeps the other two running.
+      - Persist the ranked Facebook group shortlist at `history/YYYY-MM/facebook_discovery_shortlist.jsonl`
+        (Facebook only — Instagram and X have no groups).
+      - Every post/person row from every platform goes through Stage 10 and straight to
+        `lead capture` immediately, `platform` set to `facebook` | `instagram` | `x`, even from a
+        Facebook group not yet in `private_data_sources`.
+      - Scanning a public Facebook group needs no per-group approval; recommend the top groups by
+        `leads_found`/`member_count` afterward and let the human decide which (if any) get promoted
+        into `private_data_sources`. Instagram and X have no group concept.
+      - Write actions on Instagram/X (react, comment, message, like, reply, publish, DM) are out of
+        scope for this pass; it only reads and scores.
+      - Full algorithm and report section: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social
+        Discovery Pass".
    11D. If no notification channel is configured (`notification_channel_missing`), include ONE short value-first re-offer in the run's report and progress block (instant alerts for hot leads, report-ready, drafts awaiting review) with the standard WideCast API-key instructions - once per run, never more.
    12. If private data sources remain unavailable after Collector Runtime Verification, continue with public data sources and previously collected private data when available. Log the exact verification outcome in the report and notification; do not merely say the config was public-only.
    13. Prepare the private data source queue if private data sources are available and collector health is acceptable:
@@ -377,7 +496,7 @@ For each daily run:
     <bridge> tool source-keywords --pipeline daily-content-pipeline --client {slug} --url {source url} urls
     ```
 
-    It answers with ready run-now sources (capability `fb.group.search_posts`), each named `kw:<term>`, plus the depth to use. On a source's FIRST scan it plans up to 8 terms and digs; every day after, 3 terms with one scroll and a recency window, pinning the terms that have earned their place and rotating the rest (`playbooks/skills/lead-engine/safety.md`, monitoring search pass). A source whose bank is empty is seeded first: `... source-keywords ... seed --industry {industry} --market {market} --lang {lang}` — the seed set is chosen by industry AND market, because a trade's words are not the same in two countries.
+    It answers with ready run-now sources (capability `fb.group.search_posts`), each named `kw:<term>`, plus the depth to use. On a source's FIRST scan it plans up to 8 terms and digs; every day after, 3 terms with one scroll and a recency window, pinning the terms that have earned their place and rotating the rest (`playbooks/skills/lead-engine/safety.md`, monitoring search pass). This is the in-group channel of `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, "Buyer Profile Channel Keyword Table": the per-kind quota is daily 1 role + 1 product/stage + 1 intent (the 3 terms above) and first-run 3 role + 2 product/stage + 3 intent (the 8 terms above), rotating within a kind least-recently-run first; `... source-keywords plan --kind {intent|role|product|stage|place}` requests one kind's quota alone, omitted returns the standard mixed set. A source whose bank is empty is seeded first: `... source-keywords ... seed --industry {industry} --market {market} --lang {lang}` — the seed set is chosen by industry AND market, because a trade's words are not the same in two countries, and role/product seeds sit alongside the existing intent seeds in `search_seeds.json` as fallback only, never overriding terms already generated from this client's own `buyer_profile.types`.
 
     When the pass finishes, count the NEW posts each `kw:` source returned and give those counts straight back, so the bank learns instead of guessing:
 
@@ -387,7 +506,7 @@ For each daily run:
 
     `hits` is new posts (post_id not seen for this source before); `leads` is how many Stage 10 then qualified. A term that comes back empty enough times goes on probation and then retires itself, so the bank stays the words this group actually uses. If you notice a phrasing in the feed that members use and the bank lacks, add it WITH the reason you saw it: `... add --term "..." --kind intent --origin mined --note "three posts this week used this"`. A term nobody can justify is not a term.
 
-    **14b. The feed pass — what the community is talking about.** Then scroll the feed as before, but shallow: its job is no longer to find leads, it is to catch what the terms missed, to see the shift in what the group discusses (which Stage 3 turns into content), and to supply the phrasings that grow the bank. Two or three scrolls is enough for that; the depth budget moved to the search pass.
+    **14b. The feed pass — what the community is talking about.** Then scroll the feed as before, but shallow: its job is no longer to find leads, it is to catch what the terms missed, to see the shift in what the group discusses (which Stage 3 turns into content), and to supply the phrasings that grow the bank. Two or three scrolls is enough for that; the depth budget moved to the search pass. Classify every post this pass surfaces by the AUTHOR'S TYPE first (`playbooks/LEAD_QUALIFICATION_RULE.md`, Step 1) before deciding whether it is content signal, a lead, or noise — the feed pass has no search terms to anchor on, so the author's own words are the only fit signal it has.
 
     Both passes skip a post whose `post_id` was already collected for this source, so a term that returns the same twenty posts every day costs one comparison, not twenty judgements.
       - After private collection reaches a terminal state, reconcile status and counts before report handoff: private scan status, completed timestamp, sources attempted/completed/blocked, data points kept, leads, competitors, recommended private data sources, noisy/skipped discovery candidates, notifications, and blockers must match across the private report, daily index, internal source record, report state JSON, and `outputs/latest/` copies.
@@ -398,7 +517,7 @@ For each daily run:
    17. Load the private data stored by earlier completed runs for this client when available — at minimum the previous completed run (per the Run Window anchor: located from run history on disk, never `today − 1 day`), extended to all stored data from the last 7 days or the last 3 completed runs, whichever covers more — and filter duplicates: records carrying `point_uid` dedup by key equality first (exact, cross-client-safe), then visible text matching for near-duplicates. Do not parse private-platform HTML for duplicate detection. When this run consumed shared-scan data (`reuse` pointers), the reused records dedup against this client's history the same way — reuse changes where data comes FROM, not what this client has already SEEN.
    18. Extract relevant `[data_points]`, including reference URLs for every data point. Keep data points that are directly about the primary industry or clearly connected through a related industry. Discard related-industry data when the bridge back to the client's offer is weak.
    19. Add newly recommended private groups/pages/profiles/communities to `New Private Data Sources Detected` and `history/YYYY-MM/new_private_sources_log.md`.
-   20. Load Stage 10 and qualify what the two passes returned: hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors. The leads are not a by-product of this run — step 14a went looking for them on purpose — so they lead the report (`playbooks/06_AGENCY_REPORT_STANDARD.md`, `People To Contact Today`), and the competitor and idea findings follow. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private data source when safe; normal daily runs use 5 scrolls per approved private data source by default.
+   20. Load Stage 10 and qualify what the two passes returned: hot/warm/watch leads plus direct, indirect, adjacent, attention, and authority competitors. Before qualifying any row from either pass, load `playbooks/LEAD_QUALIFICATION_RULE.md` and apply Step 1 (WHO is this person) first, for every row, against this client's own `buyer_profile.types` — a person of the right type with no stated need is `warm`, never dropped; only after Step 1 do Step 2 (competitor/noise) and Step 3 (why now) run, and the matrix in Step 4 gives the decision. Every lead row carries `person_type`, `sells_to_match`, `fit`, `fit_reason`, `intent`, `intent_reason` alongside the decision. The leads are not a by-product of this run — step 14a went looking for them on purpose — so they lead the report (`playbooks/06_AGENCY_REPORT_STANDARD.md`, `People To Contact Today`), and the competitor and idea findings follow. The first lead/competitor pass for a client/source set should use 10 scrolls per approved private data source when safe; normal daily runs use 5 scrolls per approved private data source by default.
    21. For every useful lead or competitor opportunity, preserve profile URLs and post/current URLs when available, safe context summaries, reasoning, suggested human action, and a copy-ready value-first comment in the same language as the post.
    22. Generate the 3x2 idea matrix as six buckets, not six total ideas. Put every credible, source-backed idea from this run's collected data (the run_window) into the matching layer/scope bucket, and label each idea as `primary_industry` or `related_industry`. The matrix lives in the REPORT (the report is the idea archive); it is never bulk-queued into the provider production plan — only the TOP 3 (the three role cards — hottest, new development, foundation — the same three the report leads with) are queued (see the notification step), because ten queued look-alikes a day would bury the plan. The operator promotes any other matrix idea by asking.
    23. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
@@ -428,8 +547,8 @@ For each daily run:
    38. Update `history/YYYY-MM/data_sources_log.md`.
    39. Update `history/YYYY-MM/lead_log.md`.
    40. Update `history/YYYY-MM/competitor_log.md`.
-   41. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible.
-   42. Capture the run's leads into the client's CRM — `<bridge> tool crm-store --pipeline daily-content-pipeline --client {slug} lead capture --file history/YYYY-MM/lead_competitor_opportunities.jsonl` (Stage 10, "Every lead also becomes a CRM contact"). This reads the file written in step 41, so it runs after it and never before. It sends nothing; it only means the person is still findable tomorrow. Report what came back — created versus matched — in the run summary, because "matched" is the system recognising somebody it already knows. If it answers `no outreach workspace ... run init-client first`, this client has never had a CRM: run `init-client` once (Stage 10, "First run for a client that has never had a CRM") and repeat this step. When this capture (or the Facebook Discovery Pass) produced ≥ 1 lead, append the CRM link line to the operator-facing reply and `INTERNAL_REPORT` — the exact bilingual lines and the zero-lead variant live in `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Show the CRM link after any scan that produced ≥ 1 lead". First-run priming (funnel moment F): if this capture is the run that moves this client's CRM from 0 to > 0 contacts for the first time, read `contact lock-status` right after the capture and add one plain-fact sentence to the run summary and `INTERNAL_REPORT` naming the real unlocked-contact count against the Free ceiling from that response — never an estimate, and this fires once, on that first 0→>0 run only (later runs use the meter defined in `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Capture never stops at the plan's contact cap").
+   41. Update `history/YYYY-MM/lead_competitor_opportunities.jsonl` when possible. Carry the author's NAME into each row's `name` field, verbatim from the collected record — a post scan always saw it, and a row without it produces a CRM contact labelled with a database id instead of a person. Carry `emails`/`phones` too when the collector found them. Never write Facebook interface text (`Top contributor`, `Verified account`, a group name, a url) into `name`: the capture refuses it and the contact stays honestly nameless (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, the ledger contract).
+   42. Capture the run's leads into the client's CRM — `<bridge> tool crm-store --pipeline daily-content-pipeline --client {slug} lead capture --file history/YYYY-MM/lead_competitor_opportunities.jsonl` (Stage 10, "Every lead also becomes a CRM contact"). This reads the file written in step 41, so it runs after it and never before. It sends nothing; it only means the person is still findable tomorrow. Report what came back — created versus matched — in the run summary, because "matched" is the system recognising somebody it already knows. If it answers `no outreach workspace ... run init-client first`, this client has never had a CRM: run `init-client` once (Stage 10, "First run for a client that has never had a CRM") and repeat this step. When this capture (or the Social Discovery Pass) produced ≥ 1 lead, append the CRM link line to the operator-facing reply and `INTERNAL_REPORT` — the exact bilingual lines and the zero-lead variant live in `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Show the CRM link after any scan that produced ≥ 1 lead". First-run priming (funnel moment F): if this capture is the run that moves this client's CRM from 0 to > 0 contacts for the first time, read `contact lock-status` right after the capture and add one plain-fact sentence to the run summary and `INTERNAL_REPORT` naming the real unlocked-contact count against the Free ceiling from that response — never an estimate, and this fires once, on that first 0→>0 run only (later runs use the meter defined in `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Capture never stops at the plan's contact cap").
 4. Create or update `outputs/YYYY-MM/YYYY-MM-DD_master_digest.md`.
 5. Generate `outputs/YYYY-MM/YYYY-MM-DD_master_digest.html` as a polished standalone human-facing master report.
 6. Update or copy `outputs/latest_master_digest.md`.
@@ -688,7 +807,7 @@ Agent: Claude Schedule
 Collector status: bridge_running, extension_stale
 Last extension check: 2026-06-20 08:52 local time
 Likely cause: Chrome is closed or the extension is disabled.
-Impact: Private Facebook/LinkedIn sources were skipped today. Public data sources still ran.
+Impact: Facebook, Instagram and X were not read today (not connected), so lead counts may be lower than reality; everything else ran.
 Action: Open Chrome with the Solo Agency Local Collector extension enabled, stay logged in, or run the Local Collector app start command again if needed.
 ```
 

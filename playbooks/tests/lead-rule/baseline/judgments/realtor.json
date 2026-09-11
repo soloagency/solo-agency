@@ -1,0 +1,1202 @@
+[
+  {
+    "id": "A01",
+    "person_type": "real-estate agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author is an agent posting their listing in OC, not a buyer/seller/investor whose housing is changing",
+    "intent": "none",
+    "intent_reason": "posting a listing is routine work for an agent, not personal housing need",
+    "decision": "competitor"
+  },
+  {
+    "id": "A02",
+    "person_type": "loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author is a lender, explicitly in not_buyers; not a person whose housing is about to change",
+    "intent": "none",
+    "intent_reason": "posting rate updates is routine lending work, not a signal of personal housing need",
+    "decision": "none"
+  },
+  {
+    "id": "A03",
+    "person_type": "insurance agent (auto/EV)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author sells auto insurance in unrelated domain, not a real estate buyer/seller/investor",
+    "intent": "none",
+    "intent_reason": "helping clients with car insurance rates has no connection to real estate services",
+    "decision": "none"
+  },
+  {
+    "id": "A04",
+    "person_type": "nail salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author operates a service business unrelated to real estate with no housing change indicated",
+    "intent": "none",
+    "intent_reason": "posting about salon services is routine business, not a housing change signal",
+    "decision": "none"
+  },
+  {
+    "id": "A05",
+    "person_type": "startup founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author celebrating business milestone with no connection to real estate needs or OC housing change",
+    "intent": "none",
+    "intent_reason": "business growth milestone is not a trigger for real estate services",
+    "decision": "none"
+  },
+  {
+    "id": "A06",
+    "person_type": "startup founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author hiring video staff for startup work, not a person with housing needs in Orange County",
+    "intent": "none",
+    "intent_reason": "staffing changes do not indicate personal housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "A07",
+    "person_type": "marketing agency/marketer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author is a marketer serving restaurant and spa clients in LA, not a real estate buyer/seller",
+    "intent": "none",
+    "intent_reason": "marketing success for business clients does not trigger personal real estate needs",
+    "decision": "none"
+  },
+  {
+    "id": "A08",
+    "person_type": "freelance video editor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author is a service provider (video editor) with no real estate buying/selling/leasing needs",
+    "intent": "none",
+    "intent_reason": "editing services work is not a signal of personal real estate transaction",
+    "decision": "none"
+  },
+  {
+    "id": "A09",
+    "person_type": "business coach (lead generation/sales coach)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author sells business coaching framework, not a buyer/seller/investor in real estate",
+    "intent": "none",
+    "intent_reason": "coaching program success is not a personal real estate need",
+    "decision": "none"
+  },
+  {
+    "id": "A10",
+    "person_type": "mindset coach",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "author is a coach helping clients with pricing strategy, not involved in real estate transactions",
+    "intent": "none",
+    "intent_reason": "coaching work is routine business, not a housing change or transaction signal",
+    "decision": "none"
+  },
+  {
+    "id": "A11",
+    "person_type": "dental clinic or medical service provider",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "dental/medical practice in Anaheim with no housing transaction or move planned",
+    "intent": "none",
+    "intent_reason": "extending business hours is routine operational work, not a housing need",
+    "decision": "none"
+  },
+  {
+    "id": "A12",
+    "person_type": "immigration attorney or HR consultant advising employers on visa policy",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "immigration/HR professional providing compliance updates, not a person/homeowner/investor with housing need",
+    "intent": "none",
+    "intent_reason": "H-1B rule update is routine industry information, no housing transaction indicated",
+    "decision": "none"
+  },
+  {
+    "id": "A13",
+    "person_type": "auto repair shop owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "auto shop owner busy with repair work, no housing change in OC mentioned",
+    "intent": "none",
+    "intent_reason": "car repair is routine daily work for this business, not a housing need",
+    "decision": "none"
+  },
+  {
+    "id": "A14",
+    "person_type": "wedding photographer serving Orange County",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "photographer is a service provider marketing their business, not a person/homeowner/investor needing housing services",
+    "intent": "none",
+    "intent_reason": "booking wedding photography clients is routine business work, not a housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "A15",
+    "person_type": "restaurant owner in Garden Grove",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "restaurant owner launching menu item, no housing transaction or move planned",
+    "intent": "none",
+    "intent_reason": "new menu introduction is routine restaurant business expansion, not a housing need",
+    "decision": "none"
+  },
+  {
+    "id": "A16",
+    "person_type": "HVAC technician or contractor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "HVAC contractor working in San Jose, outside OC service area, no housing transaction",
+    "intent": "none",
+    "intent_reason": "AC system installation is routine trade work, not a housing transaction need",
+    "decision": "none"
+  },
+  {
+    "id": "A17",
+    "person_type": "SAT tutoring center owner in Orange County",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "education service provider in OC, not a person/homeowner/investor with housing transaction",
+    "intent": "none",
+    "intent_reason": "launching new SAT program is routine business expansion, not a housing need",
+    "decision": "none"
+  },
+  {
+    "id": "A18",
+    "person_type": "fitness coach or personal trainer in San Diego",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "fitness coach in San Diego area with no housing move to OC mentioned",
+    "intent": "none",
+    "intent_reason": "booking coaching clients is routine daily work for this professional, not a housing need",
+    "decision": "none"
+  },
+  {
+    "id": "A19",
+    "person_type": "real estate agent or investor listing homes in Orange County",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "high",
+    "fit_reason": "active real estate professional in Westminster (Orange County), marketing property for sale",
+    "intent": "explicit",
+    "intent_reason": "actively marketing home sale/lease listing to buyers in OC area",
+    "decision": "competitor"
+  },
+  {
+    "id": "A20",
+    "person_type": "real estate agent serving Dallas-Fort Worth market",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "realtor based in DFW metro with no involvement in OC market or mention of OC clients",
+    "intent": "none",
+    "intent_reason": "closing deals in home market (DFW) is routine work for this agent; no housing transaction in OC",
+    "decision": "none"
+  },
+  {
+    "id": "A21",
+    "person_type": "Mortgage loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Loan officer posting about their services; not a housing-transaction person",
+    "intent": "none",
+    "intent_reason": "Posting pre-approval services to their customers; no personal housing need",
+    "decision": "none"
+  },
+  {
+    "id": "A22",
+    "person_type": "Insurance agent in California",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance agent updating client policies; not a housing-transaction person",
+    "intent": "none",
+    "intent_reason": "Discussing policy updates for existing clients; no personal housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "A23",
+    "person_type": "Nail salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Salon owner in OC area; no housing transaction indicated",
+    "intent": "none",
+    "intent_reason": "Posting routine salon services; no housing change signal",
+    "decision": "none"
+  },
+  {
+    "id": "A24",
+    "person_type": "Car detailing and ceramic coating business owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Car detailing business in OC; no housing transaction indicated",
+    "intent": "none",
+    "intent_reason": "Posting about completed work and availability; no housing need",
+    "decision": "none"
+  },
+  {
+    "id": "A25",
+    "person_type": "Wedding and event videographer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Videographer in OC; bio-only with no housing change indication",
+    "intent": "none",
+    "intent_reason": "Bio states profession only; no housing transaction indicated",
+    "decision": "none"
+  },
+  {
+    "id": "A26",
+    "person_type": "Real estate agent",
+    "sells_to_match": "none",
+    "fit": "high",
+    "fit_reason": "Real estate agent serving Orange County and surrounding areas",
+    "intent": "none",
+    "intent_reason": "N/A - competitor override applies",
+    "decision": "competitor"
+  },
+  {
+    "id": "A27",
+    "person_type": "Life and health insurance agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance agent; not a housing-transaction person",
+    "intent": "none",
+    "intent_reason": "Bio-only; no housing transaction indicated",
+    "decision": "none"
+  },
+  {
+    "id": "A28",
+    "person_type": "Content creator and product entrepreneur",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Creator launching new product line; no housing transaction signal",
+    "intent": "none",
+    "intent_reason": "Product launch announcement; no housing friction named",
+    "decision": "none"
+  },
+  {
+    "id": "A29",
+    "person_type": "Restaurant or food business owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Restaurant owner announcing expanded business hours in Garden Grove; no housing change",
+    "intent": "none",
+    "intent_reason": "Business expansion (weekend hours); not a housing transaction need",
+    "decision": "none"
+  },
+  {
+    "id": "A30",
+    "person_type": "Veterinary clinic owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Vet clinic in San Jose, outside OC service area; no housing transaction indicated",
+    "intent": "none",
+    "intent_reason": "Posting clinic availability for vaccinations; no housing need",
+    "decision": "none"
+  },
+  {
+    "id": "B01",
+    "person_type": "First-time homebuyer in Orange County",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "high",
+    "fit_reason": "First-time buyer with confirmed purchase plan in Irvine (Orange County)",
+    "intent": "explicit",
+    "intent_reason": "Directly asking for realtor recommendation",
+    "decision": "hot"
+  },
+  {
+    "id": "B02",
+    "person_type": "Homeowner in Orange County seeking insurance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Recently completed home purchase; requesting insurance services, not realtor",
+    "intent": "none",
+    "intent_reason": "Explicitly seeking insurance agent, not realtor services",
+    "decision": "none"
+  },
+  {
+    "id": "B03",
+    "person_type": "Homeowner in Orange County considering refinance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Refinancing existing mortgage is not a housing change",
+    "intent": "none",
+    "intent_reason": "Seeking loan officer for refinance, not a real estate transaction",
+    "decision": "none"
+  },
+  {
+    "id": "B04",
+    "person_type": "First-time homebuyer in Orange County (Huntington Beach), offer stage",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "high",
+    "fit_reason": "First-time buyer with offer submitted in Huntington Beach (Orange County)",
+    "intent": "explicit",
+    "intent_reason": "Explicitly requesting realtor recommendations for next steps",
+    "decision": "hot"
+  },
+  {
+    "id": "B05",
+    "person_type": "Homeowner in Orange County considering refinance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Refinancing is not a housing transaction requiring realtor services",
+    "intent": "none",
+    "intent_reason": "Seeking loan officer for refinance, not real estate services",
+    "decision": "none"
+  },
+  {
+    "id": "B06",
+    "person_type": "Homeowner in Orange County needing home maintenance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Seeking plumbing repair, not real estate services",
+    "intent": "none",
+    "intent_reason": "Home maintenance emergency, no real estate transaction",
+    "decision": "none"
+  },
+  {
+    "id": "B07",
+    "person_type": "Parent in Orange County seeking education services",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Seeking tutoring services, not real estate",
+    "intent": "none",
+    "intent_reason": "No connection to real estate transactions or housing changes",
+    "decision": "none"
+  },
+  {
+    "id": "B08",
+    "person_type": "Parent with new dependent in Orange County area seeking insurance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Explicitly seeking insurance agent, not realtor services",
+    "intent": "none",
+    "intent_reason": "Requesting insurance services, not real estate assistance",
+    "decision": "none"
+  },
+  {
+    "id": "B09",
+    "person_type": "Home seller in Orange County relocating due to job change",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "high",
+    "fit_reason": "Homeowner selling property in Fountain Valley (Orange County) with job relocation urgency",
+    "intent": "explicit",
+    "intent_reason": "Explicitly seeking real estate agent to sell house quickly",
+    "decision": "hot"
+  },
+  {
+    "id": "B10",
+    "person_type": "Transplant/professional recently relocated to Orange County",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "medium",
+    "fit_reason": "Recently relocated to Newport Beach (Orange County), but move is settled with no stated housing transaction",
+    "intent": "none",
+    "intent_reason": "Bio-only row with no stated need for real estate services or housing change",
+    "decision": "warm"
+  },
+  {
+    "id": "B11",
+    "person_type": "Homeowner from Austin considering relocation to Southern California",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "low",
+    "fit_reason": "Plan to move to SoCal is hedged with 'maybe not', lowering fit; no committed destination in Orange County.",
+    "intent": "none",
+    "intent_reason": "Housing sale already settled (past); future move is speculative and explicitly uncertain.",
+    "decision": "none"
+  },
+  {
+    "id": "B12",
+    "person_type": "Homeowner in Orange County (Westminster) considering refinancing",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Refinancing is not a housing change; homeowner staying put as noted in location guidance.",
+    "intent": "none",
+    "intent_reason": "Seeking lender for rate comparison on existing loan; no real estate transaction needed.",
+    "decision": "none"
+  },
+  {
+    "id": "B13",
+    "person_type": "Homeowner in Anaheim Hills, Orange County, concerned about fire insurance coverage",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "No housing transaction or move planned; seeking insurance, not real estate services.",
+    "intent": "none",
+    "intent_reason": "Asking for insurance agent to review policy; no realtor need indicated.",
+    "decision": "none"
+  },
+  {
+    "id": "B14",
+    "person_type": "First-time home buyer actively searching in Orange County",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "high",
+    "fit_reason": "Exact match: active buyer with stated budget in target Orange County area (Irvine/Tustin).",
+    "intent": "explicit",
+    "intent_reason": "Directly requesting realtor recommendations; named budget and specific search area in Orange County.",
+    "decision": "hot"
+  },
+  {
+    "id": "B15",
+    "person_type": "Insurance claims adjuster",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Claims adjuster not a home buyer; no housing transaction or move indicated.",
+    "intent": "none",
+    "intent_reason": "Bio-only profile; states profession only with no housing need or realtor inquiry.",
+    "decision": "none"
+  },
+  {
+    "id": "C01",
+    "person_type": "Real estate agent in Austin, Texas",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Agent outside Orange County service area; explicitly listed in not_buyers as 'agents elsewhere'.",
+    "intent": "none",
+    "intent_reason": "Asking about video editing tool; rooted in Texas with no housing transaction in Orange County.",
+    "decision": "none"
+  },
+  {
+    "id": "C02",
+    "person_type": "Nail salon owner in California, newly opened",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Small business owner not involved in housing or real estate transactions.",
+    "intent": "none",
+    "intent_reason": "Seeking marketing help to find salon customers; no real estate need.",
+    "decision": "none"
+  },
+  {
+    "id": "C03",
+    "person_type": "Personal trainer operating one-person gym",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Fitness business owner not involved in housing transactions or real estate.",
+    "intent": "none",
+    "intent_reason": "Seeking CRM tool for client follow-up; no realtor services needed.",
+    "decision": "none"
+  },
+  {
+    "id": "C04",
+    "person_type": "Wedding photographer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Service professional not involved in real estate or housing transactions.",
+    "intent": "none",
+    "intent_reason": "Seeking lead follow-up system for wedding bookings; no realtor need.",
+    "decision": "none"
+  },
+  {
+    "id": "C05",
+    "person_type": "Mortgage loan officer (NMLS licensed) in Orange County",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Loan officer explicitly listed in not_buyers as transaction partner who refers buyers but does not buy.",
+    "intent": "none",
+    "intent_reason": "Asking for help generating social media content; not seeking realtor services.",
+    "decision": "none"
+  },
+  {
+    "id": "C06",
+    "person_type": "Insurance agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance agent does not match realtor's housing-focused types",
+    "intent": "none",
+    "intent_reason": "Asking about content posting for their own insurance business; no housing transaction friction named",
+    "decision": "none"
+  },
+  {
+    "id": "C07",
+    "person_type": "Plumbing and heating contractor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Contractor servicing plumbing/heating; no housing change situation in Orange County",
+    "intent": "none",
+    "intent_reason": "Asking about AI follow-ups for repair/install business; no housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "C08",
+    "person_type": "Studio or fitness instructor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Studio instructor, not a homeowner or investor in housing change",
+    "intent": "none",
+    "intent_reason": "Content creation and Instagram management for own studio; no housing transaction need",
+    "decision": "none"
+  },
+  {
+    "id": "C09",
+    "person_type": "Solo freelancer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Three months into freelancing; no evidence of Orange County housing involvement",
+    "intent": "none",
+    "intent_reason": "Struggling with client-finding for freelance work; no housing transaction friction",
+    "decision": "none"
+  },
+  {
+    "id": "C10",
+    "person_type": "Real-estate agent",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County",
+    "fit": "high",
+    "fit_reason": "Active realtor in Orange County, same service area and trade",
+    "intent": "none",
+    "intent_reason": "Asking about video editing tools for listings; routine marketing work for own practice, not own housing transaction",
+    "decision": "competitor"
+  },
+  {
+    "id": "C11",
+    "person_type": "Chiropractor and solo clinic owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Clinic owner; no housing transaction situation in Orange County",
+    "intent": "none",
+    "intent_reason": "Asking about content posting and patient follow-ups for own clinic; no housing need named",
+    "decision": "none"
+  },
+  {
+    "id": "C12",
+    "person_type": "Nails salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Salon owner in Westminster; owning a salon is not evidence of housing transaction",
+    "intent": "none",
+    "intent_reason": "Bio-only profile row with no text; no indication of housing change",
+    "decision": "none"
+  },
+  {
+    "id": "C13",
+    "person_type": "Mortgage loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Explicitly in not_buyers as a lender/transaction partner, not a buyer",
+    "intent": "none",
+    "intent_reason": "Bio-only profile; lenders refer buyers but do not buy themselves",
+    "decision": "none"
+  },
+  {
+    "id": "C14",
+    "person_type": "Spa owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Solo spa owner; no housing transaction in Orange County",
+    "intent": "none",
+    "intent_reason": "Asking about customer retention and new client finding for own spa; no housing transaction friction",
+    "decision": "none"
+  },
+  {
+    "id": "C15",
+    "person_type": "Real-estate agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Realtor rooted in Sacramento with no plan involving Orange County; outside service area",
+    "intent": "none",
+    "intent_reason": "CRM and lead tracking is routine agent work; no housing transaction change for this person",
+    "decision": "none"
+  },
+  {
+    "id": "D01",
+    "person_type": "real-estate agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Agent selling property; realtor serves home buyers/sellers/investors, not other agents",
+    "intent": "none",
+    "intent_reason": "Agent marketing their own listings; not seeking real estate services",
+    "decision": "competitor"
+  },
+  {
+    "id": "D02",
+    "person_type": "nail salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Small business owner; no housing transaction or move to Orange County",
+    "intent": "none",
+    "intent_reason": "Expanding salon business; no mention of housing change",
+    "decision": "none"
+  },
+  {
+    "id": "D03",
+    "person_type": "new parent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "New parent in unknown location; no housing transaction or move mentioned",
+    "intent": "none",
+    "intent_reason": "Celebrating birth; no housing need indicated",
+    "decision": "none"
+  },
+  {
+    "id": "D04",
+    "person_type": "SaaS founder, solo bootstrapped startup",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Startup founder; no housing transaction or move to Orange County mentioned",
+    "intent": "none",
+    "intent_reason": "Growing business revenue; no housing need indicated",
+    "decision": "none"
+  },
+  {
+    "id": "D05",
+    "person_type": "person in Orange County with legal/insurance issue",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Orange County resident but with insurance claim, not housing transaction or move",
+    "intent": "none",
+    "intent_reason": "Dealing with DUI aftermath and insurance rates; no housing change in sight",
+    "decision": "none"
+  },
+  {
+    "id": "D06",
+    "person_type": "freelance graphic designer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Freelancer in unknown location; no housing transaction or move mentioned",
+    "intent": "none",
+    "intent_reason": "New to freelancing, marketing challenges; no housing need indicated",
+    "decision": "none"
+  },
+  {
+    "id": "D07",
+    "person_type": "homeowner with existing mortgage",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Homeowner but location unclear (national realtors group); no move or housing change in sight",
+    "intent": "none",
+    "intent_reason": "Frustrated with mortgage rates; considering refinance, not housing transaction or move",
+    "decision": "none"
+  },
+  {
+    "id": "D08",
+    "person_type": "nail salon owner in Fountain Valley, CA",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Small business owner in Orange County area; bio only, no housing transaction or move mentioned",
+    "intent": "none",
+    "intent_reason": "Bio-only row with no mention of housing change or move",
+    "decision": "none"
+  },
+  {
+    "id": "D09",
+    "person_type": "expecting parent (twins) in Orange County",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Expecting parent in Orange County; no housing transaction or move mentioned",
+    "intent": "none",
+    "intent_reason": "Pregnancy milestone and financial concern; no housing change indicated",
+    "decision": "none"
+  },
+  {
+    "id": "D10",
+    "person_type": "job relocator from Chicago to Irvine",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County (a stated move there, a job there)",
+    "fit": "high",
+    "fit_reason": "Accepted job in Irvine (Orange County), relocating by next month; matches type 1 and location",
+    "intent": "implied",
+    "intent_reason": "Job relocation to Orange County creates need for local housing—change requiring agent services within one month",
+    "decision": "hot"
+  },
+  {
+    "id": "D11",
+    "person_type": "food truck business owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "starting food truck business has no connection to housing transaction or move to OC",
+    "intent": "none",
+    "intent_reason": "business launch has no friction related to real estate needs",
+    "decision": "none"
+  },
+  {
+    "id": "D12",
+    "person_type": "homeowner planning ADU construction",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "ADU construction is home renovation, not a buy/sell/lease/move transaction per location guidance",
+    "intent": "none",
+    "intent_reason": "renovation to existing property is not a housing transaction requiring realtor",
+    "decision": "none"
+  },
+  {
+    "id": "D13",
+    "person_type": "small business owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "hiring first employee is business expansion, not a housing change",
+    "intent": "none",
+    "intent_reason": "staffing change has no connection to real estate needs",
+    "decision": "none"
+  },
+  {
+    "id": "D14",
+    "person_type": "homeowner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "location outside OC, insurance discussion is not a housing transaction",
+    "intent": "none",
+    "intent_reason": "rising insurance costs are not a friction point for real estate services",
+    "decision": "none"
+  },
+  {
+    "id": "D15",
+    "person_type": "software engineer relocating to Irvine",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "high",
+    "fit_reason": "stated move to Irvine next month is arriving into Orange County, exact type match",
+    "intent": "implied",
+    "intent_reason": "relocating to new city creates need to find housing (new address/lease/purchase)",
+    "decision": "hot"
+  },
+  {
+    "id": "E01",
+    "person_type": "lead generation agency founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "selling lead generation service to realtors, not a person needing real estate help",
+    "intent": "none",
+    "intent_reason": "founder pitching services to agents has no real estate buying/selling need",
+    "decision": "none"
+  },
+  {
+    "id": "E02",
+    "person_type": "realtor lead generation service owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "selling lead generation services to realtors, not a buyer needing real estate",
+    "intent": "none",
+    "intent_reason": "marketing lead gen service to agents, no real estate transaction need",
+    "decision": "none"
+  },
+  {
+    "id": "E03",
+    "person_type": "AI video editor startup founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "building video editor app, no connection to real estate or housing",
+    "intent": "none",
+    "intent_reason": "app launch announcement has no friction related to real estate needs",
+    "decision": "none"
+  },
+  {
+    "id": "E04",
+    "person_type": "AI video editor app developer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "promoting video editing tool, not seeking real estate services",
+    "intent": "none",
+    "intent_reason": "product launch has no connection to housing or real estate transactions",
+    "decision": "none"
+  },
+  {
+    "id": "E05",
+    "person_type": "real estate agent",
+    "sells_to_match": "none",
+    "fit": "high",
+    "fit_reason": "licensed realtor serving OC and LA market",
+    "intent": "none",
+    "intent_reason": "discussing inventory and pipeline is routine agent work, not seeking realtor services",
+    "decision": "competitor"
+  },
+  {
+    "id": "E06",
+    "person_type": "Real estate agent serving Orange County",
+    "sells_to_match": "none",
+    "fit": "high",
+    "fit_reason": "Agent active in OC serving the same market and customers",
+    "intent": "none",
+    "intent_reason": "Discussing market conditions, not seeking real estate services",
+    "decision": "competitor"
+  },
+  {
+    "id": "E07",
+    "person_type": "Insurance agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance agents are not in the buyer types; they are service partners in transactions",
+    "intent": "none",
+    "intent_reason": "Selling insurance services, not seeking real estate help",
+    "decision": "none"
+  },
+  {
+    "id": "E08",
+    "person_type": "Insurance agent serving Vietnamese community",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance agents are not in the buyer types; they are service partners in transactions",
+    "intent": "none",
+    "intent_reason": "Selling insurance services, not seeking real estate help",
+    "decision": "none"
+  },
+  {
+    "id": "E09",
+    "person_type": "Mortgage loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Lenders are explicitly in not_buyers as transaction partners who refer but do not buy",
+    "intent": "none",
+    "intent_reason": "Offering loan services to agents, not seeking real estate help",
+    "decision": "none"
+  },
+  {
+    "id": "E10",
+    "person_type": "Mortgage loan specialist",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Lenders are explicitly in not_buyers as transaction partners who refer but do not buy",
+    "intent": "none",
+    "intent_reason": "Offering loan services to homeowners, not seeking real estate help",
+    "decision": "none"
+  },
+  {
+    "id": "E11",
+    "person_type": "Marketing coach for solo entrepreneurs",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Marketing coaches are not in the buyer types; unrelated service provider",
+    "intent": "none",
+    "intent_reason": "Selling coaching program, not seeking real estate help",
+    "decision": "none"
+  },
+  {
+    "id": "E12",
+    "person_type": "Marketing coach serving small business owners",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Bio-only profile with no post; marketing coach is not in buyer types",
+    "intent": "none",
+    "intent_reason": "Bio-only with no mention of real estate transactions or moves",
+    "decision": "none"
+  },
+  {
+    "id": "F01",
+    "person_type": "Consumer posting a meme",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Post is a relatable meme about finances, not a real estate inquiry or signal",
+    "intent": "none",
+    "intent_reason": "Meme post, no real estate transaction indicated",
+    "decision": "none"
+  },
+  {
+    "id": "F02",
+    "person_type": "Political commenter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Post is a political rant about property taxes, not evidence of a housing transaction",
+    "intent": "none",
+    "intent_reason": "Complaining about tax policy, not seeking real estate services",
+    "decision": "none"
+  },
+  {
+    "id": "F03",
+    "person_type": "Job seeker (loan officer)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Job seekers are explicitly in not_buyers; this person is seeking employment, not real estate services",
+    "intent": "none",
+    "intent_reason": "Posting job inquiry for loan officer position, not seeking real estate help",
+    "decision": "none"
+  },
+  {
+    "id": "F04",
+    "person_type": "Salon owner hiring staff",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Salon owner hiring employees; no housing transaction",
+    "intent": "none",
+    "intent_reason": "Employee hiring is not a housing need",
+    "decision": "none"
+  },
+  {
+    "id": "F05",
+    "person_type": "Student stressed about finals",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Student with no housing transaction indicated",
+    "intent": "none",
+    "intent_reason": "Finals stress is not a housing trigger",
+    "decision": "none"
+  },
+  {
+    "id": "F06",
+    "person_type": "Spam scam",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Spam post, not a prospect",
+    "intent": "none",
+    "intent_reason": "Spam",
+    "decision": "none"
+  },
+  {
+    "id": "F07",
+    "person_type": "MLM crypto promoter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "MLM pitch, not a homeowner",
+    "intent": "none",
+    "intent_reason": "MLM opportunity pitch",
+    "decision": "none"
+  },
+  {
+    "id": "F08",
+    "person_type": "Orange County resident",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "medium",
+    "fit_reason": "Located in Orange County but bio-only; no stated housing change",
+    "intent": "none",
+    "intent_reason": "Bio shows only location and general motivation; no housing transaction",
+    "decision": "warm"
+  },
+  {
+    "id": "F09",
+    "person_type": "Work-from-home opportunity promoter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Income opportunity pitch, not a homeowner",
+    "intent": "none",
+    "intent_reason": "Employment opportunity, not housing",
+    "decision": "none"
+  },
+  {
+    "id": "F10",
+    "person_type": "HR recruiter at large company",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Large company HR recruiting; not a homeowner",
+    "intent": "none",
+    "intent_reason": "Job recruitment for employer",
+    "decision": "none"
+  },
+  {
+    "id": "F11",
+    "person_type": "Political commenter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Political commentary unrelated to housing",
+    "intent": "none",
+    "intent_reason": "Political frustration, not housing-related",
+    "decision": "none"
+  },
+  {
+    "id": "F12",
+    "person_type": "Job seeker in Los Angeles",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Job seeker in Los Angeles with no Orange County plan",
+    "intent": "none",
+    "intent_reason": "Job seeking, not housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "G01",
+    "person_type": "Orange County resident rejecting agents",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "medium",
+    "fit_reason": "In Orange County likely homeowner, but explicitly rejects realtor service",
+    "intent": "none",
+    "intent_reason": "Explicit rejection: not looking for realtor",
+    "decision": "none"
+  },
+  {
+    "id": "G02",
+    "person_type": "person who purchased auto insurance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "not a real estate buyer; discussing auto insurance purchase",
+    "intent": "none",
+    "intent_reason": "explicitly rejects further offers; no housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "G03",
+    "person_type": "homeowner",
+    "sells_to_match": "homeowner in Orange County weighing a move or asking what their home is worth",
+    "fit": "medium",
+    "fit_reason": "homeowner status confirmed; #notsellinghere contradicts housing transaction; location not stated",
+    "intent": "none",
+    "intent_reason": "explicitly rejects real estate offers; #notsellinghere shows no intent to sell",
+    "decision": "none"
+  },
+  {
+    "id": "G04",
+    "person_type": "first-time homebuyer",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "low",
+    "fit_reason": "home purchase settled 2 years ago; no upcoming housing change ahead",
+    "intent": "none",
+    "intent_reason": "home purchase completed as stale action; routine milestone with no friction named",
+    "decision": "none"
+  },
+  {
+    "id": "G05",
+    "person_type": "real estate professional or loan officer",
+    "sells_to_match": "none",
+    "fit": "high",
+    "fit_reason": "real estate professional in Southern California; in-market service provider",
+    "intent": "none",
+    "intent_reason": "routine work complaint (pipeline); they sell real estate not buy",
+    "decision": "competitor"
+  },
+  {
+    "id": "G06",
+    "person_type": "SaaS startup founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "SaaS founder; no real estate involvement or transaction",
+    "intent": "none",
+    "intent_reason": "explicitly rejects service pitches; no housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "G07",
+    "person_type": "homeowner with existing mortgage",
+    "sells_to_match": "homeowner in Orange County weighing a move or asking what their home is worth",
+    "fit": "medium",
+    "fit_reason": "homeowner status confirmed but refinance is not a housing change; location not stated",
+    "intent": "none",
+    "intent_reason": "refinance settled; staying put with no move or sale friction named",
+    "decision": "none"
+  },
+  {
+    "id": "G08",
+    "person_type": "retired real estate agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "retired from real estate practice; not a housing buyer; matches not_buyers",
+    "intent": "none",
+    "intent_reason": "bio-only profile; retired status shows no housing transaction need",
+    "decision": "none"
+  },
+  {
+    "id": "H01",
+    "person_type": "real estate agent",
+    "sells_to_match": "none",
+    "fit": "high",
+    "fit_reason": "active real estate agent at Compass in Irvine, CA (Orange County area)",
+    "intent": "none",
+    "intent_reason": "bio-only agent profile; routine work listing is not intent",
+    "decision": "competitor"
+  },
+  {
+    "id": "H02",
+    "person_type": "mortgage loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "loan officer is a transaction partner; matches not_buyers category",
+    "intent": "none",
+    "intent_reason": "bio-only profile; no personal housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "H03",
+    "person_type": "SaaS startup founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "SaaS founder based in Los Angeles; no Orange County housing involvement",
+    "intent": "none",
+    "intent_reason": "no housing transaction or move into service area mentioned",
+    "decision": "none"
+  },
+  {
+    "id": "H04",
+    "person_type": "salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "salon owner, not a person with a housing transaction or move in OC",
+    "intent": "none",
+    "intent_reason": "no housing change mentioned or implied",
+    "decision": "none"
+  },
+  {
+    "id": "H05",
+    "person_type": "insurance agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "insurance agent, not a buyer/seller/investor with housing needs",
+    "intent": "none",
+    "intent_reason": "no housing transaction mentioned",
+    "decision": "none"
+  },
+  {
+    "id": "H06",
+    "person_type": "dentist (independent professional)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "professional/dentist, not a person with housing transaction",
+    "intent": "none",
+    "intent_reason": "no housing transaction or move mentioned",
+    "decision": "none"
+  },
+  {
+    "id": "H07",
+    "person_type": "college student",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "student with no evidence of housing transaction or move",
+    "intent": "none",
+    "intent_reason": "student, no housing change named",
+    "decision": "none"
+  },
+  {
+    "id": "H08",
+    "person_type": "homebuyer (just married)",
+    "sells_to_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County",
+    "fit": "high",
+    "fit_reason": "just married and actively starting first home search in OC/LA area",
+    "intent": "explicit",
+    "intent_reason": "explicitly searching and hunting for home to buy in Orange County region",
+    "decision": "hot"
+  },
+  {
+    "id": "I01",
+    "person_type": "real estate listing photographer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "photographer serving agents, not a buyer/seller/investor",
+    "intent": "none",
+    "intent_reason": "post is about selling photography services, not housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "I02",
+    "person_type": "property manager",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "managing existing property is routine work, not a housing transaction for this person",
+    "intent": "none",
+    "intent_reason": "property management is ordinary work, no buy/sell/move transaction",
+    "decision": "none"
+  },
+  {
+    "id": "I03",
+    "person_type": "escrow officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "escrow officer is a transaction partner (not_buyers), not a buyer/seller/investor",
+    "intent": "none",
+    "intent_reason": "post is about escrow service delivery, not personal housing transaction",
+    "decision": "none"
+  },
+  {
+    "id": "I04",
+    "person_type": "insurance claims adjuster",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "claims adjuster, not a person with housing needs",
+    "intent": "none",
+    "intent_reason": "no housing transaction mentioned",
+    "decision": "none"
+  },
+  {
+    "id": "I05",
+    "person_type": "freelance video editor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "video editor, not a buyer/seller/investor with housing needs",
+    "intent": "none",
+    "intent_reason": "no housing transaction mentioned",
+    "decision": "none"
+  }
+]

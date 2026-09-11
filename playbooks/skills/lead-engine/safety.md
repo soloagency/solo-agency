@@ -35,8 +35,12 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
   day) and `collector_config` (`max_scrolls_allowed`, `scroll_delay_seconds` ≈ 5s).
   The first pass for a new source may go to 10 scrolls per Stage 10.
 - **The monitoring SEARCH pass** (Stage 10's daily two-pass scan, `tool source-keywords plan`):
-  ≤ 3 terms per source per day, `max_scroll: 1`, `max_pages: 2`, with a recency window. Each term
-  is one page load, so this is the line that decides the day's traffic shape, not its volume:
+  ≤ 3 terms per source per day, `max_scroll: 1`, `max_pages: 2`, with a recency window. These
+  ceilings are unchanged by the per-kind quota / anchored-term quality gate (`recipes.md` Recipe A,
+  `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` keyword-bank section) — the gate only changes which
+  terms fill those same slots, rejecting generic no-anchor terms before they burn a call on a page
+  that was never going to return a qualified lead. Each term is one page load, so this is the line
+  that decides the day's traffic shape, not its volume:
   spread the sources across a window of hours rather than firing them in one burst, vary the order
   and the delays instead of running a fixed sequence at a fixed minute, keep it strictly serial
   (never parallel tabs), and treat the FIRST platform warning as a stop for the whole account, not
@@ -48,16 +52,27 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
   "faster", explain the ban tradeoff rather than disabling safety.
 - Prefer **one deeper pass on a productive source** over many shallow passes
   across many sources in a short window.
-- **The Facebook Discovery Pass** (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, step 11C; canonical
-  recipe: `recipes.md` Recipe A): four call types, fixed order — FEED (`fb.search.posts`), PEOPLE
-  (`fb.people.search`), GROUPS (`fb.groups.search`), IN-GROUP (`fb.group.search_posts`). FIRST RUN
-  ≤ 21 collector calls total (3 discovery terms, 3 feed searches, 3 people searches, 3 group
-  searches, up to 4 new public groups × 3 intent terms each), `max_pages` ≤ 4, spread over ≥ 4 hours.
-  DAILY companion ≤ 7 calls total (1 discovery term, 1 feed search, 1 people search, 1 group search,
-  up to 2 new public groups × 2 intent terms each), same `max_pages` ceiling, spread across the run
-  window. These are ceilings, not targets, exactly like every other row here — and per Stop
-  condition 3 above, the agent reads every job's result for a trip signal before submitting the next
-  job in this pass, not just at the end of it.
+- **The Social Discovery Pass** (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, step 11C; canonical
+  Facebook recipe: `recipes.md` Recipe A): one round-robin pass across Facebook, Instagram and X —
+  build the job list in rounds of one Facebook job, then one Instagram job, then one X job, repeat;
+  a platform not connected/logged-in/at-budget/tripped just loses its turn, never hands its slot to
+  another platform, so the gap between two requests on the same platform never shrinks. Facebook:
+  four call types, fixed order — FEED (`fb.search.posts`), PEOPLE (`fb.people.search`), GROUPS
+  (`fb.groups.search`), IN-GROUP (`fb.group.search_posts`). FIRST RUN ≤ 21 collector calls total (3
+  discovery terms, 3 feed searches, 3 people searches, 3 group searches, up to 4 new public groups ×
+  3 intent terms each), `max_pages` ≤ 4, spread over ≥ 4 hours. DAILY companion ≤ 7 calls total (1
+  discovery term, 1 feed search, 1 people search, 1 group search, up to 2 new public groups × 2
+  intent terms each), same `max_pages` ceiling, spread across the run window. Instagram: four call
+  types, fixed order — SEARCH (`ig.search.posts`), PEOPLE (`ig.people.search`), PROFILE DEPTH
+  (`ig.profile.posts`), COMMENTS (`ig.post.comments`). FIRST RUN ≤ 12 calls total (3/3/3/3); DAILY
+  ≤ 4 calls total (1/1/1/1). X: four call types, fixed order — SEARCH LATEST (`x.search.posts`),
+  PEOPLE (`x.people.search`), PROFILE DEPTH (`x.profile.posts`), REPLIES (`x.post.replies`). FIRST
+  RUN ≤ 12 calls total (3/3/3/3); DAILY ≤ 4 calls total (1/1/1/1). These are ceilings, not targets,
+  exactly like every other row here — and per Stop condition 3 above, the agent reads every job's
+  result for a trip signal before submitting the next job on that same platform, not just at the end
+  of the pass; a trip removes only that platform from the rotation for the day, the other two
+  continue. Write actions on Instagram/X (react, comment, message, like, reply, publish, DM) are out
+  of scope for this pass.
 
 ## The join boundary (human-in-loop, never automatic)
 

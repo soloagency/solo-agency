@@ -6,7 +6,7 @@ Stage: `02`
 
 Load when private data sources, manual private URLs, joined groups, Facebook keyword group search, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, private data source discovery, or Local Collector activation are requested, approved, pending, or blocked.
 
-Also load this stage BEFORE asking the step-7 private data source checkpoint question of the one-time setup: the required checkpoint content and its two-part delivery rule live in §6 of this file, so the question cannot be asked correctly without this stage loaded.
+Also load this stage BEFORE asking the step 7 (Review found sources) question of the one-time setup: the required checkpoint content and its two-part delivery rule live in §6 of this file, so the question cannot be asked correctly without this stage loaded.
 
 If this stage was triggered by a human request to scan, monitor, collect, review, or open a private data source after any amount of conversation drift, first reload `playbooks/PRIVATE_SOURCE_GATE.md`, then reload Stage 8 and Stage 9 before taking action.
 
@@ -17,7 +17,7 @@ If this stage was triggered by a human request to scan, monitor, collect, review
 - Ask explicitly whether the human wants to discover candidate private data sources from joined/member communities and followed/subscribed sources, such as Facebook groups, subreddits, Discord/Slack communities, LinkedIn groups/pages, YouTube channels, X lists/communities, and followed KOLs/pages.
 - Explain private data sources in plain language before asking for them.
 - Explain Local Collector in plain language before asking the human to install or activate it.
-- The step-7 checkpoint question uses the two-part delivery in §6: the plain-language explanation FIRST (as normal prose/bullets), then one compact `**[ACTION REQUIRED]**` question with the three reply options. Translated versions must pass the §6 content-completeness checklist; shortening away any checklist item is a Source Preservation violation even if the shorter question reads better.
+- The step 7 (Review found sources) question uses the two-part delivery in §6: the plain-language explanation FIRST (as normal prose/bullets), then one compact `**[ACTION REQUIRED]**` question with the three reply options. Translated versions must pass the §6 content-completeness checklist; shortening away any checklist item is a Source Preservation violation even if the shorter question reads better.
 - Use the Facebook joined-groups URL only with explicit consent.
 - Do not use automated approval-gated browser extension flows for unattended collection.
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for private data source collection.
@@ -74,8 +74,8 @@ Every time the agent tells the human it will scan or monitor groups, communities
 The same message must include this reminder:
 
 ```text
-Private collection method: Solo Agency Local Collector only.
-I will not use Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser for logged-in sources.
+Collection method for sources that need a login: Solo Agency Local Collector only.
+I will not use Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser for those sources.
 ```
 
 For daily content monitoring, the agent must say the human-facing equivalent of:
@@ -143,32 +143,32 @@ Classification tie-breaker (private vs public):
 - "Public" for agent-browser research means the non-social web: websites, articles, docs, search results, and public news or forums that are not social-platform pages/profiles/groups/channels.
 - Reclassifying a source from collector-only to public (or vice versa) requires explicit human approval; the agent must not reclassify on its own.
 
-The checkpoint is delivered in TWO parts, in this order, in the human's language. Translation is required when the human is not chatting in English; dropping content is not allowed — the delivery must stay content-complete per the checklist below.
+The checkpoint (step 7, Review found sources) is delivered in TWO parts, in this order, in the human's language. Translation is required when the human is not chatting in English; dropping content is not allowed — the delivery must stay content-complete per the checklist below.
 
 **Part 1 — plain-language explanation, BEFORE the question, as normal prose or short bullets (not inside the `[ACTION REQUIRED]` block):** the agent must convey ALL of the following, briefly:
 
-- Private data sources are logged-in/social/community places such as competitor profiles, fanpages, Facebook groups, LinkedIn pages, Reddit communities, Discord/Slack communities, niche forums, newsletters, or dashboards that may require the human's account or membership.
-- They are different from public data sources such as websites, Google/search results, public articles, and public pages the agent can access without the human's login (already configured and ready to run).
-- The human does NOT need to compile this list by hand — that is usually tiring, hard, and incomplete. With permission, the agent can DISCOVER candidate private data sources automatically from the places the human already joined or follows on their own machine — Facebook joined groups, subreddits, followed pages/profiles/KOLs, subscribed channels, community feeds — through the Local Collector, filter the candidates, and present a shortlist for approval before anything is monitored.
-- Collection uses the Solo Agency Local Collector: a local app plus Chrome extension on the human's computer. It uses the already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. It never asks for credentials, cookies, passwords, OTPs, or tokens.
+- Here are the groups, pages and profiles the discovery pass found on this client's default sources — a couple of concrete examples help (a competitor fanpage, a niche Facebook group, a LinkedIn community) — plus a reminder that any custom source (a URL the human wants watched) is welcome too, as long as they can read it.
+- Pages that need the human's own login are read through the human's own Chrome, via the connected extension; the human never has to say whether a source is public or private — the run figures out how to read it.
+- The human does NOT need to compile this list by hand — that is usually tiring, hard, and incomplete. With permission, the agent can DISCOVER candidate sources automatically from the places the human already joined or follows on their own machine — Facebook joined groups, subreddits, followed pages/profiles/KOLs, subscribed channels, community feeds — through the Local Collector, filter the candidates, and present a shortlist for approval before anything is monitored.
+- Discovery uses the Solo Agency Local Collector: a local app plus Chrome extension on the human's computer. It uses the already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. It never asks for credentials, cookies, passwords, OTPs, or tokens.
 - The human must already be a member, follower, subscriber, logged in, or otherwise authorized to view any source they provide, in the Chrome profile where this client's Solo Agency Local Collector extension is installed; one separate Chrome profile per client is recommended, with that client's extension loaded and the relevant social accounts logged in there.
-- Collection activates only with the human's permission. For account safety and platform-respectful monitoring, around 20 private data sources or fewer per client is a good daily default; if the human provides more, the agent prioritizes and rotates them.
+- Monitoring activates only with the human's permission. For account safety and platform-respectful monitoring, around 20 sources or fewer per client is a good daily default; if the human provides more, the agent prioritizes and rotates them.
 - Priming fact (a plain fact stated once, in the human's own words and language, never a link or an offer — see the PRIMING vs SELLING rule): whatever these sources turn up lands automatically in the client's shared CRM, and the Free tier keeps a first batch of contacts fully open (name the actual cap from real state if known, otherwise speak in general terms rather than guessing a number).
 
 **Part 2 — the question, immediately after the explanation, as ONE compact `**[ACTION REQUIRED]**` block** (root playbook format), asking which of the three options the human wants:
 
-- provide private data source URLs/lists now, or
-- allow one optional discovery pass from places they already joined/follow (the agent filters candidates and asks approval before anything is monitored), or
-- postpone and run public data sources only for now.
+- keep these (add the shown sources to standing monitoring), or
+- add more custom source URLs (any page the human wants watched, on top of or instead of what was found), or
+- postpone and continue with the default sources only for now.
 
 Content-completeness checklist for this checkpoint (audited in Stage 9 — a checkpoint question missing any item is non-compliant, even if the shorter version reads better):
 
-1. Definition of private data sources with a couple of concrete examples.
-2. Contrast with public data sources (what the system can already read without login).
+1. What was found: the groups, pages and profiles the discovery pass found, with a couple of concrete examples.
+2. That pages needing a login are read through the human's own Chrome via the extension — the human is never asked whether a source is public or private.
 3. What the Local Collector is + data stays local + never asks for passwords/cookies/OTPs/tokens.
 4. The already-a-member/logged-in requirement and the per-client Chrome profile recommendation.
 5. The hands-free discovery capability: the agent can find candidate sources from places the human already joined/follows, so no hand-compiled list is needed; approval comes before anything is monitored.
-6. The three reply options: provide sources / allow discovery / postpone.
+6. The three reply options: keep these / add more URLs / postpone.
 7. The priming fact that discovered leads land in the CRM automatically and Free keeps a first batch of contacts open — stated as a plain fact, no link, not an offer.
 
 ### Private Data Source Discovery When The Human Has No List
@@ -178,7 +178,7 @@ Most humans do not remember which groups, subreddits, communities, pages, profil
 If the human provides no private data sources, says "I do not know", skips the question, or only gives a vague answer, the agent must not simply mark private data sources as `not_provided` and move on. It must first offer a concise discovery option:
 
 ```text
-No problem if you do not know which private data sources to add yet. A lot of the best idea, lead, and competitor signals usually live in groups, subreddits, communities, pages, profiles, channels, and feeds you already follow or joined. Do you want me to discover candidate private data sources from the approved places you already belong to or follow, then filter the list and ask you before monitoring anything?
+No problem if you do not know which custom sources to add yet. A lot of the best idea, lead, and competitor signals usually live in groups, subreddits, communities, pages, profiles, channels, and feeds you already follow or joined. Do you want me to discover candidate sources from the approved places you already belong to or follow, then filter the list and ask you before monitoring anything?
 ```
 
 The agent must explain that discovery is optional, consent-based, and local:
@@ -205,15 +205,15 @@ Discovery surfaces to offer when relevant:
 The agent should ask one compact approval question, not a long questionnaire, and put that question in a `**[ACTION REQUIRED]**` block:
 
 ```text
-Do you want me to run private data source discovery from places you already joined or follow, such as Facebook groups, subreddits, followed pages/KOLs, subscribed channels, and community feeds? I will use the Local Collector only, filter candidates, and ask you to approve the shortlist before anything becomes a daily monitored source.
+Do you want me to run source discovery from places you already joined or follow, such as Facebook groups, subreddits, followed pages/KOLs, subscribed channels, and community feeds? I will use the Local Collector only, filter candidates, and ask you to approve the shortlist before anything becomes a daily monitored source.
 ```
 
 If the human says yes:
 
-Timing: this sequence is the step-7 checkpoint's own interactive flow, and its output (the approved source list) is configuration. When the Local Collector and the matching client extension are verified healthy in the CURRENT session — including a setup session — run it NOW, while the human is present to approve the shortlist; the Setup Flow prohibition on scans does not cover this one configuration-gathering pass. Only when the collector is not yet healthy, the human is not present to approve, or the human postpones, record `approved_pending_first_scan` and hand execution to the first Automation Flow run (which then MUST run it or report the exact collector blocker). In a setup session, stop after saving approved sources and resyncing: do not analyze the collected data, generate reports/ideas/drafts from it, or start daily monitoring there.
+Timing: this sequence is step 7's (Review found sources) own interactive flow, and its output (the approved source list) is configuration. When the Local Collector and the matching client extension are verified healthy in the CURRENT session — including a setup session — run it NOW, while the human is present to approve the shortlist; the Setup Flow prohibition on scans does not cover this one configuration-gathering pass. Only when the collector is not yet healthy, the human is not present to approve, or the human postpones, record `approved_pending_first_scan` and hand execution to the first Automation Flow run (which then MUST run it or report the exact collector blocker). In a setup session, stop after saving approved sources and resyncing: do not analyze the collected data, generate reports/ideas/drafts from it, or start daily monitoring there.
 
 1. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 8, and Stage 9 before any scan.
-2. The Local Collector bridge and this client's extension were already installed at setup step 4 (Kết nối Facebook — `SOLO_AGENCY_PLAYBOOK.md`, Mandatory Setup Flow; `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook (step 4)"). This checkpoint does not install anything; check current health with `GET http://127.0.0.1:17321/status` and `extension_health` instead. If the bridge or extension is unhealthy here (install never completed, or it went stale since step 4), repeat step 4's own install flow — the local/remote rule stays the same one used there — rather than re-deriving a new install path here; run the Stage 8 Source Safety Pre-Check first if giving/re-running any install command.
+2. The Local Collector bridge and this client's extension were already installed at setup step 4 (Kết nối Facebook, Instagram and X — `SOLO_AGENCY_PLAYBOOK.md`, Mandatory Setup Flow; `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)"). This checkpoint does not install anything; check current health with `GET http://127.0.0.1:17321/status` and `extension_health` instead. If the bridge or extension is unhealthy here (install never completed, or it went stale since step 4), repeat step 4's own install flow — the local/remote rule stays the same one used there — rather than re-deriving a new install path here; run the Stage 8 Source Safety Pre-Check first if giving/re-running any install command.
 3. Ask which broad discovery surfaces are approved if not already clear. Keep the question short and default to the most likely safe set for the client, for example Facebook joined groups and Reddit joined/subscribed communities for community-heavy businesses.
 4. Run only approved discovery URLs/surfaces.
 5. Use Source Discovery Mode: scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
@@ -303,7 +303,7 @@ If the human agrees:
 https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
 ```
 
-2. The Solo Agency Local Collector extension and Local Collector app were already installed at setup step 4 (Kết nối Facebook). If either is not healthy before attempting this scan, repeat step 4's own install flow (agent-run on a local runtime after one consent line, handed off as a one-line command on a remote runtime) rather than deriving a separate activation path here.
+2. The Solo Agency Local Collector extension and Local Collector app were already installed at setup step 4 (Kết nối Facebook, Instagram and X). If either is not healthy before attempting this scan, repeat step 4's own install flow (agent-run on a local runtime after one consent line, handed off as a one-line command on a remote runtime) rather than deriving a separate activation path here.
 3. Do not use Claude Chrome Extension for this discovery scan.
 4. Do not ask the human to paste Facebook cookies, passwords, tokens, or credentials.
 5. Use the human's already logged-in Chrome session. If Facebook is logged out, mark `facebook_session_expired` and ask the human to log in manually.
@@ -376,7 +376,7 @@ Use it when:
 The agent must ask for explicit consent before running it:
 
 ```text
-Do you want me to find new Facebook groups with keyword search for this client? I will use the Solo Agency Local Collector in the client's Chrome profile, search Facebook groups with keywords that match the client's audience and pain points, scroll 10 times on each search result page, filter out Facebook UI noise and irrelevant results, then show you a shortlist to approve. I will not join groups, request access, or add any group to private data sources unless you approve it and the client Chrome profile can access it.
+Do you want me to find new Facebook groups with keyword search for this client? I will use the Solo Agency Local Collector in the client's Chrome profile, search Facebook groups with keywords that match the client's audience and pain points, scroll 10 times on each search result page, filter out Facebook UI noise and irrelevant results, then show you a shortlist to approve. I will not join groups, request access, or add any group as a source unless you approve it and the client Chrome profile can access it.
 ```
 
 Keyword selection:
@@ -496,9 +496,9 @@ The agent must ask for explicit consent for each discovery category:
 Recommended human-facing question:
 
 ```text
-Do you want me to discover useful private data sources from accounts and communities you already follow or joined?
+Do you want me to discover useful custom sources from accounts and communities you already follow or joined?
 
-Private data sources are logged-in/social/community places such as groups, profiles, pages, channels, forums, or feeds that may require your account or membership. I can review groups you are already a member of, people/pages/KOLs you follow, channels you subscribe to, and feed recommendations that platforms are already showing you. I will only keep sources related to this client's industry, related industries, target audience, location, pain points/customer problems, and content pillars/main content themes. I will not ask for passwords, cookies, OTPs, or tokens, and the data stays local on your computer by default.
+Some of these are logged-in/social/community places such as groups, profiles, pages, channels, forums, or feeds that may require your account or membership. I can review groups you are already a member of, people/pages/KOLs you follow, channels you subscribe to, and feed recommendations that platforms are already showing you. I will only keep sources related to this client's industry, related industries, target audience, location, pain points/customer problems, and content pillars/main content themes. I will not ask for passwords, cookies, OTPs, or tokens, and the data stays local on your computer by default.
 ```
 
 The human may approve all categories, approve only some, decline, or postpone.
@@ -535,8 +535,8 @@ If a URL does not work, the agent must mark `platform_url_changed` or `login_req
 | Reddit | Joined subreddits | `https://www.reddit.com/subreddits/mine/` | Use for communities the human joined when visible. |
 | Reddit | Home feed | `https://www.reddit.com/` | Use only with explicit feed discovery consent. |
 
-Groups found by the Facebook Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook
-Discovery Pass (step 11C of the daily run)") arrive in the shortlist differently from the keyword
+Groups found by the Facebook leg of the Social Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`,
+"Social Discovery Pass (step 11C of the daily run)") arrive in the shortlist differently from the keyword
 group search row above: they already carry `leads_found`, `member_count`, and `privacy` from that
 pass, and they were already scanned read-only as public groups — no per-group approval was needed for
 that read. They still need the same human approval as any other row in this table before being

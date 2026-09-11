@@ -1,0 +1,1202 @@
+[
+  {
+    "id": "A01",
+    "person_type": "Real estate agent",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender",
+    "fit": "high",
+    "fit_reason": "Agent listed property in Orange County, CA, part of partner segment who hands buyers to lenders.",
+    "intent": "none",
+    "intent_reason": "Listings and closings are routine work for agents, not a need for lender services.",
+    "decision": "warm"
+  },
+  {
+    "id": "A02",
+    "person_type": "Loan officer or mortgage broker",
+    "sells_to_match": "none",
+    "fit": "high",
+    "fit_reason": "Posts rate updates and offers no-obligation rate quotes, clearly a mortgage professional.",
+    "intent": "none",
+    "intent_reason": "N/A - competitor, not a customer",
+    "decision": "competitor"
+  },
+  {
+    "id": "A03",
+    "person_type": "Insurance agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance agent is not in MLO types; different service category.",
+    "intent": "none",
+    "intent_reason": "No indication of mortgage or refinance need.",
+    "decision": "none"
+  },
+  {
+    "id": "A04",
+    "person_type": "Salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Salon owner, not in MLO types; no housing transaction or mortgage need evident.",
+    "intent": "none",
+    "intent_reason": "Post is about nail services and customer appreciation, not mortgage.",
+    "decision": "none"
+  },
+  {
+    "id": "A05",
+    "person_type": "SaaS founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Startup founder with side project, no California location mentioned, not a home buyer.",
+    "intent": "none",
+    "intent_reason": "Post celebrates revenue milestone, no mortgage or purchase need indicated.",
+    "decision": "none"
+  },
+  {
+    "id": "A06",
+    "person_type": "Startup founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Startup hiring video editor, not in MLO buyer types.",
+    "intent": "none",
+    "intent_reason": "Post is about hiring and team scaling, no mortgage need.",
+    "decision": "none"
+  },
+  {
+    "id": "A07",
+    "person_type": "Marketing agency or consultant",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Marketing consultant managing client results, not a home buyer or agent.",
+    "intent": "none",
+    "intent_reason": "Post celebrates client outcomes, no mortgage or refinance need.",
+    "decision": "none"
+  },
+  {
+    "id": "A08",
+    "person_type": "Freelance video editor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Video editor offering freelance services, not a home buyer or real estate agent.",
+    "intent": "none",
+    "intent_reason": "Post offers video editing services to clients; no mortgage need.",
+    "decision": "none"
+  },
+  {
+    "id": "A09",
+    "person_type": "Business coach or consultant",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Coach selling lead-generation framework, not a home buyer or real estate agent.",
+    "intent": "none",
+    "intent_reason": "Post promotes coaching program; no mortgage or purchase need.",
+    "decision": "none"
+  },
+  {
+    "id": "A10",
+    "person_type": "Mindset or business coach",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Coach helping client raise prices, not a home buyer or real estate agent.",
+    "intent": "none",
+    "intent_reason": "Post celebrates client pricing win; no mortgage or refinance need.",
+    "decision": "none"
+  },
+  {
+    "id": "A11",
+    "person_type": "Service business owner (clinic/dental/medical)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Service business owner in Anaheim; not a buyer, homeowner, or agent",
+    "intent": "none",
+    "intent_reason": "Routine business hours announcement; no home purchase or refinance signal",
+    "decision": "none"
+  },
+  {
+    "id": "A12",
+    "person_type": "Immigration lawyer/legal professional",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Immigration lawyer; not a buyer, homeowner, or agent",
+    "intent": "none",
+    "intent_reason": "Professional content sharing about H-1B rules; no home purchase or refinance need",
+    "decision": "none"
+  },
+  {
+    "id": "A13",
+    "person_type": "Auto repair shop owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Auto shop owner in Santa Ana; not a buyer, homeowner, or agent",
+    "intent": "none",
+    "intent_reason": "Routine shop work posting; no mortgage signal",
+    "decision": "none"
+  },
+  {
+    "id": "A14",
+    "person_type": "Wedding photographer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Wedding photographer in Orange County; not in buyer, homeowner, or agent types",
+    "intent": "none",
+    "intent_reason": "Booking work is routine photography business operation; no home purchase signal",
+    "decision": "none"
+  },
+  {
+    "id": "A15",
+    "person_type": "Restaurant/food business owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Restaurant owner in Garden Grove; not a buyer, homeowner, or agent",
+    "intent": "none",
+    "intent_reason": "Routine menu update and restaurant operation; no home purchase or refinance signal",
+    "decision": "none"
+  },
+  {
+    "id": "A16",
+    "person_type": "HVAC/home systems contractor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "HVAC contractor in San Jose; not a buyer, homeowner, or agent",
+    "intent": "none",
+    "intent_reason": "Contractor's routine service work on customer property; no personal home purchase signal",
+    "decision": "none"
+  },
+  {
+    "id": "A17",
+    "person_type": "Tutoring/education center owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Tutoring center owner in Orange County; not a buyer, homeowner, or agent",
+    "intent": "none",
+    "intent_reason": "Routine program launch and business operation; no home purchase or refinance signal",
+    "decision": "none"
+  },
+  {
+    "id": "A18",
+    "person_type": "Fitness coach/personal trainer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Fitness coach in San Diego; not a buyer, homeowner, or agent",
+    "intent": "none",
+    "intent_reason": "Routine coaching business work; no home purchase signal",
+    "decision": "none"
+  },
+  {
+    "id": "A19",
+    "person_type": "Real-estate agent/broker",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent)",
+    "fit": "high",
+    "fit_reason": "Real-estate agent in Orange County, CA; exact match to partner segment type",
+    "intent": "none",
+    "intent_reason": "Agent's listing posting is routine work; per rule, partner segment intent requires looking for/comparing partners, not routine listings",
+    "decision": "warm"
+  },
+  {
+    "id": "A20",
+    "person_type": "Real-estate agent/broker",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Real-estate agent in Dallas-Fort Worth, TX; outside California service area",
+    "intent": "none",
+    "intent_reason": "Agent's routine work in Texas market; no California home purchase or refinance connection",
+    "decision": "none"
+  },
+  {
+    "id": "A21",
+    "person_type": "mortgage loan officer or lending professional",
+    "sells_to_match": "none",
+    "fit": "high",
+    "fit_reason": "Sells pre-approvals and rate locks in California market, matching the same service and geography as mlo",
+    "intent": "explicit",
+    "intent_reason": "Actively soliciting customers for pre-approvals and rate locks in real time",
+    "decision": "competitor"
+  },
+  {
+    "id": "A22",
+    "person_type": "insurance agent (home/property)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance agent; not a home buyer, homeowner with mortgage, or real-estate agent",
+    "intent": "none",
+    "intent_reason": "No evidence of needing a loan officer; updating policies is their professional routine",
+    "decision": "none"
+  },
+  {
+    "id": "A23",
+    "person_type": "nail salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Salon owner; not a home buyer, homeowner with mortgage, or real-estate agent",
+    "intent": "none",
+    "intent_reason": "Routine salon work; posting hours of operation is ordinary daily business",
+    "decision": "none"
+  },
+  {
+    "id": "A24",
+    "person_type": "auto detailing/ceramic coating business owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Auto service owner in Orange County; not a home buyer, homeowner with mortgage, or real-estate agent",
+    "intent": "none",
+    "intent_reason": "Routine service work; posting completed projects is ordinary business posting",
+    "decision": "none"
+  },
+  {
+    "id": "A25",
+    "person_type": "wedding and event videographer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Videographer; not a home buyer, homeowner with mortgage, or real-estate agent",
+    "intent": "none",
+    "intent_reason": "Bio only; no evidence of home purchase, mortgage, or lending need",
+    "decision": "none"
+  },
+  {
+    "id": "A26",
+    "person_type": "real-estate agent or broker",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent)",
+    "fit": "high",
+    "fit_reason": "Exact match to types line 3; realtor serving Orange County, a partner segment for mlo",
+    "intent": "none",
+    "intent_reason": "Bio only; per rule, realtor listings and closings are routine work, not intent for a lending partner",
+    "decision": "warm"
+  },
+  {
+    "id": "A27",
+    "person_type": "life and health insurance agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance agent; not a home buyer, homeowner with mortgage, or real-estate agent",
+    "intent": "none",
+    "intent_reason": "Bio only; no evidence of home purchase or mortgage need",
+    "decision": "none"
+  },
+  {
+    "id": "A28",
+    "person_type": "creator or e-commerce entrepreneur",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Launching hoodie product line; not a home buyer, homeowner with mortgage, or real-estate agent",
+    "intent": "none",
+    "intent_reason": "No mention of home purchase or financing; launching a product is not named as requiring a loan",
+    "decision": "none"
+  },
+  {
+    "id": "A29",
+    "person_type": "restaurant owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Restaurant owner in Garden Grove; not a home buyer, homeowner with mortgage, or real-estate agent",
+    "intent": "none",
+    "intent_reason": "Routine restaurant work; posting expanded hours is ordinary business posting",
+    "decision": "none"
+  },
+  {
+    "id": "A30",
+    "person_type": "veterinarian or veterinary clinic owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Vet clinic in San Jose; not a home buyer, homeowner with mortgage, or real-estate agent",
+    "intent": "none",
+    "intent_reason": "Routine clinic work; posting available hours is ordinary service business posting",
+    "decision": "none"
+  },
+  {
+    "id": "B01",
+    "person_type": "first-time home buyer in California",
+    "sells_to_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "fit": "high",
+    "fit_reason": "First-time buyer in Irvine, California explicitly asking for lender recommendation, budget stated",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asking for lender recommendation with clear purchasing readiness and budget",
+    "decision": "hot"
+  },
+  {
+    "id": "B02",
+    "person_type": "recent homebuyer in California",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "high",
+    "fit_reason": "Recent homebuyer in Westminster, California who holds a mortgage from purchase",
+    "intent": "none",
+    "intent_reason": "Asking for insurance agent, not lender; purchase complete with no refinance friction named",
+    "decision": "warm"
+  },
+  {
+    "id": "B03",
+    "person_type": "homeowner seeking refinance in California",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "high",
+    "fit_reason": "Homeowner in California explicitly seeking refinance with high-rate friction",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asking for loan officer and stating need to refinance due to high interest rates",
+    "decision": "hot"
+  },
+  {
+    "id": "B04",
+    "person_type": "first-time home buyer with accepted offer in California",
+    "sells_to_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "fit": "high",
+    "fit_reason": "First-time buyer in Huntington Beach with accepted offer; financing required before closing",
+    "intent": "implied",
+    "intent_reason": "Accepted offer creates need for financing and lender approval before closing transaction",
+    "decision": "hot"
+  },
+  {
+    "id": "B05",
+    "person_type": "homeowner seeking refinance in California",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "high",
+    "fit_reason": "Homeowner in Orange County actively comparing lenders for refinance, explicitly asking for loan officer",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asking for loan officer; actively comparing lenders; names friction of high rates and comparison fatigue",
+    "decision": "hot"
+  },
+  {
+    "id": "B06",
+    "person_type": "homeowner needing plumbing repair",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Person asking for plumbing services; no indication of home purchase, refinance, or lending need",
+    "intent": "none",
+    "intent_reason": "Post is about plumbing repair, not home purchase or refinancing",
+    "decision": "none"
+  },
+  {
+    "id": "B07",
+    "person_type": "parent seeking tutoring services",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Parent asking for tutoring services; no indication of home purchase, refinance, or lending need",
+    "intent": "none",
+    "intent_reason": "Post is about education/tutoring, not home purchase or refinancing",
+    "decision": "none"
+  },
+  {
+    "id": "B08",
+    "person_type": "parent with new dependent seeking life insurance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "New parent asking for life insurance agent; no indication of home purchase, refinance, or lending need",
+    "intent": "none",
+    "intent_reason": "Post is about life insurance update, not home purchase or refinancing",
+    "decision": "none"
+  },
+  {
+    "id": "B09",
+    "person_type": "homeowner selling house due to job change",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "medium",
+    "fit_reason": "Homeowner in Fountain Valley, California, but in a selling/closing scenario with no indication of CA home purchase",
+    "intent": "none",
+    "intent_reason": "Post is about home sale due to job change; no indication of purchase or refinance need",
+    "decision": "none"
+  },
+  {
+    "id": "B10",
+    "person_type": "person recently relocated to California",
+    "sells_to_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "fit": "medium",
+    "fit_reason": "Recently relocated to Newport Beach, California, but no indication of home purchase or mortgage status",
+    "intent": "implied",
+    "intent_reason": "Recent relocation could indicate need for home purchase or refinance as person settles into new location",
+    "decision": "watch"
+  },
+  {
+    "id": "B11",
+    "person_type": "Homeowner having sold home, relocating to California (uncertain)",
+    "sells_to_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "fit": "low",
+    "fit_reason": "Plan hedged as 'maybe somewhere in SoCal or maybe not' is classified as low fit per rule; arrival is uncertain",
+    "intent": "none",
+    "intent_reason": "No signal of active purchase planning; completed sale, uncertain timing on relocation",
+    "decision": "none"
+  },
+  {
+    "id": "B12",
+    "person_type": "California homeowner considering refinance",
+    "sells_to_match": "homeowner in California holding a mortgage (a refinance candidate whenever rates or life change)",
+    "fit": "high",
+    "fit_reason": "Matches type exactly: homeowner in California (Westminster) with mortgage, considering refinance; location confirmed",
+    "intent": "explicit",
+    "intent_reason": "Explicitly asking to compare lenders/rates before deciding on refinance; rate move is the friction named in why_they_need",
+    "decision": "hot"
+  },
+  {
+    "id": "B13",
+    "person_type": "California homeowner concerned about property insurance coverage",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "medium",
+    "fit_reason": "Right kind of person (California homeowner) likely holding mortgage, but homeownership status not explicitly confirmed",
+    "intent": "none",
+    "intent_reason": "Concern is fire insurance coverage, not loan/refinancing; no signal of housing purchase or rate-driven loan restructuring",
+    "decision": "none"
+  },
+  {
+    "id": "B14",
+    "person_type": "First-time home buyer searching in Orange County",
+    "sells_to_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "fit": "high",
+    "fit_reason": "Exact match: first-time buyer planning to buy in Tustin/Irvine (Orange County), budget stated, in service area",
+    "intent": "implied",
+    "intent_reason": "Actively searching for homes with set budget in specific locations; home purchase requires financing approval before offer; new search creates need for loan",
+    "decision": "hot"
+  },
+  {
+    "id": "B15",
+    "person_type": "Insurance industry employee (claims adjuster)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Bio shows employment only (State Farm adjuster); no evidence of home purchase planning, homeownership, or mortgage holding",
+    "intent": "none",
+    "intent_reason": "Bio-only profile with no stated housing change or need; employment is not a housing transaction or refinance signal",
+    "decision": "none"
+  },
+  {
+    "id": "C01",
+    "person_type": "Real estate agent in Texas",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender",
+    "fit": "low",
+    "fit_reason": "Matches agent type but location is Austin, TX, not California service area; buyers elsewhere are low fit unless buying in California",
+    "intent": "none",
+    "intent_reason": "Post is routine work (asking about video tools); no signal of wanting to partner with or refer to mlo",
+    "decision": "none"
+  },
+  {
+    "id": "C02",
+    "person_type": "Nail salon owner, newly opened in California",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Small business owner does not match mlo types (home buyer, homeowner with mortgage, or agent); business ownership is not a home purchase signal",
+    "intent": "none",
+    "intent_reason": "Post seeks marketing/customer help, not financing; no housing transaction or loan need indicated",
+    "decision": "none"
+  },
+  {
+    "id": "C03",
+    "person_type": "One-person gym operator (personal trainer)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Small business owner with no match to mlo types; no home purchase or homeownership signal in post",
+    "intent": "none",
+    "intent_reason": "Seeking CRM for client follow-up in gym business; no housing purchase or refinancing signal",
+    "decision": "none"
+  },
+  {
+    "id": "C04",
+    "person_type": "Wedding photographer / creator",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Creator/service provider does not match any mlo type; no home ownership or purchase signal",
+    "intent": "none",
+    "intent_reason": "Business problem is lead booking in photography, not housing; no home financing signal",
+    "decision": "none"
+  },
+  {
+    "id": "C05",
+    "person_type": "Mortgage loan officer in Orange County",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Competitor: sells same product (home loans) to same California market",
+    "intent": "none",
+    "intent_reason": "Step 2 competitor status overrides intent analysis",
+    "decision": "competitor"
+  },
+  {
+    "id": "C06",
+    "person_type": "Insurance agent (auto, home, life)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance agent, not a homebuyer, homeowner with mortgage, or real estate professional",
+    "intent": "none",
+    "intent_reason": "Discussing content posting challenges; no indication of mortgage or refinance need",
+    "decision": "none"
+  },
+  {
+    "id": "C07",
+    "person_type": "Plumbing and heating contractor (business owner)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Business owner in different industry; not a homebuyer, homeowner with mortgage, or real estate professional",
+    "intent": "none",
+    "intent_reason": "Seeking help with client follow-up automation for repair business; no mortgage need implied",
+    "decision": "none"
+  },
+  {
+    "id": "C08",
+    "person_type": "Studio owner teaching fitness classes",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Service business owner in different field; not a homebuyer, homeowner with mortgage, or real estate professional",
+    "intent": "none",
+    "intent_reason": "Asking for help editing reels for business content; no mortgage or refinance trigger present",
+    "decision": "none"
+  },
+  {
+    "id": "C09",
+    "person_type": "Freelancer (3 months self-employed)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Freelancer without real estate activity; not a homebuyer, homeowner with mortgage, or real estate professional",
+    "intent": "none",
+    "intent_reason": "Asking about client-finding systems; no indication of housing transaction or refinance need",
+    "decision": "none"
+  },
+  {
+    "id": "C10",
+    "person_type": "Real-estate agent (Orange County, CA)",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent)",
+    "fit": "high",
+    "fit_reason": "Real-estate agent in Orange County CA is a partner segment that refers buyers",
+    "intent": "none",
+    "intent_reason": "Asking about video editing tool for listings; routine work for realtor, not seeking or comparing lender services",
+    "decision": "warm"
+  },
+  {
+    "id": "C11",
+    "person_type": "Chiropractor and solo clinic owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Healthcare business owner; not a homebuyer, homeowner with mortgage, or real estate professional",
+    "intent": "none",
+    "intent_reason": "Asking for content and follow-up system for clinic marketing; no mortgage or refinance trigger",
+    "decision": "none"
+  },
+  {
+    "id": "C12",
+    "person_type": "Nail salon owner (Westminster, CA)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Salon owner; not a homebuyer, homeowner with mortgage, or real estate professional",
+    "intent": "none",
+    "intent_reason": "Bio-only with no mention of housing transaction, refinance, or mortgage need",
+    "decision": "none"
+  },
+  {
+    "id": "C13",
+    "person_type": "Mortgage loan officer (home loan provider)",
+    "sells_to_match": "n/a",
+    "fit": "n/a",
+    "fit_reason": "Same business as MLO client; competitor overrides matrix",
+    "intent": "n/a",
+    "intent_reason": "Competitor: same product (home loans) to same market (California)",
+    "decision": "competitor"
+  },
+  {
+    "id": "C14",
+    "person_type": "Spa or service business owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Service business owner; not a homebuyer, homeowner with mortgage, or real estate professional",
+    "intent": "none",
+    "intent_reason": "Asking for customer reminder system and acquisition for spa business; no mortgage or refinance need",
+    "decision": "none"
+  },
+  {
+    "id": "C15",
+    "person_type": "Real-estate agent (Sacramento, CA)",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent)",
+    "fit": "high",
+    "fit_reason": "Real-estate agent in California is a partner segment that refers buyers",
+    "intent": "none",
+    "intent_reason": "Asking about CRM to track leads and manage follow-ups; routine sales management work, not seeking or comparing lender services",
+    "decision": "warm"
+  },
+  {
+    "id": "D01",
+    "person_type": "Real-estate agent",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent)",
+    "fit": "high",
+    "fit_reason": "Agent is a partner segment customer in MLO's types",
+    "intent": "none",
+    "intent_reason": "Agent's stuck listing is routine work, not a search for lending services",
+    "decision": "warm"
+  },
+  {
+    "id": "D02",
+    "person_type": "Multi-location salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Salon owner with no connection to home purchase or mortgage needs",
+    "intent": "none",
+    "intent_reason": "Business expansion, not related to lending",
+    "decision": "none"
+  },
+  {
+    "id": "D03",
+    "person_type": "New parent/mother",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Personal life event (new baby), not related to home purchase or mortgage",
+    "intent": "none",
+    "intent_reason": "Personal milestone unrelated to lending needs",
+    "decision": "none"
+  },
+  {
+    "id": "D04",
+    "person_type": "SaaS founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Startup founder with no indication of home purchase or mortgage need",
+    "intent": "none",
+    "intent_reason": "Business growth, not related to home financing",
+    "decision": "none"
+  },
+  {
+    "id": "D05",
+    "person_type": "Driver with recent DUI",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Auto insurance issue, not related to home purchase or mortgage",
+    "intent": "none",
+    "intent_reason": "Insurance concern, not lending related",
+    "decision": "none"
+  },
+  {
+    "id": "D06",
+    "person_type": "Freelance graphic designer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Freelancer transitioning to self-employment, no home purchase or mortgage context",
+    "intent": "none",
+    "intent_reason": "Career change, not connected to lending needs",
+    "decision": "none"
+  },
+  {
+    "id": "D07",
+    "person_type": "Homeowner with existing mortgage",
+    "sells_to_match": "homeowner in California holding a mortgage (a refinance candidate whenever rates or life change; a recent purchase still counts because they hold a loan; a refinance completed and locked with relief is settled)",
+    "fit": "high",
+    "fit_reason": "Homeowner in California holding existing mortgage, ideal refinance candidate",
+    "intent": "explicit",
+    "intent_reason": "Rates dropped, creating explicit refinancing opportunity for existing 7% loan held since 2023",
+    "decision": "hot"
+  },
+  {
+    "id": "D08",
+    "person_type": "Nail salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Salon owner bio only, no home purchase or mortgage mention",
+    "intent": "none",
+    "intent_reason": "Bio states only business ownership, no lending need shown",
+    "decision": "none"
+  },
+  {
+    "id": "D09",
+    "person_type": "Pregnant woman expecting twins",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Pregnancy/family planning, not related to home purchase or mortgage need",
+    "intent": "none",
+    "intent_reason": "Personal family event, not connected to lending",
+    "decision": "none"
+  },
+  {
+    "id": "D10",
+    "person_type": "Job relocator relocating to California",
+    "sells_to_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "fit": "medium",
+    "fit_reason": "Person relocating to California (Irvine) is a mover, but housing transaction not yet named",
+    "intent": "implied",
+    "intent_reason": "Relocation creates new housing need likely requiring purchase and financing in California",
+    "decision": "watch"
+  },
+  {
+    "id": "D11",
+    "person_type": "food truck owner (small business owner)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "food truck owner does not match any of the three MLO customer types (home buyer, mortgage holder, or real-estate agent)",
+    "intent": "none",
+    "intent_reason": "no indication of needing a home purchase, refinance, or mortgage",
+    "decision": "none"
+  },
+  {
+    "id": "D12",
+    "person_type": "homeowner in California",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "medium",
+    "fit_reason": "homeowner in CA, but ADU construction is not a home purchase or refinance trigger; purchase/refinance not indicated",
+    "intent": "none",
+    "intent_reason": "no need for mortgage shown; discussing ADU construction savings, not seeking financing",
+    "decision": "none"
+  },
+  {
+    "id": "D13",
+    "person_type": "small business owner (hired first employee)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "small business owner does not match any of the three MLO customer types",
+    "intent": "none",
+    "intent_reason": "no indication of home purchase or refinance need",
+    "decision": "none"
+  },
+  {
+    "id": "D14",
+    "person_type": "homeowner in California",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "medium",
+    "fit_reason": "homeowner in California, but issue is about insurance premiums, not mortgage need",
+    "intent": "none",
+    "intent_reason": "discussing insurance cost increase, not seeking mortgage or refinance",
+    "decision": "none"
+  },
+  {
+    "id": "D15",
+    "person_type": "software engineer relocating to California",
+    "sells_to_match": "person planning to buy a home in California",
+    "fit": "medium",
+    "fit_reason": "moving to Irvine (CA service area), but home purchase not explicitly stated; could be renting",
+    "intent": "implied",
+    "intent_reason": "moving to new location implies likely need for housing solution (purchase or refinance); relocation is a life change",
+    "decision": "watch"
+  },
+  {
+    "id": "E01",
+    "person_type": "lead generation agency founder for realtors",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "founder/operator of lead gen service does not match home buyer, mortgage holder, or realtor/broker customer types",
+    "intent": "none",
+    "intent_reason": "no mortgage or home purchase need indicated; operates a marketing service",
+    "decision": "none"
+  },
+  {
+    "id": "E02",
+    "person_type": "lead generation service provider for realtors (Vietnamese)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "lead generation service operator does not match any of the three MLO customer types",
+    "intent": "none",
+    "intent_reason": "no mortgage or refinance need indicated; selling lead service to agents",
+    "decision": "none"
+  },
+  {
+    "id": "E03",
+    "person_type": "AI video editing app founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "founder of video editing app does not match any MLO customer type",
+    "intent": "none",
+    "intent_reason": "no mortgage or home purchase need shown",
+    "decision": "none"
+  },
+  {
+    "id": "E04",
+    "person_type": "AI video editing app developer (Vietnamese)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "video app developer does not match any MLO customer type",
+    "intent": "none",
+    "intent_reason": "no mortgage or refinance need indicated",
+    "decision": "none"
+  },
+  {
+    "id": "E05",
+    "person_type": "real-estate agent (partner segment)",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender",
+    "fit": "high",
+    "fit_reason": "agent serving Orange County and LA (exact service area); partner segment with direct relevance to MLO business",
+    "intent": "none",
+    "intent_reason": "discussing inventory and listings (routine agent work); not seeking or comparing lenders",
+    "decision": "warm"
+  },
+  {
+    "id": "E06",
+    "person_type": "real-estate agent (Century 21, OC & LA market)",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender",
+    "fit": "high",
+    "fit_reason": "exact match to partner agent type; operates in California OC & LA area",
+    "intent": "none",
+    "intent_reason": "market commentary about prices and challenges is routine work, not intent to refer or source buyers",
+    "decision": "warm"
+  },
+  {
+    "id": "E07",
+    "person_type": "insurance agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "insurance agent; no match in mortgage lender's buyer or partner types",
+    "intent": "none",
+    "intent_reason": "selling insurance; no signal of mortgage need",
+    "decision": "none"
+  },
+  {
+    "id": "E08",
+    "person_type": "insurance agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "insurance agent serving Vietnamese community; no match in MLO buyer or partner types",
+    "intent": "none",
+    "intent_reason": "selling business and auto/home insurance; no mortgage need shown",
+    "decision": "none"
+  },
+  {
+    "id": "E09",
+    "person_type": "mortgage loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "loan officer; same profession as target MLO client",
+    "intent": "none",
+    "intent_reason": "competing with target client in same market and buyer segment",
+    "decision": "competitor"
+  },
+  {
+    "id": "E10",
+    "person_type": "mortgage loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "loan officer serving Southern California market; same profession",
+    "intent": "none",
+    "intent_reason": "competing as another lender marketing refinance and purchase loans in California",
+    "decision": "competitor"
+  },
+  {
+    "id": "E11",
+    "person_type": "marketing coach / business consultant",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "marketing consultant; not a home buyer, homeowner, or real-estate agent",
+    "intent": "none",
+    "intent_reason": "selling marketing program; no signal of mortgage need",
+    "decision": "none"
+  },
+  {
+    "id": "E12",
+    "person_type": "marketing coach",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "marketing coach in Vietnamese; no match to buyer or partner agent types",
+    "intent": "none",
+    "intent_reason": "bio-only with no statement indicating mortgage need or home transaction",
+    "decision": "none"
+  },
+  {
+    "id": "F01",
+    "person_type": "unknown consumer posting meme",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "meme post with no evidence of professional role or housing transaction",
+    "intent": "none",
+    "intent_reason": "personal meme post about spending; not a legitimate signal",
+    "decision": "none"
+  },
+  {
+    "id": "F02",
+    "person_type": "unknown person posting political commentary",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "political discussion; no evidence of home purchase or real-estate involvement",
+    "intent": "none",
+    "intent_reason": "political commentary on property taxes; not a housing transaction signal",
+    "decision": "none"
+  },
+  {
+    "id": "F03",
+    "person_type": "job seeker seeking loan officer employment",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "job seeker explicitly listed in not_buyers",
+    "intent": "none",
+    "intent_reason": "seeking employment as loan officer; not a buyer or agent partner",
+    "decision": "none"
+  },
+  {
+    "id": "F04",
+    "person_type": "salon owner",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "salon hiring is routine business, not a home purchase or refinance",
+    "intent": "none",
+    "intent_reason": "staff hiring has no connection to mortgage needs",
+    "decision": "none"
+  },
+  {
+    "id": "F05",
+    "person_type": "student",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "student explicitly in not_buyers category",
+    "intent": "none",
+    "intent_reason": "finals stress unrelated to mortgage needs",
+    "decision": "none"
+  },
+  {
+    "id": "F06",
+    "person_type": "spam scammer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "spam/scam content unrelated to any legitimate service",
+    "intent": "none",
+    "intent_reason": "spam has no genuine intent",
+    "decision": "none"
+  },
+  {
+    "id": "F07",
+    "person_type": "MLM marketer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "crypto MLM scheme unrelated to home loans",
+    "intent": "none",
+    "intent_reason": "cryptocurrency pitch has no connection to mortgage needs",
+    "decision": "none"
+  },
+  {
+    "id": "F08",
+    "person_type": "person with dependents, Orange County",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "medium",
+    "fit_reason": "right location and life stage with dependents, but housing status not stated",
+    "intent": "none",
+    "intent_reason": "motivational post contains no purchase or refinance signal",
+    "decision": "none"
+  },
+  {
+    "id": "F09",
+    "person_type": "work-from-home MLM marketer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "work-from-home MLM scam unrelated to home loans",
+    "intent": "none",
+    "intent_reason": "income scam pitch has no mortgage relevance",
+    "decision": "none"
+  },
+  {
+    "id": "F10",
+    "person_type": "HR employee, large company",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "employee of 500+ person company not owning pipeline; explicitly in not_buyers",
+    "intent": "none",
+    "intent_reason": "job posting is labor-market activity, not personal mortgage need",
+    "decision": "none"
+  },
+  {
+    "id": "F11",
+    "person_type": "person commenting on politics",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "political discussion unrelated to home loans or real estate",
+    "intent": "none",
+    "intent_reason": "political commentary has no connection to mortgage needs",
+    "decision": "none"
+  },
+  {
+    "id": "F12",
+    "person_type": "job seeker, technology background",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "job seeker in not_buyers category with no purchasing power",
+    "intent": "none",
+    "intent_reason": "job search transition has no relevance to mortgage needs",
+    "decision": "none"
+  },
+  {
+    "id": "G01",
+    "person_type": "homeowner or housing participant, Orange County",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "medium",
+    "fit_reason": "Orange County housing group member confirms interest, but explicitly states not currently seeking",
+    "intent": "none",
+    "intent_reason": "explicitly rejects current realtor/housing outreach; no purchase or rate-change signal",
+    "decision": "none"
+  },
+  {
+    "id": "G02",
+    "person_type": "consumer who purchased auto insurance",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "auto insurance purchase, not home financing need",
+    "intent": "none",
+    "intent_reason": "explicitly states don't need more introductions",
+    "decision": "none"
+  },
+  {
+    "id": "G03",
+    "person_type": "homeowner rejecting real estate solicitation",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "explicitly not selling home (#notsellinghere)",
+    "intent": "none",
+    "intent_reason": "explicitly rejects real estate and housing-related outreach",
+    "decision": "none"
+  },
+  {
+    "id": "G04",
+    "person_type": "first-time homebuyer in California (2024)",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "high",
+    "fit_reason": "recent home purchase in 2024, holds mortgage in California",
+    "intent": "none",
+    "intent_reason": "post shows purchase celebration with no friction indicating refinance need now",
+    "decision": "warm"
+  },
+  {
+    "id": "G05",
+    "person_type": "mortgage professional or loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "loan officer or mortgage professional competing in same market",
+    "intent": "none",
+    "intent_reason": "discussing own lending pipeline, not seeking loan officer services",
+    "decision": "competitor"
+  },
+  {
+    "id": "G06",
+    "person_type": "solo founder of SaaS startup",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "startup founder not in home financing or real estate segments",
+    "intent": "none",
+    "intent_reason": "explicitly rejects pitches; no housing-related activity",
+    "decision": "none"
+  },
+  {
+    "id": "G07",
+    "person_type": "homeowner who completed refinance",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "low",
+    "fit_reason": "recently completed refinance; types explicitly marks refinance completed and locked with relief as settled",
+    "intent": "none",
+    "intent_reason": "refinance completion with relief indicates settled status, not a prospect for new financing",
+    "decision": "none"
+  },
+  {
+    "id": "G08",
+    "person_type": "retired real estate professional",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender",
+    "fit": "low",
+    "fit_reason": "retired from real estate profession, no active business operations",
+    "intent": "none",
+    "intent_reason": "retired status indicates no current business involvement",
+    "decision": "none"
+  },
+  {
+    "id": "H01",
+    "person_type": "real estate agent at broker firm",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender",
+    "fit": "high",
+    "fit_reason": "active realtor in Orange County partner segment",
+    "intent": "none",
+    "intent_reason": "profile only; no specific listing, closing, or stated partner need indicated",
+    "decision": "warm"
+  },
+  {
+    "id": "H02",
+    "person_type": "licensed mortgage loan officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "mortgage loan officer, competing professional in same market",
+    "intent": "none",
+    "intent_reason": "bias as competing professional, not seeking MLO services",
+    "decision": "competitor"
+  },
+  {
+    "id": "H03",
+    "person_type": "SaaS startup founder",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "SaaS startup founder not in home financing or real estate segments",
+    "intent": "none",
+    "intent_reason": "bio only; no housing or loan-related activity indicated",
+    "decision": "none"
+  },
+  {
+    "id": "H04",
+    "person_type": "Salon owner in California",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Service business owner, not in home purchase/mortgage/realtor categories",
+    "intent": "none",
+    "intent_reason": "Bio-only profile with no housing transaction or refinance indication",
+    "decision": "none"
+  },
+  {
+    "id": "H05",
+    "person_type": "Insurance agent (auto, home, life)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Insurance professional, not in home financing categories",
+    "intent": "none",
+    "intent_reason": "Bio-only profile showing routine profession",
+    "decision": "none"
+  },
+  {
+    "id": "H06",
+    "person_type": "Dentist (self-employed professional)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Self-employed professional but no home purchase or mortgage indication",
+    "intent": "none",
+    "intent_reason": "Bio-only profile with no housing change mentioned",
+    "decision": "none"
+  },
+  {
+    "id": "H07",
+    "person_type": "University student",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Student, explicitly in not_buyers category",
+    "intent": "none",
+    "intent_reason": "Bio-only profile, student status",
+    "decision": "none"
+  },
+  {
+    "id": "H08",
+    "person_type": "First-time homebuyer (newly married)",
+    "sells_to_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "fit": "high",
+    "fit_reason": "First-time home buyer in Orange County/LA area with explicit purchase timeline",
+    "intent": "explicit",
+    "intent_reason": "Just married + home hunting begins = new household and active search; marriage creates immediate housing need",
+    "decision": "hot"
+  },
+  {
+    "id": "I01",
+    "person_type": "Real estate service provider (photographer)",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Photographer serving real estate agents, not a realtor/broker or home buyer",
+    "intent": "none",
+    "intent_reason": "Routine business success post (booked solid) = ordinary working day activity",
+    "decision": "none"
+  },
+  {
+    "id": "I02",
+    "person_type": "Commercial/multifamily property manager",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Commercial property management, outside residential home purchase/refinance scope",
+    "intent": "none",
+    "intent_reason": "Insurance renewal discussion, not home purchase or refinance need",
+    "decision": "none"
+  },
+  {
+    "id": "I03",
+    "person_type": "Escrow officer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Escrow officer is a transaction partner, not a buyer; listed in not_buyers",
+    "intent": "none",
+    "intent_reason": "Escrow officer's routine work availability (refers buyers, does not buy)",
+    "decision": "none"
+  },
+  {
+    "id": "I04",
+    "person_type": "Independent insurance claims adjuster",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Claims adjuster profession, not in home purchase/mortgage/realtor categories",
+    "intent": "none",
+    "intent_reason": "Discussing auto claims processing, not housing finance need",
+    "decision": "none"
+  },
+  {
+    "id": "I05",
+    "person_type": "Freelance video editor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "fit_reason": "Content creator/service provider, not in home purchase/mortgage/realtor categories",
+    "intent": "none",
+    "intent_reason": "Advertising video editing services, not a financing or housing need",
+    "decision": "none"
+  }
+]

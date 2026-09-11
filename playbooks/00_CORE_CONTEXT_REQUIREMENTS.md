@@ -15,7 +15,7 @@ Load first for every setup or run. This stage contains the core reasoning model,
 - The agent must keep user-facing language aligned with the human's language.
 - The agent must never treat research from public data sources only as private data source coverage.
 - The agent must explain marketing, analytics, and technical terms in plain language when speaking to a non-technical/non-marketing human.
-- The agent must use canonical source terminology in human-facing text: `public data sources` and `private data sources`. Do not shorten these terms, omit `data`, use slash terms, or use mixed-language shorthand labels.
+- Human-facing text uses exactly two source words: default sources (Vietnamese: Nguồn mặc định) and custom sources (Vietnamese: Nguồn custom). The words public/private, lane, `public data sources`, `private data sources`, and `logged-in sources` never appear in anything the human reads or Sam says. Internally the run still tells apart HOW a URL is read — directly by the agent, or through the human's own Chrome via the Local Collector extension when the page needs a login — and every collector-only rule, budget, gate, and approval stays exactly as it is; those internal words may remain in agent-only mechanics but must be introduced as internal access modes, never spoken to the human.
 - The agent must not mention private data sources in the first setup or first add-client question. Private data sources are asked only after the schedule/routine and client-specific automation task have been configured; if the human approves or changes private data sources, resync the automation task afterward.
 - The agent must not create local video media as a fallback when a verified client-scoped PDNA provider is missing or blocked. Missing provider setup must trigger a PDNA setup/action block, not a local `ffmpeg`/Pillow/`moviepy`/Remotion/canvas/slideshow video.
 - Any video script inside a report, Markdown source record, previous draft, or history is reference context only. Before any provider video creation request, the agent must load and apply the existing WideCast video script-writing skill from the verified provider or `playbooks/skills/video-script-writing/SKILL.md`, produce the final production script/brief with research and inline-media/direct-image-URL workflow where verifiable, and use only that skill-produced final script/brief as the provider payload. Do not edit, replace, summarize, or reimplement the WideCast skill.
@@ -194,8 +194,9 @@ Every progress block must include a short line explaining that this is the agent
 
 The checklist must not assume the human understands marketing or technical terms. Explain terms directly in the checklist or immediately below it. Required meanings:
 
-- `public data sources`: websites, search, news, public forums, and public pages the agent can access without the human's login.
-- `private data sources`: logged-in or membership-based sources such as Facebook groups/pages, X, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require access, Discord/Slack communities, competitor profiles, newsletters, or private forums.
+- `default sources`: the sources this client gets without doing anything — Google search driven by the keyword bank, Facebook, Instagram and X read through the connected extension, and the industry sites for this client's industry.
+- `custom sources`: any URL the human wants watched, as long as they can read it — asked for once, at step 5.
+- (internal access mode, never spoken to the human): some pages need the human's own logged-in Chrome session to read, via the Local Collector extension, such as Facebook groups/pages, X, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require access, Discord/Slack communities, competitor profiles, newsletters, or private forums; the run decides how to read each URL, the human is never asked public vs private.
 - `Local Collector`: local app plus Chrome extension on the human's computer; it uses the already logged-in Chrome session, reads approved visible pages only, and keeps private data local by default.
 - `offer`: business promise/package/value proposition.
 - `pain points`: customer problems, worries, objections, or urgent questions.
@@ -221,10 +222,10 @@ This is the planned setup process I am working through. You only need to reply w
 → 1. You provide the product/service, profession, expertise, business description, or public website/profile URL
 ○ 2. I infer the industry, sub-industry, related industries, audience, and offer
 ○ 3. I infer pain points (customer problems) and content pillars (main repeatable content themes)
-○ 4. I connect Facebook: install the Local Collector and this client's Chrome extension, then ask you to log in (skipping needs an explicit web-only confirmation)
-○ 5. I find/select public data sources (websites, search, news, public forums, and public pages that do not require your account) and search keywords
+○ 4. I connect Facebook, Instagram and X: install the Local Collector and this client's Chrome extension (one extension covers all three), then ask you to log in (skipping needs an explicit web-only confirmation)
+○ 5. I set up your sources: the default ones (Google search with your keywords, Facebook, Instagram, X, and the sites for your industry) plus any URL you give me to watch
 ○ 6. I configure the automatic schedule/routine and create or verify the client-specific automation task that will run the first report in Automation Flow
-○ 7. I ask about private data sources once, after automation exists; if you approve sources or discovery, I update/resync the automation task so future runs include the newest source state
+○ 7. I show you the groups, pages and profiles I found and you pick which ones to keep watching; then I resync the automation task
 ○ 8. I help set up PDNA provider configuration only: Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results)
 ○ 9. In Automation Flow, from the second run onward, if PDNA is set up, the task scans analytics for published URLs from the last 7 days
 ○ 10. In Automation Flow, the task updates the report, idea matrix, best idea, Lead & Competitor Opportunities, drafts, analytics/statistics, and learning loop
@@ -235,11 +236,11 @@ Progress roadmap integrity rule:
 - Every setup progress block must show all 10 numbered items in order.
 - Never hide steps 6-10 because they are pending, declined, blocked, or not applicable yet.
 - Use `○` for pending items, `→` for the current active item, `✓` for completed items, `!` for blocked or human-action-needed items, and `–` only after the human has explicitly declined or the item has been logged as not applicable with a reason.
-- Step 4 is the one and only Local Collector bridge + extension install checkpoint. On a local runtime the agent installs and starts the bridge itself after one plain-language consent line, waits for `/status` (up to 60 seconds), then walks the human through the two-gesture extension install; on a remote runtime that cannot see the install root or verify `/status` in time, the agent hands the human the one-line command instead. The step closes with the Facebook Login Reminder and `facebook_lead_source: enabled|web_only|pending`. Setup may continue to items 5-6 while it is still `pending` — that alone does not block setup, mark step 4 `!` or `–` with the reason — but the client's first dispatched run is gated on `facebook_lead_source` being `enabled` or `web_only` (an explicit, acknowledged web-only choice recorded with `facebook_web_only_reason`), never while it is still `pending`; the FIRST RUN discovery budget then applies whenever this client's Facebook Discovery Pass actually runs for the first time (tracked as `facebook_discovery_first_pass_done`), not necessarily on this client's first automation run.
+- Step 4 is the one and only Local Collector bridge + extension install checkpoint. On a local runtime the agent installs and starts the bridge itself after one plain-language consent line, waits for `/status` (up to 60 seconds), then walks the human through the two-gesture extension install; on a remote runtime that cannot see the install root or verify `/status` in time, the agent hands the human the one-line command instead. The step closes with the Login Reminder (naming Facebook, Instagram, and X) and `facebook_lead_source: enabled|web_only|pending`, with `instagram_lead_source` and `x_lead_source` recorded alongside it automatically — the three platforms are default sources, enabled automatically as the extension checks in, no extra question per platform. Setup may continue to items 5-6 while it is still `pending` — that alone does not block setup, mark step 4 `!` or `–` with the reason — but the client's first dispatched run is gated on `facebook_lead_source` being `enabled` or `web_only` (an explicit, acknowledged web-only choice recorded with `facebook_web_only_reason`), never while it is still `pending` — Instagram and X follow automatically; the FIRST RUN discovery budget then applies whenever this client's Social Discovery Pass actually runs for the first time (tracked as `facebook_discovery_first_pass_done`), not necessarily on this client's first automation run.
 - Step 6 is the one-time schedule/routine plus client-specific automation task setup. It should happen before private data source intake so the system has a runnable public data sources baseline first.
-- Step 7 is the only private data source setup checkpoint. Do not ask private data source preference earlier as a separate step. It does not install the Local Collector — that already happened at step 4. In step 7, load Stage 2 first, then deliver the checkpoint in two parts per the Stage-2 §6 delivery rule: a short plain-language explanation (private vs public data sources, what the Local Collector is, data stays local, never asks for passwords/cookies/OTPs, already-a-member requirement, and the hands-free discovery option that finds candidate sources from places the human already joined/follows so no hand-compiled list is needed) followed by one compact `**[ACTION REQUIRED]**` question with the three reply options — provide sources, allow discovery, or postpone. If the human approves sources/discovery or declines/postpones them, update source state and perform Automation Resync so the already-created automation task has the newest state. When the collector and matching extension are verified healthy in-session, the discovery pass and shortlist approval happen at this checkpoint itself (configuration gathering only — no data analysis or report in Setup Flow); an unapproved shortlist is re-surfaced by every later run until resolved.
+- Step 7, Review found sources, is the only custom-source review checkpoint. Do not ask about custom sources earlier as a separate step. It does not install the Local Collector — that already happened at step 4. In step 7, load Stage 2 first, then deliver the checkpoint in two parts per the Stage-2 §6 delivery rule: a short plain-language explanation (custom sources vs default sources, what the Local Collector is, data stays local, never asks for passwords/cookies/OTPs, already-a-member requirement, and the hands-free discovery option that finds candidate sources from places the human already joined/follows so no hand-compiled list is needed — reading a page that needs a login through the human's own Chrome via the Local Collector extension is an internal access mode, never spoken to the human) followed by one compact `**[ACTION REQUIRED]**` question with the three reply options — keep these, add more custom source URLs, or postpone. If the human approves sources/discovery or declines/postpones them, update source state and perform Automation Resync so the already-created automation task has the newest state. When the collector and matching extension are verified healthy in-session, the discovery pass and shortlist approval happen at this checkpoint itself (configuration gathering only — no data analysis or report in Setup Flow); an unapproved shortlist is re-surfaced by every later run until resolved.
 - A declined or postponed discovery pass is valid, but the agent must record the status and explain that public-only runs may miss many lead/competitor/community signals.
-- Step 7 may be marked `–` only when no private data sources exist, the human declines/postpones private data source discovery, or the human explicitly chooses a public data sources only first run. The reason must be shown in plain language, and the automation task must be resynced or confirmed current after the decision.
+- Step 7, Review found sources, may be marked `–` only when no custom sources exist, the human declines/postpones source discovery, or the human explicitly chooses a default-sources-only first run. The reason must be shown in plain language, and the automation task must be resynced or confirmed current after the decision.
 - Step 8 is provider/capability setup only, and its Notification question is asked proactively during setup (value-first framing; a decline is recorded as `notification_channel_missing` and re-offered once per later run): use WideCast as the default provider, ask only for the client's WideCast API key, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Right after the human provides the key, send a single confirmation ping (a "Hello" notification via `sendNotification`) so the human immediately sees email/Telegram work, then report per-channel delivery; mark notification `connected` only on a successful ping (Stage 3 PDNA setup contract). Do not ask provider/scope/spend/publish/account-identity questions for the default path. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint, the client-scoped provider is verified, and the required operation exists.
 - After a provider creates reviewable video scenes from an approved script, the normal production branch is not complete until the video-editing skill pass has audited/fixed the scenes or logged an explicit blocker/decline. Final MP4 render/export still requires a fresh explicit approval after that pass.
 - Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `–` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
@@ -304,7 +305,7 @@ Solo Agency one-time setup process
 
 Do not use bare internal stage names as human-facing progress titles. In particular:
 
-- Do not title a human-facing block with the internal private-data-source gate name alone; use `Private Data Source Gate planned preflight`.
+- Do not title a human-facing block with the internal source-gate mechanics name alone; use `Source check preflight`.
 - Do not title a human-facing block with the old bare setup label; use the one-time setup process titles above.
 
 For other flows, use a specific progress title such as:
@@ -312,7 +313,7 @@ For other flows, use a specific progress title such as:
 ```text
 Solo Agency daily run progress
 Solo Agency production progress
-Solo Agency private data source progress
+Solo Agency source progress
 Solo Agency measurement progress
 ```
 
@@ -323,7 +324,7 @@ Do not end with a passive summary, a report link, or a vague statement such as "
 Good final lines:
 
 ```text
-You provided private data sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so the client-specific automation task can include private data sources later, or mark private data sources pending so the task runs public data sources only until activation is complete?
+You provided custom sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so the client-specific automation task can include those sources later, or mark them pending so the task runs default sources only until activation is complete?
 ```
 
 ```text
@@ -429,7 +430,7 @@ After the first automation report is delivered, the Automation Flow agent may as
 
 After the first automation report is delivered, if the human wants production, video/blog/social, publishing, notifications, analytics, or fully automatic operation, load the production/provider setup playbook and complete checklist step 8. In Setup Flow, treat this as provider/configuration only unless the human has explicitly moved into Automation Flow.
 
-If the human wants private data sources before the first automation run, load the private data source playbook, then update the client-specific automation task (the Local Collector itself was already installed at step 4, Kết nối Facebook, before automation existed). The step-7 discovery pass is configuration gathering (its output is the approved source list), with two sanctioned paths. Interactive path (preferred): when the human approved discovery in this session AND the Local Collector plus the matching client extension are verified healthy in this session, run the discovery pass at the step-7 checkpoint itself — Local Collector only, approved categories only, Source Discovery Mode pacing — show the filtered shortlist, get approval, save the approved sources, and run Automation Resync, so step 7 closes in one sitting; Setup Flow still must not analyze the collected data, generate a report/idea/draft from it, or start daily monitoring. Deferred path: when the collector is not yet healthy, the human is not present to approve, or the human postpones, record `approved_pending_first_scan` and resync the automation task; the first Automation Flow run MUST then execute the approved discovery/scan and present the candidate shortlist for human approval when the Local Collector and matching extension are healthy, or report the exact collector blocker — it must not silently defer approved discovery while the collector is healthy. Once a scan has produced a shortlist the human has not yet approved (`discovery_completed_pending_approval`), later runs re-surface the shortlist instead of re-running discovery (see the private data source playbook).
+If the human wants private data sources before the first automation run, load the private data source playbook, then update the client-specific automation task (the Local Collector itself was already installed at step 4, Kết nối Facebook, Instagram and X, before automation existed). The step-7 discovery pass is configuration gathering (its output is the approved source list), with two sanctioned paths. Interactive path (preferred): when the human approved discovery in this session AND the Local Collector plus the matching client extension are verified healthy in this session, run the discovery pass at the step-7 checkpoint itself — Local Collector only, approved categories only, Source Discovery Mode pacing — show the filtered shortlist, get approval, save the approved sources, and run Automation Resync, so step 7 closes in one sitting; Setup Flow still must not analyze the collected data, generate a report/idea/draft from it, or start daily monitoring. Deferred path: when the collector is not yet healthy, the human is not present to approve, or the human postpones, record `approved_pending_first_scan` and resync the automation task; the first Automation Flow run MUST then execute the approved discovery/scan and present the candidate shortlist for human approval when the Local Collector and matching extension are healthy, or report the exact collector blocker — it must not silently defer approved discovery while the collector is healthy. Once a scan has produced a shortlist the human has not yet approved (`discovery_completed_pending_approval`), later runs re-surface the shortlist instead of re-running discovery (see the private data source playbook).
 
 ### Published Content Measurement Requirement
 
@@ -511,7 +512,7 @@ The agent must follow these principles at all times:
 - If the conversation drifts and later returns to private data source work, the agent must treat that as a fresh private data source turn. Before scanning, opening, monitoring, or collecting any private data source, including logged-in groups, feeds, profiles, pages, communities, or sources, reload `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 2, Stage 8, and Stage 9 (print a LOAD LEDGER per `playbooks/LOAD_LEDGER_PROTOCOL.md` for each file loaded).
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, remote-debugging browser, or any agent-controlled browser for private data source collection. Use only the Solo Agency Local Collector extension plus Local Collector app.
 - If an AI environment cannot browse private data sources reliably, cannot show a headed browser UI, cannot run downloaded executables, or requires per-run browser approvals, use the Solo Agency Local Collector extension plus the Local Collector app as the preferred private data collection layer instead of trying to bypass permission prompts.
-- During one-time Local Collector setup/update/repair (setup step 4, Kết nối Facebook), the local/remote rule decides who runs `setup_collector.sh`/`setup_local_collector.ps1`: on a **local runtime** that can see the install root on its own filesystem, the agent runs it itself after one plain-language consent line and waits for `/status` (up to 60 seconds) — the script hands the process to an OS-level autostart service, so a killed agent turn does not stop the bridge; on a **remote runtime** that cannot see the install root, or when `/status` still fails 60 seconds after a bootstrap attempt, the agent prepares the files and gives the human the exact one-line Terminal/PowerShell command to run outside the sandbox instead.
+- During one-time Local Collector setup/update/repair (setup step 4, Kết nối Facebook, Instagram and X), the local/remote rule decides who runs `setup_collector.sh`/`setup_local_collector.ps1`: on a **local runtime** that can see the install root on its own filesystem, the agent runs it itself after one plain-language consent line and waits for `/status` (up to 60 seconds) — the script hands the process to an OS-level autostart service, so a killed agent turn does not stop the bridge; on a **remote runtime** that cannot see the install root, or when `/status` still fails 60 seconds after a bootstrap attempt, the agent prepares the files and gives the human the exact one-line Terminal/PowerShell command to run outside the sandbox instead.
 - Local Collector activation happens at setup step 4: on a local runtime the agent installs and starts the bridge and this client's extension itself (agent-run install, then the two-gesture Chrome extension load via `/ui/{client}/extension`); on a remote runtime the human runs the shared Local Collector app setup/start command, then loads the client-specific Solo Agency Local Collector extension from the absolute `extensions/{client_slug}_extension/` folder in the matching client Chrome profile/account. Do not mark private data source monitoring active until the shared bridge and the matching client extension health checks pass.
 - When asking for or working with private data sources, tell the human they must already be a member, follower, subscriber, logged in, or otherwise authorized to view those sources in the Chrome profile where the client-specific extension is installed. Recommend one separate Chrome profile per client with that client's extension loaded and the relevant social accounts logged in there.
 - When speaking to non-technical humans, do not say `bridge`, `localhost bridge`, `binary`, `daemon`, or `service worker` unless troubleshooting. Say `Solo Agency Local Collector extension` and `Local Collector app`. Explain the Local Collector app as: "a small app running on your own computer that receives data from Chrome and saves local files for the AI agent to read."
@@ -523,7 +524,7 @@ The agent must follow these principles at all times:
 - Private data source completion gate in Automation Flow: after any private scan, the automation task must analyze the collected private data and regenerate the idea matrix, best idea, leads, competitors, and drafts if needed. For the report itself, regenerate/update only the private lane report (`{client-name}-private-data-sources-report.html`) and the daily staging index, then rebuild the combined `{client-name}-client-report.html` + PDF companion + `{client-name}-INTERNAL_REPORT.html`, never overwriting `{client-name}-public-data-sources-report.html`, and reconcile `{client-name}-report_state.json` and `outputs/latest/` copies. A private scan is not complete merely because the Local Collector successfully collected data.
 - The first report happens after the profile/source plan, schedule/routine, client-specific automation task, and step 7 private data source checkpoint are ready or honestly marked pending, and it must be launched through the client-specific automation task.
 - Ask about the recurring schedule during setup after the profile and source plan are known. If private data sources exist, do not promise scheduled private collection until the shared bridge and matching client extension are complete or clearly pending/blocked.
-- After schedule/routine setup, if private data sources exist and Local Collector is pending, do not ask to run a report in setup. Install already happened, unconditionally, at step 4 (Kết nối Facebook); this bullet only covers checking its health at this later point and, if unhealthy, marking it `pending_private_activation` — it is not a fresh activation gate. Configure the automation task for public data sources only first if the collector is not yet healthy.
+- After schedule/routine setup, if private data sources exist and Local Collector is pending, do not ask to run a report in setup. Install already happened, unconditionally, at step 4 (Kết nối Facebook, Instagram and X); this bullet only covers checking its health at this later point and, if unhealthy, marking it `pending_private_activation` — it is not a fresh activation gate. Configure the automation task for public data sources only first if the collector is not yet healthy.
 - On a remote runtime, for non-technical humans, never ask them to copy a long multi-line shell/PowerShell script. Create the script file locally first, then provide exactly one short command to run that file in their own Terminal/PowerShell outside the AI sandbox, or provide one double-clickable launcher path on Windows. On a local runtime, the agent runs the script itself and the human is never shown a command at all.
 - Do not tell the human to keep the setup/report/instruction browser tab open. After they run the required command or load the extension, they may close the tab. If a Terminal/PowerShell process is used before auto-start is configured, explain that the Local Collector app process may need to keep running until the first agency run finishes, but the browser tab itself is not required.
 - Never ask for credentials, passwords, OTPs, cookies, tokens, or raw login secrets.
@@ -646,6 +647,30 @@ The agent must decide whether the industry is location-dependent. If it is, the 
 If target location is missing and cannot be discovered from business context, client website, profile, social bio, or prior files, ask the human only:
 
 `What target location should this pipeline focus on?`
+
+#### `buyer_profile` (required, inferred at setup step 2)
+
+`[target_audience]` names who the content is for. `buyer_profile` is the separate, more precise object every lead classifier reads (Stage 10 Detection Workflow, the feed/surface pass, people search, the lead-engine skill's extractor tier, and the open-web keyword bank below) — it is inferred at the SAME setup step 2 moment as `industry`/`sub_industry`/`target_audience`, shown to the Boss, and confirmed in one sentence before it is treated as stable. Fields:
+
+- `sells`: what this client offers, one line.
+- `sells_to`: who buys, described as MEMBERSHIP TYPES (who the person is) and SITUATIONS (what just happened to them) — never as an activity the offer enables.
+- `types`: the same memberships, one line each, in the hard format below.
+- `why_they_need`: the frictions the offer removes.
+- `location`: only if it matters to who counts as a buyer.
+- `competitors`: who else sells the same thing to the same people.
+- `not_buyers`: who looks close but is excluded (job seekers, employees with no pipeline of their own, students, consumers wanting the service for themselves when the client sells B2B, and so on).
+
+Hard format rule: never describe buyers by an activity the product enables ("people who make videos", "people who need marketing"). A small classifier model then demands proof of that activity before it will count someone — the whole point of `buyer_profile` is to let a right-type person with no stated need still qualify as warm. Describe who they are instead: their trade, role, business, or life situation.
+
+`types` lines are CATEGORY FIRST, examples after `e.g.`: name the category before the colon or before "e.g.", then give a few illustrative examples that are never a closed list. Example (from a client selling an AI video-editing app):
+
+```text
+independent professional of ANY trade who markets themselves, e.g. real-estate agent, loan officer, dentist, advisor, coach, photographer
+```
+
+"ANY trade" also matches a profession never named in the examples — an escrow officer, a videographer, a consultant. This is the same hard rule the qualification matrix in `playbooks/LEAD_QUALIFICATION_RULE.md` runs the membership test against; see that file for how `types` is used to decide fit.
+
+Setup shows the inferred `buyer_profile` alongside the rest of step 2's inference and asks the Boss to confirm it in one sentence (for example: "Sells to any solo professional who runs their own pipeline — right?"), the same correction chance every other step-2 inference gets. `buyer_profile` is saved in the Client Intelligence Profile next to `target_audience`, `industry`, and `sub_industry`.
 
 ### B. Infer Audience Needs, Pain Points, And Content Pillars
 
@@ -841,7 +866,7 @@ Data sources have two main layers.
 
 #### C1. Public Data Sources
 
-Public data sources are accessible without an account. One exception to the "no account needed" framing: the Facebook Discovery Pass (feed search, people search, group search) reads groups and content that are themselves public, but the pass is still collector-run — through the Solo Agency Local Collector, inside the human's own logged-in Facebook session — because Facebook's own search surfaces require that session to render at all.
+Public data sources are accessible without an account. One exception to the "no account needed" framing: the Social Discovery Pass (Facebook feed/people/group search, Instagram search/people/profile/comments, X search/people/profile/replies) reads posts, people, and groups that are themselves public, but the pass is still collector-run — through the Solo Agency Local Collector, inside the human's own logged-in Facebook, Instagram, and X sessions — because each platform's own search surfaces require that session to render at all.
 
 Examples:
 
@@ -861,6 +886,8 @@ Examples:
 - Public competitor websites.
 - Search result pages.
 - Public databases.
+
+The industry-specific lists below are the "industry sites" part of what the human hears as default sources for this client's industry.
 
 Examples by industry:
 
@@ -930,6 +957,25 @@ Healthcare:
 - Medical association pages
 - Public education pages
 
+#### Buyer Profile Channel Keyword Table
+
+Every keyword bank on every channel is generated FROM `buyer_profile.types` (the setup-step-2 block above), not from intent phrases alone — the intent-only habit found nothing when a real run searched generic seeds like "any recommendations" or "content help". This table is the single source for how each channel's bank is built; `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md` (setup step 5), `playbooks/04_DAILY_SCHEDULE.md`, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, and the lead-engine skill's recipes all reference this table rather than repeating it.
+
+| Channel | Term kinds | Example for a client selling to real-estate agents |
+|---|---|---|
+| In-group search (source-keywords bank, kinds `intent\|role\|product\|stage\|place`) | role + product/stage are PRIMARY (what they call themselves; what they say about their work); intent only when anchored to the offer or the role | "listing agent", "just listed", "open house", "closed escrow", "rate update"; "realtor video", "cần video bất động sản" |
+| People search FB/IG/X | occupation + place | "realtor Orange County", "loan officer Westminster", "môi giới nhà đất Cali" |
+| IG search / X search Latest | profession jargon + hashtags; X adds place | "#justlisted #openhouse #realtorlife"; "just listed" Irvine |
+| Community discovery (public-keywords kind `community_discovery`) | niche + place | unchanged — see "The Facebook discovery kind" below |
+| Google / open web (public-keywords 12 groups) | the 12 groups stay, but `buying_intent`/`need_or_goal` terms must be anchored to a role or the offer | "marketing help realtor", not "marketing help" |
+| Feed / surface pass | no terms | classify every post by the author's type first — `playbooks/LEAD_QUALIFICATION_RULE.md`, Step 1 |
+
+Generation procedure: for each channel, derive terms from `buyer_profile.types` — pull the ROLE words (what these people call themselves), the WORK-TALK words (what they say about their own work — a product, a stage, a milestone), and the NEED words only when anchored to `sells`/`why_they_need` or to a named role — in the audience's language and place. The 12 public-web groups and the short-term ladder rules (below) are unchanged; only the `buying_intent`/`need_or_goal` groups gain the anchor requirement.
+
+Quality gate (audited by `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`): a term is REJECTED when it is a generic need phrase with no role or offer anchor — patterns like "advice", "looking for", "need help", "any recommendations", "content help" alone, with nothing naming who the person is or what they need it for.
+
+Per-kind quotas for the in-group source-keywords bank: daily plan = 1 role + 1 product/stage + 1 intent (3 terms, as today); first-run plan = 3 role + 2 product/stage + 3 intent (8 terms, as today). Rotate within a kind least-recently-run first, exactly like the existing rotation rule. The `tool source-keywords plan` command takes this quota via a `--kind` filter (`intent|role|product|stage|place`); leaving `--kind` off returns the standard mixed daily/first-run set already described in "In-group intent terms" below. `search_seeds.json` gains role/product seeds per industry and language alongside its existing intent seeds; seeds remain FALLBACK ONLY — they seed an empty bank, never override a bank already generated from this client's own `buyer_profile.types`.
+
 #### Public Search Keyword Bank And Rotation
 
 During public data source research, the agent must use Google Search or an available equivalent search tool to discover relevant public data sources and current discussions.
@@ -970,8 +1016,8 @@ Required keyword groups:
 
 - `industry_general`: broad industry/sub-industry context keywords.
 - `pain_point`: direct customer pain, fear, problem, objection, or urgent-question keywords. This must be one of the largest groups.
-- `need_or_goal`: customer need, desired outcome, prevention, savings, safety, protection, approval, eligibility, or confidence keywords.
-- `buying_intent`: phrases that indicate the person may be comparing, choosing, hiring, buying, renewing, switching, or seeking help.
+- `need_or_goal`: customer need, desired outcome, prevention, savings, safety, protection, approval, eligibility, or confidence keywords — anchored to a role or the offer (see the quality gate in "Buyer Profile Channel Keyword Table" above); "any recommendations" alone is not a keyword, "any recommendations for a realtor's marketing" is.
+- `buying_intent`: phrases that indicate the person may be comparing, choosing, hiring, buying, renewing, switching, or seeking help — same anchor requirement as `need_or_goal`.
 - `local_context`: location, neighborhood, county, state, agency, regulation, court, weather, risk, community, or local-market keywords when location matters.
 - `related_industry`: adjacent-industry keywords only when the bridge back to the client's offer and audience is clear.
 - `trend_news`: current event, seasonal, regulation, market change, or deadline keywords.
@@ -986,7 +1032,7 @@ Initial setup requirement:
 - **One rare constraint per phrase.** A long keyword earns its length by being specific about ONE thing: a place, a regulation, a product, a moment. Stacking three or four rare constraints into one phrase (place plus statute plus deadline plus year) narrows it past the point where anything matches.
 - **Keep dates and events OUT of the saved term.** Store `home insurance non renewal California rights`, not `home insurance non renewal California 2026 rights 75 days`. The run appends the current month, year or event when it searches (`playbooks/04_DAILY_SCHEDULE.md`); a date written into the saved term makes a keyword that is dead next month and silently rots the bank.
 - **The bank is owned by the bridge**, at `daily-content-pipeline/collector/public_keywords.json`, and is read and written only through `<bridge> tool public-keywords --pipeline {setup-root}/daily-content-pipeline --client {client_slug}` — never as a list inside the Client Intelligence Profile. It used to live there, with a `status` field the run was told to maintain; on the live install every one of 98 items still read `unused` after real runs, because editing one line among a hundred look-alikes in a 1,200-line file mid-run is the chore that gets skipped. Recording an outcome is now one command.
-- **Setup runs before the bridge exists**, so Setup step 4 does not call the tool: it writes the bank as a plain staging file, `public_keywords_seed.jsonl` in the client workspace (one `{"term","group","lang","note"}` per line, dateless terms, the length ladder respected). The first run loads it with `add --file` and deletes it. The profile keeps only a one-line pointer to the bank plus the compact sample shown in chat; do not show the full bank in chat.
+- **The bridge already exists since step 4** (Kết nối Facebook, Instagram and X installs it before Sources), so at step 5 the agent writes the bank straight through `<bridge> tool public-keywords`, not a staging file. The plain staging file, `public_keywords_seed.jsonl` in the client workspace (one `{"term","group","lang","note"}` per line, dateless terms, the length ladder respected), is only the fallback when the bridge is unreachable in-session; the first run loads it with `add --file` and deletes it once the bridge is reachable. The profile keeps only a one-line pointer to the bank plus the compact sample shown in chat; do not show the full bank in chat.
 - In chat, show only a compact sample, usually 5-12 keywords from the pain-point/problem/need groups, then say how many more are saved for rotation, for example: `+200 more saved in the keyword bank for daily rotation`.
 
 Examples. Each vertical is shown as a LADDER, short to long, because a bank needs every rung:
@@ -1038,21 +1084,24 @@ dateless (never carries a month/year/event suffix) — for example `nail salon o
 `plan --kind web` — the two plans never mix. Record outcomes with the same `record` verb the bank
 always uses, with `urls` = feed posts + people rows + groups found for that term and `ideas` = leads
 captured. It is seeded at setup in the same `public_keywords_seed.jsonl` staging file as the web bank,
-just with `"group":"community_discovery"` on those lines. The consumer of this kind is the Facebook
-Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Facebook Discovery Pass (step 11C of
+just with `"group":"community_discovery"` on those lines. The consumer of this kind is the Social
+Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass (step 11C of
 the daily run)"), not the open-web search step.
 
 #### In-group intent terms
 
-Once inside a group (the Facebook Discovery Pass's step 4, or any approved `private_data_sources`
+Once inside a group (the Facebook track of the Social Discovery Pass, step 4 in-group, or any approved `private_data_sources`
 group being monitored daily), the terms searched are NOT `community_discovery` terms — they come from
 `tool source-keywords`, the per-source intent bank described in "Two passes over a watched source"
 above. Each source's bank is seeded from `--industry`/`--market`/`--lang`, then auto-merged with the
 client's own per-client seed file at `daily-content-pipeline/collector/source_keywords_seed/{client_slug}.jsonl`
 the first time that group's bank is created — one `{"term","kind","lang","note"}` per line, `kind` in
-`intent|role|product|stage|place`, each term capped at 3 words. `tool source-keywords plan` hands the
-run today's in-group search terms; `tool source-keywords record` folds the outcome back in, exactly
-like the public bank.
+`intent|role|product|stage|place`, each term capped at 3 words — role and product/stage terms come
+from `buyer_profile.types` first (see "Buyer Profile Channel Keyword Table" above), intent seeds fill
+the rest. `tool source-keywords plan` hands the run today's in-group search terms under the per-kind
+quota (daily 1 role + 1 product/stage + 1 intent; first run 3 role + 2 product/stage + 3 intent) —
+`--kind` selects one kind's quota alone, omitted returns the standard mixed set; `tool source-keywords
+record` folds the outcome back in, exactly like the public bank.
 
 #### Public Data Source Learning And Promotion
 
@@ -1108,7 +1157,7 @@ Human-facing display rule:
 
 #### C2. Private Data Sources
 
-Private data sources require a login, account, membership, or already logged-in browser session. The Facebook Discovery Pass (feed, people, group search) is collector-run for the same reason a private-source scan is: it needs the human's logged-in session, even though the groups it reads are themselves public and it needs no per-group approval to scan them (only to promote one into standing daily monitoring).
+Private data sources require a login, account, membership, or already logged-in browser session. The Social Discovery Pass (Facebook feed/people/group search, Instagram search/people/profile/comments, X search/people/profile/replies) is collector-run for the same reason a private-source scan is: it needs the human's logged-in session on each platform, even though the content it reads is itself public and it needs no per-group approval to scan it (only to promote a Facebook group into standing daily monitoring — Instagram and X have no groups).
 
 Examples:
 

@@ -96,8 +96,8 @@ procedure; only step 4 differs. Take over in this order, and do not skip step 2:
    time; see step 6.
 5. Load `SOLO_AGENCY_PLAYBOOK.md` and its Stage Map before resuming any client's operational work.
    For a client whose scan/report resumes in this session, load `playbooks/04_DAILY_SCHEDULE.md`
-   and `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` (step 12D carries the Facebook Login Reminder
-   wording, 12E the discovery pass), or `playbooks/SETUP_FLOW_ENTRYPOINT.md` if it is that
+   and `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` (step 12D carries the Login Reminder
+   wording, 12E the Social Discovery Pass), or `playbooks/SETUP_FLOW_ENTRYPOINT.md` if it is that
    client's first run. Same playbooks, same tools, same gates — nothing about the system knows
    or cares which brain is driving.
 6. **Both brains may operate at once.** A swap is not a precondition for using a second agent: the
@@ -118,7 +118,7 @@ whole setup by hand every time. Create or verify them during setup, on takeover,
 update; the exact templates are in `playbooks/MULTI_BRAIN_OPERATIONS.md`. They are install-local
 operator state and are never committed to the product repo.
 
-Use the canonical terms `public data sources` and `private data sources` in human-facing text. Do not shorten them, omit `data`, or use slash labels.
+Human-facing text uses exactly two source words: `default sources` (Vietnamese: `Nguồn mặc định`) and `custom sources` (Vietnamese: `Nguồn custom`). The words `public`/`private`, `lane`, `public data sources`, `private data sources`, and `logged-in sources` never appear in anything the human reads or Sam says. Internally, the run still tells apart HOW a URL is read — directly by the agent, or through the human's own Chrome via the Local Collector extension when the page needs a login — and every collector-only rule, budget, gate, and approval below stays exactly as it is; those words may remain in agent-only mechanics elsewhere in this file, but only as internal access modes, never spoken to the human.
 
 Client-facing deliverables are client-blind by default and must stay that way. Do not mention `Solo Agency`, `WideCast`, PDNA/provider tooling, `OpenAPI`, `MCP`, `Local Collector`, Chrome extensions, automation/scheduled tasks, API keys, Telegram, config files, agent/tool/debug details, or `INTERNAL_REPORT` in reports, PDFs, videos, blogs, captions, comments, or other assets intended for the client's client/customer. Client-facing output should read like a professional agency deliverable: insight, evidence, recommendation, draft, next action.
 
@@ -168,7 +168,7 @@ When explaining WideCast/API-key setup, give the exact human steps: register at 
 
 ## Plans: Free, Starter, Pro, Business, Enterprise (entitlement)
 
-Solo Agency's tier is the account's WideCast plan — the CODE enforces it, playbooks only read the result and speak to the human about it. The client's WideCast API key from Step 7 is the license: the bridge exchanges it for a signed entitlement (`GET /v1/solo/entitlement`), caches the raw token at `daily-content-pipeline/collector/inbox/entitlement.json`, re-verifies the signature on every read, and exposes the result read-only at `GET /status` → `entitlement` (`tier`, `features`, `limits`, `source`, `stale`, `mode`, `widecast_plan`, `upgrade_url`) and in `bridge_health.json`. `<bridge> tool entitlement status|refresh --pipeline daily-content-pipeline` shows or forces it. No key = Free, forever, with no network call. An expired WideCast plan falls back to Free at the next check; offline, the last verified plan keeps working for 14 days, then the install quietly runs as Free — never an error, never a locked CRM.
+Solo Agency's tier is the account's WideCast plan — the CODE enforces it, playbooks only read the result and speak to the human about it. The client's WideCast API key from step 8 is the license: the bridge exchanges it for a signed entitlement (`GET /v1/solo/entitlement`), caches the raw token at `daily-content-pipeline/collector/inbox/entitlement.json`, re-verifies the signature on every read, and exposes the result read-only at `GET /status` → `entitlement` (`tier`, `features`, `limits`, `source`, `stale`, `mode`, `widecast_plan`, `upgrade_url`) and in `bridge_health.json`. `<bridge> tool entitlement status|refresh --pipeline daily-content-pipeline` shows or forces it. No key = Free, forever, with no network call. An expired WideCast plan falls back to Free at the next check; offline, the last verified plan keeps working for 14 days, then the install quietly runs as Free — never an error, never a locked CRM.
 
 | | Free | Starter $49 | Pro $99 | Business $199 | Enterprise (contact) |
 |---|---|---|---|---|---|
@@ -188,7 +188,7 @@ The CRM contacts row is a stored-and-unlocked cap, not a capture cap: every lead
 *PRIMING* — a one-sentence plain fact, in the human's language, spoken the way a real person would mention it in passing ("every lead lands in your CRM; Free keeps the first 30 contacts open") — never a fixed template pasted verbatim, never a link, never an ask. Allowed proactively at six moments, and exempt from the once-per-session/once-per-feature budget below:
 
 - **A** — the private-source checkpoint explanation (`playbooks/02_PRIVATE_SOURCE_SETUP.md`, Part 1)
-- **B** — the Facebook Login Reminder, as a second sentence after its verbatim block (`playbooks/SETUP_FLOW_ENTRYPOINT.md`)
+- **B** — the Login Reminder, as a second sentence after its verbatim block (`playbooks/SETUP_FLOW_ENTRYPOINT.md`)
 - **C** — the Pain-Point Keyword Sample teaser (`playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`, ~line 107)
 - **D** — the WideCast key `**[ACTION REQUIRED]**` ask itself (`playbooks/03_PRODUCTION_DISTRIBUTION.md`, ~line 134; the clause is already mandated at ~line 22 of that file)
 - **E** — the Setup-Complete Closing, as one offer (`playbooks/SETUP_FLOW_ENTRYPOINT.md`, ~line 117)

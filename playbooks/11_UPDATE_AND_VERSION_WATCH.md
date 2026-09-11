@@ -42,11 +42,11 @@ Use this sequence before reading, diffing, or copying source files:
 
 1. Create a fresh unique temporary folder with `mktemp -d`.
 2. Clone `https://github.com/soloagency/solo-agency` into that folder.
-3. Verify the source checkout:
+3. Verify the source checkout — run every git command as `git -C {checkout_dir} ...` (never `cd` first, never chain with `&&`: the local-runtime Command Shapes rule in `playbooks/04_DAILY_SCHEDULE.md` and its allow rules only match the `-C` form and forbid `cd`/`&&`):
    - `.git` exists.
-   - `git remote get-url origin` resolves to the Solo Agency GitHub repo.
-   - `git rev-parse HEAD` succeeds.
-   - `git ls-remote origin refs/heads/main` succeeds.
+   - `git -C {checkout_dir} remote get-url origin` resolves to the Solo Agency GitHub repo.
+   - `git -C {checkout_dir} rev-parse HEAD` succeeds.
+   - `git -C {checkout_dir} ls-remote origin refs/heads/main` succeeds.
    - local `HEAD` matches GitHub `main`.
 4. Record `source_checkout_path`, `source_commit`, `remote_main_commit`, and `verified_at` in the update log.
 5. If network or sandbox access blocks GitHub, request permission or give the human one exact clone/download command. Do not fall back to unverified local code.
@@ -110,12 +110,27 @@ An update check must compare at least these areas:
 
 Do not decide "no update needed" after checking only one file or only the root playbook.
 
+**Edit-permission scope on a local Claude Code runtime.** The unattended-permissions allow rules
+(`playbooks/04_DAILY_SCHEDULE.md`) grant `Edit` only under `R/daily-content-pipeline/**` and
+`R/extensions/**` — by design, the Boss's consent is scoped to the install directory, not the source
+checkout. `{agency_root}/solo-agency-local-collector/` (`R/solo-agency-local-collector/`), the
+source checkout's own playbooks/`AGENTS.md` (`R/solo-agency/**`), and `outreach/` (ships inside the
+source checkout, `R/solo-agency/outreach/**`) are all OUTSIDE that scope. Applying an update to any
+of them on an unattended run pauses once for a human "Always allow" click even when
+`unattended_permissions: granted` — that pause is expected and correct, not a gap to route around;
+do not widen the granted Edit rules to cover these paths without a fresh, explicit Boss consent.
+
 ## Backup And Safe Apply Protocol
 
 **Dirty-tree guard — run BEFORE any `git reset --hard` / forced checkout, no exceptions.** Check
-`git status --porcelain` first. If any TRACKED file is modified, do NOT reset yet: copy those files
-into the backup folder below AND `git stash push -m "pre-update {YYYY-MM-DD}"`, record both paths in
-the update log, and only then apply the reset. A hard reset on a dirty tree silently destroys
+`git -C {target_dir} status --porcelain` first (no `cd` first, no `&&` chain — same reason as the
+Fresh GitHub Checkout Protocol above; `{target_dir}` is whichever checkout is about to be reset).
+If any TRACKED file is modified, do NOT reset yet: copy those files
+into the backup folder below AND `git -C {target_dir} stash push -m "pre-update {YYYY-MM-DD}"`, record both paths in
+the update log, and only then apply the reset. `git reset --hard` and `git stash push` are not in
+the local-runtime allow rules (`playbooks/04_DAILY_SCHEDULE.md`) and always pause an unattended run
+for a human "Always allow" click — this guard, like the rest of Backup And Safe Apply, is expected
+to pause. A hard reset on a dirty tree silently destroys
 uncommitted local work with no recovery. Untracked files survive a hard reset but must be listed in
 the update log and reconciled, never ignored.
 
@@ -218,6 +233,13 @@ cd "{agency_root}" && bash "solo-agency-local-collector/setup_collector.sh"
 ```
 
 Use the exact path created by the current setup. If this setup stores the launcher elsewhere, show that actual absolute path instead.
+
+This command is a `cd`/`&&`/`bash <script>` shape and is not covered by any local-runtime allow rule
+in `playbooks/04_DAILY_SCHEDULE.md` — it is exempt from the Command Shapes rule
+(`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`), not a bug in it. On an unattended local run it always
+pauses once for a human "Always allow" click even when `unattended_permissions: granted`; that pause
+is expected here, since applying a bridge/runtime update is exactly the kind of action that should
+not run silently unattended. Do not try to reshape it into one of the fixed Command Shapes forms.
 
 Classify changes that touch these paths as extension changes:
 

@@ -28,6 +28,9 @@ operator spent months joining. Everything below is shaped by that.
 - **Approval is the command**, exactly as Stage 18: the bridge publishes on approval, spaced by
   the operator's publish gap (`/ui/settings`, default 5 minutes).
 - **A commented or posted-to group never creates CRM contacts.** Same ruling as Stage 18.
+- **A group belongs in `audience.groups` when its members match `buyer_profile.types`** — the
+  Lead Qualification Rule's Step 1 (fit) applied to the group's audience as a whole, not to any
+  one member; no per-post judgement of other people's posts is added on this channel.
 
 ## Every scheduled run — what the agent does
 

@@ -1,5 +1,7 @@
 # Private Data Source Gate
 
+This file is internal access-mode mechanics. The human never hears "public data source," "private data source," "lane," or "logged-in source" — human-facing text uses exactly two words: default sources and custom sources. Everything below is how the run privately tells apart HOW a URL is read (directly by the agent, or through the human's own Chrome via the Local Collector extension when the page needs a login); every rule, gate, budget, and approval in this file stays exactly as written and keeps applying, internally, regardless of which of the two human-facing words the source falls under.
+
 Load this short gate immediately whenever a human request, scheduled task, automation prompt, or run step involves any private data source topic, including scanning, monitoring, reviewing, collecting, scraping, opening, or reading a private data source.
 
 This gate exists to prevent conversation drift. Even if the conversation moved through many unrelated topics, the moment private data source intent returns, the agent must reload this gate before opening any browser, extension, automation tool, or private URL.
@@ -63,11 +65,12 @@ Human's logged-in Chrome
 
 If the Local Collector app or extension is unavailable after Collector Runtime Verification, do not fall back to Claude in Chrome, Codex browser, Playwright, or another agent-controlled browser. Continue work with public data sources only and mark private data sources as `pending_private_activation`, `collector_status_unverified`, or `collector_offline_or_unreachable` with the exact blocker.
 
-## Facebook Discovery Pass Reconciliation
+## Social Discovery Pass Reconciliation (Facebook leg)
 
-`playbooks/10_LEAD_COMPETITOR_DETECTION.md`'s Facebook Discovery Pass (the step 11C daily-run
-companion, also Setup Flow's first-run trigger) touches public Facebook groups and Facebook's own
-search. Here is how that reconciles with this gate — nothing below changes this gate's substance.
+`playbooks/10_LEAD_COMPETITOR_DETECTION.md`'s Social Discovery Pass — specifically its Facebook leg
+(the step 11C daily-run companion, also Setup Flow's first-run trigger) touches public Facebook
+groups and Facebook's own search. Here is how that reconciles with this gate — nothing below
+changes this gate's substance.
 
 Public Facebook groups remain collector-only, exactly as the Collector-Only Rule above requires;
 nothing about the discovery pass opens a new browsing path. `fb.groups.search` and
@@ -108,21 +111,21 @@ Use font/text status icons:
 The human-facing version must explain that the agent is doing these checks and that the human only needs to act when the agent asks one concrete next-step question. That concrete next-step question or command must be in a standalone `**[ACTION REQUIRED]**` block from the root playbook.
 
 ```text
-Private Data Source Gate planned preflight
-These are the checks I run before scanning private data sources. You only need to act when I ask one specific next-step question.
+Source check preflight
+These are the checks I run before scanning your sources. You only need to act when I ask one specific next-step question.
 
-✓ Stage 2, Stage 8, and Stage 9 reloaded for this private data source request
+✓ Stage 2, Stage 8, and Stage 9 reloaded for this source check
 → Local Collector app reachable
 ○ Bridge identity verified: /status.config_file, /status.output_dir, and /status.run_now_request_file point to the current setup's daily-content-pipeline/collector tree
 ○ Solo Agency Local Collector extension recent
-○ Approved private data sources loaded
+○ Approved custom sources loaded
 ○ Scan depth read from collector config, or safe default stated
-○ Automation freshness check: if a schedule/automation already exists, latest private data source changes must be synced into the automation/scheduled task prompt/contract/source state, not only collector config
+○ Automation freshness check: if a schedule/automation already exists, the latest source changes must be synced into the automation/scheduled task prompt/contract/source state, not only collector config
 Collection method: Solo Agency Local Collector only
-Forbidden for logged-in sources: Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser
+Not used for sources that need a login: Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser
 ```
 
-If any required item is missing, do not scan private data sources yet. Ask the next concrete setup/repair question in a `**[ACTION REQUIRED]**` block or continue public data sources only.
+If any required item is missing, do not scan those sources yet. Ask the next concrete setup/repair question in a `**[ACTION REQUIRED]**` block or continue with default sources only.
 
 ## Human-Facing Reminder
 
@@ -131,11 +134,11 @@ When replying about a private data source scan, include a compact reminder. If t
 Include this compact reminder:
 
 ```text
-Private collection method: Solo Agency Local Collector only.
-I will not use Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser for logged-in sources.
+Collection method for sources that need a login: Solo Agency Local Collector only.
+I will not use Claude in Chrome, Codex/browser tools, Playwright, or any agent-controlled browser for those sources.
 ```
 
-This reminder should appear in private data source progress updates, blocker messages, setup repair messages, and report handoffs while private data source work is pending or active.
+This reminder should appear in source progress updates, blocker messages, setup repair messages, and report handoffs while that source work is pending or active.
 
 ## Completion Gate
 
