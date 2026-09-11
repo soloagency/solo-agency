@@ -51,7 +51,9 @@
     // Instagram (2026-09-10): same ladder as Facebook — enrich for the profile, harvest for
     // people search; posts, search and comments are free.
     "ig.profile.enrich": "enrich", "ig.people.search": "harvest",
-    "x.profile.enrich": "enrich", "x.people.search": "harvest"
+    "x.profile.enrich": "enrich", "x.people.search": "harvest",
+    "ig.post.react": "write_actions", "ig.post.comment": "write_actions",
+    "x.post.like": "write_actions", "x.post.reply": "write_actions", "x.post.publish": "write_actions"
   };
 
   // Every feature the server vocabulary knows, including ones no capability in

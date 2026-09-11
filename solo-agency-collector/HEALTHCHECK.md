@@ -128,6 +128,12 @@ business/creator profile the operator may read — has a bio), `x_realtor_profil
 with public posts, for `x.profile.posts`), `x_canary_post_url` (a permalink with visible replies,
 for `x.post.replies`) and `x_search_keyword` (e.g. "realtor"). `x.timeline.home` needs no fixture.
 
+Writes on Instagram and X (catalog 0.2.13) add `ig_own_post_url` and `x_own_post_url` (a post
+published by an account the operator controls — the only place a real like/comment/reply may
+land), `ig_dm_recipient_url` and `x_dm_recipient_url` (consenting recipients the operator
+controls). Their probes run `dry_run` daily; the real write needs `--allow-writes`. `x.post.publish`
+has no fixture (it posts from `/home`) and its real write is public on X — delete by hand after.
+
 ## 4. How a probe is judged
 
 Four tiers, lower tiers gating the higher ones:

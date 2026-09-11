@@ -41,7 +41,7 @@
 
   var GRAPHQL = /\/i\/api\/graphql\/([^/?#]+)\/([^/?#]+)/;
   // Only the REST endpoints a capability reads.
-  var REST_KEEP = /\/i\/api\/(1\.1\/search\/typeahead\.json|2\/search\/adaptive\.json|1\.1\/users\/(show|lookup)\.json)/;
+  var REST_KEEP = /\/i\/api\/(1\.1\/search\/typeahead\.json|2\/search\/adaptive\.json|1\.1\/users\/(show|lookup)\.json|1\.1\/dm\/(new2?|conversation)\b)/;
 
   function isGraphQL(u) { return GRAPHQL.test(String(u || "")); }
   function isRest(u) { return REST_KEEP.test(String(u || "")); }

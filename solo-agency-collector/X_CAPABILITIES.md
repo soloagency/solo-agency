@@ -74,12 +74,27 @@ scrolling" — not a breakage.
 - Canonical (`x_normalize.js`): profile ← enrich / people.search; post ← profile.posts /
   search.posts / timeline.home; comment ← post.replies (`post_ref` = envelope `post_id`).
 
-## 5. Not built (see CAPABILITY_MATRIX.md)
+## 5. Write actions (`platforms/x/x_actions.js`, catalog 0.2.13)
 
-Writes (`x.post.like`, `x.post.reply`, `x.post.publish`, `x.dm.send`) wait for the Boss's go;
-followers / following lists are feasible but rate-limited; Communities are being retired by X
-and are not planned. Fixtures: `x_canary_profile_url`, `x_realtor_profile_url`,
-`x_canary_post_url`, `x_search_keyword` (HEALTHCHECK.md §3).
+Every write drives X's REAL UI — X stamps each request with a per-request
+`x-client-transaction-id`, so a mutation sent by the collector itself is refused (404, measured
+on reads); clicking the page's own controls lets the page sign its requests, and the interceptor
+then sees the mutation (`FavoriteTweet`, `CreateTweet`, the DM call) as proof. All four take
+`dry_run`, refuse before typing, and always return a record.
+
+| id | url | flow | proof | guards |
+|---|---|---|---|---|
+| `x.post.like` | post permalink | the focal article's `[data-testid=like]` | control flips to `unlike`, `FavoriteTweet` captured | `not_a_post_url`, `post_mismatch`, `already` |
+| `x.post.reply` | post permalink | `[data-testid=tweetTextarea_0]` + `[data-testid=tweetButtonInline]` | `CreateTweet` reply → reply id/url | `not_a_post_url`, `post_mismatch`, focal post must render, button must enable |
+| `x.post.publish` | `/home` or `/compose/post` | same composer | `CreateTweet` → post url under the operator's handle | `not_a_composer_url` (a post page's composer is a reply); every post is PUBLIC |
+| `x.dm.send` | recipient profile | `[data-testid=sendDMFromProfile]` → `dmComposerTextInput` → `dmComposerSendButton` | composer cleared + text appears as a sent entry; DM call captured when seen | `not_a_profile_url`, `recipient_mismatch` (landed profile and conversation header), `dm_not_allowed` |
+
+Policy flags: like → `do_not_react`, reply → `do_not_comment`, publish → `do_not_post`, DM →
+`do_not_message`. `write_actions` gates like/reply/publish; the DM is gated per contact by the
+bridge (same as `fb.message.send`). Healthcheck: `dry_run` daily on `x_own_post_url` (like,
+reply), `/home` (publish) and `x_dm_recipient_url` (DM); real writes only with `--allow-writes`,
+and a real `x.post.publish` is public — delete it by hand afterwards. Followers / following lists
+and Communities remain not built (CAPABILITY_MATRIX.md).
 
 ## 6. Maintenance
 

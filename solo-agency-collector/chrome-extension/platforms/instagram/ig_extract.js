@@ -615,5 +615,5 @@
   };
   window.__soloIgVersion = VERSION;
   // Exposed for the offline harness (tests/test_ig_extract.js); not used by background.js.
-  window.__soloIgInternals = { prefetched: prefetched, postRecord: postRecord, commentRecord: commentRecord, userRef: userRef, emailsIn: emailsIn, phonesIn: phonesIn, serpItems: serpItems, connectionItems: connectionItems, parseCount: parseCount, postUrl: postUrl };
+  window.__soloIgInternals = { prefetched: prefetched, mediaIdFromCaptures: mediaIdFromCaptures, postHeaderFromCaptures: postHeaderFromCaptures, postRecord: postRecord, commentRecord: commentRecord, userRef: userRef, emailsIn: emailsIn, phonesIn: phonesIn, serpItems: serpItems, connectionItems: connectionItems, parseCount: parseCount, postUrl: postUrl };
 })();

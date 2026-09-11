@@ -173,10 +173,13 @@
       // The interceptor (platforms/instagram/ig_intercept.js) is a static content script on
       // instagram.com (manifest.json); the extractor is injected per job.
       files: {
-        read: ["platforms/instagram/ig_extract.js"]
+        read: ["platforms/instagram/ig_extract.js"],
+        // writes need the extractor too (media id from the embedded post root)
+        write: ["platforms/instagram/ig_extract.js", "platforms/instagram/ig_actions.js"]
       },
       entries: {
         run: "__soloIgRun",
+        act: "__soloIgAct",
         normalize: "__soloInstagramNormalize",
         // background.js ~1246: the data point's graphql_manifest for this module's pages
         manifest: "__soloIgManifest"
@@ -189,6 +192,10 @@
         "ig.search.posts": { entity: "post", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
         "ig.people.search": { entity: "profile", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: true, needs_active_tab: false },
         "ig.post.comments": { entity: "comment", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        // writes (platforms/instagram/ig_actions.js): the post url / profile url is the pin
+        "ig.post.react": { entity: "message", write: true, match_resolvable: false, info_only: false, pin_target: true, policy_flag: "do_not_react", hideable: false, needs_active_tab: true },
+        "ig.post.comment": { entity: "message", write: true, match_resolvable: false, info_only: false, pin_target: true, policy_flag: "do_not_comment", hideable: false, needs_active_tab: true },
+        "ig.message.send": { entity: "message", write: true, match_resolvable: false, info_only: false, pin_target: true, policy_flag: "do_not_message", hideable: false, needs_active_tab: true },
         // maintenance aid, same idea as Facebook's _discover.deep
         "_discover.ig": { entity: "generic", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: true, needs_active_tab: false }
       }
@@ -200,10 +207,12 @@
       // The interceptor (platforms/x/x_intercept.js) is a static content script on x.com /
       // twitter.com (manifest.json); the extractor is injected per job.
       files: {
-        read: ["platforms/x/x_extract.js"]
+        read: ["platforms/x/x_extract.js"],
+        write: ["platforms/x/x_extract.js", "platforms/x/x_actions.js"]
       },
       entries: {
         run: "__soloXRun",
+        act: "__soloXAct",
         normalize: "__soloXNormalize",
         // background.js ~1246: graphql_manifest from window.__soloX, and the logged-in state
         // from X's own chrome instead of the page-text heuristic
@@ -219,6 +228,11 @@
         "x.people.search": { entity: "profile", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
         "x.post.replies": { entity: "comment", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
         "x.timeline.home": { entity: "post", write: false, match_resolvable: false, info_only: false, pin_target: false, policy_flag: null, hideable: false, needs_active_tab: true },
+        // writes (platforms/x/x_actions.js): every one drives X's own UI
+        "x.post.like": { entity: "message", write: true, match_resolvable: false, info_only: false, pin_target: true, policy_flag: "do_not_react", hideable: false, needs_active_tab: true },
+        "x.post.reply": { entity: "message", write: true, match_resolvable: false, info_only: false, pin_target: true, policy_flag: "do_not_comment", hideable: false, needs_active_tab: true },
+        "x.post.publish": { entity: "message", write: true, match_resolvable: false, info_only: false, pin_target: false, policy_flag: "do_not_post", hideable: false, needs_active_tab: true },
+        "x.dm.send": { entity: "message", write: true, match_resolvable: false, info_only: false, pin_target: true, policy_flag: "do_not_message", hideable: false, needs_active_tab: true },
         // maintenance aid, same idea as _discover.ig
         "_discover.x": { entity: "generic", write: false, match_resolvable: false, info_only: true, pin_target: false, policy_flag: null, hideable: true, needs_active_tab: false }
       }

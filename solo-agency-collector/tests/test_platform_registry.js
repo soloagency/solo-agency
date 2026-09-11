@@ -114,10 +114,10 @@ check("background.js loads core/platform_registry.js via importScripts", /import
   check("no capability-prefix regex left in background.js code", !/\/\^(zillow|fb)\\\./.test(CODE));
 }
 // The registry's own tables, pinned to what shipped (a later change must be deliberate).
-check("registry writeActions() has the 5 write ids", P.writeActions().size === 5, setToSortedArray(P.writeActions()));
+check("registry writeActions() has the 12 write ids", P.writeActions().size === 12, setToSortedArray(P.writeActions()));
 check("registry hideable() carries the 7 Facebook/Zillow/web hideable ids", ["fb.profile.dossier","fb.profile.header","fb.profile.contacts","fb.profile.hovercard","zillow.agents.list","zillow.profile.enrich","web.search"].every(function (id) { return P.hideable().has(id); }), setToSortedArray(P.hideable()));
 check("registry hideable() includes the instagram profile/people capabilities", P.hideable().has("ig.profile.enrich") && P.hideable().has("ig.people.search"), setToSortedArray(P.hideable()));
-check("registry policyFlags() maps the 5 write ids", Object.keys(P.policyFlags()).length === 5, P.policyFlags());
+check("registry policyFlags() maps the 12 write ids", Object.keys(P.policyFlags()).length === 12, P.policyFlags());
 
 // needs_active_tab is the negation of HIDEABLE_CAPABILITIES (background.js
 // capabilityNeedsActiveTab, ~3314) — check it holds for every capability the registry knows.
@@ -147,7 +147,7 @@ console.log("\n== every capability id in bridge-go/collector_capabilities.json r
   check("every catalog capability id resolves to a platform module", unresolved.length === 0, unresolved);
 
   // The task spec's own count: 20 fb.* ids + web.search + 2 zillow.* ids = 23.
-  check("catalog capability count matches the expected 36", ids.length === 36, ids.length);
+  check("catalog capability count matches the expected 43", ids.length === 43, ids.length);
 
   ids.forEach(function (id) {
     const mod = P.moduleForCapability(id);

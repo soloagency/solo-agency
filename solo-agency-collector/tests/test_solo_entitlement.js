@@ -105,8 +105,8 @@ async function main() {
   // are REFUSED keyless outside the support-group exemption.
   const writeActionCapabilities = Object.keys(Ent.CAPABILITY_FEATURES).filter((c) => Ent.CAPABILITY_FEATURES[c] === "write_actions");
   check(
-    "write_actions capabilities are exactly group.post/profile.post/comment/react",
-    sortedEqual(writeActionCapabilities, ["fb.group.post", "fb.post.comment", "fb.post.react", "fb.profile.post"]),
+    "write_actions capabilities are exactly the FB/IG/X post, comment and react writes (DMs are contact-gated instead)",
+    sortedEqual(writeActionCapabilities, ["fb.group.post", "fb.post.comment", "fb.post.react", "fb.profile.post", "ig.post.comment", "ig.post.react", "x.post.like", "x.post.publish", "x.post.reply"]),
     writeActionCapabilities
   );
   for (const capabilityId of writeActionCapabilities) {

@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "updated_at": "2026-09-10",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -442,6 +442,109 @@
     "XReplyRecord": {
       "…": "XPostRecord fields",
       "depth": "int — 0 direct reply, 1 inside a thread under the post"
+    },
+    "IgReactResult": {
+      "capability": "string (ig.post.react)",
+      "status": "done | already | dry_run | error",
+      "action": "like | unlike",
+      "shortcode": "string",
+      "media_id": "string",
+      "verified": "boolean — the endpoint answered ok AND the post's Like control flipped",
+      "state_before": "liked | not_liked | unknown",
+      "state_after": "liked | not_liked | unknown",
+      "like_control_found": "boolean (dry_run)",
+      "current_state": "string (dry_run)",
+      "http_status": "int",
+      "error": "string | null",
+      "ts": "ISO8601"
+    },
+    "IgCommentResult": {
+      "capability": "string (ig.post.comment)",
+      "status": "done | dry_run | error",
+      "text": "string",
+      "shortcode": "string",
+      "media_id": "string",
+      "comment_id": "string | null",
+      "comment_url": "string | null",
+      "verified": "boolean — the endpoint answered with the comment id",
+      "appeared": "boolean — the text was found on the page afterwards",
+      "comment_box_found": "boolean (dry_run)",
+      "http_status": "int",
+      "error": "string | null",
+      "ts": "ISO8601"
+    },
+    "IgMessageResult": {
+      "capability": "string (ig.message.send)",
+      "status": "done | dry_run | error",
+      "text": "string",
+      "recipient": "string — the thread's username",
+      "thread_url": "string",
+      "verified": "boolean — the composer cleared AND the text appeared in the thread",
+      "sent_via": "button | enter",
+      "opened_thread": "boolean",
+      "composer_found": "boolean (dry_run)",
+      "error": "string | null — not_a_profile_url, recipient_mismatch, ambiguous_composer, …",
+      "ts": "ISO8601"
+    },
+    "XLikeResult": {
+      "capability": "string (x.post.like)",
+      "status": "done | already | dry_run | error",
+      "action": "like | unlike",
+      "post_id": "string",
+      "verified": "boolean — the Like control flipped",
+      "control_flipped": "boolean",
+      "mutation_seen": "string | null — FavoriteTweet / UnfavoriteTweet when the interceptor saw it",
+      "state_before": "liked | not_liked | unknown",
+      "state_after": "string",
+      "article_found": "boolean (dry_run)",
+      "like_control_found": "boolean (dry_run)",
+      "error": "string | null",
+      "ts": "ISO8601"
+    },
+    "XReplyResult": {
+      "capability": "string (x.post.reply)",
+      "status": "done | dry_run | error",
+      "text": "string",
+      "post_id": "string — the post replied to",
+      "post_url": "string | null — the new reply's url",
+      "handle": "string | null — the operator's handle from the mutation reply",
+      "verified": "boolean — CreateTweet answered with the reply",
+      "mutation_seen": "string | null",
+      "composer_cleared": "boolean",
+      "composer_found": "boolean (dry_run)",
+      "submit_button_found": "boolean (dry_run)",
+      "error": "string | null",
+      "ts": "ISO8601"
+    },
+    "XPublishResult": {
+      "capability": "string (x.post.publish)",
+      "status": "done | dry_run | error",
+      "text": "string",
+      "post_url": "string | null",
+      "post_id": "string | null",
+      "handle": "string | null",
+      "verified": "boolean — CreateTweet answered with the post",
+      "mutation_seen": "string | null",
+      "composer_cleared": "boolean",
+      "composer_page": "string",
+      "composer_found": "boolean (dry_run)",
+      "submit_button_found": "boolean (dry_run)",
+      "error": "string | null",
+      "ts": "ISO8601"
+    },
+    "XDmResult": {
+      "capability": "string (x.dm.send)",
+      "status": "done | dry_run | error",
+      "text": "string",
+      "recipient": "string — the conversation's handle",
+      "conversation_url": "string",
+      "verified": "boolean — the composer cleared AND the text appeared as a sent entry",
+      "call_seen": "string | null — the DM send call when the interceptor saw it",
+      "opened_conversation": "boolean",
+      "composer_found": "boolean (dry_run)",
+      "send_button_found": "boolean (dry_run)",
+      "error": "string | null — not_a_profile_url, recipient_mismatch, dm_not_allowed, …",
+      "ts": "ISO8601"
     }
   },
   "capabilities": [
@@ -2962,6 +3065,509 @@
           "tests/test_x_extract.js",
           "tests/test_x_normalize.js"
         ]
+      }
+    },
+    {
+      "id": "ig.post.react",
+      "title": "Like an Instagram post",
+      "when_to_use": "WRITE ACTION. Like (or unlike with action:unlike) the post the url opens: https://www.instagram.com/p/<code>/ or /reel/<code>/. The media id is read from the page's own embedded post root and the like goes through Instagram's web endpoint with the session's csrf token; idempotent — an already-liked post answers status already. The landed post must be the one asked for (post_mismatch otherwise).",
+      "inputs": {
+        "post_url": "string (required) — the post or reel permalink",
+        "action": "string (optional) — like | unlike, default like",
+        "dry_run": "bool (optional) — resolve the media id and read the current like state WITHOUT acting"
+      },
+      "output_schema": "IgReactResult",
+      "provider": "instagram-rest",
+      "coverage": "the logged-in operator acts as themselves",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
+      "write": true,
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "ig_own_post_url"
+        ],
+        "url": "{ig_own_post_url}",
+        "inputs": {
+          "post_url": "{ig_own_post_url}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run"
+          },
+          {
+            "path": "records.items[0].media_id",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].like_control_found",
+            "op": "is_true",
+            "severity": "warn"
+          }
+        ],
+        "write_inputs": {
+          "post_url": "{ig_own_post_url}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "in",
+            "value": [
+              "done",
+              "already"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "current_state"
+        ],
+        "cause_group": [
+          "ig_embedded_media",
+          "ig_like_control"
+        ],
+        "offline_tests": [
+          "tests/test_ig_actions.js"
+        ],
+        "note": "a real Like is idempotent (done first, already after) and only lands on the operator-controlled post in ig_own_post_url; --allow-writes only"
+      }
+    },
+    {
+      "id": "ig.post.comment",
+      "title": "Comment on an Instagram post",
+      "when_to_use": "WRITE ACTION. Publish a comment under the post the url opens (or a reply with reply_to_comment_id) through Instagram's web comment endpoint with the session's csrf token; the reply carries the new comment id, which becomes comment_url. Guards: the landed post must match the url (post_mismatch); a post with comments turned off has no comment box and nothing is sent. Keep it rare — a comment stands under somebody else's post in front of their audience.",
+      "inputs": {
+        "post_url": "string (required) — the post or reel permalink",
+        "text": "string (required) — the comment body",
+        "reply_to_comment_id": "string (optional) — comment id to reply under",
+        "dry_run": "bool (optional) — resolve the media id and report whether the comment box is present WITHOUT sending"
+      },
+      "output_schema": "IgCommentResult",
+      "provider": "instagram-rest",
+      "coverage": "the logged-in operator acts as themselves",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
+      "write": true,
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "ig_own_post_url"
+        ],
+        "url": "{ig_own_post_url}",
+        "inputs": {
+          "post_url": "{ig_own_post_url}",
+          "text": "{text}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run"
+          },
+          {
+            "path": "records.items[0].media_id",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].comment_box_found",
+            "op": "is_true"
+          }
+        ],
+        "write_inputs": {
+          "post_url": "{ig_own_post_url}",
+          "text": "{text}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "done"
+          },
+          {
+            "path": "records.items[0].comment_id",
+            "op": "nonempty"
+          }
+        ],
+        "baseline_fields": [
+          "comment_box_found"
+        ],
+        "cause_group": [
+          "ig_embedded_media",
+          "ig_comment_endpoint"
+        ],
+        "offline_tests": [
+          "tests/test_ig_actions.js"
+        ],
+        "note": "a real comment is permanent under the operator-controlled post; --allow-writes only"
+      }
+    },
+    {
+      "id": "ig.message.send",
+      "title": "Send an Instagram direct message",
+      "when_to_use": "WRITE ACTION. Send a DM to one person by driving Instagram's own UI: the url is the recipient's profile ROOT (https://www.instagram.com/<username>/), the Message button opens the thread, the composer gets the text, Send/Enter sends. Guards: the landed profile must be the one asked for and the thread header must name them (recipient_mismatch); exactly one composer. A message to somebody who does not follow the operator lands in their Requests folder. Not gated by write_actions — like fb.message.send it is gated per contact by the bridge.",
+      "inputs": {
+        "profile_url": "string (required) — the recipient's profile root",
+        "username": "string (optional) — expected handle, checked against the landed profile and the thread header",
+        "text": "string (required) — the message body",
+        "dry_run": "bool (optional) — open the thread and verify the recipient and composer WITHOUT typing"
+      },
+      "output_schema": "IgMessageResult",
+      "provider": "instagram-dom",
+      "coverage": "the logged-in operator acts as themselves",
+      "status": "beta",
+      "tier": "pro",
+      "write": true,
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "ig_dm_recipient_url"
+        ],
+        "url": "{ig_dm_recipient_url}",
+        "inputs": {
+          "profile_url": "{ig_dm_recipient_url}",
+          "text": "{text}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run"
+          },
+          {
+            "path": "records.items[0].composer_found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].recipient",
+            "op": "nonempty"
+          }
+        ],
+        "write_inputs": {
+          "profile_url": "{ig_dm_recipient_url}",
+          "text": "{text}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "done"
+          }
+        ],
+        "baseline_fields": [
+          "recipient"
+        ],
+        "cause_group": [
+          "ig_dm_ui"
+        ],
+        "offline_tests": [
+          "tests/test_ig_actions.js"
+        ],
+        "note": "a real message goes to the consenting recipient in ig_dm_recipient_url only; --allow-writes only"
+      }
+    },
+    {
+      "id": "x.post.like",
+      "title": "Like an X post",
+      "when_to_use": "WRITE ACTION. Like (or unlike with action:unlike) the post the url opens, https://x.com/<handle>/status/<id>, by clicking the focal post's own Like control — X signs its own requests (a mutation sent by the collector is refused), so the page does the write and the interceptor sees the FavoriteTweet reply as proof. Idempotent (already). The landed post must match the url (post_mismatch).",
+      "inputs": {
+        "post_url": "string (required) — the post permalink",
+        "action": "string (optional) — like | unlike, default like",
+        "dry_run": "bool (optional) — find the focal post and read its like state WITHOUT clicking"
+      },
+      "output_schema": "XLikeResult",
+      "provider": "x-dom",
+      "coverage": "the logged-in operator acts as themselves",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
+      "write": true,
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "x_own_post_url"
+        ],
+        "url": "{x_own_post_url}",
+        "inputs": {
+          "post_url": "{x_own_post_url}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run"
+          },
+          {
+            "path": "records.items[0].article_found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].like_control_found",
+            "op": "is_true"
+          }
+        ],
+        "write_inputs": {
+          "post_url": "{x_own_post_url}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "in",
+            "value": [
+              "done",
+              "already"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "current_state"
+        ],
+        "cause_group": [
+          "x_post_ui"
+        ],
+        "offline_tests": [
+          "tests/test_x_actions.js"
+        ],
+        "note": "a real Like is idempotent and only lands on the operator-controlled post in x_own_post_url; --allow-writes only"
+      }
+    },
+    {
+      "id": "x.post.reply",
+      "title": "Reply to an X post",
+      "when_to_use": "WRITE ACTION. Publish a reply under the post the url opens by typing into the post page's own reply composer and clicking Reply; proof is the CreateTweet mutation X fires, which yields the reply's id and url. Guards: the landed post must match (post_mismatch); the focal post must render; the text goes in only after that. Keep it rare — a reply stands under somebody else's post in front of their audience.",
+      "inputs": {
+        "post_url": "string (required) — the post permalink",
+        "text": "string (required) — the reply body",
+        "dry_run": "bool (optional) — verify the composer and Reply button WITHOUT typing"
+      },
+      "output_schema": "XReplyResult",
+      "provider": "x-dom",
+      "coverage": "the logged-in operator acts as themselves",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
+      "write": true,
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "x_own_post_url"
+        ],
+        "url": "{x_own_post_url}",
+        "inputs": {
+          "post_url": "{x_own_post_url}",
+          "text": "{text}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run"
+          },
+          {
+            "path": "records.items[0].composer_found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].submit_button_found",
+            "op": "is_true"
+          }
+        ],
+        "write_inputs": {
+          "post_url": "{x_own_post_url}",
+          "text": "{text}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "done"
+          },
+          {
+            "path": "records.items[0].post_url",
+            "op": "nonempty"
+          }
+        ],
+        "baseline_fields": [
+          "submit_button_found"
+        ],
+        "cause_group": [
+          "x_composer_ui"
+        ],
+        "offline_tests": [
+          "tests/test_x_actions.js"
+        ],
+        "note": "a real reply is public and permanent under the operator-controlled post in x_own_post_url; --allow-writes only"
+      }
+    },
+    {
+      "id": "x.post.publish",
+      "title": "Publish a post on the operator's own X timeline",
+      "when_to_use": "WRITE ACTION. Publish a new post from the composer on https://x.com/home (or https://x.com/compose/post): the text goes into X's own composer and the Post button is clicked; proof is the CreateTweet mutation, which yields the post's id and url under the operator's handle. A post page's composer is a REPLY, so any other url is refused. Every post is public — there is no Only-me audience on X; keep it rare and never repeat the same text.",
+      "inputs": {
+        "text": "string (required) — the post body",
+        "dry_run": "bool (optional) — verify the composer and Post button WITHOUT typing"
+      },
+      "output_schema": "XPublishResult",
+      "provider": "x-dom",
+      "coverage": "the logged-in operator acts as themselves",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "write_actions",
+      "write": true,
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [],
+        "url": "https://x.com/home",
+        "inputs": {
+          "text": "{text}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run"
+          },
+          {
+            "path": "records.items[0].composer_found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].submit_button_found",
+            "op": "is_true"
+          }
+        ],
+        "write_inputs": {
+          "text": "{text}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "done"
+          },
+          {
+            "path": "records.items[0].post_url",
+            "op": "nonempty"
+          }
+        ],
+        "baseline_fields": [
+          "submit_button_found"
+        ],
+        "cause_group": [
+          "x_composer_ui"
+        ],
+        "offline_tests": [
+          "tests/test_x_actions.js"
+        ],
+        "note": "a real post is PUBLIC on the operator's timeline and X has no private audience — the write probe is for --allow-writes runs the operator asked for, and the post should be deleted by hand afterwards"
+      }
+    },
+    {
+      "id": "x.dm.send",
+      "title": "Send an X direct message",
+      "when_to_use": "WRITE ACTION. Send a DM to one person by driving X's own UI: the url is the recipient's profile (https://x.com/<handle>), its Message control opens the conversation, the composer gets the text, the Send control sends. Guards: the landed profile must match (recipient_mismatch), the conversation header must name them, exactly one composer; a profile without the Message control means the account does not accept DMs from this session (dm_not_allowed). Not gated by write_actions — gated per contact by the bridge like fb.message.send.",
+      "inputs": {
+        "profile_url": "string (required) — the recipient's profile",
+        "username": "string (optional) — expected handle",
+        "text": "string (required) — the message body",
+        "dry_run": "bool (optional) — open the conversation and verify the recipient and composer WITHOUT typing"
+      },
+      "output_schema": "XDmResult",
+      "provider": "x-dom",
+      "coverage": "the logged-in operator acts as themselves",
+      "status": "beta",
+      "tier": "pro",
+      "write": true,
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "dry_run",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "x_dm_recipient_url"
+        ],
+        "url": "{x_dm_recipient_url}",
+        "inputs": {
+          "profile_url": "{x_dm_recipient_url}",
+          "text": "{text}",
+          "dry_run": true
+        },
+        "expect_query": null,
+        "assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "dry_run"
+          },
+          {
+            "path": "records.items[0].composer_found",
+            "op": "is_true"
+          },
+          {
+            "path": "records.items[0].recipient",
+            "op": "nonempty"
+          }
+        ],
+        "write_inputs": {
+          "profile_url": "{x_dm_recipient_url}",
+          "text": "{text}",
+          "dry_run": false
+        },
+        "write_assert": [
+          {
+            "path": "records.items[0].status",
+            "op": "eq",
+            "value": "done"
+          }
+        ],
+        "baseline_fields": [
+          "recipient"
+        ],
+        "cause_group": [
+          "x_dm_ui"
+        ],
+        "offline_tests": [
+          "tests/test_x_actions.js"
+        ],
+        "note": "a real message goes to the consenting recipient in x_dm_recipient_url only; --allow-writes only"
       }
     },
     {
