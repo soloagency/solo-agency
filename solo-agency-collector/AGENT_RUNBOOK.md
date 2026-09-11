@@ -96,6 +96,12 @@ The manual steps below are the fallback only if the script cannot be used:
 
 The user still needs to do the two physical clicks Chrome requires of a person (Developer mode, drag the folder) to install the extension once — see the two-gesture install below — until the extension is available in Chrome Web Store.
 
+## Uninstall / Start Over
+
+`uninstall_collector.sh`/`.ps1` reverses setup: entitlement seat release (best effort), OS autostart registration removed, bridge process killed, `solo-agency-local-collector/`, `extensions/`, `daily-content-pipeline/`, the install-root `AGENTS.md`/`CLAUDE.md` pointer files (only when they carry the `MULTI_BRAIN_OPERATIONS.md` signature), `solo-agency/` (unless `--keep-source`), the empty root dir, and CLI-era `~/.claude/scheduled-tasks/*solo-agency*` folders. `setup_collector.sh`/`.ps1` stage a copy into `solo-agency-local-collector/` on every run, so it survives even if the source checkout is deleted first. `--dry-run` prints the plan and changes nothing; `--yes` skips the confirmation. Refuses `/`, `$HOME`, or any root without `daily-content-pipeline/`/`solo-agency-local-collector/`. Full detail: `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, "Uninstall / Start Over".
+
+**Local vs remote, same as install:** on a LOCAL runtime, after one explicit human confirmation ("xóa hết, như chưa từng cài" / "uninstall everything" — not implied by anything else), the agent runs `uninstall_collector.sh --yes` itself and reports the summary. On a REMOTE runtime, hand the human the one-line command instead. Never run it without that explicit confirmation.
+
 ## Runtime Folder
 
 ```text

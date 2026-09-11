@@ -65,6 +65,25 @@ $PidFile    = Join-Path $Runtime 'collector.pid'
 $LogFile    = Join-Path $Runtime 'collector.log'
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
+# Ship the uninstaller into the RUNTIME folder (not the source checkout) so "start
+# over" (solo-agency-collector\uninstall_collector.ps1) still works even if
+# <root>\solo-agency is deleted first — see "Uninstall / start over" in
+# playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md. Best effort: prefer a local
+# sibling copy (this script running from a full checkout), else fetch it from the
+# same distribution base as everything else here; never fails setup.
+foreach ($_u in @('uninstall_collector.sh', 'uninstall_collector.ps1')) {
+  $dest = Join-Path $Runtime $_u
+  $src  = if ($PSScriptRoot) { Join-Path $PSScriptRoot $_u } else { $null }
+  if ($src -and (Test-Path $src)) {
+    try { Copy-Item -Force $src $dest } catch { }
+  } else {
+    try { Invoke-WebRequest -Uri "$BaseUrl/$_u" -OutFile $dest -UseBasicParsing -TimeoutSec 20 } catch { }
+  }
+}
+if (-not (Test-Path (Join-Path $Runtime 'uninstall_collector.ps1'))) {
+  Warn "could not stage uninstall_collector.ps1 in $Runtime (non-fatal - re-run this script later, or fetch it from the repo, to enable 'start over')"
+}
+
 # Per-install autostart identity: two installs on one machine each get their own task.
 $sha = [System.Security.Cryptography.SHA256]::Create()
 $InstHash = ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Root))) -replace '-','').Substring(0,8).ToLower()

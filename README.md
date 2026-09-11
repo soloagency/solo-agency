@@ -88,6 +88,8 @@ Tested with Claude Desktop, Codex, Hermes and OpenClaw. No vision model needed. 
 
 Questions, bugs, feature requests: the [Solo Agency support group on Facebook](https://www.facebook.com/groups/1570411591501058). Your Team Leader can draft the post, show it to you, and post it with your account once you approve, on every plan, then watch the thread for the founder's answer. Once you have added a WideCast key, your team also reports failures straight to the founder for you, with nothing to click. You never need a GitHub account to report anything.
 
+To remove everything, ask Sam to uninstall, or run `solo-agency-collector/uninstall_collector.sh` (`.ps1` on Windows) yourself.
+
 ## Agent Entry Point
 
 If you are an AI agent setting up this repo, start here:

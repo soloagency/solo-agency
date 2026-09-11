@@ -57,6 +57,26 @@ PID_FILE="$RUNTIME/collector.pid"
 LOG_FILE="$RUNTIME/collector.log"
 mkdir -p "$DL" "$BIN" "$OUTPUT_DIR"
 
+# Ship the uninstaller into the RUNTIME folder (not the source checkout) so "start
+# over" (solo-agency-collector/uninstall_collector.sh) still works even if
+# <root>/solo-agency is deleted first — see "Uninstall / start over" in
+# playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md. Best effort: prefer a local
+# sibling copy (this script running from a full checkout), else fetch it from the
+# same distribution base as everything else here; never fails setup.
+for _u in uninstall_collector.sh uninstall_collector.ps1; do
+  if [ -f "$SCRIPT_DIR/$_u" ]; then
+    cp -f "$SCRIPT_DIR/$_u" "$RUNTIME/$_u" 2>/dev/null || true
+  elif command -v curl >/dev/null 2>&1; then
+    if curl -fsSL --retry 1 --connect-timeout 10 -o "$RUNTIME/$_u.part" "$BASE_URL/$_u" 2>/dev/null; then
+      mv -f "$RUNTIME/$_u.part" "$RUNTIME/$_u"
+    else
+      rm -f "$RUNTIME/$_u.part"
+    fi
+  fi
+  [ -f "$RUNTIME/$_u" ] && chmod +x "$RUNTIME/$_u" 2>/dev/null
+done
+[ -f "$RUNTIME/uninstall_collector.sh" ] || warn "could not stage uninstall_collector.sh in $RUNTIME (non-fatal — re-run this script later, or fetch it from the repo, to enable 'start over')"
+
 # Per-install autostart identity: two installs on one machine (a source repo plus
 # client setups is normal) each get their own launchd label / systemd unit.
 INSTHASH="$(printf '%s' "$ROOT" | { shasum -a 256 2>/dev/null || sha256sum; } | awk '{print substr($1,1,8)}')"

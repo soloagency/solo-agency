@@ -126,6 +126,8 @@ Do not load the source folder from a cloned toolkit, such as `solo-agency/solo-a
 
 Use one active Solo Agency Local Collector bridge runtime per machine for the current setup. Use one client-specific Solo Agency Local Collector extension per client Chrome profile/account, loaded from the current setup's generated `extensions/{client_slug}/` folder. If you previously loaded another Solo Agency Local Collector extension from an older setup folder, remove or disable that old entry in `chrome://extensions`.
 
+To uninstall, run `uninstall_collector.sh` (`.ps1` on Windows) from the install's `solo-agency-local-collector/` folder — `setup_collector.sh`/`.ps1` stage a copy there on every run so it works even if the source checkout is gone. It stops the autostart registration, kills the bridge, releases the entitlement seat, and deletes the runtime state, CRM/content library, and extension copies, leaving only a short list of manual leftovers it prints (the AI runtime's own Scheduled-tasks panel entries, and the Chrome `chrome://extensions` entries). `--dry-run` previews the plan with no changes; see `AGENT_RUNBOOK.md`, "Uninstall / Start Over", for the full behavior.
+
 ## Developer Model
 
 Maintainers build the bridge from source:
