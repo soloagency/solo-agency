@@ -186,7 +186,28 @@
   }
 
   // ------------------------------------------------------------- x.dm.send
-  function dmComposer() { var b = document.querySelector('[data-testid="dmComposerTextInput"]'); return b && visible(b) ? b : null; }
+  // The DM composer: X's classic testid first; on a /messages/ page any visible message box
+  // (X's newer chat UI renames testids) — the recipient guard still runs on the header.
+  function dmComposer() {
+    var b = document.querySelector('[data-testid="dmComposerTextInput"]');
+    if (b && visible(b)) return b;
+    if (!/^\/messages\//.test(location.pathname)) return null;
+    var els = document.querySelectorAll('div[contenteditable="true"], textarea, [role="textbox"]');
+    for (var i = 0; i < els.length; i++) {
+      var lbl = lower((els[i].getAttribute("aria-label") || "") + " " + (els[i].getAttribute("placeholder") || "") + " " + (els[i].getAttribute("data-testid") || ""));
+      if (visible(els[i]) && /message|nhắn|dm/.test(lbl)) return els[i];
+    }
+    return null;
+  }
+  // Repair evidence when the composer is not where we look: every visible text box on the page.
+  function seenTextboxes() {
+    var out = [], els = document.querySelectorAll('div[contenteditable="true"], textarea, [role="textbox"], input[type="text"]');
+    for (var i = 0; i < els.length && out.length < 12; i++) {
+      if (!visible(els[i])) continue;
+      out.push([els[i].tagName.toLowerCase(), els[i].getAttribute("data-testid") || "", els[i].getAttribute("aria-label") || "", els[i].getAttribute("placeholder") || ""].join("|").slice(0, 90));
+    }
+    return out;
+  }
   function dmSendButton() { var b = document.querySelector('[data-testid="dmComposerSendButton"]'); return b && visible(b) ? b : null; }
   function conversationHandle() {
     var links = document.querySelectorAll('[data-testid="DMConversationHeader"] a[href^="/"], [data-testid="conversation"] a[href^="/"], main a[href^="/"]');
@@ -213,7 +234,7 @@
       await waitFor(function () { return /^\/messages\//.test(location.pathname) && dmComposer(); }, 10000, 300);
     }
     var box = dmComposer();
-    if (!box) return wrapCap("x.dm.send", "error", { text: text, recipient: wantHandle || null, opened_conversation: opened, error: "the conversation composer did not open" });
+    if (!box) return wrapCap("x.dm.send", "error", { text: text, recipient: wantHandle || null, opened_conversation: opened, landed_path: location.pathname, seen_textboxes: seenTextboxes(), error: "the conversation composer did not open" });
     var who = conversationHandle();
     if (wantHandle && who && lower(who) !== lower(wantHandle)) return wrapCap("x.dm.send", "error", { text: text, requested: wantHandle, conversation_with: who, error: "recipient_mismatch: the conversation is with " + who + " — nothing was typed" });
     if (inputs.dry_run) return wrapCap("x.dm.send", "dry_run", { text: text, recipient: who || wantHandle || null, conversation_url: location.href, opened_conversation: opened, composer_found: true, send_button_found: !!dmSendButton() });
