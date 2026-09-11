@@ -191,7 +191,7 @@
   function dmComposer() {
     var b = document.querySelector('[data-testid="dmComposerTextInput"]');
     if (b && visible(b)) return b;
-    if (!/^\/messages\//.test(location.pathname)) return null;
+    if (!/^\/(messages|i\/chat)\//.test(location.pathname)) return null;
     var els = document.querySelectorAll('div[contenteditable="true"], textarea, [role="textbox"]');
     for (var i = 0; i < els.length; i++) {
       var lbl = lower((els[i].getAttribute("aria-label") || "") + " " + (els[i].getAttribute("placeholder") || "") + " " + (els[i].getAttribute("data-testid") || ""));
@@ -224,7 +224,7 @@
     var wantHandle = str(inputs.username || inputs.handle).replace(/^@/, "") || handleFrom(jobUrl);
     var pinPage = function () { return /^\/i\/chat\/pin/.test(location.pathname); };
     if (pinPage()) return wrapCap("x.dm.send", "error", { text: text, recipient: wantHandle || null, landed_path: location.pathname, error: "chat_pin_setup_required: X asks the operator to create the XChat PIN once (open x.com/messages in this Chrome, set the PIN), then retry — the collector never sets security PINs; nothing was typed" });
-    var onMessages = /^\/messages\//.test(location.pathname);
+    var onMessages = /^\/(messages|i\/chat)\//.test(location.pathname);
     var opened = false;
     if (!onMessages) {
       var hereHandle = statusIdFrom(location.href) ? "" : handleFrom(location.href);
@@ -233,7 +233,7 @@
       var btn = await waitFor(function () { var b = document.querySelector('[data-testid="sendDMFromProfile"]'); return b && visible(b) ? b : null; }, 8000, 300);
       if (!btn) return wrapCap("x.dm.send", "error", { text: text, recipient: hereHandle, error: "dm_not_allowed: this profile shows no Message control — the account does not accept DMs from this session" });
       click(btn); opened = true;
-      await waitFor(function () { return /^\/messages\//.test(location.pathname) && dmComposer(); }, 10000, 300);
+      await waitFor(function () { return (/^\/(messages|i\/chat)\//.test(location.pathname) && dmComposer()) || pinPage(); }, 12000, 300);
     }
     // Measured 2026-09-10: the Message control sent the tab to /i/chat/pin/new — X's encrypted
     // chat asks the operator to create a 4-digit PIN once before any conversation opens. A PIN
@@ -242,7 +242,11 @@
       return wrapCap("x.dm.send", "error", { text: text, recipient: wantHandle || null, opened_conversation: opened, landed_path: location.pathname, error: "chat_pin_setup_required: X asks the operator to create the XChat PIN once (open x.com/messages in this Chrome, set the PIN), then retry — the collector never sets security PINs; nothing was typed" });
     }
     var box = dmComposer();
-    if (!box) return wrapCap("x.dm.send", "error", { text: text, recipient: wantHandle || null, opened_conversation: opened, landed_path: location.pathname, seen_textboxes: seenTextboxes(), error: "the conversation composer did not open" });
+    if (!box) {
+      var head = "";
+      try { head = norm((document.querySelector('main') || document.body).innerText || "").slice(0, 400); } catch (e) { head = ""; }
+      return wrapCap("x.dm.send", "error", { text: text, recipient: wantHandle || null, opened_conversation: opened, landed_path: location.pathname, seen_textboxes: seenTextboxes(), page_text_head: head, error: "the conversation composer did not open — if the page shows an XChat setup step, finish it by hand in this Chrome and retry" });
+    }
     var who = conversationHandle();
     if (wantHandle && who && lower(who) !== lower(wantHandle)) return wrapCap("x.dm.send", "error", { text: text, requested: wantHandle, conversation_with: who, error: "recipient_mismatch: the conversation is with " + who + " — nothing was typed" });
     if (inputs.dry_run) return wrapCap("x.dm.send", "dry_run", { text: text, recipient: who || wantHandle || null, conversation_url: location.href, opened_conversation: opened, composer_found: true, send_button_found: !!dmSendButton() });
