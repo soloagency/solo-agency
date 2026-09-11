@@ -154,7 +154,7 @@
     var state = ctl ? (ctl.liked ? "liked" : "not_liked") : "unknown";
     if (inputs.dry_run) return wrapCap("ig.post.react", "dry_run", { action: want, shortcode: hereCode, media_id: mediaId, like_control_found: !!ctl, current_state: state });
     if ((want === "like" && state === "liked") || (want === "unlike" && state === "not_liked")) {
-      return wrapCap("ig.post.react", "already", { action: want, shortcode: hereCode, media_id: mediaId, verified: true, current_state: state });
+      return wrapCap("ig.post.react", "already", { action: want, shortcode: hereCode, media_id: mediaId, verified: true, current_state: state, like_control_found: !!ctl });
     }
     await jitter();
     var res = await restPost("/api/v1/web/likes/" + mediaId + "/" + want + "/");
@@ -163,7 +163,7 @@
     var status = ok ? "done" : "error";
     return wrapCap("ig.post.react", status, {
       action: want, shortcode: hereCode, media_id: mediaId, verified: ok && !!after, http_status: res.status,
-      state_before: state, state_after: after ? (after.liked ? "liked" : "not_liked") : state,
+      current_state: state, like_control_found: !!ctl, state_before: state, state_after: after ? (after.liked ? "liked" : "not_liked") : state,
       error: ok ? null : ("instagram answered HTTP " + res.status + (res.json && res.json.message ? ": " + res.json.message : ""))
     });
   }
@@ -190,7 +190,7 @@
     var probe = text.slice(0, 40);
     var appeared = ok ? await waitFor(function () { try { return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; } }, 6000, 500) : null;
     return wrapCap("ig.post.comment", ok ? "done" : "error", {
-      text: text, shortcode: hereCode, media_id: mediaId, comment_id: commentId || null, verified: ok, appeared: !!appeared, http_status: res.status,
+      text: text, shortcode: hereCode, media_id: mediaId, comment_id: commentId || null, verified: ok, appeared: !!appeared, http_status: res.status, comment_box_found: true,
       comment_url: commentId ? "https://www.instagram.com/p/" + hereCode + "/c/" + commentId + "/" : null,
       error: ok ? null : ("instagram answered HTTP " + res.status + (res.json && (res.json.message || res.json.feedback_message) ? ": " + (res.json.message || res.json.feedback_message) : ""))
     });
@@ -256,7 +256,7 @@
     var appeared = await waitFor(function () { try { return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; } }, 8000, 500);
     var status = sent && cleared && appeared ? "done" : "error";
     return wrapCap("ig.message.send", status, {
-      text: text, recipient: recipient || wantUser || null, thread_url: location.href, verified: status === "done", sent_via: sendBtn ? "button" : "enter",
+      text: text, recipient: recipient || wantUser || null, thread_url: location.href, verified: status === "done", composer_found: true, sent_via: sendBtn ? "button" : "enter",
       composer_cleared: !!cleared, appeared: !!appeared, opened_thread: opened,
       error: status === "error" ? (sent ? "the composer did not clear or the text did not appear in the thread — the message may not have been sent" : "no way to submit the message") : null
     });

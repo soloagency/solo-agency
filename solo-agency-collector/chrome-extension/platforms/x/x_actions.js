@@ -142,7 +142,7 @@
     var flipped = await waitFor(function () { var c = likeControl(focalArticle(hereId)); return c && ((want === "like") === c.liked) ? c : null; }, 6000, 300);
     var mut = mutationSince(t0, want === "like" ? /^FavoriteTweet$/ : /^UnfavoriteTweet$/);
     var status = (flipped || mut) ? "done" : "error";
-    return wrapCap("x.post.like", status, { action: want, post_id: hereId, verified: !!(flipped && mut) || !!flipped, control_flipped: !!flipped, mutation_seen: mut ? mut.queryName : null, state_before: state, state_after: flipped ? (want === "like" ? "liked" : "not_liked") : state, error: status === "error" ? "the Like control did not flip and no FavoriteTweet mutation was seen" : null });
+    return wrapCap("x.post.like", status, { action: want, post_id: hereId, verified: !!(flipped && mut) || !!flipped, control_flipped: !!flipped, mutation_seen: mut ? mut.queryName : null, state_before: state, state_after: flipped ? (want === "like" ? "liked" : "not_liked") : state, current_state: state, article_found: true, like_control_found: true, error: status === "error" ? "the Like control did not flip and no FavoriteTweet mutation was seen" : null });
   }
 
   // ------------------------------------------------------------- x.post.reply / x.post.publish
@@ -163,7 +163,7 @@
     var created = createdTweet(mut);
     var cleared = await waitFor(function () { var b = composerBox(); return !b || composerText(b) === "" ? true : null; }, 6000, 300);
     var status = created ? "done" : (mut ? "error" : (cleared ? "error" : "error"));
-    return wrapCap(capId, status, Object.assign({}, expect.dry || {}, { text: text, verified: !!created, composer_cleared: !!cleared, mutation_seen: mut ? mut.queryName : null, post_id: created ? created.id : null, post_url: created ? created.url : null, handle: created ? created.handle : null,
+    return wrapCap(capId, status, Object.assign({}, expect.dry || {}, { text: text, verified: !!created, composer_found: true, submit_button_found: true, composer_cleared: !!cleared, mutation_seen: mut ? mut.queryName : null, post_id: created ? created.id : null, post_url: created ? created.url : null, handle: created ? created.handle : null,
       error: created ? null : (mut ? "CreateTweet answered without a post (X may have rejected the text: duplicate, limit, or flagged)" : "no CreateTweet mutation was seen after the click — the post was not submitted") }));
   }
   async function doReply(inputs) {
@@ -251,7 +251,7 @@
     var appeared = await waitFor(function () { try { var entries = document.querySelectorAll('[data-testid="messageEntry"], [data-testid="tweetText"]'); for (var i = entries.length - 1; i >= 0; i--) { if ((entries[i].innerText || "").indexOf(probe) > -1) return true; } return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; } }, 8000, 500);
     var call = mutationSince(t0, /dm\/new|useSendMessageMutation|DMSend/i);
     var status = (cleared && appeared) ? "done" : "error";
-    return wrapCap("x.dm.send", status, { text: text, recipient: who || wantHandle || null, conversation_url: location.href, verified: status === "done", composer_cleared: !!cleared, appeared: !!appeared, call_seen: call ? call.queryName : null, opened_conversation: opened,
+    return wrapCap("x.dm.send", status, { text: text, recipient: who || wantHandle || null, conversation_url: location.href, verified: status === "done", composer_found: true, send_button_found: true, composer_cleared: !!cleared, appeared: !!appeared, call_seen: call ? call.queryName : null, opened_conversation: opened,
       error: status === "error" ? "the composer did not clear or the text did not appear in the conversation — the message may not have been sent" : null });
   }
 
