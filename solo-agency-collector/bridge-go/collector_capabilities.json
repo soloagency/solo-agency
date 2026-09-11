@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "updated_at": "2026-09-10",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -384,6 +384,64 @@
       "is_private": "boolean | null",
       "profile_pic_url": "string — ig.people.search only; empty on an actor read off a post/comment",
       "subtitle": "string — ig.people.search only: the search box's own social-context line (e.g. \"Followed by X\"), empty otherwise"
+    },
+    "XProfile": {
+      "id": "string — rest_id",
+      "username": "string — handle",
+      "name": "string",
+      "profile_url": "string — https://x.com/<handle>",
+      "bio": "string — profile_bio.description",
+      "location": "string",
+      "website": "string — the profile link, t.co expanded",
+      "websites": "string[] — website + bio links, expanded",
+      "emails": "string[] — parsed from the bio text",
+      "phones": "string[] — parsed from the bio text",
+      "follower_count": "int | null",
+      "following_count": "int | null",
+      "post_count": "int | null",
+      "media_count": "int | null",
+      "listed_count": "int | null",
+      "likes_given_count": "int | null",
+      "created_at": "string — X's date text",
+      "joined_time": "int | null — unix seconds",
+      "is_verified": "boolean — blue or legacy verified",
+      "verified_type": "string",
+      "identity_verified": "boolean | null",
+      "is_private": "boolean | null — protected account",
+      "is_business": "boolean | null",
+      "professional_type": "string — Business | Creator | ''",
+      "category": "string — first professional category",
+      "categories": "string[]",
+      "affiliation": "string — affiliated organisation label",
+      "profile_pic_url": "string — 400x400",
+      "pinned_post_ids": "string[]",
+      "source": "graphql"
+    },
+    "XPostRecord": {
+      "id": "string — status id",
+      "url": "string — https://x.com/<handle>/status/<id>",
+      "actor": "{id, username, name, url, type, is_verified, is_private}",
+      "text": "string — the full text (long posts expanded)",
+      "created_time": "int — unix seconds",
+      "lang": "string",
+      "engagement": "{likes, comments (replies), shares (reposts + quotes), views, reposts, quotes, bookmarks}",
+      "attachments": "[{type photo|video|gif, url, preview_url}]",
+      "links": "string[] — expanded urls in the text",
+      "hashtags": "string[]",
+      "mentions": "string[] — handles",
+      "conversation_id": "string",
+      "in_reply_to_post_id": "string",
+      "in_reply_to_username": "string",
+      "is_repost": "boolean",
+      "repost_of": "XPostRecord | null",
+      "is_quote": "boolean",
+      "quote_of": "XPostRecord | null",
+      "post_id": "string — the handle x.post.replies takes",
+      "entry_id": "string — timeline entry id"
+    },
+    "XReplyRecord": {
+      "…": "XPostRecord fields",
+      "depth": "int — 0 direct reply, 1 inside a thread under the post"
     }
   },
   "capabilities": [
@@ -2473,6 +2531,437 @@
           "tests/test_ig_intercept.js"
         ],
         "note": "REST-backed (GET /api/v1/media/<pk>/comments/), not GraphQL — expect_query is null by design. Chains off ig.profile.posts's most-commented item so the probe never has to guess a post with comments; because an owner can hide a post's comments (reason comments_hidden → WARN), the OPTIONAL fixture ig_canary_post_url pins the probe to a post whose comments are known to be visible (chain.fixture_override)."
+      }
+    },
+    {
+      "id": "x.profile.enrich",
+      "title": "X profile — bio, counters, website, professional category",
+      "when_to_use": "Read one X (Twitter) profile from its page: name, handle, bio, location, website (t.co expanded) and bio links, follower/following/post counts, verified (blue / legacy) and identity-verified flags, professional type + category, joined date, avatar. Submit the profile ROOT url https://x.com/<handle>. X renders no contact fields on the web: emails/phones come only from the bio text. Measured 2026-09-10: the fields live in profile_bio / website / relationship_counts / tweet_counts, not in legacy{} any more.",
+      "inputs": {
+        "username": "string (optional) — expected handle; the capture must match it (a profile page navigated within the app keeps older captures)",
+        "ensure_tries": "int (optional, default 6) — one-second waits for the profile query"
+      },
+      "output_schema": "XProfile",
+      "provider": "x-graphql",
+      "coverage": "logged-in web session on x.com",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "enrich",
+      "scroll": "none",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": false,
+        "fixtures": [
+          "x_canary_profile_url"
+        ],
+        "url": "{x_canary_profile_url}",
+        "inputs": {},
+        "expect_query": {
+          "contains": "UserByScreenName",
+          "severity": "fail"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].username",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].profile_url",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].follower_count",
+            "op": "gte",
+            "value": 0,
+            "note": "null = relationship_counts moved again"
+          },
+          {
+            "path": "records.items[0].bio",
+            "op": "nonempty",
+            "severity": "warn",
+            "note": "the canary profile has a bio; empty = profile_bio moved"
+          }
+        ],
+        "baseline_fields": [
+          "bio",
+          "location",
+          "website",
+          "follower_count",
+          "post_count",
+          "category",
+          "profile_pic_url"
+        ],
+        "cause_group": [
+          "x_intercept",
+          "x_user_shape"
+        ],
+        "offline_tests": [
+          "tests/test_x_extract.js",
+          "tests/test_x_normalize.js"
+        ]
+      }
+    },
+    {
+      "id": "x.profile.posts",
+      "title": "X profile posts (Posts tab)",
+      "when_to_use": "Read the posts of one X profile with author, text (long posts in full), engagement (likes, replies, reposts, quotes, views, bookmarks), media, links, hashtags, reply/repost/quote flags. Submit the profile ROOT url; include_replies:true reads the Replies tab instead. Deeper pages come from scrolling the tab (X refuses a replayed query without its per-request transaction id), so give the job scroll_steps or max_pages > 1 and keep the tab in the foreground.",
+      "inputs": {
+        "max_pages": "int (optional, default 1, max 40) — timeline pages to gather (each ~20 posts); pages beyond the first are loaded by scrolling",
+        "max_posts": "int (optional) — cap on the items returned",
+        "include_replies": "bool (optional) — read the Replies tab (UserTweetsAndReplies) instead of Posts",
+        "ensure_tries": "int (optional, default 6)"
+      },
+      "output_schema": "XPostRecord",
+      "provider": "x-graphql",
+      "coverage": "logged-in web session on x.com",
+      "status": "beta",
+      "tier": "free",
+      "scroll": "scrolls for pages beyond the first (in-page)",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "x_realtor_profile_url"
+        ],
+        "url": "{x_realtor_profile_url}",
+        "inputs": {
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "UserOriginalsTimeline",
+          "severity": "warn",
+          "note": "the Posts tab's query name since 2026; UserTweets is also accepted, so a rename is a warning"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id"
+            ]
+          },
+          {
+            "path": "records.items[0].url",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].actor.username",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].created_time",
+            "op": "gte",
+            "value": 1
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "url",
+          "text",
+          "actor.username",
+          "engagement.likes",
+          "engagement.views"
+        ],
+        "cause_group": [
+          "x_intercept",
+          "x_timeline_shape"
+        ],
+        "offline_tests": [
+          "tests/test_x_extract.js",
+          "tests/test_x_normalize.js"
+        ]
+      }
+    },
+    {
+      "id": "x.search.posts",
+      "title": "X search — posts (Top or Latest)",
+      "when_to_use": "Keyword search over public X posts. Submit https://x.com/search?q=<keyword>&src=typed_query for Top or append &f=live for Latest (the lead-finding one: newest first, no ranking) and pass mode top|latest; the record carries author, text, engagement, links, hashtags. Deeper pages by scrolling the tab (max_pages). Advanced operators work in the query (from:, since:, min_faves:, filter:media).",
+      "inputs": {
+        "query": "string (optional) — echoed on the record; the url is the request",
+        "mode": "string (optional) — top | latest; picks the matching capture, default whichever the page fired",
+        "max_pages": "int (optional, default 1, max 20)",
+        "ensure_tries": "int (optional, default 8)"
+      },
+      "output_schema": "XPostRecord",
+      "provider": "x-graphql",
+      "coverage": "logged-in web session on x.com",
+      "status": "beta",
+      "tier": "free",
+      "scroll": "scrolls for pages beyond the first (in-page)",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "x_search_keyword"
+        ],
+        "url": "https://x.com/search?q={x_search_keyword}&src=typed_query&f=live",
+        "inputs": {
+          "query": "{x_search_keyword}",
+          "mode": "latest",
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "SearchTimeline",
+          "severity": "warn"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 5
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id"
+            ]
+          },
+          {
+            "path": "records.items[0].actor.username",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.mode",
+            "op": "eq",
+            "value": "latest"
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "url",
+          "text",
+          "actor.username",
+          "created_time"
+        ],
+        "cause_group": [
+          "x_intercept",
+          "x_timeline_shape"
+        ],
+        "offline_tests": [
+          "tests/test_x_extract.js",
+          "tests/test_x_normalize.js"
+        ]
+      }
+    },
+    {
+      "id": "x.people.search",
+      "title": "X search — people",
+      "when_to_use": "Keyword search returning X accounts as full profile records (bio, counters, category, website). Submit https://x.com/search?q=<keyword>&src=typed_query&f=user. Deeper pages by scrolling (max_pages). The keyword can be a role (realtor), a place, or an operator such as bio: text through the search box's own syntax.",
+      "inputs": {
+        "query": "string (optional) — echoed on the record",
+        "max_pages": "int (optional, default 1, max 10)",
+        "ensure_tries": "int (optional, default 8)"
+      },
+      "output_schema": "XProfile",
+      "provider": "x-graphql",
+      "coverage": "logged-in web session on x.com",
+      "status": "beta",
+      "tier": "pro",
+      "feature": "harvest",
+      "scroll": "scrolls for pages beyond the first (in-page)",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "x_search_keyword"
+        ],
+        "url": "https://x.com/search?q={x_search_keyword}&src=typed_query&f=user",
+        "inputs": {
+          "query": "{x_search_keyword}",
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "SearchTimeline",
+          "severity": "warn"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 5
+          },
+          {
+            "path": "records.items",
+            "op": "each_has_any",
+            "value": [
+              "id"
+            ]
+          },
+          {
+            "path": "records.items[0].username",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.items[0].follower_count",
+            "op": "gte",
+            "value": 0
+          }
+        ],
+        "baseline_fields": [
+          "username",
+          "name",
+          "bio",
+          "follower_count",
+          "category",
+          "website"
+        ],
+        "cause_group": [
+          "x_intercept",
+          "x_user_shape"
+        ],
+        "offline_tests": [
+          "tests/test_x_extract.js",
+          "tests/test_x_normalize.js"
+        ]
+      }
+    },
+    {
+      "id": "x.post.replies",
+      "title": "Replies on an X post",
+      "when_to_use": "Read the replies under one X post with author identity: submit the permalink https://x.com/<handle>/status/<id>. The record set is the replies (depth 0 = a direct reply, 1 = inside a thread under it); the focal post itself comes back as `post` with its declared reply_count. Deeper pages by scrolling (max_pages). reason replies_hidden = the post counts replies but X served none to this account.",
+      "inputs": {
+        "post_id": "string (optional) — the status id; taken from the url when absent",
+        "max_pages": "int (optional, default 1, max 20)",
+        "max_replies": "int (optional, default 100)",
+        "ensure_tries": "int (optional, default 6)"
+      },
+      "output_schema": "XReplyRecord",
+      "provider": "x-graphql",
+      "coverage": "logged-in web session on x.com",
+      "status": "beta",
+      "tier": "free",
+      "scroll": "scrolls for pages beyond the first (in-page)",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [
+          "x_canary_post_url"
+        ],
+        "url": "{x_canary_post_url}",
+        "inputs": {
+          "max_pages": 1
+        },
+        "expect_query": {
+          "contains": "TweetDetail",
+          "severity": "warn"
+        },
+        "assert": [
+          {
+            "path": "records.post_id",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.post",
+            "op": "exists"
+          },
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1,
+            "severity": "warn",
+            "note": "0 with reason replies_hidden = X served no replies to this account; a breakage answers an error or no post"
+          },
+          {
+            "path": "records.items[0].actor.username",
+            "op": "nonempty",
+            "severity": "warn"
+          },
+          {
+            "path": "records.reason",
+            "op": "in",
+            "value": [
+              null,
+              "replies_hidden"
+            ]
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "text",
+          "actor.username",
+          "created_time",
+          "depth"
+        ],
+        "cause_group": [
+          "x_intercept",
+          "x_timeline_shape"
+        ],
+        "offline_tests": [
+          "tests/test_x_extract.js",
+          "tests/test_x_normalize.js"
+        ]
+      }
+    },
+    {
+      "id": "x.timeline.home",
+      "title": "X home feed (For you / Following)",
+      "when_to_use": "Read the logged-in account's home feed on https://x.com/home: the For you tab fires HomeTimeline, the Following tab HomeLatestTimeline (record feed says which). Same post record as x.profile.posts. Deeper pages by scrolling (max_pages).",
+      "inputs": {
+        "max_pages": "int (optional, default 1, max 10)",
+        "ensure_tries": "int (optional, default 6)"
+      },
+      "output_schema": "XPostRecord",
+      "provider": "x-graphql",
+      "coverage": "logged-in web session on x.com",
+      "status": "beta",
+      "tier": "free",
+      "scroll": "scrolls for pages beyond the first (in-page)",
+      "healthcheck": {
+        "mode": "read",
+        "cadence": "daily",
+        "needs_active_tab": true,
+        "fixtures": [],
+        "url": "https://x.com/home",
+        "inputs": {},
+        "expect_query": {
+          "contains": "HomeTimeline",
+          "severity": "warn"
+        },
+        "assert": [
+          {
+            "path": "records.count",
+            "op": "gte",
+            "value": 1
+          },
+          {
+            "path": "records.items[0].url",
+            "op": "nonempty"
+          },
+          {
+            "path": "records.feed",
+            "op": "nonempty"
+          }
+        ],
+        "baseline_fields": [
+          "id",
+          "url",
+          "text",
+          "actor.username"
+        ],
+        "cause_group": [
+          "x_intercept",
+          "x_timeline_shape"
+        ],
+        "offline_tests": [
+          "tests/test_x_extract.js",
+          "tests/test_x_normalize.js"
+        ]
       }
     },
     {

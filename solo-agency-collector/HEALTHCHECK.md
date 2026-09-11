@@ -123,6 +123,11 @@ fixture the map names is present, the probe takes those values and never consult
 when absent, the chain behaves exactly as before. `tool healthcheck plan` never lists an optional
 key as missing.
 
+X (third platform module, `X_CAPABILITIES.md`) adds `x_canary_profile_url` (ROOT url of an X
+business/creator profile the operator may read — has a bio), `x_realtor_profile_url` (a profile
+with public posts, for `x.profile.posts`), `x_canary_post_url` (a permalink with visible replies,
+for `x.post.replies`) and `x_search_keyword` (e.g. "realtor"). `x.timeline.home` needs no fixture.
+
 ## 4. How a probe is judged
 
 Four tiers, lower tiers gating the higher ones:

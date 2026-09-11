@@ -137,19 +137,29 @@
       is_private: (isObj(u.privacy) && typeof u.privacy.protected === "boolean") ? u.privacy.protected : (typeof legacy.protected === "boolean" ? legacy.protected : null)
     };
   }
+  // Measured 2026-09-10 (UserByScreenName on x.com): the profile fields no longer live in
+  // legacy{} at all — bio in profile_bio{description, entities}, the site link in website{url}
+  // (expanded in profile_bio.entities.url.urls[]), counters in relationship_counts{followers,
+  // following}, tweet_counts{tweets, media_tweets}, action_counts{favorites_count}, identity in
+  // core{}/avatar{}/location{}/verification{}/privacy{}. Older replies (and other timelines)
+  // still carry legacy{}, so both are read, new fields first.
   function userRecord(u) {
     var ref = userRef(u);
     if (!ref) return null;
     u = unwrapUser(u);
     var legacy = isObj(u.legacy) ? u.legacy : {}, core = isObj(u.core) ? u.core : {};
-    var bio = str(legacy.description);
-    var ents = isObj(legacy.entities) ? legacy.entities : {};
-    var website = expandUrls(isObj(ents.url) ? ents.url.urls : null)[0] || str(legacy.url);
+    var pbio = isObj(u.profile_bio) ? u.profile_bio : {};
+    var bio = str(pbio.description || legacy.description);
+    var ents = isObj(pbio.entities) ? pbio.entities : (isObj(legacy.entities) ? legacy.entities : {});
+    var siteUrls = expandUrls(isObj(ents.url) ? ents.url.urls : null);
+    var website = siteUrls[0] || str((isObj(u.website) && u.website.url) || legacy.url);
     var bioUrls = expandUrls(isObj(ents.description) ? ents.description.urls : null);
+    var rc = isObj(u.relationship_counts) ? u.relationship_counts : {}, tc = isObj(u.tweet_counts) ? u.tweet_counts : {}, ac = isObj(u.action_counts) ? u.action_counts : {};
     var photo = str((isObj(u.avatar) && u.avatar.image_url) || legacy.profile_image_url_https).replace(/_normal(\.[a-z]+)$/i, "_400x400$1");
     var prof = isObj(u.professional) ? u.professional : null;
     var cats = prof && Array.isArray(prof.category) ? prof.category.map(function (c) { return str(c && c.name); }).filter(Boolean) : [];
     var affil = isObj(u.affiliates_highlighted_label) && isObj(u.affiliates_highlighted_label.label) ? str(u.affiliates_highlighted_label.label.description) : "";
+    var pick = function () { for (var i = 0; i < arguments.length; i++) { var n = num(arguments[i]); if (n !== null) return n; } return null; };
     return {
       id: ref.id, username: ref.username, name: ref.name, profile_url: ref.url,
       bio: bio,
@@ -157,10 +167,13 @@
       website: website,
       websites: (website ? [website] : []).concat(bioUrls.filter(function (x) { return x !== website; })),
       emails: emailsIn(bio), phones: phonesIn(bio),
-      follower_count: num(legacy.followers_count), following_count: num(legacy.friends_count),
-      post_count: num(legacy.statuses_count), media_count: num(legacy.media_count), listed_count: num(legacy.listed_count),
+      follower_count: pick(rc.followers, legacy.followers_count), following_count: pick(rc.following, legacy.friends_count),
+      post_count: pick(tc.tweets, legacy.statuses_count), media_count: pick(tc.media_tweets, legacy.media_count), listed_count: num(legacy.listed_count),
+      likes_given_count: pick(ac.favorites_count, legacy.favourites_count),
       created_at: str(core.created_at || legacy.created_at), joined_time: parseTwitterDate(core.created_at || legacy.created_at) || null,
       is_verified: ref.is_verified, verified_type: str(legacy.verified_type), is_private: ref.is_private,
+      identity_verified: isObj(u.verification_info) && typeof u.verification_info.is_identity_verified === "boolean" ? u.verification_info.is_identity_verified : null,
+      is_business: isObj(u.business_account) && Object.keys(u.business_account).length > 0 ? true : (prof ? str(prof.professional_type) === "Business" : null),
       professional_type: prof ? str(prof.professional_type) : "", category: cats[0] || "", categories: cats,
       affiliation: affil,
       profile_pic_url: photo,
@@ -300,19 +313,48 @@
   }
   // Generic cursor pagination over a timeline: seed = what the page already captured (all
   // captures of this operation, merged), then replay from the newest bottom cursor.
-  function paginate(seedCaps, maxPages, mapItems, wantFirst) {
-    var items = [], seen = {}, pages = 0, cursor = "", last = null, stopped = null;
-    seedCaps.forEach(function (c) {
-      var ins = instructionsOf(c); if (!ins) return;
-      pages += 1; last = c;
-      mapItems(ins).forEach(function (it) { if (!seen[it.id]) { seen[it.id] = 1; items.push(it); } });
-      var b = bottomCursor(ins); if (b) cursor = b;
-    });
+  // Measured 2026-09-10: X answers a replayed GET with 404 unless it carries the page's own
+  // per-request x-client-transaction-id. So the next page is asked for the way a human gets
+  // it — scroll to the bottom and wait for the page's OWN next query to be captured — and the
+  // replay is only the fallback when scrolling produces nothing.
+  function scrollForMore(pred, knownCount, timeoutMs) {
+    try {
+      if (typeof window.scrollTo !== "function" || !document.documentElement) return Promise.resolve(false);
+      window.scrollTo(0, document.documentElement.scrollHeight || document.body.scrollHeight || 100000);
+    } catch (e) { return Promise.resolve(false); }
+    var waited = 0;
+    function poll() {
+      if (allCaptures(pred).length > knownCount) return Promise.resolve(true);
+      if (waited >= timeoutMs) return Promise.resolve(false);
+      waited += 300;
+      return wait(300).then(poll);
+    }
+    return poll();
+  }
+  function paginate(pred, maxPages, mapItems, wantFirst) {
+    var items = [], seen = {}, pages = 0, cursor = "", last = null, stopped = null, merged = 0;
+    function merge() {
+      var caps = allCaptures(pred);
+      for (var i = merged; i < caps.length; i++) {
+        var ins = instructionsOf(caps[i]); if (!ins) continue;
+        pages += 1; last = caps[i];
+        mapItems(ins).forEach(function (it) { if (!seen[it.id]) { seen[it.id] = 1; items.push(it); } });
+        var b = bottomCursor(ins); if (b) cursor = b;
+      }
+      merged = caps.length;
+    }
+    merge();
     function step() {
       if (pages >= maxPages) { if (cursor) stopped = "page_cap_hit"; return Promise.resolve(); }
       if (!cursor || !last) return Promise.resolve();
-      var cur = cursor;
-      return replay(last, function (v) { v.cursor = cur; return v; }).then(function (res) {
+      var cur = cursor, before = items.length;
+      return scrollForMore(pred, merged, 6000).then(function (more) {
+        if (more) {
+          merge();
+          if (items.length === before) { stopped = "no_new_items"; return; }
+          return wait(700).then(step);
+        }
+        return replay(last, function (v) { v.cursor = cur; return v; }).then(function (res) {
         var ins = res && res.json ? findInstructions(res.json) : null;
         if (!ins) { stopped = "replay_failed_" + (res ? (res.status || res.error || "no_response") : "no_response"); return; }
         var before = items.length;
@@ -322,6 +364,7 @@
         if (items.length === before || !next || next === cur) { stopped = items.length === before ? "no_new_items" : null; cursor = ""; return; }
         cursor = next;
         return wait(900).then(step);
+        });
       }).catch(function (e) { stopped = "fetch_error"; });
     }
     return step().then(function () {
@@ -352,15 +395,17 @@
   }
 
   // ------------------------------------------------------------- x.profile.posts
-  function isUserTimelineCapture(c, withReplies) { return c.kind === "graphql" && (withReplies ? /^UserTweetsAndReplies$/ : /^UserTweets$/).test(str(c.queryName)) && !!instructionsOf(c); }
+  // Measured 2026-09-10: the Posts tab fires UserOriginalsTimeline (UserTweets is the older
+  // name, kept); the Replies tab is matched by either of its known names.
+  function isUserTimelineCapture(c, withReplies) { return c.kind === "graphql" && (withReplies ? /^User(TweetsAndReplies|RepliesTimeline)$/ : /^User(Tweets|OriginalsTimeline)$/).test(str(c.queryName)) && !!instructionsOf(c); }
   function profilePosts(inputs) {
     var withReplies = inputs.include_replies === true;
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 40) : 1;
     var maxItems = Number(inputs.max_posts) > 0 ? Number(inputs.max_posts) : 0;
     var pred = function (c) { return isUserTimelineCapture(c, withReplies); };
     return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
-      if (!cap) return envelope(CAP_POSTS, [], { found: false, reason: "posts_query_not_captured", error: "no " + (withReplies ? "UserTweetsAndReplies" : "UserTweets") + " query captured on this page (protected account, no posts, or the tab did not render)" });
-      return paginate(allCaptures(pred), maxPages, tweetsFrom).then(function (r) {
+      if (!cap) return envelope(CAP_POSTS, [], { found: false, reason: "posts_query_not_captured", error: "no " + (withReplies ? "UserTweetsAndReplies" : "UserOriginalsTimeline/UserTweets") + " query captured on this page (protected account, no posts, or the tab did not render)" });
+      return paginate(pred, maxPages, tweetsFrom).then(function (r) {
         var items = maxItems ? r.items.slice(0, maxItems) : r.items;
         return envelope(CAP_POSTS, items, { found: items.length > 0, source_query: cap.queryName, pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because, username: handleFromHref() });
       });
@@ -378,7 +423,7 @@
     return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_SEARCH_POSTS, [], { found: false, reason: "search_query_not_captured", error: "no SearchTimeline query captured; open https://x.com/search?q=<keyword>&src=typed_query" + (mode === "Latest" ? "&f=live" : "") });
       var product = searchProduct(cap);
-      return paginate(allCaptures(function (c) { return isSearchCapture(c, [product]); }), maxPages, tweetsFrom).then(function (r) {
+      return paginate(function (c) { return isSearchCapture(c, [product]); }, maxPages, tweetsFrom).then(function (r) {
         return envelope(CAP_SEARCH_POSTS, r.items, { found: r.items.length > 0, source_query: cap.queryName, query: str(isObj(cap.variables) ? cap.variables.rawQuery : "") || str(inputs.query), mode: product.toLowerCase(), pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because });
       });
     });
@@ -388,7 +433,7 @@
     var pred = function (c) { return isSearchCapture(c, ["People"]); };
     return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_PEOPLE, [], { found: false, reason: "search_query_not_captured", error: "no SearchTimeline(People) query captured; open https://x.com/search?q=<keyword>&src=typed_query&f=user" });
-      return paginate(allCaptures(pred), maxPages, usersFrom).then(function (r) {
+      return paginate(pred, maxPages, usersFrom).then(function (r) {
         return envelope(CAP_PEOPLE, r.items, { found: r.items.length > 0, source_query: cap.queryName, query: str(isObj(cap.variables) ? cap.variables.rawQuery : "") || str(inputs.query), pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because });
       });
     });
@@ -404,7 +449,7 @@
     return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_REPLIES, [], { found: false, reason: "detail_query_not_captured", error: "no TweetDetail query captured for " + (focalId || currentHref()) });
       var id = focalId || str(isObj(cap.variables) ? cap.variables.focalTweetId : "");
-      return paginate(allCaptures(pred), maxPages, tweetsFrom).then(function (r) {
+      return paginate(pred, maxPages, tweetsFrom).then(function (r) {
         var post = null, replies = [];
         r.items.forEach(function (t) { if (t.id === id) post = t; else replies.push(t); });
         // depth 0 = a direct reply to the post, 1 = a reply inside a thread under it
@@ -425,7 +470,7 @@
     return ensureCapture(isHomeCapture, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_HOME, [], { found: false, reason: "home_query_not_captured", error: "no HomeTimeline query captured; open https://x.com/home" });
       var name = cap.queryName;
-      return paginate(allCaptures(function (c) { return isHomeCapture(c) && c.queryName === name; }), maxPages, tweetsFrom).then(function (r) {
+      return paginate(function (c) { return isHomeCapture(c) && c.queryName === name; }, maxPages, tweetsFrom).then(function (r) {
         return envelope(CAP_HOME, r.items, { found: r.items.length > 0, source_query: name, feed: name === "HomeLatestTimeline" ? "following" : "for_you", pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because });
       });
     });
@@ -447,7 +492,7 @@
       if (q && (String(c.queryName).indexOf(q) > -1 || String(c.url).indexOf(q) > -1)) row.deep_skeleton = skeletonize(c.response, 0, { n: 3000 }, 22);
       return row;
     });
-    return Promise.resolve(envelope(CAP_DISCOVER, caps, { queries: caps.map(function (c) { return c.queryName; }), session_headers_seen: !!(store().__auth && store().__auth.bearer), href: currentHref() }));
+    return Promise.resolve(envelope(CAP_DISCOVER, caps, { queries: caps.map(function (c) { return c.queryName; }), replay_headers_seen: !!(store().__auth && store().__auth.bearer), href: currentHref() }));
   }
 
   // ------------------------------------------------------------- dispatch

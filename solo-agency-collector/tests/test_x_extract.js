@@ -123,6 +123,29 @@ function sensitiveKeys(o, p, out) {
     check("a capture for a different handle is not used for this page", other.found === false && other.reason === "profile_query_not_captured", other);
   }
 
+  console.log("x.profile.enrich — the 2026 shape: no legacy{}, fields in profile_bio / website / relationship_counts / tweet_counts");
+  {
+    const modern = { __typename: "User", rest_id: "1927204100308877312", is_blue_verified: false,
+      core: { created_at: "Tue May 27 03:24:14 +0000 2025", name: "Loan Factory", screen_name: "loanfactoryus" },
+      avatar: { image_url: "https://pbs.twimg.com/profile_images/9/lf_normal.jpg" }, location: { location: "2195 Tully Rd, San Jose, CA" },
+      privacy: { protected: false }, verification: { verified: false }, verification_info: { is_identity_verified: false },
+      profile_bio: { description: "#2 Mortgage Broker in America. apply@loanfactory.com", entities: { description: {}, url: { urls: [{ display_url: "loanfactory.com", expanded_url: "http://www.loanfactory.com/", url: "https://t.co/eLu3JA964l" }] } } },
+      website: { url: "https://t.co/eLu3JA964l" }, relationship_counts: { followers: 72, following: 39 }, tweet_counts: { media_tweets: 871, tweets: 1179 }, action_counts: { favorites_count: 67 },
+      professional: { category: [{ icon_name: "IconBriefcaseStroke", id: 192, name: "Financial Services" }], professional_type: "Business", rest_id: "1" }, business_account: {}, pinned_items: {} };
+    const cap = gqlCapture("UserByScreenName", { screen_name: "loanfactoryus" }, { user: { result: modern } });
+    const res = await makeCtx({ pathname: "/loanfactoryus", captures: [cap] }).window.__soloXRun("x.profile.enrich", {});
+    const r = res.items[0] || {};
+    check("bio from profile_bio, website expanded from its entities, counters from relationship_counts/tweet_counts", /Mortgage Broker/.test(r.bio) && r.website === "http://www.loanfactory.com/" && r.follower_count === 72 && r.following_count === 39 && r.post_count === 1179 && r.media_count === 871 && r.likes_given_count === 67, r);
+    check("email from the bio, category Financial Services, business via professional_type, identity_verified false", r.emails[0] === "apply@loanfactory.com" && r.category === "Financial Services" && r.is_business === true && r.identity_verified === false && r.location === "2195 Tully Rd, San Jose, CA", r);
+  }
+
+  console.log("x.profile.posts — UserOriginalsTimeline (the Posts tab's name since 2026) is accepted");
+  {
+    const cap = gqlCapture("UserOriginalsTimeline", { userId: "1" }, { user: { result: { timeline: { timeline: { instructions: instructions([tweetEntry("1600000000000000001")]) } } } } });
+    const res = await makeCtx({ pathname: "/recap_david", captures: [cap] }).window.__soloXRun("x.profile.posts", {});
+    check("1 post from UserOriginalsTimeline, source_query says so", res.items.length === 1 && res.source_query === "UserOriginalsTimeline", res);
+  }
+
   console.log("x.profile.posts — UserTweets page 1 captured, page 2 via cursor replay, retweet + long post unwrapped");
   {
     const page1 = instructions([
@@ -200,7 +223,7 @@ function sensitiveKeys(o, p, out) {
     const sk = d.items[0].deep_skeleton;
     check("discover lists the capture with queryName/queryId and a skeleton on match", d.items[0].queryName === "UserByScreenName" && d.items[0].queryId === "qUserByScreenName" && !!sk, d.items[0]);
     check("skeleton redacts sensitive key names", sk.data.session_token === "<redacted>" && sk.data.nested.csrf_value === "<redacted>" && sk.data.nested.fine === "str:ok", sk.data);
-    check("session headers presence reported, never their value", d.session_headers_seen === true && JSON.stringify(d).indexOf("public-web-token") === -1, d.session_headers_seen);
+    check("replay headers presence reported, never their value", d.replay_headers_seen === true && JSON.stringify(d).indexOf("public-web-token") === -1, d.session_headers_seen);
     const bad = await ctx.window.__soloXRun("x.nope", {});
     check("unknown capability -> visible error", bad.status === "error" && /no x extractor/.test(bad.error), bad);
     check("__soloXCapabilities lists 7 ids", ctx.window.__soloXCapabilities.length === 7, ctx.window.__soloXCapabilities);
