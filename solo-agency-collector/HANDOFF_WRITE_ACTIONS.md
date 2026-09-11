@@ -256,7 +256,9 @@ reopens the composer, puts the original audience back and closes it (`restore_au
 true; result `audience_restored`, run on every outcome because Done already persisted the
 switch). The first live run's dry run had switched the operator's default to Only me; it was
 restored to Public the same way. `queries_after_submit` lists the GraphQL names captured after
-the Post click — repair evidence when `post_url` stays null.
+the Post click — repair evidence when `post_url` stays null. The permalink comes from walking the
+`ComposerStoryCreateMutation` reply for `post_id` / `legacy_story_hideable_id` / a `/posts/` url
+(live 2026-09-10: `post_url` = facebook.com/<post_id>, write probe PASS, audience restored).
 
 Known limits (review 2026-09-10): the url must name the operator's PERSONAL profile — a Page the
 operator manages has a look-alike composer and is not supported; when the job url names a vanity

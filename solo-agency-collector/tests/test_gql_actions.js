@@ -314,6 +314,11 @@ async function resolveWith(items, inputs, opts) {
     check("audienceKey: qualified rows are NOT the base audience", I.audienceKey("Friends except...") === "" && I.audienceKey("Only show to... Select friends") === "" && I.audienceKey("Custom Include and exclude friends") === "" && I.audienceKey("Friends except acquaintances") === "");
     check("isTimelineUrl: own profile root, /me and the home feed pass", I.isTimelineUrl("https://www.facebook.com/me") && I.isTimelineUrl("https://www.facebook.com/") && I.isTimelineUrl("https://www.facebook.com/nguyenhuubinh/") && I.isTimelineUrl("https://www.facebook.com/profile.php?id=123"));
     check("isTimelineUrl: groups, permalinks, sub-tabs and the business host fail", !I.isTimelineUrl("https://www.facebook.com/groups/1") && !I.isTimelineUrl("https://www.facebook.com/nguyenhuubinh/posts/pfbid0x") && !I.isTimelineUrl("https://www.facebook.com/nguyenhuubinh/about") && !I.isTimelineUrl("https://www.facebook.com/nguyenhuubinh/photos") && !I.isTimelineUrl("https://business.facebook.com/latest/home"));
+    const nested = { data: { story_create: { story: { id: "Uzpf", post_id: "1234567890123", url: "https://www.facebook.com/nguyenhuubinh/posts/pfbid0abc" } } } };
+    const streamed = [{ data: { story_create: { __typename: "X" } } }, { label: "d", path: ["story_create"], data: { story: { legacy_story_hideable_id: "9876543210" } } }];
+    check("findStoryFields: nested story yields post_id + permalink", I.findStoryFields(nested).id === "1234567890123" && /pfbid0abc/.test(I.findStoryFields(nested).url), I.findStoryFields(nested));
+    check("findStoryFields: streamed chunks yield the hideable id, no url", I.findStoryFields(streamed).id === "9876543210" && I.findStoryFields(streamed).url === "", I.findStoryFields(streamed));
+    check("findStoryFields: nothing story-like -> empty", I.findStoryFields({ data: { ok: true, count: 12345678 } }).id === "" && I.findStoryFields(null).url === "");
     check("accountKeyFrom: vanity, numeric id, and none for /me", I.accountKeyFrom("https://www.facebook.com/Nguyen.Huu.Binh/") === "vanity:nguyen.huu.binh" && I.accountKeyFrom("https://www.facebook.com/profile.php?id=42") === "id:42" && I.accountKeyFrom("https://www.facebook.com/me") === "" && I.accountKeyFrom("https://www.facebook.com/") === "");
   }
   {

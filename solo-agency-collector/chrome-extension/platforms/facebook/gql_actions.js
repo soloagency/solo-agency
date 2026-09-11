@@ -970,20 +970,41 @@
   }
   // The composer's own mutation answers with the new story: its permalink is the proof a
   // text search of the page cannot give (the feed may render the post below the fold).
+  // The mutation's reply nests the story differently across composer variants, so the id and
+  // permalink are found by walking the whole document rather than one fixed path.
+  function findStoryFields(root) {
+    var found = { id: "", url: "" };
+    var walk = function (o, depth) {
+      if (!o || typeof o !== "object" || depth > 12 || (found.id && found.url)) return;
+      if (Array.isArray(o)) { for (var i = 0; i < o.length; i++) walk(o[i], depth + 1); return; }
+      if (!found.id && /^\d{6,}$/.test(String(o.post_id || ""))) found.id = String(o.post_id);
+      if (!found.id && /^\d{6,}$/.test(String(o.legacy_story_hideable_id || ""))) found.id = String(o.legacy_story_hideable_id);
+      if (!found.url && typeof o.url === "string" && /facebook\.com\/.+\/(posts|videos|reel)\//i.test(o.url)) found.url = o.url;
+      if (!found.url && typeof o.permalink_url === "string" && /facebook\.com\//i.test(o.permalink_url)) found.url = o.permalink_url;
+      for (var k in o) { if (o[k] && typeof o[k] === "object") walk(o[k], depth + 1); }
+    };
+    walk(root, 0);
+    return found;
+  }
+  // Key shape of a document, depth-limited — repair evidence when the walk finds nothing.
+  function shapeOf(o, depth) {
+    depth = depth || 0;
+    if (!o || typeof o !== "object") return typeof o;
+    if (Array.isArray(o)) return ["[" + o.length + "]", o.length ? shapeOf(o[0], depth + 1) : null];
+    if (depth >= 5) return "{…}";
+    var r = {}, keys = Object.keys(o);
+    for (var i = 0; i < keys.length && i < 25; i++) r[keys[i]] = shapeOf(o[keys[i]], depth + 1);
+    return r;
+  }
   function storyCreatedSince(t0) {
     try {
       var caps = (window.__soloGql && window.__soloGql.captures) || [];
       for (var i = caps.length - 1; i >= 0; i--) {
         var c = caps[i];
         if (!c || (c.capturedAt || 0) < t0 - 2000 || !/StoryCreate/i.test(String(c.queryName || ""))) continue;
-        var parts = Array.isArray(c.response) ? c.response : [c.response];
-        for (var j = 0; j < parts.length; j++) {
-          var s = parts[j] && parts[j].data && parts[j].data.story_create && parts[j].data.story_create.story;
-          if (s && typeof s === "object") {
-            var id = String(s.post_id || s.legacy_story_hideable_id || s.id || "");
-            return { id: id, url: String(s.url || (id ? "https://www.facebook.com/" + id : "")) };
-          }
-        }
+        var f = findStoryFields(c.response);
+        if (f.id || f.url) return { id: f.id, url: f.url || (f.id ? "https://www.facebook.com/" + f.id : ""), query: String(c.queryName || "") };
+        return { id: "", url: "", query: String(c.queryName || ""), shape: shapeOf(c.response) };
       }
     } catch (e) { /* proof is optional */ }
     return null;
@@ -1126,7 +1147,8 @@
       try { return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; }
     }, 8000, 500);
     var created = storyCreatedSince(t0);
-    var status = (closed && (appeared || created)) ? "done" : "error";
+    var createdProof = !!(created && (created.id || created.url));
+    var status = (closed && (appeared || createdProof)) ? "done" : "error";
     // The composer's own queries after the submit — repair evidence when the story proof is
     // missing (which mutation fired, under which name).
     var afterSubmit = [];
@@ -1172,6 +1194,8 @@
       audience_before: aud ? aud.before : (current.raw || null),
       audience_after: aud ? aud.after : (current.raw || null),
       post_url: created ? created.url || null : null, post_id: created ? created.id || null : null,
+      story_query: created ? created.query || null : null, story_create_shape: created && !createdProof ? created.shape || null : null,
+      audience_control_found: !!audienceBtn,
       queries_after_submit: afterSubmit,
       audience_restored: restore.attempted ? restore.restored : null, audience_restore_to: restore.to, audience_restore_reason: restore.reason, audience_restore_closed: restore.closed,
       error: status === "error"
@@ -1355,7 +1379,7 @@
   // this makes the rule itself assertable against the exact labels a live page produced.
   window.__soloActFindCommentBox = findCommentBox;
   // Exposed for tests/test_gql_actions.js only.
-  window.__soloActInternals = { audienceKey: audienceKey, isTimelineUrl: isTimelineUrl, accountKeyFrom: accountKeyFrom };
+  window.__soloActInternals = { audienceKey: audienceKey, isTimelineUrl: isTimelineUrl, accountKeyFrom: accountKeyFrom, findStoryFields: findStoryFields };
 
   window.__soloActResolve = async function (capId, inputs) {
     inputs = inputs && typeof inputs === "object" ? inputs : {};
