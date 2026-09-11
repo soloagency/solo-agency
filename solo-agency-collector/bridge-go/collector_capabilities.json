@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "updated_at": "2026-09-10",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -3503,7 +3503,7 @@
     {
       "id": "x.dm.send",
       "title": "Send an X direct message",
-      "when_to_use": "WRITE ACTION. Send a DM to one person by driving X's own UI: the url is the recipient's profile (https://x.com/<handle>), its Message control opens the conversation, the composer gets the text, the Send control sends. Guards: the landed profile must match (recipient_mismatch), the conversation header must name them, exactly one composer; a profile without the Message control means the account does not accept DMs from this session (dm_not_allowed). Not gated by write_actions — gated per contact by the bridge like fb.message.send.",
+      "when_to_use": "WRITE ACTION. Send a DM to one person by driving X's own UI: the url is the recipient's profile (https://x.com/<handle>), its Message control opens the conversation, the composer gets the text, the Send control sends. Guards: the landed profile must match (recipient_mismatch), the conversation header must name them, exactly one composer; a profile without the Message control means the account does not accept DMs from this session (dm_not_allowed). Not gated by write_actions — gated per contact by the bridge like fb.message.send. STATUS 2026-09-10: blocked until the operator completes XChat's onboarding (PIN + X Number) once in the collector's Chrome; the action reports chat_pin_setup_required / the setup page text instead of typing.",
       "inputs": {
         "profile_url": "string (required) — the recipient's profile",
         "username": "string (optional) — expected handle",
@@ -3519,7 +3519,7 @@
       "scroll": "none",
       "healthcheck": {
         "mode": "dry_run",
-        "cadence": "daily",
+        "cadence": "manual",
         "needs_active_tab": true,
         "fixtures": [
           "x_dm_recipient_url"
@@ -3567,7 +3567,7 @@
         "offline_tests": [
           "tests/test_x_actions.js"
         ],
-        "note": "a real message goes to the consenting recipient in x_dm_recipient_url only; --allow-writes only"
+        "note": "BLOCKED 2026-09-10 by XChat onboarding: after the one-time PIN the conversation page (/i/chat/<a>-<b>) still shows an 'X Number' setup step instead of the composer; the operator finishes it by hand, then this probe goes back to daily. Until then it runs only with --only. A real message goes to the consenting recipient in x_dm_recipient_url only; --allow-writes only."
       }
     },
     {

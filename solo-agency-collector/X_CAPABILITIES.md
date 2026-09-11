@@ -93,7 +93,10 @@ Live 2026-09-10: like `done` (control flipped), reply `done` (CreateTweet → re
 `done` (CreateTweet → post url under the operator's handle). The DM hit X's encrypted-chat
 onboarding: the Message control sends the tab to `/i/chat/pin/new`, where X asks the operator to
 create a 4-digit PIN once — a security setting the collector never types (`chat_pin_setup_required`);
-after the operator sets it by hand in that Chrome, the conversation opens normally.
+after the operator set it by hand, the conversation (`/i/chat/<a>-<b>`) still showed an
+"X Number" setup step instead of the composer — XChat's onboarding has more than one step.
+Parked 2026-09-10 (the Boss's call): the probe is `manual` in the catalog until the onboarding is
+finished by hand in the collector's Chrome; the action names the step it saw instead of typing.
 Policy flags: like → `do_not_react`, reply → `do_not_comment`, publish → `do_not_post`, DM →
 `do_not_message`. `write_actions` gates like/reply/publish; the DM is gated per contact by the
 bridge (same as `fb.message.send`). Healthcheck: `dry_run` daily on `x_own_post_url` (like,
