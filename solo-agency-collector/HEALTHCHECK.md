@@ -110,12 +110,18 @@ read (selected by `engagement.comments` — the field was `engagement.comment_co
 `fb_search_group_url` / `fb_search_group_keyword` (added for `fb.group.search_posts`) must be a
 public read-only group — never the write-allowed test group used by the comment/react/DM probes.
 
-Instagram (second platform module, `INSTAGRAM_CAPABILITIES.md`) adds three fixture keys:
+Instagram (second platform module, `INSTAGRAM_CAPABILITIES.md`) adds three required fixture keys
+and one optional:
 `ig_canary_profile_url` (ROOT url of an Instagram business/creator profile the operator may
 read — read only), `ig_canary_profile_username` (the `<username>` part of that url), and
 `ig_search_keyword` (evergreen keyword for `ig.search.posts` and `ig.people.search`, e.g.
-"realtor"). `ig.post.comments` needs no fixture of its own — it chains off `ig.profile.posts`'s
-most-commented item, same pattern as `fb.post.comments` above.
+"realtor"). `ig.post.comments` chains off `ig.profile.posts`'s most-commented item by default,
+same pattern as `fb.post.comments` above — but an owner can hide a post's comments (the probe then
+WARNs with reason `comments_hidden`), so the OPTIONAL `ig_canary_post_url` pins the probe to a post
+whose comments are known to be visible. It is the first use of `chain.fixture_override`: when every
+fixture the map names is present, the probe takes those values and never consults the parent;
+when absent, the chain behaves exactly as before. `tool healthcheck plan` never lists an optional
+key as missing.
 
 ## 4. How a probe is judged
 

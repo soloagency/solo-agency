@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "updated_at": "2026-09-10",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -2299,6 +2299,9 @@
           },
           "take": {
             "post_url": "url"
+          },
+          "fixture_override": {
+            "post_url": "ig_canary_post_url"
           }
         },
         "url": "{post_url}",
@@ -2351,7 +2354,7 @@
         "offline_tests": [
           "tests/test_ig_extract.js"
         ],
-        "note": "REST-backed (GET /api/v1/media/<pk>/comments/), not GraphQL — expect_query is null by design. Chains off ig.profile.posts's most-commented item so the probe never has to guess a post with comments."
+        "note": "REST-backed (GET /api/v1/media/<pk>/comments/), not GraphQL — expect_query is null by design. Chains off ig.profile.posts's most-commented item so the probe never has to guess a post with comments; because an owner can hide a post's comments (reason comments_hidden → WARN), the OPTIONAL fixture ig_canary_post_url pins the probe to a post whose comments are known to be visible (chain.fixture_override)."
       }
     },
     {

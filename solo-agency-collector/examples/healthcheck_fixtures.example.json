@@ -19,6 +19,7 @@
   "ig_canary_profile_url": "https://www.instagram.com/<test business/creator profile>/",
   "ig_canary_profile_username": "<test business/creator profile>",
   "ig_search_keyword": "realtor",
+  "ig_canary_post_url": "https://www.instagram.com/p/<post the operator may read whose comments are visible; optional>/",
   "web_query": "solo agency",
   "article_url": "https://en.wikipedia.org/wiki/Real_estate_agent",
   "fb_search_group_url": "https://www.facebook.com/groups/<public group with many posts, read only>",

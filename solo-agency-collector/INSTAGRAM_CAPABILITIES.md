@@ -220,6 +220,7 @@ Declared in `bridge-go/healthcheck.go`'s `hcFixtureDocs` and
 | `ig_canary_profile_url` | `ig.profile.enrich`, `ig.profile.posts`, `ig.post.comments` (chained) | ROOT url of an Instagram business/creator profile the operator may read, e.g. `https://www.instagram.com/<username>/` — read only |
 | `ig_canary_profile_username` | `ig.profile.enrich` | the `<username>` part of `ig_canary_profile_url` |
 | `ig_search_keyword` | `ig.search.posts`, `ig.people.search` | evergreen keyword, e.g. `realtor` |
+| `ig_canary_post_url` | `ig.post.comments` (OPTIONAL) | permalink of a post the operator may read whose comments are VISIBLE; when set, the probe targets it (`chain.fixture_override`) instead of the chained most-commented post, which may hide its comments |
 
 Same rule as every other platform: fixtures must be the operator's OWN targets (a profile they
 are comfortable being read repeatedly), never a private third party's account — `count: 0` is
@@ -233,6 +234,12 @@ endpoint itself works (another public post answered 15). `ig.post.comments` repo
 `count: 0, found: false, reason: "comments_hidden"` with `comment_count` kept, and the
 healthcheck probe turns it into WARN, not FAIL. A real breakage answers an `error` or no
 `media_id`.
+
+Hiding is per post, not per account: of five posts probed on 2026-09-10 (two profiles, 5–8
+comments each) two answered their comments and three answered none, on the same profile. So the
+chained "most-commented post" can land on a hidden one every day. Set the OPTIONAL fixture
+`ig_canary_post_url` to a post whose comments are known to be visible and the probe targets it
+instead (catalog 0.2.8, `chain.fixture_override`); leave it unset and the chain behaves as before.
 
 ## 8. Maintenance
 
