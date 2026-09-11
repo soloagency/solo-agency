@@ -775,6 +775,43 @@
   };
   var AUDIENCE_CONTROL = /(edit privacy|sharing with|select audience|chỉnh sửa quyền riêng tư|chia sẻ với|đối tượng)/i;
   var DONE_BUTTON = /^(done|save|xong|lưu)$/i;
+  // Measured 2026-09-10 on the operator's own profile: the composer is a TWO-step flow — the
+  // first screen's submit is "Next" (disabled until text is typed), the "Post" button only
+  // exists on the second screen. The home feed and groups submit with "Post" directly.
+  var NEXT_BUTTON = /^(next|tiếp( theo)?)$/i;
+  var COMPOSER_LABEL = /(create post|tạo bài viết)/i;
+  function findNextButton(dialog) {
+    var btns = dialog.querySelectorAll('[role="button"], button');
+    for (var i = 0; i < btns.length; i++) {
+      var lbl = norm(btns[i].getAttribute("aria-label") || btns[i].innerText || "");
+      var r = btns[i].getBoundingClientRect();
+      if (NEXT_BUTTON.test(lbl) && r.width > 0 && r.height > 0) return btns[i];
+    }
+    return null;
+  }
+  function isDisabled(el) { return !!el && String(el.getAttribute("aria-disabled")) === "true"; }
+  // Every visible dialog that still looks like the composer (its text box, a Post/Next
+  // button, or its title) — the second step of the two-step flow has no text box, so the
+  // "did it close" proof cannot rely on findComposerDialogs alone.
+  function composerLikeDialogs() {
+    var out = [], dialogs = document.querySelectorAll('[role="dialog"]');
+    for (var i = 0; i < dialogs.length; i++) {
+      var d = dialogs[i], r = d.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      if (d.querySelector('div[contenteditable="true"][role="textbox"]') || findPostButton(d) || findNextButton(d) || COMPOSER_LABEL.test(norm(d.getAttribute("aria-label") || ""))) out.push(d);
+    }
+    return out;
+  }
+  function buttonLabels(root, max) {
+    var out = [], btns = root.querySelectorAll('[role="button"], button');
+    for (var i = 0; i < btns.length && out.length < (max || 30); i++) {
+      var r = btns[i].getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      var lbl = norm(btns[i].getAttribute("aria-label") || btns[i].innerText || "").slice(0, 40);
+      if (lbl) out.push(isDisabled(btns[i]) ? lbl + " [disabled]" : lbl);
+    }
+    return out;
+  }
 
   function isTimelineUrl(u) {
     u = String(u || "");
@@ -824,14 +861,15 @@
     var raw = txt || aria;
     return { key: audienceKey(txt) || audienceKey(aria) || audienceKey(aria.replace(/^.*(with|với)\s+/i, "")), raw: raw.slice(0, 80) };
   }
-  // The audience picker is a second dialog (no text box) holding radio rows.
+  // The audience picker: whichever visible dialog holds radio rows — a second dialog, or the
+  // composer itself when Facebook swaps its content for the "Post audience" panel in place.
   function findAudiencePicker() {
     var dialogs = document.querySelectorAll('[role="dialog"]');
     for (var i = 0; i < dialogs.length; i++) {
       var r = dialogs[i].getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0) continue;
-      if (dialogs[i].querySelector('div[contenteditable="true"][role="textbox"]')) continue;
-      if (dialogs[i].querySelector('[role="radio"], [role="menuitemradio"]')) return dialogs[i];
+      var rows = dialogs[i].querySelectorAll('[role="radio"], [role="menuitemradio"]');
+      for (var j = 0; j < rows.length; j++) { var rr = rows[j].getBoundingClientRect(); if (rr.width > 0 && rr.height > 0) return dialogs[i]; }
     }
     return null;
   }
@@ -861,16 +899,28 @@
     click(btn);
     await waitFor(function () { return !!findAudiencePicker(); }, 6000, 300);
     var picker = findAudiencePicker();
-    if (!picker) return { applied: false, reason: "audience_picker_did_not_open", before: before.raw, after: before.raw };
+    var seen = { dialogs: [] };
+    try {
+      var ds = document.querySelectorAll('[role="dialog"]');
+      for (var i = 0; i < ds.length && seen.dialogs.length < 4; i++) {
+        var rr = ds[i].getBoundingClientRect(); if (rr.width <= 0 || rr.height <= 0) continue;
+        var rows = ds[i].querySelectorAll('[role="radio"], [role="menuitemradio"]'), rl = [];
+        for (var j = 0; j < rows.length && rl.length < 10; j++) rl.push(norm(rows[j].getAttribute("aria-label") || rows[j].innerText || "").slice(0, 40));
+        seen.dialogs.push({ label: norm(ds[i].getAttribute("aria-label") || "").slice(0, 40), radios: rl, buttons: buttonLabels(ds[i], 14) });
+      }
+    } catch (e) { /* diagnostics only */ }
+    if (!picker) return { applied: false, reason: "audience_picker_did_not_open", before: before.raw, after: before.raw, seen: seen };
     var option = findAudienceOption(picker, want);
-    if (!option) return { applied: false, reason: "audience_option_not_found", before: before.raw, after: before.raw };
+    if (!option) return { applied: false, reason: "audience_option_not_found", before: before.raw, after: before.raw, seen: seen };
     click(option);
     await sleep(300);
     var done = findDoneButton(picker);
     if (done) click(done);
     await waitFor(function () { return !findAudiencePicker(); }, 6000, 300);
-    var after = currentAudience(findAudienceButton(dialog));
-    return { applied: after.key === want, changed: true, before: before.raw, after: after.raw, reason: after.key === want ? "" : "composer still says \"" + after.raw + "\"" };
+    // the composer may have been re-rendered: read the audience from the CURRENT dialog
+    var cur = findComposerDialogs();
+    var after = currentAudience(cur.length === 1 ? findAudienceButton(cur[0]) : findAudienceButton(dialog));
+    return { applied: after.key === want, changed: true, before: before.raw, after: after.raw, seen: seen, reason: after.key === want ? "" : "composer still says \"" + after.raw + "\"" };
   }
   // The composer's own mutation answers with the new story: its permalink is the proof a
   // text search of the page cannot give (the feed may render the post below the fold).
@@ -943,14 +993,22 @@
     var dialog = dialogs[0];
     var box = dialog.querySelector('div[contenteditable="true"][role="textbox"]');
     if (!box) return wrapCap("fb.profile.post", "error", { text: text, error: "composer dialog has no text box" });
+    // The text box renders before the buttons: let the dialog settle before reading it.
+    await waitFor(function () { return !!(findPostButton(dialog) || findNextButton(dialog)); }, 4000, 250);
 
     var audienceBtn = findAudienceButton(dialog);
     var current = audienceBtn ? currentAudience(audienceBtn) : { key: "", raw: "" };
+    var submit = findPostButton(dialog) ? "Post" : (findNextButton(dialog) ? "Next" : null);
     if (inputs.dry_run) {
+      // A dry run with an audience exercises the picker too (nothing is published, the draft
+      // is discarded with the dialog), so the report says whether the switch would take.
+      var probe = want ? await setAudience(dialog, want) : null;
       return wrapCap("fb.profile.post", "dry_run", {
         text: text, profile_url: location.href, opened_dialog: openedDialog, trigger: triggerLabel || null,
-        post_button_found: !!findPostButton(dialog),
-        audience_control_found: !!audienceBtn, audience_current: current.raw || null, audience_requested: want || null
+        post_button_found: !!submit, submit_button: submit, seen_buttons: buttonLabels(dialog, 30),
+        audience_control_found: !!audienceBtn, audience_current: current.raw || null, audience_requested: want || null,
+        audience_applied: probe ? !!probe.applied : null, audience_after: probe ? probe.after || null : null,
+        audience_reason: probe ? probe.reason || null : null, audience_seen: probe ? probe.seen || null : null
       });
     }
 
@@ -961,30 +1019,50 @@
       aud = await setAudience(dialog, want);
       if (!aud.applied) {
         return wrapCap("fb.profile.post", "error", {
-          text: text, profile_url: location.href, audience_requested: want, audience_before: aud.before, audience_after: aud.after,
+          text: text, profile_url: location.href, audience_requested: want, audience_before: aud.before, audience_after: aud.after, audience_seen: aud.seen || null,
           error: "audience_not_applied: " + aud.reason + " — nothing was typed"
         });
       }
+      // the picker may have re-rendered the composer: re-resolve the dialog and its text box
+      dialogs = findComposerDialogs();
+      if (dialogs.length !== 1) return wrapCap("fb.profile.post", "error", { text: text, profile_url: location.href, dialogs_found: dialogs.length, error: "the composer was not the single open dialog after the audience switch — nothing was typed" });
+      dialog = dialogs[0];
+      box = dialog.querySelector('div[contenteditable="true"][role="textbox"]');
+      if (!box) return wrapCap("fb.profile.post", "error", { text: text, profile_url: location.href, error: "composer lost its text box after the audience switch — nothing was typed" });
     }
 
     await jitter();
     await typeInto(box, text);
     if (!composerText(box)) return wrapCap("fb.profile.post", "error", { text: text, profile_url: location.href, error: "failed to enter text into the composer" });
 
+    // Two-step flow: "Next" first (enabled once text is in), then the "Post" screen.
+    var steps = [];
     var btn = findPostButton(dialog);
     if (!btn) {
+      var next = findNextButton(dialog);
+      if (next && !isDisabled(next)) {
+        await jitter();
+        click(next);
+        steps.push("Next");
+        await waitFor(function () { var ds = composerLikeDialogs(); for (var i = 0; i < ds.length; i++) { if (findPostButton(ds[i])) return true; } return false; }, 8000, 300);
+        var ds2 = composerLikeDialogs();
+        for (var k = 0; k < ds2.length && !btn; k++) btn = findPostButton(ds2[k]);
+      }
+    }
+    if (!btn) {
       return wrapCap("fb.profile.post", "error", {
-        text: text, profile_url: location.href, typed: true,
-        error: "no enabled Post button in the composer — text was typed but NOT submitted"
+        text: text, profile_url: location.href, typed: true, steps: steps, seen_buttons: buttonLabels(dialog, 30),
+        error: steps.length ? "no Post button on the screen after Next — text was typed but NOT submitted" : "no enabled Post button in the composer — text was typed but NOT submitted"
       });
     }
+    steps.push("Post");
     var t0 = Date.now();
     await jitter();
     click(btn);
 
-    // Proof: the dialog closed (the submit was consumed) AND either the text is on the page
-    // or the composer's own mutation answered with the new story.
-    var closed = await waitFor(function () { return findComposerDialogs().length === 0; }, 12000, 500);
+    // Proof: every composer-like dialog closed (the submit was consumed) AND either the text
+    // is on the page or the composer's own mutation answered with the new story.
+    var closed = await waitFor(function () { return composerLikeDialogs().length === 0; }, 12000, 500);
     var probe = text.slice(0, 40);
     var appeared = await waitFor(function () {
       try { return (document.body.innerText || "").indexOf(probe) > -1; } catch (e) { return false; }
@@ -993,7 +1071,7 @@
     var status = (closed && (appeared || created)) ? "done" : "error";
     return wrapCap("fb.profile.post", status, {
       text: text, profile_url: location.href,
-      verified: status === "done", closed: !!closed, appeared: !!appeared, opened_dialog: openedDialog,
+      verified: status === "done", closed: !!closed, appeared: !!appeared, opened_dialog: openedDialog, steps: steps,
       audience_requested: want || null,
       audience_before: aud ? aud.before : (current.raw || null),
       audience_after: aud ? aud.after : (current.raw || null),

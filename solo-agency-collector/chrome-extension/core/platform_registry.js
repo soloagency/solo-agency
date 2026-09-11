@@ -30,6 +30,10 @@
   const INFO_ONLY_TABLE = ["fb.profile.contacts", "fb.profile.header"];
   // background.js ~959
   const PIN_TARGET_TABLE = ["fb.post.comment", "fb.post.react", "fb.group.post", "fb.profile.post"];
+  // background.js ~828 (collectSource) — write capabilities whose target IS the logged-in
+  // operator: facebook.com/me and profile.php without an id are the RIGHT url for them, not
+  // the ambiguity that guard exists to catch.
+  const SELF_TARGET_TABLE = ["fb.profile.post"];
   // background.js ~970
   const POLICY_FLAG_TABLE = {
     "fb.post.comment": "do_not_comment",
@@ -62,6 +66,7 @@
       match_resolvable: inTable(MATCH_RESOLVABLE_TABLE, id),
       info_only: inTable(INFO_ONLY_TABLE, id),
       pin_target: inTable(PIN_TARGET_TABLE, id),
+      self_target: inTable(SELF_TARGET_TABLE, id),
       policy_flag: POLICY_FLAG_TABLE[id] || null,
       hideable: inTable(HIDEABLE_TABLE, id),
       needs_active_tab: !inTable(HIDEABLE_TABLE, id)
@@ -285,6 +290,7 @@
   function isMatchResolvable(capId) { return !!capabilityMeta(capId).match_resolvable; }
   function isInfoOnly(capId) { return !!capabilityMeta(capId).info_only; }
   function isPinTarget(capId) { return !!capabilityMeta(capId).pin_target; }
+  function isSelfTarget(capId) { return !!capabilityMeta(capId).self_target; }
   function policyFlagFor(capId) { return capabilityMeta(capId).policy_flag || null; }
   function isHideable(capId) { return !!capabilityMeta(capId).hideable; }
   function needsActiveTab(capId) { return !!capabilityMeta(capId).needs_active_tab; }
@@ -326,6 +332,7 @@
   function matchResolvable() { return collect(function (m) { return !!m.match_resolvable; }); }
   function infoOnly() { return collect(function (m) { return !!m.info_only; }); }
   function pinTarget() { return collect(function (m) { return !!m.pin_target; }); }
+  function selfTarget() { return collect(function (m) { return !!m.self_target; }); }
   function policyFlags() {
     const out = {};
     PLATFORM_MODULES.forEach(function (mod) {
@@ -344,6 +351,7 @@
     isMatchResolvable: isMatchResolvable,
     isInfoOnly: isInfoOnly,
     isPinTarget: isPinTarget,
+    isSelfTarget: isSelfTarget,
     policyFlagFor: policyFlagFor,
     isHideable: isHideable,
     needsActiveTab: needsActiveTab,
@@ -356,6 +364,7 @@
     matchResolvable: matchResolvable,
     infoOnly: infoOnly,
     pinTarget: pinTarget,
+    selfTarget: selfTarget,
     policyFlags: policyFlags,
     hideable: hideable
   };

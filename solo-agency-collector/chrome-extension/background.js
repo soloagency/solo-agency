@@ -823,7 +823,10 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
   if (!source.url || !/^https?:\/\//i.test(source.url)) {
     throw new Error("source url must start with http:// or https://");
   }
-  if (isSelfOrAmbiguousFbUrl(source.url)) {
+  // A self-target write (the registry's selfTarget set, e.g. a post on the operator's own
+  // timeline) WANTS the url that resolves to the logged-in operator; the guard is for reads
+  // and writes that name somebody else.
+  if (isSelfOrAmbiguousFbUrl(source.url) && !SoloPlatforms.selfTarget().has(String(source.capability || ""))) {
     throw new Error(
       "ambiguous Facebook URL resolves to the logged-in operator, not the target: " +
       source.url + " — use profile.php?id=<numeric_id> or the vanity URL facebook.com/<username>"

@@ -362,6 +362,16 @@ async function resolveWith(items, inputs, opts) {
     check("real write with an audience the composer cannot set refuses and types nothing", r.status === "error" && /audience_not_applied/.test(r.items[0].error) && typed === false, r.items[0]);
   }
   {
+    // The operator's own profile composer (measured 2026-09-10) submits with "Next" first.
+    const d = dialogEl({ noBtn: true });
+    const next = fakeEl({ "aria-label": "Next", "aria-disabled": "true" }); next.innerText = "Next";
+    d.querySelectorAll = (sel) => (String(sel).indexOf("button") > -1 ? [next] : []);
+    const ctx = makeCtx({ href: "https://www.facebook.com/example.operator", querySelectorAll: groupDom([d], null) });
+    const r = await ctx.window.__soloActRun("fb.profile.post", { text: "hello timeline", dry_run: true, _target_url: "https://www.facebook.com/example.operator" });
+    check("two-step composer: dry_run counts Next as the submit button and names it", r.status === "dry_run" && r.items[0].post_button_found === true && r.items[0].submit_button === "Next", r.items[0]);
+    check("dry_run lists the buttons it saw (repair evidence)", Array.isArray(r.items[0].seen_buttons) && r.items[0].seen_buttons[0] === "Next [disabled]", r.items[0].seen_buttons);
+  }
+  {
     const d = dialogEl();
     const own = triggerEl("What's on your mind, Binh?");
     let opened = false;
@@ -407,6 +417,8 @@ async function resolveWith(items, inputs, opts) {
     const bg = fs.readFileSync(path.join(__dirname, "..", "chrome-extension", "background.js"), "utf8");
     check("background.js pins _resolved_url on direct permalink writes",
       /PIN_TARGET[\s\S]{0,400}actionInputs\._resolved_url\s*=/.test(bg), "missing");
+    check("background.js exempts self-target writes from the facebook.com/me guard",
+      /isSelfOrAmbiguousFbUrl\(source\.url\)\s*&&\s*!SoloPlatforms\.selfTarget\(\)\.has/.test(bg), "missing");
     check("background.js enforces collector_policy on write actions",
       /POLICY_FLAG[\s\S]{0,600}policy_refused/.test(bg), "missing");
   }
