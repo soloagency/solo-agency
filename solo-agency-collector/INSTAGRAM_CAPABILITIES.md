@@ -93,7 +93,8 @@ Rules the caller must respect:
 
 - **The url is the request**, same convention as Facebook and Zillow. For `ig.profile.enrich` /
   `ig.profile.posts` it is the profile's ROOT url; for `ig.search.posts` it is the
-  `/explore/search/keyword/?q=` page (or pass `inputs.query` and let the job open it); for
+  `/explore/search/keyword/?q=` page (`inputs.query` is only echoed back on the record — it does
+  not make the job navigate); for
   `ig.post.comments` it is the post/reel permalink. `ig.people.search` does not navigate at all
   (§5) — any `instagram.com` page the session already has open is enough.
 - **`platform: "instagram"`** in the source (otherwise the data point is labelled `web`).
@@ -124,7 +125,9 @@ failure, or the dispatch timeout).
 | `found: false, reason: "profile_query_not_captured"` | The profile page never fired `PolarisProfilePageContentQuery` within `ensure_tries`; a DOM-only fallback ran instead if the header rendered at all (`source: "dom"` — fewer fields, see `InstagramProfile` in the catalog). Persisting past one retry means the query renamed (§4) or the profile is gated (login wall, age gate). |
 | `found: false, reason: "posts_query_not_captured"` | No `PolarisProfilePostsQuery` fired — private profile, zero posts, the tab was backgrounded, or the grid never rendered. |
 | `found: false, reason: "search_query_not_captured"` | No `PolarisKeywordSearchExplorePageRelayQuery` fired — open the `/explore/search/keyword/?q=` url directly rather than relying on `inputs.query` alone. |
-| `found: false, reason: "media_id_unknown"` | `ig.post.comments` could not resolve which media the shortcode in the url belongs to (the post-root capture never fired, or the shortcode in `post_url` does not match anything captured). |
+| `found: false, reason: "media_id_unknown"` | `ig.post.comments` could not resolve which media the shortcode in the url belongs to (the post-root capture never fired, or the shortcode in `post_url` does not match anything captured). The id is never taken from a stray comments capture in the ring — that could belong to a post viewed earlier. |
+| `found: false, reason: "comments_hidden"` | `ig.post.comments` resolved the post and the endpoint answered, but the owner limits who sees comments: `comment_count` > 0, `comments: []`, Instagram's own page shows none either. Not a breakage (§7). |
+| `stopped_because: "fetch_error"` | A later page's replay/REST call failed at the network level; the items already collected are returned (partial, `page_info.resumable` says whether to continue). |
 | `status: "error"` | The extractor threw; `error` says what. |
 
 ## 3. Pagination (the caller owns it, same contract as Facebook)
@@ -153,7 +156,7 @@ source of record — re-verify there first if any of this drifts):
 | `ig.profile.posts` | `PolarisProfilePostsQuery` → `data.xdt_api__v1__feed__user_timeline_graphql_connection{edges[].node, page_info}`, 12/page | `38154989454116081` |
 | `ig.post.comments` (post header) | `PolarisPostRootQuery` (opens the post; comments' own capture is REST, see below) | `29326377470285825` |
 | `ig.search.posts` | `PolarisKeywordSearchExplorePageRelayQuery` (`/explore/search/keyword/?q=`) → `data.xdt_fbsearch__top_serp_graphql.edges[].node` | not pinned — read live via `docIdFor` (below); do not hardcode |
-| `ig.people.search` | `GET /api/v1/web/search/topsearch/?context=blended&query=` (falls back from `/api/v1/users/search/?q=`) | n/a — REST, no doc_id |
+| `ig.people.search` | `GET /api/v1/users/search/?q=&count=` first; falls back to `GET /api/v1/web/search/topsearch/?context=blended&query=` when it answers nothing | n/a — REST, no doc_id |
 | `ig.post.comments` | `GET /api/v1/media/<pk>/comments/?can_support_threading=true` | n/a — REST, no doc_id |
 
 A GraphQL query's `doc_id` is not fixed in this module's source — it is read at **runtime** from
@@ -257,10 +260,12 @@ instead (catalog 0.2.8, `chain.fixture_override`); leave it unset and the chain 
   entries live before that, copy `bridge-go/collector_capabilities.json` next to the running
   `collector_config.json` (read fresh, no restart needed) — operator's call, it is shared
   infrastructure.
-- Offline: `node solo-agency-collector/tests/test_ig_extract.js` (fixtures shaped exactly like
+- Offline: `node solo-agency-collector/tests/test_ig_intercept.js` (the interceptor in a vm: REST
+  ring whitelist, @defer/@stream chunk assembly, capture fields) plus
+  `node solo-agency-collector/tests/test_ig_extract.js` (fixtures shaped exactly like
   the live-observed captures in `ig_extract.js`'s own header comment; asserts on
-  `window.__soloIgInternals` — `postRecord`, `commentRecord`, `userRef`, `emailsIn`, `phonesIn`,
-  `serpItems`, `connectionItems`, `parseCount`, `postUrl` — exposed for exactly this) and
+  `window.__soloIgInternals` — `prefetched`, `postRecord`, `commentRecord`, `userRef`, `emailsIn`,
+  `phonesIn`, `serpItems`, `connectionItems`, `parseCount`, `postUrl` — exposed for exactly this) and
   `node solo-agency-collector/tests/test_ig_normalize.js` (runs the real extractor over those
   same fixtures, then normalizes and schema-validates its real output, plus a sensitive-key
   sweep — the pattern `tests/test_zillow_normalize.js` set). Run both before every sync, same as

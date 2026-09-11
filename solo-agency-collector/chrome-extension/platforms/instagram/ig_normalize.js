@@ -30,7 +30,7 @@
   function nowIso() { return new Date().toISOString(); }
 
   // seconds-vs-ms sniff, same rule as fb_normalize.js's toIsoFromEpoch. ig_extract.js's
-  // postRecord()/commentRecord() (ig_extract.js:147, :163) both use `num(...) || 0` as their
+  // postRecord()/commentRecord() (ig_extract.js, :163) both use `num(...) || 0` as their
   // "not found" fallback, i.e. 0 is a sentinel meaning "no timestamp", not the literal Unix
   // epoch — it maps to created_at:null while platform_time still carries the raw 0 through.
   function toIsoFromEpoch(value) {
@@ -63,7 +63,7 @@
     return out;
   }
 
-  // fail()'s item row (ig_extract.js:225-229) carries {capability, status:"error", error, url}
+  // fail()'s item row (ig_extract.js) carries {capability, status:"error", error, url}
   // directly on the item — same structural marker fb_normalize.js/zillow_normalize.js use to
   // recognise a status-only row that carries no entity data. ig_extract.js has no "blocked"
   // status today (unlike Zillow's PerimeterX gate), but the check covers it too for parity.
@@ -72,7 +72,7 @@
       (raw.status === "error" || raw.status === "blocked");
   }
 
-  // userRef()-shaped actor (ig_extract.js:108-120: {id, username, name, url, type, is_verified,
+  // userRef()-shaped actor (ig_extract.js: {id, username, name, url, type, is_verified,
   // is_private}) -> canonical actor{platform_id, name, url, type}. `type` is hard-coded to
   // "profile" (userRef() itself always sets it that way — every actor this module ever produces
   // IS a profile), matching the literal mapping the task spec calls for rather than passing
@@ -88,8 +88,8 @@
   }
 
   // ---------------------------------------------------------------- profile (ig.profile.enrich)
-  // profileEnrich()'s graphql item (ig_extract.js:284-310) and its DOM fallback (profileFromDom(),
-  // ig_extract.js:247-255) share the same field family: {username, id, name, profile_url, bio,
+  // profileEnrich()'s graphql item (ig_extract.js) and its DOM fallback (profileFromDom(),
+  // ig_extract.js) share the same field family: {username, id, name, profile_url, bio,
   // category, external_url, bio_links, website, websites, follower_count, following_count,
   // media_count, is_business, is_professional, account_type, is_private, is_verified, address,
   // emails, phones, profile_pic_url, fbid, mutual_followers_count, source}. The DOM variant omits
@@ -109,7 +109,7 @@
       .map(function (v) { return v.trim(); })
       .join(" ");
     // location[] holds only the non-empty lines — a DOM-fallback record (address always
-    // {street:"",city:"",zip:""}, ig_extract.js:253) contributes an empty array, never ["",""].
+    // {street:"",city:"",zip:""}, ig_extract.js) contributes an empty array, never ["",""].
     var location = [street, cityZip].filter(function (v) { return v !== ""; });
 
     return {
@@ -119,7 +119,7 @@
       handle: typeof raw.username === "string" ? raw.username : "",
       bio: typeof raw.bio === "string" ? raw.bio : "",
       category: typeof raw.category === "string" ? raw.category : "",
-      // website is already "external_url or first bio link" (ig_extract.js:283) — reused as-is
+      // website is already "external_url or first bio link" (ig_extract.js) — reused as-is
       // rather than re-derived, so this normalizer stays a pure reshape of what was computed.
       website: typeof raw.website === "string" ? raw.website : "",
       websites: arr(raw.websites),
@@ -149,7 +149,7 @@
   }
 
   // ---------------------------------------------------------------- profile (ig.people.search)
-  // peopleSearch()'s fromUsers() (ig_extract.js:416-427) emits userRef() extended with
+  // peopleSearch()'s fromUsers() (ig_extract.js) emits userRef() extended with
   // profile_pic_url and subtitle: {id, username, name, url, type, is_verified, is_private,
   // profile_pic_url, subtitle}.
   function normalizePeopleSearchItem(raw, capId, capturedAt) {
@@ -174,11 +174,11 @@
   }
 
   // ---------------------------------------------------------------- post (ig.profile.posts / ig.search.posts)
-  // postRecord() (ig_extract.js:127-157): {id, code, url, actor, text, created_time, engagement,
+  // postRecord() (ig_extract.js): {id, code, url, actor, text, created_time, engagement,
   // attachments, media_type, product_type, carousel_media_count, location, media_id}.
   // media_type: 1 photo, 2 video, 8 carousel (ig_extract.js header comment, :11-22); product_type
   // "feed"|"clips"|"carousel_container" — a reel is product_type "clips" (checked the same way
-  // postUrl() does, ig_extract.js:84-87: productType.indexOf("clips") === 0).
+  // postUrl() does, ig_extract.js: productType.indexOf("clips") === 0).
   function mediaKindOf(mediaType, productType) {
     if (str(productType).indexOf("clips") === 0) return "reel";
     if (mediaType === 2) return "video";
@@ -245,12 +245,12 @@
   }
 
   // ---------------------------------------------------------------- comment (ig.post.comments)
-  // commentRecord() (ig_extract.js:158-170): {id, text, created_time, actor, reply_count,
+  // commentRecord() (ig_extract.js): {id, text, created_time, actor, reply_count,
   // like_count, depth, replies:[]}. Unlike Facebook's flat/recursive comment tree,
   // ig.post.comments never nests replies (postComments() only ever calls commentRecord(c, 0),
-  // ig_extract.js:479) — replies[] stays [] on every canonical comment too. The parent post's
+  // ig_extract.js) — replies[] stays [] on every canonical comment too. The parent post's
   // handle is not on the comment item itself; it is the envelope's own `media_id`
-  // (envelope(CAP_COMMENTS, ..., {media_id: mediaId, ...}), ig_extract.js:502), so it is passed
+  // (envelope(CAP_COMMENTS, ..., {media_id: mediaId, ...}), ig_extract.js), so it is passed
   // in here rather than read off `raw`.
   function normalizeCommentRecord(raw, postRef, capId, capturedAt) {
     if (!isObj(raw) || isStatusOnlyRow(raw)) return null;

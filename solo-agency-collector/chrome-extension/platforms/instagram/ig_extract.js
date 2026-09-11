@@ -390,7 +390,7 @@
         pages += 1;
         if (!fresh.length) { stopped = "no_new_items"; return; }
         return wait(800).then(step);
-      });
+      }).catch(function (e) { stopped = "fetch_error"; });
     }
     return step().then(function () {
       return { items: items, pages: pages, page_info: { end_cursor: str(pageInfo.end_cursor), has_next_page: !!pageInfo.has_next_page, resumable: !!(pageInfo.has_next_page && pageInfo.end_cursor) }, stopped_because: stopped };
@@ -446,7 +446,7 @@
           items = items.concat(fresh); pageInfo = isObj(c2.page_info) ? c2.page_info : {}; pages += 1;
           if (!fresh.length) { stopped = "no_new_items"; return; }
           return wait(800).then(step);
-        });
+        }).catch(function (e) { stopped = "fetch_error"; });
       }
       return step().then(function () {
         return envelope(CAP_SEARCH_POSTS, items, { found: items.length > 0, source_query: cap.queryName, query: str(getPath(cap, "variables.query")) || str(inputs.query), pages_fetched: pages,
@@ -465,7 +465,7 @@
       (Array.isArray(list) ? list : []).forEach(function (row) {
         var u = isObj(row) && isObj(row.user) ? row.user : row;
         var ref = userRef(u);
-        if (!ref || !ref.username || seen[ref.username]) return;
+        if (!ref || !ref.username || seen[ref.username] || items.length >= count) return;
         seen[ref.username] = 1;
         ref.profile_pic_url = str(u.profile_pic_url);
         ref.subtitle = str(row.search_social_context || u.search_social_context || u.social_context);
@@ -517,8 +517,12 @@
     var mediaId = str(inputs.media_id);
     var maxPages = Number(inputs.max_comment_pages) > 0 ? Math.min(Number(inputs.max_comment_pages), 20) : 1;
     var maxComments = Number(inputs.max_comments) > 0 ? Number(inputs.max_comments) : 50;
-    return ensureCapture(function (c) { return isCommentsCapture(c) && (!mediaId || c.url.indexOf("/media/" + mediaId + "/") > -1); }, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 4, 1000).then(function (cap) {
-      if (!mediaId) mediaId = cap ? (cap.url.match(COMMENTS_URL) || [])[1] : mediaIdFromCaptures(shortcode);
+    // The media id comes from inputs or from the post this page opened (post-root capture or the
+    // embedded Relay entry whose code matches the shortcode) — never from whichever comments
+    // capture happens to be newest in the ring, which may belong to a post viewed earlier.
+    function resolveMediaId() { return mediaId || (shortcode ? mediaIdFromCaptures(shortcode) : ""); }
+    return ensureCapture(function (c) { var id = resolveMediaId(); return !!id && isCommentsCapture(c) && c.url.indexOf("/media/" + id + "/") > -1; }, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 4, 1000).then(function (cap) {
+      if (!mediaId) mediaId = resolveMediaId();
       if (!mediaId) return envelope(CAP_COMMENTS, [], { found: false, reason: "media_id_unknown", error: "could not resolve the media id for " + (shortcode || currentHref()) });
       var items = [], seen = {}, pages = 0, nextMin = "", hasMore = false, stopped = null, header = postHeaderFromCaptures(shortcode);
       function take(json) {
@@ -530,9 +534,10 @@
         hasMore = !!json.has_more_comments;
         pages += 1;
       }
-      var first = cap ? Promise.resolve({ status: 200, json: cap.response }) : restGet("/api/v1/media/" + mediaId + "/comments/?can_support_threading=true&permalink_enabled=false");
+      var first = (cap ? Promise.resolve({ status: 200, json: cap.response }) : restGet("/api/v1/media/" + mediaId + "/comments/?can_support_threading=true&permalink_enabled=false"))
+        .catch(function (e) { return { status: 0, json: null, error: String(e && e.message || e) }; });
       return first.then(function (r) {
-        if (!r.json || !Array.isArray(r.json.comments)) return envelope(CAP_COMMENTS, [], { found: false, media_id: mediaId, error: "comments answered HTTP " + r.status });
+        if (!r.json || !Array.isArray(r.json.comments)) return envelope(CAP_COMMENTS, [], { found: false, media_id: mediaId, error: r.error ? "comments fetch failed: " + r.error : "comments answered HTTP " + r.status });
         take(r.json);
         function step() {
           if (items.length >= maxComments) { stopped = "max_comments"; return Promise.resolve(); }
@@ -543,7 +548,7 @@
             var before = items.length; take(r2.json);
             if (items.length === before) { stopped = "no_new_items"; return; }
             return wait(800).then(step);
-          });
+          }).catch(function (e) { stopped = "fetch_error"; });
         }
         return step().then(function () {
           var declared = header && header.engagement ? header.engagement.comments : (num(r.json.comment_count));
@@ -561,10 +566,13 @@
   }
 
   // ------------------------------------------------------------- _discover.ig
+  // Same substring rule as core/schema.js findSensitiveKeys: the skeleton is the one output that
+  // never passes through ig_normalize's sanitizeDeep, so it redacts such keys itself.
+  var SENSITIVE_KEY = /cookie|token|secret|password|passwd|pwd|otp|authorization|auth|session|bearer|csrf|xsrf/i;
   function skeletonize(o, depth, budget, maxDepth) {
     if (budget.n <= 0 || depth > maxDepth) return typeof o;
     if (Array.isArray(o)) { budget.n -= 1; return ["[" + o.length + "]", o.length ? skeletonize(o[0], depth + 1, budget, maxDepth) : null]; }
-    if (isObj(o)) { var r = {}; var keys = Object.keys(o); for (var i = 0; i < keys.length && budget.n > 0; i++) { budget.n -= 1; r[keys[i]] = skeletonize(o[keys[i]], depth + 1, budget, maxDepth); } return r; }
+    if (isObj(o)) { var r = {}; var keys = Object.keys(o); for (var i = 0; i < keys.length && budget.n > 0; i++) { budget.n -= 1; r[keys[i]] = SENSITIVE_KEY.test(keys[i]) ? "<redacted>" : skeletonize(o[keys[i]], depth + 1, budget, maxDepth); } return r; }
     return typeof o === "string" ? "str:" + o.slice(0, 24) : o;
   }
   function discover(inputs) {

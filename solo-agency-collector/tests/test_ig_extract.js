@@ -301,6 +301,23 @@ function sensitiveKeys(o, pathStr, out) {
     check("replayed body set variables.after to the cursor, kept username", sentVars.after === "cursor-abc" && sentVars.username === "loanfactoryhq", sentVars);
   }
 
+  console.log("ig.profile.posts — max_posts truncates AFTER pagination ran; a failed page 2 keeps page 1");
+  {
+    const page1 = [mediaNode({ pk: "3101" }), mediaNode({ pk: "3102" }), mediaNode({ pk: "3103" })];
+    const cap = profilePostsCapture(page1, { end_cursor: "cursor-2", has_next_page: true }, { username: "loanfactoryhq", after: null });
+    const stub = fetchStub([
+      { match: (url, init) => url.indexOf("/graphql/query") !== -1 && init.method === "POST", json: { data: { xdt_api__v1__feed__user_timeline_graphql_connection: postsConnection([mediaNode({ pk: "3104" }), mediaNode({ pk: "3105" })], { end_cursor: "", has_next_page: false }) } } },
+    ]);
+    const ctx = makeCtx({ pathname: "/loanfactoryhq/", captures: [cap], origFetch: stub });
+    const res = await ctx.window.__soloIgRun("ig.profile.posts", { max_pages: 2, max_posts: 4 });
+    check("2 pages fetched, 4 of 5 items kept", res.pages_fetched === 2 && res.items.length === 4 && res.count === 4, [res.pages_fetched, res.items.length]);
+    check("the kept items are the first four in page order", res.items.map((i) => i.id).join(",") === "3101,3102,3103,3104", res.items.map((i) => i.id));
+    const down = function (url, init) { return Promise.reject(new Error("net down")); };
+    const ctx2 = makeCtx({ pathname: "/loanfactoryhq/", captures: [profilePostsCapture(page1, { end_cursor: "cursor-2", has_next_page: true })], origFetch: down });
+    const res2 = await ctx2.window.__soloIgRun("ig.profile.posts", { max_pages: 3 });
+    check("page 2 network failure: 3 items from page 1, stopped_because fetch_error, resumable", res2.items.length === 3 && res2.stopped_because === "fetch_error" && res2.page_info.resumable === true, res2);
+  }
+
   console.log("ig.profile.posts — not captured at all");
   {
     const ctx = makeCtx({ pathname: "/loanfactoryhq/", captures: [] });
@@ -340,6 +357,8 @@ function sensitiveKeys(o, pathStr, out) {
     const res = await ctx.window.__soloIgRun("ig.people.search", { query: "loan" });
     check("2 profiles, source_query users/search", res.found === true && res.items.length === 2 && res.source_query === "users/search", res);
     check("topsearch endpoint was never called", !stub.calls.some((c) => c.url.indexOf("topsearch") !== -1), stub.calls.map((c) => c.url));
+    const capped = await ctx.window.__soloIgRun("ig.people.search", { query: "loan", count: 1 });
+    check("inputs.count caps the kept rows", capped.items.length === 1 && capped.count === 1, capped.items.length);
     const jane = res.items.find((i) => i.username === "jane_loans");
     check("userRef fields + profile_pic_url", jane.id === "501" && jane.url === "https://www.instagram.com/jane_loans/" && jane.is_verified === false && jane.profile_pic_url === "https://scontent.cdninstagram.com/jane.jpg", jane);
   }
@@ -366,16 +385,21 @@ function sensitiveKeys(o, pathStr, out) {
     check("error envelope, no query", res.status === "error" && /inputs.query is required/.test(res.error), res);
   }
 
-  console.log("ig.post.comments — from a live capture (media id resolved from the capture's own url)");
+  console.log("ig.post.comments — from a live capture (media id resolved from the post the page opened)");
   {
     const comments = [
       commentNode({ pk: "9001", text: "How do I apply?" }),
       commentNode({ pk: "9002", text: "" }), // empty-text comment still counts
     ];
+    // The post-root query names the media this page opened; a comments capture for ANOTHER post
+    // (viewed earlier in the same tab) sits newer in the ring and must be ignored.
+    const postRoot = { kind: "graphql", queryName: "PolarisPostRootQuery", docId: "root", variables: { shortcode: "DU9kCDekVk9" }, url: "https://www.instagram.com/graphql/query", requestBody: "", response: { data: { xdt_shortcode_media: mediaNode({ pk: "123456789", code: "DU9kCDekVk9" }) } } };
     const cap = commentsCapture("123456789", comments, "", false);
-    const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [cap] });
+    const stray = commentsCapture("777", [commentNode({ pk: "9777", text: "wrong post" })], "", false);
+    const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [postRoot, cap, stray] });
     const res = await ctx.window.__soloIgRun("ig.post.comments", {});
-    check("media_id resolved from the capture's own url, 2 items", res.media_id === "123456789" && res.items.length === 2 && res.found === true, res);
+    check("media_id resolved from the post root, its own capture used, 2 items", res.media_id === "123456789" && res.items.length === 2 && res.found === true, res);
+    check("the newer comments capture of another post was ignored", !res.items.some((c) => c.text === "wrong post"), res.items);
     check("empty-text comment kept", res.items.some((c) => c.text === ""), res.items);
     check("actor/reply_count/depth/like_count mapped", res.items[0].actor.username === "commenter1" && res.items[0].reply_count === 0 && res.items[0].depth === 0 && res.items[0].like_count === 0, res.items[0]);
   }
@@ -385,13 +409,42 @@ function sensitiveKeys(o, pathStr, out) {
     const page1Comments = [commentNode({ pk: "9101" }), commentNode({ pk: "9102" })];
     const page2Comments = [commentNode({ pk: "9103" }), commentNode({ pk: "9104" })];
     const cap = commentsCapture("222", page1Comments, "9102", true);
+    const postRoot222 = { kind: "graphql", queryName: "PolarisPostRootQuery", docId: "root", variables: {}, url: "https://www.instagram.com/graphql/query", requestBody: "", response: { data: { xdt_shortcode_media: mediaNode({ pk: "222", code: "DU9kCDekVk9" }) } } };
     const stub = fetchStub([
       { match: (url) => url.indexOf("/api/v1/media/222/comments/") !== -1 && url.indexOf("min_id=9102") !== -1, json: commentsResponse(page2Comments, "", false) },
     ]);
-    const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [cap], origFetch: stub });
+    const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [postRoot222, cap], origFetch: stub });
     const res = await ctx.window.__soloIgRun("ig.post.comments", { max_comment_pages: 5, max_comments: 3 });
     check("stopped at max_comments (3), not all 4 fetched", res.items.length === 3 && res.stopped_because === "max_comments", res);
     check("pagination request carried min_id from the first page's next_min_id", stub.calls.some((c) => c.url.indexOf("min_id=9102") !== -1), stub.calls.map((c) => c.url));
+  }
+
+  console.log("ig.post.comments — a stray comments capture never supplies the media id");
+  {
+    const stray = commentsCapture("777", [commentNode({ pk: "9777", text: "wrong post" })], "", false);
+    const ctx = makeCtx({ pathname: "/p/NoRootHere/", captures: [stray] });
+    const res = await ctx.window.__soloIgRun("ig.post.comments", { ensure_tries: 1 });
+    check("found false, reason media_id_unknown (not the stray post's comments)", res.found === false && res.reason === "media_id_unknown" && res.items.length === 0, res);
+  }
+
+  console.log("ig.post.comments — inputs.media_id is authoritative; a later page's network failure keeps page 1");
+  {
+    const page1 = [commentNode({ pk: "9201" }), commentNode({ pk: "9202" })];
+    const stub = fetchStub([
+      { match: (url) => url.indexOf("/api/v1/media/333/comments/") !== -1 && url.indexOf("min_id=") === -1, json: commentsResponse(page1, "9202", true) },
+    ]);
+    const failing = function (url, init) { if (String(url).indexOf("min_id=") !== -1) return Promise.reject(new Error("net down")); return stub(url, init); };
+    const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [], origFetch: failing });
+    const res = await ctx.window.__soloIgRun("ig.post.comments", { media_id: "333", max_comment_pages: 3, ensure_tries: 1 });
+    check("2 comments from page 1 kept, stopped_because fetch_error, still found", res.items.length === 2 && res.stopped_because === "fetch_error" && res.found === true && res.media_id === "333", res);
+  }
+
+  console.log("ig.post.comments — first page network failure is an honest error envelope");
+  {
+    const down = () => Promise.reject(new Error("net down"));
+    const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [], origFetch: down });
+    const res = await ctx.window.__soloIgRun("ig.post.comments", { media_id: "444", ensure_tries: 1 });
+    check("found false, error names the fetch failure, media_id kept", res.found === false && /comments fetch failed: .*net down/.test(String(res.error)) && res.media_id === "444", res);
   }
 
   console.log("ig.post.comments — media id cannot be resolved: visible reason, not a crash");
@@ -406,6 +459,15 @@ function sensitiveKeys(o, pathStr, out) {
     const ctx = makeCtx({ captures: [profileCapture(PROFILE_USER, "999999")] });
     const res = await ctx.window.__soloIgRun("_discover.ig", {});
     check("available true, one capture row with queryName", res.available === true && res.items.length === 1 && res.items[0].queryName === "PolarisProfilePageContentQuery", res);
+    check("no deep_skeleton without a query filter", res.items[0].deep_skeleton === undefined, res.items[0]);
+    const res2 = await ctx.window.__soloIgRun("_discover.ig", { query: "PolarisProfilePage" });
+    const leaky = profileCapture(Object.assign({}, PROFILE_USER, { session_key: "abc", nested: { csrf_token: "zzz", fine: "ok" } }), "999999");
+    const ctx3 = makeCtx({ captures: [leaky] });
+    const res3 = await ctx3.window.__soloIgRun("_discover.ig", { query: "PolarisProfilePage" });
+    const sk = res3.items[0].deep_skeleton;
+    check("query filter attaches deep_skeleton", !!res2.items[0].deep_skeleton && !!sk, res2.items[0]);
+    check("deep_skeleton keeps ordinary keys and shapes", sk.data.user.username === "str:" + PROFILE_USER.username && sk.data.user.nested.fine === "str:ok", sk.data && sk.data.user);
+    check("deep_skeleton redacts sensitive key names at any depth", sk.data.user.session_key === "<redacted>" && sk.data.user.nested.csrf_token === "<redacted>", sk.data.user);
   }
 
   console.log("dispatch — unknown instagram capability id is a visible error, not a null crash");

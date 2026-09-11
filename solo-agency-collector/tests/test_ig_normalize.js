@@ -330,7 +330,10 @@ function testComments() {
     commentNode({ pk: "9002", text: "" }), // empty-text comment still counts
   ];
   const cap = commentsCapture("123456789", comments, "", false);
-  const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [cap] });
+  // The media id is taken from the post the page opened (post-root capture), never from a
+  // comments capture — see tests/test_ig_extract.js "stray comments capture".
+  const postRoot = { kind: "graphql", queryName: "PolarisPostRootQuery", docId: "root", variables: {}, url: "https://www.instagram.com/graphql/query", requestBody: "", response: { data: { xdt_shortcode_media: mediaNode({ pk: "123456789", code: "DU9kCDekVk9" }) } } };
+  const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [postRoot, cap] });
   return ctx.window.__soloIgRun("ig.post.comments", {}).then((res) => {
     check("extractor ran ok, media_id resolved, 2 comments", res.found === true && res.media_id === "123456789" && res.items.length === 2, res);
     const before = JSON.stringify(res);

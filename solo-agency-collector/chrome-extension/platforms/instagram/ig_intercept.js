@@ -40,11 +40,53 @@
     u = String(u || "");
     return u.indexOf("/api/graphql") > -1 || u.indexOf("/graphql/query") > -1;
   }
+  // Only the REST endpoints a capability reads. Instagram's own /api/v1/ chatter (badge and inbox
+  // polling, exposure logging, view beacons) would otherwise share — and evict from — the ring.
+  var REST_KEEP = /\/api\/v1\/(media\/\d+\/(comments|info)\/|users\/search\/|web\/search\/topsearch\/|users\/web_profile_info\/|feed\/user\/)/;
   function isRest(u) {
     u = String(u || "");
-    return u.indexOf("/api/v1/") > -1;
+    return u.indexOf("/api/v1/") > -1 && REST_KEEP.test(u);
   }
 
+  // A newline-delimited GraphQL reply is one base document plus @defer/@stream chunks, each
+  // carrying `path` (where it belongs) and `data` (what goes there). Assemble them into the
+  // base so a reader sees the whole response; on any surprise, hand back the raw parts.
+  function deepMerge(dst, src) {
+    for (var k in src) {
+      if (src[k] && typeof src[k] === "object" && !Array.isArray(src[k]) && dst[k] && typeof dst[k] === "object" && !Array.isArray(dst[k])) deepMerge(dst[k], src[k]);
+      else dst[k] = src[k];
+    }
+    return dst;
+  }
+  function setPath(root, path, value) {
+    var o = root;
+    for (var i = 0; i < path.length - 1; i++) {
+      var k = path[i];
+      if (o[k] == null || typeof o[k] !== "object") o[k] = (typeof path[i + 1] === "number") ? [] : {};
+      o = o[k];
+    }
+    var last = path[path.length - 1];
+    if (o[last] && typeof o[last] === "object" && !Array.isArray(o[last]) && value && typeof value === "object" && !Array.isArray(value)) deepMerge(o[last], value);
+    else o[last] = value;
+  }
+  function mergeParts(parts) {
+    try {
+      var base = parts[0];
+      if (!base || typeof base !== "object" || Array.isArray(base)) return parts;
+      for (var i = 1; i < parts.length; i++) {
+        var p = parts[i];
+        if (!p || typeof p !== "object" || !p.data || typeof p.data !== "object") continue;
+        if (!base.data || typeof base.data !== "object") base.data = {};
+        if (Array.isArray(p.path) && p.path.length) setPath(base.data, p.path, p.data);
+        else deepMerge(base.data, p.data);
+      }
+      base.__soloParts = parts.length;
+      return base;
+    } catch (e) {
+      return parts;
+    }
+  }
+  store.mergeParts = mergeParts;
   function parseResponse(text) {
     if (!text) return null;
     try {
@@ -55,7 +97,7 @@
           if (!line) return null;
           try { return JSON.parse(line); } catch (e) { return null; }
         }).filter(Boolean);
-        if (parts.length > 1) return parts;
+        if (parts.length > 1) return mergeParts(parts);
         if (parts.length === 1) return parts[0];
       }
       return JSON.parse(t);

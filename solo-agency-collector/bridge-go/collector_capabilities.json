@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "updated_at": "2026-09-10",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -2078,7 +2078,8 @@
           "polaris_profile"
         ],
         "offline_tests": [
-          "tests/test_ig_extract.js"
+          "tests/test_ig_extract.js",
+          "tests/test_ig_intercept.js"
         ]
       }
     },
@@ -2110,8 +2111,8 @@
           "max_pages": 1
         },
         "expect_query": {
-          "contains": "PolarisProfilePostsQuery",
-          "severity": "fail"
+          "contains": "PolarisProfilePosts",
+          "severity": "warn"
         },
         "assert": [
           {
@@ -2149,8 +2150,10 @@
           "polaris_posts"
         ],
         "offline_tests": [
-          "tests/test_ig_extract.js"
-        ]
+          "tests/test_ig_extract.js",
+          "tests/test_ig_intercept.js"
+        ],
+        "note": "The extractor matches the posts connection by SHAPE (PolarisProfilePostsQuery and PolarisProfilePostsTabContentQuery_connection both carry it), so the query-name sensor is a drift WARNING, not a failure; the record asserts decide."
       }
     },
     {
@@ -2179,8 +2182,8 @@
           "query": "{ig_search_keyword}"
         },
         "expect_query": {
-          "contains": "PolarisKeywordSearchExplorePageRelayQuery",
-          "severity": "fail"
+          "contains": "PolarisKeywordSearch",
+          "severity": "warn"
         },
         "assert": [
           {
@@ -2208,8 +2211,10 @@
           "polaris_search"
         ],
         "offline_tests": [
-          "tests/test_ig_extract.js"
-        ]
+          "tests/test_ig_extract.js",
+          "tests/test_ig_intercept.js"
+        ],
+        "note": "The extractor matches the SERP connection by SHAPE, so the query-name sensor is a drift WARNING, not a failure; the record asserts decide."
       }
     },
     {
@@ -2263,7 +2268,8 @@
           "instagram_rest"
         ],
         "offline_tests": [
-          "tests/test_ig_extract.js"
+          "tests/test_ig_extract.js",
+          "tests/test_ig_intercept.js"
         ],
         "note": "REST-backed (users/search + web/search/topsearch), not GraphQL — expect_query is null by design. url is any instagram.com page: the tab only needs to be a live session, the search itself never navigates."
       }
@@ -2352,7 +2358,8 @@
           "comments"
         ],
         "offline_tests": [
-          "tests/test_ig_extract.js"
+          "tests/test_ig_extract.js",
+          "tests/test_ig_intercept.js"
         ],
         "note": "REST-backed (GET /api/v1/media/<pk>/comments/), not GraphQL — expect_query is null by design. Chains off ig.profile.posts's most-commented item so the probe never has to guess a post with comments; because an owner can hide a post's comments (reason comments_hidden → WARN), the OPTIONAL fixture ig_canary_post_url pins the probe to a post whose comments are known to be visible (chain.fixture_override)."
       }
