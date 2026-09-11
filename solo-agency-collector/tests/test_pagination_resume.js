@@ -29,6 +29,7 @@ const PER_PAGE = 8;
 function makeCtx(total, opts) {
   opts = opts || {};
   const asked = [];               // every cursor the walk requested, in order
+  const inits = [];               // the fetch init of each request, in order
   function pageAt(offset) {
     const items = [];
     for (let i = offset; i < Math.min(offset + PER_PAGE, total); i++) {
@@ -64,7 +65,8 @@ function makeCtx(total, opts) {
     window: {},
     location: { href: "https://www.facebook.com/someone/friends", origin: "https://www.facebook.com", pathname: "/someone/friends", search: "" },
     document: { title: "", body: { innerText: "", innerHTML: "" }, querySelector: () => null, querySelectorAll: () => [] },
-    setTimeout, clearTimeout, URL, URLSearchParams, console, Date,
+    setTimeout, clearTimeout, URL, URLSearchParams, console, AbortController,
+    Date: fakeDate(opts.now),   // opts.now: a fake clock for the time-budget tests
     MutationObserver: function () { this.observe = () => {}; this.disconnect = () => {}; },
   };
   ctx.globalThis = ctx;
@@ -78,11 +80,20 @@ function makeCtx(total, opts) {
       // A null/absent cursor is the HEAD request — the one a resuming leg must never make.
       const cur = Object.prototype.hasOwnProperty.call(vars, "cursor") ? vars.cursor : null;
       asked.push(cur === null || cur === undefined ? "HEAD" : String(cur));
+      inits.push(o);
+      if (opts.onFetch) { const custom = opts.onFetch(cur, o); if (custom) return custom; }
       const off = cur == null ? 0 : parseInt(String(cur).split(":")[1], 10);
       return Promise.resolve({ text: () => Promise.resolve(JSON.stringify(pageAt(off))) });
     },
   };
-  return { ctx, asked: () => asked };
+  return { ctx, asked: () => asked, inits: () => inits };
+}
+// A Date whose now() is the test's fake clock; parse/UTC/construction still work.
+function fakeDate(now) {
+  if (!now) return Date;
+  const F = function () { return new (Function.prototype.bind.apply(Date, [null].concat(Array.prototype.slice.call(arguments))))(); };
+  F.now = now; F.parse = Date.parse; F.UTC = Date.UTC;
+  return F;
 }
 
 async function run() {
@@ -146,6 +157,45 @@ async function run() {
     check("resumable is false", res.resumable === false, res.resumable);
     check("the cap was NOT hit — it really ended", res.page_cap_hit === false, res.page_cap_hit);
     check("everyone was collected", (res.items || []).length === 40, (res.items || []).length);
+  }
+
+
+  console.log("\n== time budget: the generic pagination engine returns the pages in hand ==");
+  {
+    // Fake clock: the head page costs 2s of a 4s budget; page 2 is not started.
+    let now = 1000000;
+    const h = makeCtx(40, { now: () => now, onFetch: () => { now += 2000; return null; } });
+    const res = await h.ctx.window.__soloGqlPaginate("fb.profile.friends", { max_pages: 5, time_budget_ms: 4000 });
+    check("head page rows kept (8), no cursor page started", res.count === 8 && h.asked().length === 1 && h.asked()[0] === "HEAD", [res.count, h.asked()]);
+    check("stopped_because time_budget, time_budget_hit, has_next_page + cursor kept, resumable", res.stopped_because === "time_budget" && res.time_budget_hit === true && res.has_next_page === true && res.end_cursor === "cur:8" && res.resumable === true, [res.stopped_because, res.time_budget_hit, res.has_next_page, res.end_cursor, res.resumable]);
+    check("elapsed_ms / time_budget_ms reported; page_cap_hit stays false", res.elapsed_ms >= 2000 && res.time_budget_ms === 4000 && res.page_cap_hit === false, [res.elapsed_ms, res.time_budget_ms, res.page_cap_hit]);
+  }
+  {
+    // A cursor page that hangs is aborted at the budget line: rows so far come back, the
+    // aborted page stays owed (cursor kept, pages_fetched not counting it). Real clock, 3s.
+    const h = makeCtx(24, { onFetch: (cur, o) => {
+      if (cur === null) return null;   // the head page answers normally
+      return new Promise((resolve, reject) => { if (o.signal) o.signal.addEventListener("abort", () => { const e = new Error("The operation was aborted"); e.name = "AbortError"; reject(e); }); });
+    } });
+    const t0 = Date.now();
+    const res = await h.ctx.window.__soloGqlPaginate("fb.profile.friends", { max_pages: 5, time_budget_ms: 3000 });
+    const took = Date.now() - t0;
+    check("returned within the budget (" + took + "ms) with the head rows", took < 3700 && res.count === 8, [took, res.count]);
+    check("aborted page not counted, cursor kept for the next leg, stopped_because time_budget", res.pages_fetched === 0 && res.end_cursor === "cur:8" && res.resumable === true && res.stopped_because === "time_budget", [res.pages_fetched, res.end_cursor, res.resumable, res.stopped_because]);
+    check("both requests carried an abort signal", h.inits().length === 2 && h.inits().every((i) => !!i.signal), h.inits().map((i) => Object.keys(i)));
+  }
+  {
+    // A genuine network failure in the last second of the budget is NOT relabelled time_budget.
+    let now = 2000000;
+    const h = makeCtx(24, { now: () => now, onFetch: (cur) => { if (cur === null) { now += 3200; return null; } return Promise.reject(new Error("net::ERR_CONNECTION_RESET")); } });
+    const res = await h.ctx.window.__soloGqlPaginate("fb.profile.friends", { max_pages: 5, time_budget_ms: 6000 });
+    check("net error keeps its own label: has_next_page false, no time_budget", res.time_budget_hit === undefined && res.stopped_because === "end_of_connection" && res.has_next_page === false, [res.stopped_because, res.time_budget_hit, res.has_next_page]);
+  }
+  {
+    // No budget: unchanged behaviour and no signal on requests.
+    const h = makeCtx(24, {});
+    const res = await h.ctx.window.__soloGqlPaginate("fb.profile.friends", { max_pages: 5 });
+    check("no budget => all 24 rows, no time_budget_ms, no abort signal", res.count === 24 && res.time_budget_ms === undefined && h.inits().every((i) => !i.signal) && res.stopped_because === "end_of_connection", [res.count, res.time_budget_ms, res.stopped_because]);
   }
 
   console.log("\n" + (fail === 0 ? "ALL " + pass + " CHECKS PASSED" : pass + " passed, " + fail + " FAILED"));

@@ -260,6 +260,20 @@ function sensitiveKeys(o, p, out) {
     const all = await plain.window.__soloXRun("x.post.replies", { max_pages: 5 });
     check("no budget => walks until the replay stops answering (unchanged), time_budget_ms null", all.items.length === 2 && all.time_budget_ms === null && !stub.calls[stub.calls.length - 1].init.signal, [all.items.length, all.stopped_because, all.time_budget_ms]);
   }
+  console.log("x.post.replies — a budget stop with no reply read is time_budget, never replies_hidden");
+  {
+    const focal = "1900000000000000007";
+    const cap = gqlCapture("TweetDetail", { focalTweetId: focal }, { threaded_conversation_with_injections_v2: { instructions: instructions([tweetEntry(focal, { replies: 5 }), cursorEntry("MORE-1", "Bottom")]) } });
+    const res = await makeCtx({ pathname: "/loanfactoryhq/status/" + focal, captures: [cap] }).window.__soloXRun("x.post.replies", { max_pages: 3, time_budget_ms: 2000 });
+    check("0 replies, cursor present, budget short before page 2 => reason time_budget (not replies_hidden), reply_count kept", res.count === 0 && res.stopped_because === "time_budget" && res.reason === "time_budget" && res.reply_count === 5 && res.page_info.resumable === true, [res.count, res.stopped_because, res.reason, res.reply_count]);
+  }
+  console.log("ensureCapture — x.post.replies' two poll passes stop when the budget cannot cover another try");
+  {
+    const t0 = Date.now();
+    const res = await makeCtx({ pathname: "/loanfactoryhq/status/1900000000000000008", captures: [] }).window.__soloXRun("x.post.replies", { ensure_tries: 100, time_budget_ms: 2200 });
+    const took = Date.now() - t0;
+    check("no capture + 2.2s budget: gave up in ~2s (" + took + "ms), not 12s/100s, honest reason", took < 3000 && res.found === false && res.reason === "detail_query_not_captured", [took, res.reason]);
+  }
   console.log("x.post.replies — time budget: a hung replay is aborted at the budget line");
   {
     const focal = "1900000000000000005";

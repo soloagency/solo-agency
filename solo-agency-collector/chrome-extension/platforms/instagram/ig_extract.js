@@ -287,17 +287,23 @@
       return r.text().then(function (t) { guard.clear(); return { status: r.status, json: s.parseResponse ? s.parseResponse(t) : null }; });
     }, function (e) { guard.clear(); throw e; });
   }
-  function ensureCapture(pred, tries, stepMs) {
-    var n = 0;
+  // Polls for a capture until it appears, `tries` runs out, or — when a budget is given — the
+  // remaining budget cannot cover another wait: the pre-pagination poll must not spend the walk's
+  // whole allowance before any budget-aware code runs. tries is clamped at ENSURE_TRIES_MAX.
+  function ensureCapture(pred, tries, stepMs, budget) {
+    var n = 0; tries = Math.min(ENSURE_TRIES_MAX, tries);
     function loop() {
       var c = findCapture(pred);
       if (c) return Promise.resolve(c);
       if (n >= tries) return Promise.resolve(null);
+      if (budget && budget.short(stepMs + 500)) return Promise.resolve(null);
       n += 1;
       return wait(stepMs).then(loop);
     }
     return loop();
   }
+  function triesOf(inputs, dflt) { var t = Number(inputs && inputs.ensure_tries); return Math.min(ENSURE_TRIES_MAX, t > 0 ? t : dflt); }
+  var ENSURE_TRIES_MAX = 30;
   function envelope(capId, items, extra) {
     var out = { capability: capId, available: true, count: items.length, items: items, version: VERSION };
     if (extra) for (var k in extra) out[k] = extra[k];
@@ -344,7 +350,8 @@
     return Math.round(n);
   }
   function profileEnrich(inputs) {
-    return ensureCapture(isProfileCapture, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
+    var budget = budgetOf(inputs);
+    return ensureCapture(isProfileCapture, triesOf(inputs, 6), 1000, budget).then(function (cap) {
       var username = usernameFromHref();
       if (!cap) {
         var dom = profileFromDom();
@@ -426,7 +433,7 @@
         pages += 1;
         if (!fresh.length) { stopped = "no_new_items"; return; }
         return wait(800).then(step);
-      }).catch(function (e) { stopped = isAbort(e) || budget.short(1000) ? "time_budget" : "fetch_error"; });
+      }).catch(function (e) { stopped = isAbort(e) ? "time_budget" : "fetch_error"; });
     }
     return step().then(function () {
       return { items: items, pages: pages, page_info: { end_cursor: str(pageInfo.end_cursor), has_next_page: !!pageInfo.has_next_page, resumable: !!(pageInfo.has_next_page && pageInfo.end_cursor) }, stopped_because: stopped };
@@ -435,7 +442,7 @@
   function profilePosts(inputs) {
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 40) : 1;
     var budget = budgetOf(inputs);
-    return ensureCapture(isPostsCapture, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
+    return ensureCapture(isPostsCapture, triesOf(inputs, 6), 1000, budget).then(function (cap) {
       if (!cap) return envelope(CAP_POSTS, [], { found: false, reason: "posts_query_not_captured", error: "no timeline query captured on this page (private profile, no posts, or the page did not render the grid)" });
       var conn = getPath(responseData(cap), POSTS_CONN);
       var seed = connectionItems(conn);
@@ -467,7 +474,7 @@
   function searchPosts(inputs) {
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 20) : 1;
     var budget = budgetOf(inputs);
-    return ensureCapture(isSerpCapture, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8, 1000).then(function (cap) {
+    return ensureCapture(isSerpCapture, triesOf(inputs, 8), 1000, budget).then(function (cap) {
       if (!cap) return envelope(CAP_SEARCH_POSTS, [], { found: false, reason: "search_query_not_captured", error: "no keyword-search query captured; open https://www.instagram.com/explore/search/keyword/?q=<keyword>" });
       var conn = getPath(responseData(cap), SERP);
       var seed = serpItems(conn);
@@ -485,7 +492,7 @@
           items = items.concat(fresh); pageInfo = isObj(c2.page_info) ? c2.page_info : {}; pages += 1;
           if (!fresh.length) { stopped = "no_new_items"; return; }
           return wait(800).then(step);
-        }).catch(function (e) { stopped = isAbort(e) || budget.short(1000) ? "time_budget" : "fetch_error"; });
+        }).catch(function (e) { stopped = isAbort(e) ? "time_budget" : "fetch_error"; });
       }
       return step().then(function () {
         return envelope(CAP_SEARCH_POSTS, items, { found: items.length > 0, source_query: cap.queryName, query: str(getPath(cap, "variables.query")) || str(inputs.query), pages_fetched: pages,
@@ -561,7 +568,7 @@
     // embedded Relay entry whose code matches the shortcode) — never from whichever comments
     // capture happens to be newest in the ring, which may belong to a post viewed earlier.
     function resolveMediaId() { return mediaId || (shortcode ? mediaIdFromCaptures(shortcode) : ""); }
-    return ensureCapture(function (c) { var id = resolveMediaId(); return !!id && isCommentsCapture(c) && c.url.indexOf("/media/" + id + "/") > -1; }, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 4, 1000).then(function (cap) {
+    return ensureCapture(function (c) { var id = resolveMediaId(); return !!id && isCommentsCapture(c) && c.url.indexOf("/media/" + id + "/") > -1; }, triesOf(inputs, 4), 1000, budget).then(function (cap) {
       if (!mediaId) mediaId = resolveMediaId();
       if (!mediaId) return envelope(CAP_COMMENTS, [], { found: false, reason: "media_id_unknown", error: "could not resolve the media id for " + (shortcode || currentHref()) });
       var items = [], seen = {}, pages = 0, nextMin = "", hasMore = false, stopped = null, header = postHeaderFromCaptures(shortcode);
@@ -577,7 +584,7 @@
       var first = (cap ? Promise.resolve({ status: 200, json: cap.response }) : restGet("/api/v1/media/" + mediaId + "/comments/?can_support_threading=true&permalink_enabled=false", budget.requestMs()))
         .catch(function (e) { return { status: 0, json: null, error: String(e && e.message || e), aborted: isAbort(e) }; });
       return first.then(function (r) {
-        if (!r.json || !Array.isArray(r.json.comments)) return envelope(CAP_COMMENTS, [], { found: false, media_id: mediaId, error: r.error ? "comments fetch failed: " + r.error : "comments answered HTTP " + r.status, stopped_because: r.aborted ? "time_budget" : null, elapsed_ms: budget.elapsed(), time_budget_ms: budget.ms });
+        if (!r.json || !Array.isArray(r.json.comments)) return envelope(CAP_COMMENTS, [], { found: false, media_id: mediaId, error: r.error ? "comments fetch failed: " + r.error : "comments answered HTTP " + r.status, reason: r.aborted ? "time_budget" : null, stopped_because: r.aborted ? "time_budget" : null, elapsed_ms: budget.elapsed(), time_budget_ms: budget.ms });
         take(r.json);
         function step() {
           if (items.length >= maxComments) { stopped = "max_comments"; return Promise.resolve(); }
@@ -591,7 +598,7 @@
             var before = items.length; take(r2.json);
             if (items.length === before) { stopped = "no_new_items"; return; }
             return wait(800).then(step);
-          }).catch(function (e) { stopped = isAbort(e) || budget.short(1000) ? "time_budget" : "fetch_error"; });
+          }).catch(function (e) { stopped = isAbort(e) ? "time_budget" : "fetch_error"; });
         }
         return step().then(function () {
           var declared = header && header.engagement ? header.engagement.comments : (num(r.json.comment_count));
@@ -601,7 +608,8 @@
           // says so instead of looking like "no comments".
           var hidden = items.length === 0 && !hasMore && typeof declared === "number" && declared > 0;
           return envelope(CAP_COMMENTS, items.slice(0, maxComments), { found: items.length > 0, media_id: mediaId, shortcode: shortcode, post: header, comment_count: declared,
-            reason: hidden ? "comments_hidden" : null,
+            // A budget stop with nothing read yet is a slow walk, not an owner hiding comments.
+            reason: (!items.length && stopped === "time_budget") ? "time_budget" : (hidden ? "comments_hidden" : null),
             pages_fetched: pages, page_info: { next_min_id: nextMin, has_more: hasMore, resumable: !!(hasMore && nextMin) }, stopped_because: stopped,
             elapsed_ms: budget.elapsed(), time_budget_ms: budget.ms });
         });

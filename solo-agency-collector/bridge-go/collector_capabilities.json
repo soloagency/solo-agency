@@ -1,6 +1,6 @@
 {
   "object": "collector_capabilities",
-  "version": "0.2.15",
+  "version": "0.2.16",
   "updated_at": "2026-09-11",
   "description": "Machine-readable catalog of data-collection capabilities exposed by the Solo Agency Local Collector. AI agents in playbooks read this list to decide which capability fits a user's request, then submit a collector job whose source specifies the chosen capability id plus inputs. The collector runs the matching extractor and returns typed records. Facebook screens use the internal-GraphQL provider (richer, structured); every other site falls back to generic HTML extraction. Collection is read-only and runs only under the user's explicit command on accounts and pages the logged-in user can already access.",
   "usage": {
@@ -862,8 +862,10 @@
             "value": [
               "end_of_connection",
               "page_cap",
-              "comment_cap"
-            ]
+              "comment_cap",
+              "time_budget"
+            ],
+            "note": "time_budget = the walk stopped on its own clock with rows and cursor kept; on this 1-page probe it can only mean page 1 itself ran past the budget, and records.count then fails the row assert — the right signal for a slow page"
           },
           {
             "path": "records.by_post[0].via",
@@ -2279,7 +2281,7 @@
       "when_to_use": "Read one Instagram profile into a typed record: bio, category, follower/following/media counts, business address when published, and emails/phones PARSED OUT OF THE BIO (Instagram's own profile query publishes no public email/phone field). Submit the profile's ROOT url, https://www.instagram.com/<username>/ — the profile is NOT embedded in the page's initial HTML, it arrives by its own XHR (PolarisProfilePageContentQuery) shortly after load, so this capability polls (`ensure_tries`, 1s apart) for that capture before reading it; a tab that never fires it (private/removed profile, or the query renamed) falls back to a thin DOM read off the visible header instead of returning nothing. Resolves to `available:false, reason:\"self_profile\"` when the profile is the logged-in operator's own.",
       "inputs": {
         "profile_url": "string (required) — https://www.instagram.com/<username>/. This is the job's url: the capture is matched to whichever profile query fired for the tab, so submit the profile's own root url, never /p/ or /reel/.",
-        "ensure_tries": "int (optional, default 6) — how many 1s polls to wait for the profile query capture before falling back to a DOM-only record (see InstagramProfile.source = \"dom\")."
+        "ensure_tries": "int (optional, default 6) — how many 1s polls to wait for the profile query capture before falling back to a DOM-only record (see InstagramProfile.source = \"dom\"); max 30, and the poll also stops once the time budget cannot cover another try."
       },
       "output_schema": "InstagramProfile",
       "provider": "instagram-graphql",
@@ -2647,7 +2649,7 @@
       "when_to_use": "Read one X (Twitter) profile from its page: name, handle, bio, location, website (t.co expanded) and bio links, follower/following/post counts, verified (blue / legacy) and identity-verified flags, professional type + category, joined date, avatar. Submit the profile ROOT url https://x.com/<handle>. X renders no contact fields on the web: emails/phones come only from the bio text. Measured 2026-09-10: the fields live in profile_bio / website / relationship_counts / tweet_counts, not in legacy{} any more.",
       "inputs": {
         "username": "string (optional) — expected handle; the capture must match it (a profile page navigated within the app keeps older captures)",
-        "ensure_tries": "int (optional, default 6) — one-second waits for the profile query"
+        "ensure_tries": "int (optional, default 6) — one-second waits for the profile query; max 30, and the poll also stops once the time budget cannot cover another try."
       },
       "output_schema": "XProfile",
       "provider": "x-graphql",
@@ -2723,7 +2725,7 @@
         "max_pages": "int (optional, default 1, max 40) — timeline pages to gather (each ~20 posts); pages beyond the first are loaded by scrolling",
         "max_posts": "int (optional) — cap on the items returned",
         "include_replies": "bool (optional) — read the Replies tab (UserTweetsAndReplies) instead of Posts",
-        "ensure_tries": "int (optional, default 6)",
+        "ensure_tries": "int (optional, default 6); max 30, and the poll also stops once the time budget cannot cover another try.",
         "time_budget_ms": "int (optional) — see fb.post.comments.time_budget_ms: the walk stops on its own with stopped_because \"time_budget\" and the cursor kept instead of losing every page to the 60 s kill timer."
       },
       "output_schema": "XPostRecord",
@@ -2801,7 +2803,7 @@
         "query": "string (optional) — echoed on the record; the url is the request",
         "mode": "string (optional) — top | latest; picks the matching capture, default whichever the page fired",
         "max_pages": "int (optional, default 1, max 20)",
-        "ensure_tries": "int (optional, default 8)",
+        "ensure_tries": "int (optional, default 8); max 30, and the poll also stops once the time budget cannot cover another try.",
         "time_budget_ms": "int (optional) — see fb.post.comments.time_budget_ms: the walk stops on its own with stopped_because \"time_budget\" and the cursor kept instead of losing every page to the 60 s kill timer."
       },
       "output_schema": "XPostRecord",
@@ -2874,7 +2876,7 @@
       "inputs": {
         "query": "string (optional) — echoed on the record",
         "max_pages": "int (optional, default 1, max 10)",
-        "ensure_tries": "int (optional, default 8)",
+        "ensure_tries": "int (optional, default 8); max 30, and the poll also stops once the time budget cannot cover another try.",
         "time_budget_ms": "int (optional) — see fb.post.comments.time_budget_ms: the walk stops on its own with stopped_because \"time_budget\" and the cursor kept instead of losing every page to the 60 s kill timer."
       },
       "output_schema": "XProfile",
@@ -2949,7 +2951,7 @@
         "post_id": "string (optional) — the status id; taken from the url when absent",
         "max_pages": "int (optional, default 1, max 20)",
         "max_replies": "int (optional, default 100)",
-        "ensure_tries": "int (optional, default 6)",
+        "ensure_tries": "int (optional, default 6); max 30, and the poll also stops once the time budget cannot cover another try.",
         "time_budget_ms": "int (optional) — wall-clock budget for the walk. The dispatcher sets it to its capability kill timer minus a margin (50 000 of 60 000 ms); a job may only LOWER it. When it runs out the walk stops and returns the pages in hand with stopped_because \"time_budget\" and the cursor kept (resumable), and the request in flight is aborted at the budget line — instead of the kill timer discarding every row (the pre-0.2.15 behaviour: a slow network answered count:0). elapsed_ms / time_budget_ms ride on the envelope."
       },
       "output_schema": "XReplyRecord",
@@ -3026,7 +3028,7 @@
       "when_to_use": "Read the logged-in account's home feed on https://x.com/home: the For you tab fires HomeTimeline, the Following tab HomeLatestTimeline (record feed says which). Same post record as x.profile.posts. Deeper pages by scrolling (max_pages).",
       "inputs": {
         "max_pages": "int (optional, default 1, max 10)",
-        "ensure_tries": "int (optional, default 6)",
+        "ensure_tries": "int (optional, default 6); max 30, and the poll also stops once the time budget cannot cover another try.",
         "time_budget_ms": "int (optional) — see fb.post.comments.time_budget_ms: the walk stops on its own with stopped_because \"time_budget\" and the cursor kept instead of losing every page to the 60 s kill timer."
       },
       "output_schema": "XPostRecord",

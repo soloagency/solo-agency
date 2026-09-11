@@ -65,8 +65,13 @@ what remains, and the fallback replay is aborted at the budget line. The result 
 `stopped_because: "time_budget"` with `page_info.resumable` and the last bottom cursor, plus
 `elapsed_ms` / `time_budget_ms` on `x.post.replies`. Before this, a slow page past 60 s answered
 `count: 0` with `error: "capability did not complete"` and every reply already read was lost.
-Measured 2026-09-11 on the canary post: 40 of 48 replies on page 1 at `max_pages: 1`; reaching
-the rest needs `max_pages` 2–3 and, on a slow tab, is now cut cleanly instead of discarded.
+Measured 2026-09-11 on the canary post (71 replies by then): 62 over 3 pages in 7.8 s with a 9 s
+budget (end of thread, no cut); with a 4 s budget, 60 over 2 pages and `stopped_because:
+"time_budget"` with the bottom cursor kept — the pages in hand came back instead of `count: 0`.
+The pre-pagination poll `ensureCapture()` (waiting for the page's own query) also stops once the
+budget cannot cover another try, and `ensure_tries` is clamped at 30, so a page that never fires
+its query cannot spend the whole allowance before any budget-aware code runs. A budget stop with
+no reply read yet is reported as `reason: "time_budget"`, never as `replies_hidden`.
 
 ## 4. Records
 

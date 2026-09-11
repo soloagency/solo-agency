@@ -549,7 +549,24 @@ function sensitiveKeys(o, pathStr, out) {
     const t0 = Date.now();
     const res = await ctx.window.__soloIgRun("ig.post.comments", { media_id: "666", ensure_tries: 1, time_budget_ms: 3000 });
     const took = Date.now() - t0;
-    check("returned within the budget (" + took + "ms): found false, stopped_because time_budget, error says the fetch failed", took < 3700 && res.found === false && res.stopped_because === "time_budget" && /comments fetch failed/.test(String(res.error)), res);
+    check("returned within the budget (" + took + "ms): found false, reason + stopped_because time_budget, error says the fetch failed", took < 3700 && res.found === false && res.reason === "time_budget" && res.stopped_because === "time_budget" && /comments fetch failed/.test(String(res.error)), res);
+  }
+  console.log("ig.search.posts — time budget through its own step loop");
+  {
+    let now = 3000000;
+    const cap = serpCapture([mediaNode({ pk: "4001" }), mediaNode({ pk: "4002" })], { end_cursor: "c2", has_next_page: true }, "mortgage");
+    const stub = fetchStub([{ match: () => true, json: { data: { "xdt_fbsearch__top_serp_graphql": { edges: [{ node: { __typename: "XDTTopSerpMediaGridUnit", items: [mediaNode({ pk: "4003" })] } }], page_info: { end_cursor: "c3", has_next_page: true } } } } }]);
+    const slow = function (url, init) { now += 2000; return stub(url, init); };   // page 2 costs 2s of a 4s budget
+    const ctx = makeCtx({ captures: [cap], origFetch: slow, now: () => now });
+    const res = await ctx.window.__soloIgRun("ig.search.posts", { max_pages: 5, time_budget_ms: 4000 });
+    check("pages 1+2 kept (3 posts), page 3 not started: time_budget, resumable from c3", res.items.length === 3 && stub.calls.length === 1 && res.stopped_because === "time_budget" && res.page_info.end_cursor === "c3" && res.page_info.resumable === true, [res.items.length, stub.calls.length, res.stopped_because, res.page_info]);
+  }
+  console.log("ensureCapture — the pre-pagination poll stops when the budget cannot cover another try");
+  {
+    const t0 = Date.now();
+    const res = await makeCtx({ captures: [] }).window.__soloIgRun("ig.profile.posts", { ensure_tries: 100, time_budget_ms: 2200 });
+    const took = Date.now() - t0;
+    check("no capture + 2.2s budget: gave up in ~1s (" + took + "ms), not 6s/100s, honest reason", took < 2000 && res.found === false && res.reason === "posts_query_not_captured", [took, res.reason]);
   }
   console.log("ig.profile.posts — time budget through the shared paginate()");
   {

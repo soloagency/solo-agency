@@ -517,9 +517,16 @@ paginator (not the plain extractor) for capability jobs.
   `by_post[].stopped_because: "time_budget"`, the cursor kept (`resumable: true`; a post
   never started resumes from its head), `time_budget_hit: true`, `elapsed_ms` and
   `time_budget_ms` on the envelope; a reply walk cut mid-thread marks the parent
-  `replies_cut: true`. The other Facebook walks (`__soloGqlPaginateImpl`, dossier) still
-  rely on their own budgets or the kill timer — port them the same way when a slow-network
-  loss is observed there. Tests: "time budget" block in tests/test_post_comments.js.
+  `replies_cut: true`. The generic engine `__soloGqlPaginateImpl` (the nine
+  `CAPABILITY_PAGINATION` reads: group/profile/search posts, friends, people, groups,
+  newsfeed…) honours the same budget: no page starts under `PAGE_MIN_MS`, the head page
+  and every replay carry the abort signal, and the result adds `stopped_because`
+  (`time_budget` / `page_cap_hit` / `end_of_connection`), `time_budget_hit`,
+  `elapsed_ms`, `time_budget_ms` next to the existing `page_cap_hit` / `resumable`. Only
+  an AbortError is classified as `time_budget`; any other failure keeps its own label
+  (`fetch_failed`, `has_next_page:false`). The dossier keeps its own `budget_ms` ladder
+  budget (a different, older knob — do not merge the two). Tests: "time budget" blocks in
+  tests/test_post_comments.js and tests/test_pagination_resume.js.
 
 ## 11. Collector API cheatsheet
 - `GET /status` — health + which build each client runs (no token)

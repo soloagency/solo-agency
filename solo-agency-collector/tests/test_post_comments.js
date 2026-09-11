@@ -681,6 +681,20 @@ async function run() {
     check("the request carried an abort signal", h.sent.length === 1 && !!h.sentInit[0].signal, Object.keys(h.sentInit[0] || {}));
   }
   {
+    // depth 2, the reply request itself hangs: it is aborted at the budget line, the parent is
+    // kept with replies_cut, and the top-level walk stops on the budget too. Real clock, 3s.
+    const h = makeCtx({ onFetch: (query, vars, o) => {
+      if (query !== REPLY_Q) return null;
+      return new Promise((resolve, reject) => { if (o.signal) o.signal.addEventListener("abort", () => { const e = new Error("The operation was aborted"); e.name = "AbortError"; reject(e); }); });
+    } });
+    const t0 = Date.now();
+    const res = await call(h, { feedback_id: "fb:P1", depth: 2, time_budget_ms: 3000 });
+    const took = Date.now() - t0;
+    const c1 = res.items.find((c) => c.id === "c1");
+    check("reply request aborted within the budget (" + took + "ms): c1 kept, replies_cut, no replies", took < 3700 && !!c1 && c1.replies_cut === true && c1.replies.length === 0, c1 && { replies_cut: c1.replies_cut, replies: c1.replies.length });
+    check("one reply request went out with an abort signal; envelope says time_budget_hit; top-level stopped on the budget", h.sent.filter((s) => s.query === REPLY_Q).length === 1 && h.sentInit.some((i, k) => h.sent[k].query === REPLY_Q && !!i.signal) && res.time_budget_hit === true && res.by_post[0].stopped_because === "time_budget", [h.sent.map((s) => s.query), res.by_post[0].stopped_because]);
+  }
+  {
     // No budget given (offline harness, a direct call): unchanged behaviour, no signal, no fields.
     const h = makeCtx({});
     const res = await call(h, { feedback_id: "fb:P1" });

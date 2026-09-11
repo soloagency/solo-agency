@@ -83,11 +83,23 @@
     for (var i = 0; i < caps.length; i++) { var c = caps[i]; if (!c || !c.response) continue; try { if (pred(c)) out.push(c); } catch (e) { /* skip */ } }
     return out;
   }
-  function ensureCapture(pred, tries, stepMs) {
-    var n = 0;
-    function loop() { var c = findCapture(pred); if (c) return Promise.resolve(c); if (n >= tries) return Promise.resolve(null); n += 1; return wait(stepMs).then(loop); }
+  // Polls for a capture until it appears, `tries` runs out, or — when a budget is given — the
+  // remaining budget cannot cover another wait: the pre-pagination poll must not spend the walk's
+  // whole allowance before any budget-aware code runs. tries is clamped at ENSURE_TRIES_MAX.
+  function ensureCapture(pred, tries, stepMs, budget) {
+    var n = 0; tries = Math.min(ENSURE_TRIES_MAX, tries);
+    function loop() {
+      var c = findCapture(pred);
+      if (c) return Promise.resolve(c);
+      if (n >= tries) return Promise.resolve(null);
+      if (budget && budget.short(stepMs + 500)) return Promise.resolve(null);
+      n += 1;
+      return wait(stepMs).then(loop);
+    }
     return loop();
   }
+  function triesOf(inputs, dflt) { var t = Number(inputs && inputs.ensure_tries); return Math.min(ENSURE_TRIES_MAX, t > 0 ? t : dflt); }
+  var ENSURE_TRIES_MAX = 30;
   function envelope(capId, items, extra) {
     var out = { capability: capId, available: true, count: items.length, items: items, version: VERSION };
     if (extra) for (var k in extra) out[k] = extra[k];
@@ -399,7 +411,7 @@
         cursor = next;
         return wait(900).then(step);
         });
-      }).catch(function (e) { stopped = isAbort(e) || budget.short(1000) ? "time_budget" : "fetch_error"; });
+      }).catch(function (e) { stopped = isAbort(e) ? "time_budget" : "fetch_error"; });
     }
     return step().then(function () {
       if (wantFirst) items = wantFirst(items);
@@ -414,13 +426,14 @@
   }
   function isProfileCapture(c) { return c.kind === "graphql" && /^UserBy(ScreenName|RestId)$/.test(str(c.queryName)) && !!findUserResult(responseData(c)); }
   function profileEnrich(inputs) {
+    var budget = budgetOf(inputs);
     var wantHandle = str(inputs.username || inputs.handle).replace(/^@/, "") || handleFromHref();
     return ensureCapture(function (c) {
       if (!isProfileCapture(c)) return false;
       if (!wantHandle) return true;
       var u = userRef(findUserResult(responseData(c)));
       return !!u && u.username.toLowerCase() === wantHandle.toLowerCase();
-    }, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
+    }, triesOf(inputs, 6), 1000, budget).then(function (cap) {
       if (!cap) return envelope(CAP_PROFILE, [], { found: false, reason: "profile_query_not_captured", error: "no UserByScreenName query captured for " + (wantHandle || "this page") + " (suspended/protected account, login wall, or the query renamed)" });
       var rec = userRecord(findUserResult(responseData(cap)));
       if (!rec) return envelope(CAP_PROFILE, [], { found: false, reason: "profile_unavailable", source_query: cap.queryName });
@@ -438,7 +451,7 @@
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 40) : 1;
     var maxItems = Number(inputs.max_posts) > 0 ? Number(inputs.max_posts) : 0;
     var pred = function (c) { return isUserTimelineCapture(c, withReplies); };
-    return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
+    return ensureCapture(pred, triesOf(inputs, 6), 1000, budget).then(function (cap) {
       if (!cap) return envelope(CAP_POSTS, [], { found: false, reason: "posts_query_not_captured", error: "no " + (withReplies ? "UserTweetsAndReplies" : "UserOriginalsTimeline/UserTweets") + " query captured on this page (protected account, no posts, or the tab did not render)" });
       return paginate(pred, maxPages, tweetsFrom, undefined, budget).then(function (r) {
         var items = maxItems ? r.items.slice(0, maxItems) : r.items;
@@ -456,7 +469,7 @@
     var products = mode ? [mode] : ["Top", "Latest"];
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 20) : 1;
     var pred = function (c) { return isSearchCapture(c, products); };
-    return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8, 1000).then(function (cap) {
+    return ensureCapture(pred, triesOf(inputs, 8), 1000, budget).then(function (cap) {
       if (!cap) return envelope(CAP_SEARCH_POSTS, [], { found: false, reason: "search_query_not_captured", error: "no SearchTimeline query captured; open https://x.com/search?q=<keyword>&src=typed_query" + (mode === "Latest" ? "&f=live" : "") });
       var product = searchProduct(cap);
       return paginate(function (c) { return isSearchCapture(c, [product]); }, maxPages, tweetsFrom, undefined, budget).then(function (r) {
@@ -468,7 +481,7 @@
     var budget = budgetOf(inputs);
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 10) : 1;
     var pred = function (c) { return isSearchCapture(c, ["People"]); };
-    return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8, 1000).then(function (cap) {
+    return ensureCapture(pred, triesOf(inputs, 8), 1000, budget).then(function (cap) {
       if (!cap) return envelope(CAP_PEOPLE, [], { found: false, reason: "search_query_not_captured", error: "no SearchTimeline(People) query captured; open https://x.com/search?q=<keyword>&src=typed_query&f=user" });
       return paginate(pred, maxPages, usersFrom, undefined, budget).then(function (r) {
         return envelope(CAP_PEOPLE, r.items, { found: r.items.length > 0, source_query: cap.queryName, query: str(isObj(cap.variables) ? cap.variables.rawQuery : "") || str(inputs.query), pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because });
@@ -484,14 +497,14 @@
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 20) : 1;
     var maxReplies = Number(inputs.max_replies) > 0 ? Number(inputs.max_replies) : 100;
     var pred = function (c) { return isDetailCapture(c) && (!focalId || str(isObj(c.variables) ? c.variables.focalTweetId : "") === focalId); };
-    var tries = Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8;
+    var tries = triesOf(inputs, 8);
     // Measured 2026-09-10: one healthcheck run in four saw no TweetDetail within the first
     // seconds after landing (the page rendered, the query came late). A small scroll nudge
     // makes X load the conversation; then wait once more before giving up.
-    return ensureCapture(pred, tries, 1000).then(function (cap) {
+    return ensureCapture(pred, tries, 1000, budget).then(function (cap) {
       if (cap) return cap;
       try { if (typeof window.scrollTo === "function") { window.scrollTo(0, 600); } } catch (e) { /* ignore */ }
-      return wait(800).then(function () { try { if (typeof window.scrollTo === "function") window.scrollTo(0, 0); } catch (e) { /* ignore */ } return ensureCapture(pred, Math.max(4, Math.ceil(tries / 2)), 1000); });
+      return wait(800).then(function () { try { if (typeof window.scrollTo === "function") window.scrollTo(0, 0); } catch (e) { /* ignore */ } return ensureCapture(pred, Math.max(4, Math.ceil(tries / 2)), 1000, budget); });
     }).then(function (cap) {
       if (!cap) return envelope(CAP_REPLIES, [], { found: false, reason: "detail_query_not_captured", error: "no TweetDetail query captured for " + (focalId || currentHref()) + " — the page rendered without its conversation query (slow load or a login wall)" });
       var id = focalId || str(isObj(cap.variables) ? cap.variables.focalTweetId : "");
@@ -503,7 +516,8 @@
         replies = replies.slice(0, maxReplies);
         return envelope(CAP_REPLIES, replies, { found: replies.length > 0, source_query: cap.queryName, post_id: id, post: post,
           reply_count: post && post.engagement ? post.engagement.comments : null,
-          reason: (!replies.length && post && post.engagement && post.engagement.comments > 0) ? "replies_hidden" : null,
+          // A budget stop with no reply read yet is a slow walk, not X hiding the replies.
+          reason: (!replies.length && r.stopped_because === "time_budget") ? "time_budget" : ((!replies.length && post && post.engagement && post.engagement.comments > 0) ? "replies_hidden" : null),
           pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because,
           elapsed_ms: budget.elapsed(), time_budget_ms: budget.ms });
       });
@@ -515,7 +529,7 @@
   function timelineHome(inputs) {
     var budget = budgetOf(inputs);
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 10) : 1;
-    return ensureCapture(isHomeCapture, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
+    return ensureCapture(isHomeCapture, triesOf(inputs, 6), 1000, budget).then(function (cap) {
       if (!cap) return envelope(CAP_HOME, [], { found: false, reason: "home_query_not_captured", error: "no HomeTimeline query captured; open https://x.com/home" });
       var name = cap.queryName;
       return paginate(function (c) { return isHomeCapture(c) && c.queryName === name; }, maxPages, tweetsFrom, undefined, budget).then(function (r) {

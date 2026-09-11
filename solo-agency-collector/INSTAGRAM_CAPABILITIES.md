@@ -128,7 +128,10 @@ and `elapsed_ms` / `time_budget_ms` on the comments envelope. Before this a slow
 answered `count: 0`, `error: "capability did not complete"` and every row already read was lost.
 Comment caps stay as they were: `max_comment_pages` 1 (≤20), `max_comments` 50, replies never
 expanded (`comment_count` counts them, which is why 4 of 8 is the normal reading on a post whose
-other 4 are replies).
+other 4 are replies). The pre-pagination poll `ensureCapture()` stops once the budget cannot cover
+another try and `ensure_tries` is clamped at 30; a budget stop with nothing read is reported as
+`reason: "time_budget"`, never as `comments_hidden`. Measured 2026-09-11 on the canary post with
+the default budget: 4 of 8 in 4.5 s, unchanged.
 
 | Envelope field | Meaning |
 |---|---|

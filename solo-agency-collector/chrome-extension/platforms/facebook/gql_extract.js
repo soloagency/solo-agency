@@ -1408,6 +1408,7 @@
     return { signal: ctl.signal, clear: function () { clearTimeout(timer); } };
   }
   function isAbort(e) { return !!e && (e.name === "AbortError" || /abort/i.test(String(e.message || e))); }
+  var PAGE_MIN_MS = 2500; // do not start a page with less than this left
 
   // --- cursor discovery ----------------------------------------------------
   // CAPABILITY_PAGINATION hard-codes one page_info path per capability, taken from the
@@ -3819,7 +3820,7 @@
     // The job's share of the dispatcher's kill timer (background.js passes time_budget_ms). A
     // page is not started when fewer than PAGE_MIN_MS remain, and each request is aborted at
     // the budget line, so the walk always returns its rows before the 60s kill discards them.
-    var budget = budgetOf(inputs), PAGE_MIN_MS = 2500, budgetHit = false;
+    var budget = budgetOf(inputs), budgetHit = false;
     // depth counts LEVELS OF COMMENT, not levels of reply. depth:1 — the default — is the
     // direct comments on the post and nothing beneath them; depth:2 adds their replies; 3 adds
     // replies of replies. The ceiling is 4 because Facebook's own client stops recursing there.
@@ -3938,7 +3939,7 @@
           return deeper.reduce(function (chain, fn) { return chain.then(fn); }, Promise.resolve())
             .then(function () { return more ? wait(300).then(stepReply) : undefined; });
         }).catch(function (e) {
-          if (isAbort(e) || budget.short(1000)) { budgetHit = true; rec.replies_cut = true; }
+          if (isAbort(e)) { budgetHit = true; rec.replies_cut = true; }
           if (notes.length < 8) notes.push("replies " + rec.id + ": " + (isAbort(e) ? "time budget exhausted mid-request, replies incomplete" : String(e && e.message || e)));
         });
       }
@@ -4015,7 +4016,7 @@
         }).catch(function (e) {
           // An abort at the budget line is the walk stopping on purpose; the page it was
           // fetching is still owed, so the cursor it asked with stays the resume point.
-          if (isAbort(e) || budget.short(1000)) { stopped = "time_budget"; budgetHit = true; hasNext = true; }
+          if (isAbort(e)) { stopped = "time_budget"; budgetHit = true; hasNext = true; }
           else stopped = "fetch_failed";
           if (notes.length < 8) notes.push(feedbackId + ": " + (isAbort(e) ? "time budget exhausted mid-request" : String(e && e.message || e)));
         });
@@ -4134,6 +4135,10 @@
     var store = window.__soloGql;
     var maxPages = inputs.max_pages != null ? inputs.max_pages : 8;
     maxPages = Math.max(0, Math.min(40, maxPages));
+    // The job's share of the dispatcher's kill timer (see budgetOf): no page starts with under
+    // PAGE_MIN_MS left and each replay is aborted at the budget line, so a slow network hands
+    // back the pages in hand (time_budget_hit, resumable cursor) instead of count:0.
+    var budget = budgetOf(inputs), timeBudgetHit = false;
     if (!cfg || maxPages <= 0 || !store || typeof store.origFetch !== "function" || !base || !Array.isArray(base.items)) {
       return Promise.resolve(base);
     }
@@ -4195,7 +4200,7 @@
     // id, url and text come from ONE node and cannot be mispaired, unlike anything rebuilt
     // from the DOM, where a comment's text can end up attached to the post it sits under.
     function headPage() {
-      return replayPage(store, seed, null, capabilityId).then(function (resp) {
+      return replayPage(store, seed, null, capabilityId, { timeoutMs: budget.requestMs() }).then(function (resp) {
         if (!resp) return;
         var got = extractReplayItems(resp, capabilityId, seed, cfg.pageInfoPath);
         state.headVia = got.via;
@@ -4215,8 +4220,9 @@
 
     function step() {
       if (!state.hasNext || !state.cursor || state.pages >= maxPages) return Promise.resolve();
+      if (budget.short(PAGE_MIN_MS)) { timeBudgetHit = true; return Promise.resolve(); }
       state.pages += 1;
-      return replayPage(store, seed, state.cursor, capabilityId).then(function (resp) {
+      return replayPage(store, seed, state.cursor, capabilityId, { timeoutMs: budget.requestMs() }).then(function (resp) {
         if (!resp) { state.hasNext = false; return; }
         var got = extractReplayItems(resp, capabilityId, seed, cfg.pageInfoPath);
         got.items.forEach(function (it) {
@@ -4227,7 +4233,11 @@
         state.cursor = pinfo.end_cursor;
         state.hasNext = !!pinfo.has_next_page;
         return wait(400 + Math.floor((state.pages % 3) * 150)).then(step); // gentle pacing
-      }).catch(function () { state.hasNext = false; });
+      }).catch(function (e) {
+        // An abort at the budget line keeps has_next_page and the cursor: that page is still
+        // owed and the next leg resumes from it. Any other failure ends the walk as before.
+        if (isAbort(e)) { timeBudgetHit = true; state.pages -= 1; } else state.hasNext = false;
+      });
     }
 
     // The head page is the FIRST leg's job only. Re-fetching it while resuming would re-add rows
@@ -4254,6 +4264,10 @@
       base.end_cursor = state.cursor || null;
       base.has_next_page = !!state.hasNext;
       base.resumable = !!(state.hasNext && state.cursor);
+      base.stopped_because = timeBudgetHit ? "time_budget" : (base.page_cap_hit ? "page_cap_hit" : (!state.hasNext ? "end_of_connection" : null));
+      base.elapsed_ms = budget.elapsed();
+      if (budget.ms) base.time_budget_ms = budget.ms;
+      if (timeBudgetHit) base.time_budget_hit = true;
       base = applyTimeWindow(base, inputs);
       // The base extraction runs BEFORE the head fetch and the pagination walk, so on a screen
       // whose natural capture held nothing it stamps reason:"no_match" — which then survived
