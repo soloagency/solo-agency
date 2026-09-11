@@ -59,6 +59,7 @@ count, never a guess from memory:
 | 13 | Last run recency | most recent `standup.jsonl` line's `ts` for this client, and the corresponding `fleet/{client_slug}.json.report.last_report_at` |
 | 14 | Published content / analytics staleness | `fleet/{client_slug}.json` → `engagement`, `report`; last analytics pull date |
 | 15 | Provider (WideCast) connection | `integrations/providers/provider_config.local.json` + `provider_capabilities.json` verified identity |
+| 16 | Discovered sources awaiting a decision | source registry rows `kind: discovered` — count `status: new` (awaiting the Boss's approve/dismiss) and count `status: approved` (approved, not yet harvested) (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`) |
 
 Read every row that is cheap to read (files already on disk) on every reply; skip a row only when
 its file genuinely does not exist yet for this install (e.g. no CRM workspace, no campaigns) and
@@ -69,9 +70,10 @@ say so rather than inventing a zero.
 When more than one signal fires, resolve in this order — always show the highest tier that fired,
 never bury it under a lower one:
 
-1. **Backlog** — approvals waiting (signals 3-4), a recommended discovery shortlist (signal 5), an
-   unresolved blocker (signal 6), or a Boss-orders row stuck on `waiting_boss`/`blocked` (signal 7).
-   Nothing else gets offered ahead of clearing what is already sitting there.
+1. **Backlog** — approvals waiting (signals 3-4), a recommended discovery shortlist (signal 5),
+   discovered sources with `status: new` (signal 16), an unresolved blocker (signal 6), or a
+   Boss-orders row stuck on `waiting_boss`/`blocked` (signal 7). Nothing else gets offered ahead of
+   clearing what is already sitting there.
 2. **Lead generation** — running scans/harvests against sources already approved, to bring in more
    leads (Social Discovery Pass, private-group scans, friend/people/Zillow harvest, list import).
 3. **Lead exploitation** — working leads already in the CRM (hello campaigns, enrichment,
@@ -144,6 +146,8 @@ Starter; everything else is a data feature and runs on every plan, Free included
 |---|---|---|---|---|---|---|---|---|
 | `show_approval_report` * | 1 | pending-approval files > 0 (poll #3-4) | review and approve/reject what's waiting | "Anh có {N} email/bài đang chờ duyệt, em trình luôn cho anh xem không?" | "You have {N} emails/posts waiting for your approval — want me to show them now?" | Approval Workflow (`outreach/playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` step 5-6; `09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` §23.3) | nothing, ready now | Free+ |
 | `promote_discovered_groups` | 1 | shortlist rows `status: recommended` (poll #5) | promote or reject the recommended groups | "Em tìm được {N} nhóm Facebook hợp, anh duyệt nhóm nào để em theo dõi mỗi ngày?" | "I found {N} Facebook groups that fit — which ones should I start monitoring daily?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, Social Discovery Pass (Facebook leg — shortlist stays Facebook-only) | `facebook_lead_source: enabled` | Free+ |
+| `review_discovered_sources` | 1 | discovered-source rows `status: new` (poll #16) | list the new discovered threads with excerpt and reason, read a post aloud on request | "Em tìm được {N} bài mà người trả lời có thể là khách của anh — anh nghe qua từng bài không?" | "I found {N} posts whose repliers might be your buyers — want me to walk through them?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Step 5" | nothing, ready now | Free+ |
+| `harvest_thread` | 2 | Boss names a discovered source (or approves one via the Discovered tab) (poll #16, `status: new`/`approved`) | run the batch triage harvest on that one thread now | "Em quét bình luận bài đó và đưa những người phù hợp vào CRM nhé?" | "Want me to triage that thread's comments and add the right people to the CRM?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Harvest a discovered thread (on the Boss's order only)" | a named `source_id`, `status: new` or `approved` | Free+ |
 | `resolve_blocker` | 1 | `standup.jsonl` tail `blockers[]` non-empty (poll #6) | walk through the blocker and fix it now | "Lần chạy gần nhất bị vướng {blocker}, anh muốn em xử lý ngay không?" | "The last run hit a blocker ({blocker}) — want me to work through it now?" | whichever stage owns the blocker code | nothing, ready now | Free+ |
 | `answer_boss_orders` | 1 | ledger row `waiting_boss`/`blocked` (poll #7) | surface the row, ask the missing question | "Đơn hàng \"{order}\" đang chờ anh trả lời {question}." | "Your order \"{order}\" is waiting on your answer to {question}." | `playbooks/TEAM_MODEL.md`, Boss-orders ledger | nothing, ready now | Free+ |
 | `social_login_reconnect` (formerly `fb_login_reconnect`) | 1 | `extension_health.status` `stale`/`no_extension_check_yet` past grace (poll #12), or any of `facebook_lead_source`/`instagram_lead_source`/`x_lead_source` `web_only` with reason `not logged in on {date}` (poll #10) | reconnect the login(s) — names whichever platform(s) are logged out/stale | Login Reminder block, verbatim, naming the platform(s) affected | Login Reminder block, verbatim, naming the platform(s) affected | `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 12D; `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)" | Chrome extension reload/login for the named platform(s) | Free+ |
@@ -218,6 +222,12 @@ Starter; everything else is a data feature and runs on every plan, Free included
   Discovery Pass leg once they enable it — because a `web_only` client who later enables a platform
   still gets that platform's FIRST RUN budget on whichever run turns out to be its first-ever pass,
   per `{platform}_discovery_first_pass_done`.
+- **`review_discovered_sources`** and **`harvest_thread`** are distinct: the first only lists what
+  Step 5 already recorded (read-only, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Step 5") and
+  reads a post's text aloud on request — it never triages comments or writes to the CRM; the second
+  is the actual harvest job and only runs against a source the Boss named (or approved via the
+  Discovered tab), never against "all new ones" in one call. Answer-and-Show for both opens
+  `/ui/{client}/sources?tab=discovered`.
 - **`mine_network_ff`** is distinct from `harvest_friend_list`: the first offer starts a harvest
   from a Boss-named seed's own friend list; this one only becomes relevant after that harvest has
   already run once and widening to a friend-of-friend seed is the next lever — it is never offered

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P24",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 request (recommend a buyer's agent); Q2 realtors (agents in Dallas-Fort Worth); Q3 none (realtors not in mlo types); Q4 N/A; Q5 location Dallas, not California → unlikely"
+  },
+  {
+    "id": "A01",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 promotion (just listed property, open house) → unlikely"
+  },
+  {
+    "id": "A02",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 promotion (rate update, call to author's own service for quotes) → unlikely"
+  },
+  {
+    "id": "A03",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement (market commentary on insurance rates, no question) → unlikely"
+  },
+  {
+    "id": "A04",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement (work showcase from nail salon) → unlikely"
+  },
+  {
+    "id": "A05",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement (milestone update, no question) → unlikely"
+  },
+  {
+    "id": "A06",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement (team update, celebration) → unlikely"
+  },
+  {
+    "id": "A07",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement (client result, agency milestone) → unlikely"
+  },
+  {
+    "id": "A08",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 promotion (call to action offering author's own service: 'Anyone need a fast editor') → unlikely"
+  },
+  {
+    "id": "A09",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 promotion (coaching framework sales/promotion) → unlikely"
+  },
+  {
+    "id": "A10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement (client win, coaching update) → unlikely"
+  },
+  {
+    "id": "A11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement (routine business hours announcement) → unlikely"
+  }
+]

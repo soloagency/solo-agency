@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P12",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes, asks 'What tipped the decision for you?' Q2 Costa Mesa residents considering buy-vs-rent decision Q3 answerers are homebuyers/homeowners, consumers with no business, match none Q4 N/A Q5 worldwide"
+  },
+  {
+    "id": "P13",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes, asks 'Có ai bị giống vậy không?... ai biết recommend giúp em' Q2 car owners (peers) and insurance agents (providers) Q3 insurance agents match independent professional of ANY trade Q4 insurance agents are not video editor competitors Q5 worldwide"
+  },
+  {
+    "id": "P14",
+    "types_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes, asks 'Ai biết cần xin giấy phép (business license) gì và bảo hiểm (insurance) gì không ạ?' Q2 small business owners, accountants, insurance agents for small business Q3 nail salon owners match owner of ANY small shop or service business Q4 not video editor competitors Q5 worldwide"
+  },
+  {
+    "id": "P15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes, asks 'Cả nhà setup gì đầu tiên vậy ạ?' Q2 new parents, experienced parents Q3 new parents are consumers, not people who sell something, match none Q4 N/A Q5 worldwide"
+  },
+  {
+    "id": "P16",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes, asks 'Có ai đang chạy Tesla ở CA share rate... Ai có rate tốt recommend giúp em' Q2 Tesla owners (peers) and insurance agents (providers) Q3 insurance agents match independent professional of ANY trade Q4 insurance agents not video editor competitors Q5 worldwide"
+  },
+  {
+    "id": "P17",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes, asks 'Anyone actually pulling the trigger on a refi right now? Who did you use?' Q2 homeowners considering refinance and loan officers (providers) Q3 loan officers match independent professional of ANY trade Q4 loan officers not video editor competitors Q5 worldwide"
+  },
+  {
+    "id": "P18",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes, asks 'Fellow agents — which lenders do you actually trust to close on time?' Q2 real estate agents (peer professionals) Q3 agents match independent professional of ANY trade who markets themselves Q4 agents not video editor competitors Q5 worldwide"
+  },
+  {
+    "id": "P19",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes, asks 'Anyone else deal with this?' Q2 first-time home buyers Q3 buyers are consumers, not people who sell something, match none Q4 N/A Q5 worldwide"
+  },
+  {
+    "id": "P20",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes, asks 'nên tìm loan officer trước hay realtor trước ạ? Mong mọi người chỉ giáo' Q2 first-time buyers (peers) and real estate agents, loan officers (providers) Q3 agents and lenders match independent professional of ANY trade Q4 agents and lenders not video editor competitors Q5 worldwide"
+  },
+  {
+    "id": "P21",
+    "types_match": "creator, course seller, freelancer or one-person agency of ANY kind (a marketing or lead-gen agency, a coach, a graphic designer are customers here; they need video too)",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes, asks 'Ai biết editor nào chỉnh giúp (cắt, ghép nhạc, phụ đề) không ạ?' Q2 video editors, post-production freelancers Q3 video editors match creator freelancer or one-person agency Q4 video editors ARE competitors (they sell video editing services) Q5 worldwide"
+  },
+  {
+    "id": "P22",
+    "types_match": "creator, course seller, freelancer or one-person agency of ANY kind (a marketing or lead-gen agency, a coach, a graphic designer are customers here; they need video too)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes, asks 'ai biết agency nào chuyên làm marketing cho realtor không ạ?... Ai dùng rồi review giúp em' Q2 marketing agencies (providers), real estate agents (peers) Q3 marketing agencies match creator freelancer or one-person agency Q4 marketing agencies not video editor competitors Q5 worldwide"
+  },
+  {
+    "id": "P23",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no, this is a promotion/recruiting ad offering the author's own service (hiring for insurance company), not asking for replies from an audience Q2 N/A Q3 N/A Q4 N/A Q5 N/A"
+  }
+]

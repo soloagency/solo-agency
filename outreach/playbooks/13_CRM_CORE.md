@@ -53,6 +53,13 @@ a lifecycle-rule effect (r1-r6) or a human override changes `lifecycle_stage`/de
   10's drafted value-first comment/reply for a hot contact is queued ahead of warm/watch contacts
   in any review queue or digest — the rule already named the friction, so the draft can reference
   it directly instead of opening cold.
+- **A discovered-thread harvest tags `source:thread:{id}`** (`{id}` = the discovered source's own
+  id, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`) instead of `source:lead_scan`
+  (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Harvest a discovered thread"). A contact captured
+  this way defaults to `fit:high, intent:none` → `lead:warm` — the same "right type, no stated need
+  yet" cell as above — unless that author's own comment stated an intent, in which case
+  `intent:explicit|implied` is read from `playbooks/COMMENT_TRIAGE_RULE.md`'s own output for that
+  row, never assumed.
 
 ## Lifecycle & stage rules (deterministic — DESIGN §7.6)
 

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P12",
+    "types_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County (a stated move there, a job there)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 Yes - gathering question (rent vs buy decision). Q2 Answerers = people considering housing decision in Costa Mesa (OC area). Q3 types_match = person considering housing change in Orange County area. Q4 Own-trade check N/A (peers). Q5 Location = Costa Mesa is in Orange County service area."
+  },
+  {
+    "id": "P13",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Yes - asks for insurance agent recommendations. Q2 Answerers = insurance agents. Q3 types_match = none (insurance agents not in realtor types). Stop at Q3."
+  },
+  {
+    "id": "P14",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Yes - asks for business license and insurance advice. Q2 Answerers = government officials, accountants, insurance agents for small businesses. Q3 types_match = none (not home buyers). Stop at Q3."
+  },
+  {
+    "id": "P15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Yes - gathering question for new parents setup in Irvine. Q2 Answerers = new parents in Irvine. Q3 types_match = none (new parents not a housing transaction type). Stop at Q3."
+  },
+  {
+    "id": "P16",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Yes - asks for insurance recommendations. Q2 Answerers = insurance agents. Q3 types_match = none (insurance agents not in realtor types). Stop at Q3."
+  },
+  {
+    "id": "P17",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Yes - asks for lender recommendations and refi experiences. Q2 Answerers = loan officers, homeowners doing refinance. Q3 types_match = none (refinance is staying put, not housing change; lenders are transaction partners in not_buyers). Stop at Q3."
+  },
+  {
+    "id": "P18",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Yes - peer question to agents, asks for lender recommendations. Q2 Answerers = real estate agents. Q3 types_match = none (agents are not buyers; they are not in realtor types). Stop at Q3."
+  },
+  {
+    "id": "P19",
+    "types_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County (a stated move there, a job there)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 Yes - asks about pre-approval timeline in home buying process. Q2 Answerers = first-time home buyers in pre-approval stage. Q3 types_match = person about to buy. Q4 Own-trade N/A. Q5 Location = post place unknown but post is in California first-time buyer group; unknown location still yields likely per rule."
+  },
+  {
+    "id": "P20",
+    "types_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County (a stated move there, a job there)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 Yes - asks for advice on home purchase process (loan officer or realtor first). Q2 Answerers = home buyers in OC/nearby, agents, loan officers (peers and providers). Q3 types_match = person about to buy home in OC. Q4 Decide on peers (per rule when both types present). Q5 Location = explicitly OC or nearby area."
+  },
+  {
+    "id": "P21",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Yes - asks for video editor recommendations. Q2 Answerers = video editors. Q3 types_match = none (video editors not in realtor types). Stop at Q3."
+  },
+  {
+    "id": "P22",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Yes - asks for marketing agency recommendations for realtors. Q2 Answerers = marketing agencies, realtors using marketing. Q3 types_match = none (marketing agencies and agents not in realtor buyer types). Stop at Q3."
+  },
+  {
+    "id": "P23",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No - this is a promotion/recruiting ad. Author is posting a job opening (selling positions to license-seekers), not asking audience for recommendations. Per Step 5: author of promotion is selling, not asking. Promotion → unlikely. Stop."
+  }
+]

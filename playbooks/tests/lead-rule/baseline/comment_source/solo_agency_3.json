@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P24",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for buyer's agent recommendation from person relocating; Q2 answerers = realtors (providers) and home buyers (situation); Q3 realtors match first type line for independent professionals; Q4 realtors not competitors to Solo Agency (not marketing/lead-gen services); Q5 location worldwide, Dallas does not disqualify"
+  },
+  {
+    "id": "A01",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 promotion (listing showcase) with call to action to tag others; author selling own property listing service, not asking for provider recommendations; statement/promotion → stop"
+  },
+  {
+    "id": "A02",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 rate update and call to action offering author's own lending service; 'DM me for quote' is author selling own service, not asking for recommendations; statement/promotion → stop"
+  },
+  {
+    "id": "A03",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement about insurance market with case study of author's own insurance work; no question or request for recommendations; statement/market commentary → stop"
+  },
+  {
+    "id": "A04",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 promotion/showcase of author's own nail salon work; 'walk-in luôn được' is information about service hours, not asking for recommendations; statement/promotion → stop"
+  },
+  {
+    "id": "A05",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 personal achievement announcement about founder's SaaS milestone; no question or request for recommendations; statement/announcement → stop"
+  },
+  {
+    "id": "A06",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 team update about hiring a video editor; no question or request; personal update about author's own business decision → stop"
+  },
+  {
+    "id": "A07",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 case study promoting author's own marketing agency work (3x ROAS results); no question or request for recommendations; promotional statement → stop"
+  },
+  {
+    "id": "A08",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 'Anyone need a fast editor' is author OFFERING own video editing service, not asking for provider recommendations; call to action offering author's own service → stop"
+  },
+  {
+    "id": "A09",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 case study promoting author's own coaching program; 'Doors open if you want in' offers author's service; no ask for external provider recommendations; promotion → stop"
+  },
+  {
+    "id": "A10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 case study of author's own coaching success; no question or request for recommendations; promotional statement → stop"
+  },
+  {
+    "id": "A11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 announcement of author's own business hours extension; informational update about author's service, not asking for recommendations; statement/announcement → stop"
+  }
+]

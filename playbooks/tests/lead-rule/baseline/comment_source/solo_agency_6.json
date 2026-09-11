@@ -1,0 +1,65 @@
+[
+  {
+    "id": "B07",
+    "index": 60,
+    "types_match": "creator, course seller or freelancer of ANY kind who sells something to clients (a freelancer selling services to others is a customer here, not a competitor, unless they sell marketing or lead generation itself)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: yes, asks for tutoring recommendations ('ai biết ai giỏi giới thiệu dùm em'); Q2: tutors/tutoring freelancers; Q3: creator, course seller or freelancer of ANY kind who sells something to clients; Q4: tutors are not competitors to solo_agency; Q5: location worldwide for solo_agency"
+  },
+  {
+    "id": "B08",
+    "index": 61,
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: yes, asks for insurance agent recommendations ('Anyone have a good agent?'); Q2: insurance agents; Q3: independent professional of ANY trade who lives on their own pipeline (insurance agent listed); Q4: insurance agents are not competitors; Q5: location worldwide"
+  },
+  {
+    "id": "B09",
+    "index": 62,
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: yes, asks for realtor recommendations ('ai biet agent nao ban nhanh gia tot recommend dum'); Q2: realtors; Q3: independent professional of ANY trade who lives on their own pipeline (real-estate agent listed); Q4: realtors are not competitors; Q5: location worldwide"
+  },
+  {
+    "id": "B10",
+    "index": 63,
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: no; bio-only profile with no post content asking for anything"
+  },
+  {
+    "id": "B11",
+    "index": 64,
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: no; statement/announcement about relocation with hedged uncertainty ('not sure where yet, maybe somewhere in SoCal or maybe not'), not asking for provider recommendations or referrals"
+  },
+  {
+    "id": "B12",
+    "index": 65,
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: yes, asks for lender recommendations ('ai co good lender contact khong'); Q2: lenders/loan officers; Q3: independent professional of ANY trade who lives on their own pipeline (loan officer listed); Q4: loan officers are not competitors; Q5: location worldwide"
+  },
+  {
+    "id": "B13",
+    "index": 66,
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: yes, asks for insurance agent recommendations ('có ai biết agent bảo hiểm nhà nào'); Q2: insurance agents; Q3: independent professional of ANY trade who lives on their own pipeline (insurance agent listed); Q4: insurance agents are not competitors; Q5: location worldwide"
+  },
+  {
+    "id": "B14",
+    "index": 67,
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: yes, asks for realtor recommendations ('Any recommendations for realtors'); Q2: realtors; Q3: independent professional of ANY trade who lives on their own pipeline (real-estate agent listed); Q4: realtors are not competitors; Q5: location worldwide"
+  },
+  {
+    "id": "B15",
+    "index": 68,
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: no; bio-only profile with no post content asking for anything"
+  }
+]

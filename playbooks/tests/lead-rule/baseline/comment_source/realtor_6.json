@@ -1,0 +1,56 @@
+[
+  {
+    "id": "B07",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes-request for tutor, Q2 tutors, Q3 none"
+  },
+  {
+    "id": "B08",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes-request for insurance agent, Q2 insurance agents, Q3 none"
+  },
+  {
+    "id": "B09",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes-request for realtor, Q2 realtors, Q3 none, Q4 competitors"
+  },
+  {
+    "id": "B10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no-profile bio statement only, no request"
+  },
+  {
+    "id": "B11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no-personal statement with uncertainty, no clear request"
+  },
+  {
+    "id": "B12",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes-request for lender contact, Q2 lenders, Q3 none"
+  },
+  {
+    "id": "B13",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes-request for insurance agent, Q2 insurance agents, Q3 none"
+  },
+  {
+    "id": "B14",
+    "types_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County (a stated move there, a job there)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes-request for realtors, Q2 realtors and first-time home buyers, Q3 first-time buyers match types, Q4 decide on peers not competitors, Q5 location Tustin/Irvine in OC"
+  },
+  {
+    "id": "B15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no-profile bio statement only, no request"
+  }
+]

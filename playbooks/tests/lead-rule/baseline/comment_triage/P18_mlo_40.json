@@ -1,0 +1,35 @@
+[
+  {
+    "id": "P18-40",
+    "person_type": "unknown",
+    "sells_to_match": "none",
+    "fit": "low",
+    "competitor": false,
+    "noise": true,
+    "intent": "none",
+    "decision": "drop",
+    "reason": "Bare meme/reaction comment with no identity or business information claimed"
+  },
+  {
+    "id": "P18-41",
+    "person_type": "realtor",
+    "sells_to_match": "none",
+    "fit": "low",
+    "competitor": false,
+    "noise": false,
+    "intent": "none",
+    "decision": "drop",
+    "reason": "Real-estate agent in Phoenix AZ, outside California service area; location boundary lowers fit despite matching agent type"
+  },
+  {
+    "id": "P18-42",
+    "person_type": "realtor",
+    "sells_to_match": "real-estate agent or broker (partner segment)",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "none",
+    "decision": "keep",
+    "reason": "Real-estate agent in Rancho Santa Margarita, CA (Orange County); matches partner-segment type with correct location"
+  }
+]

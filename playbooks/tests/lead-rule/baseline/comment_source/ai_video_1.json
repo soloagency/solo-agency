@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P01",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: YES — asking for realtor provider to list house. Q2: realtors/real-estate agents who will reply. Q3: types_match = independent professionals who market themselves; realtors market themselves and could grow by posting more video. Q4: realtors are not competitors to ai_video. Q5: location worldwide applies."
+  },
+  {
+    "id": "P02",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: YES — asking for loan officer provider. Q2: loan officers who will reply. Q3: types_match = independent professionals who market themselves; loan officers market themselves. Q4: loan officers are not competitors. Q5: location worldwide."
+  },
+  {
+    "id": "P03",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: YES — asking for insurance agent provider. Q2: insurance agents who will reply. Q3: types_match = independent professionals who market themselves; insurance agents market themselves. Q4: not competitors to ai_video. Q5: location worldwide."
+  },
+  {
+    "id": "P04",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: YES — asking for personal trainer provider. Q2: personal trainers who will reply. Q3: types_match = independent professionals who market themselves; trainers market themselves and need video content. Q4: not competitors. Q5: location worldwide."
+  },
+  {
+    "id": "P05",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: YES — asking for videographer provider. Q2: videographers/video production professionals who will reply. Q3: types_match would be independent professionals, but Q4: videographers are competitors to ai_video (videography and video editing/production services listed in competitors). Competitors → unlikely."
+  },
+  {
+    "id": "P06",
+    "types_match": "creator, course seller, freelancer or one-person agency of ANY kind (a marketing or lead-gen agency, a coach, a graphic designer are customers here; they need video too)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: YES — peer question addressed to coaches about client acquisition from social media. Q2: coaches/peer course creators who will reply. Q3: types_match = creator, course seller, freelancer or one-person agency of ANY kind (includes coaches). Q4: coaches not competitors. Q5: location worldwide."
+  },
+  {
+    "id": "P07",
+    "types_match": "owner of ANY small shop or service business (e.g. salon, restaurant, gym, clinic, auto shop, food truck, tutoring center, property management)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: YES — peer question asking nail salon owners about TikTok strategy for customers. Q2: nail salon owners who will reply. Q3: types_match = owner of ANY small shop or service business (salon is example). Q4: not competitors. Q5: location worldwide."
+  },
+  {
+    "id": "P08",
+    "types_match": "founder of a small startup or SaaS",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: YES — peer question addressing SaaS founders about demo video creation. Q2: SaaS founders who will reply. Q3: types_match = founder of a small startup or SaaS. Q4: SaaS founders answering are not automatically competitors (answering about demo video strategy, not necessarily selling video editing). Q5: location worldwide."
+  },
+  {
+    "id": "P09",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: YES — gathering question about people moving to Irvine. Q2: movers/people relocating to Irvine (consumer situation). Q3: types_match = none (ai_video types are professionals and business owners, not consumer situations). → unlikely."
+  },
+  {
+    "id": "P10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: YES — peer question asking people who have sold homes before for advice. Q2: homeowners/people who have sold homes (consumer situation). Q3: types_match = none (ai_video types are professionals and business owners, not consumer home-sellers). → unlikely."
+  },
+  {
+    "id": "P11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: YES — gathering question addressing first-time home buyers in Orange County. Q2: first-time home buyers/people in consumer home-buying situation. Q3: types_match = none (ai_video types don't include consumer buyer situations). → unlikely."
+  },
+  {
+    "id": "P12",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: YES — gathering question about renting vs buying decision. Q2: people in housing decision situation (consumers). Q3: types_match = none (ai_video types are professionals and business owners, not consumers in housing decisions). → unlikely."
+  }
+]

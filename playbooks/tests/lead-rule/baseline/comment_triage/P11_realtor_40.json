@@ -1,0 +1,13 @@
+[
+  {
+    "id": "P11-41",
+    "person_type": "First-time home buyer",
+    "sells_to_match": "person about to buy a home in Orange County",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "First-time buyer actively looking in Rancho Santa Margarita (Orange County), matching realtor's target buyer type exactly"
+  }
+]

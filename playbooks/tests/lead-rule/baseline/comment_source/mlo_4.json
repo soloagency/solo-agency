@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A13",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Statement/update about a completed automotive job, not a request for replies. Author is showcasing their own work (auto shop), not asking for recommendations or provider input."
+  },
+  {
+    "id": "A14",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Promotion with booking CTA. Author (wedding photographer) is offering their own service ('Booking into next spring now, link in bio for availability'), not requesting recommendations or replies from potential providers or peers."
+  },
+  {
+    "id": "A15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Statement/promotion of menu update. Author is announcing a new item at their restaurant and inviting customers, not requesting replies from providers or asking for recommendations."
+  },
+  {
+    "id": "A16",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Statement/showcase of a completed job. Author (AC installer) is showcasing their own work, not requesting recommendations or asking for replies from peers or providers."
+  },
+  {
+    "id": "A17",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Statement/announcement. Author (tutoring center owner) is announcing their new SAT prep program launch, not requesting recommendations or asking for replies from potential customers or providers."
+  },
+  {
+    "id": "A18",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Promotion/statement. Author (personal trainer) is showcasing client results and promoting coaching spots ('Coaching spots for Jan filling up'), not requesting recommendations or replies from providers."
+  },
+  {
+    "id": "A19",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Promotion of author's own service. Though phrased as a question ('Ai đang tìm nhà'), this is the author (realtor) offering their own listing and inviting interested buyers to contact them ('cứ nhắn mình để coi nhà'), not requesting provider recommendations. Author is selling, not asking."
+  },
+  {
+    "id": "A20",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Promotion of author's own service. Author (realtor in Dallas) is offering their own service ('I'd love to help them find their next home'), not requesting recommendations or replies from providers."
+  },
+  {
+    "id": "A21",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Promotion of author's own service. Author (loan officer in California) offers their own service ('Ai cần pre-approval nhắn tín mình'), not requesting recommendations from other providers or peers."
+  },
+  {
+    "id": "A22",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Statement/conversation snippet. Author is sharing information about insurance coverage updates they've made for clients, not requesting recommendations or asking for replies from providers."
+  },
+  {
+    "id": "A23",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Statement/update. Author (nail salon owner) is showcasing their work and providing business hours, not requesting recommendations or asking for replies from other providers or customers."
+  },
+  {
+    "id": "A24",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 Statement/update about a completed job. Author (automotive detailing shop) is showcasing their work and noting availability ('Slots for next week almost full'), not requesting recommendations or replies from providers."
+  }
+]

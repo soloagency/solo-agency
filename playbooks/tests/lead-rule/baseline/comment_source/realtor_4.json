@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A13",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies. This is a showcase/promotion from an auto shop — 'Before/after... appreciate everyone who keeps sending business our way' is a statement of what the author does, not a request directed at others. A promotion is a statement or showcase where the author is selling their own service. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A14",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies. This is a promotion — 'Golden hour at this OC vineyard wedding... Booking into next spring now, link in bio for availability' is the author (a videographer) promoting their own service to book them. The call to action offers the author's own service. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies. This is a promotion — 'New menu item alert... come try it this weekend' is a launch/showcase from the restaurant promoting their menu. The author is selling, not asking. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A16",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies. This is a showcase/promotion — 'HVAC system installation job... the result is very satisfactory' is the author (HVAC contractor) showcasing completed work. The author is selling their service, not asking. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A17",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies. This is a promotion/launch — 'SAT prep program launch... Thank you parents for trusting us' is the author (tutoring center) announcing a new program and thanking existing clients. The author is promoting their service. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A18",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies. This is a promotion/showcase — 'Client transformation... Coaching spots for Jan filling up' is the author (fitness coach) showcasing client results and promoting coaching availability. The call to action offers the author's own service. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A19",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for non-promotional replies. This is a listing promotion — 'New house listing... Ai đang tìm nhà... nhắn mình để coi nhà' is the author (a realtor) promoting a specific property they have listed and asking interested buyers to contact them to view it. The author is selling their listing, not asking a genuine question to gather others' replies as leads. A listing is explicitly a promotion. The author of a promotion is selling; the people who answer are that author's customers, not a gathering the client can harvest. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A20",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies to answer a genuine question. This is a promotion — 'Closed another one in DFW... If you or anyone you know is relocating to Dallas-Fort Worth, I'd love to help' is the author (a realtor) offering their own service and asking for referrals. This is a call to action that offers the author's own service ('DM me for a quote' pattern). The author is selling, not asking. Statement or promotion → unlikely, stop. Additionally, the location is DFW, not Orange County, which does not match the realtor client's service area."
+  },
+  {
+    "id": "A21",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies. This is a promotion — 'Rates in California... Ai cần pre-approval nhắn mình' is the author (a mortgage lender) offering their own pre-approval service and asking interested parties to contact them. This is a call to action that offers the author's own service. The author is selling, not asking. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A22",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies to this specific post. This is informational commentary/update — 'Fire prevention discount... I just updated policy for some customers' is the author (an insurance agent) commenting on a related topic and sharing what they've done recently. It is not asking for replies or asking a question; it is providing information as a statement. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A23",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies. This is a promotion/showcase — 'Chrome nail design... Salon in Westminster takes walk-in customers' is the author (nail salon owner) showcasing their work and promoting the salon's hours and walk-in availability. The author is selling their service, not asking. Statement or promotion → unlikely, stop."
+  },
+  {
+    "id": "A24",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: No request for replies. This is a promotion/showcase — 'Ceramic coating job wrapped up today... Slots for next week almost full' is the author (auto detailing shop) showcasing completed work and promoting their availability to book. The call to action implies booking the author's own service. The author is selling, not asking. Statement or promotion → unlikely, stop."
+  }
+]

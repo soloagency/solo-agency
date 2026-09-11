@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A25",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: bio-only profile with no text; is a promotion (no request for replies)"
+  },
+  {
+    "id": "A26",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: bio-only profile with no text; is a promotion (no request for replies)"
+  },
+  {
+    "id": "A27",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: bio-only profile with no text; is a promotion (no request for replies)"
+  },
+  {
+    "id": "A28",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: statement/celebration ('biggest brand deal', 'launching hoodie drop'), not a request for replies"
+  },
+  {
+    "id": "A29",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: announcement of updated hours (promotion), not a request for replies"
+  },
+  {
+    "id": "A30",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: announcement of veterinary clinic availability (promotion), not a request for replies"
+  },
+  {
+    "id": "B01",
+    "types_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: 'Can anyone recommend a good realtor and lender?' — request for provider; Q2: answerers are loan officers and first-time home buyers in Irvine; Q3: first-time home buyers match the MLO type; Q4: decide on peers not competitors; Q5: Irvine is inside California location"
+  },
+  {
+    "id": "B02",
+    "types_match": "homeowner in California holding a mortgage (a refinance candidate whenever rates or life change; a recent purchase still counts because they hold a loan; a refinance completed and locked with relief is settled)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: 'em mới mua nhà...ai biết agent bảo hiểm nhà tốt' — request for insurance agent recommendation; Q2: answerers are insurance agents and recently-purchased homeowners in Westminster; Q3: recently-purchased homeowners match the MLO type (hold a loan); Q5: Westminster is inside California location"
+  },
+  {
+    "id": "B03",
+    "types_match": "homeowner in California holding a mortgage (a refinance candidate whenever rates or life change; a recent purchase still counts because they hold a loan; a refinance completed and locked with relief is settled)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: 'Ai co so dien thoai loan officer...tui dang can refinance' — request for loan officer; Q2: answerers are loan officers and homeowners in refinance situation; Q3: refinance homeowners match the MLO type; Q4: decide on peers not competitors; Q5: location unknown, treated as likely per rule"
+  },
+  {
+    "id": "B04",
+    "types_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: 'If anyone has a good realtor recs...let me know' — request for provider; Q2: answerers are realtors and first-time home buyers (made offer, closing/closed); Q3: first-time home buyers match the MLO type; Q5: Huntington Beach is inside California location"
+  },
+  {
+    "id": "B05",
+    "types_match": "homeowner in California holding a mortgage (a refinance candidate whenever rates or life change; a recent purchase still counts because they hold a loan; a refinance completed and locked with relief is settled)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: 'ai co loan officer nao good khong recommend' — request for loan officer; Q2: answerers are loan officers and homeowners in mortgage/refinance situation; Q3: mortgage/refinance homeowners match the MLO type; Q4: decide on peers not competitors; Q5: post uses #mortgage #refinance #OC indicating California area context"
+  },
+  {
+    "id": "B06",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: 'Does anyone have a reliable plumber...?' — request for provider; Q2: answerers are plumbers; Q3: plumbers do not match any MLO type (plumber is not a home buyer, homeowner with mortgage, or real-estate agent); none → unlikely"
+  }
+]

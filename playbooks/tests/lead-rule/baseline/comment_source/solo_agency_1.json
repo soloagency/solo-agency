@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P01",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for realtor recommendation; Q2 realtors (independent professionals); Q3 matches line 1 of types; Q4 not competitors (solo_agency competitors are marketing/lead-gen tools, not realtors); Q5 location worldwide OK"
+  },
+  {
+    "id": "P02",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for loan officer recommendation; Q2 loan officers (independent professionals); Q3 matches line 1 of types; Q4 not competitors; Q5 location worldwide OK"
+  },
+  {
+    "id": "P03",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for insurance agent recommendation; Q2 insurance agents (independent professionals); Q3 matches line 1 of types; Q4 not competitors; Q5 location worldwide OK"
+  },
+  {
+    "id": "P04",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for personal trainer recommendation; Q2 personal trainers (independent professionals); Q3 matches line 1 of types; Q4 not competitors; Q5 location worldwide OK"
+  },
+  {
+    "id": "P05",
+    "types_match": "creator, course seller or freelancer of ANY kind who sells something to clients (a freelancer selling services to others is a customer here, not a competitor, unless they sell marketing or lead generation itself)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for videographer recommendation; Q2 videographers (freelancers/independent professionals); Q3 matches line 4 of types (also matches line 1); Q4 not competitors (videographers sell video services, not marketing/lead-gen); Q5 location worldwide OK"
+  },
+  {
+    "id": "P06",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 peer question to coaches about client acquisition; Q2 coaches (independent professionals); Q3 matches line 1 of types; Q4 not competitors (solo_agency's competitors are marketing/lead-gen coaches, not coaches generally); Q5 location worldwide OK"
+  },
+  {
+    "id": "P07",
+    "types_match": "owner of ANY small local shop or service business (e.g. salon, restaurant, auto shop, clinic, tutoring center, photo studio, gym, property management)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 peer question to nail shop owners about social media strategy; Q2 nail salon owners (small business owners); Q3 matches line 2 of types; Q4 not competitors; Q5 location worldwide OK"
+  },
+  {
+    "id": "P08",
+    "types_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 peer question to SaaS founders about demo video creation; Q2 SaaS founders; Q3 matches line 3 of types; Q4 not competitors; Q5 location worldwide OK"
+  },
+  {
+    "id": "P09",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 gathering question about relocating to Irvine; Q2 people moving/relocating (consumer situation); Q3 answerers are general relocators with no indication they are business owners with their own pipeline; match = none → unlikely"
+  },
+  {
+    "id": "P10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 request for advice from people with home selling experience; Q2 homeowners who have sold (consumer situation); Q3 no indication answerers run businesses or have their own pipeline; answerers are consumers in a personal real-estate transaction; match = none → unlikely"
+  },
+  {
+    "id": "P11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 gathering question for first-time home buyers; Q2 first-time home buyers (consumer situation); Q3 answerers are consumers making personal housing purchase decision, not business owners with pipeline; match = none → unlikely"
+  },
+  {
+    "id": "P12",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 gathering question about rent vs buy decision in Costa Mesa; Q2 people considering housing options (consumer situation); Q3 answerers are consumers weighing personal housing choices, not business owners; match = none → unlikely"
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "P11-40",
+    "person_type": "First-time home buyer (recent purchase, California)",
+    "sells_to_match": "homeowner in California holding a mortgage",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "none",
+    "decision": "keep",
+    "reason": "Recent first-time home buyer in San Clemente, OC; closed two months ago; fits high as homeowner holding mortgage per client profile; no competitor or noise signals."
+  }
+]

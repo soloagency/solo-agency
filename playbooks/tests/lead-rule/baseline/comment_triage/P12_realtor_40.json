@@ -1,0 +1,35 @@
+[
+  {
+    "id": "P12-41",
+    "person_type": "renter planning to buy",
+    "sells_to_match": "person about to buy a home in Orange County",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "Explicitly planning to purchase first home in Costa Mesa this year; matches buyer type, active housing change in OC"
+  },
+  {
+    "id": "P12-42",
+    "person_type": "homeowner considering sale",
+    "sells_to_match": "homeowner in Orange County considering selling",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "Costa Mesa homeowner actively weighing decision to sell and downsize; matches type 2, clear housing change intent"
+  },
+  {
+    "id": "P12-43",
+    "person_type": "renter actively shopping",
+    "sells_to_match": "person actively shopping to buy a home in Orange County",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "Actively touring open houses this weekend in Costa Mesa; matches buyer type, demonstrable buying intent in OC"
+  }
+]

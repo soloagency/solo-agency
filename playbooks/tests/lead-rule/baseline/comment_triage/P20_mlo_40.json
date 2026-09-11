@@ -1,0 +1,35 @@
+[
+  {
+    "id": "P20-40",
+    "person_type": "homeowner/investor",
+    "sells_to_match": "homeowner in California holding a mortgage; person planning to buy additional home in California (investor)",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "implied",
+    "decision": "keep",
+    "reason": "Homeowner in Midway City (CA) with recent purchase; now considering investment property requiring additional financing"
+  },
+  {
+    "id": "P20-41",
+    "person_type": "real-estate agent (partner segment)",
+    "sells_to_match": "real-estate agent or broker who hands buyers to a lender",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "none",
+    "decision": "keep",
+    "reason": "Realtor at Century 21 Stanton specializing in Stanton/Midway City with established loan officer network; partner segment for MLO"
+  },
+  {
+    "id": "P20-42",
+    "person_type": "first-time buyer",
+    "sells_to_match": "person planning to buy a home in California (first-time buyer)",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "First-time buyer in La Habra (CA) actively seeking loan officer recommendations; explicit financing need"
+  }
+]

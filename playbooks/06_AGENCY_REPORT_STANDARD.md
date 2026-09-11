@@ -618,6 +618,20 @@ Chưa dùng nguồn Facebook, Instagram (anh/chị chọn chế độ web-only n
 
 `{date}` is the most recent `{platform}_lead_source_updated_at` among the off platforms named. When all three platforms are `enabled`, no line appears. This line never appears in the client-facing report or notification — the client-safe sentence above is the only thing the client ever sees.
 
+### Discovered sources
+
+Operator-only, per `playbooks/10_LEAD_COMPETITOR_DETECTION.md` ("Step 5" and "Harvest a discovered
+thread") and `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` ("Discovered sources"):
+
+- **New this run** — count of `likely` (Step 5) threads recorded this run, with one line each
+  (community, excerpt, `comment_source_reason`) so the Team Leader can read them aloud on request.
+- **Awaiting approval** — total rows `status: new` across all runs, not just today's.
+- **Harvested** — rows `status: harvested` this run, if any, with `leads_added` / `authors_seen` and
+  the kept/dropped breakdown from that harvest's `summary.json`.
+
+This section is never harvested from inside a scheduled run — it only reports what Step 5 recorded
+and what a Boss-ordered harvest (a separate job) already did.
+
 ### Report Delivery And Notification Log
 
 ### Count And Status Reconciliation
@@ -669,7 +683,7 @@ Use this section inside the internal source record and `INTERNAL_REPORT` when cu
 
 ## Found Sources Awaiting Your Approval
 
-Use this section when the human approved, declined, postponed, or has not yet been asked about optional additional-source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds (internal mechanics — the human only ever hears "sources found and awaiting your approval").
+Use this section when the human approved, declined, postponed, or has not yet been asked about optional additional-source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds (internal mechanics — the human only ever hears "sources found and awaiting your approval"). This section also covers discovered comment threads (`status: new` rows from Step 5, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`) waiting on the same "sources found and awaiting your approval" framing — client-safe count and a plain description, never the internal `comment_source_reason`/`types_match` fields or the word "thread"/"comment triage."
 
 - Status: not_asked | recommended | declined | postponed | approved_pending_activation | pending_human_approval | active | blocked | completed | discovery_declined_or_postponed
 - Display title, when useful: `Found Sources Awaiting Your Approval`, `More Sources Found — Approval Pending`, `Source Discovery Declined/Postponed`, or the same meaning translated into the report language.

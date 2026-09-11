@@ -256,6 +256,32 @@ capture` (see "Every lead also becomes a CRM contact" below) with `platform` set
 `private_data_sources` entry. The pass acquires and captures; it does not wait for a group to be
 promoted first.
 
+### Step 5 — will this thread's repliers be the client's buyers?
+
+Every post this pass judges — and every other post-level judgement in this stage's Detection
+Workflow, not only the Social Discovery Pass — also runs Step 5 of
+`playbooks/LEAD_QUALIFICATION_RULE.md`, right after Steps 1-4 decide the post's own author. Step 5
+asks one question about the THREAD, not the author: will the people who answer this post be the
+client's buyers? The rule returns `comment_source: likely|unlikely`, `types_match`, and a one-line
+`reason`.
+
+A `likely` thread is RECORDED, never harvested in the run that found it — nothing under it is read,
+fetched, or captured beyond what the post-level judgement already saw:
+
+```sh
+<bridge> tool source-registry --pipeline daily-content-pipeline --client {slug} discovered add \
+  --json '{"platform":"facebook","post_url":"...","community":"...","author_line":"...",
+           "excerpt":"...","comment_source_reason":"...","types_match":true,
+           "comment_count":N,"run_id":"..."}'
+```
+
+`id` is derived as a stable hash of `post_url`, and the verb dedupes on it: a source already known
+just gets `last_seen_at` bumped, `status` untouched, never reset. Fields and the full registry
+schema (including `status: new|approved|harvested|dismissed`, which nothing here ever advances past
+`new`) live in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`. An `unlikely` verdict is judged and
+dropped — only `likely` is persisted. See "Harvest a discovered thread (on the Boss's order only)"
+below for what happens to a recorded source, and only on explicit order.
+
 ### Lead target: a floor, not a stop
 
 FIRST RUN: **minimum 10 leads across all platforms combined.** Reaching 10 does not end the run —
@@ -839,6 +865,61 @@ became a customer is never walked back to `lead`.
 mail all still require the human approval they required yesterday. What changes is only that the
 person is still there tomorrow — which is the precondition for warming them at all, and the reason
 the evidence hook is recorded now rather than reconstructed from memory months later.
+
+## Harvest a discovered thread (on the Boss's order only)
+
+A discovered source recorded above (Step 5, "likely") is a note, not a job. Nothing under it is
+read, classified, or captured until the Boss explicitly orders it — naming the source in chat, or
+through the dashboard Discovered tab's "Approve & harvest" button, which writes a `ui_inbox` request
+(`{kind: harvest_thread, source_id}`) the Team Leader picks up
+(`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, registry schema). The daily run never harvests —
+see `playbooks/04_DAILY_SCHEDULE.md` and `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`.
+
+**Budgets.** One source per order — an order names exactly one `source_id`, never "all new ones."
+Reopening the thread spends only that platform's own comments-capability budget (`fb.post.comments`
+/ `ig.post.comments` / `x.post.replies`), paginated, read-only — no allowance beyond what the
+platform already grants that capability.
+
+**The job.** Both steps below are driven by `tool harvest-thread` (`--pipeline DIR --client SLUG
+--id SOURCE_ID`), the purpose-built command for this exact job — do not hand-roll prepare or
+ingest with other tools; it already does the dedupe/prefilter/batch and CRM-capture/status-write
+correctly, including a workaround for a known `crm-store` bug (below). Both `prepare` and `ingest`
+require the source's `status` to be `approved` (or `harvested`, only with `--force`, for an
+explicit Boss-ordered re-harvest) — they refuse outright on `new` or `dismissed`.
+
+1. **Prepare** — `tool harvest-thread prepare`. Reopens the post through the collector — or reuses
+   comments already captured in the inbox for that post, when nothing has to be re-fetched — and
+   dedupes rows by author: every comment from one author becomes one row. A code prefilter drops
+   rows that are empty, emoji-only, or "following"/"bump"/tag-only. Writes the survivors to
+   `history/YYYY-MM/harvest/{source_id}/batch_01.json … batch_NN.json`, 40 rows each
+   (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, "Discovered sources", has the full folder layout).
+   If nothing is captured yet it returns `awaiting_comments` instead of batches — reopen the thread
+   through the collector and re-run prepare.
+2. **Classify.** For every batch file, spawn one classifier sub-agent on the LOWEST model available
+   (Haiku on Claude, the smallest model on Codex) applying `playbooks/COMMENT_TRIAGE_RULE.md` — the
+   batch rule of record — verbatim. One sub-agent per batch file, never one sub-agent walking every
+   batch serially; batch size stays 40, never resized to save a call. Write each sub-agent's
+   keep/drop verdicts to a results directory as JSON (one file per batch, rows keyed by row `id`).
+3. **Ingest** — `tool harvest-thread ingest --results DIR`. Every kept author is captured as a CRM
+   lead with fit/intent tags and `source:thread:{id}` (`outreach/playbooks/13_CRM_CORE.md`) — warm
+   by default, `intent` only when the comment itself stated one. Competitor and noise rows are
+   dropped, never captured; `medium` rows are also dropped from capture but listed in the run
+   report for a human override. (`ingest` deliberately does NOT call `crm-store`'s lead-capture
+   with the thread's `post_url` as every row's identity seed — a known bug in
+   `contactFields()`/`addContact` merges multiple distinct commenters sharing one `post_url` into a
+   single CRM contact; `ingest` attaches the post as an evidence hook separately instead. Never
+   substitute a manual `tool crm-store ... lead capture` loop here — it would reproduce that
+   merge.) The source's `status` then becomes `harvested`, with `harvested_at`, `harvest_job_id`
+   (same value as `source_id`), `leads_added`, and `authors_seen` written back automatically by
+   `ingest` (no separate CLI call — `tool source-registry discovered mark-harvested` is the
+   manual-fallback equivalent, not something the harvest job itself needs to call). A `harvested`
+   source is never re-harvested unless the Boss orders it again, explicitly, for that specific
+   source (`ingest` refuses a second run on the same source without `--force`, same as `prepare`).
+
+**The report.** The harvest reply and `INTERNAL_REPORT` state rows kept vs dropped (with the
+`medium` list for override), the CRM link line ("Show the CRM link after any scan that produced
+≥ 1 lead" above), and the source's new `status`. In chat, the reply also opens the Discovered tab
+per the Answer-and-Show Rule (`SOLO_AGENCY_PLAYBOOK.md`, "Team Leader Reply Frame").
 
 ## Shared-Source Lead Collisions
 

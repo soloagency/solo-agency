@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A01",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a promotion (listing showcase and open house announcement), not a request asking for replies from others"
+  },
+  {
+    "id": "A02",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a promotion (rate update with author offering their own service quotes), not a request for providers or recommendations"
+  },
+  {
+    "id": "A03",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a statement/promotion (market commentary and client testimonial), not a request asking for replies"
+  },
+  {
+    "id": "A04",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a promotion/showcase (business update showcasing work and operating hours), not a request for recommendations"
+  },
+  {
+    "id": "A05",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a statement (milestone announcement), not a request asking for replies or recommendations"
+  },
+  {
+    "id": "A06",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a statement (team/business update), not a request asking for replies from others"
+  },
+  {
+    "id": "A07",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a statement/promotion (client testimonial and milestone), not a request for recommendations or peer replies"
+  },
+  {
+    "id": "A08",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post contains a call to action offering author's own service ('Anyone need a fast editor lemk'), which is a promotion of the author's service, not a request for others"
+  },
+  {
+    "id": "A09",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a promotion (client testimonial with service promotion 'Doors open again in Jan'), not a request asking for recommendations or peer input"
+  },
+  {
+    "id": "A10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a statement (client success story/testimonial), not a request asking for replies or recommendations"
+  },
+  {
+    "id": "A11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a statement (business hours announcement/reminder), not a request asking for recommendations or peer replies"
+  },
+  {
+    "id": "A12",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1. Post is a statement (policy/regulatory update), not a request asking for recommendations or replies from others"
+  }
+]

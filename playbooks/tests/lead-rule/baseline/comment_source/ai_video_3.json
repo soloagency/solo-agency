@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A01",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (listing, showcase with no request for replies)"
+  },
+  {
+    "id": "A02",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (rate note, call to action offering author's own service DM)"
+  },
+  {
+    "id": "A03",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (market commentary, showcase of author's client wins)"
+  },
+  {
+    "id": "A04",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (showcase, business hours update, appreciation)"
+  },
+  {
+    "id": "A05",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (milestone update)"
+  },
+  {
+    "id": "A06",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (team update, business milestone)"
+  },
+  {
+    "id": "A07",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (client win, milestone, update)"
+  },
+  {
+    "id": "A08",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (call to action offering author's own service 'Anyone need a fast editor')"
+  },
+  {
+    "id": "A09",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (showcase, call to action offering author's service 'Doors open in Jan')"
+  },
+  {
+    "id": "A10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (client win, milestone)"
+  },
+  {
+    "id": "A11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (business hours update)"
+  },
+  {
+    "id": "A12",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No — promotion (information update, no request for replies)"
+  }
+]

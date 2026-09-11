@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P12",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 asking (peer question about renting vs buying) → Q2 answerers: people in housing-decision situation → Q3 no match in types (consumers, not business owners/professionals) → unlikely"
+  },
+  {
+    "id": "P13",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 asking (request for insurance recommendations) → Q2 answerers: insurance agents and people experiencing rising premiums → Q3 match (insurance agents are independent professionals) → Q4 not competitors (solo_agency sells marketing/CRM, not insurance) → Q5 location California → likely"
+  },
+  {
+    "id": "P14",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 asking (request for business/legal advice on licenses and insurance) → Q2 answerers: lawyers, accountants, business consultants, other business owners → Q3 match (advisors and professionals are independent professionals of ANY trade) → Q4 not competitors → Q5 location Orange County/Westminster → likely"
+  },
+  {
+    "id": "P15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 asking (gathering question for new parents) → Q2 answerers: new parents in similar situation → Q3 no match in types (consumers/parents, not business owners or professionals) → unlikely"
+  },
+  {
+    "id": "P16",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 asking (request for insurance recommendations) → Q2 answerers: insurance agents and Tesla owners with insurance experience → Q3 match (insurance agents are independent professionals) → Q4 not competitors → Q5 location California → likely"
+  },
+  {
+    "id": "P17",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 asking (request for lender recommendations and refinance experience) → Q2 answerers: loan officers and homeowners who refinanced → Q3 match (loan officers are independent professionals) → Q4 not competitors → Q5 location Southern California area → likely"
+  },
+  {
+    "id": "P18",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 asking (peer question addressed to agents: 'Fellow agents — which lenders do you trust') → Q2 answerers: real estate agents → Q3 match (agents are independent professionals) → Q4 not competitors (solo_agency sells to agents, agents are customers) → Q5 location California context → likely"
+  },
+  {
+    "id": "P19",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 asking (peer question from first-time homebuyer about pre-approval timing) → Q2 answerers: first-time homebuyers experiencing similar issues → Q3 no match in types (consumers, not business owners or professionals) → unlikely"
+  },
+  {
+    "id": "P20",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 asking (request for guidance on home-buying process and professional recommendations) → Q2 answerers: loan officers, realtors, people who've bought homes → Q3 match (loan officers and realtors are independent professionals) → Q4 not competitors → Q5 location Orange County specified → likely"
+  },
+  {
+    "id": "P21",
+    "types_match": "creator, course seller or freelancer of ANY kind who sells something to clients (a freelancer selling services to others is a customer here, not a competitor, unless they sell marketing or lead generation itself)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 asking (request for video editor recommendations) → Q2 answerers: video editors (freelancers) → Q3 match (video editors are freelancers selling services) → Q4 not competitors (freelance video editing is not marketing/lead generation) → Q5 location California context → likely"
+  },
+  {
+    "id": "P22",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 asking (request for marketing agency recommendations) → Q2 answerers: marketing agencies → Q3 match initially (agencies selling services), but Q4 own-trade check: marketing agencies selling marketing services ARE competitors to solo_agency (which itself sells marketing/lead generation) → unlikely"
+  },
+  {
+    "id": "P23",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 not asking (promotion: 'We're expanding! Looking for licensed agents...') — this is the author's recruitment ad offering positions, not asking replies FROM insurance agents or businesses → promotion → unlikely"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A01",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (listing post with open house), not a request. Post author is selling, not asking for replies from providers."
+  },
+  {
+    "id": "A02",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (rate update and author offering their own lending service with 'DM me' CTA), not a request from others."
+  },
+  {
+    "id": "A03",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (market commentary showcasing author's insurance achievements), not a request for replies."
+  },
+  {
+    "id": "A04",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (business showcase: nail salon work sample), not a request for replies."
+  },
+  {
+    "id": "A05",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (milestone: SaaS MRR announcement), not a request for replies."
+  },
+  {
+    "id": "A06",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (team update: hiring celebration), not a request for replies."
+  },
+  {
+    "id": "A07",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (client success story showcasing author's marketing services), not a request for replies."
+  },
+  {
+    "id": "A08",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (author offering their own video editing service with 'Anyone need a fast editor lemk'), not a request from others."
+  },
+  {
+    "id": "A09",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (client success story and course launch: author selling their framework), not a request for replies."
+  },
+  {
+    "id": "A10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (client success story from coaching service), not a request for replies."
+  },
+  {
+    "id": "A11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (business hours announcement for dental/cleaning service), not a request for replies."
+  },
+  {
+    "id": "A12",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 — promotion (informational/service announcement about H-1B updates for employers), not a request for replies."
+  }
+]

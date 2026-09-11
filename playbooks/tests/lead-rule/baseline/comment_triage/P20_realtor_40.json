@@ -1,0 +1,35 @@
+[
+  {
+    "id": "P20-40",
+    "person_type": "homeowner/investor",
+    "sells_to_match": "investor looking at property in Orange County",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "Homeowner in Midway City (Orange County) explicitly planning to purchase additional investment property; fits investor buyer type"
+  },
+  {
+    "id": "P20-41",
+    "person_type": "real-estate agent",
+    "sells_to_match": "none",
+    "fit": "low",
+    "competitor": true,
+    "noise": false,
+    "intent": "none",
+    "decision": "drop",
+    "reason": "Competitor realtor at Century 21 Stanton serving same Orange County area; not a buyer"
+  },
+  {
+    "id": "P20-42",
+    "person_type": "first-time homebuyer",
+    "sells_to_match": "person about to buy a home in Orange County",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "First-time buyer explicitly looking at homes in La Habra (Orange County area); fits buyer member type with clear intent"
+  }
+]

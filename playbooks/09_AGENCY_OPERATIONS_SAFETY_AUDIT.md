@@ -1740,6 +1740,9 @@ Before final report, verify:
 - [ ] Did I check every job's result for a checkpoint/rate-limit/logged-out signal before submitting the next one, and did a tripped platform lose its turn in the rotation instead of handing its slot to another platform?
 - [ ] Did I keep only Facebook groups with `privacy == "public"`, and did I leave every group promotion to `private_data_sources` to a human decision rather than auto-promoting (Instagram and X have no groups)?
 - [ ] Did every post and person row from every platform's Social Discovery Pass step go through Stage 10 and straight to `lead capture`, even from a Facebook group not yet in `private_data_sources`?
+- [ ] Did every post-level judgement — not only the Social Discovery Pass — also run Step 5 of `playbooks/LEAD_QUALIFICATION_RULE.md`, and did every `likely` verdict get RECORDED via `tool source-registry discovered add` rather than acted on?
+- [ ] Did this run avoid harvesting any discovered source on its own — no comment thread reopened, classified, or captured except as a separate job triggered by an explicit Boss order (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Harvest a discovered thread")?
+- [ ] If a harvest ran, did it classify in batches of exactly 40 with one sub-agent per batch on the LOWEST available model (Haiku on Claude, the smallest Codex model) applying `playbooks/COMMENT_TRIAGE_RULE.md` verbatim, and did it skip any source whose `status` was already `harvested` unless the Boss ordered that specific source again?
 - [ ] Did I include the CRM link line in the operator-facing reply and `INTERNAL_REPORT` after any scan that produced ≥ 1 lead (bare line on a zero-lead run)?
 - [ ] Did I read the locked-lead count from `tool crm-store ... contact lock-status` rather than hand-counting it?
 - [ ] Did I avoid drafting or sending any email, DM, or campaign to a locked contact?

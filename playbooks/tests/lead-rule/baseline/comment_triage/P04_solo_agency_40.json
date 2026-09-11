@@ -1,0 +1,46 @@
+[
+  {
+    "id": "P04-40",
+    "person_type": "Independent professional (personal trainer)",
+    "sells_to_match": "independent professional of ANY trade (personal trainer)",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "Personal trainer at Woodbury Fit Club, offers 1-on-1 strength training in target area directly"
+  },
+  {
+    "id": "P04-41",
+    "person_type": "Independent professional (personal trainer)",
+    "sells_to_match": "independent professional of ANY trade (personal trainer)",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "Personal trainer offering strength-focused 1-on-1s near University Park location"
+  },
+  {
+    "id": "P04-42",
+    "person_type": "Independent professional (personal trainer)",
+    "sells_to_match": "independent professional of ANY trade (personal trainer)",
+    "fit": "high",
+    "competitor": false,
+    "noise": false,
+    "intent": "explicit",
+    "decision": "keep",
+    "reason": "Personal trainer, Vitality Coaching Irvine, offers 1-on-1 sessions with pricing and locations specified"
+  },
+  {
+    "id": "P04-43",
+    "person_type": "Relay/referrer",
+    "sells_to_match": "none",
+    "fit": "low",
+    "competitor": false,
+    "noise": false,
+    "intent": "none",
+    "decision": "drop",
+    "reason": "Relay with no business or trade of own; recommending someone else only, low fit"
+  }
+]

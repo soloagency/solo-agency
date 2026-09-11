@@ -1,0 +1,56 @@
+[
+  {
+    "id": "B07",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 Yes, request for a provider (plumber). Q2 Answerers will be plumbers (a trade). Q3 types_match = self-employed professional of ANY trade in California. Q4 Plumbers are not insurance agents, no own-trade block. Q5 Location is Irvine (inside California)."
+  },
+  {
+    "id": "B08",
+    "types_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 Yes, request for insurance agent. Q2 Answerers will be insurance agents (competitors) AND people in same situation (new parents with new dependent). Q3 types_match = person in California with new dependent. Q4 Own-trade check: agents are competitors, but peers (new parents) match insurance client's types; decide on peers. Q5 Location unknown, treat as likely."
+  },
+  {
+    "id": "B09",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 Yes, request for a provider (realtor). Q2 Answerers will be realtors (a trade). Q3 types_match = self-employed professional of ANY trade in California. Q4 Realtors are not insurance agents, no own-trade block. Q5 Location is Fountain Valley (inside California)."
+  },
+  {
+    "id": "B10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No. This is a bio-only profile row with no question or request for replies."
+  },
+  {
+    "id": "B11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No. This is a personal statement about relocating, not a question or request for replies."
+  },
+  {
+    "id": "B12",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 Yes, request for a lender. Q2 Answerers will be lenders (a trade). Q3 types_match = self-employed professional of ANY trade in California. Q4 Lenders are not insurance agents, no own-trade block. Q5 Location is Westminster (inside California)."
+  },
+  {
+    "id": "B13",
+    "types_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 Yes, request for insurance agent. Q2 Answerers will be insurance agents (competitors) AND people aware of new fire risk. Q3 types_match = person in California with a risk they just became aware of. Q4 Own-trade check: agents are competitors, but peers (aware of fire risk) match insurance client's types; decide on peers. Q5 Location is Anaheim Hills (inside California)."
+  },
+  {
+    "id": "B14",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 Yes, request for realtors. Q2 Answerers will be realtors (a trade). Q3 types_match = self-employed professional of ANY trade in California. Q4 Realtors are not insurance agents, no own-trade block. Q5 Location is Tustin/Irvine (inside California)."
+  },
+  {
+    "id": "B15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 No. This is a bio-only profile row with no question or request for replies."
+  }
+]

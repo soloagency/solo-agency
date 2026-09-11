@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A25",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: profile bio is a statement, not a request for replies"
+  },
+  {
+    "id": "A26",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: profile bio is a statement, not a request for replies"
+  },
+  {
+    "id": "A27",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: profile bio is a statement, not a request for replies"
+  },
+  {
+    "id": "A28",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: post is a promotion (brand deal and product launch), not a request"
+  },
+  {
+    "id": "A29",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: post is a business update statement, not a request"
+  },
+  {
+    "id": "A30",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: post is a business update statement, not a request"
+  },
+  {
+    "id": "B01",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: request for recommendations; Q2: answerers = realtors and lenders; Q3: types_match = independent professional of ANY trade; Q4: not own-trade competitors; Q5: no location restriction"
+  },
+  {
+    "id": "B02",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: request for insurance agent recommendation; Q2: answerers = insurance agents; Q3: types_match = independent professional of ANY trade; Q4: not own-trade competitors; Q5: no location restriction"
+  },
+  {
+    "id": "B03",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: request for loan officer recommendation; Q2: answerers = loan officers; Q3: types_match = independent professional of ANY trade; Q4: not own-trade competitors; Q5: no location restriction"
+  },
+  {
+    "id": "B04",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: request for realtor recommendations; Q2: answerers = realtors; Q3: types_match = independent professional of ANY trade; Q4: not own-trade competitors; Q5: no location restriction"
+  },
+  {
+    "id": "B05",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: request for loan officer recommendation; Q2: answerers = loan officers; Q3: types_match = independent professional of ANY trade; Q4: not own-trade competitors; Q5: no location restriction"
+  },
+  {
+    "id": "B06",
+    "types_match": "independent professional of ANY trade who lives on their own pipeline (e.g. real-estate agent, loan officer, insurance agent, escrow officer, advisor, lawyer, dentist, consultant, coach)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: request for plumber recommendation; Q2: answerers = plumbers; Q3: types_match = independent professional of ANY trade; Q4: not own-trade competitors; Q5: no location restriction"
+  }
+]

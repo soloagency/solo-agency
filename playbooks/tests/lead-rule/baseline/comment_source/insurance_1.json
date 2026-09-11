@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P01",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for agent; Q2 realtors; Q3 matches ANY trade line; Q4 not competitors; Q5 California location"
+  },
+  {
+    "id": "P02",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for loan officer; Q2 loan officers; Q3 matches ANY trade line; Q4 not competitors; Q5 California location"
+  },
+  {
+    "id": "P03",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 request for insurance agents; Q2 insurance agents; Q3 matches ANY trade line; Q4 own-trade competitors"
+  },
+  {
+    "id": "P04",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for personal trainer; Q2 personal trainers; Q3 matches ANY trade line; Q4 not competitors; Q5 California location"
+  },
+  {
+    "id": "P05",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for videographer; Q2 videographers; Q3 matches ANY trade line; Q4 not competitors; Q5 California location"
+  },
+  {
+    "id": "P06",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 peer question to coaches; Q2 coaches; Q3 matches ANY trade line; Q4 not competitors; Q5 location unknown default to likely"
+  },
+  {
+    "id": "P07",
+    "types_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 peer question to nail salon owners; Q2 salon owners; Q3 matches small business owner line; Q4 not competitors; Q5 California location"
+  },
+  {
+    "id": "P08",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 peer question to SaaS founders; Q2 founders; Q3 matches self-employed professional line; Q4 not competitors; Q5 location unknown default to likely"
+  },
+  {
+    "id": "P09",
+    "types_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 gathering question for movers; Q2 people relocating; Q3 matches new address line; Q4 peers not competitors; Q5 California location"
+  },
+  {
+    "id": "P10",
+    "types_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 peer question to home sellers; Q2 people selling homes; Q3 matches address/asset change line; Q4 peers not competitors; Q5 California location"
+  },
+  {
+    "id": "P11",
+    "types_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 peer question to first-time buyers; Q2 first-time home buyers; Q3 matches new asset line; Q4 peers not competitors; Q5 California location"
+  },
+  {
+    "id": "P12",
+    "types_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 gathering question about housing decision; Q2 people in rent/buy situation; Q3 matches asset/address change line; Q4 peers not competitors; Q5 California location"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A26",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement/bio only, not a request for replies → unlikely, stop"
+  },
+  {
+    "id": "A27",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement/bio only, not a request for replies → unlikely, stop"
+  },
+  {
+    "id": "A28",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 promotion/milestone update (launching hoodie drop), not a request for replies → unlikely, stop"
+  },
+  {
+    "id": "A29",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement/update (thank you + hours info), not a request for replies → unlikely, stop"
+  },
+  {
+    "id": "A30",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 statement/promotion (update about being open), not a request for replies → unlikely, stop"
+  },
+  {
+    "id": "B01",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for realtor and lender recommendations → Q2 realtors/lenders are providers → Q3 independent professionals who market themselves → Q4 not competitors to ai_video → Q5 location Irvine CA within worldwide scope → likely"
+  },
+  {
+    "id": "B02",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for insurance agent recommendation → Q2 insurance agents are providers → Q3 independent professionals who market themselves → Q4 not competitors to ai_video → Q5 location Westminster CA within worldwide scope → likely"
+  },
+  {
+    "id": "B03",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for loan officer phone/recommendation → Q2 loan officers are providers → Q3 independent professionals who market themselves → Q4 not competitors to ai_video → Q5 location unknown, worldwide applies, unknown place → likely"
+  },
+  {
+    "id": "B04",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for realtor recommendations → Q2 realtors are providers → Q3 independent professionals who market themselves → Q4 not competitors to ai_video → Q5 location Huntington Beach CA within worldwide scope → likely"
+  },
+  {
+    "id": "B05",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for loan officer recommendation → Q2 loan officers are providers → Q3 independent professionals who market themselves → Q4 not competitors to ai_video → Q5 location #OC (Orange County CA) within worldwide scope → likely"
+  },
+  {
+    "id": "B06",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for plumber recommendation → Q2 plumbers are providers of ANY trade → Q3 independent professionals who market themselves (ANY trade) → Q4 not competitors to ai_video → Q5 location Irvine CA within worldwide scope → likely"
+  },
+  {
+    "id": "B07",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 request for math tutor recommendation → Q2 tutors are providers of ANY trade → Q3 independent professionals who market themselves (ANY trade) → Q4 not competitors to ai_video → Q5 location Garden Grove CA within worldwide scope → likely"
+  }
+]

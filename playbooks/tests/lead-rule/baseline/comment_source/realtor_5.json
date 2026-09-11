@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A25",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no (profile headline only, not asking for replies)"
+  },
+  {
+    "id": "A26",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no (profile headline only, not asking for replies)"
+  },
+  {
+    "id": "A27",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no (profile headline only, not asking for replies)"
+  },
+  {
+    "id": "A28",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no (announcement of personal achievement, not asking for replies from others)"
+  },
+  {
+    "id": "A29",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no (promotion thanking customers and announcing business hours, not asking for replies)"
+  },
+  {
+    "id": "A30",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no (promotion announcing veterinary clinic availability, not asking for replies)"
+  },
+  {
+    "id": "B01",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for recommendations) Q2 realtors and lenders (providers) Q3 none (answerers are service providers, not home buyers/sellers/investors; realtor client types list only consumers, no ANY-trade language)"
+  },
+  {
+    "id": "B02",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for recommendation) Q2 insurance agents Q3 none (insurance agents not in realtor client types which are home buyers/sellers/investors)"
+  },
+  {
+    "id": "B03",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for recommendation) Q2 loan officers Q3 none (lenders not in realtor client types)"
+  },
+  {
+    "id": "B04",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for realtor recommendations) Q2 realtors (service providers) Q3 none (providers do not match realtor client types which are consumers)"
+  },
+  {
+    "id": "B05",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for recommendation) Q2 loan officers Q3 none (lenders not in realtor client types)"
+  },
+  {
+    "id": "B06",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for recommendation) Q2 plumbers Q3 none (service providers not in realtor client types)"
+  }
+]

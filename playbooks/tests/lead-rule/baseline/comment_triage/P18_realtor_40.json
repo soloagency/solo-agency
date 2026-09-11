@@ -1,0 +1,35 @@
+[
+  {
+    "id": "P18-40",
+    "person_type": "social_media_commenter",
+    "sells_to_match": "none",
+    "fit": "low",
+    "competitor": false,
+    "noise": true,
+    "intent": "none",
+    "decision": "drop",
+    "reason": "bare reaction meme without substantive information"
+  },
+  {
+    "id": "P18-41",
+    "person_type": "realtor_elsewhere",
+    "sells_to_match": "none",
+    "fit": "low",
+    "competitor": false,
+    "noise": false,
+    "intent": "none",
+    "decision": "drop",
+    "reason": "realtor serving Phoenix AZ, outside Orange County target area"
+  },
+  {
+    "id": "P18-42",
+    "person_type": "realtor_oc",
+    "sells_to_match": "none",
+    "fit": "low",
+    "competitor": true,
+    "noise": false,
+    "intent": "none",
+    "decision": "drop",
+    "reason": "competitor realtor in Orange County area"
+  }
+]

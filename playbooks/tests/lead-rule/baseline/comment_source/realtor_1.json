@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P01",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for realtor to list house) Q2 realtors Q3 none (realtors not in client types as buyers)"
+  },
+  {
+    "id": "P02",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for loan officer) Q2 loan officers Q3 none (lenders not in client types)"
+  },
+  {
+    "id": "P03",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for insurance agent) Q2 insurance agents Q3 none (insurance agents not in client types)"
+  },
+  {
+    "id": "P04",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for personal trainer) Q2 personal trainers Q3 none (trainers not in client types)"
+  },
+  {
+    "id": "P05",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (asking for videographer) Q2 videographers Q3 none (videographers not in client types)"
+  },
+  {
+    "id": "P06",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (peer question to coaches) Q2 coaches/course sellers Q3 none (course sellers not in client types)"
+  },
+  {
+    "id": "P07",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (peer question to nail salon owners) Q2 nail salon owners Q3 none (salon owners not in client types)"
+  },
+  {
+    "id": "P08",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes (peer question to SaaS founders) Q2 SaaS founders Q3 none (founders not in client types)"
+  },
+  {
+    "id": "P09",
+    "types_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County (a stated move there, a job there)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes (gathering question for relocating people) Q2 people moving to Irvine Q3 match (arriving into OC) Q4 not competitors Q5 location Irvine (inside OC)"
+  },
+  {
+    "id": "P10",
+    "types_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County (a stated move there, a job there)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes (asking people with home selling experience) Q2 people selling/sold homes Q3 match (person about to sell home) Q4 not competitors Q5 location Garden Grove (inside OC)"
+  },
+  {
+    "id": "P11",
+    "types_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County (a stated move there, a job there)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes (gathering question for first-time home buyers) Q2 first-time home buyers Q3 match (person about to buy home) Q4 not competitors Q5 location Orange County"
+  },
+  {
+    "id": "P12",
+    "types_match": "person about to buy, sell, rent out or lease a home in Orange County, or arriving into Orange County (a stated move there, a job there)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes (gathering question for rent vs buy decision) Q2 people deciding to rent/buy Q3 match (person about to buy or lease home) Q4 not competitors Q5 location Costa Mesa (inside OC)"
+  }
+]

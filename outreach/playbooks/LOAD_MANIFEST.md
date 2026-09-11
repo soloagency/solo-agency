@@ -18,7 +18,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/09_OPERATIONS_SAFETY_AUDIT.md | 651 | e616069bd90d8471b8ec81777f54934215816749feaadfed2f17f4a922f67241 | This is the intended operating model. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/10_FOLLOWUP_REPLY_MANAGEMENT.md | 182 | 5b39cd1d9487a9596bc2094160a033756c237e149d7a0427d2837305dd137ba6 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/11_UPDATE_AND_VERSION_WATCH.md | 413 | 6f3d51855cc38d5d8caa256dee7e141986ca79d1adccd74b7aef24d64c5a821b | - If the latest GitHub version still does not resolve the blocker that triggered the update, follow the Last-Resort Recovery And GitHub Issue Escalation Rule. |
-| playbooks/13_CRM_CORE.md | 135 | 9a57a4c4c0b5727ff74a66fab0d5e322f64b241ebbf3977e7a194b92e366c201 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| playbooks/13_CRM_CORE.md | 142 | eaf1ba73547fad084a77d1f9803a51528a0f38211bc063d425dc529d88f702a4 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/14_TASKS_TODAY_VIEW.md | 77 | 6a50e4defa145664db81d4cb6ae57210db3fa461df7bbe5b06c23de3a622bd90 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/16_FRIEND_HARVEST.md | 379 | dd1434963d8efb79240446c0c33ac7cf82e80ad9ca2f6a3f2ec1318a9842b105 |   did the reading — a reader never keeps another client's lead material. |
 | playbooks/17_ZILLOW_HARVEST.md | 90 | 595d2099f1b4a05e2463dc373c73db3396c811249459c7f6f2e125bdbcea499b | (`collector/inbox/YYYY-MM/{owner}/harvest/{run_id}/`) regardless of which extension read it. |

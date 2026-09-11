@@ -1,0 +1,74 @@
+[
+  {
+    "id": "A24",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: Promotion/showcase (wrapping up a job, offering availability) — not asking for replies or recommendations. → unlikely"
+  },
+  {
+    "id": "A25",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: Bio-only (no post text, author line only states profession) — not asking for replies. → unlikely"
+  },
+  {
+    "id": "A26",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: Bio-only (author line states profession, no post text) — not asking for replies. → unlikely"
+  },
+  {
+    "id": "A27",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: Bio-only (author line states profession, no post text) — not asking for replies. → unlikely"
+  },
+  {
+    "id": "A28",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: Promotion/milestone (launching brand deal and hoodie drop) — not asking for replies or recommendations. → unlikely"
+  },
+  {
+    "id": "A29",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: Promotion/update (announcing extended hours) — not asking for replies or recommendations. → unlikely"
+  },
+  {
+    "id": "A30",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: Promotion/availability (announcing service availability and schedule) — not asking for replies or recommendations. → unlikely"
+  },
+  {
+    "id": "B01",
+    "types_match": "independent professional of ANY trade who markets themselves",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: Asks for replies — 'Can anyone recommend a good realtor and lender?' is a request for recommendations. Q2: Answerers = realtors and loan officers. Q3: Both match 'independent professional of ANY trade who markets themselves' (examples: real-estate agent, loan officer). Q4: Own-trade check — realtors and lenders sell real estate/mortgages, not video editing, so not competitors. Q5: Location — Orange County (Irvine), within worldwide coverage. → likely"
+  },
+  {
+    "id": "B02",
+    "types_match": "independent professional of ANY trade who markets themselves",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: Asks for replies — 'ai biết agent bảo hiểm nhà tốt giới thiệu dùm' is a request for insurance agent recommendations. Q2: Answerers = insurance agents. Q3: Insurance agents match 'independent professional of ANY trade who markets themselves' (examples include professionals in ANY trade). Q4: Own-trade check — insurance agents sell insurance, not video editing, so not competitors. Q5: Location — Westminster, Orange County, within worldwide coverage. → likely"
+  },
+  {
+    "id": "B03",
+    "types_match": "independent professional of ANY trade who markets themselves",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: Asks for replies — 'ai co so dien thoai loan officer nao uy tin khong' is a request for loan officer recommendations. Q2: Answerers = loan officers. Q3: Loan officers match 'independent professional of ANY trade who markets themselves' (example: loan officer). Q4: Own-trade check — loan officers sell mortgages, not video editing, so not competitors. Q5: Location — Orange County context, within worldwide coverage. → likely"
+  },
+  {
+    "id": "B04",
+    "types_match": "independent professional of ANY trade who markets themselves",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: Asks for replies — 'If anyone has a good realtor recs for the next steps' is a request for realtor recommendations. Q2: Answerers = realtors and people who have closed. Q3: Realtors match 'independent professional of ANY trade who markets themselves' (example: real-estate agent). Q4: Own-trade check — realtors sell real estate, not video editing, so not competitors. Q5: Location — Huntington Beach (OC area), within worldwide coverage. → likely"
+  },
+  {
+    "id": "B05",
+    "types_match": "independent professional of ANY trade who markets themselves",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: Asks for replies — 'ai co loan officer nao good khong recommend minh voi' is a request for loan officer recommendations. Q2: Answerers = loan officers. Q3: Loan officers match 'independent professional of ANY trade who markets themselves' (example: loan officer). Q4: Own-trade check — loan officers sell mortgages, not video editing, so not competitors. Q5: Location — Orange County (#OC), within worldwide coverage. → likely"
+  }
+]

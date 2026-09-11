@@ -216,7 +216,7 @@ Use one folder per client/business/location:
 
 Shared-scan files (cross-client, maintained through `tools/solo_tool source-registry` and `tool search-pool` — never hand-edited, always through the tool so concurrent runs cannot corrupt them):
 
-- `collector/source_registry.json` — one entry per canonical source UID across ALL clients: `uid`, `uid_hash`, `sample_url`, `domain`, `platform`, `source_type`, `kind` (private|public), `scope` (`shared` | `exclusive` | `unclassified` — auto-created entries stay `unclassified` and are never served as reuse until an explicit `register`), `subscribers[]` (client_slug, priority, scan_cadence, registered_at), `last_scan` (completed_at, run_id, client_slug, data_dir, status, kind — reuse requires the lane to match), `last_failed`, `scan_claim` (client_slug, claimed_at — an in-progress marker so concurrent runs `wait` instead of duplicating a scan; expires after 2h, released by `record`), and a top-level `freshness_ttl_hours` (default 20). The freshness check is a rolling TTL against `last_scan.completed_at`, never a calendar-day compare.
+- `collector/source_registry.json` — one entry per canonical source UID across ALL clients: `uid`, `uid_hash`, `sample_url`, `domain`, `platform`, `source_type`, `kind` (private|public|discovered), `scope` (`shared` | `exclusive` | `unclassified` — auto-created entries stay `unclassified` and are never served as reuse until an explicit `register`), `subscribers[]` (client_slug, priority, scan_cadence, registered_at), `last_scan` (completed_at, run_id, client_slug, data_dir, status, kind — reuse requires the lane to match), `last_failed`, `scan_claim` (client_slug, claimed_at — an in-progress marker so concurrent runs `wait` instead of duplicating a scan; expires after 2h, released by `record`), and a top-level `freshness_ttl_hours` (default 20). The freshness check is a rolling TTL against `last_scan.completed_at`, never a calendar-day compare. `kind: discovered` entries are a different shape (below, "Discovered sources") — they are never `due`/reused across clients like private/public sources, since a comment thread found for one client is that client's own find.
 - `collector/search_pool.json` — shared public keyword-search results keyed by (industry, normalized keyword): `searched_at`, `client_slug`, `results[]` of client-neutral `{url, title, note}`. Entries older than 7 days are pruned on write.
 - `collector/public_pool/{uid_hash}/YYYY-MM-DD.md` — client-neutral raw findings from visiting a shared PUBLIC source (facts, URLs, quotes, dates only — no client analysis, no client names), written by the run that visited it and registered via `source-registry record --data-dir`; other subscriber runs consume it through the registry pointer and do their own client-specific filtering.
 - Collector data points/leads/competitors carry bridge-stamped `source_uid` + `point_uid` — key-based dedup for shared-scan consumption.
@@ -556,7 +556,7 @@ Minimum format:
 - scheduled_entrypoint: playbooks/SCHEDULED_RUN_ENTRYPOINT.md
 - root_playbook: SOLO_AGENCY_PLAYBOOK.md
 - clients_index: daily-content-pipeline/clients_index.md
-- collector_config: daily-content-pipeline/collector/collector_config.json
+- collector_config: daily-content-pipeline/collector/collector_config.json — each watched-source entry may carry `origin: default | custom` (`custom` = a URL the Boss gave at setup step 5 or later; `default` or absent = added by the run, discovery or the industry defaults); the dashboard's Sources page splits its Default / Custom tabs on this field, and Discovered sources live in the source registry (`kind: discovered`), never here
 - provider_defaults: daily-content-pipeline/provider_defaults.json
 - notification_channel:
 - pdna_status:
@@ -593,7 +593,7 @@ The manifest also lists every scheduled task as a team member (`playbooks/TEAM_M
 Two team files live next to the manifest under `daily-content-pipeline/automation/`:
 
 - `boss_orders.md` — the Team Leader's ledger of the Boss's requests and goals (header and statuses in `playbooks/TEAM_MODEL.md`). Written by the interactive session only; scheduled runs read it. Never deleted, never closed without a reason.
-- `standup.jsonl` — one JSON line per finished scheduled run (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, step 16A): `ts`, `task`, `client_slug`, `role`, `outcome`, `reports[]`, `needs_boss[]`, `blockers[]`. Append-only; the Team Leader reads the tail at the start of every session. Keep 90 days; older lines may be pruned by the update-watch task.
+- `standup.jsonl` — one JSON line per finished scheduled run (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, step 16A): `ts`, `task`, `client_slug`, `role`, `outcome`, `reports[]`, `needs_boss[]`, `blockers[]`, `discovered_new` (count of `likely` Step 5 threads recorded this run — see "Discovered sources" above; `0` when none). Append-only; the Team Leader reads the tail at the start of every session. Keep 90 days; older lines may be pruned by the update-watch task.
 - `support_requests.md` — posts the Team Leader made to the Solo Agency Facebook support group on the Boss's behalf (`playbooks/TEAM_MODEL.md`, "Support requests"): id, date, type, title, status, group_url, post_id, post_url, feedback_id, last_checked, last_comment_id, replies, notes. Written by the interactive session; scheduled runs fill the post ids after posting, update `last_checked` / `last_comment_id` / `replies`, and surface new replies.
 
 ## Current Run Contract
@@ -2022,6 +2022,84 @@ Allowed status:
 - `skipped`
 - `not_relevant`
 - `blocked`
+
+### Discovered sources (`collector/source_registry.json`, `kind: discovered`)
+
+Purpose:
+
+- Persist a Step 5 "likely" verdict (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Step 5") as a
+  standing note the Boss can approve and harvest later — never harvested by the run that found it.
+- Back the dashboard's `/ui/{client}/sources?tab=discovered` list and the
+  `review_discovered_sources` / `harvest_thread` catalogue rows (`playbooks/NEXT_JOB_CATALOGUE.md`).
+
+One entry per recorded thread, written by `tool source-registry discovered add` and updated by
+`tool source-registry discovered approve|dismiss|mark-harvested` — never hand-edited. (There is no
+`discovered update` subcommand — the status-specific ones above are the only writers.)
+
+```json
+{
+  "id": "sha256(post_url), short form",
+  "kind": "discovered",
+  "client_slug": "client",
+  "platform": "facebook",
+  "post_url": "https://...",
+  "community": "Group or page name",
+  "author_line": "Original poster's name/handle",
+  "excerpt": "first 300 chars of the post",
+  "comment_source_reason": "one line, from Step 5",
+  "types_match": true,
+  "detected_at": "ISO-8601",
+  "last_seen_at": "ISO-8601",
+  "run_id": "...",
+  "comment_count": 0,
+  "status": "new",
+  "approved_at": null,
+  "harvested_at": null,
+  "harvest_job_id": null,
+  "leads_added": 0,
+  "authors_seen": 0
+}
+```
+
+`id` is derived as a stable hash of `post_url` — dedupe key. `status` allowed values: `new |
+approved | harvested | dismissed`; there is no expiry field and no TTL — a discovered source lives
+until a human dismisses it or it is harvested, and `detected_at` stays available for filtering
+by age. Re-detecting the same `post_url` on a later run updates `last_seen_at` and `comment_count`
+only — it never resets `status`, `approved_at`, or `harvested_at`. `status` only ever advances
+`new -> approved -> harvested`, or to `dismissed` from `new`/`approved`; a `harvested` source is
+never re-harvested except by a fresh, explicit Boss order for that same `id`.
+
+**The harvest job's folder layout** is produced by `tool harvest-thread prepare` / `ingest`
+(`solo-agency-collector/bridge-go/harvest_thread.go`) — this is the actual, shipped layout, not a
+target to redesign:
+
+```text
+history/YYYY-MM/harvest/{id}/
+  context.json        (post_url, platform, community, excerpt, author_line, comment_source_reason)
+  batch_01.json … batch_NN.json   (40 deduped-by-author rows each, pre-filtered; flat, JSON not JSONL)
+  run_report.json     (written by ingest: kept/dropped/medium rows, leads_added, authors_seen)
+```
+
+`{id}` is the discovered source's own `id` (the stable hash of `post_url`) — there is no separate
+`harvest_job_id`; the registry's `harvest_job_id` field is stamped with this same `id`.
+
+**The dashboard's approve action writes a `ui_inbox` request** — the actual shipped write, per
+`docs/UI_DESIGN.md`: `clients/{c}/{bl}/ui_inbox/harvest_thread_requests.jsonl` (no `outreach/`
+segment, no per-line `ts`/`ui_session` field) — one line
+`{kind: "harvest_thread", client, source_id, requested_at}`, appended by `POST
+/api/ui/{client}/sources/discovered/{id}/approve`, and only on the call that actually flips that
+source's `status` from `new` to `approved` (which also stamps `approved_at`) — a repeat approve on
+a row already `approved` or `harvested` is a no-op and writes no line. `.../dismiss` sets `status:
+dismissed` and writes no request. The Team Leader consumes new lines the same way it consumes
+`shortlist_decisions.jsonl` (cursor-based, at the start of the next session or run) and treats a
+`harvest_thread` line as the Boss's own order to run `tool harvest-thread prepare --id {source_id}`
+then `ingest` for that `source_id`. Both `prepare` and `ingest` refuse to run on a source whose
+`status` is not `approved` (or `harvested` with `--force`, for an explicit Boss-ordered
+re-harvest) — `new` and `dismissed` are refused outright.
+
+**Standup field.** `daily-content-pipeline/automation/standup.jsonl` (below) carries `discovered_new`
+— the count of `likely` threads THIS run recorded — on every scheduled-run line, `0` when the Social
+Discovery Pass did not run or found none.
 
 ---
 

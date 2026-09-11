@@ -1,0 +1,485 @@
+{
+ "P01": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "P02": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P03": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "P04": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P05": {
+  "solo_agency": "likely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P06": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P07": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P08": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P09": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "likely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "P10": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "P11": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "P12": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "likely",
+  "insurance": "unlikely",
+  "mlo": "likely"
+ },
+ "P13": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P14": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "P15": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P16": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P17": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "likely"
+ },
+ "P18": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "P19": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "likely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "P20": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "P21": {
+  "solo_agency": "likely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P22": {
+  "solo_agency": "unlikely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "P23": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "P24": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A01": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A02": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A03": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A04": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A05": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A06": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A07": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A08": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A09": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A10": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A11": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A12": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A13": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A14": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A15": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A16": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A17": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A18": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A19": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A20": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A21": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A22": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A23": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A24": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A25": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A26": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A27": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A28": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A29": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "A30": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "B01": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "B02": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "B03": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "B04": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "B05": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "B06": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "B07": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "B08": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "B09": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "B10": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "B11": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "B12": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "unlikely"
+ },
+ "B13": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ },
+ "B14": {
+  "solo_agency": "likely",
+  "ai_video": "likely",
+  "realtor": "unlikely",
+  "insurance": "likely",
+  "mlo": "likely"
+ },
+ "B15": {
+  "solo_agency": "unlikely",
+  "ai_video": "unlikely",
+  "realtor": "unlikely",
+  "insurance": "unlikely",
+  "mlo": "unlikely"
+ }
+}

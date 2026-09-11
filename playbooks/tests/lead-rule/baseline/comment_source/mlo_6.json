@@ -1,0 +1,56 @@
+[
+  {
+    "id": "B07",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: request (asking for tutor recommendation); Q2: tutors; Q3: none (tutors do not match any MLO customer type); Q4: N/A; Q5: N/A"
+  },
+  {
+    "id": "B08",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: request (asking for insurance agent); Q2: insurance agents; Q3: none (insurance agents do not match any MLO customer type); Q4: N/A; Q5: N/A"
+  },
+  {
+    "id": "B09",
+    "types_match": "real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: request (asking for realtor agent); Q2: realtors; Q3: real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent); Q4: not competitors (named as partner segment); Q5: location CA (Fountain Valley in California service area)"
+  },
+  {
+    "id": "B10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: profile/bio with no request"
+  },
+  {
+    "id": "B11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: statement (personal update, not asking for replies; uncertain timing 'maybe somewhere in SoCal or maybe not')"
+  },
+  {
+    "id": "B12",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: request (asking for lender contact); Q2: loan officers/lenders; Q3: none (loan officers not in MLO customer types); Q4: competitors (answerers are lenders, same as what MLO sells, not named as partners); → unlikely"
+  },
+  {
+    "id": "B13",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: request (asking for home insurance agent); Q2: insurance agents; Q3: none (insurance agents do not match any MLO customer type); Q4: N/A; Q5: N/A"
+  },
+  {
+    "id": "B14",
+    "types_match": "real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1: request (asking for realtor recommendations); Q2: realtors; Q3: real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent); Q4: not competitors (named as partner segment); Q5: location CA (Tustin/Irvine in Orange County, California service area)"
+  },
+  {
+    "id": "B15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1: profile/bio with no request"
+  }
+]

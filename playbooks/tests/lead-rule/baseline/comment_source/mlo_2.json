@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P12",
+    "types_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes—asks for replies about renting vs buying decision; Q2 answerers = people in Costa Mesa considering buy/rent decision; Q3 matches 'person planning to buy a home in California'; Q4 no own-trade issue; Q5 Costa Mesa in California → likely"
+  },
+  {
+    "id": "P13",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes—asks for insurance quote recommendations; Q2 answerers = insurance agents and people with high car premiums; Q3 car insurance agents/people don't match MLO types → none → unlikely"
+  },
+  {
+    "id": "P14",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes—asks about business licenses and insurance for nail salon; Q2 answerers = business owners, accountants, insurance agents; Q3 answerers don't match MLO types (post is about business setup, not home loans) → none → unlikely"
+  },
+  {
+    "id": "P15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes—asks for advice on setup for new parents; Q2 answerers = new parents; Q3 new parents don't match MLO types → none → unlikely"
+  },
+  {
+    "id": "P16",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes—asks for car insurance recommendations; Q2 answerers = insurance agents and Tesla owners; Q3 car insurance context doesn't match MLO types → none → unlikely"
+  },
+  {
+    "id": "P17",
+    "types_match": "homeowner in California holding a mortgage (a refinance candidate whenever rates or life change; a recent purchase still counts because they hold a loan; a refinance completed and locked with relief is settled)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes—asks for refi experiences; Q2 answerers = homeowners considering/doing refinance; Q3 matches 'homeowner in California holding a mortgage'; Q4 no own-trade issue; Q5 location unknown → likely"
+  },
+  {
+    "id": "P18",
+    "types_match": "real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes—asks fellow agents for lender recommendations; Q2 answerers = real estate agents; Q3 matches partner segment 'real-estate agent or broker'; Q4 agents aren't lenders, no own-trade conflict; Q5 location unknown → likely"
+  },
+  {
+    "id": "P19",
+    "types_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes—asks about pre-approval timing; Q2 answerers = first-time homebuyers in pre-approval process; Q3 matches 'person planning to buy a home in California'; Q4 no own-trade issue; Q5 location unknown → likely"
+  },
+  {
+    "id": "P20",
+    "types_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes—asks for guidance on loan officer vs realtor first; Q2 answerers = first-time homebuyers in California; Q3 matches 'person planning to buy a home in California (first-time buyer...)'; Q4 no own-trade issue; Q5 Orange County area specified in California → likely"
+  },
+  {
+    "id": "P21",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes—asks for video editor recommendations; Q2 answerers = video editors; Q3 video editors don't match MLO types → none → unlikely"
+  },
+  {
+    "id": "P22",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes—asks for marketing agency recommendations; Q2 answerers = marketing agencies; Q3 marketing agencies don't match MLO types → none → unlikely"
+  },
+  {
+    "id": "P23",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no—this is a promotion/recruitment ad (author recruiting, not asking community for recommendations); statement or promotion → unlikely"
+  }
+]

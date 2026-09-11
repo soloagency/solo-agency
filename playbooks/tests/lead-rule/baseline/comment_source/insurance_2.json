@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P12",
+    "types_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes — asks for recommendations on renting vs buying decision; Q2 homebuyers or people facing housing decisions in Costa Mesa; Q3 matches new asset or new address transition; Q4 answerers are homebuyers/peers not insurance agents; Q5 Costa Mesa in California"
+  },
+  {
+    "id": "P13",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes — asks for insurance provider recommendations; Q2 people with rising auto insurance costs and insurance agents; Q3 rising policy cost matches eligible situation; Q4 answerers include insurance agents (competitors); Q5 Orange County CA"
+  },
+  {
+    "id": "P14",
+    "types_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes — asks for advice on business license and insurance requirements; Q2 small business owners, self-employed professionals; Q3 matches small business owner; Q4 answerers are business owners not insurance agents; Q5 Westminster in California"
+  },
+  {
+    "id": "P15",
+    "types_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes — asks for first-time parent setup advice; Q2 new parents; Q3 matches new dependent (first child); Q4 answerers are new parents not insurance agents; Q5 Irvine in California"
+  },
+  {
+    "id": "P16",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes — asks for insurance rate recommendations; Q2 Tesla owners in CA and insurance agents/providers; Q3 new asset (vehicle) matches eligible situation; Q4 answerers include insurance agents (competitors); Q5 California"
+  },
+  {
+    "id": "P17",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes — asks about mortgage refinancing; Q2 homeowners considering refi and loan officers; Q3 no match — mortgage refinancing is outside insurance scope; Q4 N/A; Q5 N/A"
+  },
+  {
+    "id": "P18",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes — asks about lender recommendations; Q2 real estate agents (explicitly peer question); Q3 no match — lender/mortgage topic not insurance-related; Q4 N/A; Q5 N/A"
+  },
+  {
+    "id": "P19",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 yes — asks about mortgage pre-approval timeline; Q2 home buyers and lenders; Q3 no match — mortgage pre-approval is outside insurance scope; Q4 N/A; Q5 N/A"
+  },
+  {
+    "id": "P20",
+    "types_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes — asks for advice on first-time home buying process; Q2 first-time home buyers planning purchase in Orange County or nearby; Q3 matches new asset/new address transition; Q4 answerers are homebuyers/agents not insurance agents; Q5 Orange County area in California"
+  },
+  {
+    "id": "P21",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes — asks for video editor recommendations; Q2 video editors and freelancers (service providers); Q3 matches self-employed professionals of any trade; Q4 answerers are not insurance agents; Q5 location unknown defaults to likely"
+  },
+  {
+    "id": "P22",
+    "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 yes — asks for marketing agency recommendations; Q2 marketing agencies (self-employed/agency professionals) and realtors; Q3 matches self-employed professionals of any trade; Q4 answerers are not insurance agents; Q5 location unknown defaults to likely"
+  },
+  {
+    "id": "P23",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 no — this is a promotion/recruiting ad seeking licensed insurance agents to join team; Q2 N/A; Q3 N/A; Q4 N/A; Q5 N/A"
+  }
+]

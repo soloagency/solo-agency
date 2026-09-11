@@ -74,6 +74,12 @@ by default. A hot-vs-warm borderline call MAY be escalated one tier for a second
 decision (rule Step 1 — who this person is) is never escalated or overridden by a bigger model;
 if fit reads medium/low, that answer stands.
 
+A DIFFERENT lowest-model classification pass applies only inside a discovered-thread harvest job
+(Recipe E, below): it applies `playbooks/COMMENT_TRIAGE_RULE.md` — not this rule — to a batch of
+one thread's comment authors, once, only on the Boss's explicit order. Do not conflate the two: this
+section's per-item Fit × Intent pass runs on every candidate the gather loop finds; the harvest's
+batch triage runs on comments under one already-recorded discovered source.
+
 ## The loop (general solver)
 
 This is the method for ANY open-ended lead request. It is deliberately generic
@@ -150,7 +156,9 @@ Next: {suggested widen/deepen options for the human}.
   across all three platforms, separate from the intent bank `recipes.md` steps 3/6 use), and
   Facebook's ranked candidate groups persist to `history/YYYY-MM/facebook_discovery_shortlist.jsonl`
   (fields and job shapes in `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`) — Instagram and X
-  have no groups, so nothing is added there for them.
+  have no groups, so nothing is added there for them. Recipe E is the Boss-ordered discovered-thread
+  harvest job (batch triage on the lowest model, 40 rows per call) — a separate job from this pass,
+  never run inside it.
 - `safety.md` — the KPI + ban-risk stop conditions, the join-is-human rule, and
   the ToS/privacy boundaries this loop must never cross.
 - `playbooks/LEAD_QUALIFICATION_RULE.md` — the Fit × Intent rule this skill's classifier applies

@@ -478,6 +478,12 @@ For each daily run:
         into `private_data_sources`. Instagram and X have no group concept.
       - Write actions on Instagram/X (react, comment, message, like, reply, publish, DM) are out of
         scope for this pass; it only reads and scores.
+      - Every post-level judgement in this pass also runs Step 5 of
+        `playbooks/LEAD_QUALIFICATION_RULE.md` (will this thread's repliers be the client's
+        buyers?); a `likely` verdict is RECORDED via `tool source-registry discovered add`
+        (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Step 5"), never harvested in this run. Count
+        the new `likely` threads this run recorded as `discovered_new` for the standup line (step
+        16A, `playbooks/SCHEDULED_RUN_ENTRYPOINT.md`).
       - Full algorithm and report section: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social
         Discovery Pass".
    11D. If no notification channel is configured (`notification_channel_missing`), include ONE short value-first re-offer in the run's report and progress block (instant alerts for hot leads, report-ready, drafts awaiting review) with the standard WideCast API-key instructions - once per run, never more.

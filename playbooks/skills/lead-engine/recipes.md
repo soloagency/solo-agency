@@ -172,6 +172,45 @@ monitoring shape.
 3. Store to the Stage 10 ledger; only NEW opportunities vs prior days (dedupe against history).
 ```
 
+## Recipe E — Harvest a discovered thread (on the Boss's order only)
+
+> Reopen ONE already-recorded `likely` (Step 5) thread and triage its comment authors into the CRM.
+> Never run inside the daily pass or any recipe above — only as its own job, on an explicit order
+> naming one `source_id`. Full contract: `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Harvest a
+> discovered thread (on the Boss's order only)".
+
+```text
+0. `tool harvest-thread prepare --pipeline DIR --client SLUG --id SOURCE_ID` does steps 1-3 below
+   in one call — use it instead of hand-rolling them. It refuses to run unless the source's
+   `status` is `approved` (or `harvested` with `--force`, for an explicit Boss-ordered re-harvest).
+1. fb.post.comments / ig.post.comments / x.post.replies { post_url, paginate }
+   — or reuse comments already captured in the inbox for that post when nothing needs re-fetching.
+2. Dedupe rows by author (all of one author's comments become one row); drop rows that are empty,
+   emoji-only, or "following"/"bump"/tag-only.
+3. Write survivors to batch files of exactly 40 rows each
+   (`history/YYYY-MM/harvest/{source_id}/batch_01.json …`).
+4. For EACH batch file, spawn one classifier sub-agent on the LOWEST model available (Haiku on
+   Claude, the smallest Codex model) applying `playbooks/COMMENT_TRIAGE_RULE.md` verbatim — one
+   sub-agent per batch, never one sub-agent walking every batch serially. Write each sub-agent's
+   keep/drop verdicts to a results directory as JSON, rows keyed by row `id`.
+5. `tool harvest-thread ingest --pipeline DIR --client SLUG --id SOURCE_ID --results DIR` does
+   steps 5-6 below in one call — use it instead of a manual `crm-store` loop: it deliberately does
+   NOT pass the thread's `post_url` as every kept row's `crm-store` identity seed, because
+   `contactFields()`/`addContact` would then merge multiple distinct commenters sharing one
+   `post_url` into a single CRM contact (known bug); it attaches the post as an evidence hook
+   separately instead. A manual loop calling `tool crm-store ... lead capture` per author would
+   reproduce that merge.
+5a. Kept authors → CRM lead with fit/intent tags and `source:thread:{id}`
+   (`outreach/playbooks/13_CRM_CORE.md`) — warm by default, `intent` only when the comment itself
+   stated one. Competitor/noise rows: drop. `medium` rows: drop from capture, list in the run
+   report for a human override.
+6. Source `status: harvested`, with `harvested_at`, `harvest_job_id` (= `source_id`),
+   `leads_added`, `authors_seen` — written automatically by `ingest`. (Manual fallback only, never
+   needed in the normal flow: `tool source-registry discovered mark-harvested`.) Never re-harvest a
+   `harvested` source without a fresh, explicit Boss order for that same source — `ingest` itself
+   refuses a second run without `--force`.
+```
+
 ## Composing your own
 
 If none of the above fits, compose from the catalog:

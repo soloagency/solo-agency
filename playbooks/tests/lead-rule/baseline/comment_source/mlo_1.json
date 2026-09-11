@@ -1,0 +1,74 @@
+[
+  {
+    "id": "P01",
+    "types_match": "real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 asks for recommendations (yes) Q2 realtors/agents Q3 types match: real-estate agent or broker who hands buyers to a lender (partner segment; counts as a lead; their listings and closings are routine work, not intent) Q4 realtors are partners, not competitors Q5 Westminster in California (inside service area) → likely"
+  },
+  {
+    "id": "P02",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 asks for recommendations (yes) Q2 loan officers Q3 loan officers not listed in types → none Q4 loan officers sell loans (same trade as mlo, not named as partners) → competitors → unlikely"
+  },
+  {
+    "id": "P03",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 asks for recommendations (yes) Q2 insurance agents Q3 insurance agents not listed in types → none → unlikely"
+  },
+  {
+    "id": "P04",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 asks for recommendations (yes) Q2 personal trainers Q3 personal trainers not listed in types → none → unlikely"
+  },
+  {
+    "id": "P05",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 asks for recommendations (yes) Q2 videographers Q3 videographers not listed in types → none → unlikely"
+  },
+  {
+    "id": "P06",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 peer question asking coaches (yes) Q2 coaches Q3 coaches not listed in types → none → unlikely"
+  },
+  {
+    "id": "P07",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 peer question asking nail shop owners (yes) Q2 nail shop owners Q3 nail shop owners not listed in types → none → unlikely"
+  },
+  {
+    "id": "P08",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 peer question asking SaaS founders (yes) Q2 SaaS founders Q3 SaaS founders not listed in types → none → unlikely"
+  },
+  {
+    "id": "P09",
+    "types_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 gathering question (yes) Q2 movers to Irvine Q3 types match: person planning to buy a home in California (first-time buyer, mover, investor) Q4 answerers are people, not competitors Q5 Irvine in California (inside service area) → likely"
+  },
+  {
+    "id": "P10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 asks for advice (yes) Q2 home sellers (people with selling experience) Q3 mlo types focus on buyers/holding mortgages, not home sellers → none → unlikely"
+  },
+  {
+    "id": "P11",
+    "types_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 gathering question (yes) Q2 first-time home buyers in Orange County Q3 types match: person planning to buy a home in California (first-time buyer, mover, investor) Q4 answerers are people, not competitors Q5 Orange County in California (inside service area) → likely"
+  },
+  {
+    "id": "P12",
+    "types_match": "person planning to buy a home in California (first-time buyer, mover, investor)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 gathering question (yes) Q2 people considering buying in Costa Mesa Q3 types match: person planning to buy a home in California (first-time buyer, mover, investor) Q4 answerers are people, not competitors Q5 Costa Mesa in California (inside service area) → likely"
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "B07",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 post asks for tutor recommendations. Q2 answerers are tutors/academic coaches. Q3 tutors are independent professionals who market themselves, match types line 1. Q4 no own-trade conflict (tutors ≠ video editors). Q5 location Garden Grove, CA not outside worldwide scope → likely."
+  },
+  {
+    "id": "B08",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 post asks for insurance agent recommendations. Q2 answerers are insurance agents. Q3 insurance agents are independent professionals who market themselves, match types line 1. Q4 no own-trade conflict (insurance agents ≠ video editors). Q5 location unspecified but context is US/California → likely."
+  },
+  {
+    "id": "B09",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 post asks for realtor recommendations. Q2 answerers are realtors/real-estate agents. Q3 realtors are independent professionals who market themselves, match types line 1. Q4 no own-trade conflict (realtors ≠ video editors). Q5 location Fountain Valley, CA specified → inside relevant area → likely."
+  },
+  {
+    "id": "B10",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 bio/profile post with no text asking for replies or recommendations. Profile-only post → unlikely."
+  },
+  {
+    "id": "B11",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 personal statement/announcement ('Sold our condo... moving back...') with no question asking for provider recommendations or replies. Statement, not a request → unlikely."
+  },
+  {
+    "id": "B12",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 post asks for lender/loan officer recommendations. Q2 answerers are lenders/loan officers. Q3 lenders are independent professionals who market themselves, match types line 1. Q4 no own-trade conflict (lenders ≠ video editors). Q5 location Westminster, CA specified → inside relevant area → likely."
+  },
+  {
+    "id": "B13",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 post asks for insurance agent recommendations. Q2 answerers are insurance agents. Q3 insurance agents are independent professionals who market themselves, match types line 1. Q4 no own-trade conflict (insurance agents ≠ video editors). Q5 location Anaheim Hills, CA specified (Orange County area) → inside relevant area → likely."
+  },
+  {
+    "id": "B14",
+    "types_match": "independent professional of ANY trade who markets themselves (e.g. real-estate agent, loan officer, insurance agent, escrow officer, lawyer, dentist, advisor, coach, consultant, photographer, videographer)",
+    "comment_source": "likely",
+    "comment_source_reason": "Q1 post asks for realtor recommendations. Q2 answerers are realtors/real-estate agents. Q3 realtors are independent professionals who market themselves, match types line 1. Q4 no own-trade conflict (realtors ≠ video editors). Q5 location Tustin/Irvine, CA (Orange County) specified → inside relevant area → likely."
+  },
+  {
+    "id": "B15",
+    "types_match": "none",
+    "comment_source": "unlikely",
+    "comment_source_reason": "Q1 bio/profile post with no text asking for replies or recommendations. Profile-only post → unlikely."
+  }
+]

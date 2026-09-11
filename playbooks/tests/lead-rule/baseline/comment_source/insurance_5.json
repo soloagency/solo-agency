@@ -1,0 +1,76 @@
+{
+  "results": [
+    {
+      "id": "A25",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: No ask for replies — bio statement/promotion of videographer services (booking info)"
+    },
+    {
+      "id": "A26",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: No ask for replies — bio statement/promotion of realtor services (eXp Realty announcement)"
+    },
+    {
+      "id": "A27",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: No ask for replies — bio statement/promotion of insurance agent services; Q4: insurance agent is competitor to insurance client"
+    },
+    {
+      "id": "A28",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: No ask for replies — personal milestone/promotion (brand deal, hoodie launch announcement)"
+    },
+    {
+      "id": "A29",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: No ask for replies — business hours announcement/promotion (restaurant extended weekend hours)"
+    },
+    {
+      "id": "A30",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: No ask for replies — service availability announcement/promotion (vet clinic walk-in and vaccination slots)"
+    },
+    {
+      "id": "B01",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: Yes, asks for recommendations; Q2: realtors and lenders will answer; Q3: Neither matches insurance types (realtors/lenders are not self-employed professionals, small business owners, or people with new assets in the context of needing insurance)"
+    },
+    {
+      "id": "B02",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: Yes, asks for insurance agent; Q2: Insurance agents will answer; Q3: Insurance agents match self-employed professional type; Q4: Insurance agents sell insurance (same product as client) → own-trade competitor check fails → unlikely"
+    },
+    {
+      "id": "B03",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: Yes, asks for loan officer; Q2: Loan officers will answer; Q3: Loan officers do not match insurance types → none"
+    },
+    {
+      "id": "B04",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: Yes, asks for realtor recommendations; Q2: Realtors will answer; Q3: Realtors do not match insurance types → none"
+    },
+    {
+      "id": "B05",
+      "types_match": "none",
+      "comment_source": "unlikely",
+      "comment_source_reason": "Q1: Yes, asks for loan officer; Q2: Loan officers will answer; Q3: Loan officers do not match insurance types → none"
+    },
+    {
+      "id": "B06",
+      "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
+      "comment_source": "likely",
+      "comment_source_reason": "Q1: Yes, asks for plumber recommendation; Q2: Plumbers will answer (self-employed professionals); Q3: Plumbers match 'self-employed professional of ANY trade in California' type; Q4: Plumbers are not insurance agents, not competitors to insurance client; Q5: Location is Irvine (in California service area) → likely"
+    }
+  ]
+}
