@@ -14,6 +14,14 @@ importScripts("core/schema.js", "core/platform_registry.js", "platforms/facebook
 // never be shorter than what a capability is allowed to take — a lock that expires mid-run hands
 // the same job to the next poll while the first is still working.
 const CAPABILITY_TIMEOUT_MS = 60000;
+// The module's cooperative share of that timer. When the kill timer wins the race, every page a
+// capability had already fetched is discarded and the bridge receives count:0 — so the
+// dispatcher hands each module `time_budget_ms` = the timer minus this margin, and a pagination
+// loop that honours it (fb.post.comments, ig.*, x.*) stops on its own with its rows and cursor
+// kept, reporting stopped_because:"time_budget". The margin covers script injection, the last
+// in-flight request's abort and the normalizer. A job may ask for LESS via inputs.time_budget_ms;
+// it can never get more than the kill timer allows.
+const CAPABILITY_BUDGET_MARGIN_MS = 10000;
 
 const DEFAULT_SETTINGS = {
   enabled: true,
@@ -1150,6 +1158,9 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
           // lands in the new `records` field; additive and best-effort.
           if (wantCapability) {
             const runCapabilityDispatch = async () => {
+              const capInputs = source.inputs && typeof source.inputs === "object" ? Object.assign({}, source.inputs) : {};
+              const askedBudget = Number(capInputs.time_budget_ms);
+              capInputs.time_budget_ms = Math.min(askedBudget > 0 ? askedBudget : Infinity, CAPABILITY_TIMEOUT_MS - CAPABILITY_BUDGET_MARGIN_MS);
               const [cres] = await withTimeout(chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 world: "MAIN",
@@ -1166,7 +1177,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
                   }
                   return null;
                 },
-                args: [capabilityId, source.inputs && typeof source.inputs === "object" ? source.inputs : {},
+                args: [capabilityId, capInputs,
                   SoloPlatforms.dispatchEntryFor(capabilityId, "run"), SoloPlatforms.dispatchEntryFor(capabilityId, "runFallback"),
                   dispatchModule ? dispatchModule.name : ""]
               }), CAPABILITY_TIMEOUT_MS, "gql_capability_timeout");

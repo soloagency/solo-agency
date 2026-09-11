@@ -32,6 +32,13 @@ function fetchStub(rules) {
   fn.calls = calls;
   return fn;
 }
+// A Date whose now() is the test's fake clock; parse/UTC/construction still work.
+function fakeDate(now) {
+  if (!now) return Date;
+  const F = function () { return new (Function.prototype.bind.apply(Date, [null].concat(Array.prototype.slice.call(arguments))))(); };
+  F.now = now; F.parse = Date.parse; F.UTC = Date.UTC;
+  return F;
+}
 function makeCtx(opts) {
   opts = opts || {};
   const pathname = opts.pathname || "/";
@@ -43,7 +50,8 @@ function makeCtx(opts) {
     __auth: { bearer: opts.noBearer ? "" : "Bearer AAAA-public-web-token", extra: {} },
     queryIdFor: () => "",
   };
-  const ctx = { document: { cookie: "ct0=ct0value" }, location: { pathname, href: "https://x.com" + pathname, origin: "https://x.com" }, console, setTimeout, clearTimeout, URL, URLSearchParams, Promise, Date, JSON };
+  // opts.now: a fake clock for the time-budget tests (the module only calls Date.now()).
+  const ctx = { document: { cookie: "ct0=ct0value" }, location: { pathname, href: "https://x.com" + pathname, origin: "https://x.com" }, console, setTimeout, clearTimeout, URL, URLSearchParams, Promise, Date: fakeDate(opts.now), JSON, AbortController };
   ctx.window = ctx;
   ctx.window.__soloX = store;
   vm.createContext(ctx);
@@ -233,6 +241,36 @@ function sensitiveKeys(o, p, out) {
     check("__soloXLoggedIn reads X's own chrome: account switcher present -> true", ctx.window.__soloXLoggedIn() === true);
     ctx.document.querySelector = (sel) => (String(sel).indexOf('a[href="/login"]') !== -1 ? {} : null);
     check("__soloXLoggedIn: login link and no article -> false", ctx.window.__soloXLoggedIn() === false);
+  }
+
+  console.log("x.post.replies — time budget: the pages in hand come back with the cursor, not a kill-timer error");
+  {
+    let now = 1000000;
+    const focal = "1900000000000000001";
+    const page1 = instructions([tweetEntry(focal, { replies: 40 }), tweetEntry("1900000000000000002", { replyTo: focal, handle: "c1", userId: "71" }), cursorEntry("REPLIES-2", "Bottom")]);
+    const page2 = instructions([tweetEntry("1900000000000000003", { replyTo: focal, handle: "c2", userId: "72" }), cursorEntry("REPLIES-3", "Bottom")]);
+    const cap = gqlCapture("TweetDetail", { focalTweetId: focal }, { threaded_conversation_with_injections_v2: { instructions: page1 } });
+    const stub = fetchStub([{ match: (u) => u.indexOf("/TweetDetail") !== -1 && u.indexOf("REPLIES-2") !== -1, json: { data: { threaded_conversation_with_injections_v2: { instructions: page2 } } } }]);
+    const slow = function (url, init) { now += 2500; return stub(url, init); };   // one replayed page costs 2.5s of a 5s budget
+    const ctx = makeCtx({ pathname: "/loanfactoryhq/status/" + focal, captures: [cap], origFetch: slow, now: () => now });
+    const res = await ctx.window.__soloXRun("x.post.replies", { max_pages: 5, time_budget_ms: 5000 });
+    check("2 replies across 2 pages, then stopped_because time_budget with the next cursor kept", res.items.length === 2 && res.pages_fetched === 2 && res.stopped_because === "time_budget" && res.page_info.end_cursor === "REPLIES-3" && res.page_info.resumable === true, [res.items.length, res.pages_fetched, res.stopped_because, res.page_info]);
+    check("one replay only; the request carried an abort signal; budget fields reported", stub.calls.length === 1 && !!stub.calls[0].init.signal && res.time_budget_ms === 5000 && res.elapsed_ms >= 2500, [stub.calls.length, res.time_budget_ms, res.elapsed_ms]);
+    const plain = makeCtx({ pathname: "/loanfactoryhq/status/" + focal, captures: [cap], origFetch: stub });
+    const all = await plain.window.__soloXRun("x.post.replies", { max_pages: 5 });
+    check("no budget => walks until the replay stops answering (unchanged), time_budget_ms null", all.items.length === 2 && all.time_budget_ms === null && !stub.calls[stub.calls.length - 1].init.signal, [all.items.length, all.stopped_because, all.time_budget_ms]);
+  }
+  console.log("x.post.replies — time budget: a hung replay is aborted at the budget line");
+  {
+    const focal = "1900000000000000005";
+    const page1 = instructions([tweetEntry(focal, { replies: 9 }), tweetEntry("1900000000000000006", { replyTo: focal, handle: "c1", userId: "71" }), cursorEntry("HANG-2", "Bottom")]);
+    const cap = gqlCapture("TweetDetail", { focalTweetId: focal }, { threaded_conversation_with_injections_v2: { instructions: page1 } });
+    const hang = (url, init) => new Promise((resolve, reject) => { if (init && init.signal) init.signal.addEventListener("abort", () => { const e = new Error("aborted"); e.name = "AbortError"; reject(e); }); });
+    const ctx = makeCtx({ pathname: "/loanfactoryhq/status/" + focal, captures: [cap], origFetch: hang });
+    const t0 = Date.now();
+    const res = await ctx.window.__soloXRun("x.post.replies", { max_pages: 3, time_budget_ms: 4000 });
+    const took = Date.now() - t0;
+    check("returned within the budget (" + took + "ms): page 1 reply kept, stopped_because time_budget, cursor kept", took < 4700 && res.items.length === 1 && res.stopped_because === "time_budget" && res.page_info.end_cursor === "HANG-2", [took, res.items.length, res.stopped_because, res.page_info]);
   }
 
   console.log("");

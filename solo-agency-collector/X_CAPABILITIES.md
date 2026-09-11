@@ -58,6 +58,16 @@ foreground tab (`needs_active_tab`), `page_info.resumable` reflects the last bot
 `stopped_because: replay_failed_404` on a page-1 result just means "no more pages came from
 scrolling" — not a breakage.
 
+**Time budget (2026-09-11).** Every X read goes through `paginate()`, which honours
+`inputs.time_budget_ms` — the dispatcher passes 50 s (its 60 s kill timer minus a margin; a job may
+only lower it). With fewer than 3 s left no further page is started, the scroll wait shrinks to
+what remains, and the fallback replay is aborted at the budget line. The result then carries
+`stopped_because: "time_budget"` with `page_info.resumable` and the last bottom cursor, plus
+`elapsed_ms` / `time_budget_ms` on `x.post.replies`. Before this, a slow page past 60 s answered
+`count: 0` with `error: "capability did not complete"` and every reply already read was lost.
+Measured 2026-09-11 on the canary post: 40 of 48 replies on page 1 at `max_pages: 1`; reaching
+the rest needs `max_pages` 2–3 and, on a slow tab, is now cut cleanly instead of discarded.
+
 ## 4. Records
 
 - Post (`tweetRecord`): `id, url, actor{id, username, name, url, is_verified, is_private}, text,

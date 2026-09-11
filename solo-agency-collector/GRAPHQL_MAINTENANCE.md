@@ -166,7 +166,7 @@ compare against a fresh capture (§7).** Extractor functions are in
 
 ### not_graphql (do NOT try to fix these as GraphQL)
 - **fb.profile.about** — structured fields (work/education/city) are **server-rendered**, absent from all interceptable responses (confirmed via `_discover.deep`; `ProfileCometAppSectionFeedPaginationQuery` carries only nav + pageItems urls). Needs a dedicated About-tab **DOM parser**. *Workaround for inferring industry:* call `fb.people.search` with the person's name → occupation subtitle + `industry_hint`. 2026-09-09 DOM-parser fixes: header name on `profile.php?id=` professional-mode profiles (no `h1` in `[role=main]`; taken from the level-2 heading a self-link repeats), a dossier phones fallback (WhatsApp number label + phone-shaped lines), and `about_panel_found` now true on the DOM path once the About card is located.
-- **fb.post.comments** — first page of comments is server-rendered (RSC); only "load more" pagination uses GraphQL (`CometUFICommentsProviderQuery`), which needs enough comments to trigger. Needs HTML/RSC parsing or a pagination trigger.
+- **fb.post.comments** — (stale note kept for history: the first page used to be treated as server-rendered.) Since 2026-09-09 it is a replayed `CommentsListComponentsPaginationQuery` per post (replies via `Depth1CommentsListPaginationQuery`, opt-in `depth`), see `postComments()` in `gql_extract.js` and tests/test_post_comments.js. Caps: `max_comment_pages` 5 (≤20), `max_comments` 60 (≤500, global across posts and reply levels); page size is Facebook's own (`commentsAfterCount: -1`). It does not report the post's total — join `engagement.comments` from the post record.
 
 ### Instagram (ig.*) — second platform module, own private GraphQL
 
@@ -507,6 +507,19 @@ paginator (not the plain extractor) for capability jobs.
   that the query still paginates on the top-level `cursor` variable. FB replay
   auth (`fb_dtsg`) is session-bound — it works because the replay runs in the
   logged-in collector tab.
+- **Time budget (2026-09-11).** `background.js` kills a capability at
+  `CAPABILITY_TIMEOUT_MS` (60 s) and, when that timer wins, every page already fetched
+  is lost: the bridge gets `count: 0`, `error: "capability did not complete"`. So the
+  dispatcher passes `inputs.time_budget_ms` (the timer minus `CAPABILITY_BUDGET_MARGIN_MS`
+  = 50 s; a job may only lower it) and `postComments()` honours it through `budgetOf()`:
+  no page starts with under `PAGE_MIN_MS` (2.5 s) left, each `replayPage()` carries an
+  abort signal for the remaining budget, and the walk returns with
+  `by_post[].stopped_because: "time_budget"`, the cursor kept (`resumable: true`; a post
+  never started resumes from its head), `time_budget_hit: true`, `elapsed_ms` and
+  `time_budget_ms` on the envelope; a reply walk cut mid-thread marks the parent
+  `replies_cut: true`. The other Facebook walks (`__soloGqlPaginateImpl`, dossier) still
+  rely on their own budgets or the kill timer — port them the same way when a slow-network
+  loss is observed there. Tests: "time budget" block in tests/test_post_comments.js.
 
 ## 11. Collector API cheatsheet
 - `GET /status` — health + which build each client runs (no token)

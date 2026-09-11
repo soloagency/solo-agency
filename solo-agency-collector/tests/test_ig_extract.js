@@ -61,6 +61,13 @@ function fetchStub(rules) {
 // ------------------------------------------------------------------ vm context
 // document only needs querySelector("header") for the DOM fallback (ig_extract.js:238); location
 // only needs pathname (usernameFromHref/shortcodeFromHref) and href (currentHref/error urls).
+// A Date whose now() is the test's fake clock; parse/UTC/construction still work.
+function fakeDate(now) {
+  if (!now) return Date;
+  const F = function () { return new (Function.prototype.bind.apply(Date, [null].concat(Array.prototype.slice.call(arguments))))(); };
+  F.now = now; F.parse = Date.parse; F.UTC = Date.UTC;
+  return F;
+}
 function makeCtx(opts) {
   opts = opts || {};
   const pathname = opts.pathname || "/";
@@ -80,7 +87,8 @@ function makeCtx(opts) {
     parseResponse: (t) => { try { return JSON.parse(t); } catch (e) { return null; } },
     docIdFor: () => "",
   };
-  const ctx = { document, location, console, setTimeout, clearTimeout, URLSearchParams, Promise, Date, JSON };
+  // opts.now: a fake clock for the time-budget tests (the module only calls Date.now()).
+  const ctx = { document, location, console, setTimeout, clearTimeout, URLSearchParams, Promise, Date: fakeDate(opts.now), JSON, AbortController };
   ctx.window = ctx;
   ctx.window.__soloIg = store;
   vm.createContext(ctx);
@@ -513,6 +521,46 @@ function sensitiveKeys(o, pathStr, out) {
     const ctx2 = makeCtx({ pathname: "/reel/Dchr8pejp8b/", captures: [], origFetch: hiddenFetch, dataSjs: [scriptText] });
     const res2 = await ctx2.window.__soloIgRun("ig.post.comments", { ensure_tries: 1 });
     check("comments hidden by the owner: count 0, reason comments_hidden, comment_count kept", res2.count === 0 && res2.reason === "comments_hidden" && res2.comment_count === 8 && res2.found === false, res2);
+  }
+
+  console.log("ig.post.comments — time budget: the pages in hand come back, the next page is not started");
+  {
+    let now = 1000000;
+    const page1 = [commentNode({ pk: "9301" }), commentNode({ pk: "9302" })];
+    const page2 = [commentNode({ pk: "9303" })];
+    const stub = fetchStub([
+      { match: (url) => url.indexOf("/api/v1/media/555/comments/") !== -1 && url.indexOf("min_id=") === -1, json: commentsResponse(page1, "9302", true) },
+      { match: (url) => url.indexOf("/api/v1/media/555/comments/") !== -1 && url.indexOf("min_id=9302") !== -1, json: commentsResponse(page2, "", false) },
+    ]);
+    const slow = function (url, init) { now += 2000; return stub(url, init); };   // every page costs 2s of a 4s budget
+    const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [], origFetch: slow, now: () => now });
+    const res = await ctx.window.__soloIgRun("ig.post.comments", { media_id: "555", max_comment_pages: 5, ensure_tries: 1, time_budget_ms: 4000 });
+    check("page 1 kept (2), stopped_because time_budget, next_min_id kept and resumable, still found", res.items.length === 2 && res.stopped_because === "time_budget" && res.page_info.next_min_id === "9302" && res.page_info.resumable === true && res.found === true, res);
+    check("only the first request went out; budget fields reported", stub.calls.length === 1 && res.time_budget_ms === 4000 && res.elapsed_ms >= 2000, [stub.calls.length, res.time_budget_ms, res.elapsed_ms]);
+    check("the request carried an abort signal for the remaining budget", !!stub.calls[0].init.signal, Object.keys(stub.calls[0].init));
+    const plain = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [], origFetch: stub });
+    const all = await plain.window.__soloIgRun("ig.post.comments", { media_id: "555", max_comment_pages: 5, ensure_tries: 1 });
+    check("no budget => both pages, no time_budget_ms, no signal", all.items.length === 3 && all.time_budget_ms === null && !stub.calls[stub.calls.length - 1].init.signal, [all.items.length, all.time_budget_ms]);
+  }
+  console.log("ig.post.comments — time budget: a hung first request is aborted, not left for the 60s kill");
+  {
+    const hang = (url, init) => new Promise((resolve, reject) => { if (init && init.signal) init.signal.addEventListener("abort", () => { const e = new Error("aborted"); e.name = "AbortError"; reject(e); }); });
+    const ctx = makeCtx({ pathname: "/p/DU9kCDekVk9/", captures: [], origFetch: hang });
+    const t0 = Date.now();
+    const res = await ctx.window.__soloIgRun("ig.post.comments", { media_id: "666", ensure_tries: 1, time_budget_ms: 3000 });
+    const took = Date.now() - t0;
+    check("returned within the budget (" + took + "ms): found false, stopped_because time_budget, error says the fetch failed", took < 3700 && res.found === false && res.stopped_because === "time_budget" && /comments fetch failed/.test(String(res.error)), res);
+  }
+  console.log("ig.profile.posts — time budget through the shared paginate()");
+  {
+    let now = 2000000;
+    const page1 = [mediaNode({ pk: "p1", code: "C1" }), mediaNode({ pk: "p2", code: "C2" })];
+    const cap = profilePostsCapture(page1, { end_cursor: "cursor-2", has_next_page: true });
+    const stub = fetchStub([{ match: () => true, json: { data: { xdt_api__v1__feed__user_timeline_graphql_connection: { edges: [{ node: mediaNode({ pk: "p3", code: "C3" }) }], page_info: { end_cursor: "cursor-3", has_next_page: true } } } } }]);
+    const slow = function (url, init) { now += 2000; return stub(url, init); };   // page 2 costs 2s of a 4s budget
+    const ctx = makeCtx({ pathname: "/loanfactoryhq/", captures: [cap], origFetch: slow, now: () => now });
+    const res = await ctx.window.__soloIgRun("ig.profile.posts", { max_pages: 3, time_budget_ms: 4000 });
+    check("pages 1+2 kept (3 posts), page 3 not started: stopped_because time_budget, resumable from cursor-3", res.items.length === 3 && stub.calls.length === 1 && res.stopped_because === "time_budget" && res.page_info.end_cursor === "cursor-3" && res.page_info.resumable === true, [res.items.length, stub.calls.length, res.stopped_because, res.page_info]);
   }
 
   console.log("");

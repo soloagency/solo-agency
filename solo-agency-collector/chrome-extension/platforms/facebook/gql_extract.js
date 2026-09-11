@@ -1378,6 +1378,37 @@
 
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+  // --- time budget ---------------------------------------------------------
+  // background.js kills a capability at CAPABILITY_TIMEOUT_MS (60s). When that timer wins the
+  // race, every page already fetched is thrown away and the bridge receives count:0 — a slow
+  // network turned a 40-comment thread into "nothing". So the dispatcher hands the module
+  // `time_budget_ms` (the kill timer minus a margin) and a walk that honours it stops BEFORE
+  // the clock runs out, keeping its rows and its cursor and saying stopped_because:
+  // "time_budget". Each request also carries an abort signal for the remaining budget, so one
+  // hung fetch cannot drag the whole job past the kill line. No budget (offline harness, a
+  // direct call) means unlimited: the loops behave exactly as before.
+  function budgetOf(inputs) {
+    var ms = Number(inputs && inputs.time_budget_ms);
+    var started = Date.now(), deadline = ms > 0 ? started + ms : 0;
+    return {
+      ms: ms > 0 ? ms : null,
+      left: function () { return deadline ? Math.max(0, deadline - Date.now()) : Infinity; },
+      // true when fewer than `need` ms remain — do not start another page.
+      short: function (need) { return !!deadline && (deadline - Date.now()) < (need || 0); },
+      // per-request abort horizon: the remaining budget minus a margin for parsing; 0 = none.
+      requestMs: function () { var l = deadline ? deadline - Date.now() : 0; return deadline ? Math.max(1000, l - 500) : 0; },
+      elapsed: function () { return Date.now() - started; }
+    };
+  }
+  // An AbortController armed for `ms`; the caller clears it once the response is in.
+  function abortAfter(ms) {
+    if (!(ms > 0) || typeof AbortController !== "function") return { signal: undefined, clear: function () {} };
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { try { ctl.abort(); } catch (e) { /* ignore */ } }, ms);
+    return { signal: ctl.signal, clear: function () { clearTimeout(timer); } };
+  }
+  function isAbort(e) { return !!e && (e.name === "AbortError" || /abort/i.test(String(e.message || e))); }
+
   // --- cursor discovery ----------------------------------------------------
   // CAPABILITY_PAGINATION hard-codes one page_info path per capability, taken from the
   // INITIAL feed query. The PAGINATION query for the same feed answers in a different shape:
@@ -1597,7 +1628,7 @@
   // "cursor": null returned a degenerate slice with a single non-story edge, while omitting
   // the key returns the newest posts. A working third-party extension passes `undefined`
   // here, which JSON.stringify drops — same thing, arrived at by accident on their side.
-  function replayPage(store, cap, cursor, capabilityId) {
+  function replayPage(store, cap, cursor, capabilityId, opts) {
     // Providers go in FIRST so anything explicit or captured still wins — this only fills the
     // flags the query declares and nobody supplied.
     var vars = providedVariables(cap.queryName);
@@ -1624,13 +1655,18 @@
     p.set("variables", JSON.stringify(vars));
     p.set("doc_id", docIdFromRegistry(cap.queryName) || cap.docId);
     p.set("server_timestamps", "true");
-    return store.origFetch(cap.url || "/api/graphql/", {
+    var init = {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", "X-FB-Friendly-Name": cap.queryName || "" },
       body: p.toString()
-    }).then(function (resp) { return resp.text(); }).then(function (text) {
+    };
+    // opts.timeoutMs: abort the request when the caller's time budget is spent (see budgetOf).
+    var guard = abortAfter(opts && opts.timeoutMs);
+    if (guard.signal) init.signal = guard.signal;
+    return store.origFetch(cap.url || "/api/graphql/", init).then(function (resp) { return resp.text(); }).then(function (text) {
+      guard.clear();
       return store.parseResponse ? store.parseResponse(text) : JSON.parse(String(text).replace(/^for\s*\(;;\);/, ""));
-    });
+    }, function (e) { guard.clear(); throw e; });
   }
 
   // ---- DOM-based capabilities (data not available via GraphQL) ------------
@@ -2329,7 +2365,7 @@
   // the reading agent choose an industry. A keyword map here is what makes every trade outside the
   // map invisible — the failure already recorded on `category` (line ~1703) and `industryHint()`.
   //
-  // TIMEOUT — read before raising any budget. background.js:752 kills a capability at 45s, and an
+  // TIMEOUT — read before raising any budget. background.js CAPABILITY_TIMEOUT_MS kills a capability at 60s, and an
   // earlier attempt at exactly this ladder (fb.profile.about) blew that limit twice and had to be
   // deleted. Five tabs at the contacts ladder's 5s settle is ~35s worst case, which leaves no room
   // for a slow profile. So: a 2.8s per-tab settle (an About sub-tab is small; settleThenScan
@@ -3780,6 +3816,10 @@
     var intentOverride = inputs.comment_intent ? String(inputs.comment_intent) : null;
     var maxPages = Math.max(1, Math.min(20, inputs.max_comment_pages != null ? inputs.max_comment_pages : 5));
     var maxComments = Math.max(1, Math.min(500, inputs.max_comments != null ? inputs.max_comments : 60));
+    // The job's share of the dispatcher's kill timer (background.js passes time_budget_ms). A
+    // page is not started when fewer than PAGE_MIN_MS remain, and each request is aborted at
+    // the budget line, so the walk always returns its rows before the 60s kill discards them.
+    var budget = budgetOf(inputs), PAGE_MIN_MS = 2500, budgetHit = false;
     // depth counts LEVELS OF COMMENT, not levels of reply. depth:1 — the default — is the
     // direct comments on the post and nothing beneath them; depth:2 adds their replies; 3 adds
     // replies of replies. The ceiling is 4 because Facebook's own client stops recursing there.
@@ -3813,7 +3853,7 @@
         id: feedbackId
       };
       vars[UFI_PROVIDER] = true;
-      return replayPage(store, capFor(COMMENT_QUERY, feedbackId, vars), undefined, null);
+      return replayPage(store, capFor(COMMENT_QUERY, feedbackId, vars), undefined, null, { timeoutMs: budget.requestMs() });
     }
 
     // The reply query's variable set is NOT the top-level one with different names. It takes
@@ -3836,7 +3876,7 @@
         id: commentFeedbackId
       };
       vars[UFI_PROVIDER] = true;
-      return replayPage(store, capFor(REPLY_QUERY, commentFeedbackId, vars), undefined, null);
+      return replayPage(store, capFor(REPLY_QUERY, commentFeedbackId, vars), undefined, null, { timeoutMs: budget.requestMs() });
     }
 
     // Replies for ONE comment, then recursively for its own replies while the budget allows.
@@ -3855,6 +3895,13 @@
       var cursor = null, pages = 0;
       function stepReply() {
         if (pages >= maxPages || all.length >= maxComments) return Promise.resolve();
+        // Out of time: keep the parent (and the replies already read) and say the thread under
+        // it is incomplete, rather than start a request the kill timer would take with it.
+        if (budget.short(PAGE_MIN_MS)) {
+          budgetHit = true; rec.replies_cut = true;
+          if (notes.length < 8) notes.push("replies " + rec.id + ": time budget exhausted, replies incomplete");
+          return Promise.resolve();
+        }
         pages += 1;
         return replyPage(rec.feedback_id, token, cursor).then(function (resp) {
           // fetch does not reject on 4xx/5xx, and parseResponse answers null for anything that
@@ -3891,7 +3938,8 @@
           return deeper.reduce(function (chain, fn) { return chain.then(fn); }, Promise.resolve())
             .then(function () { return more ? wait(300).then(stepReply) : undefined; });
         }).catch(function (e) {
-          if (notes.length < 8) notes.push("replies " + rec.id + ": " + String(e && e.message || e));
+          if (isAbort(e) || budget.short(1000)) { budgetHit = true; rec.replies_cut = true; }
+          if (notes.length < 8) notes.push("replies " + rec.id + ": " + (isAbort(e) ? "time budget exhausted mid-request, replies incomplete" : String(e && e.message || e)));
         });
       }
       return stepReply();
@@ -3907,6 +3955,14 @@
       function step() {
         if (pages >= maxPages || all.length >= maxComments) {
           stopped = pages >= maxPages ? "page_cap" : "comment_cap";
+          return Promise.resolve();
+        }
+        // Out of time before the thread ended: stop here with the cursor kept. has_next_page
+        // stays true (or, before the first page, the whole post is still owed), so resumable
+        // says the next leg can pick up exactly where this one stopped.
+        if (budget.short(PAGE_MIN_MS)) {
+          stopped = "time_budget"; budgetHit = true;
+          if (pages === 0) hasNext = true;
           return Promise.resolve();
         }
         pages += 1;
@@ -3957,8 +4013,11 @@
             else if (!cursor) stopped = "no_cursor_despite_has_next_page";
           });
         }).catch(function (e) {
-          stopped = "fetch_failed";
-          if (notes.length < 8) notes.push(feedbackId + ": " + String(e && e.message || e));
+          // An abort at the budget line is the walk stopping on purpose; the page it was
+          // fetching is still owed, so the cursor it asked with stays the resume point.
+          if (isAbort(e) || budget.short(1000)) { stopped = "time_budget"; budgetHit = true; hasNext = true; }
+          else stopped = "fetch_failed";
+          if (notes.length < 8) notes.push(feedbackId + ": " + (isAbort(e) ? "time budget exhausted mid-request" : String(e && e.message || e)));
         });
       }
       return step().then(function () {
@@ -3968,7 +4027,9 @@
                        has_next_page: hasNext, end_cursor: cursor || null,
                        // The handle for the next leg. has_next_page:false is the only honest
                        // end-of-thread signal — a short page is not one, and neither is page_cap.
-                       resumable: !!(hasNext && cursor) });
+                       // A post the budget stopped before any page is resumable from its start
+                       // cursor (null = the head), so it is not mistaken for a finished thread.
+                       resumable: !!(hasNext && (cursor || stopped === "time_budget")) });
       });
     }
 
@@ -3984,7 +4045,10 @@
       out.doc_id = docId;
       out.reply_doc_id = replyDocId || "";
       out.depth = depth;
-      if (!out.found) out.reason = notes.length ? "query_rejected" : "no_comments";
+      out.elapsed_ms = budget.elapsed();
+      if (budget.ms) out.time_budget_ms = budget.ms;
+      if (budgetHit) out.time_budget_hit = true;
+      if (!out.found) out.reason = budgetHit ? "time_budget" : (notes.length ? "query_rejected" : "no_comments");
       if (notes.length) out.notes = notes;
       return out;
     });

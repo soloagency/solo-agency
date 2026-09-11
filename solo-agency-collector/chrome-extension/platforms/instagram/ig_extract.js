@@ -56,6 +56,33 @@
     return cur;
   }
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  // ---- time budget ---------------------------------------------------------------------------
+  // background.js kills a capability at CAPABILITY_TIMEOUT_MS (60s) and, when that timer wins,
+  // every page already fetched is lost: the bridge receives count:0. So the dispatcher passes
+  // `time_budget_ms` (the kill timer minus a margin) and every pagination loop here stops BEFORE
+  // the clock runs out — rows and cursor kept, stopped_because:"time_budget" — and each request
+  // carries an abort signal for the remaining budget so one hung fetch cannot drag the job past
+  // the kill line. No budget (offline harness, direct calls) means unlimited: unchanged behaviour.
+  function budgetOf(inputs) {
+    var ms = Number(inputs && inputs.time_budget_ms);
+    var started = Date.now(), deadline = ms > 0 ? started + ms : 0;
+    return {
+      ms: ms > 0 ? ms : null,
+      left: function () { return deadline ? Math.max(0, deadline - Date.now()) : Infinity; },
+      short: function (need) { return !!deadline && (deadline - Date.now()) < (need || 0); },
+      requestMs: function () { var l = deadline ? deadline - Date.now() : 0; return deadline ? Math.max(1000, l - 500) : 0; },
+      elapsed: function () { return Date.now() - started; }
+    };
+  }
+  function abortAfter(ms) {
+    if (!(ms > 0) || typeof AbortController !== "function") return { signal: undefined, clear: function () {} };
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { try { ctl.abort(); } catch (e) { /* ignore */ } }, ms);
+    return { signal: ctl.signal, clear: function () { clearTimeout(timer); } };
+  }
+  function isAbort(e) { return !!e && (e.name === "AbortError" || /abort/i.test(String(e.message || e))); }
+  var PAGE_MIN_MS = 2500; // do not start a page with less than this left
   function currentHref() { try { return location.href; } catch (e) { return ""; } }
   function str(v) { return typeof v === "string" ? v : (v === null || v === undefined ? "" : String(v)); }
   function num(v) { return typeof v === "number" && isFinite(v) ? v : null; }
@@ -226,19 +253,23 @@
     if (friendlyName) h["x-fb-friendly-name"] = friendlyName;
     return h;
   }
-  function restGet(path) {
+  function restGet(path, timeoutMs) {
     var s = store();
     var f = typeof s.origFetch === "function" ? s.origFetch : window.fetch;
-    return f(path, { method: "GET", credentials: "include", headers: headers("") }).then(function (r) {
+    var init = { method: "GET", credentials: "include", headers: headers("") };
+    var guard = abortAfter(timeoutMs);
+    if (guard.signal) init.signal = guard.signal;
+    return f(path, init).then(function (r) {
       return r.text().then(function (t) {
+        guard.clear();
         var j = null; try { j = JSON.parse(t.replace(/^for\s*\(;;\);/, "")); } catch (e) { j = null; }
         return { status: r.status, json: j };
       });
-    });
+    }, function (e) { guard.clear(); throw e; });
   }
   // Replay a captured Polaris query with a new `after` cursor: the same body Instagram sent,
   // with only `variables` rewritten — the same trick the Facebook module uses.
-  function replay(cap, patchVariables) {
+  function replay(cap, patchVariables, timeoutMs) {
     var s = store();
     var f = typeof s.origFetch === "function" ? s.origFetch : window.fetch;
     if (!cap || !cap.requestBody) return Promise.resolve(null);
@@ -249,9 +280,12 @@
     p.set("variables", JSON.stringify(vars));
     var h = headers(cap.queryName);
     h["content-type"] = "application/x-www-form-urlencoded";
-    return f(cap.url, { method: "POST", credentials: "include", headers: h, body: p.toString() }).then(function (r) {
-      return r.text().then(function (t) { return { status: r.status, json: s.parseResponse ? s.parseResponse(t) : null }; });
-    });
+    var init = { method: "POST", credentials: "include", headers: h, body: p.toString() };
+    var guard = abortAfter(timeoutMs);
+    if (guard.signal) init.signal = guard.signal;
+    return f(cap.url, init).then(function (r) {
+      return r.text().then(function (t) { guard.clear(); return { status: r.status, json: s.parseResponse ? s.parseResponse(t) : null }; });
+    }, function (e) { guard.clear(); throw e; });
   }
   function ensureCapture(pred, tries, stepMs) {
     var n = 0;
@@ -368,7 +402,8 @@
     for (var i = 0; i < edges.length; i++) { var rec = postRecord(edges[i] && edges[i].node); if (rec) out.push(rec); }
     return out;
   }
-  function paginate(capId, cap, connPath, maxPages, seedItems, seedPageInfo) {
+  function paginate(capId, cap, connPath, maxPages, seedItems, seedPageInfo, budget) {
+    budget = budget || budgetOf(null);
     var items = seedItems.slice(), seen = {};
     items.forEach(function (it) { seen[it.id] = 1; });
     var pageInfo = seedPageInfo || {};
@@ -376,12 +411,13 @@
     function step() {
       if (pages >= maxPages) { stopped = pages >= maxPages && pageInfo.has_next_page ? "page_cap_hit" : null; return Promise.resolve(); }
       if (!pageInfo.has_next_page || !pageInfo.end_cursor) return Promise.resolve();
+      if (budget.short(PAGE_MIN_MS)) { stopped = "time_budget"; return Promise.resolve(); }
       var cursor = pageInfo.end_cursor;
       return replay(cap, function (vars) {
         vars.after = cursor;
         if (isObj(vars.data) && vars.data.count == null) vars.data.count = 12;
         return vars;
-      }).then(function (res) {
+      }, budget.requestMs()).then(function (res) {
         var conn = res && res.json ? getPath(Array.isArray(res.json) ? res.json[0] : res.json, "data." + connPath) : null;
         if (!isObj(conn)) { stopped = "replay_failed_" + (res ? res.status : "no_response"); return; }
         var fresh = connectionItems(conn).filter(function (it) { if (seen[it.id]) return false; seen[it.id] = 1; return true; });
@@ -390,7 +426,7 @@
         pages += 1;
         if (!fresh.length) { stopped = "no_new_items"; return; }
         return wait(800).then(step);
-      }).catch(function (e) { stopped = "fetch_error"; });
+      }).catch(function (e) { stopped = isAbort(e) || budget.short(1000) ? "time_budget" : "fetch_error"; });
     }
     return step().then(function () {
       return { items: items, pages: pages, page_info: { end_cursor: str(pageInfo.end_cursor), has_next_page: !!pageInfo.has_next_page, resumable: !!(pageInfo.has_next_page && pageInfo.end_cursor) }, stopped_because: stopped };
@@ -398,12 +434,13 @@
   }
   function profilePosts(inputs) {
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 40) : 1;
+    var budget = budgetOf(inputs);
     return ensureCapture(isPostsCapture, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_POSTS, [], { found: false, reason: "posts_query_not_captured", error: "no timeline query captured on this page (private profile, no posts, or the page did not render the grid)" });
       var conn = getPath(responseData(cap), POSTS_CONN);
       var seed = connectionItems(conn);
       var maxItems = Number(inputs.max_posts) > 0 ? Number(inputs.max_posts) : 0;
-      return paginate(CAP_POSTS, cap, POSTS_CONN, maxPages, seed, conn.page_info).then(function (r) {
+      return paginate(CAP_POSTS, cap, POSTS_CONN, maxPages, seed, conn.page_info, budget).then(function (r) {
         var items = maxItems ? r.items.slice(0, maxItems) : r.items;
         return envelope(CAP_POSTS, items, { found: items.length > 0, source_query: cap.queryName, pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because, username: str(getPath(cap, "variables.username")) || usernameFromHref() });
       });
@@ -429,6 +466,7 @@
   }
   function searchPosts(inputs) {
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 20) : 1;
+    var budget = budgetOf(inputs);
     return ensureCapture(isSerpCapture, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_SEARCH_POSTS, [], { found: false, reason: "search_query_not_captured", error: "no keyword-search query captured; open https://www.instagram.com/explore/search/keyword/?q=<keyword>" });
       var conn = getPath(responseData(cap), SERP);
@@ -438,15 +476,16 @@
       var pages = 1, stopped = null;
       function step() {
         if (pages >= maxPages || !pageInfo.has_next_page || !pageInfo.end_cursor) { if (pages >= maxPages && pageInfo.has_next_page) stopped = "page_cap_hit"; return Promise.resolve(); }
+        if (budget.short(PAGE_MIN_MS)) { stopped = "time_budget"; return Promise.resolve(); }
         var cursor = pageInfo.end_cursor;
-        return replay(cap, function (vars) { vars.after = cursor; return vars; }).then(function (res) {
+        return replay(cap, function (vars) { vars.after = cursor; return vars; }, budget.requestMs()).then(function (res) {
           var c2 = res && res.json ? getPath(Array.isArray(res.json) ? res.json[0] : res.json, "data." + SERP) : null;
           if (!isObj(c2)) { stopped = "replay_failed_" + (res ? res.status : "no_response"); return; }
           var fresh = serpItems(c2).filter(function (it) { if (seen[it.id]) return false; seen[it.id] = 1; return true; });
           items = items.concat(fresh); pageInfo = isObj(c2.page_info) ? c2.page_info : {}; pages += 1;
           if (!fresh.length) { stopped = "no_new_items"; return; }
           return wait(800).then(step);
-        }).catch(function (e) { stopped = "fetch_error"; });
+        }).catch(function (e) { stopped = isAbort(e) || budget.short(1000) ? "time_budget" : "fetch_error"; });
       }
       return step().then(function () {
         return envelope(CAP_SEARCH_POSTS, items, { found: items.length > 0, source_query: cap.queryName, query: str(getPath(cap, "variables.query")) || str(inputs.query), pages_fetched: pages,
@@ -517,6 +556,7 @@
     var mediaId = str(inputs.media_id);
     var maxPages = Number(inputs.max_comment_pages) > 0 ? Math.min(Number(inputs.max_comment_pages), 20) : 1;
     var maxComments = Number(inputs.max_comments) > 0 ? Number(inputs.max_comments) : 50;
+    var budget = budgetOf(inputs);
     // The media id comes from inputs or from the post this page opened (post-root capture or the
     // embedded Relay entry whose code matches the shortcode) — never from whichever comments
     // capture happens to be newest in the ring, which may belong to a post viewed earlier.
@@ -534,21 +574,24 @@
         hasMore = !!json.has_more_comments;
         pages += 1;
       }
-      var first = (cap ? Promise.resolve({ status: 200, json: cap.response }) : restGet("/api/v1/media/" + mediaId + "/comments/?can_support_threading=true&permalink_enabled=false"))
-        .catch(function (e) { return { status: 0, json: null, error: String(e && e.message || e) }; });
+      var first = (cap ? Promise.resolve({ status: 200, json: cap.response }) : restGet("/api/v1/media/" + mediaId + "/comments/?can_support_threading=true&permalink_enabled=false", budget.requestMs()))
+        .catch(function (e) { return { status: 0, json: null, error: String(e && e.message || e), aborted: isAbort(e) }; });
       return first.then(function (r) {
-        if (!r.json || !Array.isArray(r.json.comments)) return envelope(CAP_COMMENTS, [], { found: false, media_id: mediaId, error: r.error ? "comments fetch failed: " + r.error : "comments answered HTTP " + r.status });
+        if (!r.json || !Array.isArray(r.json.comments)) return envelope(CAP_COMMENTS, [], { found: false, media_id: mediaId, error: r.error ? "comments fetch failed: " + r.error : "comments answered HTTP " + r.status, stopped_because: r.aborted ? "time_budget" : null, elapsed_ms: budget.elapsed(), time_budget_ms: budget.ms });
         take(r.json);
         function step() {
           if (items.length >= maxComments) { stopped = "max_comments"; return Promise.resolve(); }
           if (pages >= maxPages) { if (hasMore) stopped = "page_cap_hit"; return Promise.resolve(); }
           if (!hasMore || !nextMin) return Promise.resolve();
-          return restGet("/api/v1/media/" + mediaId + "/comments/?can_support_threading=true&permalink_enabled=false&min_id=" + encodeURIComponent(nextMin)).then(function (r2) {
+          // Out of time: return the pages read so far with next_min_id kept, rather than start a
+          // request the dispatcher's kill timer would take down together with every row.
+          if (budget.short(PAGE_MIN_MS)) { stopped = "time_budget"; return Promise.resolve(); }
+          return restGet("/api/v1/media/" + mediaId + "/comments/?can_support_threading=true&permalink_enabled=false&min_id=" + encodeURIComponent(nextMin), budget.requestMs()).then(function (r2) {
             if (!r2.json || !Array.isArray(r2.json.comments)) { stopped = "replay_failed_" + r2.status; return; }
             var before = items.length; take(r2.json);
             if (items.length === before) { stopped = "no_new_items"; return; }
             return wait(800).then(step);
-          }).catch(function (e) { stopped = "fetch_error"; });
+          }).catch(function (e) { stopped = isAbort(e) || budget.short(1000) ? "time_budget" : "fetch_error"; });
         }
         return step().then(function () {
           var declared = header && header.engagement ? header.engagement.comments : (num(r.json.comment_count));
@@ -559,7 +602,8 @@
           var hidden = items.length === 0 && !hasMore && typeof declared === "number" && declared > 0;
           return envelope(CAP_COMMENTS, items.slice(0, maxComments), { found: items.length > 0, media_id: mediaId, shortcode: shortcode, post: header, comment_count: declared,
             reason: hidden ? "comments_hidden" : null,
-            pages_fetched: pages, page_info: { next_min_id: nextMin, has_more: hasMore, resumable: !!(hasMore && nextMin) }, stopped_because: stopped });
+            pages_fetched: pages, page_info: { next_min_id: nextMin, has_more: hasMore, resumable: !!(hasMore && nextMin) }, stopped_because: stopped,
+            elapsed_ms: budget.elapsed(), time_budget_ms: budget.ms });
         });
       });
     });

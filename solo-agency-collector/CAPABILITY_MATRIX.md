@@ -88,3 +88,24 @@ is being retired); LinkedIn 0 built, 17 feasible/risky, 3 impossible.
   `unsupported` list per platform with the reason) so `/capabilities` can answer "does platform P
   support pillar R" and the playbooks can refuse an impossible job before it is queued. That
   change is proposed, not made.
+
+## 5. Reading a post's comments: what "all comments" actually means (measured 2026-09-11)
+
+None of the three built `post.comments` capabilities drains a thread; each stops at a page or
+row cap, and a job has one wall-clock budget. The honest signal is `stopped_because` +
+`page_info.resumable` (Facebook: `by_post[].resumable`), never `count` alone.
+
+| | `fb.post.comments` | `ig.post.comments` | `x.post.replies` |
+|---|---|---|---|
+| Defaults | 5 pages, 60 comments | 1 page, 50 comments | 1 page, 100 replies |
+| Hard caps per job | 20 pages, 500 comments (global across posts and reply levels) | 20 pages; no row cap | 20 pages; no row cap |
+| Replies under comments | opt-in `depth` ≤ 4, one request per parent per level | never (`reply_count` only; the platform total counts them) | depth label 0/1 only, collapsed "show more" never opened |
+| Platform total in the result | no — join `engagement.comments` from the post record | `comment_count` | `reply_count` |
+| Resume in a later job | `start_cursor` / `start_cursors` | not yet (`next_min_id` is reported, no input takes it) | not yet, and a stored cursor cannot be replayed (404) — a new job scrolls from the top |
+| Time budget | `inputs.time_budget_ms`, default 50 s of the 60 s kill timer; `stopped_because: "time_budget"`, rows and cursor kept | same | same (every X read) |
+
+For lead finding this is enough: the first few hundred top-level commenters of a post are the
+people worth a look, and a thread of thousands is a job for several legs, not one. What must
+never happen again is the pre-2026-09-11 loss: a walk that ran past the 60 s kill timer on a
+slow network answered `count: 0` and the bridge could not tell it from an empty thread.
+

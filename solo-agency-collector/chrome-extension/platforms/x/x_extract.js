@@ -43,6 +43,33 @@
   function str(v) { return typeof v === "string" ? v : (v === null || v === undefined ? "" : String(v)); }
   function num(v) { if (typeof v === "number" && isFinite(v)) return v; if (typeof v === "string" && /^\d+$/.test(v)) return Number(v); return null; }
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  // ---- time budget ---------------------------------------------------------------------------
+  // background.js kills a capability at CAPABILITY_TIMEOUT_MS (60s) and, when that timer wins,
+  // every page already fetched is lost: the bridge receives count:0. So the dispatcher passes
+  // `time_budget_ms` (the kill timer minus a margin) and every pagination loop here stops BEFORE
+  // the clock runs out — rows and cursor kept, stopped_because:"time_budget" — and each request
+  // carries an abort signal for the remaining budget so one hung fetch cannot drag the job past
+  // the kill line. No budget (offline harness, direct calls) means unlimited: unchanged behaviour.
+  function budgetOf(inputs) {
+    var ms = Number(inputs && inputs.time_budget_ms);
+    var started = Date.now(), deadline = ms > 0 ? started + ms : 0;
+    return {
+      ms: ms > 0 ? ms : null,
+      left: function () { return deadline ? Math.max(0, deadline - Date.now()) : Infinity; },
+      short: function (need) { return !!deadline && (deadline - Date.now()) < (need || 0); },
+      requestMs: function () { var l = deadline ? deadline - Date.now() : 0; return deadline ? Math.max(1000, l - 500) : 0; },
+      elapsed: function () { return Date.now() - started; }
+    };
+  }
+  function abortAfter(ms) {
+    if (!(ms > 0) || typeof AbortController !== "function") return { signal: undefined, clear: function () {} };
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { try { ctl.abort(); } catch (e) { /* ignore */ } }, ms);
+    return { signal: ctl.signal, clear: function () { clearTimeout(timer); } };
+  }
+  function isAbort(e) { return !!e && (e.name === "AbortError" || /abort/i.test(String(e.message || e))); }
+  var PAGE_MIN_MS = 3000; // a page needs a scroll, a wait and a capture; do not start one with less
   function currentHref() { try { return location.href; } catch (e) { return ""; } }
   function store() { return window.__soloX || { captures: [] }; }
   function captures() { var s = store(); return Array.isArray(s.captures) ? s.captures : []; }
@@ -289,7 +316,7 @@
   // Replay a captured GET query with a new cursor: same url, `variables` rewritten, the same
   // session headers X's own client sent. X may refuse a replay without its per-request
   // transaction id; the caller then stops with replay_failed_<status> and keeps what it has.
-  function replay(cap, patchVariables) {
+  function replay(cap, patchVariables, timeoutMs) {
     var s = store();
     var f = typeof s.origFetch === "function" ? s.origFetch : window.fetch;
     if (!cap || !cap.url) return Promise.resolve(null);
@@ -309,7 +336,9 @@
       url.searchParams.set("variables", JSON.stringify(vars));
       init = { method: "GET", credentials: "include", headers: h };
     }
-    return f(url.toString(), init).then(function (r) { return r.text().then(function (t) { return { status: r.status, json: s.parseResponse ? s.parseResponse(t) : null }; }); });
+    var guard = abortAfter(timeoutMs);
+    if (guard.signal) init.signal = guard.signal;
+    return f(url.toString(), init).then(function (r) { return r.text().then(function (t) { guard.clear(); return { status: r.status, json: s.parseResponse ? s.parseResponse(t) : null }; }); }, function (e) { guard.clear(); throw e; });
   }
   // Generic cursor pagination over a timeline: seed = what the page already captured (all
   // captures of this operation, merged), then replay from the newest bottom cursor.
@@ -331,7 +360,8 @@
     }
     return poll();
   }
-  function paginate(pred, maxPages, mapItems, wantFirst) {
+  function paginate(pred, maxPages, mapItems, wantFirst, budget) {
+    budget = budget || budgetOf(null);
     var items = [], seen = {}, pages = 0, cursor = "", last = null, stopped = null, merged = 0;
     function merge() {
       var caps = allCaptures(pred);
@@ -347,14 +377,18 @@
     function step() {
       if (pages >= maxPages) { if (cursor) stopped = "page_cap_hit"; return Promise.resolve(); }
       if (!cursor || !last) return Promise.resolve();
+      // Out of time with more to read: keep the pages in hand and the cursor, say so, and let
+      // the dispatcher have a whole record instead of a kill-timer error.
+      if (budget.short(PAGE_MIN_MS)) { stopped = "time_budget"; return Promise.resolve(); }
       var cur = cursor, before = items.length;
-      return scrollForMore(pred, merged, 6000).then(function (more) {
+      var scrollMs = budget.left() === Infinity ? 6000 : Math.max(1000, Math.min(6000, budget.left() - 1500));
+      return scrollForMore(pred, merged, scrollMs).then(function (more) {
         if (more) {
           merge();
           if (items.length === before) { stopped = "no_new_items"; return; }
           return wait(700).then(step);
         }
-        return replay(last, function (v) { v.cursor = cur; return v; }).then(function (res) {
+        return replay(last, function (v) { v.cursor = cur; return v; }, budget.requestMs()).then(function (res) {
         var ins = res && res.json ? findInstructions(res.json) : null;
         if (!ins) { stopped = "replay_failed_" + (res ? (res.status || res.error || "no_response") : "no_response"); return; }
         var before = items.length;
@@ -365,7 +399,7 @@
         cursor = next;
         return wait(900).then(step);
         });
-      }).catch(function (e) { stopped = "fetch_error"; });
+      }).catch(function (e) { stopped = isAbort(e) || budget.short(1000) ? "time_budget" : "fetch_error"; });
     }
     return step().then(function () {
       if (wantFirst) items = wantFirst(items);
@@ -400,12 +434,13 @@
   function isUserTimelineCapture(c, withReplies) { return c.kind === "graphql" && (withReplies ? /^User(TweetsAndReplies|RepliesTimeline)$/ : /^User(Tweets|OriginalsTimeline)$/).test(str(c.queryName)) && !!instructionsOf(c); }
   function profilePosts(inputs) {
     var withReplies = inputs.include_replies === true;
+    var budget = budgetOf(inputs);
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 40) : 1;
     var maxItems = Number(inputs.max_posts) > 0 ? Number(inputs.max_posts) : 0;
     var pred = function (c) { return isUserTimelineCapture(c, withReplies); };
     return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_POSTS, [], { found: false, reason: "posts_query_not_captured", error: "no " + (withReplies ? "UserTweetsAndReplies" : "UserOriginalsTimeline/UserTweets") + " query captured on this page (protected account, no posts, or the tab did not render)" });
-      return paginate(pred, maxPages, tweetsFrom).then(function (r) {
+      return paginate(pred, maxPages, tweetsFrom, undefined, budget).then(function (r) {
         var items = maxItems ? r.items.slice(0, maxItems) : r.items;
         return envelope(CAP_POSTS, items, { found: items.length > 0, source_query: cap.queryName, pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because, username: handleFromHref() });
       });
@@ -416,6 +451,7 @@
   function searchProduct(c) { return str(isObj(c.variables) ? c.variables.product : ""); }
   function isSearchCapture(c, products) { return c.kind === "graphql" && /^SearchTimeline$/.test(str(c.queryName)) && products.indexOf(searchProduct(c)) !== -1 && !!instructionsOf(c); }
   function searchPosts(inputs) {
+    var budget = budgetOf(inputs);
     var mode = str(inputs.mode).toLowerCase() === "latest" ? "Latest" : (str(inputs.mode).toLowerCase() === "top" ? "Top" : "");
     var products = mode ? [mode] : ["Top", "Latest"];
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 20) : 1;
@@ -423,17 +459,18 @@
     return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_SEARCH_POSTS, [], { found: false, reason: "search_query_not_captured", error: "no SearchTimeline query captured; open https://x.com/search?q=<keyword>&src=typed_query" + (mode === "Latest" ? "&f=live" : "") });
       var product = searchProduct(cap);
-      return paginate(function (c) { return isSearchCapture(c, [product]); }, maxPages, tweetsFrom).then(function (r) {
+      return paginate(function (c) { return isSearchCapture(c, [product]); }, maxPages, tweetsFrom, undefined, budget).then(function (r) {
         return envelope(CAP_SEARCH_POSTS, r.items, { found: r.items.length > 0, source_query: cap.queryName, query: str(isObj(cap.variables) ? cap.variables.rawQuery : "") || str(inputs.query), mode: product.toLowerCase(), pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because });
       });
     });
   }
   function peopleSearch(inputs) {
+    var budget = budgetOf(inputs);
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 10) : 1;
     var pred = function (c) { return isSearchCapture(c, ["People"]); };
     return ensureCapture(pred, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 8, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_PEOPLE, [], { found: false, reason: "search_query_not_captured", error: "no SearchTimeline(People) query captured; open https://x.com/search?q=<keyword>&src=typed_query&f=user" });
-      return paginate(pred, maxPages, usersFrom).then(function (r) {
+      return paginate(pred, maxPages, usersFrom, undefined, budget).then(function (r) {
         return envelope(CAP_PEOPLE, r.items, { found: r.items.length > 0, source_query: cap.queryName, query: str(isObj(cap.variables) ? cap.variables.rawQuery : "") || str(inputs.query), pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because });
       });
     });
@@ -442,6 +479,7 @@
   // ------------------------------------------------------------- x.post.replies
   function isDetailCapture(c) { return c.kind === "graphql" && /^TweetDetail$/.test(str(c.queryName)) && !!instructionsOf(c); }
   function postReplies(inputs) {
+    var budget = budgetOf(inputs);
     var focalId = str(inputs.post_id) || statusIdFromHref();
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 20) : 1;
     var maxReplies = Number(inputs.max_replies) > 0 ? Number(inputs.max_replies) : 100;
@@ -457,7 +495,7 @@
     }).then(function (cap) {
       if (!cap) return envelope(CAP_REPLIES, [], { found: false, reason: "detail_query_not_captured", error: "no TweetDetail query captured for " + (focalId || currentHref()) + " — the page rendered without its conversation query (slow load or a login wall)" });
       var id = focalId || str(isObj(cap.variables) ? cap.variables.focalTweetId : "");
-      return paginate(pred, maxPages, tweetsFrom).then(function (r) {
+      return paginate(pred, maxPages, tweetsFrom, undefined, budget).then(function (r) {
         var post = null, replies = [];
         r.items.forEach(function (t) { if (t.id === id) post = t; else replies.push(t); });
         // depth 0 = a direct reply to the post, 1 = a reply inside a thread under it
@@ -466,7 +504,8 @@
         return envelope(CAP_REPLIES, replies, { found: replies.length > 0, source_query: cap.queryName, post_id: id, post: post,
           reply_count: post && post.engagement ? post.engagement.comments : null,
           reason: (!replies.length && post && post.engagement && post.engagement.comments > 0) ? "replies_hidden" : null,
-          pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because });
+          pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because,
+          elapsed_ms: budget.elapsed(), time_budget_ms: budget.ms });
       });
     });
   }
@@ -474,11 +513,12 @@
   // ------------------------------------------------------------- x.timeline.home
   function isHomeCapture(c) { return c.kind === "graphql" && /^Home(Latest)?Timeline$/.test(str(c.queryName)) && !!instructionsOf(c); }
   function timelineHome(inputs) {
+    var budget = budgetOf(inputs);
     var maxPages = Number(inputs.max_pages) > 0 ? Math.min(Number(inputs.max_pages), 10) : 1;
     return ensureCapture(isHomeCapture, Number(inputs.ensure_tries) > 0 ? Number(inputs.ensure_tries) : 6, 1000).then(function (cap) {
       if (!cap) return envelope(CAP_HOME, [], { found: false, reason: "home_query_not_captured", error: "no HomeTimeline query captured; open https://x.com/home" });
       var name = cap.queryName;
-      return paginate(function (c) { return isHomeCapture(c) && c.queryName === name; }, maxPages, tweetsFrom).then(function (r) {
+      return paginate(function (c) { return isHomeCapture(c) && c.queryName === name; }, maxPages, tweetsFrom, undefined, budget).then(function (r) {
         return envelope(CAP_HOME, r.items, { found: r.items.length > 0, source_query: name, feed: name === "HomeLatestTimeline" ? "following" : "for_you", pages_fetched: r.pages, page_info: r.page_info, stopped_because: r.stopped_because });
       });
     });

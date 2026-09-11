@@ -117,7 +117,18 @@ the lead record is `records.items[0]` for `ig.profile.enrich`, `records.items[]`
 own profile (below). Every other outcome is `available: true` with `count: 0` and a `reason` /
 `error` explaining why, so `records: null` (not an empty envelope) is what actually signals a
 collector problem: the extension did not run the capability at all (stale extension, injection
-failure, or the dispatch timeout).
+failure, or the module hanging past the dispatch timeout).
+
+**Time budget (2026-09-11).** `ig.post.comments`, `ig.profile.posts` and `ig.search.posts` honour
+`inputs.time_budget_ms` — the dispatcher passes 50 s (its 60 s kill timer minus a margin; a job
+may only lower it). With under 2.5 s left no further page is fetched and the request in flight is
+aborted at the budget line, so the walk returns the pages in hand with `stopped_because:
+"time_budget"`, `page_info.resumable` + `next_min_id` (comments) / `end_cursor` (posts, search),
+and `elapsed_ms` / `time_budget_ms` on the comments envelope. Before this a slow page past 60 s
+answered `count: 0`, `error: "capability did not complete"` and every row already read was lost.
+Comment caps stay as they were: `max_comment_pages` 1 (≤20), `max_comments` 50, replies never
+expanded (`comment_count` counts them, which is why 4 of 8 is the normal reading on a post whose
+other 4 are replies).
 
 | Envelope field | Meaning |
 |---|---|

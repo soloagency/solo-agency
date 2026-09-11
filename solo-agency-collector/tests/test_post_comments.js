@@ -116,9 +116,17 @@ function searchResponse(stories) {
 // Harness
 // ---------------------------------------------------------------------------
 
+// A Date whose now() is the test's fake clock; parse/UTC/construction still work.
+function fakeDate(now) {
+  if (!now) return Date;
+  const F = function () { return new (Function.prototype.bind.apply(Date, [null].concat(Array.prototype.slice.call(arguments))))(); };
+  F.now = now; F.parse = Date.parse; F.UTC = Date.UTC;
+  return F;
+}
 function makeCtx(opts) {
   opts = opts || {};
   const sent = [];                       // every outgoing request: { query, vars }
+  const sentInit = [];                   // the fetch init of each, in the same order
   const registry = opts.registry || { [COMMENT_Q]: "doc_comments", [REPLY_Q]: "doc_replies", [SEARCH_Q]: "doc_search" };
   const providers = opts.providers || {};
 
@@ -137,7 +145,9 @@ function makeCtx(opts) {
     },
     location: { href: "https://www.facebook.com/groups/1/search/?q=agent", origin: "https://www.facebook.com", pathname: "/groups/1/search/", search: "?q=agent" },
     document: { title: "", body: { innerText: "", innerHTML: "" }, querySelector: () => null, querySelectorAll: () => [] },
-    setTimeout, clearTimeout, URL, URLSearchParams, console, Date,
+    setTimeout, clearTimeout, URL, URLSearchParams, console, AbortController,
+    // opts.now: a fake clock for the time-budget tests (the module only calls Date.now()).
+    Date: fakeDate(opts.now),
     MutationObserver: function () { this.observe = () => {}; this.disconnect = () => {}; },
   };
   ctx.globalThis = ctx;
@@ -157,6 +167,9 @@ function makeCtx(opts) {
       const query = p.get("fb_api_req_friendly_name");
       const vars = JSON.parse(p.get("variables"));
       sent.push({ query, vars, doc_id: p.get("doc_id") });
+      sentInit.push(o);
+      // opts.onFetch(query, vars, init) may answer a request itself (a hang, a delay, a clock tick).
+      if (opts.onFetch) { const custom = opts.onFetch(query, vars, o); if (custom) return custom; }
       if (opts.gqlError && query === COMMENT_Q) {
         return Promise.resolve({ text: () => Promise.resolve(JSON.stringify({ data: { node: null }, errors: [{ message: opts.gqlError }] })) });
       }
@@ -167,7 +180,7 @@ function makeCtx(opts) {
       return Promise.resolve({ text: () => Promise.resolve(JSON.stringify(body)) });
     },
   };
-  return { ctx, sent, seed };
+  return { ctx, sent, sentInit, seed };
 }
 const call = (h, inputs) => h.ctx.window.__soloGqlPaginate("fb.post.comments", inputs);
 
@@ -612,6 +625,66 @@ async function run() {
     };
     await h.ctx.window.__soloGqlPaginate("fb.profile.friends", { max_pages: 1 });
     check("an unloaded artifact falls back to the captured doc_id", sentDoc === "doc_friends", sentDoc);
+  }
+
+  console.log("\n== time budget: a slow network returns the pages in hand, never count:0 ==");
+  {
+    // Fake clock: every comment page costs 2s of a 4s budget. Page 1 lands; page 2 is not
+    // started (fewer than PAGE_MIN_MS left) and the walk says so with its cursor kept.
+    let now = 1000000;
+    const h = makeCtx({ now: () => now, onFetch: (query) => { if (query === COMMENT_Q) now += 2000; return null; } });
+    const res = await call(h, { feedback_id: "fb:P1", max_comment_pages: 5, time_budget_ms: 4000 });
+    check("page 1's 2 comments came back", res.count === 2, res.count);
+    const bp = res.by_post[0];
+    check("stopped_because time_budget, has_next_page true, cursor kept, resumable", bp.stopped_because === "time_budget" && bp.has_next_page === true && bp.end_cursor === "cc:1" && bp.resumable === true, bp);
+    check("only one comment request went out", h.sent.filter((s) => s.query === COMMENT_Q).length === 1, h.sent.length);
+    check("envelope reports time_budget_hit, time_budget_ms and elapsed_ms", res.time_budget_hit === true && res.time_budget_ms === 4000 && res.elapsed_ms >= 2000, [res.time_budget_hit, res.time_budget_ms, res.elapsed_ms]);
+    check("found stays true — a partial thread is not 'no comments'", res.found === true && res.reason === undefined, res.reason);
+  }
+  {
+    // Multi-post: the budget runs out after post 1's first page; post 2 is never started and
+    // must say so — resumable from its head, not reported as a finished thread.
+    let now = 5000000;
+    const h = makeCtx({ now: () => now, onFetch: (query) => { if (query === COMMENT_Q) now += 2000; return null; } });
+    const res = await call(h, { feedback_ids: ["fb:P1", "fb:P2"], max_comment_pages: 5, time_budget_ms: 4000 });
+    const p1 = res.by_post[0], p2 = res.by_post[1];
+    check("post 1: one page, time_budget, resumable from cc:1", p1.count === 2 && p1.pages_fetched === 1 && p1.stopped_because === "time_budget" && p1.end_cursor === "cc:1" && p1.resumable === true, p1);
+    check("post 2: not started, time_budget, resumable from the head (null cursor)", p2.count === 0 && p2.pages_fetched === 0 && p2.stopped_because === "time_budget" && p2.has_next_page === true && p2.end_cursor === null && p2.resumable === true, p2);
+  }
+  {
+    // depth 2: the reply walk is cut by the budget — the parent comment is kept, marked
+    // replies_cut, and the envelope says the budget was hit.
+    let now = 9000000;
+    const h = makeCtx({ now: () => now, onFetch: (query) => { if (query === COMMENT_Q) now += 2000; return null; } });
+    const res = await call(h, { feedback_id: "fb:P1", depth: 2, time_budget_ms: 4000 });
+    const c1 = res.items.find((c) => c.id === "c1");
+    check("page 1 read, then the reply walk stopped: c1 kept with replies_cut and no replies", !!c1 && c1.replies_cut === true && c1.replies.length === 0 && c1.reply_count === 2 && res.time_budget_hit === true, c1);
+    check("no reply request was started once the budget was short", h.sent.filter((s) => s.query === REPLY_Q).length === 0, h.sent.map((s) => s.query));
+    check("the top-level walk also stopped on the budget with its cursor", res.by_post[0].stopped_because === "time_budget" && res.by_post[0].end_cursor === "cc:1", res.by_post[0]);
+  }
+  {
+    // A request that hangs is aborted at the budget line: the walk returns on its own instead
+    // of being killed by the dispatcher 60s later. Real clock, 3s budget => abort at ~2.5s.
+    const h = makeCtx({ onFetch: (query, vars, o) => {
+      if (query !== COMMENT_Q) return null;
+      return new Promise((resolve, reject) => {
+        if (o.signal) o.signal.addEventListener("abort", () => { const e = new Error("The operation was aborted"); e.name = "AbortError"; reject(e); });
+      });
+    } });
+    const t0 = Date.now();
+    const res = await call(h, { feedback_id: "fb:P1", time_budget_ms: 3000 });
+    const took = Date.now() - t0;
+    check("returned on its own within the budget (" + took + "ms)", took < 3000 + 700, took);
+    const bp = res.by_post[0];
+    check("count 0 but stopped_because time_budget and resumable from the head", res.count === 0 && bp.stopped_because === "time_budget" && bp.resumable === true && bp.has_next_page === true, bp);
+    check("reason time_budget (not no_comments / query_rejected)", res.reason === "time_budget", res.reason);
+    check("the request carried an abort signal", h.sent.length === 1 && !!h.sentInit[0].signal, Object.keys(h.sentInit[0] || {}));
+  }
+  {
+    // No budget given (offline harness, a direct call): unchanged behaviour, no signal, no fields.
+    const h = makeCtx({});
+    const res = await call(h, { feedback_id: "fb:P1" });
+    check("no budget => all 5 comments, no time_budget_ms, no abort signal on requests", res.count === 5 && res.time_budget_ms === undefined && res.time_budget_hit === undefined && h.sentInit.every((i) => !i.signal), [res.count, res.time_budget_ms]);
   }
 
   console.log("\n" + (fail === 0 ? "ALL " + pass + " CHECKS PASSED" : pass + " passed, " + fail + " FAILED"));
