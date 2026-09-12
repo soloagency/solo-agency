@@ -574,10 +574,10 @@ Minimum format:
 - first_run_dispatched_at: ISO 8601 timestamp of when the first-run task was dispatched
 - first_run_wait: armed | not_available | timed_out | reported — state of the background wait for that first run (`playbooks/04_DAILY_SCHEDULE.md`, "Wait and report")
 - first_run_reported_at: ISO 8601 timestamp of when the First-Run Report was spoken back to the Boss in chat
-- run_calls_planned: `calls_planned` computed by the ETA Rule (`playbooks/04_DAILY_SCHEDULE.md`) at dispatch for the run in flight, recorded so a later turn can read it instead of recomputing from memory
-- run_eta_low_min: the ETA Rule's `eta_low` for that run, in minutes
-- run_eta_high_min: the ETA Rule's `eta_high` for that run, in minutes
-- run_eta_at: ISO 8601 timestamp of `eta_high_at` — the clock time the run is expected to finish by
+- run_calls_planned: `calls_planned` computed by the ETA Rule (`playbooks/04_DAILY_SCHEDULE.md`) at dispatch for the run in flight, value copied from `tool run-progress eta` output, recorded so a later turn can read it instead of recomputing from memory
+- run_eta_low_min: the ETA Rule's `eta_low` for that run, in minutes, value copied from `tool run-progress eta` output
+- run_eta_high_min: the ETA Rule's `eta_high` for that run, in minutes, value copied from `tool run-progress eta` output
+- run_eta_at: ISO 8601 timestamp of `eta_high_at` — the clock time the run is expected to finish by, value copied from `tool run-progress eta` output
 - first_run_last_stage: the last Run Progress Rule stage index (0–6, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, "automation/run_progress.jsonl") spoken to the Boss for the first run
 - unattended_permissions: granted | declined | not_applicable — outcome of the Stage 4 unattended-permissions consent (Claude Code desktop local runtime only)
 - unattended_permissions_scope: user_settings — where the allow rules were written (`~/.claude/settings.json`)
@@ -603,7 +603,7 @@ Two team files live next to the manifest under `daily-content-pipeline/automatio
 
 ### `automation/run_progress.jsonl`
 
-Purpose: one JSON line appended at each Run Progress Rule stage boundary (`playbooks/04_DAILY_SCHEDULE.md`, "Progress Display Contract") while a Social Discovery Pass is in flight, so any turn — a background wake, the Boss asking mid-run, or a runtime with no background execution — can read the last line for the client and speak stage, counts and ETA without carrying a number from memory (Read-Before-Claim Rule). Append-only, lines from every client interleaved by `ts`; `tools/wait_for_run <client_slug> <since_iso> --watch progress` matches on `client_slug` and `ts` only.
+Purpose: one JSON line appended at each Run Progress Rule stage boundary (`playbooks/04_DAILY_SCHEDULE.md`, "Progress Display Contract") while a Social Discovery Pass is in flight, so any turn — a background wake, the Boss asking mid-run, or a runtime with no background execution — can read the last line for the client and speak stage, counts and ETA without carrying a number from memory (Read-Before-Claim Rule). Written by `tool run-progress --pipeline {setup-root}/daily-content-pipeline append`, read with `tool run-progress --pipeline {setup-root}/daily-content-pipeline show`, never hand-edited; the tool stamps `ts` and `stage_index` itself and refuses a repeated `done` stage for the same client + run_id unless `--force`. Append-only, lines from every client interleaved by `ts`; `tools/wait_for_run <client_slug> <since_iso> --watch progress` matches on `client_slug` and `ts` only.
 
 Line schema (one object per line):
 

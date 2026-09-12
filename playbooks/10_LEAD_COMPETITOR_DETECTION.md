@@ -159,9 +159,10 @@ Pass reports progress at six stage boundaries, mapped onto the round-robin round
 A stage is done when every platform still in rotation has finished its step for that round (a
 tripped, skipped or budget-exhausted platform counts as done with its numbers as they stand). At each
 boundary the run appends ONE JSON line to `daily-content-pipeline/automation/run_progress.jsonl`
-(schema in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`) using the runtime's file-edit tool — the
-unattended allow rules already cover writes under `R/daily-content-pipeline` — before it submits the
-next round's jobs. When Sam speaks about a run in progress (a background wake, or the Boss asking),
+(schema in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`) with `tool run-progress --pipeline {setup-root}/daily-content-pipeline append --client
+<slug> --stage find_people --calls-done 6 --calls-planned 45 ...` (one example of the shape; every
+stage boundary uses the matching `--stage` value) before it submits the next round's jobs. When Sam
+speaks about a run in progress (a background wake, or the Boss asking),
 the update has exactly this shape, in the Boss's language, numbers read from the progress line just
 read (Read-Before-Claim Rule), never from memory:
 
@@ -174,13 +175,14 @@ Dự kiến xong: {HH:MM}–{HH:MM}.
 Wait mechanics: `tools/wait_for_run <client_slug> <since_iso> --watch progress --timeout <s>` exits 0
 and prints `progress <line>` on the first new `run_progress.jsonl` line for that client after
 `since`, or `standup <line>` when the run's standup line lands first; exit 3 on timeout. Sam arms it
-right after dispatch, speaks the update on each wake, re-arms with `since` = the `ts` of the line
-just spoken, and on the `standup` wake speaks the First-Run Report instead. On a runtime without
-background execution, Sam reads the last `run_progress.jsonl` line for the client on every Boss turn
-while the run is in flight and speaks the same shape. Record `first_run_last_stage` (the last stage
-index spoken, 0–6) on `automation_manifest.md`.
+right after dispatch, reads `tool run-progress --pipeline {setup-root}/daily-content-pipeline show --client <slug>` and speaks the update on each
+wake from that output, re-arms with `since` = the `ts` of the line just spoken, and on the `standup`
+wake speaks the First-Run Report instead. On a runtime without background execution, Sam runs `tool
+run-progress show --client <slug>` on every Boss turn while the run is in flight and speaks the same
+shape. Record `first_run_last_stage` (the last stage index spoken, 0–6) on `automation_manifest.md`.
 
-run_progress.jsonl line (07 schema, one object per line, append only):
+run_progress.jsonl line, written by `tool run-progress --pipeline {setup-root}/daily-content-pipeline append` (07 schema, one object per line,
+append only):
 
 ```json
 {"ts": "2026-09-12T08:14:03+07:00", "client_slug": "acme", "run_id": "2026-09-12-acme-1",
@@ -399,12 +401,15 @@ update, compute the expected duration from the plan, never from habit:
   → 21 calls → 24–36 min. DAILY on three platforms → 15 calls → 20–30 min. No platform enabled →
   10–15 min.
 
-Speak it as a window of clock times in the Boss's language ("bắt đầu 08:00, dự kiến xong
-08:40–09:00"), show the arithmetic once ("45 lượt gọi × 40–60 giây + 10–15 phút"), and record
-`run_calls_planned`, `run_eta_low_min`, `run_eta_high_min`, `run_eta_at` on `automation_manifest.md`
-at dispatch. The background wait uses `--timeout` = `run_eta_high_min × 90` seconds (1.5 × eta_high,
-minimum 1800). After each stage, recompute from calls remaining × the measured average seconds per
-call so far; a platform that trips mid-run removes its remaining calls from the plan.
+Once `calls_planned` is summed, run `tool run-progress eta --calls <calls_planned>` and read the
+numbers from its output — never compute `eta_low`/`eta_high` by hand. Speak it as a window of clock
+times in the Boss's language ("bắt đầu 08:00, dự kiến xong 08:40–09:00"), quote the tool's
+arithmetic summary verbatim (its one-line stderr summary, e.g. "45 lượt gọi × 40–60 giây + 10–15
+phút"), and record `run_calls_planned`, `run_eta_low_min`, `run_eta_high_min`, `run_eta_at` on
+`automation_manifest.md` at dispatch straight from that output. The background wait's `--timeout`
+is the tool's `wait_timeout_s` field, passed directly to `wait_for_run --timeout` (equivalent to 1.5
+× eta_high, minimum 1800). After each stage, recompute by calling `tool run-progress eta` again with
+the calls remaining; a platform that trips mid-run removes its remaining calls from the plan.
 
 ### Safety trip is per platform, and unforgiving
 

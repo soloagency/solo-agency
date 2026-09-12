@@ -60,7 +60,7 @@ count, never a guess from memory:
 | 14 | Published content / analytics staleness | `fleet/{client_slug}.json` → `engagement`, `report`; last analytics pull date |
 | 15 | Provider (WideCast) connection | `integrations/providers/provider_config.local.json` + `provider_capabilities.json` verified identity |
 | 16 | Discovered sources awaiting a decision | source registry rows `kind: discovered` — count `status: new` (awaiting the Boss's approve/dismiss) and count `status: approved` (approved, not yet harvested) (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`) |
-| 17 | Run in flight (Social Discovery Pass) | last `daily-content-pipeline/automation/run_progress.jsonl` line for the client — stage, counts, calls used/planned, ETA. While a run is in flight, every number or state word spoken about it comes from this line, read in the same turn (Read-Before-Claim Rule, `playbooks/04_DAILY_SCHEDULE.md`), never from memory or an earlier turn |
+| 17 | Run in flight (Social Discovery Pass) | `tool run-progress --pipeline {setup-root}/daily-content-pipeline show --client <slug>` — the last `daily-content-pipeline/automation/run_progress.jsonl` line for the client: stage, counts, calls used/planned, ETA. While a run is in flight, every number or state word spoken about it comes from this line, read in the same turn (Read-Before-Claim Rule, `playbooks/04_DAILY_SCHEDULE.md`), never from memory or an earlier turn |
 
 Read every row that is cheap to read (files already on disk) on every reply; skip a row only when
 its file genuinely does not exist yet for this install (e.g. no CRM workspace, no campaigns) and

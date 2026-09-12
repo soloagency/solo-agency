@@ -118,7 +118,7 @@ On Codex or any remote runtime, record `unattended_permissions: not_applicable` 
 
 **Other scheduler types** keep the existing run-now table below.
 
-At the moment of dispatch, compute the ETA Rule fields below (`run_calls_planned`, `run_eta_low_min`, `run_eta_high_min`, `run_eta_at`) and record them on `automation_manifest.md` alongside `first_run_dispatched_at`. Then, in the same message that announces the dispatch, give the Boss the Slow-on-purpose warning:
+At the moment of dispatch, run `tool run-progress eta --calls <calls_planned>` per the ETA Rule below and record its output fields (`run_calls_planned`, `run_eta_low_min`, `run_eta_high_min`, `run_eta_at`) on `automation_manifest.md` alongside `first_run_dispatched_at`. Then, in the same message that announces the dispatch, give the Boss the Slow-on-purpose warning:
 
 **Slow-on-purpose warning (mandatory with every dispatch).** In the same message that announces a
 dispatched or started run, in the Boss's language, one or two sentences: the social platforms are
@@ -157,26 +157,32 @@ update, compute the expected duration from the plan, never from habit:
   → 21 calls → 24–36 min. DAILY on three platforms → 15 calls → 20–30 min. No platform enabled →
   10–15 min.
 
-Speak it as a window of clock times in the Boss's language ("bắt đầu 08:00, dự kiến xong
-08:40–09:00"), show the arithmetic once ("45 lượt gọi × 40–60 giây + 10–15 phút"), and record
-`run_calls_planned`, `run_eta_low_min`, `run_eta_high_min`, `run_eta_at` on `automation_manifest.md`
-at dispatch. The background wait uses `--timeout` = `run_eta_high_min × 90` seconds (1.5 × eta_high,
-minimum 1800). After each stage, recompute from calls remaining × the measured average seconds per
-call so far; a platform that trips mid-run removes its remaining calls from the plan.
+Once `calls_planned` is summed, run `tool run-progress eta --calls <calls_planned>` and read the
+numbers from its output — never compute `eta_low`/`eta_high` by hand. Speak it as a window of clock
+times in the Boss's language ("bắt đầu 08:00, dự kiến xong 08:40–09:00"), quote the tool's
+arithmetic summary verbatim (its one-line stderr summary, e.g. "45 lượt gọi × 40–60 giây + 10–15
+phút"), and record `run_calls_planned`, `run_eta_low_min`, `run_eta_high_min`, `run_eta_at` on
+`automation_manifest.md` at dispatch straight from that output. The background wait's `--timeout`
+is the tool's `wait_timeout_s` field, passed directly to `wait_for_run --timeout` (equivalent to 1.5
+× eta_high, minimum 1800). After each stage, recompute by calling `tool run-progress eta` again with
+the calls remaining; a platform that trips mid-run removes its remaining calls from the plan.
 
 ### Wait and report
 
 Right after dispatch, arm ONE background wait — never a foreground sleep, never a poll loop in the chat:
 
 - On Claude Code (desktop or CLI), run `bash R/solo-agency/tools/wait_for_run <client_slug> <dispatched_at_iso> --watch progress --timeout <run_eta_high_min × 90, min 1800>` with the runtime's run-in-background option; the session is re-invoked when it exits (verified 5/5). The moment the wait is armed, record `first_run_wait: armed` on `automation_manifest.md`.
-- Wait mechanics: `tools/wait_for_run <client_slug> <since_iso> --watch progress --timeout <s>` exits 0
-and prints `progress <line>` on the first new `run_progress.jsonl` line for that client after
-`since`, or `standup <line>` when the run's standup line lands first; exit 3 on timeout. Sam arms it
-right after dispatch, speaks the update on each wake, re-arms with `since` = the `ts` of the line
-just spoken, and on the `standup` wake speaks the First-Run Report instead. On a runtime without
-background execution, Sam reads the last `run_progress.jsonl` line for the client on every Boss turn
-while the run is in flight and speaks the same shape. Record `first_run_last_stage` (the last stage
-index spoken, 0–6) on `automation_manifest.md`.
+- Wait mechanics: the run appends progress with `tool run-progress --pipeline {setup-root}/daily-content-pipeline append --client <slug> --stage
+<stage> --calls-done N --calls-planned N ...` at each stage boundary, one call per boundary, before
+submitting the next round's jobs. `tools/wait_for_run <client_slug> <since_iso> --watch progress
+--timeout <s>` exits 0 and prints `progress <line>` on the first new `run_progress.jsonl` line for
+that client after `since`, or `standup <line>` when the run's standup line lands first; exit 3 on
+timeout. Sam arms it right after dispatch, reads `tool run-progress --pipeline {setup-root}/daily-content-pipeline show --client <slug>` first
+(Read-Before-Claim) and speaks the update on each wake from that output, re-arms with `since` = the
+`ts` of the line just spoken, and on the `standup` wake speaks the First-Run Report instead. On a
+runtime without background execution, Sam runs `tool run-progress --pipeline {setup-root}/daily-content-pipeline show --client <slug>` on every
+Boss turn while the run is in flight and speaks the same shape. Record `first_run_last_stage` (the
+last stage index spoken, 0–6) on `automation_manifest.md`.
 - On the `standup` wake, Sam speaks the First-Run Report (below) in the SAME chat, then records `first_run_wait: reported` and `first_run_reported_at` (ISO 8601, now) on `automation_manifest.md`.
 - On a runtime with no background execution: `first_run_wait` stays `not_available` (no helper was armed); Sam states the computed window from the ETA Rule ("it started at {HH:MM} and should finish {HH:MM}–{HH:MM} ({calls_planned} calls × 40–60 s + 10–15 min)") plus the Slow-on-purpose warning, and the exact phrase to send ("xong chưa?" / "is it done?"), plus the Telegram/email channel if configured, and the Reply Frame delivers the report on the next turn — recording `first_run_wait: reported` and `first_run_reported_at` once that report is actually spoken. Also give the same three "It takes time — I will message you — connect Telegram" sentences ("Run-now per runtime", above): this run needs time for the Boss's account safety; Sam will message the moment it finishes; and, reading `schedule.md` `notification_channel` and the latest notification delivery status in this same turn (Read-Before-Claim Rule), either recommend connecting Telegram in WideCast (PDNA, Notification) when `notification_channel: local_path_only` or WideCast notification is configured without Telegram (last delivery email-only), or say the finish message already reaches Telegram when it is connected.
 - On timeout (exit 3): record `first_run_wait: timed_out`. The three usual causes are: the run is still in progress past its ETA (read the last `run_progress.jsonl` line and say the stage and the recomputed window); a permission prompt waiting in the run's own session in the Scheduled panel ("Always allow" once resolves it); the extension not connected. Sam names the one the state supports (Read-Before-Claim Rule), never all three as a list of guesses — and offers to check again; a later successful report still records `first_run_wait: reported` and `first_run_reported_at`.
@@ -194,7 +200,7 @@ awareness line ("... are off, so lead counts are lower") stays.
 
 ### Command shapes (so unattended runs never pause)
 
-For the allow rules above to match, every shell command in a scheduled run must be one of: `<bridge binary> tool <family> ...`, `tools/solo_tool <family> ...` (run from `S`, the form the playbooks actually type) or `S/tools/solo_tool <family> ...`, `bash S/tools/wait_for_run ...`, or `curl -s --max-time <n> http://127.0.0.1:P/<path> [-X POST -H ... -d ...]` with the URL immediately after the fixed flags. Never `python3`, `node`, `bash -c`, `sh -c`, pipes, `&&` chains, `xargs`, `find -exec`, or `sed -i`. File writes only under `R/daily-content-pipeline` and `R/extensions`. Anything else means the run pauses on a permission prompt. Appending a line to `daily-content-pipeline/automation/run_progress.jsonl` at each Run Progress Rule stage boundary is a file edit under `R/daily-content-pipeline` and is already covered by the allow rules above — nothing extra to add.
+For the allow rules above to match, every shell command in a scheduled run must be one of: `<bridge binary> tool <family> ...`, `tools/solo_tool <family> ...` (run from `S`, the form the playbooks actually type) or `S/tools/solo_tool <family> ...`, `bash S/tools/wait_for_run ...`, or `curl -s --max-time <n> http://127.0.0.1:P/<path> [-X POST -H ... -d ...]` with the URL immediately after the fixed flags. Never `python3`, `node`, `bash -c`, `sh -c`, pipes, `&&` chains, `xargs`, `find -exec`, or `sed -i`. File writes only under `R/daily-content-pipeline` and `R/extensions`. Anything else means the run pauses on a permission prompt.
 
 ## Source Preservation Rule
 
@@ -270,9 +276,9 @@ Pass reports progress at six stage boundaries, mapped onto the round-robin round
 A stage is done when every platform still in rotation has finished its step for that round (a
 tripped, skipped or budget-exhausted platform counts as done with its numbers as they stand). At each
 boundary the run appends ONE JSON line to `daily-content-pipeline/automation/run_progress.jsonl`
-(schema in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`) using the runtime's file-edit tool — the
-unattended allow rules already cover writes under `R/daily-content-pipeline` — before it submits the
-next round's jobs. When Sam speaks about a run in progress (a background wake, or the Boss asking),
+(schema in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`) with `tool run-progress --pipeline {setup-root}/daily-content-pipeline append --client
+<slug> --stage <stage> --calls-done N --calls-planned N ...` before it submits the next round's
+jobs. When Sam speaks about a run in progress (a background wake, or the Boss asking),
 the update has exactly this shape, in the Boss's language, numbers read from the progress line just
 read (Read-Before-Claim Rule), never from memory:
 
@@ -288,7 +294,7 @@ read of the source named for it:
 
 | claim | source of record | how to read it |
 |---|---|---|
-| run stage, counts so far, calls used, ETA | last `automation/run_progress.jsonl` line for the client | read the file |
+| run stage, counts so far, calls used, ETA | last `automation/run_progress.jsonl` line for the client | `tool run-progress --pipeline {setup-root}/daily-content-pipeline show --client <slug>` |
 | a run or job is running now | bridge `/status` → `active_jobs` (curl without the extension header) and `jobs/claimed/` | `curl -s --max-time 5 http://127.0.0.1:P/status` |
 | a run finished | `automation/standup.jsonl` line for the client with `ts` after the dispatch | read the file |
 | sources, groups, candidates, decisions | `tool source-registry ... list`, `history/YYYY-MM/facebook_discovery_shortlist.jsonl`, `collector_config.json`, Client Intelligence Profile `facebook_group_discovery` | tool / read the files |
