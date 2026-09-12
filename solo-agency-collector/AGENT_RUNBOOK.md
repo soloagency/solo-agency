@@ -319,7 +319,7 @@ Minimum job:
   "location_slug": "los-angeles",
   "pacing": {
     "min_delay_seconds": 5,
-    "max_delay_seconds": 5,
+    "max_delay_seconds": 10,
     "max_sources": 20,
     "scroll_steps": 5,
     "max_text_chars": 12000

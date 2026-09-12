@@ -47,6 +47,13 @@ Rules:
   The combined `{client-name}-client-report.html` is the output built from those three staging files and is the default handoff link; the staging files are not the handoff.
 - If private data sources run after public data sources, the task must create/update only the private report and daily report, then rebuild the combined client report. It must not overwrite, regenerate, or summarize away the public report.
 - Time-slot collision rule: before creating or re-timing ANY client automation task, run `tools/solo_tool schedule-slots --pipeline {setup-root}/daily-content-pipeline suggest --task "{task name}" --client {client_slug} --time "HH:MM" --cadence-hours {H}` (or `--cadence monthly`) with the human's preferred start time. With mixed cadences (daily/48h/72h/96h/weekly/monthly) a clock-time compare is meaningless — the tool projects every registered task's future occurrences and pushes the start time in steps (default 15 min) until no occurrence lands in a slot already holding the max (default 10 running tasks). Use the returned `suggested_time`/`suggested_anchor_date` for the native task; when it differs from the requested time, tell the human in ONE sentence why ("09:00 already has 10 tasks running on the days this task fires; scheduled 09:30 instead") — never ask permission for the shift, the preferred time was already given and the shift is a technical adjustment. After the native task is created or updated, `... schedule-slots register --task ... --client ... --time ... --cadence-hours ...`; after deleting a task run `remove`, after pausing re-`register --status paused`. The per-slot limit, push step, projection horizon, and the operator's contact email live in `{setup-root}/daily-content-pipeline/system_settings.json`, editable by the operator in the web UI at `/ui/settings` — agents read these settings, never overwrite them.
+- **Start time is not finish time.** Wherever a schedule time is asked, confirmed or spoken (the
+cadence question, the task-creation confirmation, the automation freshness line, the first-run status
+line), say it as a START time and pair it with the computed finish window from the ETA Rule: "chạy
+lúc 08:00, dự kiến xong 08:40–09:00". `automation/task_slots.json` `duration_min` for the task is
+`run_eta_high_min`, never the 30-minute default; re-run `tool schedule-slots suggest` when a
+recomputed ETA exceeds the recorded duration. The run window the Boss should expect the machine to
+be awake and Chrome open is from the start time to `run_eta_high_at`.
 - **The one case where the check cannot run: the first task, before the bridge exists.** `tool schedule-slots` is a subcommand of the collector bridge, and Setup Flow forbids installing `solo-agency-collector/` until the private-data-source stage (`AGENTS.md`, collector gate) — which the roadmap places AFTER the first automation task exists. On a fresh install that is a genuine deadlock, and the way out is not to install the bridge early, nor to hand-edit `task_slots.json`, nor to stall setup. Create THAT ONE task at the human's requested time, say so in one sentence ("I could not run the slot check yet, the tool arrives with the collector; I will register this time as soon as it does"), and record the debt in `daily-content-pipeline/automation/automation_manifest.md` as `slot_check_pending: true` with the task name, client and time. The FIRST action after the bridge is installed — before any other `suggest` — is `schedule-slots register` for that task, then clear the flag. Nothing is lost by waiting: on a fresh install `task_slots.json` is empty, so there is nothing for a first task to collide with, and the rule below already requires backfilling a registry that predates it. This exception covers exactly one task on one install; a second client, a re-timing, or any task created once the bridge exists is bound by the rule above with no exception.
 - Slot-registry backfill: an install whose automation tasks predate `automation/task_slots.json` must register every existing task (name, client, cadence, time) at the next Automation Resync, before any new `suggest` — an empty registry makes every suggestion blind.
 - A setup/config session starts `AvenNgo - Solo Agency First Run` itself and says so; it must not generate the report inside the setup chat. Only a runtime that cannot start its own tasks instructs the human to run it.
@@ -111,20 +118,83 @@ On Codex or any remote runtime, record `unattended_permissions: not_applicable` 
 
 **Other scheduler types** keep the existing run-now table below.
 
+At the moment of dispatch, compute the ETA Rule fields below (`run_calls_planned`, `run_eta_low_min`, `run_eta_high_min`, `run_eta_at`) and record them on `automation_manifest.md` alongside `first_run_dispatched_at`. Then, in the same message that announces the dispatch, give the Boss the Slow-on-purpose warning:
+
+**Slow-on-purpose warning (mandatory with every dispatch).** In the same message that announces a
+dispatched or started run, in the Boss's language, one or two sentences: the social platforms are
+scanned one request at a time with a random 5–10 second pause before each request; `calls_planned`
+requests are planned; and the first checkpoint, rate-limit warning or logged-out signal on a platform
+stops that platform for the day — so the run may finish later than the ETA or with one platform
+missing, and that is the design, not a fault. Vietnamese shape: "Facebook, Instagram và X được quét
+tuần tự, mỗi request giãn ngẫu nhiên 5–10 giây, tổng {N} lượt gọi; nền tảng nào báo checkpoint hoặc
+giới hạn tốc độ thì dừng nền tảng đó trong hôm nay — nên có thể xong muộn hơn dự kiến, đó là chủ ý
+để an toàn cho tài khoản."
+
+**It takes time — I will message you — connect Telegram.** In the same dispatch message,
+right after the Slow-on-purpose warning, say these three sentences: this run needs time because
+the scan is deliberately slow to keep the Boss's accounts safe; Sam will report progress here after
+each stage and message the Boss the moment the run finishes; and, reading `schedule.md`
+`notification_channel` and the latest notification delivery status in this same turn
+(Read-Before-Claim Rule) — when `notification_channel: local_path_only`, or WideCast notification is
+configured without Telegram connected (last delivery email-only), recommend connecting Telegram in
+WideCast (PDNA, the Notification part) so the finish message also reaches the phone (trigger phrase
+"turn on notifications" / "bật thông báo"); when Telegram is already connected, say instead that the
+finish message also reaches the Boss's Telegram.
+
+### ETA Rule
+
+**ETA Rule (never a default number).** Before dispatching any run, and again in every progress
+update, compute the expected duration from the plan, never from habit:
+
+- `calls_planned` = the sum, over platforms whose `{platform}_lead_source` is `enabled`, of that
+  platform's ceiling for its tier (FIRST RUN 21 / 12 / 12; DAILY 7 / 4 / 4), plus one call per
+  custom or private source scheduled this run, plus one per `web_only` platform being re-probed.
+- One collector call ≈ `max_pages × (7.5 s average delay + ~5 s page load)`, capped by the 60 s
+  capability timeout → use 40 s (low) and 60 s (high) per call.
+- `eta_low = calls_planned × 40 s + 10 min`; `eta_high = calls_planned × 60 s + 15 min` (the fixed
+  part covers keyword planning, qualification, report rendering, upload, notification).
+- Worked examples: three platforms on FIRST RUN → 45 calls → 40–60 min. Facebook only, FIRST RUN
+  → 21 calls → 24–36 min. DAILY on three platforms → 15 calls → 20–30 min. No platform enabled →
+  10–15 min.
+
+Speak it as a window of clock times in the Boss's language ("bắt đầu 08:00, dự kiến xong
+08:40–09:00"), show the arithmetic once ("45 lượt gọi × 40–60 giây + 10–15 phút"), and record
+`run_calls_planned`, `run_eta_low_min`, `run_eta_high_min`, `run_eta_at` on `automation_manifest.md`
+at dispatch. The background wait uses `--timeout` = `run_eta_high_min × 90` seconds (1.5 × eta_high,
+minimum 1800). After each stage, recompute from calls remaining × the measured average seconds per
+call so far; a platform that trips mid-run removes its remaining calls from the plan.
+
 ### Wait and report
 
 Right after dispatch, arm ONE background wait — never a foreground sleep, never a poll loop in the chat:
 
-- On Claude Code (desktop or CLI), run `bash R/solo-agency/tools/wait_for_run <client_slug> <dispatched_at_iso> --timeout 2700` with the runtime's run-in-background option; the session is re-invoked when it exits (verified 5/5). The helper exits 0 when a new `standup.jsonl` line for that client with `ts > dispatched_at` appears (it prints that line), exit 3 on timeout. The moment the wait is armed, record `first_run_wait: armed` on `automation_manifest.md`.
-- On wake, Sam speaks the First-Run Report (below) in the SAME chat, then records `first_run_wait: reported` and `first_run_reported_at` (ISO 8601, now) on `automation_manifest.md`.
-- On a runtime with no background execution: `first_run_wait` stays `not_available` (no helper was armed); Sam states the expected duration (10-15 minutes for a first run) and the exact phrase to send ("xong chưa?" / "is it done?"), plus the Telegram/email channel if configured, and the Reply Frame delivers the report on the next turn — recording `first_run_wait: reported` and `first_run_reported_at` once that report is actually spoken.
-- On timeout (exit 3): record `first_run_wait: timed_out`. Sam says the run has not finished, names the two usual causes (a permission prompt waiting in the run's own session in the Scheduled panel → "Always allow" once; the extension not connected), and offers to check again — a later successful report still records `first_run_wait: reported` and `first_run_reported_at`.
+- On Claude Code (desktop or CLI), run `bash R/solo-agency/tools/wait_for_run <client_slug> <dispatched_at_iso> --watch progress --timeout <run_eta_high_min × 90, min 1800>` with the runtime's run-in-background option; the session is re-invoked when it exits (verified 5/5). The moment the wait is armed, record `first_run_wait: armed` on `automation_manifest.md`.
+- Wait mechanics: `tools/wait_for_run <client_slug> <since_iso> --watch progress --timeout <s>` exits 0
+and prints `progress <line>` on the first new `run_progress.jsonl` line for that client after
+`since`, or `standup <line>` when the run's standup line lands first; exit 3 on timeout. Sam arms it
+right after dispatch, speaks the update on each wake, re-arms with `since` = the `ts` of the line
+just spoken, and on the `standup` wake speaks the First-Run Report instead. On a runtime without
+background execution, Sam reads the last `run_progress.jsonl` line for the client on every Boss turn
+while the run is in flight and speaks the same shape. Record `first_run_last_stage` (the last stage
+index spoken, 0–6) on `automation_manifest.md`.
+- On the `standup` wake, Sam speaks the First-Run Report (below) in the SAME chat, then records `first_run_wait: reported` and `first_run_reported_at` (ISO 8601, now) on `automation_manifest.md`.
+- On a runtime with no background execution: `first_run_wait` stays `not_available` (no helper was armed); Sam states the computed window from the ETA Rule ("it started at {HH:MM} and should finish {HH:MM}–{HH:MM} ({calls_planned} calls × 40–60 s + 10–15 min)") plus the Slow-on-purpose warning, and the exact phrase to send ("xong chưa?" / "is it done?"), plus the Telegram/email channel if configured, and the Reply Frame delivers the report on the next turn — recording `first_run_wait: reported` and `first_run_reported_at` once that report is actually spoken. Also give the same three "It takes time — I will message you — connect Telegram" sentences ("Run-now per runtime", above): this run needs time for the Boss's account safety; Sam will message the moment it finishes; and, reading `schedule.md` `notification_channel` and the latest notification delivery status in this same turn (Read-Before-Claim Rule), either recommend connecting Telegram in WideCast (PDNA, Notification) when `notification_channel: local_path_only` or WideCast notification is configured without Telegram (last delivery email-only), or say the finish message already reaches Telegram when it is connected.
+- On timeout (exit 3): record `first_run_wait: timed_out`. The three usual causes are: the run is still in progress past its ETA (read the last `run_progress.jsonl` line and say the stage and the recomputed window); a permission prompt waiting in the run's own session in the Scheduled panel ("Always allow" once resolves it); the extension not connected. Sam names the one the state supports (Read-Before-Claim Rule), never all three as a list of guesses — and offers to check again; a later successful report still records `first_run_wait: reported` and `first_run_reported_at`.
 
-**First-Run Report** (spoken by Sam, in the Boss's language, ≤ 8 lines): when it finished; leads found (hot/warm/watch counts from the standup line / report_state) and the locked-contacts meter line; what needs the Boss (`needs_boss` items, ≤ 3); the report opened beside the chat per the Answer-and-Show Rule (`/ui/{client}/reports?open=latest`) with the link printed; then the normal next-job offers and one question. If Facebook/Instagram/X were not connected, the awareness line ("... are off, so lead counts are lower") stays.
+**First-Run Report** (spoken by Sam, in the Boss's language, ≤ 8 lines): when it started and when it
+finished; the Five result types (never merged), each with its own number (a zero printed as 0, "—"
+where a type does not apply to a platform) — Bài từ Facebook Search theo từ khóa
+(`feed_posts_found`), Bài/clip quét bên trong group (`group_posts_found`), Group ứng viên tìm thấy
+(`groups_found`, split into `groups_readable` and `groups_no_access`), Group đã duyệt để theo dõi
+(`groups_approved`), and Lead đạt luật (`leads_found` hot/warm/watch) plus `leads_locked` and the
+locked-contacts meter line; what needs the Boss (`needs_boss` items, ≤ 3); the report opened beside
+the chat per the Answer-and-Show Rule (`/ui/{client}/reports?open=latest`) with the link printed;
+then the normal next-job offers and one question. If Facebook/Instagram/X were not connected, the
+awareness line ("... are off, so lead counts are lower") stays.
 
 ### Command shapes (so unattended runs never pause)
 
-For the allow rules above to match, every shell command in a scheduled run must be one of: `<bridge binary> tool <family> ...`, `tools/solo_tool <family> ...` (run from `S`, the form the playbooks actually type) or `S/tools/solo_tool <family> ...`, `bash S/tools/wait_for_run ...`, or `curl -s --max-time <n> http://127.0.0.1:P/<path> [-X POST -H ... -d ...]` with the URL immediately after the fixed flags. Never `python3`, `node`, `bash -c`, `sh -c`, pipes, `&&` chains, `xargs`, `find -exec`, or `sed -i`. File writes only under `R/daily-content-pipeline` and `R/extensions`. Anything else means the run pauses on a permission prompt.
+For the allow rules above to match, every shell command in a scheduled run must be one of: `<bridge binary> tool <family> ...`, `tools/solo_tool <family> ...` (run from `S`, the form the playbooks actually type) or `S/tools/solo_tool <family> ...`, `bash S/tools/wait_for_run ...`, or `curl -s --max-time <n> http://127.0.0.1:P/<path> [-X POST -H ... -d ...]` with the URL immediately after the fixed flags. Never `python3`, `node`, `bash -c`, `sh -c`, pipes, `&&` chains, `xargs`, `find -exec`, or `sed -i`. File writes only under `R/daily-content-pipeline` and `R/extensions`. Anything else means the run pauses on a permission prompt. Appending a line to `daily-content-pipeline/automation/run_progress.jsonl` at each Run Progress Rule stage boundary is a file edit under `R/daily-content-pipeline` and is already covered by the allow rules above — nothing extra to add.
 
 ## Source Preservation Rule
 
@@ -182,8 +252,53 @@ Every scheduled-run reply or report handoff must include:
 - whether published-URL analytics was run or skipped because no published URLs/metrics exist yet.
 - an `Automation freshness check` stating whether the latest changes are synced into the configured automation/scheduled task and whether tomorrow's run will read the current contracts/prompts/playbooks/source approvals/state, not only the latest config file.
 - when no human decision is required: a "next jobs" block of 2-3 offers chosen, by the STATE POLL, from `playbooks/NEXT_JOB_CATALOGUE.md` (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 16 carries the poll's full field list), plus exactly one closing question — the reply never ends flat.
+- the close gate: the run may not end while `facebook_group_discovery.candidates_total > 0` and `review_state == none` — present the shortlist in an `**[ACTION REQUIRED]**` block first and set `review_state: shortlist_presented` (Close gate, below).
 
 If this run touched the CRM (any capture, discovery pass, or reconciliation that could change contact counts), read `tool crm-store ... contact lock-status` once at the end of the run, before composing this reply, and write its `locked` count into this run's report state as `leads_locked`. Carry the resulting meter line (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Capture never stops at the plan's contact cap") in this reply and in `INTERNAL_REPORT` whenever `locked > 0` or the approaching-cap condition is met.
+
+**Run Progress Rule (six stages, one line each).** Every run that executes the Social Discovery
+Pass reports progress at six stage boundaries, mapped onto the round-robin rounds:
+
+1. `find_posts` — round 1: `fb.search.posts` / `ig.search.posts` / `x.search.posts`;
+2. `find_people` — round 2: people search on each platform;
+3. `find_groups` — round 3: `fb.groups.search` (Facebook) / profile depth (Instagram, X);
+4. `scan_in_group` — round 4: `fb.group.search_posts` (Facebook) / comments and replies (Instagram, X);
+5. `filter_leads` — the Lead Qualification Rule over everything collected, CRM capture, Step 5
+   recording of discovered threads;
+6. `build_report` — report_state, INTERNAL_REPORT, notification, standup line.
+
+A stage is done when every platform still in rotation has finished its step for that round (a
+tripped, skipped or budget-exhausted platform counts as done with its numbers as they stand). At each
+boundary the run appends ONE JSON line to `daily-content-pipeline/automation/run_progress.jsonl`
+(schema in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`) using the runtime's file-edit tool — the
+unattended allow rules already cover writes under `R/daily-content-pipeline` — before it submits the
+next round's jobs. When Sam speaks about a run in progress (a background wake, or the Boss asking),
+the update has exactly this shape, in the Boss's language, numbers read from the progress line just
+read (Read-Before-Claim Rule), never from memory:
+
+```text
+Giai đoạn {k}/6 xong — {stage}: {the five result lines that apply so far, one number each}.
+Đang chạy: {stage k+1}. Còn lại: {remaining stages}. Đã dùng {calls_done}/{calls_planned} lượt gọi.
+Dự kiến xong: {HH:MM}–{HH:MM}.
+```
+
+**Read-Before-Claim Rule.** Every number and every state word ("done", "running", "not yet",
+"none", "finished", "found N") that Sam or a run speaks must be preceded, in the same turn, by a
+read of the source named for it:
+
+| claim | source of record | how to read it |
+|---|---|---|
+| run stage, counts so far, calls used, ETA | last `automation/run_progress.jsonl` line for the client | read the file |
+| a run or job is running now | bridge `/status` → `active_jobs` (curl without the extension header) and `jobs/claimed/` | `curl -s --max-time 5 http://127.0.0.1:P/status` |
+| a run finished | `automation/standup.jsonl` line for the client with `ts` after the dispatch | read the file |
+| sources, groups, candidates, decisions | `tool source-registry ... list`, `history/YYYY-MM/facebook_discovery_shortlist.jsonl`, `collector_config.json`, Client Intelligence Profile `facebook_group_discovery` | tool / read the files |
+| a task exists, when it fires next | the runtime's scheduled-task list plus `automation_manifest.md` | tool / read |
+| leads, locked contacts | `tool crm-store ... contact list` / `contact lock-status` | tool |
+
+If the source cannot be read, say so ("tôi chưa đọc được run_progress") and give no number. Never
+carry a number from an earlier turn, never round, never estimate a count; the only estimate allowed
+is the ETA, and it is labelled as one. Stage-9 audit item: "Every number and state word in my last
+reply names the file or tool it came from, read in that same turn."
 
 Use this title:
 
@@ -438,7 +553,8 @@ For each daily run:
       `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Re-probe on every run").
       - Platform table (ordered steps and budgets): `playbooks/10_LEAD_COMPETITOR_DETECTION.md`,
         "Social Discovery Pass" → "Platform table". Facebook: feed (`fb.search.posts`) → people
-        (`fb.people.search`) → groups (`fb.groups.search`, `privacy == "public"` only, ranked by
+        (`fb.people.search`) → groups (`fb.groups.search`, readable groups only: public, or private
+        where the account is a member, ranked by
         `member_count`) → in-group (`fb.group.search_posts`). Instagram: search (`ig.search.posts`)
         → people (`ig.people.search`) → profile depth (`ig.profile.posts`) → comments
         (`ig.post.comments`). X: search Latest (`x.search.posts`) → people (`x.people.search`) →
@@ -457,9 +573,13 @@ For each daily run:
         `{platform}_discovery_first_pass_done` is not yet `true` in the Client Intelligence Profile
         — i.e. this is this client's first-ever pass on that platform, regardless of which
         automation run number it is — and set that field `true` immediately after this pass
-        completes for it; use the DAILY tier on every pass after that. Facebook FIRST RUN: ≤ 21
-        collector calls (3 discovery terms, 3 feed, 3 people, 3 group searches, up to 4 public
-        groups × 3 intent terms), spread ≥ 4 hours, `max_pages` ≤ 4; DAILY: ≤ 7 calls (1/1/1/1, up
+        completes for it; use the DAILY tier on every pass after that. Pacing between requests
+        is the Pacing Rule (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass" →
+        "Pacing Rule") — the collector's own random 5–10 second delay before each request, never an
+        hours-long gap. Facebook FIRST RUN: ≤ 21
+        collector calls (3 discovery terms, 3 feed, 3 people, 3 group searches, up to 4 readable
+        groups (public, or private where the account is a member) × 3 intent terms), `max_pages` ≤
+        4; DAILY: ≤ 7 calls (1/1/1/1, up
         to 2 groups × 2 terms). Instagram and X FIRST RUN: ≤ 12 calls each (3/3/3/3); DAILY: ≤ 4
         calls each (1/1/1/1).
       - FIRST RUN: minimum 10 leads across all platforms combined is a FLOOR, not a stop — reaching
@@ -586,7 +706,7 @@ A notification that only says the report is ready but contains no HTML report UR
 
 ---
 
-- During one-time setup, after the profile and source plan are known and before the client-specific automation task is marked ready, ask the human whether they want daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence — and their preferred start time in the same question.
+- During one-time setup, after the profile and source plan are known and before the client-specific automation task is marked ready, ask the human whether they want daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence — and their preferred START time (never a finish time) in the same question; the confirmation back to the human pairs that start time with the computed finish window, per "Start time is not finish time" above.
 - Resolve the actual start time through the Time-slot collision rule above (`tool schedule-slots suggest` → create the native task at the suggested time → `register` it). Never create a native task at an unchecked time, with the single exception named in that rule: the first task of a fresh install, created before the bridge that carries the tool exists, which is created at the requested time and registered the moment the bridge arrives (`slot_check_pending`).
 - Then write or update `schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, `daily-content-pipeline/automation/scheduled_run_prompt.md`, `daily-content-pipeline/automation/resync_log.md`, and the relevant collector/native automation config files.
 

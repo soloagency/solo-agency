@@ -295,6 +295,9 @@ The progress block must show:
 - the current active step;
 - remaining required steps;
 - any blocker or human decision needed.
+- Neither this flow nor a scheduled run may close while `facebook_group_discovery.candidates_total > 0` and `review_state == none` (close gate, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Group discovery review states").
+- During a Social Discovery Pass run, stage-by-stage progress follows the Run Progress Rule (`playbooks/04_DAILY_SCHEDULE.md`, "Scheduled Run Progress Display Contract").
+- Every number or state word spoken about a run in progress must be sourced per the Read-Before-Claim Rule (`playbooks/04_DAILY_SCHEDULE.md`, "Scheduled Run Progress Display Contract").
 
 For setup, use a title that clearly says this is a planned setup process, not a user questionnaire.
 
@@ -376,7 +379,9 @@ Private data source setup must support both paths independently:
    - recommendation feeds;
    - news feed / home feed signals.
 
-The human can choose only manual sources, only discovery, both, neither, or postpone either option.
+The human can choose custom sources, joined-places discovery, keyword group discovery, any
+combination, none, or postpone any of them; declining one never declines another, and "no custom
+URL" answers only the custom-source question.
 
 The agent must not assume discovery replaces manual source input.
 

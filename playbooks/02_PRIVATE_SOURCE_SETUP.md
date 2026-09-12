@@ -376,7 +376,7 @@ Use it when:
 The agent must ask for explicit consent before running it:
 
 ```text
-Do you want me to find new Facebook groups with keyword search for this client? I will use the Solo Agency Local Collector in the client's Chrome profile, search Facebook groups with keywords that match the client's audience and pain points, scroll 10 times on each search result page, filter out Facebook UI noise and irrelevant results, then show you a shortlist to approve. I will not join groups, request access, or add any group as a source unless you approve it and the client Chrome profile can access it.
+Do you want me to find new Facebook groups with keyword search for this client? I will use the Solo Agency Local Collector in the client's Chrome profile, search Facebook groups with keywords that match the client's audience and pain points, scroll 10 times on each search result page, filter out Facebook UI noise and irrelevant results, then show you a shortlist to approve. Private groups the client Chrome profile already belongs to are read the same as public groups, since the account already has access; groups it has not joined are only listed for you to review and join yourself in your own session if you want them monitored — I will not join groups, request access, or add any no-access group as a source unless you approve it and the client Chrome profile can access it.
 ```
 
 Keyword selection:
@@ -537,10 +537,14 @@ If a URL does not work, the agent must mark `platform_url_changed` or `login_req
 
 Groups found by the Facebook leg of the Social Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`,
 "Social Discovery Pass (step 11C of the daily run)") arrive in the shortlist differently from the keyword
-group search row above: they already carry `leads_found`, `member_count`, and `privacy` from that
-pass, and they were already scanned read-only as public groups — no per-group approval was needed for
-that read. They still need the same human approval as any other row in this table before being
-promoted into standing daily monitoring as a `private_data_sources` entry.
+group search row above: they already carry `leads_found`, `member_count`, `access`, and `privacy` from
+that pass, and readable groups (public, or private where the account is already a member) were already
+scanned read-only — no per-group approval was needed for that read; no-access groups were never
+scanned. They still need the same human approval as any other row in this table before being promoted
+into standing daily monitoring as a `private_data_sources` entry: approving a row sets `decision:
+approved` on its shortlist line and, once at least one row is approved,
+`facebook_group_discovery.review_state: monitoring_approved`; declining all of them sets
+`review_state: monitoring_declined`.
 
 #### Discovery Behavior Rules
 

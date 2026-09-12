@@ -460,7 +460,7 @@ Exact manual run-now contract:
   ],
   "pacing": {
     "min_delay_seconds": 5,
-    "max_delay_seconds": 5,
+    "max_delay_seconds": 10,
     "max_sources": 20,
     "scroll_steps": 5,
     "max_text_chars": 12000
@@ -1736,9 +1736,13 @@ Before final report, verify:
 - [ ] Did the client's first-ever dispatched run wait for `facebook_lead_source` to be `enabled` or `web_only`, never dispatching while it was still `pending` — with Instagram and X following automatically?
 - [ ] If the human confirmed `web_only`, did I record it only on a clear acknowledgment phrase (never "để sau"/silence), and save `facebook_lead_source_updated_at` and `facebook_web_only_reason`?
 - [ ] Did the Facebook track of the Social Discovery Pass run feed → people → groups → in-group, in that fixed order, never reordered/parallelized/skipped to save budget — and did Instagram and X each run their own four-step order (search → people → profile depth → comments/replies)?
-- [ ] Did I respect each platform's budget ceiling (Facebook ≤ 21 first run / ≤ 7 daily, `max_pages` ≤ 4; Instagram ≤ 12 first run / ≤ 4 daily; X ≤ 12 first run / ≤ 4 daily; calls serial, spread over hours) and the round-robin interleaving across platforms (Facebook job, then Instagram job, then X job, repeating)?
+- [ ] Did I respect each platform's budget ceiling (Facebook ≤ 21 first run / ≤ 7 daily, `max_pages` ≤ 4; Instagram ≤ 12 first run / ≤ 4 daily; X ≤ 12 first run / ≤ 4 daily; calls serial (Pacing Rule: collector delay 5–10 s, no agent-added gaps)) and the round-robin interleaving across platforms (Facebook job, then Instagram job, then X job, repeating)?
 - [ ] Did I check every job's result for a checkpoint/rate-limit/logged-out signal before submitting the next one, and did a tripped platform lose its turn in the rotation instead of handing its slot to another platform?
-- [ ] Did I keep only Facebook groups with `privacy == "public"`, and did I leave every group promotion to `private_data_sources` to a human decision rather than auto-promoting (Instagram and X have no groups)?
+- [ ] Every number and state word in my last reply names the file or tool it came from, read in that same turn.
+- [ ] Did I compute the ETA from `calls_planned` (ETA Rule) and speak a start time plus a finish window, never a default duration?
+- [ ] Did my dispatch message say the run needs time for account safety, that I will message when it finishes, and either the Telegram recommendation (WideCast PDNA Notification) or that the alert also reaches Telegram?
+- [ ] If group candidates exist, is `facebook_group_discovery.review_state` one of `shortlist_presented` / `monitoring_approved` / `monitoring_declined` before I closed?
+- [ ] Did I keep every group that is public or one the account is already a member of (`groups_readable`), mark no-access groups without scanning, joining or requesting them, and leave every promotion to `private_data_sources` to a human decision?
 - [ ] Did every post and person row from every platform's Social Discovery Pass step go through Stage 10 and straight to `lead capture`, even from a Facebook group not yet in `private_data_sources`?
 - [ ] Did every post-level judgement — not only the Social Discovery Pass — also run Step 5 of `playbooks/LEAD_QUALIFICATION_RULE.md`, and did every `likely` verdict get RECORDED via `tool source-registry discovered add` rather than acted on?
 - [ ] Did this run avoid harvesting any discovered source on its own — no comment thread reopened, classified, or captured except as a separate job triggered by an explicit Boss order (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Harvest a discovered thread")?

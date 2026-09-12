@@ -1,16 +1,28 @@
 #!/usr/bin/env bash
-# tools/wait_for_run — background wait for a dispatched automation run to land in the
-# standup log. Called as:
+# tools/wait_for_run — background wait for a dispatched automation run. Called as:
 #     bash tools/wait_for_run <client_slug> <since_iso8601> [--timeout <seconds>] \
-#         [--pipeline <path>] [--interval <seconds>]
-# Polls <pipeline>/automation/standup.jsonl; exits 0 and prints the first line whose JSON
-# has client_slug (or "client") == <client_slug> and "ts" later than <since_iso8601>.
-# Exits 3 on timeout (default 2700s), 2 on bad arguments. --pipeline default: walk up
-# from $PWD looking for a "daily-content-pipeline" dir (same root-discovery style as
-# tools/solo_tool), then use <root>/daily-content-pipeline. No deps beyond bash/grep/date.
+#         [--pipeline <path>] [--interval <seconds>] [--watch standup|progress]
+#
+# Default (--watch standup, or --watch omitted): polls <pipeline>/automation/standup.jsonl
+# only, exits 0 and prints the raw line (no prefix) on the first line whose JSON has
+# client_slug (or "client") == <client_slug> and "ts" later than <since_iso8601>. This is
+# the legacy behaviour and is unchanged.
+#
+# --watch progress: also polls <pipeline>/automation/run_progress.jsonl. On each poll,
+# standup.jsonl is checked first: if a matching line is there, prints "standup <line>" and
+# exits 0 (standup wins ties — a run that finished the same poll as a progress line is
+# reported as finished, not mid-run). Otherwise, if run_progress.jsonl has a matching line,
+# prints "progress <line>" and exits 0. Either file alone can satisfy the wait — a run that
+# never writes a progress line (or a runtime that only writes standup) still returns on the
+# standup line, per S5 Run Progress Rule wait mechanics.
+#
+# Exits 3 on timeout (default 2700s), 2 on bad arguments (including an unrecognized
+# --watch value). --pipeline default: walk up from $PWD looking for a
+# "daily-content-pipeline" dir (same root-discovery style as tools/solo_tool), then use
+# <root>/daily-content-pipeline. No deps beyond bash/grep/date.
 set -u
 usage() {
-  echo "usage: wait_for_run <client_slug> <since_iso8601> [--timeout <seconds>] [--pipeline <path>] [--interval <seconds>]" >&2
+  echo "usage: wait_for_run <client_slug> <since_iso8601> [--timeout <seconds>] [--pipeline <path>] [--interval <seconds>] [--watch standup|progress]" >&2
 }
 is_uint() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
 # to_epoch <iso8601> — print epoch seconds on stdout, or nothing (and fail) if unparseable.
@@ -39,22 +51,47 @@ is_after() {
 extract_field() {
   printf '%s' "$1" | grep -o "\"$2\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/'
 }
+# scan_file <path> <client_slug> <since> — print the first line in <path> whose
+# client_slug (or "client") matches and "ts" is after <since>; return 1 (no output) if the
+# file is missing or has no such line.
+scan_file() {
+  local file="$1" want="$2" want_since="$3" line slug ts
+  [ -f "$file" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ -z "$line" ] && continue
+    slug="$(extract_field "$line" client_slug)"
+    [ -z "$slug" ] && slug="$(extract_field "$line" client)"
+    [ "$slug" = "$want" ] || continue
+    ts="$(extract_field "$line" ts)"
+    [ -z "$ts" ] && continue
+    if is_after "$ts" "$want_since"; then
+      printf '%s\n' "$line"
+      return 0
+    fi
+  done < "$file"
+  return 1
+}
 
 [ $# -lt 2 ] && { usage; exit 2; }
 client_slug="$1"; since="$2"; shift 2
 [ -z "$client_slug" ] && { usage; exit 2; }
 [ -z "$since" ] && { usage; exit 2; }
-timeout=2700; interval=10; pipeline=""
+timeout=2700; interval=10; pipeline=""; watch="standup"
 while [ $# -gt 0 ]; do
   case "$1" in
     --timeout) [ $# -ge 2 ] || { usage; exit 2; }; timeout="$2"; shift 2 ;;
     --pipeline) [ $# -ge 2 ] || { usage; exit 2; }; pipeline="$2"; shift 2 ;;
     --interval) [ $# -ge 2 ] || { usage; exit 2; }; interval="$2"; shift 2 ;;
+    --watch) [ $# -ge 2 ] || { usage; exit 2; }; watch="$2"; shift 2 ;;
     *) usage; exit 2 ;;
   esac
 done
 is_uint "$timeout" || { usage; exit 2; }
 is_uint "$interval" || { usage; exit 2; }
+case "$watch" in
+  standup|progress) ;;
+  *) usage; exit 2 ;;
+esac
 
 if [ -z "$pipeline" ]; then
   dir="$PWD"
@@ -67,21 +104,25 @@ if [ -z "$pipeline" ]; then
 fi
 
 standup="$pipeline/automation/standup.jsonl"
+progress="$pipeline/automation/run_progress.jsonl"
 start_ts="$(date +%s)"
 while true; do
-  if [ -f "$standup" ]; then
-    while IFS= read -r line || [ -n "$line" ]; do
-      [ -z "$line" ] && continue
-      slug="$(extract_field "$line" client_slug)"
-      [ -z "$slug" ] && slug="$(extract_field "$line" client)"
-      [ "$slug" = "$client_slug" ] || continue
-      ts="$(extract_field "$line" ts)"
-      [ -z "$ts" ] && continue
-      if is_after "$ts" "$since"; then
-        echo "$line"
-        exit 0
-      fi
-    done < "$standup"
+  standup_line="$(scan_file "$standup" "$client_slug" "$since")"; standup_rc=$?
+  if [ "$watch" = "progress" ]; then
+    if [ $standup_rc -eq 0 ]; then
+      echo "standup $standup_line"
+      exit 0
+    fi
+    progress_line="$(scan_file "$progress" "$client_slug" "$since")"; progress_rc=$?
+    if [ $progress_rc -eq 0 ]; then
+      echo "progress $progress_line"
+      exit 0
+    fi
+  else
+    if [ $standup_rc -eq 0 ]; then
+      echo "$standup_line"
+      exit 0
+    fi
   fi
   now="$(date +%s)"
   if [ $((now - start_ts)) -ge "$timeout" ]; then

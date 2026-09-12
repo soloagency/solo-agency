@@ -113,7 +113,7 @@ For the reader, three shapes this takes:
 
 | Platform | Ordered steps | FIRST RUN budget | DAILY budget |
 |---|---|---|---|
-| Facebook | 1 feed (`fb.search.posts`) → 2 people (`fb.people.search`) → 3 groups (`fb.groups.search`, public only) → 4 in-group (`fb.group.search_posts`) | ≤ 21 calls (3/3/3/3; up to 4 groups × 3 terms), `max_pages` ≤ 4 | ≤ 7 calls (1/1/1/1; up to 2 groups × 2 terms) |
+| Facebook | 1 feed (`fb.search.posts`) → 2 people (`fb.people.search`) → 3 groups (`fb.groups.search`, readable groups only: public, or private where the account is a member) → 4 in-group (`fb.group.search_posts`) | ≤ 21 calls (3/3/3/3; up to 4 groups × 3 terms), `max_pages` ≤ 4 | ≤ 7 calls (1/1/1/1; up to 2 groups × 2 terms) |
 | Instagram | 1 search (`ig.search.posts`) → 2 people (`ig.people.search`) → 3 profile depth (`ig.profile.posts` on the best hits) → 4 comments (`ig.post.comments` on the best posts) | ≤ 12 calls (3/3/3/3) | ≤ 4 calls (1/1/1/1) |
 | X | 1 search Latest (`x.search.posts`) → 2 people (`x.people.search`) → 3 profile depth (`x.profile.posts` on the best hits) → 4 replies (`x.post.replies` on the best posts) | ≤ 12 calls (3/3/3/3) | ≤ 4 calls (1/1/1/1) |
 
@@ -143,6 +143,61 @@ platforms' jobs sit between). The safety trip is per platform: a checkpoint, rat
 logged-out signal on one platform removes that platform from the rotation for the day and the
 others continue.
 
+### Progress: six stages
+
+**Run Progress Rule (six stages, one line each).** Every run that executes the Social Discovery
+Pass reports progress at six stage boundaries, mapped onto the round-robin rounds:
+
+1. `find_posts` — round 1: `fb.search.posts` / `ig.search.posts` / `x.search.posts`;
+2. `find_people` — round 2: people search on each platform;
+3. `find_groups` — round 3: `fb.groups.search` (Facebook) / profile depth (Instagram, X);
+4. `scan_in_group` — round 4: `fb.group.search_posts` (Facebook) / comments and replies (Instagram, X);
+5. `filter_leads` — the Lead Qualification Rule over everything collected, CRM capture, Step 5
+   recording of discovered threads;
+6. `build_report` — report_state, INTERNAL_REPORT, notification, standup line.
+
+A stage is done when every platform still in rotation has finished its step for that round (a
+tripped, skipped or budget-exhausted platform counts as done with its numbers as they stand). At each
+boundary the run appends ONE JSON line to `daily-content-pipeline/automation/run_progress.jsonl`
+(schema in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`) using the runtime's file-edit tool — the
+unattended allow rules already cover writes under `R/daily-content-pipeline` — before it submits the
+next round's jobs. When Sam speaks about a run in progress (a background wake, or the Boss asking),
+the update has exactly this shape, in the Boss's language, numbers read from the progress line just
+read (Read-Before-Claim Rule), never from memory:
+
+```text
+Giai đoạn {k}/6 xong — {stage}: {the five result lines that apply so far, one number each}.
+Đang chạy: {stage k+1}. Còn lại: {remaining stages}. Đã dùng {calls_done}/{calls_planned} lượt gọi.
+Dự kiến xong: {HH:MM}–{HH:MM}.
+```
+
+Wait mechanics: `tools/wait_for_run <client_slug> <since_iso> --watch progress --timeout <s>` exits 0
+and prints `progress <line>` on the first new `run_progress.jsonl` line for that client after
+`since`, or `standup <line>` when the run's standup line lands first; exit 3 on timeout. Sam arms it
+right after dispatch, speaks the update on each wake, re-arms with `since` = the `ts` of the line
+just spoken, and on the `standup` wake speaks the First-Run Report instead. On a runtime without
+background execution, Sam reads the last `run_progress.jsonl` line for the client on every Boss turn
+while the run is in flight and speaks the same shape. Record `first_run_last_stage` (the last stage
+index spoken, 0–6) on `automation_manifest.md`.
+
+run_progress.jsonl line (07 schema, one object per line, append only):
+
+```json
+{"ts": "2026-09-12T08:14:03+07:00", "client_slug": "acme", "run_id": "2026-09-12-acme-1",
+ "stage": "find_people", "stage_index": 2, "status": "done",
+ "calls_done": 6, "calls_planned": 45,
+ "counts": {"search_posts": 34, "group_posts": 0, "groups_found": 0, "groups_readable": 0,
+            "groups_no_access": 0, "groups_approved": 0, "people_found": 57,
+            "leads_hot": 0, "leads_warm": 0, "leads_watch": 0},
+ "platforms": {"facebook": "running", "instagram": "running", "x": "tripped:rate_limit"},
+ "eta_low_at": "2026-09-12T08:40:00+07:00", "eta_high_at": "2026-09-12T09:00:00+07:00",
+ "note": ""}
+```
+
+`status` is `done` at a boundary, `stalled` when a platform's job produced no result within its TTL,
+`aborted` when the run stopped early (say why in `note`). `platforms` values: `running | done |
+skipped:{reason} | tripped:{signal} | web_only`. The wait helper matches `client_slug` and `ts` only.
+
 ### Fixed order per platform: search/feed, then people, then depth, then intent/comments/replies
 
 Within a single platform, the order below is fixed because each step narrows and ranks what the
@@ -168,18 +223,27 @@ another platform has a pending step.
    (`playbooks/LEAD_QUALIFICATION_RULE.md`); no match stays lower per the same rule.
    Qualified rows go to `tool crm-store ... lead capture` like every other lead, tagged
    `source:people_search` plus `kw:{term}`.
-3. **THEN GROUPS.** `fb.groups.search` with `query = <discovery term>`. Keep only results whose
-   `privacy == "public"`. If `privacy` is empty/unknown, treat it as unknown, not as private: either
-   spend one `fb.group.posts` call with `max_pages: 1` on the group to read its header and decide,
-   or skip the group when the call budget is tight — never guess it public. Rank the survivors by
-   `member_count` desc, preferring names/snippets that match the client's target location. Skip a
-   group already in `private_data_sources`, and skip a group this pass already scanned in the last 7
-   days. Persist the ranked shortlist at `history/YYYY-MM/facebook_discovery_shortlist.jsonl` — see
+3. **THEN GROUPS.** `fb.groups.search` with `query = <discovery term>`. Keep a group when
+   `privacy == "public"` OR `viewer_join_state == "MEMBER"` (the account already belongs, so it can
+   read a private group) — these are `groups_readable`. A private group the account is not in
+   (`viewer_join_state` `CAN_REQUEST` / `REQUEST_TO_JOIN`, or `privacy == "private"` with any other
+   join state) is `groups_no_access`: kept in the shortlist with `access: no_access`, shown to the
+   Boss with "join it yourself in your own session if you want it monitored", and never scanned,
+   never joined, never requested (join boundary, `playbooks/skills/lead-engine/safety.md`). If
+   `privacy` is empty/unknown, one `fb.group.posts` call with `max_pages: 1` decides — posts come
+   back → `readable`; an access wall, or empty with `stopped_because` naming access or login →
+   `no_access` — or skip the group when the call budget is tight, never guess it readable. Rank the
+   survivors by `member_count` desc, preferring names/snippets that match the client's target
+   location. Skip a group already in `private_data_sources`, and skip a group this pass already
+   scanned in the last 7 days. Persist the ranked shortlist at
+   `history/YYYY-MM/facebook_discovery_shortlist.jsonl` — rows gain `access: readable | no_access |
+   unknown`, `viewer_join_state`, and `decision: pending | approved | declined` — see
    `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` for the exact fields and job shapes.
-4. **THEN IN-GROUP.** For the top public groups from step 3, `fb.group.search_posts` with
-   `group_search_url = <group_url>/search/?q=<intent term>`. Intent terms — not the discovery term —
-   come from `tool source-keywords ... plan`; seed the group's bank first if it is empty
-   (`seed --industry --market --lang`, plus the client's setup seed file when one exists).
+4. **THEN IN-GROUP.** For the top readable groups from step 3 — private or public alike —
+   `fb.group.search_posts` with `group_search_url = <group_url>/search/?q=<intent term>`. Intent
+   terms — not the discovery term — come from `tool source-keywords ... plan`; seed the group's bank
+   first if it is empty (`seed --industry --market --lang`, plus the client's setup seed file when
+   one exists). `groups_no_access` groups are never scanned in this step.
 
 **Instagram**
 
@@ -287,13 +351,14 @@ below for what happens to a recorded source, and only on explicit order.
 FIRST RUN: **minimum 10 leads across all platforms combined.** Reaching 10 does not end the run —
 keep working down the shortlists on every enabled platform until the day's budget (above) is spent
 on each; more is always better than exactly 10. If the combined budget runs out below 10, say so
-plainly in the report and carry the remaining shortlist rows (`status: pending`) into the next day's
-pass rather than losing them.
+plainly in the report and carry the remaining shortlist rows (`status: pending`, `decision: pending`)
+into the next day's pass rather than losing them.
 
 DAILY companion pass: no fixed floor on any platform — it is a light top-up, bounded by each
-platform's own smaller budget above.
+platform's own smaller budget above; carried-over shortlist rows from a prior day still wait as
+`status: pending`, `decision: pending` until the Boss answers or this pass scans them.
 
-### Budget (owner-approved, inside the safety envelope; all calls serial, spread over hours)
+### Budget (owner-approved, inside the safety envelope; serial, paced by the collector)
 
 The platform table above carries the exact ceilings. Which tier applies is decided PER PLATFORM by
 that platform's own `{platform}_discovery_first_pass_done` field on the Client Intelligence Profile,
@@ -309,6 +374,38 @@ These numbers are ceilings from `playbooks/skills/lead-engine/safety.md`, which 
 envelope (pacing, serial-only, the trip rule, round-robin). Never raise them without the human's
 explicit approval.
 
+**Pacing Rule (all platforms, both tiers).** The only spacing between requests is the collector's
+own random delay: every discovery job carries `"pacing": {"min_delay_seconds": 5,
+"max_delay_seconds": 10}` — a random 5–10 second pause before each page, scroll or request inside
+the job — plus the extension's poll interval between jobs. The agent submits the next job as soon as
+it has read the previous job's result for a trip signal; it never sleeps, waits, or schedules its own
+gaps between jobs, never spreads a pass over hours, and never lowers the delay below 5 s. Round-robin
+order (Facebook → Instagram → X) and the per-platform ceilings are unchanged; with this pacing a
+FIRST RUN on all three platforms takes about 30–45 minutes of collector time (ETA Rule), not hours.
+What protects the account is the trip rule, not slowness: the first checkpoint, rate-limit warning
+or logged-out signal stops that platform for the day.
+
+**ETA Rule (never a default number).** Before dispatching any run, and again in every progress
+update, compute the expected duration from the plan, never from habit:
+
+- `calls_planned` = the sum, over platforms whose `{platform}_lead_source` is `enabled`, of that
+  platform's ceiling for its tier (FIRST RUN 21 / 12 / 12; DAILY 7 / 4 / 4), plus one call per
+  custom or private source scheduled this run, plus one per `web_only` platform being re-probed.
+- One collector call ≈ `max_pages × (7.5 s average delay + ~5 s page load)`, capped by the 60 s
+  capability timeout → use 40 s (low) and 60 s (high) per call.
+- `eta_low = calls_planned × 40 s + 10 min`; `eta_high = calls_planned × 60 s + 15 min` (the fixed
+  part covers keyword planning, qualification, report rendering, upload, notification).
+- Worked examples: three platforms on FIRST RUN → 45 calls → 40–60 min. Facebook only, FIRST RUN
+  → 21 calls → 24–36 min. DAILY on three platforms → 15 calls → 20–30 min. No platform enabled →
+  10–15 min.
+
+Speak it as a window of clock times in the Boss's language ("bắt đầu 08:00, dự kiến xong
+08:40–09:00"), show the arithmetic once ("45 lượt gọi × 40–60 giây + 10–15 phút"), and record
+`run_calls_planned`, `run_eta_low_min`, `run_eta_high_min`, `run_eta_at` on `automation_manifest.md`
+at dispatch. The background wait uses `--timeout` = `run_eta_high_min × 90` seconds (1.5 × eta_high,
+minimum 1800). After each stage, recompute from calls remaining × the measured average seconds per
+call so far; a platform that trips mid-run removes its remaining calls from the plan.
+
 ### Safety trip is per platform, and unforgiving
 
 The first checkpoint, rate-limit warning, or logged-out signal on a platform stops THAT PLATFORM for
@@ -319,15 +416,29 @@ exactly as it holds everywhere else in this playbook.
 
 ### Scanning needs no per-group approval; promoting does (Facebook only)
 
-Scanning a PUBLIC Facebook group in this pass needs no per-group human approval — see the join
-boundary in `playbooks/skills/lead-engine/safety.md` and the reconciliation paragraph in
+Scanning a readable Facebook group in this pass (public, or private where the account is already a
+member) needs no per-group human approval — see the join boundary in
+`playbooks/skills/lead-engine/safety.md` and the reconciliation paragraph in
 `playbooks/PRIVATE_SOURCE_GATE.md`. PROMOTING a group out of the shortlist into
 `private_data_sources` for standing daily monitoring still needs the normal per-group human approval
-(`playbooks/02_PRIVATE_SOURCE_SETUP.md`). After the pass, recommend the top groups by `leads_found`
-and `member_count`; the human decides which (if any) get promoted. Instagram and X have no group
-concept, so this boundary applies to Facebook only.
+(`playbooks/02_PRIVATE_SOURCE_SETUP.md`). Shortlist rows carry `status` for scan progress only
+(`pending | scanned`, plus `recommended` for the pass's own top pick — an agent verdict, not the
+Boss's) separately from `decision` (`pending | approved | declined`), which is where the Boss's own
+answer lives and is set only by an explicit reply, never inferred from silence; `rejected` is
+retired. The Client Intelligence Profile's `facebook_group_discovery.review_state` (`none |
+shortlist_presented | monitoring_approved | monitoring_declined`) tracks the Boss's overall answer:
+`monitoring_approved` once at least one row is `decision: approved` (those rows go through the
+normal promotion above), `monitoring_declined` when the Boss declines all of them or says to leave
+groups for now. Neither the Setup Flow nor a scheduled run may close while
+`facebook_group_discovery.candidates_total > 0` and `review_state == none` — the way out is to
+present the shortlist in an `**[ACTION REQUIRED]**` block (name, member count, readable or
+no-access, leads found, discovery term, one-line reason per candidate), let the Boss answer by
+number, then set `review_state: shortlist_presented`; the flow may close once that is recorded, and
+the decision itself (`monitoring_approved` / `monitoring_declined`) is recorded when it comes. A
+"no" to custom URLs at Setup Flow step 5 is a different question and is never a decline of the group
+shortlist. Instagram and X have no group concept, so this whole boundary applies to Facebook only.
 
-Groups this pass finds should also be registered in the shared source registry as public groups
+Groups this pass finds should also be registered in the shared source registry as readable groups
 (`tool source-registry register`, existing shape) so other clients' passes reuse the notes instead of
 rediscovering the same group cold.
 
@@ -338,20 +449,30 @@ non-English report; English default below), with one row per platform that had a
 step this run:
 
 - discovery terms used;
-- posts found (feed posts for Facebook; search posts for Instagram/X);
-- people found / people captured;
-- Facebook only: groups found / groups kept as public / groups scanned in-group;
-- Instagram/X only: profiles read in depth / comment or reply threads read;
-- leads found (and how many of those are hot/warm/watch);
-- locked leads (see "Every lead also becomes a CRM contact" below);
+
+**Five result types (never merged).** Every progress update, the First-Run Report, the run reply
+and the INTERNAL_REPORT "Social Discovery Pass" section list these separately, in this order, each
+with its own number; a zero is printed as 0 and a type that does not apply to a platform (Instagram
+and X have no groups) is printed as "—":
+
+1. Bài từ Facebook Search theo từ khóa — `feed_posts_found` (Instagram/X: `posts_found` from search);
+2. Bài/clip quét bên trong group — `group_posts_found` (Instagram/X: `depth_posts_found` from
+   profile depth plus comments/replies);
+3. Group ứng viên tìm thấy — `groups_found`, split into `groups_readable` (public, or private with
+   the account already a member) and `groups_no_access` (private, account not a member — listed for
+   the Boss to join, never scanned);
+4. Group đã duyệt để theo dõi — `groups_approved` (shortlist rows with `decision: approved`, this
+   run / total);
+5. Lead đạt luật — `leads_found` with hot/warm/watch, plus `leads_locked`.
+
 - budget used (calls spent / calls available, for that platform's tier this run);
 - trip status (`clean`, or the exact safety trip that stopped that platform for the day).
 
 ```text
 Social Discovery Pass
-Facebook  — Terms: 3 · Feed posts: 3 · People: 9 found, 5 captured · Groups: 12 found, 7 public, 4 scanned · Leads: 19 (9 hot, 6 warm, 4 watch) · Locked: 0 · Budget: 20/21 · Trip: clean
-Instagram — Terms: 3 · Posts: 8 · People: 15 found, 6 captured · Depth: 3 profiles, 3 comment threads · Leads: 7 (2 hot, 3 warm, 2 watch) · Locked: 0 · Budget: 11/12 · Trip: clean
-X         — Terms: 3 · Posts: 11 · People: 20 found, 4 captured · Depth: 3 profiles, 3 reply threads · Leads: 5 (1 hot, 2 warm, 2 watch) · Locked: 0 · Budget: 12/12 · Trip: clean
+Facebook  — Terms: 3 · Feed posts: 3 · In-group posts: 14 · Groups: 12 found (7 readable, 5 no-access) · Approved to monitor: 2 · Leads: 19 (9 hot, 6 warm, 4 watch) · Locked: 0 · Budget: 20/21 · Trip: clean
+Instagram — Terms: 3 · Posts: 8 · Depth posts: 6 · Groups: — · Approved to monitor: — · Leads: 7 (2 hot, 3 warm, 2 watch) · Locked: 0 · Budget: 11/12 · Trip: clean
+X         — Terms: 3 · Posts: 11 · Depth posts: 9 · Groups: — · Approved to monitor: — · Leads: 5 (1 hot, 2 warm, 2 watch) · Locked: 0 · Budget: 12/12 · Trip: clean
 ```
 
 ## Definitions

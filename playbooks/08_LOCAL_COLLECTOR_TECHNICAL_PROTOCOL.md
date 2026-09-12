@@ -1004,11 +1004,16 @@ table in Stage 10 — nothing here raises `max_pages` or scroll depth beyond tha
    - `member_count`: number | `null` (an unrecognized locale magnitude token leaves this `null`);
    - `viewer_join_state`, `snippet`, `privacy_source` (which signal decided `privacy`:
      `viewer_join_state` or the parsed descriptor line), `member_count_text` (the raw matched
-     segment), `snippet_lang` (the descriptor line's UI locale).
+     segment), `snippet_lang` (the descriptor line's UI locale). `viewer_join_state: "MEMBER"` means
+     the account already belongs and can read the group — it counts as `groups_readable` alongside
+     public groups; `viewer_join_state: "CAN_REQUEST"` or `"REQUEST_TO_JOIN"` means the account has no
+     access — it counts as `groups_no_access` and is never scanned or joined.
    `privacy`/`member_count` can legitimately come back unknown/null on any given result — that is a
    parsing limitation of Facebook's search card, not a job failure. Stage 10's rule: unknown privacy
-   is resolved with one `fb.group.posts` (`max_pages: 1`) header check, or the group is skipped when
-   the call budget is tight — it is never assumed public.
+   is resolved with one `fb.group.posts` (`max_pages: 1`) header check that decides `readable` (posts
+   come back) or `no_access` (an access wall, or empty with `stopped_because` naming access or login)
+   — never assumed readable, never assumed no-access without the check, and the group is skipped only
+   when the call budget is tight.
 4. **`fb.group.search_posts`** — `inputs.group_search_url = <group_url>/search/?q=<url-encoded
    intent term>`. Output: `PostRecord[]`. This is the same capability the daily search pass (§"A
    private source names the capability that reads it" above) already uses for approved sources; the
@@ -1032,15 +1037,26 @@ counterpart:
   "first_seen": "YYYY-MM-DD",
   "last_scanned": "YYYY-MM-DD",
   "status": "pending",
+  "access": "readable",
+  "viewer_join_state": "MEMBER",
+  "decision": "pending",
+  "decided_at": "",
   "leads_found": 0,
   "discovery_term": "nail salon owners Houston"
 }
 ```
 
-`status` moves `pending -> scanned -> recommended|rejected` as the pass works down the list across
-runs. Check this file before spending an `fb.groups.search`/`fb.group.search_posts` call on a group
-already scanned in the last 7 days (Stage 10's dedupe rule) — the file is the memory that keeps the
-DAILY companion pass from rediscovering the same handful of groups every day.
+`status` carries only scan progress — `pending -> scanned` — plus `recommended`, the pass's own top
+pick, an agent verdict made before the Boss ever sees the shortlist (`rejected` is retired). `access`
+is `readable | no_access | unknown` (public, or private with `viewer_join_state: MEMBER`, is
+`readable`; private with `CAN_REQUEST`/`REQUEST_TO_JOIN` is `no_access`), and `viewer_join_state` is
+the raw value that decision was made from. The Boss's own answer lives in `decision`
+(`pending | approved | declined`) with `decided_at` its timestamp — never in `status` — set once the
+shortlist has been presented and the Boss has answered (Group discovery review states,
+`playbooks/10_LEAD_COMPETITOR_DETECTION.md`). Check this file before spending an
+`fb.groups.search`/`fb.group.search_posts` call on a group already scanned in the last 7 days
+(Stage 10's dedupe rule) — the file is the memory that keeps the DAILY companion pass from
+rediscovering the same handful of groups every day.
 
 ### First action once the bridge exists: settle any deferred slot check
 
@@ -1670,7 +1686,7 @@ Exact manual run-now contract:
   ],
   "pacing": {
     "min_delay_seconds": 5,
-    "max_delay_seconds": 5,
+    "max_delay_seconds": 10,
     "max_sources": 20,
     "scroll_steps": 5,
     "max_text_chars": 12000

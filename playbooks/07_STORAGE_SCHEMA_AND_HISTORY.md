@@ -224,7 +224,7 @@ Shared-scan files (cross-client, maintained through `tools/solo_tool source-regi
 Scheduling files (maintained through `tool schedule-slots` and the operator web UI, same no-hand-edit rule):
 
 - `system_settings.json` (data-root level) — the operator's GLOBAL system config, editable in the web UI at `/ui/settings` without any agent chat: `operator_email` (where agents send operator notifications when an operator push channel is used — client notifications stay on each client's own channel), `max_concurrent_tasks` (default 10), `slot_step_minutes` (15), `slot_horizon_days` (35), `default_task_duration_min` (30). Agents READ these settings (`tool system-settings get`); they never overwrite the operator's values.
-- `automation/task_slots.json` — machine-readable registry of every automation task's run time: `task_name`, `client_slug`, `cadence_hours` or `monthly`, `run_time` "HH:MM" local, `anchor_date`, `duration_min`, `status` (active|paused). `tool schedule-slots suggest` projects all of it onto a timeline to pick collision-free start times; `schedule.md` and the automation manifest remain the human-readable views.
+- `automation/task_slots.json` — machine-readable registry of every automation task's run time: `task_name`, `client_slug`, `cadence_hours` or `monthly`, `run_time` "HH:MM" local, `anchor_date`, `duration_min`, `status` (active|paused). For a task that runs the Social Discovery Pass, `duration_min` is the ETA Rule's `run_eta_high_min` for that task, never the `default_task_duration_min` fallback above — re-run `tool schedule-slots suggest` whenever a recomputed ETA exceeds the recorded `duration_min`. `tool schedule-slots suggest` projects all of it onto a timeline to pick collision-free start times; `schedule.md` and the automation manifest remain the human-readable views.
 - `system_settings.json` also carries `accountability_max_gap_hours` (default 72) — the posting-gap reminder threshold (`playbooks/ACCOUNTABILITY_POSTING.md`), editable at `/ui/settings`.
 - `automation/operator_mail_log.jsonl` — audit line per operator escalation email sent by `tool gmail send-operator` (ts, to, from, sendbox, subject).
 
@@ -574,6 +574,11 @@ Minimum format:
 - first_run_dispatched_at: ISO 8601 timestamp of when the first-run task was dispatched
 - first_run_wait: armed | not_available | timed_out | reported — state of the background wait for that first run (`playbooks/04_DAILY_SCHEDULE.md`, "Wait and report")
 - first_run_reported_at: ISO 8601 timestamp of when the First-Run Report was spoken back to the Boss in chat
+- run_calls_planned: `calls_planned` computed by the ETA Rule (`playbooks/04_DAILY_SCHEDULE.md`) at dispatch for the run in flight, recorded so a later turn can read it instead of recomputing from memory
+- run_eta_low_min: the ETA Rule's `eta_low` for that run, in minutes
+- run_eta_high_min: the ETA Rule's `eta_high` for that run, in minutes
+- run_eta_at: ISO 8601 timestamp of `eta_high_at` — the clock time the run is expected to finish by
+- first_run_last_stage: the last Run Progress Rule stage index (0–6, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, "automation/run_progress.jsonl") spoken to the Boss for the first run
 - unattended_permissions: granted | declined | not_applicable — outcome of the Stage 4 unattended-permissions consent (Claude Code desktop local runtime only)
 - unattended_permissions_scope: user_settings — where the allow rules were written (`~/.claude/settings.json`)
 - unattended_permissions_written_at: ISO 8601 timestamp of when the allow rules were written, when `unattended_permissions: granted`
@@ -595,6 +600,26 @@ Two team files live next to the manifest under `daily-content-pipeline/automatio
 - `boss_orders.md` — the Team Leader's ledger of the Boss's requests and goals (header and statuses in `playbooks/TEAM_MODEL.md`). Written by the interactive session only; scheduled runs read it. Never deleted, never closed without a reason.
 - `standup.jsonl` — one JSON line per finished scheduled run (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, step 16A): `ts`, `task`, `client_slug`, `role`, `outcome`, `reports[]`, `needs_boss[]`, `blockers[]`, `discovered_new` (count of `likely` Step 5 threads recorded this run — see "Discovered sources" above; `0` when none). Append-only; the Team Leader reads the tail at the start of every session. Keep 90 days; older lines may be pruned by the update-watch task.
 - `support_requests.md` — posts the Team Leader made to the Solo Agency Facebook support group on the Boss's behalf (`playbooks/TEAM_MODEL.md`, "Support requests"): id, date, type, title, status, group_url, post_id, post_url, feedback_id, last_checked, last_comment_id, replies, notes. Written by the interactive session; scheduled runs fill the post ids after posting, update `last_checked` / `last_comment_id` / `replies`, and surface new replies.
+
+### `automation/run_progress.jsonl`
+
+Purpose: one JSON line appended at each Run Progress Rule stage boundary (`playbooks/04_DAILY_SCHEDULE.md`, "Progress Display Contract") while a Social Discovery Pass is in flight, so any turn — a background wake, the Boss asking mid-run, or a runtime with no background execution — can read the last line for the client and speak stage, counts and ETA without carrying a number from memory (Read-Before-Claim Rule). Append-only, lines from every client interleaved by `ts`; `tools/wait_for_run <client_slug> <since_iso> --watch progress` matches on `client_slug` and `ts` only.
+
+Line schema (one object per line):
+
+```json
+{"ts": "2026-09-12T08:14:03+07:00", "client_slug": "acme", "run_id": "2026-09-12-acme-1",
+ "stage": "find_people", "stage_index": 2, "status": "done",
+ "calls_done": 6, "calls_planned": 45,
+ "counts": {"search_posts": 34, "group_posts": 0, "groups_found": 0, "groups_readable": 0,
+            "groups_no_access": 0, "groups_approved": 0, "people_found": 57,
+            "leads_hot": 0, "leads_warm": 0, "leads_watch": 0},
+ "platforms": {"facebook": "running", "instagram": "running", "x": "tripped:rate_limit"},
+ "eta_low_at": "2026-09-12T08:40:00+07:00", "eta_high_at": "2026-09-12T09:00:00+07:00",
+ "note": ""}
+```
+
+`status` is `done` at a boundary, `stalled` when a platform's job produced no result within its TTL, `aborted` when the run stopped early (say why in `note`). `platforms` values: `running | done | skipped:{reason} | tripped:{signal} | web_only`. The six `stage`/`stage_index` values, one line per boundary: `find_posts` (1), `find_people` (2), `find_groups` (3), `scan_in_group` (4), `filter_leads` (5), `build_report` (6) — see the Run Progress Rule.
 
 ## Current Run Contract
 
@@ -1127,11 +1152,14 @@ Minimum format:
   "facebook_discovery": {
     "terms_used": 0,
     "feed_posts_found": 0,
+    "group_posts_found": 0,
     "people_found": 0,
     "people_captured": 0,
     "groups_found": 0,
-    "groups_public": 0,
+    "groups_readable": 0,
+    "groups_no_access": 0,
     "groups_scanned": 0,
+    "groups_approved": 0,
     "leads_found": 0,
     "leads_locked": 0,
     "budget_used": 0,
@@ -1141,6 +1169,7 @@ Minimum format:
   "instagram_discovery": {
     "terms_used": 0,
     "posts_found": 0,
+    "depth_posts_found": 0,
     "people_found": 0,
     "people_captured": 0,
     "depth_calls": 0,
@@ -1153,6 +1182,7 @@ Minimum format:
   "x_discovery": {
     "terms_used": 0,
     "posts_found": 0,
+    "depth_posts_found": 0,
     "people_found": 0,
     "people_captured": 0,
     "depth_calls": 0,
@@ -1175,14 +1205,21 @@ Minimum format:
 
 `facebook_discovery`/`instagram_discovery`/`x_discovery` are the three per-platform legs of the
 Social Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass"), one
-object per platform, each reconciled independently. `{platform}_discovery.trip_status`: `clean`, or
-the exact safety trip that stopped that platform's account for the day — the trip is per platform
-(round-robin rule), so one platform tripping never zeroes another's object. `budget_used`/
+object per platform, each reconciled independently, and their fields follow the Five result types
+(the Five result types, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`): a search-post count, an in-group/depth-post count, a groups count split by access, a groups-
+approved count, and a leads count — never merged into one another. `{platform}_discovery.trip_status`:
+`clean`, or the exact safety trip that stopped that platform's account for the day — the trip is per
+platform (round-robin rule), so one platform tripping never zeroes another's object. `budget_used`/
 `budget_available` are calls, not leads — FIRST RUN ceiling 21 for Facebook / 12 for Instagram and X,
-DAILY ceiling 7 for Facebook / 4 for Instagram and X. Instagram and X have no groups, so their
-objects carry `depth_calls` (profile-depth + comments/replies calls) instead of Facebook's
-`groups_found`/`groups_public`/`groups_scanned`, and `posts_found` instead of `feed_posts_found`.
-`leads_locked` comes from `tool crm-store ... contact lock-status`, never a hand count.
+DAILY ceiling 7 for Facebook / 4 for Instagram and X. Facebook's `groups_found` splits into
+`groups_readable` (public, or private where the account is already a member) and `groups_no_access`
+(private, account not a member — listed for the Boss to join, never scanned); `groups_approved`
+counts shortlist rows with `decision: approved`. Instagram and X have no groups, so their objects
+carry `depth_calls` (profile-depth + comments/replies calls) instead of Facebook's `groups_found`/
+`groups_readable`/`groups_no_access`/`groups_scanned`/`groups_approved`, `posts_found` instead of
+`feed_posts_found`, and `depth_posts_found` (profile depth plus comments/replies) instead of
+Facebook's `group_posts_found`. `leads_locked` comes from `tool crm-store ... contact lock-status`,
+never a hand count.
 
 Allowed section status:
 
@@ -1509,6 +1546,25 @@ facebook_last_login_probe_at:
   # `web_only` with a `{platform}_web_only_reason` starting "not logged in"
   # (playbooks/10_LEAD_COMPETITOR_DETECTION.md, "Re-probe on every run"). Written on every probe,
   # whether it succeeds (flips the field back to `enabled`) or comes back logged-out again.
+facebook_group_discovery:
+  candidates_total: 0            # shortlist rows with access readable or no_access
+  review_state: none             # none | shortlist_presented | monitoring_approved | monitoring_declined
+  presented_at: ""
+  decided_at: ""
+  approved_group_urls: []
+  declined_group_urls: []
+  # Facebook-only (Instagram and X have no group concept in this pass). `candidates_total` counts
+  # `history/YYYY-MM/facebook_discovery_shortlist.jsonl` rows with `access: readable` or
+  # `access: no_access`. Neither the Setup Flow's Closing Template hard gates nor a scheduled run
+  # (playbooks/SCHEDULED_RUN_ENTRYPOINT.md steps 12E/16) may close while `candidates_total > 0` and
+  # `review_state == none` -- the shortlist must first be presented as an `**[ACTION REQUIRED]**`
+  # block, which sets `review_state: shortlist_presented` and `presented_at`. The Boss's answer then
+  # sets `review_state: monitoring_approved` (at least one shortlist row `decision: approved`, which
+  # goes through the normal promotion into `private_data_sources`,
+  # playbooks/02_PRIVATE_SOURCE_SETUP.md) or `monitoring_declined` (the Boss declines all of them or
+  # says to leave groups for now), plus `decided_at` and the matching URL list. A "no" to custom URLs
+  # at the source-setup question is a different question and never counts as a decline here; only an
+  # answer to the shortlist itself moves `review_state`.
 instagram_lead_source: enabled | web_only | pending
 instagram_lead_source_updated_at:
 instagram_web_only_reason:
@@ -1967,12 +2023,14 @@ Privacy rule:
 
 Purpose:
 
-- Persist the Social Discovery Pass's ranked candidate public Facebook groups across runs
-  (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass"). Facebook-only: Instagram
-  and X have no group concept in this pass, so nothing from either platform is added here.
+- Persist the Social Discovery Pass's ranked Facebook group candidates across runs
+  (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass") — both the readable groups
+  (public, or private where the account is already a member) and the no-access groups it can only
+  list for the Boss to join. Facebook-only: Instagram and X have no group concept in this pass, so
+  nothing from either platform is added here.
 - Let the DAILY companion pass skip a group already scanned in the last 7 days instead of
   rediscovering the same handful of groups every day.
-- Carry the human's promote/reject decision after the pass recommends its top groups.
+- Carry the human's approve/decline decision after the pass presents its shortlist.
 
 One JSON object per line:
 
@@ -1985,14 +2043,25 @@ One JSON object per line:
   "first_seen": "2026-09-09",
   "last_scanned": "2026-09-09",
   "status": "pending",
+  "access": "readable",
+  "viewer_join_state": "MEMBER",
+  "decision": "pending",
+  "decided_at": "",
   "leads_found": 0,
   "discovery_term": "term that surfaced this group"
 }
 ```
 
-`status` allowed values: `pending | scanned | recommended | rejected` — moves `pending -> scanned ->
-recommended|rejected` as the pass works down the list across runs. Scanning a public group needs no
-approval; `recommended`/`rejected` records the human's later promote decision for
+`status` allowed values: `pending | scanned | recommended` — moves `pending -> scanned -> recommended`
+as the pass works down the list across runs; `status` carries only scan progress plus `recommended`,
+the pass's own top pick, an agent verdict made before the Boss ever sees the shortlist (`rejected` is
+retired — the Boss's answer never lives in `status`). `access` is `readable | no_access | unknown`
+(`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Group candidates: readable, not merely public") and
+`viewer_join_state` is the raw Facebook value (`MEMBER`, `CAN_REQUEST`, `REQUEST_TO_JOIN`, …) the
+access decision was made from. `decision` is `pending | approved | declined` and is where the Boss's
+answer lives, set once the shortlist has been presented and answered; `decided_at` is the timestamp
+of that answer. Scanning a readable group needs no approval; a `no_access` group is never scanned or
+joined regardless of `decision`. `decision: approved` rows go through the normal promotion into
 `private_data_sources` (`playbooks/02_PRIVATE_SOURCE_SETUP.md`).
 
 Authoritative field list and job shapes: `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`.

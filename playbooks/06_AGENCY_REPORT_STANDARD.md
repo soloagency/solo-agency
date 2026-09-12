@@ -599,16 +599,33 @@ Internal access mode mechanics only (never spoken to the human) — stays inside
 
 ### Social Discovery Pass
 
-One row per platform that ran this run (Facebook, Instagram, X — round-robin order,
-`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass"):
+**Five result types (never merged).** Every progress update, the First-Run Report, the run reply
+and the INTERNAL_REPORT "Social Discovery Pass" section list these separately, in this order, each
+with its own number; a zero is printed as 0 and a type that does not apply to a platform (Instagram
+and X have no groups) is printed as "—":
 
-| Platform | Terms used | Posts found | People found / captured | Depth (Facebook: groups found/public/scanned; Instagram/X: profile+comment/reply depth calls) | Leads found (hot / warm / watch) | Locked leads | Budget used / available | Trip status |
-|---|---|---|---|---|---|---|---|---|
-| Facebook | | | | | | | | `clean` \| the exact safety trip that stopped the account |
-| Instagram | | | | | | | | `clean` \| the exact safety trip that stopped the account |
-| X | | | | | | | | `clean` \| the exact safety trip that stopped the account |
+1. Bài từ Facebook Search theo từ khóa — `feed_posts_found` (Instagram/X: `posts_found` from search);
+2. Bài/clip quét bên trong group — `group_posts_found` (Instagram/X: `depth_posts_found` from
+   profile depth plus comments/replies);
+3. Group ứng viên tìm thấy — `groups_found`, split into `groups_readable` (public, or private with
+   the account already a member) and `groups_no_access` (private, account not a member — listed for
+   the Boss to join, never scanned);
+4. Group đã duyệt để theo dõi — `groups_approved` (shortlist rows with `decision: approved`, this
+   run / total);
+5. Lead đạt luật — `leads_found` with hot/warm/watch, plus `leads_locked`.
+
+One row per platform that ran this run (Facebook, Instagram, X — round-robin order,
+`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass"), the columns following the
+five result types in order plus the standing budget/trip columns:
+
+| Platform | Terms used | Search posts found | People found / captured | In-group / depth posts found | Groups found (readable / no-access) | Groups approved | Leads found (hot / warm / watch) | Locked leads | Budget used / available | Trip status |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Facebook |  |  |  |  |  |  |  |  |  | `clean` \| the exact safety trip that stopped the account |
+| Instagram |  |  |  |  | — | — |  |  |  | `clean` \| the exact safety trip that stopped the account |
+| X |  |  |  |  | — | — |  |  |  | `clean` \| the exact safety trip that stopped the account |
 
 - For any platform at `{platform}_lead_source: web_only` this run, say so plainly in that platform's row (or a note under the table) with the lead-count consequence and the persistent web-only awareness line below, instead of running that platform's leg — the other platforms still run their own legs on schedule (round-robin rule: a stopped platform loses its turn, it does not stop the others). When still `pending`, note only that item 4 is unresolved for that platform — no awareness line, since nothing has been decided yet. Omit a platform's row entirely only when it has never connected (no `{platform}_lead_source` ever set).
+- **Run progress.** The six stage-boundary lines for this run (`find_posts`, `find_people`, `find_groups`, `scan_in_group`, `filter_leads`, `build_report`) live in `daily-content-pipeline/automation/run_progress.jsonl` (schema in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`), not in this table; this section states only when the run started and when it finished.
 
 **Persistent web-only awareness line.** While any of a client's `facebook_lead_source` / `instagram_lead_source` / `x_lead_source` is `web_only`, every Boss-facing reply frame (`SOLO_AGENCY_PLAYBOOK.md`), this INTERNAL_REPORT, and the morning brief carry one line, in the human's language, naming whichever platform(s) are off, for example:
 

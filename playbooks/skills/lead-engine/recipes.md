@@ -51,14 +51,19 @@ narrow the funnel at each step instead of skipping one.
         source:people_search plus kw:{term}, exactly like every other lead.
 3. THEN GROUPS
      fb.groups.search { query: "<discovery term>", max_pages: <=4 }
-        Keep only privacy == "public". Empty/unknown privacy is NOT treated as private by default:
-        spend one fb.group.posts { max_pages: 1 } header check, or skip the group when budget is
-        tight. Rank survivors by member_count desc; prefer names/snippets matching the client's
-        target location. Skip a group already in private_data_sources, and skip one this pass
-        already scanned in the last 7 days (check history/YYYY-MM/facebook_discovery_shortlist.jsonl
-        first — playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md has the exact fields).
+        Keep a group when privacy == "public" OR viewer_join_state == "MEMBER" — the account can
+        read either one, so both are groups_readable. A private group the account has not joined
+        (viewer_join_state CAN_REQUEST / REQUEST_TO_JOIN, or any other non-member join state under
+        privacy == "private") is groups_no_access: kept in the shortlist for the Boss to see, never
+        scanned, never joined, never requested. Unknown privacy is NOT treated as no-access by
+        default: spend one fb.group.posts { max_pages: 1 } probe — posts come back → readable; an
+        access wall, or empty with stopped_because naming access or login → no_access. Rank readable
+        survivors by member_count desc; prefer names/snippets matching the client's target location.
+        Skip a group already in private_data_sources, and skip one this pass already scanned in the
+        last 7 days (check history/YYYY-MM/facebook_discovery_shortlist.jsonl first —
+        playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md has the exact fields).
 4. THEN IN-GROUP
-     For the top public groups from step 3:
+     For the top readable groups from step 3 (private or public alike; never a groups_no_access row):
      fb.group.search_posts { group_search_url: ".../groups/<id>/search/?q=<term>", max_pages: <=4 }
         Terms come from `tool source-keywords ... plan --kind <kind>` (seed the group's bank first
         with `seed --industry --market --lang` when it is empty, plus the client's setup seed file
@@ -100,10 +105,10 @@ Budget (owner-approved; `playbooks/10_LEAD_COMPETITOR_DETECTION.md` and `safety.
 comments) and X the same ≤ 12 / ≤ 4 shape (search-Latest/people/profile-depth/replies) — see Stage
 10's platform table for the exact per-platform breakdown:
 
-| | discovery terms | feed searches | people searches | group searches | new public groups | intent terms/group | total calls | spread |
+| | discovery terms | feed searches | people searches | group searches | new readable groups | intent terms/group | total calls | spread |
 |---|---|---|---|---|---|---|---|---|
-| FIRST RUN | 3 | 3 | 3 | 3 | up to 4 | 3 | ≤ 21 | ≥ 4 hours |
-| DAILY | 1 | 1 | 1 | 1 | up to 2 | 2 | ≤ 7 | across the run window |
+| FIRST RUN | 3 | 3 | 3 | 3 | up to 4 | 3 | ≤ 21 | Pacing Rule: random 5–10 s per request, no added gaps |
+| DAILY | 1 | 1 | 1 | 1 | up to 2 | 2 | ≤ 7 | Pacing Rule: random 5–10 s per request, no added gaps |
 
 Lead target: FIRST RUN is a floor of 10 across all three platforms combined, not a stop — keep
 working the shortlists until each platform's own budget is spent. Safety trip is per platform and
@@ -112,11 +117,12 @@ the day; read every job's result for that signal before submitting the next job 
 (`safety.md`). The three platforms interleave round-robin — one Facebook job, then one Instagram
 job, then one X job, repeat — so a trip on one never stops the other two.
 
-Note: this fixed order targets PUBLIC groups — scanning one needs no join/approval (see `safety.md`'s
-join boundary and `playbooks/PRIVATE_SOURCE_GATE.md`'s reconciliation paragraph). To hunt inside a
-private group the human is already a member of, skip step 3's public-only filter and go straight to
-step 4's `fb.group.search_posts` against that group, or use Recipe D for its recurring shallow
-monitoring shape.
+Note: this fixed order scans every readable group — public groups, and private groups the account is
+already a member of (groups_readable) — with no separate join/approval needed for either (see
+`safety.md`'s join boundary and `playbooks/PRIVATE_SOURCE_GATE.md`'s reconciliation paragraph). A
+private group the account has not joined is groups_no_access: never scanned, joined, or requested
+here — list it for the Boss, who can join it in their own session if they want it monitored. Use
+Recipe D for the recurring shallow monitoring shape once a group is approved.
 
 ## Recipe B — Persona by occupation ("find realtors / loan officers"), Facebook + Instagram + X
 

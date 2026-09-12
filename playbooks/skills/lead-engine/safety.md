@@ -41,10 +41,10 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
   terms fill those same slots, rejecting generic no-anchor terms before they burn a call on a page
   that was never going to return a qualified lead. Each term is one page load, so this is the line
   that decides the day's traffic shape, not its volume:
-  spread the sources across a window of hours rather than firing them in one burst, vary the order
-  and the delays instead of running a fixed sequence at a fixed minute, keep it strictly serial
-  (never parallel tabs), and treat the FIRST platform warning as a stop for the whole account, not
-  for one source. A first pass on a NEW source may take up to 8 terms at `max_scroll: 6` once —
+  keep the collector's random 5–10 s delay on every job (Pacing Rule), keep it strictly serial
+  (never parallel tabs), vary the order of sources from day to day, and treat the FIRST platform
+  warning as a stop for the whole account, not for one source. A first pass on a NEW source may
+  take up to 8 terms at `max_scroll: 6` once —
   `max_pages` still stays at the default 8, because a source nobody has scanned has not yet earned
   the "clearly productive" exemption above.
 - **Pacing:** rely on the collector's built-in pacing + the paginator's
@@ -59,10 +59,11 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
   another platform, so the gap between two requests on the same platform never shrinks. Facebook:
   four call types, fixed order — FEED (`fb.search.posts`), PEOPLE (`fb.people.search`), GROUPS
   (`fb.groups.search`), IN-GROUP (`fb.group.search_posts`). FIRST RUN ≤ 21 collector calls total (3
-  discovery terms, 3 feed searches, 3 people searches, 3 group searches, up to 4 new public groups ×
-  3 intent terms each), `max_pages` ≤ 4, spread over ≥ 4 hours. DAILY companion ≤ 7 calls total (1
-  discovery term, 1 feed search, 1 people search, 1 group search, up to 2 new public groups × 2
-  intent terms each), same `max_pages` ceiling, spread across the run window. Instagram: four call
+  discovery terms, 3 feed searches, 3 people searches, 3 group searches, up to 4 new readable groups
+  (public, or private where the account is already a member) × 3 intent terms each), `max_pages` ≤ 4.
+  DAILY companion ≤ 7 calls total (1 discovery term, 1 feed search, 1 people search, 1 group search,
+  up to 2 new readable groups (public, or private where the account is already a member) × 2 intent
+  terms each), same `max_pages` ceiling. Instagram: four call
   types, fixed order — SEARCH (`ig.search.posts`), PEOPLE (`ig.people.search`), PROFILE DEPTH
   (`ig.profile.posts`), COMMENTS (`ig.post.comments`). FIRST RUN ≤ 12 calls total (3/3/3/3); DAILY
   ≤ 4 calls total (1/1/1/1). X: four call types, fixed order — SEARCH LATEST (`x.search.posts`),
@@ -74,6 +75,17 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
   continue. Write actions on Instagram/X (react, comment, message, like, reply, publish, DM) are out
   of scope for this pass.
 
+**Pacing Rule (all platforms, both tiers).** The only spacing between requests is the collector's
+own random delay: every discovery job carries `"pacing": {"min_delay_seconds": 5,
+"max_delay_seconds": 10}` — a random 5–10 second pause before each page, scroll or request inside
+the job — plus the extension's poll interval between jobs. The agent submits the next job as soon as
+it has read the previous job's result for a trip signal; it never sleeps, waits, or schedules its own
+gaps between jobs, never spreads a pass over hours, and never lowers the delay below 5 s. Round-robin
+order (Facebook → Instagram → X) and the per-platform ceilings are unchanged; with this pacing a
+FIRST RUN on all three platforms takes about 30–45 minutes of collector time (ETA Rule), not hours.
+What protects the account is the trip rule, not slowness: the first checkpoint, rate-limit warning
+or logged-out signal stops that platform for the day.
+
 ## The join boundary (human-in-loop, never automatic)
 
 - Joining a group, following, or any membership/subscription change is a WRITE
@@ -82,6 +94,8 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
   one-line reason each and let the human join in their own session. Only scan
   groups the human is already a member of, plus publicly-viewable groups.
 - Never automate join, never chain "search groups → auto-join → scan".
+- Private groups the account already belongs to (`viewer_join_state == "MEMBER"`) are readable and
+  may be scanned; groups it is not in are never joined or requested.
 
 ## Outreach boundary (Stage 10)
 
