@@ -70,11 +70,11 @@ differently-named copy for the same client.
 
 There is no Chrome Web Store submission today — one unpacked folder per client is the model, so install is a two-gesture flow off the client's dashboard page rather than a store install.
 
-**One button (recommended):** open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click the button. It reveals the `extensions/{client_slug}_extension/` folder in Finder/Explorer AND opens Chrome at `chrome://extensions` in the same click (the bridge runs on the human's own machine, so it can do this directly). Turn on **Developer mode**, then drag that folder onto the page — Chrome accepts a dropped folder as `Load unpacked`. The page turns green connected on its own when the extension checks in, and plays a short install video right under those two steps. A local-runtime agent (its own shell running on the human's machine) may trigger the same button itself via `POST /api/ui/{client_slug}/install-extension`, then poll `GET /status` until `extension_health.status` is recent (75-second grace window). The same install videos are always available on GitHub too: https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_chrome_small.mp4 (Chrome) and https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_edge_small.mp4 (Edge).
+**Recommended — the page shows everything you need:** open `http://127.0.0.1:17321/ui/{client_slug}/extension`. By default it shows only the install video, the two steps, and the `extensions/{client_slug}_extension/` folder's absolute path (with a Copy button) — no browser/account pickers or Install button; those live behind `?advanced=1` for an operator only. A local-runtime agent (its own shell running on the human's machine) triggers the reveal itself via `POST /api/ui/{client_slug}/install-extension` with no `browser`/`profile_directory` fields, which reveals the folder in Finder/Explorer and best-effort opens a Chromium extensions page, then polls `GET /status` until `extension_health.status` is recent (75-second grace window). Either way, the human opens their own browser's extensions page, turns on **Developer mode**, then drags that folder onto the page — any Chromium browser accepts a dropped folder as `Load unpacked`. The page turns green connected on its own when the extension checks in. On a remote runtime, with no local file to open, the same install videos are on GitHub too: https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_chrome_small.mp4 (Chrome) and https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_edge_small.mp4 (Edge).
 
 **Manual fallback:**
 
-1. Load it into the Chrome window you normally use for Facebook — the same window for the first client; a second account only comes up once a second client needs a different Facebook account, picked from the extensions page's own account dropdown.
+1. Load it into whichever browser window you normally use for Facebook — the same window for the first client; a second account only comes up once a second client needs a different Facebook account, picked from the advanced (`?advanced=1`) install page's own account dropdown.
 2. Go to `chrome://extensions`.
 3. Enable Developer Mode.
 4. Click `Load unpacked`.
@@ -102,7 +102,7 @@ working binding.
 **The exact sentence an agent should relay to the human** when this guard state is hit (identical
 to what the popup shows, `NO_CLIENT_BINDING_MESSAGE` in `background.js`):
 
-> This is the SOURCE folder, not a client copy. Open the dashboard → Extension → click "Install extension" to install the correct {client_slug}_extension folder.
+> This is the SOURCE folder, not a client copy. Open the dashboard's Extension page — it shows the correct {client_slug}_extension folder path. Load that folder, not this one.
 
 (`{client_slug}` is a placeholder — say the actual client's slug, e.g. `leadup_extension`.)
 

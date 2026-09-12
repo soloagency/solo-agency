@@ -20,7 +20,9 @@
 #   keep these | add more custom source URLs | postpone and continue with the default sources only |
 #   review_state | monitoring_approved | discovery_completed_pending_approval |
 #   facebook_discovery_shortlist.jsonl | you pick which ones to keep watching |
-#   Review found sources
+#   Review found sources | Chrome hay Edge | Both Chrome and Edge installed |
+#   which browser | profile_directory} from that dropdown |
+#   raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/bridge-go/assets
 # Exit 0 (silent) when none are found.
 set -u
 
@@ -55,6 +57,10 @@ for f in "${files[@]}"; do
 done
 
 patterns=(
+  'different browser profile/window'
+  'a personal browser profile'
+  '(browsers, extension, help)'
+  'click "Install extension"'
   'kind public_group'
   'kind: public_group'
   'groups_approved'
@@ -90,6 +96,11 @@ patterns=(
   'facebook_discovery_shortlist.jsonl'
   'you pick which ones to keep watching'
   'Review found sources'
+  'Chrome hay Edge'
+  'Both Chrome and Edge installed'
+  'which browser'
+  'profile_directory} from that dropdown'
+  'raw.githubusercontent.com/soloagency/solo-agency/main/solo-agency-collector/bridge-go/assets'
 )
 
 hits=0

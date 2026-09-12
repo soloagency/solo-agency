@@ -102,7 +102,7 @@ An update check must compare at least these areas:
     module requiring its own onboarding (`outreach/SETUP_FLOW_ENTRYPOINT.md`) in the update notice
 - Installed runtime copies:
   - `{agency_root}/solo-agency-local-collector/`
-  - `{agency_root}/extensions/{client_slug}/`
+  - `{agency_root}/extensions/{client_slug}_extension/`
   - `{agency_root}/daily-content-pipeline/collector/`
   - `{agency_root}/daily-content-pipeline/provider_defaults.json`
   - each client's `integrations/providers/` capability/cache schema files
@@ -178,7 +178,7 @@ For every active or configured client, check and update:
 - Client Intelligence Profile schema fields when the latest playbook requires them.
 - public data sources when changed; and, once per client after the update that moved the keyword bank into the bridge, `tool public-keywords migrate --profile {client profile}` — the profile's block is imported dateless with its old run verdicts folded in. The tool only READS the profile; it remembers which `used_in_run_*` blocks it has folded, so running it again is a harmless no-op. After it succeeds, replace the profile's `items:` list by hand with the one-line pointer from Stage 7 (`bank: daily-content-pipeline/collector/public_keywords.json`) so nobody reads the stale list as live.
 - private data source approval state when schema changed.
-- `extensions/{client_slug}/` from the latest extension template while preserving binding.
+- `extensions/{client_slug}_extension/` from the latest extension template while preserving binding.
 - `daily-content-pipeline/collector/extension_registry.json`.
 - `daily-content-pipeline/collector/collector_config.json` when collector schema changed.
 - `daily-content-pipeline/provider_defaults.json`.
@@ -251,12 +251,12 @@ Classify changes that touch these paths as extension changes:
 
 When extension changes are applied:
 
-- Regenerate or patch every configured `extensions/{client_slug}/` folder.
+- Regenerate or patch every configured `extensions/{client_slug}_extension/` folder.
 - Preserve each client's `client_binding.json`.
 - Show the human one absolute extension folder path per client.
 - Tell the human to open the matching Chrome profile/account for each client.
 - Tell the human: `chrome://extensions` -> Developer mode -> find `{Client Name} - Solo Agency Collector` -> Reload.
-- If the extension cannot reload cleanly, tell the human to remove the old unpacked extension and `Load unpacked` from the shown `extensions/{client_slug}/` folder.
+- If the extension cannot reload cleanly, tell the human to remove the old unpacked extension and `Load unpacked` from the shown `extensions/{client_slug}_extension/` folder.
 - Record `extension_reload_required: true` until the human confirms reload and the bridge sees fresh extension health.
 
 ## Daily GitHub Update Watch Task

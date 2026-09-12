@@ -105,7 +105,7 @@ Per-client extension naming:
 
 The client name must appear first because Chrome and task lists may truncate long names at the end.
 
-Each `extensions/{client_slug}/client_binding.json` must include:
+Each `extensions/{client_slug}_extension/client_binding.json` must include:
 
 ```json
 {
@@ -1086,8 +1086,8 @@ Field notes:
 - `extension_display_name`: Chrome display name, client name first.
 - `extension_folder`: per-client pin for the client's unpacked extension folder, read (not written) by the bridge — `uiResolveExtensionFolder` in `solo-agency-collector/bridge-go/ui.go` checks this pin first, before falling back to the current `extensions/{client_slug}_extension/` convention and then the legacy `extensions/{client_slug}/` path. Set this only when the folder lives somewhere other than the current convention; leave it unset otherwise.
 - `chrome_profile_hint`: retired 2026-09-11 — no longer written, never read; ignore if present.
-- `browser`: the Chromium-based browser this client's extension actually runs in — one of `chrome | edge | brave | vivaldi | opera | chromium` (OWNER DECISIONS 2026-09-10 afternoon). Safari and Firefox are never valid values here; a machine with only those installed is told to install Chrome instead (`playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)"). The agent's only say in this is a single Chrome-vs-Edge question, asked at most once per client and only when both are installed (a silent pick when there is no real choice); the value stored here comes from the install page's own browser selector (always shown) or the agent's single Chrome-vs-Edge pick, and is read back on every later reopen so nothing is asked twice for the same client.
-- `profile_directory`: the exact profile folder name from that browser's own `Local State` (`profile.info_cache` key, e.g. `Default`, `Profile 1`). Recorded by the install page from its own account list when 2+ profiles exist — the human picks the one signed into Facebook there; the agent never asks for it. Read back on later reopens (including the 90-second diagnostics re-trigger) so the page does not need to ask again for the same client.
+- `browser`: the Chromium-based browser this client's extension actually runs in — one of `chrome | edge | brave | vivaldi | opera | chromium`. Recorded only by the install page's advanced mode (`?advanced=1`); setup never asks for it and never writes it from a chat answer. Safari and Firefox are never valid values here; a machine with only those installed is told to install Chrome instead (`playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)").
+- `profile_directory`: the exact profile folder name from that browser's own `Local State` (`profile.info_cache` key, e.g. `Default`, `Profile 1`). Recorded only by the install page's advanced mode (`?advanced=1`) from its own account list when 2+ profiles exist; setup never asks for it and never writes it from a chat answer.
 - `registered_at`: when the extension was registered.
 - `last_health_at`: last successful health check timestamp.
 - `status`: one of `active | pending_install | disabled`.
@@ -1547,9 +1547,8 @@ facebook_discovery_first_pass_done: true | false
   # connects Facebook several runs later still gets FIRST RUN on that later run.
   # Browser/profile note: the actual browser and profile chosen for this client's extension is NOT
   # duplicated here -- it lives in collector/extension_registry.json (`browser`, `profile_directory`,
-  # above), keyed by client_slug, recorded by the install page itself (its own account list handles
-  # 2+ profiles) so the agent never asks about either one again once resolved (OWNER DECISIONS
-  # 2026-09-10 afternoon; asking about profiles retired entirely OWNER DECISIONS 2026-09-11).
+  # above), keyed by client_slug, recorded only by the install page's advanced mode (`?advanced=1`) --
+  # setup never asks for them and never writes them from a chat answer.
 facebook_last_login_probe_at:
   # Timestamp of the most recent step-1 re-probe issued for this platform while it sat in
   # `web_only` with a `{platform}_web_only_reason` starting "not logged in"

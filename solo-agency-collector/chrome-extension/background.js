@@ -71,8 +71,8 @@ let clientBindingCache = null;
 // human through it) can read verbatim.
 const NO_CLIENT_BINDING_STATUS = "no_client_binding";
 const NO_CLIENT_BINDING_MESSAGE =
-  "This is the SOURCE folder, not a client copy. Open the dashboard → Extension → click " +
-  "\"Install extension\" to install the correct {client_slug}_extension folder.";
+  "This is the SOURCE folder, not a client copy. Open the dashboard's Extension page — it " +
+  "shows the correct {client_slug}_extension folder path. Load that folder, not this one.";
 
 chrome.runtime.onInstalled.addListener(async () => {
   await resetRunLockAfterBuildChange("installed");
