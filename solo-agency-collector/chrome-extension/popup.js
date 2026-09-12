@@ -95,6 +95,12 @@ async function save() {
     return;
   }
   await refresh();
+  if (response.bridgeUrlRejected) {
+    // The one setting that could send this client's data somewhere else. refresh() has already
+    // put the kept value back in the box; say plainly that the typed one was not saved, AFTER
+    // the repaint, so "Settings saved" can never be the last thing the human reads.
+    setStatus(`Bridge URL refused: "${response.bridgeUrlRejectedValue}" is not this machine. The collector only talks to the local bridge (${(response.settings || {}).bridgeBaseUrl}).`);
+  }
 }
 
 async function checkNow() {
@@ -151,7 +157,14 @@ function readSettings() {
 
 function renderState(state) {
   const statusBox = document.getElementById("status");
-  if (state.status === "no_client_binding") {
+  // Set by background.js when a bridge URL that is not this machine was refused. It rides
+  // alongside whatever the collector is otherwise doing (it must not hide a running job), and
+  // it stays until a valid URL is saved.
+  const urlRefusal = state.bridgeUrlRejected && state.bridgeUrlRejected.host ? state.bridgeUrlRejected : null;
+  // Both of these are "the collector will not run and you must fix a setting" — red, not a
+  // line buried among the usual status text. bridge_url_rejected means a URL that is not this
+  // machine was typed or stored; background.js refused it and sent nothing.
+  if (state.status === "no_client_binding" || state.status === "bridge_url_rejected") {
     // The extension has no readable client_binding.json -- the source template folder or a
     // broken client copy was loaded. background.js already refused to poll the bridge; this is
     // just making that unmissable in the popup instead of burying it among the usual status
@@ -165,14 +178,15 @@ function renderState(state) {
     return;
   }
   if (statusBox) {
-    statusBox.style.background = "";
-    statusBox.style.borderColor = "";
-    statusBox.style.color = "";
+    statusBox.style.background = urlRefusal ? "#fff1f0" : "";
+    statusBox.style.borderColor = urlRefusal ? "#d1242f" : "";
+    statusBox.style.color = urlRefusal ? "#82071e" : "";
   }
   const extensionHealth = state.bridgeStatus && state.bridgeStatus.extension_health
     ? state.bridgeStatus.extension_health
     : null;
   const lines = [
+    urlRefusal ? `Bridge URL refused: ${urlRefusal.host} is not this machine. Still using ${urlRefusal.kept}.` : "",
     `Status: ${state.status || "unknown"}`,
     `Message: ${state.message || ""}`,
     planLine(state),

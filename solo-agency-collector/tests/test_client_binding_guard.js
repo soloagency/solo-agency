@@ -110,6 +110,10 @@ function loadBackground({ bindingMode, bindingPayload }) {
   ctx.chrome = chromeMock;
   ctx.fetch = fetchMock;
   ctx.AbortController = AbortController;
+  // A service worker always has URL; a bare vm context does not. background.js's bridge-URL
+  // guard parses with `new URL`, and without this the guard would refuse every URL here (it
+  // fails closed by design) and this file's scenarios would fail for the wrong reason.
+  ctx.URL = URL;
   ctx.setTimeout = setTimeout;
   ctx.clearTimeout = clearTimeout;
   ctx.setInterval = setInterval;

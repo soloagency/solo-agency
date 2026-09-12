@@ -149,6 +149,16 @@ GOOS=linux GOARCH=amd64 go build -o ../../solo-agency-local-collector/bin/collec
 ## Local-Only Design
 
 - The bridge binds only to `127.0.0.1`.
+- The extension REFUSES to talk to anything but a loopback bridge, and enforces it twice: when
+  the setting is saved (`normalizeSettings`) and immediately before every request leaves
+  (`fetchJSON`). A URL that is not `localhost`, `127.0.0.0/8` or `[::1]` is not stored, is not
+  used, and the popup says it was refused instead of "saved" — a host that merely *contains*
+  the loopback literal (`127.0.0.1.example.com`) or hides it in userinfo
+  (`http://127.0.0.1@example.com`) is refused too. `client_binding.json` gets the same check.
+  Requests also refuse to follow redirects (`redirect: "error"`), because a validated loopback
+  host answering `307` would otherwise re-send the body and the collector token anywhere —
+  measured, not theoretical. Proof: `node tests/test_bridge_url_guard.js` (74 checks, including
+  the whole truth table).
 - The extension stays idle when the bridge is not running.
 - The extension does not ask for passwords, OTPs, cookies, or tokens.
 - The bridge writes JSONL and HTML snapshots locally.

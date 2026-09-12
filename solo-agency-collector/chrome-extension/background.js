@@ -109,22 +109,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
     if (message && message.type === "save_settings") {
+      const requestedBridgeUrl = String((message.settings || {}).bridgeBaseUrl || "").trim();
+      const inUseBridgeUrl = (await getSettings()).bridgeBaseUrl;
       const next = normalizeSettings(message.settings || {});
+      // A refusal must not also cost the operator the bridge they are actually running on: an
+      // install on a non-default loopback port keeps THAT, not the hardcoded default.
+      if (requestedBridgeUrl && !isLoopbackBridgeUrl(requestedBridgeUrl)) {
+        next.bridgeBaseUrl = safeBridgeUrl(inUseBridgeUrl, DEFAULT_SETTINGS.bridgeBaseUrl);
+      }
+      // Saying "saved" over a value that was thrown away is how a refused setting looks like a
+      // working one. The popup gets both the flag and the exact string that was refused.
+      const bridgeUrlRejected = Boolean(requestedBridgeUrl) && !isLoopbackBridgeUrl(requestedBridgeUrl);
+      const bridgeRefusalMessage = bridgeUrlRejected
+        ? `Bridge URL refused: ${bridgeHostOf(requestedBridgeUrl)} is not this machine. The collector only ever talks to the local bridge, so ${next.bridgeBaseUrl} was kept.`
+        : "";
       await chrome.storage.local.set({ [SETTINGS_KEY]: next });
       chrome.alarms.create("collector_poll", { periodInMinutes: Math.max(1, next.pollMinutes || 1) });
       scheduleShortPoll(next);
       const bridgeConfigSaved = await syncSettingsToBridge(next);
       await setState({
-        status: "settings_saved",
-        message: bridgeConfigSaved === true
+        status: bridgeUrlRejected ? "bridge_url_rejected" : "settings_saved",
+        message: (bridgeUrlRejected ? bridgeRefusalMessage + " " : "") + (bridgeConfigSaved === true
           ? "Settings saved locally and to bridge."
           : bridgeConfigSaved === "skipped"
             ? "Settings saved locally. Shared agency config is managed by the agent and bridge."
-            : "Settings saved locally. Bridge config was not updated.",
+            : "Settings saved locally. Bridge config was not updated."),
         bridgeConfigSaved
       });
       const pollResult = await pollBridge("settings_saved");
-      sendResponse({ ok: true, settings: next, bridgeConfigSaved, pollResult });
+      // pollBridge() writes its own state LAST, and that state can be a real run's result.
+      // So the refusal does NOT overwrite status/message (that would report a finished run as a
+      // settings error); it rides alongside as its own field, which setState merges and the
+      // popup paints red until a valid URL is saved.
+      await setState({
+        bridgeUrlRejected: bridgeUrlRejected
+          ? { host: bridgeHostOf(requestedBridgeUrl), kept: next.bridgeBaseUrl, at: new Date().toISOString() }
+          : null
+      });
+      sendResponse({ ok: true, settings: next, bridgeConfigSaved, pollResult, bridgeUrlRejected, bridgeUrlRejectedValue: bridgeUrlRejected ? requestedBridgeUrl : "" });
       return;
     }
     if (message && message.type === "check_now") {
@@ -305,14 +327,21 @@ async function pollBridge(reason) {
       headers: collectorHeaders(binding)
     }, 6000);
   } catch (error) {
+    // Two very different failures reach this catch: the bridge is not running (normal, the
+    // operator starts it) and fetchJSON REFUSED to send because the URL is not this machine
+    // (never normal). Reporting the second as "bridge is offline" would send the operator
+    // looking for a process instead of at the setting that is pointing their data elsewhere.
+    const refused = !isLoopbackBridgeUrl(bridgeBaseUrl);
     await setState({
-      status: "bridge_offline",
-      message: "Local bridge is not running.",
+      status: refused ? "bridge_url_rejected" : "bridge_offline",
+      message: refused
+        ? `Bridge URL refused: ${bridgeHostOf(bridgeBaseUrl)} is not this machine. Nothing was sent. Set it back to ${DEFAULT_SETTINGS.bridgeBaseUrl} in the popup.`
+        : "Local bridge is not running.",
       bridgeBaseUrl,
       reason,
       updatedAt: new Date().toISOString()
     });
-    return { status: "bridge_offline" };
+    return { status: refused ? "bridge_url_rejected" : "bridge_offline" };
   }
   const bridgeContactAt = new Date().toISOString();
 
@@ -1669,10 +1698,24 @@ async function zillowHumanGate(tab, ctx) {
 }
 
 async function fetchJSON(url, options, timeoutMs) {
+  // LAYER 2 of the bridge-URL guard (see isLoopbackBridgeUrl). Every call site of fetchJSON is a
+  // bridge call — /status, /jobs/current, /jobs/control and postToBridge's /collect/* — so this
+  // is the last line the collector's payload crosses before it leaves the browser, and it will
+  // not cross it for anything but the local bridge. A value checked on save can still arrive here
+  // unchecked: storage edited directly, a packaged client_binding.json, a future call site. One
+  // URL parse per request is the whole cost.
+  if (!isLoopbackBridgeUrl(url)) {
+    throw new Error("refused: the collector only talks to the local bridge on this machine, not " + bridgeHostOf(url));
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs || 10000);
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
+    // `redirect` goes AFTER the spread on purpose: no call site may relax it. Measured
+    // 2026-09-12 with the real fetchJSON against a loopback server answering 307 — the default
+    // "follow" re-sent the POST body AND the X-Collector-Token header to the external host, so
+    // checking the URL alone left the payload one redirect away from anywhere. The local bridge
+    // never redirects, so treating a 3xx as an error costs nothing and closes that door.
+    const response = await fetch(url, { ...options, signal: controller.signal, redirect: "error" });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -2860,10 +2903,77 @@ function normalizeSources(sources) {
   return normalized;
 }
 
+// ---- bridge URL guard -------------------------------------------------------------------
+// Everything this collector reads — pages, comments, profiles, the client's lead PII — is POSTed
+// to `bridgeBaseUrl`. That bridge is ALWAYS a process on THIS machine: setup writes
+// http://127.0.0.1:17321 and the Go binary binds loopback only. So a bridgeBaseUrl that is not
+// loopback has exactly one meaning, and it is never a legitimate one.
+//
+// Nothing on a web page can reach this setting today — the manifest declares no
+// externally_connectable, there is no onMessageExternal handler, and the page-world content
+// scripts have no chrome.* APIs — so the realistic path is a human talked into pasting a URL
+// into the popup's "Local bridge URL" box. The value is therefore checked TWICE: on the way in
+// (normalizeSettings, which every save and every read passes through) and again on the way out
+// (fetchJSON), because chrome.storage can be edited directly, client_binding.json is a file on
+// disk, and a future call site could build its own URL.
+//
+// Measured against the URL parser on 2026-09-12 — this is what makes a substring test useless:
+//   ACCEPTED (every one of these normalises to a loopback host):
+//     http://127.0.0.1:17321 · http://localhost:17321 · http://[::1]:17321 · http://LOCALHOST
+//     http://127.1 · http://2130706433 · http://0x7f000001 · http://127.000.000.001 → 127.0.0.1
+//   REFUSED (and every one of them would pass an indexOf("127.0.0.1") > -1 style check):
+//     http://127.0.0.1.evil.com   the host merely STARTS with the loopback literal
+//     http://localhost.evil.com   ...or contains it
+//     http://evil.com/127.0.0.1   the path is not the host
+//     http://127.0.0.1@evil.com   userinfo: reads as loopback, resolves to evil.com
+//     http://0.0.0.0:17321        "every interface", not a destination
+//     javascript: · data: · file: not a destination for collected data at all
+function isLoopbackBridgeUrl(value) {
+  let url;
+  try { url = new URL(String(value || "")); } catch (error) { return false; }
+  // http is what the bridge speaks. https is allowed ONLY because the host check below still
+  // applies, so a future TLS-on-loopback bridge needs no code change; everything else
+  // (javascript:, data:, file:, chrome-extension:) is refused outright.
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  // "http://127.0.0.1@evil.com" resolves to evil.com. "http://evil.com@127.0.0.1" does reach
+  // loopback, but it is a shape this product never writes. Neither is accepted.
+  if (url.username || url.password) return false;
+  // hostname arrives lowercased and normalised: IPv4 shorthand is expanded to a dotted quad and
+  // IPv6 keeps its brackets. A trailing dot names the same host.
+  const host = url.hostname.replace(/\.$/, "");
+  if (host === "localhost") return true;
+  if (host === "[::1]") return true;
+  const quad = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!quad) return false;
+  const octets = quad.slice(1).map(Number);
+  if (octets.some((n) => n > 255)) return false;
+  return octets[0] === 127;   // the whole 127.0.0.0/8 range, not just 127.0.0.1
+}
+
+// The value to actually use: the caller's when it is loopback, otherwise the fallback — which is
+// itself checked, so a poisoned fallback cannot sneak through either.
+function safeBridgeUrl(value, fallback) {
+  const asked = trimSlash(String(value == null ? "" : value).trim());
+  if (isLoopbackBridgeUrl(asked)) return asked;
+  if (asked) console.warn("[solo-agency] bridge URL refused (not this machine):", bridgeHostOf(asked));
+  const spare = trimSlash(String(fallback == null ? "" : fallback).trim());
+  return isLoopbackBridgeUrl(spare) ? spare : DEFAULT_SETTINGS.bridgeBaseUrl;
+}
+
+// The host alone, for messages and logs — a full bridge URL can carry a run id or a query string.
+function bridgeHostOf(value) {
+  try { return new URL(String(value || "")).host || "an empty host"; }
+  catch (error) { return "an unparseable URL"; }
+}
+
 function normalizeSettings(input) {
   const next = { ...DEFAULT_SETTINGS, ...input };
   next.enabled = Boolean(next.enabled);
-  next.bridgeBaseUrl = trimSlash(String(next.bridgeBaseUrl || DEFAULT_SETTINGS.bridgeBaseUrl));
+  // LAYER 1 of the bridge-URL guard (see isLoopbackBridgeUrl): a non-loopback URL never reaches
+  // storage. On its own this function has no memory, so it falls back to the DEFAULT; the
+  // save_settings handler is what substitutes the URL currently in use, so an operator on a
+  // non-default loopback port does not lose it to a typo. The popup says it was refused.
+  next.bridgeBaseUrl = safeBridgeUrl(next.bridgeBaseUrl, DEFAULT_SETTINGS.bridgeBaseUrl);
   next.pollMinutes = clampNumber(next.pollMinutes, 1, 60, 1);
   next.pollSeconds = clampNumber(next.pollSeconds, 5, 60, 5);
   next.minDelaySeconds = clampNumber(next.minDelaySeconds, 5, 20, 5);
@@ -2939,7 +3049,9 @@ async function getSettings() {
   const binding = await getClientBinding();
   const settings = normalizeSettings(data[SETTINGS_KEY] || DEFAULT_SETTINGS);
   if (binding.bridge_base_url && (!data[SETTINGS_KEY] || !data[SETTINGS_KEY].bridgeBaseUrl)) {
-    settings.bridgeBaseUrl = binding.bridge_base_url;
+    // client_binding.json is packaged by prepare_client_extension.sh and never hand-edited, but
+    // it is still a file on disk: it gets the same loopback check as anything typed in the popup.
+    settings.bridgeBaseUrl = safeBridgeUrl(binding.bridge_base_url, settings.bridgeBaseUrl);
   }
   return settings;
 }
