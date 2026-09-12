@@ -143,6 +143,17 @@ platforms' jobs sit between). The safety trip is per platform: a checkpoint, rat
 logged-out signal on one platform removes that platform from the rotation for the day and the
 others continue.
 
+### Qualify as you go
+
+**Qualify as you go.** Every job's rows are qualified the moment that job's result comes back — never batched
+to the end of the pass. The order inside one job is: read the result for a trip signal, then run the Lead
+Qualification Rule over its rows, then `tool crm-store ... lead capture` for every hot/warm/watch row, then
+`tool source-registry record --leads <n>` when the job was a group scan, then submit the next job. A run is
+therefore producing CRM contacts from its FIRST collector call (a feed-search post can be a hot lead at minute
+one), not at the end. Stage 5 `filter_leads` keeps its name but is now the reconciliation step: counts
+re-read from the CRM (`contact lock-status`), Step 5 discovered-thread recording, and anything a per-job pass
+left over — never the first time the rule is run.
+
 ### Progress: six stages
 
 **Run Progress Rule (six stages, one line each).** Every run that executes the Social Discovery
@@ -152,8 +163,10 @@ Pass reports progress at six stage boundaries, mapped onto the round-robin round
 2. `find_people` — round 2: people search on each platform;
 3. `find_groups` — round 3: `fb.groups.search` (Facebook) / profile depth (Instagram, X);
 4. `scan_in_group` — round 4: `fb.group.search_posts` (Facebook) / comments and replies (Instagram, X);
-5. `filter_leads` — the Lead Qualification Rule over everything collected, CRM capture, Step 5
-   recording of discovered threads;
+5. `filter_leads` — reconciliation, not the first qualification pass: counts re-read from the CRM
+   (`contact lock-status`), Step 5 discovered-thread recording, and anything a per-job pass left
+   over — qualification and CRM capture already ran per job from stage 1 onward ("Qualify as you
+   go" above);
 6. `build_report` — report_state, INTERNAL_REPORT, notification, standup line.
 
 A stage is done when every platform still in rotation has finished its step for that round (a
@@ -167,7 +180,8 @@ the update has exactly this shape, in the Boss's language, numbers read from the
 read (Read-Before-Claim Rule), never from memory:
 
 ```text
-Giai đoạn {k}/6 xong — {stage}: {the five result lines that apply so far, one number each}.
+Giai đoạn {k}/6 xong — {stage}: {the five result lines that apply so far, one number each}. Lead
+đến giờ: {leads_hot} hot / {leads_warm} warm / {leads_watch} watch.
 Đang chạy: {stage k+1}. Còn lại: {remaining stages}. Đã dùng {calls_done}/{calls_planned} lượt gọi.
 Dự kiến xong: {HH:MM}–{HH:MM}.
 ```
@@ -190,7 +204,7 @@ append only):
  "calls_done": 6, "calls_planned": 45,
  "counts": {"search_posts": 34, "group_posts": 0, "groups_found": 0, "groups_readable": 0,
             "groups_no_access": 0, "groups_monitored": 0, "groups_not_selected": 0, "groups_paused": 0, "people_found": 57,
-            "leads_hot": 0, "leads_warm": 0, "leads_watch": 0},
+            "leads_hot": 1, "leads_warm": 3, "leads_watch": 2},
  "platforms": {"facebook": "running", "instagram": "running", "x": "tripped:rate_limit"},
  "eta_low_at": "2026-09-12T08:40:00+07:00", "eta_high_at": "2026-09-12T09:00:00+07:00",
  "note": ""}
@@ -243,6 +257,14 @@ another platform has a pending step.
    the former per-month group shortlist file is retired — the source registry is the only
    store; see `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` for the registry fields.
 
+   **Stop the group search at 20.** Step 3 stops issuing `fb.groups.search` calls as soon as this
+   run has registered 20 groups with `state: active` (counting groups registered this run only):
+   the remaining discovery terms are not spent, and the pass goes straight to step 4. Raw search
+   results may be far more than 20 — the Group Potential Rule filters them first, and only `active`
+   ones count toward the 20. Joined-places discovery (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step
+   12A) is not capped this way: it registers everything it finds in one read, and the Group sweep
+   before optimisation order below is what spreads the digging across days.
+
 ### Group Potential Rule
 
 For every readable group (public, or private where the account is a member — `groups_readable`),
@@ -266,10 +288,26 @@ not in is `state: no_access` (listed in the report as "worth joining", never joi
 Judge from what the row shows; when nothing shows a fit, use `low`. No human confirms any of this;
 the Sources page shows the active list with Pause/Resume.
 
+### Group sweep before optimisation
+
+**Group sweep before optimisation.** Until every monitored group has been scanned at least once,
+each run digs the NEXT 20 never-scanned groups (newest registered first), not the best performers —
+the point is to see all of the client's groups before deciding which are worth repeating. Only when
+no monitored group has `scans == 0` does the plan switch to the performance order (most leads
+across the last 3 scans first, then longest-unscanned). A run with fewer than 20 never-scanned
+groups left fills the remaining slots from the performance order, so a run is never half empty.
+
+`tool source-registry plan` implements this — no prose decides it. New ordering: `scans == 0`
+first, `added_at` newest first among them; then the existing order (sum of `leads_recent` desc →
+longest-unscanned → member count desc → uid). The result carries `"phase": "sweep" | "optimize"`
+(`sweep` while any active group still has `scans == 0`) and `"unscanned_remaining": <N>` (active
+groups with `scans == 0` after this plan's cut); `--max` default stays 20. The run reply and the
+progress line say which phase the client is in while `phase == "sweep"`: "đang khám phá group: còn
+{unscanned_remaining} group chưa quét lần nào".
+
 4. **THEN IN-GROUP.** Scan the groups from `tool source-registry plan --client <slug> --platform
-   facebook --max 20` — up to 20 monitored groups (`state: active`), in the order the plan returns
-   (most leads across their last 3 scans first, then never-scanned newest first, then
-   longest-unscanned, ties by member count); whatever does not fit the 20 rolls to the next run
+   facebook --max 20` — up to 20 monitored groups (`state: active`), in the order the Group sweep
+   before optimisation rule above returns; whatever does not fit the 20 rolls to the next run
    automatically. For each planned group, private or public alike, `fb.group.search_posts` with
    `group_search_url = <group_url>/search/?q=<intent term>`. Intent terms — not the discovery term —
    come from `tool source-keywords ... plan`; seed the group's bank first if it is empty (`seed

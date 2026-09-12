@@ -270,9 +270,15 @@ Pass reports progress at six stage boundaries, mapped onto the round-robin round
 2. `find_people` — round 2: people search on each platform;
 3. `find_groups` — round 3: `fb.groups.search` (Facebook) / profile depth (Instagram, X);
 4. `scan_in_group` — round 4: `fb.group.search_posts` (Facebook) / comments and replies (Instagram, X);
-5. `filter_leads` — the Lead Qualification Rule over everything collected, CRM capture, Step 5
-   recording of discovered threads;
+5. `filter_leads` — reconciliation, not the first qualification pass: counts re-read from the CRM
+   (`contact lock-status`), Step 5 discovered-thread recording, and anything a per-job pass left
+   over — qualification and CRM capture already ran per job from stage 1 onward;
 6. `build_report` — report_state, INTERNAL_REPORT, notification, standup line.
+
+Qualification and capture are never batched to stage 5 — every job's rows are qualified and
+captured the moment that job's result comes back, so `run_progress.jsonl` carries real
+`leads_hot`/`leads_warm`/`leads_watch` counts from stage 1 onward. "Qualify as you go" in
+`playbooks/10_LEAD_COMPETITOR_DETECTION.md` is the rule of record.
 
 A stage is done when every platform still in rotation has finished its step for that round (a
 tripped, skipped or budget-exhausted platform counts as done with its numbers as they stand). At each
@@ -284,10 +290,26 @@ the update has exactly this shape, in the Boss's language, numbers read from the
 read (Read-Before-Claim Rule), never from memory:
 
 ```text
-Giai đoạn {k}/6 xong — {stage}: {the five result lines that apply so far, one number each}.
+Giai đoạn {k}/6 xong — {stage}: {the five result lines that apply so far, one number each}. Lead
+đến giờ: {leads_hot} hot / {leads_warm} warm / {leads_watch} watch.
 Đang chạy: {stage k+1}. Còn lại: {remaining stages}. Đã dùng {calls_done}/{calls_planned} lượt gọi.
 Dự kiến xong: {HH:MM}–{HH:MM}.
 ```
+
+**First-lead moment (once per run).** The first time a run's progress shows `leads_hot + leads_warm +
+leads_watch > 0`, Sam does three things in the same message, in the Boss's language:
+1. Says it plainly with the number and the platform, e.g. "Lead đầu tiên đã về: 3 lead (1 hot) từ Facebook."
+2. Opens this client's CRM in the side browser (Answer-and-Show Rule) at
+   `http://127.0.0.1:17321/ui/{client_slug}/crm?sort=-created` — newest contacts first — and prints that link.
+   Claude desktop Browser pane / Codex built-in browser navigate to it; when a dashboard tab is already open,
+   `tool ui show /ui/{client_slug}/crm?sort=-created` pushes it there instead.
+3. Keeps the Running-status line and continues whatever setup step it was on.
+The First-Run Report later opens the report page as it does today; the first-lead moment is separate and comes
+first. It fires once per run, on the first progress wake that carries leads, never repeated for later leads.
+When this same run also moved the client's CRM from 0 to more than 0 contacts for the first time, the
+first-run priming fact (funnel moment F, `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`) rides THIS message as
+its one plain-fact sentence — the real unlocked-contact count against the Free ceiling, read from `contact
+lock-status` — instead of being said again later in the run reply.
 
 **Read-Before-Claim Rule.** Every number and every state word ("done", "running", "not yet",
 "none", "finished", "found N") that Sam or a run speaks must be preceded, in the same turn, by a

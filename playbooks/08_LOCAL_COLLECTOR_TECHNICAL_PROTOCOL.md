@@ -1029,8 +1029,9 @@ definitions (`state`, `potential`, `potential_reason`, `scans`, `leads_total`, `
 "Monitored Facebook groups". This is Facebook-only — Instagram and X have no group concept in the
 Social Discovery Pass, so their legs never register `source_type: group` entries. `tool
 source-registry plan --client <slug> --platform facebook --max 20` decides which groups this run
-scans and in what order (most leads across their last 3 scans first, then never-scanned newest
-first, then longest-unscanned, ties by member count) — the plan itself is what keeps the DAILY
+scans and in what order (coverage first: never-scanned groups, newest registered first, until every
+monitored group has had one scan — the plan says `phase: sweep` and how many are still unscanned;
+after that, most leads across their last 3 scans first, then longest-unscanned, ties by member count) — the plan itself is what keeps the DAILY
 companion pass from rediscovering the same handful of groups every day; `tool source-registry
 record --client <slug> --run <run_id> --url <group_url> --leads <n>` after each scan is what
 re-ranks it for next time.

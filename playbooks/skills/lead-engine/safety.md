@@ -62,7 +62,13 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
   terms, 3 feed searches, 3 people searches, 3 group searches) + up to 20 monitored groups per run
   (registry plan, `tool source-registry plan --max 20`) × 3 intent terms, `max_pages` ≤ 4. DAILY
   companion: 3 discovery calls (1 discovery term, 1 feed search, 1 people search, 1 group search) +
-  up to 20 monitored groups per run (registry plan) × 2 intent terms, same `max_pages` ceiling.
+  up to 20 monitored groups per run (registry plan) × 2 intent terms, same `max_pages` ceiling. GROUP
+  search calls stop early, before spending every discovery term, once this run has registered 20
+  groups with `state: active` (Stop the group search at 20) — the group-searches figure above is a
+  ceiling, not a target. The registry plan's "up to 20 monitored groups" stays sweep-first —
+  never-scanned groups newest-registered first — until every active group has scanned at least once,
+  then it switches to the performance order (Group sweep before optimisation, both rules in
+  `playbooks/10_LEAD_COMPETITOR_DETECTION.md`).
   Instagram: four call
   types, fixed order — SEARCH (`ig.search.posts`), PEOPLE (`ig.people.search`), PROFILE DEPTH
   (`ig.profile.posts`), COMMENTS (`ig.post.comments`). FIRST RUN ≤ 12 calls total (3/3/3/3); DAILY

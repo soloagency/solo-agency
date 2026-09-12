@@ -430,7 +430,7 @@ Best idea today: {best idea}
 Report for mobile: {absolute HTML path or URL}
 First draft: {script/blog/caption title}
 Leads found: {N} — described by who they are and why now (`{person_type}, {intent_reason}`), never by the raw keyword or phrase that matched them
-{first-run priming, funnel moment F, only when THIS run moved the CRM from 0 to > 0 contacts for the first time: one plain-fact sentence, in the human's language, naming the real unlocked-contact count from `contact lock-status` against the Free ceiling — never an estimate, and omitted on every later run}
+{first-run priming, funnel moment F — spoken inside the First-lead moment (`playbooks/04_DAILY_SCHEDULE.md`) when that fires in the same run, otherwise here — only when THIS run moved the CRM from 0 to > 0 contacts for the first time: one plain-fact sentence, in the human's language, naming the real unlocked-contact count from `contact lock-status` against the Free ceiling — never an estimate, and omitted on every later run}
 
 Solo Agency automation process
 This is the planned automation process for this client. You only need to reply when I ask one specific question.

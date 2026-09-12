@@ -643,6 +643,12 @@ Lượt đầu đang chạy: giai đoạn {k}/6 — {stage}, đã dùng {calls_d
 
 Before the first progress line exists yet: "Lượt đầu đang chạy từ {HH:MM} (chưa có mốc đầu tiên), dự kiến xong {HH:MM}–{HH:MM}." The line disappears the moment the First-Run Report has been spoken. It never appears in the client-facing report or notification.
 
+While this client's Facebook registry plan is in the sweep phase (`tool source-registry plan`'s
+`"phase": "sweep"`, `playbooks/10_LEAD_COMPETITOR_DETECTION.md` "Group sweep before optimisation"),
+the run reply and this Running-status line also carry "đang khám phá group: còn
+{unscanned_remaining} group chưa quét lần nào" — the count of active groups with `scans == 0` still
+left after this run's plan.
+
 ### Discovered sources
 
 Operator-only, per `playbooks/10_LEAD_COMPETITOR_DETECTION.md` ("Step 5" and "Harvest a discovered

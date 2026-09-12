@@ -213,6 +213,7 @@ Convention for many sub-pages — the owner's question, answered: the agent neve
 | Boss question | Route |
 |---|---|
 | Who is new / new leads today | `/ui/{client}/crm?sort=-created` |
+| First leads of a run / where did my leads go | `/ui/{client_slug}/crm?sort=-created` |
 | How many leads / lead count | `/ui/{client}/crm` |
 | What needs me / pending approvals | `/ui/{client}/approvals` |
 | Show the report (today's; a named day via `date=YYYY-MM-DD`) | `/ui/{client}/reports?open=latest` |
@@ -520,6 +521,11 @@ timeout. Sam arms it right after dispatch, reads `tool run-progress --pipeline {
 runtime without background execution, Sam runs `tool run-progress --pipeline {setup-root}/daily-content-pipeline show --client <slug>` on every
 Boss turn while the run is in flight and speaks the same shape. Record `first_run_last_stage` (the
 last stage index spoken, 0–6) on `automation_manifest.md`.
+
+Progress wakes are where the First-lead moment fires (`playbooks/04_DAILY_SCHEDULE.md`): the first
+wake whose progress shows `leads_hot + leads_warm + leads_watch > 0` gets Sam saying so plainly and
+opening this client's CRM (`/ui/{client_slug}/crm?sort=-created`) in the same message, before the
+run continues — once per run, separate from and ahead of the First-Run Report below.
 
 On the `standup` wake, speak the First-Run Report (below) in the SAME chat, then record `first_run_wait: reported` and `first_run_reported_at` (ISO 8601, now). On a runtime with no background execution, `first_run_wait` stays `not_available`; state the computed window from the ETA Rule ("it started at {HH:MM} and should finish {HH:MM}–{HH:MM} ({calls_planned} calls × 40–60 s + 10–15 min)") plus the Slow-on-purpose warning above, and the exact phrase to send ("xong chưa?" / "is it done?"), plus the Telegram/email channel if configured, and let the Reply Frame deliver the report on the next turn, recording `first_run_wait: reported` / `first_run_reported_at` once that report is spoken. On timeout (exit 3), record `first_run_wait: timed_out`. The three usual causes are: the run is still in progress past its ETA (read the last `run_progress.jsonl` line and say the stage and the recomputed window); a permission prompt waiting in the run's own session in the Scheduled panel ("Always allow" once resolves it); the extension not connected. Sam names the one the state supports (Read-Before-Claim Rule, below), never all three as a list of guesses — and offers to check again; a later successful report still records `first_run_wait: reported` / `first_run_reported_at`.
 

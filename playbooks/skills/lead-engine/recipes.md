@@ -66,11 +66,17 @@ narrow the funnel at each step instead of skipping one.
         group already in private_data_sources, and skip one this pass already scanned in the last 7
         days (the source registry is the memory now; `tool source-registry plan` ranks by recency and
         leads automatically).
+        Stop the group search at 20: once this run has registered 20 groups with state: active
+        (this run only), stop issuing fb.groups.search calls and go straight to step 4 — the
+        remaining discovery terms are not spent. Raw results may be far more than 20; only active
+        ones (Group Potential Rule high/medium) count toward the cap.
 4. THEN IN-GROUP
      For the groups from `tool source-registry plan --client <slug> --platform facebook --max 20`
-     (up to 20 monitored groups: most leads across their last 3 scans first, then never-scanned
-     newest first, then longest-unscanned, ties by member count; whatever does not fit the 20 rolls
-     to the next run automatically):
+     (up to 20 monitored groups, sweep-first: never-scanned groups newest-registered first until
+     every active group has scanned at least once, then the performance order — most leads across
+     their last 3 scans first, then longest-unscanned, ties by member count; whatever does not fit
+     the 20 rolls to the next run automatically — "Group sweep before optimisation",
+     `playbooks/10_LEAD_COMPETITOR_DETECTION.md`):
      fb.group.search_posts { group_search_url: ".../groups/<id>/search/?q=<term>", max_pages: <=4 }
         Terms come from `tool source-keywords ... plan --kind <kind>` (seed the group's bank first
         with `seed --industry --market --lang` when it is empty, plus the client's setup seed file
@@ -119,6 +125,12 @@ comments) and X the same ≤ 12 / ≤ 4 shape (search-Latest/people/profile-dept
 |---|---|---|---|---|---|---|---|---|
 | FIRST RUN | 3 | 3 | 3 | 3 | up to 20 | 3 | 9 discovery + up to 20 × 3 | Pacing Rule: random 5–10 s per request, no added gaps |
 | DAILY | 1 | 1 | 1 | 1 | up to 20 | 2 | 3 discovery + up to 20 × 2 | Pacing Rule: random 5–10 s per request, no added gaps |
+
+`group searches` above stops early — before spending every discovery term — once this run has
+registered 20 `state: active` groups (Stop the group search at 20). `monitored groups (registry
+plan)` stays sweep-first: never-scanned groups newest-registered first until every active group has
+one scan, then the performance order (Group sweep before optimisation, both in
+`playbooks/10_LEAD_COMPETITOR_DETECTION.md`).
 
 Lead target: FIRST RUN is a floor of 10 across all three platforms combined, not a stop — keep
 working the ranked candidates until each platform's own budget is spent. Safety trip is per platform
