@@ -216,7 +216,8 @@ Use one folder per client/business/location:
 
 Shared-scan files (cross-client, maintained through `tools/solo_tool source-registry` and `tool search-pool` — never hand-edited, always through the tool so concurrent runs cannot corrupt them):
 
-- `collector/source_registry.json` — one entry per canonical source UID across ALL clients: `uid`, `uid_hash`, `sample_url`, `domain`, `platform`, `source_type`, `kind` (private|public|discovered), `scope` (`shared` | `exclusive` | `unclassified` — auto-created entries stay `unclassified` and are never served as reuse until an explicit `register`), `subscribers[]` (client_slug, priority, scan_cadence, registered_at), `last_scan` (completed_at, run_id, client_slug, data_dir, status, kind — reuse requires the lane to match), `last_failed`, `scan_claim` (client_slug, claimed_at — an in-progress marker so concurrent runs `wait` instead of duplicating a scan; expires after 2h, released by `record`), and a top-level `freshness_ttl_hours` (default 20). The freshness check is a rolling TTL against `last_scan.completed_at`, never a calendar-day compare. `kind: discovered` entries are a different shape (below, "Discovered sources") — they are never `due`/reused across clients like private/public sources, since a comment thread found for one client is that client's own find.
+- `collector/source_registry.json` — one entry per canonical source UID across ALL clients: `uid`, `uid_hash`, `sample_url`, `domain`, `platform`, `source_type`, `kind` (private|public — the scan lane; `discovered` rows are comment threads) plus `source_type` (group|page|profile|site), `scope` (`shared` | `exclusive` | `unclassified` — auto-created entries stay `unclassified` and are never served as reuse until an explicit `register`), `subscribers[]` (client_slug, priority, scan_cadence, registered_at), `last_scan` (completed_at, run_id, client_slug, data_dir, status, kind — reuse requires the lane to match), `last_failed`, `scan_claim` (client_slug, claimed_at — an in-progress marker so concurrent runs `wait` instead of duplicating a scan; expires after 2h, released by `record`), and a top-level `freshness_ttl_hours` (default 20). The freshness check is a rolling TTL against `last_scan.completed_at`, never a calendar-day compare. `kind: discovered` entries are a different shape (below, "Discovered sources") — they are never `due`/reused across clients like private/public sources, since a comment thread found for one client is that client's own find.
+- Monitored Facebook groups (`source_type: group`, `kind: private` — read through the human's session) carry additional per-client fields, written only by `tool source-registry add|record|pause|resume` — never hand-edited: `state` (`active | paused | not_selected | no_access` — `active` is scanned by the daily plan, `paused` is held out by the Boss on the Sources page, `not_selected` is a Group Potential Rule `low` verdict, `no_access` is a private group the account cannot read), `potential` (`high | medium | low`, the Group Potential Rule's verdict), `potential_reason` (its one-line reason), `scans` (total times this group has been scanned), `leads_total` (lifetime hot+warm+watch leads captured from this group), `leads_recent` (the lead counts from its last 3 scans, newest first — what the plan ranks on), `last_scanned_at` (ISO-8601 timestamp of its most recent scan), `paused_at` (ISO-8601 timestamp of its last pause, blank while active), and `origin` (`discovered | custom | default` — how the source first entered the registry).
 - `collector/search_pool.json` — shared public keyword-search results keyed by (industry, normalized keyword): `searched_at`, `client_slug`, `results[]` of client-neutral `{url, title, note}`. Entries older than 7 days are pruned on write.
 - `collector/public_pool/{uid_hash}/YYYY-MM-DD.md` — client-neutral raw findings from visiting a shared PUBLIC source (facts, URLs, quotes, dates only — no client analysis, no client names), written by the run that visited it and registered via `source-registry record --data-dir`; other subscriber runs consume it through the registry pointer and do their own client-specific filtering.
 - Collector data points/leads/competitors carry bridge-stamped `source_uid` + `point_uid` — key-based dedup for shared-scan consumption.
@@ -556,7 +557,7 @@ Minimum format:
 - scheduled_entrypoint: playbooks/SCHEDULED_RUN_ENTRYPOINT.md
 - root_playbook: SOLO_AGENCY_PLAYBOOK.md
 - clients_index: daily-content-pipeline/clients_index.md
-- collector_config: daily-content-pipeline/collector/collector_config.json — each watched-source entry may carry `origin: default | custom` (`custom` = a URL the Boss gave at setup step 5 or later; `default` or absent = added by the run, discovery or the industry defaults); the dashboard's Sources page splits its Default / Custom tabs on this field, and Discovered sources live in the source registry (`kind: discovered`), never here
+- collector_config: daily-content-pipeline/collector/collector_config.json — each watched-source entry may carry `origin: default | custom` (`custom` = a URL the Boss gave at setup step 5 or later; `default` or absent = added by the run, discovery or the industry defaults); the dashboard's Sources page splits its Default / Custom tabs on this field, and Discovered sources live in the source registry (`kind: discovered`), never here A source item may also carry `enabled: false` — paused from the Sources page (Custom tab, `POST /api/ui/{client}/sources/toggle`): skipped by the collector's scheduled windows and by every run-now job the run builds; `enabled` absent or `true` = active.
 - provider_defaults: daily-content-pipeline/provider_defaults.json
 - notification_channel:
 - pdna_status:
@@ -570,6 +571,7 @@ Minimum format:
 - automation_prompt_update_pending_reason:
 - automation_freshness_status: current | resync_in_progress | action_needed | not_applicable
 - automation_freshness_summary: whether latest changes are synced into automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state
+- first_run_consent: yes | not_now — the Boss's answer to step 7's one first-run question (`playbooks/SETUP_FLOW_ENTRYPOINT.md`); `not_now` means the daily task keeps its existing schedule and nothing else is asked
 - first_run_task_id: the one-time scheduled task id used to dispatch this client's first run (e.g. `{client_slug}-solo-agency-first-run`), when the runtime created one
 - first_run_dispatched_at: ISO 8601 timestamp of when the first-run task was dispatched
 - first_run_wait: armed | not_available | timed_out | reported — state of the background wait for that first run (`playbooks/04_DAILY_SCHEDULE.md`, "Wait and report")
@@ -612,7 +614,7 @@ Line schema (one object per line):
  "stage": "find_people", "stage_index": 2, "status": "done",
  "calls_done": 6, "calls_planned": 45,
  "counts": {"search_posts": 34, "group_posts": 0, "groups_found": 0, "groups_readable": 0,
-            "groups_no_access": 0, "groups_approved": 0, "people_found": 57,
+            "groups_no_access": 0, "groups_monitored": 0, "groups_not_selected": 0, "groups_paused": 0, "people_found": 57,
             "leads_hot": 0, "leads_warm": 0, "leads_watch": 0},
  "platforms": {"facebook": "running", "instagram": "running", "x": "tripped:rate_limit"},
  "eta_low_at": "2026-09-12T08:40:00+07:00", "eta_high_at": "2026-09-12T09:00:00+07:00",
@@ -1066,7 +1068,6 @@ Minimum fields:
       "extension_instance_id": "ext_avenngo_default",
       "extension_display_name": "AvenNgo - Solo Agency Collector",
       "extension_folder": "/ABSOLUTE/PATH/extensions/avenngo_extension/",
-      "chrome_profile_hint": "Default",
       "browser": "chrome",
       "profile_directory": "Default",
       "registered_at": "2026-06-20T09:00:00Z",
@@ -1084,9 +1085,9 @@ Field notes:
 - `extension_instance_id`: stable id for this client's extension instance; scheduled runs read the client→`extension_instance_id` mapping from this file.
 - `extension_display_name`: Chrome display name, client name first.
 - `extension_folder`: per-client pin for the client's unpacked extension folder, read (not written) by the bridge — `uiResolveExtensionFolder` in `solo-agency-collector/bridge-go/ui.go` checks this pin first, before falling back to the current `extensions/{client_slug}_extension/` convention and then the legacy `extensions/{client_slug}/` path. Set this only when the folder lives somewhere other than the current convention; leave it unset otherwise.
-- `chrome_profile_hint`: free-text hint of which Chrome profile the extension is loaded in (legacy; kept for backward compatibility).
-- `browser`: the detected Chromium-based browser this client's extension actually runs in — one of `chrome | edge | brave | vivaldi | opera | chromium` (OWNER DECISIONS 2026-09-10 afternoon). Safari and Firefox are never valid values here; a machine with only those installed is told to install Chrome instead (`playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)"). Set once, from the agent's browser question or a silent pick when there was no real choice, and read back on every later reopen so the question is never asked twice for the same client.
-- `profile_directory`: the exact profile folder name from that browser's own `Local State` (`profile.info_cache` key, e.g. `Default`, `Profile 1`) — passed as the optional `{browser, profile_directory}` fields on `POST /api/ui/{client_slug}/install-extension` so the bridge opens the extensions page in exactly that browser window every time, including the 90-second diagnostics re-trigger.
+- `chrome_profile_hint`: retired 2026-09-11 — no longer written, never read; ignore if present.
+- `browser`: the Chromium-based browser this client's extension actually runs in — one of `chrome | edge | brave | vivaldi | opera | chromium` (OWNER DECISIONS 2026-09-10 afternoon). Safari and Firefox are never valid values here; a machine with only those installed is told to install Chrome instead (`playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)"). The agent's only say in this is a single Chrome-vs-Edge question, asked at most once per client and only when both are installed (a silent pick when there is no real choice); the value stored here comes from the install page's own browser selector (always shown) or the agent's single Chrome-vs-Edge pick, and is read back on every later reopen so nothing is asked twice for the same client.
+- `profile_directory`: the exact profile folder name from that browser's own `Local State` (`profile.info_cache` key, e.g. `Default`, `Profile 1`). Recorded by the install page from its own account list when 2+ profiles exist — the human picks the one signed into Facebook there; the agent never asks for it. Read back on later reopens (including the 90-second diagnostics re-trigger) so the page does not need to ask again for the same client.
 - `registered_at`: when the extension was registered.
 - `last_health_at`: last successful health check timestamp.
 - `status`: one of `active | pending_install | disabled`.
@@ -1159,7 +1160,9 @@ Minimum format:
     "groups_readable": 0,
     "groups_no_access": 0,
     "groups_scanned": 0,
-    "groups_approved": 0,
+    "groups_monitored": 0,
+    "groups_not_selected": 0,
+    "groups_paused": 0,
     "leads_found": 0,
     "leads_locked": 0,
     "budget_used": 0,
@@ -1206,17 +1209,21 @@ Minimum format:
 `facebook_discovery`/`instagram_discovery`/`x_discovery` are the three per-platform legs of the
 Social Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass"), one
 object per platform, each reconciled independently, and their fields follow the Five result types
-(the Five result types, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`): a search-post count, an in-group/depth-post count, a groups count split by access, a groups-
-approved count, and a leads count — never merged into one another. `{platform}_discovery.trip_status`:
+(the Five result types, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`): a search-post count, an in-group/depth-post count, a groups count split by access, a group-
+monitoring count, and a leads count — never merged into one another. `{platform}_discovery.trip_status`:
 `clean`, or the exact safety trip that stopped that platform's account for the day — the trip is per
 platform (round-robin rule), so one platform tripping never zeroes another's object. `budget_used`/
-`budget_available` are calls, not leads — FIRST RUN ceiling 21 for Facebook / 12 for Instagram and X,
-DAILY ceiling 7 for Facebook / 4 for Instagram and X. Facebook's `groups_found` splits into
-`groups_readable` (public, or private where the account is already a member) and `groups_no_access`
-(private, account not a member — listed for the Boss to join, never scanned); `groups_approved`
-counts shortlist rows with `decision: approved`. Instagram and X have no groups, so their objects
-carry `depth_calls` (profile-depth + comments/replies calls) instead of Facebook's `groups_found`/
-`groups_readable`/`groups_no_access`/`groups_scanned`/`groups_approved`, `posts_found` instead of
+`budget_available` are calls, not leads — Instagram and X: FIRST RUN ceiling 12, DAILY ceiling 4;
+Facebook's ceiling varies with how many groups the registry plan returns: 9 discovery calls + up to
+20 monitored groups × 3 terms FIRST RUN, or 3 discovery calls + up to 20 monitored groups × 2 terms
+DAILY. Facebook's `groups_found` splits into `groups_readable` (public, or private where the account
+is already a member) and `groups_no_access` (private, account not a member — listed for the Boss to
+join, never scanned); `groups_monitored` counts groups registered `state: active` by the Group
+Potential Rule (agent-selected, no human decision), `groups_not_selected` counts `state:
+not_selected`, and `groups_paused` counts `state: paused` (held out by the Boss on the Sources page).
+Instagram and X have no groups, so their objects carry `depth_calls` (profile-depth + comments/replies
+calls) instead of Facebook's `groups_found`/`groups_readable`/`groups_no_access`/`groups_scanned`/
+`groups_monitored`/`groups_not_selected`/`groups_paused`, `posts_found` instead of
 `feed_posts_found`, and `depth_posts_found` (profile depth plus comments/replies) instead of
 Facebook's `group_posts_found`. `leads_locked` comes from `tool crm-store ... contact lock-status`,
 never a hand count.
@@ -1533,38 +1540,26 @@ facebook_web_only_reason:
 facebook_discovery_first_pass_done: true | false
   # Set true immediately after this client's first-ever Social Discovery Pass completes Facebook's
   # leg (playbooks/10_LEAD_COMPETITOR_DETECTION.md, "Social Discovery Pass"). Gates the FIRST RUN
-  # (<=21 calls) vs DAILY (<=7 calls) budget tier in playbooks/04_DAILY_SCHEDULE.md step 11C /
+  # (9 discovery calls + up to 20 monitored groups x 3 terms) vs DAILY (3 discovery calls + up to 20
+  # monitored groups x 2 terms) budget tier in playbooks/04_DAILY_SCHEDULE.md step 11C /
   # playbooks/SCHEDULED_RUN_ENTRYPOINT.md step 12E. Keyed to whether the pass has EVER run for
   # this client, not to the automation run number -- a client who starts `web_only` and later
   # connects Facebook several runs later still gets FIRST RUN on that later run.
   # Browser/profile note: the actual browser and profile chosen for this client's extension is NOT
   # duplicated here -- it lives in collector/extension_registry.json (`browser`, `profile_directory`,
-  # above), keyed by client_slug, so the agent never re-asks the browser/profile question once
-  # resolved (OWNER DECISIONS 2026-09-10 afternoon).
+  # above), keyed by client_slug, recorded by the install page itself (its own account list handles
+  # 2+ profiles) so the agent never asks about either one again once resolved (OWNER DECISIONS
+  # 2026-09-10 afternoon; asking about profiles retired entirely OWNER DECISIONS 2026-09-11).
 facebook_last_login_probe_at:
   # Timestamp of the most recent step-1 re-probe issued for this platform while it sat in
   # `web_only` with a `{platform}_web_only_reason` starting "not logged in"
   # (playbooks/10_LEAD_COMPETITOR_DETECTION.md, "Re-probe on every run"). Written on every probe,
   # whether it succeeds (flips the field back to `enabled`) or comes back logged-out again.
-facebook_group_discovery:
-  candidates_total: 0            # shortlist rows with access readable or no_access
-  review_state: none             # none | shortlist_presented | monitoring_approved | monitoring_declined
-  presented_at: ""
-  decided_at: ""
-  approved_group_urls: []
-  declined_group_urls: []
-  # Facebook-only (Instagram and X have no group concept in this pass). `candidates_total` counts
-  # `history/YYYY-MM/facebook_discovery_shortlist.jsonl` rows with `access: readable` or
-  # `access: no_access`. Neither the Setup Flow's Closing Template hard gates nor a scheduled run
-  # (playbooks/SCHEDULED_RUN_ENTRYPOINT.md steps 12E/16) may close while `candidates_total > 0` and
-  # `review_state == none` -- the shortlist must first be presented as an `**[ACTION REQUIRED]**`
-  # block, which sets `review_state: shortlist_presented` and `presented_at`. The Boss's answer then
-  # sets `review_state: monitoring_approved` (at least one shortlist row `decision: approved`, which
-  # goes through the normal promotion into `private_data_sources`,
-  # playbooks/02_PRIVATE_SOURCE_SETUP.md) or `monitoring_declined` (the Boss declines all of them or
-  # says to leave groups for now), plus `decided_at` and the matching URL list. A "no" to custom URLs
-  # at the source-setup question is a different question and never counts as a decline here; only an
-  # answer to the shortlist itself moves `review_state`.
+facebook_group_discovery: RETIRED 2026-09-12 -- groups live entirely in the source registry
+  # (collector/source_registry.json, `source_type: group`; see "Monitored Facebook groups" above).
+  # No candidate counter, no review-state field, no shortlist, no close gate: the Group Potential Rule
+  # (playbooks/10_LEAD_COMPETITOR_DETECTION.md) registers every group `active`/`not_selected`/
+  # `no_access` automatically, and the Boss's only lever is pause/resume on the Sources page.
 instagram_lead_source: enabled | web_only | pending
 instagram_lead_source_updated_at:
 instagram_web_only_reason:
@@ -1602,7 +1597,13 @@ notes:
 
 ## private_data_source_discovery
 
-status: not_asked | recommended | declined | postponed | partially_approved | approved | pending_human_approval | pending_private_activation | active | blocked | completed | discovery_declined_or_postponed
+status: not_asked | approved_pending_first_scan | completed | declined
+  # RETIRED 2026-09-12: recommended, postponed, partially_approved, approved, pending_human_approval,
+  # pending_private_activation, active, blocked, declined. `approved_pending_first_scan`
+  # is recorded for all categories at once, at the step-7 yes (playbooks/SETUP_FLOW_ENTRYPOINT.md);
+  # the first run executes discovery and judges every result with the Group Potential Rule
+  # (playbooks/10_LEAD_COMPETITOR_DETECTION.md) straight into monitored sources -- no per-category
+  # approval state, no shortlist.
 reassurance_shown:
   professional_setup_once: true | false
   local_data_only: true | false
@@ -1611,7 +1612,7 @@ why_recommended:
 coverage_limitation_if_skipped:
 categories:
   membership_sources:
-    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
+    status: not_asked | approved_pending_first_scan | completed | declined
     platforms:
     - platform:
       discovery_urls:
@@ -1619,7 +1620,7 @@ categories:
         status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
         last_scanned_at:
   following_sources:
-    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
+    status: not_asked | approved_pending_first_scan | completed | declined
     platforms:
     - platform:
       discovery_urls:
@@ -1627,7 +1628,7 @@ categories:
         status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
         last_scanned_at:
   recommendation_feed_sources:
-    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
+    status: not_asked | approved_pending_first_scan | completed | declined
     platforms:
     - platform:
       discovery_urls:
@@ -1635,7 +1636,7 @@ categories:
         status: not_tried | pending_private_activation | scanned | login_required | platform_url_changed | failed
         last_scanned_at:
   keyword_search_sources:
-    status: not_asked | recommended | declined | postponed | approved | pending_human_approval | pending_private_activation | active | blocked | completed
+    status: not_asked | approved_pending_first_scan | completed | declined
     platforms:
     - platform:
       search_keywords:
@@ -1667,7 +1668,7 @@ items:
   search_url:
   result_rank:
   membership_status: unknown | joined | not_joined | public_visible | requires_join | unavailable
-  approval_status: pending_human_approval | approved | rejected
+  state: active | not_selected | no_access   # automatic: recommended_*/optional -> active, skip_* -> not_selected, unreadable/not-joined -> no_access; no human approval
   priority: high | medium | low
   scan_cadence: daily | weekly | optional
   location_relevance:
@@ -2019,52 +2020,14 @@ Privacy rule:
 - Prefer safe summaries, source URLs, and short evidence snippets.
 - **Never store or transmit the operator's own credentials or secrets** (usernames, passwords, cookies, tokens, session/auth data, API keys) — the single absolute prohibition. All other data the operator's setup + command directs — business data, prospect contact details (email/phone), evidence snippets, source URLs — may be stored and combined for lead-finding and personalization.
 
-### `history/YYYY-MM/facebook_discovery_shortlist.jsonl`
+### Former per-month group shortlist file (retired 2026-09-12)
 
-Purpose:
-
-- Persist the Social Discovery Pass's ranked Facebook group candidates across runs
-  (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass") — both the readable groups
-  (public, or private where the account is already a member) and the no-access groups it can only
-  list for the Boss to join. Facebook-only: Instagram and X have no group concept in this pass, so
-  nothing from either platform is added here.
-- Let the DAILY companion pass skip a group already scanned in the last 7 days instead of
-  rediscovering the same handful of groups every day.
-- Carry the human's approve/decline decision after the pass presents its shortlist.
-
-One JSON object per line:
-
-```json
-{
-  "group_url": "https://www.facebook.com/groups/...",
-  "name": "Group name",
-  "privacy": "public",
-  "member_count": 18400,
-  "first_seen": "2026-09-09",
-  "last_scanned": "2026-09-09",
-  "status": "pending",
-  "access": "readable",
-  "viewer_join_state": "MEMBER",
-  "decision": "pending",
-  "decided_at": "",
-  "leads_found": 0,
-  "discovery_term": "term that surfaced this group"
-}
-```
-
-`status` allowed values: `pending | scanned | recommended` — moves `pending -> scanned -> recommended`
-as the pass works down the list across runs; `status` carries only scan progress plus `recommended`,
-the pass's own top pick, an agent verdict made before the Boss ever sees the shortlist (`rejected` is
-retired — the Boss's answer never lives in `status`). `access` is `readable | no_access | unknown`
-(`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Group candidates: readable, not merely public") and
-`viewer_join_state` is the raw Facebook value (`MEMBER`, `CAN_REQUEST`, `REQUEST_TO_JOIN`, …) the
-access decision was made from. `decision` is `pending | approved | declined` and is where the Boss's
-answer lives, set once the shortlist has been presented and answered; `decided_at` is the timestamp
-of that answer. Scanning a readable group needs no approval; a `no_access` group is never scanned or
-joined regardless of `decision`. `decision: approved` rows go through the normal promotion into
-`private_data_sources` (`playbooks/02_PRIVATE_SOURCE_SETUP.md`).
-
-Authoritative field list and job shapes: `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`.
+RETIRED 2026-09-12: the source registry (`collector/source_registry.json`, `source_type: group`) is
+the only store for Facebook group candidates — state, potential, scans, and lead history all live on
+the registry entry (see "Monitored Facebook groups" above). No shortlist file, no `decision` field,
+no per-group approval; the Group Potential Rule and `tool source-registry add|record|pause|resume`
+(`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`)
+are the only writers now.
 
 ### `history/YYYY-MM/new_private_sources_log.md`
 

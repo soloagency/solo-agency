@@ -154,8 +154,8 @@ Next: {suggested widen/deepen options for the human}.
   Pass" for the full platform table and the round-robin rule. Its discovery terms come from
   `tool public-keywords ... plan --kind discovery` (a dedicated `community_discovery` kind, shared
   across all three platforms, separate from the intent bank `recipes.md` steps 3/6 use), and
-  Facebook's ranked candidate groups persist to `history/YYYY-MM/facebook_discovery_shortlist.jsonl`
-  (fields and job shapes in `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`) — Instagram and X
+  Facebook's candidate groups are judged by the Group Potential Rule and registered in the shared source
+  registry (`tool source-registry add`; each run scans up to 20 of them via `tool source-registry plan`) — Instagram and X
   have no groups, so nothing is added there for them. Recipe E is the Boss-ordered discovered-thread
   harvest job (batch triage on the lowest model, 40 rows per call) — a separate job from this pass,
   never run inside it.

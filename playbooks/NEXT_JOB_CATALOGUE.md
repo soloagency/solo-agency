@@ -48,13 +48,13 @@ count, never a guess from memory:
 | 2 | Contact lock state | `<bridge> tool crm-store --client-dir <CLIENT_DIR> contact lock-status` → `max_contacts`, `lockable`, `unlocked`, `locked`, `upgrade_url` |
 | 3 | Pending outreach approvals | count of files under every `campaigns/{slug}/outbox/pending_approval/` |
 | 4 | Pending content approvals | the run's Approval Workflow queue (`playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`, "23.3 Approval Workflow") |
-| 5 | Discovery shortlist awaiting promotion | Client Intelligence Profile `facebook_group_discovery.review_state == shortlist_presented`; `history/YYYY-MM/facebook_discovery_shortlist.jsonl` rows with `decision: pending` |
+| 5 | Monitored groups worth reviewing | `tool source-registry list --client <slug> --state active\|paused` — any `state: active` rows exist and it has been ≥ 7 days since last offered |
 | 6 | Standup backlog | `daily-content-pipeline/automation/standup.jsonl` tail — `needs_boss[]`, `blockers[]` per line |
 | 7 | Boss-orders ledger | `daily-content-pipeline/automation/boss_orders.md` rows with `status` in `waiting_boss`, `blocked` |
 | 8 | Sendbox health | `sendboxes/sendboxes.json` — any entry `status: needs_reauth`, or none `status: healthy` |
 | 9 | Campaign roster and status | each client's `campaigns/{slug}/campaign_config.json` — `channel_strategy`, `status` (`active`/`paused`) |
 | 10 | Social lead source (per platform) | Client Intelligence Profile `facebook_lead_source` / `instagram_lead_source` / `x_lead_source`, each `enabled\|web_only\|pending` |
-| 11 | Private data source state | `private_data_source_discovery.status` (`not_asked\|recommended\|declined\|postponed\|partially_approved\|approved\|pending_human_approval\|pending_private_activation\|active\|blocked\|completed\|discovery_declined_or_postponed`); per item in `private_data_sources.items[]` — `approval_status` (`pending_human_approval\|approved\|rejected`), `activation_status` (`pending_private_activation\|active\|declined_for_now\|unavailable`) |
+| 11 | Private data source state | `private_data_source_discovery.status` (`not_asked\|approved_pending_first_scan\|completed\|declined`); per item in `private_data_sources.items[]` — `state` (`active\|not_selected\|no_access`), `activation_status` (`pending_private_activation\|active\|declined_for_now\|unavailable`) |
 | 12 | Extension / collector health | `extension_health.status` (`recent\|stale\|no_extension_check_yet`, or `unavailable` when the bridge itself cannot be reached) past the 75-second grace window |
 | 13 | Last run recency | most recent `standup.jsonl` line's `ts` for this client, and the corresponding `fleet/{client_slug}.json.report.last_report_at` |
 | 14 | Published content / analytics staleness | `fleet/{client_slug}.json` → `engagement`, `report`; last analytics pull date |
@@ -71,10 +71,10 @@ say so rather than inventing a zero.
 When more than one signal fires, resolve in this order — always show the highest tier that fired,
 never bury it under a lower one:
 
-1. **Backlog** — approvals waiting (signals 3-4), a presented discovery shortlist awaiting a decision (signal 5),
-   discovered sources with `status: new` (signal 16), an unresolved blocker (signal 6), or a
-   Boss-orders row stuck on `waiting_boss`/`blocked` (signal 7). Nothing else gets offered ahead of
-   clearing what is already sitting there.
+1. **Backlog** — approvals waiting (signals 3-4), discovered sources with `status: new` (signal 16),
+   an unresolved blocker (signal 6), or a Boss-orders row stuck on `waiting_boss`/`blocked`
+   (signal 7). Nothing else gets offered ahead of clearing what is already sitting there. Monitored
+   groups (signal 5) are never backlog — they need no decision, so they sit in tier 4 instead.
 2. **Lead generation** — running scans/harvests against sources already approved, to bring in more
    leads (Social Discovery Pass, private-group scans, friend/people/Zillow harvest, list import).
 3. **Lead exploitation** — working leads already in the CRM (hello campaigns, enrichment,
@@ -146,7 +146,7 @@ Starter; everything else is a data feature and runs on every plan, Free included
 | id | tier | signal | offer | example VI | example EN | runs | needs | plan |
 |---|---|---|---|---|---|---|---|---|
 | `show_approval_report` * | 1 | pending-approval files > 0 (poll #3-4) | review and approve/reject what's waiting | "Anh có {N} email/bài đang chờ duyệt, em trình luôn cho anh xem không?" | "You have {N} emails/posts waiting for your approval — want me to show them now?" | Approval Workflow (`outreach/playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` step 5-6; `09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` §23.3) | nothing, ready now | Free+ |
-| `promote_discovered_groups` | 1 | `facebook_group_discovery.review_state == shortlist_presented` (poll #5) — shortlist rows with `decision: pending`; stops firing once the Boss answers and `review_state` moves to `monitoring_approved`/`monitoring_declined` | promote or decline the presented groups | "Em tìm được {N} nhóm Facebook hợp, anh duyệt nhóm nào để em theo dõi mỗi ngày?" | "I found {N} Facebook groups that fit — which ones should I start monitoring daily?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, Social Discovery Pass (Facebook leg — shortlist stays Facebook-only) | `facebook_lead_source: enabled` | Free+ |
+| `review_monitored_sources` | 4 | any `state: active` row in the source registry (poll #5); offered at most once per week | show which groups are being watched, pause any not wanted | "Có {N} group Facebook em đang tự động theo dõi — anh xem qua và tắt bớt nhóm nào không cần không?" | "There are {N} Facebook groups I'm monitoring automatically — want to look them over and pause any you don't want?" | `/ui/{client}/sources?tab=discovered`; `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, Group Potential Rule (Facebook leg — monitoring stays Facebook-only) | `facebook_lead_source: enabled` | Free+ |
 | `review_discovered_sources` | 1 | discovered-source rows `status: new` (poll #16) | list the new discovered threads with excerpt and reason, read a post aloud on request | "Em tìm được {N} bài mà người trả lời có thể là khách của anh — anh nghe qua từng bài không?" | "I found {N} posts whose repliers might be your buyers — want me to walk through them?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Step 5" | nothing, ready now | Free+ |
 | `harvest_thread` | 2 | Boss names a discovered source (or approves one via the Discovered tab) (poll #16, `status: new`/`approved`) | run the batch triage harvest on that one thread now | "Em quét bình luận bài đó và đưa những người phù hợp vào CRM nhé?" | "Want me to triage that thread's comments and add the right people to the CRM?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Harvest a discovered thread (on the Boss's order only)" | a named `source_id`, `status: new` or `approved` | Free+ |
 | `resolve_blocker` | 1 | `standup.jsonl` tail `blockers[]` non-empty (poll #6) | walk through the blocker and fix it now | "Lần chạy gần nhất bị vướng {blocker}, anh muốn em xử lý ngay không?" | "The last run hit a blocker ({blocker}) — want me to work through it now?" | whichever stage owns the blocker code | nothing, ready now | Free+ |
@@ -156,8 +156,8 @@ Starter; everything else is a data feature and runs on every plan, Free included
 | `collector_healthcheck` | 1 | last healthcheck > 24h old, or file-queue path looks stale | run a healthcheck pass now | "Em chạy kiểm tra sức khoẻ hệ thống thu thập ngay không?" | "Want me to run a collector healthcheck right now?" | `playbooks/HEALTHCHECK.md` | nothing, ready now | Free+ |
 | `update_watch_setup` | 1 | GitHub `main` ahead of local commit/bridge version, or update-watch task missing from `automation_manifest.md` | apply the update, or set up the watch task | "Có bản cập nhật mới — em áp dụng luôn không?" | "There's a newer version available — want me to apply it now?" | `playbooks/11_UPDATE_AND_VERSION_WATCH.md` | Boss approval unless `auto_apply_approved: true` | Free+ |
 | `post_support_group` | 1 | confirmed bug/question with no matching open row in `support_requests.md` | draft the support post, ask approval | draft shown per `TEAM_MODEL.md` post template | draft shown per `TEAM_MODEL.md` post template | `playbooks/TEAM_MODEL.md`, "Support requests" | Boss approval of exact text | Free+ |
-| `social_discovery_pass` (formerly `fb_discovery_pass`) | 2 | parameter: `platform` — offered per platform whose last pass is older than 7 days (Facebook: also offered when its shortlist is stale) | run today's Social Discovery Pass now for that platform | "Em chạy một vòng Social Discovery Pass cho {platform} ngay bây giờ nhé?" | "Want me to run a Social Discovery Pass for {platform} right now?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, Social Discovery Pass | `{platform}_lead_source: enabled`, extension healthy | Free+ |
-| `scan_private_groups` * | 2 | ≥1 item in `private_data_sources.items[]` with `approval_status: approved` and `activation_status: active`, next scheduled scan > 24h away, or Boss asks out-of-cycle | run an extra private-group scan now | "Anh muốn em quét thêm nhóm riêng ngay bây giờ không, ngoài lịch hằng ngày?" | "Want an extra private-group scan right now, outside the daily schedule?" | `playbooks/02_PRIVATE_SOURCE_SETUP.md`; `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` | ≥1 `private_data_sources.items[]` entry with `approval_status: approved`, `activation_status: active`; Local Collector healthy | Free+ |
+| `social_discovery_pass` (formerly `fb_discovery_pass`) | 2 | parameter: `platform` — offered per platform whose last pass is older than 7 days (Facebook: also offered when its monitored-group plan has unscanned groups rolled over from a prior run) | run today's Social Discovery Pass now for that platform | "Em chạy một vòng Social Discovery Pass cho {platform} ngay bây giờ nhé?" | "Want me to run a Social Discovery Pass for {platform} right now?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, Social Discovery Pass | `{platform}_lead_source: enabled`, extension healthy | Free+ |
+| `scan_private_groups` * | 2 | ≥1 item in `private_data_sources.items[]` with `state: active` and `activation_status: active`, next scheduled scan > 24h away, or Boss asks out-of-cycle | run an extra private-group scan now | "Anh muốn em quét thêm nhóm riêng ngay bây giờ không, ngoài lịch hằng ngày?" | "Want an extra private-group scan right now, outside the daily schedule?" | `playbooks/02_PRIVATE_SOURCE_SETUP.md`; `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` | ≥1 `private_data_sources.items[]` entry with `state: active`, `activation_status: active`; Local Collector healthy | Free+ |
 | `harvest_friend_list` * | 2 | no active `channel_strategy: friend_harvest` campaign, or seeds fully walked | start/extend a friend-list harvest | "Em bắt đầu quét danh sách bạn bè của {seed} để tìm khách tiềm năng nhé?" | "Want me to start mining {seed}'s friend list for prospects?" | `outreach/playbooks/16_FRIEND_HARVEST.md` | a seed profile named by the Boss | Free+ |
 | `persona_people_hunt` | 2 | Boss names a persona/target not covered by an existing discovery term | run a targeted people-search pass | "Em chạy tìm người theo đúng mô tả đó (\"{persona}\") ngay không?" | "Want me to run a targeted people-search for \"{persona}\" right now?" | `fb.people.search` (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) | the persona description | Free+ |
 | `mine_network_ff` | 2 | a seed's friend list already harvested once; a friend-of-friend pass would find more | widen the harvest to a second-degree seed | "Muốn em mở rộng qua bạn của bạn từ {seed} để tìm thêm khách không?" | "Want me to widen the harvest to {seed}'s friends-of-friends?" | `outreach/playbooks/16_FRIEND_HARVEST.md` (additional `seed_profiles`) | a second-degree seed | Free+ |
@@ -276,21 +276,22 @@ action to name and in what order:
 
 **A. Fresh install, first run just finished.** The First-Run Report (`SOLO_AGENCY_PLAYBOOK.md`,
 "Wait and report") precedes these offers — it states when the run finished, leads found, the
-locked-contacts meter, and what needs the Boss, before this poll's offers are ever spoken. Poll:
-signal 2 → `locked: 0`, `unlocked: 12`,
-`max_contacts: 30` (well under 0.8, no meter). Signal 5 → `review_state: shortlist_presented`, 6 shortlist rows `decision: pending`.
-Signal 3/4/6/7 → all empty. Tier 1 (backlog) fires on the shortlist. Reply:
+locked-contacts meter, the newly monitored groups (potential + reason, Sources page link), and what
+needs the Boss, before this poll's offers are ever spoken. Poll: signal 2 → `locked: 0`,
+`unlocked: 12`, `max_contacts: 30` (well under 0.8, no meter). Signal 5 → 6 groups `state: active`,
+never offered before. Signal 3/4/6/7 → all empty. No tier-1 backlog fires: the groups this run found
+are already monitored, not waiting on a decision, so `review_monitored_sources` sits in tier 4. Reply:
 
 ```text
-1. "Duyệt 6 nhóm Facebook em vừa tìm được, để em theo dõi mỗi ngày." — needs: nothing, ready now.
-2. "Chạy thêm một vòng quét nhóm riêng ngay bây giờ." — needs: nguồn riêng đã được duyệt (đã có).
-3. "Thêm một khách hàng mới vào hệ thống." — needs: thông tin cơ bản của khách hàng đó.
+1. "Chạy thêm một vòng quét nhóm riêng ngay bây giờ." — needs: nothing, ready now.
+2. "Thêm một khách hàng mới vào hệ thống." — needs: thông tin cơ bản của khách hàng đó.
+3. "Xem qua {N} group Facebook em đang tự động theo dõi, tắt bớt nhóm nào không cần." — needs: nothing, ready now.
 
 Anh muốn bắt đầu với việc nào?
 ```
-(offers: `promote_discovered_groups` tier 1, `scan_private_groups` tier 2, `add_client` tier 4 —
-backlog first, one lead-gen option, one expansion option; the shortlist alone would already have
-been enough to satisfy the gate, the other two round out the 2-3 slot.)
+(offers: `scan_private_groups` tier 2, `add_client` tier 4, `review_monitored_sources` tier 4 — no
+backlog exists any more since monitoring needs no approval; one lead-gen option plus two expansion/
+housekeeping options round out the 2-3 slot.)
 
 **B. Free install, 184 leads locked.** Poll: signal 1 → `entitlement.tier: free`. Signal 2 →
 `locked: 184`, `unlocked: 30`, `max_contacts: 30`. This is `locked > 0` and the first time this

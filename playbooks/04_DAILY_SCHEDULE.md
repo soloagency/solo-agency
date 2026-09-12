@@ -147,15 +147,16 @@ finish message also reaches the Boss's Telegram.
 update, compute the expected duration from the plan, never from habit:
 
 - `calls_planned` = the sum, over platforms whose `{platform}_lead_source` is `enabled`, of that
-  platform's ceiling for its tier (FIRST RUN 21 / 12 / 12; DAILY 7 / 4 / 4), plus one call per
+  platform's ceiling for its tier (Facebook: discovery calls + groups planned × terms per group, up to 69 FIRST RUN / 43 DAILY with 20 groups; Instagram 12 / 4; X 12 / 4), plus one call per
   custom or private source scheduled this run, plus one per `web_only` platform being re-probed.
 - One collector call ≈ `max_pages × (7.5 s average delay + ~5 s page load)`, capped by the 60 s
   capability timeout → use 40 s (low) and 60 s (high) per call.
 - `eta_low = calls_planned × 40 s + 10 min`; `eta_high = calls_planned × 60 s + 15 min` (the fixed
   part covers keyword planning, qualification, report rendering, upload, notification).
-- Worked examples: three platforms on FIRST RUN → 45 calls → 40–60 min. Facebook only, FIRST RUN
-  → 21 calls → 24–36 min. DAILY on three platforms → 15 calls → 20–30 min. No platform enabled →
-  10–15 min.
+- Worked examples (20 monitored groups planned): three platforms on FIRST RUN → up to 93 calls → 72–108
+  min. Facebook only, FIRST RUN → up to 69 calls (9 discovery + 20 groups × 3 terms) → 56–84 min. DAILY on
+  three platforms → up to 51 calls → 44–66 min. Facebook only, DAILY → 43 calls → 39–58 min. Fewer groups
+  planned means fewer calls — always read the plan. No platform enabled → 10–15 min.
 
 Once `calls_planned` is summed, run `tool run-progress eta --calls <calls_planned>` and read the
 numbers from its output — never compute `eta_low`/`eta_high` by hand. Speak it as a window of clock
@@ -191,8 +192,9 @@ last stage index spoken, 0–6) on `automation_manifest.md`.
 finished; the Five result types (never merged), each with its own number (a zero printed as 0, "—"
 where a type does not apply to a platform) — Bài từ Facebook Search theo từ khóa
 (`feed_posts_found`), Bài/clip quét bên trong group (`group_posts_found`), Group ứng viên tìm thấy
-(`groups_found`, split into `groups_readable` and `groups_no_access`), Group đã duyệt để theo dõi
-(`groups_approved`), and Lead đạt luật (`leads_found` hot/warm/watch) plus `leads_locked` and the
+(`groups_found`, split into `groups_readable` and `groups_no_access`), Group đang theo dõi (agent tự
+chọn) (`groups_monitored`, plus `groups_not_selected` and `groups_paused`), and Lead đạt luật
+(`leads_found` hot/warm/watch) plus `leads_locked` and the
 locked-contacts meter line; what needs the Boss (`needs_boss` items, ≤ 3); the report opened beside
 the chat per the Answer-and-Show Rule (`/ui/{client}/reports?open=latest`) with the link printed;
 then the normal next-job offers and one question. If Facebook/Instagram/X were not connected, the
@@ -258,7 +260,6 @@ Every scheduled-run reply or report handoff must include:
 - whether published-URL analytics was run or skipped because no published URLs/metrics exist yet.
 - an `Automation freshness check` stating whether the latest changes are synced into the configured automation/scheduled task and whether tomorrow's run will read the current contracts/prompts/playbooks/source approvals/state, not only the latest config file.
 - when no human decision is required: a "next jobs" block of 2-3 offers chosen, by the STATE POLL, from `playbooks/NEXT_JOB_CATALOGUE.md` (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md` step 16 carries the poll's full field list), plus exactly one closing question — the reply never ends flat.
-- the close gate: the run may not end while `facebook_group_discovery.candidates_total > 0` and `review_state == none` — present the shortlist in an `**[ACTION REQUIRED]**` block first and set `review_state: shortlist_presented` (Close gate, below).
 
 If this run touched the CRM (any capture, discovery pass, or reconciliation that could change contact counts), read `tool crm-store ... contact lock-status` once at the end of the run, before composing this reply, and write its `locked` count into this run's report state as `leads_locked`. Carry the resulting meter line (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Capture never stops at the plan's contact cap") in this reply and in `INTERNAL_REPORT` whenever `locked > 0` or the approaching-cap condition is met.
 
@@ -297,7 +298,7 @@ read of the source named for it:
 | run stage, counts so far, calls used, ETA | last `automation/run_progress.jsonl` line for the client | `tool run-progress --pipeline {setup-root}/daily-content-pipeline show --client <slug>` |
 | a run or job is running now | bridge `/status` → `active_jobs` (curl without the extension header) and `jobs/claimed/` | `curl -s --max-time 5 http://127.0.0.1:P/status` |
 | a run finished | `automation/standup.jsonl` line for the client with `ts` after the dispatch | read the file |
-| sources, groups, candidates, decisions | `tool source-registry ... list`, `history/YYYY-MM/facebook_discovery_shortlist.jsonl`, `collector_config.json`, Client Intelligence Profile `facebook_group_discovery` | tool / read the files |
+| sources, groups, candidates, decisions | `tool source-registry plan|list --client <slug> --platform facebook`, `collector_config.json` | tool / read the files |
 | a task exists, when it fires next | the runtime's scheduled-task list plus `automation_manifest.md` | tool / read |
 | leads, locked contacts | `tool crm-store ... contact list` / `contact lock-status` | tool |
 
@@ -543,8 +544,8 @@ For each daily run:
       - If those local status files show a recent current-workspace bridge and recent extension check, use the Stage 8 file-based run-now queue by writing one unique per-client job file under `daily-content-pipeline/collector/jobs/pending/` and waiting for collector output. Do not ask the human to restart the Local Collector just because the API was unreachable from the AI sandbox.
       - A collector error is valid ONLY when this file-queue path fails: if the files are missing, stale, point to another workspace, do not prove a recent extension check, or a submitted job is not claimed/consumed within its TTL, mark the precise blocker: `collector_status_unverified`, `collector_offline_or_unreachable`, `wrong_workspace_bridge`, `job_not_consumed`, or `extension_status_unknown`.
    11. If no custom sources are configured, and discovery was never offered or was postponed, do not block the scheduled run. Continue with default sources, but include `Source Discovery Recommended` or `Source Discovery Declined/Postponed` in the report/notification. Explain that default-sources-only runs can still produce useful ideas but may miss community, lead, and competitor signals from sources that need a login.
-   11A. If discovery (or a provided source list) was human-approved but no discovery scan has run yet (`approved_pending_first_scan`), this run must resolve it: when Collector Runtime Verification shows a healthy current-workspace bridge and a recent matching extension, create the first discovery run-now job (`job_type: "private_data_source_discovery"`, approved categories only, Source Discovery Mode pacing) via `POST /jobs/run_now` or a per-client job file under `daily-content-pipeline/collector/jobs/pending/`, wait for collector output, filter/classify candidates per Stage 2, and present the approval shortlist in the report/notification inside an `**[ACTION REQUIRED]**` block. Only the exact collector blocker from Collector Runtime Verification justifies reporting `Source Discovery Pending Activation` instead; a healthy collector with approved discovery must not defer it to a later run.
-   11B. If a discovery shortlist is pending human approval (`discovery_completed_pending_approval`), do not re-run discovery. Continue public data sources plus any already-approved sources, and re-surface the pending shortlist in the report/notification inside an `**[ACTION REQUIRED]**` approval block until the human resolves it; offer a refresh scan only when the human asks or the shortlist is older than 14 days. After approval, save the active sources and perform Automation Resync so the next run monitors them.
+   11A. If discovery was recorded `approved_pending_first_scan` but no discovery scan has run yet, this run must resolve it: when Collector Runtime Verification shows a healthy current-workspace bridge and a recent matching extension, create the first discovery run-now job (`job_type: "private_data_source_discovery"`, all categories, Source Discovery Mode pacing) via `POST /jobs/run_now` or a per-client job file under `daily-content-pipeline/collector/jobs/pending/`, wait for collector output, and judge every candidate with the Group Potential Rule (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) straight into monitored sources — no shortlist, no approval. List newly monitored sources in the report/notification with their potential, reason, and the Sources page link. Only the exact collector blocker from Collector Runtime Verification justifies reporting `Source Discovery Pending Activation` instead; a healthy collector with `approved_pending_first_scan` must not defer it to a later run.
+   11B. Nothing waits on a source-discovery decision any more — there is no pending shortlist to re-surface. If an earlier run already completed discovery, its sources are already registered active, not_selected, or no_access; continue with public data sources plus the monitored ones.
    11C. **Social Discovery Pass.** One pass covering Facebook, Instagram and X. Precondition: at
       least one of `facebook_lead_source` / `instagram_lead_source` / `x_lead_source` is `enabled`
       (Client Intelligence Profile) — that is what makes the step run at all; each platform then
@@ -582,11 +583,10 @@ For each daily run:
         completes for it; use the DAILY tier on every pass after that. Pacing between requests
         is the Pacing Rule (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass" →
         "Pacing Rule") — the collector's own random 5–10 second delay before each request, never an
-        hours-long gap. Facebook FIRST RUN: ≤ 21
-        collector calls (3 discovery terms, 3 feed, 3 people, 3 group searches, up to 4 readable
-        groups (public, or private where the account is a member) × 3 intent terms), `max_pages` ≤
-        4; DAILY: ≤ 7 calls (1/1/1/1, up
-        to 2 groups × 2 terms). Instagram and X FIRST RUN: ≤ 12 calls each (3/3/3/3); DAILY: ≤ 4
+        hours-long gap. Facebook FIRST RUN: 9 discovery calls (3 feed, 3 people, 3 group searches) +
+        up to 20 monitored groups from the registry plan (`tool source-registry plan --max 20`) × 3
+        intent terms, `max_pages` ≤ 4; DAILY: 3 calls (1/1/1) + up to 20 monitored groups × 2 terms.
+        Instagram and X FIRST RUN: ≤ 12 calls each (3/3/3/3); DAILY: ≤ 4
         calls each (1/1/1/1).
       - FIRST RUN: minimum 10 leads across all platforms combined is a FLOOR, not a stop — reaching
         it does not end the run; keep working every enabled platform's shortlist until its own
@@ -594,14 +594,16 @@ For each daily run:
       - Read every job's result for a checkpoint/rate-limit/logged-out signal before submitting the
         next job on that same platform; the first trip on a platform stops THAT platform for the day
         — the round-robin rule keeps the other two running.
-      - Persist the ranked Facebook group shortlist at `history/YYYY-MM/facebook_discovery_shortlist.jsonl`
-        (Facebook only — Instagram and X have no groups).
+      - Groups are ranked and registered in the source registry (`tool source-registry add`, `tool
+        source-registry plan`), never a shortlist file (Facebook only — Instagram and X have no
+        groups).
       - Every post/person row from every platform goes through Stage 10 and straight to
         `lead capture` immediately, `platform` set to `facebook` | `instagram` | `x`, even from a
-        Facebook group not yet in `private_data_sources`.
-      - Scanning a public Facebook group needs no per-group approval; recommend the top groups by
-        `leads_found`/`member_count` afterward and let the human decide which (if any) get promoted
-        into `private_data_sources`. Instagram and X have no group concept.
+        Facebook group not yet registered `state: active`.
+      - Scanning and monitoring a Facebook group need no approval: the Group Potential Rule scores
+        every readable group and registers `high`/`medium` potential `state: active` automatically;
+        the human's only lever is pausing an active group on the Sources page. Instagram and X have
+        no group concept.
       - Write actions on Instagram/X (react, comment, message, like, reply, publish, DM) are out of
         scope for this pass; it only reads and scores.
       - Every post-level judgement in this pass also runs Step 5 of

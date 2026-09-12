@@ -320,7 +320,7 @@ The internal report is where the agent must put details that are useful to the u
 - Solo Agency run identity, playbook version/freshness, automation freshness check, scheduled task/manifest status, resync status, and issue/recovery tracking.
 - PDNA provider status: current provider such as WideCast, provider config path, API-key/config status, OpenAPI discovery status, account verification identity, provider capabilities, provider health, and redacted provider call logs.
 - WideCast-specific operator details when configured: Telegram/email fallback status, connected social platforms, credits/plan when available through the verified client account, upload/notification/render/publish/analytics operation status, and exact blockers.
-- Private data source inventory: approved, pending, blocked, daily/weekly/optional sources, discovery candidates, skipped/noisy sources, and access/membership notes.
+- Private data source inventory: active, pending, blocked, daily/weekly/optional sources, discovery candidates, skipped/noisy sources, and access/membership notes.
 - Local Collector and extension status: bridge status, config/output/run-now paths, extension instance, Chrome profile guidance, last check time, source/job status, and collector blockers.
 - Report delivery log: client-facing HTML path, client PDF path/status, uploaded URLs/TTL when available, notification attempts, blockers, and correction notifications.
 - Count/status reconciliation: public/private source counts, data point counts, lead/competitor counts, recommended-source counts, timestamps, and stale-artifact checks.
@@ -610,15 +610,15 @@ and X have no groups) is printed as "—":
 3. Group ứng viên tìm thấy — `groups_found`, split into `groups_readable` (public, or private with
    the account already a member) and `groups_no_access` (private, account not a member — listed for
    the Boss to join, never scanned);
-4. Group đã duyệt để theo dõi — `groups_approved` (shortlist rows with `decision: approved`, this
-   run / total);
+4. Group đang theo dõi (agent tự chọn) — `groups_monitored`, không chọn `groups_not_selected`, tạm
+   dừng `groups_paused` (source registry rows, this run / total; the word "approved" never appears);
 5. Lead đạt luật — `leads_found` with hot/warm/watch, plus `leads_locked`.
 
 One row per platform that ran this run (Facebook, Instagram, X — round-robin order,
 `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Social Discovery Pass"), the columns following the
 five result types in order plus the standing budget/trip columns:
 
-| Platform | Terms used | Search posts found | People found / captured | In-group / depth posts found | Groups found (readable / no-access) | Groups approved | Leads found (hot / warm / watch) | Locked leads | Budget used / available | Trip status |
+| Platform | Terms used | Search posts found | People found / captured | In-group / depth posts found | Groups found (readable / no-access) | Groups monitored (active / not selected / paused) | Leads found (hot / warm / watch) | Locked leads | Budget used / available | Trip status |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Facebook |  |  |  |  |  |  |  |  |  | `clean` \| the exact safety trip that stopped the account |
 | Instagram |  |  |  |  | — | — |  |  |  | `clean` \| the exact safety trip that stopped the account |
@@ -634,6 +634,14 @@ Chưa dùng nguồn Facebook, Instagram (anh/chị chọn chế độ web-only n
 ```
 
 `{date}` is the most recent `{platform}_lead_source_updated_at` among the off platforms named. When all three platforms are `enabled`, no line appears. This line never appears in the client-facing report or notification — the client-safe sentence above is the only thing the client ever sees.
+
+**Running-status line.** While `first_run_wait` is `armed` (a first run is in flight for this client), every Boss-facing reply, this INTERNAL_REPORT, and the morning brief open with one line, read fresh from `tool run-progress show --client <slug>` in the same turn (Read-Before-Claim Rule):
+
+```text
+Lượt đầu đang chạy: giai đoạn {k}/6 — {stage}, đã dùng {calls_done}/{calls_planned} lượt gọi, dự kiến xong {HH:MM}–{HH:MM}.
+```
+
+Before the first progress line exists yet: "Lượt đầu đang chạy từ {HH:MM} (chưa có mốc đầu tiên), dự kiến xong {HH:MM}–{HH:MM}." The line disappears the moment the First-Run Report has been spoken. It never appears in the client-facing report or notification.
 
 ### Discovered sources
 
@@ -700,21 +708,28 @@ Use this section inside the internal source record and `INTERNAL_REPORT` when cu
 
 ## Found Sources Awaiting Your Approval
 
-Use this section when the human approved, declined, postponed, or has not yet been asked about optional additional-source discovery from joined groups/subreddits/communities, followed profiles/pages/KOLs, subscribed channels, or platform recommendation feeds (internal mechanics — the human only ever hears "sources found and awaiting your approval"). This section also covers discovered comment threads (`status: new` rows from Step 5, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`) waiting on the same "sources found and awaiting your approval" framing — client-safe count and a plain description, never the internal `comment_source_reason`/`types_match` fields or the word "thread"/"comment triage."
+Use this section for discovered comment threads (`status: new` rows from Step 5,
+`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) waiting on the Boss's approve-and-harvest decision
+(internal mechanics — the human only ever hears "sources found and awaiting your approval") —
+client-safe count and a plain description, never the internal `comment_source_reason`/`types_match`
+fields or the word "thread"/"comment triage." Joined-places discovery (groups, subreddits,
+communities, followed profiles/pages/KOLs, subscribed channels, recommendation feeds) no longer
+needs human approval — it rides the first-run yes at step 7 (`SOLO_AGENCY_PLAYBOOK.md`, Chạy lượt
+đầu) straight into the source registry (monitored / not selected / paused, Group Potential Rule);
+report that under Social Discovery Pass above, never here.
 
-- Status: not_asked | recommended | declined | postponed | approved_pending_activation | pending_human_approval | active | blocked | completed | discovery_declined_or_postponed
-- Display title, when useful: `Found Sources Awaiting Your Approval`, `More Sources Found — Approval Pending`, `Source Discovery Declined/Postponed`, or the same meaning translated into the report language.
+- Status: new | approved | dismissed | harvested
+- Display title, when useful: `Found Sources Awaiting Your Approval`, `Comment Thread Found — Approval Pending`, `Comment Thread Dismissed`, or the same meaning translated into the report language.
 - Why this matters:
-  - If discovery has not run, the report may miss many community discussions, lead signals, competitor posts, objections, and niche content ideas from sources that need the human's own logged-in session.
+  - A thread left un-reviewed means the buyer signals inside its comments are never captured.
 - Recommended next action:
-  - If status is `not_asked` or `recommended`, ask whether the human wants a one-time discovery pass through approved joined groups, subreddits, communities, followed pages/KOLs, subscribed channels, and feeds.
-  - If status is `pending_human_approval`, ask the human to approve, remove, or add candidate sources before monitoring begins.
-  - If status is `declined`, `postponed`, or `discovery_declined_or_postponed`, do not nag, but keep the coverage limitation visible.
+  - If status is `new`, ask the Boss whether to approve-and-harvest this thread or dismiss it (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Harvest a discovered thread").
+  - If status is `dismissed`, do not nag — the thread stays recorded but is never re-surfaced.
 - Reassurance shown:
   - Professional agency-scale setup, normally one-time:
   - Local-only data safety:
   - Daily scanning reduces missed signals:
-- Approved discovery categories:
+- Discovery categories scanned automatically:
   - membership_sources:
   - following_sources:
   - recommendation_feed_sources:
@@ -723,25 +738,11 @@ Use this section when the human approved, declined, postponed, or has not yet be
   - Discovery type:
   - URL:
   - Status: pending_private_activation | scanned | login_required | platform_url_changed | failed
-- Candidate sources found:
-  - Source name:
-  - Source URL:
-  - Platform:
-  - Discovery category:
-  - Why relevant:
-  - Matched pain points:
-  - Matched content pillars:
-  - Industry scope: primary_industry | related_industry
-  - Recommended cadence: daily | weekly | optional | watch_once
-  - Classification: recommended_daily | recommended_weekly | optional | watch_once | skip_not_relevant | skip_too_broad | skip_too_noisy | skip_sensitive_or_risky | skip_platform_unavailable
-  - Approval status: pending_human_approval | approved | rejected
 - Feed signals detected:
   - Topic/signal:
   - Source/current URL:
   - Why it matters:
   - Suggested action:
-- Human approval needed:
-  - Which candidate sources should be approved before activation:
 
 ## Sources Checked
 
@@ -1194,9 +1195,8 @@ The staging HTML report must include:
 
 - Its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation, organized by source.
 - Safe source coverage status when a source needing the human's own login is relevant, without Local Collector, extension, login/session, or internal source inventory details.
-- Found Sources Awaiting Your Approval status when asked, approved, pending, blocked, or completed, stated as client-safe coverage information.
-- Found Sources Awaiting Your Approval shown when discovery has not been offered yet, stated without internal setup mechanics.
-- A client-safe note when the human declined or postponed reviewing found sources, noting that the sources already connected can still be useful but may miss community, lead, and competitor signals.
+- Found Sources Awaiting Your Approval status for discovered comment threads (new, approved, dismissed, or harvested), stated as client-safe coverage information.
+- A client-safe note that additional groups and pages the run finds are now being watched automatically, without internal setup mechanics or the word "approval" for those.
 - Top ideas.
 - Best idea.
 - Mapped content pillar.

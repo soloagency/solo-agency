@@ -2,7 +2,7 @@
 
 This is the Chrome MV3 extension for the Solo Agency Local Collector.
 
-The user installs it once in the Chrome profile that is already logged in to Facebook, LinkedIn, Reddit, Instagram, TikTok, or other private data sources they want monitored.
+The user installs it once in the Chrome window they normally use for Facebook, LinkedIn, Reddit, Instagram, TikTok, or other private data sources they want monitored.
 
 ## What It Does
 
@@ -70,11 +70,11 @@ differently-named copy for the same client.
 
 There is no Chrome Web Store submission today — one unpacked folder per client is the model, so install is a two-gesture flow off the client's dashboard page rather than a store install.
 
-**One button (recommended):** open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click the button. It reveals the `extensions/{client_slug}_extension/` folder in Finder/Explorer AND opens Chrome at `chrome://extensions` in the same click (the bridge runs on the human's own machine, so it can do this directly). Turn on **Developer mode**, then drag that folder onto the page — Chrome accepts a dropped folder as `Load unpacked`. The page turns green connected on its own when the extension checks in. A local-runtime agent (its own shell running on the human's machine) may trigger the same button itself via `POST /api/ui/{client_slug}/install-extension`, then poll `GET /status` until `extension_health.status` is recent (75-second grace window).
+**One button (recommended):** open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click the button. It reveals the `extensions/{client_slug}_extension/` folder in Finder/Explorer AND opens Chrome at `chrome://extensions` in the same click (the bridge runs on the human's own machine, so it can do this directly). Turn on **Developer mode**, then drag that folder onto the page — Chrome accepts a dropped folder as `Load unpacked`. The page turns green connected on its own when the extension checks in, and plays a short install video right under those two steps. A local-runtime agent (its own shell running on the human's machine) may trigger the same button itself via `POST /api/ui/{client_slug}/install-extension`, then poll `GET /status` until `extension_health.status` is recent (75-second grace window). The same install videos are always available on GitHub too: https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_chrome_small.mp4 (Chrome) and https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_edge_small.mp4 (Edge).
 
 **Manual fallback:**
 
-1. Open Chrome — the profile the human already has open and logged in for the first client; a second Chrome profile is only needed once a second client needs a different Facebook account.
+1. Load it into the Chrome window you normally use for Facebook — the same window for the first client; a second account only comes up once a second client needs a different Facebook account, picked from the extensions page's own account dropdown.
 2. Go to `chrome://extensions`.
 3. Enable Developer Mode.
 4. Click `Load unpacked`.

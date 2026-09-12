@@ -54,16 +54,23 @@ narrow the funnel at each step instead of skipping one.
         Keep a group when privacy == "public" OR viewer_join_state == "MEMBER" — the account can
         read either one, so both are groups_readable. A private group the account has not joined
         (viewer_join_state CAN_REQUEST / REQUEST_TO_JOIN, or any other non-member join state under
-        privacy == "private") is groups_no_access: kept in the shortlist for the Boss to see, never
-        scanned, never joined, never requested. Unknown privacy is NOT treated as no-access by
-        default: spend one fb.group.posts { max_pages: 1 } probe — posts come back → readable; an
-        access wall, or empty with stopped_because naming access or login → no_access. Rank readable
-        survivors by member_count desc; prefer names/snippets matching the client's target location.
-        Skip a group already in private_data_sources, and skip one this pass already scanned in the
-        last 7 days (check history/YYYY-MM/facebook_discovery_shortlist.jsonl first —
-        playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md has the exact fields).
+        privacy == "private") is groups_no_access: registered state: no_access, listed for the Boss
+        to see, never scanned, never joined, never requested. Unknown privacy is NOT treated as
+        no-access by default: spend one fb.group.posts { max_pages: 1 } probe — posts come back →
+        readable; an access wall, or empty with stopped_because naming access or login → no_access.
+        Score every readable group with the Group Potential Rule
+        (playbooks/10_LEAD_COMPETITOR_DETECTION.md) and register it: `tool source-registry add
+        --client <slug> --platform facebook --source-type group --origin discovered --url <u> --name
+        <n> --member-count <m> --privacy <public|private> --state <active|not_selected|no_access>
+        --potential <high|medium|low> --reason "<one line>"` — no shortlist file, no approval. Skip a
+        group already in private_data_sources, and skip one this pass already scanned in the last 7
+        days (the source registry is the memory now; `tool source-registry plan` ranks by recency and
+        leads automatically).
 4. THEN IN-GROUP
-     For the top readable groups from step 3 (private or public alike; never a groups_no_access row):
+     For the groups from `tool source-registry plan --client <slug> --platform facebook --max 20`
+     (up to 20 monitored groups: most leads across their last 3 scans first, then never-scanned
+     newest first, then longest-unscanned, ties by member count; whatever does not fit the 20 rolls
+     to the next run automatically):
      fb.group.search_posts { group_search_url: ".../groups/<id>/search/?q=<term>", max_pages: <=4 }
         Terms come from `tool source-keywords ... plan --kind <kind>` (seed the group's bank first
         with `seed --industry --market --lang` when it is empty, plus the client's setup seed file
@@ -73,8 +80,11 @@ narrow the funnel at each step instead of skipping one.
         client's `buyer_profile.types` calls themselves, what they say about their work; intent
         terms only when anchored to the role or the offer, never a bare need phrase. Per-kind
         quota, drawn with `--kind` and rotated within a kind least-recently-run first:
-        DAILY — 1 role + 1 product/stage + 1 intent (3 terms total, same as before this change).
-        FIRST RUN — 3 role + 2 product/stage + 3 intent (8 terms total, same as before this change).
+        DAILY — 2 intent terms per group.
+        FIRST RUN — 3 intent terms per group.
+        After each group's scan, record it — `tool source-registry record --client <slug> --run
+        <run_id> --url <group_url> --leads <n>` (n = hot+warm+watch captured this scan) — this is
+        what re-ranks the plan for next time.
         Example for a client selling to real-estate agents:
         good — "listing agent" (role), "just listed" (product/stage), "realtor video" / "cần video
         bất động sản" (intent, anchored to the offer).
@@ -105,24 +115,26 @@ Budget (owner-approved; `playbooks/10_LEAD_COMPETITOR_DETECTION.md` and `safety.
 comments) and X the same ≤ 12 / ≤ 4 shape (search-Latest/people/profile-depth/replies) — see Stage
 10's platform table for the exact per-platform breakdown:
 
-| | discovery terms | feed searches | people searches | group searches | new readable groups | intent terms/group | total calls | spread |
+| | discovery terms | feed searches | people searches | group searches | monitored groups (registry plan) | intent terms/group | total calls | spread |
 |---|---|---|---|---|---|---|---|---|
-| FIRST RUN | 3 | 3 | 3 | 3 | up to 4 | 3 | ≤ 21 | Pacing Rule: random 5–10 s per request, no added gaps |
-| DAILY | 1 | 1 | 1 | 1 | up to 2 | 2 | ≤ 7 | Pacing Rule: random 5–10 s per request, no added gaps |
+| FIRST RUN | 3 | 3 | 3 | 3 | up to 20 | 3 | 9 discovery + up to 20 × 3 | Pacing Rule: random 5–10 s per request, no added gaps |
+| DAILY | 1 | 1 | 1 | 1 | up to 20 | 2 | 3 discovery + up to 20 × 2 | Pacing Rule: random 5–10 s per request, no added gaps |
 
 Lead target: FIRST RUN is a floor of 10 across all three platforms combined, not a stop — keep
-working the shortlists until each platform's own budget is spent. Safety trip is per platform and
-unforgiving: the first checkpoint/rate-limit/logged-out signal on a platform stops THAT platform for
-the day; read every job's result for that signal before submitting the next job on the same platform
-(`safety.md`). The three platforms interleave round-robin — one Facebook job, then one Instagram
-job, then one X job, repeat — so a trip on one never stops the other two.
+working the ranked candidates until each platform's own budget is spent. Safety trip is per platform
+and unforgiving: the first checkpoint/rate-limit/logged-out signal on a platform stops THAT platform
+for the day; read every job's result for that signal before submitting the next job on the same
+platform (`safety.md`). The three platforms interleave round-robin — one Facebook job, then one
+Instagram job, then one X job, repeat — so a trip on one never stops the other two.
 
 Note: this fixed order scans every readable group — public groups, and private groups the account is
-already a member of (groups_readable) — with no separate join/approval needed for either (see
-`safety.md`'s join boundary and `playbooks/PRIVATE_SOURCE_GATE.md`'s reconciliation paragraph). A
-private group the account has not joined is groups_no_access: never scanned, joined, or requested
-here — list it for the Boss, who can join it in their own session if they want it monitored. Use
-Recipe D for the recurring shallow monitoring shape once a group is approved.
+already a member of (groups_readable) — with no separate join/approval needed for either, and no
+approval needed to monitor it either: the Group Potential Rule registers `high`/`medium` potential
+`state: active` automatically (see `safety.md`'s join boundary and
+`playbooks/PRIVATE_SOURCE_GATE.md`'s reconciliation paragraph). A private group the account has not
+joined is groups_no_access: never scanned, joined, or requested here — list it for the Boss, who can
+join it in their own session if they want it monitored. Use Recipe D for the recurring shallow
+monitoring shape once a group is registered `state: active`.
 
 ## Recipe B — Persona by occupation ("find realtors / loan officers"), Facebook + Instagram + X
 
@@ -167,7 +179,7 @@ Recipe D for the recurring shallow monitoring shape once a group is approved.
 
 ## Recipe D — Watch a known group's fresh posts (recurring monitoring)
 
-> The daily/recurring lead pass over already-approved private groups.
+> The daily/recurring lead pass over already-monitored private groups.
 
 ```text
 1. fb.group.posts { group_url: "<group>", max_pages: 2..3 }  (recurring = shallow; Stage 10: 5 scrolls/day)

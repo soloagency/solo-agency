@@ -75,8 +75,8 @@ Per-client extension setup handoff — two gestures, one button:
 ```text
 Open http://127.0.0.1:17321/ui/{client_slug}/extension and click the one button.
 It reveals the client folder highlighted inside extensions/ (macOS open -R, Windows
-explorer /select) AND opens the extensions page in a new window of the chosen
-profile, brought to the front, in the same click.
+explorer /select) AND opens the extensions page in a fresh window of the chosen browser (the account picked on
+the page when its account list was shown, otherwise the browser's usual account), brought to the front, in the same click.
 Turn on Developer mode (once).
 Drag the highlighted folder onto the extensions page.
 ```
@@ -93,11 +93,11 @@ table (`tool ui routes` / `GET /api/ui/routes`), per the Answer-and-Show Rule
 
 The dashboard's single primary button fires both gestures at once because the bridge runs on the human's own machine and can shell out directly. The folder-reveal half highlights the folder inside its PARENT window instead of opening the folder's own contents — `open -R "<folder>"` on macOS, `explorer /select,"<folder>"` on Windows, an `xdg-open` of the parent directory on Linux (no cross-desktop "select in parent" API there, so the page's own text names the folder). The extensions-page half (no explicit browser chosen) is `open -a "Google Chrome" "chrome://extensions/"` on macOS (works even while Chrome is already running), `cmd /c start "" chrome "chrome://extensions/"` on Windows, `google-chrome`/`xdg-open` fallback on Linux. A local-runtime agent may trigger the identical two actions itself by calling `POST /api/ui/{client_slug}/install-extension` on the bridge (documented with the UI worker's endpoints) instead of waiting on the human to click, then poll `GET /status` until `extension_health.status` is recent (75-second grace window) before telling the human it's connected. The absolute path `{ABSOLUTE_AGENCY_ROOT}/extensions/{client_slug}_extension/` is the manual fallback for the file picker only.
 
-**Browser + profile detection (OWNER DECISIONS 2026-09-10 afternoon).** Before calling `install-extension`, a local-runtime agent may first call `GET /api/ui/{client_slug}/browsers` to list every installed Chromium-based browser and its profiles (display name, signed-in email — read from that browser's own `Local State` file: macOS `~/Library/Application Support/{Google/Chrome, Microsoft Edge, BraveSoftware/Brave-Browser, Vivaldi, Chromium}/Local State`; Windows `%LOCALAPPDATA%/{Google/Chrome, Microsoft/Edge, BraveSoftware/Brave-Browser, Vivaldi, Chromium}/User Data/Local State`; Linux `~/.config/{google-chrome, microsoft-edge, BraveSoftware/Brave-Browser, vivaldi, chromium}/Local State`), then pass the resolved choice as optional `{browser, profile_directory}` fields on `POST /api/ui/{client_slug}/install-extension` so the bridge shells out to that exact browser/profile, always in a NEW window brought to the front rather than a background tab (OWNER finding 2026-09-10 item 2). On macOS this is TWO ordered commands, not one (real-machine finding 2026-09-10: a single `open -na "<App name>" --args --new-window --profile-directory="<dir>" "<scheme>://extensions/"` reliably drops the url when the browser is already running — the new window lands on `chrome://newtab/` instead) — (1) `open -na "<App name>" --args --new-window --profile-directory="<dir>"` with NO url opens a blank new window, then, after a ~1.5s pause for that window to actually exist (0.6s still dropped the url in 1 of 3 live trials), (2) `open -a "<App name>" "<scheme>://extensions/"` loads the extensions page into it; then, still macOS only, a best-effort `osascript -e 'tell application "<App name>" to activate'` brings that window forward (errors ignored; Windows's `start` already focuses, Linux is skipped — no `xdotool` assumed). Windows and Linux keep the original single command, url included: `start "" "<exe path>" --new-window --profile-directory="<dir>" <scheme>://extensions/` on Windows, `<binary> --new-window --profile-directory="<dir>" <scheme>://extensions/ &` on Linux (Opera has no profile directories, so it opens without one; neither was verified live — no such machine was available — if a running instance ever drops the url there too, the extensions page's own always-visible fallback line covers it). Chrome and Edge are supported; Brave, Vivaldi, Opera, and Chromium are best-effort (work, untested); Safari and Firefox are not supported (the human is told to install Chrome instead). The agent asks at most ONE browser question and ONE profile question per client, ever — the full situational table lives in `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)".
+**Browser detection — one question, never about profiles (OWNER DECISIONS 2026-09-11).** Setup never asks which Chrome profile the human uses — most humans do not know what a profile is, and the extension is bound to the client by `client_binding.json` inside the folder, never by a profile. The only browser question left, asked at most once per client, is: "Facebook của anh/chị đang đăng nhập ở Chrome hay Edge?" — and only when BOTH Chrome and Edge are installed; with just one of them present, or with only best-effort browsers (Brave, Vivaldi, Opera, Chromium) alongside it, the agent picks the supported one silently, with no question. Chrome and Edge are supported; Safari and Firefox are not (the human is told to install Chrome instead). A local-runtime agent may still call `GET /api/ui/{client_slug}/browsers` to see which of Chrome/Edge are installed before deciding whether to ask; it never asks for or passes profile information itself. Two paths open the extensions page: the page's Install button opens the extensions page in a fresh window of the chosen browser — the account the human picked on the page when its account list was shown (2+ profiles), otherwise the browser's usual account, which is the one they use for Facebook; nothing about accounts is asked in chat; and the agent's own `POST /api/ui/{client_slug}/install-extension` without `browser`/`profile_directory`, which opens `chrome://extensions` in the Chrome window already running (`open -a "Google Chrome" "chrome://extensions/"` on macOS; the Windows/Linux equivalents above). The install page itself shows its own account dropdown only when that browser has 2+ profiles — the human picks "the one signed into Facebook" there, and the page, not the agent, records the choice.
 
-Alongside the button, the agent says one fixed sentence, in the human's language, naming the exact folder to pick (OWNER DECISIONS 2026-09-10 item A): "Chọn đúng thư mục tên `{client}_extension` mà em vừa mở — không chọn thư mục `chrome-extension` nằm trong mã nguồn." This step also always shows both help-video links — Chrome install, Edge install — even when the agent ran the bridge itself, so the human has more than one way to finish; until the owner records them, reference the future page `http://127.0.0.1:17321/ui/help/facebook` and mark it "(sắp có)" rather than inventing a video URL (OWNER DECISIONS 2026-09-10 item B).
+Alongside the button, the agent says one fixed sentence, in the human's language, naming the exact folder to pick (OWNER DECISIONS 2026-09-10 item A): "Chọn đúng thư mục tên `{client}_extension` mà em vừa mở — không chọn thư mục `chrome-extension` nằm trong mã nguồn." This step always follows the Show the install video rule (OWNER DECISIONS 2026-09-11): when the bridge answers `/status`, open `http://127.0.0.1:17321/ui/{client_slug}/extension` in the side browser — the video plays right under the two install steps on that page — and print the link; when the bridge is not answering, on a local runtime open the local file with the OS default player instead (macOS `open "{setup-root}/solo-agency/solo-agency-collector/bridge-go/assets/setup_extension_chrome_small.mp4"`, Windows `start "" "{setup-root}\solo-agency\solo-agency-collector\bridge-go\assets\setup_extension_chrome_small.mp4"`, Linux `xdg-open ...`; use the `_edge_small.mp4` file for Edge); and on any runtime, always print the two public GitHub links as plain text so the human has more than one way to finish, no matter what else worked: `https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_chrome_small.mp4` (Chrome) and `https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_edge_small.mp4` (Edge).
 
-Which browser and profile the button opens is resolved by the detection call above, not a fixed "first client's existing profile" rule. The chosen browser + profile are saved per client (`extension_registry.json` fields `browser`, `profile_directory` — `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`), so the question is never asked twice for the same client; a second profile is introduced only when a SECOND client needs a different Facebook account.
+Which browser the button opens is resolved by the one browser question above, or picked silently when there is only one supported choice — the agent never asks about profiles. The chosen browser, and any profile the human picked on the install page's own account dropdown, are saved per client (`extension_registry.json` fields `browser`, `profile_directory` — `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`), so the browser question is never asked twice for the same client; a second Chrome profile only comes up when a SECOND client needs a different Facebook account, and even then it is the human's own choice on the page, not a question the agent asks.
 
 Every Add Client or First Client Setup handoff must include this block with the real absolute path for the fallback. The agent must not merely say that the extension was created. The human needs the button (or the path, on the manual fallback) because a new unpacked extension must be loaded into the matching client Chrome profile/account before private data source collection can work for that client.
 
@@ -129,7 +129,7 @@ Do not summarize away requirements, examples, checklists, schemas, protocols, UR
 
 Source Discovery Mode normally scrolls until no new source names or URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
 
-Facebook keyword group search discovery is a bounded Source Discovery Mode variant: for `https://www.facebook.com/search/groups/?q={url_encoded_keyword}`, use 10 scrolls per keyword by default, with `purpose: "facebook_group_keyword_search_discovery"`. This search-results pass is for collecting candidate groups, filtering UI noise, and asking the human to approve sources. It must not join groups, request access, or add groups as active sources without approval.
+Facebook keyword group search discovery is a bounded Source Discovery Mode variant: for `https://www.facebook.com/search/groups/?q={url_encoded_keyword}`, use 10 scrolls per keyword by default, with `purpose: "facebook_group_keyword_search_discovery"`. This search-results pass is for collecting candidate groups, filtering UI noise, and registering each one through the Group Potential Rule — no approval before adding a group. It must not join a group or request access; a group the account cannot read is registered `no_access`, never joined.
 
 Daily Content Monitoring Mode keeps the conservative default: 5 scrolls, max 10, 5 seconds between scrolls, and about 20 private data sources or fewer per client.
 
@@ -178,7 +178,7 @@ This is source discovery, not daily monitoring. I will scroll the actual list/pa
 
 Do not let the human think "scan groups" is unbounded or vague.
 
-When the human has no private data source list, discovery is a first-class Local Collector job type. The job should use approved discovery surfaces such as joined Facebook groups, Facebook keyword group search, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, communities, and feeds. It must return candidate sources with enough context for the agent to filter and ask for human approval before saving anything as active.
+When the human has no private data source list, discovery is a first-class Local Collector job type, run automatically once the step-7 first-run yes records `approved_pending_first_scan` for all categories — no separate question. The job covers every relevant discovery surface, such as joined Facebook groups, Facebook keyword group search, joined/subscribed subreddits, followed pages/KOLs, subscribed channels, communities, and feeds. It must return candidate sources with enough context for the agent to score and register each one automatically (the Group Potential Rule for Facebook groups, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`) — no shortlist, no human approval before saving a source as active.
 
 ---
 
@@ -383,16 +383,16 @@ During first Local Collector activation, setup repair, or collector update, a LO
    - macOS/Linux: `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
    - Windows: `setup_local_collector.ps1`, or the `Start Local Collector.cmd` launcher. SmartScreen may ask for one click on the unsigned script/binary — mention that only if it actually happens.
    Then poll `GET http://127.0.0.1:17321/status` for up to 60 seconds and report success or the specific failure.
-2. Extension install, via the two-gesture dashboard flow: call `POST /api/ui/{client_slug}/install-extension` (or open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click its one button) — it reveals the client folder highlighted inside extensions/ (macOS open -R, Windows explorer /select), opens the extensions page in a new window of the chosen profile and brings it to the front, in the same action. Tell the human the two physical clicks only Chrome can require of a person: turn on Developer mode, drag the highlighted folder onto the extensions page. Poll `extension_health.status` until it is `recent` (75-second grace window), then celebrate in chat. First client uses the Chrome profile the human already has open and logged in to the approved private data sources; a second Chrome profile is introduced only when a SECOND client needs a different Facebook account.
+2. Extension install, via the two-gesture dashboard flow: call `POST /api/ui/{client_slug}/install-extension` (or open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click its one button) — it reveals the client folder highlighted inside extensions/ (macOS open -R, Windows explorer /select), opens the extensions page (the agent's bare `POST` targets the Chrome window already running; the page's button opens a fresh window of the chosen browser, in the account picked on the page if its account list was shown, else the usual one) and brings it to the front, in the same action. Tell the human the two physical clicks only Chrome can require of a person: turn on Developer mode, drag the highlighted folder onto the extensions page. Poll `extension_health.status` until it is `recent` (75-second grace window), then celebrate in chat. First client loads into the Chrome window the human already uses for Facebook; a second Chrome profile only comes up when a SECOND client needs a different Facebook account, picked on the install page's own account dropdown.
 
 **Remote runtime — hand the human exactly these two actions in chat:**
 
 1. Run the Local Collector app setup/start command outside the agent's sandbox:
    - macOS/Linux: `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
    - Windows: one prepared PowerShell command or one double-clickable `Start Local Collector.cmd` path.
-2. Install the client-specific Solo Agency Local Collector Chrome extension in the matching Chrome profile/account:
-   - use the Chrome profile the human already has open and logged in for the first client; a separate profile is only needed once a second client needs a different Facebook account;
-   - make sure this profile is already logged in to the approved private data sources and the human has member/follower/subscriber/access rights for them;
+2. Install the client-specific Solo Agency Local Collector Chrome extension in the Chrome window the human already uses for Facebook:
+   - for the first client, that is the Chrome window already open and logged in; a separate profile only comes up once a second client needs a different Facebook account, picked on the install page's own account dropdown;
+   - make sure that window is already logged in to the approved private data sources and the human has member/follower/subscriber/access rights for them;
    - **prefer the two-gesture dashboard path** — hand the human `http://127.0.0.1:17321/ui/{client_slug}/extension` and its one button (reveals the folder, opens `chrome://extensions`), then Developer mode + drag; the absolute per-client folder `/ABSOLUTE/PATH/TO/extensions/{client_slug}_extension/` is the manual fallback for the file picker.
 
 The human-facing setup message must show both actions together on a remote runtime. Do not say only "I started it", "I ran setup", or "instructions are in collector_setup_status.md".
@@ -414,10 +414,10 @@ Chrome extension installation flow:
 ```md
 Please install the Solo Agency Local Collector extension for {Client Name}:
 
-**Easiest — one button:** open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click the button. It reveals the client folder highlighted inside extensions/ (macOS open -R, Windows explorer /select), opens the extensions page in a new window of the chosen profile and brings it to the front. Turn on `Developer mode`, then drag the highlighted folder onto the extensions page. The page turns green when it connects. Right under those two steps, the page also plays a short recorded video for your browser (Chrome or Edge) showing exactly this.
+**Easiest — one button:** open `http://127.0.0.1:17321/ui/{client_slug}/extension` and click the button. It reveals the client folder highlighted inside extensions/ (macOS open -R, Windows explorer /select), opens the extensions page in a fresh window of your browser (the account you picked if the page showed an account list, otherwise your usual one) and brings it to the front. Turn on `Developer mode`, then drag the highlighted folder onto the extensions page. The page turns green when it connects. Right under those two steps, the page also plays a short recorded video for your browser (Chrome or Edge) showing exactly this. If it doesn't: https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_chrome_small.mp4 (Chrome) or https://github.com/soloagency/solo-agency/blob/main/solo-agency-collector/bridge-go/assets/setup_extension_edge_small.mp4 (Edge).
 
 **Manual fallback:**
-1. Open the Chrome profile/account for {Client Name}. Use the profile you already have open for your first client; a separate profile is only needed once a second client needs a different Facebook account.
+1. Load it into the Chrome window you normally use for Facebook — the same window you already have open for your first client; a separate account only comes up once a second client needs a different Facebook account, and you pick it from the extensions page's own account dropdown.
 2. Go to `chrome://extensions`.
 3. Turn on `Developer mode`.
 4. Click `Load unpacked`.
@@ -426,7 +426,7 @@ Please install the Solo Agency Local Collector extension for {Client Name}:
 
 Important: if you also see a folder named `solo-agency/solo-agency-collector/chrome-extension`, do not select that one. That is the toolkit/source copy. Select only the client folder under `extensions/{client_slug}_extension/`.
 
-After this one-time setup, you may close this instruction tab whenever you want. For private data source collection to work at scheduled times, that Chrome profile should be open, logged in to the social accounts/private data sources approved for this client, and already have member/follower/subscriber/access rights for those sources. The shared Local Collector app should be running or configured to auto-start.
+After this one-time setup, you may close this instruction tab whenever you want. For private data source collection to work at scheduled times, that Chrome window should be open, logged in to the social accounts/private data sources approved for this client, and already have member/follower/subscriber/access rights for those sources. The shared Local Collector app should be running or configured to auto-start.
 ```
 
 3. The agent must not ask for passwords, cookies, OTPs, or credentials.
@@ -629,9 +629,9 @@ Open Terminal, paste this one line, and press Enter:
 `bash "/ABSOLUTE/PATH/TO/solo-agency-local-collector/setup_collector.sh"`
 
 **Easiest path (recommended) — one button does both gestures.** Give the human this one link:
-`http://127.0.0.1:17321/ui/{client_slug}/extension` → click the button. It reveals the client folder highlighted inside extensions/ (macOS `open -R`), opens the extensions page in a new window of the chosen profile and brings it to the front, in the same click. Turn on **Developer mode**, then **drag the highlighted folder onto the extensions page**. The UI page flips to a green ✓ connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
+`http://127.0.0.1:17321/ui/{client_slug}/extension` → click the button. It reveals the client folder highlighted inside extensions/ (macOS `open -R`), opens the extensions page in the Chrome window already running and brings it to the front, in the same click. Turn on **Developer mode**, then **drag the highlighted folder onto the extensions page**. The UI page flips to a green ✓ connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
 
-Step 2 (manual fallback) - load the client-specific Chrome extension in the Chrome profile/account for this client.
+Step 2 (manual fallback) - load the client-specific Chrome extension into the Chrome window you normally use for Facebook.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:
 
 `/ABSOLUTE/PATH/TO/extensions/{client_slug}_extension/`
@@ -838,9 +838,9 @@ Open PowerShell, paste this one line, and press Enter:
 `powershell -ExecutionPolicy Bypass -File "C:\ABSOLUTE\PATH\TO\solo-agency-local-collector\setup_local_collector.ps1"`
 
 **Easiest path (recommended) — one button does both gestures.** Give the human this one link:
-`http://127.0.0.1:17321/ui/{client_slug}/extension` -> click the button. It reveals the client folder highlighted inside extensions/ (Windows `explorer /select`), opens the extensions page in a new window of the chosen profile and brings it to the front, in the same click. Turn on **Developer mode**, then **drag the highlighted folder onto the extensions page**. The page turns green connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
+`http://127.0.0.1:17321/ui/{client_slug}/extension` -> click the button. It reveals the client folder highlighted inside extensions/ (Windows `explorer /select`), opens the extensions page in the Chrome window already running and brings it to the front, in the same click. Turn on **Developer mode**, then **drag the highlighted folder onto the extensions page**. The page turns green connected on its own when the extension checks in — no path to remember, no file picker, no second tab to find yourself. The absolute-path instructions below are the manual fallback only.
 
-Step 2 (manual fallback) - load the client-specific Chrome extension in the Chrome profile/account for this client.
+Step 2 (manual fallback) - load the client-specific Chrome extension into the Chrome window you normally use for Facebook.
 Open Chrome -> `chrome://extensions` -> turn on Developer mode -> Load unpacked -> select this folder:
 
 `C:\ABSOLUTE\PATH\TO\extensions\{client_slug}_extension\`
@@ -1016,47 +1016,25 @@ table in Stage 10 — nothing here raises `max_pages` or scroll depth beyond tha
    when the call budget is tight.
 4. **`fb.group.search_posts`** — `inputs.group_search_url = <group_url>/search/?q=<url-encoded
    intent term>`. Output: `PostRecord[]`. This is the same capability the daily search pass (§"A
-   private source names the capability that reads it" above) already uses for approved sources; the
+   private source names the capability that reads it" above) already uses for monitored sources; the
    discovery pass points it at groups that are not (yet) in `private_data_sources`.
 
 All four respect `max_pages` (default 8, hard cap 40) and `max_scroll`; the discovery pass caps
 `max_pages` at 4 regardless of the capability default (Stage 10 budget table).
 
-**Shortlist file.** The discovery pass persists its ranked candidate groups at
-`history/YYYY-MM/facebook_discovery_shortlist.jsonl`, one JSON object per line. This file is
-Facebook-only — Instagram and X have no group concept in the Social Discovery Pass, so their legs
-never write to it and there is no `instagram_discovery_shortlist.jsonl`/`x_discovery_shortlist.jsonl`
-counterpart:
-
-```json
-{
-  "group_url": "https://www.facebook.com/groups/...",
-  "name": "Group name",
-  "privacy": "public",
-  "member_count": 18400,
-  "first_seen": "YYYY-MM-DD",
-  "last_scanned": "YYYY-MM-DD",
-  "status": "pending",
-  "access": "readable",
-  "viewer_join_state": "MEMBER",
-  "decision": "pending",
-  "decided_at": "",
-  "leads_found": 0,
-  "discovery_term": "nail salon owners Houston"
-}
-```
-
-`status` carries only scan progress — `pending -> scanned` — plus `recommended`, the pass's own top
-pick, an agent verdict made before the Boss ever sees the shortlist (`rejected` is retired). `access`
-is `readable | no_access | unknown` (public, or private with `viewer_join_state: MEMBER`, is
-`readable`; private with `CAN_REQUEST`/`REQUEST_TO_JOIN` is `no_access`), and `viewer_join_state` is
-the raw value that decision was made from. The Boss's own answer lives in `decision`
-(`pending | approved | declined`) with `decided_at` its timestamp — never in `status` — set once the
-shortlist has been presented and the Boss has answered (Group discovery review states,
-`playbooks/10_LEAD_COMPETITOR_DETECTION.md`). Check this file before spending an
-`fb.groups.search`/`fb.group.search_posts` call on a group already scanned in the last 7 days
-(Stage 10's dedupe rule) — the file is the memory that keeps the DAILY companion pass from
-rediscovering the same handful of groups every day.
+**Group registry, not a shortlist file.** The former per-month group shortlist file is
+retired. The discovery pass registers its candidate groups directly in the source registry
+(`collector/source_registry.json`, `source_type: group`) via `tool source-registry add` — field
+definitions (`state`, `potential`, `potential_reason`, `scans`, `leads_total`, `leads_recent`,
+`last_scanned_at`, `paused_at`, `origin`) live in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`,
+"Monitored Facebook groups". This is Facebook-only — Instagram and X have no group concept in the
+Social Discovery Pass, so their legs never register `source_type: group` entries. `tool
+source-registry plan --client <slug> --platform facebook --max 20` decides which groups this run
+scans and in what order (most leads across their last 3 scans first, then never-scanned newest
+first, then longest-unscanned, ties by member count) — the plan itself is what keeps the DAILY
+companion pass from rediscovering the same handful of groups every day; `tool source-registry
+record --client <slug> --run <run_id> --url <group_url> --leads <n>` after each scan is what
+re-ranks it for next time.
 
 ### First action once the bridge exists: settle any deferred slot check
 
@@ -1537,7 +1515,7 @@ Every new private data source candidate must include:
 - `estimated_priority`
 - `suggested_scan_cadence`
 - `classification`: `recommended_daily`, `recommended_weekly`, `optional`, `watch_once`, `skip_not_relevant`, `skip_too_broad`, `skip_too_noisy`, `skip_sensitive_or_risky`, or `skip_platform_unavailable`
-- `approval_status`: `pending_human_approval`, `approved`, `rejected`, or `skipped`
+- `state`: `active`, `not_selected`, or `no_access` — set automatically (`recommended_*`/`optional` -> `active`, `skip_*` -> `not_selected`, unreadable/not-joined -> `no_access`); no human approval
 
 If a URL is unavailable, write `unavailable` and include a note explaining why.
 
@@ -1702,7 +1680,7 @@ Exact manual run-now contract:
 }
 ```
 
-`pacing` is optional on any job. When a job carries none, the bridge seeds it from `collector_config.json`: `min_delay_seconds` = `scroll_delay_seconds` (default 5) and `max_delay_seconds` = `scroll_delay_max_seconds` when that key is set, otherwise `scroll_delay_seconds + 5` — so the default is a random 5–10 s pause before each page, scroll or request (Pacing Rule, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`), never a fixed one. An explicit `pacing` on the job still wins; the bridge clamps both ends into 5–60 s.
+`pacing` is optional on any job. When a job carries none, the bridge seeds it from `collector_config.json`: `min_delay_seconds` = `scroll_delay_seconds` (default 5) and `max_delay_seconds` = `scroll_delay_max_seconds` when that key is set, otherwise `scroll_delay_seconds + 5` — so the default is a random 5–10 s pause before each page, scroll or request (Pacing Rule, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`), never a fixed one. An explicit `pacing` on the job still wins; the bridge clamps both ends into 5–60 s. A source item in `collector_config.json` with `enabled: false` is one the Boss paused on the Sources page (Custom tab): the collector's own scheduled windows already skip it, and the run must leave it out of every run-now job it builds — resume happens only on that page (or `resume` on the Boss's word).
 
 - `do_not_exfiltrate_secrets` (`true`) is the collector's single absolute data prohibition: the operator's own credentials and secrets — usernames, passwords, cookies, tokens, session/auth data, API keys — are never read, stored, or transmitted. Everything else is consented by the operator's setup + command: the collector may read, extract, and combine whatever the job directs, including a prospect's contact details (email/phone), surfaced in the optional `emails`/`phones` fields. The `read_only`/`do_not_message`/`do_not_comment`/`do_not_react`/`do_not_post` flags keep the **send/act** side gated — lead outreach still requires separate explicit human approval. These flags are enforced by the collector itself (`background.js`, before a write action runs) and the permission is minted by the bridge from the job's OWN sources (`collectorPolicyForJob`, `main.go`): a job that carries `fb.post.comment` arrives with `do_not_comment` cleared and every other write still forbidden, and a job that carries no write capability is refused if it tries one. Until 2026-08-17 the flags were carried on every job and read by nothing — do not write a rule that depends on a flag without checking that something enforces it.
 - `run_id` must be unique for every manual run. A recommended pattern is `YYYY-MM-DD_client-slug_manual_HHMMSS`.

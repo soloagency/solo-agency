@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # playbooks/tests/wording_guard.sh — regression guard (S10) against the retired STANDALONE
-# duration promise, retired hour-scale spreading language, and the retired "public only" /
-# public-only-filter group wording, coming back into the tracked playbooks / root docs.
+# duration promise, retired hour-scale spreading language, the retired "public only" /
+# public-only-filter group wording, the retired Chrome-profile question, and (2026-09-12,
+# step7_automonitor R6) the retired source-approval/shortlist wording, coming back into the
+# tracked playbooks / root docs.
 #
 # Scans: AGENTS.md, SOLO_AGENCY_PLAYBOOK.md, README.md, playbooks/**/*.md, docs/*.md,
 # solo-agency-collector/AGENT_RUNBOOK.md, solo-agency-collector/README.md.
@@ -13,7 +15,12 @@
 #   10-15 minutes for a first run | 10–15 minutes for a first run |
 #   ≥ 4 hours | spread over ≥ | spread over hours | spread over 4 | window of hours |
 #   across the run window | trải trong ≥ 4 giờ |
-#   public only) | privacy == "public"` only | Keep only results whose `privacy == "public"`
+#   public only) | privacy == "public"` only | Keep only results whose `privacy == "public"` |
+#   profile/account hint | Open this Chrome profile | ONE about the profile | sắp có |
+#   keep these | add more custom source URLs | postpone and continue with the default sources only |
+#   review_state | monitoring_approved | discovery_completed_pending_approval |
+#   facebook_discovery_shortlist.jsonl | you pick which ones to keep watching |
+#   Review found sources
 # Exit 0 (silent) when none are found.
 set -u
 
@@ -29,7 +36,8 @@ is_backup() {
 
 files=()
 for f in AGENTS.md SOLO_AGENCY_PLAYBOOK.md README.md \
-         solo-agency-collector/AGENT_RUNBOOK.md solo-agency-collector/README.md; do
+         solo-agency-collector/AGENT_RUNBOOK.md solo-agency-collector/README.md \
+         solo-agency-collector/chrome-extension/README.md; do
   [ -f "$f" ] && files+=("$f")
 done
 
@@ -47,6 +55,12 @@ for f in "${files[@]}"; do
 done
 
 patterns=(
+  'kind public_group'
+  'kind: public_group'
+  'groups_approved'
+  'promote_discovered_groups'
+  'approve recommended groups'
+  'approve the recommended groups'
   'khoảng 10–15 phút'
   'khoảng 10-15 phút'
   'about 10–15 minutes'
@@ -63,6 +77,19 @@ patterns=(
   'public only)'
   'privacy == "public"` only'
   'Keep only results whose `privacy == "public"`'
+  'profile/account hint'
+  'Open this Chrome profile'
+  'ONE about the profile'
+  'sắp có'
+  'keep these'
+  'add more custom source URLs'
+  'postpone and continue with the default sources only'
+  'review_state'
+  'monitoring_approved'
+  'discovery_completed_pending_approval'
+  'facebook_discovery_shortlist.jsonl'
+  'you pick which ones to keep watching'
+  'Review found sources'
 )
 
 hits=0

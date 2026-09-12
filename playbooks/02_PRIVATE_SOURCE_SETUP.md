@@ -6,7 +6,7 @@ Stage: `02`
 
 Load when private data sources, manual private URLs, joined groups, Facebook keyword group search, followed profiles/pages/KOLs, subscribed channels, recommendation feeds, private data source discovery, or Local Collector activation are requested, approved, pending, or blocked.
 
-Also load this stage BEFORE asking the step 7 (Review found sources) question of the one-time setup: the required checkpoint content and its two-part delivery rule live in §6 of this file, so the question cannot be asked correctly without this stage loaded.
+Also load this stage before the first run executes joined-places discovery — step 7 of the one-time setup asks only the first-run question.
 
 If this stage was triggered by a human request to scan, monitor, collect, review, or open a private data source after any amount of conversation drift, first reload `playbooks/PRIVATE_SOURCE_GATE.md`, then reload Stage 8 and Stage 9 before taking action.
 
@@ -17,7 +17,7 @@ If this stage was triggered by a human request to scan, monitor, collect, review
 - Ask explicitly whether the human wants to discover candidate private data sources from joined/member communities and followed/subscribed sources, such as Facebook groups, subreddits, Discord/Slack communities, LinkedIn groups/pages, YouTube channels, X lists/communities, and followed KOLs/pages.
 - Explain private data sources in plain language before asking for them.
 - Explain Local Collector in plain language before asking the human to install or activate it.
-- The step 7 (Review found sources) question uses the two-part delivery in §6: the plain-language explanation FIRST (as normal prose/bullets), then one compact `**[ACTION REQUIRED]**` question with the three reply options. Translated versions must pass the §6 content-completeness checklist; shortening away any checklist item is a Source Preservation violation even if the shorter question reads better.
+- Step 7 of the one-time setup asks only the first-run question (`playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Step 7 — Chạy lượt đầu"); there is no source checkpoint, no reply options and no checklist to preserve — sources are monitored automatically (Group Potential Rule) and paused on the Sources page.
 - Use the Facebook joined-groups URL only with explicit consent.
 - Do not use automated approval-gated browser extension flows for unattended collection.
 - Never use Claude in Chrome, Claude Chrome Extension, Codex built-in/in-app browser, ChatGPT/Gemini/Grok browser, Playwright/Puppeteer/Selenium, a fresh agent-opened browser profile, or any agent-controlled browser for private data source collection.
@@ -143,33 +143,7 @@ Classification tie-breaker (private vs public):
 - "Public" for agent-browser research means the non-social web: websites, articles, docs, search results, and public news or forums that are not social-platform pages/profiles/groups/channels.
 - Reclassifying a source from collector-only to public (or vice versa) requires explicit human approval; the agent must not reclassify on its own.
 
-The checkpoint (step 7, Review found sources) is delivered in TWO parts, in this order, in the human's language. Translation is required when the human is not chatting in English; dropping content is not allowed — the delivery must stay content-complete per the checklist below.
-
-**Part 1 — plain-language explanation, BEFORE the question, as normal prose or short bullets (not inside the `[ACTION REQUIRED]` block):** the agent must convey ALL of the following, briefly:
-
-- Here are the groups, pages and profiles the discovery pass found on this client's default sources — a couple of concrete examples help (a competitor fanpage, a niche Facebook group, a LinkedIn community) — plus a reminder that any custom source (a URL the human wants watched) is welcome too, as long as they can read it.
-- Pages that need the human's own login are read through the human's own Chrome, via the connected extension; the human never has to say whether a source is public or private — the run figures out how to read it.
-- The human does NOT need to compile this list by hand — that is usually tiring, hard, and incomplete. With permission, the agent can DISCOVER candidate sources automatically from the places the human already joined or follows on their own machine — Facebook joined groups, subreddits, followed pages/profiles/KOLs, subscribed channels, community feeds — through the Local Collector, filter the candidates, and present a shortlist for approval before anything is monitored.
-- Discovery uses the Solo Agency Local Collector: a local app plus Chrome extension on the human's computer. It uses the already logged-in Chrome session, reads approved visible pages only, and keeps data local by default. It never asks for credentials, cookies, passwords, OTPs, or tokens.
-- The human must already be a member, follower, subscriber, logged in, or otherwise authorized to view any source they provide, in the Chrome profile where this client's Solo Agency Local Collector extension is installed; one separate Chrome profile per client is recommended, with that client's extension loaded and the relevant social accounts logged in there.
-- Monitoring activates only with the human's permission. For account safety and platform-respectful monitoring, around 20 sources or fewer per client is a good daily default; if the human provides more, the agent prioritizes and rotates them.
-- Priming fact (a plain fact stated once, in the human's own words and language, never a link or an offer — see the PRIMING vs SELLING rule): whatever these sources turn up lands automatically in the client's shared CRM, and the Free tier keeps a first batch of contacts fully open (name the actual cap from real state if known, otherwise speak in general terms rather than guessing a number).
-
-**Part 2 — the question, immediately after the explanation, as ONE compact `**[ACTION REQUIRED]**` block** (root playbook format), asking which of the three options the human wants:
-
-- keep these (add the shown sources to standing monitoring), or
-- add more custom source URLs (any page the human wants watched, on top of or instead of what was found), or
-- postpone and continue with the default sources only for now.
-
-Content-completeness checklist for this checkpoint (audited in Stage 9 — a checkpoint question missing any item is non-compliant, even if the shorter version reads better):
-
-1. What was found: the groups, pages and profiles the discovery pass found, with a couple of concrete examples.
-2. That pages needing a login are read through the human's own Chrome via the extension — the human is never asked whether a source is public or private.
-3. What the Local Collector is + data stays local + never asks for passwords/cookies/OTPs/tokens.
-4. The already-a-member/logged-in requirement and the per-client Chrome profile recommendation.
-5. The hands-free discovery capability: the agent can find candidate sources from places the human already joined/follows, so no hand-compiled list is needed; approval comes before anything is monitored.
-6. The three reply options: keep these / add more URLs / postpone.
-7. The priming fact that discovered leads land in the CRM automatically and Free keeps a first batch of contacts open — stated as a plain fact, no link, not an offer.
+Step 7 is the first-run question (see `playbooks/SETUP_FLOW_ENTRYPOINT.md`): one compact yes/no ask — may the agent run the first report now — in the human's language. There is no source list to review at this checkpoint and no approval step: sources are never approved. The agent picks what to watch itself (Group Potential Rule, `playbooks/10_LEAD_COMPETITOR_DETECTION.md`) as part of that first run, and the human's only lever afterward is pausing or resuming a monitored source on the Sources page.
 
 ### Private Data Source Discovery When The Human Has No List
 
@@ -178,7 +152,7 @@ Most humans do not remember which groups, subreddits, communities, pages, profil
 If the human provides no private data sources, says "I do not know", skips the question, or only gives a vague answer, the agent must not simply mark private data sources as `not_provided` and move on. It must first offer a concise discovery option:
 
 ```text
-No problem if you do not know which custom sources to add yet. A lot of the best idea, lead, and competitor signals usually live in groups, subreddits, communities, pages, profiles, channels, and feeds you already follow or joined. Do you want me to discover candidate sources from the approved places you already belong to or follow, then filter the list and ask you before monitoring anything?
+No problem if you do not know which custom sources to add yet. A lot of the best idea, lead, and competitor signals usually live in groups, subreddits, communities, pages, profiles, channels, and feeds you already follow or joined. I already discover candidate sources from the places you belong to or follow, filter the list, and start monitoring the ones worth watching myself — you can pause any of them afterward on the Sources page.
 ```
 
 The agent must explain that discovery is optional, consent-based, and local:
@@ -189,36 +163,30 @@ The agent must explain that discovery is optional, consent-based, and local:
 - It requires the Solo Agency Local Collector extension and Local Collector app.
 - It does not ask for passwords, cookies, OTPs, tokens, or credentials.
 - It does not add every discovered source automatically.
-- It filters candidates first, then asks the human to approve, remove, or add sources.
+- It filters candidates first, then registers the ones worth watching as monitored sources automatically — no approval step.
 - If the human declines or postpones discovery, the agent can still run public data source research, but the report must note that lead/competitor/community coverage is limited.
 
 Discovery surfaces to offer when relevant:
 
 - Facebook joined groups and groups feed.
-- Reddit joined/subscribed subreddits and home feed when approved.
-- LinkedIn groups, followed pages, followed people, company pages, and feed when approved.
+- Reddit joined/subscribed subreddits and home feed.
+- LinkedIn groups, followed pages, followed people, company pages, and feed.
 - YouTube subscriptions and subscribed channels.
-- X lists, communities, following list, and home feed when approved.
-- Instagram/TikTok followed creators and recommendation feeds when approved.
-- Discord/Slack/community forums only when the human explicitly provides/approves the community surface and Local Collector support exists.
+- X lists, communities, following list, and home feed.
+- Instagram/TikTok followed creators and recommendation feeds.
+- Discord/Slack/community forums only when the human explicitly names the community surface and Local Collector support exists.
 
-The agent should ask one compact approval question, not a long questionnaire, and put that question in a `**[ACTION REQUIRED]**` block:
+No separate question is asked here. Step 7's single yes (`playbooks/SETUP_FLOW_ENTRYPOINT.md`) already covers every discovery category — Facebook groups, subreddits, followed pages/KOLs, subscribed channels, and community feeds alike: the agent records `approved_pending_first_scan` for all of them at that one yes, nothing more to ask.
 
-```text
-Do you want me to run source discovery from places you already joined or follow, such as Facebook groups, subreddits, followed pages/KOLs, subscribed channels, and community feeds? I will use the Local Collector only, filter candidates, and ask you to approve the shortlist before anything becomes a daily monitored source.
-```
-
-If the human says yes:
-
-Timing: this sequence is step 7's (Review found sources) own interactive flow, and its output (the approved source list) is configuration. When the Local Collector and the matching client extension are verified healthy in the CURRENT session — including a setup session — run it NOW, while the human is present to approve the shortlist; the Setup Flow prohibition on scans does not cover this one configuration-gathering pass. Only when the collector is not yet healthy, the human is not present to approve, or the human postpones, record `approved_pending_first_scan` and hand execution to the first Automation Flow run (which then MUST run it or report the exact collector blocker). In a setup session, stop after saving approved sources and resyncing: do not analyze the collected data, generate reports/ideas/drafts from it, or start daily monitoring there.
+Timing: this is `private_data_source_discovery` (Stage 2), and it never runs inside the setup chat. Recording `approved_pending_first_scan` at the step-7 yes is always correct in a setup session; the first Automation Flow run then executes it (`playbooks/SCHEDULED_RUN_ENTRYPOINT.md`, step 12A) and judges every result with the Group Potential Rule (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`), registering it straight into monitored sources — no shortlist, no approval. In a setup session, stop after recording the status: do not scan, analyze collected data, generate reports/ideas/drafts from it, or start daily monitoring there.
 
 1. Load `playbooks/PRIVATE_SOURCE_GATE.md`, Stage 8, and Stage 9 before any scan.
 2. The Local Collector bridge and this client's extension were already installed at setup step 4 (Kết nối Facebook, Instagram and X — `SOLO_AGENCY_PLAYBOOK.md`, Mandatory Setup Flow; `playbooks/SETUP_FLOW_ENTRYPOINT.md`, "Kết nối Facebook, Instagram and X (step 4)"). This checkpoint does not install anything; check current health with `GET http://127.0.0.1:17321/status` and `extension_health` instead. If the bridge or extension is unhealthy here (install never completed, or it went stale since step 4), repeat step 4's own install flow — the local/remote rule stays the same one used there — rather than re-deriving a new install path here; run the Stage 8 Source Safety Pre-Check first if giving/re-running any install command.
-3. Ask which broad discovery surfaces are approved if not already clear. Keep the question short and default to the most likely safe set for the client, for example Facebook joined groups and Reddit joined/subscribed communities for community-heavy businesses.
-4. Run only approved discovery URLs/surfaces.
+3. Use every discovery surface relevant to the client automatically — no question needed, all categories were recorded `approved_pending_first_scan` at the step-7 yes — defaulting to the most likely set for the client, for example Facebook joined groups and Reddit joined/subscribed communities for community-heavy businesses.
+4. Run all relevant discovery URLs/surfaces.
 5. Use Source Discovery Mode: scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
 6. Extract candidate source names, URLs, platform, visible description/context, activity hints, topic hints, audience fit, location fit, and risk/noise signals.
-7. Filter and classify candidates. A candidate may be classified `recommended_daily`, `recommended_weekly`, `optional`, or `watch_once` ONLY after its relevance to the client's industry/sub-industry, target audience, target location (per the location-weighting rule in Stage 0), and pain points has been scored and recorded in the Discovery Data Model (`target_audience_fit`, `location_fit`, `matched_pain_points`, `industry_scope`). An unscored candidate defaults to `skip_not_relevant` — it must never reach the approval shortlist unscored. Buckets:
+7. Filter and classify candidates. A candidate may be classified `recommended_daily`, `recommended_weekly`, `optional`, or `watch_once` ONLY after its relevance to the client's industry/sub-industry, target audience, target location (per the location-weighting rule in Stage 0), and pain points has been scored and recorded in the Discovery Data Model (`target_audience_fit`, `location_fit`, `matched_pain_points`, `industry_scope`). An unscored candidate defaults to `skip_not_relevant` — it must never be registered unscored. Buckets:
    - `recommended_daily`
    - `recommended_weekly`
    - `optional`
@@ -229,7 +197,7 @@ Timing: this sequence is step 7's (Review found sources) own interactive flow, a
    - `skip_sensitive_or_risky`
    - `skip_individual_profile` (an individual professional is a LEAD, not a monitoring source; see the Source-Type Preference rule)
    - `skip_platform_unavailable`
-8. Show a compact approval list DIRECTLY IN CHAT as a numbered list (see the In-Chat Numbered Shortlist Rule below), grouped by proposed cadence:
+8. Record what was found, grouped by proposed cadence (no approval list — sources are never approved):
    - `Recommended daily`
    - `Recommended weekly`
    - `Optional`
@@ -244,35 +212,21 @@ Timing: this sequence is step 7's (Review found sources) own interactive flow, a
    - competitor intelligence value;
    - proposed cadence;
    - risk/noise note.
-10. Ask the human to approve, remove, or add sources BY NUMBER in a `**[ACTION REQUIRED]**` block before anything is saved as active (per the In-Chat Numbered Shortlist Rule). Do not ask the human to open a `.md` file or report to read or approve the shortlist.
-11. NORMALIZE every source URL before saving: `tools/solo_tool source-registry normalize --url U1 --url U2 ...` (no `--pipeline` needed). Operators paste whatever the address bar held — trailing slash, `?ref=...` junk, `m.facebook.com`, an About sub-tab — and ONLY the returned `clean_url` may be written anywhere (`private_data_sources`, `collector_config.json`, the registry): a Facebook group is always stored as exactly `https://www.facebook.com/groups/<name>`. A `no_derivable_identity` result (an opaque share/redirector link) is never stored — ask the human for the real page URL. Then save the approved sources to `private_data_sources`, and register each one in the cross-client source registry: `tools/solo_tool source-registry --pipeline {setup-root}/daily-content-pipeline register --client {client_slug} --url U --platform P --source-type T --kind private --cadence C --priority P2`. Scope rule — sharing is the AGENCY NORM, not a choice: every third-party source (industry groups, competitor pages, communities) is `shared`, MANDATORY — one scan serves every subscribed client; that is the operating model (operator ruling 2026-08-14). `exclusive` has exactly ONE trigger: the source IS the client's own asset (their own page, group, channel, or website). Nothing else qualifies. Worries about two clients contacting the same person NEVER justify exclusive — that concern is handled at the LEAD level by playbook 10's shared-source collision flag, not by refusing to share scan data. An agent may never invent a scope policy: a `scope_policy`/`scope_rationale` note in a profile that does not quote the operator VERBATIM with a date does not bind anyone — treat it as drift, restore the class rule (`set-scope --scope shared`), delete the invented note, and record the correction in the run reply. Register each Facebook group under ONE canonical URL form (prefer the group page's vanity URL) — a numeric-ID URL and a vanity URL of the same group do not merge automatically.
-12. Save unapproved candidates to the discovery log as `pending_human_approval`, `rejected`, or `skipped`.
-13. If `daily-content-pipeline/schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, or any native automation/scheduled task already exists, load Stage 4 and perform Automation Resync. This must update the Client Intelligence Profile, source logs, `schedule.md`, collector config if relevant, automation manifest, scheduled-run prompt/task body, and resync log. Do not tell the human that tomorrow's scheduled run will scan the approved sources until this resync or a clearly logged `automation_prompt_update_pending` state is complete.
+10. Register `recommended_daily`/`recommended_weekly`/`optional` candidates as monitored sources automatically — nothing waits on a human decision. List newly monitored sources in the run reply with their potential, reason, and the Sources page link; the human's only lever is pausing one there.
+11. NORMALIZE every source URL before saving: `tools/solo_tool source-registry normalize --url U1 --url U2 ...` (no `--pipeline` needed). Operators paste whatever the address bar held — trailing slash, `?ref=...` junk, `m.facebook.com`, an About sub-tab — and ONLY the returned `clean_url` may be written anywhere (`private_data_sources`, `collector_config.json`, the registry): a Facebook group is always stored as exactly `https://www.facebook.com/groups/<name>`. A `no_derivable_identity` result (an opaque share/redirector link) is never stored — ask the human for the real page URL. Then save the sources to `private_data_sources`, and register each one in the cross-client source registry: `tools/solo_tool source-registry --pipeline {setup-root}/daily-content-pipeline register --client {client_slug} --url U --platform P --source-type T --kind private --cadence C --priority P2`. Scope rule — sharing is the AGENCY NORM, not a choice: every third-party source (industry groups, competitor pages, communities) is `shared`, MANDATORY — one scan serves every subscribed client; that is the operating model (operator ruling 2026-08-14). `exclusive` has exactly ONE trigger: the source IS the client's own asset (their own page, group, channel, or website). Nothing else qualifies. Worries about two clients contacting the same person NEVER justify exclusive — that concern is handled at the LEAD level by playbook 10's shared-source collision flag, not by refusing to share scan data. An agent may never invent a scope policy: a `scope_policy`/`scope_rationale` note in a profile that does not quote the operator VERBATIM with a date does not bind anyone — treat it as drift, restore the class rule (`set-scope --scope shared`), delete the invented note, and record the correction in the run reply. Register each Facebook group under ONE canonical URL form (prefer the group page's vanity URL) — a numeric-ID URL and a vanity URL of the same group do not merge automatically.
+12. Save `skip_*` candidates to the discovery log as `not_selected`, with the reason.
+13. If `daily-content-pipeline/schedule.md`, `daily-content-pipeline/automation/automation_manifest.md`, or any native automation/scheduled task already exists, load Stage 4 and perform Automation Resync. This must update the Client Intelligence Profile, source logs, `schedule.md`, collector config if relevant, automation manifest, scheduled-run prompt/task body, and resync log. Do not tell the human that tomorrow's scheduled run will scan the monitored sources until this resync or a clearly logged `automation_prompt_update_pending` state is complete.
 
-### In-Chat Numbered Shortlist Rule
+### Monitored sources are listed, never shortlisted
 
-The discovery shortlist is presented for approval DIRECTLY IN THE CHAT, never as a file the human must open. The saved discovery log (`.md`) is a record only, not the approval surface.
-
-- Show the shortlist in chat as a NUMBERED list (`1.`, `2.`, `3.`, ...), one short phone-scannable line per candidate: `{n}. {source name} - {platform} - {proposed cadence} - {one-line why it fits: matched pain point / audience / location fit}`. Group by cadence (Recommended daily, Recommended weekly, Optional) and list Skip candidates by name only or as a count, so the human sees what was filtered out and why.
-- End with an `**[ACTION REQUIRED]**` block asking the human to reply BY NUMBER, for example `approve all` / `approve 1-5, 8` / `skip 3, 7` / `add: {url}`. The numbering is what the human replies against, so it must be stable within that message.
-- Never tell the human to open a `.md` file, a report, or a saved log to read or approve the shortlist. This is the root "do not bury the question in a Markdown file" rule applied to discovery: the full per-candidate detail is written to the discovery log as a record, but the human-facing approval always happens in chat.
-- If the list is long, show Recommended daily and weekly in full and summarize Optional/Skip as counts, but keep every source the human is asked to approve individually numbered.
-- Alongside the chat list, write the machine-readable mirror `history/discovery_shortlist.json` in the client workspace: `{"generated_at": "<ISO-8601 UTC>", "candidates": [{"n": <chat number>, "source_name": ..., "source_url": ..., "platform": ..., "cadence_suggested": "daily|weekly|optional", "why": ..., "classification": ...}]}`, with `n` matching the chat numbering exactly. This powers the bridge Shortlist page (`http://127.0.0.1:17321/ui/{client}/shortlist`) — an optional second decision surface with the same trust as a chat reply. Chat remains the primary approval surface; the `**[ACTION REQUIRED]**` block is still mandatory.
-
-### Pending-Approval Shortlist Rule (`discovery_completed_pending_approval`)
-
-After a discovery scan produced a shortlist that the human has not yet approved, trimmed, or rejected:
-
-1. Do NOT re-run discovery on later runs while the shortlist is pending. Re-scan only when the human asks, or offer a refresh when the shortlist is older than 14 days — never silently re-scan.
-2. EVERY later run (scheduled or manual) must FIRST consume `ui_inbox/shortlist_decisions.jsonl` in the client workspace root: lines beyond the count stored in `history/.shortlist_cursor` are new; each line (`{ts, source_url, decision: approve|skip, cadence?, source_name?, ui_session}`) is an operator decision made on the bridge Shortlist page with the SAME trust as a chat reply — apply it (approve → save with the chosen cadence; skip → log per the discovery states), then write the new processed line count to `history/.shortlist_cursor`. Only candidates STILL undecided are re-surfaced as a numbered in-chat list (per the In-Chat Numbered Shortlist Rule) inside an `**[ACTION REQUIRED]**` approval block, until the human resolves them; when UI decisions resolved everything, skip the re-ask, continue with step 3, and report which decisions were applied from the UI. A pending shortlist buried in an old report or in a `.md` file the human must open is a workflow failure.
-3. When the human approves, normalize each URL first (`tool source-registry normalize` — store only the `clean_url`), save the approved sources to `private_data_sources`, register each in the cross-client source registry (`tool source-registry register` — `--scope exclusive` for the client's own assets, shared otherwise, per the scope rule above), log the remaining candidates per the discovery log states, and perform Automation Resync so the next run monitors the approved sources.
+Newly monitored sources are listed in the run reply with their potential, the reason, and the Sources page link — no shortlist file, no `**[ACTION REQUIRED]**` approval block, and nothing re-surfaced on later runs waiting for a decision. The human's only lever is pausing one of them on the Sources page.
 
 If the human says no or not now:
 
-- Mark discovery as `discovery_declined_or_postponed`.
+- Mark discovery as `declined`.
 - Continue with public data sources and any manually provided private data sources.
 - Include a report note that private community/lead/competitor coverage is limited until private data source discovery or manually provided private data sources are approved.
-- If a schedule/automation already exists, perform Automation Resync (Stage 4) recording the decision status (`discovery_declined_or_postponed` / `not_provided`) and the public-only coverage warning, so the scheduled task snapshot reflects the newest state.
+- If a schedule/automation already exists, perform Automation Resync (Stage 4) recording the decision status (`declined` / `not_provided`) and the public-only coverage warning, so the scheduled task snapshot reflects the newest state.
 
 ### Facebook Member Groups Review
 
@@ -291,11 +245,8 @@ The agent must explain that it will not treat every group as useful by default. 
 - The client's business offer.
 - Recurring questions, objections, complaints, or buying signals.
 
-The agent should say:
-
-`Do you want me to review the Facebook groups you are already a member of and select only the groups that look useful for this client? These are private data sources because they require your logged-in Facebook account or group membership. If you say yes, I will use your logged-in Chrome session through the Solo Agency Local Collector local app/extension on your computer, open your joined-groups page, and filter groups based on the client's main industry, related industries, audience, location, and pain points/customer problems. I will not ask for credentials, cookies, passwords, OTPs, or tokens. For account safety, I will keep the active daily private data source list conservative, around 20 sources or fewer per client by default, and rotate lower-priority groups when needed.`
-
-If the human agrees:
+No question is asked: the step-7 yes already covers this list, and reading it is part of the first run
+(and of the next run after Facebook is connected later). Mechanics:
 
 1. Treat the following URL as the Facebook joined-groups discovery source:
 
@@ -303,64 +254,38 @@ If the human agrees:
 https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
 ```
 
-2. The Solo Agency Local Collector extension and Local Collector app were already installed at setup step 4 (Kết nối Facebook, Instagram and X). If either is not healthy before attempting this scan, repeat step 4's own install flow (agent-run on a local runtime after one consent line, handed off as a one-line command on a remote runtime) rather than deriving a separate activation path here.
+2. The Solo Agency Local Collector extension and Local Collector app were already installed at setup step 4
+   (Kết nối Facebook, Instagram and X). If either is not healthy, the run skips this list and the awareness
+   line says so; nothing is asked.
 3. Do not use Claude Chrome Extension for this discovery scan.
 4. Do not ask the human to paste Facebook cookies, passwords, tokens, or credentials.
-5. Use the human's already logged-in Chrome session. If Facebook is logged out, mark `facebook_session_expired` and ask the human to log in manually.
-6. Create a manual `run_now` job for the Local Collector to scan the joined-groups discovery URL.
-7. Use Source Discovery Mode, not Daily Content Monitoring Mode:
-   - set `job_type: "private_data_source_discovery"` or source `purpose: "source_discovery"`;
-   - scroll until no new group names/URLs appear for 3 consecutive scrolls;
-   - use a hard safety cap of 10 scrolls;
-   - use `scroll_delay_seconds`: 5;
-   - read visible text and current URLs only.
-8. Review visible group names, group URLs, descriptions, category hints, membership/context hints, and any visible preview text.
-9. Select only groups that are relevant to the client pipeline.
-10. Classify candidate groups as:
-    - `recommended_daily`
-    - `recommended_weekly`
-    - `optional`
-    - `skip_not_relevant`
-    - `skip_too_broad`
-    - `skip_sensitive_or_risky`
-11. Show the human a short `Facebook Member Groups Review` result before saving:
-    - recommended groups
-    - why each group is relevant
-    - proposed scan cadence
-    - skipped groups count and examples
-    - account-safety note
-12. Ask the human to approve the recommended groups in a `**[ACTION REQUIRED]**` block before adding them as active `private_data_sources`.
-13. After approval, add selected groups to `private_data_sources`.
-14. Log skipped groups as not relevant when appropriate.
-15. Save the discovery output under:
+5. Use the human's already logged-in Chrome session. If Facebook is logged out, mark `facebook_session_expired`
+   and let the Login Reminder handle it.
+6. Create a `run_now` job for the Local Collector to scan the joined-groups discovery URL.
+7. Use Source Discovery Mode, not Daily Content Monitoring Mode: `job_type: "private_data_source_discovery"`
+   or source `purpose: "source_discovery"`; scroll until no new group names/URLs appear for 3 consecutive
+   scrolls; hard safety cap of 10 scrolls; pacing per the Pacing Rule (random 5–10 s); read visible text and
+   current URLs only.
+8. Review visible group names, group URLs, descriptions, category hints, membership/context hints, and any
+   visible preview text.
+9. Judge every group with the Group Potential Rule (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`): `high` and
+   `medium` → `tool source-registry add --client <slug> --url <u> --platform facebook --source-type group
+   --origin discovered --state active --potential <high|medium> --reason "<one line>"`; `low` → the same
+   command with `--state not_selected`. The account is a member of every group on this list, so none is
+   `no_access`.
+10. The run reply lists the newly monitored groups (name, potential, reason) with the Sources page link
+    (`/ui/{client_slug}/sources?tab=discovered`); the human pauses any there. No approval block, no cadence
+    question — the registry plan decides what is scanned each run (up to 20 groups, leads-ranked).
+11. Save the review under:
 
 ```text
 daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/facebook_member_groups_review_YYYY-MM-DD.md
 ```
 
-16. Also add selected or newly discovered group candidates to `New Private Data Sources Detected` in the next report.
-17. If schedule/automation already exists, immediately run Automation Resync from Stage 4 so the next scheduled run reads the approved Facebook group list instead of the old pending/private-data-source-skipped snapshot.
-
-If the human declines:
-
-- Do not inspect Facebook groups.
-- Continue with other public and private data sources.
-- If a schedule/automation already exists, perform Automation Resync (Stage 4) recording the decision status (`discovery_declined_or_postponed` / `not_provided`) and the public-only coverage warning, so the scheduled task snapshot reflects the newest state.
-
-If the human provides no private data sources:
-
-- Offer the broader private data source discovery workflow once before continuing public-only.
-- If the human declines or postpones discovery, continue with public data sources only.
-- Mark private monitoring as `not_provided` or `discovery_declined_or_postponed`.
-- Do not block the daily pipeline, but note that community, lead, and competitor coverage is limited.
-- If a schedule/automation already exists, perform Automation Resync (Stage 4) recording the decision status (`discovery_declined_or_postponed` / `not_provided`) and the public-only coverage warning, so the scheduled task snapshot reflects the newest state.
-
-If a private session expires:
-
-- Skip that source.
-- Log the issue in `history/YYYY-MM/data_sources_log.md`.
-- Tell the human which source needs manual login.
-- Never ask for credentials.
+    with the monitored and not-selected groups and their reasons.
+12. Also list newly monitored groups under `New Private Data Sources Detected` in the next report.
+13. If schedule/automation already exists, run Automation Resync from Stage 4 so the next scheduled run reads
+    the registry plan.
 
 ### Facebook Keyword Group Search Discovery
 
@@ -369,15 +294,11 @@ Facebook keyword group search is a second Facebook group discovery path. It is f
 Use it when:
 
 - the human explicitly asks to find new Facebook groups;
-- the human has no useful group list and approves keyword-based discovery;
+- the human has no useful group list and keyword-based discovery would help;
 - current private data source scans are too noisy and the agent needs cleaner source candidates;
 - the client's topic has obvious group-search keywords.
 
-The agent must ask for explicit consent before running it:
-
-```text
-Do you want me to find new Facebook groups with keyword search for this client? I will use the Solo Agency Local Collector in the client's Chrome profile, search Facebook groups with keywords that match the client's audience and pain points, scroll 10 times on each search result page, filter out Facebook UI noise and irrelevant results, then show you a shortlist to approve. Private groups the client Chrome profile already belongs to are read the same as public groups, since the account already has access; groups it has not joined are only listed for you to review and join yourself in your own session if you want them monitored — I will not join groups, request access, or add any no-access group as a source unless you approve it and the client Chrome profile can access it.
-```
+No separate consent question: this is the same keyword search the Social Discovery Pass runs automatically (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`), so results here go through the same Group Potential Rule and monitored-source registration — no shortlist, no approval. Private groups the client Chrome profile already belongs to are read the same as public groups, since the account already has access; groups it has not joined are only listed as `no_access` (worth joining) and are never joined, requested, or added as a source by the agent.
 
 Keyword selection:
 
@@ -406,7 +327,7 @@ Noise filtering:
 - Accept a candidate only if it looks like a real Facebook group result, preferably with a group name and a URL such as `/groups/...`.
 - Ignore Facebook navigation, tabs, filters, buttons, ads/sponsored blocks, people/pages/posts/events results, generic UI labels, repeated headers, and any text that is not a group candidate.
 - Reject or down-rank groups that are too broad, spammy, low-signal, sensitive/risky, unrelated to the client's audience, unrelated to pain points, or not accessible from the client Chrome profile.
-- Do not treat a keyword search result as an active private data source until the human approves it.
+- Do not treat a keyword search result as an active private data source until the Group Potential Rule scores it `active`.
 - Do not join a group, request access, message admins, or follow pages as part of this workflow.
 
 Classify candidates as (prefer groups/communities and reputable organization pages; default-skip individual personal profiles per the Source-Type Preference rule):
@@ -439,19 +360,20 @@ For every candidate, save:
 - `noise_level`
 - `risk_level`
 - `classification`
-- `approval_status`
+- `potential: high | medium | low` (Group Potential Rule) with one-line `potential_reason`
+- `state: active | not_selected | no_access`
 
 Show the human a short `Facebook Keyword Group Search Review` before saving anything as active:
 
 - keywords searched;
 - 10-scroll status for each keyword;
 - candidate groups found;
-- recommended groups and why they fit;
+- monitored groups and why they fit;
 - skipped/noisy result examples;
 - access/membership notes;
-- which groups need human approval or joining before scheduled monitoring can use them.
+- which groups the client Chrome profile cannot yet access (worth joining, never joined by the agent).
 
-Show the recommended groups DIRECTLY IN CHAT as a numbered list and ask the human to approve them by number (per the In-Chat Numbered Shortlist Rule) before adding them as active `private_data_sources`; the saved review `.md` is a record, not the approval surface - do not ask the human to open it to approve. If the group requires membership or access and the client Chrome profile cannot view it yet, save it as `pending_human_approval` or `pending_private_activation`, not active.
+List the groups registered `active` (high or medium potential) in the run reply with their potential and reason — no numbered shortlist, no approval; the saved review `.md` is a record only. If the group requires membership or access the client Chrome profile does not have yet, register it as `no_access` (worth joining, never joined by the agent), not active.
 
 Save the discovery output under:
 
@@ -459,7 +381,7 @@ Save the discovery output under:
 daily-content-pipeline/clients/{client_slug}/{business_slug}_{location_slug}/history/YYYY-MM/facebook_group_keyword_search_review_YYYY-MM-DD.md
 ```
 
-If schedule/automation already exists and the human approves new groups, run Automation Resync from Stage 4 so the next scheduled run reads the approved group list instead of the old source state.
+If schedule/automation already exists and new groups were registered active, run Automation Resync from Stage 4 so the next scheduled run reads the monitored group list instead of the old source state.
 
 ### Optional Private Data Source Discovery
 
@@ -512,7 +434,7 @@ If a URL does not work, the agent must mark `platform_url_changed` or `login_req
 | Platform | Discovery Type | Starting URL | Notes |
 |---|---|---|---|
 | Facebook | Joined groups | `https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added` | Use for groups the human has joined. |
-| Facebook | Keyword group search | `https://www.facebook.com/search/groups/?q={url_encoded_keyword}` | Use only with explicit keyword-search discovery consent. Scroll 10 times per keyword, filter group results, and ask approval before adding any group. |
+| Facebook | Keyword group search | `https://www.facebook.com/search/groups/?q={url_encoded_keyword}` | Scroll 10 times per keyword, filter group results, and register each one through the Group Potential Rule — no approval before adding a group. |
 | Facebook | Groups feed | `https://www.facebook.com/groups/feed/` | Use for posts from joined groups and group recommendations. |
 | Facebook | Home/news feed | `https://www.facebook.com/` | Use only with explicit feed discovery consent. |
 | Facebook | Liked/followed pages candidate | `https://www.facebook.com/pages/?category=liked` | Treat as candidate URL; verify in logged-in browser. |
@@ -536,15 +458,12 @@ If a URL does not work, the agent must mark `platform_url_changed` or `login_req
 | Reddit | Home feed | `https://www.reddit.com/` | Use only with explicit feed discovery consent. |
 
 Groups found by the Facebook leg of the Social Discovery Pass (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`,
-"Social Discovery Pass (step 11C of the daily run)") arrive in the shortlist differently from the keyword
-group search row above: they already carry `leads_found`, `member_count`, `access`, and `privacy` from
-that pass, and readable groups (public, or private where the account is already a member) were already
-scanned read-only — no per-group approval was needed for that read; no-access groups were never
-scanned. They still need the same human approval as any other row in this table before being promoted
-into standing daily monitoring as a `private_data_sources` entry: approving a row sets `decision:
-approved` on its shortlist line and, once at least one row is approved,
-`facebook_group_discovery.review_state: monitoring_approved`; declining all of them sets
-`review_state: monitoring_declined`.
+"Social Discovery Pass (step 11C of the daily run)") are registered the same way as the keyword-search
+row above: readable groups (public, or private where the account is already a member) are scanned
+read-only, scored by the Group Potential Rule, and `high`/`medium` potential is promoted into standing
+daily monitoring automatically (`state: active`) — no human decision. `low` potential is recorded
+`state: not_selected` with the reason; groups the account cannot read are recorded `state: no_access`
+and are never joined by the agent.
 
 #### Discovery Behavior Rules
 
@@ -677,7 +596,7 @@ related_industry:
 bridge_back_to_primary_offer:
 recommended_cadence: daily | weekly | optional | watch_once
 risk_level: low | medium | high
-approval_status: pending_human_approval | approved | rejected
+state: active | not_selected | no_access   # automatic: recommended_daily/weekly/optional -> active, skip_* -> not_selected, unreadable/not-joined -> no_access; no human approval
 ```
 
 Save discovery outputs under:

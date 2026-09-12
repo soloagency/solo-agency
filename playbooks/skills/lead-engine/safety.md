@@ -58,12 +58,12 @@ These are ceilings, not targets. Prefer the smallest depth that meets the KPI.
   a platform not connected/logged-in/at-budget/tripped just loses its turn, never hands its slot to
   another platform, so the gap between two requests on the same platform never shrinks. Facebook:
   four call types, fixed order — FEED (`fb.search.posts`), PEOPLE (`fb.people.search`), GROUPS
-  (`fb.groups.search`), IN-GROUP (`fb.group.search_posts`). FIRST RUN ≤ 21 collector calls total (3
-  discovery terms, 3 feed searches, 3 people searches, 3 group searches, up to 4 new readable groups
-  (public, or private where the account is already a member) × 3 intent terms each), `max_pages` ≤ 4.
-  DAILY companion ≤ 7 calls total (1 discovery term, 1 feed search, 1 people search, 1 group search,
-  up to 2 new readable groups (public, or private where the account is already a member) × 2 intent
-  terms each), same `max_pages` ceiling. Instagram: four call
+  (`fb.groups.search`), IN-GROUP (`fb.group.search_posts`). FIRST RUN: 9 discovery calls (3 discovery
+  terms, 3 feed searches, 3 people searches, 3 group searches) + up to 20 monitored groups per run
+  (registry plan, `tool source-registry plan --max 20`) × 3 intent terms, `max_pages` ≤ 4. DAILY
+  companion: 3 discovery calls (1 discovery term, 1 feed search, 1 people search, 1 group search) +
+  up to 20 monitored groups per run (registry plan) × 2 intent terms, same `max_pages` ceiling.
+  Instagram: four call
   types, fixed order — SEARCH (`ig.search.posts`), PEOPLE (`ig.people.search`), PROFILE DEPTH
   (`ig.profile.posts`), COMMENTS (`ig.post.comments`). FIRST RUN ≤ 12 calls total (3/3/3/3); DAILY
   ≤ 4 calls total (1/1/1/1). X: four call types, fixed order — SEARCH LATEST (`x.search.posts`),
