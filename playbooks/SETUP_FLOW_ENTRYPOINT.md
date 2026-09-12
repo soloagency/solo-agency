@@ -8,6 +8,24 @@ Setup Flow is the control plane. It configures Solo Agency so automation tasks r
 
 Before setup proceeds, verify or explain that Solo Agency needs Codex, Claude Desktop/Cowork, Hermes, OpenClaw, or a comparable desktop/local AI agent runtime with workspace file access, automation/scheduled tasks, and multiple parallel/sub-agent work streams. Do not present a plain web chat as the primary runtime. Web chat can review results, but it cannot reliably host the file state, Local Collector handoff, scheduled automation, and multi-agent work this setup configures.
 
+## Process-start failure is not a remote runtime
+
+A command that fails to START — `CreateProcess`, `ENOENT`, `No such file or directory`, `cannot run
+program`, `spawn ... failed` — almost always means a working directory that does not exist or a
+wrong shell path, not a runtime without a shell. Before drawing any conclusion from it:
+
+1. Check whether the directory the command was told to run in exists.
+2. If it does not, walk up to the nearest parent that DOES exist, create the missing directory from
+   there, and use it as the working directory.
+3. Check the shell path the runtime is using.
+4. Retry the command once from that valid directory.
+
+Only when the local filesystem itself is unreachable after those four checks does the runtime count
+as remote (`playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, "Local vs remote runtime rule").
+Never hand the human a clone, install or setup command merely because a process failed to start
+once, never call the session remote on that evidence alone, and never report an install, a clone or
+a scan that did not actually happen.
+
 ## Setup Flow Contract
 
 0. **First words come first.** Before step 1 — before any load, ledger or question — send the Team Leader introduction from `SOLO_AGENCY_PLAYBOOK.md` ("First Words"), which ends by asking the Boss to name this chat "Team Leader" and pin it (so tomorrow's orders come back to the same conversation, never to a fresh agent with no ledger). Then load `playbooks/TEAM_MODEL.md` and `playbooks/NEXT_JOB_CATALOGUE.md` with the other entry files. Create `daily-content-pipeline/automation/boss_orders.md` (the ledger header from `playbooks/TEAM_MODEL.md`) if it does not exist, and record every request or goal the human states during setup as a row before acting on it.
