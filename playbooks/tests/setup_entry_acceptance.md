@@ -43,3 +43,18 @@ automated: it needs a real session in a real runtime, started from a clean folde
 One line per case in the session's notes: `case {n} · {runtime} · A/B/C/D/E = pass|fail · what broke`.
 A single fail is a regression in the entry path, not a one-off: fix the wording that allowed it before
 shipping, and note which file carried the fix.
+
+## Step 5 — automatic sources acceptance
+
+- [ ] The human-facing roadmap still contains exactly 10 numbered setup steps; Step 5 remains Sources.
+- [ ] Step 5 automatically configures default sources and the per-channel keyword banks. It asks no custom-URL question and adds no `**[ACTION REQUIRED]**` block for sources.
+- [ ] A missing custom-source response never delays Step 6 scheduling/automation or Step 7 first-run dispatch.
+- [ ] If the Boss volunteers a URL during setup, it is preserved and processed when the collector is ready without becoming a separate question or gate.
+- [ ] After setup, the Boss can add a custom source using Revenue Engine `watch_source` (Watch a group, page, profile, or competitor) or a direct request to Sam; the change triggers Automation Resync.
+
+## Step 6/7 — automatic default schedule, retained run permission
+
+- [ ] With no explicit or saved schedule, Step 6 automatically creates the client Daily Run daily at 09:00 local; it calls `schedule-slots suggest`, creates at the returned actual time, registers it, reports the actual start time and finish window, and says the Boss can change it later.
+- [ ] Step 6 asks no cadence/start-time question and has no `**[ACTION REQUIRED]**` block for the reversible default. An explicit schedule wins, and repair/update preserves an existing schedule.
+- [ ] If schedule-slots is genuinely unavailable, the first-task exception uses 09:00 local (or the explicit override), records `slot_check_pending`, and registers once the tool returns.
+- [ ] Step 7 still asks the existing run-now yes/not-now question. The first run is never dispatched before the Boss answers yes.

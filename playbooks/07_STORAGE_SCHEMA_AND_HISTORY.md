@@ -558,7 +558,7 @@ Minimum format:
 - scheduled_entrypoint: playbooks/SCHEDULED_RUN_ENTRYPOINT.md
 - root_playbook: SOLO_AGENCY_PLAYBOOK.md
 - clients_index: daily-content-pipeline/clients_index.md
-- collector_config: daily-content-pipeline/collector/collector_config.json — each watched-source entry may carry `origin: default | custom` (`custom` = a URL the Boss gave at setup step 5 or later; `default` or absent = added by the run, discovery or the industry defaults); the dashboard's Sources page splits its Default / Custom tabs on this field, and Discovered sources live in the source registry (`kind: discovered`), never here A source item may also carry `enabled: false` — paused from the Sources page (Custom tab, `POST /api/ui/{client}/sources/toggle`): skipped by the collector's scheduled windows and by every run-now job the run builds; `enabled` absent or `true` = active.
+- collector_config: daily-content-pipeline/collector/collector_config.json — each watched-source entry may carry `origin: default | custom` (`custom` = a URL the Boss voluntarily supplied during setup or added later; `default` or absent = added by the run, discovery or the industry defaults); the dashboard's Sources page splits its Default / Custom tabs on this field, and Discovered sources live in the source registry (`kind: discovered`), never here A source item may also carry `enabled: false` — paused from the Sources page (Custom tab, `POST /api/ui/{client}/sources/toggle`): skipped by the collector's scheduled windows and by every run-now job the run builds; `enabled` absent or `true` = active.
 - provider_defaults: daily-content-pipeline/provider_defaults.json
 - notification_channel:
 - pdna_status:

@@ -525,8 +525,9 @@ joining — the agent never joins it. There is no shortlist `status`/`decision` 
 no review-state field, and no close gate: neither the Setup Flow nor a scheduled
 run waits on a group decision, because there is no group decision to wait on. The human's only lever
 is pausing or resuming an active group on the Sources page (`playbooks/02_PRIVATE_SOURCE_SETUP.md`).
-A "no" to custom URLs at Setup Flow step 5 is a different question and has no bearing on monitored
-groups. Instagram and X have no group concept, so this whole boundary applies to Facebook only.
+Setup Flow step 5 configures default sources automatically and has no custom-URL question; a
+voluntarily supplied custom source never has bearing on monitored groups. Instagram and X have no
+group concept, so this whole boundary applies to Facebook only.
 
 Groups this pass finds should also be registered in the shared source registry as readable groups
 (`tool source-registry register`, existing shape) so other clients' passes reuse the notes instead of

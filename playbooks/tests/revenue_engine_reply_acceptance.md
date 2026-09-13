@@ -61,6 +61,13 @@ Failure branch: dispatch is genuinely impossible and the Boss must act.
 - [ ] The three offers, Revenue Engine anchor, Standing Invitation, feature tour, and closing
       next-jobs question are all absent and deferred.
 
+## Case 6 — Step 4 dashboard and extension tab order
+
+- [ ] After bridge `/status` succeeds and current-workspace identity is verified, Sam prints and shows `http://127.0.0.1:17321/ui/{client_slug}#revenue-engine` exactly once under the SHOW RULE, without an `**[ACTION REQUIRED]**` block.
+- [ ] Sam then opens `/ui/{client_slug}/extension` as the foreground tab for the extension action. With multiple tabs Revenue Engine stays behind; with one tab it is shown first, then Extension remains active.
+- [ ] Sam does not foreground or navigate Revenue Engine while awaiting extension install/check-in, and brings it forward only after `extension_health.status: recent`.
+- [ ] This browser use is limited to the read-only localhost dashboard and is never social/private-source browsing.
+
 ## Recording
 
 Record one line per case:

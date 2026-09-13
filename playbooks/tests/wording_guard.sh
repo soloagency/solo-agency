@@ -7,7 +7,7 @@
 #
 # Scans: AGENTS.md, SOLO_AGENCY_PLAYBOOK.md, README.md, playbooks/**/*.md, docs/*.md,
 # solo-agency-collector/AGENT_RUNBOOK.md, solo-agency-collector/README.md.
-# Excludes: timestamped backup copies (*_20??-??-??_??-??-??.*) and playbooks/tests/ (this
+# Excludes: timestamped backup copies (*_YYYYMMDD_HHMM.* or *_YYYY-MM-DD_HH-MM-SS.*) and playbooks/tests/ (this
 # script's own directory, so the guard never matches its own file).
 #
 # Exit 1 and print every offending line if any of these fixed strings appears:
@@ -18,6 +18,11 @@
 #   public only) | privacy == "public"` only | Keep only results whose `privacy == "public"` |
 #   profile/account hint | Open this Chrome profile | ONE about the profile | sắp có |
 #   keep these | add more custom source URLs | postpone and continue with the default sources only |
+#   ask once for custom sources | custom sources were asked once at step 5 |
+#   custom-source intake happened once | single custom-URL ask at step 5 |
+#   plus any URL you give me to watch |
+#   Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence. |
+#   Ask the preferred start time with the cadence question |
 #   review_state | monitoring_approved | discovery_completed_pending_approval |
 #   facebook_discovery_shortlist.jsonl | you pick which ones to keep watching |
 #   Review found sources | Chrome hay Edge | Both Chrome and Edge installed |
@@ -32,6 +37,7 @@ cd "$repo_root" || exit 1
 is_backup() {
   case "$(basename "$1")" in
     *_20[2-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]-[0-9][0-9]-[0-9][0-9].*) return 0 ;;
+    *_20[2-9][0-9][0-1][0-9][0-3][0-9]_[0-2][0-9][0-5][0-9].*) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -90,6 +96,15 @@ patterns=(
   'keep these'
   'add more custom source URLs'
   'postpone and continue with the default sources only'
+  'ask once for custom sources'
+  'custom sources were asked once at step 5'
+  'Custom sources were asked once at step 5'
+  'custom-source intake happened once'
+  'single custom-URL ask at step 5'
+  'custom URLs at Setup Flow step 5 is a different question'
+  'plus any URL you give me to watch'
+  'Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence.'
+  'Ask the preferred start time with the cadence question'
   'review_state'
   'monitoring_approved'
   'discovery_completed_pending_approval'

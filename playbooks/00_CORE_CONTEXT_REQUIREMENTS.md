@@ -195,7 +195,7 @@ Every progress block must include a short line explaining that this is the agent
 The checklist must not assume the human understands marketing or technical terms. Explain terms directly in the checklist or immediately below it. Required meanings:
 
 - `default sources`: the sources this client gets without doing anything — Google search driven by the keyword bank, Facebook, Instagram and X read through the connected extension, and the industry sites for this client's industry.
-- `custom sources`: any URL the human wants watched, as long as they can read it — asked for once, at step 5.
+- `custom sources`: a URL the human voluntarily supplies during setup or adds later through Revenue Engine `watch_source` or a direct request to Sam; it is never required or asked for at step 5.
 - `discovered sources`: threads the runs found on their own where the people replying look like this client's buyers, shown for the human to approve one at a time — they never appear at setup and never run as part of the daily scan; they only appear later, as runs find them (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Step 5").
 - (internal access mode, never spoken to the human): some pages need the human's own logged-in Chrome session to read, via the Local Collector extension, such as Facebook groups/pages, X, LinkedIn, Instagram, TikTok, YouTube, Reddit, GitHub areas that require access, Discord/Slack communities, competitor profiles, newsletters, or private forums; the run decides how to read each URL, the human is never asked public vs private.
 - `Local Collector`: local app plus Chrome extension on the human's computer; it uses the already logged-in Chrome session, reads approved visible pages only, and keeps private data local by default.
@@ -224,7 +224,7 @@ This is the planned setup process I am working through. You only need to reply w
 ○ 2. I infer the industry, sub-industry, related industries, audience, and offer
 ○ 3. I infer pain points (customer problems) and content pillars (main repeatable content themes)
 ○ 4. I connect Facebook, Instagram and X: install the Local Collector and this client's Chrome extension (one extension covers all three), then ask you to log in (skipping needs an explicit web-only confirmation)
-○ 5. I set up your sources: the default ones (Google search with your keywords, Facebook, Instagram, X, and the sites for your industry) plus any URL you give me to watch
+○ 5. I automatically set up your default sources and keyword banks; you can add custom sources later through Revenue Engine or by asking Sam
 ○ 6. I configure the automatic schedule/routine and create or verify the client-specific automation task that will run the first report in Automation Flow
 ○ 7. I run the first report as soon as you say yes: leads from Facebook, Instagram and X (where connected), Google and your industry sites; I pick the groups worth watching myself — you can pause any of them later on the Sources page
 ○ 8. While the first run works, I help set up PDNA — Production, Distribution, Notification (so the finish alert reaches your Telegram), Analytics
@@ -324,7 +324,7 @@ If any required step remains and the agent is waiting for the human, the final l
 
 Do not end with a passive summary, a report link, or a vague statement such as "let me know what you think."
 
-Good final lines:
+Good final lines (use the custom-source example only after setup, never as a Step 5 prompt):
 
 ```text
 You provided custom sources, but the Local Collector is not active yet. Do you want me to guide you through Local Collector setup now so the client-specific automation task can include those sources later, or mark them pending so the task runs default sources only until activation is complete?
@@ -378,7 +378,7 @@ Private data source setup must support both paths independently:
    - recommendation feeds;
    - news feed / home feed signals.
 
-The human still controls custom sources independently, once, at step 5 — any combination, or none — and "no custom URL" answers only the custom-source question. Joined-places discovery and keyword group discovery no longer need a separate consent question: once the human says yes to step 7's one question (`SOLO_AGENCY_PLAYBOOK.md`, Chạy lượt đầu), the run monitors readable groups automatically (Group Potential Rule) and folds every other joined-places category into the same run — the human's only lever afterward is pausing or resuming individual sources on the Sources page.
+The human controls custom sources independently: a URL volunteered during setup is preserved and processed when the collector is ready; later they use Revenue Engine `watch_source` or a direct request to Sam, which triggers Automation Resync. Step 5 does not ask for a URL or wait for one. Joined-places discovery and keyword group discovery no longer need a separate consent question: once the human says yes to step 7's one question (`SOLO_AGENCY_PLAYBOOK.md`, Chạy lượt đầu), the run monitors readable groups automatically (Group Potential Rule) and folds every other joined-places category into the same run — the human's only lever afterward is pausing or resuming individual sources on the Sources page.
 
 The agent must not assume discovery replaces manual source input.
 
@@ -501,9 +501,9 @@ The agent must follow these principles at all times:
 - Infer `related_industries` after inferring the primary industry and sub-industry. Show those related industries to the human during setup and use them to broaden research and content angles.
 - Keep the content strategy anchored around the primary industry: approximately 80% of ideas/scripts should revolve around the primary industry and primary offer, and approximately 20% may use related industries when there is a clear logical bridge back to the client's offer, audience, pain points, or lead-generation goals.
 - Ask for `target_location` only if the business is location-dependent and the location cannot be inferred.
-- Ask the human to provide private data sources they want monitored, such as competitor profiles, fanpages, groups, communities, or social accounts.
+- Do not ask the human to provide custom sources during setup. Preserve any URL they volunteer; later they can use Revenue Engine `watch_source` or make a direct request to Sam.
 - The agent filters and monitors Facebook groups the client already belongs to automatically (Group Potential Rule) — no question is asked; the Boss pauses any on the Sources page.
-- Private data source discovery — groups/subreddits/communities the human already belongs to, pages/profiles/KOLs they follow, channels they subscribe to, and platform feeds that recommend relevant content — needs no separate offer or consent; it rides the step-7 first-run yes, and the Group Potential Rule filters and monitors the results automatically. The only remaining source question is the single custom-URL ask at step 5, where the human may provide URLs, decline, or postpone.
+- Private data source discovery — groups/subreddits/communities the human already belongs to, pages/profiles/KOLs they follow, channels they subscribe to, and platform feeds that recommend relevant content — needs no separate offer or consent; it rides the step-7 first-run yes, and the Group Potential Rule filters and monitors the results automatically. Step 5 has no custom-URL question.
 - During private data source setup, repeatedly reassure the human in simple language:
   - They are setting up a professional agency-scale system, so the first setup takes patience but normally happens only once.
   - Private data is saved locally on their own computer and must not be sent outside their computer unless they explicitly approve an export.
@@ -523,7 +523,7 @@ The agent must follow these principles at all times:
 - Setup completion rule: after setup context and routine are saved, create/verify the client-specific automation task first, then resolve or record the step 7 private data source checkpoint if private data sources are requested/exist, and resync the task after any source-state change. The first report must run in Automation Flow, not inside the setup chat.
 - If the human provided private data sources but Local Collector is not active, the first agency report must clearly say that private data source monitoring is not activated yet and requires the Solo Agency Local Collector extension plus Local Collector app.
 - Private data source activation gate: the agent must not claim private data source monitoring is active or run scheduled private collection until collector setup has either completed or been clearly documented as blocked in `collector_setup_status.md`.
-- Manual private data sources (custom URLs) and private data source discovery are independent mechanisms. The human may provide custom-URL private data sources, decline, or postpone — the single question for this, asked once at step 5. Discovery from joined groups/subreddits/communities/followed profiles/feeds needs no separate offer, consent, or user-facing setup step; it rides the step-7 first-run yes, and the Group Potential Rule filters and monitors the results automatically.
+- Manual private data sources (custom URLs) and private data source discovery are independent mechanisms. A voluntarily supplied URL is preserved during setup or can be added later through Revenue Engine `watch_source` or a direct request to Sam; no setup question or answer is required. Discovery from joined groups/subreddits/communities/followed profiles/feeds needs no separate offer, consent, or user-facing setup step; it rides the step-7 first-run yes, and the Group Potential Rule filters and monitors the results automatically.
 - Private data source completion gate in Automation Flow: after any private scan, the automation task must analyze the collected private data and regenerate the idea matrix, best idea, leads, competitors, and drafts if needed. For the report itself, regenerate/update only the private lane report (`{client-name}-private-data-sources-report.html`) and the daily staging index, then rebuild the combined `{client-name}-client-report.html` + PDF companion + `{client-name}-INTERNAL_REPORT.html`, never overwriting `{client-name}-public-data-sources-report.html`, and reconcile `{client-name}-report_state.json` and `outputs/latest/` copies. A private scan is not complete merely because the Local Collector successfully collected data.
 - The first report happens after the profile/source plan, schedule/routine, client-specific automation task, and step 7 private data source checkpoint are ready or honestly marked pending, and it must be launched through the client-specific automation task.
 - Ask about the recurring schedule during setup after the profile and source plan are known. If private data sources exist, do not promise scheduled private collection until the shared bridge and matching client extension are complete or clearly pending/blocked.
