@@ -1,0 +1,31 @@
+{
+  "post_id": "P18",
+  "platform": "facebook",
+  "community": "California Real Estate Agents Network",
+  "text": "Fellow agents — which lenders do you actually trust to close on time? I've had two escrows blow past their close date this month because the loan didn't clear underwriting in time and I'm losing patience. Drop who you use (and who to avoid) below.",
+  "comment_source_reason": "Real-estate agents publicly asking which lenders close on time draws direct pitches from loan officers (competitors for the MLO) and recommendations from other agents (partner-segment leads for the MLO); since almost every commenter is an agent, the same thread is mostly noise for a realtor client except where the agent is actually serving Orange County, in which case they are a competitor rather than a lead.",
+  "client": "mlo",
+  "rows": [
+    {
+      "id": "P18-41",
+      "author_line": "Realtor, Keller Williams Phoenix AZ",
+      "comments": [
+        "We have the exact same complaint here in Phoenix, feels universal at this point."
+      ]
+    },
+    {
+      "id": "P18-42",
+      "author_line": "Realtor, Rancho Santa Margarita",
+      "comments": [
+        "Our best experience has been with a mortgage broker who works out of Irvine, closes in 19 days average."
+      ]
+    },
+    {
+      "id": "P18-43",
+      "author_line": "Realtor, Dana Point",
+      "comments": [
+        "Adding a vote for asking the LO directly about their current file count before you trust the company name."
+      ]
+    }
+  ]
+}

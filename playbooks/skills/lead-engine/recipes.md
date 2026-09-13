@@ -43,7 +43,7 @@ narrow the funnel at each step instead of skipping one.
      fb.people.search { query: "<discovery term>" }
         (the url Facebook itself renders: https://www.facebook.com/search/people/?q=<discovery term>)
         Returns ProfileSummary[] rows (name, url, subtitle/work line, mutual_friends, industry_hint).
-        No post text exists, so classification runs `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1
+        No post text exists, so the mapped extractor tier (Luna on Codex) runs `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1 file-in/file-out
         against subtitle + industry_hint + name/url only: a subtitle/bio that matches a line of the
         client's `buyer_profile.types` is `fit = high`, and with no stated need that is
         `intent = none` → `warm` per the matrix — never dropped for lacking a stated need. No match
@@ -58,7 +58,7 @@ narrow the funnel at each step instead of skipping one.
         to see, never scanned, never joined, never requested. Unknown privacy is NOT treated as
         no-access by default: spend one fb.group.posts { max_pages: 1 } probe — posts come back →
         readable; an access wall, or empty with stopped_because naming access or login → no_access.
-        Score every readable group with the Group Potential Rule
+        Have the mapped extractor tier (Luna on Codex) score every readable group with the Group Potential Rule
         (playbooks/10_LEAD_COMPETITOR_DETECTION.md) and register it: `tool source-registry add
         --client <slug> --platform facebook --source-type group --origin discovered --url <u> --name
         <n> --member-count <m> --privacy <public|private> --state <active|not_selected|no_access>
@@ -96,7 +96,8 @@ narrow the funnel at each step instead of skipping one.
         bất động sản" (intent, anchored to the offer).
         rejected by the quality gate (generic, no role/offer anchor) — "advice", "looking for",
         "need help", "any recommendations", "content help" alone.
-5. Every post and person row from all four steps is classified immediately against
+5. Every post and person row from all four steps is staged from that returned collector job into <=40-row
+   file-in/file-out batches and classified immediately by one extractor-tier sub-agent per batch (`gpt-5.6-luna` on Codex) against
    `playbooks/LEAD_QUALIFICATION_RULE.md` (Step 1 first — who they are, before intent) → keep
    decision hot|warm|watch; dedupe by post/profile URL. Then `tool crm-store ... lead capture` —
    even for a group not yet in private_data_sources.
@@ -165,10 +166,10 @@ monitoring shape once a group is registered `state: active`.
       posts capability), not people search.
 2. Read the returned ProfileSummary[] rows (name/handle, url, subtitle/bio line, industry_hint
    where the platform provides one).
-3. Run every row through `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1 (WHO is this person) against
+3. Run every row through a mapped extractor-tier file-in/file-out sub-agent (`gpt-5.6-luna` on Codex) applying `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1 (WHO is this person) against
    the client's `buyer_profile.types`. A bio-only row has no post text for Steps 2/3, so
    `intent = none` by the rule's own bio-only clause; a `fit = high` row is still `warm` — never
-   dropped for lacking a stated need (SKILL.md's "Classification (extractor tier)").
+   dropped for lacking a stated need (SKILL.md's "Classification (extractor tier; Luna on Codex)").
 4. (optional) fb.groups.search for that profession's communities → fb.group.posts to see who is active.
 5. `tool crm-store ... lead capture` records each row (person_type, sells_to_match, fit, fit_reason,
    intent, intent_reason, decision) with the profile URL; no contact scraping.
@@ -184,7 +185,7 @@ monitoring shape once a group is registered `state: active`.
      - fast/free: the friend's name + vanity url + subtitle (e.g. "edsocalrealtor", "Loan Officer").
      - confirm: fb.people.search { query: "<friend name>" } → industry_hint.
      (fb.profile.about is NOT reliable via GraphQL — see the catalog note.)
-3. Keep friends in the target industries (immigration / real estate / insurance / ...).
+3. Have the mapped extractor-tier classifier (Luna on Codex) decide which friends are in the target industries (immigration / real estate / insurance / ...).
 4. Stage 10 records the shortlist. Friend-of-friend one more level = repeat step 1 per kept friend
    (heavy — cap by safety.md; this can explode into thousands, so obey the volume budget).
 ```
@@ -195,7 +196,7 @@ monitoring shape once a group is registered `state: active`.
 
 ```text
 1. fb.group.posts { group_url: "<group>", max_pages: 2..3 }  (recurring = shallow; Stage 10: 5 scrolls/day)
-2. Classify every post by the AUTHOR'S TYPE FIRST — `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1
+2. Have the mapped extractor tier (Luna on Codex) classify every post by the AUTHOR'S TYPE FIRST — `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1
    (WHO is this person) against the client's `buyer_profile.types` — before reading the post for
    need/intent language. Then run Steps 2-3 (competitor / why-now) on the same post. A `fit = high`
    author with `intent = none` is still `warm`, never dropped for a routine post.
@@ -217,10 +218,10 @@ monitoring shape once a group is registered `state: active`.
    — or reuse comments already captured in the inbox for that post when nothing needs re-fetching.
 2. Dedupe rows by author (all of one author's comments become one row); drop rows that are empty,
    emoji-only, or "following"/"bump"/tag-only.
-3. Write survivors to batch files of exactly 40 rows each
+3. Write survivors in 40-row batch files; only the final remainder may contain 1–39 rows
    (`history/YYYY-MM/harvest/{source_id}/batch_01.json …`).
-4. For EACH batch file, spawn one classifier sub-agent on the LOWEST model available (Haiku on
-   Claude, the smallest Codex model) applying `playbooks/COMMENT_TRIAGE_RULE.md` verbatim — one
+4. For EACH batch file, spawn one extractor-tier classifier sub-agent (`gpt-5.6-luna` on Codex) applying
+   `playbooks/COMMENT_TRIAGE_RULE.md` verbatim — one
    sub-agent per batch, never one sub-agent walking every batch serially. Write each sub-agent's
    keep/drop verdicts to a results directory as JSON, rows keyed by row `id`.
 5. `tool harvest-thread ingest --pipeline DIR --client SLUG --id SOURCE_ID --results DIR` does

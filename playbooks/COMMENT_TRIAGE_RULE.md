@@ -1,12 +1,18 @@
 # Comment Triage Rule
 
-What: batch classifier for Decision 3's harvest job — decides keep or drop for each comment-thread author, run by the lowest model (Haiku on Claude, the smallest Codex model) in batches of 40 after a code prefilter, only when the Boss orders a harvest run, never in the daily run.
+What: batch classifier for Decision 3's harvest job — decides keep or drop for each comment-thread author, run by the extractor tier (`gpt-5.6-luna` on Codex; the mapped extractor on other runtimes) after a code prefilter, only when the Boss orders a harvest run, never in the daily run. Use 40 rows for every full batch; only the final remainder may contain 1–39. The Team Leader/main model never performs this row-by-row classification.
 
 Who loads it: the harvest job (post-approval on a `discovered` source in the client's source registry, `playbooks/LEAD_QUALIFICATION_RULE.md` Step 5); the regression test (`playbooks/tests/lead-rule/`, `score_comments.py`).
 
 Edit policy: any change to this file requires re-running `playbooks/tests/lead-rule`'s comment-triage test (`score_comments.py` against `baseline/comment_triage/`) per its `RUN.md` and attaching the resulting output before the change is considered done — do not edit this rule and move on without it.
 
 The text below is copied verbatim from the owner-approved source (`comment_triage_v7.md`, measured with Haiku on 24 threads × ~40 authors: 90–94% exact keep/drop, keep-recall 91–92%, keep-precision 96–97%, competitor drop 98%, noise drop 99%; batch 40 is the sweet spot — batch 25 loses rows, batch 60 loses 3 points). Do not paraphrase it.
+
+## Execution routing (outside the verbatim rule)
+
+The harvest tool stages one file-in/file-out JSON batch per classifier: 40 rows for every full batch and 1–39 only for the final remainder. When there are more than five independent rows, or the collection size is unknown/unbounded and must be exhausted, run a five-record extractor canary using the same input/output contract; validate every canary `id`, schema, and allowed vocabulary before proceeding. Each pass must append the metadata-only routing-audit record required by `daily-content-pipeline/automation/model_routing_log.jsonl`; never put raw comment text, author data, or other PII in that log.
+
+Spawn one extractor-tier sub-agent per staged batch file (`gpt-5.6-luna` on Codex). Validate that its result has exactly the input ids once each, the required schema, and only this rule's allowed values before `tool harvest-thread ingest --results DIR`. The Team Leader/main model may sample or validate returned rows and may perform the ingest/CRM write; it must not reclassify a full batch. On Codex, each failed/unavailable Luna batch may receive at most one `gpt-5.6-terra` retry, with the fallback reason recorded in the routing audit; other runtimes use their mapped next tier. Never use the leader as fallback. If no low-tier sub-agent works, checkpoint and stop with `low_tier_subagent_unavailable`; do not inline-classify bulk rows. These constraints do not alter the Boss-order, prefilter, capture, or approval gates.
 
 ---
 

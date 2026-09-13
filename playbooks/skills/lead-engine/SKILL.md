@@ -30,7 +30,7 @@ and reports them.
 - **Is:** the planner + autonomous loop that turns a vague human intent into a
   concrete sequence of Local Collector capability jobs, runs them, deepens via
   pagination, and stops at a KPI or a safety limit. It also runs the row-level
-  classification pass (see "Classification (extractor tier)" below) using
+  classification pass (see "Classification (extractor tier; Luna on Codex)" below) using
   Stage 10's own rule file — not a restatement of it.
 - **Is not:** the report or the storage schema. Lead definitions, scoring, the
   value-first comment rules, the HTML report contract, and the storage schema
@@ -55,7 +55,7 @@ and reports them.
   detection workflow (§Detection Workflow, required fields, scoring) and stored
   via Stage 10's ledger (`history/YYYY-MM/lead_competitor_opportunities.jsonl`).
 
-## Classification (extractor tier)
+## Classification (extractor tier; Luna on Codex)
 
 Every candidate item (a post, comment, caption, or people-search row from step 3 of the loop)
 is qualified by applying `playbooks/LEAD_QUALIFICATION_RULE.md` **verbatim**, Step 1 first, as the
@@ -68,17 +68,26 @@ person is is decided before intent — a person of the right type with no stated
 never dropped for lacking a need phrase.
 
 The rule was validated blind against 120 scenarios × 5 clients with Haiku (96.2% lead/non-lead,
-93.8% exact tier), so the **extractor tier** — the runtime's smallest capable model
-(`playbooks/TEAM_MODEL.md`) — is the right tier to run this pass; do not escalate to a bigger model
+93.8% exact tier), so the extractor tier — `gpt-5.6-luna` on Codex — runs this pass; do not escalate to a bigger model
 by default. A hot-vs-warm borderline call MAY be escalated one tier for a second read, but the FIT
 decision (rule Step 1 — who this person is) is never escalated or overridden by a bigger model;
 if fit reads medium/low, that answer stands.
 
-A DIFFERENT lowest-model classification pass applies only inside a discovered-thread harvest job
+A DIFFERENT extractor-tier classification pass applies only inside a discovered-thread harvest job
 (Recipe E, below): it applies `playbooks/COMMENT_TRIAGE_RULE.md` — not this rule — to a batch of
 one thread's comment authors, once, only on the Boss's explicit order. Do not conflate the two: this
 section's per-item Fit × Intent pass runs on every candidate the gather loop finds; the harvest's
 batch triage runs on comments under one already-recorded discovered source.
+
+Every qualification is file-in/file-out extractor sub-agent work: stage each returned collector job's compact rows in
+files of <=40, spawn one extractor classifier per file (Luna on Codex), and validate all input ids, output schema, and vocabulary
+before any CRM/source-registry write. For any bulk operation (>5 independent records, or a collection whose size is unknown/unbounded and must be exhausted), first run a five-record extractor canary with the same contract. Append the metadata-only audit
+record required by `daily-content-pipeline/automation/model_routing_log.jsonl` for each canary/pass; it contains
+no raw text or PII. The Team Leader/main model may sample/validate output and write CRM/source-registry records, but may
+not reclassify a full batch. On Codex, each Luna batch failure/unavailability may use at most one `gpt-5.6-terra` sub-agent retry with an explicitly
+logged fallback; other runtimes use their mapped next tier, never the leader. If no low-tier agent works, checkpoint/stop `low_tier_subagent_unavailable` and do not
+inline-classify bulk rows. This remains qualify-as-you-go: finish the current collector job's batches before the
+next job.
 
 ## The loop (general solver)
 
@@ -97,7 +106,7 @@ because user requests are unbounded.
      for each planned step:
         submit a collector job (POST /jobs/run_now) with the capability + inputs
         read the run's records (private_data_points.jsonl → .records.items)
-        classify each item ("Classification (extractor tier)" above) → keep only decision hot|warm|watch;
+        stage/classify the current job's items ("Classification (extractor tier; Luna on Codex)" above) → keep only decision hot|warm|watch;
         dedupe by profile/post URL
         accumulate qualified leads
      re-evaluate after each step:
@@ -157,12 +166,12 @@ Next: {suggested widen/deepen options for the human}.
   Facebook's candidate groups are judged by the Group Potential Rule and registered in the shared source
   registry (`tool source-registry add`; each run scans up to 20 of them via `tool source-registry plan`) — Instagram and X
   have no groups, so nothing is added there for them. Recipe E is the Boss-ordered discovered-thread
-  harvest job (batch triage on the lowest model, 40 rows per call) — a separate job from this pass,
+  harvest job (extractor-tier batch triage, Luna on Codex, <=40 rows per call) — a separate job from this pass,
   never run inside it.
 - `safety.md` — the KPI + ban-risk stop conditions, the join-is-human rule, and
   the ToS/privacy boundaries this loop must never cross.
 - `playbooks/LEAD_QUALIFICATION_RULE.md` — the Fit × Intent rule this skill's classifier applies
-  verbatim (see "Classification (extractor tier)" above); re-run `playbooks/tests/lead-rule` after
+  verbatim (see "Classification (extractor tier; Luna on Codex)" above); re-run `playbooks/tests/lead-rule` after
   any edit to it, per that file's own mandatory-test note.
 - Scoring, lead schema, comment rules, report + storage: **Stage 10**
   (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`) — authoritative, do not duplicate.

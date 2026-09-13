@@ -1628,6 +1628,18 @@ Before claiming private data sources were collected, verify:
 - [ ] Did I mark expired sessions, captcha, warnings, or blocked sources clearly?
 - [ ] Did I notify the human via WideCast/Telegram if private collection is blocked and that channel is available?
 
+### Model Routing Checklist (all relevant passes)
+
+Before accepting any extraction, closed-list classification, structuring, verify/reachability, or repetitive text/record result:
+
+- [ ] Did the pass follow `playbooks/TEAM_MODEL.md` routing: Codex Luna (`gpt-5.6-luna`) extractor by default, Terra (`gpt-5.6-terra`) worker by default, leader retained for strategy/approvals/writes?
+- [ ] Did I treat >5 independent records, or an unbounded/unknown-size collection that must be exhausted, as bulk and keep it out of the main model/inline path—without misclassifying a known <=5-record task merely because its instructions say `batch`, `list`, `queue`, `all`, or `every`?
+- [ ] For bulk extractor work, did a low-tier sub-agent produce a five-record file-in/file-out canary, then did I validate strict schema, row count, and closed vocabulary before remaining batches? Did worker-only drafting/editing stay on its worker tier rather than being sent through a Luna canary?
+- [ ] For a mixed job, did the main model validate samples and decide strategy/approvals/write actions without re-reading or reclassifying the whole batch?
+- [ ] If a Luna batch failed/unavailable, was its at-most-one Terra retry and fallback reason logged; if no low-tier agent worked, did the run checkpoint `low_tier_subagent_unavailable` rather than process bulk inline?
+- [ ] If a <=5-record one-off used inline fallback, was spawning/model selection genuinely unavailable and the reason logged?
+- [ ] Does `daily-content-pipeline/automation/model_routing_log.jsonl` use the canonical Stage 7 schema and contain `execution_ref`, `model_evidence`, and schema/row-count/vocabulary validation statuses for each delegated, fallback, or inline decision, with `actual_model: unverified` rather than an invented identity when the runtime does not expose it?
+
 ### Data Quality Checklist
 
 Before using collected data, verify:
@@ -1748,7 +1760,7 @@ Before final report, verify:
 - [ ] Did I qualify and capture every job's rows the moment that job's result came back — Lead Qualification Rule, then `lead capture`, then `source-registry record` when it was a group scan — rather than batching qualification to stage 5 or the end of the pass ("Qualify as you go", `playbooks/10_LEAD_COMPETITOR_DETECTION.md`)?
 - [ ] Did every post-level judgement — not only the Social Discovery Pass — also run Step 5 of `playbooks/LEAD_QUALIFICATION_RULE.md`, and did every `likely` verdict get RECORDED via `tool source-registry discovered add` rather than acted on?
 - [ ] Did this run avoid harvesting any discovered source on its own — no comment thread reopened, classified, or captured except as a separate job triggered by an explicit Boss order (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Harvest a discovered thread")?
-- [ ] If a harvest ran, did it classify in batches of exactly 40 with one sub-agent per batch on the LOWEST available model (Haiku on Claude, the smallest Codex model) applying `playbooks/COMMENT_TRIAGE_RULE.md` verbatim, and did it skip any source whose `status` was already `harvested` unless the Boss ordered that specific source again?
+- [ ] If a harvest ran, did it use 40 rows for every full batch (only the final remainder may contain 1–39), with one extractor-tier sub-agent per batch (`gpt-5.6-luna` on Codex, Haiku on Claude), applying `playbooks/COMMENT_TRIAGE_RULE.md` verbatim; did it pass the model-routing canary/validation/log contract above; and did it skip any source whose `status` was already `harvested` unless the Boss ordered that specific source again?
 - [ ] Did I include the CRM link line in the operator-facing reply and `INTERNAL_REPORT` after any scan that produced ≥ 1 lead (bare line on a zero-lead run)?
 - [ ] The first time this run's progress showed `leads_hot + leads_warm + leads_watch > 0`, did I speak the First-lead moment (number and platform, plainly) and open/print this client's CRM at `/ui/{client_slug}/crm?sort=-created` in that same message (`playbooks/04_DAILY_SCHEDULE.md`, "First-lead moment")?
 - [ ] Did I read the locked-lead count from `tool crm-store ... contact lock-status` rather than hand-counting it?
@@ -1922,6 +1934,7 @@ For these five mechanical gates, the audit must paste real command output, not a
 - report_state consistency: quote the status/count fields from `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json`.
 - LOAD LEDGER line counts: paste the printed ledgers for the stages loaded this run.
 - Notification record: paste the `notifications/notification_log.md` row for this run.
+- Model routing: paste the relevant `model_routing_log.jsonl` line(s) and actual model evidence for every relevant pass; confirm canary/schema/row-count/vocabulary status for bulk. This applies to all relevant passes, not only comment harvest.
 
 Print the evidence as a compact block, one line per gate, in the form:
 

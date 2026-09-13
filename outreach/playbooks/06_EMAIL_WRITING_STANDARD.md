@@ -53,7 +53,7 @@ Drafts are written through `tool crm-store draft write`. When any instruction he
    goal in the operator's own words + derived fields, key-message rotation for this lead, hooks,
    every prior touch) and records on disk exactly what you had in hand. On a campaign with a
    `goal.description`, `draft write` refuses an unbriefed draft (`no_brief`). Then **spawn a
-   fresh-context WRITER** (a sub-agent/subtask in your runtime; one lead per call, max 5 per
+   fresh-context WORKER WRITER** (Terra on Codex; the mapped worker tier elsewhere; one lead per call, max 5 per
    batch) whose ONLY input is `brief_to_email.md` + `weave.md` + the brief — the orchestrating
    session never writes body text inline among its ledgers and queues. Measured, not preference:
    inline writing is where every template batch came from; isolated writers produced the
@@ -63,7 +63,9 @@ Drafts are written through `tool crm-store draft write`. When any instruction he
    dossier's ranked angles + hooks, step intent), now delivered instead of remembered. Match depth to the dossier's Layer-B
    richness (RICH/MEDIUM/THIN), and package for the channel (`channels.md`). If the campaign declares
    a `goal.companion_doc`, first produce this lead's companion link (see "Companion document" below)
-   and weave it in as the offer/release link, before writing the draft.
+   and weave it in as the offer/release link, before writing the draft. If no mapped worker is
+   available, stop `low_tier_subagent_unavailable`; never author the body inline in the leader. Append a metadata-only
+   routing row using the canonical Stage 7 schema to `daily-content-pipeline/automation/model_routing_log.jsonl`; worker-only drafting does not require a Luna canary.
 2. Below `min_confidence` / no usable hooks → the campaign's `no_hook_fallback`. Default is
    **`skip`**: `draft write` rejects the hookless step-1 draft (`no_evidenced_hook`). Only a
    campaign that explicitly opts into `generic_honest_opener` gets the generic-but-honest opener

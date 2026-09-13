@@ -192,24 +192,26 @@ every post caption; twenty-five of them fills a context, and after two or three 
 99 ever decided, while the daemon added more every day. Delegation keeps those records out of the
 supervisor's context entirely, so batch 40 costs it exactly what batch 1 did.
 
-**Roles are defined by COST TIER, never by a model name.** This system is brain-agnostic — Codex,
-Claude and any other runtime drive the same install — so a rail that names one vendor's model is
-broken for everyone else. The three roles:
+**Roles are defined by COST TIER.** This system is brain-agnostic — Codex, Claude and any other
+runtime drive the same install. Codex uses Luna as extractor and Terra only as the logged next-tier
+retry; other runtimes use the extractor/worker mapping in root `playbooks/TEAM_MODEL.md`. The three roles:
 
 | Role | What it does | Which model |
 |---|---|---|
-| `harvest_low_tier_extractor` | pass 1: unstructured prose → one industry from the closed list | the **cheapest** text+tool model the runtime exposes |
-| `harvest_low_tier_judge` | pass 2: structured record vs the goal → verdict | the same cheapest tier |
+| `harvest_low_tier_extractor` | pass 1: unstructured prose → one industry from the closed list | mapped extractor tier (Luna on Codex) |
+| `harvest_low_tier_judge` | pass 2: structured record vs the goal → verdict | mapped extractor tier (Luna on Codex) |
 | `harvest_ambiguous_reviewer` | ONLY records the extractor marked `unclear` | one tier up, and only if configured or the operator approves |
 
-**No silent cost escalation.** That rule means *do not raise the cost tier on your own* — it is
-not about any particular model. If the runtime will not let a sub-agent run at the lowest tier,
-**stop before the first record and say so.** Reading hundreds of profiles on a mid or top tier
-because the cheap one was unavailable is exactly the failure this whole design exists to prevent,
-and doing it silently is worse than not running at all.
+**No silent cost escalation.** On Codex, each failed Luna batch may receive at most one Terra retry recorded with the canonical metadata-only Stage 7 schema; other runtimes use their mapped next tier. If
+no low-tier agent is available, **stop before the first record with
+`low_tier_subagent_unavailable`.** Never read or judge inline in the leader. For more than five records, or an unknown/unbounded collection that must be exhausted,
+pass the five-record extractor canary first and then use batches of at most
+40; one sub-agent remains active at a time.
 
 Record what actually ran, so the cost is auditable afterwards rather than assumed:
 `"classified_by": {"runtime": "<codex|claude|…>", "model": "<actual slug>", "tier": "lowest_cost"}`.
+Also append only routing metadata — never profile content or PII — to
+`daily-content-pipeline/automation/model_routing_log.jsonl`.
 
 **Canary before bulk, every time.** Run 5 records first and check: 5/5 lines parse, every industry
 is in the closed vocabulary verbatim, `unclear: true` appears where the record genuinely does not
@@ -297,7 +299,7 @@ one-off case; the pass uses `decide-batch`.
 ```
 remaining = (harvest pending --campaign X --limit 1).remaining
 while remaining > 0 and time/budget left:
-    dispatch judge sub-agents over the next batches   (parallel where the runtime allows)
+    dispatch ONE judge sub-agent over the next batch (never parallel)
     re-read `remaining` from `harvest pending`        (never from your own count)
     log one line: "batch N: k kept, r rejected — M remaining"
 ```
@@ -314,7 +316,7 @@ Three rules that make the difference between finishing and appearing to:
   ends with a backlog reads identically to a pass that finished, which is how 860 accumulated
   without anyone noticing.
 
-Every decision is one `decide` call; the daemon reads the registry, so an undecided record just
+Every batch is applied by one `decide-batch` call (the single-record `decide` remains only for a genuine one-off); the daemon reads the registry, so an undecided record just
 waits — nothing is lost between runs. But nothing moves either, and the daemon adds more
 tomorrow.
 

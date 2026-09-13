@@ -146,13 +146,33 @@ others continue.
 ### Qualify as you go
 
 **Qualify as you go.** Every job's rows are qualified the moment that job's result comes back — never batched
-to the end of the pass. The order inside one job is: read the result for a trip signal, then run the Lead
-Qualification Rule over its rows, then `tool crm-store ... lead capture` for every hot/warm/watch row, then
+to the end of the pass. Stage that one collector job's compact rows into file-in/file-out JSON batches of no more
+than 40 rows and have one extractor-tier sub-agent (`gpt-5.6-luna` on Codex) classify each batch with the Lead Qualification Rule; do not
+defer batches until later jobs. The order inside one job is: read the result for a trip signal, run the required
+extractor routing/checks below, then `tool crm-store ... lead capture` for every hot/warm/watch row, then
 `tool source-registry record --leads <n>` when the job was a group scan, then submit the next job. A run is
 therefore producing CRM contacts from its FIRST collector call (a feed-search post can be a hot lead at minute
 one), not at the end. Stage 5 `filter_leads` keeps its name but is now the reconciliation step: counts
 re-read from the CRM (`contact lock-status`), Step 5 discovered-thread recording, and anything a per-job pass
 left over — never the first time the rule is run.
+
+### Mandatory low-tier classification routing
+
+Every post, comment, caption, profile, people-search row, lead/competitor candidate, and source/group-potential
+closed-list classification in this stage is a file-in/file-out extractor-tier sub-agent task (`gpt-5.6-luna` on Codex;
+the mapped extractor on other runtimes). The Team Leader/main model never qualitatively classifies a full row set. Before any
+bulk operation (more than five independent records, or a collection whose size is unknown/unbounded and must be exhausted), run a
+five-record extractor canary against the same rule and output shape. Only continue after checking every canary id,
+schema, and allowed vocabulary.
+
+For each collector job, compact and stage rows in files of <=40 records, spawn one extractor classifier per file, and
+validate that every input id appears exactly once and every returned object obeys the rule's schema/vocabulary.
+The Team Leader/main model may sample returned work, validate it, and perform CRM or source-registry writes, but may not
+reclassify the full batch. Append the metadata-only audit record required by
+`daily-content-pipeline/automation/model_routing_log.jsonl` for every canary and batch pass; never write raw
+content or PII to that audit log. On Codex, each failed/unavailable Luna batch may use at most one `gpt-5.6-terra` sub-agent retry and must explicitly log the reason; other runtimes use their mapped next tier. The leader is never a fallback. If no low-tier sub-agent is
+available, checkpoint and stop with `low_tier_subagent_unavailable`; never inline-classify bulk rows. This routing
+rule preserves all collection, automatic source-registration, capture, and human approval/send gates.
 
 ### Progress: six stages
 
@@ -267,8 +287,9 @@ another platform has a pending step.
 
 ### Group Potential Rule
 
-For every readable group (public, or private where the account is a member — `groups_readable`),
-write `potential: high | medium | low` and one-line `potential_reason`, using the group's name,
+For every readable group (public, or private where the account is a member — `groups_readable`), an extractor
+sub-agent under the Mandatory low-tier classification routing contract writes `potential: high | medium | low`
+and one-line `potential_reason`, using the group's name,
 snippet/description, member count and the client's `buyer_profile` (`types`, `location`, `sells_to`):
 
 - **high** — the client's buyer types gather there (a trade/role group matching a `types` line, e.g.
@@ -1085,11 +1106,13 @@ explicit Boss-ordered re-harvest) — they refuse outright on `new` or `dismisse
    (`playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, "Discovered sources", has the full folder layout).
    If nothing is captured yet it returns `awaiting_comments` instead of batches — reopen the thread
    through the collector and re-run prepare.
-2. **Classify.** For every batch file, spawn one classifier sub-agent on the LOWEST model available
-   (Haiku on Claude, the smallest model on Codex) applying `playbooks/COMMENT_TRIAGE_RULE.md` — the
-   batch rule of record — verbatim. One sub-agent per batch file, never one sub-agent walking every
-   batch serially; batch size stays 40, never resized to save a call. Write each sub-agent's
-   keep/drop verdicts to a results directory as JSON (one file per batch, rows keyed by row `id`).
+2. **Classify.** For every batch file, spawn one extractor-tier classifier sub-agent (`gpt-5.6-luna` on Codex) applying
+`playbooks/COMMENT_TRIAGE_RULE.md` — the batch rule of record — verbatim. One sub-agent per batch
+file, never one sub-agent walking every batch serially; use 40 rows for every full batch and only the final remainder may contain 1–39. Run the
+five-record extractor canary before any bulk harvest, validate every result id/schema/vocabulary, and append
+the metadata-only routing audit record required by `daily-content-pipeline/automation/model_routing_log.jsonl`.
+Write each validated sub-agent's keep/drop verdicts to a results directory as JSON (one file per batch,
+rows keyed by row `id`). On Codex, each failed/unavailable Luna batch may receive at most one Terra retry under the explicit logged fallback; other runtimes use their mapped next tier. If no low-tier agent works, stop with `low_tier_subagent_unavailable`, never leader/inline classification.
 3. **Ingest** — `tool harvest-thread ingest --results DIR`. Every kept author is captured as a CRM
    lead with fit/intent tags and `source:thread:{id}` (`outreach/playbooks/13_CRM_CORE.md`) — warm
    by default, `intent` only when the comment itself stated one. Competitor and noise rows are

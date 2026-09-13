@@ -27,6 +27,10 @@ Before any action, obey `playbooks/LOAD_LEDGER_PROTOCOL.md`. Core rules:
 - **No excuse** — "file too large", "save time/tokens", "running from schedule", "I remember it", "human wants it short" — justifies a partial read or a skipped ledger. Brevity applies only to the human-facing summary.
 - Everywhere a gate says "Stage X was loaded", it means **loaded IN FULL** (ledger printed, matches `playbooks/LOAD_MANIFEST.md` when present).
 
+## Hard model-routing gate
+
+Before friend harvest, lead/post qualification, semantic reply triage, or Tier-1 verify, load root `playbooks/TEAM_MODEL.md` and `playbooks/LEAD_QUALIFICATION_RULE.md` in full. Use the mapped extractor tier—Luna on Codex—for extraction/classification; use staged file input/output and let the main flow apply writes. More than five records, or an unknown/unbounded collection that must be exhausted, requires a five-record extractor canary and then batches no larger than 40; keywords such as `batch`, `list`, `queue`, `all`, or `every` only trigger a count/bound check. On Codex, each failed Luna batch may receive at most one logged Terra retry; other runtimes use their mapped next tier. Never perform extractor work inline in the leader; if no low-tier agent is available, stop `low_tier_subagent_unavailable`. Email body copy uses the mapped fresh-context worker tier—Terra on Codex—never inline. Log metadata only, never PII/content, using the canonical root Stage 7 schema in `daily-content-pipeline/automation/model_routing_log.jsonl`.
+
 ## First Human Question
 
 Ask only:
@@ -295,7 +299,7 @@ Max Output - OutreachCRM Weekly Report   (optional additional task)
 
 The standard, canonical automation task is `{Client} - {Campaign} Daily Run` — **one per campaign** (use a short human-readable campaign name, not the raw slug). Its prompt pins BOTH `target_client_slug` and `campaign_slug`; it processes only that campaign; the per-client `run_lock` serializes same-client campaign tasks, and client-level steps (inbox sync, triage, follow-up advising) run inside whichever campaign task executes first that day and are idempotent for the rest. A separate `{Client} - OutreachCRM Weekly Report` task is optional and only exists when explicitly created; do not assume it exists. Do not name campaign tasks with `OutreachCRM` first. One agency-wide maintenance task is `OutreachCRM - GitHub Update Watch`. **Migration:** an older per-client `{Client} - OutreachCRM Daily Run` task is replaced by per-campaign tasks at the next setup/resync touching that client.
 
-Each campaign Daily Run is a team member: the campaign's Distributor + CRM Caretaker agent (`playbooks/TEAM_MODEL.md` at the Solo Agency root). It appends its standup line to `daily-content-pipeline/automation/standup.jsonl` when it finishes and reads the Boss-orders ledger for open rows that touch its client; WRITER drafts and harvest classify / verify passes go to small-brain sub-agents when the runtime can spawn them, inline otherwise.
+Each campaign Daily Run is a team member: the campaign's Distributor + CRM Caretaker agent (`playbooks/TEAM_MODEL.md` at the Solo Agency root). It appends its standup line to `daily-content-pipeline/automation/standup.jsonl` when it finishes and reads the Boss-orders ledger for open rows that touch its client; WRITER drafts use the mapped fresh-context worker tier (Terra on Codex), while harvest classify/verify passes use the mapped extractor tier (Luna on Codex) with the logged next-tier fallback. They never run inline: if no required sub-agent tier is available, stop `low_tier_subagent_unavailable`.
 
 ## Automation Resync Invariant
 

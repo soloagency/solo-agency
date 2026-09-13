@@ -701,15 +701,15 @@ For each active client:
     The bridge publishes both the moment the operator approves them (`comment_dispatch.go`), with
     its own spacing and per-account caps; a run that enqueues `fb.post.comment` or `fb.group.post`
     would double-post.
-19b. **Leads From Friends (daemon walks, agent judges).** For every campaign with
+19b. **Leads From Friends (daemon walks, staged workers judge).** For every campaign with
     `channel_strategy: friend_harvest` (Stage 16), the bridge daemon has been walking seed
     friend lists and enriching friends all day within the operator's budgets; the run's only
-    job is judgement: `harvest pending --campaign X` → decide each enriched record against the
-    campaign GOAL → `harvest decide --campaign X --profile <envelope profile_url> --status …`
-    (kept → `contact add` first — matched or created — then, when the record has a website but no
-    email, the Stage 4 website/off-platform email ladder for that person, then `enrich write`
-    hooks + email findings, then `--lead-id`, source `friend_harvest`;
-    rejected / enrich_failed remembered client-wide). **Judge through low-level sub-agents, and supervise until the queue is empty** (Stage 16, "The supervisor loop"): never read envelopes in the run's own context — one enrich record is large, and after two or three batches the run wraps up with thousands still waiting (measured 2026-08-18: 860 awaiting against 99 ever decided). Re-read `remaining` from the store after every wave, never from your own tally, and if time runs out say the exact number left rather than ending quietly. Never enqueue friends/enrich jobs yourself for a harvest campaign. One
+    job is judgement: `harvest pending --unclassified` → mapped extractor JSONL (Luna on Codex) → `harvest classify`
+    → mapped extractor judge JSONL against the Lead Qualification Rule → supervisor validates and runs ONE
+    `harvest decide-batch --file verdicts.jsonl`. On Codex, each failed Luna batch gets at most one logged Terra retry; other runtimes use their mapped next tier;
+    no low-tier agent means `low_tier_subagent_unavailable`. Never read envelopes in the run context,
+    never perform a single-record `harvest decide`, and never enqueue friends/enrich jobs yourself.
+    Supervise until store-reported `remaining` is zero or disclose the exact remainder. One
     progress line per campaign in the run reply.
 19c. **Leads From Zillow (daemon walks, daemon writes the CRM).** For every campaign with
     `channel_strategy: zillow_harvest` (Stage 17) the daemon walks the agent directory and adds

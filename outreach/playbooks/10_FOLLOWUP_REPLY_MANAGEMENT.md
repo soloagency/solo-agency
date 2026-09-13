@@ -86,7 +86,7 @@ the campaign `sync_log.jsonl` (append-only, monotonic `seq`) and writes the resu
 
 ## 2. Triage the replies (`reply_untriaged` → intent → rules → deal)
 
-A `reply_untriaged` needs a human/agent semantic read into one label, then the rules engine turns
+A `reply_untriaged` needs a mapped extractor-tier sub-agent semantic read (Luna on Codex), file-in/file-out, into one label, then the rules engine turns
 that label into CRM state (a deal, a task, a suppression) deterministically:
 
 | Reply intent | Rule outcome | Next |
@@ -97,7 +97,10 @@ that label into CRM state (a deal, a task, a suppression) deterministically:
 | `negative` | `reply_negative` → **suppression** | Sequence ends; no further sends |
 | `remove_intent` | **suppression** (same as unsubscribe) | Honored same-run |
 
-Apply the triage through the rules engine (deterministic, idempotent — the same reply activity
+For more than five replies, or an unknown/unbounded reply collection that must be exhausted, run a five-reply extractor canary then batches
+of at most 40. On Codex, each failed Luna batch may receive at most one Terra retry with a canonical metadata-only routing-log entry; other runtimes use their mapped next tier.
+Never leader-inline. If no low-tier agent is available, stop `low_tier_subagent_unavailable`. The main flow
+applies the triage through the rules engine (deterministic, idempotent — the same reply activity
 never double-creates a deal):
 
 ```sh

@@ -186,7 +186,15 @@ Timing: this is `private_data_source_discovery` (Stage 2), and it never runs ins
 4. Run all relevant discovery URLs/surfaces.
 5. Use Source Discovery Mode: scroll until no new source names/URLs appear for 3 consecutive scrolls, with a hard safety cap of 10 scrolls.
 6. Extract candidate source names, URLs, platform, visible description/context, activity hints, topic hints, audience fit, location fit, and risk/noise signals.
-7. Filter and classify candidates. A candidate may be classified `recommended_daily`, `recommended_weekly`, `optional`, or `watch_once` ONLY after its relevance to the client's industry/sub-industry, target audience, target location (per the location-weighting rule in Stage 0), and pain points has been scored and recorded in the Discovery Data Model (`target_audience_fit`, `location_fit`, `matched_pain_points`, `industry_scope`). An unscored candidate defaults to `skip_not_relevant` — it must never be registered unscored. Buckets:
+7. Filter and classify candidates. An extractor-tier file-in/file-out sub-agent (`gpt-5.6-luna` on Codex), not the Team Leader/main model,
+   performs every source or group-potential closed-list classification. Stage compact candidate rows in <=40-row
+   files; before >5 independent candidates, or a collection whose size is unknown/unbounded and must be exhausted, validate a five-record
+   extractor canary first. Validate every returned id/schema/vocabulary, append the metadata-only audit record required
+   by `daily-content-pipeline/automation/model_routing_log.jsonl` (no raw text/PII), then the Team Leader may
+   sample/validate and write the source registry. On Codex, each Luna batch failure/unavailability permits at most one explicitly logged
+   `gpt-5.6-terra` sub-agent retry; other runtimes use their mapped next tier, never the leader. If no low-tier agent works, checkpoint/stop
+   `low_tier_subagent_unavailable`, never inline bulk classification. A candidate may be classified
+   `recommended_daily`, `recommended_weekly`, `optional`, or `watch_once` ONLY after its relevance to the client's industry/sub-industry, target audience, target location (per the location-weighting rule in Stage 0), and pain points has been scored and recorded in the Discovery Data Model (`target_audience_fit`, `location_fit`, `matched_pain_points`, `industry_scope`). An unscored candidate defaults to `skip_not_relevant` — it must never be registered unscored. Buckets:
    - `recommended_daily`
    - `recommended_weekly`
    - `optional`
@@ -268,7 +276,7 @@ https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added
    current URLs only.
 8. Review visible group names, group URLs, descriptions, category hints, membership/context hints, and any
    visible preview text.
-9. Judge every group with the Group Potential Rule (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`): `high` and
+9. Have the required extractor-tier sub-agent (Luna on Codex) judge every group with the Group Potential Rule (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`): `high` and
    `medium` → `tool source-registry add --client <slug> --url <u> --platform facebook --source-type group
    --origin discovered --state active --potential <high|medium> --reason "<one line>"`; `low` → the same
    command with `--state not_selected`. The account is a member of every group on this list, so none is

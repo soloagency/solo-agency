@@ -98,6 +98,13 @@ name.
 
 ### 3. Filter first, THEN judge
 
+Route the Lead Qualification Rule's structured classification of each surviving author/post to
+the mapped extractor tier (Luna on Codex) via file-in/file-out; the main flow retains strategy,
+usefulness, and comment-copy judgment. For more than five posts, or an unknown/unbounded collection that must be exhausted, run a five-post extractor canary and then batches
+of at most 40. On Codex, each failed Luna batch may receive at most one Terra retry recorded with the canonical metadata-only schema in
+`daily-content-pipeline/automation/model_routing_log.jsonl`; other runtimes use their mapped next tier. Never leader-inline classification. If
+no low-tier agent is available, stop `low_tier_subagent_unavailable`.
+
 ```
 tool crm-store --client-dir {outreach} draft judged --campaign X
 ```

@@ -1,0 +1,38 @@
+{
+  "post_id": "P04",
+  "platform": "facebook",
+  "community": "Irvine Fitness & Wellness",
+  "text": "Anyone have a personal trainer they'd recommend in Irvine? Looking for someone who does 1-on-1 strength training, prefer somewhere near Woodbury or University Park. Open to in-home or studio.",
+  "comment_source_reason": "Post asks for a personal trainer recommendation in Irvine; trainers who answer are lead-source pitches for the AI sales/marketing tool (solo_agency), since a personal trainer running their own client base is an independent professional who fits solo_agency's target profile directly.",
+  "client": "solo_agency",
+  "rows": [
+    {
+      "id": "P04-41",
+      "author_line": "Personal Trainer - Prime Movement Irvine",
+      "comments": [
+        "lol feels that way sometimes, but I really do this, strength-focused 1-on-1s near University Park if you want to chat"
+      ]
+    },
+    {
+      "id": "P04-42",
+      "author_line": "Personal Trainer - Vitality Coaching, Irvine",
+      "comments": [
+        "Happy to help, I do 1-on-1 strength sessions, flexible on Woodbury or University Park locations. First session discounted."
+      ]
+    },
+    {
+      "id": "P04-43",
+      "author_line": "",
+      "comments": [
+        "mình quen 1 chị trainer làm rất kỹ, để mình xin số rồi gửi bạn sau nha"
+      ]
+    },
+    {
+      "id": "P04-44",
+      "author_line": "Personal Trainer - Lifted Studio Irvine",
+      "comments": [
+        "Can help with this, small private studio near Culver, strength-focused programs only. Text/DM works best."
+      ]
+    }
+  ]
+}

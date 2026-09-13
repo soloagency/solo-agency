@@ -569,6 +569,15 @@ Use this before replying to the human, before claiming setup complete, and befor
 - [ ] Did I check both agency-tier (`global_suppression.jsonl`) and client-tier (`crm/suppression.jsonl`) suppression, not one as proof of the other?
 - [ ] Did the client-specific task name begin with the client name?
 
+### Model Routing Self-Audit Checklist
+
+- [ ] Before routed work, did I load root `playbooks/TEAM_MODEL.md` and `playbooks/LEAD_QUALIFICATION_RULE.md`?
+- [ ] Did friend extraction/verdicts, lead/post structured classification, semantic reply labels, and Tier-1 verify use the mapped extractor tier file-in/file-out (Luna on Codex); did the main flow alone apply writes?
+- [ ] For each failed Luna batch on Codex, is its at-most-one Terra retry recorded; if no low-tier agent existed, did the run stop `low_tier_subagent_unavailable` rather than leader-inline?
+- [ ] Did every set over five records, or unknown/unbounded collection that had to be exhausted, pass a five-record extractor canary and then stay at batches of at most 40, without treating a known <=5 set as bulk merely because of a keyword?
+- [ ] Did email body copy use the mapped fresh-context worker tier (Terra on Codex), never the orchestrator inline?
+- [ ] Does `daily-content-pipeline/automation/model_routing_log.jsonl` use the canonical root Stage 7 schema, including `execution_ref` and `model_evidence`, and contain no PII/content?
+
 ### Measure-Learning Self-Audit Checklist
 
 - [ ] Did I record reply/bounce/unsubscribe as exact and opens as estimated, never inventing metrics?
