@@ -818,7 +818,9 @@ Use this section title exactly for English reports, or translate it naturally in
 
 - Opportunity:
   - Opportunity type: lead | competitor | both
-  - Classification: hot_lead | warm_lead | watch_lead | direct_competitor | indirect_competitor | adjacent_solution | attention_competitor | authority_or_kol_competing_for_trust
+  - Relationship type: buyer | partner | competitor | none
+  - Lead level, when it is a lead: hot | warm | watch
+  - Evidence/competitor classification: direct_need | indirect_need | pain_signal | buying_trigger | objection | comparison | complaint | adjacent_need | direct_competitor | indirect_competitor | adjacent_solution | attention_competitor | authority_or_kol_competing_for_trust
   - Source:
   - Platform:
   - Source type: public | private
@@ -826,9 +828,13 @@ Use this section title exactly for English reports, or translate it naturally in
   - Post/current URL:
   - Captured at:
   - Safe context summary:
-  - Who they are (fit): person_type — sells_to_match — fit (high | medium | low) — fit_reason (one line, `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1)
-  - Why now (intent): intent (explicit | implied | none) — intent_reason (one line, Step 3)
-  - Why this matters: the one-line synthesis for the human — what fit + intent add up to, not a repeat of fit_reason/intent_reason
+  - Who they are (fit): person_type — sells_to_match — fit (high | medium | low) — fit_reason (`playbooks/LEAD_QUALIFICATION_RULE.md` Step 1)
+  - Problem/outcome: problem_outcome — problem_relevance (proven | plausible | none) — problem_state (unresolved | resolved | unknown)
+  - Resolution behaviour: resolution_activity (active | passive | none) — acquisition_posture (explicit | open | none)
+  - Buying intent: intent (explicit | implied | none) — intent_reason
+  - Timing: urgency (immediate | soon | not_shown) — timing_evidence when present
+  - Evidence: separate fit, problem, unresolved-state, active-resolution and acquisition evidence; never one sentence reused for every conclusion
+  - Why this matters: the one-line synthesis for the human — what the independently evidenced axes add up to, not a repeat of their reasons
   - Related offer:
   - Related pain point:
   - Confidence: high | medium | low
@@ -838,9 +844,12 @@ Use this section title exactly for English reports, or translate it naturally in
   - Comment style note:
   - Outreach/compliance note:
 
-Lead level (part of `Classification` above) is not written by hand — it is read off the Fit × Intent
-matrix (`playbooks/LEAD_QUALIFICATION_RULE.md` Step 4) from the fit and intent already recorded on
-this opportunity.
+Lead level is not written by hand and is not the same field as evidence or relationship
+classification. It is read off the Fit × offer-acquisition-intent matrix
+(`playbooks/LEAD_QUALIFICATION_RULE.md` Step 4). Hot requires high fit plus explicit demand or fully
+evidenced strong implied demand for the same problem/outcome. Urgency, plausible need, a normal
+business/life event, self-directed activity or the fact that the offer could help never promotes a
+record to Hot.
 
 ## Leads Detected
 

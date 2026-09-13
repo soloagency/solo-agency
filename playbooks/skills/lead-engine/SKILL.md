@@ -62,13 +62,16 @@ is qualified by applying `playbooks/LEAD_QUALIFICATION_RULE.md` **verbatim**, St
 classifier's instruction — this is Stage 10's rule; the lead-engine skill loads and runs it, never
 restates it. The classifier also reads the client's `buyer_profile` block (`sells`, `sells_to`,
 `types`, `why_they_need`, `location`, `competitors`, `not_buyers` — the Client Intelligence Profile,
-Stage 10 §Definitions) and outputs exactly the rule's own JSON per row: `{id, person_type,
-sells_to_match, fit, fit_reason, intent, intent_reason, decision}`. Step 1 first means WHO this
-person is is decided before intent — a person of the right type with no stated need is `warm`,
-never dropped for lacking a need phrase.
+Stage 10 §Definitions) and outputs exactly the rule's complete v12 JSON per row; do not reduce it to
+fit, intent and one generic reason. Step 1 first means WHO this person is is decided before intent —
+a person of the right type with no demonstrated offer-acquisition intent is `warm`, never dropped
+for lacking a need phrase. Problem relevance, buying intent and urgency are independent. A classifier
+must never turn fit, a plausible need, a trigger, self-directed activity, peer learning or urgency
+into Hot without the rule's complete same-problem active-acquisition evidence.
 
-The rule was validated blind against 120 scenarios × 5 clients with Haiku (96.2% lead/non-lead,
-93.8% exact tier), so the extractor tier — `gpt-5.6-luna` on Codex — runs this pass; do not escalate to a bigger model
+The v11 rule was validated blind against 120 scenarios × 5 clients with Haiku (96.2% lead/non-lead,
+93.8% exact tier); v12 adds the binding domain-agnostic Hot boundary suite documented under
+`playbooks/tests/lead-rule/`. The extractor tier — `gpt-5.6-luna` on Codex — runs this pass; do not escalate to a bigger model
 by default. A hot-vs-warm borderline call MAY be escalated one tier for a second read, but the FIT
 decision (rule Step 1 — who this person is) is never escalated or overridden by a bigger model;
 if fit reads medium/low, that answer stands.
@@ -76,7 +79,7 @@ if fit reads medium/low, that answer stands.
 A DIFFERENT extractor-tier classification pass applies only inside a discovered-thread harvest job
 (Recipe E, below): it applies `playbooks/COMMENT_TRIAGE_RULE.md` — not this rule — to a batch of
 one thread's comment authors, once, only on the Boss's explicit order. Do not conflate the two: this
-section's per-item Fit × Intent pass runs on every candidate the gather loop finds; the harvest's
+section's per-item Fit × offer-acquisition-intent pass runs on every candidate the gather loop finds; the harvest's
 batch triage runs on comments under one already-recorded discovered source.
 
 Every qualification is file-in/file-out extractor sub-agent work: stage each returned collector job's compact rows in
@@ -170,7 +173,7 @@ Next: {suggested widen/deepen options for the human}.
   never run inside it.
 - `safety.md` — the KPI + ban-risk stop conditions, the join-is-human rule, and
   the ToS/privacy boundaries this loop must never cross.
-- `playbooks/LEAD_QUALIFICATION_RULE.md` — the Fit × Intent rule this skill's classifier applies
+- `playbooks/LEAD_QUALIFICATION_RULE.md` — the Fit × offer-acquisition-intent rule this skill's classifier applies
   verbatim (see "Classification (extractor tier; Luna on Codex)" above); re-run `playbooks/tests/lead-rule` after
   any edit to it, per that file's own mandatory-test note.
 - Scoring, lead schema, comment rules, report + storage: **Stage 10**

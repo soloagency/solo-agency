@@ -5107,7 +5107,7 @@
     "comments": [
      "Founder here documenting my build in public, reels bring way more signups than my blog ever did"
     ],
-    "trap": "target keep: SaaS founder",
+    "trap": "target keep: startup founder",
     "expected": {
      "primary": {
       "fit": "high",
@@ -5243,14 +5243,14 @@
     "comments": [
      "Our SaaS has zero marketing budget so it's just me on camera, reels have been the only thing that's worked"
     ],
-    "trap": "target keep: SaaS founder",
+    "trap": "target keep: startup founder",
     "expected": {
      "primary": {
       "fit": "high",
       "competitor": false,
       "noise": false,
       "decision": "keep",
-      "why": "SaaS founder marketing herself directly on camera; explicit buyer type"
+      "why": "startup founder marketing herself directly on camera; explicit buyer type"
      }
     }
    },
@@ -6286,7 +6286,7 @@
   "platform": "reddit",
   "community": "r/SaaS",
   "language": "en",
-  "text": "SaaS founders — how are you doing your demo videos? I keep putting it off because I don't have design/editing skills and hiring feels like overkill for a $0 MRR product lol. What's actually working for you?",
+  "text": "startup founders — how are you doing your demo videos? I keep putting it off because I don't have design/editing skills and hiring feels like overkill for a $0 MRR product lol. What's actually working for you?",
   "comment_source_reason": "A question specifically about producing demo videos, answered by founders describing their own DIY process (the app's exact buyer: founders without editing skill or time) and by video editors/agencies/rival tools pitching in the replies (direct competitors).",
   "rows": [
    {
@@ -6302,7 +6302,7 @@
       "competitor": true,
       "noise": false,
       "decision": "drop",
-      "why": "freelance video editor pitching demo-video editing to SaaS founders, the same buyers the app serves; explicit competitor"
+      "why": "freelance video editor pitching demo-video editing to startup founders, the same buyers the app serves; explicit competitor"
      }
     }
    },
@@ -6319,7 +6319,7 @@
       "competitor": true,
       "noise": false,
       "decision": "drop",
-      "why": "video production agency selling demo videos to SaaS founders, the same buyers the app serves; explicit competitor"
+      "why": "video production agency selling demo videos to startup founders, the same buyers the app serves; explicit competitor"
      }
     }
    },
@@ -6336,7 +6336,7 @@
       "competitor": true,
       "noise": false,
       "decision": "drop",
-      "why": "founder of a competing automated video-editing tool selling to the same SaaS founders; explicit competitor"
+      "why": "founder of a competing automated video-editing tool selling to the same startup founders; explicit competitor"
      }
     }
    },
@@ -6353,7 +6353,7 @@
       "competitor": false,
       "noise": false,
       "decision": "keep",
-      "why": "SaaS founder marketing her own product with unedited recordings, naming a gap the app solves"
+      "why": "startup founder marketing her own product with unedited recordings, naming a gap the app solves"
      }
     }
    },
@@ -6370,7 +6370,7 @@
       "competitor": false,
       "noise": false,
       "decision": "keep",
-      "why": "context (SaaS founders subreddit, demo video thread) plus stated intent to make one places her as a founder marketing her product"
+      "why": "context (startup founders subreddit, demo video thread) plus stated intent to make one places her as a founder marketing her product"
      }
     }
    },
@@ -6421,7 +6421,7 @@
       "competitor": false,
       "noise": false,
       "decision": "keep",
-      "why": "Answering as a peer in an r/SaaS founders thread and referencing 'my co-founder' establishes she herself is a co-founder of a small SaaS — ai_video's founder type; her co-founder personally handling video is internal division of labor, not a relay of her own identity."
+      "why": "Answering as a peer in an r/startup founders thread and referencing 'my co-founder' establishes she herself is a co-founder of a small SaaS — ai_video's founder type; her co-founder personally handling video is internal division of labor, not a relay of her own identity."
      }
     }
    },
@@ -6472,7 +6472,7 @@
       "competitor": false,
       "noise": false,
       "decision": "keep",
-      "why": "context (SaaS founders demo-video thread) plus explicit editing-bottleneck statement places her as a founder marketing her product"
+      "why": "context (startup founders demo-video thread) plus explicit editing-bottleneck statement places her as a founder marketing her product"
      }
     }
    },
@@ -6669,14 +6669,14 @@
     "comments": [
      "Small SaaS here (12 paying customers lol), demo video is on my list right after I fix onboarding"
     ],
-    "trap": "target keep: small SaaS founder",
+    "trap": "target keep: small startup founder",
     "expected": {
      "primary": {
       "fit": "high",
       "competitor": false,
       "noise": false,
       "decision": "keep",
-      "why": "small SaaS founder marketing her own product, with demo video an explicit near-term intent"
+      "why": "small startup founder marketing her own product, with demo video an explicit near-term intent"
      }
     }
    },

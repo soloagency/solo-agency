@@ -41,7 +41,7 @@
   },
   {
     "id": "A05",
-    "person_type": "SaaS founder",
+    "person_type": "startup founder",
     "sells_to_match": "none",
     "fit": "low",
     "fit_reason": "Startup founder with side project, no California location mentioned, not a home buyer.",
@@ -631,7 +631,7 @@
   },
   {
     "id": "D04",
-    "person_type": "SaaS founder",
+    "person_type": "startup founder",
     "sells_to_match": "none",
     "fit": "low",
     "fit_reason": "Startup founder with no indication of home purchase or mortgage need",

@@ -631,10 +631,10 @@
   },
   {
     "id": "D04",
-    "person_type": "SaaS founder (bootstrapped, solo)",
+    "person_type": "startup founder (bootstrapped, solo)",
     "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
     "fit": "high",
-    "fit_reason": "Solo bootstrapped SaaS founder is direct match for tiny startup with no sales/marketing staff",
+    "fit_reason": "Solo bootstrapped startup founder is direct match for tiny startup with no sales/marketing staff",
     "intent": "explicit",
     "intent_reason": "Explicitly struggling to post demo videos weekly solo; demo video posting is how they acquire customers",
     "decision": "hot"
@@ -771,10 +771,10 @@
   },
   {
     "id": "E03",
-    "person_type": "AI video editing SaaS founder",
+    "person_type": "AI video editing startup founder",
     "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
     "fit": "high",
-    "fit_reason": "SaaS founder launching product to market; matches founder-of-startup type",
+    "fit_reason": "startup founder launching product to market; matches founder-of-startup type",
     "intent": "none",
     "intent_reason": "Post announces product launch and promotional activity—routine work for founder; no evidence of customer-finding struggle or operational friction",
     "decision": "warm"
@@ -784,7 +784,7 @@
     "person_type": "AI video editing app creator/founder",
     "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
     "fit": "high",
-    "fit_reason": "SaaS founder launching product; fits founder-led startup type",
+    "fit_reason": "startup founder launching product; fits founder-led startup type",
     "intent": "none",
     "intent_reason": "Post shows routine product launch and promotional activity; no evidence of customer-acquisition friction or marketing overwhelm",
     "decision": "warm"
@@ -1041,7 +1041,7 @@
   },
   {
     "id": "G06",
-    "person_type": "SaaS founder",
+    "person_type": "startup founder",
     "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
     "fit": "high",
     "fit_reason": "Solo founder building one-person startup",
@@ -1091,7 +1091,7 @@
   },
   {
     "id": "H03",
-    "person_type": "SaaS founder",
+    "person_type": "startup founder",
     "sells_to_match": "founder of a tiny startup or SaaS with no sales/marketing staff",
     "fit": "high",
     "fit_reason": "Solo founder building a startup with public-facing work",

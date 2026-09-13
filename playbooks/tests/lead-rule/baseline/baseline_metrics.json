@@ -457,8 +457,8 @@
       "group": "E",
       "expected_decision": "hot",
       "got_decision": "warm",
-      "expected_why": "SaaS founder; 'just launched' is a new business with no customers yet, and video editing isn't solo_agency's own offering.",
-      "got_fit_reason": "SaaS founder launching product to market; matches founder-of-startup type",
+      "expected_why": "startup founder; 'just launched' is a new business with no customers yet, and video editing isn't solo_agency's own offering.",
+      "got_fit_reason": "startup founder launching product to market; matches founder-of-startup type",
       "got_intent_reason": "Post announces product launch and promotional activity—routine work for founder; no evidence of customer-finding struggle or operational friction",
       "trap": "the poster is a solo founder pitching a video app — a straight competitor for the video-editing client but a strong lead for the sales/marketing client, since 'just launched' signals a new business needing customers"
     },
@@ -480,7 +480,7 @@
       "expected_decision": "hot",
       "got_decision": "warm",
       "expected_why": "Same as E03 — a just-launched video app signals a new business needing customers, mirrored across languages.",
-      "got_fit_reason": "SaaS founder launching product; fits founder-led startup type",
+      "got_fit_reason": "startup founder launching product; fits founder-led startup type",
       "got_intent_reason": "Post shows routine product launch and promotional activity; no evidence of customer-acquisition friction or marketing overwhelm",
       "trap": "mixed-language founder ad — same 'vừa launch' new-business signal as E03, so labels should mirror it despite the different language/platform flavor"
     },

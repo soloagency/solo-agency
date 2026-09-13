@@ -34,6 +34,7 @@ provider_config.local.json
 
 # Session/backup copies anywhere (git history is the backup)
 *_20[2-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]-[0-9][0-9]-[0-9][0-9].*
+*_20[0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9].*
 *.bak
 
 # Internal working docs — never ship to the public product repo
@@ -54,6 +55,9 @@ solo-agency-collector/dist/
 
 # Keep the small, content-versioned playbook/skill zip packages committed.
 !playbooks/skills/*.zip
+# The allow-rule above must not re-include timestamped backup copies of those zips.
+playbooks/skills/*_20[2-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]-[0-9][0-9]-[0-9][0-9].zip
+playbooks/skills/*_20[0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9].zip
 
 # Local session handoffs. Four of these were committed despite the name and sat in the PUBLIC
 # repo for weeks, publishing SSH key paths, an API-key file location and another product's
@@ -89,5 +93,6 @@ assets/*.mov
 !assets/agency-structure.svg
 !assets/the_loop_landscape_light.png
 !assets/agency-structure_light.png
+!assets/solo-agency-revenue-engine-square-1080.png
 # Backup copies of dot-files without an extension (.gitignore_2026-..) are never published.
 .gitignore_20[0-9][0-9]-*

@@ -41,10 +41,10 @@
   },
   {
     "id": "A05",
-    "person_type": "SaaS founder",
+    "person_type": "startup founder",
     "sells_to_match": "founder of a small startup or SaaS",
     "fit": "high",
-    "fit_reason": "SaaS founder celebrating business milestone, exact match in types",
+    "fit_reason": "startup founder celebrating business milestone, exact match in types",
     "intent": "none",
     "intent_reason": "Celebrating MRR milestone of running business, growth of existing product with no new friction or challenge named about video or posting",
     "decision": "warm"
@@ -631,7 +631,7 @@
   },
   {
     "id": "D04",
-    "person_type": "SaaS founder (solo, bootstrapped)",
+    "person_type": "startup founder (solo, bootstrapped)",
     "sells_to_match": "founder of a small startup or SaaS",
     "fit": "high",
     "fit_reason": "founder of SaaS exactly matches the type",
@@ -1041,7 +1041,7 @@
   },
   {
     "id": "G06",
-    "person_type": "One-person SaaS founder",
+    "person_type": "One-person startup founder",
     "sells_to_match": "founder of a small startup or SaaS",
     "fit": "high",
     "fit_reason": "Founder of startup is an exact match for customer types",
@@ -1091,7 +1091,7 @@
   },
   {
     "id": "H03",
-    "person_type": "SaaS founder",
+    "person_type": "startup founder",
     "sells_to_match": "founder of a small startup or SaaS",
     "fit": "high",
     "fit_reason": "Founder of startup is an exact match for customer types",

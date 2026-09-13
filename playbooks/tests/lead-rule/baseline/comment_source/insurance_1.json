@@ -45,7 +45,7 @@
     "id": "P08",
     "types_match": "self-employed professional of ANY trade in California (e.g. real-estate agent, loan officer, escrow officer, lawyer, consultant, coach, contractor, photographer, freelancer)",
     "comment_source": "likely",
-    "comment_source_reason": "Q1 peer question to SaaS founders; Q2 founders; Q3 matches self-employed professional line; Q4 not competitors; Q5 location unknown default to likely"
+    "comment_source_reason": "Q1 peer question to startup founders; Q2 founders; Q3 matches self-employed professional line; Q4 not competitors; Q5 location unknown default to likely"
   },
   {
     "id": "P09",

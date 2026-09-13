@@ -1,0 +1,31 @@
+{
+  "total": 5,
+  "judged": 5,
+  "missing_ids": [],
+  "unknown_ids": [],
+  "duplicate_ids": [],
+  "schema_errors": [],
+  "field_failures": [],
+  "informational_field_failures": [],
+  "evidence_errors": [],
+  "hot_gate_errors": [],
+  "metamorphic_failures": [],
+  "flip_failures": [],
+  "exact_structural_cases": 5,
+  "exact_structural_accuracy": 1.0,
+  "expected_hot": 2,
+  "expected_nonhot": 3,
+  "judged_hot": 2,
+  "hot_true_positive": 2,
+  "hot_precision": 1.0,
+  "hot_recall": 1.0,
+  "nonhot_to_hot_total": 0,
+  "nonhot_to_hot_rate": 0.0,
+  "nonhot_to_hot_breakdown": {
+    "by_family": {},
+    "by_expected_decision": {},
+    "cases": []
+  },
+  "missed_hot": [],
+  "binding_pass": true
+}

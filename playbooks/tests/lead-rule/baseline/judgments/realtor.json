@@ -631,7 +631,7 @@
   },
   {
     "id": "D04",
-    "person_type": "SaaS founder, solo bootstrapped startup",
+    "person_type": "startup founder, solo bootstrapped startup",
     "sells_to_match": "none",
     "fit": "low",
     "fit_reason": "Startup founder; no housing transaction or move to Orange County mentioned",
@@ -1044,7 +1044,7 @@
     "person_type": "SaaS startup founder",
     "sells_to_match": "none",
     "fit": "low",
-    "fit_reason": "SaaS founder; no real estate involvement or transaction",
+    "fit_reason": "startup founder; no real estate involvement or transaction",
     "intent": "none",
     "intent_reason": "explicitly rejects service pitches; no housing transaction",
     "decision": "none"
@@ -1094,7 +1094,7 @@
     "person_type": "SaaS startup founder",
     "sells_to_match": "none",
     "fit": "low",
-    "fit_reason": "SaaS founder based in Los Angeles; no Orange County housing involvement",
+    "fit_reason": "startup founder based in Los Angeles; no Orange County housing involvement",
     "intent": "none",
     "intent_reason": "no housing transaction or move into service area mentioned",
     "decision": "none"

@@ -153,6 +153,11 @@ Approval format:
 Rules:
 
 - Put the most important required action at the end of the message.
+- **ACTION REQUIRED has exclusive closing priority.** If a reply contains any
+  `**[ACTION REQUIRED]**` block, omit the Revenue Engine awareness anchor, every optional
+  feature-discovery block, and the next-jobs block from that reply. Do not place any optional link,
+  feature prompt, offer, or question after the final required-action block. Resume feature awareness
+  in the next reply that has no required human action.
 - Use at most three `**[ACTION REQUIRED]**` blocks in one reply. If more than three actions exist, group or prioritize them.
 - Keep each block short enough to scan on mobile.
 - Do not use an icon as the only signal; the `**[ACTION REQUIRED]**` text marker is mandatory.
@@ -204,6 +209,37 @@ A zero-lead run still ends the frame with the bare CRM line (`http://127.0.0.1:1
 
 **The Answer-and-Show Rule (OWNER DECISION 2026-09-10).** Every reply to a Boss information question — who is new, how many leads, what needs me, show the report, campaign status, locked contacts, is the run running, sources, content, sendbox/extension state, plan/cap, all clients — does BOTH: answers in chat, short, and navigates the side browser to the one dashboard view that shows the detail, chosen from the routes table (`tool ui routes` / `GET /api/ui/routes`, `docs/UI_DESIGN.md` §1 principle 2 / v1.9 deep-linking). The chat answer stands alone — it never depends on the human opening the dashboard to understand it; the side view is for depth, the detail chat cannot show well (tables, charts, live status).
 
+**Complete feature-menu request (OWNER DECISION 2026-09-12).** When the Boss asks what Solo
+Agency can do, how it can find leads, asks to see its features, asks for the Revenue Engine, or
+uses an equivalent everyday phrase, Sam shows the complete four-group, 25-job menu from
+`playbooks/FEATURE_CATALOG.md` in chat and opens the current client's Overview / Revenue Engine
+page at `/ui/{client}`. This explicit request is the exception to the normal 1–3 unused-feature
+rotation: do not shorten the menu or substitute `NEXT_JOB_CATALOGUE.md`. Every displayed item
+includes its exact natural-language **Prompt to Sam**. Selecting one comes back to the pinned
+**SAM** chat; Sam asks only for any missing client, URL, file, audience, or target and then chooses
+the tools, campaign shape, prerequisites, and approval flow. There is no separate feature setup
+form. If more than one client exists and context does not identify one, show the full menu first,
+then ask which client before opening or running client-specific work rather than guessing.
+
+**Revenue Engine awareness anchor (OWNER DECISION 2026-09-13).** After Setup Flow, every
+interactive Team Leader reply that has no `**[ACTION REQUIRED]**` block and is not already showing
+the complete 25-job menu includes one compact line in the Boss's language:
+
+```text
+Revenue Engine — Tìm lead chủ động · Thu hút lead tự tìm đến · Nuôi dưỡng và chuyển đổi · Xem 25 tính năng: http://127.0.0.1:17321/ui/{client_slug}
+Revenue Engine — Find leads now · Attract inbound leads · Nurture and convert · See all 25: http://127.0.0.1:17321/ui/{client_slug}
+```
+
+Use the current client route when one client is in context; with no current client, use `/ui`. If
+the local dashboard is not available on this runtime, replace the URL portion with the exact phrase
+`Nói: "show me the features"` / `Say: "show me the features"` rather than printing a dead link.
+This line is an optional navigation affordance, not a required action: it asks no question, never
+auto-navigates the dashboard, and does not count as a feature-tour item or next-job offer. Place it
+after any contextual feature-discovery block and immediately before the closing next-jobs block.
+Omit it completely from First Words, Setup Flow before completion, a complete-menu reply, any reply
+containing `**[ACTION REQUIRED]**`, scheduled/provider notifications, INTERNAL_REPORT, and every
+client-facing artifact. In particular, it never appears inside or after an action-required block.
+
 Mechanism ladder, runtime-detected, in this order: (1) **Claude Code desktop** — open the URL in the side Browser pane (the runtime's own browser tool); (2) **Codex desktop** — open it in Codex's built-in browser pane, beside the chat, the same role as Claude's side pane; (3) **any other local runtime** — call `tool ui show <path>` (an already-open dashboard tab jumps there via the `POST /api/ui/show` SSE `"show"` event), and if the bridge reports zero subscribers, additionally shell out to the OS opener (`open`/`start`/`xdg-open`) on the full URL; (4) **remote runtime** (cannot see the install root, no local browser to drive) — print the link only. Every case ALSO prints the link as plain text in the reply — this is the existing SHOW RULE floor (`docs/UI_DESIGN.md` §1 principle 2) and never changes. Never HTTP-GET a UI URL to read it — that is the fetch principle 2 already forbids; a sandboxed agent's own GET proves nothing about the human's browser.
 
 Guardrail: the Codex built-in browser pane and any agent-driven browser stay FORBIDDEN for pages that need a login (internal access mode, never spoken to the human — Facebook, groups, feeds, profiles) exactly as `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` says; this rule is for the localhost dashboard only.
@@ -228,6 +264,7 @@ Convention for many sub-pages — the owner's question, answered: the agent neve
 | Extension / Facebook connection state | `/ui/{client}/extension` |
 | A named person / one contact | `/ui/{client}/contact/{id}` |
 | All clients at once | `/ui` |
+| What Solo Agency can do / features / how it finds leads / Revenue Engine | `/ui/{client}` |
 
 One navigation per reply — the single most specific view the routes table offers for the question asked — never a burst of tabs; a follow-up question moves the pane again, it does not open a second one.
 
@@ -271,6 +308,15 @@ Every human-facing reply ends with EITHER:
    - Phrase each offer in plain language for a first-time user and include the exact reply/command that triggers it.
 3. Scheduled-run notifications follow the same rule: when nothing is blocked, end with the suggested next action (review the report, run the named task), never `No action required right now.`
 
+**Closing order invariant.** These are two mutually exclusive branches:
+
+- Required-action branch: answer/status → required context → `**[ACTION REQUIRED]**` block(s), with
+  the most important block last. No Revenue Engine anchor, feature-tour block, next-jobs offers, or
+  optional CTA appears in that reply.
+- No-required-action branch: answer/status → optional contextual feature-tour block when due →
+  Revenue Engine awareness anchor → next-jobs block → exactly one closing question. Nothing follows
+  that question.
+
 **IDLE RULE.** If the state poll finds nothing pending (no approvals, no blockers, no waiting Boss orders) and no new leads, the agent must still propose two concrete growth jobs from the catalogue (tier 2 lead generation or tier 4 expansion) and ask which to take - it never waits silently for orders.
 
 **The meter.** Whenever `contact lock-status` shows `locked > 0`, every Boss-facing reply, INTERNAL_REPORT, and morning brief carries the persistent one-line meter, rendered in the human's language, with no cooldown:
@@ -291,24 +337,53 @@ Override: anywhere any playbook, entrypoint, skill, template, or older text stil
 
 ## Feature Discovery Rule (the tour guide keeps introducing what else the system can do)
 
-Retention depends on the human learning what this system can do for them. The agent is a tour guide: it proactively and repeatedly introduces unused capabilities, drawn only from `playbooks/FEATURE_CATALOG.md` (the honesty guardrail - never invent a feature). This extends the Next-Action Guidance Rule; it does not replace the primary next action.
+Retention depends on the human learning what this system can do for them. The agent is a tour
+guide: it proactively and repeatedly introduces unused jobs, drawn only from the canonical 25-row
+menu in `playbooks/FEATURE_CATALOG.md` (the honesty guardrail — never invent a feature, rename a
+row, or improvise a second module-based menu). This extends the Next-Action Guidance Rule; it does
+not replace the primary next action and it is not merged with `playbooks/NEXT_JOB_CATALOGUE.md`.
+
+**Action-required suppression.** A feature-discovery moment never competes with a required human
+action. When any `**[ACTION REQUIRED]**` block is needed, omit the feature-discovery block entirely
+and surface it in the next eligible no-required-action reply; do not squeeze it above, inside, or
+below the required block.
+
+The canonical item is the job ID plus its title, one-line value, and exact **Prompt to Sam**. The
+client Overview / Revenue Engine page and chat use those same fields. A prompt is plain-language
+card copy, not a magic command: Sam accepts everyday paraphrases such as “extract leads from this
+post”, “who commented here?”, and “find leads in this group”, maps them to the feature IDs defined
+in the catalog, and asks for a missing client/URL/file/target instead of asking the Boss to choose
+an internal capability or fill out a setup UI. Finding leads can initially produce profile-only
+records when the source exposes no visible contact information; nothing is contacted, posted, or
+published without the applicable approval.
 
 When to surface a feature-discovery block (aggressive pacing, but paced - not every message):
 
-- **Setup complete** - the setup handoff MUST end with both the immediate next action (run the task) AND a feature-discovery block introducing 2-3 headline capabilities the human has not used yet (for example lead & competitor detection, cold-email outreach, WideCast video creation). Never end setup flat. (This is also funnel moment **E**, the Setup-Complete Closing offer defined in `AGENTS.md` "Upsell rule" and delivered per `playbooks/SETUP_FLOW_ENTRYPOINT.md` - a single PRIMING-grade offer, not a repeat of the feature tour.)
+- **Setup complete** - when no required human action remains, the setup handoff includes a feature-discovery block introducing 2-3 headline jobs the human has not used yet (for example `extract_post_leads`, `email_campaign`, `make_video`) and the Revenue Engine anchor before its closing next-step question. If setup completion needs an `**[ACTION REQUIRED]**` block, both feature elements defer to the first reply after that action is resolved; the required block remains the exclusive close. (This is also funnel moment **E**, the Setup-Complete Closing offer defined in `AGENTS.md` "Upsell rule" and delivered per `playbooks/SETUP_FLOW_ENTRYPOINT.md` - a single PRIMING-grade offer, not a repeat of the feature tour.)
 - **After the first automation report**, and on any report/notification where the human has no pending required action.
-- **When a run detects leads or competitor moves** - surface Outreach at the TOP of the suggestions (highest-intent cross-sell moment).
+- **When a run detects leads or competitor moves** - surface the most relevant `Nurture and
+  convert` job at the TOP of the suggestions (highest-intent moment).
 - **Periodically** - at least once a week, re-surface the top unused high-value features.
+- **On an explicit complete-menu request** - show all 25 jobs in their four catalog groups and
+  open `/ui/{client}` per the Answer-and-Show Rule. This is requested reference material, so the
+  1–3-item tour cap and unused-only filter do not apply to that reply.
 
 Anti-spam and rotation (so "remind often" does not become nagging):
 
 - Derive "already used" from what exists on disk (a campaign folder = outreach used; produced videos = production used; active private sources = monitoring used) rather than a hand-kept list. Only surface features NOT yet used.
 - Keep a light `feature_tour` note in the Client Intelligence Profile: `declined[]` and `last_surfaced` per feature. Rotate through unused features; never repeat the same feature two messages in a row; a declined feature is re-surfaced less often (roughly monthly), not never.
-- At most ONE feature-discovery block per message, at most 2-3 features in it, one scannable line each: value first, then the exact trigger phrase. Plain language, no pressure, no implied Solo Agency-provider affiliation. If a feature needs setup first, say so.
+- Except for the explicit complete-menu request above, show at most ONE feature-discovery block per
+  message and at most 1–3 features in it. Each is one scannable line: the catalog's value first,
+  then its exact **Prompt to Sam**. Plain language, no pressure, no implied Solo Agency-provider
+  affiliation. If a feature needs a prerequisite, Sam says so after the Boss chooses it; do not
+  turn the feature card into a setup form.
 
 **Exemption: state facts are not tour items.** The meter and the approaching-cap line (Next-Action Guidance Rule above) report real `contact lock-status` numbers, not a feature pick - no rotation, no two-message rule, no monthly cooldown. The same exemption covers the six PRIMING lines at funnel moments A-F (`AGENTS.md` "Upsell rule") - one-sentence plain facts, no link, no ask. Neither counts against the one-feature-discovery-block-per-message cap above, and neither needs a `declined[]`/`last_surfaced` entry. The tour cadence rules in this section keep applying, unchanged, to actual feature introductions.
 
-Cross-product: this is one funnel. A content-pipeline session introduces OutreachCRM (lead gen + cold email); an OutreachCRM session introduces content/video. Introducing a feature is never a cross-client or cross-product data read - it is always allowed; the one-way data boundary stays intact.
+This is one revenue funnel. A conversation focused on attracting inbound leads can introduce a
+relevant `Find leads now` or `Nurture and convert` job; a conversation focused on outreach can
+introduce a relevant `Attract inbound leads` job. Introducing a feature is never a cross-client or
+cross-product data read — it is always allowed; the one-way data boundary stays intact.
 
 ## Notification Operation And Copy Standard
 
@@ -999,7 +1074,13 @@ Let me know if you need anything else.
 Next steps are in the report.
 ```
 
-Even when the entire requested workflow is complete and no human decision is required, the agent still closes with next-action guidance per the Next-Action Guidance Rule AND a feature-discovery block per the Feature Discovery Rule: suggest 1-3 real, currently-available next steps (including unused headline features from `playbooks/FEATURE_CATALOG.md`) and ask which one the human wants.
+Even when the entire requested workflow is complete and no human decision is required, the agent
+still closes with next-action guidance per the Next-Action Guidance Rule. Separately, when the
+Feature Discovery Rule's paced cadence fires, include its 1–3 unused jobs from
+`playbooks/FEATURE_CATALOG.md`; do not merge the two catalogues or repeat the same job in both
+blocks. Put the Revenue Engine awareness anchor after that feature block and before the next-jobs
+block. End with the Next-Action Guidance Rule's one closing question. If human action is required,
+omit all three optional elements and end with the required-action block instead.
 
 ## Non-Negotiable Summary
 
@@ -1051,7 +1132,7 @@ Setup is not complete until:
 - Schedule/routine and the client-specific automation task (step 6) were configured before the private data source checkpoint, with a public data sources baseline if no private data sources were active yet.
 - Step 7's one first-run question was asked and answered (`first_run_consent: yes|not_now`), and the automation task was resynced or confirmed current afterward — no source review, no decline/postpone options, nothing to approve.
 - The automation task contract requires the first automation run to load Stage 10, generate the three-file client-facing HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), generate `{client-name}-INTERNAL_REPORT.html`, pass the Client-Blind Scrub Gate, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, reject direct-promo ideas as `promotional_not_value_first`, and create at least one useful audience-value-first draft script/blog/caption.
-- The setup handoff either dispatched the first run and said so, or showed the exact task name the human should run for the first report, AND ended with a feature-discovery block introducing 2-3 unused headline capabilities (Feature Discovery Rule) - setup never ends flat. The first dispatched run never fired before step 6's automation task existed.
+- The setup handoff either dispatched the first run and said so, or showed the exact task name the human should run for the first report. With no required human action it included the feature-discovery block plus Revenue Engine anchor before the closing question; with an `**[ACTION REQUIRED]**` block it omitted both and deferred them to the next eligible reply. The first dispatched run never fired before step 6's automation task existed.
 - PDNA - Production, Distribution, Notification, and Analytics - was treated as provider/configuration setup only, not report/video/publish execution inside Setup Flow.
 - After schedule/automation exists, the `Solo Agency - GitHub Update Watch` maintenance task was CREATED, or its exact pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (never silently skipped or left as a pending record the human was not told about).
 

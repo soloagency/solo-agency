@@ -1,7 +1,7 @@
 # Lead qualification rule — regression test
 
 This directory is the permanent, in-repo regression test for
-`playbooks/LEAD_QUALIFICATION_RULE.md` — the Fit x Intent rule every
+`playbooks/LEAD_QUALIFICATION_RULE.md` — the Fit x offer-acquisition-intent rule every
 classifier of posts, comments, captions and people rows applies (Stage 10
 detection, the feed/surface pass, people search, the lead-engine skill's
 extractor tier). Any edit to that rule file must be re-scored against this
@@ -13,7 +13,10 @@ test before it ships. See `RUN.md` for the exact procedure.
 |---|---|
 | `dataset.json` | 120 hand-built scenarios (posts, comments, captions, bio-only profile rows), each scored against all 5 example clients below = 600 (scenario, client) judgments per run. Grouped A-I by what trap each group tests (see "Groups" below). Each scenario carries a final `expected` decision per client, reasoned from the rule text and the client's buyer profile — not from intuition. |
 | `clients.json` | 5 **fictional** example buyer profiles in the `buyer_profile` format the rule reads: `sells`, `sells_to`, `types` (category first, examples after "e.g."), `why_they_need`, `location`, `competitors`, `not_buyers`. Used as *examples* of the format, never copied into a real client's profile. |
-| `score.py` | Scores a directory of judgments against `dataset.json`. Pure Python 3, no dependencies. Prints binary (lead/non-lead) and tier (5-way decision) accuracy, per-client and per-group breakdowns, three trap-group recall metrics, a confusion matrix, and failing rows with the judge's own reasons. Exits 1 if below the target thresholds or below a given baseline. |
+| `score.py` | Scores a directory of judgments against `dataset.json`. Pure Python 3, no dependencies. Prints binary (lead/non-lead), tier (5-way), HOT precision/recall, a non-HOT→HOT breakdown, per-client/per-group metrics, trap recall, a confusion matrix, and failing rows. The new HOT diagnostics are informational against the unchanged v11 baseline; precision, recall, and the false-HOT rate become binding only if a future reviewed baseline explicitly includes them. |
+| `hot_boundary_cases.json` | 28 blind, fictional cases: seven evidence structures × a cross-domain metamorphic variant × a non-HOT/positive-flip pair. Every row embeds its own client offer/outcome and item evidence, so the test never depends on a hard-coded occupation list. |
+| `hot_boundary_expected.json` | Labels, canonical v12 field vocabulary, negative invariants, minimal flip relationships, and metamorphic-set metadata kept out of the blind case file. Fourteen cases are Warm and fourteen are HOT. |
+| `score_hot_boundary.py` | Deterministic JSON/JSONL scorer for the small v12 boundary suite. Binding gates require zero non-HOT→HOT, all positive flips HOT, canonical fields/vocabulary, the full HOT conjunction with evidence, and structural consistency across metamorphic pairs. Supports `--ids` for the five-record Luna canary. |
 | `build_report.py` | Builds a self-contained HTML report from the same data (metrics + a filterable row-by-row table + the 5 client profiles + the rule text scored). Imports `score.py` for the metrics so the two never disagree. |
 | `split_blind.py` | Splits `dataset.json` into blind chunks (10 scenarios each, group/trap/expected/label_notes stripped, ids reassigned as `s001`, `s002`, ...) plus a `map.json` back to real ids — what a judge actually reads. |
 | `baseline/judgments/<client>.json` | The round-11 judgments from the original 11-round campaign that produced `rule_v11.md` (now `playbooks/LEAD_QUALIFICATION_RULE.md`), remapped from blind to real scenario ids. 5 files, 120 judgments each, 600 total. |
@@ -33,6 +36,53 @@ Haiku, the model that actually runs this rule in the product) scored:
 
 Run `python3 score.py --dataset dataset.json --run baseline/judgments` in
 this directory to reproduce all five numbers exactly.
+
+The same command now also reports the baseline's HOT diagnostics without
+changing its gate: HOT precision, HOT recall, and non-HOT→HOT counts broken
+down by expected decision, client, and group. `baseline/baseline_metrics.json`
+remains the approved v11 floor and is not rewritten merely to add those fields.
+
+## HOT-boundary canary (v12)
+
+The 600-pair suite measures broad behavior; it is too expensive and too blunt
+for every wording iteration at the specific Warm/HOT boundary. The compact
+suite isolates the missing distinction:
+
+```text
+possible benefit or active self-resolution
+    != observable acquisition of external capability
+```
+
+Its seven negative structures generalize the original failure pattern across
+product research, finance and subscription software, career and pet support,
+local-business and nonprofit launches, reviews/testimonials, insurance
+coverage and professional-practice setup, and association/newsletter work.
+Names, occupations, platforms, languages, and phrasing change inside
+metamorphic pairs while their evidence
+structure and expected result stay fixed. Each negative has a minimal positive
+flip that adds either an explicit provider search or an `open` posture proven
+by failed internal work/capability gap plus budget or committed outsourcing.
+
+The boundary scorer is deliberately stricter than a normal accuracy average:
+one non-HOT case emitted as HOT fails the run. A HOT judgment must also contain
+all v12 predicates (`fit=high`, proven and unresolved problem, active
+resolution, `acquisition_posture=explicit|open`, explicit/implied intent,
+counterfactual pass), with the pair locked as explicit intent ↔ explicit posture
+or implied intent ↔ open posture. It must carry separate substantive evidence
+for fit, problem, unresolved state, active resolution, and acquisition rather
+than reusing one generic sentence. Timing/urgency is recorded but is not a HOT
+gate.
+
+Run the five-record Luna canary first; only after it passes should the remaining
+23 boundary cases be judged. See `RUN.md`, “Running the HOT-boundary canary
+(v12),” for the exact file-in/file-out prompt and scoring commands. This is a
+small regression gate; it does not replace or silently refresh the 600-pair v11
+baseline.
+
+Current v12 canary (`runs/2026-09-12-v12-hot-boundary/`): **BINDING PASS** —
+5/5 coverage and structural agreement, HOT precision 2/2, HOT recall 2/2,
+non-HOT→HOT 0/3, with zero schema, evidence, or HOT-gate errors. No 600-pair
+run was performed and the v11 baseline was not changed.
 
 ## Why the buyer-profile format matters
 

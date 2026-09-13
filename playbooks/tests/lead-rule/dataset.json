@@ -186,10 +186,10 @@
  {
   "id": "A05",
   "group": "A",
-  "author_industry": "SaaS founder",
+  "author_industry": "startup founder",
   "surface": "X post",
   "platform": "X",
-  "community": "SaaS Founders Network",
+  "community": "Startup Founders Network",
   "language": "English",
   "author_line": "",
   "text": "just crossed $12k MRR on the side project 🎉 2 years of nights and weekends. wild to see it compounding. onwards.",
@@ -2900,10 +2900,10 @@
  {
   "id": "D04",
   "group": "D",
-  "author_industry": "SaaS founder",
+  "author_industry": "startup founder",
   "surface": "post",
   "platform": "X",
-  "community": "SaaS Founders Network",
+  "community": "Startup Founders Network",
   "language": "English",
   "author_line": "Building a solo SaaS, bootstrapped",
   "text": "hit $8k MRR this month 🎉 now I just need to figure out how tf im gonna keep posting demo videos every week by myself lol",
@@ -3544,7 +3544,7 @@
  {
   "id": "E03",
   "group": "E",
-  "author_industry": "AI video-editing SaaS founder",
+  "author_industry": "AI video-editing startup founder",
   "surface": "x_post",
   "platform": "X",
   "community": "Content Creator Tools (X audience)",
@@ -3558,7 +3558,7 @@
     "fit": "high",
     "intent": "implied",
     "decision": "hot",
-    "why": "SaaS founder; 'just launched' is a new business with no customers yet, and video editing isn't solo_agency's own offering."
+    "why": "startup founder; 'just launched' is a new business with no customers yet, and video editing isn't solo_agency's own offering."
    },
    "ai_video": {
     "fit": "high",
@@ -3590,7 +3590,7 @@
  {
   "id": "E04",
   "group": "E",
-  "author_industry": "AI video-editing SaaS founder (targeting Vietnamese creators/small shops)",
+  "author_industry": "AI video-editing startup founder (targeting Vietnamese creators/small shops)",
   "surface": "x_post",
   "platform": "X",
   "community": "Người Việt content creator (X audience)",
@@ -3915,7 +3915,7 @@
   "author_industry": "marketing coach for solo entrepreneurs",
   "surface": "facebook_comment",
   "platform": "Facebook",
-  "community": "SaaS Founders Network",
+  "community": "Startup Founders Network",
   "language": "English",
   "author_line": "Marketing Coach for Solo Entrepreneurs | Helped 200+ business owners get fully booked",
   "text": "This is exactly why I built my program! If you're a solo business owner and marketing feels overwhelming, I teach a simple 3-step system to get fully booked without ads or a big team. I've helped 200+ people like you — comment \"INFO\" and I'll send you the details 🙌",
@@ -3944,7 +3944,7 @@
     "fit": "medium",
     "intent": "none",
     "decision": "none",
-    "why": "Self-employed professional, but CA location is not established (SaaS Founders Network gives no location)."
+    "why": "Self-employed professional, but CA location is not established (Startup Founders Network gives no location)."
    },
    "mlo": {
     "fit": "low",
@@ -4789,7 +4789,7 @@
   "author_industry": "solo SaaS startup founder",
   "surface": "comment",
   "platform": "Facebook",
-  "community": "SaaS Founders Network",
+  "community": "Startup Founders Network",
   "language": "Mixed (Vietnamese-English)",
   "author_line": "",
   "text": "haha tui build one-man startup rồi, không cần agency nào hết, tự làm content tự chạy ads luôn 😤 mọi người đừng pitch nữa nha",
@@ -5016,7 +5016,7 @@
  {
   "id": "H03",
   "group": "H",
-  "author_industry": "SaaS founder",
+  "author_industry": "startup founder",
   "surface": "x_bio",
   "platform": "X",
   "community": "profile",

@@ -1,0 +1,487 @@
+{
+  "schema_version": "1.0",
+  "description": "Blind, domain-agnostic HOT-boundary cases. Every case embeds the client offer/outcome and the item evidence needed for judgment. Labels and pair metadata live in hot_boundary_expected.json.",
+  "judge_instructions": [
+    "Judge each case independently with playbooks/LEAD_QUALIFICATION_RULE.md v12.",
+    "Use only client_offer and item evidence; do not infer buying intent from industry, occupation, launch status, or possible benefit.",
+    "Return one canonical judgment object per id. Evidence fields must cite the item-specific facts that support the selected state."
+  ],
+  "cases": [
+    {
+      "id": "HB001",
+      "client_offer": {
+        "sells": "done-for-you customer interview and market-validation research",
+        "outcome": "turn an unresolved demand question into evidence a product owner can use for a launch decision",
+        "sells_to": "people responsible for launching a product or program who are currently validating demand",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Founder Forum",
+        "surface": "group post",
+        "community": "Early Product Builders",
+        "author_line": "Maya Chen — building a route-planning app for field crews",
+        "text": "I'm validating which dispatch problems matter most before our beta. If you manage a field crew, would you fill out this 60-second survey? Everyone who responds gets early access. I'm collecting the answers myself this week.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB002",
+      "client_offer": {
+        "sells": "fractional finance operations and launch-ready bookkeeping",
+        "outcome": "give a new marketplace reliable books, cash controls, and reporting before launch",
+        "sells_to": "founders responsible for launching and operating an early-stage marketplace",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "LinkedIn",
+        "surface": "founder post",
+        "community": "Marketplace Operators",
+        "author_line": "Omar Reed — co-founder, CareCircle",
+        "text": "My partner and I are launching a marketplace for families to find and manage home-care helpers. We already have 900 caregiver profiles and plan to open in October. Our current search is for a CTO-level co-founder to own the matching platform. Introductions welcome.",
+        "date_note": "this week"
+      }
+    },
+    {
+      "id": "HB003",
+      "client_offer": {
+        "sells": "paid career-transition coaching",
+        "outcome": "help experienced career changers turn repeated interviews into a suitable job offer",
+        "sells_to": "experienced professionals actively changing careers and still without an offer",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Reddit",
+        "surface": "community question",
+        "community": "Career Changers",
+        "author_line": "Leah M. — operations manager moving into climate work",
+        "text": "I've reached five final-round interviews but still have no offer. For people who made a similar switch, what changed the outcome for you? I'd love to compare notes and trade interview routines with other career changers here.",
+        "date_note": "yesterday"
+      }
+    },
+    {
+      "id": "HB004",
+      "client_offer": {
+        "sells": "done-for-you customer-acquisition campaigns",
+        "outcome": "build a repeatable booking pipeline for newly opened local service businesses",
+        "sells_to": "owners launching a local service business and responsible for winning its first customers",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Facebook",
+        "surface": "business launch post",
+        "community": "Northside Neighbors",
+        "author_line": "Diego Alvarez — owner, Rolling Wrench Bike Repair",
+        "text": "Rolling Wrench is officially open! I bring mobile bike repairs to your home, from flat fixes to full tune-ups. Intro price is $55 this month. Message this page to book an appointment and please share with a cyclist who needs help.",
+        "date_note": "two days ago"
+      }
+    },
+    {
+      "id": "HB005",
+      "client_offer": {
+        "sells": "done-for-you customer review and reputation program",
+        "outcome": "help an established local service business consistently earn authentic reviews on a new or weak profile",
+        "sells_to": "owners of local service businesses whose reputation profile lacks customer reviews",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Facebook",
+        "surface": "business-page post",
+        "community": "Riverbend Home Services",
+        "author_line": "Nora Patel — owner, ClearFlow Plumbing",
+        "text": "Our new business page still shows zero reviews. If ClearFlow has helped you in the past, could you leave an honest review here? It would mean a lot while we rebuild the page. I'm messaging former customers myself this weekend.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB006",
+      "client_offer": {
+        "sells": "professional-liability and data-breach insurance coverage for independent health practices",
+        "outcome": "put appropriate business coverage in force before a new practice accepts its first clients",
+        "sells_to": "licensed practitioners opening and operating an independent health practice",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Instagram",
+        "surface": "launch caption",
+        "community": "local professional network",
+        "author_line": "Avery Brooks, LMFT",
+        "text": "After eight years in community clinics, I'm opening my own therapy practice. I offer individual sessions for adults navigating grief and career change, with evening appointments available. New clients can use the link in my bio to request a consultation.",
+        "date_note": "this week"
+      }
+    },
+    {
+      "id": "HB007",
+      "client_offer": {
+        "sells": "ongoing content operations for volunteer-run associations",
+        "outcome": "build early reach and maintain a consistent content calendar for a new public page",
+        "sells_to": "volunteer-run associations responsible for launching and maintaining a public page",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Facebook",
+        "surface": "new-page announcement",
+        "community": "Harbor Heritage Association",
+        "author_line": "Harbor Heritage Association committee",
+        "text": "We finally created an official page, and it currently has 14 followers. Members, please like and share it with your neighbors. Our volunteers will post one archive photo and one event update here each week.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB008",
+      "client_offer": {
+        "sells": "independent school-selection research and advisory",
+        "outcome": "help a family compare realistic school options and make a supported enrollment decision",
+        "sells_to": "families actively choosing among schools for a child and still undecided",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Nhóm phụ huynh",
+        "surface": "bài đăng cộng đồng",
+        "community": "Phụ huynh chuyển trường 2027",
+        "author_line": "Thu Hà — phụ huynh có con vào lớp 6",
+        "text": "Gia đình mình vẫn chưa chọn được giữa ba trường. Mình đã lập bảng so sánh và nhờ các phụ huynh điền khảo sát một phút, nhưng thông tin vẫn mâu thuẫn. Nhà mình đã quyết định không tự nghiên cứu tiếp, dành ngân sách để thuê một chuyên gia tư vấn giáo dục độc lập trong tháng này và đang xin giới thiệu người phù hợp.",
+        "date_note": "hôm nay"
+      }
+    },
+    {
+      "id": "HB009",
+      "client_offer": {
+        "sells": "subscription inventory and food-waste tracking software",
+        "outcome": "give a new commercial kitchen reliable ingredient counts and waste control before and after opening",
+        "sells_to": "food-business owners preparing a first commercial opening",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Facebook",
+        "surface": "bài đăng trong nhóm",
+        "community": "Khởi nghiệp đồ ăn đóng gói",
+        "author_line": "Minh Khoa — sáng lập Bếp Gọn",
+        "text": "Bếp Gọn dự kiến mở vào tháng 11 và mình đang tìm designer làm bộ bao bì. Ngoài ra việc đếm nguyên liệu hiện đang sai liên tục và đã làm hỏng hai mẻ thử. Mình đang so sánh các phần mềm inventory dạng thuê bao, muốn xem demo và sẽ chọn một công cụ trong hai tuần tới. Ai đang dùng sản phẩm ổn cho mình xin giới thiệu.",
+        "date_note": "hôm qua"
+      }
+    },
+    {
+      "id": "HB010",
+      "client_offer": {
+        "sells": "professional separation-anxiety training for household dogs",
+        "outcome": "give a dog owner a safe, personalized plan that reduces destructive panic when the dog is left alone",
+        "sells_to": "dog owners currently dealing with unresolved separation anxiety",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Nextdoor",
+        "surface": "neighborhood question",
+        "community": "Pet Owners Nearby",
+        "author_line": "Samir K. — guardian of a rescued beagle",
+        "text": "Our beagle still panics and scratches the door whenever we leave. We tried the routines neighbors suggested for six weeks and tracked every session, but we cannot manage this safely alone. We've set aside money and committed to professional help next week; we have not chosen the trainer yet.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB011",
+      "client_offer": {
+        "sells": "grant-pipeline and institutional fundraising service",
+        "outcome": "build a sustainable grant pipeline for a newly launched community nonprofit",
+        "sells_to": "leaders responsible for funding a new community nonprofit",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "LinkedIn",
+        "surface": "organization launch post",
+        "community": "Civic Projects Network",
+        "author_line": "Eastbank Tool Library board",
+        "text": "Eastbank Tool Library is officially open. Residents can now borrow repair tools and join free workshops; donations are welcome through our site. One-off gifts do not cover the program and we still have no grant pipeline. The board is requesting proposals from grant-fundraising specialists by Friday so we can fund the winter schedule.",
+        "date_note": "this week"
+      }
+    },
+    {
+      "id": "HB012",
+      "client_offer": {
+        "sells": "done-for-you testimonial collection and portfolio development",
+        "outcome": "help an independent creative build credible client proof on a newly rebuilt portfolio",
+        "sells_to": "independent creatives whose portfolio lacks usable client testimonials",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Instagram",
+        "surface": "story text",
+        "community": "former clients and followers",
+        "author_line": "Linh Trần — nhiếp ảnh gia cưới",
+        "text": "Portfolio mới của mình vẫn chưa có testimonial. Anh chị nào mình từng chụp ảnh cưới rồi thì gửi giúp vài dòng cảm nhận nhé. Mình đã tự nhắn hai đợt trong tám tuần nhưng chưa thu được phản hồi và không còn thời gian theo tiếp. Mình đã duyệt ngân sách tháng và quyết định giao việc này cho một đội bên ngoài, nhưng chưa chọn bên nào.",
+        "date_note": "hôm nay"
+      }
+    },
+    {
+      "id": "HB013",
+      "client_offer": {
+        "sells": "tax registration and bookkeeping setup for newly self-employed tradespeople",
+        "outcome": "give a new independent trade business a compliant tax, invoicing, and bookkeeping foundation before its first jobs",
+        "sells_to": "skilled tradespeople starting their first independent business",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Community Board",
+        "surface": "service announcement",
+        "community": "West County Recommendations",
+        "author_line": "Priya Shah — independent electrician",
+        "text": "After five years with a commercial crew, I'm taking electrical jobs under my own business. I specialize in panel upgrades and EV chargers; homeowners can message me for a second opinion. My invoicing and tax registration are still blocking the first jobs. I tried the setup guides, lack the expertise to finish safely, and have allocated budget to bring in an outside tax adviser before work begins.",
+        "date_note": "this week"
+      }
+    },
+    {
+      "id": "HB014",
+      "client_offer": {
+        "sells": "newsletter planning and production for member-led local clubs",
+        "outcome": "build early subscriber reach and publish a consistent new member newsletter",
+        "sells_to": "member-led clubs responsible for launching and maintaining a recurring newsletter",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Substack Notes",
+        "surface": "newsletter announcement",
+        "community": "Pine Ridge Running Club",
+        "author_line": "Pine Ridge Running Club committee",
+        "text": "Our new club newsletter has 23 subscribers. Please forward the signup link; the committee plans to write a route note and event recap every Friday. After six weeks we have missed four issues because volunteers have no capacity. The committee approved a monthly budget and committed to outsource production this quarter; no provider has been selected.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB015",
+      "client_offer": {
+        "sells": "independent school-selection research and advisory",
+        "outcome": "help a family compare realistic school options and make a supported enrollment decision",
+        "sells_to": "families actively choosing among schools for a child and still undecided",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Parent Community",
+        "surface": "group post",
+        "community": "Families Changing Schools",
+        "author_line": "Jordan Lee — parent of a rising sixth grader",
+        "text": "We're still choosing among three schools. I built my own comparison sheet and made a one-minute poll for local parents; I'll share the responses with everyone who contributes. Which question should I add before I close the poll Friday?",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB016",
+      "client_offer": {
+        "sells": "subscription inventory and food-waste tracking software",
+        "outcome": "give a new commercial kitchen reliable ingredient counts and waste control before and after opening",
+        "sells_to": "food-business owners preparing a first commercial opening",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Facebook",
+        "surface": "bài đăng trong nhóm",
+        "community": "Khởi nghiệp đồ ăn đóng gói",
+        "author_line": "Huyền Mai — sáng lập Mâm Nhỏ",
+        "text": "Mâm Nhỏ dự kiến mở vào tháng 11 với hơn 40 món ăn theo tuần. Hiện mình đang tìm một designer làm bộ bao bì và nhãn hiệu ở cấp độ senior. Ai biết người phù hợp cho mình xin kết nối.",
+        "date_note": "hôm qua"
+      }
+    },
+    {
+      "id": "HB017",
+      "client_offer": {
+        "sells": "professional separation-anxiety training for household dogs",
+        "outcome": "give a dog owner a safe, personalized plan that reduces destructive panic when the dog is left alone",
+        "sells_to": "dog owners currently dealing with unresolved separation anxiety",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Facebook Group",
+        "surface": "peer question",
+        "community": "Rescue Dog Families",
+        "author_line": "Evelyn Park — guardian of a rescued terrier",
+        "text": "Our terrier still howls and chews the frame whenever we step out. Other rescue families, which gradual routines helped you? I'm keeping my own daily log and would love to swap notes with people who have worked through the same thing.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB018",
+      "client_offer": {
+        "sells": "grant-pipeline and institutional fundraising service",
+        "outcome": "build a sustainable grant pipeline for a newly launched community nonprofit",
+        "sells_to": "leaders responsible for funding a new community nonprofit",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "LinkedIn",
+        "surface": "organization launch post",
+        "community": "Civic Projects Network",
+        "author_line": "South Ward Repair Café board",
+        "text": "South Ward Repair Café is officially open. Residents can bring small appliances to our free Saturday workshops, and donations are welcome through our site. Share the opening schedule with a neighbor who likes fixing things.",
+        "date_note": "this week"
+      }
+    },
+    {
+      "id": "HB019",
+      "client_offer": {
+        "sells": "done-for-you testimonial collection and portfolio development",
+        "outcome": "help an independent creative build credible client proof on a newly rebuilt portfolio",
+        "sells_to": "independent creatives whose portfolio lacks usable client testimonials",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Instagram",
+        "surface": "story text",
+        "community": "former clients and followers",
+        "author_line": "An Phạm — nhiếp ảnh gia gia đình",
+        "text": "Mình vừa làm lại portfolio và hiện chưa có testimonial nào. Anh chị nào mình từng chụp ảnh rồi thì gửi giúp vài dòng cảm nhận nhé. Tuần này mình sẽ tự nhắn lại khách cũ để gom lời nhận xét.",
+        "date_note": "hôm nay"
+      }
+    },
+    {
+      "id": "HB020",
+      "client_offer": {
+        "sells": "tax registration and bookkeeping setup for newly self-employed tradespeople",
+        "outcome": "give a new independent trade business a compliant tax, invoicing, and bookkeeping foundation before its first jobs",
+        "sells_to": "skilled tradespeople starting their first independent business",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Nextdoor",
+        "surface": "service announcement",
+        "community": "East County Neighbors",
+        "author_line": "Marcus Bell — independent HVAC technician",
+        "text": "After six years with a regional contractor, I've started my own HVAC service. I focus on heat-pump maintenance and honest second opinions. Neighbors can message me directly for an appointment this fall.",
+        "date_note": "this week"
+      }
+    },
+    {
+      "id": "HB021",
+      "client_offer": {
+        "sells": "newsletter planning and production for member-led local clubs",
+        "outcome": "build early subscriber reach and publish a consistent new member newsletter",
+        "sells_to": "member-led clubs responsible for launching and maintaining a recurring newsletter",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Substack Notes",
+        "surface": "newsletter announcement",
+        "community": "Cedar Valley Cycling Club",
+        "author_line": "Cedar Valley Cycling Club committee",
+        "text": "We launched the club's new newsletter and have 19 subscribers so far. Members, please forward the signup link. Our volunteer committee will write one route note and one event recap every Friday.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB022",
+      "client_offer": {
+        "sells": "done-for-you customer interview and market-validation research",
+        "outcome": "turn an unresolved demand question into evidence a product owner can use for a launch decision",
+        "sells_to": "people responsible for launching a product or program who are currently validating demand",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Founder Forum",
+        "surface": "group post",
+        "community": "Early Product Builders",
+        "author_line": "Maya Chen — building a route-planning app for field crews",
+        "text": "I'm validating which dispatch problems matter most before our beta. If you manage a field crew, would you fill out this 60-second survey? Everyone who responds gets early access. Our own interviews have stalled, so I have an approved $4,000 budget and am shortlisting an outside research team to run the study this month. Send me proposals.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB023",
+      "client_offer": {
+        "sells": "fractional finance operations and launch-ready bookkeeping",
+        "outcome": "give a new marketplace reliable books, cash controls, and reporting before launch",
+        "sells_to": "founders responsible for launching and operating an early-stage marketplace",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "LinkedIn",
+        "surface": "founder post",
+        "community": "Marketplace Operators",
+        "author_line": "Omar Reed — co-founder, CareCircle",
+        "text": "My partner and I are launching a marketplace for families to find and manage home-care helpers. We already have 900 caregiver profiles and are looking for a CTO-level co-founder. Separately, our launch books and cash controls are not ready. We are requesting proposals from fractional finance operators this week and need one engaged before October.",
+        "date_note": "this week"
+      }
+    },
+    {
+      "id": "HB024",
+      "client_offer": {
+        "sells": "paid career-transition coaching",
+        "outcome": "help experienced career changers turn repeated interviews into a suitable job offer",
+        "sells_to": "experienced professionals actively changing careers and still without an offer",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Reddit",
+        "surface": "community question",
+        "community": "Career Changers",
+        "author_line": "Leah M. — operations manager moving into climate work",
+        "text": "I've reached five final-round interviews but still have no offer. For people who made a similar switch, what changed the outcome for you? The do-it-yourself approach has stalled for three months; I have approved $1,500 and committed to outsource the search strategy this month, although I have not chosen a coach.",
+        "date_note": "yesterday"
+      }
+    },
+    {
+      "id": "HB025",
+      "client_offer": {
+        "sells": "done-for-you customer-acquisition campaigns",
+        "outcome": "build a repeatable booking pipeline for newly opened local service businesses",
+        "sells_to": "owners launching a local service business and responsible for winning its first customers",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Facebook",
+        "surface": "business launch post",
+        "community": "Northside Neighbors",
+        "author_line": "Diego Alvarez — owner, Rolling Wrench Bike Repair",
+        "text": "Rolling Wrench is officially open! I bring mobile bike repairs to your home, from flat fixes to tune-ups. Message this page to book. After three weeks the calendar is still empty, so I am requesting proposals from customer-acquisition specialists. The $2,000 launch budget is approved and I need a campaign started Monday.",
+        "date_note": "two days ago"
+      }
+    },
+    {
+      "id": "HB026",
+      "client_offer": {
+        "sells": "done-for-you customer review and reputation program",
+        "outcome": "help an established local service business consistently earn authentic reviews on a new or weak profile",
+        "sells_to": "owners of local service businesses whose reputation profile lacks customer reviews",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Facebook",
+        "surface": "business-page post",
+        "community": "Riverbend Home Services",
+        "author_line": "Nora Patel — owner, ClearFlow Plumbing",
+        "text": "Our new business page still shows zero reviews. If ClearFlow has helped you, could you leave an honest review? I have manually contacted former customers for eight weeks without results and no one on staff can keep doing it. I approved a monthly budget and committed to an outside reputation team; the provider is not selected yet.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB027",
+      "client_offer": {
+        "sells": "professional-liability and data-breach insurance coverage for independent health practices",
+        "outcome": "put appropriate business coverage in force before a new practice accepts its first clients",
+        "sells_to": "licensed practitioners opening and operating an independent health practice",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Instagram",
+        "surface": "launch caption",
+        "community": "local professional network",
+        "author_line": "Avery Brooks, LMFT",
+        "text": "After eight years in community clinics, I'm opening my own therapy practice and accepting consultation requests. Client intake is blocked because my employer's liability policy does not cover the private practice, and my request to extend it was declined. I set aside the premium budget and committed to obtain outside professional-liability and data-breach coverage before the first appointment; no insurer or policy is chosen.",
+        "date_note": "this week"
+      }
+    },
+    {
+      "id": "HB028",
+      "client_offer": {
+        "sells": "ongoing content operations for volunteer-run associations",
+        "outcome": "build early reach and maintain a consistent content calendar for a new public page",
+        "sells_to": "volunteer-run associations responsible for launching and maintaining a public page",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Facebook",
+        "surface": "new-page announcement",
+        "community": "Harbor Heritage Association",
+        "author_line": "Harbor Heritage Association committee",
+        "text": "We created an official page and it currently has 14 followers. Members, please like and share it. After six weeks we have missed most planned updates because volunteers have no capacity. The board approved a monthly budget and committed to outsource the content calendar this quarter; no provider has been selected.",
+        "date_note": "today"
+      }
+    }
+  ]
+}

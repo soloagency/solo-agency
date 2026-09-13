@@ -1941,7 +1941,10 @@ Format:
   "date": "2026-06-20",
   "client_slug": "example-client",
   "opportunity_type": "lead",
-  "classification": "hot_lead",
+  "relationship_type": "buyer",
+  "classification": "direct_need",
+  "lead_level": "hot",
+  "lead_rule_version": "v12",
   "source": "Facebook Group",
   "source_type": "private",
   "platform": "facebook",
@@ -1949,14 +1952,27 @@ Format:
   "profile_url": "https://www.facebook.com/profile.php?id=...",
   "post_url": "https://www.facebook.com/groups/.../posts/...",
   "captured_at": "2026-06-20T09:00:00-07:00",
-  "safe_context_summary": "Person asked what to do after receiving an insurance non-renewal notice.",
+  "safe_context_summary": "Person asked for an insurance agent who can replace a non-renewed policy before its end date.",
   "evidence_snippet": "Short visible snippet when safe",
   "person_type": "homeowner in California with a lapsing policy",
   "sells_to_match": "person in California with a new asset, a new dependent, a new address, a new job or a switch to self-employment, a rising or expiring policy, or a risk they just became aware of",
   "fit": "high",
   "fit_reason": "Homeowner in the licensed area with a named policy event.",
+  "fit_evidence": "The author states that they own the California home named in the notice.",
+  "problem_outcome": "Replace the lapsing home policy with appropriate coverage.",
+  "problem_relevance": "proven",
+  "problem_state": "unresolved",
+  "resolution_activity": "active",
+  "acquisition_posture": "explicit",
   "intent": "explicit",
-  "intent_reason": "Asks directly what to do about the non-renewal notice.",
+  "intent_reason": "Asks directly for this kind of provider to replace the policy.",
+  "problem_evidence": "The carrier issued a non-renewal notice for the author's home policy.",
+  "unresolved_evidence": "The item says no replacement policy has been selected.",
+  "active_resolution_evidence": "The author is currently requesting recommendations.",
+  "acquisition_evidence": "The request is specifically for an insurance agent who can place replacement coverage.",
+  "counterfactual_result": "pass",
+  "urgency": "soon",
+  "timing_evidence": "The existing policy ends next month.",
   "why_it_matters": "This is a direct need signal tied to the client's offer.",
   "related_offer": "Home insurance review",
   "related_pain_point": "Confusion after non-renewal notice",
@@ -1975,11 +1991,25 @@ Allowed `opportunity_type`:
 - `competitor`
 - `both`
 
-Allowed lead classifications:
+Allowed `relationship_type` (orthogonal to temperature):
 
-- `hot_lead`
-- `warm_lead`
-- `watch_lead`
+- `buyer`
+- `partner`
+- `competitor`
+- `none`
+
+Allowed lead levels:
+
+- `hot`
+- `warm`
+- `watch`
+
+The suffixed `hot_lead`, `warm_lead`, and `watch_lead` values remain accepted only as legacy
+`classification` values for old rows. New rows put the canonical level in `lead_level` and an
+independent evidence label in `classification`; do not write both meanings into one field.
+
+Allowed lead evidence classifications:
+
 - `direct_need`
 - `indirect_need`
 - `pain_signal`
@@ -1989,11 +2019,19 @@ Allowed lead classifications:
 - `complaint`
 - `adjacent_need`
 
-The `hot_lead`/`warm_lead`/`watch_lead` values here are derived from `fit` × `intent`
-(`playbooks/LEAD_QUALIFICATION_RULE.md` Step 4), not chosen independently; the `direct_need`/
-`indirect_need`/... values stay the separate evidence label carried over from `lead type`. The CRM
-contact this row becomes carries `fit:{high|medium|low}` and `intent:{explicit|implied|none}` tags
-next to the existing `lead:{temp}` tag, sourced from this row's `fit` and `intent` fields.
+The lead level is derived from `fit` × offer-acquisition `intent`
+(`playbooks/LEAD_QUALIFICATION_RULE.md` Step 4), not chosen independently. High fit, a relevant
+problem, urgency, a life/business trigger or an evidence classification such as `buying_trigger`
+cannot individually produce Hot. `intent = implied` is valid only when the row separately records
+ownership, exact problem/outcome alignment, an unresolved state, active resolution, an open
+acquisition posture, and a passing neutral-reader counterfactual. Urgency only orders records inside
+their existing level.
+
+The `direct_need`/`indirect_need`/... values remain evidence labels in `classification` and never
+replace `lead_level`. `relationship_type` likewise remains orthogonal: a partner or competitor label
+cannot be replaced by temperature. The CRM contact this row becomes carries
+`fit:{high|medium|low}`, `intent:{explicit|implied|none}` and `lead:{temp}` tags sourced from the row,
+while the v12 axis values and their separate evidence fields remain in custom fields for audit.
 
 Allowed competitor classifications:
 

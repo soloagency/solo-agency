@@ -86,6 +86,13 @@ Read the printed report:
   baseline value on file. A rule edit that clears the fixed targets but
   drops group E (competitor) recall below baseline is still a regression —
   it does not ship. This is the binding line.
+- **HOT diagnostics**: HOT precision, HOT recall, and non-HOT→HOT counts by
+  expected decision, client, and group. They are informational against the
+  checked-in v11 baseline, which intentionally has no HOT-specific fields.
+  They become baseline-binding only if a future reviewed baseline explicitly
+  includes `hot_precision`, `hot_recall`, or `nonhot_to_hot_rate`; the raw
+  count/breakdown stay informational, and missing fields are never treated as
+  zero.
 - The confusion matrix and the list of failing rows (each with the trap it
   was testing and the judge's own `fit_reason`/`intent_reason`) tell you
   *why* it failed, not just that it did.
@@ -205,6 +212,139 @@ Commit `dataset.json` (if scenarios were added), `baseline/judgments/*`,
 and `baseline/baseline_metrics.json` together with the rule change and the
 attached `report.html` in one change, so the baseline and the rule it
 describes never drift apart.
+
+---
+
+# Running the HOT-boundary canary (v12)
+
+Use this small staged test when changing the Warm/HOT boundary. It isolates
+whether the judge confuses “could benefit” or “is actively self-solving” with
+observable demand to acquire external capability. It is domain-agnostic: each
+case embeds a different `client_offer`/outcome and its own item evidence; the
+scorer never contains occupations, industries, keywords, or provider names.
+
+This workflow is intentionally separate from the 600-pair run above. For the
+current v12 wording iteration, run the five-record canary below and stop; do
+not launch the full 600-pair campaign and do not replace the v11 baseline. A
+canary pass proves the targeted direction only—it is not a claim that the full
+regression suite passed.
+
+## 0. Files and binding contract
+
+- `hot_boundary_cases.json` — 28 blind cases. Expected labels never appear in
+  this file.
+- `hot_boundary_expected.json` — fourteen Warm invariants, fourteen HOT
+  positive flips, closed vocabulary, metamorphic pairs, and minimal flip
+  relationships.
+- `score_hot_boundary.py` — reads model judgments from one JSON/JSONL file or
+  a directory of them.
+
+The boundary run passes only when coverage/schema are complete, all binding
+structural fields match, no non-HOT case becomes HOT, all positive flips stay
+HOT, every emitted HOT satisfies the full v12 conjunction with substantive
+evidence, explicit intent is paired only with explicit acquisition posture,
+implied intent only with open posture, no generic evidence sentence is reused
+across multiple Hot axes, and every fully present metamorphic pair is
+structurally consistent.
+`urgency`/`timing_evidence` are checked for vocabulary/evidence consistency but
+never used as a HOT gate.
+
+## 1. Stage exactly five blind records
+
+Use this fixed canary set: two complete negative→positive flips (one
+`explicit`, one `open`) plus one unrelated-provider negative.
+
+```text
+HB001,HB002,HB003,HB022,HB024
+```
+
+Create the file-in input under the run directory:
+
+```python
+import json
+from pathlib import Path
+
+ids = {"HB001", "HB002", "HB003", "HB022", "HB024"}
+source = json.loads(Path("hot_boundary_cases.json").read_text(encoding="utf-8"))
+canary = dict(source)
+canary["cases"] = [row for row in source["cases"] if row["id"] in ids]
+out = Path("runs/<date>/hot_boundary/canary_cases.json")
+out.parent.mkdir(parents=True, exist_ok=True)
+out.write_text(json.dumps(canary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+assert len(canary["cases"]) == 5
+```
+
+## 2. Send the five records to one Luna extractor
+
+Use `gpt-5.6-luna` in Codex (or the runtime's extractor tier), fresh context,
+with this exact file-in/file-out brief:
+
+```text
+You are blind-judging exactly five lead items against a fixed rule. Read these
+files in full before acting:
+
+1. playbooks/LEAD_QUALIFICATION_RULE.md
+2. playbooks/tests/lead-rule/runs/<date>/hot_boundary/canary_cases.json
+
+For each case, judge ONE item for the client_offer embedded in that same case.
+Use only that offer/outcome and that item's evidence. Do not infer buying
+intent from an occupation, industry, launch, possible benefit, self-promotion,
+peer advice, or active self-resolution. Apply the v12 steps in order.
+
+Write exactly five JSONL objects, one per id and no prose, to:
+playbooks/tests/lead-rule/runs/<date>/hot_boundary/canary_judgments.jsonl
+
+Each object must contain these keys:
+id, lead_rule_version, fit, fit_reason, problem_outcome,
+problem_relevance, problem_state, resolution_activity,
+acquisition_posture, intent, intent_reason, fit_evidence, problem_evidence,
+unresolved_evidence, active_resolution_evidence, acquisition_evidence,
+timing_evidence, urgency, counterfactual_result, relationship_type,
+lead_level, decision, confidence.
+
+Use the rule's closed vocabulary exactly. Evidence fields must name concrete
+facts from the item; do not write an unsupported generic conclusion. Preserve
+each id unchanged.
+```
+
+Before scoring, validate that the staged output contains exactly five unique
+ids and no prose/fences. This is the TEAM_MODEL file-in/file-out canary gate;
+the leader validates it and does not reclassify the five records inline.
+
+## 3. Score the canary
+
+```text
+python3 score_hot_boundary.py \
+  --cases hot_boundary_cases.json \
+  --expected hot_boundary_expected.json \
+  --judgments runs/<date>/hot_boundary/canary_judgments.jsonl \
+  --ids HB001,HB002,HB003,HB022,HB024 \
+  --json runs/<date>/hot_boundary/canary_metrics.json
+```
+
+The last line must be `BINDING PASS`. In particular, `non-HOT -> HOT` must be
+`0/3`, HOT recall must be `2/2`, and contract/evidence/HOT-gate errors must all
+be zero. A failure is evidence that the rule or output contract is still
+ambiguous; do not relabel a fixture to match the model.
+
+## 4. Optional 28-case boundary pass (still not the 600-pair run)
+
+After the five-record canary passes and the rule text is stable, the remaining
+23 cases may be judged in Luna files of at most five records each, then scored
+together:
+
+```text
+python3 score_hot_boundary.py \
+  --cases hot_boundary_cases.json \
+  --expected hot_boundary_expected.json \
+  --judgments runs/<date>/hot_boundary/judgments \
+  --json runs/<date>/hot_boundary/metrics.json
+```
+
+This full boundary pass activates all fourteen metamorphic-pair checks. It is
+still a 28-row focused test, not authorization to run or update the 600-row
+baseline. Keep every judgment artifact under `runs/<date>/`; never copy these
+files into `baseline/`.
 
 ---
 

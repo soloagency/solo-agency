@@ -41,7 +41,7 @@
   },
   {
     "id": "A05",
-    "person_type": "SaaS founder (side project)",
+    "person_type": "startup founder (side project)",
     "sells_to_match": "self-employed professional of ANY trade in California",
     "fit": "medium",
     "fit_reason": "Matches professional/founder category but location is unknown (no CA mentioned); cannot confirm in service area.",
@@ -631,7 +631,7 @@
   },
   {
     "id": "D04",
-    "person_type": "SaaS founder (bootstrapped startup)",
+    "person_type": "startup founder (bootstrapped startup)",
     "sells_to_match": "owner of ANY small business in California (e.g. salon, restaurant, shop, clinic, auto shop, food truck, software startup)",
     "fit": "medium",
     "fit_reason": "Small business owner type matches, but location is not stated; no evidence of California",
@@ -1091,7 +1091,7 @@
   },
   {
     "id": "H03",
-    "person_type": "SaaS founder",
+    "person_type": "startup founder",
     "sells_to_match": "owner of ANY small business in California",
     "fit": "high",
     "fit_reason": "Founder of small startup in California (Los Angeles); matches 'owner of ANY small business' type",

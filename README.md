@@ -18,9 +18,15 @@
 >    filesystem itself is unreachable do you say so in one sentence, give the human the clone command above,
 >    and wait for them. Never report an install that did not happen.
 
-Solo Agency is for solo-business owners (realtors, SaaS founders, insurance and mortgage agents, coaches, consultants, local services, one-person brands) who need the sales & marketing a whole agency would do and have nobody to do it: finding leads, nurturing them, keeping a CRM that never drops a follow-up, running outreach, building a personal brand with content people actually care about, every single day.
+Solo Agency is for solo-business owners (realtors, startup founders, insurance and mortgage agents, coaches, consultants, local services, one-person brands) who need the sales & marketing a whole agency would do and have nobody to do it: finding leads, nurturing them, keeping a CRM that never drops a follow-up, running outreach, building a personal brand with content people actually care about, every single day.
 
 It gives you that agency as a team of AI agents working inside the AI you already use (Claude, Codex, Hermes, OpenClaw), reading the web and the social platforms where your customers actually gather. I built it for myself and run my own business on it every day.
+
+Solo Agency works both sides of the revenue engine: it actively finds and qualifies people already in the market, while your personal brand builds trust and attracts inbound leads over time. Both paths feed the same AI CRM, follow-up, and learning loop.
+
+<p align="center">
+  <img src="assets/solo-agency-revenue-engine-square-1080.png" alt="The Solo Agency revenue engine: active lead intelligence and personal-brand attraction feed an AI CRM that nurtures, converts, measures, and learns" width="820">
+</p>
 
 ## How it works: you are the Boss, you talk to one Team Leader
 

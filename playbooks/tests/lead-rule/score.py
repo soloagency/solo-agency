@@ -42,6 +42,12 @@ Aggregate metrics:
     "competitor in disguise" trap group), same construction.
   - groupFG_none      = recall of "none" within groups F+G combined (the
     noise / negation trap groups), same construction.
+  - hot_precision     = of all pairs JUDGED hot, the fraction EXPECTED hot.
+  - hot_recall        = of all pairs EXPECTED hot, the fraction JUDGED hot.
+  - nonhot_to_hot_*   = count/rate plus expected-decision, client and group
+    breakdown for the dangerous false-HOT direction. These diagnostics are
+    informational with the v11 baseline; the rate becomes baseline-binding
+    only if a future baseline file deliberately includes that key.
   - confusion matrix: expected decision -> judged decision, counts.
 """
 
@@ -59,6 +65,15 @@ TARGET_THRESHOLDS = {
     "groupA_warm": 0.95,
     "groupE_competitor": 0.95,
     "groupFG_none": 0.95,
+}
+
+# Backwards-compatible optional baseline gates. The checked-in v11 baseline
+# intentionally does not contain these fields, so adding the diagnostics does
+# not move that floor. A later reviewed baseline may opt into them explicitly.
+OPTIONAL_BASELINE_DIRECTIONS = {
+    "hot_precision": "higher",
+    "hot_recall": "higher",
+    "nonhot_to_hot_rate": "lower",
 }
 
 LEAD_DECISIONS = {"hot", "warm", "watch"}
@@ -157,13 +172,29 @@ def collect_judgments(run_dir, client_keys, blind_map):
 
 
 def compute_metrics(dataset, scenarios, clients, judgments):
-    per_client = {c: {"total": 0, "lead_ok": 0, "tier_ok": 0} for c in clients}
+    per_client = {
+        c: {
+            "total": 0,
+            "lead_ok": 0,
+            "tier_ok": 0,
+            "hot_expected": 0,
+            "hot_judged": 0,
+            "hot_true_positive": 0,
+            "nonhot_to_hot": 0,
+        }
+        for c in clients
+    }
     per_group = {}
     confusion = {}  # (exp_dec, got_dec) -> count, only where exp_dec set
     confusion_mismatch = {}  # "exp->got" -> count, only mismatches
     fit_ok = intent_ok = total = lead_ok_total = tier_ok_total = 0
     failures = []
     missing = []
+    hot_expected = hot_judged = hot_true_positive = 0
+    nonhot_to_hot_by_expected = {}
+    nonhot_to_hot_by_client = {}
+    nonhot_to_hot_by_group = {}
+    nonhot_to_hot_cases = []
 
     trap = {
         "groupA_warm": {"groups": {"A"}, "decision": "warm", "num": 0, "den": 0},
@@ -209,6 +240,31 @@ def compute_metrics(dataset, scenarios, clients, judgments):
             if exp_intent == got_intent:
                 intent_ok += 1
 
+            if exp_dec == "hot":
+                hot_expected += 1
+                per_client[client]["hot_expected"] += 1
+            if got_dec == "hot":
+                hot_judged += 1
+                per_client[client]["hot_judged"] += 1
+            if exp_dec == "hot" and got_dec == "hot":
+                hot_true_positive += 1
+                per_client[client]["hot_true_positive"] += 1
+            elif exp_dec and exp_dec != "hot" and got_dec == "hot":
+                per_client[client]["nonhot_to_hot"] += 1
+                nonhot_to_hot_cases.append({
+                    "id": sid,
+                    "client": client,
+                    "group": group,
+                    "expected_decision": exp_dec,
+                    "got_decision": got_dec,
+                })
+                nonhot_to_hot_by_expected[exp_dec] = \
+                    nonhot_to_hot_by_expected.get(exp_dec, 0) + 1
+                nonhot_to_hot_by_client[client] = \
+                    nonhot_to_hot_by_client.get(client, 0) + 1
+                nonhot_to_hot_by_group[group] = \
+                    nonhot_to_hot_by_group.get(group, 0) + 1
+
             if exp_dec:
                 confusion[(exp_dec, got_dec or "(missing)")] = \
                     confusion.get((exp_dec, got_dec or "(missing)"), 0) + 1
@@ -242,6 +298,20 @@ def compute_metrics(dataset, scenarios, clients, judgments):
         "tier_acc": safe_div(tier_ok_total, total),
         "fit_acc": safe_div(fit_ok, total),
         "intent_acc": safe_div(intent_ok, total),
+        "hot_precision": safe_div(hot_true_positive, hot_judged),
+        "hot_recall": safe_div(hot_true_positive, hot_expected),
+        "hot_expected": hot_expected,
+        "hot_judged": hot_judged,
+        "hot_true_positive": hot_true_positive,
+        "nonhot_to_hot_total": sum(nonhot_to_hot_by_expected.values()),
+        "nonhot_to_hot_rate": safe_div(
+            sum(nonhot_to_hot_by_expected.values()), total - hot_expected),
+        "nonhot_to_hot_breakdown": {
+            "by_expected_decision": dict(sorted(nonhot_to_hot_by_expected.items())),
+            "by_client": dict(sorted(nonhot_to_hot_by_client.items())),
+            "by_group": dict(sorted(nonhot_to_hot_by_group.items())),
+            "cases": nonhot_to_hot_cases,
+        },
         "byClient": per_client,
         "byGroup": per_group,
         "confusions": confusion_mismatch,
@@ -284,8 +354,38 @@ def check_baseline(metrics, baseline):
         v = metrics.get(key)
         b = baseline.get(key)
         ok = (v is not None and b is not None and v >= b)
-        results[key] = {"value": v, "baseline": b, "pass": ok}
+        results[key] = {
+            "value": v,
+            "baseline": b,
+            "pass": ok,
+            "direction": "higher",
+            "optional": False,
+        }
+    for key, direction in OPTIONAL_BASELINE_DIRECTIONS.items():
+        # Old baselines do not carry these fields. Absence means the metric is
+        # informational, not an automatic regression and not a missing zero.
+        if key not in baseline:
+            continue
+        v = metrics.get(key)
+        b = baseline.get(key)
+        if direction == "lower":
+            ok = (v is not None and b is not None and v <= b)
+        else:
+            ok = (v is not None and b is not None and v >= b)
+        results[key] = {
+            "value": v,
+            "baseline": b,
+            "pass": ok,
+            "direction": direction,
+            "optional": True,
+        }
     return results
+
+
+def fmt_baseline_metric(key, value):
+    if key.endswith("_total"):
+        return "n/a" if value is None else str(value)
+    return fmt_pct(value)
 
 
 def print_report(metrics, target_results, baseline_results, warnings, show_failures):
@@ -300,6 +400,30 @@ def print_report(metrics, target_results, baseline_results, warnings, show_failu
     print(f"{'fit_acc':<24} {fmt_pct(metrics['fit_acc']):>10}")
     print(f"{'intent_acc':<24} {fmt_pct(metrics['intent_acc']):>10}")
     print()
+    print("HOT diagnostics:")
+    print(f"  {'hot_precision':<20} {fmt_pct(metrics['hot_precision']):>10}  "
+          f"({metrics['hot_true_positive']}/{metrics['hot_judged']} judged hot)")
+    print(f"  {'hot_recall':<20} {fmt_pct(metrics['hot_recall']):>10}  "
+          f"({metrics['hot_true_positive']}/{metrics['hot_expected']} expected hot)")
+    nonhot_den = metrics['total'] - metrics['hot_expected']
+    print(f"  {'nonhot_to_hot':<20} {fmt_pct(metrics['nonhot_to_hot_rate']):>10}  "
+          f"({metrics['nonhot_to_hot_total']}/{nonhot_den})")
+    breakdown = metrics["nonhot_to_hot_breakdown"]
+    if metrics["nonhot_to_hot_total"]:
+        print("    by expected decision: " + json.dumps(
+            breakdown["by_expected_decision"], sort_keys=True))
+        print("    by client:            " + json.dumps(
+            breakdown["by_client"], sort_keys=True))
+        print("    by group:             " + json.dumps(
+            breakdown["by_group"], sort_keys=True))
+        print("    cases:                " + ", ".join(
+            f"{row['id']}/{row['client']} ({row['expected_decision']}->hot)"
+            for row in breakdown["cases"][:20]))
+        if len(breakdown["cases"]) > 20:
+            print(f"    ... and {len(breakdown['cases']) - 20} more")
+    else:
+        print("    breakdown: (none)")
+    print()
     print("Trap-group metrics:")
     for key in ("groupA_warm", "groupE_competitor", "groupFG_none"):
         num, den = metrics[f"{key}_num"], metrics[f"{key}_den"]
@@ -312,7 +436,8 @@ def print_report(metrics, target_results, baseline_results, warnings, show_failu
         lp = fmt_pct(st["lead_ok"] / st["total"] if st["total"] else None)
         tp = fmt_pct(st["tier_ok"] / st["total"] if st["total"] else None)
         print(f"  {client:<14} lead {st['lead_ok']:>3}/{st['total']:<3} ({lp:>7})   "
-              f"tier {st['tier_ok']:>3}/{st['total']:<3} ({tp:>7})")
+              f"tier {st['tier_ok']:>3}/{st['total']:<3} ({tp:>7})   "
+              f"nonhot->hot {st['nonhot_to_hot']:>2}")
     print()
 
     print("By group:")
@@ -369,8 +494,11 @@ def print_report(metrics, target_results, baseline_results, warnings, show_failu
             status = "PASS" if r["pass"] else "FAIL"
             if not r["pass"]:
                 all_baseline_pass = False
-            print(f"  [{status}] {key:<20} {fmt_pct(r['value']):>10}  (baseline "
-                  f"{fmt_pct(r['baseline'])})")
+            comparator = ">=" if r.get("direction") != "lower" else "<="
+            opt = " [opt-in]" if r.get("optional") else ""
+            print(f"  [{status}] {key:<20} {fmt_baseline_metric(key, r['value']):>10}  "
+                  f"(must be {comparator} baseline "
+                  f"{fmt_baseline_metric(key, r['baseline'])}){opt}")
         print(f"  => {'AT OR ABOVE BASELINE' if all_baseline_pass else 'REGRESSION VS BASELINE'}")
         print()
 

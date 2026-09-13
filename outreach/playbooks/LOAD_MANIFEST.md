@@ -5,9 +5,9 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 
 | path | lines | sha256 | last_line |
 |---|---|---|---|
-| OUTREACHCRM_PLAYBOOK.md | 490 | 206151dd2f911911cae637217f0210f768c973e2e98fe91eec1a36d6a17bfdae | If any required stage was not loaded, load it before proceeding. |
+| OUTREACHCRM_PLAYBOOK.md | 490 | 3d4f027644c1b95343f3e443ffabf875af6fadf693d61f4be1d2099a60bae7e9 | If any required stage was not loaded, load it before proceeding. |
 | playbooks/00_CORE_CONTEXT_REQUIREMENTS.md | 498 | 42fd5a2902942a1068860bca08e12788888de54ad882329088c0e2cc66c5c28f | If any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
-| playbooks/01_CLIENT_SETUP_PROFILE.md | 736 | a9981903d4959106edd0fac5e58b2ea30cc2751a0f313ffabf390099f3d94580 | --- |
+| playbooks/01_CLIENT_SETUP_PROFILE.md | 736 | 54c68ca06675f4f722c249b9e122eb677db7a2dfae445d14369c9157f98cfc9a | --- |
 | playbooks/02_SENDBOX_SETUP.md | 288 | a27aeb6aab632d7e7427ca4fc7d6bbef68264787f5132752cee36fd77fce225b | This is the intended operating model for sendbox setup. When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | playbooks/03_IMPORT_LIST.md | 324 | fcfdf069cf778eafd8b9dc0236786c38149cc2b548f18e02527b4d3b03326bf6 | When any instruction here conflicts with `docs/DESIGN.md`, `docs/DESIGN.md` wins — follow it and report the gap. |
 | playbooks/04_VERIFY_ENRICH.md | 392 | 58be617262a7f031b2566791335c4b3edd4a08e176c59ee2efc620c5d492b3f7 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
@@ -27,7 +27,7 @@ After loading any file below, its actual LINE COUNT must match its row here (see
 | playbooks/AUTOMATION_SCHEDULING.md | 1021 | b3924d02bf3699b378b09d2e7583ce77fca7637d6307359b595051ded2d19a8e | instruction to connect WideCast (API key + Telegram/email fallback) or Gmail/email. |
 | playbooks/LOAD_LEDGER_PROTOCOL.md | 61 | eb6eb58c360495ffff347a8dbbee9d06538599a4e4999e3bd7c22ae5c38268d7 | `playbooks/LOAD_MANIFEST.md` lists `OUTREACHCRM_PLAYBOOK.md` plus every `playbooks/**/*.md` with `path \| lines \| sha256 \| last_line`. It is regenerated automatically by the root `deploy-soloagency.sh` `generate_outreach_artifacts` step (`--outreach-only`) on every deploy and published to GitHub raw, so adding a new playbook needs no manual step. If the manifest is absent or a file is not yet listed, fall back to Tier A (quote lines + last line). If present, use it for deterministic truncation/staleness detection. |
 | playbooks/SCHEDULED_RUN_ENTRYPOINT.md | 139 | 58b481c7b6a82111053cda01ed48a1af64a2c69acf7e52f30cd6828bc3007b06 | Notification is operator-facing status only, never outbound marketing to a contact. |
-| playbooks/SETUP_FLOW_ENTRYPOINT.md | 98 | bbcbd2d6a1f5ded2e97746a29da20b8953769021b85b87cecf0349d51032e4ac | Do not ask whether to send now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not enrich, draft-to-send, or notify in Setup Flow. |
+| playbooks/SETUP_FLOW_ENTRYPOINT.md | 98 | 04c1acaae7057bd6a3a08d28a44126cc0a6ea42cf8890cab767d76ccbfbee093 | Do not ask whether to send now. Do not load `playbooks/SCHEDULED_RUN_ENTRYPOINT.md` inside the setup chat. Do not enrich, draft-to-send, or notify in Setup Flow. |
 | playbooks/TODO.md | 40 | c2f61f82d24c13448ecb0b68250a9e1d463a8f9c613e6294fabd550e96da3826 | - Second sending domain support for scale (domain-level warmup already in the sendbox schema). |
 | playbooks/skills/email-verify-enrich/LOAD_MANIFEST.md | 10 | df91696e86edefd846be3292371357320e908ff436615a72af515606c626e542 | \| etiquette.md \| 33 \| 42c6956562404e718da0ec689119b23dd48a7a4182333b87ef54650f7dcf58c9 \| When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. \| |
 | playbooks/skills/email-verify-enrich/SKILL.md | 291 | 3bf8ba08fdd61aa5066230b7b579ab44cde058e749d8264083140d4e343a6e2a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |

@@ -1,0 +1,273 @@
+{
+  "schema_version": "1.0",
+  "rule_version": "v12",
+  "description": "Labels and structural invariants for hot_boundary_cases.json. Fourteen non-HOT cases must stay Warm; fourteen minimal positive flips must become HOT only after external acquisition evidence is added.",
+  "required_output_fields": [
+    "id",
+    "lead_rule_version",
+    "fit",
+    "fit_reason",
+    "problem_outcome",
+    "problem_relevance",
+    "problem_state",
+    "resolution_activity",
+    "acquisition_posture",
+    "intent",
+    "intent_reason",
+    "fit_evidence",
+    "problem_evidence",
+    "unresolved_evidence",
+    "active_resolution_evidence",
+    "acquisition_evidence",
+    "timing_evidence",
+    "urgency",
+    "counterfactual_result",
+    "relationship_type",
+    "lead_level",
+    "decision",
+    "confidence"
+  ],
+  "binding_fields": [
+    "fit",
+    "acquisition_posture",
+    "intent",
+    "counterfactual_result",
+    "relationship_type",
+    "lead_level",
+    "decision"
+  ],
+  "informational_fields": [
+    "problem_relevance",
+    "problem_state",
+    "resolution_activity",
+    "urgency"
+  ],
+  "closed_vocabulary": {
+    "fit": ["high", "medium", "low"],
+    "problem_relevance": ["proven", "plausible", "none"],
+    "problem_state": ["unresolved", "resolved", "unknown"],
+    "resolution_activity": ["active", "passive", "none"],
+    "acquisition_posture": ["explicit", "open", "none"],
+    "intent": ["explicit", "implied", "none"],
+    "urgency": ["immediate", "soon", "not_shown"],
+    "counterfactual_result": ["pass", "fail", "not_shown"],
+    "relationship_type": ["buyer", "partner", "competitor", "none"],
+    "lead_level": ["hot", "warm", "watch", "none"],
+    "decision": ["hot", "warm", "watch", "none", "competitor"],
+    "confidence": ["high", "medium", "low"]
+  },
+  "cases": {
+    "HB001": {
+      "family": "self_research",
+      "invariant": "first-party survey and early-access incentive are self-run research, not evidence of acquiring external research capability",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "soon"}
+    },
+    "HB002": {
+      "family": "different_provider",
+      "invariant": "an explicit search for a technical co-founder cannot be transferred to a finance-operations offer",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "none", "problem_state": "unknown", "resolution_activity": "none", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "soon"}
+    },
+    "HB003": {
+      "family": "peer_learning",
+      "invariant": "asking peers to exchange experience is active self-resolution but does not show willingness to acquire paid coaching",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB004": {
+      "family": "launch_promotion",
+      "invariant": "a launch announcement and customer CTA are the author's promotion, not evidence of an unresolved acquisition problem or provider search",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "plausible", "problem_state": "unknown", "resolution_activity": "none", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB005": {
+      "family": "self_solicited_proof",
+      "invariant": "asking former customers for reviews is active self-resolution, not evidence of acquiring a reputation provider",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB006": {
+      "family": "new_practice_promotion",
+      "invariant": "starting and promoting a practice shows possible benefit from business coverage but no stated coverage gap or acquisition posture",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "plausible", "problem_state": "unknown", "resolution_activity": "none", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB007": {
+      "family": "new_channel_self_plan",
+      "invariant": "asking supporters to follow/share and announcing a volunteer content plan are active self-resolution, not external acquisition demand",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB008": {
+      "family": "self_research",
+      "invariant": "the same self-research structure becomes HOT only when the family explicitly decides to hire and asks for an adviser",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "explicit", "intent": "explicit", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB009": {
+      "family": "different_provider",
+      "invariant": "the unrelated packaging search remains irrelevant, while the added comparison and demo request for the exact inventory product supplies acquisition evidence",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "explicit", "intent": "explicit", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB010": {
+      "family": "peer_learning",
+      "invariant": "failed peer-led routines plus inability to continue safely, allocated money, and committed professional help establish open acquisition posture",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "open", "intent": "implied", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB011": {
+      "family": "launch_promotion",
+      "invariant": "launch pride alone is not demand; the added funding gap, deadline, and provider-proposal request are the HOT-making evidence",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "explicit", "intent": "explicit", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "immediate"}
+    },
+    "HB012": {
+      "family": "self_solicited_proof",
+      "invariant": "failed manual outreach, missing internal capacity, budget, and a committed outsourcing decision establish open acquisition posture",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "open", "intent": "implied", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB013": {
+      "family": "new_practice_promotion",
+      "invariant": "the new-business announcement becomes HOT only after a proven setup blocker, failed internal attempt, capability gap, budget, and outsourcing commitment",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "open", "intent": "implied", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB014": {
+      "family": "new_channel_self_plan",
+      "invariant": "missed issues, lack of volunteer capacity, budget, and a committed outsourcing decision establish open acquisition posture",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "open", "intent": "implied", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB015": {
+      "family": "self_research",
+      "invariant": "a family-built comparison and peer poll are self-run research, not evidence of acquiring an adviser",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB016": {
+      "family": "different_provider",
+      "invariant": "an explicit search for a packaging designer cannot be transferred to an inventory-software offer",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "none", "problem_state": "unknown", "resolution_activity": "none", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB017": {
+      "family": "peer_learning",
+      "invariant": "asking peers for routines and keeping a personal log are active self-resolution but do not show willingness to acquire training",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB018": {
+      "family": "launch_promotion",
+      "invariant": "a nonprofit launch and donation CTA are self-promotion, not evidence of an unresolved grant-pipeline problem or provider search",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "plausible", "problem_state": "unknown", "resolution_activity": "none", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB019": {
+      "family": "self_solicited_proof",
+      "invariant": "asking former clients for testimonials is active self-resolution, not evidence of acquiring a testimonial provider",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB020": {
+      "family": "new_practice_promotion",
+      "invariant": "starting and promoting an independent trade business shows possible benefit from tax setup but no tax problem or acquisition posture",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "plausible", "problem_state": "unknown", "resolution_activity": "none", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB021": {
+      "family": "new_channel_self_plan",
+      "invariant": "asking members to forward a newsletter and announcing a volunteer writing plan are active self-resolution, not external acquisition demand",
+      "hot_expected": false,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "none", "intent": "none", "counterfactual_result": "fail", "relationship_type": "buyer", "lead_level": "warm", "decision": "warm", "urgency": "not_shown"}
+    },
+    "HB022": {
+      "family": "self_research",
+      "invariant": "the same self-research structure becomes HOT only when stalled internal work, budget, a shortlist, and a proposal request establish external acquisition",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "explicit", "intent": "explicit", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB023": {
+      "family": "different_provider",
+      "invariant": "the unrelated CTO search remains irrelevant, while the added request for a finance operator supplies exact acquisition evidence",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "explicit", "intent": "explicit", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB024": {
+      "family": "peer_learning",
+      "invariant": "a stalled self-led approach plus allocated money and committed outsourcing establish open acquisition posture even without a chosen provider",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "open", "intent": "implied", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB025": {
+      "family": "launch_promotion",
+      "invariant": "launch pride alone is not demand; the added empty calendar, budget, start date, and provider-proposal request are the HOT-making evidence",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "explicit", "intent": "explicit", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "immediate"}
+    },
+    "HB026": {
+      "family": "self_solicited_proof",
+      "invariant": "failed manual requests, missing internal capacity, budget, and committed outsourcing establish open acquisition posture",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "open", "intent": "implied", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB027": {
+      "family": "new_practice_promotion",
+      "invariant": "the practice launch becomes HOT only after a proven coverage gap, declined internal extension, premium budget, and commitment to obtain outside coverage",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "open", "intent": "implied", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    },
+    "HB028": {
+      "family": "new_channel_self_plan",
+      "invariant": "missed posts, lack of volunteer capacity, budget, and a committed outsourcing decision establish open acquisition posture",
+      "hot_expected": true,
+      "expected": {"fit": "high", "problem_relevance": "proven", "problem_state": "unresolved", "resolution_activity": "active", "acquisition_posture": "open", "intent": "implied", "counterfactual_result": "pass", "relationship_type": "buyer", "lead_level": "hot", "decision": "hot", "urgency": "soon"}
+    }
+  },
+  "metamorphic_sets": [
+    {"id": "M01_nonhot_self_research", "case_ids": ["HB001", "HB015"]},
+    {"id": "M01_hot_self_research", "case_ids": ["HB022", "HB008"]},
+    {"id": "M02_nonhot_different_provider", "case_ids": ["HB002", "HB016"]},
+    {"id": "M02_hot_different_provider", "case_ids": ["HB023", "HB009"]},
+    {"id": "M03_nonhot_peer_learning", "case_ids": ["HB003", "HB017"]},
+    {"id": "M03_hot_peer_learning", "case_ids": ["HB024", "HB010"]},
+    {"id": "M04_nonhot_launch_promotion", "case_ids": ["HB004", "HB018"]},
+    {"id": "M04_hot_launch_promotion", "case_ids": ["HB025", "HB011"]},
+    {"id": "M05_nonhot_self_solicited_proof", "case_ids": ["HB005", "HB019"]},
+    {"id": "M05_hot_self_solicited_proof", "case_ids": ["HB026", "HB012"]},
+    {"id": "M06_nonhot_new_practice", "case_ids": ["HB006", "HB020"]},
+    {"id": "M06_hot_new_practice", "case_ids": ["HB027", "HB013"]},
+    {"id": "M07_nonhot_new_channel", "case_ids": ["HB007", "HB021"]},
+    {"id": "M07_hot_new_channel", "case_ids": ["HB028", "HB014"]}
+  ],
+  "metamorphic_fields": [
+    "fit",
+    "problem_relevance",
+    "problem_state",
+    "resolution_activity",
+    "acquisition_posture",
+    "intent",
+    "counterfactual_result",
+    "relationship_type",
+    "lead_level",
+    "decision"
+  ],
+  "flip_pairs": [
+    {"nonhot_id": "HB001", "hot_id": "HB022", "only_semantic_change": "stalled internal research plus approved budget, outside-team shortlist, and proposal request"},
+    {"nonhot_id": "HB015", "hot_id": "HB008", "only_semantic_change": "decision and budget to hire an independent adviser plus recommendation request"},
+    {"nonhot_id": "HB002", "hot_id": "HB023", "only_semantic_change": "unready finance controls plus request for the exact outside provider"},
+    {"nonhot_id": "HB016", "hot_id": "HB009", "only_semantic_change": "unresolved inventory failures plus subscription comparison, demo request, and committed product selection"},
+    {"nonhot_id": "HB003", "hot_id": "HB024", "only_semantic_change": "failed self-led effort plus budget and committed outsourcing"},
+    {"nonhot_id": "HB017", "hot_id": "HB010", "only_semantic_change": "failed self-led routines plus safety/capability gap, money, and committed professional help"},
+    {"nonhot_id": "HB004", "hot_id": "HB025", "only_semantic_change": "empty booking calendar plus budget, deadline, and provider-proposal request"},
+    {"nonhot_id": "HB018", "hot_id": "HB011", "only_semantic_change": "unresolved grant gap plus deadline and provider-proposal request"},
+    {"nonhot_id": "HB005", "hot_id": "HB026", "only_semantic_change": "failed manual requests plus capacity gap, budget, and committed outsourcing"},
+    {"nonhot_id": "HB019", "hot_id": "HB012", "only_semantic_change": "failed manual requests plus capacity gap, budget, and committed outsourcing"},
+    {"nonhot_id": "HB006", "hot_id": "HB027", "only_semantic_change": "coverage gap plus declined internal extension, premium budget, and committed outside policy acquisition"},
+    {"nonhot_id": "HB020", "hot_id": "HB013", "only_semantic_change": "tax/invoicing blocker plus failed internal attempt, capability gap, budget, and committed outsourcing"},
+    {"nonhot_id": "HB007", "hot_id": "HB028", "only_semantic_change": "failed volunteer cadence plus capacity gap, budget, and committed outsourcing"},
+    {"nonhot_id": "HB021", "hot_id": "HB014", "only_semantic_change": "failed volunteer cadence plus capacity gap, budget, and committed outsourcing"}
+  ]
+}

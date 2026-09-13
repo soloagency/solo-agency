@@ -18,7 +18,7 @@ Before setup proceeds, verify or explain that OutreachCRM needs Codex, Claude De
 6. Do not send any email, run any campaign, enrich a lead for send, generate a live-send Approval Report, or start outreach in Setup Flow.
 7. If the human asks to send, run a campaign, or draft-and-send inside Setup Flow, this is a hard stop for operational work. The setup chat stays Setup Flow. Verify or create the relevant automation task, resync its prompt/config if needed, and dispatch that task (the run happens in the task's own session, never in the setup chat) and say so, falling back to naming the task for the human only when the runtime cannot start it.
 8. If the human says only `update`, `upgrade`, `cập nhật`, `sync latest`, or `pull latest`, treat that as the Stage 11 OutreachCRM update command, not as `send now`.
-9. Every client-specific automation task name must begin with the client name, e.g. `Max Output - SaaS Founders Intro Daily Run`.
+9. Every client-specific automation task name must begin with the client name, e.g. `Max Output - Startup Founders Intro Daily Run`.
 10. Notification setup (optional) is client-scoped: read/write the current client's `integrations/providers/` files and verify provider identity through the client's OpenAPI/API-key config before claiming notification is available. Default is WideCast: ask only for the client's WideCast API key. Do not treat a global MCP/native provider account as this client's connection. Notification is optional; mark it `–` if declined.
 11. After any approved config change or applied OutreachCRM update, perform Automation Resync if a schedule/automation already exists.
 12. Setup Flow completion means `ready_for_automation_first_run`.

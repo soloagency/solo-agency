@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0",
+  "description": "Blind, domain-agnostic HOT-boundary cases. Every case embeds the client offer/outcome and the item evidence needed for judgment. Labels and pair metadata live in hot_boundary_expected.json.",
+  "judge_instructions": [
+    "Judge each case independently with playbooks/LEAD_QUALIFICATION_RULE.md v12.",
+    "Use only client_offer and item evidence; do not infer buying intent from industry, occupation, launch status, or possible benefit.",
+    "Return one canonical judgment object per id. Evidence fields must cite the item-specific facts that support the selected state."
+  ],
+  "cases": [
+    {
+      "id": "HB001",
+      "client_offer": {
+        "sells": "done-for-you customer interview and market-validation research",
+        "outcome": "turn an unresolved demand question into evidence a product owner can use for a launch decision",
+        "sells_to": "people responsible for launching a product or program who are currently validating demand",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Founder Forum",
+        "surface": "group post",
+        "community": "Early Product Builders",
+        "author_line": "Maya Chen — building a route-planning app for field crews",
+        "text": "I'm validating which dispatch problems matter most before our beta. If you manage a field crew, would you fill out this 60-second survey? Everyone who responds gets early access. I'm collecting the answers myself this week.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB002",
+      "client_offer": {
+        "sells": "fractional finance operations and launch-ready bookkeeping",
+        "outcome": "give a new marketplace reliable books, cash controls, and reporting before launch",
+        "sells_to": "founders responsible for launching and operating an early-stage marketplace",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "LinkedIn",
+        "surface": "founder post",
+        "community": "Marketplace Operators",
+        "author_line": "Omar Reed — co-founder, CareCircle",
+        "text": "My partner and I are launching a marketplace for families to find and manage home-care helpers. We already have 900 caregiver profiles and plan to open in October. Our current search is for a CTO-level co-founder to own the matching platform. Introductions welcome.",
+        "date_note": "this week"
+      }
+    },
+    {
+      "id": "HB003",
+      "client_offer": {
+        "sells": "paid career-transition coaching",
+        "outcome": "help experienced career changers turn repeated interviews into a suitable job offer",
+        "sells_to": "experienced professionals actively changing careers and still without an offer",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Reddit",
+        "surface": "community question",
+        "community": "Career Changers",
+        "author_line": "Leah M. — operations manager moving into climate work",
+        "text": "I've reached five final-round interviews but still have no offer. For people who made a similar switch, what changed the outcome for you? I'd love to compare notes and trade interview routines with other career changers here.",
+        "date_note": "yesterday"
+      }
+    },
+    {
+      "id": "HB022",
+      "client_offer": {
+        "sells": "done-for-you customer interview and market-validation research",
+        "outcome": "turn an unresolved demand question into evidence a product owner can use for a launch decision",
+        "sells_to": "people responsible for launching a product or program who are currently validating demand",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Founder Forum",
+        "surface": "group post",
+        "community": "Early Product Builders",
+        "author_line": "Maya Chen — building a route-planning app for field crews",
+        "text": "I'm validating which dispatch problems matter most before our beta. If you manage a field crew, would you fill out this 60-second survey? Everyone who responds gets early access. Our own interviews have stalled, so I have an approved $4,000 budget and am shortlisting an outside research team to run the study this month. Send me proposals.",
+        "date_note": "today"
+      }
+    },
+    {
+      "id": "HB024",
+      "client_offer": {
+        "sells": "paid career-transition coaching",
+        "outcome": "help experienced career changers turn repeated interviews into a suitable job offer",
+        "sells_to": "experienced professionals actively changing careers and still without an offer",
+        "location": "not restricted"
+      },
+      "item": {
+        "platform": "Reddit",
+        "surface": "community question",
+        "community": "Career Changers",
+        "author_line": "Leah M. — operations manager moving into climate work",
+        "text": "I've reached five final-round interviews but still have no offer. For people who made a similar switch, what changed the outcome for you? The do-it-yourself approach has stalled for three months; I have approved $1,500 and committed to outsource the search strategy this month, although I have not chosen a coach.",
+        "date_note": "yesterday"
+      }
+    }
+  ]
+}

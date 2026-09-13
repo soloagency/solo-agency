@@ -167,12 +167,15 @@ monitoring shape once a group is registered `state: active`.
 2. Read the returned ProfileSummary[] rows (name/handle, url, subtitle/bio line, industry_hint
    where the platform provides one).
 3. Run every row through a mapped extractor-tier file-in/file-out sub-agent (`gpt-5.6-luna` on Codex) applying `playbooks/LEAD_QUALIFICATION_RULE.md` Step 1 (WHO is this person) against
-   the client's `buyer_profile.types`. A bio-only row has no post text for Steps 2/3, so
+   the client's `buyer_profile.types`. A bio-only row has no post text for the later evidence steps, so
    `intent = none` by the rule's own bio-only clause; a `fit = high` row is still `warm` — never
    dropped for lacking a stated need (SKILL.md's "Classification (extractor tier; Luna on Codex)").
 4. (optional) fb.groups.search for that profession's communities → fb.group.posts to see who is active.
-5. `tool crm-store ... lead capture` records each row (person_type, sells_to_match, fit, fit_reason,
-   intent, intent_reason, decision) with the profile URL; no contact scraping.
+5. `tool crm-store ... lead capture` records each row with the rule's complete v12 audit contract —
+   identity/fit, problem relevance and state, resolution activity, acquisition posture, intent,
+   urgency, separate evidence, relationship type, lead level and rule version — plus the profile URL;
+   no contact scraping. A consumer of this recipe must not reconstruct Hot from fit, a trigger or the
+   old comment-triage `intent` field.
 ```
 
 ## Recipe C — Friend-of-friend by industry ("mine my network")

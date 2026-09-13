@@ -550,7 +550,7 @@ I manage 5 clients. Set up one workspace for each:
 2. Austin Home Group - real estate - Austin, TX - list: buyers.csv - goal: get_reply
 3. Bright Mortgage - home loans - Texas - list: refi-list.xlsx - goal: direct_sale
 4. Miami Shield Insurance - home + auto - Miami - list: renewals.csv - goal: reactivation
-5. Vienna AI Ops - automation agency - Vienna - list: saas-founders.csv - goal: book_meeting
+5. Vienna AI Ops - automation agency - Vienna - list: startup-founders.csv - goal: book_meeting
 ```
 
 The agent must:

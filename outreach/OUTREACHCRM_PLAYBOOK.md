@@ -266,7 +266,7 @@ The setup chat (and any later setup/repair chat) is the control plane. It may cr
 In Setup Flow the agent must:
 
 - create or update client folders, the Client Intelligence Profile, pipelines, custom fields, sending identity, sendbox connections, imported lists, campaigns, schedule files, automation manifests, scheduled prompts, and resync logs;
-- create or update client-specific automation tasks whose names start with the client name, e.g. `Max Output - SaaS Founders Intro Daily Run`;
+- create or update client-specific automation tasks whose names start with the client name, e.g. `Max Output - Startup Founders Intro Daily Run`;
 - perform Automation Resync after every approved change once any schedule/automation exists;
 - direct the human to run the configured automation task for the first daily run.
 
@@ -293,7 +293,7 @@ Scheduled/automation tasks run what Setup Flow configured: inbox sync, reply/bou
 Every client-specific automation/scheduled task name must begin with the client name (task lists truncate long names):
 
 ```text
-Max Output - SaaS Founders Intro Daily Run
+Max Output - Startup Founders Intro Daily Run
 Max Output - OutreachCRM Weekly Report   (optional additional task)
 ```
 

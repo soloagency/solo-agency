@@ -570,7 +570,7 @@ X         — Terms: 3 · Posts: 11 · Depth posts: 9 · Groups: — · Monitore
 ### Lead
 
 A lead is a person, account, post, comment, or thread that the "Lead Qualification Rule (Fit ×
-Intent)" section below scores as `hot`, `warm`, or `watch` against the client's `buyer_profile`. The
+offer-acquisition intent)" section below scores as `hot`, `warm`, or `watch` against the client's `buyer_profile`. The
 rule — not a shown need — is the test: **a right-type person with no stated need today is still a
 lead** (`fit = high`, `intent = none` → `warm`). Read `playbooks/LEAD_QUALIFICATION_RULE.md` in full
 for the actual decision logic; do not use a "must show a direct or indirect need" bar anywhere in
@@ -580,11 +580,14 @@ What the rule scores, in the shape of the signals it names:
 
 - **who they are (fit)** — `person_type` matched against `buyer_profile.types`, decided first and
   always, need or no need;
-- **why now (intent)** — a stated or implied friction from `buyer_profile.why_they_need`: asking for
-  a provider/quote/recommendation, describing a problem the offer solves, comparing options, a life
-  event or new asset/job/deadline that creates the friction — these raise `intent` from `none` to
-  `implied`/`explicit` and can move a `warm` lead to `hot`, but their absence never removes the lead;
-- **competitor or noise** — Step 2 of the rule overrides the matrix: a same-market seller is
+- **problem relevance** — whether the item proves the same problem/outcome, merely makes it
+  plausible, or shows none; relevance is not buying intent;
+- **offer-acquisition intent** — direct demand, or strong implied demand with ownership, exact
+  alignment, unresolved state, active resolution and an observable open acquisition posture. A
+  trigger, self-directed tactic, peer-learning request, self-promotion or "could benefit" inference
+  stays `none`;
+- **urgency** — separately records timing and only orders leads inside their existing level;
+- **competitor, partner or noise** — Step 2 of the rule stays orthogonal to temperature: a same-market seller is
   `competitor`, not a lead; someone who cannot buy or explicitly rejects the offer is `none`.
 
 A lead is a signal for the human to review. It is not permission for the agent to contact the person.
@@ -632,15 +635,18 @@ Human-facing disclosure when scanning private groups/sources:
 I will go through each approved group/source one by one and scroll {N} times per source. For the first lead/competitor pass I use 10 scrolls when safe; for normal daily runs I use 5 scrolls. I read this from the Local Collector configuration when available.
 ```
 
-## Lead Qualification Rule (Fit × Intent)
+## Lead Qualification Rule (Fit × offer-acquisition intent)
 
 `playbooks/LEAD_QUALIFICATION_RULE.md` is the rule of record for qualifying every item this stage
 sees — posts, comments, captions, and people-search rows alike. This section is a faithful summary;
 read the rule file in full before scoring, and re-read it after any edit to it (the file's own edit
 policy requires re-running `playbooks/tests/lead-rule` and attaching the report).
 
-The rule answers three questions in order for ONE item against ONE client's `buyer_profile`, then
-reads the decision off a matrix:
+The rule evaluates independent questions in order for ONE item against ONE client's `buyer_profile`,
+then reads the decision off a matrix. It is domain-agnostic: compare the observed structure of the
+person's objective, problem/outcome and resolution behaviour with the client's offer; never classify
+from a profession list, a trigger word, or an assumption about what businesses in that situation
+usually need.
 
 **Step 1 — WHO is this person? (fit, decided first, always).** Name `person_type` from every clue in
 the item (what they do, own, or run; where they are; the community; language). Test membership
@@ -651,16 +657,39 @@ location matters, the person is inside or arriving into the service area. `fit =
 adjacent profession/situation, or an exact match with unclear location. `fit = low` for no match,
 evidence of being outside `sells_to`, or a hedged/different situation.
 
-**Step 2 — Competitor or noise? (decided before intent, every time).** `competitor`: sells the same
+**Step 2 — Competitor, partner or noise? (decided before intent, every time).** `competitor`: sells the same
 thing to the same market (a same-market seller is a competitor even with a shown need, unless
 `types` names that profession as a customer). `none`/noise: cannot buy in any reading, explicitly
 rejects the offer, or is stale — a high-fit person who rejects the offer is `none`, not `warm`.
+Keep `relationship_type` independent from temperature: buyer, partner and competitor describe the
+relationship; hot/warm/watch describe only the current lead temperature. One must never overwrite
+the other.
 
-**Step 3 — WHY NOW? (intent).** Name the friction in `why_they_need` the content shows, or intent is
-`none`. `intent = explicit` when they ask for, compare, or complain about exactly this kind of offer.
-`intent = implied` when a named new thing (asset, dependent, job, address, business, deadline) creates
-that friction. `intent = none` when nothing points to a need today — routine work, true on any
-ordinary working day, stays `none`.
+**Step 3A — WHAT problem/outcome is shown? (problem relevance).** Record `problem_outcome` and decide
+`problem_relevance = proven | plausible | none` independently of fit and buying intent. `proven`
+requires observed evidence of the same job/outcome the client sells. `plausible` means the offer may
+help given the person's circumstances, but the item does not demonstrate that problem. A trigger,
+business stage, deadline or high fit can make relevance plausible; none of them creates intent.
+
+**Step 3B — HOW are they resolving it? (offer-acquisition intent).** Record `problem_state`,
+`resolution_activity` and `acquisition_posture`. Self-directed work, peer learning, audience
+engagement, self-promotion and ordinary delivery may actively address a problem, but they do not show
+that the person is acquiring this kind of offer. `intent = explicit` only for direct search, request,
+comparison, evaluation or a live unresolved complaint about this kind of solution/provider.
+`intent = implied` requires all five observable conditions: ownership; exact alignment to the same
+problem/outcome; an unresolved state; active resolution now or soon; and an open acquisition posture
+shown by such facts as a failed attempt, missing capability/capacity, live option evaluation, or
+committed resources. Missing or unknown evidence for any condition means `intent = none`.
+
+The declared objective controls. An active search for A never creates intent for adjacent B. Credit
+B only when the item contains independent evidence that passes B's full gate. Before assigning
+explicit or implied, record `counterfactual_result`: without knowing what the client sells, would a
+neutral reader conclude that this person is actively trying to acquire this same class of solution,
+rather than merely being someone who could benefit from it? If not, intent is `none`.
+
+**Step 3C — WHEN? (urgency).** Record `urgency = immediate | soon | not_shown` from timing evidence.
+Urgency ranks leads inside their existing temperature; it never turns latent need, adjacent activity
+or fit alone into Hot.
 
 **Step 4 — Decision (the matrix, the same for every industry).**
 
@@ -670,8 +699,10 @@ ordinary working day, stays `none`.
 | medium | **warm** | **watch** | none |
 | low | **watch** | none | none |
 
-Compute fit and intent independently, then look up that cell. `competitor`/`none` from Step 2
-override the matrix outright.
+Compute fit and offer-acquisition intent independently, then look up that cell. `competitor`/`none`
+from Step 2 override the matrix outright. Therefore Hot requires high fit plus explicit demand or
+fully evidenced strong implied demand for the same problem/outcome. `problem_relevance = plausible`,
+`acquisition_posture = none`, or a failed counterfactual can never produce Hot.
 
 **A right-type person with no stated need today is still `warm`, and is still captured** — the
 high-fit/no-intent cell is not a rejection, it is the normal shape of a good customer who has not yet
@@ -721,11 +752,23 @@ Required lead fields:
 - person_type: what this person is, in a few words (Lead Qualification Rule Step 1);
 - sells_to_match: the closest line of this client's `buyer_profile.types`, or none;
 - fit: high | medium | low;
-- fit_reason: one line;
+- fit_reason and fit_evidence, kept separate from every other axis;
+- problem_outcome;
+- problem_relevance: proven | plausible | none;
+- problem_state: unresolved | resolved | unknown;
+- resolution_activity: active | passive | none;
+- acquisition_posture: explicit | open | none;
 - intent: explicit | implied | none;
-- intent_reason: one line;
+- intent_reason;
+- problem_evidence, unresolved_evidence, active_resolution_evidence and acquisition_evidence — each
+  a separate observed basis; do not reuse one generic sentence as proof of every axis;
+- counterfactual_result: pass | fail | not_shown;
+- urgency: immediate | soon | not_shown, plus timing_evidence when timing is shown;
+- relationship_type, independent from lead level;
+- lead_rule_version;
 - lead type: direct_need | indirect_need | pain_signal | buying_trigger | objection | comparison | complaint | adjacent_need — the evidence label, kept alongside fit/intent, not replaced by them;
-- lead level: hot | warm | watch — derived from fit × intent (Lead Qualification Rule Step 4), never chosen independently;
+- lead level: hot | warm | watch — derived from fit × offer-acquisition intent (Lead Qualification
+  Rule Step 4), never chosen from fit, relevance, urgency or an evidence label alone;
 - related offer;
 - related pain point;
 - confidence: high | medium | low;
@@ -752,10 +795,10 @@ Required competitor fields:
 
 ## Opportunity Scoring
 
-Lead level is not scored qualitatively — it is derived from the Fit × Intent matrix
+Lead level is not scored qualitatively — it is derived from the Fit × offer-acquisition-intent matrix
 (`playbooks/LEAD_QUALIFICATION_RULE.md` Step 4; see "Lead Qualification Rule" above). `confidence`
-(high | medium | low) stays a separate field, judging how clearly the item supports the `fit_reason`
-and `intent_reason` given, not the lead level itself.
+(high | medium | low) stays separate and judges the evidence supporting each axis, not the lead level
+itself. Urgency changes ordering inside a level, never the level.
 
 Competitor score dimensions:
 
