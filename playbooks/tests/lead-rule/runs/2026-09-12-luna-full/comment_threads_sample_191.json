@@ -1,0 +1,3854 @@
+[
+  {
+    "post_id": "P01",
+    "client": "solo_agency",
+    "secondary_client": null,
+    "platform": "facebook",
+    "community": "Mua Bán Nhà Đất Orange County - Little Saigon",
+    "language": "vi/en mixed",
+    "text": "Cả nhà ơi, em cần tìm agent để list bán nhà ở Westminster, gần Bolsa. Nhà 3pn 2wc, cần bán trong tháng 10. Ai biết ai uy tín giới thiệu dùm em, cảm ơn cả nhà 🙏",
+    "comment_source_reason": "Post is a direct request for a realtor to list a home in Westminster, Orange County; agents who answer are lead-source pitches for the AI sales/marketing tool (solo_agency) and are peer competitors pitching against the realtor client for the same Orange County listing.",
+    "rows": [
+      {
+        "id": "P01-01",
+        "author_line": "Realtor® | DRE #01987654 | Century 21",
+        "comments": [
+          "Em list nhà khu Bolsa/Westminster nhiều lắm chị ơi, để em inbox chị nói chuyện nhé",
+          "Em cũng free để đi xem nhà cuối tuần này"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "OC realtor answering a listing request is an independent professional with their own pipeline; not a marketing/lead-gen competitor"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "another realtor answering the same listing request competes with the client for the same OC seller, and is not a housing-change buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-02",
+        "author_line": "",
+        "comments": [
+          "Chị ơi em có thể giúp chị, em làm real estate ở Fountain Valley, sđt em 714-555-0912"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "self-identifies as a real-estate agent offering to help; independent professional trade"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "realtor pitching own services; competitor to the client, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-03",
+        "author_line": "Broker Associate - Huy Nguyen Realty Group",
+        "comments": [
+          "List nhà bên anh chuyên khu Westminster, Garden Grove, Fountain Valley 10 năm rồi. Gọi anh 714-555-0234 tư vấn free."
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "broker pitching listing services in the exact area; independent professional"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing broker in the same OC market, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-04",
+        "author_line": "",
+        "comments": [
+          "mình đang có 1 căn bán ở Stanton, cũng gần đó, ai cần mình giới thiệu agent của mình luôn"
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "relay offering to introduce their own agent; not themselves a provider and states no need for the target's product"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "States an active listing of her own home for sale in Stanton (Orange County) — matches realtor's 'about to sell a home in OC' type independent of the relay offer to introduce her own agent."
+          }
+        }
+      },
+      {
+        "id": "P01-05",
+        "author_line": "",
+        "comments": [
+          "@Kim Le chị vô coi nè"
+        ],
+        "trap": "tagger",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "a tag with nothing else, no offer and no need stated"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "tag only, no evidence of a housing change or of being an agent"
+          }
+        }
+      },
+      {
+        "id": "P01-06",
+        "author_line": "Realtor - Pacific Sterling Properties",
+        "comments": [
+          "Chị nhắn em qua Zalo nha, em list nhà khu Westminster suốt á"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor pitching services in the exact area; independent professional"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-07",
+        "author_line": "",
+        "comments": [
+          "👀👀👀"
+        ],
+        "trap": "noise: emoji only",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "emoji-only reaction, no content"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "emoji-only reaction, no content"
+          }
+        }
+      },
+      {
+        "id": "P01-08",
+        "author_line": "",
+        "comments": [
+          "bump"
+        ],
+        "trap": "noise: bump",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "\"bump\" only, no offer or need"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "\"bump\" only, no evidence of anything"
+          }
+        }
+      },
+      {
+        "id": "P01-09",
+        "author_line": "",
+        "comments": [
+          "Cảm ơn mọi người đã inbox nha, em đã có vài người liên hệ rồi ạ 🙏"
+        ],
+        "trap": "poster self-reply",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "this is the original poster replying in their own thread, not a provider or a business owner"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "poster's own reply; already the person with the housing change, not a new lead surfaced by this comment and not a provider"
+          }
+        }
+      },
+      {
+        "id": "P01-10",
+        "author_line": "Loan Officer, NMLS #345678",
+        "comments": [
+          "Chị tìm được agent rồi thì nhớ liên hệ em làm loan nhé, em pre-approve nhanh trong 24h"
+        ],
+        "trap": "adjacent trade: loan officer",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "loan officer is an independent professional trade explicitly in scope, pitching their own pipeline"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "lender is a transaction partner, explicitly not a buyer for a realtor client, and not a competing agent"
+          }
+        }
+      },
+      {
+        "id": "P01-11",
+        "author_line": "Escrow Officer - Pacific Escrow Inc.",
+        "comments": [
+          "Khi nào chị có agent rồi, escrow bên em làm nhanh gọn, DRE licensed, liên hệ em nhé"
+        ],
+        "trap": "adjacent trade: escrow",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "escrow officer is an independent professional trade explicitly in scope"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "escrow is explicitly a transaction partner, not a buyer, for the realtor client"
+          }
+        }
+      },
+      {
+        "id": "P01-12",
+        "author_line": "",
+        "comments": [
+          "mình biết 1 anh làm real estate rất giỏi ở khu này, để mình xin số ảnh gửi chị"
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "relay recommending someone else; the recommended agent is not in this thread unless they answer"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "relay, not themselves an agent or a stated buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-13",
+        "author_line": "Realtor® | eXp Realty",
+        "comments": [
+          "Inbox rồi nha chị!",
+          "Em chuyên bán nhà khu Little Saigon"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor confirming they DM'd the poster to pitch services; independent professional"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor pitching in the same area, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-14",
+        "author_line": "",
+        "comments": [
+          "mình cũng đang cần bán nhà bên Garden Grove nè, ai biết agent giỏi chỉ mình với luôn"
+        ],
+        "trap": "consumer hijack",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "a consumer looking for a service for themselves, not a business owner with a pipeline"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Orange County homeowner with a housing change (selling in Garden Grove) matches the realtor client's own buyer type"
+          }
+        }
+      },
+      {
+        "id": "P01-15",
+        "author_line": "Property Manager, ABC Property Mgmt",
+        "comments": [
+          "Nếu chị chưa bán được thì có thể cho thuê, bên em quản lý property cho chủ nhà, liên hệ em nhé"
+        ],
+        "trap": "adjacent trade: property manager",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "owner of a small property-management business, explicitly in scope as a small local service business"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "property manager is not a housing-change buyer and not a competing agent"
+          }
+        }
+      },
+      {
+        "id": "P01-16",
+        "author_line": "Realtor - Orange Coast Realty",
+        "comments": [
+          "Chị nhắn em nha, em có sẵn vài buyer đang tìm nhà khu Bolsa luôn, để em list và match giúp chị"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor pitching listing and matching services; independent professional"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-17",
+        "author_line": "Realtor - RE/MAX, Austin TX",
+        "comments": [
+          "Not in your area but if you ever need a referral I can connect you with a great agent out here, or if you're moving to Austin let me know!"
+        ],
+        "trap": "out-of-area provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "independent real-estate agent; solo_agency location never disqualifies"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "out-of-state agent with no OC listing; explicitly not a buyer and not a competitor for the OC realtor client"
+          }
+        }
+      },
+      {
+        "id": "P01-18",
+        "author_line": "Realtor, Sacramento CA",
+        "comments": [
+          "I don't work OC but tag me if you ever look up this way!"
+        ],
+        "trap": "out-of-area provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "independent real-estate agent regardless of location"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "matching trade but explicitly outside Orange County with no move planned into it; not a buyer or competitor here"
+          }
+        }
+      },
+      {
+        "id": "P01-19",
+        "author_line": "Realtor® DRE #02045566",
+        "comments": [
+          "Chị cho em xin thêm chi tiết nhà (mấy phòng, năm xây) để em định giá free cho chị nha"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor offering a free valuation to win the listing; independent professional"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-20",
+        "author_line": "",
+        "comments": [
+          "đúng rồi giá đó hơi cao, khu đó rẻ hơn mà"
+        ],
+        "trap": "noise: argument",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "argument about pricing, no offer or stated need"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "argument, no evidence of being a buyer or agent"
+          }
+        }
+      },
+      {
+        "id": "P01-21",
+        "author_line": "Realtor® Compass",
+        "comments": [
+          "Sent you a DM!"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor stating they DM'd the poster to pitch services"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-22",
+        "author_line": "",
+        "comments": [
+          "714-555-7788 gọi em nha chị, em bán nhà khu này lâu rồi"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "sells homes in this area and leaves a number to call; independent professional agent"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "realtor pitching own services, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-23",
+        "author_line": "Insurance Agent | State Farm",
+        "comments": [
+          "Khi nào có nhà mới nhớ review lại home insurance nha chị, liên hệ em bất cứ lúc nào"
+        ],
+        "trap": "adjacent trade: insurance agent",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "insurance agent is an independent professional trade explicitly in scope"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "insurance agent, not a housing-change buyer and not a competing realtor"
+          }
+        }
+      },
+      {
+        "id": "P01-24",
+        "author_line": "",
+        "comments": [
+          "Ai có kinh nghiệm bán nhà nhanh không, chỉ mình với, nhà mình cũng đang kẹt tiền cần bán gấp bên Anaheim"
+        ],
+        "trap": "consumer hijack",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "consumer looking for a service for themselves, not a business owner"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Anaheim is in Orange County; a homeowner needing to sell urgently matches the realtor client's buyer type"
+          }
+        }
+      },
+      {
+        "id": "P01-25",
+        "author_line": "",
+        "comments": [
+          "mình có quen chị dâu làm bên GreenTree Realty, để mình hỏi thử rồi nhắn chị sau"
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "relay mentioning a relative in the business; not themselves the provider"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "relay, not a stated buyer or agent themselves"
+          }
+        }
+      },
+      {
+        "id": "P01-26",
+        "author_line": "",
+        "comments": [
+          "Recently got my RE license, looking for a broker to sponsor me, any leads appreciated!"
+        ],
+        "trap": "job seeker",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "job seeker looking for sponsorship, not a business owner with an existing pipeline"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "job seeker, not a buyer and not yet a practicing agent"
+          }
+        }
+      },
+      {
+        "id": "P01-27",
+        "author_line": "Realtor - Coldwell Banker",
+        "comments": [
+          "Em ở Fountain Valley, chuyên khu Westminster/Bolsa luôn chị, DRE 02012345"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor stating their exact service area and license; independent professional"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-28",
+        "author_line": "Realtor, Keller Williams OC",
+        "comments": [
+          "Chị inbox em info nhà đi, em có buyer sẵn tiền mặt luôn á"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor pitching a cash buyer to win the listing"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-29",
+        "author_line": "Real Estate Marketing Coach",
+        "comments": [
+          "Agents— if you're tired of chasing leads, I coach a system that gets you 5-10 listings a month. DM 'GROW' to learn more."
+        ],
+        "trap": "competitor of target: marketing coach",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "coach selling a lead-generation/marketing program to agents is an explicit solo_agency competitor, not a buyer"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "off-topic marketing pitch to agents in a home-listing thread; not a buyer or competing realtor"
+          }
+        }
+      },
+      {
+        "id": "P01-30",
+        "author_line": "",
+        "comments": [
+          "We help realtors automate their CRM and follow-ups with AI. Check bio for free demo!"
+        ],
+        "trap": "competitor of target: AI CRM tool",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "AI CRM tool selling to the same solo businesses is an explicit solo_agency competitor"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "off-topic software spam, not a buyer or competing realtor"
+          }
+        }
+      },
+      {
+        "id": "P01-31",
+        "author_line": "Lead Generation Agency Owner",
+        "comments": [
+          "We run FB ad campaigns exclusively for OC realtors, 20+ listings closed for our clients this year. Comment 'INFO' below!"
+        ],
+        "trap": "competitor of target: lead-gen agency",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "lead-generation agency selling to the same solo agents is an explicit solo_agency competitor"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "off-topic agency spam targeting agents, not a buyer or competing realtor"
+          }
+        }
+      },
+      {
+        "id": "P01-32",
+        "author_line": "Realtor® | Windermere",
+        "comments": [
+          "Chị ơi nhà chị đẹp đó, em rất muốn có cơ hội list cho chị, em gọi chị nha"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor pitching to win the listing"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-33",
+        "author_line": "Realtor® | First Team Real Estate",
+        "comments": [
+          "Anh chuyên khu Little Saigon 15 năm, gọi anh tư vấn miễn phí trước khi list nha 714-555-3344"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor pitching free consultation before listing; independent professional"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-34",
+        "author_line": "",
+        "comments": [
+          "chị ơi cho em xin info căn nhà, em muốn coi thử (đầu tư)"
+        ],
+        "trap": "consumer hijack: investor",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "consumer asking to view the home, not a business owner"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "investor looking at Orange County property matches the realtor client's buyer type directly"
+          }
+        }
+      },
+      {
+        "id": "P01-35",
+        "author_line": "Home Stager - Elegant Staging OC",
+        "comments": [
+          "Nếu chị cần stage nhà trước khi bán để giá cao hơn, liên hệ em, em có gói riêng cho khu Little Saigon"
+        ],
+        "trap": "adjacent trade: stager",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "home stager is a freelancer selling services to clients; explicitly in scope"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "stager is a transaction-adjacent vendor, not a housing-change buyer or competing agent"
+          }
+        }
+      },
+      {
+        "id": "P01-36",
+        "author_line": "Loan Officer - Guild Mortgage",
+        "comments": [
+          "Chị cần pre-approval trước khi list cũng được, em làm nhanh, gọi em 714-555-1212"
+        ],
+        "trap": "adjacent trade: loan officer",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "loan officer pitching their own services; independent professional"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "lender is a transaction partner, explicitly not a buyer for the realtor client"
+          }
+        }
+      },
+      {
+        "id": "P01-37",
+        "author_line": "Realtor | Regional Realty, Westminster office",
+        "comments": [
+          "714-555-0099 - Có license VN, nói tiếng Việt luôn chị nha"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor pitching services, based in the exact office location named"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-38",
+        "author_line": "",
+        "comments": [
+          "Make $5000/week working from home! Click here: bit.ly/xyz123"
+        ],
+        "trap": "noise: spam link",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "bot/spam link unrelated to real estate"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "bot/spam link, no evidence of anything"
+          }
+        }
+      },
+      {
+        "id": "P01-39",
+        "author_line": "Realtor®, Team Lead - eXp",
+        "comments": [
+          "Chị inbox em nha, em có data thị trường Westminster mới nhất luôn"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor pitching with local market data to win the listing"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      },
+      {
+        "id": "P01-40",
+        "author_line": "Realtor - Seven Gables Real Estate",
+        "comments": [
+          "Em cũng ở gần Bolsa, chị cần thì em qua đo đạc định giá free luôn hôm nay được"
+        ],
+        "trap": "target keep: real provider",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "realtor offering a free same-day valuation to win the listing"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "competing realtor, not a buyer"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "post_id": "P09",
+    "client": "realtor",
+    "secondary_client": null,
+    "platform": "Facebook",
+    "community": "Irvine Neighbors & New Residents (Facebook group)",
+    "language": "English with Vietnamese mixed in",
+    "text": "Who else is moving to Irvine this summer?? 😅 We close in August and I'm trying to connect with other people relocating around the same time — would love to compare notes on schools, neighborhoods, and just make some friends before we even get there!",
+    "comment_source_reason": "Audience-gathering post from someone relocating into Orange County; replies surface other people whose housing is about to change into the area, plus agents and lenders pitching their services — exactly the client's buyer types.",
+    "rows": [
+      {
+        "id": "P09-01",
+        "author_line": "Realtor® | Compass — Irvine & Tustin",
+        "comments": [
+          "Congrats on the move!! I specialize in Irvine relocations, happy to send you a list of neighborhoods that fit your budget — feel free to DM me 😊"
+        ],
+        "trap": "competitor-of-target (realtor); for mlo this is a referral-partner realtor, not a competitor",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Realtor pitching listing help in a request-for-realtor thread; competitor to a realtor client"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Realtor is the mlo partner segment (agent who hands buyers to a lender); routine pitch, intent none"
+          }
+        }
+      },
+      {
+        "id": "P09-02",
+        "author_line": "",
+        "comments": [
+          "I'm a local agent and actually have a great off-market listing in Cypress Village coming up next month if you want first look!"
+        ],
+        "trap": "competitor-of-target (realtor); mlo partner-lead",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Agent pitching a listing; competitor to realtor client"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Realtor partner segment for mlo, routine business, intent none"
+          }
+        }
+      },
+      {
+        "id": "P09-03",
+        "author_line": "Agent - Keller Williams",
+        "comments": [
+          "Chào chị, em chuyên khu Irvine nè, chị cần tư vấn trường học hay khu nào cứ nhắn em nha 🏡"
+        ],
+        "trap": "competitor-of-target (realtor); mlo partner-lead",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Agent offering to consult on neighborhoods/schools; competitor to realtor client"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Realtor partner segment for mlo, intent none"
+          }
+        }
+      },
+      {
+        "id": "P09-04",
+        "author_line": "",
+        "comments": [
+          "My coworker's husband is a realtor out there, super knowledgeable, I can get you his number if you want!"
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay recommending someone else's agent, not the provider themselves"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay, no evidence of own buying plan or loan need"
+          }
+        }
+      },
+      {
+        "id": "P09-05",
+        "author_line": "",
+        "comments": [
+          "Ba mẹ mình quen 1 anh môi giới nhà đất ở Irvine lâu năm rồi, để mình hỏi xin số cho bạn nha"
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay offering parents' agent contact, not the author's own trade"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay, no personal purchase/loan signal"
+          }
+        }
+      },
+      {
+        "id": "P09-06",
+        "author_line": "",
+        "comments": [
+          "My cousin just went through this exact move last year, she'd probably have great advice - tagging her below"
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay pointing to cousin's experience, not the author's own"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay, no personal housing/loan signal"
+          }
+        }
+      },
+      {
+        "id": "P09-07",
+        "author_line": "",
+        "comments": [
+          "Following!!"
+        ],
+        "trap": "noise-bump",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Bump comment with no content"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Bump comment with no content"
+          }
+        }
+      },
+      {
+        "id": "P09-08",
+        "author_line": "",
+        "comments": [
+          "👀👀"
+        ],
+        "trap": "noise-emoji",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Emoji-only, no content"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Emoji-only, no content"
+          }
+        }
+      },
+      {
+        "id": "P09-09",
+        "author_line": "",
+        "comments": [
+          "Why would anyone move TO California right now 💀 y'all are brave",
+          "jk jk good luck though!"
+        ],
+        "trap": "noise-joke",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Joke/needling comment, negates interest rather than stating a plan"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Joke comment, no buying signal"
+          }
+        }
+      },
+      {
+        "id": "P09-10",
+        "author_line": "Property Manager | Irvine Co. Apartments",
+        "comments": [
+          "If you need somewhere short-term while you house hunt, I handle leasing for a few communities near the Spectrum, happy to help!"
+        ],
+        "trap": "adjacent-trade",
+        "expected": {
+          "primary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Adjacent trade (leasing/property management), not a realtor; medium fit, drop per rule"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Property manager, not a lender or buyer; no loan signal"
+          }
+        }
+      },
+      {
+        "id": "P09-11",
+        "author_line": "",
+        "comments": [
+          "Not moving but I do real estate photography around Irvine — tag me whenever you guys need listing photos down the road!"
+        ],
+        "trap": "adjacent-trade",
+        "expected": {
+          "primary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Adjacent trade (photography), medium fit, drop per rule"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Photographer, no lender/buyer signal"
+          }
+        }
+      },
+      {
+        "id": "P09-12",
+        "author_line": "Realtor | eXp Realty, Dallas TX",
+        "comments": [
+          "Following along, I'm actually a realtor but based in Texas — if any of you end up looking that direction someday let me know!"
+        ],
+        "trap": "out-of-area",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Realtor but not serving Orange County; out of area, not a competitor here"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Out-of-state agent, not a CA partner lead for this thread"
+          }
+        }
+      },
+      {
+        "id": "P09-13",
+        "author_line": "",
+        "comments": [
+          "We looked hard at Irvine last year but ended up going to Austin instead, cost of living difference was just too much for us"
+        ],
+        "trap": "out-of-area",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Decided against Orange County; no OC housing change in sight"
+          },
+          "secondary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Bought out of state; no CA purchase or mortgage in play"
+          }
+        }
+      },
+      {
+        "id": "P09-14",
+        "author_line": "",
+        "comments": [
+          "Omg thank you all so much, this thread is exactly what I needed 🥹 feeling so much better about the move now!"
+        ],
+        "trap": "poster-self-reply",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Poster (already moving/closing per her own post) replying in her own thread; treated as noise per rule despite fit"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Poster is closing on a home per her own post; still flagged noise as self-reply"
+          }
+        }
+      },
+      {
+        "id": "P09-15",
+        "author_line": "Mom of 2",
+        "comments": [
+          "We're closing in July too! Coming from Seattle, still deciding between Northwood and Portola Springs for the schools"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Buyer closing on a home in Irvine; direct fit"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Closing on a home = active buyer, loan in progress; intent implied"
+          }
+        }
+      },
+      {
+        "id": "P09-16",
+        "author_line": "Nurse",
+        "comments": [
+          "Gia dinh minh cung don qua Irvine cuoi he nay, dang tim nha gan cho Viet hoac truong tot, co ai biet khu nao khong a"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Family relocating to Irvine, actively searching; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Searching but unclear if renting or buying; no explicit purchase signal"
+          }
+        }
+      },
+      {
+        "id": "P09-17",
+        "author_line": "Software Engineer",
+        "comments": [
+          "Yes!! Relocating for my husband's new job at the Spectrum, moving end of June. Anyone know if traffic is bad around Culver during rush hour?"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Relocating into Irvine for a job; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relocating but no buy/rent signal stated"
+          }
+        }
+      },
+      {
+        "id": "P09-18",
+        "author_line": "Software Engineer",
+        "comments": [
+          "Nhà mình chuyển từ San Jose xuống, đang coi khu Great Park, quy hoạch mới đẹp nhưng chưa biết trường ra sao"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Relocating from San Jose, scouting Great Park; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Scouting neighborhood but no explicit buy/rent statement"
+          }
+        }
+      },
+      {
+        "id": "P09-19",
+        "author_line": "Data Analyst",
+        "comments": [
+          "We're moving from the Midwest, closing on a place in Woodbury next month, super nervous about the change but excited too"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Closing on a home in Woodbury; direct fit"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Closing next month = active buyer; intent implied"
+          }
+        }
+      },
+      {
+        "id": "P09-20",
+        "author_line": "Teacher",
+        "comments": [
+          "Following along because we're planning the same move next year — is Turtle Rock worth the extra cost over Northwood?"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Planning a move to Irvine next year; direct fit despite 'following' framing"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Planning a move but cost comparison doesn't confirm buy vs rent"
+          }
+        }
+      },
+      {
+        "id": "P09-21",
+        "author_line": "Small Business Owner",
+        "comments": [
+          "Bọn mình cũng đang chuyển việc qua Irvine, tháng 8 là dọn, nếu bạn nào biết agent uy tín xin giới thiệu giúp mình với"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Moving to Irvine in August, asking for an agent; direct fit, explicit intent"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Relocating to Irvine for work in August and explicitly asking for a trustworthy real-estate agent — ordinary-case reading is a home purchase, matching mlo's 'planning to buy a home in California' type with implied intent."
+          }
+        }
+      },
+      {
+        "id": "P09-22",
+        "author_line": "Graphic Designer",
+        "comments": [
+          "We just got here from the Bay Area last month! Northwood has been great so far, the community pool is a huge plus"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "States she just arrived in Irvine last month from the Bay Area — matches realtor's separate 'arriving into Orange County (a stated move there)' type, which does not require the move to still be pending."
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Recently arrived but no mention of buying vs renting"
+          }
+        }
+      },
+      {
+        "id": "P09-23",
+        "author_line": "Accountant",
+        "comments": [
+          "Chào mọi người, nhà mình mới bán xong bên LA, đang tìm mua lại ở Irvine, khu nào gần freeway 5 mà yên tĩnh không ạ"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Sold in LA, actively looking to buy in Irvine; direct fit"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Actively looking to buy = explicit intent"
+          }
+        }
+      },
+      {
+        "id": "P09-24",
+        "author_line": "Marketing Manager",
+        "comments": [
+          "Moving from Chicago in August! Does anyone know how competitive the elementary schools are for enrollment?"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Moving into Irvine in August; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Moving but no buy/rent signal stated"
+          }
+        }
+      },
+      {
+        "id": "P09-25",
+        "author_line": "Physical Therapist",
+        "comments": [
+          "Yes we're relocating! My company is opening an office at Irvine Spectrum so a bunch of us are moving out there this summer"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Relocating for a new office in Irvine; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relocating but no buy/rent signal stated"
+          }
+        }
+      },
+      {
+        "id": "P09-26",
+        "author_line": "",
+        "comments": [
+          "Gia đình em cũng sắp chuyển tới, đang phân vân giữa thuê trước hay mua luôn, mọi người cho ý kiến với"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "About to move to Irvine, weighing rent vs buy; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Undecided between renting and buying; not yet a firm purchase plan"
+          }
+        }
+      },
+      {
+        "id": "P09-27",
+        "author_line": "",
+        "comments": [
+          "We're in escrow right now on a townhome in Cypress Village, closing mid-July, so excited to finally be settled!"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "In escrow on a home in Cypress Village; direct fit"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "In escrow = active loan in progress; intent implied"
+          }
+        }
+      },
+      {
+        "id": "P09-28",
+        "author_line": "",
+        "comments": [
+          "Moving from LA, finally leaving the 2 hour commute behind lol. Anyone have tips on the best areas near UCI?"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Moving into Irvine area; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Moving but no buy/rent signal stated"
+          }
+        }
+      },
+      {
+        "id": "P09-29",
+        "author_line": "",
+        "comments": [
+          "Nhà mình cũng đang dọn qua, chồng mình được chuyển công tác, tháng 7 là có mặt ở Irvine rồi"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Relocating to Irvine for husband's job transfer; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relocating but no buy/rent signal stated"
+          }
+        }
+      },
+      {
+        "id": "P09-30",
+        "author_line": "",
+        "comments": [
+          "Relocating from NorCal for a new job, still weighing whether to rent first or just buy right away given the market"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Relocating, weighing rent vs buy; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Weighing rent vs buy, not a firm purchase plan yet"
+          }
+        }
+      },
+      {
+        "id": "P09-31",
+        "author_line": "",
+        "comments": [
+          "We're moving too! Coming from out of state, closing on a house near Cypress Village end of August, so ready to be done with the search"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Closing on a house near Cypress Village; direct fit"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Closing end of August = active buyer; intent implied"
+          }
+        }
+      },
+      {
+        "id": "P09-32",
+        "author_line": "",
+        "comments": [
+          "Gia đình mình đang cân nhắc bán nhà bên Riverside để dọn về Irvine cho gần trường đại học của con"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Considering selling Riverside home to move to Irvine; direct fit"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Actively considering selling her Riverside (CA) home to move to Irvine implies a coming California home purchase and loan — matches mlo's buyer type with implied intent even at the considering stage."
+          }
+        }
+      },
+      {
+        "id": "P09-33",
+        "author_line": "",
+        "comments": [
+          "Yep, relocating from Colorado this summer! Any recommendations for neighborhoods with a good sense of community for families?"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Relocating to Irvine this summer; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relocating but no buy/rent signal stated"
+          }
+        }
+      },
+      {
+        "id": "P09-34",
+        "author_line": "",
+        "comments": [
+          "We're first-time buyers moving into the area, closing next week, honestly the whole process still feels surreal"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "First-time buyers closing next week in Irvine; direct fit"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Closing next week, first-time buyer; explicit intent"
+          }
+        }
+      },
+      {
+        "id": "P09-35",
+        "author_line": "",
+        "comments": [
+          "Nhà mình mới quyết định dọn qua Irvine tuần trước, đang tìm hiểu khu Portola Springs, không biết giá cả sao rồi"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Just decided to move to Irvine, researching Portola Springs; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Early research stage, no explicit buy signal yet"
+          }
+        }
+      },
+      {
+        "id": "P09-36",
+        "author_line": "",
+        "comments": [
+          "We're investors actually, looking to pick up a rental property in Irvine this summer while rates are still workable"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Investor looking at property in Irvine; direct fit"
+          },
+          "secondary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Investor purchase plan; explicit intent"
+          }
+        }
+      },
+      {
+        "id": "P09-37",
+        "author_line": "",
+        "comments": [
+          "Moving from Orange to Irvine actually, just want to be closer to my daughter's new school district"
+        ],
+        "trap": "real-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Moving within Orange County to Irvine; direct fit"
+          },
+          "secondary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Moving but no buy/rent signal stated"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "post_id": "P13",
+    "client": "insurance",
+    "secondary_client": null,
+    "platform": "facebook",
+    "community": "Người Việt Orange County (OC Vietnamese Community)",
+    "language": "vi (with and without diacritics) mixed with en, ~55/35/10",
+    "text": "Trời ơi premium bảo hiểm xe em vừa tăng gấp đôi luôn, từ $130 lên $265/tháng khi renew. Có ai bị giống vậy không? Đang tìm chỗ nào quote rẻ hơn, ai biết recommend giúp em với ạ 🙏",
+    "comment_source_reason": "A Californian reporting their auto premium doubled at renewal draws other CA residents sharing their own rising policies (situational leads) and insurance agents/brokers offering rate quotes — a natural source of both consumer leads and competitor pitches for an insurance-agent client.",
+    "rows": [
+      {
+        "id": "P13-01",
+        "author_line": "",
+        "comments": [
+          "Em cũng vậy nè, Progressive tăng từ $150 lên $290 luôn á 😭",
+          "Đang tính đổi hãng khác"
+        ],
+        "trap": "target keep: rising policy",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "CA driver reporting their own premium rose sharply at renewal — the exact 'rising policy' trigger."
+          }
+        }
+      },
+      {
+        "id": "P13-02",
+        "author_line": "Insurance Agent | State Farm - Garden Grove",
+        "comments": [
+          "Em có thể check rate free cho anh chị, nhắn tin em nhé. License CA #0K12345"
+        ],
+        "trap": "competitor of target: agent",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Insurance agent pitching a free quote to the same CA drivers — direct competitor."
+          }
+        }
+      },
+      {
+        "id": "P13-03",
+        "author_line": "Independent Insurance Broker, licensed CA & NV",
+        "comments": [
+          "I shop 15+ carriers, can beat most quotes. Text me your zip and I'll run it free."
+        ],
+        "trap": "competitor of target: broker",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Broker soliciting the same CA drivers for quotes — competitor."
+          }
+        }
+      },
+      {
+        "id": "P13-04",
+        "author_line": "",
+        "comments": [
+          "Compare rates instantly at CheapAutoQuoteCA.link 🔗",
+          "Compare rates instantly at CheapAutoQuoteCA.link 🔗"
+        ],
+        "trap": "competitor + noise: comparison-site spam",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": true,
+            "decision": "drop",
+            "why": "Comparison-site account posting the same promo link twice — explicitly a competitor type, and also spam."
+          }
+        }
+      },
+      {
+        "id": "P13-05",
+        "author_line": "",
+        "comments": [
+          "Ông anh rể em làm bên bảo hiểm, để em hỏi ổng cho add contact"
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay recommending a relative who sells insurance; the relative isn't in this thread unless they answer."
+          }
+        }
+      },
+      {
+        "id": "P13-06",
+        "author_line": "",
+        "comments": [
+          "@Thuy Tran mày coi nè"
+        ],
+        "trap": "tagger",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Tag with nothing else, no need of their own stated."
+          }
+        }
+      },
+      {
+        "id": "P13-07",
+        "author_line": "",
+        "comments": [
+          "Following 👀"
+        ],
+        "trap": "noise: bump",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Content-free bump, no signal at all."
+          }
+        }
+      },
+      {
+        "id": "P13-08",
+        "author_line": "",
+        "comments": [
+          "Em cũng safe driver mà premium vẫn tăng, chắc phải review lại policy xem có discount nào bỏ lỡ không"
+        ],
+        "trap": "target keep: risk awareness",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "CA driver realizing their premium rose despite a clean record and planning to review coverage — risk-awareness trigger."
+          }
+        }
+      },
+      {
+        "id": "P13-09",
+        "author_line": "",
+        "comments": [
+          "I'm in Austin TX, mine actually went DOWN this year lol. Y'all in Cali got it rough"
+        ],
+        "trap": "out-of-area consumer",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Texas resident with no California policy or move — location fails, no CA nexus."
+          }
+        }
+      },
+      {
+        "id": "P13-10",
+        "author_line": "Insurance Agent - Farmers, Phoenix AZ",
+        "comments": [
+          "We have great rates in Arizona if any of you are thinking of relocating! DM me."
+        ],
+        "trap": "out-of-area provider",
+        "expected": {
+          "primary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Agent licensed and operating in Arizona, not California — matching trade but wrong location, not competing for the same CA drivers."
+          }
+        }
+      },
+      {
+        "id": "P13-11",
+        "author_line": "Owner, ABC Auto Body & Paint - Santa Ana",
+        "comments": [
+          "Not insurance but if your rate went up bc of a claim, we do free estimates and work with all insurers"
+        ],
+        "trap": "adjacent-looking but keep: small CA business owner",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Owner of a small California business — membership is by who they are (a CA small-business owner needing coverage), not by the topic of their comment."
+          }
+        }
+      },
+      {
+        "id": "P13-12",
+        "author_line": "Vehicle Service Contract Sales Rep, National Auto Protection",
+        "comments": [
+          "Insurance premium tăng thì mình cũng nên coi lại extended warranty luôn, em có gói tốt nè, inbox em"
+        ],
+        "trap": "adjacent trade: extended warranty (employee, different product)",
+        "expected": {
+          "primary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Sells vehicle service contracts, not insurance, and reads as a rep for a national firm rather than self-employed — adjacent, medium fit."
+          }
+        }
+      },
+      {
+        "id": "P13-13",
+        "author_line": "Makeup Artist tự do - Bridal & Event",
+        "comments": [
+          "Không liên quan bảo hiểm xe nhưng nhân đây, ai cần trang điểm cô dâu/dự tiệc thì ghé em nha 💄"
+        ],
+        "trap": "target keep: self-employed CA professional, off-topic",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Self-employed CA makeup artist stating their trade — explicit membership type ('any trade'), unrelated product to insurance."
+          }
+        }
+      },
+      {
+        "id": "P13-14",
+        "author_line": "",
+        "comments": [
+          "Nhà em cũng vừa renew, home insurance tăng thêm $80/tháng luôn, không hiểu sao"
+        ],
+        "trap": "target keep: rising policy",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "CA resident reporting a rising home-insurance premium at renewal — situational lead."
+          }
+        }
+      },
+      {
+        "id": "P13-15",
+        "author_line": "Real Estate Agent, Compass - Fountain Valley",
+        "comments": [
+          "Không liên quan bảo hiểm xe nhưng nhân tiện, ai cần mua bán nhà OC thì tag em nha 😄"
+        ],
+        "trap": "target keep: self-employed CA professional, off-topic",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Self-employed CA professional stating their trade — an explicit membership type for this insurance client, regardless of topic."
+          }
+        }
+      },
+      {
+        "id": "P13-16",
+        "author_line": "",
+        "comments": [
+          "Em mới quit job full-time để làm freelance graphic design, đang phải tự mua health + business insurance, đau đầu quá"
+        ],
+        "trap": "target keep: switch to self-employment",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Just switched to self-employment and is shopping for coverage — an explicit trigger, plus stated intent."
+          }
+        }
+      },
+      {
+        "id": "P13-17",
+        "author_line": "",
+        "comments": [
+          "Insurance company nào đang tuyển claims adjuster remote vậy mọi người, em mới có license"
+        ],
+        "trap": "job seeker",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Job seeker looking for an insurance-industry job — explicitly excluded, not a buyer."
+          }
+        }
+      },
+      {
+        "id": "P13-18",
+        "author_line": "",
+        "comments": [
+          "Cảm ơn mọi người, để em research thêm rồi update sau"
+        ],
+        "trap": "poster self-reply",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Poster replying in their own thread — excluded regardless of fit."
+          }
+        }
+      },
+      {
+        "id": "P13-19",
+        "author_line": "",
+        "comments": [
+          "Em cũng vừa switch qua làm 1099 contractor cho công ty logistics, giờ phải tự lo insurance đủ thứ luôn"
+        ],
+        "trap": "target keep: switch to self-employment",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Just switched to self-employed (1099) work and now must arrange their own coverage — explicit trigger."
+          }
+        }
+      },
+      {
+        "id": "P13-20",
+        "author_line": "",
+        "comments": [
+          "@Kevin Phan xem nè bro"
+        ],
+        "trap": "tagger",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Tag with nothing else."
+          }
+        }
+      },
+      {
+        "id": "P13-21",
+        "author_line": "Owner, Little Saigon Coffee House",
+        "comments": [
+          "Chị chủ quán cà phê gần đó, insurance quán chị năm nay cũng tăng thêm gần $100/tháng luôn"
+        ],
+        "trap": "target keep: small CA business owner, rising policy",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Owner of a small CA business reporting their own rising business-insurance premium — double trigger."
+          }
+        }
+      },
+      {
+        "id": "P13-22",
+        "author_line": "",
+        "comments": [
+          "Policy em hết hạn tháng sau, ai biết broker nào uy tín recommend giúp với, so sánh vài hãng luôn"
+        ],
+        "trap": "target keep: expiring policy",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "CA driver with a policy expiring next month, explicitly asking for a broker — expiring-policy trigger plus explicit intent."
+          }
+        }
+      },
+      {
+        "id": "P13-23",
+        "author_line": "",
+        "comments": [
+          "😱😱😱"
+        ],
+        "trap": "noise: emoji only",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Emoji-only, no content."
+          }
+        }
+      },
+      {
+        "id": "P13-24",
+        "author_line": "",
+        "comments": [
+          "Em vừa lease thêm 1 chiếc xe cho công việc (em tự làm chủ), giờ phải mua thêm commercial auto insurance luôn"
+        ],
+        "trap": "target keep: new asset + self-employed",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Self-employed CA driver who just added a work vehicle and needs commercial coverage — new-asset trigger."
+          }
+        }
+      },
+      {
+        "id": "P13-25",
+        "author_line": "Personal Trainer tự do - Little Saigon Fitness",
+        "comments": [
+          "Không liên quan bảo hiểm xe nhưng em cũng personal trainer tự do ở đây, chào mọi người 💪"
+        ],
+        "trap": "target keep: self-employed CA professional, any trade",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Self-employed CA personal trainer — explicit membership type ('any trade'), unrelated product."
+          }
+        }
+      },
+      {
+        "id": "P13-26",
+        "author_line": "",
+        "comments": [
+          "Sau vụ này em mới biết uninsured motorist coverage của em quá thấp, chắc phải review lại policy"
+        ],
+        "trap": "target keep: risk awareness",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Just became aware their coverage is inadequate — an explicit trigger, implied intent to review."
+          }
+        }
+      },
+      {
+        "id": "P13-27",
+        "author_line": "",
+        "comments": [
+          "Nhà em cũng mới có thêm thành viên nhí, giờ đang lo review lại hết insurance luôn, đau đầu ghê"
+        ],
+        "trap": "target keep: new dependent",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "New dependent prompting a full coverage review — explicit trigger."
+          }
+        }
+      },
+      {
+        "id": "P13-28",
+        "author_line": "Financial Advisor, Edward Jones - Irvine",
+        "comments": [
+          "If your insurance costs keep rising, might be worth a broader review of your finances too - happy to chat, no cost"
+        ],
+        "trap": "adjacent trade: financial advisor (large firm)",
+        "expected": {
+          "primary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Financial advisor explicitly tied to a large national firm (Edward Jones) selling a different product than insurance — adjacent trade with a large-firm flag, medium fit, drop for this pass (not a bare consumer, so not low; not an insurance competitor)."
+          }
+        }
+      },
+      {
+        "id": "P13-29",
+        "author_line": "",
+        "comments": [
+          "Em mới move từ LA về Irvine, đang phải update lại insurance address, có ai biết agent nào ở đây không"
+        ],
+        "trap": "target keep: new address",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Just moved within California and needs to update their policy address — explicit trigger and ask."
+          }
+        }
+      },
+      {
+        "id": "P13-30",
+        "author_line": "",
+        "comments": [
+          "Policy em cũng sắp hết hạn cuối tháng, đang so sánh vài hãng, ai có rate tốt chỉ em với"
+        ],
+        "trap": "target keep: expiring policy",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Policy expiring end of month, explicitly comparing carriers — expiring-policy trigger plus intent."
+          }
+        }
+      },
+      {
+        "id": "P13-31",
+        "author_line": "",
+        "comments": [
+          "Vợ em mới sinh, giờ phải lo thêm life insurance nữa, premium xe tăng đã đau đầu rồi 😅"
+        ],
+        "trap": "target keep: new dependent",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "New dependent (newborn) creating a fresh insurance need — explicit trigger."
+          }
+        }
+      },
+      {
+        "id": "P13-32",
+        "author_line": "",
+        "comments": [
+          "Insurance tính premium dựa trên gì vậy mọi người, credit score có ảnh hưởng không?"
+        ],
+        "trap": "low fit: general curiosity, no trigger stated",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "General question with no stated CA policy, asset, dependent or self-employment — no trigger, no membership shown."
+          }
+        }
+      },
+      {
+        "id": "P13-33",
+        "author_line": "",
+        "comments": [
+          "Em mới mua xe mới, có ai biết agent nào quote tốt cho xe mới không, đang cần bảo hiểm gấp"
+        ],
+        "trap": "target keep: new asset",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Just bought a new car and is urgently asking for an agent — new-asset trigger plus explicit intent."
+          }
+        }
+      },
+      {
+        "id": "P13-34",
+        "author_line": "Thợ làm tóc tự do (Freelance Hairstylist)",
+        "comments": [
+          "Không liên quan bảo hiểm xe nhưng em cũng làm tóc tự do ở nhà, ai cần làm tóc cứ nhắn em nha"
+        ],
+        "trap": "target keep: self-employed CA professional, any trade",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Self-employed CA hairstylist — explicit membership type ('any trade'), unrelated product to insurance."
+          }
+        }
+      },
+      {
+        "id": "P13-35",
+        "author_line": "Loan Officer NMLS #556789",
+        "comments": [
+          "Not insurance but if you're refinancing, your escrow will require proof of updated homeowners insurance — happy to help with the loan side"
+        ],
+        "trap": "target keep: self-employed CA professional, off-topic",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Self-employed CA loan officer stating their trade — explicit membership type, unrelated product to insurance."
+          }
+        }
+      },
+      {
+        "id": "P13-36",
+        "author_line": "",
+        "comments": [
+          "Em mới check lại thấy liability coverage của em thấp quá so với xe mới mua, chắc phải tăng lên"
+        ],
+        "trap": "target keep: risk awareness",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Just realized their coverage is too low for their new car — risk-awareness trigger."
+          }
+        }
+      },
+      {
+        "id": "P13-37",
+        "author_line": "",
+        "comments": [
+          "Em mới nhận job full-time đầu tiên sau khi ra trường, giờ phải tự lo bảo hiểm xe riêng luôn, trước đó đi chung xe ba mẹ"
+        ],
+        "trap": "target keep: new job",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "New job and now arranging their own auto policy for the first time — new-job trigger."
+          }
+        }
+      },
+      {
+        "id": "P13-38",
+        "author_line": "",
+        "comments": [
+          "Có ai recommend agent gốc Việt nào uy tín ở Little Saigon không, em cần renew gấp trong tuần này"
+        ],
+        "trap": "target keep: expiring policy, urgent",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Urgent renewal this week, explicitly asking for an agent — expiring-policy trigger plus explicit intent."
+          }
+        }
+      }
+    ]
+  },
+  {
+    "post_id": "P17",
+    "client": "mlo",
+    "secondary_client": null,
+    "platform": "facebook",
+    "community": "SoCal Homeowners & Real Estate Talk",
+    "language": "en (mostly), some vi mixed in",
+    "text": "Rates just dropped into the low 6s! We locked in at 3.75% back in 2021 so we've been sitting on our hands, but this might finally be worth revisiting. Anyone actually pulling the trigger on a refi right now? Who did you use and what are you seeing?",
+    "comment_source_reason": "Homeowners announcing they're refinancing after a rate drop are exactly the MLO's buyer segment (refi candidates), and this kind of thread reliably pulls in competing loan officers, brokers and banks pitching in the comments — high lead density and high competitor density for an MLO client.",
+    "rows": [
+      {
+        "id": "P17-01",
+        "author_line": "",
+        "comments": [
+          "We're refinancing too! Locked 6.05% through a local credit union, closes in 3 weeks."
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Rate-locked but explicitly 'closes in 3 weeks' — the refinance has not yet completed, so the rule's 'completed and locked with relief is settled' carve-out does not apply; this is an active, in-progress refi candidate."
+          }
+        }
+      },
+      {
+        "id": "P17-02",
+        "author_line": "Loan Officer | NMLS #482910",
+        "comments": [
+          "I can help! Just closed a client at 5.875% no points. DM me and I'll run your numbers today."
+        ],
+        "trap": "competitor of target: loan officer",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Loan officer pitching refinance business to the same CA homeowners the client sells to — direct competitor."
+          }
+        }
+      },
+      {
+        "id": "P17-03",
+        "author_line": "Mortgage Broker at Rocket Advisors",
+        "comments": [
+          "Rates in the 5s are possible right now with the right lender — message me, I'll shop it for free."
+        ],
+        "trap": "competitor of target: mortgage broker",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Mortgage broker soliciting the same refinance business — competitor."
+          }
+        }
+      },
+      {
+        "id": "P17-04",
+        "author_line": "",
+        "comments": [
+          "My brother-in-law is a loan officer, he got us 5.9% last month, I'll send you his number."
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay recommending someone else's loan officer; not a provider or a buyer themselves."
+          }
+        }
+      },
+      {
+        "id": "P17-05",
+        "author_line": "",
+        "comments": [
+          "@Jenny Pham you were just asking about this!"
+        ],
+        "trap": "tagger",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Tag with nothing else, no stated need of their own."
+          }
+        }
+      },
+      {
+        "id": "P17-06",
+        "author_line": "",
+        "comments": [
+          "👀👀👀"
+        ],
+        "trap": "noise: emoji only",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Emoji-only comment, no content."
+          }
+        }
+      },
+      {
+        "id": "P17-07",
+        "author_line": "",
+        "comments": [
+          "Thanks everyone! We ended up going with our credit union too, got 5.99%, escrow opens Monday."
+        ],
+        "trap": "poster self-reply",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Poster replying in their own thread — excluded regardless of fit."
+          }
+        }
+      },
+      {
+        "id": "P17-08",
+        "author_line": "Certified Residential Appraiser",
+        "comments": [
+          "As an appraiser I've seen values holding steady in OC, good time to refi if you've got equity."
+        ],
+        "trap": "adjacent trade: appraiser",
+        "expected": {
+          "primary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Adjacent trade commenting on the market, not itself a lending or buyer type — medium fit drops in this pass."
+          }
+        }
+      },
+      {
+        "id": "P17-09",
+        "author_line": "Escrow Officer, Pacific Coast Escrow",
+        "comments": [
+          "We're seeing a lot of refi escrows open up this week, definitely a trend."
+        ],
+        "trap": "adjacent trade: escrow",
+        "expected": {
+          "primary": {
+            "fit": "medium",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Escrow officer is a transaction partner, not a lending professional or a buyer — medium fit."
+          }
+        }
+      },
+      {
+        "id": "P17-10",
+        "author_line": "",
+        "comments": [
+          "I'm in Texas and just refinanced down to 5.5%, definitely worth it if your state allows it!"
+        ],
+        "trap": "out-of-area provider",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Homeowner outside California with no CA plan — location fails the MLO's CA-only buyer profile."
+          }
+        }
+      },
+      {
+        "id": "P17-11",
+        "author_line": "Loan Officer, Arizona",
+        "comments": [
+          "I'm a loan officer in Arizona, happy to help if anyone's buying or refinancing out here!"
+        ],
+        "trap": "out-of-area provider",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Lender operating outside California, not competing for the same CA borrowers — out of area."
+          }
+        }
+      },
+      {
+        "id": "P17-12",
+        "author_line": "",
+        "comments": [
+          "Anyone know if it's worth refinancing if we only have 12 years left on our loan?"
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Homeowner weighing whether to refinance their own loan — explicit refi interest."
+          }
+        }
+      },
+      {
+        "id": "P17-13",
+        "author_line": "",
+        "comments": [
+          "We're actually about to buy our first home in Irvine, would love lender recommendations too!"
+        ],
+        "trap": "target keep: real buyer",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "First-time buyer about to purchase in California — core MLO buyer segment."
+          }
+        }
+      },
+      {
+        "id": "P17-14",
+        "author_line": "Realtor, Compass Irvine",
+        "comments": [
+          "As an agent I always tell my clients to shop at least 3 lenders before refinancing."
+        ],
+        "trap": "target keep: agent partner segment",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Real-estate agent commenting — MLO's partner segment counts as a lead regardless of stated intent."
+          }
+        }
+      },
+      {
+        "id": "P17-15",
+        "author_line": "Broker Associate, eXp Realty",
+        "comments": [
+          "Great time to refi honestly, my clients have been asking about this a lot lately."
+        ],
+        "trap": "target keep: agent partner segment",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Broker/agent, partner segment for MLO — keep regardless of context."
+          }
+        }
+      },
+      {
+        "id": "P17-16",
+        "author_line": "",
+        "comments": [
+          "We've been putting this off but might finally pull the trigger this year."
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Homeowner signaling they may refinance now that rates moved."
+          }
+        }
+      },
+      {
+        "id": "P17-17",
+        "author_line": "",
+        "comments": [
+          "Hiring loan officers? I just got my NMLS license and I'm looking for my first job!"
+        ],
+        "trap": "job seeker",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Job seeker looking to become a loan officer — explicitly excluded as not a buyer."
+          }
+        }
+      },
+      {
+        "id": "P17-18",
+        "author_line": "",
+        "comments": [
+          "Get pre-approved in 5 minutes!! www.totallyrealmortgagequotes.biz"
+        ],
+        "trap": "noise: spam link",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Generic spam link, not a real participant."
+          }
+        }
+      },
+      {
+        "id": "P17-19",
+        "author_line": "",
+        "comments": [
+          "Tụi em vừa refinance xong tuần trước, còn 6.05% thôi, ai biết lender nào good recommend giúp em với."
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "States the refinance is already finished ('vừa refinance xong tuần trước' = just completed last week) — matches the rule's explicit 'a refinance completed and locked... is settled' carve-out, despite still asking for a lender name."
+          }
+        }
+      },
+      {
+        "id": "P17-20",
+        "author_line": "",
+        "comments": [
+          "Nha minh dang muon refinance ma so tien dong hang thang cao qua, co ai biet lender nao tot khong chi minh voi."
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Homeowner explicitly wanting to refinance, asking for a lender."
+          }
+        }
+      },
+      {
+        "id": "P17-21",
+        "author_line": "Loan Officer tại Golden Pacific Mortgage",
+        "comments": [
+          "Em là loan officer, chuyên refinance cho khách vùng Cali, anh chị nào cần cứ inbox em nhé. NMLS# 219087."
+        ],
+        "trap": "competitor of target: loan officer",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Loan officer soliciting CA refinance clients — competitor."
+          }
+        }
+      },
+      {
+        "id": "P17-22",
+        "author_line": "",
+        "comments": [
+          "Chị tôi mới refinance xong, để tôi hỏi lender của chỉ rồi gửi số cho mọi người."
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay recommending someone else's lender — not a provider or buyer themselves."
+          }
+        }
+      },
+      {
+        "id": "P17-23",
+        "author_line": "",
+        "comments": [
+          "Does anyone know if there's a prepayment penalty on FHA loans if we refi early?"
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Homeowner asking a specific question about refinancing their own loan — explicit refi interest."
+          }
+        }
+      },
+      {
+        "id": "P17-24",
+        "author_line": "",
+        "comments": [
+          "Y'all this group is turning into a mortgage ad megathread lol"
+        ],
+        "trap": "noise: argument",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Meta complaint, no lending or buying signal."
+          }
+        }
+      },
+      {
+        "id": "P17-25",
+        "author_line": "",
+        "comments": [
+          "We just started the refi process this week, fingers crossed it closes in 30 days!"
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Homeowner mid-refinance right now — active buyer."
+          }
+        }
+      },
+      {
+        "id": "P17-26",
+        "author_line": "",
+        "comments": [
+          "We closed on our house in March, holding a 6.8% rate — this might be the year to fix that."
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Recent CA homeowner holding a mortgage, considering a refi — still counts even though the purchase already closed."
+          }
+        }
+      },
+      {
+        "id": "P17-27",
+        "author_line": "Realtor, Redfin",
+        "comments": [
+          "Love seeing rates drop, hoping it brings some of my buyers off the sidelines."
+        ],
+        "trap": "target keep: agent partner segment",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Real-estate agent commenting — MLO partner segment, keep regardless of intent."
+          }
+        }
+      },
+      {
+        "id": "P17-28",
+        "author_line": "",
+        "comments": [
+          "Been waiting for this! We're at 7.25% from when we bought last year, refinancing as soon as our lender opens the file."
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "CA homeowner with a recent high rate, actively starting a refinance."
+          }
+        }
+      },
+      {
+        "id": "P17-29",
+        "author_line": "",
+        "comments": [
+          "Chồng em đang tính refinance vì lãi suất công ty cũ quá cao, ai biết ai làm tốt recommend giúp."
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Homeowner explicitly planning to refinance, asking for a lender recommendation."
+          }
+        }
+      },
+      {
+        "id": "P17-30",
+        "author_line": "Realtor, Keller Williams OC",
+        "comments": [
+          "My clients ask me for lender recs constantly, this rate drop is going to keep me busy."
+        ],
+        "trap": "target keep: agent partner segment",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Real-estate agent commenting — MLO partner segment."
+          }
+        }
+      },
+      {
+        "id": "P17-31",
+        "author_line": "",
+        "comments": [
+          "We're first-time buyers looking in Anaheim, this thread is super helpful for lender names."
+        ],
+        "trap": "target keep: real buyer",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "First-time buyer actively shopping in California."
+          }
+        }
+      },
+      {
+        "id": "P17-32",
+        "author_line": "",
+        "comments": [
+          "Our ARM resets next year so we're definitely refinancing before then."
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Homeowner with an ARM reset coming — a clear refi trigger."
+          }
+        }
+      },
+      {
+        "id": "P17-33",
+        "author_line": "Real Estate Agent, Redfin",
+        "comments": [
+          "Love seeing rates drop, hoping it brings more buyers off the sidelines this quarter."
+        ],
+        "trap": "target keep: agent partner segment",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Real-estate agent commenting — MLO partner segment, keep regardless of intent."
+          }
+        }
+      },
+      {
+        "id": "P17-34",
+        "author_line": "",
+        "comments": [
+          "Dang can nha ben Fountain Valley, dang tim hieu vay the nao, co ai biet lender nao lam nhanh khong."
+        ],
+        "trap": "target keep: real buyer",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Buyer actively looking to purchase in California, asking about lenders."
+          }
+        }
+      },
+      {
+        "id": "P17-35",
+        "author_line": "",
+        "comments": [
+          "We're buying in Riverside next month, still shopping lenders, this thread is helpful."
+        ],
+        "trap": "target keep: real buyer",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Buyer with an active CA purchase in progress."
+          }
+        }
+      },
+      {
+        "id": "P17-36",
+        "author_line": "Broker Associate, Big Block Realty",
+        "comments": [
+          "Rates finally moving, my buyers who were on the fence are jumping back in."
+        ],
+        "trap": "target keep: agent partner segment",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Agent/broker commenting — MLO partner segment."
+          }
+        }
+      },
+      {
+        "id": "P17-37",
+        "author_line": "",
+        "comments": [
+          "Anh chị nào mới mua nhà xong recommend lender giúp em với, em đang chuẩn bị mua căn đầu tiên."
+        ],
+        "trap": "target keep: real buyer",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "First-time buyer asking for a lender recommendation."
+          }
+        }
+      },
+      {
+        "id": "P17-38",
+        "author_line": "",
+        "comments": [
+          "We refinanced our rental property in Chino too while rates are down, worth it either way."
+        ],
+        "trap": "target keep: real refi candidate",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Past-tense completed refinance on a rental property with a satisfied/relief tone ('worth it either way') — squarely matches the rule's 'refinance completed and locked with relief is settled' carve-out."
+          }
+        }
+      }
+    ]
+  },
+  {
+    "post_id": "P21",
+    "client": "ai_video",
+    "secondary_client": null,
+    "platform": "facebook",
+    "community": "Người Việt Kinh Doanh Mỹ (Vietnamese Business Owners USA)",
+    "language": "vi+en",
+    "text": "Chào mọi người, tiệm bánh của em muốn làm video ngắn đăng TikTok/Instagram mà em quay clip điện thoại lộn xộn quá 😅 Ai biết editor nào chỉnh giúp (cắt, ghép nhạc, phụ đề) không ạ? Ngân sách linh động, cảm ơn cả nhà!",
+    "comment_source_reason": "The post is a direct request for a video editor, so people answering with an offer to do the editing are ai_video's competitors (freelance editors, small production shops), while other small-business owners chiming in with \"I need this too\" reveal ai_video's real customer base -- but only when they themselves are an independent professional or business owner, not just anyone who wants a personal video edited.",
+    "rows": [
+      {
+        "id": "P21-01",
+        "author_line": "Video Editor | Reels & TikTok cuts, 24h turnaround",
+        "comments": [
+          "Chị ơi em edit video chuyên nghiệp nè, giá từ $30/video, có sample trong page luôn ạ",
+          "Chị inbox em gửi giá theo gói tháng cũng có nha"
+        ],
+        "trap": "competitor-editor",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Freelance video editor pitching paid editing gigs -- sells the exact product ai_video sells; competitor overrides fit, drop."
+          }
+        }
+      },
+      {
+        "id": "P21-02",
+        "author_line": "",
+        "comments": [
+          "I edit reels for $25/video, portfolio link in my bio, hmu"
+        ],
+        "trap": "competitor-editor",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Freelance editor offering paid editing services to the same audience; competitor, drop."
+          }
+        }
+      },
+      {
+        "id": "P21-03",
+        "author_line": "Video Production & Editing Agency -- Houston, TX",
+        "comments": [
+          "Bên mình chuyên edit video ngắn cho tiệm nail, nhà hàng, bất động sản. Gói tháng từ $99, inbox page nha!"
+        ],
+        "trap": "competitor-agency",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": true,
+            "noise": false,
+            "decision": "drop",
+            "why": "Production agency selling recurring video-editing packages to the same small-business audience; competitor, drop."
+          }
+        }
+      },
+      {
+        "id": "P21-04",
+        "author_line": "",
+        "comments": [
+          "Em họ chị làm cái này đó, để chị lấy số nó cho nhắn nha"
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay recommending a cousin -- the cousin, not this commenter, would be the provider; no evidence author does the work herself."
+          }
+        }
+      },
+      {
+        "id": "P21-05",
+        "author_line": "",
+        "comments": [
+          "My uncle does video editing on the side, lemme text him your info and he'll reach out"
+        ],
+        "trap": "relay",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Relay pointing to someone else; the recommended person is not in this thread unless they answer themselves."
+          }
+        }
+      },
+      {
+        "id": "P21-06",
+        "author_line": "",
+        "comments": [
+          "@Kim Võ xem cái này nè"
+        ],
+        "trap": "tagger",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Tag with nothing else -- noise, not evidence of belonging to any type."
+          }
+        }
+      },
+      {
+        "id": "P21-07",
+        "author_line": "",
+        "comments": [
+          "@Hằng Đào 👀"
+        ],
+        "trap": "tagger",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Tag with an emoji, nothing substantive -- noise."
+          }
+        }
+      },
+      {
+        "id": "P21-08",
+        "author_line": "",
+        "comments": [
+          "🔥🔥🔥 GET 1000 FOLLOWERS FAST 👉 www.folochk.xyz"
+        ],
+        "trap": "noise-spam",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Spam link, unrelated to the thread -- noise."
+          }
+        }
+      },
+      {
+        "id": "P21-09",
+        "author_line": "",
+        "comments": [
+          "👀 following"
+        ],
+        "trap": "noise-bump",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Bump/emoji with no content -- noise."
+          }
+        }
+      },
+      {
+        "id": "P21-10",
+        "author_line": "Motion Graphics / AE templates",
+        "comments": [
+          "Anyone know if they're hiring editors? I've got 3yrs After Effects exp, could use gigs rn"
+        ],
+        "trap": "job-seeker",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Job seeker looking for editing work, not a customer of ai_video -- noise."
+          }
+        }
+      },
+      {
+        "id": "P21-11",
+        "author_line": "",
+        "comments": [
+          "Cảm ơn mọi người tag bạn bè giúp em nha, ai làm rồi thì inbox em liền ạ 🙏"
+        ],
+        "trap": "self-reply",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Poster replying in her own thread -- excluded as noise even though she is herself a small-business owner who would otherwise be high fit."
+          }
+        }
+      },
+      {
+        "id": "P21-12",
+        "author_line": "Video Editor at BigMedia Corp -- in-house team",
+        "comments": [
+          "We only handle projects for our own network, not open to freelance requests, sorry!"
+        ],
+        "trap": "adjacent-employee",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "In-house editor on a large media team -- explicit not_buyer (large media teams with in-house editors), not independent, sells nothing to the poster."
+          }
+        }
+      },
+      {
+        "id": "P21-13",
+        "author_line": "Wedding Photographer & Videographer, San Jose",
+        "comments": [
+          "I shoot but don't really do heavy editing myself, mostly quick color grades. Happy to be your shooter if you ever need one though!"
+        ],
+        "trap": "adjacent-videographer-keep",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent videographer/photographer -- a listed ai_video type; offers shooting, not editing, so not a competitor. Keep, warm, no stated need."
+          }
+        }
+      },
+      {
+        "id": "P21-14",
+        "author_line": "Realtor at Compass",
+        "comments": [
+          "Same!! I need this for my listing walkthroughs, following this thread 🙋‍♀️"
+        ],
+        "trap": "keep-realtor",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent real-estate agent stating she needs exactly this kind of editing for her own marketing -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-15",
+        "author_line": "",
+        "comments": [
+          "Mình cũng cần nè, tiệm nail của mình muốn làm video mà không biết edit sao cho đẹp"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent nail-salon owner stating the same editing need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-16",
+        "author_line": "",
+        "comments": [
+          "Same boat, tôi có quán ăn nhỏ, quay clip nhiều mà không biết ghép sao"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Small restaurant owner with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-17",
+        "author_line": "Loan Officer, NMLS #482910",
+        "comments": [
+          "Following -- need this for my rate-update reels too"
+        ],
+        "trap": "keep-professional",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent loan officer stating the same need for her own marketing -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-18",
+        "author_line": "Insurance Agent, State Farm",
+        "comments": [
+          "Me too honestly, my videos look so rough lol"
+        ],
+        "trap": "keep-professional",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent insurance agent expressing the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-19",
+        "author_line": "Certified Life Coach",
+        "comments": [
+          "Same!! I have SO much raw footage sitting in my phone doing nothing"
+        ],
+        "trap": "keep-professional",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Coach who sells to her own clients -- high fit type, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-20",
+        "author_line": "",
+        "comments": [
+          "Cùng cảnh ngộ, phòng gym mình có cả trăm clip mà chưa đăng được cái nào vì lười edit"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent gym owner with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-21",
+        "author_line": "DDS, Family Dentistry",
+        "comments": [
+          "Same! My office wants more patient-education reels"
+        ],
+        "trap": "keep-professional",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent dentist stating the same need for her practice's marketing -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-22",
+        "author_line": "",
+        "comments": [
+          "I need this bad too, my before/after clips could go viral if edited right lol"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "No author line and no stated trade or business; 'my before/after clips' is consistent with a personal consumer (fitness, home, pets, etc.) as much as a business — no evidence of belonging, low fit, drop."
+          }
+        }
+      },
+      {
+        "id": "P21-23",
+        "author_line": "",
+        "comments": [
+          "Em cũng cần, trung tâm em muốn làm clip review cho phụ huynh xem"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Tutoring-center owner with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-24",
+        "author_line": "Owner, KD Boutique",
+        "comments": [
+          "Same! I sell clothes online and my Reels look so amateur rn"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent boutique owner with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-25",
+        "author_line": "",
+        "comments": [
+          "Need this too for my before/after remodel clips"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent contractor with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-26",
+        "author_line": "Property Manager (owner, small portfolio)",
+        "comments": [
+          "Following, I manage a few rental units and want walkthrough videos that don't look like garbage"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Owner of a small property-management business with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-27",
+        "author_line": "",
+        "comments": [
+          "Cần luôn, tôi có kênh dạy đầu tư mà video toàn tự quay tự cắt xấu quá"
+        ],
+        "trap": "keep-creator",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Course-seller/creator with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-28",
+        "author_line": "",
+        "comments": [
+          "I need this for my own wedding video lol not for business but still 😅"
+        ],
+        "trap": "personal-use",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": false,
+            "decision": "drop",
+            "why": "Wants editing for a personal wedding video, not for any business or pipeline -- no evidence of belonging to any ai_video type, drop."
+          }
+        }
+      },
+      {
+        "id": "P21-29",
+        "author_line": "",
+        "comments": [
+          "This isn't wrong, why does everyone need reels anyway, it's all fake engagement 🙄"
+        ],
+        "trap": "noise-argument",
+        "expected": {
+          "primary": {
+            "fit": "low",
+            "competitor": false,
+            "noise": true,
+            "decision": "drop",
+            "why": "Dismissive/argumentative aside that negates interest -- noise."
+          }
+        }
+      },
+      {
+        "id": "P21-30",
+        "author_line": "Escrow Officer, Pacific Escrow",
+        "comments": [
+          "Same! I want to post quick-tips videos for my clients but no time to edit."
+        ],
+        "trap": "keep-professional",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent escrow officer stating the same need -- explicitly listed ai_video type, high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-31",
+        "author_line": "CPA, small tax practice",
+        "comments": [
+          "I'm a CPA and want to post tax-tip reels, same problem here"
+        ],
+        "trap": "keep-professional",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent CPA stating the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-32",
+        "author_line": "",
+        "comments": [
+          "Cùng vấn đề, mình làm tư vấn tài chính mà video toàn amateur"
+        ],
+        "trap": "keep-professional",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent financial consultant with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-33",
+        "author_line": "Brand & Graphic Designer, one-person studio",
+        "comments": [
+          "Same, I run my own design studio and need better reels for my portfolio"
+        ],
+        "trap": "keep-creator",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent designer/freelancer with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-34",
+        "author_line": "",
+        "comments": [
+          "Xe bán đồ ăn của em cũng cần video đẹp mà em quay xấu quá"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Food-truck owner with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-35",
+        "author_line": "Yoga Instructor & Studio Owner",
+        "comments": [
+          "Following, my studio really needs better video content"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent studio owner with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-36",
+        "author_line": "",
+        "comments": [
+          "Same, I train clients 1-on-1 and want to post transformation reels"
+        ],
+        "trap": "keep-professional",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent personal trainer with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-37",
+        "author_line": "",
+        "comments": [
+          "Mình cũng cần, tiệm tóc mình quay clip mà không biết chỉnh"
+        ],
+        "trap": "keep-smallbiz",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent hair-salon owner with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      },
+      {
+        "id": "P21-38",
+        "author_line": "Portrait & Event Photographer",
+        "comments": [
+          "Same, I have a photo studio and want to start posting behind-the-scenes reels"
+        ],
+        "trap": "keep-professional",
+        "expected": {
+          "primary": {
+            "fit": "high",
+            "competitor": false,
+            "noise": false,
+            "decision": "keep",
+            "why": "Independent photographer/small-studio owner with the same need -- high fit, explicit intent, keep."
+          }
+        }
+      }
+    ]
+  }
+]

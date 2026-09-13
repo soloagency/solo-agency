@@ -208,19 +208,18 @@ Mechanism ladder, runtime-detected, in this order: (1) **Claude Code desktop** �
 
 Guardrail: the Codex built-in browser pane and any agent-driven browser stay FORBIDDEN for pages that need a login (internal access mode, never spoken to the human — Facebook, groups, feeds, profiles) exactly as `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` says; this rule is for the localhost dashboard only.
 
-Convention for many sub-pages — the owner's question, answered: the agent never memorizes paths. The routes table is the only source of truth (`TestUIRoutesTableCoversRouterCases` in the bridge refuses a page added to the router without a matching `uiRoutes` entry, and vice versa); the agent reads it at the start of a session, or whenever unsure, via `tool ui routes` or `GET /api/ui/routes`, and picks the route whose "shows" line matches the question, then fills the params from the question itself: a name/keyword → `q`, hot/warm/watch → `temperature`, a lifecycle stage → `stage`, "locked" → the unfiltered CRM page where lock badges remain visible, a named person → `contact=<id>` or `/contact/{id}`, a day → `reports?date=YYYY-MM-DD`, "the report" with no day named → `reports?open=latest`, a named campaign → `/campaign/{slug}`, a named run → `/ui/jobs?job=<id>`.
+Convention for many sub-pages — the owner's question, answered: the agent never memorizes paths. The routes table is the only source of truth (`TestUIRoutesTableCoversRouterCases` in the bridge refuses a page added to the router without a matching `uiRoutes` entry, and vice versa); the agent reads it at the start of a session, or whenever unsure, via `tool ui routes` or `GET /api/ui/routes`, and picks the route whose "shows" line matches the question, then fills the params from the question itself: a name/keyword → `q`, a lifecycle stage → `stage`, "locked" → `locked=1`, a named person → `contact=<id>` or `/contact/{id}`, a day → `reports?date=YYYY-MM-DD`, "the report" with no day named → `reports?open=latest`, a named campaign → `/campaign/{slug}`, a named run → `/ui/jobs?job=<id>`.
 
 | Boss question | Route |
 |---|---|
 | Who is new / new leads today | `/ui/{client}/crm?sort=-created` |
 | First leads of a run / where did my leads go | `/ui/{client_slug}/crm?sort=-created` |
 | How many leads / lead count | `/ui/{client}/crm` |
-| Hot, warm, or watch leads | `/ui/{client}/crm?temperature=<hot|warm|watch>` |
 | What needs me / pending approvals | `/ui/{client}/approvals` |
 | Show the report (today's; a named day via `date=YYYY-MM-DD`) | `/ui/{client}/reports?open=latest` |
 | Campaign status (one, named) | `/ui/{client}/campaign/{slug}` |
 | Campaign status (all) | `/ui/{client}/campaigns` |
-| Locked contacts / plan cap / upgrade | `/ui/{client}/crm` |
+| Locked contacts / plan cap / upgrade | `/ui/{client}/crm?locked=1` |
 | Is the run running / a specific run | `/ui/jobs?job=<id>` |
 | Sources / what we're watching | `/ui/{client}/sources` |
 | Content / content library | `/ui/{client}/content` |
