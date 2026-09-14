@@ -5,10 +5,10 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 
 | module | lines | sha256 | last_line |
 |---|---|---|---|
-| SKILL.md | 261 | a1e1f4a22d2e07a8b08757a712eb3d407ba860385932a863af454e651186ad00 | **Right now → load `method` (the full 8-step workflow) AND `formats` (per-format playbooks).** Then start Stage 1 step 1: lock the audience + the angle, research the facts, write every fitting format. Reach hook drafting → load `hooks`. Reach CTA → load `ctas`. Reach Stage 2 step 5 → load `research_visuals`. Reach hand-off → load `handoff`. |
+| SKILL.md | 263 | 6ebf1effa54b2b7874f72a64d15ae89b426d6e046faed34155c82d41c8f69453 | **Right now → load `method` (the full 8-step workflow) AND `formats` (per-format playbooks).** Then start Stage 1 step 1: lock the audience + the angle, research the facts, write every fitting format. Reach hook drafting → load `hooks`. Reach CTA → load `ctas`. Reach Stage 2 step 5 → load `research_visuals`. Reach hand-off → load `handoff`. |
 | ctas.md | 70 | 8d01cf39f569fb9ce2c5467560a8530661af37d5277e936b7d9a59720d3f6cf4 |   otherwise prefer a Bank 2 invite that makes the viewer say something real. |
 | formats.md | 97 | f726fcf23a3df26067d7e06d2b72cd4de5981e0fabbdc4ec6d8003acb121917c | Never strawman a belief nobody holds. The myth must be one your audience genuinely believes, and your correction must be honestly defensible (≥0.7). |
 | handoff.md | 65 | 3dda032be581f7d144d81dd11df3fa8411525c5105a4ef8f500adc9b2a9ab09f | - `research_visuals.md` — R-ladder for image sourcing + inline media format rules |
 | hooks.md | 93 | cfc2d34621f8aa0348d25721b76f2c10387d8a9ba5b749f3dd6e2218a130f28e | spoken hook is in the content language. |
-| method.md | 176 | e4440c5edbb986ede62cd09bfc0f4d920753cb4f3b1bfbcefe5ae5f88b32538c | - **A production answer** (`faceless` / `face_clone` / `teleprompter`) = implicit approval → call `widecast_create_video` (see `handoff.md` for the full call shape) with `source="text"`, `script_text` = the picked script with inline URLs verbatim, `media_pool=[urls they picked from the backup pool]` if any, `production_mode` = their literal choice, `script_approved=true`. |
+| method.md | 180 | 59961ba6c31dd72d4cb75312850dc09efdd80d007885e5849f6b0792d5835a78 | Before delivery or provider handoff, apply the SKILL/`AGENTS.md` raw-and-rendered `copy_style_violation` lint; do not let this method bypass the script budget, evidence, or spoken-voice rules. |
 | research_visuals.md | 54 | b223d23258a5eb48fa42fa2e06243d16ebfe74cd03170da3fd764af568b29ddc | ``` |

@@ -379,3 +379,7 @@ tomorrow.
 - Collector output for harvest jobs lands under the OWNING client's inbox tree
   (`collector/inbox/YYYY-MM/{owner}/harvest/{run_id}/`) even when another client's extension
   did the reading — a reader never keeps another client's lead material.
+
+## Copy-ready comment gate
+
+Copy-ready comments inherit `AGENTS.md`: lint before handoff, no em-dash/entity form, one useful point, normally 1-3 short sentences, optional real question, no generic compliment or mini-essay.

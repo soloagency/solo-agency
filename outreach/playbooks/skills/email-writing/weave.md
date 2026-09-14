@@ -32,7 +32,7 @@ is a **beat in the arc**, never a readout. The count is fine; the *purpose* of e
 
 ## HOUSE STYLE: never use an em dash (—)
 
-**Hard rule: no `—` anywhere in a message you write.** The em dash now reads as a strong "a machine
+**Hard rule: no `—` or HTML/numeric em-dash entity anywhere in a final message you write.** Keep the shortest version that preserves proof, required caveats, and footer. The em dash now reads as a strong "a machine
 wrote this" tell, and a cold message that trips it loses trust in the first line. It is banned in
 every draft, every channel, every language, RICH to THIN.
 
@@ -277,7 +277,8 @@ and the ROI unit come from the dossier.
 - Does the mode (RICH/MEDIUM/THIN) match the dossier's Layer-B count — not a habit of length?
 - Would a busy peer read this as a colleague's courtesy, or as a scrape? (Anti-creepy stance.)
 - Every referenced fact is in `hooks_used` with an `evidence_url`; nothing in `do_not_mention`.
-- **No em dash (`—`) anywhere** (House Style). Scan the finished draft; replace each `—` with a
-  comma, colon, period, or parentheses (ranges use "to"). Hyphens in compounds are fine.
+- **No em dash or entity form (`—`, `&mdash;`, `&#8212;`, `&#x2014;`) anywhere** (House Style).
+  Scan raw and rendered text; use a comma, colon, period, or parentheses instead (ranges use
+  "to"). Hyphens in compounds are fine.
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.

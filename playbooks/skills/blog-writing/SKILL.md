@@ -91,7 +91,7 @@ and tell the reader what they'll be able to do — without giving away the *how*
 Short paragraphs (≤3–4 lines). **Bold** the load-bearing phrase in key spots —
 only true load-bearing phrases; decorative bold everywhere reads as noise. No
 emoji in headings. Bullets/numbered lists for real series — if the thought flows,
-write it as prose. At most 2 em dashes in the whole piece; prefer periods. One
+write it as prose. Zero em dashes or entity forms in final outward copy; prefer periods. One
 idea per sentence where possible. White space is a feature.
 
 ### 7 — SEO (human-first)
@@ -142,7 +142,7 @@ professional says out loud — EN: "delve", "leverage", "seamless", "robust",
 - [ ] Skimmable: short paragraphs, subheads every ~150–250 words, lists where apt.
 - [ ] Keyword in title/intro/≥1 H2 + meta description written.
 - [ ] In the chosen length tier; no padding; each point stated once.
-- [ ] ≤2 em dashes; no emoji headings; bold only on true key terms.
+- [ ] Zero em dashes/entity forms; no emoji headings; bold only on true key terms.
 - [ ] Ends on a takeaway + one CTA — not a summary recap.
 
 ## Repurpose to video (WideCast)

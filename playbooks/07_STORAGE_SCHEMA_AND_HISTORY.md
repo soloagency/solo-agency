@@ -573,7 +573,14 @@ Minimum format:
 - automation_freshness_status: current | resync_in_progress | action_needed | not_applicable
 - automation_freshness_summary: whether latest changes are synced into automation/scheduled task prompt/contract/playbook/source state, not only config, and whether tomorrow's run will load the newest state
 - first_run_consent: yes | not_now — the Boss's answer to step 7's one first-run question (`playbooks/SETUP_FLOW_ENTRYPOINT.md`); `not_now` means the daily task keeps its existing schedule and nothing else is asked
-- first_run_task_id: the one-time scheduled task id used to dispatch this client's first run (e.g. `{client_slug}-solo-agency-first-run`), when the runtime created one
+- daily_run_task_name: exactly `{Client} - Solo Agency Daily Run`; this recurring task persists
+- daily_run_task_id: native recurring Daily Run id
+- first_run_task_name: exactly `{Client} - Solo Agency First Run`; always separate from recurring `{Client} - Solo Agency Daily Run`
+- first_run_task_id: the separate one-time native task id used to dispatch this client's first run (e.g. `{client_slug}-solo-agency-first-run`), never the Daily Run id; `first_run_task_id != daily_run_task_id`
+- first_run_task_kind: one_time
+- first_run_task_runtime: codex | claude | other
+- first_run_task_status: created | started | running | completed | reported | deleted | failed; inspect it before creating to wait for running work or safely replace one stale/failed task
+- first_run_task_deleted_at: ISO 8601 timestamp when the one-time First Run task was deleted/marked deleted after delivery; preserves cleanup evidence after `first_run_task_status: deleted`
 - first_run_dispatched_at: ISO 8601 timestamp of when the first-run task was dispatched
 - first_run_wait: armed | not_available | timed_out | reported — state of the background wait for that first run (`playbooks/04_DAILY_SCHEDULE.md`, "Wait and report")
 - first_run_reported_at: ISO 8601 timestamp of when the First-Run Report was spoken back to the Boss in chat

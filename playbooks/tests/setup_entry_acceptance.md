@@ -58,3 +58,7 @@ shipping, and note which file carried the fix.
 - [ ] Step 6 asks no cadence/start-time question and has no `**[ACTION REQUIRED]**` block for the reversible default. An explicit schedule wins, and repair/update preserves an existing schedule.
 - [ ] If schedule-slots is genuinely unavailable, the first-task exception uses 09:00 local (or the explicit override), records `slot_check_pending`, and registers once the tool returns.
 - [ ] Step 7 still asks the existing run-now yes/not-now question. The first run is never dispatched before the Boss answers yes.
+- [ ] After yes, Codex and Claude create the exact separate `{Client} - Solo Agency First Run`, never reuse `{Client} - Solo Agency Daily Run`, start it autonomously, and never ask the Boss to click Run now/open Automations.
+- [ ] Claude uses one-time `fireAt` and Codex starts that one-time task natively; both carry the latest client-pinned contract, record lifecycle/idempotency, wait/report, then delete/mark the First Run task deleted while the Daily Run persists.
+- [ ] `first_run_task_id` differs from `daily_run_task_id`; the recurring Daily Run remains registered after First Run cleanup.
+- [ ] Cleanup records `first_run_task_deleted_at` after the First-Run Report; this evidence remains after first-run status becomes `deleted`.

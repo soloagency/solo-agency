@@ -65,7 +65,8 @@ Failure branch: dispatch is genuinely impossible and the Boss must act.
 
 - [ ] After bridge `/status` succeeds and current-workspace identity is verified, Sam prints and shows `http://127.0.0.1:17321/ui/{client_slug}#revenue-engine` exactly once under the SHOW RULE, without an `**[ACTION REQUIRED]**` block.
 - [ ] Sam then opens `/ui/{client_slug}/extension` as the foreground tab for the extension action. With multiple tabs Revenue Engine stays behind; with one tab it is shown first, then Extension remains active.
-- [ ] Sam does not foreground or navigate Revenue Engine while awaiting extension install/check-in, and brings it forward only after `extension_health.status: recent`.
+- [ ] Sam does not foreground or navigate Revenue Engine while awaiting extension install/check-in. After `extension_health.status: recent`, the connected page keeps `Watch the install video again` visible for about 10 seconds, offers `Open Revenue Engine now`, then redirects to that same client's `/ui/{client_slug}#revenue-engine`.
+- [ ] Opening the connected page's install video pauses the redirect so the 28-second playback is not cut off; closing/finishing it restarts the handoff timer.
 - [ ] This browser use is limited to the read-only localhost dashboard and is never social/private-source browsing.
 
 ## Recording

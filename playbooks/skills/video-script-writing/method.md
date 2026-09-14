@@ -174,3 +174,7 @@ For the picked script: (i) **estimate credits** — 1 credit per scene (1 HOOK/o
 
 - **Edits** (to the picked script's content, wording, hook, facts, URLs) → iterate that script, re-hand it (Step 7) with the same backup pool unless they ask to refresh. Don't call `create_video` yet.
 - **A production answer** (`faceless` / `face_clone` / `teleprompter`) = implicit approval → call `widecast_create_video` (see `handoff.md` for the full call shape) with `source="text"`, `script_text` = the picked script with inline URLs verbatim, `media_pool=[urls they picked from the backup pool]` if any, `production_mode` = their literal choice, `script_approved=true`.
+
+## Final copy preflight
+
+Before delivery or provider handoff, apply the SKILL/`AGENTS.md` raw-and-rendered `copy_style_violation` lint; do not let this method bypass the script budget, evidence, or spoken-voice rules.

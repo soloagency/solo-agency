@@ -1,5 +1,9 @@
 # OutreachCRM Playbook
 
+## Outbound Copy Style Gate
+
+Every generated email, DM/SMS, comment/reply, group/social post/caption, notification, client-report, and copy-ready snippet follows this gate: concise final wording; no `—`, `&mdash;`, `&#8212;`, or `&#x2014;` (case-insensitive); raw-and-rendered lint before approval and final send/publish; source evidence remains unchanged internally and is paraphrased/omitted outward. If final lint finds a post-approval violation, send/publish nothing, return the revision to pending approval, and require fresh approval.
+
 Version: modular-router-1.0
 
 This root playbook is the thin router for a local-first, multi-client cold-email + CRM system operated by an AI agent. It tells the agent what to load next, what gates must never be skipped, and how to avoid jumping ahead.

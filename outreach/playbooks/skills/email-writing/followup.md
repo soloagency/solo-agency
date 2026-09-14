@@ -6,7 +6,7 @@ self-contained attempt from a NEW angle, held to the same bar as step 1. "Just f
 on its own.
 
 Load `weave.md` (the engine: every bump is a mini-weave) and `structures.md` (the release move per
-`goal_type`) alongside this. House Style applies to every bump (no em dash `—`; `weave.md`) because a
+`goal_type`) alongside this. House Style applies to every bump (no em dash/entity form `—`/`&mdash;`/`&#8212;`/`&#x2014;`; concise final raw/rendered lint; `weave.md`) because a
 bump is a sent message.
 
 ---
@@ -162,7 +162,7 @@ Speed matters: a same-day reply beats a next-day one, so hot replies surface in 
 ## What never changes
 
 - Every referenced detail traces to a dossier hook with an `evidence_url`.
-- `do_not_mention` applies; House Style applies (no em dash `—`, `weave.md`) — a bump is sent output.
+- `do_not_mention` applies; House Style applies (no em dash/entity form, `weave.md`) — a bump is sent output.
 - Nothing sends without operator approval. A reply freezes the sequence; a `negative` / `remove_intent`
   reply routes to suppression (Stage 10 §2), never another bump.
 

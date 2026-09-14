@@ -248,3 +248,8 @@ easy a reply would be.
 
 The industry above is fictional on purpose. If a real client's industry ever appears in this
 file's examples, it will be copied into live output — that has happened four times.
+
+## Outbound Copy Style Gate
+
+Before approval or publish, lint final comment/reply text under `AGENTS.md`: no em dash/entity form, one useful point, normally 1-3 short sentences, optional one real question, no generic compliment or mini-essay.
+If final publish lint rewrites approved copy, publish nothing and return the revision to approval.

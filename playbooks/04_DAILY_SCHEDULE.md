@@ -59,6 +59,10 @@ be awake and Chrome open is from the start time to `run_eta_high_at`.
 
 For multi-client daily operations, prefer separate client tasks plus an optional master digest task. The master digest task must not scan private data sources; it only reads existing client reports/outputs and summarizes them.
 
+### Outbound Copy Style Gate
+
+Generated report prose and copy-ready comments/snippets are outward copy: lint them under `AGENTS.md` before handoff for `copy_style_violation`, preserving evidence and required caveats.
+
 ### Unattended runs on Claude Code desktop (permissions)
 
 Verified 2026-09-10: a scheduled run on Claude Code desktop starts in permission mode `default` and stops at its first Bash/Edit call until a human clicks Approve. `allowed-tools` in the task's SKILL.md and `permissions.defaultMode` in the project's `.claude/settings.local.json` do nothing for a headless run; project-level `.claude/settings.json` allow rules are not applied either (workspace-trust gate). Only a USER-level allow rule in `~/.claude/settings.json` that fully matches the command lets the run pass with no click (verified, ~3s).
@@ -109,9 +113,9 @@ On Codex or any remote runtime, record `unattended_permissions: not_applicable` 
 
 ### Run-now per runtime
 
-**Claude Code desktop.** The agent has no run-now tool for a scheduled task. Verified 2026-09-10: a ONE-TIME scheduled task (`fireAt` = now + 2 minutes) fires about 40 seconds after `fireAt`, runs in its own fresh session, and auto-disables. So the first run on Claude Code desktop is: create a one-time task named `{Client} - Solo Agency First Run` (`taskId`: `{client_slug}-solo-agency-first-run`) through the runtime's scheduled-task tool (`create_scheduled_task` with that `fireAt`, `notifyOnCompletion: false` — completion notifications never reached the chat in 4 tests), using the SAME prompt body as the daily task (read `daily-content-pipeline/automation/scheduled_run_prompt.md` in full; `target_client_slug` pinned). Record `first_run_task_id` (the `taskId`) and `first_run_dispatched_at` (the dispatch timestamp, ISO 8601) on `automation_manifest.md` at the moment of dispatch. Delete the one-time task after the result is reported.
+**Claude Code desktop.** Only after Step 7 yes, create a ONE-TIME task named exactly `{Client} - Solo Agency First Run` (`taskId`: `{client_slug}-solo-agency-first-run`) with `fireAt` = now + 2 minutes and `notifyOnCompletion: false`; it starts itself and auto-disables. It carries the latest same client-pinned scheduled-run prompt as Daily Run, with explicit one-time/first-run identity. Record lifecycle, wait/report, then delete it. The recurring `{Client} - Solo Agency Daily Run` remains a distinct task and is never started, reused, or changed for First Run; never ask the Boss to operate the scheduler.
 
-**Codex desktop.** The agent triggers the automation's own run-now itself (owner-confirmed 2026-09-10: the Codex agent can start an automation immediately), then arms the wait exactly as on Claude. The `**[ACTION REQUIRED]**` block naming the task is only the fallback for a genuine failure to start.
+**Codex desktop.** Only after Step 7 yes, create the separate one-time `{Client} - Solo Agency First Run` task with the latest client-pinned Daily Run contract and explicit first-run identity, then invoke native run-now/start on THAT task and arm the wait. Never run-now/reuse the recurring Daily Run or ask the Boss to click Run now/open Automations. If creation/start truly fails, recover or escalate; a Codex failure never turns into an action asking the Boss to start the run.
 
 **Other scheduler types** keep the existing run-now table below.
 

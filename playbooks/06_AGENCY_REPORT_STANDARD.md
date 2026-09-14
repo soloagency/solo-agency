@@ -1674,3 +1674,6 @@ WideCast cannot upload reports.
 That is too broad unless the agent verified WideCast account/API status and the current OpenAPI spec directly.
 
 ---
+## Outbound Copy Style Gate
+
+Before packaging a client-facing report or copy-ready snippet, lint generated human-facing prose under `AGENTS.md`: no em dash/entity form and no avoidable bloat; preserve evidence and required caveats.

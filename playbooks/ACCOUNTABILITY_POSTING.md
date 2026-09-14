@@ -43,6 +43,8 @@ client posts again (any new publish timestamp → reset everything).
 
 ## The client reminder — its own notification, its own tone
 
+The generated reminder subject/message inherits the `AGENTS.md` Outbound Copy Style Gate and is linted before notification delivery.
+
 A SEPARATE `sendNotification` message (never folded into the report notification), fully
 under the Client Notification Contract (playbook 03): client's report language, client-blind,
 plain words. Content shape:

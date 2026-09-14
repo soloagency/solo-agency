@@ -23,6 +23,8 @@
 #   plus any URL you give me to watch |
 #   Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence. |
 #   Ask the preferred start time with the cadence question |
+#   At most 2 em dashes in the whole piece | Zero/one em dash |
+#   direct the human to run the configured automation task for the first report or daily report. |
 #   review_state | monitoring_approved | discovery_completed_pending_approval |
 #   facebook_discovery_shortlist.jsonl | you pick which ones to keep watching |
 #   Review found sources | Chrome hay Edge | Both Chrome and Edge installed |
@@ -105,6 +107,11 @@ patterns=(
   'plus any URL you give me to watch'
   'Ask whether the human wants daily, multiple-times-daily, weekly, manual-only, first-run-only, or another cadence.'
   'Ask the preferred start time with the cadence question'
+  'At most 2 em dashes in the whole piece'
+  'Zero/one em dash'
+  'zero/one em dash'
+  'direct the human to run the configured automation task for the first report or daily report.'
+  "On **Codex desktop**, the agent triggers the automation's own run-now itself"
   'review_state'
   'monitoring_approved'
   'discovery_completed_pending_approval'

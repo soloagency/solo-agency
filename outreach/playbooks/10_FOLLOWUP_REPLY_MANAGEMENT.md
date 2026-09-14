@@ -183,3 +183,7 @@ They are approved in chat with the approval grammar (`approve all` / `approve 1-
 The tracker-based unsub pull and open/click signals remain Phase 3 — do not assert them here.
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.
+
+## Outbound Copy Style Gate
+
+Every generated reply or bump draft inherits `AGENTS.md` and is linted before approval: no em-dash/entity form or avoidable bloat, while preserving proof, adaptive mode, and required footer.

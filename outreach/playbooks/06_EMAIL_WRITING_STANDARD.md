@@ -31,7 +31,7 @@ engine) + `structures.md` + `channels.md` + `followup.md`) — each needs its ow
   the bridge Approvals page (`/ui/{client}/approvals`, applied via `tool crm-store ingest-ui`), then
   Stage 8 sends. This stage must not call `tool gmail send`.
 - **No guessing, no invented facts, no fabricated proof.**
-- **No em dash (`—`).** Banned in every draft, every channel, every language (it reads as
+- **Copy Style Gate.** Final drafts must be concise and contain no literal em dash or `&mdash;`/`&#8212;`/`&#x2014;` entity form (case-insensitive); lint raw and rendered text before approval and send. Preserve proof and required footer. **No em dash (`—`).** Banned in every draft, every channel, every language (it reads as
   machine-written). Use comma / colon / period / parentheses; ranges use "to". Hyphens in compound
   words (30-day, first-time) are fine. (Skill `weave.md` → House Style.)
 - **A link or an attached file, when the campaign declares one.** If `goal.companion_doc` is set

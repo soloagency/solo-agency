@@ -1,5 +1,9 @@
 # Agent Instructions
 
+## Outbound Copy Style Gate
+
+All generated email, DM/SMS, comment/reply, group/social post/caption, notification, client-report, and copy-ready text must be concise and contain no literal `—`, `&mdash;`, `&#8212;`, or `&#x2014;` (case-insensitive). Use the shortest wording that preserves proof, caveats, compliance, and required footer. Lint raw and rendered text before approval and again before send/publish. Source evidence stays unchanged internally; paraphrase or omit it outward. A post-approval violation sends/publishes nothing: rewrite, return to pending approval, and require fresh approval.
+
 When the user asks to set up this module (the `outreach/` directory of the Solo Agency repo), always read `OUTREACHCRM_PLAYBOOK.md` first and follow its checklist in order. The authoritative design is `docs/DESIGN.md`; when any file disagrees with it, `docs/DESIGN.md` wins.
 
 Human-facing required actions must use the `**[ACTION REQUIRED]**` block from `OUTREACHCRM_PLAYBOOK.md`. Do not bury questions, approvals, commands, sendbox-connection steps, provider/API-key setup, or automation task edits in paragraphs or reports. If no human action is needed, end with next-action guidance per the OutreachCRM Next-Action Guidance Rule (1-3 real available next steps plus one closing question); never end with `No action required right now.`

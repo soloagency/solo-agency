@@ -183,3 +183,8 @@ Before claiming a send pass complete:
 ---
 
 When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins.
+
+## Outbound Copy Style Gate
+
+Before SMTP send, lint raw and rendered subject/body/footer for the canonical `copy_style_violation` forms and avoidable bloat in `AGENTS.md`; rewrite before send, preserving compliance/footer and evidence.
+If an approved draft fails this final gate, send nothing: return the revised body to `pending_approval` for fresh approval.

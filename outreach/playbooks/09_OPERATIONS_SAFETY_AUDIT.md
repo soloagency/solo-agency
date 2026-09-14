@@ -227,6 +227,9 @@ Claim a send complete only when, for every message sent:
 
 ## The Ordered Pre-Send Gate Chain
 
+Add the canonical final raw-and-rendered `copy_style_violation` lint from `AGENTS.md` before quota reservation; it rejects em-dash/entity forms and avoidable bloat while preserving proof and compliance.
+Audit that a post-approval hit sent nothing and returned revised text to pending approval for fresh approval.
+
 `tool gmail send` must run these gates in this exact order for every message (this is the
 Phase-1 chain actually in code — Stage 8 §3 is the source): the audit confirms the chain ran in
 code (not narrated in prose) and that any block halted the send. Order is load-bearing.

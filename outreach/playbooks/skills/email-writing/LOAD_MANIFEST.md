@@ -5,9 +5,9 @@ After loading any module below, its actual LINE COUNT must match its row here (s
 
 | module | lines | sha256 | last_line |
 |---|---|---|---|
-| SKILL.md | 115 | 20183207aaa93005d5352c9ded087811aa794ab9ecf1c4c2cabdc743a2ab16ae | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| SKILL.md | 115 | 986a6db7c2ee2b3facf3538939311bfe55fee11ab2c2cbdc6a9e3bc8316f2ab0 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | brief_to_email.md | 161 | f914f57641b49c0b93157a66ac58a9d9f2bf0c965a279f8938d32d022fd78959 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| channels.md | 70 | 0f5277b2778d80110ed1e5b7ab0b621efb667f72341fa424ec1188b99c270c5a | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| followup.md | 169 | eec6b2cbcfe1c5722d756c5504a88fd3efa8966a34516ce6ab2bd5e58be8d541 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| channels.md | 70 | 1314886c6698d70bf0c6a17d69947189a2fca7fa9b8fe27a65d2849271bbc273 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| followup.md | 169 | aef6c809078b1e05ae56c4b6445b4cfd3bb630651228a63200ade3dd7112aeaf | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
 | structures.md | 65 | d1fedc4f27db0d4a0aed2c17271b9f1d2f04d6fe85da71b682a2f52b92f5b4f1 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
-| weave.md | 283 | 42c1880f3cc9ea578bdccf3f9ab9ef05b3c9009e8c5136cf7bceb51d73601060 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |
+| weave.md | 284 | 88082fee9f63cf78bb7c59e9899b6255e937e3570f71810d78c83d78e79483c6 | When any file disagrees with `docs/DESIGN.md`, `docs/DESIGN.md` wins. |

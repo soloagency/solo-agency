@@ -159,3 +159,8 @@ because it only makes sense as an advertisement.
 
 The industry above is fictional on purpose. If a real client's industry appears in this file's
 examples, it will be copied into live output — that has happened four times.
+
+## Outbound Copy Style Gate
+
+Before approval or publish, lint final post/caption under `AGENTS.md`: no em dash/entity form, one idea, short paragraphs, one CTA, while existing platform length/hashtag limits win.
+If final publish lint rewrites approved copy, publish nothing and return the revision to approval.

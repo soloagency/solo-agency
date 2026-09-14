@@ -121,6 +121,7 @@ Statuses: `drafted`, `approved`, `posted`, `pending_admin_approval`, `answered`,
 | Task | Role(s) |
 |---|---|
 | `{Client} - Solo Agency Daily Run` | Scout + Creator + Analyst (+ Distributor for publishing) |
+| `{Client} - Solo Agency First Run` | one-time Scout + Creator + Analyst task, created only after Step 7 yes; separate from Daily Run and removed/marked deleted after its First-Run Report |
 | `{Client} - {Campaign} Daily Run` (OutreachCRM) | Distributor + CRM Caretaker |
 | `Solo Agency - GitHub Update Watch` | Ops |
 | `Solo Agency - Collector Healthcheck` | Ops |

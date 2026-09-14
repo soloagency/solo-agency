@@ -1134,3 +1134,8 @@ For potential leads, the agent should log only safe summary information and sour
 For detected competitors, the agent should log only public or authorized visible information, source URLs, positioning patterns, content themes, engagement signals, and strategic opportunities.
 
 Competitor analysis must be used for strategy, positioning, and original content ideas. The agent must not copy competitor posts, scripts, captions, offers, or creative assets.
+
+## Outbound Copy Style Gate
+
+Every generated outward asset inherits `AGENTS.md`'s `copy_style_violation` rule. Lint raw and rendered copy before approval/provider handoff and again before publish; preserve evidence, required caveats, and compliance.
+If the second lint changes approved text, stop and return the revision to pending approval before any provider/create/publish action.
