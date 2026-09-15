@@ -1743,6 +1743,7 @@ Before final report, verify:
 - [ ] Did I avoid suggesting spammy outreach or unsafe actions?
 - [ ] Did I update `lead_log.md`, `competitor_log.md`, and `lead_competitor_opportunities.jsonl` when possible?
 - [ ] Did I show the Login Reminder (naming Facebook, Instagram, and X) and record `facebook_lead_source` (with `instagram_lead_source`/`x_lead_source` alongside it) before running (or skipping) the Social Discovery Pass?
+- [ ] Did setup render `assets/theloop_light.png` immediately before the Login Reminder action block, using a verified absolute setup-root Markdown image target, without replacing, delaying, or hiding the extension tab/action? If absent, was `setup_chat_asset_missing` logged and setup continued without broken Markdown?
 - [ ] Did I run each platform's step of the Social Discovery Pass only while that platform's `{platform}_lead_source: enabled`, skip it quietly when `pending`, and skip it with the persistent multi-platform web-only awareness line when `web_only`?
 - [ ] Did the run re-probe every `web_only`(not logged in) platform with its step-1 call in its normal round-robin slot, and record `{platform}_last_login_probe_at` on every probe (`playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Re-probe on every run")?
 - [ ] Did the client's first-ever dispatched run wait for `facebook_lead_source` to be `enabled` or `web_only`, never dispatching while it was still `pending` — with Instagram and X following automatically?

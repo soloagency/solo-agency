@@ -38,6 +38,28 @@ automated: it needs a real session in a real runtime, started from a clean folde
       run commands" and does not hand the human a clone command on that evidence.
 - [ ] **E. Honest state.** It never says an install, clone or scan happened when it did not.
 
+## Setup-chat visual acceptance
+
+- [ ] **First Words visual.** Immediately after Sam's self-introduction and before rename/pin
+      instructions, the chat renders `assets/group_cover.png` as an inline Markdown image. Its
+      target is the verified absolute setup-root filesystem path, not a relative path, unresolved
+      token, `file://` URI, placeholder, or link.
+- [ ] **First-client visual.** At the first-client initial intake, the chat renders
+      `assets/agency-structure_light.png` inline before the minimum-information question and makes
+      clear that it represents the business whose pipeline is being set up. It does not appear as a
+      new setup step or add an action/approval.
+- [ ] **Login visual.** At step 4, the chat renders `assets/theloop_light.png` immediately before
+      the existing Facebook/Instagram/X Login Reminder action block. The extension tab/action
+      remains present and foregrounded.
+- [ ] **Fallback.** For each missing asset, setup logs `setup_chat_asset_missing` with the resolved
+      absolute asset path and proceeds without a broken image. The image never blocks setup.
+- [ ] **Tracking.** `git check-ignore -q assets/group_cover.png` and
+      `git check-ignore -q assets/theloop_light.png` both return nonzero, and all three required
+      files exist in `assets/` in a fresh clone.
+- [ ] **Roadmap stability.** The visuals are informational only: no additional
+      `**[ACTION REQUIRED]**` block, wait state, question, or setup step exists; the visible roadmap
+      remains exactly 10 numbered steps.
+
 ## Recording a run
 
 One line per case in the session's notes: `case {n} · {runtime} · A/B/C/D/E = pass|fail · what broke`.

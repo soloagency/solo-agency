@@ -75,6 +75,14 @@ Good add-client question:
 
 `Please provide the new client's name and product/service, profession, expertise, business description, or public website/profile URL. Include target location if known.`
 
+**First-client visual.** At the initial intake for the very first client only, and before the
+minimum-information question above, follow `playbooks/SETUP_FLOW_ENTRYPOINT.md`'s setup-chat visual
+contract: verify and render `assets/agency-structure_light.png` inline using its resolved absolute
+setup-root path. Add one short explanation in the human's language that this first client is the
+business whose pipeline Sam is setting up. The visual is informational, adds no question, and does
+not add or renumber a setup step. If the asset is absent, log `setup_chat_asset_missing` with its
+absolute asset path and continue directly to the existing intake question.
+
 Do not mention custom sources in the first setup or add-client question. Step 5 automatically configures default sources and keyword banks before schedule/routine and the client-specific automation task are configured. Preserve any URL the human volunteers, without turning it into a question or gate. Anything the runs discover on their own afterward needs no separate approval — the agent decides for itself with the Group Potential Rule and resyncs the automation task if source state changes.
 
 Bad setup questions:
@@ -277,6 +285,9 @@ Then immediately enter First Client Setup Mode.
 First Client Setup Mode is the same as Add Client Mode, but it is triggered automatically during the first run when `clients_index.md` has no real client rows. The agent must proceed as far as possible toward setting up the first client instead of stopping after root folder creation.
 
 In First Client Setup Mode, ask only for the minimum information required to create the first client pipeline:
+
+Before that first intake question, render the required first-client visual exactly once, using the
+contract above. Never repeat it for later add-client flows.
 
 - Client name, if not already known.
 - Product/service, profession, expertise, business description, or public website/profile URL.

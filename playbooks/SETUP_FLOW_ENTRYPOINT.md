@@ -30,7 +30,33 @@ a scan that did not actually happen.
 
 **Stable setup numbering.** When an onboarding optimization removes a human question or interaction, make that existing numbered step automatic or merge the behavior inside it; keep the visible 1-10 roadmap and all later step numbers stable. An automatic step remains visible and is marked complete when its work finishes. Renumber only with the owner's explicit approval of a roadmap redesign.
 
-0. **First words come first.** Before step 1 — before any load, ledger or question — send the Team Leader introduction from `SOLO_AGENCY_PLAYBOOK.md` ("First Words"), which ends by asking the Boss to name this chat "Team Leader" and pin it (so tomorrow's orders come back to the same conversation, never to a fresh agent with no ledger). Then load `playbooks/TEAM_MODEL.md` and `playbooks/NEXT_JOB_CATALOGUE.md` with the other entry files. Create `daily-content-pipeline/automation/boss_orders.md` (the ledger header from `playbooks/TEAM_MODEL.md`) if it does not exist, and record every request or goal the human states during setup as a row before acting on it.
+## Setup-chat visual contract
+
+The three setup visuals are informational only. They never create an `**[ACTION REQUIRED]**` block,
+wait state, approval, or setup step, and never change the visible 1-10 roadmap.
+
+Before every actual visual render, resolve the verified absolute `setup_root` for this installation and
+check that the exact asset exists. Render the image using Markdown image syntax whose target is the
+real absolute filesystem path, for example `![Alt text](/verified/absolute/setup-root/assets/name.png)`.
+Never send a relative path, unresolved `{token}`, `file://` URI, placeholder, or a text link in place
+of the image. If an asset is missing, do not block or delay setup and do not emit broken Markdown.
+Append a `setup_chat_asset_missing` event with `asset_path` to
+`daily-content-pipeline/automation/setup_chat_asset_events.jsonl` as soon as the setup state can be
+written, then continue without that visual. A missing first-words asset is logged immediately after
+the first message, because First Words must remain the first human-visible message.
+
+Visual order and placement are fixed:
+
+1. In First Words, render `setup_root/assets/group_cover.png` immediately after Sam's introduction
+   and before the rename-and-pin instruction.
+2. At the first-client initial intake only, render
+   `setup_root/assets/agency-structure_light.png` immediately before asking for the first client's
+   minimum information. Explain in one short sentence that this first client is the business whose
+   pipeline Sam is setting up. Do not add a question or setup step.
+3. At step 4, render `setup_root/assets/theloop_light.png` immediately before the existing Login
+   Reminder `**[ACTION REQUIRED]**` block. Keep the extension tab/action foreground and unchanged.
+
+0. **First words come first.** Before step 1 — before any load, ledger or question — send the Team Leader introduction from `SOLO_AGENCY_PLAYBOOK.md` ("First Words"), including the required inline group-cover visual between Sam's self-introduction and the rename-and-pin instruction. Then load `playbooks/TEAM_MODEL.md` and `playbooks/NEXT_JOB_CATALOGUE.md` with the other entry files. Create `daily-content-pipeline/automation/boss_orders.md` (the ledger header from `playbooks/TEAM_MODEL.md`) if it does not exist, and record every request or goal the human states during setup as a row before acting on it.
 1. Load `SOLO_AGENCY_PLAYBOOK.md` and `playbooks/LOAD_LEDGER_PROTOCOL.md`. **Full-load discipline applies to every file below: each load needs a LOAD LEDGER (read to the last line; compare `playbooks/LOAD_MANIFEST.md` when present; ledger each named dependency). A truncated / "output too large" / partial read = NOT loaded — re-read in chunks before acting. No side-effect step without a PASS ledger for the stage(s) it needs.**
 2. Load `playbooks/00_CORE_CONTEXT_REQUIREMENTS.md`, `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`, `playbooks/04_DAILY_SCHEDULE.md`, `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`, and `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`.
 3. Load `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` before step 4 below — every setup now installs the bridge and this client's extension, not only when custom sources that need a login are already known (internal access mode, never spoken to the human). Load `playbooks/PRIVATE_SOURCE_GATE.md` and `playbooks/02_PRIVATE_SOURCE_SETUP.md` separately, later, before step 7 (Chạy lượt đầu).
@@ -106,7 +132,7 @@ Xong là ô extension hiện xanh ✓ và em thấy ngay — anh nhắn "done" h
 
 **If check-in stalls — 90-second help loop.** If `extension_health` has not gone recent within 90 seconds of triggering the install action, do not just repeat the reminder. Diagnose in this order and say ONE short line naming the likely cause: (1) Developer mode is still off — the toggle top-right on the extensions page; (2) the folder was dropped into a window that is not the one signed into Facebook; (3) the browser was closed or the page was navigated away. Re-trigger the install action (`POST /api/ui/{client}/install-extension`) so Finder and the extensions page are back in front, then wait again. Run this diagnose-and-retrigger cycle at most 3 rounds. If the human says they cannot find the Developer mode toggle, that is a managed (work) browser — say so plainly, suggest trying from a personal (non-work) computer instead, and only then move to the web-only escape below. Never offer the escape before this help has been given, and never in the first message.
 
-**Login Reminder.** Immediately after the bridge answers `/status` (extension check-in may still be catching up), deliver this reminder inside its own `**[ACTION REQUIRED]**` block, in the human's language, naming all three platforms:
+**Login Reminder.** Immediately after the bridge answers `/status` (extension check-in may still be catching up), and immediately before the existing Login Reminder `**[ACTION REQUIRED]**` block, render the verified inline `setup_root/assets/theloop_light.png` visual under the setup-chat visual contract. Do not hide, delay, replace, or navigate away from the extension tab/action. Then deliver this reminder inside its own `**[ACTION REQUIRED]**` block, in the human's language, naming all three platforms:
 
 ```text
 Để tìm lead trên Facebook, Instagram và X, hãy đăng nhập Facebook, Instagram và X trên Chrome của máy này (tài khoản cá nhân của bạn là đủ, dùng chung cho cả ba). Nếu bỏ qua một nền tảng nào đó, Solo Agency chỉ tìm lead trên web mở cho nền tảng đó — thường ít hơn nhiều, vì ba nền tảng này là nguồn mạnh nhất của hệ thống (feed, người, nhóm public, nhóm riêng trên Facebook; bài viết và người dùng trên Instagram và X). Anh/chị xác nhận có nền tảng nào muốn chạy chế độ không kết nối không?
