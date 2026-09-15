@@ -18,8 +18,8 @@ contract, and the report-design skill controls visual quality.
 - **Markdown is internal only, and is NEVER the report the human sees.** The report handed to, shown to, linked for, notified to, or delivered to the human is ALWAYS the rendered HTML (`{client-name}-client-report.html`) plus its mandatory PDF companion — never a `.md`. Producing only a `.md` report, ending a run by pointing the human at a `.md`, or showing/sending/asking the human to open a `.md` as the report is a workflow violation. If the HTML render cannot be produced, surface the exact renderer blocker; never fall back to handing the human a `.md`.
 - The report must be standalone, mobile-friendly, agency-grade, and factually aligned with the Markdown source.
 - The report must use the reusable report-design module and reusable renderer path by default. Do not write one-off Python/HTML/PDF scripts for ordinary report generation.
-- Include reference URLs beside claims, ideas, leads, competitors, and drafts.
-- Every idea, best idea, comment, and draft must be audience-value-first: useful to the viewer before useful to the client's brand. Reject or rewrite direct product/service praise as `promotional_not_value_first`.
+- Include reference URLs beside claims, ideas, leads, competitors, and each content-decision field.
+- Every idea, best idea, and comment must be audience-value-first: useful to the viewer before useful to the client's brand. Reject or rewrite direct product/service praise as `promotional_not_value_first`. Drafts belong to separately requested writing work, not Daily Run reports.
 - Do not create fake action buttons in static HTML.
 - Keep exactly one canonical client-facing report file per client/day/run. Daily/public/private HTML files must be generated as scrubbed staging inputs (internal access mode, never spoken to the human) — exactly three staging files per client/day/run, never linked or shown to the human — but the file handed to the human/client or uploaded through a provider must be the combined `{client-name}-client-report.html`.
 - One report for all sources. The combined `{client-name}-client-report.html` reads as a single report organized by source (Google/Web, Facebook, Instagram, X, industry sites, custom URLs — only the ones that ran), with one `Lead & Competitor Opportunities` section. The words "public"/"private"/"lane" never appear in it.
@@ -55,9 +55,9 @@ The agent must keep the Markdown file even when an HTML report is created, unles
 - duplicate idea detection;
 - diffing changes across days;
 - regenerating HTML reports;
-- preserving references, reasoning, leads, competitors, provider-backed drafts, and operational notes without parsing HTML.
+- preserving references, reasoning, leads, competitors, content-decision evidence, and operational notes without parsing HTML.
 
-The HTML report must be created from the same facts, references, ideas, analysis, and draft content as the Markdown report, but it may use a custom structure and design. It must not become a factually divergent report. If the agent can only preserve one long-term storage artifact, preserve the Markdown source first and regenerate HTML later — but this is about long-term storage only; the human-facing handoff in every run still requires the rendered HTML, and the `.md` is never handed to the human as the report. If the agent can only deliver one artifact to the human, deliver the HTML report because all user-facing reports must be HTML.
+The HTML report must be created from the same facts, references, ideas, analysis, and content-decision evidence as the Markdown report, but it may use a custom structure and design. It must not become a factually divergent report. If the agent can only preserve one long-term storage artifact, preserve the Markdown source first and regenerate HTML later — but this is about long-term storage only; the human-facing handoff in every run still requires the rendered HTML, and the `.md` is never handed to the human as the report. If the agent can only deliver one artifact to the human, deliver the HTML report because all user-facing reports must be HTML.
 
 ### Human-Facing Report Rule: HTML Plus PDF Companion
 
@@ -108,7 +108,7 @@ Correct behavior:
 6. The public and private staging HTML files are full lane reports, not summaries.
 7. The daily staging HTML file is the concise cover/index for the combined report, showing lane status, client-relevant blockers/limits, best next action, and delivery status without internal tooling details.
 8. The combined client-facing HTML must include the daily cover plus the full Source Intelligence content/status, organized by source, in one standalone file — never presented as a public/private pair. It must not require the reader to open or click into sibling HTML files.
-9. The HTML may be custom structured and styled for readability, mobile scanning, editable draft review, and copy workflow.
+9. The HTML may be custom structured and styled for readability, mobile scanning, evidence review, and copy workflow.
 10. The client-facing HTML must not omit required client-relevant report sections that exist in the corresponding Markdown/source record, but it must scrub internal system/provider/collector details into `INTERNAL_REPORT`.
 11. If a Markdown/source record changes, update/regenerate only the affected lane staging HTML plus the daily index, then rebuild `{client-name}-client-report.html` and its PDF companion so the delivered HTML/PDF stay identical in content.
 
@@ -120,7 +120,7 @@ Quality rules for HTML:
 - Do not dump raw Markdown into the page if that makes the report ugly.
 - Do not rely on `fetch("./report.md")`.
 - Escape user/source text safely before rendering it into HTML.
-- Versioned draft sections such as `Version 1: VE — Value Explainer` must be presented as polished editable review blocks with local copy buttons.
+- Daily Run reports must not include script/blog/social draft sections or editable-draft controls. Those belong to a separately requested writing artifact.
 - The agent may spend extra time generating a beautiful HTML report because the HTML is the only report the human sees.
 - The page must not create document-level horizontal scrolling on a 390px-wide mobile viewport. Wide tables must be wrapped in a dedicated `.table-scroll` or equivalent container with `overflow-x: auto`, or transformed into stacked mobile cards. The body, main containers, cards, buttons, code blocks, URLs, and long source names must use responsive width constraints plus `overflow-wrap: anywhere` or equivalent so only the table wrapper scrolls, never the entire page.
 
@@ -136,7 +136,7 @@ tools/solo_tool render-report
 
 Required order for every client-facing report:
 
-1. Author or update the internal Markdown/source record with complete facts, references, lane markers, drafts, blockers, and operational notes.
+1. Author or update the internal Markdown/source record with complete facts, references, lane markers, content-decision evidence, blockers, and operational notes.
 2. Load `playbooks/skills/report-design/SKILL.md`.
 3. Render each client-facing report from the approved source content with `tools/solo_tool render-report render`, or a named reusable template layered into that renderer.
 4. Run the Client-Blind Scrub Gate on each client-facing HTML file.
@@ -227,12 +227,12 @@ File responsibilities (these staging files are internal working files, never lin
 
 1. `{client-name}-public-data-sources-report.html`
    - Full public data sources report only.
-   - Must contain public source coverage, public evidence, public Lead & Competitor Opportunities, public idea matrix, best public idea, and public draft/recommendation.
+   - Must contain public source coverage, public evidence, public Lead & Competitor Opportunities, public idea matrix, best public idea, and public content decision fields.
    - Must not include private data source findings except a status pointer such as `private data sources pending`, `private data sources blocked`, or a link to the private report.
 
 2. `{client-name}-private-data-sources-report.html`
    - Full private data sources report only.
-   - Must contain private source coverage, safe summarized private evidence, private Lead & Competitor Opportunities, private idea matrix, best private idea, copy-ready comments when available, and private draft/recommendation.
+   - Must contain private source coverage, safe summarized private evidence, private Lead & Competitor Opportunities, private idea matrix, best private idea, copy-ready comments when available, and private content decision fields.
    - Must include a client-safe "Community discovery" subsection whenever the Social Discovery Pass ran this run, one line per platform that actually ran (Facebook, Instagram, X), showing counts only per platform (e.g. leads found, groups scanned for Facebook; leads found, posts/people scanned for Instagram and X) — no capability/tool names, no CRM link, and no "locked by plan" wording (client-blind rule). For any platform at `{platform}_lead_source: web_only`, use the existing client-safe sentence for that platform's line instead (unchanged wording — the client never sees the platform name or "web_only"): "community/logged-in coverage was not included today, so lead counts may be lower than reality." A platform that did not run this run (not yet connected, or `pending`) is simply omitted from the subsection rather than shown with a sentence.
    - Must not contain Local Collector, Chrome extension, login/session, API, raw private post/member, or private source inventory details.
    - Must not rewrite or summarize the public data sources report.
@@ -261,7 +261,7 @@ The unified Source Intelligence section must use the same structure regardless o
 - One combined Lead & Competitor Opportunities section, grouped by source.
 - Idea Matrix.
 - Best idea.
-- Draft/recommendation.
+- Content decision: recommended format, objective, evidence trail, freshness, confidence, and next writing action.
 - Client-relevant blockers/limits (a source not yet connected, or safely summarized coverage limits), and confidence notes.
 
 Every Idea Matrix entry and the best idea must pass the Audience Value-First Gate (teach something, prevent a mistake, improve a decision, or reduce a risk/cost/confusion for the audience). Direct client/product promotion without a standalone audience lesson is rejected or rewritten as `promotional_not_value_first`.
@@ -395,16 +395,13 @@ ACT on, and background sinks to the bottom:
    language ("People are asking about this right now", "A new rule that affects your clients",
    "A video every agent should have") — never with internal role/slot jargon. On a signal-poor
    run, foundation cards may fill more than one slot; never pad with weak or repeated ideas.
-   All three are queued to the production plan (04/entrypoint own that step), so the Saved Ideas
-   screen the notification links to shows exactly these three cards — and the best-idea card
-   travels with its five script versions attached (`recommended: true`), so the reader can pick
-   a direction right on that screen.
-2. **The five script versions** — the `Production-Ready Drafts` selection surface for the
-   selected idea (Version 1: VE through Version 5: MB), directly under the Top 3 so the reader
-   picks a direction while the ideas are still on screen.
-3. **The full idea matrix** — every credible idea found today, in its buckets.
-4. **Lead & Competitor Opportunities.**
-5. Everything else (coverage, evidence totals, delivery status, next action) follows.
+   Each card carries enough evidence to choose a direction: audience pain/question, viewer lesson,
+   non-promotional angle, recommended format, content objective, evidence count, freshness,
+   confidence, representative excerpt when safe, and source links. The Daily Run does not queue
+   ideas to production or attach scripts.
+2. **The full idea matrix** — every credible idea found today, in its buckets.
+3. **Lead & Competitor Opportunities.**
+4. Everything else (coverage, evidence totals, delivery status, next action) follows.
 
 **Language rule — written for a non-technical, non-marketer reader.** Every heading and sentence
 must survive the test "would a realtor with 30 seconds understand this without asking?". Concretely:
@@ -422,7 +419,7 @@ The package HTML must be a standalone, mobile-friendly, print-friendly, client-b
 
 Do not build the package or PDF directly from memory, from only one lane, or from `INTERNAL_REPORT`. If any staging HTML file is missing or blocked, include a clear client-safe status page in `{client-name}-client-report.html` instead of inventing content. Then export the PDF from `{client-name}-client-report.html` when safe, or record the exact blocker in `INTERNAL_REPORT` and `report_state.json`.
 
-The combined `{client-name}-client-report.html` must be content-equivalent to the PDF companion. The reader must not need to open separate daily/public/private HTML files to see Idea Matrix, Lead & Competitor Opportunities, Best Idea, drafts, or lane status.
+The combined `{client-name}-client-report.html` must be content-equivalent to the PDF companion. The reader must not need to open separate daily/public/private HTML files to see Idea Matrix, Lead & Competitor Opportunities, Best Idea, content-decision evidence, or lane status.
 
 PDF formatting rules:
 
@@ -569,7 +566,7 @@ heading text beneath them no longer uses those words.
 
 ### Best Idea
 
-### Draft / Recommendation
+### Content Decision / Recommendation
 
 ### Blockers And Limits
 <!-- SOLO_AGENCY_SECTION:PUBLIC_END -->
@@ -1040,111 +1037,39 @@ The 3x2 matrix is six idea buckets, not six total ideas. Under each Global/Local
 - Repetition check:
 - Lead potential:
 
-## Production-Ready Content Drafts
+## Content Decision Packet
 
-### Writing Method Used
+Daily Run stops at a decision-ready packet. It must not include a video script, blog/article draft, social caption, hook set, CTA, storyboard, production brief, or writing-method details.
 
-- Format: video | blog | social
-- Source: MCP | public_api | static_zip | local_cache | best_effort_fallback
-- Source URL or tool:
-- Loaded at:
+For the Best Idea and each Top 3 card, include:
 
-Keep writing-method/source/tool details in the internal Markdown/source record and `INTERNAL_REPORT`. In client-facing HTML/PDF, show only the polished draft versions, source-backed rationale, and production readiness status.
+- Idea ID.
+- Audience segment and observed pain point or question.
+- Viewer lesson and non-promotional angle.
+- Recommended format and content objective.
+- Evidence IDs, signal count, one or two representative excerpts when safe, and source URLs.
+- Freshness, confidence, novelty status, and known evidence limitation.
+- A clear next action such as `write one video script from this idea` or `compare three hooks before drafting`.
 
-### Version Label Rule
+If a fresh Content Evidence Bank snapshot was unavailable, say `comment evidence unavailable` or `comment evidence stale` and do not imply comment research occurred. Post/source evidence remains valid when accurately labeled.
 
-Every script, blog/article draft, or social caption variant must have a human-readable version label.
+### Human Decision Options
 
-Do not show only an internal abbreviation such as `VE`, `QA`, `POV`, `Myth`, or `Checklist`. The human may not know what the abbreviation means.
-
-Required format:
-
-```text
-Version {number}: {short_code} — {plain_English_meaning}
-```
-
-Default video-script versions:
-
-- `Version 1: VE — Value Explainer`
-- `Version 2: QA — Client Q&A`
-- `Version 3: POV — POV`
-- `Version 4: CS — Case Study`
-- `Version 5: MB — Myth-Buster`
-
-In client-facing reports, these five video-script versions are candidate options for choosing a direction. They should not include inline image/video URLs by default and must not be treated as the final provider video payload. After a version/code is selected, the production flow loads the WideCast video script-writing skill again and processes only that selected version through research, factual-core checks, Stage 2 visual treatment, inline media URLs, media pool, and production handoff.
-
-If a non-video format or a human override produces only one draft, still label it as `Version 1`.
-
-## Version 1: VE — Value Explainer
-
-Use the appropriate version label for the actual draft. `VE — Value Explainer` is only an example.
-
-### Video Script
-
-### Title
-
-
-### Hook
-
-
-### Script
-
-
-### Visual Notes
-
-
-### On-Screen Text
-
-
-### CTA
-
-
-### Source-Backed Rationale
-
-Include the reference URLs that support the script's key claims. For a source read through the human's own login, include the captured URL and note that the human may need to be logged in to verify it.
-
-## Version 1: Blog — Educational Article
-
-Include this section only when `output_formats` includes `blog_article` or when the human requested a blog/article variant.
-
-Use the appropriate version label for the actual blog/article draft. `Blog — Educational Article` is only an example.
-
-### Working Title
-
-
-### Search / Reader Intent
-
-
-### Draft
-
-
-### CTA
-
-
-### Source-Backed Rationale
-
-Include the reference URLs that support the article's key claims.
-
-
-## Human Approval Options
-
-- Edit a version directly in the HTML report, click `Copy this version`, and use the final text for review or production.
-- Approve this draft.
-- Revise this draft.
-- Pick another idea from the list.
-- Request a blog/video variant.
-- Create the approved production asset.
-```
+- Choose an idea for a separate writing task.
+- Ask for up to three short hooks or angles before drafting.
+- Request one complete draft in a chosen format.
+- Explicitly request multiple complete variants when comparison is needed.
+- Request production only after a completed writing artifact is approved.
 
 ### Mobile HTML Report Rule
 
-In addition to internal Markdown files, the agent must export the final daily results as mobile-friendly client-facing HTML designed to read like a professional agency report. The user/operator can read, edit draft versions, copy final text, and make decisions, but the client-facing HTML must not expose internal system/tooling details.
+In addition to internal Markdown files, the agent must export the final daily results as mobile-friendly client-facing HTML designed to read like a professional agency decision report. The user/operator can inspect evidence, select an idea, and make the next decision, but the client-facing HTML must not expose internal system/tooling details or contain full content drafts.
 
 The HTML report does not replace the Markdown report internally. Treat Markdown as the source-of-truth record for the agent, client-facing HTML as the portable rendered delivery copy, and `INTERNAL_REPORT` as the operator-only system report.
 
 The HTML must be standalone and portable. Do not create an HTML report that requires fetching a neighboring `.md` file through `fetch("./report.md")`, because local file access and mobile sharing can break.
 
-The agent may create a custom HTML report instead of a direct Markdown render when that produces a better user experience. The client-facing HTML must remain factually aligned with the Markdown, but it should be optimized for client-safe reading, mobile review, and editable draft workflow.
+The agent may create a custom HTML report instead of a direct Markdown render when that produces a better user experience. The client-facing HTML must remain factually aligned with the Markdown, but it should be optimized for client-safe reading, mobile evidence review, and decision workflow.
 
 The client-facing HTML report is the preferred review/share result because scheduled runs often happen while the human is away from the AI agent UI, and the human may open the result on a phone.
 
@@ -1190,7 +1115,7 @@ The HTML report must be mobile-first:
 - Sticky or top summary when useful.
 - Tap-friendly links.
 - Do not render fake interactive buttons in static HTML reports. If the report is a static file, approval options and next actions must be plain text instructions or links only.
-- Exception: script/blog/social draft review blocks may include a real local `Copy` button that copies the edited draft text to the clipboard. This button must not imply approval, publishing, rendering, messaging, or any server-side action.
+- Exception: a separately requested script/blog/social writing artifact may include a real local `Copy` button that copies the edited draft text to the clipboard. This is never a Daily Run report section and must not imply approval, publishing, rendering, messaging, or any server-side action.
 - Exception: `Lead & Competitor Opportunities` cards may include a real local `Copy comment` button that copies only the suggested comment text. This button must not imply auto-commenting, messaging, outreach, approval, publishing, rendering, or any server-side action.
 - Short section summaries before long details.
 - Collapsible sections when the report is long, if the environment can generate them.
@@ -1208,7 +1133,7 @@ The daily staging HTML cover/index must include:
 
 The staging HTML report must include:
 
-- Its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation, organized by source.
+- Its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and content decision packet, organized by source.
 - Safe source coverage status when a source needing the human's own login is relevant, without Local Collector, extension, login/session, or internal source inventory details.
 - Found Sources Awaiting Your Approval status for discovered comment threads (new, approved, dismissed, or harvested), stated as client-safe coverage information.
 - A client-safe note that additional groups and pages the run finds are now being watched automatically, without internal setup mechanics or the word "approval" for those.
@@ -1222,18 +1147,18 @@ The staging HTML report must include:
 - Suggested value-first comments with real local copy buttons for every displayed lead/competitor opportunity.
 - Data source issues.
 - Access limitations stated without naming login/session mechanics.
-- Production-ready draft: video script, blog/article, social caption, or configured combination.
-- Production readiness status in client-safe language: draft ready, approval required, ready for production, published, or blocked by missing client detail.
-- Approval options.
+- Recommended format and content objective for each Top 3/Best Idea.
+- Evidence availability, freshness, confidence, and clear next writing action.
+- No full video script, blog/article, social caption, or production brief.
 - Next actions.
 
 ### Agency-Grade HTML Report Standard
 
-The HTML report is not a data dump. It is a professional agency decision report. A busy client or agency owner should be able to open it on a phone, understand the opportunity, verify the evidence, approve a draft, and know the next action within 60 seconds.
+The HTML report is not a data dump. It is a professional agency decision report. A busy client or agency owner should be able to open it on a phone, understand the opportunity, verify the evidence, choose an idea, and know the next action within 60 seconds.
 
-The report must feel like it came from a capable media strategist, not from a crawler. It should combine research, judgment, prioritization, production readiness, and clear client communication.
+The report must feel like it came from a capable media strategist, not from a crawler. It should combine research, judgment, prioritization, evidence quality, and clear client communication.
 
-Required report hierarchy (this list defines what each section CONTAINS for the combined `{client-name}-client-report.html` and its PDF companion; the display ORDER of sections follows the Reading Order rule and the Recommended HTML section order — the people to contact today first, then the top 3 ideas, then the five script versions, then the idea matrix, then the rest):
+Required report hierarchy (this list defines what each section CONTAINS for the combined `{client-name}-client-report.html` and its PDF companion; the display ORDER of sections follows the Reading Order rule and the Recommended HTML section order — the people to contact today first, then the top 3 evidence-rich ideas, then the idea matrix, then the rest):
 
 1. `People To Contact Today`
    - Every lead this run found, once each, hottest first.
@@ -1259,7 +1184,7 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - The single most urgent person to contact today, in one line, with the link.
    - Best idea of the day in one sentence.
    - Why it matters today.
-   - Content asset status: draft ready, approval required, ready for production, published, needs human detail, needs visual assets, or blocked.
+   - Content decision status: evidence ready, comment evidence unavailable/stale, needs research refresh, or ready for a separate writing task.
    - Competitor signal count.
    - One recommended next action.
 
@@ -1270,7 +1195,7 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - Per source: coverage and data quality, evidence ledger, contribution to the combined
      `Lead & Competitor Opportunities` and Idea Matrix, and any blocker or limitation
      (stated in client-safe language, without internal collector/extension/login details).
-   - Best idea and draft/recommendation are reported once at the report level (see
+   - Best idea and content decision packet are reported once at the report level (see
      `Today's Recommendation`), not duplicated per source.
    - A source that needed the human's own logged-in session to read (for example Facebook or
      Instagram) is presented the same as any other source — never singled out or labeled
@@ -1336,6 +1261,9 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
      - Value-first status: `pass`, `rewritten`, or `promotional_not_value_first`.
      - Prior related idea/date when the idea reuses a topic from history.
      - New angle explanation when applicable.
+     - Evidence ID(s) and evidence count.
+     - Freshness and confidence.
+     - Representative excerpt(s) when safe.
      - Reference URL(s).
      - Short rationale.
    - Do not use the client's product/service name as the main value of the idea. The product/service may appear only in `soft business relevance`, a case-study note, or a gentle CTA after the educational value is clear.
@@ -1365,22 +1293,12 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - If no leads/competitors were found, say whether that means `none found after scanning`, `coverage from connected sources only, more pending connection`, or `source unavailable`. Keep Local Collector/login/session mechanics in `INTERNAL_REPORT`.
    - If competitor data is inferred without a captured URL, label it as market hypothesis, not detected competitor evidence.
 
-11. `Production-Ready Drafts`
-   - For video, this section is a selection surface: the five versions are candidate script options for human/automation choice, not final provider-ready payloads.
-   - Use complete version names:
-     - `Version 1: VE — Value Explainer`
-     - `Version 2: QA — Client Q&A`
-     - `Version 3: POV — POV`
-     - `Version 4: CS — Case Study`
-     - `Version 5: MB — Myth-Buster`
-   - Each version should be a usable draft, not only a one-line angle, unless the report explicitly labels it as an angle preview.
-   - These five versions are also ATTACHED to the queued best idea in the provider production plan (04/entrypoint own that payload: `recommended: true` + `scripts[]` + `recommended_format`) — the report and the Saved Ideas screen must show the same five versions, verbatim.
-   - For each version, include hook/opening, body, CTA, tone, estimated length, source references, and production notes.
-   - Do not spend report time sourcing or vetting inline image/video URLs for all five video options. Label video options as `script option, visual treatment pending` unless a selected-version WideCast skill pass has already produced the final inline media treatment.
-   - If visual/media URLs are required for immediate video creation but are missing, label the draft as `script-ready, media-pending`.
-   - If a selected version has already passed the WideCast video script-writing skill's Stage 2 visual treatment, label that one selected version `final script ready for provider`, not all five options.
-   - If an approved video/blog/social asset has already been created, include the produced asset URL/status and label it `asset-created`, `ready-to-publish`, or `published`.
-   - If human approval or missing client detail is still needed before creating the asset, say that clearly in client-safe language. Put provider/setup blockers in `INTERNAL_REPORT`.
+11. `Content Decision Packet`
+   - For each Top 3 card and the Best Idea, show the audience pain/question, viewer lesson, non-promotional angle, recommended format, content objective, evidence count, freshness, confidence, representative evidence where safe, and reference URLs.
+   - Keep the link between each idea and its evidence IDs visible enough for a separate writing task to retrieve the right bundle.
+   - State `comment evidence unavailable` or `comment evidence stale` when the Content Evidence Bank snapshot could not be used. Never imply comments were harvested in Daily Run.
+   - Do not include a full script, blog/article, caption, hook set, CTA, storyboard, production brief, writing-method details, or provider payload.
+   - If the human wants content, the primary next action is to select an idea for a separate writing task. Multiple full variants require an explicit request.
 
 12. `Compliance And Brand Safety`
    - Include short risk notes for legal, financial, insurance, medical, regulated, or sensitive industries.
@@ -1392,9 +1310,9 @@ Required report hierarchy (this list defines what each section CONTAINS for the 
    - Secondary actions may be listed below, but they must not compete with the primary next action.
    - Before the first agency run, if schedule/routine is not configured yet, the primary next action should be schedule/routine setup.
    - After schedule/routine is configured but the first agency run has not happened, the primary next action should be handoff to the exact client-specific automation task. In Setup Flow, do not ask whether to run the first agency run now.
-   - After the first Automation Flow report/draft exists and PDNA setup - Production, Distribution, Notification, and Analytics - has not been completed/declined/blocked, the primary next action should usually be that setup gate.
+   - After the first Automation Flow report exists and PDNA setup - Production, Distribution, Notification, and Analytics - has not been completed/declined/blocked, the primary next action should usually be selecting an idea for writing or completing that setup gate, whichever is actually needed.
    - For client-facing reports where a source is not yet connected or found sources are awaiting approval, the primary next action should usually be reviewing/approving additional source coverage or continuing with the sources already connected. Put Local Collector activation mechanics in `INTERNAL_REPORT`.
-   - Do not ask "make a video now?" as the primary next action immediately after the first Automation Flow report/draft; production/provider setup comes first.
+   - Do not ask "make a video now?" as the primary next action immediately after the first Automation Flow report; select an idea for separate writing or complete production/provider setup first.
 
 ### Report Handoff Chat Rule
 
@@ -1451,7 +1369,7 @@ Professional presentation rules:
 - Avoid emoji-heavy, gimmicky, or dashboard-toy styling. A small number of status symbols is acceptable, but the report should feel client-ready.
 - Use tables only when they make comparison or verification easier.
 - When using tables, make the mobile behavior explicit in the HTML/CSS: wrap wide tables in a scroll container or switch to cards. Never let a table widen the whole page on mobile.
-- Put reference links beside the claim, idea, lead, competitor, or draft they support. Do not hide all references in one generic source list.
+- Put reference links beside the claim, idea, lead, competitor, or content-decision field they support. Do not hide all references in one generic source list.
 - Label missing data honestly: `not scanned`, `pending activation`, `session expired`, `not detected`, or `low confidence`.
 - Do not pretend research from a source that has not run yet has coverage it does not have.
 
@@ -1460,7 +1378,7 @@ Recommended HTML section order (this order applies to the combined `{client-name
 ```text
 1. People To Contact Today (the leads, hottest first — see the rule below)
 2. Top 3 Ideas Of The Day
-3. Production-Ready Drafts (the five script versions, directly under the Top 3)
+3. Content Decision Packet (evidence-rich fields, no drafts)
 4. Idea Portfolio
 5. Lead & Competitor Opportunities
 6. Executive Snapshot
@@ -1492,9 +1410,9 @@ reads like a broken report.
 
 Static HTML reports are not application UIs. The agent must not create buttons that imply an action will happen when the human taps them unless the button is backed by a real working URL or local browser action. For approval, revision, choosing another idea, production, publishing, or outreach, the client-facing report should say what decision to make or what wording to approve without naming Solo Agency, WideCast, providers, or tools. Operator-only instructions about where to open WideCast or another provider belong in `INTERNAL_REPORT`. For lead/competitor comments, a local `Copy comment` button is allowed only if it copies the suggested comment text and does not imply auto-posting.
 
-### Editable Draft Review Blocks In HTML
+### Editable Draft Review Blocks In Standalone Writing Artifacts
 
-When the client-facing report contains script, blog/article, or social-caption drafts, the HTML report should present each draft version in an editable block so the reviewer can quickly revise the wording inside the browser and copy the final text for review or production.
+This applies only to a standalone writing artifact explicitly requested after an idea is selected. Daily Run reports never contain script, blog/article, or social-caption drafts. A standalone writing artifact may present a draft in an editable block so the reviewer can revise wording and copy final text for review or production.
 
 This is a local review convenience, not a publishing or approval system.
 

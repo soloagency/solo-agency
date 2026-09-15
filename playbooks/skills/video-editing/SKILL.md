@@ -2,7 +2,7 @@
 
 Version: `modular-2.0` · This file is the **MASTER INDEX**. It is intentionally small so every host/MCP runtime can deliver it without hitting per-tool-call output caps. Every detail — rules, jump-prevention triggers, DoD gate templates, principles, workflow, quality bar, priority order — lives in **separate modules** under `ai_video_editor/`. Reach a step → open the matching module → then act.
 
-The goal of the AI video editor is to audit each scene for the two things WideCast (a blind server) CANNOT judge, and fix them: **(1) whether the background clip actually fits what is being said and the target market's geography/context, and (2) whether image-model-generated text (illustrations/charts) has typos.** Everything mechanical — overlay placement, dead-zone avoidance, keeping overlays off the narrator face, whether a scene needs an overlay at all — is already guaranteed by the server; the agent does NOT re-verify it. Plus the always-cheap data checks: `text`/STT context correctness.
+The goal of the AI video editor is to audit each scene for the things WideCast cannot infer safely: **(1) whether the background clip fits what is being said and the target market's geography/context, and (2) whether the authoritative `text` field is correct in context and in the scene's language.** WideCast renders deterministic overlay text correctly; the agent does **not** OCR or proofread that rendered text again. Everything mechanical — overlay rendering, placement, dead-zone avoidance, keeping overlays off the narrator face, whether a scene needs an overlay at all — is guaranteed by the server. Gate 4 is therefore a data-only integrity/provenance guard, with visual fallback only for unverified non-deterministic, legacy, user-uploaded, or baked-text sources.
 
 > **Overarching principle — name the field, do not guess.** Stick to the exact field name in the data: `show_narrator=true` (not "the scene has a narrator"), `pattern="illustration"` + `sub_mode` (not "it's an image"). Route the conditional gates from data, not from a screenshot.
 
@@ -35,7 +35,7 @@ The 5 modules below carry the rules + workflow that apply across the whole run. 
 
 1. **`ai_video_editor/01_critical_rules`** — critical rules that hold across every scene + the self-audit checklist run before each reply.
 2. **`ai_video_editor/02_jump_prevention`** — "about to do X → STOP, do Y first" interrupt list.
-3. **`ai_video_editor/03_dod_gates`** — per-scene Definition of Done (5 gates) + template blocks (Gate 3 background proof, Gate 4 overlay-text typo table, module coverage).
+3. **`ai_video_editor/03_dod_gates`** — per-scene Definition of Done (5 gates) + template blocks (Gate 3 background proof, Gate 4 overlay integrity/provenance, module coverage).
 4. **`ai_video_editor/04_principles_workflow`** — §1 general principles, §2 whole-video workflow (initial context pass + roster/ledger init), §10 reminders.
 5. **`ai_video_editor/05_quality_qa_priority`** — §7 Quality Standard, §9 priority order for gate conflicts.
 
@@ -65,7 +65,7 @@ The **Module id** column is what you pass to `widecast_get_editing_skill(module=
 | Pattern is OTHER (`map_chart`/`comparison_table`/`timeline_events`/`checklist_tips`/`quote_card`/`illustration`/`hybrid_vertical`/`real_entity`/`typography_only`/`narration_only`) | **`ai_video_editor/33_patterns`** |
 | About to spawn ANY subagent for scene work (scene editors, fix agents) · edit-session start/commit | **`ai_video_editor/06_subagent_protocol`** |
 
-*(`30`/`31`/`32`/`33` + style libs load ONLY when you must fix an overlay defect — the server authors overlays and guarantees placement; you don't build/audit them routinely. `40_thumbnail_cta` is RETIRED + dormant: kept on disk for possible future re-enablement but never loaded or used — the opening-frame hook lives inline as the Gate 4 OPENING POSTER CHECK in `03_dod_gates`. A module whose title/summary/banner says RETIRED is intentionally dormant: the fail-open "load unknown modules" rule does NOT apply to it — skip it.)*
+*(`30`/`31`/`32`/`33` + style libs load ONLY when you must fix an overlay defect — the server authors overlays and guarantees placement; you don't build/audit them routinely. `40_thumbnail_cta` is RETIRED + dormant: kept on disk for possible future re-enablement but never loaded or used. There is no routine opening-poster gate. A module whose title/summary/banner says RETIRED is intentionally dormant: the fail-open "load unknown modules" rule does NOT apply to it — skip it.)*
 
 **Adding modules later — fully automatic, ZERO formatting required.** Drop a new `.md` file anywhere under `widecast/skills/video-editing/` and it appears in the live `available_modules[]` index returned by the entry call. The server auto-generates `title` (first H1 → first H2 → first content line → filename basename) and `summary` (first ~200 chars of meaningful content). No code change, no SKILL.md edit, no required formatting.
 
@@ -77,17 +77,17 @@ If you see an available module whose `title`/`summary` matches a step that this 
 
 Load the module for the full text + nuance. These headlines are reminders, not the rules themselves.
 
-0. **One user-visible render per image (anti-double AND anti-zero).** Any evidence image (background plate, overlay poster, AFTER composite) must be saved locally and produce EXACTLY ONE user-visible inline render before you judge from it — never two (don't view + also embed a markdown tag), never zero (a private `Read` the user only sees as a file card does NOT count as shown). Decide the host's render mechanism once per session.
-1. **Name the field, never guess.** Selector = `voice_file` (not `id`). A `modify_scene` 200 under the edit session is durable — the ONE Gate 5 AFTER look (poster/composite) is the save-confirmation; no separate re-pull.
+0. **One user-visible render per image (anti-double AND anti-zero).** Any evidence image (background plate, exceptional fallback overlay poster, AFTER composite) must be saved locally and produce EXACTLY ONE user-visible inline render before you judge from it — never two (don't view + also embed a markdown tag), never zero (a private `Read` the user only sees as a file card does NOT count as shown). Decide the host's render mechanism once per session.
+1. **Name the field, never guess.** Selector = `voice_file` (not `id`). A `modify_scene` 200 under the edit session is durable; Gate 5 uses refreshed source/integrity data for a text edit or one AFTER composite for a background edit.
 2. **Runtime = autonomous, end-to-end.** Work scene 2 → last content scene in ONE pass. Never pause to ask. No `A or B?` questions to the user.
-2a. **Decision protocol — choose, don't defer.** Priority: content correctness → background fit → image-gen text correctness → minimal necessary edit. Trust the server for placement; don't invent extra work.
+2a. **Decision protocol — choose, don't defer.** Priority: authoritative `text` correctness → background fit → overlay provenance integrity → minimal necessary edit. Trust deterministic rendering and server-managed placement; don't invent extra work.
 2b. **WideCast edit trigger = full autonomous run.** "edit this video" + a WideCast URL/`topic_id` = full audit + fix. Never ask scope.
-2c. **Proof is a process artifact — no request suppresses it.** "Be concise / save credits / go fast" only shortens the final summary; it never cancels the applicable gate proofs (Gate 3 background, Gate 4 typo table) or module loads.
+2c. **Proof is a process artifact — no request suppresses it.** "Be concise / save credits / go fast" only shortens the final summary; it never cancels the applicable gate proofs (Gate 3 background, Gate 4 integrity/provenance) or module loads.
 3. **Server guarantees placement — the agent does NOT audit it.** WideCast keeps every overlay object out of dead zones, off the narrator face, and inside the safe zone even after auto-fit, and decides whether a scene needs an overlay. **Do NOT re-verify any of this** — no dead-zone proof, no face-clearance, no A-roll layout ladder, no final-composition tuning, no overlay-existence decision. These are gone.
-4. **The agent's whole job = the two WideCast blind spots + text.** (Gate 3) does the background clip fit the narration + target-market geography/context; (Gate 4) does image-model-baked text have typos. SVG typography text is deterministic and NEVER misspells — skip its typo check entirely. Plus (Gate 1) `text`/STT context correctness.
+4. **The agent's whole job = source text + background fit.** Gate 1 checks the authoritative `text` field in whole-video context and according to the scene's language. Gate 3 checks background fit. Gate 4 only confirms that deterministic overlay output is tied to the current source and healthy; it does not OCR rendered text.
 5. **Layer isolation + fixed narrator.** A background fix touches ONLY `mediaUrl`/`mediaType` — never the overlay. Never edit `narrator_face`, never resize/reposition the narrator (the server keeps overlays off the face for you).
 6. **Gate 3 — background audit (conditional).** Applies only when the scene is NOT grid AND the narrator does not fill the frame (both from data). Look = the active plate; judge semantic/logic/geo/currency/context fit; fix via `mediaUrl` only.
-7. **Gate 4 — overlay text typo (conditional).** Applies only when overlay text was image-model-generated (`illustration` sub_mode≠`photo_with_people`, or chart/diagram/object with baked text). Look = the overlay poster; print the per-string transcription table (transcribe letter-by-letter FIRST, judge after). SVG/typography → N/A.
+7. **Gate 4 — overlay integrity/provenance (data-only by default).** PASS when server evidence confirms deterministic source, `overlay_source_text_hash == current_text_hash`, successful render, no truncation, no missing glyph, and matching scene/`voice_file`. No OCR/poster check. Missing/mismatched evidence or a non-deterministic, baked, user-uploaded, manually overridden, or legacy source → `UNVERIFIED`, then inspect only that exceptional source.
 8. **Grid ≤ 3 scenes/video, all sharing ONE grid.**
 9. **Show found media in chat BEFORE evaluating** (background candidates when replacing a clip). No private preview first.
 10. **Each scene is complete on its own — there is NO whole-video QA pass at the end.** When a scene reaches PASS it is done and not revisited.
@@ -109,8 +109,8 @@ If you're about to do any of these, STOP and do the prerequisite first:
 - Gate 3 applies (non-grid, narrator not covering frame) → load `20_background`, pull the plate, print Gate 3 BACKGROUND PROOF
 - about to audit dead-zone / face-clearance / overlay-existence / composition → STOP, the server guarantees these; do not re-verify
 - about to run an A-roll layout ladder / resize the narrator → STOP, the narrator is fixed input and the server keeps overlays off the face
-- Gate 4 applies (image-gen text) → pull the overlay poster, print the per-string typo table (transcribe first)
-- about to typo-check an SVG/typography overlay → STOP, deterministic text never misspells; mark Gate 4 N/A
+- Gate 4 on a deterministic overlay → verify server provenance/integrity fields from data; do not pull or OCR the poster
+- Gate 4 provenance is missing/mismatched, or source is non-deterministic/baked/user-uploaded/manual/legacy → mark `UNVERIFIED` and use the narrow fallback inspection
 - act on an image you have not SHOWN locally (one user-visible render) → show it first
 - ask the user to choose/approve during runtime → STOP, decide yourself
 - declare `Scene N: PASS` without scanning the 5 gates + §7 → run the scan
@@ -130,10 +130,10 @@ If you're about to do any of these, STOP and do the prerequisite first:
 Print this 5-gate checklist VERTICALLY at the start of every scene; tick ✓/✗/N-A at the end and state `Scene N: PASS|FAIL`. Gates 3 and 4 are CONDITIONAL — routed from data at Gate 2; many scenes take 0–1 image looks.
 
 1. ☐ **Text / STT** — read `text` in whole-video context, fix STT/context/domain errors (branch K). No look.
-2. ☐ **Role / route** — read `type`/`pattern`/`sub_mode`/`show_narrator`/`mediaType` to decide whether Gate 3 and Gate 4 apply. No look.
+2. ☐ **Role / route** — read `type`/`pattern`/`sub_mode`/`show_narrator`/`mediaType` plus overlay provenance to decide whether Gate 3 applies and whether Gate 4 is deterministic, exceptional fallback, or N/A. No look.
 3. ☐ **Background audit** — *only if non-grid AND narrator doesn't fill the frame.* Load `20_background`, pull the plate, print Gate 3 BACKGROUND PROOF (semantic/geo/context). Else `N/A`.
-4. ☐ **Overlay text typo** — *only if overlay text was image-model-generated.* Pull the overlay poster, print the per-string transcription table. SVG/typography or no overlay text → `N/A`. **Opening-scene exception:** the first content row (`opening`) ALWAYS pulls the poster + runs the OPENING POSTER CHECK (aesthetic hook pass) even for typography — rebuild if it clearly falls short (cap 1), author one if none exists.
-5. ☐ **Confirm & save** — if you edited: one AFTER look + re-pull to confirm saved. If no edit → `N/A`. Then print MODULE COVERAGE GATE.
+4. ☐ **Overlay integrity/provenance** — data-only for deterministic overlays; never OCR the poster. Use the narrow fallback only when provenance is unverified or the source is non-deterministic/baked/user-uploaded/manual/legacy. No overlay → `N/A`.
+5. ☐ **Confirm & save** — if you edited: use the proof appropriate to the edit (saved `text`/integrity data for text; AFTER composite for background). If no edit → `N/A`. Then print MODULE COVERAGE GATE.
 
 All applicable gates met + §7 (`05_quality_qa_priority`) scan → `Scene N: PASS`. Otherwise `Scene N: FAIL — ✗K …`; fix and re-scan. The server guarantees placement/dead-zone/face/composition — do NOT add gates to re-verify them.
 
@@ -151,7 +151,7 @@ Silently confirm — and fix any "no" before replying:
 - About to summarize/hand-off/export? Ran Pre-summary completion scan against the run_ledger roster?
 - Human must act? Used a standalone `[ACTION REQUIRED]` block?
 - Did any module read error/truncate/compact this session? If yes, re-read to EOF / re-anchor on run_ledger before proceeding?
-- Am I dropping/compressing an applicable proof (Gate 3 background, Gate 4 typo table) to be "concise"? If yes, restore it.
+- Am I dropping/compressing an applicable proof (Gate 3 background, Gate 4 integrity/provenance) to be "concise"? If yes, restore it.
 - Spawning/accepting subagent work? Loaded `06_subagent_protocol`, started the edit session, used the fixed template with `Scene <id> editor agent` names + local `skill_root`, validated each report's LOAD LEDGER + write scope, viewed no images myself, and committed the session before hand-off?
 
 ---

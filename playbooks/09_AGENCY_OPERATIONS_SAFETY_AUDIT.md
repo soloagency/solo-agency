@@ -19,8 +19,8 @@ Load before claiming setup, daily run, private data source setup, schedule, prod
 - Creating or re-timing a client automation task without Stage 4's Time-slot collision rule (`tool schedule-slots suggest` before, `register` after) is a workflow violation: with mixed cadences an unchecked start time can pile more than `max_concurrent_tasks` (system_settings.json, operator-editable at `/ui/settings`) onto one slot. Stage 4 names one exception — the first task of a fresh install, created before the bridge that carries the tool is installed. That is a violation only if the manifest carries no `slot_check_pending: true`, or if the flag is still there after the bridge exists: an unregistered task that has outlived its excuse is the thing this rule is protecting against.
 - Before claiming any Solo Agency update/upgrade/sync-latest work is complete, verify Stage 11 was loaded, GitHub `main` was checked from a verified source, backups/logs were written, clients and automations were resynced, and bridge/extension human actions were given when required.
 - Treat local DIY video production as a critical workflow violation when client-scoped PDNA/video provider setup is missing, unverified, mismatched, or missing the required operation. Do not create MP4/MOV/GIF/slideshow/rough video files with `ffmpeg`, Pillow, `moviepy`, browser/canvas screenshots, Remotion, or similar fallback renderers.
-- Treat sending a report script, Markdown source record, previous draft, or content-history script directly to a video provider without first loading and applying the existing WideCast video script-writing skill as a critical workflow violation. The skill pass must run research and Stage 2 inline-media/direct-image-URL workflow when relevant, even if PDNA is missing and the run can only stop at a script/production-brief blocker. Editing, replacing, summarizing, or reimplementing the WideCast skill is also a workflow violation.
-- Treat generating a second five-version script set during video production as a workflow violation when a report version/code, pasted edited version, or automation recommended/approved version already exists. In that case the agent must process only the selected version/code through the WideCast skill's research, factual-core, Stage 2 visual treatment, inline media, media pool, and production handoff standards.
+- Treat sending a historical-report script, standalone writing artifact, Markdown source record, previous draft, or content-history script directly to a video provider without first loading and applying the existing WideCast video script-writing skill as a critical workflow violation. The skill pass must run research and Stage 2 inline-media/direct-image-URL workflow when relevant, even if PDNA is missing and the run can only stop at a script/production-brief blocker. Editing, replacing, summarizing, or reimplementing the WideCast skill is also a workflow violation.
+- Treat generating unrequested alternative full scripts during video production as a workflow violation when a selected idea, pasted edited draft, or automation-approved writing artifact already exists. In that case the agent must process only the selected direction through the WideCast skill's research, factual-core, Stage 2 visual treatment, inline media, media pool, and production handoff standards.
 - Before claiming any report run is complete, verify Stage 6 loaded `playbooks/skills/report-design/SKILL.md` and that client-facing HTML/PDF was generated with `tools/solo_tool render-report` or a reusable approved template. One-off report/PDF scripts are a workflow violation unless the exact blocker and approved exception are logged.
 
 ## Latest Override: Setup Flow And Client Isolation Audit
@@ -42,7 +42,7 @@ Before claiming Automation Flow completion for a client:
 - Confirm the client has one canonical combined client-facing report for the day/run: `{client-name}-client-report.html`, built from scrubbed staging files `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
 - Confirm the report-design skill was loaded before report generation/repair and `tools/solo_tool render-report render` or a reusable approved template produced the client-facing HTML.
 - Confirm `tools/solo_tool render-report package` or a reusable approved package template produced the PDF companion package, or the exact PDF blocker is logged.
-- Confirm the public report and private report have separate source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation.
+- Confirm the public report and private report have separate source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and content-decision packet.
 - Confirm the private pass did not overwrite, delete, reorder, summarize away, or regenerate the public report file.
 - Confirm `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` exists or the exact blocker is logged, and that its public/private statuses match the report set.
 - Confirm any public and private notifications point to `{client-name}-client-report.html` or its uploaded URL as the canonical handoff. Daily/public/private staging links should be omitted unless requested for diagnostics.
@@ -314,7 +314,7 @@ The correct order is fixed:
 6. Update every persistent state file that the next automation run reads: Client Intelligence Profile, source state, collector config, extension registry, schedule, automation manifest, scheduled prompt/task body, and resync log.
 7. End Setup Flow with `ready_for_automation_first_run`, not `first_report_completed`.
 8. If the human wants PDNA setup - Production, Distribution, Notification, and Analytics - complete only the provider/configuration gate in Setup Flow.
-9. Reports, drafts, analytics, production, publishing, and private data source scans run only in Automation Flow.
+9. Reports, analytics, and private data source scans run only in Automation Flow. Draft writing, production, and publishing run only as separate explicit jobs or separately configured automations.
 
 First automation report rule:
 
@@ -326,11 +326,11 @@ First automation report rule:
 - If private data source discovery was approved but not yet run, the automation report must include `Private Data Source Discovery Pending Activation`.
 - That section must list the private data source URLs or discovery categories, explain that they were not scanned yet, and say that activation requires the Solo Agency Local Collector extension plus Local Collector app.
 - `Private Data Source Discovery Pending Activation` is valid ONLY together with the exact collector blocker that prevented the scan (collector not installed/unreachable/unhealthy, stale or mismatched extension, `collector_status_unverified`). When discovery is approved AND Collector Runtime Verification shows a healthy current-workspace bridge with a recent matching extension, the run must execute the discovery job instead of writing this section — see the Automation run-now rule below.
-- The automation report must include at least one draft script/blog/caption or a clear report section containing the draft.
+- The automation report must include an evidence-rich Content Decision Packet and must not include a full script, blog, caption, hook set, CTA, storyboard, or production brief.
 - The automation report must ask a clear next-step question after delivering the useful output. Unless PDNA setup - Production, Distribution, Notification, and Analytics - was already completed or explicitly declined, the next-step question should be:
 
 ```md
-Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
+Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so ideas you choose can move through separate writing and approval into real assets, and the system can learn from performance later?
 ```
 
 The automation agent must ask this question directly in the chat message or notification where it announces the first report result. It must not hide the question or setup steps inside a Markdown file.
@@ -344,7 +344,7 @@ The first automation report is ready.
 
 Best idea today: {best idea}
 Report for mobile: {absolute HTML path or URL}
-First draft: {script/blog/caption title}
+Recommended next writing action: {format and selected idea title}
 
 Solo Agency automation process
 This is the planned automation process for this client. You only need to reply when I ask one specific question.
@@ -358,7 +358,7 @@ This is the planned automation process for this client. You only need to reply w
 ✓ 7. I dispatched the first run through the client-specific automation task
 → 8. I help set up PDNA: Production, Distribution, Notification, and Analytics
 – 9. From the second run onward, if PDNA is set up, I scan analytics for published URLs from the last 7 days
-✓ 10. I created the HTML report, idea matrix, Lead & Competitor Opportunities, competitor signals, and first script/blog/caption draft in Automation Flow
+✓ 10. I created the HTML report, evidence-rich idea matrix, Lead & Competitor Opportunities, and competitor signals in Automation Flow
 
 The operator-only `INTERNAL_REPORT` includes the PDNA/WideCast status and setup note. Client-facing reports do not mention Solo Agency, WideCast, provider tooling, Local Collector, automation, API keys, Telegram, or internal system details.
 
@@ -366,7 +366,7 @@ If any voluntarily supplied custom source is waiting for the Local Collector, th
 - {source name or URL}
 - {source name or URL}
 
-Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so approved drafts can become real assets and the system can learn from performance later?
+Do you want me to set up PDNA - Production (create real video/blog/social assets), Distribution (publish approved content), Notification (send reports/blockers), and Analytics (measure results) - so ideas you choose can move through separate writing and approval into real assets, and the system can learn from performance later?
 ```
 
 Bad first automation report chat pattern:
@@ -402,7 +402,7 @@ Automation run-now rule:
 - If the Local Collector app is already installed, running, healthy, and matched to the target client's extension identity, the Automation Flow agent MUST include private data sources by creating a run-now job. In particular, when joined-places discovery was recorded at the step-7 yes but has not run yet (`approved_pending_first_scan`), the first Automation Flow run with a healthy collector MUST create the discovery run-now job (`job_type: "private_data_source_discovery"`), judge every readable result with the Group Potential Rule, register high/medium ones as monitored, and list them in the run reply with the Sources page link (no approval block) and INTERNAL_REPORT (never the client notification or client-facing report). Deferring an approved, collector-healthy discovery to a later run without an exact blocker is a safety-audit failure.
 - Discovery never waits on human approval any more: once `private_data_source_discovery.status` is `approved_pending_first_scan`, the first healthy-collector run executes it and files the results straight into the source registry (Group Potential Rule) — nothing is re-surfaced for review.
 - If the Local Collector app is not installed/running/healthy or the matching extension is stale, the Automation Flow agent should run public data sources and list private data sources as pending activation with the exact blocker (`collector_offline_or_unreachable`, `extension_stale`, `wrong_workspace_bridge`, or `collector_status_unverified`). That blocked state is the ONLY one that may leave approved discovery unrun.
-- The automation report output must include a mobile-friendly HTML report, a concise summary, and at least one useful draft script/blog/caption.
+- The automation report output must include a mobile-friendly HTML report, a concise summary, and an evidence-rich Content Decision Packet. It must not include full content drafts.
 - If the client's WideCast/OpenAPI provider config is not connected and verified, the operator-only `INTERNAL_REPORT` and chat handoff must include the PDNA setup note so the human sees how the useful report can become video/blog production, 10+ platform distribution, Telegram notifications, performance measurement, and a learning loop after one WideCast setup. Client-facing reports must not include this note.
 
 Manual run / run-now rule:
@@ -637,7 +637,7 @@ For each daily run:
    20. Check `history/YYYY-MM/content_log.md`, including the recent primary/related ratio and duplicate/near-duplicate idea risk.
    21. Perform the Idea Novelty Check: prefer at least 3 candidate ideas that are new or newly angled. If a prior topic is reused, record the prior idea/date, today's new angle, and why the re-angle is materially different.
    22. Select the Top 3 by role per Stage 4's Top 3 Role Rule (hottest / new development / foundation), only from ideas that pass the Audience Value-First Gate; when the profile has no `foundation_bank` yet, generate it in setup-repair mode first (no questions to the human).
-   23. Write the configured production-ready draft using Client tools/OpenAPI first, global MCP/native tools only after identity match, or the writing skill fallback if provider/account access is unavailable. Drafts must preserve the viewer-value lesson and must not become direct ads for the client's product/service. Keep writing-method/provider details in `INTERNAL_REPORT`, not client-facing files.
+   23. Build the Daily Run decision payload only: Best Idea, Top 3, idea IDs, evidence IDs/count, representative excerpts where safe, reference URLs, confidence, freshness, audience pain/question, viewer lesson, non-promotional angle, recommended format, and content objective. Daily Run does not write scripts, blogs, captions, hooks, storyboards, or provider payloads; it does not load writing skills or production providers.
    24. Save `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-daily-report.md` as the internal source-of-truth report.
    25. Generate the three-file scrubbed staging HTML report set under `outputs/YYYY-MM/YYYY-MM-DD/`: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html` (staging index).
    26. Create or update the operator-only `{client-name}-INTERNAL_REPORT.html` and copy it to `outputs/latest/{client-name}-INTERNAL_REPORT.html`, labeled `INTERNAL_REPORT - Not for client sharing`.
@@ -898,7 +898,7 @@ I manage these clients. Set up one pipeline for each. Ask only for missing criti
 ### Run Daily Pipeline
 
 ```md
-Run the daily content pipeline for every active client in clients_index.md. Produce today's idea lists, selected best ideas, configured production-ready drafts, and the master digest.
+Run the daily content pipeline for every active client in clients_index.md. Produce today's evidence-rich idea matrix, selected best ideas, Top 3 recommendations, and the master digest. Do not write full content drafts.
 ```
 
 ### Add Custom Sources Later
@@ -1386,7 +1386,7 @@ Initial setup is complete when:
 18. If the client's WideCast/OpenAPI provider config is not connected and verified, the automation report contract requires the PDNA/WideCast setup note in `INTERNAL_REPORT` and the operator handoff, not in client-facing reports.
 19. The setup handoff dispatched the first report's client-specific automation task and said so (or, when it could not be started, ended with the exact `**[ACTION REQUIRED]**` task/action and reason). On the no-required-action branch it includes the feature-discovery block plus Revenue Engine awareness anchor before its closing question; on the required-action branch both are omitted and deferred so the required block remains the exclusive close. That dispatch never fired before the automation task step (step 6) existed, even though step 4 already resolved `facebook_lead_source` earlier — AND it never fired while `facebook_lead_source` was still `pending`; only `enabled` or `web_only` unblocks the first dispatch — Instagram and X follow automatically.
 20. Any required human action is also shown directly in the current chat message with one clear command, one double-clickable launcher path, or one absolute extension folder path. Markdown-only setup instructions are a failure.
-21. Only after the first agency report and draft are shown does the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
+21. Only after the first agency report and its Content Decision Packet are shown does the agent ask whether to set up PDNA - Production, Distribution, Notification, and Analytics.
 22. After the schedule/automation exists, the agency-wide `Solo Agency - GitHub Update Watch` task was CREATED, or its pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it - not silently skipped. Default posture is notify-first (`auto_apply_approved: false`).
 
 Recurring schedule setup is complete when:
@@ -1409,7 +1409,7 @@ A daily run is complete when:
 7. One best public idea and one best private idea are selected for each processed client when data exists, plus any overall recommendation if useful.
 8. Each idea maps to a content pillar when possible.
 9. Each idea is labeled as `primary_industry` or `related_industry`, with a visible related-industry note and bridge-back logic shown for related-industry ideas.
-10. One production-ready draft is written for each processed client, defaulting to video script and adding blog/article or social caption when configured.
+10. Every Best Idea and Top 3 card includes an idea ID, evidence trail, recommended format, content objective, confidence, freshness, and a clear next writing action. No full video/blog/social draft is written in Daily Run.
 11. One per-client canonical three-file client-facing HTML report set is created for each processed client: `{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, and `{client-name}-daily-report.html`.
 12. The operator-only `{client-name}-INTERNAL_REPORT.html` is created for each processed client and clearly labeled `INTERNAL_REPORT - Not for client sharing`.
 13. The client-facing HTML report set passes the Client-Blind Scrub Gate and does not mention Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, `INTERNAL_REPORT`, any `127.0.0.1` collector URL, plan/lock-status language (`locked by plan`, `đang khoá theo gói`), internal tool names (`crm-store`, `public-keywords`, `source-keywords`, `lock-status`), or next-jobs/upgrade language (`NEXT_JOB_CATALOGUE`, "next jobs", `nâng cấp tại`).
@@ -1491,8 +1491,8 @@ Before replying to the human, verify:
 - [ ] If I mentioned a report and any workflow step remains, did I include both the progress block and the required next-step question in chat instead of relying on the report's `Next Action` section?
 - [ ] If I checked tools/capabilities or claimed a tool was available/unavailable, did I check Client tools first (`provider_config.local.json`, OpenAPI cache/spec, verified identity, `provider_capabilities.json`) and global MCP/native tools only second?
 - [ ] If video creation/render/export was requested and client-scoped PDNA provider setup was missing or blocked, did I stop at script/storyboard/production-brief work, explain the provider requirement, and use a `**[ACTION REQUIRED]**` block instead of creating local video media?
-- [ ] Before any video provider creation request, did I treat report scripts as reference only and create a final WideCast-grade script/brief by loading and applying the existing video script-writing skill, including research and inline-media/direct-image-URL workflow where verifiable?
-- [ ] If a report version/code or automation recommendation already existed, did I process only that selected version and avoid generating a second five-version set?
+- [ ] Before any video provider creation request, did I treat historical-report scripts, standalone writing artifacts, and earlier drafts as reference only and create a final WideCast-grade script/brief by loading and applying the existing video script-writing skill, including research and inline-media/direct-image-URL workflow where verifiable?
+- [ ] If a selected idea, edited draft, or automation-approved writing artifact already existed, did I process only that direction and avoid generating unrequested alternatives?
 - [ ] In Setup Flow, did I avoid running the first agency run/report directly and instead prepare or resync the client-specific automation task?
 - [ ] In Automation Flow, did I avoid jumping to the first report before step 7's one first-run question (Chạy lượt đầu), schedule/routine, and the client-specific automation task were resolved or honestly marked pending? A voluntarily supplied custom source is never a first-report gate.
 - [ ] If I generated or announced an HTML report, did I generate/update the mandatory PDF companion or record the exact PDF blocker/status?
@@ -1772,22 +1772,24 @@ Before final report, verify:
 - [ ] For every friend-harvest run, do the kept rows have `fit: high` and a non-`competitor` decision from
       the rule (Step 1 + Step 2), with rejected rows carrying the rule's reason (`outreach/playbooks/16_FRIEND_HARVEST.md`)?
 
-### WideCast Writing Draft Checklist
+### Selected-Idea Writing Checklist
 
-Before presenting the content draft, verify:
+Run this checklist only for an explicit writing request or a dedicated writing automation, never for Daily Run reporting. Before presenting the content draft, verify:
 
 - [ ] Did I load the WideCast writing method through MCP, public API, static zip, or local cache?
 - [ ] If MCP/account was unavailable, did I continue through the public writing-skill fallback instead of blocking?
-- [ ] Did the draft match the selected best idea?
-- [ ] Did every draft variant use a clear label like `Version 1: VE — Value Explainer`, not an unexplained abbreviation like `VE` or `QA` alone?
+- [ ] Did the draft use the selected `idea_id` and its linked evidence bundle, rather than the full daily report or raw comment archive?
+- [ ] Did I create one strongest complete draft by default, with multiple complete variants only after an explicit request?
+- [ ] If helpful, did I offer no more than three short hooks or angles before the full draft?
 - [ ] Did the hook, headline, or opening speak to the target audience pain point?
 - [ ] Does the draft teach, clarify, warn, compare, or help the viewer make a better decision before mentioning the client's product/service?
 - [ ] Did I avoid turning the draft into a direct ad, client praise piece, competitor attack, or "why our product is better" pitch?
+- [ ] Did the draft pass the Client Removal Test: after removing the client name, product/service, offer, and CTA, does a coherent, useful audience lesson remain?
 - [ ] Did the draft include source-backed rationale?
 - [ ] If this is a video script, did I include visual notes?
 - [ ] Did I include CTA?
-- [ ] Before any provider video creation request, did I load and apply the existing WideCast video script-writing skill and save the final script/brief artifact instead of sending the report script unchanged or writing from agent memory?
-- [ ] If a report version/code was already selected, did I use that version as the picked script and continue into Stage 2 visual treatment only, instead of repeating Stage 1's five-format comparison?
+- [ ] Before any provider video creation request, did I load and apply the existing WideCast video script-writing skill and save the final script/brief artifact instead of sending a historical-report script or earlier draft unchanged or writing from agent memory?
+- [ ] If an idea/draft direction was already selected, did I use it as the picked input and avoid generating unrequested complete alternatives?
 - [ ] For visual-dependent videos, did the skill-produced final script include vetted direct image URLs, markdown image syntax, or a media-pool/visual blocker entry, with no fabricated URLs?
 - [ ] In manual/interactive work, did I stop after the final script/visual handoff and wait for explicit confirmation before provider video creation?
 - [ ] In scheduled Automation Flow, if I continued directly after the final skill pass, did I verify the run already had valid video-creation approval?
@@ -1865,7 +1867,7 @@ Before saying the run is complete, verify:
 - [ ] Did the client-facing HTML report follow the Agency-Grade HTML Report Standard, not merely list raw ideas?
 - [ ] Did the client-facing HTML/PDF pass the Client-Blind Scrub Gate: no Solo Agency, WideCast, PDNA/provider tooling, OpenAPI, MCP, Local Collector, Chrome extension, automation/scheduled task, API-key/config, Telegram, agent/tool/debug details, `INTERNAL_REPORT`, any `127.0.0.1` collector URL, plan/lock-status language (`locked by plan`, `đang khoá theo gói`), internal tool names (`crm-store`, `public-keywords`, `source-keywords`, `lock-status`), or next-jobs/upgrade language (`NEXT_JOB_CATALOGUE`, "next jobs", `nâng cấp tại`)?
 - [ ] Did I put all WideCast/provider/Telegram/social-platform/API-key/config/Local Collector/private source inventory/automation/blocker/debug details in `INTERNAL_REPORT`, not client-facing files?
-- [ ] Did the top of the report include an Executive Snapshot with source coverage status, best idea, lead/competitor counts, content readiness, blockers, and one recommended next action?
+- [ ] Did the top of the report include an Executive Snapshot with source coverage status, best idea, lead/competitor counts, content decision status, blockers, and one recommended next action?
 - [ ] If optional private data source discovery was asked, approved, pending, blocked, or completed, did the HTML report include a clear `Private Data Source Discovery` section?
 - [ ] Did the client-facing discovery section summarize only safe coverage/signal categories, while exact discovery categories, platforms/URLs, candidate sources, skipped/noisy sources, feed signals, approval needs, and internal mechanics are kept in `INTERNAL_REPORT`?
 - [ ] Did I include a claim-level Evidence Ledger for important facts, numbers, dates, laws, prices, platform policy claims, and market signals?
@@ -1875,7 +1877,7 @@ Before saying the run is complete, verify:
 - [ ] Did I include a Decision Scorecard comparing top candidate ideas before selecting the winner?
 - [ ] Did I clearly distinguish `not detected` from `not scanned`, `pending activation`, or `session expired` for leads and competitors?
 - [ ] If competitor data was only a hypothesis without profile/post URLs, did I label it as a hypothesis rather than detected competitor evidence?
-- [ ] Did the report include a Production Readiness status for each draft, such as `production-ready`, `script-ready, media-pending`, or `needs human detail`?
+- [ ] Did the report include a content decision status for each recommended idea: evidence availability/freshness, recommended format, content objective, and the next writing action?
 - [ ] Did the report end with exactly one primary next action, with secondary actions clearly de-emphasized?
 - [ ] Did the operator chat or notification that announces the report show an updated progress block when required steps remain?
 - [ ] If schedule/automation already exists, did that operator chat/notification and `INTERNAL_REPORT` include an `Automation freshness check` instead of only saying the config/report is updated?
@@ -1888,7 +1890,7 @@ Before saying the run is complete, verify:
 - [ ] Are wide tables/evidence ledgers/scorecards inside a dedicated scroll wrapper or converted to stacked cards, with long URLs/source names wrapping inside the container?
 - [ ] If the client's WideCast/OpenAPI provider config is not connected and verified, did `INTERNAL_REPORT` and the operator handoff include the PDNA/WideCast setup note, while the client-facing report stayed clean?
 - [ ] If WideCast Telegram is not connected yet, did `INTERNAL_REPORT` include a concise operator note about registering/logging in to WideCast and connecting Telegram for daily report links/blockers, while the client-facing report stayed clean?
-- [ ] If the report includes script/blog/social drafts, did I present each version in an editable HTML block with a working local `Copy this version` button?
+- [ ] If a separately requested standalone writing artifact includes script/blog/social drafts, did I present each requested version in an editable HTML block with a working local `Copy this version` button?
 - [ ] Did the HTML draft section avoid saying `AI chat`, `agent`, Solo Agency, WideCast, providers, or internal workflow mechanics?
 - [ ] Did every editable version clearly say the reviewer can copy the edited final text for review or production?
 - [ ] Did I update `outputs/latest/{client-name}-daily-report.html`, `outputs/latest/{client-name}-INTERNAL_REPORT.html`, and the latest lane HTML files when those lane reports exist?
@@ -1898,7 +1900,7 @@ Before saying the run is complete, verify:
 - [ ] Did I generate/update master digest if multiple clients exist?
 - [ ] Did I write the report in the human's language?
 - [ ] Did every user/operator-facing report link/path in chat, Telegram, or notification point to `.html`, not `.md`?
-- [ ] Did I avoid fake interactive buttons in static HTML, except real local copy buttons for editable draft review?
+- [ ] Did I avoid fake interactive buttons in Daily Run HTML, except real local copy buttons for lead/competitor comments? Any editable draft control belongs only to a separately requested writing artifact.
 - [ ] Did I include references/URLs in the report?
 - [ ] Did I notify the human through the configured provider notification channel if available, preferably WideCast OpenAPI `sendNotification`, relying on WideCast's email fallback if Telegram is not connected and fallback is available?
 - [ ] Did every report-ready notification include a client-openable hosted HTML report URL (plus PDF URL when hosted and the no-login link when minted), with NO local paths, INTERNAL_REPORT mention, status codes, or operator content? A plain "report ready" notification with no working link is invalid.

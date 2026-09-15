@@ -18,7 +18,7 @@ Load first for every setup or run. This stage contains the core reasoning model,
 - Human-facing text uses exactly three source words: default sources (Vietnamese: Nguồn mặc định), custom sources (Vietnamese: Nguồn custom), and discovered sources (Vietnamese: Nguồn tự phát hiện). The words public/private, lane, `public data sources`, `private data sources`, and `logged-in sources` never appear in anything the human reads or Sam says. Internally the run still tells apart HOW a URL is read — directly by the agent, or through the human's own Chrome via the Local Collector extension when the page needs a login — and every collector-only rule, budget, gate, and approval stays exactly as it is; those internal words may remain in agent-only mechanics but must be introduced as internal access modes, never spoken to the human.
 - The agent must not mention private data sources in the first setup or first add-client question. Private data sources are asked only after the schedule/routine and client-specific automation task have been configured; if the human approves or changes private data sources, resync the automation task afterward.
 - The agent must not create local video media as a fallback when a verified client-scoped PDNA provider is missing or blocked. Missing provider setup must trigger a PDNA setup/action block, not a local `ffmpeg`/Pillow/`moviepy`/Remotion/canvas/slideshow video.
-- Any video script inside a report, Markdown source record, previous draft, or history is reference context only. Before any provider video creation request, the agent must load and apply the existing WideCast video script-writing skill from the verified provider or `playbooks/skills/video-script-writing/SKILL.md`, produce the final production script/brief with research and inline-media/direct-image-URL workflow where verifiable, and use only that skill-produced final script/brief as the provider payload. Do not edit, replace, summarize, or reimplement the WideCast skill.
+- Any video script inside a historical report, standalone writing artifact, Markdown source record, previous draft, or history is reference context only. Before any provider video creation request, the agent must load and apply the existing WideCast video script-writing skill from the verified provider or `playbooks/skills/video-script-writing/SKILL.md`, produce the final production script/brief with research and inline-media/direct-image-URL workflow where verifiable, and use only that skill-produced final script/brief as the provider payload. Do not edit, replace, summarize, or reimplement the WideCast skill.
 - Report video-script versions are selection options only. If a version/code is already selected by the human, pasted back with edits, or saved as the automation recommendation, do not generate five new versions during video production. Continue only with that selected version/code through the WideCast skill's Stage 2 visual treatment and final handoff standards.
 - Default PDNA setup must be one-action WideCast setup. When PDNA is missing and the human asks for setup/instructions/video/production, ask only for the client's WideCast API key; do not ask provider, scope, spend, publish, notification, analytics, or account-identity questions before starting the default path.
 
@@ -171,7 +171,7 @@ The explanation must include production explicitly:
 A good concise explanation is:
 
 ```text
-Every day, Solo Agency researches the market, finds source-backed content ideas, detects hot/warm leads and competitors, drafts scripts/blogs/captions for approval, creates approved video/blog/social assets through connected providers, audits/fixes reviewable video scenes before final render/export when video production is approved, publishes approved content to 10+ platforms when authorized, measures results, and uses that learning to improve the next run.
+Every day, Solo Agency researches the market, finds source-backed content ideas, and detects hot/warm leads and competitors. Separate writing work turns a selected idea into an approval-ready script, blog, or caption. After approval and provider setup, Solo Agency can create video/blog/social assets, audit reviewable video scenes before final render/export, publish to 10+ platforms when authorized, measure results, and use that learning to improve the next run.
 ```
 
 Do not imply that production is only a manual copy/paste step. Also do not imply that rendering, publishing, spending credits, face clone, voice clone, or outreach happens without explicit human approval.
@@ -229,7 +229,7 @@ This is the planned setup process I am working through. You only need to reply w
 ○ 7. I run the first report as soon as you say yes: leads from Facebook, Instagram and X (where connected), Google and your industry sites; I pick the groups worth watching myself — you can pause any of them later on the Sources page
 ○ 8. While the first run works, I help set up PDNA — Production, Distribution, Notification (so the finish alert reaches your Telegram), Analytics
 ○ 9. In Automation Flow, from the second run onward, if PDNA is set up, the task scans analytics for published URLs from the last 7 days
-○ 10. In Automation Flow, the task updates the report, idea matrix, best idea, Lead & Competitor Opportunities, drafts, analytics/statistics, and learning loop
+○ 10. In Automation Flow, the Daily Run updates the report, evidence-rich idea matrix, best idea, Lead & Competitor Opportunities, analytics/statistics, and learning loop; selected-idea writing remains a separate task
 ```
 
 Progress roadmap integrity rule:
@@ -245,7 +245,7 @@ Progress roadmap integrity rule:
 - Step 8 is provider/capability setup only, and its Notification question is asked proactively during setup (value-first framing; a decline is recorded as `notification_channel_missing` and re-offered once per later run): use WideCast as the default provider, ask only for the client's WideCast API key, connect or document the production/distribution/notification/analytics provider, check notification/publishing/analytics availability, and save the setup status. Right after the human provides the key, send a single confirmation ping (a "Hello" notification via `sendNotification`) so the human immediately sees email/Telegram work, then report per-channel delivery; mark notification `connected` only on a successful ping (Stage 3 PDNA setup contract). Do not ask provider/scope/spend/publish/account-identity questions for the default path. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint, the client-scoped provider is verified, and the required operation exists.
 - After a provider creates reviewable video scenes from an approved script, the normal production branch is not complete until the video-editing skill pass has audited/fixed the scenes or logged an explicit blocker/decline. Final MP4 render/export still requires a fresh explicit approval after that pass.
 - Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `–` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
-- Step 10 is shown in the setup roadmap only to explain what Automation Flow will do later. It is not executed in Setup Flow. On the first automation run it uses report/draft content and data from activated private data sources; from the second automation run onward it can also include analytics/statistics from step 9.
+- Step 10 is shown in the setup roadmap only to explain what Automation Flow will do later. It is not executed in Setup Flow. On the first automation run it uses source evidence and data from activated private data sources; from the second automation run onward it can also include analytics/statistics from step 9. Full content drafts require a separate selected-idea writing task.
 
 ### Progress And Next-Step Question Rule
 
@@ -1563,6 +1563,14 @@ Do not cap the matrix at six ideas and do not discard useful data merely because
 
 - Every idea matrix entry must pass the Audience Value-First Gate: it must teach something, prevent a mistake, improve a decision, or reduce risk/cost/confusion for the audience. Entries that are direct client/product promotion without a standalone audience lesson are rejected or rewritten and logged as `promotional_not_value_first`.
 
+### Idea evidence contract
+
+An Idea Matrix is a decision surface, not a draft queue. Every entry must retain enough evidence for a later writing task to work from the original audience language without re-researching the topic. Store or show: `idea_id`, audience, observed pain/question, `viewer_lesson`, non-promotional angle, business relevance, `evidence_ids`, evidence count, source URLs, one or two safe representative excerpts, freshness, confidence, and `why_now`.
+
+`evidence_ids` may point to post-level evidence collected in the run and to compressed comment signals in the Content Evidence Bank. A single comment is evidence, not consensus: show its count and keep confidence low unless a relevant pattern repeats. Do not load raw comment archives into the Daily Run or copy them wholesale into the report. The client-facing summary uses only the necessary excerpt(s) and source link(s); the operator-facing record preserves the evidence IDs needed for traceability.
+
+An entry is eligible only when `viewer_lesson` states the standalone audience value and `value_first_pass: true`. The writing task must run the Client Removal Test again: removing the client name, service and CTA must leave a complete useful lesson. A failure is `promotional_not_value_first`.
+
 The `at least 3 new or newly angled candidate ideas` requirement is a novelty and selection-quality floor. It is not a maximum idea count for the matrix.
 
 The idea list must respect the primary/related industry content mix:
@@ -1771,11 +1779,11 @@ Why:
 - It has not been covered in the last 30 days.
 - It can lead naturally to a CTA for a buyer consultation.
 
-### G. Write A WideCast-Writing-Skill Draft
+### G. Write Content Only In A Separate Production Task
 
-After selecting the best idea, the agent must write the configured WideCast-writing-skill content draft.
+After selecting the best idea, the Daily Run stops at the Idea Matrix and its evidence trail. It must not write a video script, blog draft, social caption, provider video brief, or a set of production variants.
 
-Default report output is five complete short-form video script draft versions for the selected best idea. These are selection options for the human or Automation Flow, not final provider video payloads. If the Client Intelligence Profile has `output_formats` containing `blog_article`, the agent must also write a blog/article draft or outline according to the configured cadence. If the profile includes `social_caption`, the agent may also draft platform-native captions.
+Content writing is a separate on-demand or explicitly enabled automation task. Its preferred input is an approved `idea_id`; it loads only that idea's linked evidence and the relevant writing skill. By default it writes one strongest complete draft. It may produce three short hooks or angles before a full draft when the Boss asks to compare approaches. It produces multiple full variants only when the Boss explicitly asks.
 
 The writing step must not be blocked by the absence of a WideCast account, MCP connection, API key, Custom GPT, or installed WideCast tool. The agent must load the WideCast writing method by following the fallback protocol in `WideCast Writing Skill Access Without Account`.
 
@@ -1785,15 +1793,7 @@ Writing skill format mapping:
 - `blog_article` -> `format=blog`
 - `social_caption` -> `format=social`
 
-Every default video-script run should produce these five WideCast-style draft versions unless the human explicitly asks for fewer:
-
-- `Version 1: VE — Value Explainer`
-- `Version 2: QA — Client Q&A`
-- `Version 3: POV — POV`
-- `Version 4: CS — Case Study`
-- `Version 5: MB — Myth-Buster`
-
-Every draft variant must be labeled with a clear version number, short code, and plain meaning. Use `Version 1: VE — Value Explainer`, not just `VE`. Use `Version 2: QA — Client Q&A`, not just `QA`. If a non-video format or a human override produces only one draft, still label it as `Version 1`.
+When multiple variants are explicitly requested, label each with a clear version number, short code and plain meaning. A one-draft request is simply the selected draft, not a mandatory `Version 1` set.
 
 The script must be useful for short-form platforms such as:
 
@@ -1868,9 +1868,9 @@ The agent must not render, export, publish, or spend WideCast credits without ex
 
 The agent must not self-create local video media when WideCast/client PDNA is missing or blocked. Ask for the API key in the same Automation Flow when the current session can update provider config; otherwise hand off to setup/maintenance with the exact PDNA setup action.
 
-The agent must not send a report script or earlier draft directly to WideCast/client video production. Load the existing WideCast video script-writing skill again, create the final WideCast-grade script/brief with research and sparse direct image URLs/media pool where verifiable, then follow the manual confirmation or scheduled-approval gate from Stage 3. Do not edit, replace, summarize, or reimplement the WideCast skill.
+The agent must not send a historical-report script, standalone writing artifact, or earlier draft directly to WideCast/client video production. Load the existing WideCast video script-writing skill again, create the final WideCast-grade script/brief with research and sparse direct image URLs/media pool where verifiable, then follow the manual confirmation or scheduled-approval gate from Stage 3. Do not edit, replace, summarize, or reimplement the WideCast skill.
 
-If a report version/code has already been selected, the agent must not create a second five-version set. Treat the selected report version as the picked script for the WideCast skill flow, apply the selected format's standards plus Stage 2 visual treatment, and produce one final provider-ready script/brief.
+If the Boss has already selected an idea or draft, the agent must not create an unrelated comparison set. Treat the selected item as the production input, apply the selected format's standards plus Stage 2 visual treatment, and produce one final provider-ready script/brief only after the normal approval gate.
 
 For default WideCast setup, the agent must not ask the human to choose provider, scope, expected account identity, spend-credit permission, publish permission, notification channel, or analytics mode. Use safe defaults, verify the account through OpenAPI, discover capabilities, and keep all create/render/export/publish/credit-spend actions behind later explicit approval gates.
 
@@ -1897,12 +1897,12 @@ If the Client Intelligence Profile file is missing or incomplete:
 5. Ask the human to correct only what is wrong.
 6. Save the setup.
 
-After setup, run D, E, F, and G every day.
+After setup, run D, E and F every day. Run G only when the Boss requests writing or an explicitly enabled content-production automation is due.
 
 The final goal is that every day the human receives:
 
 1. One idea list per active client.
-2. The Stage 1 five-format draft set (or the formats that honestly fit per the writing skill's fit rules) per active client, unless a version was already selected — then only that version continues: default video script, blog/article when configured, or both if requested.
+2. An evidence-backed Idea Matrix per active client, with the selected best idea and a clear next production action. Full drafts appear only in a separate requested or enabled content-production task.
 3. The report set per active client: the scrubbed staging lane files, the combined `{client-name}-client-report.html` client report, its PDF companion, and the `{client-name}-INTERNAL_REPORT.html`.
 4. Lane-specific Lead & Competitor Opportunities.
 5. The report/notification handoff: the combined `{client-name}-client-report.html` as the default handoff/notification/latest link.

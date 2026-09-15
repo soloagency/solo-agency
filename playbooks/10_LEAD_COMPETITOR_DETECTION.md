@@ -114,8 +114,8 @@ For the reader, three shapes this takes:
 | Platform | Ordered steps | FIRST RUN budget | DAILY budget |
 |---|---|---|---|
 | Facebook | 1 feed (`fb.search.posts`) → 2 people (`fb.people.search`) → 3 groups (`fb.groups.search`, readable groups only: public, or private where the account is a member) → 4 in-group (`fb.group.search_posts`, up to 20 monitored groups per run from the registry plan) | 9 discovery calls (3/3/3) + up to 20 monitored groups × 3 terms, `max_pages` ≤ 4 | 3 discovery calls (1/1/1) + up to 20 monitored groups × 2 terms |
-| Instagram | 1 search (`ig.search.posts`) → 2 people (`ig.people.search`) → 3 profile depth (`ig.profile.posts` on the best hits) → 4 comments (`ig.post.comments` on the best posts) | ≤ 12 calls (3/3/3/3) | ≤ 4 calls (1/1/1/1) |
-| X | 1 search Latest (`x.search.posts`) → 2 people (`x.people.search`) → 3 profile depth (`x.profile.posts` on the best hits) → 4 replies (`x.post.replies` on the best posts) | ≤ 12 calls (3/3/3/3) | ≤ 4 calls (1/1/1/1) |
+| Instagram | 1 search (`ig.search.posts`) → 2 people (`ig.people.search`) → 3 profile depth (`ig.profile.posts` on the best hits) | ≤ 9 calls (3/3/3) | ≤ 3 calls (1/1/1) |
+| X | 1 search Latest (`x.search.posts`) → 2 people (`x.people.search`) → 3 profile depth (`x.profile.posts` on the best hits) | ≤ 9 calls (3/3/3) | ≤ 3 calls (1/1/1) |
 
 Keyword source for all three platforms is the same discovery terms from `tool public-keywords ...
 plan --kind discovery` (the `community_discovery` kind — see "Discovery terms" below). Instagram and
@@ -182,7 +182,7 @@ Pass reports progress at six stage boundaries, mapped onto the round-robin round
 1. `find_posts` — round 1: `fb.search.posts` / `ig.search.posts` / `x.search.posts`;
 2. `find_people` — round 2: people search on each platform;
 3. `find_groups` — round 3: `fb.groups.search` (Facebook) / profile depth (Instagram, X);
-4. `scan_in_group` — round 4: `fb.group.search_posts` (Facebook) / comments and replies (Instagram, X);
+4. `scan_in_group` — round 4: `fb.group.search_posts` (Facebook only; Instagram and X have no Daily Run comment/reply leg);
 5. `filter_leads` — reconciliation, not the first qualification pass: counts re-read from the CRM
    (`contact lock-status`), Step 5 discovered-thread recording, and anything a per-job pass left
    over — qualification and CRM capture already ran per job from stage 1 onward ("Qualify as you
@@ -234,7 +234,7 @@ append only):
 `aborted` when the run stopped early (say why in `note`). `platforms` values: `running | done |
 skipped:{reason} | tripped:{signal} | web_only`. The wait helper matches `client_slug` and `ts` only.
 
-### Fixed order per platform: search/feed, then people, then depth, then intent/comments/replies
+### Fixed order per platform: search/feed, then people, then depth, then post-level intent
 
 Within a single platform, the order below is fixed because each step narrows and ranks what the
 next step touches. Do not reorder, parallelize, or skip a step within a platform to save budget —
@@ -354,9 +354,8 @@ progress line say which phase the client is in while `phase == "sweep"`: "đang 
    posts or bios qualified) — reads that account's recent posts for more direct-need signal than a
    single search hit gave. `ig.profile.enrich` is available for a deeper profile read when useful;
    it is not a required step and, if used, counts against this platform's budget for the run.
-4. **THEN COMMENTS.** `ig.post.comments` on the best posts found in steps 1 and 3 — the comment
-   thread under an in-market post is often where the actual buyer, not just the original poster,
-   shows up.
+4. **STOP AT POST LEVEL.** Do not call `ig.post.comments` in a Daily Run. Record a notable post's
+   post-level signal and URL for the separate `research_content_signals` task instead.
 
 **X**
 
@@ -372,7 +371,8 @@ progress line say which phase the client is in while `phase == "sweep"`: "đang 
 3. **THEN PROFILE DEPTH.** `x.profile.posts` on the best hits from steps 1-2. `x.profile.enrich` is
    available for a deeper profile read when useful; it is not a required step and, if used, counts
    against this platform's budget for the run.
-4. **THEN REPLIES.** `x.post.replies` on the best posts found in steps 1 and 3.
+4. **STOP AT POST LEVEL.** Do not call `x.post.replies` in a Daily Run. Record a notable post's
+   post-level signal and URL for the separate `research_content_signals` task instead.
 
 `x.timeline.home` exists in the catalog but is NOT part of this pass — it is the account's own
 personal feed, not a discovery surface.
@@ -405,8 +405,8 @@ Verdict is `useful` when the term produced ≥ 1 lead, `used` when it produced r
 ### Every post and person row goes through Stage 10 immediately
 
 Every post record this pass returns on any platform — from a feed/search search, from the Facebook
-group list, from Facebook in-group search, from Instagram profile depth or comments, or from X
-profile depth or replies — and every person/profile row a people search returns on any platform,
+group list, from Facebook in-group search, from Instagram profile depth, or from X profile depth —
+and every person/profile row a people search returns on any platform,
 goes through this stage's Detection Workflow and then straight to `<bridge> tool crm-store ... lead
 capture` (see "Every lead also becomes a CRM contact" below) with `platform` set to `facebook` |
 `instagram` | `x`, EVEN THOUGH the Facebook group it came from might not (yet) be registered
@@ -422,8 +422,9 @@ asks one question about the THREAD, not the author: will the people who answer t
 client's buyers? The rule returns `comment_source: likely|unlikely`, `types_match`, and a one-line
 `reason`.
 
-A `likely` thread is RECORDED, never harvested in the run that found it — nothing under it is read,
-fetched, or captured beyond what the post-level judgement already saw:
+A `likely` thread is RECORDED as a notable-thread shortlist candidate, never harvested in the run
+that found it — nothing under it is read, fetched, or captured beyond what the post-level judgement
+already saw:
 
 ```sh
 <bridge> tool source-registry --pipeline daily-content-pipeline --client {slug} discovered add \
@@ -436,8 +437,25 @@ fetched, or captured beyond what the post-level judgement already saw:
 just gets `last_seen_at` bumped, `status` untouched, never reset. Fields and the full registry
 schema (including `status: new|approved|harvested|dismissed`, which nothing here ever advances past
 `new`) live in `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md`. An `unlikely` verdict is judged and
-dropped — only `likely` is persisted. See "Harvest a discovered thread (on the Boss's order only)"
-below for what happens to a recorded source, and only on explicit order.
+dropped — only `likely` is persisted. A separate `research_content_signals` task may choose recent
+notable threads and add compressed content evidence; that task is not a CRM harvest and does not
+change a discovered source's CRM status. See "Harvest a discovered thread (on the Boss's order
+only)" below for the distinct lead-capture workflow.
+
+### Daily Run comment boundary and content-research handoff
+
+Daily Run may judge post-level text and comment-count metadata, shortlist notable posts, and write
+post-level evidence. For lead/content-source research it must not call `fb.post.comments`, `ig.post.comments`, `x.post.replies`,
+paginate a thread, load a raw comment archive, or classify commenters for content purposes. Its
+only comment-related output is the post-level `likely` shortlist record above and the existing
+post-level rationale.
+
+`research_content_signals` is the only routine task allowed to open a selected comment thread for
+content research. It is bounded, read-only, uses extractor-tier classification, and writes only the
+Content Evidence Bank described in `playbooks/CONTENT_SIGNAL_RESEARCH.md`. The separate
+Boss-ordered `harvest_thread` job below remains the only workflow that can turn commenters into CRM
+leads. No content-research run may invoke `tool harvest-thread`, `crm-store lead capture`, or move
+a discovered source to `harvested`.
 
 ### Lead target: a floor, not a stop
 
@@ -548,7 +566,7 @@ and X have no groups) is printed as "—":
 
 1. Bài từ Facebook Search theo từ khóa — `feed_posts_found` (Instagram/X: `posts_found` from search);
 2. Bài/clip quét bên trong group — `group_posts_found` (Instagram/X: `depth_posts_found` from
-   profile depth plus comments/replies);
+   profile depth);
 3. Group ứng viên tìm thấy — `groups_found`, split into `groups_readable` (public, or private with
    the account already a member) and `groups_no_access` (private, account not a member — listed for
    the Boss to join, never scanned);
@@ -639,7 +657,8 @@ I will go through each approved group/source one by one and scroll {N} times per
 ## Lead Qualification Rule (Fit × offer-acquisition intent)
 
 `playbooks/LEAD_QUALIFICATION_RULE.md` is the rule of record for qualifying every item this stage
-sees — posts, comments, captions, and people-search rows alike. This section is a faithful summary;
+sees — posts, captions and people-search rows, plus comments only inside an explicit
+Boss-ordered harvest job. This section is a faithful summary;
 read the rule file in full before scoring, and re-read it after any edit to it (the file's own edit
 policy requires re-running `playbooks/tests/lead-rule` and attaching the report).
 

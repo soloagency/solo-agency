@@ -14,10 +14,10 @@ To declare **`Scene N: PASS`** confirm every applicable item below AND the appli
 
 A scene passes when:
 
-- `text` is correct in context, with no significant STT errors.
+- `text` is correct in context and according to the scene's language: spelling/orthography, applicable script-specific characters/marks, Unicode, capitalization, punctuation, spacing, STT meaning, proper nouns, domain terms, and numbers/dates/units/%/currency all pass. Do not normalize or convert to another language or locale.
 - **Background fit (Gate 3, when it applies):** the background clip serves the sentence being spoken; for location-sensitive industries/scenes the geography/culture/currency cues match the target market (wrong-country footage, foreign currency, wrong signage/language/road context = FAIL even if the object is otherwise relevant). Grid is an intentional exception within the ≤3-scene shared-grid cap. N/A when the scene is grid or a full-frame A-roll narrator.
-- **Image-gen text correctness (Gate 4, when it applies):** for illustration/chart/diagram/object overlays with image-model-baked text, the Gate 4 **per-string transcription table** was produced from the overlay poster (typed letter-by-letter from the image, transcribe FIRST) and every string is typo-free, grammar-correct, right language/diacritics/casing, and preserves numbers/currency/%/proper nouns/domain terms. For Vietnamese/diacritic languages, every tone mark, accent, horn/breve/circumflex, and `Đ/đ` is visibly correct. N/A for SVG/typography text (deterministic, never misspells) and for scenes with no image-baked text.
-- **If an edit was made:** the ONE AFTER look (poster for a text fix / composite for a background fix) was shown and confirms the fix reads as intended — that look is the save-confirmation (no separate re-pull needed).
+- **Overlay integrity/provenance (Gate 4):** deterministic overlay output passes from server data when source/current-text hashes match, render succeeded, there is no truncation or missing glyph, and scene/`voice_file` identity matches. Never OCR deterministic output. No overlay → N/A. An unverified non-deterministic/image-baked, user-uploaded, manually overridden, or legacy source uses the narrow exceptional fallback and cannot PASS on assumption.
+- **If an edit was made:** saved `text` plus refreshed integrity/provenance data confirms a text edit; an AFTER composite confirms a background edit. Do not pull an overlay poster merely to reconfirm deterministic text.
 - **Module coverage:** the modules the applicable gates needed were loaded (`20_background` for Gate 3; `30_overlay_core`/`31`/`32`/`33` only if an overlay defect was fixed). A step done "from memory" without opening its module does not count as PASS.
 
 Do NOT add PASS criteria for placement, dead-zone, face-clearance, title thickness, or composition balance — the server guarantees those and re-checking them is out of scope.
@@ -33,4 +33,4 @@ When two gates pull in opposite directions, decide by this order (top wins):
 3. Image-model-baked text must be typo-free (regenerate/replace if not).
 4. Prefer the least destructive fix; preserve good existing visuals.
 5. Don't break previous intentional edits (e.g. `overlay.narrator.touched=true`, `remotion_spec="none"`).
-6. Limit expensive image pulls, but never skip an applicable plate/poster/AFTER look to save cost.
+6. Limit image pulls, but never skip an applicable Gate 3 plate or Gate 5 background AFTER composite. An overlay poster is permitted only in Gate 4 exceptional fallback.

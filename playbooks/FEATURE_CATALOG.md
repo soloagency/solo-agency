@@ -1,7 +1,7 @@
 # Feature Catalog — the Revenue Engine jobs the Boss can ask Sam to do
 
 The first four sections of this file are the single canonical, Boss-facing **Revenue Engine job
-menu**. The client Overview / Revenue Engine section and Sam's complete menu use the same 25 rows,
+menu**. The client Overview / Revenue Engine section and Sam's complete menu use the same 26 rows,
 in the same group and row order. The existing Overview Actions and the detailed capability
 reference remain available below; this menu adds a simple way to discover work Sam can do and does
 not replace those operational controls. A menu item is named as a job the Boss already understands,
@@ -34,6 +34,7 @@ asks one short follow-up instead of sending the Boss to another configuration sc
 
 | ID | Title | Value | Prompt to Sam |
 |---|---|---|---|
+| `research_content_signals` | Research content ideas from post comments | Find useful questions, pains, and opinions in recent noteworthy posts and comments, then update the evidence bank and Idea Matrix without writing content. | `Research recent high-signal posts and comments for {client}, update the Content Evidence Bank and Idea Matrix, and do not write content yet.` |
 | `daily_ideas` | Get today's best content ideas | Turn current customer questions, trends, and lead signals into the best ideas to publish today. | `Run today's Solo Agency report for {client}` |
 | `write_content` | Write blog and social posts | Turn one idea into a useful blog post and channel-ready social copy. | `Write the blog and social posts for {client} from: <idea or topic>` |
 | `make_video` | Make a video | Turn an approved idea or report item into a finished video. | `Make a video for {client} from this approved idea: <idea or report item>` |
@@ -69,7 +70,7 @@ asks one short follow-up instead of sending the Boss to another configuration sc
 When the Boss asks any equivalent of “what can Solo Agency do?”, “how can it find leads?”, “show
 me the features”, or “show/open Revenue Engine”, Sam:
 
-1. shows all four groups and all 25 rows above in chat, preserving their order;
+1. shows all four groups and all 26 rows above in chat, preserving their order;
 2. opens the current client's Overview / Revenue Engine page at `/ui/{client}` under the
    Answer-and-Show Rule; and
 3. asks which job the Boss wants Sam to run.
@@ -84,7 +85,7 @@ On every post-setup interactive Sam reply with no required human action, show th
 Engine anchor defined in `SOLO_AGENCY_PLAYBOOK.md` immediately before the next-jobs block. It names
 the three human outcomes — Find leads now, Attract inbound leads, Nurture and convert — and links to
 the current client's `/ui/{client}` page (or says `show me the features` when the dashboard is not
-available). It is a navigation reminder, not one of the 25 jobs and not a second CTA.
+available). It is a navigation reminder, not one of the 26 jobs and not a second CTA.
 
 Never show the anchor in First Words, before Setup Flow completes, in a complete-menu reply, in any
 reply containing `**[ACTION REQUIRED]**`, or in a scheduled/provider notification, INTERNAL_REPORT,
@@ -117,6 +118,7 @@ Contextual feature discovery follows the Boss's current job rather than rotating
 | A named pain, problem, or desired result | `problem_signals` |
 | Leads just landed in CRM | `enrich_leads`, then the eligible `email_campaign` or `messenger_dm` path |
 | An idea or draft was selected | `write_content`, `make_video`, or `publish_content` according to what is missing |
+| The Boss wants stronger evidence from post comments before choosing an idea | `research_content_signals`, then `daily_ideas` |
 | Content has already been published | `content_analytics` |
 | Nothing is pending and lead flow is quiet | `run_revenue_engine`, `find_group_leads`, or `find_people` |
 
@@ -142,6 +144,10 @@ Facebook operation.
   messaged until the plan opens them.
 - Video/publishing uses the client's verified connected provider and may spend its credits; Sam
   presents the required approval before production or publishing.
+- `research_content_signals` is on demand by default. Sam may set up a separate research automation
+  only when the Boss asks. Setup never creates it automatically. The job loads
+  `CONTENT_SIGNAL_RESEARCH.md` only for this work, updates the Content Evidence Bank and Idea Matrix,
+  and never publishes, sends, writes CRM records, or drafts content.
 
 ## Feature Discovery Rule — ordinary replies stay paced
 

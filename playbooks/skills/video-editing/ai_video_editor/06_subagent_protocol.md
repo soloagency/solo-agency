@@ -16,7 +16,7 @@ Load this module **BEFORE spawning any subagent** for scene work, and re-load it
 ## Roles
 
 - **MAIN AGENT — pure coordinator, ZERO writes to scenes, ZERO images.** Opens/commits the edit session, prepares the environment (data + skill files), spawns/validates/records, escalates, hands off. It never calls `modify_scene`, never views a screenshot (NO-RELOOK below).
-- **SCENE EDITOR** (one per content scene) — the whole per-scene job in one warm context: the 5 gates for ITS scene, writing directly via `modify_scene` **scoped to its own `voice_file` only**. It is both the fixer and the verifier of its own work (route → plate look if Gate 3 applies → poster typo table if Gate 4 applies → edit → AFTER look if edited → verdict).
+- **SCENE EDITOR** (one per content scene) — the whole per-scene job in one warm context: source-text check, Gate 3 plate when applicable, Gate 4 integrity/provenance data, edit-appropriate save proof, and verdict; all writes remain scoped to its own `voice_file`.
 
 There is **no video-QA agent** — each scene is complete at its own PASS; nothing is re-reviewed as a batch at the end.
 
@@ -54,7 +54,7 @@ FIRST ACTION — load the skill from LOCAL disk (already unzipped; do NOT downlo
 anything): Read <skill_root>/SKILL.md, then: 01_critical_rules, 02_jump_prevention,
 03_dod_gates, 05_quality_qa_priority, 10_mechanics. Load 20_background only if Gate 3
 applies to your scene (non-grid AND narrator not filling the frame). Load
-30_overlay_core (+31/32/33) ONLY if you must fix an image-gen overlay defect.
+30_overlay_core (+31/32/33) ONLY for a proven exceptional overlay defect.
 Print your SCENE LOAD LEDGER against <skill_root>/LOAD_MANIFEST.md. Only if a local
 file is missing may you fall back to widecast_get_editing_skill — say so in the report.
 SECOND ACTION: Read your record.json and run_script.txt (whole-video context: topic,
@@ -69,16 +69,16 @@ skill_root: <local path to unzipped skill>
 run digest: topic=<...>; tone=<...>; glossary=<...>
 run_ledger (READ-ONLY): <path>     your file dir (write ONLY here): <scratchpad>/scene_<voice_file>/
 
-JOB: run the 5-gate playbook for this scene. Gate 1 fix text/STT (branch K). Gate 2
-route from data. Gate 3 (if non-grid + narrator not filling frame): pull the plate,
-print the Gate 3 BACKGROUND PROOF, fix via mediaUrl only. Gate 4 (if overlay text is
-image-model-generated — illustration non-photo / chart / diagram / object): pull the
-overlay poster, print the per-string transcription table (transcribe FIRST). If
-opening=yes: ALWAYS pull the poster (even typography) and run the OPENING POSTER CHECK
-— rebuild the hook poster if it clearly falls short (cap 1 rebuild, preserve-biased),
-or author one if there's no overlay. Gate 5:
-if you edited, the ONE AFTER look (poster/composite) — it verifies the fix AND confirms
-the save (a modify_scene 200 under the edit session is durable; no separate re-pull).
+JOB: run the 5-gate playbook for this scene. Gate 1 validates the authoritative `text`
+in whole-video context and according to the scene language; fix with branch K. Gate 2
+routes from data. Gate 3 (if non-grid + narrator not filling frame): pull the plate,
+print the Gate 3 BACKGROUND PROOF, fix via mediaUrl only. Gate 4 verifies deterministic
+overlay integrity/provenance from data: source/current-text hash match, render success,
+no truncation/missing glyph, matching scene/voice_file. Do not OCR deterministic output.
+If evidence is absent/mismatched or source is non-deterministic/image-baked, user-uploaded,
+manual, or legacy, mark UNVERIFIED and use only the narrow exceptional fallback. There is
+no opening-poster exception. Gate 5 uses saved text/integrity data for a text edit or the
+ONE AFTER composite for a background edit; a modify_scene 200 is durable.
 Do NOT audit dead-zone /
 face / placement / composition — the server guarantees those. Report: SCENE LOAD
 LEDGER, gate verdicts (with N/A + reason where a gate didn't apply), files list, and

@@ -9,7 +9,7 @@ _Version: `modular-1.1` · module of the AI Video Editor Playbook (`SKILL.md`)._
 
 This is the **diversity vocabulary for TEXT** (titles, labels, values, quotes). The native Canvas typography renderer already mixes these axes across 142 curated presets — but when YOU author an overlay as SVG you must reproduce the look yourself. Below: every axis value with a **concrete SVG recipe**. Do not ship flat-only text.
 
-> **HOW TO USE.** Per video, derive ONE text look = `structure × depth × fill × typeface × casing × palette` from brand/topic/rotation (see §0.5 "vary between videos"). Keep it across the video; change it next video. The TITLE may carry the richest treatment (bevel/metallic/gradient + a controlled outline); secondary text stays simpler and cleaner: solid heavy fill on a chip/card/quiet area, with **no visible text stroke/outline**. **Title body rule:** a title/hero is not a single `<text>`; build its body with **8–15 same-fill face copies** inside one title object, then add one final top copy with 0–2px stroke. Vary the copy count between titles/videos based on font, word length, and screenshot proof. The count is not an auto-pass: if the rendered title becomes muddy/blobby, loses clean counters/negative space, crushes tracking, swallows Vietnamese diacritics, or feels less premium, reduce count/offset or change font. More than 15 face copies = FAIL. **Authoring cap:** visible text stroke is **0–2px max on the 720 canvas**; use shadows/backplates/chips/shapes for extra separation, not thicker letter outlines.
+> **HOW TO USE.** Per video, derive one text look from brand/topic/rotation after selecting a renderer-supported font that covers and correctly shapes the scene's writing system. Casing, tracking, face stacking, and outlines are script-dependent techniques. Use 8–15 face copies only when they preserve counters, joins, combining marks, punctuation, and readability; otherwise use a compatible heavy face or non-text contrast treatment. Never exceed 15 copies; visible text stroke remains 0–2px max.
 
 > **Reusable `<defs>` (declare once per SVG, reference by id):**
 > ```svg
@@ -53,17 +53,17 @@ This is the **diversity vocabulary for TEXT** (titles, labels, values, quotes). 
 | `gradient` | smooth 2-colour, brighter on top | `fill="url(#grad)"` (the `#grad` def above; keep top brighter) |
 | `metallic` | gold/chrome sheen (multi-band) | `fill="url(#metal)"` (the `#metal` def above; swap stops to gold for gold-metal) |
 
-## Axis: typeface — family family family (renderer set, VN-safe)
+## Axis: typeface — renderer set, language/script compatible
 <!-- SYNC: typefaceKey = bold_sans, condensed, slab_serif, rounded -->
 
-cairosvg ignores numeric `font-weight` → **name the HEAVY family** (see overlay_core §font). Map the key → a VN-covering family:
+Filter by complete Unicode coverage and correct shaping for the scene first. Then map the style key to a compatible available family; do not assume Latin casing, spacing, or heavy-family naming works for every script:
 
 | key | use family (heavy) |
 |---|---|
 | `bold_sans` | `Be Vietnam Pro Black` · `Montserrat Black` · `Archivo Expanded` · `Bricolage Grotesque` |
 | `condensed` | `Anton` (single-weight, already heavy) · `Barlow Condensed` · `Oswald` · `Roboto Condensed Black` |
-| `slab_serif` | `Roboto Slab` (heavy VN-safe slab serif) |
-| `rounded` | `Baloo 2` (dedicated rounded VN family) · `Paytone One` |
+| `slab_serif` | `Roboto Slab` when it covers/shapes the scene language; otherwise a compatible slab family |
+| `rounded` | `Baloo 2` / `Paytone One` when compatible; otherwise a rounded family for the required script |
 
 ## Axis: casing
 <!-- SYNC: casing = upper, title, sentence -->

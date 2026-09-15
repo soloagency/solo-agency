@@ -12,17 +12,17 @@ Deliberately redundant with the Critical Rules (`01_critical_rules`) and the per
 
 - About to **run an A-roll layout priority ladder, or resize/reposition the narrator** (`overlay.narrator.rect`) to make room for an overlay → STOP. The narrator is fixed input; never edit `narrator_face`; the server already keeps overlays off the face.
 
-- About to **pull a composite screenshot to "check the layout looks OK"** → STOP. Composite looks are only for confirming a fix you made (Gate 5). To judge the two blind spots, use the plate (Gate 3) and the poster (Gate 4). There is NO BEFORE composite look.
+- About to **pull a composite screenshot to "check the layout looks OK"** → STOP. Composite looks are only for confirming a background fix you made (Gate 5). Use the plate for Gate 3 and server data for Gate 4 integrity/provenance. There is NO BEFORE composite look.
 
-### Routing the two conditional gates
+### Routing the conditional gates
 
 - About to **audit a background** → first confirm Gate 3 applies (NOT grid AND narrator not filling the frame — from data). If it applies, load `20_background`, pull the active plate, print the Gate 3 BACKGROUND PROOF (semantic/geo/context). Grid or full-frame A-roll narrator → mark Gate 3 N/A, no look.
 
-- About to **typo-check overlay text** → first confirm Gate 4 applies (text was image-model-generated: `illustration` sub_mode≠`photo_with_people`, or chart/diagram/object with baked text). If it applies, pull the overlay poster and print the per-string transcription table. **`typography_only`/SVG text never misspells → mark Gate 4 N/A, no look.**
+- About to **typo-check or OCR rendered overlay text** → STOP. Check the authoritative `text` field at Gate 1. At Gate 4, verify deterministic provenance/integrity from server data: source/current-text hash match, successful render, no truncation, no missing glyph, and matching scene/`voice_file`.
 
-- About to **mark Gate 4 N/A on the `opening` roster row** (the first content scene) because it's typography/SVG → STOP. The opening scene ALWAYS pulls the poster and runs the OPENING POSTER CHECK (hook-in-1s, not-a-flat-card, copy correct). Rebuild if it clearly fails (cap 1); author a hook poster if there's no overlay. This exception is opening-scene-only.
+- About to **pull an overlay poster only because the roster row is `opening`** → STOP. There is no opening-scene poster exception; use the same source-text and Gate 4 provenance rules as every other scene.
 
-- About to **write "typo PASS" / "diacritics correct" for a scene where Gate 4 applies WITHOUT its per-string transcription table printed in THIS scene's block** → STOP. One table per applicable scene, every time — "the last few were clean" is proof-compression drift. A prose assurance is not the table; scene 2's table does not cover scene 9.
+- About to **mark Gate 4 PASS without provenance evidence** → STOP. PASS requires the mechanical invariants. If evidence is absent/mismatched or the overlay source is non-deterministic, image-baked, user-uploaded, manually overridden, or legacy, mark `UNVERIFIED` and inspect only that exceptional source. A flattened poster that stacks animated states is not evidence of a text error.
 
 - About to **change the background because the overlay looks weak**, or **change the overlay because the background is wrong** → STOP. Layer isolation: a background fix touches only `mediaUrl`; it never authorizes an overlay change, and vice-versa.
 
@@ -30,7 +30,7 @@ Deliberately redundant with the Critical Rules (`01_critical_rules`) and the per
 
 - About to **act on an image you have not SHOWN locally** → produce the one user-visible render first (Rule 0). Never a private `Read` counted as "shown"; never a double (view + markdown tag).
 
-- About to **make a call from `scene_geometry` alone** for a fix that needs sight → pull the relevant look (plate or poster) and judge from the image.
+- About to **make a call from `scene_geometry` alone** for a fix that needs sight → pull the relevant permitted look: normally the background plate, or an overlay poster only in Gate 4 exceptional fallback.
 
 ### Autonomy / scope
 
@@ -44,7 +44,7 @@ Deliberately redundant with the Critical Rules (`01_critical_rules`) and the per
 
 - About to **move to the next scene** with no stated `PASS`/`FAIL` → declare the verdict first.
 
-- About to **declare `Scene N: PASS`** without scanning the 5 gates + §7 → run the scan; PASS is earned by the scan. If Gate 3 applied, name its verdict; if Gate 4 applied, the per-string table is present; if you edited, "AFTER shown: yes".
+- About to **declare `Scene N: PASS`** without scanning the 5 gates + §7 → run the scan; PASS is earned by the scan. If Gate 3 applied, name its verdict; if Gate 4 applied, its integrity/provenance result is present; if you edited, the edit-appropriate save proof is present.
 
 - About to **declare `Scene N: PASS` from a batch/gallery/table/script/bulk-API result** → STOP. That is triage only. The scene needs its own applicable-gate evidence.
 

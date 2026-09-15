@@ -94,7 +94,7 @@ video, the first line should be the video's hook, and the CTA drives to watch.
   lead value; invite something real (a situation, a tip, a side, a question).
 - Hooks that over-promise and the body under-delivers.
 - Fake-profound kickers ("Let that sink in.", "Read that again.").
-- Em dashes/entity forms are forbidden in final outward copy; use periods or commas.
+- Em dashes as rhythm crutch — short copy gets zero or one.
 - Words no one says out loud: "delve", "leverage", "seamless", "robust",
   "transformative", "elevate", "harness", "cutting-edge"; VI: "trong thời đại số",
   "hãy cùng tìm hiểu", "không thể phủ nhận", "nâng tầm", "bứt phá",
@@ -108,7 +108,7 @@ video, the first line should be the video's hook, and the CTA drives to watch.
 - [ ] Voice matches the brand; specific (number/name/result), no banned openers.
 - [ ] Any stat is honest (would score ≥0.7) or softened/cut; no "studies show"
       without a named source.
-- [ ] Zero em dashes/entity forms; no fake-profound kickers; ends on value or a real
+- [ ] Zero/one em dash; no fake-profound kickers; ends on value or a real
       question, not a recap.
 
 ## Output format

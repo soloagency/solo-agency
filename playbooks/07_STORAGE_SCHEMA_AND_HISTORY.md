@@ -262,6 +262,10 @@ Operator dashboard feed (written by runs, only ever READ by the dashboard):
             metrics_log.md
             learning_log.md
             comment_signal_log.md
+          research/
+            content_signals.jsonl
+            content_signal_runs.jsonl
+            content_signals_snapshot.json
           integrations/
             providers/
               provider_config.local.json
@@ -350,6 +354,10 @@ daily-content-pipeline/
           metrics_log.md
           learning_log.md
           comment_signal_log.md
+        research/
+          content_signals.jsonl
+          content_signal_runs.jsonl
+          content_signals_snapshot.json
         integrations/
           providers/
             provider_config.local.json
@@ -2177,6 +2185,81 @@ re-harvest) — `new` and `dismissed` are refused outright.
 **Standup field.** `daily-content-pipeline/automation/standup.jsonl` (below) carries `discovered_new`
 — the count of `likely` threads THIS run recorded — on every scheduled-run line, `0` when the Social
 Discovery Pass did not run or found none.
+
+---
+
+### Content Evidence Bank (`research/`)
+
+Purpose:
+
+- Preserve compressed, source-traceable content signals from post text and selected comment threads.
+- Let the Daily Run build an evidence-backed Idea Matrix without reopening comment threads or loading raw comment archives.
+- Keep content research separate from CRM leads, contact records and the Boss-ordered `harvest_thread` workflow.
+
+Per-client files:
+
+```text
+research/
+  content_signals.jsonl          append-only signal observations and revisions
+  content_signal_runs.jsonl      append-only task-level audit summaries
+  content_signals_snapshot.json  atomically replaced read model for Daily Run
+```
+
+`content_signals.jsonl` is the audit source of truth. Each line is one immutable observation or
+dedupe revision, never a raw collector dump. The current record for `signal_id` is the latest line
+by `observed_at`; a repeat uses the same `signal_id` and `dedupe_hash`, increments or replaces the
+aggregated `evidence_count`, and updates `last_seen_at`. It never erases provenance from the prior
+line. `content_signal_runs.jsonl` records only run metadata, budgets and outcome counts. Neither
+file is the CRM, a contact list or a raw-comment archive.
+
+Signal row schema:
+
+```json
+{
+  "schema_version": 1,
+  "signal_id": "csig_<stable hash>",
+  "run_id": "...",
+  "observed_at": "ISO-8601",
+  "first_seen_at": "ISO-8601",
+  "last_seen_at": "ISO-8601",
+  "source_kind": "post|comment",
+  "platform": "facebook|instagram|x|web|other",
+  "source_id": "optional discovered/source id",
+  "post_id": "optional platform post id",
+  "post_url": "https://...",
+  "comment_id": "optional platform comment id",
+  "comment_url": "optional stable comment URL",
+  "signal_type": "question|pain|complaint|objection|misconception|failed_attempt|desired_outcome|buying_signal",
+  "audience_segment": "normalized non-identifying audience description",
+  "problem": "normalized audience problem",
+  "desired_outcome": "normalized desired outcome or null",
+  "evidence_excerpt": "short necessary excerpt",
+  "evidence_count": 1,
+  "confidence": "high|medium|low",
+  "fresh_until": "ISO-8601",
+  "dedupe_hash": "sha256 of normalized signal dimensions",
+  "supersedes_signal_id": null
+}
+```
+
+`signal_type` is closed vocabulary. `signal_id` is a stable hash of client, normalized problem,
+audience segment, signal type and canonical post URL; `dedupe_hash` uses the same normalized
+dimensions plus the desired outcome. Raw author names, handles, profile URLs, phone/email, full
+comment bodies and credentials do not belong in this bank. Keep only the shortest excerpt needed
+to verify the inference. If a source needs preserving verbatim, retain it only in the collector
+evidence governed by its own access and retention rules, and reference it by platform IDs/URLs.
+
+`content_signals_snapshot.json` contains the current, non-expired deduplicated rows plus
+`generated_at`, `schema_version`, `client_slug` and the source JSONL high-water mark. Build it in a
+temporary sibling file, validate schema and provenance, then atomically rename it into place.
+Daily Run reads only the last complete snapshot. A partial/failed research run leaves the previous
+snapshot intact and appends a failed/partial line to `content_signal_runs.jsonl`; it must not make
+the Daily Run infer comment research that did not finish.
+
+Every Idea Matrix item that relies on this bank stores its `evidence_ids`. The report can display
+the aggregate count, confidence, freshness, one or two safe excerpts and source links, but never
+turns one comment into a claimed consensus. A missing or expired snapshot is `comment evidence
+unavailable`, not permission for Daily Run to harvest comments.
 
 ---
 

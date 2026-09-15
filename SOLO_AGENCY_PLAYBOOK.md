@@ -438,11 +438,11 @@ If the current Automation Flow can update this client's provider config, ask for
 
 ## Final WideCast Video Script Skill Gate
 
-Any video script shown inside a report, Markdown source record, previous draft, or content history is reference context only. It is not a production provider payload.
+Any completed writing artifact, previous draft, or content-history script is reference context only. Daily Run reports do not contain video scripts and are not production provider payloads.
 
-Before any `production.create_video`, `widecast_create_video`, or equivalent provider video request, the agent must load and apply the existing WideCast video script-writing skill to produce the final production script/brief from the selected idea/report draft. Use the verified client provider's writing-skill operation when available; otherwise use the repo-local/static fallback under `playbooks/skills/video-script-writing/`, even when PDNA is not connected yet. Do not edit, replace, summarize, or reimplement the WideCast skill.
+Before any `production.create_video`, `widecast_create_video`, or equivalent provider video request, the agent must load and apply the existing WideCast video script-writing skill to produce the final production script/brief from the selected idea and completed writing artifact. Use the verified client provider's writing-skill operation when available; otherwise use the repo-local/static fallback under `playbooks/skills/video-script-writing/`, even when PDNA is not connected yet. Do not edit, replace, summarize, or reimplement the WideCast skill.
 
-The five script versions in a report are suggestion options for human or automation selection. If a selected version/code already exists, or the human pasted an edited version from the report, the Solo Agency adapter may narrow the WideCast skill flow to that selected version only. Do not generate five new versions again during video production. Continue with the selected version/code into the skill's research, factual-core, Stage 2 visual treatment, inline image/video URL, media-pool, and production handoff standards. Generate the five-format Stage 1 set only when no version has been selected or recommended yet.
+Daily Run reports provide the selected idea and evidence trail, not script versions. A separate writing task creates one strongest complete draft by default, or multiple complete variants only on explicit request. If a draft direction already exists, the Solo Agency adapter narrows the WideCast skill flow to that selected direction only. Do not generate unrequested alternatives during video production. Continue with the selected direction into the skill's research, factual-core, Stage 2 visual treatment, inline image/video URL, media-pool, and production handoff standards.
 
 The final script/brief must follow the loaded skill's research-first and Stage 2 inline-media workflow: ground facts with current research when tools allow it, pick or adapt the strongest script format, source/vet sparse direct image URLs for the beats that need real visuals, and produce a final script/production brief suitable for WideCast. If research or image vetting is unavailable in the current runtime, record that limitation and stop at a production brief/blocker unless the loaded WideCast skill explicitly routes that no-research case through a verified server-side research handoff with valid approval. Never fabricate facts or URLs.
 
@@ -670,7 +670,7 @@ Use these exact filename patterns, with `{client-name}` as a filesystem-safe cli
 
 The public report is the full report for public data sources only. The private report is the full report for private data sources only. The daily report is a concise index/overview that links to both, shows lane status, blockers, notification status, and the one next action.
 
-Each full lane report has its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and draft/recommendation. Private data source runs often happen after the public report is already written; in that case the private pass must create/update only `{client-name}-private-data-sources-report.html` and `{client-name}-daily-report.html`. It must not overwrite, delete, reorder, or summarize away `{client-name}-public-data-sources-report.html`.
+Each full lane report has its own source coverage, evidence, Lead & Competitor Opportunities, idea matrix, best idea, and content-decision packet. Private data source runs often happen after the public report is already written; in that case the private pass must create/update only `{client-name}-private-data-sources-report.html` and `{client-name}-daily-report.html`. It must not overwrite, delete, reorder, or summarize away `{client-name}-public-data-sources-report.html`.
 
 The report set must use `outputs/YYYY-MM/YYYY-MM-DD/{client-name}-report_state.json` so later automation passes can update only the intended lane. The three files above are scrubbed staging lane files; the combined `{client-name}-client-report.html` built from them (see below) is the default human-facing handoff. The `latest` human-facing link must point to `{client-name}-client-report.html`, not a lane-specific staging report unless explicitly requested.
 
@@ -732,7 +732,7 @@ The explanation must include production explicitly:
 A good concise explanation is:
 
 ```text
-Every day, Solo Agency researches the market, finds source-backed content ideas, detects hot/warm leads and competitors, drafts scripts/blogs/captions for approval, creates approved video/blog/social assets through connected providers, audits/fixes reviewable video scenes before final render/export when video production is approved, publishes approved content to 10+ platforms when authorized, measures results, and uses that learning to improve the next run.
+Every day, Solo Agency researches the market, finds source-backed content ideas, and detects hot/warm leads and competitors. Separate writing work turns a selected idea into an approval-ready script, blog, or caption. After approval and provider setup, Solo Agency can create video/blog/social assets, audit reviewable video scenes before final render/export, publish to 10+ platforms when authorized, measure results, and use that learning to improve the next run.
 ```
 
 Do not imply that production is only a manual copy/paste step. Also do not imply that rendering, publishing, spending credits, face clone, voice clone, or outreach happens without explicit human approval.
@@ -925,7 +925,7 @@ This is the planned setup process I am working through. You only need to reply w
 ○ 7. I run the first report as soon as you say yes: leads from Facebook, Instagram and X (where connected), Google and your industry sites; I pick the groups worth watching myself — you can pause any of them later on the Sources page
 ○ 8. While the first run works, I help set up PDNA — Production, Distribution, Notification (so the finish alert reaches your Telegram), Analytics
 ○ 9. In Automation Flow, from the second run onward, if PDNA is set up, the task scans analytics for published URLs from the last 7 days
-○ 10. In Automation Flow, the task updates the report, idea matrix, best idea, Lead & Competitor Opportunities, drafts, analytics/statistics, and learning loop
+○ 10. In Automation Flow, the task updates the report, evidence-rich idea matrix, best idea, Top 3, Lead & Competitor Opportunities, analytics/statistics, and learning loop. Writing and production run separately when an idea is selected
 ```
 
 Progress roadmap integrity rule:
@@ -940,7 +940,7 @@ Progress roadmap integrity rule:
 - Step 7 may be marked `–` only when the human answered "để sau" / not now to the one first-run question; the reason shown is the schedule time ("runs at {HH:MM} on the schedule"). The automation task must be resynced or confirmed current after the decision.
 - Step 8 is client-scoped provider/capability setup only, and its Notification question is asked proactively during setup (value-first framing; a decline is recorded as `notification_channel_missing` and re-offered once per later run): use WideCast as the default provider, ask only for the client's WideCast API key, connect or document the production/distribution/notification/analytics provider for the current client, verify the account through that client's provider config/OpenAPI credential, check notification/publishing/analytics availability, and save the setup status. Do not ask provider/scope/spend/publish/account-identity questions for the default path. Notification setup must stay inside this step. It must not expand into open-ended trial video creation, scene editing, rendering, or publishing while the one-time setup process is still incomplete unless the human explicitly overrides after being told that setup will resume immediately after a short checkpoint, the client-scoped provider is verified, and the required operation exists.
 - Step 9 applies only after PDNA - Production, Distribution, Notification, and Analytics - has been set up and published URL history exists. It must not be marked complete on the first setup run unless PDNA is set up, published URLs exist, and measurable signals already exist. If PDNA is not set up yet or there is no published URL history yet, mark step 9 as `–` with the honest reason such as `PDNA not set up yet` or `no published URLs yet`.
-- Step 10 is shown in the setup roadmap only to explain what Automation Flow will do later. It is not executed in Setup Flow. On the first automation run it uses report/draft content and data from activated private data sources; from the second automation run onward it can also include analytics/statistics from step 9.
+- Step 10 is shown in the setup roadmap only to explain what Automation Flow will do later. It is not executed in Setup Flow. On the first automation run it uses report evidence and data from activated private data sources; from the second automation run onward it can also include analytics/statistics from step 9.
 
 ## Standing Invitation
 
@@ -1142,7 +1142,7 @@ Setup is not complete until:
 - The Login Reminder (naming Facebook, Instagram, and X) was shown at step 4, right after the bridge answered `/status`.
 - Schedule/routine and the client-specific automation task (step 6) were configured before the private data source checkpoint, automatically daily at 09:00 local when no explicit saved/Boss schedule existed, with collision-safe actual time reported and a public data sources baseline if no private data sources were active yet.
 - Step 7's one first-run question was asked and answered (`first_run_consent: yes|not_now`), and the automation task was resynced or confirmed current afterward — no source review, no decline/postpone options, nothing to approve.
-- The automation task contract requires the first automation run to load Stage 10, generate the three-file client-facing HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), generate `{client-name}-INTERNAL_REPORT.html`, pass the Client-Blind Scrub Gate, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, reject direct-promo ideas as `promotional_not_value_first`, and create at least one useful audience-value-first draft script/blog/caption.
+- The automation task contract requires the first automation run to load Stage 10, generate the three-file client-facing HTML report set (`{client-name}-public-data-sources-report.html`, `{client-name}-private-data-sources-report.html`, `{client-name}-daily-report.html`), generate `{client-name}-INTERNAL_REPORT.html`, pass the Client-Blind Scrub Gate, include lane-specific Lead & Competitor Opportunities with post/current URLs and copy-ready value-first comments when opportunities exist, reject direct-promo ideas as `promotional_not_value_first`, and deliver an evidence-rich Idea Matrix with a Best Idea, Top 3, recommended format/objective, and traceable sources. It must not create content drafts in Daily Run.
 - The setup handoff either autonomously created/started the separate one-time First Run after Step 7 yes and said so, or recorded a genuine other-runtime incapability. It never reused the recurring Daily Run or asked Codex/Claude Bosses to start it. With no required human action it included the feature-discovery block plus Revenue Engine anchor before the closing question; with an `**[ACTION REQUIRED]**` block it omitted both and deferred them to the next eligible reply.
 - PDNA - Production, Distribution, Notification, and Analytics - was treated as provider/configuration setup only, not report/video/publish execution inside Setup Flow.
 - After schedule/automation exists, the `Solo Agency - GitHub Update Watch` maintenance task was CREATED, or its exact pending prompt was written AND handed to the human in an `**[ACTION REQUIRED]**` block naming the task and how to create it (never silently skipped or left as a pending record the human was not told about).
@@ -1166,14 +1166,14 @@ Private data source setup is not complete until:
 - Any custom sources volunteered during setup were preserved for processing when the collector was ready; later additions use Revenue Engine `watch_source` or a direct request to Sam and trigger Automation Resync. Joined-places discovery was never separately offered or declined; it rode the step-7 first-run answer, and its results were monitored automatically via the Group Potential Rule.
 - Every discovery result was judged with the Group Potential Rule before monitoring (high/medium active, low not_selected with a reason).
 - The Local Collector status was checked or the blocker was documented.
-- Collected data was analyzed for data points, leads, competitors, new sources, idea matrix, best idea, and drafts.
+- Collected data was analyzed for data points, leads, competitors, new sources, idea matrix, best idea, Top 3, and decision evidence.
 - Stage 10 was loaded before presenting lead and competitor opportunities.
 - The HTML report was regenerated.
 
 Production/distribution is not complete until:
 
 - Stage 3 was loaded.
-- Drafts were shown to the human.
+- When a separate writing or production task ran, its draft was shown to the human and passed the Audience Value-First Gate plus Client Removal Test.
 - Explicit approval was received for any create/render/export/publish/credit-spending/clone action.
 - Any video media was created only through a verified client-scoped provider operation. No local DIY video fallback was used when PDNA/provider setup was missing, unverified, or blocked.
 - For provider video creation, reviewable scenes were followed by the video-editing skill pass or an explicit logged blocker/decline.
@@ -1191,7 +1191,7 @@ Measurement is not complete until:
 Daily run is not complete until:
 
 - Every active client was processed or explicitly skipped.
-- Sources, keywords, data quality, leads, competitors, ideas, best idea, drafts, and blockers were recorded.
+- Sources, keywords, data quality, leads, competitors, ideas, best idea, Top 3, evidence trails, and blockers were recorded. Daily Run did not write full content drafts.
 - Stage 10 was loaded and lane-specific Lead & Competitor Opportunities were detected, skipped with a clear reason, or marked pending/private data sources unavailable.
 - A mobile-friendly HTML report exists.
 - An operator-only `{client-name}-INTERNAL_REPORT.html` exists and is clearly labeled `INTERNAL_REPORT - Not for client sharing`.

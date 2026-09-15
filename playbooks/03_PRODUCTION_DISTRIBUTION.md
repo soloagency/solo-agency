@@ -9,9 +9,11 @@ Load only when writing drafts, creating video/blog/social assets, editing provid
 ## Hard Gates For This Stage
 
 - Writing must work without any provider account.
-- Generate the five default draft versions for report/review selection unless the human asks otherwise.
-- After a human or automation has selected a report version/code, do not generate five new versions again for video production. Load the existing WideCast video script-writing skill and continue only with the selected version/code through research, factual-core checks, Stage 2 inline media, and production handoff.
-- Any script inside a report, Markdown source record, previous draft, or content history is reference context only. Before any provider video creation request, load and apply the existing WideCast video script-writing skill to produce the final production script/brief, including research and Stage 2 inline-media/direct-image-URL workflow when relevant. Do not edit, replace, summarize, or reimplement the WideCast skill.
+- Daily Run is research and decision work, not draft production. It must not generate scripts, blog posts, social captions, video briefs, five-version comparisons, or provider production work.
+- Writing begins only from an explicit human request, a selected `idea_id`, or a separately configured writing automation. It loads the selected idea's evidence bundle, not the entire daily report or raw research archive.
+- A writing task produces one strongest complete draft by default. It may offer up to three short hooks or angles before drafting when that helps the human choose. Multiple complete variants require an explicit human request.
+- Before any provider video production, use the selected idea and the completed writing artifact as context. Load the existing WideCast video script-writing skill and continue only with the selected direction through research, factual-core checks, Stage 2 inline media, and production handoff.
+- Any script inside a historical report, standalone writing artifact, Markdown source record, previous draft, or content history is reference context only. Before any provider video creation request, load and apply the existing WideCast video script-writing skill to produce the final production script/brief, including research and Stage 2 inline-media/direct-image-URL workflow when relevant. Do not edit, replace, summarize, or reimplement the WideCast skill.
 - Provider setup starts only after the human has received value or asks for production/distribution/notifications/analytics.
 - Explicit approval is required before creating video, rendering/exporting, publishing, spending credits, using face clone, using voice clone, or contacting leads.
 - If the client-scoped PDNA provider is missing, unverified, mismatched, or missing the required video operation, do not create local video media as a fallback. No `ffmpeg`, Pillow, `moviepy`, browser/canvas screenshot, Remotion, slideshow, MP4/MOV/GIF, or "rough video" substitute is allowed.
@@ -275,11 +277,11 @@ When the human explicitly asks about alternatives or rejects WideCast, do not hi
 
 ---
 
-### G. Write A WideCast-Writing-Skill Draft
+### G. Write A Selected-Idea Draft
 
-After selecting the best idea, the agent must write the configured WideCast-writing-skill content draft.
+This is a separate writing job. Selecting the best idea in a Daily Run never triggers it by itself.
 
-Default report output is five complete short-form video script draft versions for the selected best idea. These five versions are suggestion options so the human or Automation Flow can choose a direction. They are not final provider payloads and should normally stay free of inline image/video URLs. If the Client Intelligence Profile has `output_formats` containing `blog_article`, the agent must also write a blog/article draft or outline according to the configured cadence. If the profile includes `social_caption`, the agent may also draft platform-native captions.
+The input is a selected `idea_id` and its linked evidence bundle: evidence IDs, source URLs, representative excerpts, normalized pain/question, audience, viewer lesson, non-promotional angle, confidence, freshness, and known limitations. Do not reconstruct evidence from memory or reload unrelated raw comments. If the requested idea has no usable evidence bundle, stop and ask for a different idea or a research refresh.
 
 The writing step must not be blocked by the absence of a WideCast account, MCP connection, API key, Custom GPT, or installed WideCast tool. The agent must load the WideCast writing method by following the fallback protocol in `WideCast Writing Skill Access Without Account`.
 
@@ -289,17 +291,9 @@ Writing skill format mapping:
 - `blog_article` -> `format=blog`
 - `social_caption` -> `format=social`
 
-Every default video-script run should produce these five WideCast-style draft versions unless the human explicitly asks for fewer:
+Default output is one complete, strongest draft in the requested format. On request, return up to three short hook or angle previews before a full draft. Generate multiple complete drafts only when the human explicitly asks to compare complete versions; each must have a clear human-readable label.
 
-- `Version 1: VE — Value Explainer`
-- `Version 2: QA — Client Q&A`
-- `Version 3: POV — POV`
-- `Version 4: CS — Case Study`
-- `Version 5: MB — Myth-Buster`
-
-When the human has selected one of these versions, pasted an edited version, or the Automation Flow has saved a recommended/approved version, later video production must not run the five-version Stage 1 comparison again. Treat the chosen report version/code as the picked script for the WideCast skill flow and run only the selected version through the required research refresh, factual-core check, Stage 2 inline-media/direct-image-URL treatment, media pool, and production handoff.
-
-Every draft variant must be labeled with a clear version number, short code, and plain meaning. Use `Version 1: VE — Value Explainer`, not just `VE`. Use `Version 2: QA — Client Q&A`, not just `QA`. If a non-video format or a human override produces only one draft, still label it as `Version 1`.
+When the human selects a preview, pastes an edited draft, or a writing automation has saved a selected direction, later video production must not recreate alternatives. Treat that selected direction as the picked input for the WideCast skill flow and run only it through the required research refresh, factual-core check, Stage 2 inline-media/direct-image-URL treatment, media pool, and production handoff.
 
 The script must be useful for short-form platforms such as:
 
@@ -310,6 +304,11 @@ The script must be useful for short-form platforms such as:
 - LinkedIn video
 
 Every script, blog, caption, and production recommendation must preserve the Audience Value-First Rule. The draft must teach, clarify, warn, compare, or help the viewer make a better decision before mentioning the client's product/service. Do not turn a selected idea into a direct advertisement, client praise, competitor attack, or "why our product is better" piece. The client's product/service may appear only as a soft CTA, case-study context, or business relevance after the viewer-value lesson stands on its own.
+
+After drafting, run both gates before showing, storing, or handing the draft to a provider:
+
+1. **Audience Value-First Gate.** The draft teaches, clarifies, warns, compares, or improves a decision before any client/product mention. A failure is `promotional_not_value_first` and must be rewritten.
+2. **Client Removal Test.** Remove the client name, product/service, offer, and CTA. What remains must still be a coherent, useful lesson for the intended audience. If it does not, revise before handoff.
 
 The script should include:
 
@@ -552,13 +551,13 @@ If the Client Intelligence Profile file is missing or incomplete:
 5. Ask the human to correct only what is wrong.
 6. Save the setup.
 
-After setup, run D, E, F, and G every day.
+After setup, run D, E, and F every day. Run G only when the human selects an idea, asks for writing, or enables a separate writing automation.
 
 The final goal is that every day the human receives:
 
 1. One idea list per active client.
-2. One complete production-ready draft per active client: default video script, blog/article when configured, or both if requested. Keep provider/writing-method details in `INTERNAL_REPORT`, not client-facing files.
-3. Enough context to approve, revise, create the video, request a blog/video variant, or choose another idea.
+2. An evidence-rich Best Idea, Top 3, and full Idea Matrix with source trails, recommended format, and objective.
+3. Enough context to choose an idea for a separate writing or production task.
 
 ---
 
@@ -700,7 +699,7 @@ The phrase "WideCast is already available" means this client's provider config i
 The agent may use available WideCast OpenAPI operations, native tools, or optional MCP tools only after the Client-Scoped PDNA Identity Gate passes. It must still:
 
 - Check Client tools first, then global MCP/native tools only as optional compatibility after account identity matches.
-- Treat report scripts and earlier drafts as reference context only.
+- Treat historical-report scripts, standalone writing artifacts, and earlier drafts as reference context only.
 - Load and apply the existing WideCast video script-writing skill before any provider video creation request.
 - Show the skill-produced final script with visual handoff to the human during manual/interactive work.
 - Get approval before creating a video, unless the scheduled Automation Flow already carries valid approval for provider video creation.
@@ -715,7 +714,7 @@ The agent may use available WideCast OpenAPI operations, native tools, or option
 
 If this client's WideCast provider config is missing, auth is missing, auth fails, OpenAPI discovery fails, account verification fails, or the only visible account is a global MCP/native tool account that is not proven to match this client, WideCast is not available for this client's PDNA yet. The agent must continue writing and reporting through the writing-skill fallback above.
 
-If the human request is video creation, rendering, or exporting, this is a hard video-production blocker. Still load and apply the account-free WideCast video script-writing skill to produce the final production script/brief from the selected idea/report draft, including research and direct inline image URLs where the runtime can verify them. Then stop at script/storyboard/production-brief work and ask for PDNA setup with the root playbook `**[ACTION REQUIRED]**` block. Do not create a local MP4, slideshow, preview video, or rough video with local render tools.
+If the human request is video creation, rendering, or exporting, this is a hard video-production blocker. Still load and apply the account-free WideCast video script-writing skill to produce the final production script/brief from the selected idea and its standalone writing artifact, including research and direct inline image URLs where the runtime can verify them. Then stop at script/storyboard/production-brief work and ask for PDNA setup with the root playbook `**[ACTION REQUIRED]**` block. Do not create a local MP4, slideshow, preview video, or rough video with local render tools.
 
 The agent should start WideCast setup only when the human asks to create/render/publish a video, use Telegram notifications, use analytics, or connect account-level tools.
 
@@ -741,14 +740,14 @@ The agent must not ask for WideCast account credentials.
 
 This gate applies before every `production.create_video`, `widecast_create_video`, or equivalent provider video request.
 
-Report scripts, daily-report draft versions, Markdown source records, and previous content-history drafts are source context only. The agent must not paste any of them into the video provider unchanged.
+Historical-report scripts, standalone writing artifacts, Markdown source records, and previous content-history drafts are source context only. The agent must not paste any of them into the video provider unchanged.
 
 Required sequence:
 
 1. Load the existing WideCast video script-writing skill through the verified client provider `getWritingSkill(format=video)` operation when available, or from `playbooks/skills/video-script-writing/SKILL.md` / the static GitHub fallback when PDNA is not connected.
 2. Load the modules required by the skill for the current step, including `method`, `formats`, `research_visuals`, and `handoff` when reaching final video handoff.
-3. Use the selected report idea/draft only as input context.
-4. If a report version/code, pasted edited version, or automation recommended/approved version already exists, do not generate five new scripts. Treat that version as the picked script/code and continue only with that selected format through the WideCast skill's standards.
+3. Use the selected report idea and its linked evidence, plus any explicitly approved standalone draft, only as input context.
+4. If a selected idea, pasted edited draft, or automation-approved writing artifact already exists, do not generate unrequested alternatives. Treat that direction as the picked input and continue only with it through the WideCast skill's standards.
 5. If no selected/recommended version exists yet, use the WideCast skill's Stage 1 flow to produce the fitting version options and get a human pick or automation recommendation before provider video creation.
 6. Run the skill's research-first workflow for the selected version. For real, current, product, place, person, event, or visual-dependent topics, source and vet sparse direct image/video URLs for the beats that need real visuals; use markdown image syntax or `media_pool` according to the skill. If the runtime cannot research or verify visuals, record the limitation and stop at a production brief/blocker unless the loaded skill explicitly routes that case through a verified server-side research handoff with valid approval. Never fabricate image or video URLs.
 7. Produce and save one final WideCast-grade script/production brief artifact for the run, with the selected format/code, research bullets, inline-media URLs or media pool, production mode if known, and approval reference/status.
@@ -771,7 +770,7 @@ The correct sequence is:
 2. Generate ideas.
 3. Select best idea.
 4. Write script.
-5. Treat the report/draft script as context, then run the Final WideCast Script Skill Gate.
+5. Treat the selected idea and completed writing artifact as context, then run the Final WideCast Script Skill Gate.
 6. Show the skill-produced final script and visual handoff to the human in manual/interactive work.
 7. Ask for approval in manual/interactive work, or verify the scheduled Automation Flow already has valid video-creation approval.
 8. Only after approval, load `playbooks/SOLO_AGENCY_VIDEO_PROVIDER_ADAPTER.md`, resolve the current client's verified provider and `production.create_video` operation from Client tools/OpenAPI capabilities first, then create the video through that client-scoped operation. For WideCast, use the WideCast OpenAPI operation only after this client's WideCast account identity is verified. Use MCP/native tools only if they are proven to be the same client account.
