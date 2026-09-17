@@ -1080,6 +1080,14 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
             // redirected to different content before it writes (FB reels/permalinks
             // can drift to a recommended item; a write must never hit the wrong one).
             let actionInputs = Object.assign({}, sourceInputs, { _target_url: String(source.url || "") });
+            // Actor identity guard (bridge actor_guard.go): the job may declare which accounts this
+            // client publishes from, per platform. The action lib compares the page's own login
+            // against this list before it writes anything and refuses on a mismatch.
+            {
+              const declared = job && job.declared_accounts;
+              const plat = String(source.platform || "").toLowerCase();
+              actionInputs._declared_accounts = declared && Array.isArray(declared[plat]) ? declared[plat].map(String) : [];
+            }
             // A DIRECT permalink write (no match_text) had no drift guard at all:
             // driftInfo() pins on targetIdFrom(), which recognises NUMERIC ids only,
             // so a `pfbid…` permalink pinned nothing and every page passed. A deleted

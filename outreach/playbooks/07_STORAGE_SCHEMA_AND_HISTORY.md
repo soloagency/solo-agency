@@ -230,7 +230,7 @@ Field notes:
 - **`channels.sms.status`** ∈ `needs_optin | usable | opted_out`, always `mode: assisted`; the `optin` object records `{source, at, evidence_activity_id}` (compliance basis, see DESIGN §16 — compliance is encoded in the send/import code, Stages 8/3).
 - **`lifecycle_stage`** enum: `lead | engaged | opportunity | customer | evangelist | lost | do_not_contact`.
 - **`tz`** feeds the send-window gate; inferred from state/area code.
-- **`custom_fields`** keys are defined per client in the Client Intelligence Profile `custom_field_definitions` block (§8.1). Do not invent custom-field keys that the profile does not define.
+- **`custom_fields`** keys are declared per client in the Client Intelligence Profile `custom_field_definitions` block (§8.1) — by the Boss at setup, or by the agent the moment a task, a campaign or a customer conversation needs a fact the schema has no place for, under `13_CRM_CORE.md` ("What the agent stores about a person"): declare before writing, dates in ISO, a date to act on is a CRM task not a field, everything else is a note. Never write a key that is not declared.
 - **`enrichment`** is a distilled copy of the dossier (§7.2); the canonical dossier lives under `campaigns/*/queue/enriched/`.
 - **`assigned_sendbox`** is null until the first send, then fixed (sticky sender, §6.2).
 - **`merge`** carries the tombstone pointer (§4.7).
@@ -437,7 +437,7 @@ Both are gitignored and `chmod 600`. The deploy script blocks staging of `token.
 
 ### 6.3 Rotation, sticky sender, caps (the storage-visible rules)
 
-- **Two auth modes, one interface.** `app_password` (priority for `@gmail.com`): SMTP send + IMAP read via Python stdlib (`smtplib`/`imaplib`), no OAuth, no 7-day expiry, preserves our Message-ID. `oauth` (Workspace/custom domain): Gmail API, scopes `gmail.send + gmail.readonly` only (drop `gmail.modify`); the OAuth app should be **Internal** to avoid the 7-day refresh-token expiry — if forced External/testing, weekly re-auth becomes a scheduled day-6 `[ACTION REQUIRED]`, not an error path.
+- **Two auth modes, one interface.** `app_password` (priority for `@gmail.com`): SMTP send + IMAP read by the bridge (`tool gmail`, Go), no OAuth, no 7-day expiry, preserves our Message-ID. `oauth` (Workspace/custom domain): Gmail API, scopes `gmail.send + gmail.readonly` only (drop `gmail.modify`); the OAuth app should be **Internal** to avoid the 7-day refresh-token expiry — if forced External/testing, weekly re-auth becomes a scheduled day-6 `[ACTION REQUIRED]`, not an error path.
 - **Rotation is step-1 only; sticky sender thereafter.** First outreach picks the healthy referenced sendbox with the lowest `sent_today/quota_today` ratio (round-robin on ties); `contact.assigned_sendbox` is then fixed. Every bump/reply goes from the assigned box (threading + reply routing + anti-spam require it).
 - **Two-tier cap.** Effective cap = `min(remaining_box_quota, remaining_domain_cap)` — several boxes on one domain share domain reputation; domain volume ramps too.
 - **Broken box:** dropped from step-1 rotation; its assigned pending follow-ups **wait** (never reassigned) + `[ACTION REQUIRED]` re-auth; report shows "N follow-ups blocked".
@@ -844,7 +844,7 @@ dry_read_verification:
 - Every `value / status / rationale` field records **what we believe, how sure we are, and why**. `status` should read like `confirmed | inferred | assumed | needs_human` so downstream drafting knows what it may lean on. Do not assert a `value` with no `rationale`.
 - **`bootstrap` is provenance metadata, not a license to skip confirmation.** Every field pre-filled by the Stage-1 Solo Agency Profile Bootstrap still carries its own `status` (`discovered_from_source` until the human confirms) and must be shown in the Step-1 inference block before the profile is saved.
 - **`sending_identity.physical_mailing_address` is required** — it is the CAN-SPAM footer address. A commercial campaign cannot be marked ready while `can_spam_physical_address_present` is `false`; surface it as `[ACTION REQUIRED]`.
-- **`custom_field_definitions`** is the *only* place custom-field keys are declared. `contact.custom_fields`, `account.custom_fields`, and deal custom fields must use keys defined here (with the declared `type`/`allowed_values`).
+- **`custom_field_definitions`** is the *only* place custom-field keys are declared. `contact.custom_fields`, `account.custom_fields`, and deal custom fields must use keys defined here (with the declared `type`/`allowed_values`). The agent may add a declaration here itself (`key`, `label`, `applies_to`, `type`, `allowed_values`, `description` — `13_CRM_CORE.md`, "What the agent stores about a person") and tells the Boss in one sentence what it added and why.
 - **`target_triggers`** seed the JIT pipeline (which cold/trigger leads to load 3–7 days ahead) and constrain which hook types a campaign may open on.
 - **`icp.segments[].segment_id`** must resolve to an id in `crm/segments.json`.
 - **`automation_sync`** is the per-client half of Automation Resync; the agency-wide half is `automation/automation_manifest.md` + `resync_log.md`. `native_task_name` pins the one automation task for this client; that task's prompt pins `target_client_slug` and must not touch another client.

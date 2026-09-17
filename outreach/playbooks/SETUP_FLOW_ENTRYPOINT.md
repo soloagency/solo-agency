@@ -6,7 +6,7 @@ Setup Flow is the control plane. It configures OutreachCRM so the daily automati
 
 ## Runtime Requirement
 
-Before setup proceeds, verify or explain that OutreachCRM needs Codex, Claude Desktop/Cowork, or a comparable desktop/local AI agent runtime with workspace file access, scheduled/automation tasks, local Python execution, and parallel/sub-agent work. Do not present a plain web chat as the primary runtime.
+Before setup proceeds, verify or explain that OutreachCRM needs Codex, Claude Desktop/Cowork, or a comparable desktop/local AI agent runtime with workspace file access, scheduled/automation tasks, local command execution (the bridge binary's `tool …` commands; no Python or Node needed), and parallel/sub-agent work. Do not present a plain web chat as the primary runtime.
 
 ## Setup Flow Contract
 

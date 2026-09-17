@@ -162,7 +162,7 @@ The human should not manage the workflow manually. The human spends a few minute
 
 ## Required Runtime
 
-OutreachCRM is an agent-operated automation workflow, not a plain web-chat prompt. Tell the human to run it in Codex, Claude Desktop/Cowork, or a comparable desktop/local AI agent environment that can read/write workspace files, maintain scheduled automation, run local Python tools (`tool crm-store`, `tool gmail`, `tool import-leads`, `tool verify-email`), and coordinate parallel/sub-agent work. A web chat may review results but must not be the primary runtime.
+OutreachCRM is an agent-operated automation workflow, not a plain web-chat prompt. Tell the human to run it in Codex, Claude Desktop/Cowork, or a comparable desktop/local AI agent environment that can read/write workspace files, maintain scheduled automation, run the bridge's local tools (`tool crm-store`, `tool gmail`, `tool import-leads`, `tool verify-email`), and coordinate parallel/sub-agent work. A web chat may review results but must not be the primary runtime.
 
 ## Storage And Mutation Rule
 
@@ -189,13 +189,16 @@ Approval is the gate; it never moves. What changes per channel is only **whose h
 | Channel | After approval, who sends | Why |
 |---|---|---|
 | **Email** | the agent, via `tool gmail send` | SMTP send path with a full pre-send gate chain |
-| **Messenger (DM)** | **the agent, via the Local Collector** (`fb.message.send`) | a live-verified capability exists: the thread is identified by the recipient's **profile id**, not their display name, and the send is confirmed by reading the result back |
-| **Facebook comment** | **the agent, via the Local Collector** (`fb.post.comment`) | a live-verified capability exists: the target post is resolved **in code** and the run refuses unless exactly one post matches |
+| **Facebook comment, group post** | **the agent, via the Local Collector** (`fb.post.comment`, `fb.group.post`) — `draft comment` / `draft post` in a comment campaign → Approval page → comment dispatch | live-verified capabilities: the target post is resolved **in code** and the run refuses unless exactly one post matches |
+| **Direct message** (Facebook Messenger, Instagram) | **the agent, via the Local Collector** (`fb.message.send`, `ig.message.send`) — `draft dm` in a campaign with `channel_strategy: messenger` → Approval page → the same dispatch, capped by `dm_per_account_per_day` (default 10) | the thread is identified by the recipient's **profile id or username**, never a display name; the recipient must already be a CRM contact; one message per person per campaign; the send is confirmed by reading the result back. `fb.message.send` is live-verified; `ig.message.send` is built with catalog status `beta` — its first approved item through the queue is the live verification |
+| **X reply, Instagram comment** | **the agent, via the Local Collector** (`x.post.reply`, `ig.post.comment`) — `draft comment` with `"platform": "x"` or `"instagram"` in a comment campaign whose `audience.groups` lists the accounts to watch (or `"*"`) → Approval page → the same dispatch | built 2026-09-17, catalog status `beta`: treat the first approved item on each platform as the live verification and read its record |
+| **X post** (the operator's own timeline) | the agent, via `x.post.publish` — `draft post` with `"platform": "x"` | built, `beta`; every X post is public |
+| **X direct message, Instagram post** | the human, by hand (chat / content pipeline) | `x.dm.send` stays blocked until XChat onboarding is done once in the collector's Chrome; Instagram has no text-only post |
 | **SMS, Zalo** | the human, by hand | no capability exists; these remain assisted-channel drafts |
 
-`channels.{channel}.mode` on a contact records this: `auto_execute_after_approval` for email/messenger/comment, `assisted` for SMS/Zalo. A channel is only ever promoted out of `assisted` when a capability for it has been verified live — never on the assumption that one will work.
+`channels.{channel}.mode` on a contact records this: `auto_execute_after_approval` for email, comments, posts and direct messages; `assisted` for SMS/Zalo. A channel is only ever promoted out of `assisted` when a capability for it has been verified live — never on the assumption that one will work; the X and Instagram lanes above carry `beta` for exactly that reason. On a plan that counts writes (Free: <!--plan:free.writes_line-->1 post, 3 comments or replies, 3 direct messages per day<!--/plan-->, per install), the bridge takes one slot per published comment, post or DM when it creates the job; an approved item past today's allowance waits at the back of the queue for the next day, and the Approval page says so.
 
-**Scope — this is the AGENCY's own outreach.** These modules run under the operator's own brand to find new clients. The agent never comments or messages *as* a paying client, or on their behalf; a paying client is a read-only data subject whose signals are collected to produce content *for* them. The content-pipeline bans on acting as a client (`playbooks/03` §23.7, `playbooks/10`, `playbooks/skills/lead-engine/safety.md`) remain fully in force and are not relaxed by this rule.
+**Scope.** These modules run under the operator's own brand to find new clients; a paying client's signals are collected to produce content *for* them. When a comment, post or message goes out under a client's name (an order — `playbooks/ORDER_RULE.md`), it runs through exactly the same lanes: a campaign in that client's workspace, the Approval page, and dispatch only from an account declared for that client in `collector_config.json` (`clients[].accounts[]`; the collector refuses any other login with `actor_mismatch`). `playbooks/03_PRODUCTION_DISTRIBUTION.md` §23.7 is the rule of record: approval is the permission, nothing else is.
 
 ## Conversion-Evidence Rule
 

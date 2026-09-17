@@ -19,12 +19,23 @@ both at once. That is supported: read `playbooks/MULTI_BRAIN_OPERATIONS.md` and 
 `run_lock` or scoped work lease your task requires before touching client state. Never tell the
 human to close Codex so you can work — say which scope is held, by whom, and what is free.
 
+Claude notes for a fresh setup: when the local shell really is unavailable (check it — a failed command
+is not proof, see `playbooks/SETUP_FLOW_ENTRYPOINT.md`), the REMOTE runtime branch in `AGENTS.md` applies:
+prepare the files and hand the human the one-line command, rather than waiting or cloning somewhere the
+human cannot see. The setup flow's opening already tells the human, in their own words, who is speaking
+(its first part is one sentence naming the runtime you run on), what gets installed, the platform rules
+and the license, and asks whether to begin before anything is installed; the later install, extension and
+daily-run steps each ask again. When the human opened this folder in Claude Code and said "set up", that
+is the setup request. The install root is the folder that contains this repository — the canonical layout
+in `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md` puts `daily-content-pipeline/`, `extensions/` and
+`solo-agency-local-collector/` next to `solo-agency/`, never inside it.
+
 Claude-runtime notes: register automations as Claude scheduled tasks only for the tasks this
 runtime OWNS (ownership is per task, recorded in `automation_manifest.md`); use fresh-context
 sub-agents where the playbooks call for writer/worker isolation; `**[ACTION REQUIRED]**` blocks
 and the Next-Action Guidance Rule apply to you exactly as written in `AGENTS.md`.
 
 Running the installed bridge and its tools on a live install (`<bridge> tool crm-store ...`,
-`tool gmail ...`) is normal OPERATION, not a code change and not a setup step — no "ask before
-editing code" convention applies to it, and the setup-flow collector gate in `AGENTS.md` never
-forbids it. Editing files in this source repo IS a code change and follows the normal repo rules.
+`tool gmail ...`) is normal OPERATION of the product, not an edit to this repository and not a setup
+step; the setup-flow collector gate in `AGENTS.md` never forbids it. Editing files in this source repo
+IS a code change and follows the normal repo rules.

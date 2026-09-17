@@ -1,7 +1,7 @@
 # Feature Catalog — the Revenue Engine jobs the Boss can ask Sam to do
 
 The first four sections of this file are the single canonical, Boss-facing **Revenue Engine job
-menu**. The client Overview / Revenue Engine section and Sam's complete menu use the same 26 rows,
+menu**. The client Overview / Revenue Engine section and Sam's complete menu use the same 27 rows,
 in the same group and row order. The existing Overview Actions and the detailed capability
 reference remain available below; this menu adds a simple way to discover work Sam can do and does
 not replace those operational controls. A menu item is named as a job the Boss already understands,
@@ -62,6 +62,7 @@ asks one short follow-up instead of sending the Boss to another configuration sc
 | `schedule_revenue_engine` | Run it automatically | Choose a cadence so the revenue engine keeps working without a daily reminder. | `Set up the Solo Agency Daily Run schedule for {client}` |
 | `latest_report` | Show the latest report | Open the newest report with leads, opportunities, content ideas, drafts, and results. | `Show me the latest Solo Agency report for {client}` |
 | `notifications` | Get reports and lead alerts | Receive report updates and timely alerts when a hot lead needs attention. | `Turn on report and hot-lead notifications for {client}` |
+| `custom_order` | Anything you describe | Describe any job in your own words; Sam says what it understood, how it will do it, what you get and how it reports — then runs it once or on a cadence. | `I want you to {describe the job}` |
 
 ## Sam's menu behavior
 
@@ -99,6 +100,7 @@ paraphrases and maps them to the same feature ID. At minimum:
 
 | What the Boss may say | Feature ID |
 |---|---|
+| anything that matches no row above, or any job in the Boss's own words | `custom_order` (`playbooks/ORDER_RULE.md`) |
 | “extract leads from this post”, “who commented here?”, “get the buyers under this post”, “lấy lead từ bài/post này” | `extract_post_leads` |
 | “find leads in this group”, “search this group for prospects”, “tìm lead trong group này” | `find_group_leads` |
 | “find realtors in California”, “find people with this job”, “tìm người đúng chân dung này” | `find_people` |
@@ -139,7 +141,7 @@ Facebook operation.
 - Sam reads only what the connected account is allowed to view. Finding or watching a source never
   joins a group, sends a friend request, or contacts anyone.
 - Nothing is emailed, messaged, commented, posted, published, or otherwise sent without the Boss's
-  approval. Live comment and group-post actions require the plan's `write_actions`; unavailable
+  approval. Live comment and group-post actions run through the Approval page on every plan (a counted plan publishes within its daily allowance and holds the rest for tomorrow); unavailable
   actions can still be prepared for review. Locked CRM contacts cannot be enrolled, emailed, or
   messaged until the plan opens them.
 - Video/publishing uses the client's verified connected provider and may spend its credits; Sam
@@ -181,12 +183,12 @@ prerequisites, accepted legacy trigger phrases, and the stages that deliver each
 are not a second Boss-facing menu. When wording differs, the 25-row menu above supplies the card
 title, value, order, and exact **Prompt to Sam**; a trigger phrase below remains a valid alias.
 
-## Plans (two upsell triggers — the contact cap, and write actions on Free)
+## Plans (two upsell triggers — the contact cap, and the daily write allowance on Free)
 
-Read the install's plan from `GET /status` → `entitlement.tier` before surfacing a feature; the ladder and the full PRIMING / METER / SELLING contract live in `AGENTS.md` ("Upsell rule"). Almost nothing is plan-gated — every data feature is on every plan, Free included; the two things a plan actually changes are the CRM contact cap and whether `write_actions` (group post, comment, react) works. Plan is not purely reactive, but it is not a sales pitch either: a one-sentence PRIMING fact (no link, no ask, spoken the way a real person would offer it) may surface proactively at the six funnel moments A-F defined in `AGENTS.md`; a persistent METER line reports the real `contact lock-status` numbers whenever any contact is locked, or the approaching-cap line once the open-contact ratio is high; a SELLING `**[ACTION REQUIRED]**` block runs only on the two real triggers there (first locked contact in a session, or a refused write action on Free). None of PRIMING/METER/SELLING is a feature-tour item — they never rotate, never wait out a cooldown, and never count against the one-feature-discovery-block-per-message limit below.
+Read the install's plan from `GET /status` → `entitlement.tier` before surfacing a feature; the ladder and the full PRIMING / METER / SELLING contract live in `AGENTS.md` ("Upsell rule"). Almost nothing is plan-gated — every data feature is on every plan, Free included; the two things a plan actually changes are the CRM contact cap and the daily write allowance (Free: <!--plan:free.writes_line-->1 post, 3 comments or replies, 3 direct messages per day<!--/plan-->, counted per install; paid tiers uncounted). Plan is not purely reactive, but it is not a sales pitch either: a one-sentence PRIMING fact (no link, no ask, spoken the way a real person would offer it) may surface proactively at the six funnel moments A-F defined in `AGENTS.md`; a persistent METER line reports the real `contact lock-status` numbers whenever any contact is locked, or the approaching-cap line once the open-contact ratio is high; a SELLING `**[ACTION REQUIRED]**` block runs only on the two real triggers there (first locked contact in a session, or the first approved item held for tomorrow by the write allowance). None of PRIMING/METER/SELLING is a feature-tour item — they never rotate, never wait out a cooldown, and never count against the one-feature-discovery-block-per-message limit below.
 
 - **Every plan, Free included:** Daily content ideas, Blog + social posts, Custom source monitoring for the sources you connect, Lead & Competitor detection on them, Daily/weekly reports, Analytics loop, Notifications, Auto update-watch (notify-first and auto-apply), Collector healthcheck, Import a contact list, CRM pipeline (Free: up to <!--plan:free.max_contacts-->100<!--/plan--> CRM contacts unlocked — every lead is still captured), Approval report, Cold-email outreach (per-sendbox Gmail quotas apply), Follow-up engine inside those campaigns, Lead enrichment (dossiers, contact ladders), DM to unlocked contacts, lead harvest (friends lists, people search), Zillow directory + enrich, priority adapter fixes.
-- **Starter and up: write actions** — post into groups, comment, react (`write_actions`). Free cannot do these three (the one exception is the support-group post below, allowed on every plan for that single destination).
+- **Every plan: write actions** — post into groups, comment and reply, send DMs, always through the Approval page. A counted plan (Free: <!--plan:free.writes_line-->1 post, 3 comments or replies, 3 direct messages per day<!--/plan-->) publishes that many a day per install and holds the rest for the next day — nothing is lost, the Approval page and the report say what waits; paid tiers are uncounted. React has no Approval queue, so a counted plan has no react. The support-group post below stays exempt on every plan.
 - **CRM contact cap by plan:** <!--plan:ladder_line-->Free 100 · Starter $49 → 500 · Pro $99 → 2000 · Business $199 → 10000 · Enterprise (contact us) → unlimited<!--/plan--> (rendered from `plans.json`; speak these numbers only via `tool plans show`). A locked contact (above the cap) has no detail view, cannot be emailed, cannot be DM'd, and cannot be enrolled in a campaign — contacts above the cap are still captured, just locked until you upgrade.
 - **Every plan:** the client's content library (`tool content`, `/ui/{client}/content`) — every video, post, blog and link this client has, searchable on your own machine, with no server call and no plan gate.
 - **Every paid plan runs on one machine per key** (`AGENTS.md`, "One key, one install"): a second install of the same key is Free with `entitlement.reason: seat_limit`; moving to a new computer is `tool entitlement release` on the new one (once per 7 days).

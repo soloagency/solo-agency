@@ -660,6 +660,20 @@ thread") and `playbooks/07_STORAGE_SCHEMA_AND_HISTORY.md` ("Discovered sources")
 This section is never harvested from inside a scheduled run — it only reports what Step 5 recorded
 and what a Boss-ordered harvest (a separate job) already did.
 
+### Orders
+
+Operator-only, per `playbooks/ORDER_RULE.md`. Mandatory whenever the client has at least one brief under `orders/`:
+
+- **Active** — one line per active brief: title, cadence, ran / skipped (why) this run, the output line (counts, links, what waits for approval), the brief's path.
+- **Waiting on the Boss** — briefs with `status: waiting_boss` and the exact thing each waits for.
+- **Done this run** — once-briefs completed this run, with their evidence.
+
+A run with briefs and no Orders section, or an active due brief with no line, fails the audit in `playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`.
+
+### Plan meters
+
+Operator-only. Whenever `contact lock-status` shows `locked > 0` (or `approaching: true`) the report carries the contact meter line exactly as `AGENTS.md` ("Upsell rule", METER) defines it. On a plan that counts writes (`writes_today.capped: true`) it also carries `writes_today.line` verbatim and, when `writes_today.held > 0`, one line naming the approved items that wait for tomorrow and why (the `plan_hold_note` on each queued item). Numbers come only from those fields; none of this is client-facing.
+
 ### Report Delivery And Notification Log
 
 ### Count And Status Reconciliation

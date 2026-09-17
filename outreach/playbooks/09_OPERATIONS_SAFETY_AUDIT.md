@@ -265,7 +265,7 @@ Compliance is encoded in the send and import code, not just described here. The 
 
 ### Guessed email
 
-- Guessed/unverified addresses go through the third-party verification API (called from local Python) before any send.
+- Guessed/unverified addresses go through the third-party verification API (called by the bridge's `tool verify-email`) before any send.
 - `catch_all` domains are excluded from the guessed quota or capped ~2% (an MX check is near-meaningless there — catch-alls accept any RCPT).
 - **Per-domain kill switch:** the first hard bounce on a guessed pattern at domain X suppresses all other guessed addresses at X.
 - `guessed_only` status is enforced **in `tool gmail send`** (requires the explicit per-draft guessed-approval flag + a daily guessed-send cap read from `sent_log`), never only in prose.

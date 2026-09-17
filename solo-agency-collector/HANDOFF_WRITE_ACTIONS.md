@@ -274,6 +274,15 @@ run-now jobs (`do_not_post` used to be missing there).
 | `url_drifted` | the page read is not the item requested (covers reel / watch / posts / story_fbid / permalink / fbid; profile urls are deliberately NOT pinned because `profile.php?id=` legitimately redirects to a vanity) |
 | `landed_on_self` | Facebook fell back to the OPERATOR'S own profile — its contact details are the operator's, reject the record |
 | `owner_resolution` | reels only: `resolved` \| `retryable_not_rendered` \| `n/a` — retry on the middle one, do not conclude "no owner" |
+| `actor_account_id` | on every write record (2026-09-17): the platform id of the login that performed or refused the write — Facebook `c_user`, Instagram `ds_user_id`, X `twid` without `u=`; the bridge keeps the last value per collector box + platform |
+| `actor_mismatch` (a `status`) | the write was refused before typing because that login is not in the job\'s `declared_accounts[platform]` — `collector_config.json` `clients[].accounts[]`, handed to the action library as `actionInputs._declared_accounts`; an empty list means unguarded, a missing cookie is a mismatch; the record also carries `declared_accounts` |
+
+The bridge runs the same check before dispatching an approved comment, post or DM: when the box's
+last reported actor is not declared for that client, the item goes back to the Approval page as
+pending with the blocker `actor_mismatch: …` and leaves the queue (`comment_dispatch.go`,
+`actor_guard.go`). Tests: `actor_guard_test.go`, `tests/test_actor_guard.js`. Schema and the
+exact enforcement steps: `playbooks/08_LOCAL_COLLECTOR_TECHNICAL_PROTOCOL.md`, "A client declares
+the accounts that may write under its name".
 
 `wrapCap()` in `gql_actions.js` now always returns `available: true`. Do not "fix" that
 back: `background.js` discards a record whose capability reports unavailable, which threw

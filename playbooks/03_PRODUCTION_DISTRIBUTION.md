@@ -460,7 +460,7 @@ The provider is the operator's own product and ships new operations on ITS sched
 9. Save the verified provider account identity and PDNA status into the per-client provider config and `provider_health.md`.
 10. Log every provider call to `provider_calls.jsonl` with secrets redacted.
 
-When local Python execution is available, prefer the repo helper `tool provider` for discovery, account verification, operation calls, and HTML report upload. If the helper cannot run, use equivalent curl/OpenAPI calls while preserving the same per-client config, account verification, redaction, and provider call logging rules.
+Use the bridge's `tool provider` (Go, nothing to install) for discovery, account verification, operation calls, and HTML report upload. If the helper cannot run, use equivalent curl/OpenAPI calls while preserving the same per-client config, account verification, redaction, and provider call logging rules.
 
 MCP URL setup is optional compatibility, not the default Solo Agency path. Use an MCP URL only when the human explicitly chooses connector-based setup or the current AI host requires MCP. Even then, keep the per-client provider identity and account verification in the client folder so multi-client runs do not silently use a global connector account. A visible WideCast MCP account in the current AI session is not enough to complete PDNA for a client.
 
@@ -1113,7 +1113,7 @@ Repurposing must preserve the same factual references and reference URLs. If the
 
 The agent may monitor comments, questions, and community discussions if tools allow it, but must not reply, message, comment, or engage from the account without explicit permission.
 
-This ban is about acting **as, or on behalf of, a client**, and it is absolute: a client is a read-only data subject whose signals are collected to produce content *for* them. No approval makes it acceptable to comment or message from a client's identity. The agency's OWN outreach is a different lane entirely — the operator's brand, the operator's accounts, finding the operator new clients — and it runs under OutreachCRM with per-message operator approval before anything is sent. See "Channel Execution Model" in `outreach/OUTREACHCRM_PLAYBOOK.md`. Do not read that lane as a loophole in this one.
+This rule is about identity and the gate (rewritten 2026-09-17): nothing is commented, posted or messaged under a client's name unless it passed an approval point — the Approval page for comments, posts, direct messages and emails; the content Approval Workflow for Page posts, videos and blogs — and it is published only from the account declared for that client, by the engine that owns the lane (the Send step, the comment/post dispatch, WideCast publish). A scan never sends. The agency's OWN outreach runs the same way on the operator's own accounts under OutreachCRM ("Channel Execution Model" in `outreach/OUTREACHCRM_PLAYBOOK.md`). Approval is the permission; nothing else is. `playbooks/ORDER_RULE.md` routes every outward artifact of an order to its approval point.
 
 The agent should extract:
 

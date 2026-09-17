@@ -202,8 +202,11 @@ a run. The agent **never** enqueues `fb.post.comment` for a campaign of this cha
 What the bridge guarantees, so you do not need to reason about it:
 
 - **One at a time, spaced.** The first approval publishes at once; the ones behind it come due at
-  least 25 minutes apart. Approving six drafts in one sitting does not produce six comments in a
+  least `publish_gap_minutes` apart (agency setting, default 5 minutes). Approving six drafts in one sitting does not produce six comments in a
   minute.
+- **The plan's allowance is read too.** On a counted plan (Free: <!--plan:free.comments_per_day-->3<!--/plan--> comments or replies a day
+  per install) the drafting horizon and the publish queue use the smaller of the safety cap and the
+  allowance; what is past today's allowance publishes tomorrow, with the reason on the Approval page.
 - **The daily caps are read.** `comments_per_group_per_day` and
   `comment_groups_per_account_per_day` (`/ui/settings`) are enforced at approval; a capped
   approval is not lost, it comes due after the local-day rollover and the operator is told so on

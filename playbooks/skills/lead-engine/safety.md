@@ -110,10 +110,12 @@ the human. Suggested comments are copy-to-clipboard only (Stage 10 report
 contract). This loop's job ends at "here are qualified leads for you to review".
 
 This holds even once the human approves: **this loop never becomes a sender.**
-Approved agency outreach is executed elsewhere — OutreachCRM Stages 16/17, from
-the operator's own brand and accounts, with its own per-message approval and
-per-account caps. Keeping the scanner read-only is what stops a monitoring pass
-from quietly turning into a mass-messaging pass.
+Approved outreach is executed elsewhere — OutreachCRM Stages 16/17 and the
+dispatch daemon — after its approval point (the Approval page, or the content
+Approval Workflow) and only from an account declared for the client whose name it
+goes out under (`playbooks/03_PRODUCTION_DISTRIBUTION.md` §23.7,
+`playbooks/ORDER_RULE.md`), with per-account caps. Keeping the scanner read-only is
+what stops a monitoring pass from quietly turning into a mass-messaging pass.
 
 ## Privacy / data-minimization
 

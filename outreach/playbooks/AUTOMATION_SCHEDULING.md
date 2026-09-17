@@ -110,6 +110,11 @@ exactly two automation task kinds: a Daily Run task **per campaign**, and the si
 agency-wide `OutreachCRM - GitHub Update Watch` task — there is no agency-wide
 client-processing task.
 
+One exception (2026-09-17): a campaign that an ORDER owns (`playbooks/ORDER_RULE.md`) is advanced
+by the client's Solo Agency Daily Run in its orders pass — drafting and the Send step within quota —
+instead of a Daily Run task of its own; the brief names the campaign and `automation_manifest.md`
+records that the client's Daily Run carries it. Comment and post dispatch stays autonomous on approve.
+
 **One task per CAMPAIGN, not per client** (`{Client Name} - {Campaign} Daily Run`, pinning
 both `target_client_slug` and `campaign_slug`; `docs/DESIGN.md` §2.4, amended by operator
 decision 2026-07-19 and reaffirmed 2026-08-15). A client now runs several campaigns at once —

@@ -364,7 +364,7 @@ enforced at draft and pre-send.
 
 Load Stage 2 (`playbooks/02_SENDBOX_SETUP.md`) in full (LOAD LEDGER) before writing any sendbox config. Two auth modes, one interface:
 
-- **`app_password` — the priority path for `@gmail.com`.** SMTP send + IMAP read via Python stdlib; no OAuth, no 7-day token expiry, preserves our Message-ID. Requires 2-Step Verification on the Google account and an App Password. Consumer `@gmail.com` limits are documented and accepted: `plain_text_mode` (measure by reply, no pixel), roughly 20–50 cold emails/day/box, never the operator's primary Gmail, cold bulk risks suspension at volume — start low with tight personalization.
+- **`app_password` — the priority path for `@gmail.com`.** SMTP send + IMAP read by the bridge (`tool gmail`, Go); no OAuth, no 7-day token expiry, preserves our Message-ID. Requires 2-Step Verification on the Google account and an App Password. Consumer `@gmail.com` limits are documented and accepted: `plain_text_mode` (measure by reply, no pixel), roughly 20–50 cold emails/day/box, never the operator's primary Gmail, cold bulk risks suspension at volume — start low with tight personalization.
 - **`oauth` — advanced (Google Workspace / custom domain).** Gmail API with scopes `gmail.send + gmail.readonly` only. The OAuth app must be **Internal** to avoid the 7-day refresh-token expiry; if forced External/testing, weekly re-auth becomes a scheduled day-6 `**[ACTION REQUIRED]**`, not an error.
 
 Never ask for the Google password, cookies, or OTP. The App Password request is allowed because it is a scoped app credential, not the account password:

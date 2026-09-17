@@ -65,8 +65,29 @@
     }
     await sleep(250);
   }
+  // Actor identity (bridge actor_guard.go): the login this page runs under, read from the
+  // platform's own identity cookie (twid). Reported on every write record and compared against the
+  // job's declared accounts before a write; "" when the cookie is not readable here.
+  function actorAccountId() {
+    try {
+      var raw = String((typeof document !== "undefined" && document.cookie) || "");
+      var m = raw.match(/(?:^|;\s*)twid=([^;]*)/);
+      if (!m) return "";
+      var v = decodeURIComponent(m[1]);
+      if (v.indexOf("u=") === 0) v = v.slice(2);
+      return v.trim();
+    } catch (e) { return ""; }
+  }
+  function actorGuard(capId, inputs) {
+    var declared = inputs && inputs._declared_accounts;
+    if (!Array.isArray(declared) || declared.length === 0) return null;
+    var me = actorAccountId();
+    if (me && declared.indexOf(me) >= 0) return null;
+    return wrapCap(capId, "actor_mismatch", { error: "actor_mismatch: this browser is logged in as " + (me || "an unknown account") + ", not an account declared for this client — nothing was done", declared_accounts: declared.slice(), actor_account_id: me });
+  }
   function wrapCap(capId, status, extra) {
     var rec = Object.assign({ capability: capId, status: status, verified: false, error: null, ts: nowISO() }, extra || {});
+    if (rec.actor_account_id === undefined) rec.actor_account_id = actorAccountId();
     return { available: true, capability: capId, status: status, count: 1, items: [rec], version: VERSION, _debug: { href: location.href } };
   }
   function store() { return window.__soloX || { captures: [] }; }
@@ -269,6 +290,7 @@
 
   window.__soloXAct = async function (capId, inputs) {
     inputs = inputs && typeof inputs === "object" ? inputs : {};
+    { var __g = actorGuard(capId, inputs); if (__g) return __g; }
     try {
       if (capId === "x.post.like") return await doLike(inputs);
       if (capId === "x.post.reply") return await doReply(inputs);

@@ -34,13 +34,13 @@ Scan these three, in the exact copies that will be installed/run (the prepared p
 
 1. The per-client extension folder `extensions/{client_slug}_extension/` — every `*.js` file.
 2. The bridge — NOT its source. The Go source is closed and absent from this repo (only checksum-verified binaries ship from the `dist` branch), so do not look for `main.go`; confirm instead that the installed binary is the one `setup_collector.sh` verified against `SHA256SUMS`, and hold its network behaviour to the disclosed outbound list below.
-3. `solo-agency-collector/scripts/prepare_client_extension.sh`.
+3. `solo-agency-collector/scripts/prepare_client_extension.sh` — a thin `bash` wrapper that calls the bridge's `tool extension prepare` (item 2 covers the bridge); it must contain no network call and no interpreter other than `bash`.
 
 What to look for (outbound requests only):
 
 - Network call sites: `fetch(`, `XMLHttpRequest` / `.open(`, `navigator.sendBeacon`, `new WebSocket(`, `new EventSource(`, image beacons (`new Image()` / `.src =` to a URL), and in the bridge any outbound HTTP client (`http.Get`/`http.Post`/`http.Client`/`net.Dial`) or `curl`/`wget` in the script.
 - For each real call site, confirm the destination is the local bridge only: `http://127.0.0.1:<port>` or `http://localhost:<port>` (the `bridgeBaseUrl`). If `client_binding.json` overrides `bridge_base_url`, confirm that override is also `127.0.0.1`/`localhost`.
-- Since 2026-09-12 the extension enforces this itself, so "the `bridgeBaseUrl` field is not validated" is NOT a finding and is NOT a reason to hold up an install. `background.js` checks the value in two places — `normalizeSettings()` (nothing that is not loopback reaches `chrome.storage`) and `fetchJSON()` (the last line before any payload leaves, so a value edited straight into storage or shipped in `client_binding.json` is refused too) — using a URL parse, not a substring test. Bridge requests also refuse to follow redirects, so a 3xx cannot carry the payload off-machine after the check passes. Verify it in one command instead of reading the code: `node solo-agency-collector/tests/test_bridge_url_guard.js` must print `ALL 74 CHECKS PASSED`. If it does not, THAT is the finding. Never hand-patch an installed client extension for this: the fix belongs in the repo and reaches installs through the normal update, and a local patch is silently overwritten by the next one.
+- Since 2026-09-12 the extension enforces this itself, so "the `bridgeBaseUrl` field is not validated" is NOT a finding and is NOT a reason to hold up an install. `background.js` checks the value in two places — `normalizeSettings()` (nothing that is not loopback reaches `chrome.storage`) and `fetchJSON()` (the last line before any payload leaves, so a value edited straight into storage or shipped in `client_binding.json` is refused too) — using a URL parse, not a substring test. Bridge requests also refuse to follow redirects, so a 3xx cannot carry the payload off-machine after the check passes. Verify it by reading those two functions in `background.js`; a developer machine that happens to have Node can also run `node solo-agency-collector/tests/test_bridge_url_guard.js` (it prints `ALL 74 CHECKS PASSED`), but a normal user's machine has no Node, so a missing `node` is never a finding and never a reason to hold up an install. Never hand-patch an installed client extension for this: the fix belongs in the repo and reaches installs through the normal update, and a local patch is silently overwritten by the next one.
 - Confirm the bridge binds to `127.0.0.1`/`localhost` (not `0.0.0.0`). Its COLLECTOR routes (`/status`, `/config`, `/capabilities`, `/collect/*`, `/jobs/*`) have no outbound or telemetry client. The bridge's only outbound calls are this disclosed set: (a) `widecast.ai` with the client's own WideCast API key — provider operations, notifications, the tracking secret/events, and the Solo Agency plan check `GET /v1/solo/entitlement` at start and about every 24 hours, which sends only that key, a random install id and the bridge version, never anything the collector gathered; (b) Gmail SMTP/IMAP for OutreachCRM sendboxes the human connected; (c) `raw.githubusercontent.com` from the setup/update script for binaries and playbooks. Anything else is a finding.
 
 Known false positives — DO NOT flag these (read the whole line for context; never flag on a substring match alone):
@@ -54,7 +54,7 @@ Known false positives — DO NOT flag these (read the whole line for context; ne
 
 Outcome:
 
-- If every real outbound request from the EXTENSION goes only to the local bridge, and the bridge's outbound calls are only the disclosed set above: the pre-check passes. Record the result (files/commit reviewed, call sites checked, destinations) in `INTERNAL_REPORT` only, and give the human exactly one short, calm confirmation line in plain language before the install steps, for example: `I read through the collector's code and confirmed that nothing it collects from Facebook or Zillow ever leaves your computer. The only thing it talks to online is your own WideCast account, the same key you already entered, to send notifications and confirm your plan. It is safe to install.` Do not list findings, severities, or technical terms to the human, and do not add extra warnings that could worry a non-technical user.
+- If every real outbound request from the EXTENSION goes only to the local bridge, and the bridge's outbound calls are only the disclosed set above: the pre-check passes. Record the full result (files/commit reviewed, call sites checked, destinations) in `INTERNAL_REPORT`, and tell the human what you found in a few calm plain-language lines before the install steps, for example: `I read the extension's code: everything it collects goes only to the small program on this computer. The bridge itself is a ready-built program whose source is not published, so I verified its checksum against the published one instead of reading it; its only outside calls are to your own WideCast account, to send notifications and confirm your plan. It is safe to install.` Say what was verified and what was only checksummed; keep it to what the human needs in order to say yes — no severities or code terms, and nothing invented either to reassure or to alarm.
 - If a real request goes to any non-local destination, or the bridge opens an outbound connection, or code is obfuscated so the destination cannot be read: do NOT say it is safe and do NOT give the install command. Stop, record the exact finding (file, line, destination) in `INTERNAL_REPORT`, and raise it to the operator in an `**[ACTION REQUIRED]**` block, in calm plain language, so it can be checked against the latest verified GitHub source before any install.
 
 ## Latest Override: One Shared Bridge, Many Client Extensions
@@ -112,7 +112,7 @@ The agent must prepare `extensions/{client_slug}_extension/manifest.json` with a
 }
 ```
 
-It may also set `"short_name": "{Client Name} Collector"` and a client-specific `"description"` / `"action.default_title"`. The helper `scripts/prepare_client_extension.sh` patches only `name`, `description`, and `action.default_title` (not `short_name`); its output is compliant. `short_name` is optional.
+It may also set `"short_name": "{Client Name} Collector"` and a client-specific `"description"` / `"action.default_title"`. The bridge's `tool extension prepare` (which `scripts/prepare_client_extension.sh` wraps) patches only `name`, `description`, and `action.default_title` (not `short_name`); its output is compliant. `short_name` is optional.
 
 The agent must also create `extensions/{client_slug}_extension/client_binding.json` with `client_slug`, `client_name`, `extension_instance_id`, `extension_display_name`, and `bridge_base_url`.
 
@@ -318,7 +318,7 @@ Canonical local layout:
       inbox/
 ```
 
-The listing above is a minimum; the extension folder contains more files than shown. Always copy the FULL template folder (or use the helper script `scripts/prepare_client_extension.sh`) so nothing is missed.
+The listing above is a minimum; the extension folder contains more files than shown. Always copy the FULL template folder (or run `<bridge> tool extension prepare …`, which does exactly that) so nothing is missed.
 
 Chrome extension folder disambiguation:
 
@@ -337,10 +337,11 @@ Install flow:
 3. Copy `SHA256SUMS`, `collector-bridge-binaries-0.1.0.zip`, extension templates, and helper scripts only from the verified checkout, or download the exact raw GitHub URLs above when cloning is unavailable.
 4. Verify checksums when the environment has checksum tools available.
 5. Extract bridge binaries into the absolute runtime path for `solo-agency-local-collector/bin/`.
-6. Prepare the Chrome extension template into the absolute per-client path `extensions/{client_slug}_extension/`, patch the manifest name to `{Client Name} - Solo Agency Collector`, and create `client_binding.json`. Prefer the repo helper when available from the verified checkout:
+6. Prepare the Chrome extension template into the absolute per-client path `extensions/{client_slug}_extension/`, patch the manifest name to `{Client Name} - Solo Agency Collector`, and create `client_binding.json`. The bridge binary extracted in step 5 does all of it, on every OS, with nothing else installed (no Python, no Node):
    ```bash
-   solo-agency-collector/scripts/prepare_client_extension.sh "{Client Name}" "{client_slug}" "{extension_instance_id}" "{ABSOLUTE_AGENCY_ROOT}"
+   {ABSOLUTE_AGENCY_ROOT}/solo-agency-local-collector/bin/collector-bridge-<os>-<arch> tool extension prepare --client-name "{Client Name}" --client-slug "{client_slug}" --instance-id "{extension_instance_id}" --root "{ABSOLUTE_AGENCY_ROOT}"
    ```
+   `tools/solo_tool extension prepare …` and `solo-agency-collector/scripts/prepare_client_extension.sh "{Client Name}" "{client_slug}" "{extension_instance_id}" "{ABSOLUTE_AGENCY_ROOT}"` are wrappers around the same command. The template is found next to the install root (`solo-agency/solo-agency-collector/chrome-extension`); pass `--template DIR` when the verified checkout lives elsewhere.
 7. Select the correct bridge binary for the current machine.
 8. On macOS/Linux, ensure the selected binary is executable.
 9. Create the setup/start script or launcher.
@@ -607,10 +608,10 @@ echo "Log file: $LOG_FILE"
 echo "You can close this Terminal window now."
 ```
 
-**Local runtime:** run this script yourself. Say the one-line safety confirmation, ask consent once, run it, then poll `/status` for up to 60 seconds:
+**Local runtime:** run this script yourself. Say the pre-check result in plain language (what was read, what was only checksummed, where the outside calls go), ask consent once, run it, then poll `/status` for up to 60 seconds:
 
 ```md
-Em đã đọc mã của collector: nó chỉ chạy trên máy này, không gửi dữ liệu đi đâu. Em cài và bật nó ngay bây giờ, khoảng một phút.
+Em đã đọc mã của tiện ích mở rộng: mọi thứ nó thu thập chỉ đi tới chương trình nhỏ trên chính máy này. Chương trình đó là bản dựng sẵn tải từ GitHub, em kiểm tra checksum thay vì đọc mã; ngoài máy này nó chỉ gọi tới tài khoản WideCast của anh/chị để báo tin và kiểm tra gói. Em cài và bật nó ngay bây giờ, khoảng một phút.
 ```
 
 Then trigger the extension's two-gesture install (`POST /api/ui/{client_slug}/install-extension`, no `browser`/`profile_directory` fields — or point the human at `/ui/{client_slug}/extension` if you prefer they do it themselves), poll `extension_health.status` until recent, and report both as done — no Terminal, no `bash` command, ever shown to this human.
@@ -980,6 +981,40 @@ healthcheck both key off it — and it decides HOW the source is read:
 An entry with no `capability` is read as a feed. A source registered for the search pass carries the
 whole search url in `inputs.group_search_url`; the `url` field stays the plain group url so the same
 source is recognisable across passes.
+
+### A client declares the accounts that may write under its name
+
+`clients[].accounts[]` in `collector_config.json` lists the platform logins a client's write
+jobs may run from (added 2026-09-17 together with `playbooks/ORDER_RULE.md`):
+
+```json
+"accounts": [
+  { "platform": "facebook",  "account_id": "100000000000001", "label": "Acme Realty — page admin login" },
+  { "platform": "instagram", "account_id": "58200000001",     "label": "@acmerealty" },
+  { "platform": "x",         "account_id": "1490000001",      "label": "@acmerealty" }
+]
+```
+
+`account_id` is the platform's own numeric id of the logged-in user — Facebook `c_user`,
+Instagram `ds_user_id`, X `twid` without its `u=` prefix — never a display name or a handle.
+How it is enforced, in code:
+
+- the bridge copies the client's list into every job it queues for that client as
+  `declared_accounts` (platform → ids): run-now jobs, comment/post/DM dispatch jobs and the
+  scheduled job alike; `background.js` hands the platform's list to the action library as
+  `actionInputs._declared_accounts`;
+- before typing anything, the write library reads the identity cookie of the session it is in
+  and refuses with status `actor_mismatch` when that id is not declared (no cookie counts as a
+  mismatch); every write record reports `actor_account_id` either way;
+- the bridge remembers the last actor each collector box reported per platform, and an approved
+  comment, post or DM for a client that does not declare that actor is put back on the Approval
+  page as pending with the blocker `actor_mismatch: …` instead of being dispatched.
+
+A client with no `accounts` entry, or none for that platform, is unguarded there — the default
+for a one-client install where the operator's own login is the only one. Reads are never
+guarded. Declare the accounts before a second client's comments, posts or DMs are approved from
+the same machine (`playbooks/ORDER_RULE.md` §2: the approval points, the account identity, the
+daily caps and the law never yield).
 
 ### Social Discovery Pass job shapes — Facebook leg (fb.search.posts, fb.people.search, fb.groups.search, fb.group.search_posts)
 
@@ -1842,10 +1877,13 @@ drive the real Facebook UI as the logged-in account. They are catalogued in
 documented in full, with the failure modes behind each guard, in
 `solo-agency-collector/HANDOFF_WRITE_ACTIONS.md`.
 
-**Who may use them.** Only the agency's own outreach, under OutreachCRM, on the operator's own
-brand and accounts, and only to execute a draft the operator has already approved. Never as, or
-on behalf of, a paying client — see `playbooks/03` §23.7 and `playbooks/10`. Stage 10's scan
-loop never sends, even after approval; execution lives in OutreachCRM Stages 16/17.
+**Who may use them.** Any lane that passed its approval point: a draft the Boss approved on the
+Approval page (comment, post, direct message, email) or a content asset approved in the Approval
+Workflow — published only from an account declared for that client (`clients[].accounts[]`, see
+"A client declares the accounts that may write under its name" above), by the engine that owns the
+lane (comment/post/DM dispatch, the Send step, WideCast publish). Stage 10's scan loop
+never sends, even after approval; execution lives in OutreachCRM Stages 16/17 and the dispatch
+daemon. See `playbooks/03` §23.7 and `playbooks/ORDER_RULE.md`.
 
 | Capability | What it does | Job url |
 |---|---|---|

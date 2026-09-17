@@ -368,7 +368,7 @@ the operator merges (`contact merge`) or clears (`contact unsuspect`).
    "historyId":null,"imap_uid_cursor":null,"last_successful_sync_ts":""}]}
 ```
 - **Two auth modes, one interface.** `app_password` (priority for @gmail.com): SMTP
-  send + IMAP read via Python stdlib (`smtplib`/`imaplib`), no OAuth, no 7-day expiry,
+  send + IMAP read by the bridge (`tool gmail`, Go), no OAuth, no 7-day expiry,
   preserves our Message-ID. `oauth` (Workspace/custom domain): Gmail API, scopes
   `gmail.send + gmail.readonly` only (drop `gmail.modify`), OAuth app must be
   **Internal** to avoid the 7-day refresh-token expiry; if forced External/testing,
@@ -583,7 +583,7 @@ health, vacations, children) are **default-banned from email copy** and go only 
 ### 9.6 Guessed email
 MX check is near-meaningless (catch-all domains accept any RCPT). Guessed/unverified
 addresses go through a **third-party verification API** (MillionVerifier/NeverBounce,
-cheap, called from local Python). `catch_all` → excluded from guessed quota or capped
+cheap, called by the bridge's `tool verify-email`). `catch_all` → excluded from guessed quota or capped
 ~2%. Per-domain kill switch: first hard bounce on a guessed pattern at domain X →
 suppress all other guessed addresses at X. `guessed_only` status enforced **in
 `tool gmail send`** (requires explicit guessed-approval flag on the draft + a

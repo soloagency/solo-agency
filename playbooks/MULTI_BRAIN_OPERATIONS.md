@@ -100,8 +100,8 @@ working on disjoint scopes do not block each other:
 
 `daily-content-pipeline/automation/leases/{scope_key}.json`
 
-- `scope` — one of `client`, `campaign`, `contact`, `report`, `install`.
-- `scope_key` — `{client_slug}`, `{client_slug}__{campaign_slug}`, `{client_slug}__{contact_id}`, etc.
+- `scope` — one of `client`, `order`, `campaign`, `contact`, `report`, `install`.
+- `scope_key` — `{client_slug}`, `{client_slug}__order__{order_slug}`, `{client_slug}__{campaign_slug}`, `{client_slug}__{contact_id}`, etc.
 - `intent` — one short human line: what this brain is doing.
 - `held_by_brain`, `held_by_session`, `acquired_at`, `ttl_minutes` (default 30), `heartbeat_at`.
 
@@ -112,8 +112,9 @@ Rules:
   scopes that ARE free.
 - A lease past its TTL with no heartbeat is dead and may be taken over, with a note.
 - Delete the lease when the work ends, including when it ends in a blocker.
-- Leases nest downward, never upward: holding `client` covers every campaign and contact under
-  it; holding one `campaign` does not entitle you to client-wide steps.
+- Leases nest downward, never upward: holding `client` covers every order, campaign and contact
+  under it; holding one `order` covers the campaigns and contacts it owns; holding one `campaign`
+  does not entitle you to client-wide steps.
 - Read-only work — reading state, rendering an existing report, answering a status question —
   takes no lease at all.
 
@@ -130,6 +131,8 @@ do one of these while another holds it must say so and stop.
 - **Setup Flow.** The session model already allows exactly one setup session; it also gets
   exactly one brain.
 - **One client's Daily Run**, per the `run_lock`.
+- **One order's execution outside the Daily Run**, per its `order` lease (inside the Daily Run the
+  `run_lock` already covers the orders pass).
 - **The approve → send sequence for one campaign.** The quota reservation prevents overspend,
   but two brains draining one approval queue produces contradictory sends.
 - **Writing `daily-content-pipeline/collector/run_now_request.json`.** Unchanged rule: prefer

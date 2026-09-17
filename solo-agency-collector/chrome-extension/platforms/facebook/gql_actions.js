@@ -116,8 +116,29 @@
     return { actor: actor, snippet: msg.slice(0, 220), url: location.href };
   }
 
+  // Actor identity (bridge actor_guard.go): the login this page runs under, read from the
+  // platform's own identity cookie (c_user). Reported on every write record and compared against the
+  // job's declared accounts before a write; "" when the cookie is not readable here.
+  function actorAccountId() {
+    try {
+      var raw = String((typeof document !== "undefined" && document.cookie) || "");
+      var m = raw.match(/(?:^|;\s*)c_user=([^;]*)/);
+      if (!m) return "";
+      var v = decodeURIComponent(m[1]);
+
+      return v.trim();
+    } catch (e) { return ""; }
+  }
+  function actorGuard(capId, inputs) {
+    var declared = inputs && inputs._declared_accounts;
+    if (!Array.isArray(declared) || declared.length === 0) return null;
+    var me = actorAccountId();
+    if (me && declared.indexOf(me) >= 0) return null;
+    return wrapCap(capId, "actor_mismatch", { error: "actor_mismatch: this browser is logged in as " + (me || "an unknown account") + ", not an account declared for this client — nothing was done", declared_accounts: declared.slice(), actor_account_id: me });
+  }
   function wrapCap(capId, status, extra) {
     var rec = Object.assign({ capability: capId, status: status, verified: false, error: null, ts: nowISO() }, extra || {});
+    if (rec.actor_account_id === undefined) rec.actor_account_id = actorAccountId();
     // ALWAYS available: background.js discards a record whose capability reports
     // unavailable, which threw away the very thing a write action must report — WHY it
     // refused (recipient_mismatch, ambiguous_composer, redirected…). The caller then saw
@@ -1389,6 +1410,7 @@
 
   window.__soloActRun = async function (capId, inputs) {
     inputs = inputs && typeof inputs === "object" ? inputs : {};
+    { var __g = actorGuard(capId, inputs); if (__g) return __g; }
     try {
       if (capId === "fb.post.react") return await doReact(inputs);
       if (capId === "fb.post.comment") return await doComment(inputs);

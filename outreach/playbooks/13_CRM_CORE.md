@@ -105,10 +105,10 @@ never blocks capture, only what the agent can DO with a contact once the plan's 
   by the bridge with `contact_locked`; the agent must not draft a DM to a locked contact either, same as
   it must not draft an email. A locked contact is still counted, still receives new activities/leads on
   re-detection, and unlocks automatically the moment the plan is upgraded or older contacts age out.
-- **Write actions are a separate, unrelated gate.** `write_actions` (`fb.group.post`, `fb.profile.post`, `fb.post.comment`,
-  `fb.post.react`) is gated by plan (Starter and up), not by the contact lock — it has nothing to do
-  with whether any particular contact is locked or unlocked, and applies the same way regardless of the
-  CRM contact cap.
+- **Write actions are a separate, unrelated gate.** `write_actions` rides on every plan; what a plan changes
+  is the daily write allowance (Free: <!--plan:free.writes_line-->1 post, 3 comments or replies, 3 direct messages per day<!--/plan-->, counted per install when the
+  publish job is created; paid tiers uncounted) — it has nothing to do with whether any particular
+  contact is locked or unlocked, and applies the same way regardless of the CRM contact cap.
 - **What the agent may show about a locked contact.** Name, lifecycle stage, first-seen date, and the
   source host (e.g. the group/page domain it was detected on) — never an identity: no email, no phone,
   no social handle, no message content, no dossier field.
@@ -128,6 +128,40 @@ never blocks capture, only what the agent can DO with a contact once the plan's 
   Frame"): who-is-new/lead-count/locked-contact questions navigate the side dashboard to
   `/ui/{client}/crm` with the matching filter (`sort=-created`, `locked=1`, `stage=`, `q=`), and a
   question about one named person navigates to `/ui/{client}/contact/{id}`.
+
+## What the agent stores about a person
+
+The CRM holds people. Everything the agent learns about a person goes to one of three places, chosen
+by what the fact is FOR — and the agent, not a schema, decides:
+
+1. **A date to act on is a task, not a field.** Anything with a "when" (a renewal, an anniversary, a
+   birthday, a follow-up, a due service, a milestone) becomes a CRM task on the contact:
+   `task add --json {"title": …, "contact_id": …, "due_at": "YYYY-MM-DD", "guard_key": …}` — the
+   `guard_key` names the order or campaign that owns it. One task per event, so a person with several
+   of anything (policies, vehicles, children, pets, cases) gets several tasks and no extra fields. The
+   Today view and the morning brief already surface due tasks; when a recurring event's task is done,
+   the agent creates the next occurrence. Never index fields (`x1_`, `x2_`) to fit several entities on
+   one contact — that is the field explosion this rule exists to prevent.
+2. **A fact that drives a segment or a message is a custom field.** Declare it first in the Client
+   Intelligence Profile `custom_field_definitions` block: `key` (snake_case), `label`, `applies_to`,
+   `type` (date | number | enum | bool | text), `allowed_values` for enum, one-line `description`
+   saying what it is for. Reuse an existing key with the same meaning before adding one. Dates in ISO
+   `YYYY-MM-DD` so segments compare (`<`, `>`). Write it with `tool crm-store contact set --id <id>
+   --json '{"custom_fields": {…}}'` (merge semantics; `--note` records why). Tell the Boss in one
+   sentence what you declared and why. A handful per client is normal; if you are about to add the
+   tenth, re-read this rule.
+3. **Everything else is a note.** `tool crm-store contact note --id <id> --text '…' --source '…'` (an
+   `activity` of type `note`), in prose, with the source ("the Boss said", "from the import", "the
+   customer told us"). The agent reads a contact's notes back before it drafts anything for that person.
+
+Imports: map columns deliberately. A column that is a date-to-act-on becomes tasks; a column that
+drives a segment becomes a declared field; the rest goes to one note per contact. The importer's
+default (unmapped column → a field named after the header) is a fallback, not a decision.
+
+Sensitive facts a person shared for a service (health, money, legal status, family) are never quoted
+in outreach copy unless the Boss's words ask for exactly that; they stay in notes. Personal facts the
+customer gave us may shape a message to that customer once they are past the `lead` stage; personal
+hooks scraped by enrichment stay banned from copy exactly as today.
 
 ## Completion Gates
 

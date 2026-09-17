@@ -50,7 +50,7 @@ count, never a guess from memory:
 | 4 | Pending content approvals | the run's Approval Workflow queue (`playbooks/09_AGENCY_OPERATIONS_SAFETY_AUDIT.md`, "23.3 Approval Workflow") |
 | 5 | Monitored groups worth reviewing | `tool source-registry list --client <slug> --state active\|paused` — any `state: active` rows exist and it has been ≥ 7 days since last offered |
 | 6 | Standup backlog | `daily-content-pipeline/automation/standup.jsonl` tail — `needs_boss[]`, `blockers[]` per line |
-| 7 | Boss-orders ledger | `daily-content-pipeline/automation/boss_orders.md` rows with `status` in `waiting_boss`, `blocked` |
+| 7 | Boss-orders ledger and order briefs | `daily-content-pipeline/automation/boss_orders.md` rows with `status` in `waiting_boss`, `blocked`; every `clients/*/*/orders/*.md` brief — `status`, `cadence`, the last run-log date (`tool orders status` when the bridge has it, else read the briefs) |
 | 8 | Sendbox health | `sendboxes/sendboxes.json` — any entry `status: needs_reauth`, or none `status: healthy` |
 | 9 | Campaign roster and status | each client's `campaigns/{slug}/campaign_config.json` — `channel_strategy`, `status` (`active`/`paused`) |
 | 10 | Social lead source (per platform) | Client Intelligence Profile `facebook_lead_source` / `instagram_lead_source` / `x_lead_source`, each `enabled\|web_only\|pending` |
@@ -111,6 +111,11 @@ this reply's next-jobs block or ACTION REQUIRED block is showing.
   {unlocked}/{max} open contacts used; new leads may start locking
   ```
 
+- **The write meter.** On a plan that counts writes (`contact lock-status` → `writes_today.capped: true`;
+  Free today: <!--plan:free.writes_line-->1 post, 3 comments or replies, 3 direct messages per day<!--/plan-->), carry `writes_today.line` verbatim in the same
+  place, every reply, no cooldown: the tier, today's posts / comments / DMs against the allowance, and
+  how many approved items wait for tomorrow. Held items are not lost: they publish the next day on their own.
+
 - The flag and both counts come straight from `contact lock-status`'s `approaching`/`unlocked`/
   `max_contacts`/`locked`/`next_tier` fields — never computed from a CRM list count or a report
   total. The meter is not an upsell moment by itself (see Guardrails): it is a standing fact, shown
@@ -146,6 +151,8 @@ Starter; everything else is a data feature and runs on every plan, Free included
 | id | tier | signal | offer | example VI | example EN | runs | needs | plan |
 |---|---|---|---|---|---|---|---|---|
 | `show_approval_report` * | 1 | pending-approval files > 0 (poll #3-4) | review and approve/reject what's waiting | "Anh có {N} email/bài đang chờ duyệt, em trình luôn cho anh xem không?" | "You have {N} emails/posts waiting for your approval — want me to show them now?" | Approval Workflow (`outreach/playbooks/00_CORE_CONTEXT_REQUIREMENTS.md` step 5-6; `09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` §23.3) | nothing, ready now | Free+ |
+| `run_order` | 1 | an active brief whose last run-log date is older than its cadence, or a once-brief not yet run (poll #7) | run the order now, then report its output line | "Lệnh '{title}' đến hạn mà chưa chạy — em chạy ngay nhé?" | "The order '{title}' is due and has not run — run it now?" | `playbooks/ORDER_RULE.md` §5 | nothing, ready now | Free+ (each write lane per its own gate) |
+| `answer_order` | 1 | a brief with `status: waiting_boss` (poll #7) | ask the Boss for the missing thing, or walk them through the setup step | "Lệnh '{title}' đang chờ anh: {thing}. Anh đưa cho em là chạy tiếp." | "The order '{title}' is waiting on you: {thing} — hand it over and it runs." | `playbooks/ORDER_RULE.md` §1 | the Boss's answer | Free+ |
 | `review_monitored_sources` | 4 | any `state: active` row in the source registry (poll #5); offered at most once per week | show which groups are being watched, pause any not wanted | "Có {N} group Facebook em đang tự động theo dõi — anh xem qua và tắt bớt nhóm nào không cần không?" | "There are {N} Facebook groups I'm monitoring automatically — want to look them over and pause any you don't want?" | `/ui/{client}/sources?tab=discovered`; `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, Group Potential Rule (Facebook leg — monitoring stays Facebook-only) | `facebook_lead_source: enabled` | Free+ |
 | `review_discovered_sources` | 1 | discovered-source rows `status: new` (poll #16) | list the new discovered threads with excerpt and reason, read a post aloud on request | "Em tìm được {N} bài mà người trả lời có thể là khách của anh — anh nghe qua từng bài không?" | "I found {N} posts whose repliers might be your buyers — want me to walk through them?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Step 5" | nothing, ready now | Free+ |
 | `harvest_thread` | 2 | Boss names a discovered source (or approves one via the Discovered tab) (poll #16, `status: new`/`approved`) | run the batch triage harvest on that one thread now | "Em quét bình luận bài đó và đưa những người phù hợp vào CRM nhé?" | "Want me to triage that thread's comments and add the right people to the CRM?" | `playbooks/10_LEAD_COMPETITOR_DETECTION.md`, "Harvest a discovered thread (on the Boss's order only)" | a named `source_id`, `status: new` or `approved` | Free+ |
@@ -181,7 +188,7 @@ Starter; everything else is a data feature and runs on every plan, Free included
 | `add_client` | 4 | Boss mentions a new business/client not in `clients_index.md` | onboard the new client | "Em thêm khách hàng mới đó vào hệ thống luôn nhé?" | "Want me to onboard that new client now?" | `09_AGENCY_OPERATIONS_SAFETY_AUDIT.md` §13, Incremental Client Onboarding Rule | basic profile info from the Boss | Free+ (no per-client plan limit) |
 | `morning_brief_setup` | 4 | no recurring morning brief configured, or Boss asks for one every day | set up/confirm the daily morning brief | "Em thiết lập báo cáo buổi sáng gửi đều mỗi ngày cho anh nhé?" | "Want me to set up a daily morning brief for you?" | `playbooks/TEAM_MODEL.md`, "Standup"; `SCHEDULED_RUN_ENTRYPOINT.md` step 16A | a notification channel connected | Free+ |
 | `review_locked_leads_upgrade` | 5 | `contact lock-status` → `locked > 0`, first time this session | ACTION REQUIRED upgrade offer, not a "next jobs" line | "Em vừa đưa {N} lead mới vào CRM, {H} lead có tín hiệu tốt. Gói {tier} đang mở {unlocked} contact, {locked} lead còn lại đang khoá chi tiết, chưa gửi mail hay nhắn tin được. Mở gói {next_tier} thì {next_cap} contact mở ngay, không cần quét lại." | "I just brought {N} new leads into the CRM, {H} of them look promising. {tier} keeps {unlocked} contacts open — the other {locked} are locked (no detail, no email, no DM). Upgrading to {next_tier} opens {next_cap} contacts immediately, no rescan needed." | `AGENTS.md`, "Plans"; `https://widecast.ai/#setup` | `locked > 0` | upgrade offer |
-| `write_actions_upgrade` | 5 | a Free install needed `fb.group.post`/`fb.profile.post`/`fb.post.comment`/`fb.post.react` and was refused | ACTION REQUIRED upgrade to unlock write actions | "Việc này cần đăng bài/bình luận/react hộ anh — tính năng này mở từ gói Starter. Anh nâng gói tại {upgrade_url} để em làm luôn." | "This needs posting/commenting/reacting on your behalf — that starts at Starter. Upgrade at {upgrade_url} and I'll do it right away." | `AGENTS.md`, `write_actions` gate | the refusal already happened | Starter+ |
+| `write_allowance_upgrade` | 5 | `contact lock-status` → `writes_today.offer_upgrade: true` (an approved comment, post or DM was held for tomorrow by the day's allowance), first time this session | ACTION REQUIRED upgrade offer, not a "next jobs" line | "Hôm nay gói {tier} đã dùng hết {cap} {lane}; {held} nội dung anh đã duyệt sẽ tự đăng vào ngày mai. Nâng lên gói {next_tier} tại {upgrade_url} thì đăng ngay và không còn đếm." | "Today's {tier} allowance of {cap} {lane} is used; {held} approved item(s) publish tomorrow on their own. Upgrade to {next_tier} at {upgrade_url} and they go out now, uncounted." | `AGENTS.md` Upsell rule (SELLING trigger 2); `writes_today` | the hold already happened | Free (counted plans) |
 
 ### Notes on specific rows
 
@@ -192,10 +199,10 @@ Starter; everything else is a data feature and runs on every plan, Free included
   (the first gate, run against the client's `buyer_profile`) AND the post's topic fits
   `goal.description` (the second gate, the topical/voice check); a `competitor`/`none` decision or a
   topic mismatch does not count toward the signal. On Free, the
-  catalogue's job is to show the preview — the list of posts worth commenting on — never the
-  action itself; the upgrade mention here is a value-first aside inside the offer line, not a
-  separate `write_actions_upgrade` block, unless the Boss explicitly asks to start commenting and
-  is then refused (that refusal is what triggers `write_actions_upgrade`).
+  catalogue's job is to show the preview — the list of posts worth commenting on — and the day's
+  allowance (<!--plan:free.comments_per_day-->3<!--/plan--> comments or replies a day, through the Approval page); the upgrade
+  mention here is a value-first aside inside the offer line, not a separate `write_allowance_upgrade`
+  block — that block fires only after an approved item was actually held for tomorrow.
 - **`zillow_harvest`** always keeps the human-in-the-loop gate from `ZILLOW_CAPABILITIES.md` (a
   chime, then the operator does the Press & Hold) — the offer in chat is to start the pull, never
   a claim that it completes unattended.
@@ -234,7 +241,7 @@ Starter; everything else is a data feature and runs on every plan, Free included
   from a Boss-named seed's own friend list; this one only becomes relevant after that harvest has
   already run once and widening to a friend-of-friend seed is the next lever — it is never offered
   before a first `harvest_friend_list` pass exists for this client.
-- **`review_locked_leads_upgrade`** and **`write_actions_upgrade`** are the only two rows that
+- **`review_locked_leads_upgrade`** and **`write_allowance_upgrade`** are the only two rows that
   produce an `**[ACTION REQUIRED]**` block instead of a next-jobs line — see "The meter" above for
   how the locked count keeps being shown after the one-time ACTION REQUIRED fires.
 - **`connect_notification`** is also the mandatory offer 2 of the Setup-Complete Closing Template
@@ -260,7 +267,7 @@ action to name and in what order:
   exactly as scoped elsewhere (`AGENTS.md`; `playbooks/10_LEAD_COMPETITOR_DETECTION.md`,
   "Capture never stops at the plan's contact cap"; `playbooks/02_PRIVATE_SOURCE_SETUP.md`;
   `playbooks/SETUP_FLOW_ENTRYPOINT.md`; `playbooks/01_BASIC_PROFILE_PUBLIC_REPORT.md`) — this file
-  only adds the two tier-5 CATALOGUE rows (`review_locked_leads_upgrade`, `write_actions_upgrade`)
+  only adds the two tier-5 CATALOGUE rows (`review_locked_leads_upgrade`, `write_allowance_upgrade`)
   and the meter definition so they sit inside the same STATE POLL as everything else, instead of
   living as a separate, uncoordinated check.
 - **Capability-named rows are not missing playbooks.** `persona_people_hunt` (`fb.people.search`),
@@ -324,9 +331,9 @@ Anh muốn em làm việc nào trước?
   client report/PDF, or the client notification. This file governs the Boss-facing Team Leader
   channel only.
 - **Carve-outs stay carve-outs.** `entitlement.reason: seat_limit` and a stale-token
-  `solo_feature_not_in_tier` on any capability that is not `write_actions` are never upsell
-  moments — they mean "refresh the token" or "move the seat," never "offer an upgrade." Only
-  `review_locked_leads_upgrade` and `write_actions_upgrade` are selling moments; every other row in
+  `solo_feature_not_in_tier` on any capability, and `write_via_approval_only`, are never upsell
+  moments — they mean "refresh the token," "move the seat" or "draft it and approve it," never
+  "offer an upgrade." Only `review_locked_leads_upgrade` and `write_allowance_upgrade` are selling moments; every other row in
   the CATALOGUE is an offer of work, not a pitch.
 - **Numbers come from state, never estimated.** Every `{N}`, `{L}`, `{unlocked}`, `{locked}` in an
   offer is read fresh from the STATE POLL source named in its row — never carried over from an
@@ -342,5 +349,5 @@ Anh muốn em làm việc nào trước?
   Matrix, but it never writes content, publishes, sends, or writes CRM records.
 - **Selling stays rare.** `review_locked_leads_upgrade` fires once per session at most (the first
   time `locked > 0` is seen); after that, the meter carries the number and no further ACTION
-  REQUIRED upgrade block is shown unless the human asks. `write_actions_upgrade` fires only after a
-  real refusal, never speculatively.
+  REQUIRED upgrade block is shown unless the human asks. `write_allowance_upgrade` fires only after an approved item
+  was really held for tomorrow (`writes_today.offer_upgrade`), never speculatively.
