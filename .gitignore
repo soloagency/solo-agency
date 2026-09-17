@@ -112,3 +112,7 @@ assets/*.mov
 !assets/solo-agency-revenue-engine-square-1080.png
 # Backup copies of dot-files without an extension (.gitignore_2026-..) are never published.
 .gitignore_20[0-9][0-9]-*
+
+# The bridge embeds a copy of the plan ladder (deploy-soloagency.sh refreshes it before every
+# build); the repo-root plans.json is the only committed copy.
+solo-agency-collector/bridge-go/plans.json

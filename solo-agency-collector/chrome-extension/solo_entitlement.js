@@ -29,9 +29,11 @@
   const SOLO_ENTITLEMENT_GRACE_MS = 14 * 24 * 60 * 60 * 1000; // same offline window as the bridge
   const SOLO_UPGRADE_URL = "https://widecast.ai/#setup";
   const SOLO_ENTITLEMENT_ENFORCE = true;
-  // The ladder (2026-09-07): free · starter $49 · pro $99 · business $199 · enterprise. Names are
-  // informational — grants come from the token's `features`, limits from its `limits`.
-  const SOLO_KNOWN_TIERS = new Set(["free", "starter", "pro", "business", "enterprise"]);
+  // Tier NAMES are not checked against a local list (2026-09-16): the ladder lives in plans.json
+  // on the server and is signed into every token as its `ladder` claim, so a plan this file has
+  // never heard of is honoured exactly like a known one. A name alone unlocks nothing — grants come
+  // only from the token's `features`, limits from its `limits`; a malformed name is shown as free.
+  const SOLO_TIER_ID_RE = /^[a-z][a-z0-9_-]{0,31}$/;
   // Support requests: fb.group.post into the official Solo Agency support group (this url and no
   // other) is how a Free install asks for help, so it is granted on every plan. Fixed here and in
   // the bridge; empty disables the exemption.
@@ -40,7 +42,8 @@
   // The extension's OWN map of paid capabilities → the feature the plan must carry. It is never
   // taken from the bridge or the catalog it serves — a homebrew bridge would simply call
   // everything free. Keep in step with `tier: pro` / `feature` in collector_capabilities.json.
-  // Plans (2026-09-07): free none · starter enrich+write_actions · pro/business/enterprise all.
+  // Which plan carries which feature is the server's call (plans.json → the token's `features`);
+  // this map only says which feature a capability needs.
   const SOLO_CAPABILITY_FEATURES = {
     "fb.profile.friends": "harvest", "fb.people.search": "harvest",
     "fb.profile.header": "enrich", "fb.profile.hovercard": "enrich", "fb.profile.videos": "enrich",
@@ -130,8 +133,8 @@
     if (claims.aud !== SOLO_ENTITLEMENT_AUDIENCE || claims.iss !== SOLO_ENTITLEMENT_ISSUER) return free("invalid", "wrong_audience_or_issuer");
     const expMs = Number(claims.exp || 0) * 1000;
     if (!expMs) return free("invalid", "no_expiry");
-    const tierName = String(claims.tier || "free").toLowerCase();
-    const tier = SOLO_KNOWN_TIERS.has(tierName) ? tierName : "free"; // an unknown tier is never more than free
+    const tierName = String(claims.tier || "free").toLowerCase().trim();
+    const tier = SOLO_TIER_ID_RE.test(tierName) ? tierName : "free"; // a malformed tier name is never more than free
     const base = {
       ok: true, tier, features: Array.isArray(claims.features) ? claims.features.slice() : [],
       limits: claims.limits && typeof claims.limits === "object" ? claims.limits : {},

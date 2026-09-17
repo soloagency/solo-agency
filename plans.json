@@ -1,0 +1,67 @@
+{
+  "_comment": "Solo Agency plan ladder. THE ONLY file where a plan number lives. Edit here, then run `bash deploy_widecast.sh` (ships a copy to the widecast.ai server, which signs it into every entitlement token) and `bash deploy-soloagency.sh` (embeds it in the bridge, renders playbooks/PLANS.md and every <!--plan:...--> token in the playbooks, and refuses to publish if a plan number is typed anywhere else). limits: 0 = unlimited. max_contacts is the only sold limit; the other four limits are flat technical ceilings. write_actions is the only plan-gated feature. widecast_paid = the WideCast plan indexes (system_configs.paid) that map to this tier; [] = grant-only via POST /v1/solo/plan.",
+  "version": 1,
+  "updated": "2026-09-16",
+  "currency": "USD",
+  "upgrade_url": "https://widecast.ai/#setup",
+  "approaching_ratio": 0.8,
+  "unlimited": 0,
+  "sold_limits": ["max_contacts"],
+  "tiers": [
+    {
+      "id": "free",
+      "name": "Free",
+      "rank": 0,
+      "price_usd": 0,
+      "contact_sales": false,
+      "widecast_paid": [0, 1],
+      "seats": 1,
+      "features": ["multi_client", "outreach", "enrich", "harvest", "zillow", "auto_update", "priority_adapter_fixes"],
+      "limits": {"max_contacts": 100, "max_clients": 1000, "max_groups": 1000, "max_campaigns": 1000, "max_sends_per_day": 1000}
+    },
+    {
+      "id": "starter",
+      "name": "Starter",
+      "rank": 1,
+      "price_usd": 49,
+      "contact_sales": false,
+      "widecast_paid": [2],
+      "seats": 1,
+      "features": ["multi_client", "outreach", "enrich", "write_actions", "harvest", "zillow", "auto_update", "priority_adapter_fixes"],
+      "limits": {"max_contacts": 500, "max_clients": 1000, "max_groups": 1000, "max_campaigns": 1000, "max_sends_per_day": 1000}
+    },
+    {
+      "id": "pro",
+      "name": "Pro",
+      "rank": 2,
+      "price_usd": 99,
+      "contact_sales": false,
+      "widecast_paid": [3],
+      "seats": 1,
+      "features": ["multi_client", "outreach", "enrich", "write_actions", "harvest", "zillow", "auto_update", "priority_adapter_fixes"],
+      "limits": {"max_contacts": 2000, "max_clients": 1000, "max_groups": 1000, "max_campaigns": 1000, "max_sends_per_day": 1000}
+    },
+    {
+      "id": "business",
+      "name": "Business",
+      "rank": 3,
+      "price_usd": 199,
+      "contact_sales": false,
+      "widecast_paid": [4],
+      "seats": 1,
+      "features": ["multi_client", "outreach", "enrich", "write_actions", "harvest", "zillow", "auto_update", "priority_adapter_fixes"],
+      "limits": {"max_contacts": 10000, "max_clients": 1000, "max_groups": 1000, "max_campaigns": 1000, "max_sends_per_day": 1000}
+    },
+    {
+      "id": "enterprise",
+      "name": "Enterprise",
+      "rank": 4,
+      "price_usd": 1000,
+      "contact_sales": true,
+      "widecast_paid": [5],
+      "seats": 1,
+      "features": ["multi_client", "outreach", "enrich", "write_actions", "harvest", "zillow", "auto_update", "priority_adapter_fixes", "unlimited"],
+      "limits": {"max_contacts": 0, "max_clients": 0, "max_groups": 0, "max_campaigns": 0, "max_sends_per_day": 0}
+    }
+  ]
+}

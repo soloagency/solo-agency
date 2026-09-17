@@ -148,6 +148,33 @@ async function main() {
   const empty = { ok: true, tier: "pro", source: "token", reason: "", expiresAt: new Date(Date.now() + 86400000).toISOString(), companyId: "co_2", limits: {}, features: [] };
   check("verified token with empty features: refused for every gated capability", Object.keys(Ent.CAPABILITY_FEATURES).every((c) => Ent.granted(empty, c) === false));
 
+  // ------------------------------------------------------------------ tier names are not allowlisted (2026-09-16: plans.json is the ladder)
+  // Sign real tokens with a throwaway Ed25519 pair and hand verify() its public key via opts —
+  // exactly the code path background.js runs, only with a test key instead of the server's.
+  const kp = await globalThis.crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+  const rawPub = new Uint8Array(await globalThis.crypto.subtle.exportKey("raw", kp.publicKey));
+  const pubHex = Array.from(rawPub).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const b64url = (buf) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  async function signToken(claims) {
+    const si = b64url(JSON.stringify({ alg: "EdDSA", typ: "JWT", kid: "test" })) + "." + b64url(JSON.stringify(claims));
+    const sig = await globalThis.crypto.subtle.sign({ name: "Ed25519" }, kp.privateKey, new TextEncoder().encode(si));
+    return si + "." + b64url(new Uint8Array(sig));
+  }
+  const nowMs = Date.now();
+  const baseClaims = { iss: "widecast.ai", aud: "solo-agency", sub: "co_3", exp: Math.floor(nowMs / 1000) + 3600,
+    features: ["enrich", "write_actions"], limits: { max_contacts: 5000 },
+    ladder: { version: 1, tiers: [{ id: "free" }, { id: "team", price_usd: 149 }] } };
+  const team = await Ent.verify(await signToken(Object.assign({}, baseClaims, { tier: "team" })), nowMs, { publicKeyHex: pubHex });
+  check("verified token with a tier this file never heard of keeps its name", team.ok === true && team.tier === "team" && team.source === "token", team);
+  check("... and its limits ride through untouched", !!team.limits && team.limits.max_contacts === 5000, team.limits);
+  check("... and grants come from features, never from the name", Ent.granted(team, "fb.post.react") === true && Ent.granted(team, "zillow.agents.list") === false);
+  const badName = await Ent.verify(await signToken(Object.assign({}, baseClaims, { tier: "Bad Tier!" })), nowMs, { publicKeyHex: pubHex });
+  check("a malformed tier name is shown as free (its own features still apply)", badName.ok === true && badName.tier === "free" && sortedEqual(badName.features, ["enrich", "write_actions"]), badName);
+  const upper = await Ent.verify(await signToken(Object.assign({}, baseClaims, { tier: " PRO " })), nowMs, { publicKeyHex: pubHex });
+  check("tier names are trimmed and lower-cased", upper.tier === "pro", upper);
+  const forged = await Ent.verify(await signToken(Object.assign({}, baseClaims, { tier: "team" })), nowMs, { publicKeyHex: Ent.PUBLIC_KEY_HEX });
+  check("the same token against the real server key is rejected (bad_signature → free, not ok)", forged.ok === false && forged.reason === "bad_signature" && forged.tier === "free", forged);
+
   console.log("\n" + pass + " passed, " + fail + " failed");
   if (fail > 0) process.exit(1);
   console.log("ALL " + pass + " CHECKS PASSED");

@@ -8,7 +8,10 @@ const fields = [
   "maxSourcesPerRun",
   "sourceConcurrency",
   "scrollSteps",
-  "closeTabsAfterCollect"
+  "closeTabsAfterCollect",
+  "useCollectorWindow",
+  "collectorWindowWidth",
+  "collectorWindowHeight"
 ];
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -151,7 +154,10 @@ function readSettings() {
     maxSourcesPerRun: Number(document.getElementById("maxSourcesPerRun").value),
     sourceConcurrency: Number(document.getElementById("sourceConcurrency").value),
     scrollSteps: Number(document.getElementById("scrollSteps").value),
-    closeTabsAfterCollect: document.getElementById("closeTabsAfterCollect").checked
+    closeTabsAfterCollect: document.getElementById("closeTabsAfterCollect").checked,
+    useCollectorWindow: document.getElementById("useCollectorWindow").checked,
+    collectorWindowWidth: Number(document.getElementById("collectorWindowWidth").value),
+    collectorWindowHeight: Number(document.getElementById("collectorWindowHeight").value)
   };
 }
 

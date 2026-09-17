@@ -1049,8 +1049,9 @@ and `kw:{term}` when a search term found them, and writes one `lead_detected` ac
 rows are refused by name — a competitor is a business to study, not a person to nurture. Add
 `--dry-run` to see the mapping without writing.
 
-**Capture never stops at the plan's contact cap.** Free 30, Starter 500, Pro 2000, Business 10000,
-Enterprise unlimited — those are the contact caps `tool crm-store` enforces per plan tier. Hitting the
+**Capture never stops at the plan's contact cap.** <!--plan:caps_named_line-->Free 100, Starter 500, Pro 2000, Business 10000, Enterprise unlimited<!--/plan--> — those are
+the contact caps `tool crm-store` enforces per plan tier (rendered from `plans.json`; speak them only via
+`tool plans show`). Hitting the
 cap does not stop capture: the newest leads above the cap are stored LOCKED (no detail, no email, no DM,
 no campaign) rather than dropped, and a contact that has already progressed past `lead` into any `engaged+` stage
 is never locked, no matter how the count moves afterward.
@@ -1069,8 +1070,9 @@ above zero:
 {L} leads locked under {tier} — {unlocked}/{max} open
 ```
 
-When `locked == 0` but `unlocked / max_contacts ≥ 0.8`, carry the approaching-cap line instead of the
-locked meter (moment G):
+When `locked == 0` but `contact lock-status` reports `approaching: true` (the bridge compares the ratio
+against the ladder's `approaching_ratio`; never divide on your own), carry the approaching-cap line instead of
+the locked meter (moment G):
 
 ```text
 {unlocked}/{max} open contacts used; new leads may start locking
@@ -1083,10 +1085,13 @@ never this template verbatim — naming the actual counts from `contact lock-sta
 (Vietnamese, tone only, not a script to paste):
 
 ```text
-Em vừa đưa 214 lead mới vào CRM, 31 lead có tín hiệu tốt. Gói Free đang mở 30 contact, 184 lead còn lại
-đang khoá chi tiết, chưa gửi mail hay nhắn tin được. Mở gói Starter thì 500 contact mở ngay, không cần
-quét lại.
+Em vừa đưa {new_leads} lead mới vào CRM, {hot} lead có tín hiệu tốt. Gói {tier} đang mở {max} contact,
+{L} lead còn lại đang khoá chi tiết, chưa gửi mail hay nhắn tin được. Mở gói {next_tier.name} thì
+{next_tier.max_contacts} contact mở ngay, không cần quét lại.
 ```
+
+Every placeholder above is filled from `contact lock-status` (`max`, `locked`, `tier`, `next_tier`) and the run's
+own counts — never from a playbook.
 
 The upgrade path is the WideCast key/plan (https://widecast.ai/#setup); the human runs
 `tool entitlement refresh` afterward. This is the session's one Upsell-budget use for the locked-contact

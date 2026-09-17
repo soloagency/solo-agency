@@ -1,5 +1,8 @@
 // Solo Agency plan verification (Ed25519, WebCrypto) — see solo_entitlement.js.
 importScripts("solo_entitlement.js");
+// The collector window pool (2026-09-16): collection tabs open in the collector's own unfocused
+// window. Pure module with injected chrome APIs; tests/test_collector_window.js runs it under node.
+importScripts("collector_window_pool.js");
 // Platform-module layer (additive, 2026-09-09). core/schema.js is the one canonical record shape;
 // core/platform_registry.js describes each platform module as data; platforms/<name>/*_normalize.js
 // is that module's own mapping from its typed capability output into the canonical shape. All
@@ -34,7 +37,13 @@ const DEFAULT_SETTINGS = {
   sourceConcurrency: 1,
   scrollSteps: 5,
   maxTextChars: 12000,
-  closeTabsAfterCollect: true
+  closeTabsAfterCollect: true,
+  // Collection tabs open active inside the collector's own window, created focused:false
+  // (collector_window_pool.js): the operator's tabs are never taken and the tab is not throttled.
+  // Off = the pre-2026-09-16 behaviour, a tab in the operator's current window.
+  useCollectorWindow: true,
+  collectorWindowWidth: 1280,
+  collectorWindowHeight: 900
 };
 
 const STATE_KEY = "collector_state";
@@ -211,6 +220,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 const CANCEL_KEY = "collector_cancel_request";
 let cancelRequest = null;              // { runId | "*", reason, requestedBy, at }
 const activeRunTabs = new Map();       // tabId -> runId, so a cancel closes only this run's tabs
+// The collector window pool. A tab is "busy" for the pool while it is one of a run's collection
+// tabs — the same map the cancel path closes. The window lingers this long after a run so the
+// next job (healthcheck probes arrive seconds apart) reuses it instead of flickering a new one.
+const COLLECTOR_WINDOW_LINGER_MS = 20000;
+// Built on first use, not at load: the offline harnesses (tests/test_bridge_url_guard.js,
+// test_client_binding_guard.js) run this file under a fake chrome without windows/tabs, and a
+// pool that cannot be built must degrade to the user-window path, never to a dead worker.
+let collectorWindowsInstance;
+function collectorWindowPool() {
+  if (collectorWindowsInstance !== undefined) return collectorWindowsInstance;
+  try {
+    collectorWindowsInstance = SoloCollectorWindow.createCollectorWindowPool({
+      windows: chrome.windows,
+      tabs: chrome.tabs,
+      homeUrl: chrome.runtime.getURL("collector_window.html"),
+      isBusyTab: (tabId) => activeRunTabs.has(tabId),
+      storage: {
+        get: async (key) => (await chrome.storage.local.get(key))[key],
+        set: async (key, value) => chrome.storage.local.set({ [key]: value })
+      }
+    });
+  } catch (error) {
+    collectorWindowsInstance = null;
+  }
+  return collectorWindowsInstance;
+}
 
 // A cancel naming a run applies to that run, whenever it was raised. A blanket "*" cancel applies
 // only to a run that was ALREADY IN FLIGHT when it was raised — otherwise a request left in storage
@@ -301,6 +336,9 @@ function scheduleShortPoll(settings) {
 
 async function pollBridge(reason) {
   await resetRunLockAfterBuildChange(reason || "poll");
+  // A finished run marks its collector window idle; once the linger has passed with nothing in
+  // flight the window goes. Done here, not on a timer, so a service-worker restart cannot leak it.
+  try { const pool = collectorWindowPool(); if (pool) await pool.sweepIdle(COLLECTOR_WINDOW_LINGER_MS); } catch (error) { /* ignore */ }
   const settings = await getSettings();
   const binding = await getClientBinding();
   if (!binding.client_slug) {
@@ -477,7 +515,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
 
   async function processSource(source, index) {
     const sourceLabel = source.name || source.url || `source ${index + 1}`;
-    const tabActivationPlan = collectionTabActivationPlan(job, source);
+    const tabActivationPlan = collectionTabActivationPlan(job, source, settings);
     const tabActivationMode = tabActivationPlan.mode;
     const capabilityId = String(source.capability || "");
     const requiredFeature = SoloEntitlement.featureFor(capabilityId);
@@ -495,6 +533,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
       tab_update_active: tabActivationPlan.updateActive,
       window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
       capture_overlay: tabActivationMode !== "background_tab",
+      collector_window_mode: tabActivationPlan.collectorWindow ? "collector_window" : "user_window",
       index: index + 1,
       total: selectedSources.length,
       source_concurrency: sourceConcurrency,
@@ -610,11 +649,13 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
         platform: source.platform || "",
         status: "collected",
         tab_activation_mode: tabActivationMode,
+        collector_window: (collected.dataPoint && collected.dataPoint.collector_window) || null,
         window_focus_requested: tabActivationPlan.focusWindow,
         tab_create_active: tabActivationPlan.createActive,
         tab_update_active: tabActivationPlan.updateActive,
         window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
         capture_overlay: tabActivationMode !== "background_tab",
+        collector_window_mode: tabActivationPlan.collectorWindow ? "collector_window" : "user_window",
         index: index + 1,
         total: selectedSources.length,
         source_concurrency: sourceConcurrency,
@@ -674,6 +715,7 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
         tab_update_active: tabActivationPlan.updateActive,
         window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
         capture_overlay: tabActivationMode !== "background_tab",
+        collector_window_mode: tabActivationPlan.collectorWindow ? "collector_window" : "user_window",
         issue: String(error && error.message ? error.message : error),
         index: index + 1,
         total: selectedSources.length,
@@ -744,6 +786,12 @@ async function runJob({ job, token, bridgeBaseUrl, settings, binding, reason, en
     }
   });
   await Promise.all(workers);
+
+  // Hand the collector window back: closed after the linger by the poll loop's sweep, kept when
+  // the operator asked for tabs to stay open (closeTabsAfterCollect off) so nothing is taken away.
+  if (settings.useCollectorWindow && settings.closeTabsAfterCollect) {
+    try { const pool = collectorWindowPool(); if (pool) await pool.markIdle(); } catch (error) { /* ignore */ }
+  }
 
   const wasCancelled = !!cancelledBy;
   // The bridge used to be told "completed" no matter what, so a run that stopped after 3 of 20
@@ -870,14 +918,14 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
     );
   }
 
-  const activateCollectionTab = shouldActivateCollectionTab(job, source);
+  const activateCollectionTab = shouldActivateCollectionTab(job, source, settings);
   const captureOverlayText = collectorCaptureOverlayText(job, binding);
   const captureOverlayScope = {
     client: String(job?.client_name || binding?.client_name || job?.client_slug || binding?.client_slug || "").trim(),
     campaign: collectorCaptureOverlayCampaign(job, source),
     runId: String(job?.run_id || "")
   };
-  const tabActivationPlan = collectionTabActivationPlan(job, source);
+  const tabActivationPlan = collectionTabActivationPlan(job, source, settings);
   // The capability's platform module (core/platform_registry.js) decides three things below:
   // whether the page scrolls (info_only), which MAIN-world libraries are injected, and
   // whether a human gate guards the load. "zillow" names the PerimeterX Press & Hold gate,
@@ -888,7 +936,12 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
   const isZillowCapability = !!(capModule && capModule.human_gate === "zillow");
   const gateContext = { job, source, settings, binding, sourceIndex };
   let humanGate = null;
-  const tab = await createTab({ url: source.url, active: tabActivationPlan.createActive });
+  const opened = await openCollectionTab(source.url, tabActivationPlan, settings);
+  const tab = opened.tab;
+  // Where the tab lives and, once loaded, what the page thinks of its own visibility. Recorded on
+  // every data point and the "collected" status: a covered collector window must show up in the
+  // data (tab_visibility "hidden", timer_probe_ms in the seconds) instead of as an emptier feed.
+  const collectorWindowInfo = opened.info;
   // Registered BEFORE any await on it: this is the handle a cancel uses to interrupt whatever
   // this source is waiting on, and a cancel arriving one line later must still find it.
   if (tab && typeof tab.id === "number") activeRunTabs.set(tab.id, String(job?.run_id || ""));
@@ -918,10 +971,12 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
           status: "network_unavailable", reason: reach.reason
         }
       };
+      dp.collector_window = collectorWindowInfo;
       // Returned, not posted: collectSource hands its data point to the caller, which owns the
       // bridge url and the token. Posting from here would need both threaded in for one branch.
       return { dataPoint: dp, snapshot: null, newPrivateSources: [] };
     }
+    Object.assign(collectorWindowInfo, await probeTabVisibility(tab));
     // Zillow may answer the navigation with its PerimeterX "Press & Hold" page instead of the
     // content. Wait for the OPERATOR to pass it (chime + tab to front + heartbeat), then go on
     // as if nothing happened — see zillowHumanGate. Nothing is solved or retried by code.
@@ -1414,6 +1469,7 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         tab_create_active: tabActivationPlan.createActive,
         tab_update_active: tabActivationPlan.updateActive,
         window_focus_policy: tabActivationPlan.focusWindow ? "focus_window" : "keep_window_background",
+        collector_window: collectorWindowInfo,
         capture_overlay: activateCollectionTab,
         capture_overlay_text: activateCollectionTab ? captureOverlayText : "",
         // Recorded as well as shown. The overlay answers "whose run is this" while it is on
@@ -1754,15 +1810,118 @@ function createTab(createProperties) {
   });
 }
 
-function collectionTabActivationPlan(job, source) {
-  const active = shouldActivateCollectionTab(job, source);
-  const asked = (
+// One tab per source. In collector-window mode the tab is created active inside the pool's window
+// (collector_window_pool.js). If that window cannot be opened the source still runs the old way — a
+// tab in the operator's current window, activated as the legacy plan would have — and the record
+// says so (mode "user_window_fallback" + the error), because a skipped source is the worse failure.
+async function openCollectionTab(url, plan, settings) {
+  const wanted = !!(plan && plan.collectorWindow);
+  const info = { enabled: wanted, mode: wanted ? "collector_window" : "user_window" };
+  if (wanted) {
+    try {
+      const pool = collectorWindowPool();
+      if (!pool) throw new Error("collector window pool unavailable (chrome.windows/tabs missing)");
+      const opened = await pool.openTab({
+        url,
+        width: settings && settings.collectorWindowWidth,
+        height: settings && settings.collectorWindowHeight
+      });
+      info.window_id = opened.windowId;
+      info.window_created = opened.created;
+      return { tab: opened.tab, info };
+    } catch (error) {
+      info.mode = "user_window_fallback";
+      info.error = String((error && error.message) || error);
+    }
+  }
+  const tab = await createTab({ url, active: !!(plan && plan.createActive) && !wanted });
+  if (wanted) await activateTab(tab, { updateActive: true, focusWindow: !!(plan && plan.focusWindow) });
+  return { tab, info };
+}
+
+// What the page reports about itself after load. A hidden tab — background tab, or a collector
+// window another window covers completely — answers visibilityState "hidden" and Chrome clamps
+// its timers to one per second, so five 20ms waits take ~5s instead of ~100ms. A VISIBLE page
+// with a busy main thread also stretches them (a Facebook profile measured 1.6s), so "throttled"
+// is only claimed from 2.5s up; the raw number is recorded either way. Evidence only: nothing is
+// decided from it here, and a failed probe is recorded, never fatal.
+async function probeTabVisibility(tab) {
+  const out = {};
+  if (!tab || typeof tab.id !== "number") return out;
+  try {
+    const results = await withTimeout(chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: async () => {
+        const t0 = performance.now();
+        for (let i = 0; i < 5; i += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+        return {
+          tab_visibility: document.visibilityState,
+          tab_has_focus: document.hasFocus(),
+          timer_probe_ms: Math.round(performance.now() - t0)
+        };
+      }
+    }), 8000, "visibility_probe");
+    const r = results && results[0] && results[0].result;
+    if (r && typeof r === "object") {
+      Object.assign(out, r);
+      out.throttled = Number(r.timer_probe_ms) >= 2500;
+    }
+  } catch (error) {
+    out.probe_error = String((error && error.message) || error);
+  }
+  if (typeof tab.windowId === "number") {
+    try {
+      const win = await chrome.windows.get(tab.windowId);
+      out.window_focused = !!win.focused;
+      out.window_state = win.state || "";
+    } catch (error) { /* window already gone */ }
+  }
+  return out;
+}
+
+function collectorWindowWanted(settings) {
+  return !!(settings && settings.useCollectorWindow);
+}
+
+function backgroundTabAsked(job, source) {
+  return (
     explicitTrue(job?.background_tab) || explicitTrue(job?.allow_background_tab) ||
     explicitTrue(job?.pacing?.background_tab) || explicitTrue(job?.pacing?.allow_background_tab) ||
     explicitTrue(source?.background_tab) || explicitTrue(source?.allow_background_tab) ||
     explicitFalse(job?.activate_tab) || explicitFalse(job?.pacing?.activate_tab) ||
     explicitFalse(source?.activate_tab)
   );
+}
+
+function windowFocusAsked(job, source) {
+  const pacing = job && typeof job === "object" ? job.pacing || {} : {};
+  return (
+    explicitTrue(job?.focus_collection_window) ||
+    explicitTrue(job?.focus_window) ||
+    explicitTrue(pacing?.focus_collection_window) ||
+    explicitTrue(pacing?.focus_window) ||
+    explicitTrue(source?.focus_collection_window) ||
+    explicitTrue(source?.focus_window)
+  );
+}
+
+function collectionTabActivationPlan(job, source, settings) {
+  if (collectorWindowWanted(settings)) {
+    // Every tab is active inside the collector window: active is what keeps Chrome from
+    // throttling it, and nobody's view is taken because the window itself is not focused. The
+    // background_tab / activate_tab:false convenience flags mean nothing there — recorded so the
+    // flag never looks ignored, not honoured. Focusing the window stays an explicit request.
+    return {
+      mode: "collector_window",
+      createActive: true,
+      updateActive: false,
+      focusWindow: windowFocusAsked(job, source),
+      collectorWindow: true,
+      backgroundTabRequested: backgroundTabAsked(job, source)
+    };
+  }
+  const active = shouldActivateCollectionTab(job, source, settings);
+  const asked = backgroundTabAsked(job, source);
   if (!active) {
     return {
       mode: "background_tab",
@@ -1772,15 +1931,7 @@ function collectionTabActivationPlan(job, source) {
     };
   }
 
-  const pacing = job && typeof job === "object" ? job.pacing || {} : {};
-  const focusWindow = (
-    explicitTrue(job?.focus_collection_window) ||
-    explicitTrue(job?.focus_window) ||
-    explicitTrue(pacing?.focus_collection_window) ||
-    explicitTrue(pacing?.focus_window) ||
-    explicitTrue(source?.focus_collection_window) ||
-    explicitTrue(source?.focus_window)
-  );
+  const focusWindow = windowFocusAsked(job, source);
 
   return {
     // When the operator asked for a hidden tab and the capability overrode it, SAY so. Otherwise
@@ -2983,6 +3134,9 @@ function normalizeSettings(input) {
   next.scrollSteps = clampNumber(next.scrollSteps, 0, 10, 5);
   next.maxTextChars = clampNumber(next.maxTextChars, 1000, 30000, 12000);
   next.closeTabsAfterCollect = Boolean(next.closeTabsAfterCollect);
+  next.useCollectorWindow = Boolean(next.useCollectorWindow);
+  next.collectorWindowWidth = clampNumber(next.collectorWindowWidth, 600, 4000, 1280);
+  next.collectorWindowHeight = clampNumber(next.collectorWindowHeight, 400, 3000, 900);
   return next;
 }
 
@@ -3560,7 +3714,9 @@ function capabilityNeedsActiveTab(source) {
   return !HIDEABLE_CAPABILITIES.has(cap);
 }
 
-function shouldActivateCollectionTab(job, source) {
+function shouldActivateCollectionTab(job, source, settings) {
+  // In the collector window the tab is always active (see collectionTabActivationPlan).
+  if (collectorWindowWanted(settings)) return true;
   const pacing = job && typeof job === "object" ? job.pacing || {} : {};
   // The capability's need OUTRANKS the convenience flag. Honouring background_tab on a capability
   // that reads a feed would return a record that looks complete and has no posts in it — the

@@ -104,18 +104,18 @@ this reply's next-jobs block or ACTION REQUIRED block is showing.
   {L} leads locked under {tier} — {unlocked}/{max} open
   ```
 
-- **Approaching the cap.** When `locked == 0` and `unlocked / max_contacts >= 0.8`, carry the
-  approaching-cap line in the same place instead:
+- **Approaching the cap.** When `locked == 0` and `contact lock-status` reports `approaching: true`,
+  carry the approaching-cap line in the same place instead:
 
   ```text
   {unlocked}/{max} open contacts used; new leads may start locking
   ```
 
-- The ratio and both counts come straight from `contact lock-status`'s `unlocked`/`max_contacts`/
-  `locked` fields — never computed from a CRM list count or a report total. The meter is not an
-  upsell moment by itself (see Guardrails): it is a standing fact, shown the same way every reply,
-  and it is what lets `review_locked_leads_upgrade` fire once and then step back — the meter keeps
-  the number visible without repeating the pitch.
+- The flag and both counts come straight from `contact lock-status`'s `approaching`/`unlocked`/
+  `max_contacts`/`locked`/`next_tier` fields — never computed from a CRM list count or a report
+  total. The meter is not an upsell moment by itself (see Guardrails): it is a standing fact, shown
+  the same way every reply, and it is what lets `review_locked_leads_upgrade` fire once and then
+  step back — the meter keeps the number visible without repeating the pitch.
 
 ## The "next jobs" block
 
@@ -279,9 +279,10 @@ action to name and in what order:
 "Wait and report") precedes these offers — it states when the run finished, leads found, the
 locked-contacts meter, the newly monitored groups (potential + reason, Sources page link), and what
 needs the Boss, before this poll's offers are ever spoken. Poll: signal 2 → `locked: 0`,
-`unlocked: 12`, `max_contacts: 30` (well under 0.8, no meter). Signal 5 → 6 groups `state: active`,
-never offered before. Signal 3/4/6/7 → all empty. No tier-1 backlog fires: the groups this run found
-are already monitored, not waiting on a decision, so `review_monitored_sources` sits in tier 4. Reply:
+`unlocked: 12`, `max_contacts: <!--plan:free.max_contacts-->100<!--/plan-->`, `approaching: false`
+(no meter). Signal 5 → 6 groups `state: active`, never offered before. Signal 3/4/6/7 → all empty.
+No tier-1 backlog fires: the groups this run found are already monitored, not waiting on a decision,
+so `review_monitored_sources` sits in tier 4. Reply:
 
 ```text
 1. "Chạy thêm một vòng quét nhóm riêng ngay bây giờ." — needs: nothing, ready now.
@@ -294,18 +295,20 @@ Anh muốn bắt đầu với việc nào?
 backlog exists any more since monitoring needs no approval; one lead-gen option plus two expansion/
 housekeeping options round out the 2-3 slot.)
 
-**B. Free install, 184 leads locked.** Poll: signal 1 → `entitlement.tier: free`. Signal 2 →
-`locked: 184`, `unlocked: 30`, `max_contacts: 30`. This is `locked > 0` and the first time this
-session — tier 5 fires and the reply carries the `review_locked_leads_upgrade` ACTION REQUIRED
-block (not a next-jobs line), for example: "Em vừa đưa 214 lead mới vào CRM, 31 lead có tín hiệu
-tốt. Gói Free đang mở 30 contact, 184 lead còn lại đang khoá chi tiết, chưa gửi mail hay nhắn tin
-được. Mở gói Starter thì 500 contact mở ngay, không cần quét lại." Every reply after this one in
-the same session drops the ACTION REQUIRED block and instead carries the persistent one-line meter
-("184 leads locked under Free — 30/30 open") until the plan changes or the count changes.
+**B. Free install, leads locked.** Poll: signal 1 → `entitlement.tier: free`. Signal 2 →
+`locked: {L}`, `unlocked: {max}`, `max_contacts: {max}`, `next_tier: {…}`. This is `locked > 0` and
+the first time this session — tier 5 fires and the reply carries the `review_locked_leads_upgrade`
+ACTION REQUIRED block (not a next-jobs line), for example: "Em vừa đưa {new_leads} lead mới vào CRM,
+{hot} lead có tín hiệu tốt. Gói Free đang mở {max} contact, {L} lead còn lại đang khoá chi tiết,
+chưa gửi mail hay nhắn tin được. Mở gói {next_tier.name} thì {next_tier.max_contacts} contact mở
+ngay, không cần quét lại." Every reply after this one in the same session drops the ACTION REQUIRED
+block and instead carries the persistent one-line meter ("{L} leads locked under Free — {max}/{max}
+open") until the plan changes or the count changes.
 
 **C. Paid install, idle.** Poll: signal 1 → `entitlement.tier: pro`. Signal 2 → `locked: 0`,
-`unlocked: 340`/`max_contacts: 2000` (0.17, no approaching-cap line). Signals 3-7 all empty, no
-lead landed this run. IDLE RULE applies — tier 2/4 only:
+`unlocked: 340`/`max_contacts: <!--plan:pro.max_contacts-->2000<!--/plan-->`, `approaching: false`
+(no approaching-cap line). Signals 3-7 all empty, no lead landed this run. IDLE RULE applies — tier
+2/4 only:
 
 ```text
 1. "Chạy thêm một vòng Social Discovery Pass ngay bây giờ." — needs: nothing, ready now.

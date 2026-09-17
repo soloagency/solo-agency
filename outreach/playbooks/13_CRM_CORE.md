@@ -91,8 +91,9 @@ dropped id and unions identities into the survivor; `resolve()` follows the chai
 
 ## Plan cap and locked contacts
 
-CRM contacts are a sold limit (`AGENTS.md`, "Plans"): Free 30, Starter 500, Pro 2000, Business 10000,
-Enterprise unlimited. Every detected lead is still written to the CRM regardless of plan — the cap
+CRM contacts are a sold limit (`AGENTS.md`, "Plans"): <!--plan:caps_named_line-->Free 100, Starter 500, Pro 2000, Business 10000, Enterprise unlimited<!--/plan--> (rendered
+from `plans.json`; speak the numbers only via `tool plans show`). Every detected lead is still written to the
+CRM regardless of plan — the cap
 never blocks capture, only what the agent can DO with a contact once the plan's count is exceeded.
 
 - **Old stays open, new gets locked.** Contacts are ordered by `created_at`; the oldest contacts up
@@ -118,7 +119,7 @@ never blocks capture, only what the agent can DO with a contact once the plan's 
   or send to a locked contact under any circumstance — that is the entire point of the cap.
 - **Read `contact lock-status` before telling a human how many leads are locked.**
   `<bridge> tool crm-store --client-dir <CLIENT_DIR> contact lock-status` returns JSON:
-  `max_contacts`, `lockable`, `unlocked`, `locked`, `upgrade_url`. Use its numbers, never a hand count.
+  `max_contacts`, `lockable`, `unlocked`, `locked`, `approaching`, `next_tier`, `upgrade_url`. Use its numbers, never a hand count.
 - **The chat line when leads are locked** (fill in `{locked}`, `{tier}`, `{upgrade_url}` from
   `contact lock-status` / `GET /status` → `entitlement`):
   - VI: "{locked} lead(s) đang bị khoá theo gói {tier} — nâng cấp tại {upgrade_url} để mở."

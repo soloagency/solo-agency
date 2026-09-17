@@ -173,6 +173,13 @@ carries a `repair_hint` pointing at the maintenance procedure to follow
 names seen, `pagination_*`, `registry_probe`, `head_page_via`,
 `seen_textboxes[]`, Zillow `status/source`.
 
+Since 2026-09-16 every probe's data point and `collected` source status also carry
+`collector_window` — where the tab lived (`mode`: `collector_window` / `user_window` /
+`user_window_fallback`, `window_id`, `window_created`) and what the page saw once loaded
+(`tab_visibility`, `tab_has_focus`, `timer_probe_ms`, `throttled`, `window_focused`,
+`window_state`). A feed probe that returns fewer items with `tab_visibility: "hidden"` is a
+covered collector window, not an extractor regression: move the window, re-run.
+
 ## 5. Alerts
 
 The report and `/ui/status` always show the latest run. Email goes to

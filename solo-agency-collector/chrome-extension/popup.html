@@ -109,6 +109,17 @@
     Close collector tabs after scan
   </label>
 
+  <label>
+    <input id="useCollectorWindow" type="checkbox">
+    Collect in a separate collector window (your own tabs stay untouched)
+  </label>
+
+  <label for="collectorWindowWidth">Collector window width, px</label>
+  <input id="collectorWindowWidth" type="number" min="600" max="4000" value="1280">
+
+  <label for="collectorWindowHeight">Collector window height, px</label>
+  <input id="collectorWindowHeight" type="number" min="400" max="3000" value="900">
+
   <div class="row">
     <button id="save">Save</button>
     <button id="checkNow" class="secondary">Check now</button>
